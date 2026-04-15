@@ -4,8 +4,7 @@ import { Popover, Transition } from "@headlessui/react"
 import { ArrowRightMini, XMark } from "@medusajs/icons"
 import { Text, clx, useToggleState } from "@medusajs/ui"
 import { Fragment } from "react"
-
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import NavLink from "@modules/common/components/nav-link"
 import CountrySelect from "../country-select"
 import { HttpTypes } from "@medusajs/types"
 
@@ -59,14 +58,13 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                       {Object.entries(SideMenuItems).map(([name, href]) => {
                         return (
                           <li key={name}>
-                            <LocalizedClientLink
+                            <NavLink
                               href={href}
                               className="text-3xl leading-10 hover:text-ui-fg-disabled"
-                              onClick={close}
                               data-testid={`${name.toLowerCase()}-link`}
                             >
                               {name}
-                            </LocalizedClientLink>
+                            </NavLink>
                           </li>
                         )
                       })}
@@ -101,9 +99,3 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
             </>
           )}
         </Popover>
-      </div>
-    </div>
-  )
-}
-
-export default SideMenu
