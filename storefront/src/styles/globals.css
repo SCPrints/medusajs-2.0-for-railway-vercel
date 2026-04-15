@@ -110,3 +110,36 @@
     @apply text-[32px] leading-[44px] font-semibold;
   }
 }
+
+/* --- View Transitions API Extension --- */
+
+/* We disable the browser's default cross-fade animation so that 
+   the custom GSAP/Web Animations logic in our NavLink component 
+   can take full control of the transition.
+*/
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none !important;
+}
+
+::view-transition-group(root) {
+  z-index: auto !important;
+}
+
+::view-transition-image-pair(root) {
+  isolation: isolate;
+  will-change: transform, opacity, clip-path;
+  z-index: 1;
+}
+
+/* Keeps the incoming page correctly layered during the slide animation */
+::view-transition-new(root) {
+  z-index: 10000;
+  animation: none !important;
+}
+
+::view-transition-old(root) {
+  z-index: 10000;
+  animation: none !important;
+}
