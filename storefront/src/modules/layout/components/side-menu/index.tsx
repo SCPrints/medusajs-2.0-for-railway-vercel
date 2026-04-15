@@ -99,3 +99,9 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
             </>
           )}
         </Popover>
+      </div>
+    </div>
+  )
+}
+
+export default SideMenu
