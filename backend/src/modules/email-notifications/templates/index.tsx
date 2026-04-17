@@ -2,10 +2,16 @@ import { ReactNode } from 'react'
 import { MedusaError } from '@medusajs/framework/utils'
 import { InviteUserEmail, INVITE_USER, isInviteUserData } from './invite-user'
 import { OrderPlacedTemplate, ORDER_PLACED, isOrderPlacedTemplateData } from './order-placed'
+import {
+  ContactSubmissionEmail,
+  CONTACT_SUBMISSION,
+  isContactSubmissionData,
+} from './contact-submission'
 
 export const EmailTemplates = {
   INVITE_USER,
-  ORDER_PLACED
+  ORDER_PLACED,
+  CONTACT_SUBMISSION,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -29,6 +35,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
         )
       }
       return <OrderPlacedTemplate {...data} />
+
+    case EmailTemplates.CONTACT_SUBMISSION:
+      if (!isContactSubmissionData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.CONTACT_SUBMISSION}"`
+        )
+      }
+      return <ContactSubmissionEmail {...data} />
 
     default:
       throw new MedusaError(

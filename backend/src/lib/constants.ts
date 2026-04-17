@@ -55,6 +55,7 @@ export const RESEND_API_KEY = process.env.RESEND_API_KEY
 export const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || process.env.RESEND_FROM
 export const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY
 export const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_FROM
+export const CONTACT_NOTIFICATION_EMAIL = process.env.CONTACT_NOTIFICATION_EMAIL
 
 export const MEILISEARCH_HOST = process.env.MEILISEARCH_HOST
 export const MEILISEARCH_ADMIN_KEY = process.env.MEILISEARCH_ADMIN_KEY
