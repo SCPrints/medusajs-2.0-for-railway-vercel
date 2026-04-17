@@ -3,6 +3,19 @@
 @import "tailwindcss/utilities";
 
 @layer utilities {
+  .scrolling-picture-track {
+    animation: picture-marquee 36s linear infinite;
+  }
+
+  @keyframes picture-marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-50% - 1rem));
+    }
+  }
+
   /* Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
