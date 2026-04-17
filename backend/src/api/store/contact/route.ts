@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 
-// 1. Intercept the browser's preflight check and immediately approve it
+// 1. Manually catch the browser's preflight check and approve it
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
   return res.json({ success: true })
 }
