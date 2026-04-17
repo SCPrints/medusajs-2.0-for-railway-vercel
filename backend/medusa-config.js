@@ -33,9 +33,10 @@ const medusaConfig = {
     redisUrl: REDIS_URL,
     workerMode: WORKER_MODE,
     http: {
-      adminCors: ADMIN_CORS,
-      authCors: AUTH_CORS,
-      storeCors: STORE_CORS,
+      // Logic updated to handle multiple URLs separated by commas
+      adminCors: ADMIN_CORS?.split(",") || ADMIN_CORS,
+      authCors: AUTH_CORS?.split(",") || AUTH_CORS,
+      storeCors: STORE_CORS?.split(",") || STORE_CORS,
       jwtSecret: JWT_SECRET,
       cookieSecret: COOKIE_SECRET
     },
@@ -62,7 +63,7 @@ const medusaConfig = {
               endPoint: MINIO_ENDPOINT,
               accessKey: MINIO_ACCESS_KEY,
               secretKey: MINIO_SECRET_KEY,
-              bucket: MINIO_BUCKET // Optional, default: medusa-media
+              bucket: MINIO_BUCKET 
             }
           }] : [{
             resolve: '@medusajs/file-local',
@@ -159,6 +160,3 @@ const medusaConfig = {
     }] : [])
   ]
 };
-
-console.log(JSON.stringify(medusaConfig, null, 2));
-export default defineConfig(medusaConfig);
