@@ -2,6 +2,20 @@
 
 import { useState } from "react"
 
+function getContactApiUrl() {
+  const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
+
+  if (!backendUrl) {
+    throw new Error("Missing NEXT_PUBLIC_MEDUSA_BACKEND_URL")
+  }
+
+  const normalizedBackendUrl = backendUrl
+    .replace(/\/+$/, "")
+    .replace(/\/store$/, "")
+
+  return `${normalizedBackendUrl}/api/contact`
+}
+
 export default function ContactForm() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -20,17 +34,14 @@ export default function ContactForm() {
     }
 
     try {
-      // ✅ Send to general backend API (NOT Store API)
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/api/contact`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        }
-      )
+      // Keep contact form requests on the non-store API namespace.
+      const response = await fetch(getContactApiUrl(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      })
 
       if (response.ok) {
         setSuccess(true)
@@ -39,7 +50,9 @@ export default function ContactForm() {
       }
     } catch (err) {
       console.error(err)
-      alert("Failed to connect to the backend. Please check your network or URL.")
+      alert(
+        "Failed to send message. Check NEXT_PUBLIC_MEDUSA_BACKEND_URL and deployment settings."
+      )
     } finally {
       setLoading(false)
     }

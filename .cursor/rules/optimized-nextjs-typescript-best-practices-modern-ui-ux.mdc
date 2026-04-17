@@ -1,0 +1,17 @@
+---
+description: Storefront modern UI and performance patterns
+globs: storefront/src/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# Storefront UI and UX Rules
+
+- Apply these rules only for `storefront/src/**`.
+- Build accessible UI first: semantic HTML, keyboard support, and visible focus states.
+- Use Tailwind and existing design patterns/components before introducing new primitives.
+- Keep component state minimal; derive values when possible.
+- Use dynamic imports and lazy rendering for non-critical UI paths.
+- Optimize images with Next image tooling and explicit sizing.
+- Prefer mobile-first responsive layouts and progressive enhancement.
+- Use Zod validation for external or form inputs.
+- Add targeted tests for behavior-heavy components and critical user flows.

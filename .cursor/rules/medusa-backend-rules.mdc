@@ -1,0 +1,31 @@
+---
+description: Medusa backend architecture and workflow conventions
+globs: backend/**/*.{ts,tsx,js,jsx,mjs,cjs}
+alwaysApply: false
+---
+
+# Medusa Backend Rules
+
+- Apply these rules only for files under `backend/`.
+- Prefer Medusa framework conventions/utilities over custom infrastructure code.
+- Use `MedusaError` for framework-facing errors and clear failure semantics.
+- Prefer Medusa query utilities for backend data retrieval.
+
+## Workflows
+
+- Use `@medusajs/framework/workflows-sdk` for workflows and steps.
+- For route/job/subscriber features, prefer orchestration via workflows.
+- Use `transform` for data mapping and `when` for conditional workflow branches.
+- Do not make workflow definitions async, and do not `await` workflow step calls.
+
+## Models and Services
+
+- Define models with `model` from `@medusajs/framework/utils`.
+- Keep model variable names camelCase; model and field names snake_case.
+- Keep one primary `id` field (`.primaryKey()`); extra identifiers should be text fields.
+- Keep service methods async; extend `MedusaService` when a module owns data models.
+
+## Admin Customization
+
+- Use Medusa JS SDK for admin-side requests.
+- Use TailwindCSS for styling consistency.

@@ -36,9 +36,9 @@ const medusaConfig = {
     workerMode: WORKER_MODE,
 
     http: {
-      adminCors: process.env.ADMIN_CORS?.split(",") || ADMIN_CORS,
-      authCors: process.env.AUTH_CORS?.split(",") || AUTH_CORS,
-      storeCors: process.env.STORE_CORS?.split(",") || STORE_CORS,
+      adminCors: process.env.ADMIN_CORS || ADMIN_CORS,
+      authCors: process.env.AUTH_CORS || AUTH_CORS,
+      storeCors: process.env.STORE_CORS || STORE_CORS,
 
       // ✅ REQUIRED FIX: allow preflight + publishable key header
       store: {
@@ -89,8 +89,7 @@ const medusaConfig = {
                   upload_dir: 'static',
                   backend_url: `${BACKEND_URL}/static`,
                 },
-              }],
-          ),
+              }]),
         ],
       },
     },
