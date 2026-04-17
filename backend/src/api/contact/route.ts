@@ -1,20 +1,40 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 
-// This function forces the browser to allow the request
-function setManualCors(res: MedusaResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "https://medusajs-2-0-for-railway-vercel.vercel.app")
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://medusajs-2-0-for-railway-vercel.vercel.app",
+  "http://localhost:8000",
+]
+
+function getAllowedOrigins() {
+  const configuredStoreCors = (process.env.STORE_CORS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+
+  return new Set([...DEFAULT_ALLOWED_ORIGINS, ...configuredStoreCors])
+}
+
+function setManualCors(req: MedusaRequest, res: MedusaResponse) {
+  const origin = req.headers.origin
+  const allowedOrigins = getAllowedOrigins()
+
+  if (origin && allowedOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin)
+  }
+
+  res.setHeader("Vary", "Origin")
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key")
   res.setHeader("Access-Control-Allow-Credentials", "true")
 }
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
-  setManualCors(res)
+  setManualCors(req, res)
   return res.status(204).send()
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  setManualCors(res)
+  setManualCors(req, res)
   
   const { name, email, message } = req.body as any
 

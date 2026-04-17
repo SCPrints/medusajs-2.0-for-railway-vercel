@@ -13,7 +13,7 @@ function getContactApiUrl() {
     .replace(/\/+$/, "")
     .replace(/\/store$/, "")
 
-  return `${normalizedBackendUrl}/api/contact`
+  return `${normalizedBackendUrl}/contact`
 }
 
 export default function ContactForm() {
@@ -91,7 +91,94 @@ export default function ContactForm() {
   return (
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* form unchanged */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label
+              htmlFor="first-name"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              First name
+            </label>
+            <input
+              id="first-name"
+              name="first-name"
+              type="text"
+              autoComplete="given-name"
+              className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="last-name"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Last name
+            </label>
+            <input
+              id="last-name"
+              name="last-name"
+              type="text"
+              autoComplete="family-name"
+              className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="subject"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Subject
+          </label>
+          <input
+            id="subject"
+            name="subject"
+            type="text"
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="message"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Message
+          </label>
+          <textarea
+            id="message"
+            name="message"
+            rows={6}
+            required
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-y"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {loading ? "Sending..." : "Send message"}
+        </button>
       </form>
     </div>
   )

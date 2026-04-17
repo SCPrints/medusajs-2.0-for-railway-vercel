@@ -1,8 +1,7 @@
 import { Metadata } from "next"
 import Link from "next/link"
 
-// ✅ FIX: correct import alias
-import ContactForm from "@/modules/contact/components/contact-form"
+import ContactForm from "@modules/contact/components/contact-form"
 
 export const metadata: Metadata = {
   title: "Contact Us",
