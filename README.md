@@ -93,6 +93,7 @@ Video instructions: https://youtu.be/PPxenu7IjGM
 
 ## Useful resources
 - How to setup credit card payment with Stripe payment module: https://youtu.be/dcSOpIzc1Og
+- Railway documentation: https://docs.railway.app
 - https://funkyton.com/medusajs-2-0-is-finally-here/#succuessfully-deployed-whats-next
   
 <p align="center">
