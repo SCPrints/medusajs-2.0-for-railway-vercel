@@ -11,8 +11,20 @@ export default async function Nav() {
 
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
+      <div className="bg-ui-fg-base text-white">
+        <div className="content-container flex h-9 items-center justify-start text-[11px]">
+          <div className="flex items-center gap-4">
+            <a href="tel:+61390000000" className="font-medium hover:text-white/80">
+              +61 3 9000 0000
+            </a>
+            <a href="mailto:info@scprints.com.au" className="font-medium hover:text-white/80">
+              info@scprints.com.au
+            </a>
+          </div>
+        </div>
+      </div>
       <header className="relative h-16 mx-auto border-b duration-200 bg-white border-ui-border-base">
-        <nav className="content-container txt-xsmall-plus text-ui-fg-subtle flex items-center justify-between w-full h-full text-small-regular">
+        <nav className="content-container txt-xsmall-plus text-ui-fg-subtle flex items-center justify-between w-full h-full text-small-regular gap-6">
           <div className="flex-1 basis-0 h-full flex items-center">
             <div className="h-full">
               <SideMenu regions={regions} />
