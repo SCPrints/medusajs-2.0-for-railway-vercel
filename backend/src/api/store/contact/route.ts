@@ -1,11 +1,14 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 
-// 1. Manually catch the browser's preflight check and approve it
-export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
-  return res.json({ success: true })
+// ✅ Proper preflight handler
+export async function OPTIONS(
+  req: MedusaRequest,
+  res: MedusaResponse
+) {
+  res.sendStatus(200)
 }
 
-// 2. Handle the actual form data
+// ✅ Actual contact form handler
 export async function POST(
   req: MedusaRequest,
   res: MedusaResponse
@@ -15,8 +18,8 @@ export async function POST(
   console.log("📬 NEW CONTACT MESSAGE RECEIVED!")
   console.log("Data:", body)
 
-  return res.json({
+  return res.status(200).json({
     success: true,
-    message: "Your message was successfully received by the backend!"
+    message: "Your message was successfully received by the backend!",
   })
 }
