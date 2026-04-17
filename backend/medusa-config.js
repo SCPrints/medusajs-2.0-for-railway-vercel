@@ -1,4 +1,8 @@
 import { loadEnv, Modules, defineConfig } from '@medusajs/utils';
+
+// 1. CRITICAL: Load environment variables BEFORE importing constants
+loadEnv(process.env.NODE_ENV, process.cwd());
+
 import {
   ADMIN_CORS,
   AUTH_CORS,
@@ -24,8 +28,6 @@ import {
   MEILISEARCH_ADMIN_KEY
 } from 'lib/constants';
 
-loadEnv(process.env.NODE_ENV, process.cwd());
-
 const medusaConfig = {
   projectConfig: {
     databaseUrl: DATABASE_URL,
@@ -33,10 +35,11 @@ const medusaConfig = {
     redisUrl: REDIS_URL,
     workerMode: WORKER_MODE,
     http: {
-      // Logic updated to handle multiple URLs separated by commas
-      adminCors: ADMIN_CORS?.split(",") || ADMIN_CORS,
-      authCors: AUTH_CORS?.split(",") || AUTH_CORS,
-      storeCors: STORE_CORS?.split(",") || STORE_CORS,
+      // 2. We use process.env directly here to ensure we have the fresh values
+      // and split by comma to turn the string into a proper array of URLs.
+      adminCors: process.env.ADMIN_CORS?.split(",") || ADMIN_CORS,
+      authCors: process.env.AUTH_CORS?.split(",") || AUTH_CORS,
+      storeCors: process.env.STORE_CORS?.split(",") || STORE_CORS,
       jwtSecret: JWT_SECRET,
       cookieSecret: COOKIE_SECRET
     },
@@ -160,3 +163,5 @@ const medusaConfig = {
     }] : [])
   ]
 };
+
+export default defineConfig(medusaConfig);
