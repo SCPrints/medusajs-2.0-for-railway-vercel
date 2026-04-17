@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useIntersection } from "@lib/hooks/use-in-view"
 import Divider from "@modules/common/components/divider"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
+import { usePrintPlacement } from "@modules/products/context/print-placement-context"
 
 import MobileActions from "./mobile-actions"
 import ProductPrice from "../product-price"
@@ -37,6 +38,7 @@ export default function ProductActions({
   const [options, setOptions] = useState<Record<string, string | undefined>>({})
   const [isAdding, setIsAdding] = useState(false)
   const countryCode = useParams().countryCode as string
+  const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
 
   // If there is only 1 variant, preselect the options
   useEffect(() => {
@@ -99,10 +101,21 @@ export default function ProductActions({
 
     setIsAdding(true)
 
+    const printPlacementMetadata = overlayUrl
+      ? {
+          printPlacement: {
+            version: 1,
+            placement,
+            sourceFileName: overlayFileName,
+          },
+        }
+      : undefined
+
     await addToCart({
       variantId: selectedVariant.id,
       quantity: 1,
       countryCode,
+      metadata: printPlacementMetadata,
     })
 
     setIsAdding(false)
