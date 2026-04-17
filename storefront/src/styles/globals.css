@@ -7,12 +7,25 @@
     animation: picture-marquee 46s linear infinite;
   }
 
+  .value-marquee-track {
+    animation: value-marquee 28s linear infinite;
+  }
+
   @keyframes picture-marquee {
     0% {
       transform: translateX(0);
     }
     100% {
       transform: translateX(calc(-50% - 1rem));
+    }
+  }
+
+  @keyframes value-marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
     }
   }
 
