@@ -2,20 +2,6 @@
 
 import { useState } from "react"
 
-function getContactApiUrl() {
-  const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
-
-  if (!backendUrl) {
-    throw new Error("Missing NEXT_PUBLIC_MEDUSA_BACKEND_URL")
-  }
-
-  const normalizedBackendUrl = backendUrl
-    .replace(/\/+$/, "")
-    .replace(/\/store$/, "")
-
-  return `${normalizedBackendUrl}/contact`
-}
-
 export default function ContactForm() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -34,8 +20,8 @@ export default function ContactForm() {
     }
 
     try {
-      // Keep contact form requests on the non-store API namespace.
-      const response = await fetch(getContactApiUrl(), {
+      // Use same-origin API route to avoid browser CORS preflight issues.
+      const response = await fetch("/api/contact", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -46,13 +32,15 @@ export default function ContactForm() {
       if (response.ok) {
         setSuccess(true)
       } else {
-        alert("Backend received the request, but rejected it. Check Railway logs.")
+        const body = await response.json().catch(() => null)
+        alert(
+          body?.message ??
+            "Message could not be sent right now. Please try again shortly."
+        )
       }
     } catch (err) {
       console.error(err)
-      alert(
-        "Failed to send message. Check NEXT_PUBLIC_MEDUSA_BACKEND_URL and deployment settings."
-      )
+      alert("Failed to send message. Please try again shortly.")
     } finally {
       setLoading(false)
     }
