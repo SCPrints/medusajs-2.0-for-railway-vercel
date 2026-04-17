@@ -17,11 +17,3 @@ export async function POST(
     message: "Your message was successfully received by the backend!"
   })
 }
-
-// 4. Handle CORS preflight requests from the browser
-export async function OPTIONS(
-  req: MedusaRequest,
-  res: MedusaResponse
-) {
-  res.status(200).send()
-}
