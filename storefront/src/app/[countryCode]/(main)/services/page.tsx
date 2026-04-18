@@ -93,7 +93,7 @@ export default async function ServicesPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceListStructuredData) }}
       />
       <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
-        <p className="inline-flex rounded-full border border-[#FF6B35]/40 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#FF6B35]">
+        <p className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--brand-secondary)]">
           SC PRINTS Services
         </p>
         <h1 className="mt-3 text-4xl font-semibold text-ui-fg-base small:text-5xl">
@@ -119,7 +119,7 @@ export default async function ServicesPage({
         </div>
       </div>
 
-      <section className="mt-12 border-l-4 border-[#FF6B35] pl-4">
+      <section className="mt-12 border-l-4 border-[var(--brand-secondary)] pl-4">
         <h2 className="text-2xl font-semibold text-ui-fg-base">Core Decoration Services</h2>
         <p className="mt-2 text-sm text-ui-fg-subtle">
           Compare each process, minimums, and best-use scenarios before selecting your service.
@@ -130,7 +130,7 @@ export default async function ServicesPage({
         {services.map((service) => (
           <article
             key={service.slug}
-            className="rounded-xl border border-ui-border-base bg-white p-6 shadow-sm transition-colors hover:border-[#FF6B35]/55 small:p-7"
+            className="rounded-xl border border-ui-border-base bg-white p-6 shadow-sm transition-colors hover:border-[var(--brand-secondary)]/55 small:p-7"
           >
             <div className="grid gap-5 small:grid-cols-[2fr_1fr] small:gap-7">
               <div>
@@ -139,14 +139,14 @@ export default async function ServicesPage({
                 <ul className="mt-4 space-y-2 text-sm text-ui-fg-subtle">
                   {service.bulletPoints.map((point) => (
                     <li key={point} className="flex gap-2.5">
-                      <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#FF6B35]" />
+                      <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]" />
                       <span>{point}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              <div className="rounded-lg border border-[#FF6B35]/35 bg-ui-bg-subtle p-4">
+              <div className="rounded-lg border border-[var(--brand-secondary)]/35 bg-ui-bg-subtle p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
                   Best Fit
                 </p>
@@ -177,7 +177,7 @@ export default async function ServicesPage({
           {supportServices.map((item) => (
             <article
               key={item.title}
-              className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 transition-colors hover:border-[#FF6B35]/55"
+              className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 transition-colors hover:border-[var(--brand-secondary)]/55"
             >
               <h3 className="text-base font-semibold text-ui-fg-base">{item.title}</h3>
               <p className="mt-2 text-sm text-ui-fg-subtle">{item.description}</p>

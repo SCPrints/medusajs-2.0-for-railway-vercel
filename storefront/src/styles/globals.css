@@ -3,10 +3,10 @@
 @import "tailwindcss/utilities";
 
 :root {
-  --brand-primary: #1f2933; /* Industrial Bold - deep slate */
-  --brand-secondary: #ff6b35; /* Industrial Bold - safety orange */
-  --brand-accent: #ffd166; /* Industrial Bold - warm amber */
-  --brand-background: #f5f7fa; /* Industrial Bold - soft light */
+  --brand-primary: #1a1a2e; /* Inkwell Navy */
+  --brand-secondary: #00adb5; /* Cyan Pop */
+  --brand-accent: #ff2e63; /* Magenta Punch */
+  --brand-background: #eeeeee; /* Soft Light */
 }
 
 html,
@@ -30,7 +30,7 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 }
 
 .text-ui-fg-subtle {
-  color: rgba(31, 41, 51, 0.72);
+  color: rgba(26, 26, 46, 0.72);
 }
 
 .bg-ui-fg-base {
@@ -43,7 +43,7 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 }
 
 .border-ui-border-base {
-  border-color: rgba(31, 41, 51, 0.22);
+  border-color: rgba(26, 26, 46, 0.22);
 }
 
 /* Keep interactive states aligned with the new palette */
@@ -58,7 +58,7 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 
 /* Small badge/chip treatment */
 [class*="rounded-full"][class*="text-xs"] {
-  border-color: rgba(255, 107, 53, 0.5);
+  border-color: rgba(0, 173, 181, 0.5);
   color: var(--brand-secondary);
 }
 

@@ -11,7 +11,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 // NEW: Viewport settings to prevent awkward mobile zooming on inputs
 export const viewport: Viewport = {
-  themeColor: "#F5F7FA",
+  themeColor: "#EEEEEE",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -103,7 +103,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
     <ViewTransitions>
       <html lang="en" data-mode="light" className="scroll-smooth">
         <body 
-          className={`${plusJakartaSans.className} antialiased selection:bg-[#FFD166] selection:text-[#1F2933]`}
+          className={`${plusJakartaSans.className} antialiased selection:bg-[#FF2E63] selection:text-[#EEEEEE]`}
         >
           <script
             type="application/ld+json"

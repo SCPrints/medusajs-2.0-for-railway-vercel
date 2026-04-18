@@ -176,7 +176,7 @@ export default async function Home({
       />
       <section className="content-container py-12 small:py-16">
         <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 shadow-sm small:p-12">
-          <span className="inline-flex rounded-full border border-[#FF6B35]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#FF6B35]">
+          <span className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-secondary)]">
             Custom Apparel Made Simple
           </span>
           <h1 className="mt-5 text-4xl font-semibold leading-tight text-ui-fg-base small:text-5xl">
@@ -191,7 +191,7 @@ export default async function Home({
                 key={step}
                 className="rounded-xl border border-ui-border-base bg-white p-4 text-sm font-medium text-ui-fg-base"
               >
-                <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B35] text-xs font-semibold text-[#1F2933]">
+                <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand-secondary)] text-xs font-semibold text-[var(--brand-primary)]">
                   {index + 1}
                 </span>
                 <p>{step}</p>
@@ -211,7 +211,7 @@ export default async function Home({
 
       <section className="content-container py-12">
         <div className="mb-6 flex items-end justify-between">
-          <div className="border-l-4 border-[#FF6B35] pl-4">
+          <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
               Shop Top Picks
             </p>
@@ -248,7 +248,7 @@ export default async function Home({
             return (
               <li
                 key={product.id}
-                className="w-[280px] shrink-0 snap-start rounded-xl border border-ui-border-base bg-white p-4 transition-colors hover:border-[#FF6B35]/55"
+                className="w-[280px] shrink-0 snap-start rounded-xl border border-ui-border-base bg-white p-4 transition-colors hover:border-[var(--brand-secondary)]/55"
               >
                 <LocalizedClientLink href={`/products/${product.handle}`} className="group block">
                   <Thumbnail
@@ -313,7 +313,7 @@ export default async function Home({
       </section>
 
       <section className="content-container py-14">
-        <div className="border-l-4 border-[#FF6B35] pl-4">
+        <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
             What We Offer
           </p>
@@ -323,9 +323,9 @@ export default async function Home({
           {CORE_SERVICES.map((service) => (
             <article
               key={service.title}
-              className="rounded-xl border border-ui-border-base bg-white p-5 text-center transition-colors hover:border-[#FF6B35]/55"
+              className="rounded-xl border border-ui-border-base bg-white p-5 text-center transition-colors hover:border-[var(--brand-secondary)]/55"
             >
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6B35]/15 text-2xl text-[#FF6B35]">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-secondary)]/15 text-2xl text-[var(--brand-secondary)]">
                 {service.icon}
               </div>
               <p className="text-sm font-semibold text-ui-fg-base">{service.title}</p>
