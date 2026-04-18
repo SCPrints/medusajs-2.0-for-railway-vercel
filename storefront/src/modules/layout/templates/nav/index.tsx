@@ -11,20 +11,8 @@ export default async function Nav() {
 
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
-      <div className="bg-ui-fg-base text-white">
-        <div className="content-container flex h-9 items-center justify-start text-[11px]">
-          <div className="flex items-center gap-4">
-            <a href="tel:+61390000000" className="font-medium hover:text-white/80">
-              +61 3 9000 0000
-            </a>
-            <a href="mailto:info@scprints.com.au" className="font-medium hover:text-white/80">
-              info@scprints.com.au
-            </a>
-          </div>
-        </div>
-      </div>
-      <header className="relative h-16 mx-auto border-b duration-200 bg-white border-ui-border-base">
-        <nav className="content-container txt-xsmall-plus text-ui-fg-subtle flex items-center justify-between w-full h-full text-small-regular gap-6">
+      <header className="relative h-16 mx-auto border-b border-white/20 bg-ui-fg-base duration-200">
+        <nav className="content-container txt-xsmall-plus flex h-full w-full items-center justify-between gap-6 text-small-regular text-[rgba(248,250,252,0.9)]">
           <div className="flex-1 basis-0 h-full flex items-center">
             <div className="h-full">
               <SideMenu regions={regions} />
@@ -34,7 +22,7 @@ export default async function Nav() {
           <div className="flex items-center h-full">
             <LocalizedClientLink
               href="/"
-              className="txt-compact-xlarge-plus hover:text-ui-fg-base uppercase"
+              className="txt-compact-xlarge-plus uppercase text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
               data-testid="nav-store-link"
             >
               SC PRINTS
@@ -45,7 +33,7 @@ export default async function Nav() {
             <div className="hidden small:flex items-center gap-x-6 h-full">
               {process.env.NEXT_PUBLIC_FEATURE_SEARCH_ENABLED && (
                 <LocalizedClientLink
-                  className="hover:text-ui-fg-base"
+                  className="hover:text-[var(--brand-accent)]"
                   href="/search"
                   scroll={false}
                   data-testid="nav-search-link"
@@ -54,7 +42,7 @@ export default async function Nav() {
                 </LocalizedClientLink>
               )}
               <LocalizedClientLink
-                className="hover:text-ui-fg-base"
+                className="hover:text-[var(--brand-accent)]"
                 href="/account"
                 data-testid="nav-account-link"
               >
@@ -64,7 +52,7 @@ export default async function Nav() {
             <Suspense
               fallback={
                 <LocalizedClientLink
-                  className="hover:text-ui-fg-base flex gap-2"
+                  className="flex gap-2 hover:text-[var(--brand-accent)]"
                   href="/cart"
                   data-testid="nav-cart-link"
                 >
