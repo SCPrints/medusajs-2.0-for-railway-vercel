@@ -12,10 +12,10 @@ const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
 }
 
 type Props = {
-  params: {
+  params: Promise<{
     countryCode: string
     service: string
-  }
+  }>
 }
 
 export async function generateStaticParams() {
@@ -23,7 +23,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const service = getServiceBySlug(params.service)
+  const { service: serviceSlug } = await params
+  const service = getServiceBySlug(serviceSlug)
 
   if (!service) {
     return {
@@ -37,12 +38,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default function ServiceDetailPage({ params }: Props) {
-  return <ServiceDetailPageContent params={params} />
-}
-
-async function ServiceDetailPageContent({ params }: Props) {
-  const service = getServiceBySlug(params.service)
+export default async function ServiceDetailPage({ params }: Props) {
+  const { service: serviceSlug } = await params
+  const service = getServiceBySlug(serviceSlug)
 
   if (!service) {
     notFound()

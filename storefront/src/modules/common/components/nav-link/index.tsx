@@ -7,7 +7,7 @@ type NavLinkProps = {
   href: string
   children: React.ReactNode
   className?: string
-  onClick?: React.MouseEventHandler<HTMLAnchorElement>
+  onClick?: () => void
   "data-testid"?: string
 }
 

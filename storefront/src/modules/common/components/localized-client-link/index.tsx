@@ -45,16 +45,34 @@ const LocalizedClientLink = ({
   children?: React.ReactNode
   href: string
   className?: string
-  onClick?: React.MouseEventHandler<HTMLAnchorElement>
+  onClick?: (() => void) | React.MouseEventHandler<HTMLAnchorElement>
   passHref?: true
   [x: string]: any
 }) => {
   const router = useTransitionRouter()
   const { countryCode } = useParams()
-  const localizedHref = `/${countryCode}${href}`
+  const normalizedCountryCode = Array.isArray(countryCode)
+    ? countryCode[0]
+    : countryCode
+  const isExternalHref =
+    href.startsWith("http://") ||
+    href.startsWith("https://") ||
+    href.startsWith("mailto:") ||
+    href.startsWith("tel:")
+  const localizedHref =
+    isExternalHref || !normalizedCountryCode
+      ? href
+      : `/${normalizedCountryCode}${href}`
 
   const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (e) => {
-    props.onClick?.(e)
+    const clickHandler = props.onClick
+    if (typeof clickHandler === "function") {
+      if (clickHandler.length === 0) {
+        ;(clickHandler as () => void)()
+      } else {
+        ;(clickHandler as React.MouseEventHandler<HTMLAnchorElement>)(e)
+      }
+    }
 
     if (e.defaultPrevented) {
       return
@@ -66,7 +84,9 @@ const LocalizedClientLink = ({
       e.shiftKey ||
       e.altKey ||
       props.target === "_blank" ||
-      props.download
+      props.download ||
+      isExternalHref ||
+      href.startsWith("#")
     ) {
       return
     }
