@@ -2,7 +2,12 @@
 
 import FilterRadioGroup from "@modules/common/components/filter-radio-group"
 
-export type SortOptions = "price_asc" | "price_desc" | "created_at"
+export type SortOptions =
+  | "created_at"
+  | "price_asc"
+  | "price_desc"
+  | "title_asc"
+  | "title_desc"
 
 type SortProductsProps = {
   sortBy: SortOptions
@@ -22,6 +27,14 @@ const sortOptions = [
   {
     value: "price_desc",
     label: "Price: High -> Low",
+  },
+  {
+    value: "title_asc",
+    label: "Name: A -> Z",
+  },
+  {
+    value: "title_desc",
+    label: "Name: Z -> A",
   },
 ]
 

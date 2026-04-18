@@ -1,10 +1,36 @@
 import { Metadata } from "next"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { services } from "@modules/services/data"
 
-export const metadata: Metadata = {
-  title: "Services",
-  description: "Explore our decoration and branding services.",
+type MetadataProps = {
+  params: Promise<{ countryCode: string }>
+}
+
+export async function generateMetadata({ params }: MetadataProps): Promise<Metadata> {
+  const { countryCode } = await params
+  const canonicalPath = `/${countryCode}/services`
+  const description =
+    "Explore screen printing, embroidery, digital transfers, and UV printing services for Australian brands and teams."
+
+  return {
+    title: "Services",
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      url: buildAbsoluteUrl(canonicalPath),
+      title: `Services | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+    twitter: {
+      title: `Services | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+  }
 }
 
 const serviceMinimums: Record<string, string> = {
@@ -32,9 +58,40 @@ const supportServices = [
   },
 ]
 
-export default function ServicesPage() {
+export default async function ServicesPage({
+  params,
+}: {
+  params: Promise<{ countryCode: string }>
+}) {
+  const { countryCode } = await params
+  const servicesPath = `/${countryCode}/services`
+  const serviceListStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: `${SEO.siteName} Services`,
+    itemListElement: services.map((service, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "Service",
+        name: service.title,
+        description: service.shortDescription,
+        url: buildAbsoluteUrl(`${servicesPath}/${service.slug}`),
+        areaServed: "AU",
+        provider: {
+          "@type": "Organization",
+          name: SEO.siteName,
+        },
+      },
+    })),
+  }
+
   return (
     <div className="content-container py-14 small:py-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceListStructuredData) }}
+      />
       <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
         <p className="inline-flex rounded-full border border-[#FF6B35]/40 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#FF6B35]">
           What We Do

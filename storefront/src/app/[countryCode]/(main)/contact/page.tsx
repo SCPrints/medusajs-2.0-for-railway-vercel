@@ -1,15 +1,64 @@
 import { Metadata } from "next"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import ContactForm from "@modules/contact/components/contact-form"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-export const metadata: Metadata = {
-  title: "Contact Us",
-  description: "Get in touch with our team.",
+type MetadataProps = {
+  params: Promise<{ countryCode: string }>
 }
 
-export default function ContactPage() {
+export async function generateMetadata({ params }: MetadataProps): Promise<Metadata> {
+  const { countryCode } = await params
+  const canonicalPath = `/${countryCode}/contact`
+  const description = "Get in touch with the SC PRINTS team for quotes, support, and order advice."
+
+  return {
+    title: "Contact Us",
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      url: buildAbsoluteUrl(canonicalPath),
+      title: `Contact Us | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+    twitter: {
+      title: `Contact Us | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+  }
+}
+
+export default async function ContactPage({
+  params,
+}: {
+  params: Promise<{ countryCode: string }>
+}) {
+  const { countryCode } = await params
+  const contactPath = `/${countryCode}/contact`
+  const contactStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: `Contact ${SEO.siteName}`,
+    url: buildAbsoluteUrl(contactPath),
+    mainEntity: {
+      "@type": "Organization",
+      name: SEO.siteName,
+      email: SEO.contactEmail,
+      telephone: SEO.contactPhone,
+      areaServed: "AU",
+    },
+  }
+
   return (
     <div className="content-container py-14 small:py-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactStructuredData) }}
+      />
       {/* Header Section */}
       <div className="mx-auto mb-12 max-w-2xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-ui-fg-base">

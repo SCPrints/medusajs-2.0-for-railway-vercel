@@ -12,19 +12,42 @@ type Params = {
   searchParams: {
     sortBy?: SortOptions
     page?: string
+    minPrice?: string
+    maxPrice?: string
+    inStock?: string
+    brand?: string
+    fabric?: string
   }
   params: {
     countryCode: string
   }
 }
 
+const parsePositiveNumber = (value?: string) => {
+  if (!value) {
+    return undefined
+  }
+
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined
+  }
+
+  return Math.floor(parsed)
+}
+
 export default async function StorePage({ searchParams, params }: Params) {
-  const { sortBy, page } = searchParams
+  const { sortBy, page, minPrice, maxPrice, inStock, brand, fabric } = searchParams
 
   return (
     <StoreTemplate
       sortBy={sortBy}
       page={page}
+      minPrice={parsePositiveNumber(minPrice)}
+      maxPrice={parsePositiveNumber(maxPrice)}
+      inStock={inStock === "1"}
+      brand={brand?.trim() || undefined}
+      fabric={fabric?.trim() || undefined}
       countryCode={params.countryCode}
     />
   )

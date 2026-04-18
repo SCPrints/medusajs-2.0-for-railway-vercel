@@ -46,5 +46,15 @@ export function sortProducts(
     })
   }
 
+  if (sortBy === "title_asc" || sortBy === "title_desc") {
+    sortedProducts.sort((a, b) => {
+      const titleA = (a.title ?? "").toLowerCase()
+      const titleB = (b.title ?? "").toLowerCase()
+
+      const comparison = titleA.localeCompare(titleB)
+      return sortBy === "title_asc" ? comparison : -comparison
+    })
+  }
+
   return sortedProducts
 }

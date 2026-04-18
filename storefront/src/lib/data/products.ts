@@ -3,6 +3,7 @@ import { HttpTypes } from "@medusajs/types"
 import { cache } from "react"
 import { getRegion } from "./regions"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
+import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
 
 export const getProductsById = cache(async function ({
@@ -70,7 +71,7 @@ export const getProductsList = cache(async function ({
         limit,
         offset,
         region_id: region.id,
-        fields: "*variants.calculated_price",
+        fields: "*variants.calculated_price,+variants.inventory_quantity",
         ...queryParams,
       },
       { next: { tags: ["products"] } }
@@ -97,11 +98,13 @@ export const getProductsListWithSort = cache(async function ({
   page = 0,
   queryParams,
   sortBy = "created_at",
+  filters,
   countryCode,
 }: {
   page?: number
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
   sortBy?: SortOptions
+  filters?: ProductFilters
   countryCode: string
 }): Promise<{
   response: { products: HttpTypes.StoreProduct[]; count: number }
@@ -109,6 +112,18 @@ export const getProductsListWithSort = cache(async function ({
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
 }> {
   const limit = queryParams?.limit || 12
+  const getMetadataValue = (product: HttpTypes.StoreProduct, keys: string[]) => {
+    const metadata = (product.metadata ?? {}) as Record<string, unknown>
+
+    for (const key of keys) {
+      const value = metadata[key]
+      if (typeof value === "string" && value.trim()) {
+        return value.trim()
+      }
+    }
+
+    return null
+  }
 
   const {
     response: { products, count },
@@ -121,18 +136,73 @@ export const getProductsListWithSort = cache(async function ({
     countryCode,
   })
 
-  const sortedProducts = sortProducts(products, sortBy)
+  const filteredProducts = products.filter((product) => {
+    const variantPrices = (product.variants ?? [])
+      .map((variant) => variant?.calculated_price?.calculated_amount)
+      .filter((price): price is number => typeof price === "number")
+    const minVariantPrice = variantPrices.length ? Math.min(...variantPrices) : null
+    const hasStock = (product.variants ?? []).some(
+      (variant) =>
+        (variant as HttpTypes.StoreProductVariant)?.inventory_quantity === undefined ||
+        (variant as HttpTypes.StoreProductVariant)?.inventory_quantity === null ||
+        (variant as HttpTypes.StoreProductVariant).inventory_quantity! > 0
+    )
+    const brand = getMetadataValue(product, ["brand", "manufacturer", "label"])?.toLowerCase()
+    const fabric = getMetadataValue(product, [
+      "fabric_type",
+      "fabric",
+      "material",
+      "composition",
+    ])?.toLowerCase()
+
+    if (typeof filters?.minPrice === "number") {
+      if (minVariantPrice === null || minVariantPrice < filters.minPrice) {
+        return false
+      }
+    }
+
+    if (typeof filters?.maxPrice === "number") {
+      if (minVariantPrice === null || minVariantPrice > filters.maxPrice) {
+        return false
+      }
+    }
+
+    if (filters?.inStock && !hasStock) {
+      return false
+    }
+
+    if (filters?.brand && brand && !brand.includes(filters.brand.toLowerCase())) {
+      return false
+    }
+
+    if (filters?.brand && !brand) {
+      return false
+    }
+
+    if (filters?.fabric && fabric && !fabric.includes(filters.fabric.toLowerCase())) {
+      return false
+    }
+
+    if (filters?.fabric && !fabric) {
+      return false
+    }
+
+    return true
+  })
+
+  const sortedProducts = sortProducts(filteredProducts, sortBy)
 
   const pageParam = (page - 1) * limit
 
-  const nextPage = count > pageParam + limit ? pageParam + limit : null
+  const filteredCount = sortedProducts.length
+  const nextPage = filteredCount > pageParam + limit ? pageParam + limit : null
 
   const paginatedProducts = sortedProducts.slice(pageParam, pageParam + limit)
 
   return {
     response: {
       products: paginatedProducts,
-      count,
+      count: filteredCount,
     },
     nextPage,
     queryParams,

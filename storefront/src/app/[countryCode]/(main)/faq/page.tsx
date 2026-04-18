@@ -1,9 +1,34 @@
 import { Metadata } from "next"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-export const metadata: Metadata = {
-  title: "FAQ",
-  description: "Frequently asked questions about ordering, artwork, production, and delivery.",
+type MetadataProps = {
+  params: Promise<{ countryCode: string }>
+}
+
+export async function generateMetadata({ params }: MetadataProps): Promise<Metadata> {
+  const { countryCode } = await params
+  const canonicalPath = `/${countryCode}/faq`
+  const description = "Frequently asked questions about ordering, artwork, production, and delivery."
+
+  return {
+    title: "FAQ",
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      url: buildAbsoluteUrl(canonicalPath),
+      title: `FAQ | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+    twitter: {
+      title: `FAQ | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+  }
 }
 
 type FaqItem = {
@@ -145,9 +170,34 @@ const FAQ_SECTIONS: FaqSection[] = [
   },
 ]
 
-export default function FaqPage() {
+export default async function FaqPage({
+  params,
+}: {
+  params: Promise<{ countryCode: string }>
+}) {
+  const { countryCode } = await params
+  const faqStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_SECTIONS.flatMap((section) =>
+      section.items.map((item) => ({
+        "@type": "Question",
+        name: item.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: item.answer,
+        },
+      }))
+    ),
+    url: buildAbsoluteUrl(`/${countryCode}/faq`),
+  }
+
   return (
     <div className="content-container py-14 small:py-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
+      />
       <section className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
         <p className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--brand-secondary)]">
           FAQ

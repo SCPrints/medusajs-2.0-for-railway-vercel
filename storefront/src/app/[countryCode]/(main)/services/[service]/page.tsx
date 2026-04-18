@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Image from "next/image"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { getServiceBySlug } from "@modules/services/data"
 
@@ -19,7 +20,7 @@ type Props = {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { service: serviceSlug } = await params
+  const { service: serviceSlug, countryCode } = await params
   const service = getServiceBySlug(serviceSlug)
 
   if (!service) {
@@ -29,8 +30,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${service.title} | Services`,
+    title: `${service.title} Service`,
     description: service.shortDescription,
+    alternates: {
+      canonical: `/${countryCode}/services/${service.slug}`,
+    },
+    openGraph: {
+      url: buildAbsoluteUrl(`/${countryCode}/services/${service.slug}`),
+      title: `${service.title} | ${SEO.siteName}`,
+      description: service.shortDescription,
+      images: [SEO.ogImage],
+    },
+    twitter: {
+      title: `${service.title} | ${SEO.siteName}`,
+      description: service.shortDescription,
+      images: [SEO.ogImage],
+    },
   }
 }
 

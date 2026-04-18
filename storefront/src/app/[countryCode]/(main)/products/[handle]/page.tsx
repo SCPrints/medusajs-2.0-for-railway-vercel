@@ -4,6 +4,8 @@ import { notFound } from "next/navigation"
 import ProductTemplate from "@modules/products/templates"
 import { getRegion, listRegions } from "@lib/data/regions"
 import { getProductByHandle, getProductsList } from "@lib/data/products"
+import { getProductPrice } from "@lib/util/get-product-price"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 
 type Props = {
   params: { countryCode: string; handle: string }
@@ -57,12 +59,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${product.title} | Medusa Store`,
+    title: product.title,
     description: `${product.title}`,
+    alternates: {
+      canonical: `/${params.countryCode}/products/${product.handle}`,
+    },
     openGraph: {
-      title: `${product.title} | Medusa Store`,
+      url: buildAbsoluteUrl(`/${params.countryCode}/products/${product.handle}`),
+      title: `${product.title} | ${SEO.siteName}`,
       description: `${product.title}`,
       images: product.thumbnail ? [product.thumbnail] : [],
+    },
+    twitter: {
+      title: `${product.title} | ${SEO.siteName}`,
+      description: `${product.title}`,
+      images: product.thumbnail ? [product.thumbnail] : [SEO.ogImage],
     },
   }
 }
@@ -79,11 +90,41 @@ export default async function ProductPage({ params }: Props) {
     notFound()
   }
 
+  const { cheapestPrice } = getProductPrice({ product: pricedProduct })
+  const productStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: pricedProduct.title,
+    description: pricedProduct.description ?? pricedProduct.title,
+    image: pricedProduct.thumbnail ? [pricedProduct.thumbnail] : [buildAbsoluteUrl(SEO.ogImage)],
+    sku: pricedProduct.variants?.[0]?.sku ?? undefined,
+    brand: {
+      "@type": "Brand",
+      name: SEO.siteName,
+    },
+    offers: cheapestPrice
+      ? {
+          "@type": "Offer",
+          url: buildAbsoluteUrl(`/${params.countryCode}/products/${pricedProduct.handle}`),
+          priceCurrency: cheapestPrice.currency_code.toUpperCase(),
+          price: cheapestPrice.calculated_price_number,
+          availability: "https://schema.org/InStock",
+          itemCondition: "https://schema.org/NewCondition",
+        }
+      : undefined,
+  }
+
   return (
-    <ProductTemplate
-      product={pricedProduct}
-      region={region}
-      countryCode={params.countryCode}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productStructuredData) }}
+      />
+      <ProductTemplate
+        product={pricedProduct}
+        region={region}
+        countryCode={params.countryCode}
+      />
+    </>
   )
 }

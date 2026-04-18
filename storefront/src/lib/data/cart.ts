@@ -399,3 +399,71 @@ export async function updateRegion(countryCode: string, currentPath: string) {
 
   redirect(`/${countryCode}${currentPath}`)
 }
+
+export type SavedCartLineInput = {
+  variant_id: string
+  quantity: number
+  metadata?: Record<string, unknown>
+}
+
+export async function replaceCartWithSavedItems({
+  countryCode,
+  items,
+}: {
+  countryCode: string
+  items: SavedCartLineInput[]
+}) {
+  if (!countryCode) {
+    throw new Error("Missing country code when restoring a saved cart")
+  }
+
+  const sanitizedItems = items
+    .filter((item) => item?.variant_id && Number(item.quantity) > 0)
+    .map((item) => ({
+      variant_id: item.variant_id,
+      quantity: Math.max(1, Math.floor(item.quantity)),
+      metadata: item.metadata ?? {},
+    }))
+
+  if (!sanitizedItems.length) {
+    throw new Error("No valid items found in saved cart")
+  }
+
+  const cart = await getOrSetCart(countryCode)
+  const cartId = cart?.id
+
+  if (!cartId) {
+    throw new Error("Unable to load cart for saved cart restoration")
+  }
+
+  const currentCart = await sdk.store.cart.retrieve(cartId, {}, await getAuthHeaders())
+  const currentItems = currentCart.cart.items ?? []
+
+  for (const lineItem of currentItems) {
+    await sdk.store.cart
+      .deleteLineItem(cartId, lineItem.id, await getAuthHeaders())
+      .catch(medusaError)
+  }
+
+  for (const item of sanitizedItems) {
+    await sdk.store.cart
+      .createLineItem(
+        cartId,
+        {
+          variant_id: item.variant_id,
+          quantity: item.quantity,
+          metadata: item.metadata,
+        },
+        {},
+        await getAuthHeaders()
+      )
+      .catch(medusaError)
+  }
+
+  revalidateTag("cart")
+
+  return {
+    success: true,
+    restored_items: sanitizedItems.length,
+  }
+}

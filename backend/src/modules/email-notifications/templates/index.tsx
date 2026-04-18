@@ -7,11 +7,17 @@ import {
   CONTACT_SUBMISSION,
   isContactSubmissionData,
 } from './contact-submission'
+import {
+  CART_REMINDER,
+  CartReminderEmail,
+  isCartReminderData,
+} from './cart-reminder'
 
 export const EmailTemplates = {
   INVITE_USER,
   ORDER_PLACED,
   CONTACT_SUBMISSION,
+  CART_REMINDER,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -44,6 +50,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
         )
       }
       return <ContactSubmissionEmail {...data} />
+
+    case EmailTemplates.CART_REMINDER:
+      if (!isCartReminderData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.CART_REMINDER}"`
+        )
+      }
+      return <CartReminderEmail {...data} />
 
     default:
       throw new MedusaError(

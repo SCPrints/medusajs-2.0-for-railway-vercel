@@ -3,6 +3,7 @@ import { getRegion } from "@lib/data/regions"
 import ProductPreview from "@modules/products/components/product-preview"
 import { Pagination } from "@modules/store/components/pagination"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
+import { ProductFilters } from "@modules/store/components/refinement-list/types"
 
 const PRODUCT_LIMIT = 12
 
@@ -20,6 +21,11 @@ export default async function PaginatedProducts({
   collectionId,
   categoryId,
   productsIds,
+  minPrice,
+  maxPrice,
+  inStock,
+  brand,
+  fabric,
   countryCode,
 }: {
   sortBy?: SortOptions
@@ -27,6 +33,11 @@ export default async function PaginatedProducts({
   collectionId?: string
   categoryId?: string
   productsIds?: string[]
+  minPrice?: number
+  maxPrice?: number
+  inStock?: boolean
+  brand?: string
+  fabric?: string
   countryCode: string
 }) {
   const queryParams: PaginatedProductsParams = {
@@ -61,6 +72,13 @@ export default async function PaginatedProducts({
     page,
     queryParams,
     sortBy,
+    filters: {
+      minPrice,
+      maxPrice,
+      inStock,
+      brand,
+      fabric,
+    } as ProductFilters,
     countryCode,
   })
 

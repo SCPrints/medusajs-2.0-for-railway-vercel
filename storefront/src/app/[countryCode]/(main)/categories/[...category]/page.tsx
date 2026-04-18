@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 
 import { getCategoryByHandle, listCategories } from "@lib/data/categories"
 import { listRegions } from "@lib/data/regions"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { StoreProductCategory, StoreRegion } from "@medusajs/types"
 import CategoryTemplate from "@modules/categories/templates"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -12,7 +13,25 @@ type Props = {
   searchParams: {
     sortBy?: SortOptions
     page?: string
+    minPrice?: string
+    maxPrice?: string
+    inStock?: string
+    brand?: string
+    fabric?: string
   }
+}
+
+const parsePositiveNumber = (value?: string) => {
+  if (!value) {
+    return undefined
+  }
+
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return undefined
+  }
+
+  return Math.floor(parsed)
 }
 
 export async function generateStaticParams() {
@@ -57,10 +76,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       `${title} category.`
 
     return {
-      title: `${title} | Medusa Store`,
+      title,
       description,
       alternates: {
-        canonical: `${params.category.join("/")}`,
+        canonical: `/${params.countryCode}/categories/${params.category.join("/")}`,
+      },
+      openGraph: {
+        url: buildAbsoluteUrl(`/${params.countryCode}/categories/${params.category.join("/")}`),
+        title: `${title} | ${SEO.siteName}`,
+        description,
+      },
+      twitter: {
+        title: `${title} | ${SEO.siteName}`,
+        description,
+        images: [SEO.ogImage],
       },
     }
   } catch (error) {
@@ -69,7 +98,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function CategoryPage({ params, searchParams }: Props) {
-  const { sortBy, page } = searchParams
+  const { sortBy, page, minPrice, maxPrice, inStock, brand, fabric } = searchParams
 
   const { product_categories } = await getCategoryByHandle(
     params.category
@@ -84,6 +113,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       categories={product_categories}
       sortBy={sortBy}
       page={page}
+      minPrice={parsePositiveNumber(minPrice)}
+      maxPrice={parsePositiveNumber(maxPrice)}
+      inStock={inStock === "1"}
+      brand={brand?.trim() || undefined}
+      fabric={fabric?.trim() || undefined}
       countryCode={params.countryCode}
     />
   )

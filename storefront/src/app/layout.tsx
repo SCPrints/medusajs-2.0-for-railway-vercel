@@ -1,4 +1,4 @@
-import { getBaseURL } from "@lib/util/env"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans } from "next/font/google"
 import "styles/globals.css"
@@ -19,20 +19,38 @@ export const viewport: Viewport = {
 
 // NEW: Upgraded SEO & Social Media sharing configuration
 export const metadata: Metadata = {
-  metadataBase: new URL(getBaseURL()),
+  metadataBase: new URL(buildAbsoluteUrl("/")),
   title: {
-    template: "%s | SC PRINTS",
-    default: "SC PRINTS | Custom Apparel & Merch",
+    template: `%s | ${SEO.siteName}`,
+    default: `${SEO.siteName} | Custom Apparel & Merch`,
   },
-  description:
-    "Premium custom apparel, transfers, embroidery, and branding solutions for Australian businesses and teams.",
+  description: SEO.siteDescription,
+  alternates: {
+    canonical: "/",
+  },
+  keywords: [
+    "custom apparel Australia",
+    "screen printing",
+    "embroidery",
+    "digital transfers",
+    "uv printing",
+    "uniform branding",
+    "bulk merch",
+  ],
+  robots: {
+    index: true,
+    follow: true,
+  },
   openGraph: {
     type: "website",
-    locale: "en_AU",
-    siteName: "SC PRINTS",
+    locale: SEO.locale,
+    siteName: SEO.siteName,
+    url: buildAbsoluteUrl("/"),
+    title: `${SEO.siteName} | Custom Apparel & Merch`,
+    description: SEO.siteDescription,
     images: [
       {
-        url: "/branding/sc-prints-logo-transparent.png",
+        url: SEO.ogImage,
         width: 768,
         height: 1024,
         alt: "SC Prints logo",
@@ -41,7 +59,42 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/branding/sc-prints-logo-transparent.png"],
+    title: `${SEO.siteName} | Custom Apparel & Merch`,
+    description: SEO.siteDescription,
+    images: [SEO.ogImage],
+  },
+}
+
+const organizationStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: SEO.siteName,
+  url: buildAbsoluteUrl("/"),
+  logo: buildAbsoluteUrl(SEO.ogImage),
+  email: SEO.contactEmail,
+  telephone: SEO.contactPhone,
+  address: {
+    "@type": "PostalAddress",
+    addressCountry: SEO.country,
+  },
+  areaServed: SEO.country,
+}
+
+const localBusinessStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: SEO.siteName,
+  image: buildAbsoluteUrl(SEO.ogImage),
+  url: buildAbsoluteUrl("/"),
+  email: SEO.contactEmail,
+  telephone: SEO.contactPhone,
+  address: {
+    "@type": "PostalAddress",
+    addressCountry: SEO.country,
+  },
+  areaServed: {
+    "@type": "Country",
+    name: "Australia",
   },
 }
 
@@ -52,6 +105,12 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         <body 
           className={`${plusJakartaSans.className} antialiased selection:bg-[#FFD166] selection:text-[#1F2933]`}
         >
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify([organizationStructuredData, localBusinessStructuredData]),
+            }}
+          />
           <main className="relative">{props.children}</main>
         </body>
       </html>

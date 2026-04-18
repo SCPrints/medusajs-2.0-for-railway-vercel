@@ -5,6 +5,7 @@ import InteractiveLink from "@modules/common/components/interactive-link"
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
 import RefinementList from "@modules/store/components/refinement-list"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
+import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import PaginatedProducts from "@modules/store/templates/paginated-products"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { HttpTypes } from "@medusajs/types"
@@ -13,11 +14,21 @@ export default function CategoryTemplate({
   categories,
   sortBy,
   page,
+  minPrice,
+  maxPrice,
+  inStock,
+  brand,
+  fabric,
   countryCode,
 }: {
   categories: HttpTypes.StoreProductCategory[]
   sortBy?: SortOptions
   page?: string
+  minPrice?: number
+  maxPrice?: number
+  inStock?: boolean
+  brand?: string
+  fabric?: string
   countryCode: string
 }) {
   const pageNumber = page ? parseInt(page) : 1
@@ -33,7 +44,17 @@ export default function CategoryTemplate({
       className="flex flex-col small:flex-row small:items-start py-6 content-container"
       data-testid="category-container"
     >
-      <RefinementList sortBy={sort} data-testid="sort-by-container" />
+      <RefinementList
+        sortBy={sort}
+        filters={{
+          minPrice,
+          maxPrice,
+          inStock,
+          brand,
+          fabric,
+        } as ProductFilters}
+        data-testid="sort-by-container"
+      />
       <div className="w-full">
         <div className="flex flex-row mb-8 text-2xl-semi gap-4">
           {parents &&
@@ -74,6 +95,11 @@ export default function CategoryTemplate({
             sortBy={sort}
             page={pageNumber}
             categoryId={category.id}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            inStock={inStock}
+            brand={brand}
+            fabric={fabric}
             countryCode={countryCode}
           />
         </Suspense>

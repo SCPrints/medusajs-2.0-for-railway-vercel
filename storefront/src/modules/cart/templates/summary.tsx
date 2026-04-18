@@ -6,6 +6,7 @@ import CartTotals from "@modules/common/components/cart-totals"
 import Divider from "@modules/common/components/divider"
 import DiscountCode from "@modules/checkout/components/discount-code"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import CartEngagement from "@modules/cart/components/cart-engagement"
 import { HttpTypes } from "@medusajs/types"
 
 type SummaryProps = {
@@ -41,6 +42,7 @@ const Summary = ({ cart }: SummaryProps) => {
       >
         <Button className="w-full h-10">Go to checkout</Button>
       </LocalizedClientLink>
+      <CartEngagement cart={cart} />
     </div>
   )
 }

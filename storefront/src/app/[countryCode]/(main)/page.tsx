@@ -4,12 +4,38 @@ import { HttpTypes } from "@medusajs/types"
 import { getProductsById, getProductsList } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Thumbnail from "@modules/products/components/thumbnail"
 
-export const metadata: Metadata = {
-  title: "SC PRINTS | Custom Apparel & Merchandise",
-  description: "Choose your product, select your print method, and place your order with confidence.",
+type MetadataProps = {
+  params: Promise<{ countryCode: string }>
+}
+
+export async function generateMetadata({ params }: MetadataProps): Promise<Metadata> {
+  const { countryCode } = await params
+  const canonicalPath = `/${countryCode}`
+  const description =
+    "Choose your product, select your print method, and place your order with confidence."
+
+  return {
+    title: "Custom Apparel & Merchandise",
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
+    openGraph: {
+      url: buildAbsoluteUrl(canonicalPath),
+      title: `${SEO.siteName} | Custom Apparel & Merchandise`,
+      description,
+      images: [SEO.ogImage],
+    },
+    twitter: {
+      title: `${SEO.siteName} | Custom Apparel & Merchandise`,
+      description,
+      images: [SEO.ogImage],
+    },
+  }
 }
 
 const PROCESS_STEPS = [
@@ -129,9 +155,25 @@ export default async function Home({
     : []
 
   const pricedMap = new Map(pricedProducts.map((product) => [product.id, product]))
+  const homepagePath = `/${countryCode}`
+  const homeStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SEO.siteName,
+    url: buildAbsoluteUrl(homepagePath),
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${buildAbsoluteUrl(`/${countryCode}/search`)}?q={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  }
 
   return (
     <div className="bg-ui-bg-base">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeStructuredData) }}
+      />
       <section className="content-container py-12 small:py-16">
         <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 shadow-sm small:p-12">
           <span className="inline-flex rounded-full border border-[#FF6B35]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#FF6B35]">
