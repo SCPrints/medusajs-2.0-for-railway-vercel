@@ -19,6 +19,7 @@ import {
   STORE_CORS,
   STRIPE_API_KEY,
   STRIPE_WEBHOOK_SECRET,
+  SHIPSTATION_API_KEY,
   WORKER_MODE,
   MINIO_ENDPOINT,
   MINIO_ACCESS_KEY,
@@ -158,6 +159,28 @@ const medusaConfig = {
                 options: {
                   apiKey: STRIPE_API_KEY,
                   webhookSecret: STRIPE_WEBHOOK_SECRET,
+                },
+              },
+            ],
+          },
+        }]
+      : []),
+
+    ...(SHIPSTATION_API_KEY
+      ? [{
+          key: Modules.FULFILLMENT,
+          resolve: "@medusajs/medusa/fulfillment",
+          options: {
+            providers: [
+              {
+                resolve: "@medusajs/medusa/fulfillment-manual",
+                id: "manual",
+              },
+              {
+                resolve: "./src/modules/shipstation",
+                id: "shipstation",
+                options: {
+                  api_key: SHIPSTATION_API_KEY,
                 },
               },
             ],
