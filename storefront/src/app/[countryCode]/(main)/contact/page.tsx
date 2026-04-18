@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import ContactForm from "@modules/contact/components/contact-form"
+import ContactMap from "@modules/contact/components/contact-map"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 type MetadataProps = {
@@ -87,17 +88,7 @@ export default async function ContactPage({
 
         {/* RIGHT COLUMN: Map + Store Hours */}
         <div className="flex flex-col gap-6">
-          <div className="relative h-[400px] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle shadow-sm group">
-            <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d26545.626463999554!2d150.91617260565882!3d-33.89602410887372!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6b12beabf0b5d84b%3A0x5017d681632ad40!2sCabramatta%20NSW%202166!5e0!3m2!1sen!2sau!4v1713259868726!5m2!1sen!2sau"
-              width="100%"
-              height="100%"
-              style={{ border: 0 }}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="absolute inset-0 grayscale contrast-125 opacity-90 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-500"
-            />
-          </div>
+          <ContactMap />
 
           <div className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-6 text-center">
             <h3 className="mb-1 font-bold text-ui-fg-base">Store Hours</h3>
