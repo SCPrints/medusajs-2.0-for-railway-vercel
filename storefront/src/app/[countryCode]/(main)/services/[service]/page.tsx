@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { getServiceBySlug, services } from "@modules/services/data"
+import { getServiceBySlug } from "@modules/services/data"
 
 const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
   "screen-printing": Array(3).fill("/placeholders/services/screen-printing.svg"),
@@ -16,10 +16,6 @@ type Props = {
     countryCode: string
     service: string
   }>
-}
-
-export async function generateStaticParams() {
-  return services.map((service) => ({ service: service.slug }))
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
