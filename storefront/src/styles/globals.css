@@ -2,6 +2,66 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
+:root {
+  --brand-primary: #1f2933; /* Industrial Bold - deep slate */
+  --brand-secondary: #ff6b35; /* Industrial Bold - safety orange */
+  --brand-accent: #ffd166; /* Industrial Bold - warm amber */
+  --brand-background: #f5f7fa; /* Industrial Bold - soft light */
+}
+
+html,
+body {
+  background-color: var(--brand-background);
+  color: var(--brand-primary);
+}
+
+/* Lean default text links toward brand secondary, keep button links unaffected */
+a:not(.bg-ui-fg-base):not(.text-white) {
+  color: var(--brand-secondary);
+}
+
+a:not(.bg-ui-fg-base):not(.text-white):hover {
+  color: var(--brand-accent);
+}
+
+/* Global palette overrides for Medusa UI utility classes */
+.text-ui-fg-base {
+  color: var(--brand-primary);
+}
+
+.text-ui-fg-subtle {
+  color: rgba(31, 41, 51, 0.72);
+}
+
+.bg-ui-fg-base {
+  background-color: var(--brand-primary);
+}
+
+.bg-ui-bg-base,
+.bg-ui-bg-subtle {
+  background-color: var(--brand-background);
+}
+
+.border-ui-border-base {
+  border-color: rgba(31, 41, 51, 0.22);
+}
+
+/* Keep interactive states aligned with the new palette */
+.hover\:bg-black:hover {
+  background-color: var(--brand-accent);
+  color: var(--brand-primary);
+}
+
+.focus\:ring-ui-fg-base:focus {
+  --tw-ring-color: var(--brand-secondary);
+}
+
+/* Small badge/chip treatment */
+[class*="rounded-full"][class*="text-xs"] {
+  border-color: rgba(255, 107, 53, 0.5);
+  color: var(--brand-secondary);
+}
+
 @layer utilities {
   .scrolling-picture-track {
     animation: picture-marquee 46s linear infinite;
@@ -81,7 +141,7 @@
   }
 
   .contrast-btn {
-    @apply px-4 py-2 border border-black rounded-full hover:bg-black hover:text-white transition-colors duration-200 ease-in;
+    @apply px-4 py-2 border border-black rounded-full hover:bg-black hover:text-black transition-colors duration-200 ease-in;
   }
 
   .text-xsmall-regular {

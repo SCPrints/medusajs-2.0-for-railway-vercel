@@ -67,7 +67,7 @@ const CountrySelect = ({ toggleState, regions }: CountrySelectProps) => {
             : undefined
         }
       >
-        <Listbox.Button className="py-1 w-full">
+        <Listbox.Button className="py-1 w-full text-[var(--brand-secondary)] transition-colors hover:text-[var(--brand-accent)]">
           <div className="txt-compact-small flex items-start gap-x-2">
             <span>Shipping to:</span>
             {current && (

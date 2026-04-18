@@ -2,7 +2,7 @@
 
 import { Popover, Transition } from "@headlessui/react"
 import { ArrowRightMini, XMark } from "@medusajs/icons"
-import { Text, clx, useToggleState } from "@medusajs/ui"
+import { clx, useToggleState } from "@medusajs/ui"
 import { Fragment } from "react"
 import NavLink from "@modules/common/components/nav-link"
 import CountrySelect from "../country-select"
@@ -31,10 +31,9 @@ const MegaMenuGroups: Array<{
     ],
   },
   {
-    title: "Workwear / Signage",
+    title: "Workwear / Uniforms",
     items: [
       { label: "Workwear", href: "/store" },
-      { label: "Signage", href: "/store" },
       { label: "Corporate Uniforms", href: "/store" },
     ],
   },
@@ -69,7 +68,7 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
               <div className="relative flex h-full">
                 <Popover.Button
                   data-testid="nav-menu-button"
-                  className="relative h-full flex items-center transition-all ease-out duration-200 focus:outline-none hover:text-ui-fg-base"
+                  className="relative h-full flex items-center text-[var(--brand-secondary)] transition-all ease-out duration-200 focus:outline-none hover:text-[var(--brand-accent)]"
                 >
                   Menu
                 </Popover.Button>
@@ -85,13 +84,17 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                 leaveFrom="opacity-100 backdrop-blur-2xl"
                 leaveTo="opacity-0"
               >
-                <Popover.Panel className="flex flex-col absolute w-full pr-4 sm:pr-0 sm:w-[560px] h-[calc(100vh-1rem)] z-30 inset-x-0 text-sm text-ui-fg-on-color m-2 backdrop-blur-2xl">
+                <Popover.Panel className="flex flex-col absolute w-full pr-4 sm:pr-0 sm:w-[560px] h-[calc(100vh-1rem)] z-30 inset-x-0 text-sm text-[#F8FAFC] m-2 backdrop-blur-2xl">
                   <div
                     data-testid="nav-menu-popup"
-                    className="flex flex-col h-full bg-[rgba(3,7,18,0.58)] rounded-rounded justify-between p-6"
+                    className="flex flex-col h-full bg-[rgba(12,17,23,0.82)] rounded-rounded justify-between p-6"
                   >
                     <div className="flex justify-end" id="xmark">
-                      <button data-testid="close-menu-button" onClick={close}>
+                      <button
+                        data-testid="close-menu-button"
+                        onClick={close}
+                        className="text-[rgba(248,250,252,0.95)] hover:text-[var(--brand-secondary)]"
+                      >
                         <XMark />
                       </button>
                     </div>
@@ -103,7 +106,7 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                               <NavLink
                                 href={href}
                                 onClick={close}
-                                className="text-3xl leading-10 hover:text-ui-fg-disabled"
+                                className="text-3xl leading-10 text-[rgba(248,250,252,0.96)] hover:text-[var(--brand-secondary)]"
                                 data-testid={`${name.toLowerCase()}-link`}
                               >
                                 {name}
@@ -113,21 +116,23 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                         })}
                       </ul>
 
-                      <div className="mt-8 border-t border-white/20 pt-6">
-                        <p className="mb-4 txt-compact-small uppercase tracking-[0.12em] text-white/70">
+                      <div className="mt-8 border-t border-[rgba(255,107,53,0.35)] pt-6">
+                        <p className="mb-4 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-secondary)]">
                           Browse Products & Services
                         </p>
                         <div className="grid gap-6 sm:grid-cols-2">
                           {MegaMenuGroups.map((group) => (
                             <div key={group.title}>
-                              <p className="mb-2 txt-compact-small text-white/70">{group.title}</p>
+                              <p className="mb-2 txt-compact-small text-[var(--brand-secondary)]">
+                                {group.title}
+                              </p>
                               <ul className="space-y-1">
                                 {group.items.map((item) => (
                                   <li key={`${group.title}-${item.label}`}>
                                     <NavLink
                                       href={item.href}
                                       onClick={close}
-                                      className="text-sm leading-6 text-white hover:text-ui-fg-disabled"
+                                      className="text-sm leading-6 text-[rgba(248,250,252,0.95)] hover:text-[var(--brand-secondary)]"
                                     >
                                       {item.label}
                                     </NavLink>
@@ -141,7 +146,7 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                     </div>
                     <div className="flex flex-col gap-y-6">
                       <div
-                        className="flex justify-between"
+                        className="flex justify-between text-[var(--brand-secondary)]"
                         onMouseEnter={toggleState.open}
                         onMouseLeave={toggleState.close}
                       >
@@ -158,10 +163,6 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                           )}
                         />
                       </div>
-                      <Text className="flex justify-between txt-compact-small">
-                        © {new Date().getFullYear()} Medusa Store. All rights
-                        reserved.
-                      </Text>
                     </div>
                   </div>
                 </Popover.Panel>

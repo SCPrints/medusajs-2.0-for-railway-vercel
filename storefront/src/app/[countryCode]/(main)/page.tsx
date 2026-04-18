@@ -33,7 +33,7 @@ const CORE_SERVICES = [
   { title: "Neck Tags", icon: "NT" },
   { title: "Fold & Bag", icon: "FB" },
   { title: "Warehousing & Fulfillment", icon: "WF" },
-  { title: "Signage", icon: "SG" },
+  { title: "UV Printing", icon: "UV" },
   { title: "Design", icon: "DS" },
 ]
 
@@ -131,10 +131,10 @@ export default async function Home({
   const pricedMap = new Map(pricedProducts.map((product) => [product.id, product]))
 
   return (
-    <div className="bg-white">
+    <div className="bg-ui-bg-base">
       <section className="content-container py-12 small:py-16">
-        <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-12">
-          <span className="inline-flex rounded-full bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
+        <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 shadow-sm small:p-12">
+          <span className="inline-flex rounded-full border border-[#FF6B35]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#FF6B35]">
             Custom Apparel Made Simple
           </span>
           <h1 className="mt-5 text-4xl font-semibold leading-tight text-ui-fg-base small:text-5xl">
@@ -149,7 +149,7 @@ export default async function Home({
                 key={step}
                 className="rounded-xl border border-ui-border-base bg-white p-4 text-sm font-medium text-ui-fg-base"
               >
-                <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-ui-fg-base text-xs font-semibold text-white">
+                <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#FF6B35] text-xs font-semibold text-[#1F2933]">
                   {index + 1}
                 </span>
                 <p>{step}</p>
@@ -169,7 +169,7 @@ export default async function Home({
 
       <section className="content-container py-12">
         <div className="mb-6 flex items-end justify-between">
-          <div>
+          <div className="border-l-4 border-[#FF6B35] pl-4">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
               Shop Top Picks
             </p>
@@ -206,7 +206,7 @@ export default async function Home({
             return (
               <li
                 key={product.id}
-                className="w-[280px] shrink-0 snap-start rounded-xl border border-ui-border-base bg-white p-4"
+                className="w-[280px] shrink-0 snap-start rounded-xl border border-ui-border-base bg-white p-4 transition-colors hover:border-[#FF6B35]/55"
               >
                 <LocalizedClientLink href={`/products/${product.handle}`} className="group block">
                   <Thumbnail
@@ -271,17 +271,19 @@ export default async function Home({
       </section>
 
       <section className="content-container py-14">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
-          What We Offer
-        </p>
-        <h2 className="mt-2 text-3xl font-semibold text-ui-fg-base">Core Services Grid</h2>
+        <div className="border-l-4 border-[#FF6B35] pl-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
+            What We Offer
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold text-ui-fg-base">Core Services Grid</h2>
+        </div>
         <div className="mt-8 grid gap-4 small:grid-cols-2 large:grid-cols-4">
           {CORE_SERVICES.map((service) => (
             <article
               key={service.title}
-              className="rounded-xl border border-ui-border-base bg-white p-5 text-center"
+              className="rounded-xl border border-ui-border-base bg-white p-5 text-center transition-colors hover:border-[#FF6B35]/55"
             >
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ui-bg-subtle text-2xl">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FF6B35]/15 text-2xl text-[#FF6B35]">
                 {service.icon}
               </div>
               <p className="text-sm font-semibold text-ui-fg-base">{service.title}</p>

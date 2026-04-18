@@ -49,11 +49,11 @@ export const services: ServiceItem[] = [
   {
     slug: "uv-printing",
     title: "UV Printing",
-    shortDescription: "Direct-to-surface branding for hard goods, signage, and specialty items.",
+    shortDescription: "Direct-to-surface branding for hard goods, promotional items, and specialty pieces.",
     heroDescription:
       "UV printing enables sharp, high-impact prints on rigid materials and promotional products beyond textiles.",
     bulletPoints: [
-      "Ideal for signage, promotional products, and hard surfaces",
+      "Ideal for promotional products and hard surfaces",
       "High-resolution output with crisp detail",
       "Fast curing and durable finish",
       "Great for custom runs and branded collateral",

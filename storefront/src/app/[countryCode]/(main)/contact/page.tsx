@@ -53,7 +53,7 @@ export default function ContactPage() {
 
           <div className="bg-gray-50 p-6 rounded-xl border border-gray-100 text-center">
             <h3 className="font-bold text-gray-900 mb-1">Store Hours</h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--brand-secondary)]">
               Monday - Friday: 9:00am - 5:00pm AEST
             </p>
           </div>
