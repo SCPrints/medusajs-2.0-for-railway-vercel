@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import Image from "next/image"
 
 import { listRegions } from "@lib/data/regions"
 import { StoreRegion } from "@medusajs/types"
@@ -22,10 +23,17 @@ export default async function Nav() {
           <div className="flex items-center h-full">
             <LocalizedClientLink
               href="/"
-              className="txt-compact-xlarge-plus uppercase text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
+              className="inline-flex items-center"
               data-testid="nav-store-link"
             >
-              SC PRINTS
+              <Image
+                src="/branding/sc-prints-logo-transparent.png"
+                alt="SC Prints"
+                width={158}
+                height={52}
+                className="h-10 w-auto"
+                priority
+              />
             </LocalizedClientLink>
           </div>
 

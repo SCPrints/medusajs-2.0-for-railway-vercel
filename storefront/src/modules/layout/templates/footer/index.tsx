@@ -1,5 +1,6 @@
 import { getCollectionsList } from "@lib/data/collections"
 import { Text, clx } from "@medusajs/ui"
+import Image from "next/image"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import NewsletterSignup from "./newsletter-signup"
@@ -14,9 +15,15 @@ export default async function Footer() {
           <div className="space-y-4">
             <LocalizedClientLink
               href="/"
-              className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base uppercase"
+              className="inline-flex items-center rounded-lg bg-ui-fg-base px-3 py-2"
             >
-              SC PRINTS
+              <Image
+                src="/branding/sc-prints-logo-transparent.png"
+                alt="SC Prints"
+                width={158}
+                height={52}
+                className="h-10 w-auto"
+              />
             </LocalizedClientLink>
             <p className="text-small-regular text-ui-fg-subtle max-w-[22rem]">
               Premium decorated apparel and merchandise for teams, brands, and events across

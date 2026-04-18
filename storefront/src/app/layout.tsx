@@ -21,14 +21,27 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(getBaseURL()),
   title: {
-    template: "%s | Your Store Name", // Automatically makes titles like: "Black T-Shirt | Your Store Name"
-    default: "Your Store Name | Premium Apparel", // The title for your homepage
+    template: "%s | SC PRINTS",
+    default: "SC PRINTS | Custom Apparel & Merch",
   },
-  description: "Shop the latest premium collection. Fast shipping and easy returns.",
+  description:
+    "Premium custom apparel, transfers, embroidery, and branding solutions for Australian businesses and teams.",
   openGraph: {
     type: "website",
-    locale: "en_US",
-    siteName: "Your Store Name",
+    locale: "en_AU",
+    siteName: "SC PRINTS",
+    images: [
+      {
+        url: "/branding/sc-prints-logo-transparent.png",
+        width: 768,
+        height: 1024,
+        alt: "SC Prints logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/branding/sc-prints-logo-transparent.png"],
   },
 }
 
