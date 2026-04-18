@@ -45,6 +45,7 @@ export const STORE_CORS = process.env.STORE_CORS ?? ""
 export const REDIS_URL = process.env.REDIS_URL
 export const STRIPE_API_KEY = process.env.STRIPE_API_KEY
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
+export const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY
 
 export const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT
 export const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY
