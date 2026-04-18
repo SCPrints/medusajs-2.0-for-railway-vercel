@@ -4,60 +4,91 @@ export type ServiceItem = {
   shortDescription: string
   heroDescription: string
   bulletPoints: string[]
+  bestFor: string
+  notIdealFor: string
+  typicalTurnaround: string
 }
 
 export const services: ServiceItem[] = [
   {
     slug: "screen-printing",
     title: "Screen Printing",
-    shortDescription: "Durable, vibrant prints ideal for uniforms, events, and high-volume runs.",
+    shortDescription:
+      "Best-value print method for larger runs, delivering bold colour, strong wash durability, and consistent repeat results.",
     heroDescription:
-      "Screen printing is our go-to process for bold, long-lasting prints with consistent color and finish across large quantities.",
+      "Screen printing is ideal when you need reliable, high-impact branding across medium and large quantities. We separate and burn artwork with production-ready setups, match colours accurately, and run quality checks through every print stage for a clean, durable finish.",
     bulletPoints: [
-      "Best value on medium-to-large order volumes",
-      "Strong opacity and wash durability",
-      "Great for uniforms, merch, and promotional runs",
-      "Pantone-matched inks available",
+      "Most cost-effective method as order quantities increase",
+      "Strong colour opacity and long-term wash performance",
+      "Suitable for uniforms, promo campaigns, events, and merch drops",
+      "Pantone colour matching available for brand consistency",
     ],
+    bestFor:
+      "Medium-to-large quantity orders that need strong colour, durability, and repeat consistency across all pieces.",
+    notIdealFor:
+      "Very small runs with many design variations where setup-heavy methods can be less efficient.",
+    typicalTurnaround:
+      "Typically around 7-10 business days after artwork approval, depending on run size and garment availability.",
   },
   {
     slug: "embroidery",
     title: "Embroidery",
-    shortDescription: "Premium stitched branding for polos, caps, jackets, and workwear.",
+    shortDescription:
+      "Premium stitched branding for uniforms and retail garments where a structured, high-end finish is required.",
     heroDescription:
-      "Embroidery gives your logo a premium, textured finish that performs exceptionally well on workwear and corporate garments.",
+      "Embroidery is perfect for businesses and teams that want a polished, premium look. We digitise your artwork to stitch cleanly, recommend sizing and placement for readability, and run test-outs where needed before full production.",
     bulletPoints: [
-      "Professional and long-lasting finish",
-      "Ideal for uniforms, hospitality, and corporate apparel",
-      "Suitable for caps, polos, jackets, and heavier fabrics",
-      "Digitising support available for artwork setup",
+      "Premium textured finish that elevates uniforms and branded apparel",
+      "Excellent for polos, caps, jackets, workwear, and hospitality garments",
+      "Built to hold shape and detail across repeated wear and laundering",
+      "In-house digitising support for clean, production-ready stitch files",
     ],
+    bestFor:
+      "Corporate uniforms, hospitality teams, and retail branding that benefit from a premium stitched finish.",
+    notIdealFor:
+      "Very fine detail or tiny text that cannot hold clarity in thread at small sizes.",
+    typicalTurnaround:
+      "Usually 7-10 business days once digitising and sample approval are complete.",
   },
   {
     slug: "digital-transfers",
     title: "Digital Transfers",
-    shortDescription: "Flexible, full-color graphics with fine detail and quick turnaround.",
+    shortDescription:
+      "Flexible full-colour decoration for short runs, variable data jobs, and fast-turnaround orders.",
     heroDescription:
-      "Digital transfers are perfect for full-color artwork, variable designs, and low-to-mid quantity runs where flexibility matters.",
+      "Digital transfers are ideal when flexibility and speed are priorities. They handle gradients, fine detail, and variable names or numbers without large setup overheads, making them a strong option for short runs and mixed design sets.",
     bulletPoints: [
-      "Excellent for full-color logos and gradients",
-      "Fast setup for urgent jobs",
-      "Great option for variable names and numbers",
-      "Applies cleanly across a wide range of garment types",
+      "Great for full-colour logos, gradients, and detailed artwork",
+      "Fast setup and efficient for urgent or deadline-driven jobs",
+      "Ideal for variable runs like names, numbers, and team kits",
+      "Works across a wide range of fabric types and garment styles",
     ],
+    bestFor:
+      "Short-to-mid runs, variable data jobs, and fast-turnaround projects with detailed full-colour artwork.",
+    notIdealFor:
+      "Very large repeat runs where traditional screen printing is usually more cost-effective per unit.",
+    typicalTurnaround:
+      "Often 5-8 business days after artwork sign-off, depending on garment supply and print complexity.",
   },
   {
     slug: "uv-printing",
     title: "UV Printing",
-    shortDescription: "Direct-to-surface branding for hard goods, promotional items, and specialty pieces.",
+    shortDescription:
+      "Direct-to-surface branding for hard goods and promo products requiring crisp detail and fast turnaround.",
     heroDescription:
-      "UV printing enables sharp, high-impact prints on rigid materials and promotional products beyond textiles.",
+      "UV printing allows us to decorate rigid and non-textile items with sharp, high-definition results. It is a strong fit for promotional products, event assets, and branded accessories where clean detail and quick production are important.",
     bulletPoints: [
-      "Ideal for promotional products and hard surfaces",
-      "High-resolution output with crisp detail",
-      "Fast curing and durable finish",
-      "Great for custom runs and branded collateral",
+      "Designed for hard surfaces and specialty promotional items",
+      "High-resolution output for logos, text, and fine line detail",
+      "Fast-curing process with durable, production-ready finish",
+      "Great for branded collateral, accessories, and custom campaigns",
     ],
+    bestFor:
+      "Promotional products and rigid materials where sharp detail and clean logo placement are critical.",
+    notIdealFor:
+      "Soft textile garments that are better suited to screen printing, embroidery, or transfer methods.",
+    typicalTurnaround:
+      "Generally 5-10 business days, based on substrate type, quantity, and finishing requirements.",
   },
 ]
 

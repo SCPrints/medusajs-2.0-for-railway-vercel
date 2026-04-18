@@ -70,7 +70,7 @@ export default async function ServiceDetailPage({ params }: Props) {
 
       <div className="mt-6 rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
-          Service Detail
+          {service.title}
         </p>
         <h1 className="mt-3 text-4xl font-semibold text-ui-fg-base">{service.title}</h1>
         <p className="mt-4 max-w-3xl text-ui-fg-subtle">{service.heroDescription}</p>
@@ -82,7 +82,7 @@ export default async function ServiceDetailPage({ params }: Props) {
             Service Gallery
           </p>
           <h2 className="mt-2 text-2xl font-semibold text-ui-fg-base">
-            Service examples with comic-panel split grid
+            Recent style references
           </h2>
         </div>
 
@@ -161,18 +161,41 @@ export default async function ServiceDetailPage({ params }: Props) {
         </div>
 
         <aside className="rounded-xl border border-ui-border-base bg-white p-6">
-          <h3 className="text-base font-semibold text-ui-fg-base">Need help deciding?</h3>
+          <h3 className="text-base font-semibold text-ui-fg-base">Not sure which method is right?</h3>
           <p className="mt-3 text-sm text-ui-fg-subtle">
-            Our Victoria-based team can help you choose the best print method for your artwork and
-            garment selection.
+            Tell us your garment, artwork, quantity, and deadline. We will recommend the best
+            method and provide a practical quote for production.
           </p>
           <LocalizedClientLink
             href="/contact"
             className="mt-5 inline-flex rounded-lg bg-ui-fg-base px-4 py-2 text-sm font-semibold text-white transition hover:bg-black"
           >
-            Contact our team
+            Request service quote
           </LocalizedClientLink>
         </aside>
+      </section>
+
+      <section className="mt-8 grid gap-4 small:grid-cols-3">
+        <article className="rounded-xl border border-ui-border-base bg-white p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
+            Best for
+          </p>
+          <p className="mt-2 text-sm text-ui-fg-subtle">{service.bestFor}</p>
+        </article>
+
+        <article className="rounded-xl border border-ui-border-base bg-white p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
+            Not ideal for
+          </p>
+          <p className="mt-2 text-sm text-ui-fg-subtle">{service.notIdealFor}</p>
+        </article>
+
+        <article className="rounded-xl border border-ui-border-base bg-white p-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
+            Typical turnaround
+          </p>
+          <p className="mt-2 text-sm text-ui-fg-subtle">{service.typicalTurnaround}</p>
+        </article>
       </section>
     </div>
   )
