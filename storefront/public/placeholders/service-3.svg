@@ -1,0 +1,15 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1400" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B0764"/>
+      <stop offset="1" stop-color="#A21CAF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="url(#bg3)"/>
+  <rect x="80" y="80" width="1240" height="740" rx="30" fill="white" fill-opacity="0.08"/>
+  <path d="M180 650L500 360L760 540L1020 320L1220 510V760H180V650Z" fill="white" fill-opacity="0.18"/>
+  <rect x="180" y="180" width="510" height="34" rx="8" fill="white" fill-opacity="0.35"/>
+  <rect x="180" y="238" width="380" height="24" rx="8" fill="white" fill-opacity="0.25"/>
+  <text x="180" y="150" fill="white" font-size="44" font-family="Arial, sans-serif" font-weight="700">Service Placeholder</text>
+  <text x="180" y="790" fill="white" font-size="26" font-family="Arial, sans-serif" opacity="0.9">SC PRINTS</text>
+</svg>

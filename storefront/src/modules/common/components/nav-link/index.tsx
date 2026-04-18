@@ -35,12 +35,21 @@ const transitionFunctions = {
   },
 }
 
-const NavLink = ({ href, children }: { href: string; children: React.ReactNode }) => {
+type NavLinkProps = {
+  href: string
+  children: React.ReactNode
+  className?: string
+  onClick?: () => void
+  "data-testid"?: string
+}
+
+const NavLink = ({ href, children, onClick, ...props }: NavLinkProps) => {
   const router = useTransitionRouter()
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault()
-    
+    onClick?.()
+
     // This tells the router to run the animation before switching pages
     router.push(href, {
       onTransitionReady: transitionFunctions.topToBottom,
@@ -48,7 +57,7 @@ const NavLink = ({ href, children }: { href: string; children: React.ReactNode }
   }
 
   return (
-    <LocalizedClientLink onClick={handleClick} href={href}>
+    <LocalizedClientLink onClick={handleClick} href={href} {...props}>
       {children}
     </LocalizedClientLink>
   )

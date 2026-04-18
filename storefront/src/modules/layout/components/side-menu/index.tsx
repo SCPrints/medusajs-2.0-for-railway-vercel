@@ -11,6 +11,7 @@ import { HttpTypes } from "@medusajs/types"
 const SideMenuItems = {
   Home: "/",
   Store: "/store",
+  Services: "/services",
   "Contact Us": "/contact",
   Search: "/search",
   Account: "/account",
@@ -40,9 +41,10 @@ const MegaMenuGroups: Array<{
   {
     title: "Services",
     items: [
-      { label: "Screen Printing", href: "/contact" },
-      { label: "Embroidery", href: "/contact" },
-      { label: "Digital Transfers", href: "/contact" },
+      { label: "Screen Printing", href: "/services/screen-printing" },
+      { label: "Embroidery", href: "/services/embroidery" },
+      { label: "Digital Transfers", href: "/services/digital-transfers" },
+      { label: "UV Printing", href: "/services/uv-printing" },
     ],
   },
   {
@@ -100,6 +102,7 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                             <li key={name}>
                               <NavLink
                                 href={href}
+                                onClick={close}
                                 className="text-3xl leading-10 hover:text-ui-fg-disabled"
                                 data-testid={`${name.toLowerCase()}-link`}
                               >
@@ -123,6 +126,7 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                                   <li key={`${group.title}-${item.label}`}>
                                     <NavLink
                                       href={item.href}
+                                      onClick={close}
                                       className="text-sm leading-6 text-white hover:text-ui-fg-disabled"
                                     >
                                       {item.label}

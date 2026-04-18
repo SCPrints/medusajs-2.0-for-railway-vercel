@@ -1,0 +1,15 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="screen-bg" x1="0" y1="0" x2="1400" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="900" fill="url(#screen-bg)"/>
+  <rect x="110" y="110" width="1180" height="680" rx="28" fill="white" fill-opacity="0.1"/>
+  <rect x="180" y="210" width="500" height="36" rx="8" fill="white" fill-opacity="0.35"/>
+  <rect x="180" y="272" width="360" height="22" rx="8" fill="white" fill-opacity="0.25"/>
+  <rect x="180" y="350" width="1030" height="300" rx="18" fill="white" fill-opacity="0.15"/>
+  <text x="180" y="178" fill="white" font-size="44" font-family="Arial, sans-serif" font-weight="700">Screen Printing</text>
+  <text x="180" y="690" fill="white" font-size="24" font-family="Arial, sans-serif" opacity="0.92">Placeholder service image</text>
+</svg>
