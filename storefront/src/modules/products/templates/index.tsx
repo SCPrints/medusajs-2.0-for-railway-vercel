@@ -11,6 +11,7 @@ import { notFound } from "next/navigation"
 import ProductActionsWrapper from "./product-actions-wrapper"
 import { HttpTypes } from "@medusajs/types"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
+import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
 
 type ProductTemplateProps = {
   product: HttpTypes.StoreProduct
@@ -34,30 +35,33 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
         data-testid="product-container"
       >
         <PrintPlacementProvider>
-          <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-6">
-            <ProductInfo product={product} />
-            <ProductTabs product={product} />
-          </div>
-          <div className="block w-full relative">
-            <ImageGallery
-              images={product?.images || []}
-              thumbnail={product?.thumbnail || null}
-            />
-          </div>
-          <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-12">
-            <ProductOnboardingCta />
-            <Suspense
-              fallback={
-                <ProductActions
-                  disabled={true}
-                  product={product}
-                  region={region}
-                />
-              }
-            >
-              <ProductActionsWrapper id={product.id} region={region} />
-            </Suspense>
-          </div>
+          <ProductOptionsProvider>
+            <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-6">
+              <ProductInfo product={product} />
+              <ProductTabs product={product} />
+            </div>
+            <div className="block w-full relative">
+              <ImageGallery
+                product={product}
+                images={product?.images || []}
+                thumbnail={product?.thumbnail || null}
+              />
+            </div>
+            <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-12">
+              <ProductOnboardingCta />
+              <Suspense
+                fallback={
+                  <ProductActions
+                    disabled={true}
+                    product={product}
+                    region={region}
+                  />
+                }
+              >
+                <ProductActionsWrapper id={product.id} region={region} />
+              </Suspense>
+            </div>
+          </ProductOptionsProvider>
         </PrintPlacementProvider>
       </div>
       <div

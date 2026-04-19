@@ -5,8 +5,10 @@ import { Container } from "@medusajs/ui"
 import Image from "next/image"
 import { ChangeEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react"
 import { usePrintPlacement } from "@modules/products/context/print-placement-context"
+import { useProductOptions } from "@modules/products/context/product-options-context"
 
 type ImageGalleryProps = {
+  product: HttpTypes.StoreProduct
   images: HttpTypes.StoreProductImage[]
   thumbnail?: string | null
 }
@@ -14,9 +16,76 @@ type ImageGalleryProps = {
 const FILE_PREVIEW_LIMIT = 5 * 1024 * 1024
 const MIN_OVERLAY_SIZE_PX = 48
 
-const ImageGallery = ({ images, thumbnail }: ImageGalleryProps) => {
+const COLOR_OPTION_MATCHER = /(color|colour)/i
+
+const normalizeValue = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+
+const buildColorNeedles = (colorValue: string) => {
+  const normalized = normalizeValue(colorValue)
+
+  if (!normalized) {
+    return []
+  }
+
+  const words = normalized.split(" ").filter(Boolean)
+  const compact = words.join("")
+  const joinedWithDash = words.join("-")
+  const joinedWithUnderscore = words.join("_")
+
+  return Array.from(new Set([normalized, compact, joinedWithDash, joinedWithUnderscore, ...words]))
+}
+
+const optionsAsKeymap = (variantOptions: any[] | undefined) => {
+  return (variantOptions ?? []).reduce(
+    (acc: Record<string, string | undefined>, varopt: any) => {
+      if (varopt.option?.title && varopt.value !== null && varopt.value !== undefined) {
+        acc[varopt.option.title] = varopt.value
+      }
+      return acc
+    },
+    {}
+  )
+}
+
+const getVariantMappedImages = (metadata: Record<string, unknown> | undefined) => {
+  const garmentImages = metadata?.garment_images
+
+  if (!garmentImages) {
+    return []
+  }
+
+  if (typeof garmentImages === "string") {
+    try {
+      const parsed = JSON.parse(garmentImages) as Record<string, unknown>
+      const all = Array.isArray(parsed.all) ? parsed.all : []
+      return [parsed.front, parsed.back, ...all].filter(
+        (value): value is string => typeof value === "string" && value.length > 0
+      )
+    } catch {
+      return []
+    }
+  }
+
+  if (typeof garmentImages !== "object") {
+    return []
+  }
+
+  const obj = garmentImages as Record<string, unknown>
+  const all = Array.isArray(obj.all) ? obj.all : []
+  return [obj.front, obj.back, ...all].filter(
+    (value): value is string => typeof value === "string" && value.length > 0
+  )
+}
+
+const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
   const { overlayUrl, placement, setOverlayPreview, setPlacement, resetPlacement } =
     usePrintPlacement()
+  const { options } = useProductOptions()
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [printAreaSize, setPrintAreaSize] = useState({ width: 0, height: 0 })
   const printAreaRef = useRef<HTMLDivElement>(null)
@@ -43,8 +112,66 @@ const ImageGallery = ({ images, thumbnail }: ImageGalleryProps) => {
         url: image.url as string,
       }))
 
-    if (validImages.length > 0) {
+    const selectedVariant = (product.variants ?? []).find((variant) => {
+      const variantOptions = optionsAsKeymap((variant as any).options)
+      const selectedEntries = Object.entries(options).filter(([, value]) => Boolean(value))
+
+      if (!selectedEntries.length) {
+        return false
+      }
+
+      return selectedEntries.every(([title, value]) => value === variantOptions[title])
+    })
+
+    const mappedVariantImages = getVariantMappedImages(
+      (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
+    )
+
+    if (mappedVariantImages.length) {
+      const matched = mappedVariantImages
+        .map((mappedUrl) => validImages.find((image) => image.url === mappedUrl))
+        .filter(Boolean) as Array<{ id: string; url: string }>
+
+      if (matched.length) {
+        const unmatched = validImages.filter((image) => !matched.some((m) => m.id === image.id))
+        return [...matched, ...unmatched]
+      }
+    }
+
+    const selectedColor = Object.entries(options).find(([title]) =>
+      COLOR_OPTION_MATCHER.test(title)
+    )?.[1]
+
+    if (!selectedColor || validImages.length <= 1) {
       return validImages
+    }
+
+    const needles = buildColorNeedles(selectedColor)
+    if (!needles.length) {
+      return validImages
+    }
+
+    const normalizedImages = validImages.map((image) => ({
+      ...image,
+      normalizedUrl: normalizeValue(image.url),
+    }))
+
+    const matched = normalizedImages.filter((image) =>
+      needles.some((needle) => image.normalizedUrl.includes(needle))
+    )
+
+    if (!matched.length) {
+      return validImages
+    }
+
+    const unmatched = normalizedImages.filter((image) => !matched.some((m) => m.id === image.id))
+
+    return [...matched, ...unmatched].map(({ normalizedUrl: _normalizedUrl, ...image }) => image)
+  }, [images, options, product.variants])
+
+  const fallbackImages = useMemo(() => {
+    if (galleryImages.length > 0) {
+      return galleryImages
     }
 
     if (thumbnail) {
@@ -52,9 +179,9 @@ const ImageGallery = ({ images, thumbnail }: ImageGalleryProps) => {
     }
 
     return []
-  }, [images, thumbnail])
+  }, [galleryImages, thumbnail])
 
-  const hasProductImages = galleryImages.length > 0
+  const hasProductImages = fallbackImages.length > 0
   const canShowOverlay =
     Boolean(overlayUrl) && printAreaSize.width > 0 && printAreaSize.height > 0
 
@@ -313,7 +440,7 @@ const ImageGallery = ({ images, thumbnail }: ImageGalleryProps) => {
           </Container>
         )}
 
-        {galleryImages.map((image, index) => {
+        {fallbackImages.map((image, index) => {
           const shouldRenderLiveOverlay = index === 0
 
           return (

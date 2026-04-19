@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react"
 import Divider from "@modules/common/components/divider"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
 import { usePrintPlacement } from "@modules/products/context/print-placement-context"
+import { useProductOptions } from "@modules/products/context/product-options-context"
 
 import ProductPrice from "../product-price"
 import { addToCart } from "@lib/data/cart"
@@ -33,10 +34,10 @@ export default function ProductActions({
   region,
   disabled,
 }: ProductActionsProps) {
-  const [options, setOptions] = useState<Record<string, string | undefined>>({})
   const [isAdding, setIsAdding] = useState(false)
   const countryCode = useParams().countryCode as string
   const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
+  const { options, setOptionValue } = useProductOptions()
 
   // If there is only 1 variant, preselect the options
   useEffect(() => {
@@ -56,14 +57,6 @@ export default function ProductActions({
       return isEqual(variantOptions, options)
     })
   }, [product.variants, options])
-
-  // update the options when a variant is selected
-  const setOptionValue = (title: string, value: string) => {
-    setOptions((prev) => ({
-      ...prev,
-      [title]: value,
-    }))
-  }
 
   // check if the selected variant is in stock
   const inStock = useMemo(() => {

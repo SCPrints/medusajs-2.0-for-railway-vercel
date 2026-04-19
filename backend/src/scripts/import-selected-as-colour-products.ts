@@ -6,6 +6,11 @@ import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/fra
 import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
 
 type CsvRow = Record<string, string>
+type VariantGarmentImages = {
+  front?: string
+  back?: string
+  all?: string[]
+}
 
 const TARGET_HANDLES = [
   "as-colour-staple-tee-5001",
@@ -71,6 +76,23 @@ const toNullableInt = (value?: string) => {
   }
   const n = Number.parseInt(value, 10)
   return Number.isFinite(n) ? n : undefined
+}
+
+const getVariantColor = (row: CsvRow) => {
+  for (let optionIdx = 1; optionIdx <= 3; optionIdx++) {
+    const optionName = row[`Variant Option ${optionIdx} Name`]
+    const optionValue = row[`Variant Option ${optionIdx} Value`]
+
+    if (!optionName || !optionValue) {
+      continue
+    }
+
+    if (/colou?r/i.test(optionName)) {
+      return optionValue
+    }
+  }
+
+  return undefined
 }
 
 export default async function importSelectedAsColourProducts({ container }: ExecArgs) {
@@ -182,11 +204,23 @@ export default async function importSelectedAsColourProducts({ container }: Exec
       }
 
       const amount = toNullableInt(row["Variant Price AUD"]) ?? 0
+      const frontImage = row["Product Image 1"] || row["Product Thumbnail"] || undefined
+      const backImage = row["Product Image 2"] || undefined
+      const garmentImages: VariantGarmentImages = {
+        front: frontImage,
+        back: backImage,
+        all: [frontImage, backImage].filter(Boolean) as string[],
+      }
+      const variantColor = getVariantColor(row)
 
       return {
         title: row["Variant Title"] || `Variant ${index + 1}`,
         sku: row["Variant Sku"] || undefined,
         barcode: row["Variant Barcode"] || undefined,
+        metadata: {
+          garment_color: variantColor,
+          garment_images: garmentImages,
+        },
         options: variantOptions,
         prices: [
           {
