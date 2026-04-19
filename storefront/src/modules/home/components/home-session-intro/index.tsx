@@ -8,8 +8,10 @@ const STORAGE_KEY = "sc-home-intro-session"
 /** Final zoom scale — 1 keeps logo + tagline within the constrained column (no viewport overflow) */
 const ZOOM_END_SCALE = 1
 const ZOOM_MS = 2800
+/** Pause on the final logo frame before particles spawn */
+const PRE_EXPLODE_HOLD_MS = 750
 /** Time for particle burst to clear the screen */
-const EXPLODE_MS = 3800
+const EXPLODE_MS = 7600
 /** Overlay fade after explosion */
 const OVERLAY_FADE_MS = 520
 const PARTICLE_MIN = 20
@@ -40,7 +42,7 @@ function generateParticles(count: number): ParticleSpec[] {
       ty,
       rot: (Math.random() - 0.5) * 900,
       width: 32 + Math.floor(Math.random() * 28),
-      delayMs: Math.random() * 140,
+      delayMs: Math.random() * 280,
     }
   })
 }
@@ -103,7 +105,7 @@ export default function HomeSessionIntro({
         setParticles(generateParticles(n))
         setPhase("explode")
       }
-    }, ZOOM_MS)
+    }, ZOOM_MS + PRE_EXPLODE_HOLD_MS)
     return () => {
       cancelled = true
       window.cancelAnimationFrame(frame)
