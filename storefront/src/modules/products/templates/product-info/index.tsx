@@ -6,7 +6,19 @@ type ProductInfoProps = {
   product: HttpTypes.StoreProduct
 }
 
+const sanitizeDescriptionHtml = (description: string) => {
+  return description
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+    .replace(/\son\w+="[^"]*"/gi, "")
+    .replace(/\son\w+='[^']*'/gi, "")
+    .replace(/javascript:/gi, "")
+}
+
 const ProductInfo = ({ product }: ProductInfoProps) => {
+  const description = product.description?.trim() ?? ""
+  const hasHtml = /<\/?[a-z][\s\S]*>/i.test(description)
+
   return (
     <div id="product-info">
       <div className="flex flex-col gap-y-4 lg:max-w-[500px] mx-auto">
@@ -26,12 +38,20 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
           {product.title}
         </Heading>
 
-        <Text
-          className="text-medium text-ui-fg-subtle whitespace-pre-line"
-          data-testid="product-description"
-        >
-          {product.description}
-        </Text>
+        {hasHtml ? (
+          <div
+            className="text-medium text-ui-fg-subtle [&_p]:mb-3 [&_p:last-child]:mb-0 [&_span]:text-inherit"
+            data-testid="product-description"
+            dangerouslySetInnerHTML={{ __html: sanitizeDescriptionHtml(description) }}
+          />
+        ) : (
+          <Text
+            className="text-medium text-ui-fg-subtle whitespace-pre-line"
+            data-testid="product-description"
+          >
+            {description}
+          </Text>
+        )}
       </div>
     </div>
   )
