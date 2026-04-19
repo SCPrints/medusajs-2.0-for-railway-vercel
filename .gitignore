@@ -1,2 +1,7 @@
 .idea/
 .vercel
+
+# Local Python venv for image-upload helper (scripts/rewrite_csv_image_urls_via_medusa_upload.py)
+.venv-upload/
+# Secrets for that script (use: --env-file medusa-upload.env)
+medusa-upload.env

@@ -20,6 +20,11 @@ Usage:
   python3 scripts/rewrite_csv_image_urls_via_medusa_upload.py \\
     --input syzmik_medusa_import.csv \\
     --output syzmik_medusa_import_medusa_files.csv
+
+SSL (macOS / python.org Python): if fetching CDN URLs fails with
+CERTIFICATE_VERIFY_FAILED, either run the "Install Certificates.command" that ships
+with that Python, or: pip install certifi (this script uses certifi when installed),
+or pass --insecure-fetch as a last resort (not recommended).
 """
 
 from __future__ import annotations
@@ -30,12 +35,47 @@ import json
 import mimetypes
 import os
 import re
+import ssl
 import sys
 import time
 import urllib.error
 import urllib.request
 import uuid
 from pathlib import Path
+
+
+def _ssl_context(insecure_fetch: bool) -> ssl.SSLContext:
+    if insecure_fetch:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        return ctx
+    try:
+        import certifi  # type: ignore[import-untyped]
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
+def _load_env_file(path: Path) -> None:
+    """Set os.environ from KEY=value lines (optional quotes). Does not override existing env."""
+    text = path.read_text(encoding="utf-8")
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        key, _, rest = line.partition("=")
+        key = key.strip()
+        val = rest.strip()
+        if (val.startswith('"') and val.endswith('"')) or (
+            val.startswith("'") and val.endswith("'")
+        ):
+            val = val[1:-1]
+        if key and key not in os.environ:
+            os.environ[key] = val
 
 
 def _env(name: str) -> str:
@@ -73,7 +113,9 @@ def _collect_urls(rows: list[dict[str, str]], cols: list[str]) -> list[str]:
     return ordered
 
 
-def _load_source_bytes(src: str) -> tuple[bytes, str, str]:
+def _load_source_bytes(
+    src: str, ssl_ctx: ssl.SSLContext | None = None
+) -> tuple[bytes, str, str]:
     """
     Returns (content, filename, mime_type).
     Remote: HTTP(S) URL. Local: file path that exists.
@@ -83,7 +125,10 @@ def _load_source_bytes(src: str) -> tuple[bytes, str, str]:
             src,
             headers={"User-Agent": "medusa-csv-image-rewrite/1.0"},
         )
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        kwargs: dict = {"timeout": 120}
+        if ssl_ctx is not None and req.full_url.lower().startswith("https://"):
+            kwargs["context"] = ssl_ctx
+        with urllib.request.urlopen(req, **kwargs) as resp:
             data = resp.read()
         path = urllib.request.urlparse(src).path
         name = Path(path).name or "image"
@@ -137,6 +182,7 @@ def _post_upload(
     filename: str,
     content: bytes,
     mime: str,
+    ssl_ctx: ssl.SSLContext | None = None,
 ) -> str:
     ct, body = _multipart_encode("files", filename, content, mime)
     url = f"{base_url}/admin/uploads"
@@ -151,7 +197,10 @@ def _post_upload(
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
+        ukwargs: dict = {"timeout": 300}
+        if ssl_ctx is not None and url.lower().startswith("https://"):
+            ukwargs["context"] = ssl_ctx
+        with urllib.request.urlopen(req, **ukwargs) as resp:
             payload = json.loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")
@@ -172,6 +221,7 @@ def _map_urls(
     token: str,
     cache_path: Path | None,
     sleep_s: float,
+    ssl_ctx: ssl.SSLContext,
 ) -> dict[str, str]:
     mapping: dict[str, str] = {}
     if cache_path and cache_path.is_file():
@@ -183,12 +233,14 @@ def _map_urls(
     for i, src in enumerate(sources):
         if src in mapping:
             continue
-        data, fname, mime = _load_source_bytes(src)
+        data, fname, mime = _load_source_bytes(src, ssl_ctx)
         # Retry a few times for transient CDN / network errors
         last_err: Exception | None = None
         for attempt in range(3):
             try:
-                new_url = _post_upload(base_url, token, fname, data, mime)
+                new_url = _post_upload(
+                    base_url, token, fname, data, mime, ssl_ctx
+                )
                 mapping[src] = new_url
                 if cache_path:
                     cache_path.write_text(
@@ -228,10 +280,32 @@ def main() -> None:
         default=0.0,
         help="Seconds to sleep between uploads (rate limiting).",
     )
+    parser.add_argument(
+        "--insecure-fetch",
+        action="store_true",
+        help="Disable TLS verification for HTTPS (CDN download + Medusa upload). "
+        "Use only if you cannot fix local CA certs (e.g. install certifi).",
+    )
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        default=None,
+        help="Load MEDUSA_BACKEND_URL and MEDUSA_ADMIN_TOKEN from a file of KEY=value lines "
+        "(does not override existing environment variables).",
+    )
     args = parser.parse_args()
+
+    if args.env_file is not None:
+        if not args.env_file.is_file():
+            print(f"--env-file not found: {args.env_file}", file=sys.stderr)
+            sys.exit(1)
+        _load_env_file(args.env_file)
 
     base_url = _env("MEDUSA_BACKEND_URL")
     token = _env("MEDUSA_ADMIN_TOKEN")
+    ssl_ctx = _ssl_context(insecure_fetch=args.insecure_fetch)
+    if args.insecure_fetch:
+        print("Warning: TLS verification disabled for HTTPS requests.", file=sys.stderr)
 
     with args.input.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
@@ -257,7 +331,9 @@ def main() -> None:
     if cache_path is None:
         cache_path = args.output.with_suffix(".upload-map.json")
 
-    mapping = _map_urls(sources, base_url, token, cache_path, args.sleep)
+    mapping = _map_urls(
+        sources, base_url, token, cache_path, args.sleep, ssl_ctx
+    )
 
     for row in rows:
         for c in cols:
