@@ -140,6 +140,19 @@ module.exports = {
           "0%": { transform: "translateY(-100%)" },
           "100%": { transform: "translateY(0)" },
         },
+        /** Idle motion for brands hero tiles (inner layer; outer stays on GSAP scroll transform) */
+        "brand-tile-float": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) rotate(0deg)" },
+          "25%": { transform: "translate3d(2px, -2.5px, 0) rotate(0.65deg)" },
+          "50%": { transform: "translate3d(-1.5px, 2px, 0) rotate(-0.45deg)" },
+          "75%": { transform: "translate3d(2.5px, 1.2px, 0) rotate(0.35deg)" },
+        },
+        "brand-tile-float-alt": {
+          "0%, 100%": { transform: "translate3d(0, 0, 0) rotate(0deg)" },
+          "25%": { transform: "translate3d(-2px, 2px, 0) rotate(-0.55deg)" },
+          "50%": { transform: "translate3d(2px, -1.5px, 0) rotate(0.5deg)" },
+          "75%": { transform: "translate3d(-1.5px, -2px, 0) rotate(-0.35deg)" },
+        },
       },
       animation: {
         ring: "ring 2.2s cubic-bezier(0.5, 0, 0.5, 1) infinite",
@@ -155,6 +168,10 @@ module.exports = {
         enter: "enter 200ms ease-out",
         "slide-in": "slide-in 1.2s cubic-bezier(.41,.73,.51,1.02)",
         leave: "leave 150ms ease-in forwards",
+        "brand-tile-float":
+          "brand-tile-float var(--brand-float-duration, 6s) ease-in-out infinite",
+        "brand-tile-float-alt":
+          "brand-tile-float-alt var(--brand-float-duration, 6.5s) ease-in-out infinite",
       },
     },
   },
