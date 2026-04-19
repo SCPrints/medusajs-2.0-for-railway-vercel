@@ -10,7 +10,8 @@
 }
 
 html,
-body {
+body,
+main {
   background-color: var(--brand-background);
   color: var(--brand-primary);
 }

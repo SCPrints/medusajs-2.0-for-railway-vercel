@@ -6,7 +6,7 @@ import { useParams } from "next/navigation"
 import { useMemo, useState } from "react"
 
 import Divider from "@modules/common/components/divider"
-import OptionSelect from "@modules/products/components/product-actions/option-select"
+import ProductOptionFields from "@modules/products/components/product-actions/product-option-fields"
 import { usePrintPlacement } from "@modules/products/context/print-placement-context"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 
@@ -106,21 +106,13 @@ export default function ProductActions({
         <div>
           {(product.variants?.length ?? 0) > 1 && (
             <div className="flex flex-col gap-y-4">
-              {(product.options || []).map((option) => {
-                return (
-                  <div key={option.id}>
-                    <OptionSelect
-                      product={product}
-                      option={option}
-                      current={options[option.title ?? ""]}
-                      updateOption={setOptionValue}
-                      title={option.title ?? ""}
-                      data-testid="product-options"
-                      disabled={!!disabled || isAdding}
-                    />
-                  </div>
-                )
-              })}
+              <ProductOptionFields
+                product={product}
+                options={options}
+                updateOption={setOptionValue}
+                disabled={!!disabled || isAdding}
+                data-testid="product-options"
+              />
               <Divider />
             </div>
           )}

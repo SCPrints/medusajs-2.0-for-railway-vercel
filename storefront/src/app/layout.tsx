@@ -113,7 +113,9 @@ export default function RootLayout(props: { children: React.ReactNode }) {
               __html: JSON.stringify([organizationStructuredData, localBusinessStructuredData]),
             }}
           />
-          <main className="relative">{props.children}</main>
+          <main className="relative min-h-dvh bg-[var(--brand-background)] text-[var(--brand-primary)]">
+            {props.children}
+          </main>
         </body>
       </html>
     </ViewTransitions>

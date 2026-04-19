@@ -7,7 +7,7 @@ import ChevronDown from "@modules/common/icons/chevron-down"
 import X from "@modules/common/icons/x"
 
 import { getProductPrice } from "@lib/util/get-product-price"
-import OptionSelect from "./option-select"
+import ProductOptionFields from "./product-option-fields"
 import { HttpTypes } from "@medusajs/types"
 
 type MobileActionsProps = {
@@ -168,22 +168,12 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                   </div>
                   <div className="bg-white px-6 py-12">
                     {(product.variants?.length ?? 0) > 1 && (
-                      <div className="flex flex-col gap-y-6">
-                        {(product.options || []).map((option) => {
-                          return (
-                            <div key={option.id}>
-                              <OptionSelect
-                                product={product}
-                                option={option}
-                                current={options[option.title ?? ""]}
-                                updateOption={updateOptions}
-                                title={option.title ?? ""}
-                                disabled={optionsDisabled}
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
+                      <ProductOptionFields
+                        product={product}
+                        options={options}
+                        updateOption={updateOptions}
+                        disabled={optionsDisabled}
+                      />
                     )}
                   </div>
                 </Dialog.Panel>
