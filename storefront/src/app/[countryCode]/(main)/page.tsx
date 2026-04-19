@@ -1,12 +1,18 @@
 import { Metadata } from "next"
 import { HttpTypes } from "@medusajs/types"
 
+import {
+  getInstagramFeedMedia,
+  getInstagramHandleDisplay,
+  getInstagramProfileUrl,
+} from "@lib/data/instagram"
 import { getProductsById, getProductsList } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
+import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import Thumbnail from "@modules/products/components/thumbnail"
 
 type MetadataProps = {
@@ -161,6 +167,11 @@ export default async function Home({
   const pricedMap = new Map(
     pricedProducts.map((product) => [product.id, product])
   )
+
+  const instagramMedia = await getInstagramFeedMedia()
+  const instagramProfileUrl = getInstagramProfileUrl()
+  const instagramHandle = getInstagramHandleDisplay()
+
   const homepagePath = `/${countryCode}`
   const homeStructuredData = {
     "@context": "https://schema.org",
@@ -404,6 +415,12 @@ export default async function Home({
             </div>
           </div>
         </section>
+
+        <InstagramFeedStrip
+          items={instagramMedia}
+          profileUrl={instagramProfileUrl}
+          handleDisplay={instagramHandle}
+        />
       </div>
     </HomeSessionIntro>
   )

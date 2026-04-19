@@ -94,6 +94,16 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
     animation: value-marquee 28s linear infinite;
   }
 
+  .instagram-feed-track {
+    animation: instagram-feed-marquee 70s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .instagram-feed-track {
+      animation: none;
+    }
+  }
+
   @keyframes picture-marquee {
     0% {
       transform: translateX(0);
@@ -109,6 +119,15 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
     }
     100% {
       transform: translateX(-50%);
+    }
+  }
+
+  @keyframes instagram-feed-marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-50% - 0.375rem));
     }
   }
 

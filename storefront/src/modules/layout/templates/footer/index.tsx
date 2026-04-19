@@ -1,4 +1,5 @@
 import { getCollectionsList } from "@lib/data/collections"
+import { getInstagramProfileUrl } from "@lib/data/instagram"
 import { Text, clx } from "@medusajs/ui"
 import Image from "next/image"
 
@@ -7,6 +8,7 @@ import NewsletterSignup from "./newsletter-signup"
 
 export default async function Footer() {
   const { collections } = await getCollectionsList(0, 6)
+  const instagramUrl = getInstagramProfileUrl()
 
   return (
     <footer className="border-t border-ui-border-base w-full">
@@ -31,7 +33,7 @@ export default async function Footer() {
             </p>
             <div className="flex gap-3">
               <a
-                href="https://www.instagram.com"
+                href={instagramUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="text-small-semi text-ui-fg-subtle hover:text-ui-fg-base"
