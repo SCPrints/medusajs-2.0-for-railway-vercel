@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useState } from "react"
-import { Button, Checkbox, Input, Text } from "@medusajs/ui"
+import { Button, Input, Text } from "@medusajs/ui"
 
 import SortProducts, { SortOptions } from "./sort-products"
 import { ProductFilters } from "./types"
@@ -24,7 +24,6 @@ const RefinementList = ({ sortBy, filters, 'data-testid': dataTestId }: Refineme
   const [maxPriceInput, setMaxPriceInput] = useState(
     typeof filters?.maxPrice === "number" ? String(filters.maxPrice) : ""
   )
-  const [inStockOnly, setInStockOnly] = useState(Boolean(filters?.inStock))
   const [brandInput, setBrandInput] = useState(filters?.brand ?? "")
   const [fabricInput, setFabricInput] = useState(filters?.fabric ?? "")
 
@@ -71,7 +70,6 @@ const RefinementList = ({ sortBy, filters, 'data-testid': dataTestId }: Refineme
     const query = createQueryString({
       minPrice: normalizedMinPrice,
       maxPrice: normalizedMaxPrice,
-      inStock: inStockOnly ? "1" : undefined,
       brand: normalizedBrand,
       fabric: normalizedFabric,
     })
@@ -82,14 +80,12 @@ const RefinementList = ({ sortBy, filters, 'data-testid': dataTestId }: Refineme
   const clearFilters = () => {
     setMinPriceInput("")
     setMaxPriceInput("")
-    setInStockOnly(false)
     setBrandInput("")
     setFabricInput("")
 
     const query = createQueryString({
       minPrice: undefined,
       maxPrice: undefined,
-      inStock: undefined,
       brand: undefined,
       fabric: undefined,
     })
@@ -123,14 +119,6 @@ const RefinementList = ({ sortBy, filters, 'data-testid': dataTestId }: Refineme
             onChange={(event) => setMaxPriceInput(event.target.value)}
           />
         </div>
-
-        <label className="flex items-center gap-2 text-sm text-ui-fg-subtle">
-          <Checkbox
-            checked={inStockOnly}
-            onCheckedChange={(checked) => setInStockOnly(Boolean(checked))}
-          />
-          In stock only
-        </label>
 
         <Input
           type="text"

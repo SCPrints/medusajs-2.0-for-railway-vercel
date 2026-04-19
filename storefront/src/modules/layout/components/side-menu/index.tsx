@@ -118,13 +118,13 @@ const SideMenu = ({ regions }: { regions: HttpTypes.StoreRegion[] | null }) => {
                       </ul>
 
                       <div className="mt-8 border-t border-[rgba(255,107,53,0.35)] pt-6">
-                        <p className="mb-4 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-secondary)]">
+                        <p className="mb-4 txt-compact-small uppercase tracking-[0.12em] text-[rgba(255,183,130,0.95)]">
                           Browse Products & Services
                         </p>
                         <div className="grid gap-6 sm:grid-cols-2">
                           {MegaMenuGroups.map((group) => (
                             <div key={group.title}>
-                              <p className="mb-2 txt-compact-small text-[var(--brand-secondary)]">
+                              <p className="mb-2 txt-compact-small text-[rgba(226,232,240,0.88)]">
                                 {group.title}
                               </p>
                               <ul className="space-y-1">

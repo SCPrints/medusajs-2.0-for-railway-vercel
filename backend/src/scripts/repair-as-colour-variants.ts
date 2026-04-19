@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import { ExecArgs } from "@medusajs/framework/types"
+import { CreateProductVariantDTO, ExecArgs, UpdateProductVariantDTO } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
 
@@ -220,9 +220,9 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
   const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT) as {
     listShippingProfiles: (filters?: Record<string, unknown>) => Promise<Array<{ id: string }>>
   }
-  const productModuleService = container.resolve(Modules.PRODUCT) as {
-    createProductVariants?: (data: Record<string, unknown>) => Promise<unknown>
-    updateProductVariants?: (data: Record<string, unknown>) => Promise<unknown>
+  const productModuleService = container.resolve(Modules.PRODUCT) as unknown as {
+    createProductVariants?: (data: CreateProductVariantDTO) => Promise<unknown>
+    updateProductVariants?: (id: string, data: UpdateProductVariantDTO) => Promise<unknown>
   }
 
   if (
@@ -370,13 +370,14 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
         sku: variant.sku,
         barcode: variant.barcode,
         options: variant.options,
-        prices: variant.prices,
         metadata: variant.metadata,
       })
     }
 
     for (const update of existingVariantUpdates) {
-      await productModuleService.updateProductVariants(update)
+      await productModuleService.updateProductVariants(update.id, {
+        metadata: update.metadata,
+      })
     }
   }
 

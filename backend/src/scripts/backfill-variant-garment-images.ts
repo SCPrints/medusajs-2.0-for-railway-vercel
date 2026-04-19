@@ -3,6 +3,7 @@ import path from "node:path"
 
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
+import { UpdateProductVariantDTO } from "@medusajs/framework/types"
 
 type CsvRow = Record<string, string>
 
@@ -87,8 +88,11 @@ const chunk = <T,>(input: T[], size: number) => {
 export default async function backfillVariantGarmentImages({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
-  const productModuleService = container.resolve(Modules.PRODUCT) as {
-    updateProductVariants?: (data: { id: string; metadata: Record<string, unknown> }) => Promise<unknown>
+  const productModuleService = container.resolve(Modules.PRODUCT) as unknown as {
+    updateProductVariants?: (
+      id: string,
+      data: UpdateProductVariantDTO
+    ) => Promise<unknown>
   }
 
   if (typeof productModuleService.updateProductVariants !== "function") {
@@ -171,7 +175,9 @@ export default async function backfillVariantGarmentImages({ container }: ExecAr
 
   for (const batch of chunk(updates, 100)) {
     for (const update of batch) {
-      await productModuleService.updateProductVariants(update)
+      await productModuleService.updateProductVariants(update.id, {
+        metadata: update.metadata,
+      })
     }
   }
 

@@ -162,31 +162,32 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       const recipients = supportRecipient && supportRecipient !== email
         ? [email, supportRecipient]
         : [email]
-
-      await notificationModuleService.createNotifications({
-        to: recipients,
-        channel: "email",
-        template: EmailTemplates.CART_REMINDER,
-        data: {
-          emailOptions: {
-            subject: "Your SC PRINTS cart reminder",
-            replyTo: supportRecipient || undefined,
+      for (const recipient of recipients) {
+        await notificationModuleService.createNotifications({
+          to: recipient,
+          channel: "email",
+          template: EmailTemplates.CART_REMINDER,
+          data: {
+            emailOptions: {
+              subject: "Your SC PRINTS cart reminder",
+              replyTo: supportRecipient || undefined,
+            },
+            reminder: {
+              cartId,
+              email,
+              itemCount,
+              currencyCode,
+              cartTotal,
+              countryCode,
+              items: items.map((item: any) => ({
+                title: typeof item?.title === "string" ? item.title : null,
+                quantity: typeof item?.quantity === "number" ? item.quantity : null,
+              })),
+            },
+            preview: "Your cart is saved and ready when you are.",
           },
-          reminder: {
-            cartId,
-            email,
-            itemCount,
-            currencyCode,
-            cartTotal,
-            countryCode,
-            items: items.map((item: any) => ({
-              title: typeof item?.title === "string" ? item.title : null,
-              quantity: typeof item?.quantity === "number" ? item.quantity : null,
-            })),
-          },
-          preview: "Your cart is saved and ready when you are.",
-        },
-      })
+        })
+      }
     } catch (error) {
       console.error("Failed to send cart reminder notification", error)
     }
