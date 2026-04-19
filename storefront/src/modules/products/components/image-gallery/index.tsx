@@ -6,6 +6,12 @@ import { isEqual } from "lodash"
 import Image from "next/image"
 import { useMemo } from "react"
 import { useProductOptions } from "@modules/products/context/product-options-context"
+import {
+  findProductImageByUrl,
+  getGarmentImageUrlsFromMetadata,
+  normalizeImageUrl,
+  optionsAsKeymap,
+} from "@modules/products/lib/variant-options"
 
 type ImageGalleryProps = {
   product: HttpTypes.StoreProduct
@@ -35,75 +41,6 @@ const buildColorNeedles = (colorValue: string) => {
   const joinedWithUnderscore = words.join("_")
 
   return Array.from(new Set([normalized, compact, joinedWithDash, joinedWithUnderscore, ...words]))
-}
-
-const optionsAsKeymap = (variantOptions: any[] | undefined) => {
-  return (variantOptions ?? []).reduce(
-    (acc: Record<string, string | undefined>, varopt: any) => {
-      if (varopt.option?.title && varopt.value !== null && varopt.value !== undefined) {
-        acc[varopt.option.title] = varopt.value
-      }
-      return acc
-    },
-    {}
-  )
-}
-
-const normalizeImageUrl = (url: string) => url.split("?")[0].trim()
-
-const getVariantMappedImages = (metadata: Record<string, unknown> | undefined) => {
-  const garmentImages = metadata?.garment_images
-
-  if (!garmentImages) {
-    return []
-  }
-
-  const collect: string[] = []
-
-  if (typeof garmentImages === "string") {
-    try {
-      const parsed = JSON.parse(garmentImages) as Record<string, unknown>
-      const all = Array.isArray(parsed.all) ? parsed.all : []
-      collect.push(
-        ...[parsed.front, parsed.back, ...all].filter(
-          (value): value is string => typeof value === "string" && value.length > 0
-        )
-      )
-    } catch {
-      return []
-    }
-  } else if (typeof garmentImages === "object" && garmentImages !== null) {
-    const obj = garmentImages as Record<string, unknown>
-    const all = Array.isArray(obj.all) ? obj.all : []
-    collect.push(
-      ...[obj.front, obj.back, ...all].filter(
-        (value): value is string => typeof value === "string" && value.length > 0
-      )
-    )
-  }
-
-  const seen = new Set<string>()
-  const deduped: string[] = []
-  for (const url of collect) {
-    const key = normalizeImageUrl(url)
-    if (seen.has(key)) {
-      continue
-    }
-    seen.add(key)
-    deduped.push(url)
-  }
-
-  return deduped
-}
-
-const findProductImageByUrl = (
-  url: string,
-  validImages: Array<{ id: string; url: string }>
-): { id: string; url: string } | undefined => {
-  const target = normalizeImageUrl(url)
-  return validImages.find(
-    (image) => image.url === url || normalizeImageUrl(image.url) === target
-  )
 }
 
 const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
@@ -137,7 +74,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
             })
           })()
 
-    const mappedVariantImages = getVariantMappedImages(
+    const mappedVariantImages = getGarmentImageUrlsFromMetadata(
       (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
     )
 
@@ -210,7 +147,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
 
         {fallbackImages.map((image, index) => (
           <Container
-            key={`${image.id}-${index}`}
+            key={`${image.id}-${index}-${normalizeImageUrl(image.url).slice(-48)}`}
             className="relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle"
             id={image.id}
           >

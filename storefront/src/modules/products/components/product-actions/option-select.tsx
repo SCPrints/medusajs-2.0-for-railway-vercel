@@ -2,6 +2,13 @@ import { HttpTypes } from "@medusajs/types"
 import { clx } from "@medusajs/ui"
 import React from "react"
 
+import {
+  findProductOptionByTitle,
+  getGarmentSwatchImageUrlFromMetadata,
+  getVariantOptionValue,
+  toTitleSlug,
+} from "@modules/products/lib/variant-options"
+
 type OptionSelectProps = {
   product: HttpTypes.StoreProduct
   option: HttpTypes.StoreProductOption
@@ -71,70 +78,21 @@ const COLOR_SWATCHES: Record<string, string> = {
   denim: "#4f6d8a",
   butter: "#f4e08d",
   bone: "#e8dfd0",
-  natural: "#f5f5dc",
   walnutbrown: "#6b4f3a",
-}
-
-const toTitleSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-
-const getVariantOptionValue = (
-  variant: HttpTypes.StoreProductVariant,
-  optionTitle: string
-) => {
-  const normalizedTitle = toTitleSlug(optionTitle)
-
-  return (
-    (variant.options ?? []).find((variantOption: any) => {
-      const title = variantOption?.option?.title
-      return typeof title === "string" && toTitleSlug(title) === normalizedTitle
-    })?.value ?? undefined
-  )
-}
-
-const getVariantFrontImage = (variant: HttpTypes.StoreProductVariant) => {
-  const metadata = ((variant as any).metadata ?? {}) as Record<string, unknown>
-  const garmentImages = metadata.garment_images
-
-  if (!garmentImages) {
-    return undefined
-  }
-
-  if (typeof garmentImages === "string") {
-    try {
-      const parsed = JSON.parse(garmentImages) as Record<string, unknown>
-      if (typeof parsed.front === "string" && parsed.front.length) {
-        return parsed.front
-      }
-      if (Array.isArray(parsed.all)) {
-        return parsed.all.find((value): value is string => typeof value === "string" && value.length > 0)
-      }
-    } catch {
-      return undefined
-    }
-    return undefined
-  }
-
-  if (typeof garmentImages !== "object") {
-    return undefined
-  }
-
-  const imageObject = garmentImages as Record<string, unknown>
-  if (typeof imageObject.front === "string" && imageObject.front.length) {
-    return imageObject.front
-  }
-
-  if (Array.isArray(imageObject.all)) {
-    return imageObject.all.find(
-      (value): value is string => typeof value === "string" && value.length > 0
-    )
-  }
-
-  return undefined
+  arctic: "#c5d9e8",
+  arcticblue: "#c5d9e8",
+  plum: "#7c3d5a",
+  rose: "#f4c2c2",
+  coral: "#ff7f7f",
+  blush: "#fde2e4",
+  glacier: "#e8eef2",
+  ink: "#1a1a2e",
+  midnight: "#191970",
+  paper: "#f5f2eb",
+  oatmeal: "#e8dfd0",
+  fog: "#d4d4d8",
+  slate: "#64748b",
+  pebble: "#a8a29e",
 }
 
 const getColorSwatchImageMap = (
@@ -142,23 +100,37 @@ const getColorSwatchImageMap = (
   optionTitle: string
 ) => {
   const swatchImageMap = new Map<string, string>()
+  const optionDef = findProductOptionByTitle(product, optionTitle)
+  if (!optionDef) {
+    return swatchImageMap
+  }
+
+  const byColorKey = new Map<string, HttpTypes.StoreProductVariant[]>()
 
   for (const variant of product.variants ?? []) {
-    const colorValue = getVariantOptionValue(variant as HttpTypes.StoreProductVariant, optionTitle)
-    const imageUrl = getVariantFrontImage(variant as HttpTypes.StoreProductVariant)
-
-    if (!colorValue || !imageUrl) {
+    const colorValue = getVariantOptionValue(variant, optionTitle)
+    if (!colorValue) {
       continue
     }
-
     const key = toTitleSlug(colorValue)
-    if (!swatchImageMap.has(key)) {
-      swatchImageMap.set(key, imageUrl)
+    const list = byColorKey.get(key) ?? []
+    list.push(variant)
+    byColorKey.set(key, list)
+  }
+
+  for (const [key, variants] of Array.from(byColorKey.entries())) {
+    const urls = variants
+      .map((v: HttpTypes.StoreProductVariant) =>
+        getGarmentSwatchImageUrlFromMetadata(((v as { metadata?: Record<string, unknown> }).metadata ?? {}) as Record<string, unknown>)
+      )
+      .filter((url: string | undefined): url is string => typeof url === "string" && url.length > 0)
+
+    if (urls.length) {
+      swatchImageMap.set(key, urls[0])
     }
   }
 
-  // Fallback: infer color image from product images URL tokens.
-  for (const optionValue of product.options?.find((o) => o.title === optionTitle)?.values ?? []) {
+  for (const optionValue of optionDef.values ?? []) {
     const rawValue = optionValue.value ?? ""
     const key = toTitleSlug(rawValue)
 
@@ -214,7 +186,6 @@ const swatchColor = (colorValue: string) => {
     COLOR_SWATCHES[compact] ??
     tokens.map((token) => COLOR_SWATCHES[token]).find(Boolean)
 
-  // Always return a visible color, even for unseen color labels.
   return matched ?? hashToHsl(normalized)
 }
 

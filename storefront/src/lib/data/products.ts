@@ -6,6 +6,10 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
 
+/** Include variant metadata (e.g. garment_images) for PDP gallery + swatches. */
+const STORE_PRODUCT_FIELDS =
+  "*variants.calculated_price,+variants.inventory_quantity,+variants.metadata"
+
 export const getProductsById = cache(async function ({
   ids,
   regionId,
@@ -18,7 +22,7 @@ export const getProductsById = cache(async function ({
       {
         id: ids,
         region_id: regionId,
-        fields: "*variants.calculated_price,+variants.inventory_quantity",
+        fields: STORE_PRODUCT_FIELDS,
       },
       { next: { tags: ["products"] } }
     )
@@ -34,7 +38,7 @@ export const getProductByHandle = cache(async function (
       {
         handle,
         region_id: regionId,
-        fields: "*variants.calculated_price,+variants.inventory_quantity",
+        fields: STORE_PRODUCT_FIELDS,
       },
       { next: { tags: ["products"] } }
     )
@@ -71,7 +75,7 @@ export const getProductsList = cache(async function ({
         limit,
         offset,
         region_id: region.id,
-        fields: "*variants.calculated_price,+variants.inventory_quantity",
+        fields: STORE_PRODUCT_FIELDS,
         ...queryParams,
       },
       { next: { tags: ["products"] } }
