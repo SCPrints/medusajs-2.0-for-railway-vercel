@@ -35,7 +35,7 @@ export default async function ProductPreview({
     return (
       <LocalizedClientLink href={`/products/${product.handle}`} className="group block h-full">
         <article
-          className="h-full rounded-xl border border-ui-border-base bg-white p-4 transition-colors hover:border-[var(--brand-secondary)]/55"
+          className="h-full rounded-xl border border-ui-border-base bg-white p-4 transform-gpu transition-all duration-200 ease-out hover:border-[var(--brand-secondary)]/55 hover:shadow-elevation-card-hover motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.01]"
           data-testid="product-wrapper"
         >
           <Thumbnail
@@ -58,7 +58,10 @@ export default async function ProductPreview({
   }
 
   return (
-    <LocalizedClientLink href={`/products/${product.handle}`} className="group">
+    <LocalizedClientLink
+      href={`/products/${product.handle}`}
+      className="group block transform-gpu transition-transform duration-200 ease-out motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.01]"
+    >
       <div data-testid="product-wrapper">
         <Thumbnail
           thumbnail={product.thumbnail}
