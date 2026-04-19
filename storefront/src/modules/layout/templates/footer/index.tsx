@@ -46,14 +46,6 @@ export default async function Footer() {
               >
                 Facebook
               </a>
-              <a
-                href="https://www.linkedin.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-small-semi text-ui-fg-subtle hover:text-ui-fg-base"
-              >
-                LinkedIn
-              </a>
             </div>
           </div>
 
