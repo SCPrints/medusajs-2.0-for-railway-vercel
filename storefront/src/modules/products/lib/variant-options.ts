@@ -118,6 +118,96 @@ export const findProductImageByUrl = (
   )
 }
 
+/** Tokens derived from a colour label for matching inside image URLs/filenames. */
+export const buildColorNeedles = (colorValue: string): string[] => {
+  const normalized = toTitleSlug(colorValue)
+  if (!normalized) {
+    return []
+  }
+  const words = normalized.split(" ").filter(Boolean)
+  const compact = words.join("")
+  const joinedWithDash = words.join("-")
+  const joinedWithUnderscore = words.join("_")
+  return Array.from(new Set([normalized, compact, joinedWithDash, joinedWithUnderscore, ...words]))
+}
+
+export const urlMatchesColorNeedles = (url: string, needles: string[]): boolean => {
+  if (!needles.length) {
+    return true
+  }
+  const normalizedUrl = toTitleSlug(url)
+  return needles.some((needle) => normalizedUrl.includes(needle))
+}
+
+function variantIsPurchasable(variant: HttpTypes.StoreProductVariant): boolean {
+  if (!variant.manage_inventory) {
+    return true
+  }
+  if (variant.allow_backorder) {
+    return true
+  }
+  return (variant.inventory_quantity ?? 0) > 0
+}
+
+/** True for plain "Black" or colours that start with "Black " (e.g. Black Marle). */
+function isBlackGarmentColor(colorValue: string): boolean {
+  const n = toTitleSlug(colorValue)
+  if (!n) {
+    return false
+  }
+  return n === "black" || n.startsWith("black ")
+}
+
+function pickDefinedStringOptions(
+  map: Record<string, string | undefined>
+): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {}
+  for (const [k, v] of Object.entries(map)) {
+    if (typeof v === "string") {
+      out[k] = v
+    }
+  }
+  return out
+}
+
+/**
+ * Initial option values for the PDP: full variant selection so the gallery can resolve one colour.
+ * Prefers an in-stock Black garment when a Colour option exists; otherwise first purchasable variant.
+ */
+export function getDefaultProductOptions(
+  product: HttpTypes.StoreProduct
+): Record<string, string | undefined> {
+  const variants = product.variants ?? []
+  if (variants.length === 0) {
+    return {}
+  }
+
+  if (variants.length === 1) {
+    return pickDefinedStringOptions(optionsAsKeymap(variants[0].options ?? undefined))
+  }
+
+  const colorOption = product.options?.find((o) => /color|colour/i.test(o.title ?? ""))
+  const colorTitle = colorOption?.title
+
+  let chosen: HttpTypes.StoreProductVariant
+
+  if (colorTitle) {
+    const blackVariants = variants.filter((v) => {
+      const c = getVariantOptionValue(v, colorTitle)
+      return typeof c === "string" && isBlackGarmentColor(c)
+    })
+    chosen =
+      blackVariants.find(variantIsPurchasable) ??
+      blackVariants[0] ??
+      variants.find(variantIsPurchasable) ??
+      variants[0]
+  } else {
+    chosen = variants.find(variantIsPurchasable) ?? variants[0]
+  }
+
+  return pickDefinedStringOptions(optionsAsKeymap(chosen.options ?? undefined))
+}
+
 /** Match product option by title (slug-safe). */
 export const findProductOptionByTitle = (
   product: HttpTypes.StoreProduct,

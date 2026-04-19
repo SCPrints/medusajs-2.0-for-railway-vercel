@@ -1,5 +1,7 @@
 "use client"
 
+import type { HttpTypes } from "@medusajs/types"
+import { getDefaultProductOptions } from "@modules/products/lib/variant-options"
 import { createContext, useContext, useMemo, useState } from "react"
 
 type ProductOptionsContextValue = {
@@ -11,10 +13,14 @@ const ProductOptionsContext = createContext<ProductOptionsContextValue | null>(n
 
 export const ProductOptionsProvider = ({
   children,
+  product,
 }: {
   children: React.ReactNode
+  product: HttpTypes.StoreProduct
 }) => {
-  const [options, setOptions] = useState<Record<string, string | undefined>>({})
+  const [options, setOptions] = useState<Record<string, string | undefined>>(() =>
+    getDefaultProductOptions(product)
+  )
 
   const value = useMemo<ProductOptionsContextValue>(
     () => ({

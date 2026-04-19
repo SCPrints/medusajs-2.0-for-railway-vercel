@@ -3,7 +3,7 @@
 import { Button } from "@medusajs/ui"
 import { isEqual } from "lodash"
 import { useParams } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import Divider from "@modules/common/components/divider"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
@@ -38,18 +38,6 @@ export default function ProductActions({
   const countryCode = useParams().countryCode as string
   const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
   const { options, setOptionValue } = useProductOptions()
-
-  // If there is only 1 variant, preselect the options
-  useEffect(() => {
-    if (product.variants?.length === 1 && product.variants[0]) {
-      const variantOptions = optionsAsKeymap(product.variants[0].options)
-      Object.entries(variantOptions ?? {}).forEach(([title, value]) => {
-        if (typeof value === "string") {
-          setOptionValue(title, value)
-        }
-      })
-    }
-  }, [product.variants, setOptionValue])
 
   const selectedVariant = useMemo(() => {
     if (!product.variants || product.variants.length === 0) {

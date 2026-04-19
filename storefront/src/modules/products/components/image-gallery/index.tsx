@@ -7,10 +7,13 @@ import Image from "next/image"
 import { useMemo } from "react"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import {
+  buildColorNeedles,
   findProductImageByUrl,
   getGarmentImageUrlsFromMetadata,
   normalizeImageUrl,
   optionsAsKeymap,
+  toTitleSlug,
+  urlMatchesColorNeedles,
 } from "@modules/products/lib/variant-options"
 
 type ImageGalleryProps = {
@@ -20,28 +23,6 @@ type ImageGalleryProps = {
 }
 
 const COLOR_OPTION_MATCHER = /(color|colour)/i
-
-const normalizeValue = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-
-const buildColorNeedles = (colorValue: string) => {
-  const normalized = normalizeValue(colorValue)
-
-  if (!normalized) {
-    return []
-  }
-
-  const words = normalized.split(" ").filter(Boolean)
-  const compact = words.join("")
-  const joinedWithDash = words.join("-")
-  const joinedWithUnderscore = words.join("_")
-
-  return Array.from(new Set([normalized, compact, joinedWithDash, joinedWithUnderscore, ...words]))
-}
 
 const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
   const { options } = useProductOptions()
@@ -53,6 +34,12 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
         id: image.id,
         url: image.url as string,
       }))
+
+    const selectedColor = Object.entries(options).find(([title]) =>
+      COLOR_OPTION_MATCHER.test(title)
+    )?.[1]
+
+    const needles = selectedColor ? buildColorNeedles(selectedColor) : []
 
     const selectedEntries = Object.entries(options).filter(([, value]) => Boolean(value))
 
@@ -74,9 +61,16 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
             })
           })()
 
-    const mappedVariantImages = getGarmentImageUrlsFromMetadata(
+    let mappedVariantImages = getGarmentImageUrlsFromMetadata(
       (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
     )
+
+    if (selectedColor && needles.length && mappedVariantImages.length) {
+      const narrowed = mappedVariantImages.filter((url) => urlMatchesColorNeedles(url, needles))
+      if (narrowed.length) {
+        mappedVariantImages = narrowed
+      }
+    }
 
     if (mappedVariantImages.length) {
       return mappedVariantImages.map((mappedUrl, index) => {
@@ -91,22 +85,17 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
       })
     }
 
-    const selectedColor = Object.entries(options).find(([title]) =>
-      COLOR_OPTION_MATCHER.test(title)
-    )?.[1]
-
     if (!selectedColor || validImages.length <= 1) {
       return validImages
     }
 
-    const needles = buildColorNeedles(selectedColor)
     if (!needles.length) {
       return validImages
     }
 
     const normalizedImages = validImages.map((image) => ({
       ...image,
-      normalizedUrl: normalizeValue(image.url),
+      normalizedUrl: toTitleSlug(image.url),
     }))
 
     const matched = normalizedImages.filter((image) =>

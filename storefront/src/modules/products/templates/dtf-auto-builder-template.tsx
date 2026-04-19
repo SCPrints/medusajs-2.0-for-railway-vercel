@@ -55,7 +55,7 @@ const DtfAutoBuilderTemplate: React.FC<Props> = ({
         data-testid="product-container"
       >
         <PrintPlacementProvider>
-          <ProductOptionsProvider>
+          <ProductOptionsProvider product={product}>
             <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-6">
               <ProductInfo product={product} />
               <div className="w-full">
