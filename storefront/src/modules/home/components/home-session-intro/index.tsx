@@ -14,12 +14,17 @@ const PRE_EXPLODE_HOLD_MS = 750
 const EXPLODE_MS = 7600
 /** Max random start delay on particles (must match generateParticles) */
 const MAX_PARTICLE_DELAY_MS = 280
-/** When the last particle’s motion ends: delay + transform duration */
-const PARTICLE_BURST_END_MS = EXPLODE_MS + MAX_PARTICLE_DELAY_MS
-/** Brief beat after motion ends before fading the overlay (avoids “empty” gap) */
-const POST_BURST_MS = 120
-/** Short fade so the solid scrim doesn’t sit on screen */
-const OVERLAY_FADE_MS = 240
+/**
+ * Approx. fraction of EXPLODE_MS after which a particle has left the viewport
+ * (easing is not linear; ~0.68 works well for cubic ease-out motion).
+ */
+const EDGE_EXIT_FRACTION = 0.68
+/** Small buffer after the 75th-percentile “at edge” time before fading */
+const POST_BURST_MS = 80
+/** Solid backdrop only—fade this quickly so shards sit over the real page */
+const BACKDROP_FADE_MS = 280
+/** Final fade on the particle layer before unmount */
+const PARTICLE_LAYER_FADE_MS = 200
 const PARTICLE_MIN = 20
 const PARTICLE_MAX = 30
 
@@ -35,6 +40,20 @@ type ParticleSpec = {
   rot: number
   width: number
   delayMs: number
+}
+
+/** ms after fly starts until overlay fades—when ~3/4 of particles have cleared the edge */
+function msUntilFadeAfterParticlesAtEdge(particles: ParticleSpec[]): number {
+  const edgeTimes = particles.map(
+    (p) => p.delayMs + EXPLODE_MS * EDGE_EXIT_FRACTION
+  )
+  edgeTimes.sort((a, b) => a - b)
+  const n = edgeTimes.length
+  if (n === 0) {
+    return EXPLODE_MS + MAX_PARTICLE_DELAY_MS + POST_BURST_MS
+  }
+  const idx = Math.min(n - 1, Math.ceil(0.75 * n) - 1)
+  return edgeTimes[idx] + POST_BURST_MS
 }
 
 function generateParticles(count: number): ParticleSpec[] {
@@ -64,7 +83,9 @@ export default function HomeSessionIntro({
   const [zoomScale, setZoomScale] = useState(0.028)
   const [particles, setParticles] = useState<ParticleSpec[] | null>(null)
   const [fly, setFly] = useState(false)
-  const [overlayFade, setOverlayFade] = useState(false)
+  /** Fade #EEEEEE scrim; particles stay opaque on their own layer */
+  const [fadeSolidBackdrop, setFadeSolidBackdrop] = useState(false)
+  const [particleLayerFade, setParticleLayerFade] = useState(false)
   const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const explodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
@@ -135,12 +156,13 @@ export default function HomeSessionIntro({
         setFly(true)
       }
     })
+    const waitAfterFlyMs = msUntilFadeAfterParticlesAtEdge(particles)
     explodeTimerRef.current = window.setTimeout(() => {
       if (!cancelled) {
-        setOverlayFade(true)
+        setParticleLayerFade(true)
         setPhase("fading")
       }
-    }, PARTICLE_BURST_END_MS + POST_BURST_MS)
+    }, waitAfterFlyMs)
     return () => {
       cancelled = true
       window.cancelAnimationFrame(frame)
@@ -152,7 +174,17 @@ export default function HomeSessionIntro({
   }, [phase, particles])
 
   useEffect(() => {
-    if (!overlayFade) {
+    if (phase !== "explode" || !fly) {
+      return
+    }
+    const frame = window.requestAnimationFrame(() => {
+      setFadeSolidBackdrop(true)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [phase, fly])
+
+  useEffect(() => {
+    if (!particleLayerFade) {
       return
     }
     const finish = () => {
@@ -188,7 +220,7 @@ export default function HomeSessionIntro({
     }
     unmountFallbackRef.current = window.setTimeout(
       finish,
-      OVERLAY_FADE_MS + 200
+      PARTICLE_LAYER_FADE_MS + 200
     )
 
     return () => {
@@ -200,26 +232,25 @@ export default function HomeSessionIntro({
         unmountFallbackRef.current = null
       }
     }
-  }, [overlayFade])
+  }, [particleLayerFade])
 
   return (
     <>
       {children}
       {active ? (
-        <div
-          ref={overlayRef}
-          aria-hidden
-          className={`home-session-intro-overlay fixed inset-0 z-[100] overflow-hidden bg-[var(--brand-background)] ${
-            overlayFade ? "pointer-events-none opacity-0" : "opacity-100"
-          }`}
-          style={{
-            transition: overlayFade
-              ? `opacity ${OVERLAY_FADE_MS}ms ease-out`
-              : "none",
-          }}
-        >
+        <>
+          <div
+            aria-hidden
+            className={`fixed inset-0 z-[100] bg-[var(--brand-background)] transition-opacity ease-out ${
+              fadeSolidBackdrop ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+            style={{
+              transitionDuration: `${BACKDROP_FADE_MS}ms`,
+            }}
+          />
+
           {phase === "zoom" ? (
-            <div className="flex h-full w-full items-center justify-center px-3 py-6 small:px-6">
+            <div className="fixed inset-0 z-[101] flex items-center justify-center overflow-hidden px-3 py-6 small:px-6">
               <div
                 className="box-border flex w-full max-w-[min(92vw,26rem)] flex-col items-center gap-5 will-change-transform small:max-w-[min(92vw,28rem)]"
                 style={{
@@ -246,8 +277,14 @@ export default function HomeSessionIntro({
           {phase === "explode" || phase === "fading" ? (
             particles ? (
               <div
-                className="pointer-events-none absolute inset-0"
+                ref={overlayRef}
                 aria-hidden
+                className={`home-session-intro-particles fixed inset-0 z-[102] overflow-hidden pointer-events-none transition-opacity ease-out ${
+                  particleLayerFade ? "opacity-0" : "opacity-100"
+                }`}
+                style={{
+                  transitionDuration: `${PARTICLE_LAYER_FADE_MS}ms`,
+                }}
               >
                 {particles.map((p, i) => (
                   <Image
@@ -278,7 +315,7 @@ export default function HomeSessionIntro({
               </div>
             ) : null
           ) : null}
-        </div>
+        </>
       ) : null}
     </>
   )
