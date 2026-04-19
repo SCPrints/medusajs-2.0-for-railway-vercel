@@ -46,7 +46,11 @@ const nextConfig = {
         protocol: "https",
         // Added regex strip to ensure https:// doesn't crash the hostname
         hostname: process.env.NEXT_PUBLIC_MINIO_ENDPOINT ? process.env.NEXT_PUBLIC_MINIO_ENDPOINT.replace(/^https?:\/\//, '') : 'localhost',
-      }
+      },
+      {
+        protocol: "https",
+        hostname: "cdn11.bigcommerce.com",
+      },
     ],
   },
   serverRuntimeConfig: {

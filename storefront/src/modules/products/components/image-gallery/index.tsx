@@ -2,6 +2,7 @@
 
 import { HttpTypes } from "@medusajs/types"
 import { Container } from "@medusajs/ui"
+import { isEqual } from "lodash"
 import Image from "next/image"
 import { useMemo } from "react"
 import { useProductOptions } from "@modules/products/context/product-options-context"
@@ -48,6 +49,8 @@ const optionsAsKeymap = (variantOptions: any[] | undefined) => {
   )
 }
 
+const normalizeImageUrl = (url: string) => url.split("?")[0].trim()
+
 const getVariantMappedImages = (metadata: Record<string, unknown> | undefined) => {
   const garmentImages = metadata?.garment_images
 
@@ -55,26 +58,51 @@ const getVariantMappedImages = (metadata: Record<string, unknown> | undefined) =
     return []
   }
 
+  const collect: string[] = []
+
   if (typeof garmentImages === "string") {
     try {
       const parsed = JSON.parse(garmentImages) as Record<string, unknown>
       const all = Array.isArray(parsed.all) ? parsed.all : []
-      return [parsed.front, parsed.back, ...all].filter(
-        (value): value is string => typeof value === "string" && value.length > 0
+      collect.push(
+        ...[parsed.front, parsed.back, ...all].filter(
+          (value): value is string => typeof value === "string" && value.length > 0
+        )
       )
     } catch {
       return []
     }
+  } else if (typeof garmentImages === "object" && garmentImages !== null) {
+    const obj = garmentImages as Record<string, unknown>
+    const all = Array.isArray(obj.all) ? obj.all : []
+    collect.push(
+      ...[obj.front, obj.back, ...all].filter(
+        (value): value is string => typeof value === "string" && value.length > 0
+      )
+    )
   }
 
-  if (typeof garmentImages !== "object") {
-    return []
+  const seen = new Set<string>()
+  const deduped: string[] = []
+  for (const url of collect) {
+    const key = normalizeImageUrl(url)
+    if (seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+    deduped.push(url)
   }
 
-  const obj = garmentImages as Record<string, unknown>
-  const all = Array.isArray(obj.all) ? obj.all : []
-  return [obj.front, obj.back, ...all].filter(
-    (value): value is string => typeof value === "string" && value.length > 0
+  return deduped
+}
+
+const findProductImageByUrl = (
+  url: string,
+  validImages: Array<{ id: string; url: string }>
+): { id: string; url: string } | undefined => {
+  const target = normalizeImageUrl(url)
+  return validImages.find(
+    (image) => image.url === url || normalizeImageUrl(image.url) === target
   )
 }
 
@@ -89,29 +117,41 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
         url: image.url as string,
       }))
 
-    const selectedVariant = (product.variants ?? []).find((variant) => {
-      const variantOptions = optionsAsKeymap((variant as any).options)
-      const selectedEntries = Object.entries(options).filter(([, value]) => Boolean(value))
+    const selectedEntries = Object.entries(options).filter(([, value]) => Boolean(value))
 
-      if (!selectedEntries.length) {
-        return false
-      }
-
-      return selectedEntries.every(([title, value]) => value === variantOptions[title])
-    })
+    const selectedVariant =
+      selectedEntries.length === 0
+        ? undefined
+        : (() => {
+            const variants = product.variants ?? []
+            const exact = variants.find((variant) => {
+              const vo = optionsAsKeymap((variant as any).options)
+              return isEqual(vo, options)
+            })
+            if (exact) {
+              return exact
+            }
+            return variants.find((variant) => {
+              const variantOptions = optionsAsKeymap((variant as any).options)
+              return selectedEntries.every(([title, value]) => value === variantOptions[title])
+            })
+          })()
 
     const mappedVariantImages = getVariantMappedImages(
       (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
     )
 
     if (mappedVariantImages.length) {
-      const matched = mappedVariantImages
-        .map((mappedUrl) => validImages.find((image) => image.url === mappedUrl))
-        .filter(Boolean) as Array<{ id: string; url: string }>
-
-      if (matched.length) {
-        return matched
-      }
+      return mappedVariantImages.map((mappedUrl, index) => {
+        const fromProduct = findProductImageByUrl(mappedUrl, validImages)
+        if (fromProduct) {
+          return fromProduct
+        }
+        return {
+          id: `variant-metadata-${index}`,
+          url: mappedUrl,
+        }
+      })
     }
 
     const selectedColor = Object.entries(options).find(([title]) =>
@@ -170,7 +210,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
 
         {fallbackImages.map((image, index) => (
           <Container
-            key={image.id}
+            key={`${image.id}-${index}`}
             className="relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle"
             id={image.id}
           >
