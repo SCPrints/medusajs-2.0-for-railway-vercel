@@ -261,7 +261,9 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
 
   const csvPath = resolveAsColourCsvPath()
 
-  logger.info(`Mode: ${apply ? "APPLY" : "DRY RUN"} (pass --apply to execute writes)`)
+  logger.info(
+    `Mode: ${apply ? "APPLY" : "DRY RUN"} (use -- --apply, or REPAIR_AS_COLOUR_APPLY=1 for Railway/SSH)`
+  )
   logger.info(`Reading CSV from ${csvPath}`)
 
   const parsedProducts = parseProductsFromCsv(parseCsv(fs.readFileSync(csvPath, "utf8")))
