@@ -173,6 +173,7 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                           return (
                             <div key={option.id}>
                               <OptionSelect
+                                product={product}
                                 option={option}
                                 current={options[option.title ?? ""]}
                                 updateOption={updateOptions}

@@ -118,6 +118,7 @@ export default function ProductActions({
                 return (
                   <div key={option.id}>
                     <OptionSelect
+                      product={product}
                       option={option}
                       current={options[option.title ?? ""]}
                       updateOption={setOptionValue}

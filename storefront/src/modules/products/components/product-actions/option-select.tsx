@@ -3,6 +3,7 @@ import { clx } from "@medusajs/ui"
 import React from "react"
 
 type OptionSelectProps = {
+  product: HttpTypes.StoreProduct
   option: HttpTypes.StoreProductOption
   current: string | undefined
   updateOption: (title: string, value: string) => void
@@ -43,6 +44,7 @@ const COLOR_SWATCHES: Record<string, string> = {
   beige: "#d6c2a4",
   tan: "#b58d66",
   camel: "#b08457",
+  copper: "#b87333",
   gold: "#c9a227",
   silver: "#c0c0c0",
   chocolate: "#5c4033",
@@ -80,6 +82,114 @@ const toTitleSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
 
+const getVariantOptionValue = (
+  variant: HttpTypes.StoreProductVariant,
+  optionTitle: string
+) => {
+  const normalizedTitle = toTitleSlug(optionTitle)
+
+  return (
+    (variant.options ?? []).find((variantOption: any) => {
+      const title = variantOption?.option?.title
+      return typeof title === "string" && toTitleSlug(title) === normalizedTitle
+    })?.value ?? undefined
+  )
+}
+
+const getVariantFrontImage = (variant: HttpTypes.StoreProductVariant) => {
+  const metadata = ((variant as any).metadata ?? {}) as Record<string, unknown>
+  const garmentImages = metadata.garment_images
+
+  if (!garmentImages) {
+    return undefined
+  }
+
+  if (typeof garmentImages === "string") {
+    try {
+      const parsed = JSON.parse(garmentImages) as Record<string, unknown>
+      if (typeof parsed.front === "string" && parsed.front.length) {
+        return parsed.front
+      }
+      if (Array.isArray(parsed.all)) {
+        return parsed.all.find((value): value is string => typeof value === "string" && value.length > 0)
+      }
+    } catch {
+      return undefined
+    }
+    return undefined
+  }
+
+  if (typeof garmentImages !== "object") {
+    return undefined
+  }
+
+  const imageObject = garmentImages as Record<string, unknown>
+  if (typeof imageObject.front === "string" && imageObject.front.length) {
+    return imageObject.front
+  }
+
+  if (Array.isArray(imageObject.all)) {
+    return imageObject.all.find(
+      (value): value is string => typeof value === "string" && value.length > 0
+    )
+  }
+
+  return undefined
+}
+
+const getColorSwatchImageMap = (
+  product: HttpTypes.StoreProduct,
+  optionTitle: string
+) => {
+  const swatchImageMap = new Map<string, string>()
+
+  for (const variant of product.variants ?? []) {
+    const colorValue = getVariantOptionValue(variant as HttpTypes.StoreProductVariant, optionTitle)
+    const imageUrl = getVariantFrontImage(variant as HttpTypes.StoreProductVariant)
+
+    if (!colorValue || !imageUrl) {
+      continue
+    }
+
+    const key = toTitleSlug(colorValue)
+    if (!swatchImageMap.has(key)) {
+      swatchImageMap.set(key, imageUrl)
+    }
+  }
+
+  // Fallback: infer color image from product images URL tokens.
+  for (const optionValue of product.options?.find((o) => o.title === optionTitle)?.values ?? []) {
+    const rawValue = optionValue.value ?? ""
+    const key = toTitleSlug(rawValue)
+
+    if (!key || swatchImageMap.has(key)) {
+      continue
+    }
+
+    const tokens = key.split(" ").filter(Boolean)
+    const matchedImage = (product.images ?? [])
+      .map((image) => image.url)
+      .find((url) => {
+        if (!url) {
+          return false
+        }
+
+        const normalizedUrl = toTitleSlug(url)
+        return (
+          normalizedUrl.includes(key) ||
+          normalizedUrl.includes(key.replace(/\s+/g, "")) ||
+          tokens.some((token) => normalizedUrl.includes(token))
+        )
+      })
+
+    if (matchedImage) {
+      swatchImageMap.set(key, matchedImage)
+    }
+  }
+
+  return swatchImageMap
+}
+
 const hashToHsl = (value: string) => {
   let hash = 0
   for (let i = 0; i < value.length; i++) {
@@ -109,6 +219,7 @@ const swatchColor = (colorValue: string) => {
 }
 
 const OptionSelect: React.FC<OptionSelectProps> = ({
+  product,
   option,
   current,
   updateOption,
@@ -118,6 +229,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
 }) => {
   const filteredOptions = option.values?.map((v) => v.value)
   const isColorOption = COLOR_OPTION_MATCHER.test(title)
+  const colorSwatchImageMap = isColorOption ? getColorSwatchImageMap(product, title) : null
 
   return (
     <div className="flex flex-col gap-y-3">
@@ -131,6 +243,8 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
       >
         {filteredOptions?.map((v) => {
           const isSelected = v === current
+          const normalizedValue = toTitleSlug(v ?? "")
+          const swatchImage = colorSwatchImageMap?.get(normalizedValue)
 
           if (isColorOption) {
             return (
@@ -144,7 +258,12 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
                       "border-ui-border-base hover:scale-105": !isSelected,
                     }
                   )}
-                  style={{ backgroundColor: swatchColor(v ?? "") }}
+                  style={{
+                    backgroundColor: swatchColor(v ?? ""),
+                    backgroundImage: swatchImage ? `url("${swatchImage}")` : undefined,
+                    backgroundSize: swatchImage ? "235%" : "cover",
+                    backgroundPosition: swatchImage ? "center 35%" : "center",
+                  }}
                   disabled={disabled}
                   data-testid="option-button"
                   aria-label={`Select ${title} ${v}`}
