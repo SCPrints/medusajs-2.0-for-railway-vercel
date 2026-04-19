@@ -11,10 +11,12 @@ export default async function ProductPreview({
   product,
   isFeatured,
   region,
+  layout = "default",
 }: {
   product: HttpTypes.StoreProduct
   isFeatured?: boolean
   region: HttpTypes.StoreRegion
+  layout?: "default" | "boxed"
 }) {
   const [pricedProduct] = await getProductsById({
     ids: [product.id!],
@@ -28,6 +30,32 @@ export default async function ProductPreview({
   const { cheapestPrice } = getProductPrice({
     product: pricedProduct,
   })
+
+  if (layout === "boxed") {
+    return (
+      <LocalizedClientLink href={`/products/${product.handle}`} className="group block h-full">
+        <article
+          className="h-full rounded-xl border border-ui-border-base bg-white p-4 transition-colors hover:border-[var(--brand-secondary)]/55"
+          data-testid="product-wrapper"
+        >
+          <Thumbnail
+            thumbnail={product.thumbnail}
+            images={product.images}
+            size="square"
+            className="rounded-lg"
+          />
+          <div className="mt-4 flex items-start justify-between gap-x-3">
+            <Text className="text-sm font-medium text-ui-fg-base" data-testid="product-title">
+              {product.title}
+            </Text>
+            <div className="shrink-0">
+              {cheapestPrice && <PreviewPrice price={cheapestPrice} />}
+            </div>
+          </div>
+        </article>
+      </LocalizedClientLink>
+    )
+  }
 
   return (
     <LocalizedClientLink href={`/products/${product.handle}`} className="group">
