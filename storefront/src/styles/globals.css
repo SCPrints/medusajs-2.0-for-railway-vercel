@@ -15,6 +15,28 @@ body {
   color: var(--brand-primary);
 }
 
+.cursor-follow-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 9999px;
+  background-color: var(--brand-accent);
+  box-shadow: 0 0 0 1px rgba(255, 46, 99, 0.3);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 60;
+  will-change: transform, opacity;
+  transition: opacity 140ms ease-out;
+}
+
+@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .cursor-follow-dot {
+    display: none;
+  }
+}
+
 /* Lean default text links toward brand secondary, keep button links unaffected */
 a:not(.bg-ui-fg-base):not(.text-white) {
   color: var(--brand-secondary);

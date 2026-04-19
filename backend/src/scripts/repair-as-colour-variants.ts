@@ -37,6 +37,27 @@ const TARGET_HANDLES = [
   "as-colour-stencil-hood-5102",
 ]
 
+function resolveAsColourCsvPath(): string {
+  const fromEnv = process.env.AS_COLOUR_IMPORT_CSV?.trim()
+  if (fromEnv && fs.existsSync(fromEnv)) {
+    return path.resolve(fromEnv)
+  }
+
+  const candidates = [
+    path.join(process.cwd(), "data", "as_colour_medusa_import.csv"),
+    path.resolve(process.cwd(), "../as_colour_medusa_import.csv"),
+    "/as_colour_medusa_import.csv",
+  ]
+  for (const p of candidates) {
+    if (fs.existsSync(p)) {
+      return p
+    }
+  }
+  throw new Error(
+    `CSV not found. Set AS_COLOUR_IMPORT_CSV to a readable path, or place as_colour_medusa_import.csv in backend/data/ or the repo root. Tried: ${candidates.join(", ")}`
+  )
+}
+
 const PRICE_CURRENCY_CODE = "aud"
 
 const parseCsvLine = (line: string): string[] => {
@@ -234,10 +255,7 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
 
   const apply = args.includes("--apply")
 
-  const csvPath = path.resolve(process.cwd(), "../as_colour_medusa_import.csv")
-  if (!fs.existsSync(csvPath)) {
-    throw new Error(`CSV not found at ${csvPath}`)
-  }
+  const csvPath = resolveAsColourCsvPath()
 
   logger.info(`Mode: ${apply ? "APPLY" : "DRY RUN"} (pass --apply to execute writes)`)
   logger.info(`Reading CSV from ${csvPath}`)
