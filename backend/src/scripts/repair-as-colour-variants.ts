@@ -3,7 +3,7 @@ import path from "node:path"
 
 import { CreateProductVariantDTO, ExecArgs, UpdateProductVariantDTO } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
-import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
+import { createProductsWorkflow, updateProductOptionsWorkflow } from "@medusajs/medusa/core-flows"
 
 type CsvRow = Record<string, string>
 
@@ -59,6 +59,96 @@ function resolveAsColourCsvPath(): string {
 }
 
 const PRICE_CURRENCY_CODE = "aud"
+
+async function mergeProductOptionValuesFromCsv({
+  container,
+  query,
+  logger,
+  productId,
+  parsed,
+  apply,
+}: {
+  container: ExecArgs["container"]
+  query: { graph: (args: Record<string, unknown>) => Promise<{ data?: unknown[] }> }
+  logger: { info: (msg: string) => void; warn: (msg: string) => void }
+  productId: string
+  parsed: ParsedProduct
+  apply: boolean
+}): Promise<void> {
+  const { data: products } = await query.graph({
+    entity: "product",
+    fields: ["id", "options.id", "options.title", "options.values.value"],
+    filters: { id: productId },
+  })
+
+  const product = products?.[0] as
+    | {
+        options?: Array<{
+          id: string
+          title: string
+          values?: Array<{ value?: string | null }>
+        }>
+      }
+    | undefined
+
+  if (!product?.options?.length) {
+    logger.warn(`mergeProductOptionValues: no options on product ${productId}`)
+    return
+  }
+
+  for (const desired of parsed.options) {
+    const desiredTitle = desired.title.trim().toLowerCase()
+    const existingOpt = product.options.find((o) => o.title.trim().toLowerCase() === desiredTitle)
+
+    if (!existingOpt) {
+      logger.warn(
+        `mergeProductOptionValues: no option titled "${desired.title}" on product — create it in Admin or extend this script`
+      )
+      continue
+    }
+
+    const existingValues = new Set<string>()
+    for (const v of existingOpt.values ?? []) {
+      if (v?.value) {
+        existingValues.add(v.value)
+      }
+    }
+
+    const merged = new Set<string>(existingValues)
+    for (const v of desired.values) {
+      merged.add(v)
+    }
+
+    let needsUpdate = false
+    for (const v of merged) {
+      if (!existingValues.has(v)) {
+        needsUpdate = true
+        break
+      }
+    }
+
+    if (!needsUpdate) {
+      continue
+    }
+
+    const mergedList = Array.from(merged).sort((a, b) => a.localeCompare(b))
+
+    logger.info(
+      `${existingOpt.title}: expanding option values ${existingValues.size} → ${mergedList.length} (adds missing values for new variants)`
+    )
+
+    if (!apply) {
+      continue
+    }
+
+    await updateProductOptionsWorkflow(container).run({
+      input: {
+        selector: { id: existingOpt.id },
+        update: { values: mergedList },
+      },
+    })
+  }
+}
 
 const parseCsvLine = (line: string): string[] => {
   const out: string[] = []
@@ -382,6 +472,15 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
     logger.info(
       `${handle}: source variants=${parsed.variants.length}, existing variants=${existingVariants?.length ?? 0}, missing=${missingVariants.length}, metadata_updates=${existingVariantUpdates.length}`
     )
+
+    await mergeProductOptionValuesFromCsv({
+      container,
+      query,
+      logger,
+      productId: targetProduct.id,
+      parsed,
+      apply,
+    })
 
     if (!apply) {
       continue
