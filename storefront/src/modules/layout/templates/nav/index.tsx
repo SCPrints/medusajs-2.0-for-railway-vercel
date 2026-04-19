@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import Image from "next/image"
+import { MagnifyingGlassMini } from "@medusajs/icons"
 
 import { listRegions } from "@lib/data/regions"
 import { StoreRegion } from "@medusajs/types"
@@ -38,17 +39,16 @@ export default async function Nav() {
           </div>
 
           <div className="flex items-center gap-x-6 h-full flex-1 basis-0 justify-end">
+            <LocalizedClientLink
+              className="inline-flex items-center hover:text-[var(--brand-accent)]"
+              href="/search"
+              scroll={false}
+              data-testid="nav-search-link"
+              aria-label="Search site"
+            >
+              <MagnifyingGlassMini />
+            </LocalizedClientLink>
             <div className="hidden small:flex items-center gap-x-6 h-full">
-              {process.env.NEXT_PUBLIC_FEATURE_SEARCH_ENABLED && (
-                <LocalizedClientLink
-                  className="hover:text-[var(--brand-accent)]"
-                  href="/search"
-                  scroll={false}
-                  data-testid="nav-search-link"
-                >
-                  Search
-                </LocalizedClientLink>
-              )}
               <LocalizedClientLink
                 className="hover:text-[var(--brand-accent)]"
                 href="/account"
