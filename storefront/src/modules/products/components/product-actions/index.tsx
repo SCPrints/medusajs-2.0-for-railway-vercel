@@ -41,11 +41,15 @@ export default function ProductActions({
 
   // If there is only 1 variant, preselect the options
   useEffect(() => {
-    if (product.variants?.length === 1) {
+    if (product.variants?.length === 1 && product.variants[0]) {
       const variantOptions = optionsAsKeymap(product.variants[0].options)
-      setOptions(variantOptions ?? {})
+      Object.entries(variantOptions ?? {}).forEach(([title, value]) => {
+        if (typeof value === "string") {
+          setOptionValue(title, value)
+        }
+      })
     }
-  }, [product.variants])
+  }, [product.variants, setOptionValue])
 
   const selectedVariant = useMemo(() => {
     if (!product.variants || product.variants.length === 0) {

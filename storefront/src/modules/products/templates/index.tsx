@@ -9,6 +9,9 @@ import ProductInfo from "@modules/products/templates/product-info"
 import SkeletonRelatedProducts from "@modules/skeletons/templates/skeleton-related-products"
 import { notFound } from "next/navigation"
 import ProductActionsWrapper from "./product-actions-wrapper"
+import DtfAutoBuilderTemplate, {
+  isDtfAutoBuilderProduct,
+} from "@modules/products/templates/dtf-auto-builder-template"
 import { HttpTypes } from "@medusajs/types"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
 import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
@@ -26,6 +29,16 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
 }) => {
   if (!product || !product.id) {
     return notFound()
+  }
+
+  if (isDtfAutoBuilderProduct(product)) {
+    return (
+      <DtfAutoBuilderTemplate
+        product={product}
+        region={region}
+        countryCode={countryCode}
+      />
+    )
   }
 
   return (

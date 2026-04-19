@@ -97,6 +97,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
         {
           currency_code: "usd",
         },
+        {
+          currency_code: "aud",
+        },
       ],
     },
   });
@@ -119,15 +122,22 @@ export default async function seedDemoData({ container }: ExecArgs) {
           countries,
           payment_providers: ["pp_system_default"],
         },
+        {
+          name: "Australia",
+          currency_code: "aud",
+          countries: ["au"],
+          payment_providers: ["pp_system_default"],
+        },
       ],
     },
   });
-  const region = regionResult[0];
+  const euRegion = regionResult[0];
+  const auRegion = regionResult[1];
   logger.info("Finished seeding regions.");
 
   logger.info("Seeding tax regions...");
   await createTaxRegionsWorkflow(container).run({
-    input: countries.map((country_code) => ({
+    input: [...countries, "au"].map((country_code) => ({
       country_code,
       provider_id: "tp_system",
     })),
@@ -229,6 +239,15 @@ export default async function seedDemoData({ container }: ExecArgs) {
           },
         ],
       },
+      {
+        name: "Australia",
+        geo_zones: [
+          {
+            country_code: "au",
+            type: "country",
+          },
+        ],
+      },
     ],
   });
 
@@ -241,13 +260,20 @@ export default async function seedDemoData({ container }: ExecArgs) {
     },
   });
 
+  const europeServiceZone = fulfillmentSet.service_zones.find(
+    (z) => z.name === "Europe"
+  )!;
+  const australiaServiceZone = fulfillmentSet.service_zones.find(
+    (z) => z.name === "Australia"
+  )!;
+
   await createShippingOptionsWorkflow(container).run({
     input: [
       {
         name: "Standard Shipping",
         price_type: "flat",
         provider_id: "manual_manual",
-        service_zone_id: fulfillmentSet.service_zones[0].id,
+        service_zone_id: europeServiceZone.id,
         shipping_profile_id: shippingProfile.id,
         type: {
           label: "Standard",
@@ -264,7 +290,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
             amount: 10,
           },
           {
-            region_id: region.id,
+            region_id: euRegion.id,
             amount: 10,
           },
         ],
@@ -285,7 +311,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
         name: "Express Shipping",
         price_type: "flat",
         provider_id: "manual_manual",
-        service_zone_id: fulfillmentSet.service_zones[0].id,
+        service_zone_id: europeServiceZone.id,
         shipping_profile_id: shippingProfile.id,
         type: {
           label: "Express",
@@ -302,8 +328,76 @@ export default async function seedDemoData({ container }: ExecArgs) {
             amount: 10,
           },
           {
-            region_id: region.id,
+            region_id: euRegion.id,
             amount: 10,
+          },
+        ],
+        rules: [
+          {
+            attribute: "enabled_in_store",
+            value: "true",
+            operator: "eq",
+          },
+          {
+            attribute: "is_return",
+            value: "false",
+            operator: "eq",
+          },
+        ],
+      },
+      {
+        name: "Standard Shipping (AU)",
+        price_type: "flat",
+        provider_id: "manual_manual",
+        service_zone_id: australiaServiceZone.id,
+        shipping_profile_id: shippingProfile.id,
+        type: {
+          label: "Standard",
+          description: "Australia Post regular.",
+          code: "standard_au",
+        },
+        prices: [
+          {
+            currency_code: "aud",
+            amount: 1000,
+          },
+          {
+            region_id: auRegion.id,
+            amount: 1000,
+          },
+        ],
+        rules: [
+          {
+            attribute: "enabled_in_store",
+            value: "true",
+            operator: "eq",
+          },
+          {
+            attribute: "is_return",
+            value: "false",
+            operator: "eq",
+          },
+        ],
+      },
+      {
+        name: "Express Shipping (AU)",
+        price_type: "flat",
+        provider_id: "manual_manual",
+        service_zone_id: australiaServiceZone.id,
+        shipping_profile_id: shippingProfile.id,
+        type: {
+          label: "Express",
+          description: "Australia Post express.",
+          code: "express_au",
+        },
+        prices: [
+          {
+            currency_code: "aud",
+            amount: 1400,
+          },
+          {
+            region_id: auRegion.id,
+            amount: 1400,
           },
         ],
         rules: [
@@ -376,6 +470,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
         },
         {
           name: "Merch",
+          is_active: true,
+        },
+        {
+          name: "DTF & Transfers",
           is_active: true,
         },
       ],
@@ -866,6 +964,108 @@ export default async function seedDemoData({ container }: ExecArgs) {
                   amount: 15,
                   currency_code: "usd",
                 },
+              ],
+            },
+          ],
+          sales_channels: [
+            {
+              id: defaultSalesChannel[0].id,
+            },
+          ],
+        },
+        {
+          title: "DTF Auto Builder (Easy)",
+          category_ids: [
+            categoryResult.find((cat) => cat.name === "DTF & Transfers")!.id,
+          ],
+          description: `<p><strong>Quality DTF transfers at straightforward pricing.</strong> Upload your artwork, pick your gang sheet size, and we&apos;ll lay out a print-ready roll for you.</p>
+<ul>
+<li>Fed up with spending hours on gang sheets? The Auto Builder lets you upload images and specify dimensions and quantities so your layout is built for production.</li>
+<li>Use high-resolution <strong>300 dpi PNG</strong> files with a transparent background for best results. Images that are not 300 dpi may be resized automatically.</li>
+<li>DTF does not reproduce semi-transparency or hairline details well—avoid soft fades and keep lines and small text above roughly <strong>0.5 mm</strong>.</li>
+<li>A proper heat press with even pressure is required for durable results. Home irons and light craft presses often do not provide enough pressure.</li>
+</ul>
+<p>Need a hand? <strong>Contact us</strong> and we can help you place a manual order—we&apos;ll build the gang sheet with you.</p>`,
+          handle: "dtf-auto-builder",
+          weight: 200,
+          status: ProductStatus.PUBLISHED,
+          shipping_profile_id: shippingProfile.id,
+          images: [
+            {
+              url: "https://images.unsplash.com/photo-1586790170088-4138406c8b99?auto=format&w=1200&q=80",
+            },
+          ],
+          options: [
+            {
+              title: "Gang sheet size",
+              values: [
+                "58cm × 100cm",
+                "58cm × 200cm",
+                "58cm × 300cm",
+                "58cm × 400cm",
+                "58cm × 500cm",
+              ],
+            },
+          ],
+          variants: [
+            {
+              title: "58cm × 100cm",
+              sku: "DTF-AUTO-58x100",
+              options: {
+                "Gang sheet size": "58cm × 100cm",
+              },
+              prices: [
+                { amount: 2400, currency_code: "aud" },
+                { amount: 1500, currency_code: "eur" },
+                { amount: 1600, currency_code: "usd" },
+              ],
+            },
+            {
+              title: "58cm × 200cm",
+              sku: "DTF-AUTO-58x200",
+              options: {
+                "Gang sheet size": "58cm × 200cm",
+              },
+              prices: [
+                { amount: 4800, currency_code: "aud" },
+                { amount: 3000, currency_code: "eur" },
+                { amount: 3200, currency_code: "usd" },
+              ],
+            },
+            {
+              title: "58cm × 300cm",
+              sku: "DTF-AUTO-58x300",
+              options: {
+                "Gang sheet size": "58cm × 300cm",
+              },
+              prices: [
+                { amount: 7200, currency_code: "aud" },
+                { amount: 4500, currency_code: "eur" },
+                { amount: 4800, currency_code: "usd" },
+              ],
+            },
+            {
+              title: "58cm × 400cm",
+              sku: "DTF-AUTO-58x400",
+              options: {
+                "Gang sheet size": "58cm × 400cm",
+              },
+              prices: [
+                { amount: 9600, currency_code: "aud" },
+                { amount: 6000, currency_code: "eur" },
+                { amount: 6400, currency_code: "usd" },
+              ],
+            },
+            {
+              title: "58cm × 500cm",
+              sku: "DTF-AUTO-58x500",
+              options: {
+                "Gang sheet size": "58cm × 500cm",
+              },
+              prices: [
+                { amount: 12000, currency_code: "aud" },
+                { amount: 7500, currency_code: "eur" },
+                { amount: 8000, currency_code: "usd" },
               ],
             },
           ],

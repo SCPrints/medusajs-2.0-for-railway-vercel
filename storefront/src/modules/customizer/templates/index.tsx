@@ -49,6 +49,137 @@ const resolveVariantPrice = (variant?: HttpTypes.StoreProductVariant) => {
   return 0
 }
 
+const getSizeOption = (product: HttpTypes.StoreProduct) =>
+  product.options?.find((option) => (option.title ?? "").toLowerCase().includes("size"))
+
+const getNonSizeOptions = (product: HttpTypes.StoreProduct) =>
+  (product.options ?? []).filter((option) => !(option.title ?? "").toLowerCase().includes("size"))
+
+const variantMatchesNonSizeOptions = (
+  variant: HttpTypes.StoreProductVariant,
+  product: HttpTypes.StoreProduct,
+  reference: HttpTypes.StoreProductVariant
+) => {
+  const nonSize = getNonSizeOptions(product)
+  const refMap = new Map(
+    (reference.options ?? []).map((entry) => [entry.option_id, entry.value ?? ""])
+  )
+  return nonSize.every((opt) => {
+    const want = refMap.get(opt.id) ?? ""
+    const got = variant.options?.find((e) => e.option_id === opt.id)?.value ?? ""
+    return want === got
+  })
+}
+
+const APPAREL_SIZE_ORDER = [
+  "xxs",
+  "xs",
+  "s",
+  "m",
+  "l",
+  "xl",
+  "xxl",
+  "2xl",
+  "xxxl",
+  "3xl",
+  "4xl",
+  "5xl",
+  "one size",
+  "os",
+  "o/s",
+]
+
+const sortSizeLabels = (sizes: string[]): string[] => {
+  const rank = (s: string) => {
+    const key = s.toLowerCase().trim()
+    const idx = APPAREL_SIZE_ORDER.indexOf(key)
+    if (idx !== -1) {
+      return idx
+    }
+    const n = parseFloat(key.replace(/[^0-9.]/g, ""))
+    if (!Number.isNaN(n)) {
+      return 100 + n
+    }
+    return 1000 + key.charCodeAt(0)
+  }
+  return [...sizes].sort((a, b) => rank(a) - rank(b))
+}
+
+const uniqueSizesForVariant = (
+  product: HttpTypes.StoreProduct,
+  reference: HttpTypes.StoreProductVariant
+): SizeQuantity[] => {
+  const sizeOption = getSizeOption(product)
+  const pool = (product.variants ?? []).filter((v) =>
+    variantMatchesNonSizeOptions(v, product, reference)
+  )
+  const seen = new Set<string>()
+  const sizes: string[] = []
+  for (const v of pool) {
+    const sizeValue = sizeOption
+      ? (v.options?.find((e) => e.option_id === sizeOption.id)?.value ?? "")
+      : (v.title ?? "Default")
+    if (!sizeValue || seen.has(sizeValue)) {
+      continue
+    }
+    seen.add(sizeValue)
+    sizes.push(sizeValue)
+  }
+  if (!sizes.length) {
+    return [{ size: "Default", quantity: 0 }]
+  }
+  return sortSizeLabels(sizes).map((size) => ({ size, quantity: 0 }))
+}
+
+const uniqueOptionValues = (product: HttpTypes.StoreProduct, optionId: string): string[] => {
+  const values = new Set<string>()
+  for (const v of product.variants ?? []) {
+    const val = v.options?.find((e) => e.option_id === optionId)?.value
+    if (val) {
+      values.add(val)
+    }
+  }
+  return Array.from(values).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
+
+const findVariantAfterOptionChange = (
+  product: HttpTypes.StoreProduct,
+  reference: HttpTypes.StoreProductVariant,
+  optionId: string,
+  newValue: string
+): HttpTypes.StoreProductVariant | undefined => {
+  const sizeOption = getSizeOption(product)
+  const currentSize = sizeOption
+    ? reference.options?.find((e) => e.option_id === sizeOption.id)?.value
+    : undefined
+  const refMap = new Map(
+    (reference.options ?? []).map((e) => [e.option_id, e.value ?? ""])
+  )
+  const nonSize = getNonSizeOptions(product)
+  const matches = (v: HttpTypes.StoreProductVariant, relaxSize: boolean) => {
+    if (v.options?.find((e) => e.option_id === optionId)?.value !== newValue) {
+      return false
+    }
+    if (sizeOption && currentSize && !relaxSize) {
+      const sv = v.options?.find((e) => e.option_id === sizeOption.id)?.value
+      if (sv !== currentSize) {
+        return false
+      }
+    }
+    return nonSize.every((opt) => {
+      if (opt.id === optionId) {
+        return true
+      }
+      const want = refMap.get(opt.id) ?? ""
+      const got = v.options?.find((e) => e.option_id === opt.id)?.value ?? ""
+      return want === got
+    })
+  }
+  return (
+    product.variants?.find((v) => matches(v, false)) ?? product.variants?.find((v) => matches(v, true))
+  )
+}
+
 const getObjectId = (object: any) => {
   if (!object.customizerId) {
     object.customizerId = `obj_${Math.random().toString(36).slice(2, 10)}`
@@ -125,6 +256,7 @@ export default function CustomizerTemplate({
   const [activeProductId, setActiveProductId] = useState<string>(products[0]?.id ?? "")
   const [activeVariantId, setActiveVariantId] = useState<string>(products[0]?.variants?.[0]?.id ?? "")
   const [sizeMatrix, setSizeMatrix] = useState<SizeQuantity[]>([])
+  const lastCustomizerProductIdRef = useRef<string | null>(null)
 
   const printArea = useMemo(
     () => getPrintArea(canvasSize.width, canvasSize.height),
@@ -140,6 +272,21 @@ export default function CustomizerTemplate({
       selectedProduct?.variants?.[0],
     [activeVariantId, selectedProduct]
   )
+
+  const nonSizeOptions = useMemo(
+    () => (selectedProduct ? getNonSizeOptions(selectedProduct) : []),
+    [selectedProduct]
+  )
+
+  const handleNonSizeOptionChange = (optionId: string, value: string) => {
+    if (!selectedProduct || !selectedVariant) {
+      return
+    }
+    const next = findVariantAfterOptionChange(selectedProduct, selectedVariant, optionId, value)
+    if (next) {
+      setActiveVariantId(next.id)
+    }
+  }
 
   const currencyCode =
     (selectedVariant as any)?.calculated_price?.currency_code ??
@@ -301,28 +448,38 @@ export default function CustomizerTemplate({
   }
 
   useEffect(() => {
-    if (!selectedProduct) {
+    if (!selectedProduct?.id) {
       return
     }
 
-    const sizeOption = selectedProduct.options?.find((option) =>
-      (option.title ?? "").toLowerCase().includes("size")
-    )
+    const refVariant =
+      selectedProduct.variants?.find((v) => v.id === activeVariantId) ??
+      selectedProduct.variants?.[0]
+    if (!refVariant) {
+      setSizeMatrix([])
+      return
+    }
 
-    const nextSizes = (selectedProduct.variants ?? []).map((variant) => {
-      const sizeValue =
-        variant.options?.find((entry) => entry.option_id === sizeOption?.id)?.value ??
-        variant.title ??
-        "Default"
-      return {
-        size: sizeValue,
-        quantity: 0,
+    if (refVariant.id !== activeVariantId) {
+      setActiveVariantId(refVariant.id)
+      return
+    }
+
+    const productChanged = lastCustomizerProductIdRef.current !== selectedProduct.id
+    lastCustomizerProductIdRef.current = selectedProduct.id
+
+    const next = uniqueSizesForVariant(selectedProduct, refVariant)
+    setSizeMatrix((prev) => {
+      if (productChanged) {
+        return next.map((row) => ({ ...row }))
       }
+      const prevMap = new Map(prev.map((entry) => [entry.size, entry.quantity]))
+      return next.map((row) => ({
+        size: row.size,
+        quantity: prevMap.get(row.size) ?? 0,
+      }))
     })
-
-    setSizeMatrix(nextSizes.length ? nextSizes : [{ size: "Default", quantity: 0 }])
-    setActiveVariantId(selectedProduct.variants?.[0]?.id ?? "")
-  }, [selectedProduct])
+  }, [selectedProduct, activeVariantId])
 
   useEffect(() => {
     const htmlCanvas = htmlCanvasRef.current
@@ -867,18 +1024,48 @@ export default function CustomizerTemplate({
                   </option>
                 ))}
               </select>
-              <label className="text-xs font-medium text-ui-fg-subtle">Variant</label>
-              <select
-                className="w-full rounded-md border border-ui-border-base px-2 py-2 text-sm"
-                value={selectedVariant?.id}
-                onChange={(event) => setActiveVariantId(event.target.value)}
-              >
-                {(selectedProduct?.variants ?? []).map((variant) => (
-                  <option key={variant.id} value={variant.id}>
-                    {variant.title}
-                  </option>
-                ))}
-              </select>
+              {nonSizeOptions.length > 0 ? (
+                nonSizeOptions.map((option) => {
+                  const values = selectedProduct
+                    ? uniqueOptionValues(selectedProduct, option.id)
+                    : []
+                  const current =
+                    selectedVariant?.options?.find((entry) => entry.option_id === option.id)?.value ?? ""
+                  return (
+                    <div key={option.id} className="space-y-1">
+                      <label className="text-xs font-medium text-ui-fg-subtle">
+                        {option.title ?? "Option"}
+                      </label>
+                      <select
+                        className="w-full rounded-md border border-ui-border-base px-2 py-2 text-sm"
+                        value={current}
+                        onChange={(event) => handleNonSizeOptionChange(option.id, event.target.value)}
+                      >
+                        {values.map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )
+                })
+              ) : (selectedProduct?.variants?.length ?? 0) > 1 ? (
+                <>
+                  <label className="text-xs font-medium text-ui-fg-subtle">Style</label>
+                  <select
+                    className="w-full rounded-md border border-ui-border-base px-2 py-2 text-sm"
+                    value={selectedVariant?.id}
+                    onChange={(event) => setActiveVariantId(event.target.value)}
+                  >
+                    {(selectedProduct?.variants ?? []).map((variant) => (
+                      <option key={variant.id} value={variant.id}>
+                        {variant.title}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              ) : null}
             </div>
 
             <InputPanel
