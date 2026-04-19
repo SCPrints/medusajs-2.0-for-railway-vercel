@@ -133,8 +133,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
         .filter(Boolean) as Array<{ id: string; url: string }>
 
       if (matched.length) {
-        const unmatched = validImages.filter((image) => !matched.some((m) => m.id === image.id))
-        return [...matched, ...unmatched]
+        return matched
       }
     }
 
@@ -164,9 +163,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
       return validImages
     }
 
-    const unmatched = normalizedImages.filter((image) => !matched.some((m) => m.id === image.id))
-
-    return [...matched, ...unmatched].map(({ normalizedUrl: _normalizedUrl, ...image }) => image)
+    return matched.map(({ normalizedUrl: _normalizedUrl, ...image }) => image)
   }, [images, options, product.variants])
 
   const fallbackImages = useMemo(() => {
