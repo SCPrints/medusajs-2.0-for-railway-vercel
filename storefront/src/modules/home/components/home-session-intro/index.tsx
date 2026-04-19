@@ -12,8 +12,14 @@ const ZOOM_MS = 2800
 const PRE_EXPLODE_HOLD_MS = 750
 /** Time for particle burst to clear the screen */
 const EXPLODE_MS = 7600
-/** Overlay fade after explosion */
-const OVERLAY_FADE_MS = 520
+/** Max random start delay on particles (must match generateParticles) */
+const MAX_PARTICLE_DELAY_MS = 280
+/** When the last particle’s motion ends: delay + transform duration */
+const PARTICLE_BURST_END_MS = EXPLODE_MS + MAX_PARTICLE_DELAY_MS
+/** Brief beat after motion ends before fading the overlay (avoids “empty” gap) */
+const POST_BURST_MS = 120
+/** Short fade so the solid scrim doesn’t sit on screen */
+const OVERLAY_FADE_MS = 240
 const PARTICLE_MIN = 20
 const PARTICLE_MAX = 30
 
@@ -61,6 +67,9 @@ export default function HomeSessionIntro({
   const [overlayFade, setOverlayFade] = useState(false)
   const zoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const explodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const unmountFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const introUnmountDoneRef = useRef(false)
 
   useLayoutEffect(() => {
     try {
@@ -131,7 +140,7 @@ export default function HomeSessionIntro({
         setOverlayFade(true)
         setPhase("fading")
       }
-    }, EXPLODE_MS + 120)
+    }, PARTICLE_BURST_END_MS + POST_BURST_MS)
     return () => {
       cancelled = true
       window.cancelAnimationFrame(frame)
@@ -146,15 +155,51 @@ export default function HomeSessionIntro({
     if (!overlayFade) {
       return
     }
-    const t = window.setTimeout(() => {
+    const finish = () => {
+      if (introUnmountDoneRef.current) {
+        return
+      }
+      introUnmountDoneRef.current = true
+      if (unmountFallbackRef.current) {
+        window.clearTimeout(unmountFallbackRef.current)
+        unmountFallbackRef.current = null
+      }
       try {
         window.sessionStorage.setItem(STORAGE_KEY, "1")
       } catch {
         // ignore
       }
       setActive(false)
-    }, OVERLAY_FADE_MS + 80)
-    return () => window.clearTimeout(t)
+    }
+
+    const el = overlayRef.current
+    const onTransitionEnd = (e: TransitionEvent) => {
+      if (e.propertyName !== "opacity") {
+        return
+      }
+      if (e.target !== el) {
+        return
+      }
+      finish()
+    }
+
+    if (el) {
+      el.addEventListener("transitionend", onTransitionEnd)
+    }
+    unmountFallbackRef.current = window.setTimeout(
+      finish,
+      OVERLAY_FADE_MS + 200
+    )
+
+    return () => {
+      if (el) {
+        el.removeEventListener("transitionend", onTransitionEnd)
+      }
+      if (unmountFallbackRef.current) {
+        window.clearTimeout(unmountFallbackRef.current)
+        unmountFallbackRef.current = null
+      }
+    }
   }, [overlayFade])
 
   return (
@@ -162,9 +207,10 @@ export default function HomeSessionIntro({
       {children}
       {active ? (
         <div
+          ref={overlayRef}
           aria-hidden
           className={`home-session-intro-overlay fixed inset-0 z-[100] overflow-hidden bg-[var(--brand-background)] ${
-            overlayFade ? "opacity-0" : "opacity-100"
+            overlayFade ? "pointer-events-none opacity-0" : "opacity-100"
           }`}
           style={{
             transition: overlayFade
