@@ -253,7 +253,11 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
     throw new Error("Product module methods createProductVariants/updateProductVariants are unavailable")
   }
 
-  const apply = args.includes("--apply")
+  const apply =
+    args.includes("--apply") ||
+    process.argv.includes("--apply") ||
+    process.env.REPAIR_AS_COLOUR_APPLY === "1" ||
+    process.env.REPAIR_AS_COLOUR_APPLY === "true"
 
   const csvPath = resolveAsColourCsvPath()
 
