@@ -14,6 +14,13 @@ Video instructions: https://youtu.be/PPxenu7IjGM
 - **MinIO storage** (Automatic setup when using the Railway template) - fallback to local storage.
 - **Meilisearch** (Automatic setup when using the Railway template)
 
+### shipstation setup
+- Add `SHIPSTATION_API_KEY` to `backend/.env` (from your ShipStation API settings).
+- Restart the backend after updating env vars so the fulfillment provider is registered.
+- In Medusa Admin, create shipping options that use the `shipstation` provider.
+- Make sure each shipping option stores both `carrier_id` and `carrier_service_code` in its option data (required by the provider to fetch rates/labels).
+- Place a test order and create a fulfillment to verify label purchase + cancellation flows.
+
 ### commands
 
 `cd backend/`
