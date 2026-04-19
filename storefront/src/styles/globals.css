@@ -4,8 +4,8 @@
 
 :root {
   --brand-primary: #1a1a2e; /* Inkwell Navy */
-  --brand-secondary: #00adb5; /* Cyan Pop */
-  --brand-accent: #ff2e63; /* Magenta Punch */
+  --brand-secondary: #ff2e63; /* Magenta Punch */
+  --brand-accent: #00adb5; /* Cyan Pop */
   --brand-background: #eeeeee; /* Soft Light */
 }
 
@@ -24,7 +24,7 @@ main {
   height: 0.65rem;
   border-radius: 9999px;
   background-color: var(--brand-accent);
-  box-shadow: 0 0 0 1px rgba(255, 46, 99, 0.3);
+  box-shadow: 0 0 0 1px rgba(0, 173, 181, 0.3);
   pointer-events: none;
   opacity: 0;
   z-index: 60;
@@ -81,7 +81,7 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 
 /* Small badge/chip treatment */
 [class*="rounded-full"][class*="text-xs"] {
-  border-color: rgba(0, 173, 181, 0.5);
+  border-color: rgba(255, 46, 99, 0.5);
   color: var(--brand-secondary);
 }
 
