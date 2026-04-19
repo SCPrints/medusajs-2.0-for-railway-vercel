@@ -254,8 +254,10 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
                   className={clx(
                     "h-8 w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",
                     {
-                      "border-ui-fg-base ring-2 ring-ui-fg-base ring-offset-1": isSelected,
-                      "border-ui-border-base hover:scale-105": !isSelected,
+                      "border-[var(--brand-accent)] ring-2 ring-[var(--brand-accent)] ring-offset-1":
+                        isSelected,
+                      "border-ui-border-base hover:scale-105 hover:border-[var(--brand-secondary)] hover:ring-2 hover:ring-[var(--brand-secondary)] hover:ring-offset-1":
+                        !isSelected,
                     }
                   )}
                   style={{
