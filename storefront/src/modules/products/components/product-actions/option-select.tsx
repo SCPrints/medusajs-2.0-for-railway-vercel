@@ -134,22 +134,25 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
 
           if (isColorOption) {
             return (
-              <button
-                onClick={() => updateOption(option.title ?? "", v ?? "")}
-                key={v}
-                className={clx(
-                  "h-8 w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",
-                  {
-                    "border-ui-fg-base ring-2 ring-ui-fg-base ring-offset-1": isSelected,
-                    "border-ui-border-base hover:scale-105": !isSelected,
-                  }
-                )}
-                style={{ backgroundColor: swatchColor(v ?? "") }}
-                disabled={disabled}
-                data-testid="option-button"
-                aria-label={`Select ${title} ${v}`}
-                title={v}
-              />
+              <div key={v} className="group relative">
+                <button
+                  onClick={() => updateOption(option.title ?? "", v ?? "")}
+                  className={clx(
+                    "h-8 w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",
+                    {
+                      "border-ui-fg-base ring-2 ring-ui-fg-base ring-offset-1": isSelected,
+                      "border-ui-border-base hover:scale-105": !isSelected,
+                    }
+                  )}
+                  style={{ backgroundColor: swatchColor(v ?? "") }}
+                  disabled={disabled}
+                  data-testid="option-button"
+                  aria-label={`Select ${title} ${v}`}
+                />
+                <span className="pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-ui-fg-base px-2 py-1 text-[11px] font-medium text-ui-bg-base opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+                  {v}
+                </span>
+              </div>
             )
           }
 
