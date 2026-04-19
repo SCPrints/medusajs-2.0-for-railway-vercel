@@ -18,6 +18,7 @@
     "ib": "init-backend",
     "start": "init-backend && cd .medusa/server && npx medusa start --verbose",
     "dev": "npx medusa develop",
+    "test": "jest --config jest.config.cjs",
     "email:dev": "email dev --dir=./src/modules/email-notifications/templates --port=3002"
   },
   "dependencies": {
@@ -37,7 +38,9 @@
     "minio": "^8.0.6",
     "pg": "^8.20.0",
     "resend": "4.0.1",
-    "ulid": "^2.4.0"
+    "sharp": "^0.34.4",
+    "ulid": "^2.4.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@medusajs/test-utils": "2.12.1",

@@ -12,6 +12,7 @@ import LineItemPrice from "@modules/common/components/line-item-price"
 import LineItemUnitPrice from "@modules/common/components/line-item-unit-price"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Spinner from "@modules/common/icons/spinner"
+import { getCustomizerMetadata } from "@modules/customizer/lib/metadata"
 import Thumbnail from "@modules/products/components/thumbnail"
 import { useState } from "react"
 
@@ -25,6 +26,8 @@ const Item = ({ item, type = "full" }: ItemProps) => {
   const [error, setError] = useState<string | null>(null)
 
   const { handle } = item.variant?.product ?? {}
+  const customizerMetadata = getCustomizerMetadata(item)
+  const firstMockup = customizerMetadata?.artifacts?.[0]?.mockupUrl
 
   const changeQuantity = async (quantity: number) => {
     setError(null)
@@ -57,7 +60,7 @@ const Item = ({ item, type = "full" }: ItemProps) => {
           })}
         >
           <Thumbnail
-            thumbnail={item.variant?.product?.thumbnail}
+            thumbnail={firstMockup ?? item.variant?.product?.thumbnail}
             images={item.variant?.product?.images}
             size="square"
           />
@@ -72,6 +75,17 @@ const Item = ({ item, type = "full" }: ItemProps) => {
           {item.product_title}
         </Text>
         <LineItemOptions variant={item.variant} data-testid="product-variant" />
+        {customizerMetadata && (
+          <Text className="txt-small text-ui-fg-subtle mt-1">
+            Custom design attached
+            {customizerMetadata.sizes?.length
+              ? ` (${customizerMetadata.sizes
+                  .filter((size: any) => Number(size.quantity) > 0)
+                  .map((size: any) => `${size.size}:${size.quantity}`)
+                  .join(", ")})`
+              : ""}
+          </Text>
+        )}
       </Table.Cell>
 
       {type === "full" && (

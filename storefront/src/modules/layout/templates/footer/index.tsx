@@ -71,6 +71,11 @@ export default async function Footer() {
                 </LocalizedClientLink>
               </li>
               <li>
+                <LocalizedClientLink href="/customizer" className="hover:text-ui-fg-base">
+                  Logo Customizer
+                </LocalizedClientLink>
+              </li>
+              <li>
                 <LocalizedClientLink href="/contact" className="hover:text-ui-fg-base">
                   Contact Us
                 </LocalizedClientLink>

@@ -4,6 +4,7 @@ import { Table, Text } from "@medusajs/ui"
 import LineItemOptions from "@modules/common/components/line-item-options"
 import LineItemPrice from "@modules/common/components/line-item-price"
 import LineItemUnitPrice from "@modules/common/components/line-item-unit-price"
+import { getCustomizerMetadata } from "@modules/customizer/lib/metadata"
 import Thumbnail from "@modules/products/components/thumbnail"
 
 type ItemProps = {
@@ -11,11 +12,14 @@ type ItemProps = {
 }
 
 const Item = ({ item }: ItemProps) => {
+  const customizerMetadata = getCustomizerMetadata(item)
+  const firstMockup = customizerMetadata?.artifacts?.[0]?.mockupUrl
+
   return (
     <Table.Row className="w-full" data-testid="product-row">
       <Table.Cell className="!pl-0 p-4 w-24">
         <div className="flex w-16">
-          <Thumbnail thumbnail={item.thumbnail} size="square" />
+          <Thumbnail thumbnail={firstMockup ?? item.thumbnail} size="square" />
         </div>
       </Table.Cell>
 
@@ -28,6 +32,11 @@ const Item = ({ item }: ItemProps) => {
         </Text>
         {item.variant && (
           <LineItemOptions variant={item.variant} data-testid="product-variant" />
+        )}
+        {customizerMetadata && (
+          <Text className="txt-small text-ui-fg-subtle mt-1">
+            Custom design archived with print-ready assets.
+          </Text>
         )}
       </Table.Cell>
 
