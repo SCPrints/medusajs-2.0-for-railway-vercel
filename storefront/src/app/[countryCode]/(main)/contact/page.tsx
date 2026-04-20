@@ -3,6 +3,7 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import ContactForm from "@modules/contact/components/contact-form"
 import ContactMap from "@modules/contact/components/contact-map"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import MarketingHero from "@modules/common/components/marketing-hero"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -60,25 +61,24 @@ export default async function ContactPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(contactStructuredData) }}
       />
-      {/* Header Section */}
-      <div className="mx-auto mb-12 max-w-2xl text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-ui-fg-base">
-          Contact Us
-        </h1>
-        <p className="mt-4 text-lg text-ui-fg-subtle">
-          Have a question about our products or your order? We're here to help.
-        </p>
-
-        {/* FAQ Banner */}
-        <div className="mt-6 inline-flex items-center justify-center rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 text-sm text-ui-fg-subtle">
-          <span className="mr-2">💡 Need an instant answer?</span>
-          <LocalizedClientLink
-            href="/faq"
-            className="font-semibold text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] hover:underline"
-          >
-            Check our Frequently Asked Questions
-          </LocalizedClientLink>
-        </div>
+      <div className="mb-12">
+        <MarketingHero
+          align="center"
+          eyebrow="Customer support"
+          title="Contact Us"
+          subtitle="Have a question about our products or your order? We're here to help."
+          subtitleClassName="text-lg"
+        >
+          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 text-sm text-ui-fg-subtle">
+            <span>Need an instant answer?</span>
+            <LocalizedClientLink
+              href="/faq"
+              className="font-semibold text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] hover:underline"
+            >
+              Check our Frequently Asked Questions
+            </LocalizedClientLink>
+          </div>
+        </MarketingHero>
       </div>
 
       {/* Main Content Grid */}

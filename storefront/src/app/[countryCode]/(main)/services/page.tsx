@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import MarketingHero from "@modules/common/components/marketing-hero"
 import { services } from "@modules/services/data"
 
 type MetadataProps = {
@@ -92,17 +93,11 @@ export default async function ServicesPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceListStructuredData) }}
       />
-      <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
-        <p className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--brand-secondary)]">
-          SC PRINTS Services
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold text-ui-fg-base small:text-5xl">
-          Decoration services built for brands, teams, and uniforms
-        </h1>
-        <p className="mt-4 max-w-3xl text-ui-fg-subtle">
-          Whether you need large production runs, premium stitched logos, or flexible short-run
-          options, we match each job to the right print method for quality, turnaround, and budget.
-        </p>
+      <MarketingHero
+        eyebrow="SC PRINTS Services"
+        title="Decoration services built for brands, teams, and uniforms"
+        subtitle="Whether you need large production runs, premium stitched logos, or flexible short-run options, we match each job to the right print method for quality, turnaround, and budget."
+      >
         <div className="mt-7 flex flex-wrap gap-3">
           <LocalizedClientLink
             href="/contact"
@@ -117,7 +112,7 @@ export default async function ServicesPage({
             Start shopping blanks
           </LocalizedClientLink>
         </div>
-      </div>
+      </MarketingHero>
 
       <section className="mt-12 border-l-4 border-[var(--brand-secondary)] pl-4">
         <h2 className="text-2xl font-semibold text-ui-fg-base">Core Decoration Services</h2>

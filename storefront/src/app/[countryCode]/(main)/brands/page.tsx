@@ -41,7 +41,7 @@ export default async function BrandsPage() {
 
       <section className="content-container border-t border-ui-border-base py-16 small:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold tracking-tight text-ui-fg-base">
+          <h2 className="text-2xl font-semibold tracking-tight text-ui-fg-base">
             Full list
           </h2>
           <p className="mt-3 text-ui-fg-subtle">

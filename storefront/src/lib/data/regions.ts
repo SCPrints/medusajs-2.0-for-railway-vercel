@@ -28,6 +28,26 @@ export const getRegion = cache(async function (countryCode: string) {
     const regions = await listRegions()
 
     if (!regions) {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "b984c7",
+          },
+          body: JSON.stringify({
+            sessionId: "b984c7",
+            location: "regions.ts:getRegion",
+            message: "listRegions empty or falsy",
+            data: { countryCode },
+            timestamp: Date.now(),
+            hypothesisId: "H3",
+          }),
+        }
+      ).catch(() => {})
+      // #endregion
       return null
     }
 
@@ -40,6 +60,33 @@ export const getRegion = cache(async function (countryCode: string) {
     const region = countryCode
       ? regionMap.get(countryCode)
       : regionMap.get("us")
+
+    if (!region) {
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "b984c7",
+          },
+          body: JSON.stringify({
+            sessionId: "b984c7",
+            location: "regions.ts:getRegion",
+            message: "no region for countryCode",
+            data: {
+              countryCode,
+              listedRegions: regions.length,
+              sampleKeys: Array.from(regionMap.keys()).slice(0, 8),
+            },
+            timestamp: Date.now(),
+            hypothesisId: "H3",
+          }),
+        }
+      ).catch(() => {})
+      // #endregion
+    }
 
     return region
   } catch (e: any) {

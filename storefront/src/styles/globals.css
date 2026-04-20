@@ -182,6 +182,16 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
     @apply max-w-[1440px] w-full mx-auto px-6;
   }
 
+  /** Primary H1 on marketing / content pages (services, FAQ, hero cards, policies). */
+  .page-title-marketing {
+    @apply text-4xl font-semibold leading-tight text-ui-fg-base small:text-5xl;
+  }
+
+  /** Primary H1 on catalog listing pages (store, collections, categories). */
+  .page-title-catalog {
+    @apply text-3xl font-semibold leading-tight text-ui-fg-base small:text-4xl;
+  }
+
   .contrast-btn {
     @apply px-4 py-2 border border-black rounded-full hover:bg-black hover:text-black transition-colors duration-200 ease-in;
   }

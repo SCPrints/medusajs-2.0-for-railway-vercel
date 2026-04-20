@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import MarketingHero from "@modules/common/components/marketing-hero"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -198,17 +199,11 @@ export default async function FaqPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
       />
-      <section className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
-        <p className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--brand-secondary)]">
-          FAQ
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold text-ui-fg-base small:text-5xl">
-          Frequently Asked Questions
-        </h1>
-        <p className="mt-4 max-w-3xl text-ui-fg-subtle">
-          Still unsure about artwork, minimums, or timelines? Start here. If you need help with a
-          specific order, our team is happy to assist.
-        </p>
+      <MarketingHero
+        eyebrow="FAQ"
+        title="Frequently Asked Questions"
+        subtitle="Still unsure about artwork, minimums, or timelines? Start here. If you need help with a specific order, our team is happy to assist."
+      >
         <div className="mt-6 flex flex-wrap gap-3">
           {FAQ_SECTIONS.map((section) => (
             <a
@@ -220,7 +215,7 @@ export default async function FaqPage({
             </a>
           ))}
         </div>
-      </section>
+      </MarketingHero>
 
       <div className="mt-10 space-y-6">
         {FAQ_SECTIONS.map((section) => (

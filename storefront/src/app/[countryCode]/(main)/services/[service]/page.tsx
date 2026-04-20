@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import Image from "next/image"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import MarketingHero from "@modules/common/components/marketing-hero"
 import { getServiceBySlug } from "@modules/services/data"
 
 const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
@@ -68,12 +69,13 @@ export default async function ServiceDetailPage({ params }: Props) {
         ← Back to services
       </LocalizedClientLink>
 
-      <div className="mt-6 rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
-          {service.title}
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold text-ui-fg-base">{service.title}</h1>
-        <p className="mt-4 max-w-3xl text-ui-fg-subtle">{service.heroDescription}</p>
+      <div className="mt-6">
+        <MarketingHero
+          eyebrow={service.title}
+          eyebrowVariant="muted"
+          title={service.title}
+          subtitle={service.heroDescription}
+        />
       </div>
 
       <section className="mt-8">

@@ -20,7 +20,7 @@ export default function PolicyPlaceholderPage({
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
           Placeholder — replace with final legal copy before launch
         </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-ui-fg-base">{title}</h1>
+        <h1 className="page-title-marketing mt-3 tracking-tight">{title}</h1>
         <p className="mt-6 text-base leading-relaxed text-ui-fg-subtle">{intro}</p>
         <div className="mt-10 space-y-10 border-t border-ui-border-base pt-10">
           {sections.map((section) => (

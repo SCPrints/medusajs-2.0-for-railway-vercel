@@ -11,6 +11,7 @@ import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import Thumbnail from "@modules/products/components/thumbnail"
@@ -197,19 +198,14 @@ export default async function Home({
           }}
         />
         <section className="content-container py-12 small:py-16">
-          <div className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 shadow-sm small:p-12">
-            <span className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-secondary)]">
-              Australian custom decoration
-            </span>
-            <h1 className="mt-5 text-4xl font-semibold leading-tight text-ui-fg-base small:text-5xl">
-              Branded apparel and merch for teams, workwear, and events
-            </h1>
-            <p className="mt-4 max-w-3xl text-base text-ui-fg-subtle small:text-lg">
-              Screen printing, embroidery, transfers, and more—browse blanks,
-              choose how you want them decorated, and check out online. Built
-              for Australian businesses, clubs, and resellers who need reliable
-              quality at volume.
-            </p>
+          <MarketingHero
+            eyebrow="Australian custom decoration"
+            title="Branded apparel and merch for teams, workwear, and events"
+            subtitle="Screen printing, embroidery, transfers, and more—browse blanks, choose how you want them decorated, and check out online. Built for Australian businesses, clubs, and resellers who need reliable quality at volume."
+            subtitleClassName="text-base small:text-lg"
+            titleSpacing="relaxed"
+            padding="spacious"
+          >
             <ol className="mt-8 grid gap-4 small:grid-cols-2 large:grid-cols-4">
               {PROCESS_STEPS.map((step, index) => (
                 <li
@@ -231,7 +227,7 @@ export default async function Home({
                 Browse the catalogue
               </LocalizedClientLink>
             </div>
-          </div>
+          </MarketingHero>
         </section>
 
         <section className="content-container py-12">

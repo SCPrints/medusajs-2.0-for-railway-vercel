@@ -43,6 +43,27 @@ export async function POST(req: NextRequest) {
       publishableKey
     )
 
+    // #region agent log
+    fetch("http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "b984c7",
+      },
+      body: JSON.stringify({
+        sessionId: "b984c7",
+        location: "contact/route.ts:POST",
+        message: "contact proxy primary",
+        data: {
+          status: response.status,
+          triedPath: "contact",
+        },
+        timestamp: Date.now(),
+        hypothesisId: "H5",
+      }),
+    }).catch(() => {})
+    // #endregion
+
     // Compatibility fallback for older backends exposing /store/contact.
     if (response.status === 404 || response.status === 405) {
       response = await postContact(
@@ -50,6 +71,29 @@ export async function POST(req: NextRequest) {
         payload,
         publishableKey
       )
+      // #region agent log
+      fetch(
+        "http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Debug-Session-Id": "b984c7",
+          },
+          body: JSON.stringify({
+            sessionId: "b984c7",
+            location: "contact/route.ts:POST",
+            message: "contact proxy fallback",
+            data: {
+              status: response.status,
+              triedPath: "store/contact",
+            },
+            timestamp: Date.now(),
+            hypothesisId: "H5",
+          }),
+        }
+      ).catch(() => {})
+      // #endregion
     }
 
     const body = await response.json().catch(() => null)

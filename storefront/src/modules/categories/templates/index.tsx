@@ -56,10 +56,10 @@ export default function CategoryTemplate({
         data-testid="sort-by-container"
       />
       <div className="w-full">
-        <div className="flex flex-row mb-8 text-2xl-semi gap-4">
+        <div className="mb-8 flex flex-row flex-wrap items-baseline gap-x-4 gap-y-2 text-ui-fg-subtle small:text-base">
           {parents &&
             parents.map((parent) => (
-              <span key={parent.id} className="text-ui-fg-subtle">
+              <span key={parent.id} className="text-small-regular text-ui-fg-subtle">
                 <LocalizedClientLink
                   className="mr-4 hover:text-black"
                   href={`/categories/${parent.handle}`}
@@ -70,7 +70,9 @@ export default function CategoryTemplate({
                 /
               </span>
             ))}
-          <h1 data-testid="category-page-title">{category.name}</h1>
+          <h1 className="page-title-catalog text-ui-fg-base" data-testid="category-page-title">
+            {category.name}
+          </h1>
         </div>
         {category.description && (
           <div className="mb-8 text-base-regular">
