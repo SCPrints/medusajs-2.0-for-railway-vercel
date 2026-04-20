@@ -41,7 +41,7 @@ export default function CategoryTemplate({
 
   return (
     <div
-      className="flex flex-col small:flex-row small:items-start py-6 content-container"
+      className="flex flex-col small:flex-row small:items-start small:gap-x-10 py-6 content-container"
       data-testid="category-container"
     >
       <RefinementList
