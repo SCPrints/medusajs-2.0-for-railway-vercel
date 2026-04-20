@@ -169,15 +169,7 @@ export const renderPrintAsset = async (payload: RenderRequestPayload) => {
 export const renderMockupAsset = async (payload: RenderRequestPayload) => {
   const placementWidth = clampDimension(payload.placement.width, 240, 2200)
   const placementHeight = clampDimension(payload.placement.height, 240, 2200)
-  const artwork = await sharp(Buffer.from(payload.artworkSvg))
-    .resize({
-      width: placementWidth,
-      height: placementHeight,
-      fit: "contain",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer()
+  const artworkSvgBuffer = Buffer.from(payload.artworkSvg)
 
   let garmentBase: Buffer
   if (payload.garmentImageUrl) {
@@ -228,6 +220,20 @@ export const renderMockupAsset = async (payload: RenderRequestPayload) => {
 
   const left = clampDimension(payload.placement.x, 0, mockupWidth - 1)
   const top = clampDimension(payload.placement.y, 0, mockupHeight - 1)
+  const maxCompositeWidth = Math.max(1, mockupWidth - left)
+  const maxCompositeHeight = Math.max(1, mockupHeight - top)
+  const artworkWidth = Math.min(placementWidth, maxCompositeWidth)
+  const artworkHeight = Math.min(placementHeight, maxCompositeHeight)
+
+  const artwork = await sharp(artworkSvgBuffer)
+    .resize({
+      width: artworkWidth,
+      height: artworkHeight,
+      fit: "contain",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toBuffer()
 
   const mockupBuffer = await sharp(garmentBase)
     .resize({
