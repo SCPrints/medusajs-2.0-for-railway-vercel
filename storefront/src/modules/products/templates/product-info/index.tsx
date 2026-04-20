@@ -1,6 +1,8 @@
 import { HttpTypes } from "@medusajs/types"
 import { Heading, Text } from "@medusajs/ui"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import ProductTags from "@modules/products/components/product-tags"
+import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 type ProductInfoProps = {
   product: HttpTypes.StoreProduct
@@ -18,6 +20,7 @@ const sanitizeDescriptionHtml = (description: string) => {
 const ProductInfo = ({ product }: ProductInfoProps) => {
   const description = product.description?.trim() ?? ""
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(description)
+  const tagLabels = getStoreProductTagValues(product)
 
   return (
     <div id="product-info">
@@ -37,6 +40,8 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
         >
           {product.title}
         </Heading>
+
+        <ProductTags labels={tagLabels} />
 
         {hasHtml ? (
           <div

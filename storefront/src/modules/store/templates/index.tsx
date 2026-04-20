@@ -15,6 +15,7 @@ const StoreTemplate = ({
   inStock,
   brand,
   fabric,
+  tag,
   countryCode,
 }: {
   sortBy?: SortOptions
@@ -24,6 +25,7 @@ const StoreTemplate = ({
   inStock?: boolean
   brand?: string
   fabric?: string
+  tag?: string
   countryCode: string
 }) => {
   const pageNumber = page ? parseInt(page) : 1
@@ -59,6 +61,7 @@ const StoreTemplate = ({
             inStock={inStock}
             brand={brand}
             fabric={fabric}
+            tag={tag}
             countryCode={countryCode}
           />
         </Suspense>

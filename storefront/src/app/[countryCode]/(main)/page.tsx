@@ -15,6 +15,8 @@ import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import Thumbnail from "@modules/products/components/thumbnail"
+import ProductTags from "@modules/products/components/product-tags"
+import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -265,6 +267,7 @@ export default async function Home({
                 "gsm",
               ])
               const colors = getColorValues(product)
+              const tagLabels = getStoreProductTagValues(product)
 
               return (
                 <li
@@ -284,6 +287,7 @@ export default async function Home({
                     <h3 className="mt-4 text-base font-semibold text-ui-fg-base">
                       {product.title}
                     </h3>
+                    <ProductTags labels={tagLabels} className="mt-2" />
                     <div className="mt-3 space-y-1 text-sm text-ui-fg-subtle">
                       <p>
                         <span className="font-medium text-ui-fg-base">

@@ -17,6 +17,7 @@ type Params = {
     inStock?: string
     brand?: string
     fabric?: string
+    tag?: string
   }
   params: {
     countryCode: string
@@ -37,7 +38,7 @@ const parsePositiveNumber = (value?: string) => {
 }
 
 export default async function StorePage({ searchParams, params }: Params) {
-  const { sortBy, page, minPrice, maxPrice, inStock, brand, fabric } = searchParams
+  const { sortBy, page, minPrice, maxPrice, inStock, brand, fabric, tag } = searchParams
 
   return (
     <StoreTemplate
@@ -48,6 +49,7 @@ export default async function StorePage({ searchParams, params }: Params) {
       inStock={inStock === "1"}
       brand={brand?.trim() || undefined}
       fabric={fabric?.trim() || undefined}
+      tag={tag?.trim() || undefined}
       countryCode={params.countryCode}
     />
   )

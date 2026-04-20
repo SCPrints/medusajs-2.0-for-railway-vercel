@@ -6,6 +6,8 @@ import Thumbnail from "../thumbnail"
 import PreviewPrice from "./price"
 import { getProductsById } from "@lib/data/products"
 import { HttpTypes } from "@medusajs/types"
+import ProductTags from "@modules/products/components/product-tags"
+import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 export default async function ProductPreview({
   product,
@@ -31,6 +33,8 @@ export default async function ProductPreview({
     product: pricedProduct,
   })
 
+  const tagLabels = getStoreProductTagValues(pricedProduct)
+
   if (layout === "boxed") {
     return (
       <LocalizedClientLink href={`/products/${product.handle}`} className="group block h-full">
@@ -52,6 +56,7 @@ export default async function ProductPreview({
               {cheapestPrice && <PreviewPrice price={cheapestPrice} />}
             </div>
           </div>
+          <ProductTags labels={tagLabels} className="mt-2" />
         </article>
       </LocalizedClientLink>
     )
@@ -77,6 +82,7 @@ export default async function ProductPreview({
             {cheapestPrice && <PreviewPrice price={cheapestPrice} />}
           </div>
         </div>
+        <ProductTags labels={tagLabels} className="mt-2" />
       </div>
     </LocalizedClientLink>
   )

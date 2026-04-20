@@ -6,9 +6,9 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
 
-/** Include variant metadata (e.g. garment_images) for PDP gallery + swatches. */
+/** Include variant metadata (e.g. garment_images) for PDP gallery + swatches + product tags for the storefront UI. */
 const STORE_PRODUCT_FIELDS =
-  "*variants.calculated_price,+variants.inventory_quantity,+variants.metadata"
+  "*variants.calculated_price,+variants.inventory_quantity,+variants.metadata,+tags"
 
 export const getProductsById = cache(async function ({
   ids,
