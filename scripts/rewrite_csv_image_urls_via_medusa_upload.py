@@ -9,14 +9,17 @@ product records as-is; it does not download remote URLs or push them through the
 file module. This script uploads each distinct source once, then swaps URLs in the CSV.
 
 Environment:
-  MEDUSA_BACKEND_URL   Base URL of the Medusa backend (no trailing slash), e.g.
-                        https://your-app.up.railway.app
-  MEDUSA_ADMIN_TOKEN   Admin JWT (Bearer) from a logged-in session, or a secret
-                        API token your Medusa version accepts for admin routes.
+  MEDUSA_BACKEND_URL    Base URL of the Medusa backend (no trailing slash), e.g.
+                         https://your-app.up.railway.app
+  MEDUSA_ADMIN_TOKEN    Optional. Admin JWT for Authorization: Bearer … (some setups).
+  MEDUSA_ADMIN_COOKIE   Optional. Session cookie string, e.g. connect.sid=… from DevTools
+                         Request Headers → cookie (Medusa admin often uses this instead of Bearer).
+
+  Provide at least one of MEDUSA_ADMIN_TOKEN or MEDUSA_ADMIN_COOKIE.
 
 Usage:
   export MEDUSA_BACKEND_URL=...
-  export MEDUSA_ADMIN_TOKEN=...
+  export MEDUSA_ADMIN_COOKIE='connect.sid=...'
   python3 scripts/rewrite_csv_image_urls_via_medusa_upload.py \\
     --input syzmik_medusa_import.csv \\
     --output syzmik_medusa_import_medusa_files.csv
@@ -84,6 +87,20 @@ def _env(name: str) -> str:
         print(f"Missing environment variable {name}", file=sys.stderr)
         sys.exit(1)
     return v.rstrip("/")
+
+
+def _admin_auth() -> tuple[str | None, str | None]:
+    """Returns (bearer_token_or_none, cookie_header_value_or_none)."""
+    token = (os.environ.get("MEDUSA_ADMIN_TOKEN") or "").strip()
+    cookie = (os.environ.get("MEDUSA_ADMIN_COOKIE") or "").strip()
+    if not token and not cookie:
+        print(
+            "Set at least one of MEDUSA_ADMIN_TOKEN or MEDUSA_ADMIN_COOKIE "
+            "(Medusa admin often uses connect.sid in MEDUSA_ADMIN_COOKIE).",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return (token or None, cookie or None)
 
 
 def _image_columns(headers: list[str]) -> list[str]:
@@ -178,23 +195,28 @@ def _multipart_encode(
 
 def _post_upload(
     base_url: str,
-    token: str,
     filename: str,
     content: bytes,
     mime: str,
-    ssl_ctx: ssl.SSLContext | None = None,
+    ssl_ctx: ssl.SSLContext | None,
+    token: str | None,
+    cookie: str | None,
 ) -> str:
     ct, body = _multipart_encode("files", filename, content, mime)
     url = f"{base_url}/admin/uploads"
+    headers: dict[str, str] = {
+        "Content-Type": ct,
+        "Accept": "application/json",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if cookie:
+        headers["Cookie"] = cookie
     req = urllib.request.Request(
         url,
         data=body,
         method="POST",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Content-Type": ct,
-            "Accept": "application/json",
-        },
+        headers=headers,
     )
     try:
         ukwargs: dict = {"timeout": 300}
@@ -218,10 +240,11 @@ def _post_upload(
 def _map_urls(
     sources: list[str],
     base_url: str,
-    token: str,
     cache_path: Path | None,
     sleep_s: float,
     ssl_ctx: ssl.SSLContext,
+    token: str | None,
+    cookie: str | None,
 ) -> dict[str, str]:
     mapping: dict[str, str] = {}
     if cache_path and cache_path.is_file():
@@ -239,7 +262,7 @@ def _map_urls(
         for attempt in range(3):
             try:
                 new_url = _post_upload(
-                    base_url, token, fname, data, mime, ssl_ctx
+                    base_url, fname, data, mime, ssl_ctx, token, cookie
                 )
                 mapping[src] = new_url
                 if cache_path:
@@ -290,8 +313,8 @@ def main() -> None:
         "--env-file",
         type=Path,
         default=None,
-        help="Load MEDUSA_BACKEND_URL and MEDUSA_ADMIN_TOKEN from a file of KEY=value lines "
-        "(does not override existing environment variables).",
+        help="Load env vars from a file (KEY=value lines; does not override existing env). "
+        "Uses MEDUSA_BACKEND_URL and MEDUSA_ADMIN_TOKEN and/or MEDUSA_ADMIN_COOKIE.",
     )
     args = parser.parse_args()
 
@@ -302,7 +325,7 @@ def main() -> None:
         _load_env_file(args.env_file)
 
     base_url = _env("MEDUSA_BACKEND_URL")
-    token = _env("MEDUSA_ADMIN_TOKEN")
+    token, cookie = _admin_auth()
     ssl_ctx = _ssl_context(insecure_fetch=args.insecure_fetch)
     if args.insecure_fetch:
         print("Warning: TLS verification disabled for HTTPS requests.", file=sys.stderr)
@@ -332,7 +355,7 @@ def main() -> None:
         cache_path = args.output.with_suffix(".upload-map.json")
 
     mapping = _map_urls(
-        sources, base_url, token, cache_path, args.sleep, ssl_ctx
+        sources, base_url, cache_path, args.sleep, ssl_ctx, token, cookie
     )
 
     for row in rows:

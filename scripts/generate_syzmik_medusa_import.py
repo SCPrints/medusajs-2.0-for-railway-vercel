@@ -30,6 +30,20 @@ def clean(v: str | None) -> str:
     return (v or "").strip()
 
 
+# Medusa splits imports into JSON chunks; raw newlines / C0 controls in cells break JSON.parse.
+_CTRL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def sanitize_medusa_csv_cell(v: str | None) -> str:
+    s = clean(v)
+    if not s:
+        return ""
+    s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    s = _CTRL_CHARS.sub(" ", s)
+    s = re.sub(r" +", " ", s).strip()
+    return s
+
+
 def title_case_colour(v: str) -> str:
     v = clean(v)
     if not v:
@@ -52,13 +66,6 @@ def format_aud_price(raw: str) -> str:
     except Exception:
         d = Decimal("0")
     return str(d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-
-
-def first_category_tag(category: str) -> str:
-    c = clean(category)
-    if not c:
-        return ""
-    return clean(c.split(";", 1)[0])
 
 
 def normalize_image_basename(filename: str) -> str:
@@ -176,7 +183,8 @@ def main() -> None:
             first.get("description")
         )
         material = extract_fabric(clean(first.get("stringified_description")))
-        tag1 = first_category_tag(clean(first.get("category")))
+        # Medusa CSV expects Product Tag N = existing tag *id* (ptag_…), not a title.
+        # Leaving empty avoids "Tag with id accessories not found" on import.
 
         sorted_variants = sorted(
             variants,
@@ -231,7 +239,6 @@ def main() -> None:
             row_out["Product Material"] = material
             row_out["Product Discountable"] = "true"
             row_out["Product Is Giftcard"] = "false"
-            row_out["Product Tag 1"] = tag1
             row_out["Product Sales Channel 1"] = args.sales_channel
             if "Product Image 1" in row_out:
                 row_out["Product Image 1"] = img1
@@ -249,6 +256,10 @@ def main() -> None:
             row_out["Variant Price AUD"] = format_aud_price(clean(v.get("price1")))
             row_out["Variant Barcode"] = sku
             row_out["Variant Variant Rank"] = str(rank)
+
+            for k in row_out:
+                if row_out[k]:
+                    row_out[k] = sanitize_medusa_csv_cell(row_out[k])
 
             rows_out.append(row_out)
 
