@@ -31,13 +31,29 @@ def clean(v: str | None) -> str:
 
 
 # Medusa splits imports into JSON chunks; raw newlines / C0 controls in cells break JSON.parse.
-_CTRL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_CTRL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_UNICODE_LINE_SEP = re.compile(r"[\u2028\u2029]")
+_UNICODE_TRANS = str.maketrans(
+    {
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2212": "-",
+        "\u00a0": " ",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\ufeff": "",
+    }
+)
 
 
 def sanitize_medusa_csv_cell(v: str | None) -> str:
     s = clean(v)
     if not s:
         return ""
+    s = s.translate(_UNICODE_TRANS)
+    s = _UNICODE_LINE_SEP.sub(" ", s)
     s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
     s = _CTRL_CHARS.sub(" ", s)
     s = re.sub(r" +", " ", s).strip()
