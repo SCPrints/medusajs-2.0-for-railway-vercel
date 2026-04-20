@@ -96,22 +96,22 @@ export default async function Footer() {
             <span className="txt-small-plus txt-ui-fg-base">Policies</span>
             <ul className="mt-3 grid gap-y-2 text-ui-fg-subtle txt-small">
               <li>
-                <LocalizedClientLink href="/contact" className="hover:text-ui-fg-base">
+                <LocalizedClientLink href="/shipping-policy" className="hover:text-ui-fg-base">
                   Shipping Policy
                 </LocalizedClientLink>
               </li>
               <li>
-                <LocalizedClientLink href="/contact" className="hover:text-ui-fg-base">
+                <LocalizedClientLink href="/returns-policy" className="hover:text-ui-fg-base">
                   Returns Policy
                 </LocalizedClientLink>
               </li>
               <li>
-                <LocalizedClientLink href="/contact" className="hover:text-ui-fg-base">
+                <LocalizedClientLink href="/privacy-policy" className="hover:text-ui-fg-base">
                   Privacy Policy
                 </LocalizedClientLink>
               </li>
               <li>
-                <LocalizedClientLink href="/contact" className="hover:text-ui-fg-base">
+                <LocalizedClientLink href="/terms-and-conditions" className="hover:text-ui-fg-base">
                   Terms & Conditions
                 </LocalizedClientLink>
               </li>
