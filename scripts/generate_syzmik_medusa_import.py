@@ -155,6 +155,16 @@ def main() -> None:
     args = parser.parse_args()
 
     headers = load_template_headers(args.template)
+    if "Variant Option 3 Name" not in headers:
+        try:
+            idx = headers.index("Variant Option 2 Value") + 1
+        except ValueError:
+            idx = len(headers)
+        headers = (
+            headers[:idx]
+            + ["Variant Option 3 Name", "Variant Option 3 Value"]
+            + headers[idx:]
+        )
     by_style_local = build_local_image_index(args.images)
 
     styles: dict[str, list[dict[str, str]]] = defaultdict(list)
@@ -194,6 +204,15 @@ def main() -> None:
                 clean(r.get("sku")),
             ),
         )
+
+        combo_counts: dict[tuple[str, str], int] = defaultdict(int)
+        for v in sorted_variants:
+            sz = clean(v.get("size"))
+            col = title_case_colour(v.get("colour") or "")
+            combo_counts[(sz, col)] += 1
+        need_item_option = any(c > 1 for c in combo_counts.values())
+        opt3_name = "Variant Option 3 Name"
+        opt3_val = "Variant Option 3 Value"
 
         for rank, v in enumerate(sorted_variants):
             colour_disp = title_case_colour(v.get("colour") or "")
@@ -253,6 +272,9 @@ def main() -> None:
             row_out["Variant Option 1 Value"] = size_val
             row_out["Variant Option 2 Name"] = "Colour"
             row_out["Variant Option 2 Value"] = colour_disp
+            if need_item_option and opt3_name in row_out:
+                row_out[opt3_name] = "Item code"
+                row_out[opt3_val] = sku
             row_out["Variant Price AUD"] = format_aud_price(clean(v.get("price1")))
             row_out["Variant Barcode"] = sku
             row_out["Variant Variant Rank"] = str(rank)
