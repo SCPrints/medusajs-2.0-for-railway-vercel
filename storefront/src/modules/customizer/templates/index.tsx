@@ -11,15 +11,58 @@ import {
   normalizePersistedArtifactUrl,
 } from "@modules/customizer/lib/artifact-url"
 import { calculatePricing } from "@modules/customizer/lib/pricing"
+import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import { CustomizerMetadata, GarmentSide, SizeQuantity } from "@modules/customizer/lib/types"
+import OptionSelect from "@modules/products/components/product-actions/option-select"
+import { getPrimaryGarmentImageUrl } from "@modules/products/lib/variant-options"
 import { HttpTypes } from "@medusajs/types"
 import { useParams } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as fabric from "fabric"
+import { FabricImage } from "fabric"
 
 const DESIGN_SIDES: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve"]
 const MAX_UPLOAD_SIZE = 8 * 1024 * 1024
 const PRINT_AREA_INCHES = { width: 12, height: 16 }
+/** Ignore sub-pixel drift from Fabric so small moves inside the box don’t show a “clipped” alert. */
+const PRINT_AREA_EPS = 1.5
+/** Skip clamp until the canvas has a real size (avoids pinning art to a corner when printArea is ~0). */
+const MIN_PRINT_AREA_PX = 8
+
+/** Initial on-canvas width for uploads when the print area is not sized yet (avoids Fabric Image width/scale bugs). */
+const getTargetArtworkWidth = (printAreaWidth: number) => Math.max(120, printAreaWidth * 0.35)
+
+const getFabricImageSourceWidthPx = (obj: any): number => {
+  const direct = Number(obj?.sourceWidthPx ?? 0)
+  if (direct > 0) {
+    return direct
+  }
+  const w = obj?.width
+  if (typeof w === "number" && w > 0) {
+    return w
+  }
+  const el = obj?._element as HTMLImageElement | undefined
+  if (el?.naturalWidth) {
+    return el.naturalWidth
+  }
+  return 0
+}
+
+const getFabricImageSourceHeightPx = (obj: any): number => {
+  const direct = Number(obj?.sourceHeightPx ?? 0)
+  if (direct > 0) {
+    return direct
+  }
+  const h = obj?.height
+  if (typeof h === "number" && h > 0) {
+    return h
+  }
+  const el = obj?._element as HTMLImageElement | undefined
+  if (el?.naturalHeight) {
+    return el.naturalHeight
+  }
+  return 0
+}
 
 type CustomizerTemplateProps = {
   defaultGarmentImage: string | null
@@ -48,6 +91,12 @@ const resolveVariantPrice = (variant?: HttpTypes.StoreProductVariant) => {
 
   return 0
 }
+
+const formatMoneyDisplay = (amountCents: number, currencyCode: string) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currencyCode.toUpperCase(),
+  }).format(amountCents / 100)
 
 const getSizeOption = (product: HttpTypes.StoreProduct) =>
   product.options?.find((option) => (option.title ?? "").toLowerCase().includes("size"))
@@ -245,13 +294,14 @@ export default function CustomizerTemplate({
 
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [currentSide, setCurrentSide] = useState<GarmentSide>("front")
-  const [layers, setLayers] = useState<Array<{ id: string; label: string; visible: boolean; locked: boolean }>>([])
+  const [layers, setLayers] = useState<
+    Array<{ id: string; label: string; visible: boolean; locked: boolean; type?: string }>
+  >([])
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [outOfBoundsWarning, setOutOfBoundsWarning] = useState<string | null>(null)
   const [dpiWarning, setDpiWarning] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isRemovingBackground, setIsRemovingBackground] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [activeProductId, setActiveProductId] = useState<string>(products[0]?.id ?? "")
   const [activeVariantId, setActiveVariantId] = useState<string>(products[0]?.variants?.[0]?.id ?? "")
@@ -293,6 +343,27 @@ export default function CustomizerTemplate({
     (selectedVariant as any)?.prices?.[0]?.currency_code ??
     "usd"
   const basePriceCents = resolveVariantPrice(selectedVariant)
+
+  const productBrand = useMemo(() => {
+    const sub = selectedProduct?.subtitle
+    if (typeof sub === "string" && sub.trim()) {
+      return sub.trim()
+    }
+    const meta = selectedProduct?.metadata as Record<string, unknown> | undefined
+    const brand = meta?.brand
+    if (typeof brand === "string" && brand.trim()) {
+      return brand.trim()
+    }
+    return null
+  }, [selectedProduct])
+
+  const garmentImageUrl = useMemo(() => {
+    const fromVariant = getPrimaryGarmentImageUrl(selectedProduct, selectedVariant)
+    return fromVariant ?? defaultGarmentImage ?? null
+  }, [selectedProduct, selectedVariant, defaultGarmentImage])
+
+  const garmentDisplayTitle = selectedProduct?.title ?? defaultGarmentTitle
+
   const decoratedSidesCount = DESIGN_SIDES.filter(
     (side) => (sideLayoutsRef.current[side] ?? []).length > 0
   ).length
@@ -316,6 +387,7 @@ export default function CustomizerTemplate({
         label: object.customizerLabel || object.type || `Layer ${index + 1}`,
         visible: object.visible !== false,
         locked: !!object.lockMovementX,
+        type: typeof object.type === "string" ? object.type : undefined,
       }))
 
     setLayers(nextLayers)
@@ -324,56 +396,80 @@ export default function CustomizerTemplate({
     setSelectedLayerId(active ? getObjectId(active) : null)
   }
 
-  const applyPrintClipPath = () => {
-    const canvas = fabricCanvasRef.current
-    if (!canvas) {
-      return
-    }
-
-    canvas.clipPath = new (fabric as any).Rect({
-      left: printArea.x,
-      top: printArea.y,
-      width: printArea.width,
-      height: printArea.height,
-      absolutePositioned: true,
-    })
-  }
-
   const clampObjectToBounds = (object: any) => {
     const canvas = fabricCanvasRef.current
     if (!canvas || !object) {
       return
     }
 
-    object.setCoords()
-    const bounds = object.getBoundingRect(true, true)
-    let nextLeft = object.left ?? 0
-    let nextTop = object.top ?? 0
-    let isOutside = false
+    const pr = printArea
+    if (pr.width < MIN_PRINT_AREA_PX || pr.height < MIN_PRINT_AREA_PX) {
+      setOutOfBoundsWarning(null)
+      return
+    }
 
-    if (bounds.left < printArea.x) {
-      nextLeft += printArea.x - bounds.left
-      isOutside = true
+    object.setCoords()
+    // Fabric 7: axis-aligned scene bbox (extra args are ignored; do not pass legacy Fabric 5 flags).
+    const bounds = object.getBoundingRect()
+    const prevLeft = object.left ?? 0
+    const prevTop = object.top ?? 0
+
+    const inside =
+      bounds.left >= pr.x - PRINT_AREA_EPS &&
+      bounds.top >= pr.y - PRINT_AREA_EPS &&
+      bounds.left + bounds.width <= pr.x + pr.width + PRINT_AREA_EPS &&
+      bounds.top + bounds.height <= pr.y + pr.height + PRINT_AREA_EPS
+
+    if (inside) {
+      setOutOfBoundsWarning(null)
+      return
     }
-    if (bounds.top < printArea.y) {
-      nextTop += printArea.y - bounds.top
-      isOutside = true
+
+    let desiredLeft = bounds.left
+    let desiredTop = bounds.top
+
+    const right = pr.x + pr.width
+    const bottom = pr.y + pr.height
+
+    // Horizontal: if art is wider than the print box, slide along [printRight - width, printLeft] so it stays overlapping.
+    if (bounds.width > pr.width + PRINT_AREA_EPS) {
+      const minLeft = right - bounds.width
+      const maxLeft = pr.x
+      desiredLeft = Math.min(Math.max(bounds.left, minLeft), maxLeft)
+    } else {
+      if (bounds.left < pr.x - PRINT_AREA_EPS) {
+        desiredLeft = pr.x
+      } else if (bounds.left + bounds.width > right + PRINT_AREA_EPS) {
+        desiredLeft = right - bounds.width
+      }
     }
-    if (bounds.left + bounds.width > printArea.x + printArea.width) {
-      nextLeft -= bounds.left + bounds.width - (printArea.x + printArea.width)
-      isOutside = true
+
+    if (bounds.height > pr.height + PRINT_AREA_EPS) {
+      const minTop = bottom - bounds.height
+      const maxTop = pr.y
+      desiredTop = Math.min(Math.max(bounds.top, minTop), maxTop)
+    } else {
+      if (bounds.top < pr.y - PRINT_AREA_EPS) {
+        desiredTop = pr.y
+      } else if (bounds.top + bounds.height > bottom + PRINT_AREA_EPS) {
+        desiredTop = bottom - bounds.height
+      }
     }
-    if (bounds.top + bounds.height > printArea.y + printArea.height) {
-      nextTop -= bounds.top + bounds.height - (printArea.y + printArea.height)
-      isOutside = true
-    }
+
+    const dx = desiredLeft - bounds.left
+    const dy = desiredTop - bounds.top
+    const nextLeft = prevLeft + dx
+    const nextTop = prevTop + dy
 
     object.set({ left: nextLeft, top: nextTop })
     object.setCoords()
     canvas.renderAll()
 
+    const moved =
+      Math.abs(dx) > PRINT_AREA_EPS || Math.abs(dy) > PRINT_AREA_EPS
+
     setOutOfBoundsWarning(
-      isOutside ? "Artwork was clipped to stay inside the print area." : null
+      moved ? "Artwork was nudged to stay inside the print area." : null
     )
   }
 
@@ -386,7 +482,12 @@ export default function CustomizerTemplate({
       return
     }
 
-    const sourceWidthPx = Number((active as any).sourceWidthPx ?? 0)
+    if (printArea.width < 1 || printArea.height < 1) {
+      setDpiWarning(null)
+      return
+    }
+
+    const sourceWidthPx = getFabricImageSourceWidthPx(active)
     if (!sourceWidthPx) {
       setDpiWarning(null)
       return
@@ -399,11 +500,21 @@ export default function CustomizerTemplate({
     }
 
     const pixelsPerInch = printArea.width / PRINT_AREA_INCHES.width
+    if (!Number.isFinite(pixelsPerInch) || pixelsPerInch <= 0) {
+      setDpiWarning(null)
+      return
+    }
+
     const printWidthInches = renderedWidth / pixelsPerInch
-    const dpi = sourceWidthPx / Math.max(0.1, printWidthInches)
+    if (!Number.isFinite(printWidthInches) || printWidthInches <= 0) {
+      setDpiWarning(null)
+      return
+    }
+
+    const dpi = sourceWidthPx / printWidthInches
 
     if (dpi < 150) {
-      setDpiWarning(`Low resolution warning: estimated ${Math.round(dpi)} DPI at current size.`)
+      setDpiWarning(`Low resolution warning: estimated ${Math.max(1, Math.round(dpi))} DPI at current size.`)
       return
     }
 
@@ -432,7 +543,6 @@ export default function CustomizerTemplate({
     }
 
     canvas.clear()
-    applyPrintClipPath()
     const objects = sideLayoutsRef.current[side] ?? []
     const json = {
       version: "7.0.0",
@@ -512,7 +622,6 @@ export default function CustomizerTemplate({
     }
 
     syncSize()
-    applyPrintClipPath()
 
     canvas.on("object:moving", (event: any) => clampObjectToBounds(event.target))
     canvas.on("object:scaling", (event: any) => clampObjectToBounds(event.target))
@@ -533,10 +642,6 @@ export default function CustomizerTemplate({
       fabricCanvasRef.current = null
     }
   }, [])
-
-  useEffect(() => {
-    applyPrintClipPath()
-  }, [printArea.height, printArea.width, printArea.x, printArea.y])
 
   const switchSide = async (nextSide: GarmentSide) => {
     if (nextSide === currentSide) {
@@ -593,20 +698,24 @@ export default function CustomizerTemplate({
         sourceWidthPx: Number(svgObject.width ?? 0),
       })
       if (svgObject.scaleToWidth) {
-        svgObject.scaleToWidth(printArea.width * 0.35)
+        svgObject.scaleToWidth(getTargetArtworkWidth(printArea.width))
       }
       addCanvasObject(svgObject)
       return
     }
 
     const dataUrl = await readFileAsDataUrl(file)
-    const imageObject = await (fabric as any).FabricImage.fromURL(dataUrl)
+    const imageObject = await FabricImage.fromURL(dataUrl)
+    const { width: naturalW, height: naturalH } = imageObject.getOriginalSize()
+    if (naturalW > 0 && naturalH > 0) {
+      imageObject.set({ width: naturalW, height: naturalH, scaleX: 1, scaleY: 1 })
+    }
     imageObject.set({
       customizerLabel: file.name || "Image",
-      sourceWidthPx: imageObject.width ?? 0,
-      sourceHeightPx: imageObject.height ?? 0,
+      sourceWidthPx: getFabricImageSourceWidthPx(imageObject),
+      sourceHeightPx: getFabricImageSourceHeightPx(imageObject),
     })
-    imageObject.scaleToWidth?.(printArea.width * 0.35)
+    imageObject.scaleToWidth?.(getTargetArtworkWidth(printArea.width))
     addCanvasObject(imageObject)
   }
 
@@ -639,65 +748,26 @@ export default function CustomizerTemplate({
     addCanvasObject(textObject)
   }
 
-  const handleAddClipart = async (svg: string) => {
-    const clipObject = await loadSvgObject(svg)
-    clipObject.set({ customizerLabel: "Clipart" })
-    clipObject.scaleToWidth?.(printArea.width * 0.25)
-    addCanvasObject(clipObject)
-  }
-
-  const handleAddShape = (shape: "rect" | "circle" | "triangle") => {
-    const shared = { fill: "#111827", customizerLabel: shape }
-    const shapeObject =
-      shape === "rect"
-        ? new (fabric as any).Rect({ width: 140, height: 90, ...shared })
-        : shape === "circle"
-        ? new (fabric as any).Circle({ radius: 55, ...shared })
-        : new (fabric as any).Triangle({ width: 120, height: 110, ...shared })
-
-    addCanvasObject(shapeObject)
-  }
-
-  const runBackgroundRemoval = async () => {
+  const removeSelectedImage = () => {
     const canvas = fabricCanvasRef.current
-    const active = canvas?.getActiveObject()
+    const active = canvas?.getActiveObject?.()
     if (!active || active.type !== "image") {
       setUploadError("Select an image layer first.")
       return
     }
 
-    setIsRemovingBackground(true)
+    canvas.remove(active)
+    canvas.discardActiveObject()
+    canvas.renderAll()
+    updateLayers()
+    saveCurrentSide()
     setUploadError(null)
-
-    try {
-      const dataUrl = active.toDataURL({ format: "png" })
-      const response = await fetch("/api/customizer/remove-background", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataUrl }),
-      })
-
-      const body = await response.json()
-      if (!response.ok || typeof body?.dataUrl !== "string") {
-        throw new Error(body?.message ?? "Background removal failed")
-      }
-
-      const nextImage = await (fabric as any).FabricImage.fromURL(body.dataUrl)
-      nextImage.set({
-        ...active.toObject(["customizerId", "customizerLabel", "sourceWidthPx", "sourceHeightPx"]),
-        customizerLabel: `${active.customizerLabel || "Image"} (BG Removed)`,
-      })
-      canvas.remove(active)
-      canvas.add(nextImage)
-      canvas.setActiveObject(nextImage)
-      clampObjectToBounds(nextImage)
-    } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Background removal failed.")
-    } finally {
-      setIsRemovingBackground(false)
-      saveCurrentSide()
-    }
   }
+
+  const canRemoveImage = useMemo(() => {
+    const layer = layers.find((l) => l.id === selectedLayerId)
+    return layer?.type === "image"
+  }, [layers, selectedLayerId])
 
   const selectLayer = (id: string) => {
     const canvas = fabricCanvasRef.current
@@ -811,7 +881,8 @@ export default function CustomizerTemplate({
 
   const renderSideArtifacts = async (
     side: GarmentSide,
-    sideObjects: Record<string, unknown>[]
+    sideObjects: Record<string, unknown>[],
+    mockupGarmentUrl: string | null
   ): Promise<{ printUrl: string | null; mockupUrl: string | null }> => {
     const staticCanvas = new (fabric as any).StaticCanvas(null, {
       width: Math.round(printArea.width),
@@ -824,15 +895,22 @@ export default function CustomizerTemplate({
     const artworkSvg = staticCanvas.toSVG()
     staticCanvas.dispose()
 
+    const rawGarment = mockupGarmentUrl ?? defaultGarmentImage
+    const garmentImageUrlForApi =
+      typeof rawGarment === "string" && rawGarment.trim().length > 0 ? rawGarment.trim() : null
+
+    const pw = Math.max(1, Math.round(printArea.width))
+    const ph = Math.max(1, Math.round(printArea.height))
+
     const payload = {
       side,
       artworkSvg,
-      garmentImageUrl: defaultGarmentImage,
+      garmentImageUrl: garmentImageUrlForApi,
       placement: {
-        x: Math.round(printArea.x),
-        y: Math.round(printArea.y),
-        width: Math.round(printArea.width),
-        height: Math.round(printArea.height),
+        x: Math.max(0, Math.round(printArea.x)),
+        y: Math.max(0, Math.round(printArea.y)),
+        width: pw,
+        height: ph,
       },
     }
 
@@ -849,15 +927,16 @@ export default function CustomizerTemplate({
       }),
     ])
 
-    const printBody = await printResponse.json()
-    const mockupBody = await mockupResponse.json()
+    const printBody = await printResponse.json().catch(() => ({}))
+    const mockupBody = await mockupResponse.json().catch(() => ({}))
 
     if (!printResponse.ok || !mockupResponse.ok) {
-      throw new Error(printBody?.message ?? mockupBody?.message ?? "Render service failed.")
+      const detail = [printBody?.message, mockupBody?.message].filter(Boolean).join(" — ")
+      throw new Error(detail || `Render failed (print ${printResponse.status}, mockup ${mockupResponse.status}).`)
     }
 
-    const printUrl = extractRenderArtifactUrl(printBody?.url)
-    const mockupUrl = extractRenderArtifactUrl(mockupBody?.url)
+    const printUrl = extractRenderArtifactUrl(printBody) ?? extractRenderArtifactUrl((printBody as any)?.data)
+    const mockupUrl = extractRenderArtifactUrl(mockupBody) ?? extractRenderArtifactUrl((mockupBody as any)?.data)
 
     return {
       printUrl,
@@ -884,6 +963,13 @@ export default function CustomizerTemplate({
       return
     }
 
+    if (printArea.width < MIN_PRINT_AREA_PX || printArea.height < MIN_PRINT_AREA_PX) {
+      setUploadError(
+        "The design preview is still loading. Wait a moment or resize the window, then try adding to cart again."
+      )
+      return
+    }
+
     setIsSubmitting(true)
     setStatusMessage(null)
     setUploadError(null)
@@ -891,7 +977,11 @@ export default function CustomizerTemplate({
     try {
       const renderedArtifacts = await Promise.all(
         decoratedSides.map(async (side) => {
-          const rendered = await renderSideArtifacts(side, sideLayoutsRef.current[side] ?? [])
+          const rendered = await renderSideArtifacts(
+            side,
+            sideLayoutsRef.current[side] ?? [],
+            garmentImageUrl
+          )
           return {
             side,
             ...rendered,
@@ -972,6 +1062,9 @@ export default function CustomizerTemplate({
         const lineItemMetadata: CustomizerMetadata = {
           ...metadataBase,
           variantId: quantityEntry.variantId,
+          // Cart line metadata must stay small for Medusa; print files live in `artifacts`.
+          // Full Fabric state stays in-browser only (not persisted on the line item).
+          sideLayouts: DESIGN_SIDES.map((side) => ({ side, objects: [] })),
         }
 
         await addToCart({
@@ -979,7 +1072,7 @@ export default function CustomizerTemplate({
           quantity: quantityEntry.quantity,
           countryCode,
           metadata: {
-            customizerDesign: lineItemMetadata,
+            customizerDesign: sanitizeCustomizerDesignForCart(lineItemMetadata),
           },
         })
       }
@@ -1000,21 +1093,91 @@ export default function CustomizerTemplate({
   }
 
   return (
-    <div className="content-container py-12 small:py-16">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold text-ui-fg-base small:text-4xl">Logo Customizer</h1>
-          <p className="mt-3 text-ui-fg-subtle">
-            Build print-ready front/back/sleeve designs with live pricing and size matrix ordering.
-          </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_300px]">
+    <div className="content-container py-8 small:py-12">
+      <div className="mx-auto max-w-[1320px] space-y-6">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start lg:gap-10">
+          {/* Left: editor — large preview + tool rail (Print Bar–style) */}
           <div className="space-y-4">
-            <div className="space-y-2 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <label className="text-xs font-medium text-ui-fg-subtle">Garment</label>
+            <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-sm">
+              <div className="flex flex-col border-b border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 small:flex-row small:items-center small:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle">
+                    Design preview
+                  </p>
+                  <p className="mt-0.5 text-sm text-ui-fg-base">
+                    {selectedProduct?.title ? `Design your ${selectedProduct.title}` : "Design your product"}
+                  </p>
+                </div>
+                <p className="mt-2 text-xs text-ui-fg-subtle small:mt-0">
+                  Drag artwork inside the dashed print area.
+                </p>
+              </div>
+
+              <div className="flex flex-col lg:flex-row lg:items-stretch">
+                <div className="max-h-[min(70vh,720px)] overflow-y-auto border-b border-ui-border-base bg-ui-bg-subtle/30 p-4 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-b-0 lg:border-r lg:border-ui-border-base">
+                  <InputPanel
+                    onUploadFile={handleUploadFile}
+                    onAddText={handleAddText}
+                    onAddCurvedText={handleAddCurvedText}
+                    onRemoveSelectedImage={removeSelectedImage}
+                    canRemoveImage={canRemoveImage}
+                    className="border-0 bg-transparent p-0"
+                  />
+                </div>
+
+                <div className="min-h-[min(70vh,720px)] flex-1 p-4 small:p-5">
+                  <CanvasStage
+                    garmentImage={garmentImageUrl}
+                    garmentTitle={garmentDisplayTitle}
+                    printArea={printArea}
+                    outOfBoundsWarning={outOfBoundsWarning}
+                    dpiWarning={dpiWarning}
+                    canvasRef={htmlCanvasRef}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {uploadError && (
+              <p className="text-sm text-rose-600" role="alert">
+                {uploadError}
+              </p>
+            )}
+            {statusMessage && <p className="text-sm text-emerald-700">{statusMessage}</p>}
+          </div>
+
+          {/* Right: product + options (sticky on large screens) */}
+          <div className="space-y-5 lg:sticky lg:top-24">
+            <header className="space-y-2 border-b border-ui-border-base pb-5">
+              {productBrand && (
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-subtle">
+                  {productBrand}
+                </p>
+              )}
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h1 className="text-2xl font-semibold leading-tight text-ui-fg-base small:text-3xl">
+                    {selectedProduct?.title ?? "Customize"}
+                  </h1>
+                  <p className="mt-2 text-sm text-ui-fg-subtle">
+                    Front, back, and sleeve placements with live pricing.
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-semibold text-ui-fg-base">
+                    From {formatMoneyDisplay(basePriceCents, currencyCode)}
+                  </p>
+                  <p className="text-xs text-ui-fg-subtle">+ print locations, quantity tiers</p>
+                </div>
+              </div>
+            </header>
+
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <label className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle">
+                Product
+              </label>
               <select
-                className="w-full rounded-md border border-ui-border-base px-2 py-2 text-sm"
+                className="w-full rounded-lg border border-ui-border-base bg-ui-bg-base px-3 py-2.5 text-sm"
                 value={selectedProduct?.id}
                 onChange={(event) => setActiveProductId(event.target.value)}
               >
@@ -1031,30 +1194,39 @@ export default function CustomizerTemplate({
                     : []
                   const current =
                     selectedVariant?.options?.find((entry) => entry.option_id === option.id)?.value ?? ""
+                  const optionForSelect =
+                    option.values && option.values.length > 0
+                      ? option
+                      : ({
+                          ...option,
+                          values: values.map((value) => ({ id: value, value })),
+                        } as HttpTypes.StoreProductOption)
+
                   return (
-                    <div key={option.id} className="space-y-1">
+                    <div key={option.id} className="space-y-1.5 pt-2">
                       <label className="text-xs font-medium text-ui-fg-subtle">
-                        {option.title ?? "Option"}
+                        {(option.title ?? "Option").toUpperCase()}
                       </label>
-                      <select
-                        className="w-full rounded-md border border-ui-border-base px-2 py-2 text-sm"
-                        value={current}
-                        onChange={(event) => handleNonSizeOptionChange(option.id, event.target.value)}
-                      >
-                        {values.map((value) => (
-                          <option key={value} value={value}>
-                            {value}
-                          </option>
-                        ))}
-                      </select>
+                      {selectedProduct ? (
+                        <OptionSelect
+                          product={selectedProduct}
+                          option={optionForSelect}
+                          current={current || undefined}
+                          updateOption={(_title, value) =>
+                            handleNonSizeOptionChange(option.id, value)
+                          }
+                          title={option.title ?? "Option"}
+                          disabled={false}
+                        />
+                      ) : null}
                     </div>
                   )
                 })
               ) : (selectedProduct?.variants?.length ?? 0) > 1 ? (
-                <>
-                  <label className="text-xs font-medium text-ui-fg-subtle">Style</label>
+                <div className="space-y-1.5 pt-2">
+                  <label className="text-xs font-medium text-ui-fg-subtle">STYLE</label>
                   <select
-                    className="w-full rounded-md border border-ui-border-base px-2 py-2 text-sm"
+                    className="w-full rounded-lg border border-ui-border-base px-3 py-2.5 text-sm"
                     value={selectedVariant?.id}
                     onChange={(event) => setActiveVariantId(event.target.value)}
                   >
@@ -1064,43 +1236,25 @@ export default function CustomizerTemplate({
                       </option>
                     ))}
                   </select>
-                </>
+                </div>
               ) : null}
             </div>
 
-            <InputPanel
-              onUploadFile={handleUploadFile}
-              onAddText={handleAddText}
-              onAddCurvedText={handleAddCurvedText}
-              onAddClipart={handleAddClipart}
-              onAddShape={handleAddShape}
-              onRunBackgroundRemoval={runBackgroundRemoval}
-              isRemovingBackground={isRemovingBackground}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-ui-fg-base">Core Canvas</p>
-                <SideSelector currentSide={currentSide} onSelectSide={switchSide} />
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+                  Print locations
+                </h2>
+                <span className="text-xs text-ui-fg-subtle capitalize">
+                  {currentSide.replace("_", " ")}
+                </span>
               </div>
-              <p className="mt-1 text-xs text-ui-fg-subtle">
-                Editing side: <span className="font-medium">{currentSide.replace("_", " ")}</span>
+              <SideSelector currentSide={currentSide} onSelectSide={switchSide} />
+              <p className="text-xs text-ui-fg-subtle">
+                Switch sides to place art on the front, back, or sleeves. Each side is saved separately.
               </p>
             </div>
 
-            <CanvasStage
-              garmentImage={defaultGarmentImage}
-              garmentTitle={defaultGarmentTitle}
-              printArea={printArea}
-              outOfBoundsWarning={outOfBoundsWarning}
-              dpiWarning={dpiWarning}
-              canvasRef={htmlCanvasRef}
-            />
-          </div>
-
-          <div className="space-y-4">
             <ManagementPanel
               layers={layers}
               selectedLayerId={selectedLayerId}
@@ -1151,13 +1305,6 @@ export default function CustomizerTemplate({
             />
           </div>
         </div>
-
-        {uploadError && (
-          <p className="text-sm text-rose-600" role="alert">
-            {uploadError}
-          </p>
-        )}
-        {statusMessage && <p className="text-sm text-emerald-700">{statusMessage}</p>}
       </div>
     </div>
   )

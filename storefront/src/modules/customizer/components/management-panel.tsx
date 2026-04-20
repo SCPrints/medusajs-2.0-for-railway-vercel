@@ -5,6 +5,8 @@ type LayerItem = {
   label: string
   visible: boolean
   locked: boolean
+  /** Fabric object `type` (e.g. `image`, `i-text`). */
+  type?: string
 }
 
 type ManagementPanelProps = {
@@ -35,8 +37,8 @@ export default function ManagementPanel({
   return (
     <div className="space-y-4 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
       <div>
-        <h3 className="text-sm font-semibold text-ui-fg-base">Management Tools</h3>
-        <p className="mt-1 text-xs text-ui-fg-subtle">Align, reorder, and edit layer properties.</p>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">Layers & alignment</h3>
+        <p className="mt-1 text-xs text-ui-fg-subtle">Align, reorder, and edit the selected layer.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">

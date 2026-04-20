@@ -10,7 +10,11 @@ export const renderPlacementSchema = z.object({
 export const renderRequestSchema = z.object({
   side: z.enum(["front", "back", "left_sleeve", "right_sleeve"]),
   artworkSvg: z.string().min(20),
-  garmentImageUrl: z.string().url().nullable(),
+  /** Allow null; coerce empty string so storefront never fails Zod on blank mockup URL. */
+  garmentImageUrl: z.preprocess(
+    (v) => (v === "" || v === undefined ? null : v),
+    z.union([z.string().url(), z.null()])
+  ),
   placement: renderPlacementSchema,
 })
 

@@ -216,3 +216,73 @@ export const findProductOptionByTitle = (
   const want = toTitleSlug(optionTitle)
   return product.options?.find((o) => o.title && toTitleSlug(o.title) === want)
 }
+
+const COLOR_OPTION_MATCHER = /(color|colour)/i
+
+/**
+ * Primary garment mockup URL for the selected variant — same resolution rules as the PDP
+ * image gallery (variant `garment_images` metadata, then colour-matched product images).
+ */
+export function getPrimaryGarmentImageUrl(
+  product: HttpTypes.StoreProduct | undefined,
+  variant: HttpTypes.StoreProductVariant | undefined
+): string | null {
+  if (!product) {
+    return null
+  }
+  if (!variant) {
+    return product.thumbnail ?? product.images?.find((i) => i.url)?.url ?? null
+  }
+
+  const validImages = (product.images ?? [])
+    .filter((image) => Boolean(image.url))
+    .map((image) => ({
+      id: image.id,
+      url: image.url as string,
+    }))
+
+  const colorOption = product.options?.find((o) => COLOR_OPTION_MATCHER.test(o.title ?? ""))
+  const colorTitle = colorOption?.title
+  const selectedColor = colorTitle ? getVariantOptionValue(variant, colorTitle) : undefined
+  const needles = selectedColor ? buildColorNeedles(selectedColor) : []
+
+  let mappedVariantImages = getGarmentImageUrlsFromMetadata(
+    (variant.metadata ?? {}) as Record<string, unknown>
+  )
+
+  if (selectedColor && needles.length && mappedVariantImages.length) {
+    const narrowed = mappedVariantImages.filter((url) => urlMatchesColorNeedles(url, needles))
+    if (narrowed.length) {
+      mappedVariantImages = narrowed
+    }
+  }
+
+  if (mappedVariantImages.length) {
+    const firstUrl = mappedVariantImages[0]
+    const fromProduct = findProductImageByUrl(firstUrl, validImages)
+    return fromProduct?.url ?? firstUrl
+  }
+
+  if (!selectedColor || validImages.length <= 1) {
+    return validImages[0]?.url ?? product.thumbnail ?? null
+  }
+
+  if (!needles.length) {
+    return validImages[0]?.url ?? product.thumbnail ?? null
+  }
+
+  const normalizedImages = validImages.map((image) => ({
+    ...image,
+    normalizedUrl: toTitleSlug(image.url),
+  }))
+
+  const matched = normalizedImages.filter((image) =>
+    needles.some((needle) => image.normalizedUrl.includes(needle))
+  )
+
+  if (matched.length) {
+    return matched[0].url
+  }
+
+  return validImages[0]?.url ?? product.thumbnail ?? null
+}

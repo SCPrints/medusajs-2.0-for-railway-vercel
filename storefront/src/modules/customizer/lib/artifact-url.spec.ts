@@ -20,8 +20,12 @@ describe("artifact URL normalization", () => {
     expect(extractRenderArtifactUrl("https://example.com/file.png")).toBe(
       "https://example.com/file.png"
     )
+    expect(extractRenderArtifactUrl("null")).toBeNull()
     expect(extractRenderArtifactUrl(null)).toBeNull()
     expect(extractRenderArtifactUrl(undefined)).toBeNull()
     expect(extractRenderArtifactUrl({})).toBeNull()
+    expect(extractRenderArtifactUrl({ url: "https://example.com/file.png" })).toBe(
+      "https://example.com/file.png"
+    )
   })
 })

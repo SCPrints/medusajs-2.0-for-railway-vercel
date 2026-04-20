@@ -1,0 +1,23 @@
+import { defineMiddlewares } from "@medusajs/framework/http"
+
+/**
+ * Default Express JSON limit is ~100kb; customizer render payloads include
+ * base64 image data and exceed that. Without this, Medusa logs
+ * "request entity too large" and returns 500 for render-print / render-mockup.
+ */
+const CUSTOMIZER_BODY_LIMIT = "32mb"
+
+export default defineMiddlewares({
+  routes: [
+    {
+      matcher: "/store/customizer/render-print",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
+    },
+    {
+      matcher: "/store/customizer/render-mockup",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
+    },
+  ],
+})

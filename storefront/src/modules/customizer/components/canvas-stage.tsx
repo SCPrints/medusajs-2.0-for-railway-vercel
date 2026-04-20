@@ -25,6 +25,7 @@ export default function CanvasStage({
     <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
       {garmentImage ? (
         <Image
+          key={garmentImage}
           src={garmentImage}
           alt={garmentTitle ?? "Garment"}
           fill
