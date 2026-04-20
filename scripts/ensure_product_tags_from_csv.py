@@ -182,7 +182,12 @@ def _collect_labels_from_csv(paths: list[Path]) -> tuple[list[str], dict[Path, l
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--env-file", type=Path, required=True)
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        default=None,
+        help="medusa-upload.env (required unless --dry-run)",
+    )
     parser.add_argument(
         "--input",
         type=Path,
@@ -208,9 +213,17 @@ def main() -> None:
     parser.add_argument("--page-size", type=int, default=100)
     args = parser.parse_args()
 
-    if not args.env_file.is_file():
-        print(f"Not found: {args.env_file}", file=sys.stderr)
-        sys.exit(1)
+    if args.dry_run:
+        if args.env_file is not None and not args.env_file.is_file():
+            print(f"Not found: {args.env_file}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        if args.env_file is None or not args.env_file.is_file():
+            print(
+                "Provide a valid --env-file (or use --dry-run to only list CSV labels).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     for p in args.inputs:
         if not p.is_file():
