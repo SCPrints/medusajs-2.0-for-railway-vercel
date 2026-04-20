@@ -73,7 +73,13 @@ export const validateGarmentImageUrl = (value: string) => {
 }
 
 export const rethrowIfMedusaError = (error: unknown) => {
-  if (error instanceof MedusaError) {
+  if (
+    error instanceof MedusaError ||
+    (typeof error === "object" &&
+      error !== null &&
+      (error as { name?: unknown }).name === "MedusaError" &&
+      typeof (error as { message?: unknown }).message === "string")
+  ) {
     throw error
   }
 }
