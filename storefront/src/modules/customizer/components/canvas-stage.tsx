@@ -7,6 +7,8 @@ import { RefObject } from "react"
 type CanvasStageProps = {
   garmentImage: string | null
   garmentTitle: string | null
+  /** When true, no product photo behind the print area (avoids duplicating the PDP gallery). */
+  omitBackgroundImage?: boolean
   printArea: RenderPlacement
   outOfBoundsWarning: string | null
   dpiWarning: string | null
@@ -16,22 +18,30 @@ type CanvasStageProps = {
 export default function CanvasStage({
   garmentImage,
   garmentTitle,
+  omitBackgroundImage = false,
   printArea,
   outOfBoundsWarning,
   dpiWarning,
   canvasRef,
 }: CanvasStageProps) {
+  const showPhoto = !omitBackgroundImage && garmentImage
+
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
-      {garmentImage ? (
+      {showPhoto ? (
         <Image
           key={garmentImage}
-          src={garmentImage}
+          src={garmentImage!}
           alt={garmentTitle ?? "Garment"}
           fill
           className="object-cover"
           sizes="(max-width: 1024px) 100vw, 720px"
           priority
+        />
+      ) : omitBackgroundImage ? (
+        <div
+          className="absolute inset-0 bg-ui-bg-subtle bg-[linear-gradient(45deg,transparent_46%,rgb(0_0_0/0.06)_49%,rgb(0_0_0/0.06)_51%,transparent_55%)] bg-[length:12px_12px]"
+          aria-hidden
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center p-6 text-sm text-ui-fg-subtle">

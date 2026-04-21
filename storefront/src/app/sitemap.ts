@@ -19,7 +19,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     `/${defaultCountryCode}/shipping-policy`,
     `/${defaultCountryCode}/returns-policy`,
     `/${defaultCountryCode}/privacy-policy`,
-    `/${defaultCountryCode}/terms-and-conditions`,
   ]
 
   const servicePaths = services.map(

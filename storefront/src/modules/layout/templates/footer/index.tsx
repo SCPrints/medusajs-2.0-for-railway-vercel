@@ -110,11 +110,6 @@ export default async function Footer() {
                   Privacy Policy
                 </LocalizedClientLink>
               </li>
-              <li>
-                <LocalizedClientLink href="/terms-and-conditions" className="hover:text-ui-fg-base">
-                  Terms & Conditions
-                </LocalizedClientLink>
-              </li>
             </ul>
           </div>
 

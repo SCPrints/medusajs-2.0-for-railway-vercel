@@ -1,7 +1,9 @@
 import { Metadata } from "next"
+import { notFound } from "next/navigation"
 import { HttpTypes } from "@medusajs/types"
 import { getProductsList } from "@lib/data/products"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import { extractDefaultGarmentFromProduct } from "@modules/customizer/lib/default-garment"
 import CustomizerTemplate from "@modules/customizer/templates"
 
 type MetadataProps = {
@@ -10,31 +12,15 @@ type MetadataProps = {
 
 type CustomizerPageProps = {
   params: Promise<{ countryCode: string }>
+  searchParams: Promise<{ handle?: string | string[] }>
 }
 
 const SHIRT_KEYWORDS = ["t-shirt", "t shirt", "tee", "shirt", "singlet", "polo"]
 
-const extractProductImage = (product: HttpTypes.StoreProduct) => {
-  const candidateImage = product?.images?.find((image) => typeof image?.url === "string")?.url
-
-  if (candidateImage) {
-    return {
-      url: candidateImage,
-      title: product?.title ?? "Product garment",
-    }
-  }
-
-  if (typeof product?.thumbnail === "string" && product.thumbnail) {
-    return {
-      url: product.thumbnail,
-      title: product?.title ?? "Product garment",
-    }
-  }
-
-  return null
-}
-
-const findDefaultGarmentImage = (products: HttpTypes.StoreProduct[]) => {
+/** Picks a sensible default garment product when no env handle or query is set. */
+const findDefaultProduct = (
+  products: HttpTypes.StoreProduct[]
+): HttpTypes.StoreProduct | null => {
   const shirtProduct = products.find((product) => {
     const title = (product.title ?? "").toLowerCase()
     const handle = (product.handle ?? "").toLowerCase()
@@ -42,20 +28,10 @@ const findDefaultGarmentImage = (products: HttpTypes.StoreProduct[]) => {
   })
 
   if (shirtProduct) {
-    const shirtImage = extractProductImage(shirtProduct)
-    if (shirtImage) {
-      return shirtImage
-    }
+    return shirtProduct
   }
 
-  for (const product of products) {
-    const productImage = extractProductImage(product)
-    if (productImage) {
-      return productImage
-    }
-  }
-
-  return null
+  return products[0] ?? null
 }
 
 const getConfiguredCustomizerHandle = () => {
@@ -92,14 +68,35 @@ export async function generateMetadata({ params }: MetadataProps): Promise<Metad
   }
 }
 
-export default async function CustomizerPage({ params }: CustomizerPageProps) {
+export default async function CustomizerPage({ params, searchParams }: CustomizerPageProps) {
   const { countryCode } = await params
-  const configuredHandle = getConfiguredCustomizerHandle()
-  let defaultGarment: { url: string; title: string } | null = null
+  const sp = await searchParams
+  const handleFromQueryRaw = Array.isArray(sp.handle) ? sp.handle[0] : sp.handle
+  const handleFromQuery =
+    typeof handleFromQueryRaw === "string" && handleFromQueryRaw.trim()
+      ? handleFromQueryRaw.trim()
+      : null
 
-  if (configuredHandle) {
+  const configuredHandle = getConfiguredCustomizerHandle()
+
+  let customizerProduct: HttpTypes.StoreProduct | null = null
+
+  if (handleFromQuery) {
     const {
-      response: { products: configuredProducts },
+      response: { products: byQuery },
+    } = await getProductsList({
+      countryCode,
+      queryParams: {
+        handle: handleFromQuery,
+        limit: 1,
+      },
+    })
+    customizerProduct = byQuery[0] ?? null
+  }
+
+  if (!customizerProduct && configuredHandle) {
+    const {
+      response: { products: byEnv },
     } = await getProductsList({
       countryCode,
       queryParams: {
@@ -107,27 +104,32 @@ export default async function CustomizerPage({ params }: CustomizerPageProps) {
         limit: 1,
       },
     })
-    defaultGarment = findDefaultGarmentImage(configuredProducts)
+    customizerProduct = byEnv[0] ?? null
   }
 
-  const {
-    response: { products },
-  } = await getProductsList({
-    countryCode,
-    queryParams: {
-      limit: 24,
-    },
-  })
-
-  if (!defaultGarment) {
-    defaultGarment = findDefaultGarmentImage(products)
+  if (!customizerProduct) {
+    const {
+      response: { products: catalog },
+    } = await getProductsList({
+      countryCode,
+      queryParams: {
+        limit: 48,
+      },
+    })
+    customizerProduct = findDefaultProduct(catalog)
   }
+
+  if (!customizerProduct) {
+    notFound()
+  }
+
+  const defaultGarment = extractDefaultGarmentFromProduct(customizerProduct)
 
   return (
     <CustomizerTemplate
       defaultGarmentImage={defaultGarment?.url ?? null}
       defaultGarmentTitle={defaultGarment?.title ?? null}
-      products={products}
+      product={customizerProduct}
     />
   )
 }

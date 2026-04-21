@@ -9,6 +9,8 @@ type PricingPanelProps = {
   onChangeSizeQty: (size: string, quantity: number) => void
   onAddToCart: () => Promise<void>
   isSubmitting: boolean
+  /** PDP embed: single size row, shorter copy. */
+  embeddedOnPdp?: boolean
 }
 
 const formatMoney = (amountCents: number, currencyCode: string) =>
@@ -24,6 +26,7 @@ export default function PricingPanel({
   onChangeSizeQty,
   onAddToCart,
   isSubmitting,
+  embeddedOnPdp = false,
 }: PricingPanelProps) {
   const quantity = sizes.reduce((total, entry) => total + entry.quantity, 0)
 
@@ -31,11 +34,17 @@ export default function PricingPanel({
     <div className="space-y-4 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
       <div>
         <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">Size & quantity</h3>
-        <p className="mt-1 text-xs text-ui-fg-subtle">Set quantities per size. Totals update with print locations and volume.</p>
+        <p className="mt-1 text-xs text-ui-fg-subtle">
+          {embeddedOnPdp
+            ? "Quantity for the size you chose above. Totals update with print locations and volume."
+            : "Set quantities per size. Totals update with print locations and volume."}
+        </p>
       </div>
 
       <div className="space-y-2">
-        <label className="text-xs font-medium text-ui-fg-subtle">Sizes</label>
+        <label className="text-xs font-medium text-ui-fg-subtle">
+          {embeddedOnPdp && sizes.length <= 1 ? "Quantity" : "Sizes"}
+        </label>
         <div className="grid grid-cols-2 gap-2">
           {sizes.map((sizeEntry) => (
             <label key={sizeEntry.size} className="flex items-center gap-2 rounded-md border border-ui-border-base px-2 py-1.5">

@@ -12,6 +12,7 @@ import ProductActionsWrapper from "./product-actions-wrapper"
 import DtfAutoBuilderTemplate, {
   isDtfAutoBuilderProduct,
 } from "@modules/products/templates/dtf-auto-builder-template"
+import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import { HttpTypes } from "@medusajs/types"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
 import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
@@ -43,40 +44,48 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
 
   return (
     <>
-      <div
-        className="content-container flex flex-col small:flex-row small:items-start py-6 relative"
-        data-testid="product-container"
-      >
+      <div className="content-container py-6 relative" data-testid="product-container">
         <PrintPlacementProvider>
           <ProductOptionsProvider product={product}>
-            <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-6">
-              <ProductInfo product={product} />
-              <ProductTabs product={product} />
-            </div>
-            <div className="block w-full relative">
-              <ImageGallery
+            <div className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:items-start lg:gap-x-8 lg:gap-y-8">
+              <aside className="flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:col-span-3 lg:max-w-none lg:py-0">
+                <ProductInfo product={product} />
+                <ProductTabs product={product} />
+              </aside>
+
+              <EmbeddedProductCustomizer
                 product={product}
-                images={product?.images || []}
-                thumbnail={product?.thumbnail || null}
+                integratedPdpSlots={{
+                  gallery: (
+                    <ImageGallery
+                      product={product}
+                      images={product?.images || []}
+                      thumbnail={product?.thumbnail || null}
+                    />
+                  ),
+                  variantPickers: (
+                    <>
+                      <ProductOnboardingCta />
+                      <Suspense
+                        fallback={
+                          <ProductActions
+                            disabled={true}
+                            product={product}
+                            region={region}
+                          />
+                        }
+                      >
+                        <ProductActionsWrapper id={product.id} region={region} />
+                      </Suspense>
+                    </>
+                  ),
+                }}
               />
-            </div>
-            <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-12">
-              <ProductOnboardingCta />
-              <Suspense
-                fallback={
-                  <ProductActions
-                    disabled={true}
-                    product={product}
-                    region={region}
-                  />
-                }
-              >
-                <ProductActionsWrapper id={product.id} region={region} />
-              </Suspense>
             </div>
           </ProductOptionsProvider>
         </PrintPlacementProvider>
       </div>
+
       <div
         className="content-container my-16 small:my-32"
         data-testid="related-products-container"

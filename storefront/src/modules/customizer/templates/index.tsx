@@ -17,7 +17,7 @@ import OptionSelect from "@modules/products/components/product-actions/option-se
 import { getPrimaryGarmentImageUrl } from "@modules/products/lib/variant-options"
 import { HttpTypes } from "@medusajs/types"
 import { useParams } from "next/navigation"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import * as fabric from "fabric"
 import { FabricImage } from "fabric"
 
@@ -67,7 +67,16 @@ const getFabricImageSourceHeightPx = (obj: any): number => {
 type CustomizerTemplateProps = {
   defaultGarmentImage: string | null
   defaultGarmentTitle: string | null
-  products: HttpTypes.StoreProduct[]
+  product: HttpTypes.StoreProduct
+  /** When true, section is embedded on PDP (section heading, no page-level duplicate chrome). */
+  embedded?: boolean
+  /** Embedded only: Medusa variant id from ProductActions (colour/size). */
+  pdpSyncedVariantId?: string | null
+  /** Embedded PDP: gallery + variant pickers slot into one grid with the editor (single page layout). */
+  integratedPdpSlots?: {
+    gallery: ReactNode
+    variantPickers: ReactNode
+  }
 }
 
 const getPrintArea = (width: number, height: number) => ({
@@ -279,7 +288,10 @@ const loadSvgObject = async (svg: string) => {
 export default function CustomizerTemplate({
   defaultGarmentImage,
   defaultGarmentTitle,
-  products,
+  product,
+  embedded = false,
+  pdpSyncedVariantId = null,
+  integratedPdpSlots,
 }: CustomizerTemplateProps) {
   const params = useParams()
   const countryCode = String(params?.countryCode ?? "")
@@ -303,8 +315,9 @@ export default function CustomizerTemplate({
   const [dpiWarning, setDpiWarning] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
-  const [activeProductId, setActiveProductId] = useState<string>(products[0]?.id ?? "")
-  const [activeVariantId, setActiveVariantId] = useState<string>(products[0]?.variants?.[0]?.id ?? "")
+  const [activeVariantId, setActiveVariantId] = useState<string>(
+    product.variants?.[0]?.id ?? ""
+  )
   const [sizeMatrix, setSizeMatrix] = useState<SizeQuantity[]>([])
   const lastCustomizerProductIdRef = useRef<string | null>(null)
 
@@ -312,10 +325,7 @@ export default function CustomizerTemplate({
     () => getPrintArea(canvasSize.width, canvasSize.height),
     [canvasSize.height, canvasSize.width]
   )
-  const selectedProduct = useMemo(
-    () => products.find((product) => product.id === activeProductId) ?? products[0],
-    [activeProductId, products]
-  )
+  const selectedProduct = product
   const selectedVariant = useMemo(
     () =>
       selectedProduct?.variants?.find((variant) => variant.id === activeVariantId) ??
@@ -578,7 +588,19 @@ export default function CustomizerTemplate({
     const productChanged = lastCustomizerProductIdRef.current !== selectedProduct.id
     lastCustomizerProductIdRef.current = selectedProduct.id
 
-    const next = uniqueSizesForVariant(selectedProduct, refVariant)
+    let next = uniqueSizesForVariant(selectedProduct, refVariant)
+    if (embedded) {
+      const sizeOption = getSizeOption(selectedProduct)
+      const sizeVal = sizeOption
+        ? refVariant.options?.find((e) => e.option_id === sizeOption.id)?.value ?? ""
+        : "Default"
+      if (sizeVal) {
+        next = next.filter((row) => row.size === sizeVal)
+      }
+      if (next.length === 0 && sizeVal) {
+        next = [{ size: sizeVal, quantity: 0 }]
+      }
+    }
     setSizeMatrix((prev) => {
       if (productChanged) {
         return next.map((row) => ({ ...row }))
@@ -589,7 +611,14 @@ export default function CustomizerTemplate({
         quantity: prevMap.get(row.size) ?? 0,
       }))
     })
-  }, [selectedProduct, activeVariantId])
+  }, [selectedProduct, activeVariantId, embedded])
+
+  useEffect(() => {
+    if (!embedded || !pdpSyncedVariantId) {
+      return
+    }
+    setActiveVariantId(pdpSyncedVariantId)
+  }, [embedded, pdpSyncedVariantId])
 
   useEffect(() => {
     const htmlCanvas = htmlCanvasRef.current
@@ -1092,11 +1121,7 @@ export default function CustomizerTemplate({
     }
   }
 
-  return (
-    <div className="content-container py-8 small:py-12">
-      <div className="mx-auto max-w-[1320px] space-y-6">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start lg:gap-10">
-          {/* Left: editor — large preview + tool rail (Print Bar–style) */}
+  const editorColumn = (
           <div className="space-y-4">
             <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-sm">
               <div className="flex flex-col border-b border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 small:flex-row small:items-center small:justify-between">
@@ -1145,50 +1170,58 @@ export default function CustomizerTemplate({
             )}
             {statusMessage && <p className="text-sm text-emerald-700">{statusMessage}</p>}
           </div>
+  )
 
-          {/* Right: product + options (sticky on large screens) */}
-          <div className="space-y-5 lg:sticky lg:top-24">
+  const sidebarInner = (
+            <>
             <header className="space-y-2 border-b border-ui-border-base pb-5">
-              {productBrand && (
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-subtle">
-                  {productBrand}
-                </p>
+              {embedded ? (
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-lg font-semibold text-ui-fg-base">Print &amp; quantity</p>
+                    <p className="mt-2 text-sm text-ui-fg-subtle">
+                      {integratedPdpSlots
+                        ? "Pick colour and size in this column, then add your artwork in the preview and set print quantities."
+                        : "Uses the colour and size you selected above. Add artwork, then set how many to print."}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-semibold text-ui-fg-base">
+                      From {formatMoneyDisplay(basePriceCents, currencyCode)}
+                    </p>
+                    <p className="text-xs text-ui-fg-subtle">+ print locations, quantity tiers</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {productBrand && (
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-subtle">
+                      {productBrand}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h1 className="text-2xl font-semibold leading-tight text-ui-fg-base small:text-3xl">
+                        {selectedProduct?.title ?? "Customize"}
+                      </h1>
+                      <p className="mt-2 text-sm text-ui-fg-subtle">
+                        Front, back, and sleeve placements with live pricing.
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-ui-fg-base">
+                        From {formatMoneyDisplay(basePriceCents, currencyCode)}
+                      </p>
+                      <p className="text-xs text-ui-fg-subtle">+ print locations, quantity tiers</p>
+                    </div>
+                  </div>
+                </>
               )}
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-2xl font-semibold leading-tight text-ui-fg-base small:text-3xl">
-                    {selectedProduct?.title ?? "Customize"}
-                  </h1>
-                  <p className="mt-2 text-sm text-ui-fg-subtle">
-                    Front, back, and sleeve placements with live pricing.
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-ui-fg-base">
-                    From {formatMoneyDisplay(basePriceCents, currencyCode)}
-                  </p>
-                  <p className="text-xs text-ui-fg-subtle">+ print locations, quantity tiers</p>
-                </div>
-              </div>
             </header>
 
-            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <label className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle">
-                Product
-              </label>
-              <select
-                className="w-full rounded-lg border border-ui-border-base bg-ui-bg-base px-3 py-2.5 text-sm"
-                value={selectedProduct?.id}
-                onChange={(event) => setActiveProductId(event.target.value)}
-              >
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.title}
-                  </option>
-                ))}
-              </select>
-              {nonSizeOptions.length > 0 ? (
-                nonSizeOptions.map((option) => {
+            {nonSizeOptions.length > 0 && !embedded ? (
+              <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+                {nonSizeOptions.map((option) => {
                   const values = selectedProduct
                     ? uniqueOptionValues(selectedProduct, option.id)
                     : []
@@ -1203,7 +1236,7 @@ export default function CustomizerTemplate({
                         } as HttpTypes.StoreProductOption)
 
                   return (
-                    <div key={option.id} className="space-y-1.5 pt-2">
+                    <div key={option.id} className="space-y-1.5">
                       <label className="text-xs font-medium text-ui-fg-subtle">
                         {(option.title ?? "Option").toUpperCase()}
                       </label>
@@ -1221,24 +1254,9 @@ export default function CustomizerTemplate({
                       ) : null}
                     </div>
                   )
-                })
-              ) : (selectedProduct?.variants?.length ?? 0) > 1 ? (
-                <div className="space-y-1.5 pt-2">
-                  <label className="text-xs font-medium text-ui-fg-subtle">STYLE</label>
-                  <select
-                    className="w-full rounded-lg border border-ui-border-base px-3 py-2.5 text-sm"
-                    value={selectedVariant?.id}
-                    onChange={(event) => setActiveVariantId(event.target.value)}
-                  >
-                    {(selectedProduct?.variants ?? []).map((variant) => (
-                      <option key={variant.id} value={variant.id}>
-                        {variant.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-            </div>
+                })}
+              </div>
+            ) : null}
 
             <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
               <div className="flex items-baseline justify-between gap-2">
@@ -1302,10 +1320,60 @@ export default function CustomizerTemplate({
               onChangeSizeQty={changeSizeQuantity}
               onAddToCart={addCustomizedToCart}
               isSubmitting={isSubmitting}
+              embeddedOnPdp={embedded}
             />
+            </>
+  )
+
+  const defaultSidebarColumn = (
+          <div className="space-y-5 lg:sticky lg:top-24">
+            {sidebarInner}
           </div>
+  )
+
+  const main = (
+    <div className="mx-auto max-w-[1320px] space-y-6">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start lg:gap-10">
+          {editorColumn}
+          {defaultSidebarColumn}
         </div>
-      </div>
     </div>
   )
+
+  if (embedded && integratedPdpSlots) {
+    return (
+      <div id="customize" className="contents">
+        <div className="lg:col-span-6 flex min-w-0 flex-col gap-4">
+          {integratedPdpSlots.gallery}
+          {editorColumn}
+        </div>
+        <div className="flex min-w-0 flex-col gap-5 self-start lg:sticky lg:top-24 lg:col-span-3">
+          {integratedPdpSlots.variantPickers}
+          <div className="space-y-5">{sidebarInner}</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (embedded && !integratedPdpSlots) {
+    return (
+      <section
+        id="customize"
+        aria-labelledby="customizer-section-title"
+        className="border-t border-ui-border-base scroll-mt-28"
+      >
+        <div className="content-container py-8 small:py-12">
+          <h2
+            id="customizer-section-title"
+            className="mb-6 text-2xl font-semibold text-ui-fg-base small:text-3xl"
+          >
+            Add your artwork
+          </h2>
+          {main}
+        </div>
+      </section>
+    )
+  }
+
+  return <div className="content-container py-8 small:py-12">{main}</div>
 }
