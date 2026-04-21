@@ -16,7 +16,14 @@ main {
   color: var(--brand-primary);
 }
 
-.cursor-follow-dot {
+.cursor-follow-trail {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+}
+
+.cursor-follow-particle {
   position: fixed;
   top: 0;
   left: 0;
@@ -27,13 +34,12 @@ main {
   box-shadow: 0 0 0 1px rgba(0, 173, 181, 0.3);
   pointer-events: none;
   opacity: 0;
-  z-index: 60;
   will-change: transform, opacity;
-  transition: opacity 140ms ease-out;
+  transition: opacity 160ms ease-out;
 }
 
 @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
-  .cursor-follow-dot {
+  .cursor-follow-trail {
     display: none;
   }
 }

@@ -2,15 +2,24 @@
 
 import { useEffect, useRef } from "react"
 
-const TRAIL_EASING = 0.18
+const PARTICLE_COUNT = 12
+const TRAIL_EASING = 0.2
 
 const CursorDot = () => {
-  const dotRef = useRef<HTMLDivElement>(null)
+  const trailRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const dot = dotRef.current
+    const trail = trailRef.current
 
-    if (!dot) {
+    if (!trail) {
+      return
+    }
+
+    const particles = Array.from(
+      trail.querySelectorAll<HTMLDivElement>(".cursor-follow-particle")
+    )
+
+    if (particles.length === 0) {
       return
     }
 
@@ -24,20 +33,35 @@ const CursorDot = () => {
       return
     }
 
-    let targetX = window.innerWidth / 2
-    let targetY = window.innerHeight / 2
-    let currentX = targetX
-    let currentY = targetY
+    const midX = window.innerWidth / 2
+    const midY = window.innerHeight / 2
+    const px = new Float32Array(PARTICLE_COUNT)
+    const py = new Float32Array(PARTICLE_COUNT)
+    px.fill(midX)
+    py.fill(midY)
+
+    let targetX = midX
+    let targetY = midY
     let isVisible = false
 
-    const updateDot = () => {
-      currentX += (targetX - currentX) * TRAIL_EASING
-      currentY += (targetY - currentY) * TRAIL_EASING
+    const updateTrail = () => {
+      px[0] += (targetX - px[0]) * TRAIL_EASING
+      py[0] += (targetY - py[0]) * TRAIL_EASING
 
-      dot.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`
-      dot.style.opacity = isVisible ? "1" : "0"
+      for (let i = 1; i < PARTICLE_COUNT; i++) {
+        px[i] += (px[i - 1] - px[i]) * TRAIL_EASING
+        py[i] += (py[i - 1] - py[i]) * TRAIL_EASING
+      }
 
-      frameId = window.requestAnimationFrame(updateDot)
+      for (let i = 0; i < particles.length; i++) {
+        const el = particles[i]
+        const scale = 1 - i * 0.055
+        const alpha = isVisible ? Math.max(0.22, 1 - i * 0.07) : 0
+        el.style.transform = `translate3d(${px[i]}px, ${py[i]}px, 0) translate(-50%, -50%) scale(${scale})`
+        el.style.opacity = String(alpha)
+      }
+
+      frameId = window.requestAnimationFrame(updateTrail)
     }
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -50,7 +74,7 @@ const CursorDot = () => {
       isVisible = true
     }
 
-    const hideDot = () => {
+    const hideTrail = () => {
       isVisible = false
     }
 
@@ -60,23 +84,29 @@ const CursorDot = () => {
       }
     }
 
-    let frameId = window.requestAnimationFrame(updateDot)
+    let frameId = window.requestAnimationFrame(updateTrail)
 
     window.addEventListener("pointermove", handlePointerMove)
-    window.addEventListener("blur", hideDot)
-    document.addEventListener("mouseleave", hideDot)
+    window.addEventListener("blur", hideTrail)
+    document.addEventListener("mouseleave", hideTrail)
     document.addEventListener("visibilitychange", handleVisibilityChange)
 
     return () => {
       window.cancelAnimationFrame(frameId)
       window.removeEventListener("pointermove", handlePointerMove)
-      window.removeEventListener("blur", hideDot)
-      document.removeEventListener("mouseleave", hideDot)
+      window.removeEventListener("blur", hideTrail)
+      document.removeEventListener("mouseleave", hideTrail)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
   }, [])
 
-  return <div aria-hidden className="cursor-follow-dot" ref={dotRef} />
+  return (
+    <div aria-hidden className="cursor-follow-trail" ref={trailRef}>
+      {Array.from({ length: PARTICLE_COUNT }, (_, i) => (
+        <div key={i} className="cursor-follow-particle" />
+      ))}
+    </div>
+  )
 }
 
 export default CursorDot
