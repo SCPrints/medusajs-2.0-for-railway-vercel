@@ -2,8 +2,10 @@ import { HttpTypes } from "@medusajs/types"
 import { Container } from "@medusajs/ui"
 import Checkbox from "@modules/common/components/checkbox"
 import Input from "@modules/common/components/input"
+import NativeSelect from "@modules/common/components/native-select"
 import { mapKeys } from "lodash"
 import React, { useEffect, useMemo, useState } from "react"
+import { AUSTRALIAN_STATES_AND_TERRITORIES } from "@modules/checkout/lib/australian-states"
 import AddressSelect from "../address-select"
 import CountrySelect from "../country-select"
 
@@ -162,15 +164,33 @@ const ShippingAddress = ({
           required
           data-testid="shipping-country-select"
         />
-        <Input
-          label="State / Province"
-          name="shipping_address.province"
-          autoComplete="address-level1"
-          value={formData["shipping_address.province"]}
-          onChange={handleChange}
-          required
-          data-testid="shipping-province-input"
-        />
+        {formData["shipping_address.country_code"]?.toLowerCase() === "au" ? (
+          <NativeSelect
+            name="shipping_address.province"
+            autoComplete="address-level1"
+            value={formData["shipping_address.province"] || ""}
+            onChange={handleChange}
+            required
+            data-testid="shipping-province-select"
+            placeholder="State / Province *"
+          >
+            {AUSTRALIAN_STATES_AND_TERRITORIES.map((state) => (
+              <option key={state.value} value={state.value}>
+                {state.label}
+              </option>
+            ))}
+          </NativeSelect>
+        ) : (
+          <Input
+            label="State / Province"
+            name="shipping_address.province"
+            autoComplete="address-level1"
+            value={formData["shipping_address.province"]}
+            onChange={handleChange}
+            required
+            data-testid="shipping-province-input"
+          />
+        )}
       </div>
       <div className="my-8">
         <Checkbox

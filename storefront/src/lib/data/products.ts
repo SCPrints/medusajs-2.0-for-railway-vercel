@@ -9,7 +9,6 @@ import { sortProducts } from "@lib/util/sort-products"
 /** Include variant metadata (e.g. garment_images) for PDP gallery + swatches + product tags for the storefront UI. */
 const STORE_PRODUCT_FIELDS =
   "*variants.calculated_price,+variants.inventory_quantity,+variants.metadata,+tags"
-
 export const getProductsById = cache(async function ({
   ids,
   regionId,
@@ -29,21 +28,38 @@ export const getProductsById = cache(async function ({
     .then(({ products }) => products)
 })
 
-export const getProductByHandle = cache(async function (
+export async function getProductByHandle(
   handle: string,
-  regionId: string
+  regionId?: string | null
 ) {
-  return sdk.store.product
-    .list(
+  const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
+  if (!normalizedHandle) {
+    return null
+  }
+
+  const baseParams: HttpTypes.FindParams & HttpTypes.StoreProductParams = {
+    handle: normalizedHandle,
+    fields: STORE_PRODUCT_FIELDS,
+  }
+
+  if (!regionId) {
+    return null
+  }
+
+  try {
+    const { products } = await sdk.store.product.list(
       {
-        handle,
+        ...baseParams,
         region_id: regionId,
-        fields: STORE_PRODUCT_FIELDS,
       },
       { next: { tags: ["products"] } }
     )
-    .then(({ products }) => products[0])
-})
+
+    return products[0] ?? null
+  } catch {
+    return null
+  }
+}
 
 export const getProductsList = cache(async function ({
   pageParam = 1,
@@ -82,33 +98,6 @@ export const getProductsList = cache(async function ({
     )
     .then(({ products, count }) => {
       const nextPage = count > offset + limit ? pageParam + 1 : null
-
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "b984c7",
-          },
-          body: JSON.stringify({
-            sessionId: "b984c7",
-            location: "products.ts:getProductsList",
-            message: "product list result",
-            data: {
-              countryCode,
-              regionId: region.id,
-              count,
-              pageParam,
-              limit,
-            },
-            timestamp: Date.now(),
-            hypothesisId: "H4",
-          }),
-        }
-      ).catch(() => {})
-      // #endregion
 
       return {
         response: {

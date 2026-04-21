@@ -1,6 +1,5 @@
 "use client"
 
-import Image from "next/image"
 import { RenderPlacement } from "@modules/customizer/lib/types"
 import { RefObject } from "react"
 
@@ -9,34 +8,40 @@ type CanvasStageProps = {
   garmentTitle: string | null
   /** When true, no product photo behind the print area (avoids duplicating the PDP gallery). */
   omitBackgroundImage?: boolean
+  /** Included in the image key so front/back swaps remount even if URLs match. */
+  printSideKey?: string
   printArea: RenderPlacement
+  showPrintAreaGuides?: boolean
   outOfBoundsWarning: string | null
   dpiWarning: string | null
-  canvasRef: RefObject<HTMLCanvasElement | null>
+  /** Empty mount node; parent creates the canvas imperatively so Fabric can wrap the canvas without breaking React’s sibling tree. */
+  fabricContainerRef: RefObject<HTMLDivElement | null>
 }
 
 export default function CanvasStage({
   garmentImage,
   garmentTitle,
   omitBackgroundImage = false,
+  printSideKey = "front",
   printArea,
+  showPrintAreaGuides = false,
   outOfBoundsWarning,
   dpiWarning,
-  canvasRef,
+  fabricContainerRef,
 }: CanvasStageProps) {
   const showPhoto = !omitBackgroundImage && garmentImage
 
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
       {showPhoto ? (
-        <Image
-          key={garmentImage}
+        // Native <img>: garment URLs come from variant metadata / many CDNs and may not match
+        // next/image remotePatterns; using next/image here caused render errors caught by PDP boundary.
+        <img
+          key={`${printSideKey}-${garmentImage}`}
           src={garmentImage!}
           alt={garmentTitle ?? "Garment"}
-          fill
-          className="object-cover"
-          sizes="(max-width: 1024px) 100vw, 720px"
-          priority
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
         />
       ) : omitBackgroundImage ? (
         <div
@@ -49,18 +54,24 @@ export default function CanvasStage({
         </div>
       )}
 
+      {showPrintAreaGuides ? (
+        <div
+          className="pointer-events-none absolute border-2 border-dashed border-sky-500"
+          style={{
+            left: printArea.x,
+            top: printArea.y,
+            width: printArea.width,
+            height: printArea.height,
+          }}
+          aria-hidden
+        />
+      ) : null}
+
       <div
-        className="pointer-events-none absolute border-2 border-dashed border-sky-500"
-        style={{
-          left: printArea.x,
-          top: printArea.y,
-          width: printArea.width,
-          height: printArea.height,
-        }}
+        ref={fabricContainerRef}
+        className="absolute inset-0 h-full w-full touch-none"
         aria-hidden
       />
-
-      <canvas ref={canvasRef} className="absolute inset-0 h-full w-full touch-none" />
 
       {(outOfBoundsWarning || dpiWarning) && (
         <div className="absolute bottom-3 left-3 right-3 space-y-1 rounded-md bg-ui-bg-base/90 p-2 text-xs shadow">

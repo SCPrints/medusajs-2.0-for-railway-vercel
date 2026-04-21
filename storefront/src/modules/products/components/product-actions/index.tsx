@@ -1,7 +1,6 @@
 "use client"
 
 import { Button } from "@medusajs/ui"
-import { isEqual } from "lodash"
 import { useParams } from "next/navigation"
 import { useMemo, useState } from "react"
 
@@ -9,6 +8,7 @@ import Divider from "@modules/common/components/divider"
 import ProductOptionFields from "@modules/products/components/product-actions/product-option-fields"
 import { usePrintPlacement } from "@modules/products/context/print-placement-context"
 import { useProductOptions } from "@modules/products/context/product-options-context"
+import { resolveVariantFromOptions } from "@modules/products/lib/variant-options"
 
 import ProductPrice from "../product-price"
 import { addToCart } from "@lib/data/cart"
@@ -18,15 +18,6 @@ type ProductActionsProps = {
   product: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   disabled?: boolean
-}
-
-const optionsAsKeymap = (variantOptions: any) => {
-  return variantOptions?.reduce((acc: Record<string, string | undefined>, varopt: any) => {
-    if (varopt.option && varopt.value !== null && varopt.value !== undefined) {
-      acc[varopt.option.title] = varopt.value
-    }
-    return acc
-  }, {})
 }
 
 export default function ProductActions({
@@ -39,16 +30,10 @@ export default function ProductActions({
   const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
   const { options, setOptionValue } = useProductOptions()
 
-  const selectedVariant = useMemo(() => {
-    if (!product.variants || product.variants.length === 0) {
-      return
-    }
-
-    return product.variants.find((v) => {
-      const variantOptions = optionsAsKeymap(v.options)
-      return isEqual(variantOptions, options)
-    })
-  }, [product.variants, options])
+  const selectedVariant = useMemo(
+    () => resolveVariantFromOptions(product, options),
+    [product, options]
+  )
 
   // check if the selected variant is in stock
   const inStock = useMemo(() => {

@@ -2,14 +2,12 @@ import React, { Suspense } from "react"
 
 import ImageGallery from "@modules/products/components/image-gallery"
 import ProductActions from "@modules/products/components/product-actions"
-import ProductOnboardingCta from "@modules/products/components/product-onboarding-cta"
 import RelatedProducts from "@modules/products/components/related-products"
 import ProductInfo from "@modules/products/templates/product-info"
 import SkeletonRelatedProducts from "@modules/skeletons/templates/skeleton-related-products"
 import DtfBuilderLink from "@modules/products/components/dtf-builder-link"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Divider from "@modules/common/components/divider"
-import { notFound } from "next/navigation"
 import ProductActionsWrapper from "./product-actions-wrapper"
 import { HttpTypes } from "@medusajs/types"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
@@ -36,7 +34,7 @@ const DtfAutoBuilderTemplate: React.FC<Props> = ({
   countryCode,
 }) => {
   if (!product || !product.id) {
-    return notFound()
+    return null
   }
 
   const isAu = region.currency_code?.toLowerCase() === "aud"
@@ -121,7 +119,6 @@ const DtfAutoBuilderTemplate: React.FC<Props> = ({
               />
             </div>
             <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-6">
-              <ProductOnboardingCta />
               <div className="flex flex-col gap-y-3">
                 <DtfBuilderLink
                   product={product}

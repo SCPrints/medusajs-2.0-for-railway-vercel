@@ -34,8 +34,8 @@ export const calculatePricing = ({
   totalQuantity,
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
-  const extraSides = Math.max(0, decoratedSidesCount - 1)
-  const sideSurchargePerUnitCents = extraSides * SIDE_SURCHARGE_CENTS
+  const decoratedSides = Math.max(0, Math.floor(decoratedSidesCount || 0))
+  const sideSurchargePerUnitCents = decoratedSides * SIDE_SURCHARGE_CENTS
   const baseUnit = Math.max(0, Math.floor(basePriceCents))
   const beforeDiscountUnit = baseUnit + sideSurchargePerUnitCents
   const quantityDiscountRate = getQuantityDiscountRate(safeQuantity)

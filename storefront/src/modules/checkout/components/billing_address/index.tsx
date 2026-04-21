@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react"
 import Input from "@modules/common/components/input"
+import NativeSelect from "@modules/common/components/native-select"
 import CountrySelect from "../country-select"
 import { HttpTypes } from "@medusajs/types"
+import { AUSTRALIAN_STATES_AND_TERRITORIES } from "@modules/checkout/lib/australian-states"
 
 const BillingAddress = ({ cart }: { cart: HttpTypes.StoreCart | null }) => {
   const [formData, setFormData] = useState<any>({})
@@ -96,15 +98,33 @@ const BillingAddress = ({ cart }: { cart: HttpTypes.StoreCart | null }) => {
           required
           data-testid="billing-country-select"
         />
-        <Input
-          label="State / Province"
-          name="billing_address.province"
-          autoComplete="address-level1"
-          value={formData["billing_address.province"]}
-          onChange={handleChange}
-          required
-          data-testid="billing-province-input"
-        />
+        {formData["billing_address.country_code"]?.toLowerCase() === "au" ? (
+          <NativeSelect
+            name="billing_address.province"
+            autoComplete="address-level1"
+            value={formData["billing_address.province"] || ""}
+            onChange={handleChange}
+            required
+            data-testid="billing-province-select"
+            placeholder="State / Province *"
+          >
+            {AUSTRALIAN_STATES_AND_TERRITORIES.map((state) => (
+              <option key={state.value} value={state.value}>
+                {state.label}
+              </option>
+            ))}
+          </NativeSelect>
+        ) : (
+          <Input
+            label="State / Province"
+            name="billing_address.province"
+            autoComplete="address-level1"
+            value={formData["billing_address.province"]}
+            onChange={handleChange}
+            required
+            data-testid="billing-province-input"
+          />
+        )}
         <Input
           label="Phone"
           name="billing_address.phone"

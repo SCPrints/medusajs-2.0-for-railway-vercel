@@ -8,7 +8,7 @@ import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 
 type Props = {
-  params: { countryCode: string; handle: string }
+  params: Promise<{ countryCode: string; handle: string }>
 }
 
 export async function generateStaticParams() {
@@ -45,27 +45,26 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { handle } = params
-  const region = await getRegion(params.countryCode)
+  const { handle, countryCode } = await params
+  const normalizedCountryCode = String(countryCode ?? "").trim().toLowerCase()
+  const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
+  const region = await getRegion(normalizedCountryCode)
+  const product = region ? await getProductByHandle(normalizedHandle, region.id) : null
 
-  if (!region) {
-    notFound()
-  }
-
-  const product = await getProductByHandle(handle, region.id)
-
-  if (!product) {
-    notFound()
+  if (!region || !product) {
+    return {
+      title: "Product",
+      description: "Product details and customizer.",
+      alternates: { canonical: `/${normalizedCountryCode}/products/${normalizedHandle}` },
+    }
   }
 
   return {
     title: product.title,
     description: `${product.title}`,
-    alternates: {
-      canonical: `/${params.countryCode}/products/${product.handle}`,
-    },
+    alternates: { canonical: `/${normalizedCountryCode}/products/${product.handle}` },
     openGraph: {
-      url: buildAbsoluteUrl(`/${params.countryCode}/products/${product.handle}`),
+      url: buildAbsoluteUrl(`/${normalizedCountryCode}/products/${product.handle}`),
       title: `${product.title} | ${SEO.siteName}`,
       description: `${product.title}`,
       images: product.thumbnail ? [product.thumbnail] : [],
@@ -79,13 +78,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage({ params }: Props) {
-  const region = await getRegion(params.countryCode)
+  const { countryCode, handle } = await params
+  const normalizedCountryCode = String(countryCode ?? "").trim().toLowerCase()
+  const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
+  const region = await getRegion(normalizedCountryCode)
 
   if (!region) {
     notFound()
   }
 
-  const pricedProduct = await getProductByHandle(params.handle, region.id)
+  const pricedProduct = await getProductByHandle(normalizedHandle, region.id)
   if (!pricedProduct) {
     notFound()
   }
@@ -105,7 +107,7 @@ export default async function ProductPage({ params }: Props) {
     offers: cheapestPrice
       ? {
           "@type": "Offer",
-          url: buildAbsoluteUrl(`/${params.countryCode}/products/${pricedProduct.handle}`),
+          url: buildAbsoluteUrl(`/${normalizedCountryCode}/products/${pricedProduct.handle}`),
           priceCurrency: cheapestPrice.currency_code.toUpperCase(),
           price: cheapestPrice.calculated_price_number,
           availability: "https://schema.org/InStock",
@@ -123,7 +125,7 @@ export default async function ProductPage({ params }: Props) {
       <ProductTemplate
         product={pricedProduct}
         region={region}
-        countryCode={params.countryCode}
+        countryCode={normalizedCountryCode}
       />
     </>
   )

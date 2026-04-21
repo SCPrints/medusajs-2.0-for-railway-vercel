@@ -14,16 +14,19 @@ import { calculatePricing } from "@modules/customizer/lib/pricing"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import { CustomizerMetadata, GarmentSide, SizeQuantity } from "@modules/customizer/lib/types"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
-import { getPrimaryGarmentImageUrl } from "@modules/products/lib/variant-options"
+import { useProductOptionsOptional } from "@modules/products/context/product-options-context"
+import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
+import { getGarmentImageUrlForPrintSide } from "@modules/products/lib/variant-options"
 import { HttpTypes } from "@medusajs/types"
 import { useParams } from "next/navigation"
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import * as fabric from "fabric"
 import { FabricImage } from "fabric"
 
 const DESIGN_SIDES: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve"]
 const MAX_UPLOAD_SIZE = 8 * 1024 * 1024
 const PRINT_AREA_INCHES = { width: 12, height: 16 }
+const SESSION_UPLOADS_KEY = "customizer_uploads_v1"
 /** Ignore sub-pixel drift from Fabric so small moves inside the box don’t show a “clipped” alert. */
 const PRINT_AREA_EPS = 1.5
 /** Skip clamp until the canvas has a real size (avoids pinning art to a corner when printArea is ~0). */
@@ -129,40 +132,6 @@ const variantMatchesNonSizeOptions = (
   })
 }
 
-const APPAREL_SIZE_ORDER = [
-  "xxs",
-  "xs",
-  "s",
-  "m",
-  "l",
-  "xl",
-  "xxl",
-  "2xl",
-  "xxxl",
-  "3xl",
-  "4xl",
-  "5xl",
-  "one size",
-  "os",
-  "o/s",
-]
-
-const sortSizeLabels = (sizes: string[]): string[] => {
-  const rank = (s: string) => {
-    const key = s.toLowerCase().trim()
-    const idx = APPAREL_SIZE_ORDER.indexOf(key)
-    if (idx !== -1) {
-      return idx
-    }
-    const n = parseFloat(key.replace(/[^0-9.]/g, ""))
-    if (!Number.isNaN(n)) {
-      return 100 + n
-    }
-    return 1000 + key.charCodeAt(0)
-  }
-  return [...sizes].sort((a, b) => rank(a) - rank(b))
-}
-
 const uniqueSizesForVariant = (
   product: HttpTypes.StoreProduct,
   reference: HttpTypes.StoreProductVariant
@@ -186,7 +155,7 @@ const uniqueSizesForVariant = (
   if (!sizes.length) {
     return [{ size: "Default", quantity: 0 }]
   }
-  return sortSizeLabels(sizes).map((size) => ({ size, quantity: 0 }))
+  return sortApparelSizeLabels(sizes).map((size) => ({ size, quantity: 0 }))
 }
 
 const uniqueOptionValues = (product: HttpTypes.StoreProduct, optionId: string): string[] => {
@@ -262,6 +231,13 @@ const readFileAsDataUrl = (file: File) =>
     reader.readAsDataURL(file)
   })
 
+type SessionUploadAsset = {
+  id: string
+  name: string
+  type: string
+  dataUrl: string
+}
+
 const loadSvgObject = async (svg: string) => {
   const loader = (fabric as any).loadSVGFromString
   if (!loader) {
@@ -296,7 +272,25 @@ export default function CustomizerTemplate({
   const params = useParams()
   const countryCode = String(params?.countryCode ?? "")
   const fabricCanvasRef = useRef<any>(null)
-  const htmlCanvasRef = useRef<HTMLCanvasElement>(null)
+  /** Host div only — canvas is created imperatively so Fabric can replace/wrap it without breaking React siblings (garment img). */
+  const fabricContainerRef = useRef<HTMLDivElement | null>(null)
+  const htmlCanvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  useLayoutEffect(() => {
+    const host = fabricContainerRef.current
+    if (!host) {
+      return
+    }
+    const el = document.createElement("canvas")
+    el.className = "absolute inset-0 h-full w-full touch-none"
+    el.setAttribute("data-customizer-fabric", "lower")
+    host.appendChild(el)
+    htmlCanvasRef.current = el
+    return () => {
+      host.replaceChildren()
+      htmlCanvasRef.current = null
+    }
+  }, [])
   const sideLayoutsRef = useRef<Record<GarmentSide, Record<string, unknown>[]>>({
     front: [],
     back: [],
@@ -319,7 +313,12 @@ export default function CustomizerTemplate({
     product.variants?.[0]?.id ?? ""
   )
   const [sizeMatrix, setSizeMatrix] = useState<SizeQuantity[]>([])
+  const [sessionUploads, setSessionUploads] = useState<SessionUploadAsset[]>([])
+  const [layoutVersion, setLayoutVersion] = useState(0)
+  const [showPrintAreaGuides, setShowPrintAreaGuides] = useState(false)
   const lastCustomizerProductIdRef = useRef<string | null>(null)
+  const sideLoadVersionRef = useRef(0)
+  const productOptionsFromPdp = useProductOptionsOptional()
 
   const printArea = useMemo(
     () => getPrintArea(canvasSize.width, canvasSize.height),
@@ -367,16 +366,24 @@ export default function CustomizerTemplate({
     return null
   }, [selectedProduct])
 
-  const garmentImageUrl = useMemo(() => {
-    const fromVariant = getPrimaryGarmentImageUrl(selectedProduct, selectedVariant)
-    return fromVariant ?? defaultGarmentImage ?? null
-  }, [selectedProduct, selectedVariant, defaultGarmentImage])
+  const garmentImageUrl = useMemo(
+    () =>
+      getGarmentImageUrlForPrintSide(
+        selectedProduct,
+        selectedVariant,
+        currentSide,
+        defaultGarmentImage
+      ),
+    [selectedProduct, selectedVariant, currentSide, defaultGarmentImage]
+  )
 
   const garmentDisplayTitle = selectedProduct?.title ?? defaultGarmentTitle
 
-  const decoratedSidesCount = DESIGN_SIDES.filter(
-    (side) => (sideLayoutsRef.current[side] ?? []).length > 0
-  ).length
+  const decoratedSidesCount = useMemo(
+    () =>
+      DESIGN_SIDES.filter((side) => (sideLayoutsRef.current[side] ?? []).length > 0).length,
+    [layoutVersion]
+  )
   const totalQty = sizeMatrix.reduce((total, entry) => total + entry.quantity, 0)
   const pricing = calculatePricing({
     basePriceCents,
@@ -404,6 +411,10 @@ export default function CustomizerTemplate({
 
     const active = canvas.getActiveObject()
     setSelectedLayerId(active ? getObjectId(active) : null)
+  }
+
+  const bumpLayoutVersion = () => {
+    setLayoutVersion((version) => version + 1)
   }
 
   const clampObjectToBounds = (object: any) => {
@@ -531,6 +542,45 @@ export default function CustomizerTemplate({
     setDpiWarning(null)
   }
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    try {
+      const raw = window.sessionStorage.getItem(SESSION_UPLOADS_KEY)
+      if (!raw) {
+        return
+      }
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) {
+        return
+      }
+      const hydrated = parsed
+        .filter((entry) => entry && typeof entry === "object")
+        .map((entry) => ({
+          id: String((entry as any).id ?? ""),
+          name: String((entry as any).name ?? "Upload"),
+          type: String((entry as any).type ?? "image/png"),
+          dataUrl: String((entry as any).dataUrl ?? ""),
+        }))
+        .filter((entry) => entry.id && entry.dataUrl)
+      setSessionUploads(hydrated)
+    } catch {
+      // Ignore invalid persisted uploads and continue with an empty tray.
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    try {
+      window.sessionStorage.setItem(SESSION_UPLOADS_KEY, JSON.stringify(sessionUploads))
+    } catch {
+      // Ignore persistence errors; tray still works in-memory.
+    }
+  }, [sessionUploads])
+
   const saveCurrentSide = () => {
     const canvas = fabricCanvasRef.current
     if (!canvas) {
@@ -544,6 +594,7 @@ export default function CustomizerTemplate({
       "sourceHeightPx",
     ])
     sideLayoutsRef.current[currentSide] = (serialized.objects ?? []) as Record<string, unknown>[]
+    bumpLayoutVersion()
   }
 
   const loadSide = async (side: GarmentSide) => {
@@ -551,6 +602,7 @@ export default function CustomizerTemplate({
     if (!canvas) {
       return
     }
+    const loadVersion = ++sideLoadVersionRef.current
 
     canvas.clear()
     const objects = sideLayoutsRef.current[side] ?? []
@@ -559,12 +611,16 @@ export default function CustomizerTemplate({
       objects,
     }
     await (canvas as any).loadFromJSON(json)
+    if (loadVersion !== sideLoadVersionRef.current) {
+      return
+    }
     canvas.getObjects().forEach((object: any) => {
       getObjectId(object)
     })
     canvas.renderAll()
     updateLayers()
     updateDpiWarning()
+    bumpLayoutVersion()
   }
 
   useEffect(() => {
@@ -572,8 +628,17 @@ export default function CustomizerTemplate({
       return
     }
 
+    const variantIds = new Set(selectedProduct.variants?.map((v) => v.id) ?? [])
+
+    const preferredId =
+      embedded &&
+      pdpSyncedVariantId &&
+      variantIds.has(pdpSyncedVariantId)
+        ? pdpSyncedVariantId
+        : activeVariantId
+
     const refVariant =
-      selectedProduct.variants?.find((v) => v.id === activeVariantId) ??
+      selectedProduct.variants?.find((v) => v.id === preferredId) ??
       selectedProduct.variants?.[0]
     if (!refVariant) {
       setSizeMatrix([])
@@ -588,20 +653,15 @@ export default function CustomizerTemplate({
     const productChanged = lastCustomizerProductIdRef.current !== selectedProduct.id
     lastCustomizerProductIdRef.current = selectedProduct.id
 
-    let next = uniqueSizesForVariant(selectedProduct, refVariant)
-    if (embedded) {
-      const sizeOption = getSizeOption(selectedProduct)
-      const sizeVal = sizeOption
-        ? refVariant.options?.find((e) => e.option_id === sizeOption.id)?.value ?? ""
-        : "Default"
-      if (sizeVal) {
-        next = next.filter((row) => row.size === sizeVal)
-      }
-      if (next.length === 0 && sizeVal) {
-        next = [{ size: sizeVal, quantity: 0 }]
-      }
-    }
+    const next = uniqueSizesForVariant(selectedProduct, refVariant)
+
     setSizeMatrix((prev) => {
+      if (embedded && productOptionsFromPdp) {
+        return next.map((row) => ({
+          size: row.size,
+          quantity: productOptionsFromPdp.sizeQuantities[row.size] ?? 0,
+        }))
+      }
       if (productChanged) {
         return next.map((row) => ({ ...row }))
       }
@@ -611,14 +671,13 @@ export default function CustomizerTemplate({
         quantity: prevMap.get(row.size) ?? 0,
       }))
     })
-  }, [selectedProduct, activeVariantId, embedded])
-
-  useEffect(() => {
-    if (!embedded || !pdpSyncedVariantId) {
-      return
-    }
-    setActiveVariantId(pdpSyncedVariantId)
-  }, [embedded, pdpSyncedVariantId])
+  }, [
+    selectedProduct,
+    activeVariantId,
+    embedded,
+    pdpSyncedVariantId,
+    productOptionsFromPdp?.sizeQuantities,
+  ])
 
   useEffect(() => {
     const htmlCanvas = htmlCanvasRef.current
@@ -626,8 +685,8 @@ export default function CustomizerTemplate({
       return
     }
 
-    const parent = htmlCanvas.parentElement
-    if (!parent) {
+    const resizeTarget = fabricContainerRef.current ?? htmlCanvas.parentElement
+    if (!resizeTarget) {
       return
     }
 
@@ -638,8 +697,8 @@ export default function CustomizerTemplate({
     fabricCanvasRef.current = canvas
 
     const syncSize = () => {
-      const width = parent.clientWidth
-      const height = parent.clientHeight
+      const width = resizeTarget.clientWidth
+      const height = resizeTarget.clientHeight
       canvas.setDimensions({ width, height })
       setCanvasSize({ width, height })
     }
@@ -652,18 +711,36 @@ export default function CustomizerTemplate({
 
     syncSize()
 
-    canvas.on("object:moving", (event: any) => clampObjectToBounds(event.target))
-    canvas.on("object:scaling", (event: any) => clampObjectToBounds(event.target))
-    canvas.on("object:rotating", (event: any) => clampObjectToBounds(event.target))
+    canvas.on("object:moving", (event: any) => {
+      setShowPrintAreaGuides(true)
+      clampObjectToBounds(event.target)
+    })
+    canvas.on("object:scaling", (event: any) => {
+      setShowPrintAreaGuides(true)
+      clampObjectToBounds(event.target)
+    })
+    canvas.on("object:rotating", (event: any) => {
+      setShowPrintAreaGuides(true)
+      clampObjectToBounds(event.target)
+    })
     canvas.on("object:modified", syncHandlers)
     canvas.on("object:added", syncHandlers)
     canvas.on("object:removed", syncHandlers)
-    canvas.on("selection:created", updateLayers)
-    canvas.on("selection:updated", updateLayers)
-    canvas.on("selection:cleared", updateLayers)
+    canvas.on("selection:created", () => {
+      setShowPrintAreaGuides(true)
+      updateLayers()
+    })
+    canvas.on("selection:updated", () => {
+      setShowPrintAreaGuides(true)
+      updateLayers()
+    })
+    canvas.on("selection:cleared", () => {
+      setShowPrintAreaGuides(false)
+      updateLayers()
+    })
 
     const observer = new ResizeObserver(syncSize)
-    observer.observe(parent)
+    observer.observe(resizeTarget)
 
     return () => {
       observer.disconnect()
@@ -678,6 +755,7 @@ export default function CustomizerTemplate({
     }
 
     saveCurrentSide()
+    setShowPrintAreaGuides(false)
     setCurrentSide(nextSide)
     await loadSide(nextSide)
   }
@@ -701,6 +779,47 @@ export default function CustomizerTemplate({
     saveCurrentSide()
   }
 
+  const addUploadedAssetToCanvas = async (asset: {
+    name: string
+    type: string
+    dataUrl?: string
+    svgText?: string
+  }) => {
+    if (asset.type === "image/svg+xml") {
+      const svg = asset.svgText ?? ""
+      if (!svg) {
+        throw new Error("Could not read SVG.")
+      }
+      const svgObject = await loadSvgObject(svg)
+      svgObject.set({
+        customizerLabel: asset.name || "SVG",
+        sourceWidthPx: Number(svgObject.width ?? 0),
+      })
+      if (svgObject.scaleToWidth) {
+        svgObject.scaleToWidth(getTargetArtworkWidth(printArea.width))
+      }
+      addCanvasObject(svgObject)
+      return
+    }
+
+    const dataUrl = asset.dataUrl ?? ""
+    if (!dataUrl) {
+      throw new Error("Could not read image.")
+    }
+    const imageObject = await FabricImage.fromURL(dataUrl)
+    const { width: naturalW, height: naturalH } = imageObject.getOriginalSize()
+    if (naturalW > 0 && naturalH > 0) {
+      imageObject.set({ width: naturalW, height: naturalH, scaleX: 1, scaleY: 1 })
+    }
+    imageObject.set({
+      customizerLabel: asset.name || "Image",
+      sourceWidthPx: getFabricImageSourceWidthPx(imageObject),
+      sourceHeightPx: getFabricImageSourceHeightPx(imageObject),
+    })
+    imageObject.scaleToWidth?.(getTargetArtworkWidth(printArea.width))
+    addCanvasObject(imageObject)
+  }
+
   const handleUploadFile = async (file: File) => {
     const isAllowedType =
       file.type === "image/png" ||
@@ -718,34 +837,55 @@ export default function CustomizerTemplate({
     }
 
     setUploadError(null)
-
-    if (file.type === "image/svg+xml") {
-      const svg = await readFileAsText(file)
-      const svgObject = await loadSvgObject(svg)
-      svgObject.set({
-        customizerLabel: file.name || "SVG",
-        sourceWidthPx: Number(svgObject.width ?? 0),
-      })
-      if (svgObject.scaleToWidth) {
-        svgObject.scaleToWidth(getTargetArtworkWidth(printArea.width))
+    try {
+      if (file.type === "image/svg+xml") {
+        const svg = await readFileAsText(file)
+        const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+        const nextAsset: SessionUploadAsset = {
+          id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          name: file.name || "SVG",
+          type: file.type,
+          dataUrl,
+        }
+        setSessionUploads((current) => [nextAsset, ...current.filter((entry) => entry.dataUrl !== dataUrl)])
+        await addUploadedAssetToCanvas({ name: nextAsset.name, type: nextAsset.type, svgText: svg })
+        return
       }
-      addCanvasObject(svgObject)
+
+      const dataUrl = await readFileAsDataUrl(file)
+      const nextAsset: SessionUploadAsset = {
+        id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name || "Image",
+        type: file.type,
+        dataUrl,
+      }
+      setSessionUploads((current) => [nextAsset, ...current.filter((entry) => entry.dataUrl !== dataUrl)])
+      await addUploadedAssetToCanvas({ name: nextAsset.name, type: nextAsset.type, dataUrl })
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Could not upload image.")
+    }
+  }
+
+  const handleReuseUpload = async (uploadId: string) => {
+    const asset = sessionUploads.find((entry) => entry.id === uploadId)
+    if (!asset) {
+      setUploadError("That upload is no longer available.")
       return
     }
 
-    const dataUrl = await readFileAsDataUrl(file)
-    const imageObject = await FabricImage.fromURL(dataUrl)
-    const { width: naturalW, height: naturalH } = imageObject.getOriginalSize()
-    if (naturalW > 0 && naturalH > 0) {
-      imageObject.set({ width: naturalW, height: naturalH, scaleX: 1, scaleY: 1 })
+    setUploadError(null)
+    try {
+      if (asset.type === "image/svg+xml") {
+        const prefix = "data:image/svg+xml;charset=utf-8,"
+        const encoded = asset.dataUrl.startsWith(prefix) ? asset.dataUrl.slice(prefix.length) : ""
+        const svgText = encoded ? decodeURIComponent(encoded) : ""
+        await addUploadedAssetToCanvas({ name: asset.name, type: asset.type, svgText })
+        return
+      }
+      await addUploadedAssetToCanvas({ name: asset.name, type: asset.type, dataUrl: asset.dataUrl })
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : "Could not reuse uploaded image.")
     }
-    imageObject.set({
-      customizerLabel: file.name || "Image",
-      sourceWidthPx: getFabricImageSourceWidthPx(imageObject),
-      sourceHeightPx: getFabricImageSourceHeightPx(imageObject),
-    })
-    imageObject.scaleToWidth?.(getTargetArtworkWidth(printArea.width))
-    addCanvasObject(imageObject)
   }
 
   const handleAddText = (input: {
@@ -1006,10 +1146,16 @@ export default function CustomizerTemplate({
     try {
       const renderedArtifacts = await Promise.all(
         decoratedSides.map(async (side) => {
+          const mockupUrlForSide = getGarmentImageUrlForPrintSide(
+            selectedProduct,
+            selectedVariant,
+            side,
+            defaultGarmentImage
+          )
           const rendered = await renderSideArtifacts(
             side,
             sideLayoutsRef.current[side] ?? [],
-            garmentImageUrl
+            mockupUrlForSide
           )
           return {
             side,
@@ -1139,9 +1285,16 @@ export default function CustomizerTemplate({
               </div>
 
               <div className="flex flex-col lg:flex-row lg:items-stretch">
-                <div className="max-h-[min(70vh,720px)] overflow-y-auto border-b border-ui-border-base bg-ui-bg-subtle/30 p-4 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-b-0 lg:border-r lg:border-ui-border-base">
+                <div className="order-2 max-h-[min(70vh,720px)] overflow-y-auto border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base">
                   <InputPanel
                     onUploadFile={handleUploadFile}
+                    uploads={sessionUploads.map((entry) => ({
+                      id: entry.id,
+                      name: entry.name,
+                      previewUrl: entry.dataUrl,
+                      type: entry.type,
+                    }))}
+                    onReuseUpload={handleReuseUpload}
                     onAddText={handleAddText}
                     onAddCurvedText={handleAddCurvedText}
                     onRemoveSelectedImage={removeSelectedImage}
@@ -1150,15 +1303,19 @@ export default function CustomizerTemplate({
                   />
                 </div>
 
-                <div className="min-h-[min(70vh,720px)] flex-1 p-4 small:p-5">
-                  <CanvasStage
-                    garmentImage={garmentImageUrl}
-                    garmentTitle={garmentDisplayTitle}
-                    printArea={printArea}
-                    outOfBoundsWarning={outOfBoundsWarning}
-                    dpiWarning={dpiWarning}
-                    canvasRef={htmlCanvasRef}
-                  />
+                <div className="order-1 min-h-[min(70vh,720px)] flex-1 p-4 small:p-5 lg:order-2">
+                  <div className="sticky top-16 z-[1] lg:static">
+                    <CanvasStage
+                      garmentImage={garmentImageUrl}
+                      garmentTitle={garmentDisplayTitle}
+                      printSideKey={currentSide}
+                      printArea={printArea}
+                      showPrintAreaGuides={showPrintAreaGuides}
+                      outOfBoundsWarning={outOfBoundsWarning}
+                      dpiWarning={dpiWarning}
+                      fabricContainerRef={fabricContainerRef}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -1181,7 +1338,7 @@ export default function CustomizerTemplate({
                     <p className="text-lg font-semibold text-ui-fg-base">Print &amp; quantity</p>
                     <p className="mt-2 text-sm text-ui-fg-subtle">
                       {integratedPdpSlots
-                        ? "Pick colour and size in this column, then add your artwork in the preview and set print quantities."
+                        ? "Pick colour here, set quantity per size, then add artwork in the preview and add to cart when ready."
                         : "Uses the colour and size you selected above. Add artwork, then set how many to print."}
                     </p>
                   </div>
@@ -1326,14 +1483,14 @@ export default function CustomizerTemplate({
   )
 
   const defaultSidebarColumn = (
-          <div className="space-y-5 lg:sticky lg:top-24">
+          <div className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
             {sidebarInner}
           </div>
   )
 
   const main = (
     <div className="mx-auto max-w-[1320px] space-y-6">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)] lg:items-start lg:gap-10">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:items-start lg:gap-10">
           {editorColumn}
           {defaultSidebarColumn}
         </div>
@@ -1343,11 +1500,11 @@ export default function CustomizerTemplate({
   if (embedded && integratedPdpSlots) {
     return (
       <div id="customize" className="contents">
-        <div className="lg:col-span-6 flex min-w-0 flex-col gap-4">
+        <div className="lg:col-span-6 flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
           {integratedPdpSlots.gallery}
           {editorColumn}
         </div>
-        <div className="flex min-w-0 flex-col gap-5 self-start lg:sticky lg:top-24 lg:col-span-3">
+        <div className="flex min-w-0 flex-col gap-5 self-start lg:col-span-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
           {integratedPdpSlots.variantPickers}
           <div className="space-y-5">{sidebarInner}</div>
         </div>

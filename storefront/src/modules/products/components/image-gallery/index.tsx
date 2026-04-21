@@ -2,18 +2,15 @@
 
 import { HttpTypes } from "@medusajs/types"
 import { Container } from "@medusajs/ui"
-import { isEqual } from "lodash"
 import Image from "next/image"
 import { useMemo } from "react"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import {
-  buildColorNeedles,
   findProductImageByUrl,
   getGarmentImageUrlsFromMetadata,
   normalizeImageUrl,
-  optionsAsKeymap,
-  toTitleSlug,
-  urlMatchesColorNeedles,
+  resolveVariantFromOptions,
+  urlMatchesColorLabelStrict,
 } from "@modules/products/lib/variant-options"
 
 type ImageGalleryProps = {
@@ -39,37 +36,17 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
       COLOR_OPTION_MATCHER.test(title)
     )?.[1]
 
-    const needles = selectedColor ? buildColorNeedles(selectedColor) : []
-
-    const selectedEntries = Object.entries(options).filter(([, value]) => Boolean(value))
-
-    const selectedVariant =
-      selectedEntries.length === 0
-        ? undefined
-        : (() => {
-            const variants = product.variants ?? []
-            const exact = variants.find((variant) => {
-              const vo = optionsAsKeymap((variant as any).options)
-              return isEqual(vo, options)
-            })
-            if (exact) {
-              return exact
-            }
-            return variants.find((variant) => {
-              const variantOptions = optionsAsKeymap((variant as any).options)
-              return selectedEntries.every(([title, value]) => value === variantOptions[title])
-            })
-          })()
+    const selectedVariant = resolveVariantFromOptions(product, options)
 
     let mappedVariantImages = getGarmentImageUrlsFromMetadata(
       (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
     )
 
-    if (selectedColor && needles.length && mappedVariantImages.length) {
-      const narrowed = mappedVariantImages.filter((url) => urlMatchesColorNeedles(url, needles))
-      if (narrowed.length) {
-        mappedVariantImages = narrowed
-      }
+    if (selectedColor && mappedVariantImages.length) {
+      const narrowed = mappedVariantImages.filter((url) =>
+        urlMatchesColorLabelStrict(url, selectedColor)
+      )
+      mappedVariantImages = narrowed
     }
 
     if (mappedVariantImages.length) {
@@ -89,24 +66,15 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
       return validImages
     }
 
-    if (!needles.length) {
-      return validImages
-    }
-
-    const normalizedImages = validImages.map((image) => ({
-      ...image,
-      normalizedUrl: toTitleSlug(image.url),
-    }))
-
-    const matched = normalizedImages.filter((image) =>
-      needles.some((needle) => image.normalizedUrl.includes(needle))
+    const matched = validImages.filter((image) =>
+      urlMatchesColorLabelStrict(image.url, selectedColor)
     )
 
     if (!matched.length) {
       return validImages
     }
 
-    return matched.map(({ normalizedUrl: _normalizedUrl, ...image }) => image)
+    return matched
   }, [images, options, product.variants])
 
   const fallbackImages = useMemo(() => {

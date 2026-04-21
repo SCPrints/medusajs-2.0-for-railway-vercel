@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 }
 
 type Params = {
-  searchParams: {
+  searchParams: Promise<{
     sortBy?: SortOptions
     page?: string
     minPrice?: string
@@ -18,10 +18,10 @@ type Params = {
     brand?: string
     fabric?: string
     tag?: string
-  }
-  params: {
+  }>
+  params: Promise<{
     countryCode: string
-  }
+  }>
 }
 
 const parsePositiveNumber = (value?: string) => {
@@ -38,7 +38,9 @@ const parsePositiveNumber = (value?: string) => {
 }
 
 export default async function StorePage({ searchParams, params }: Params) {
-  const { sortBy, page, minPrice, maxPrice, inStock, brand, fabric, tag } = searchParams
+  const resolvedSearchParams = await searchParams
+  const resolvedParams = await params
+  const { sortBy, page, minPrice, maxPrice, inStock, brand, fabric, tag } = resolvedSearchParams
 
   return (
     <StoreTemplate
@@ -50,7 +52,7 @@ export default async function StorePage({ searchParams, params }: Params) {
       brand={brand?.trim() || undefined}
       fabric={fabric?.trim() || undefined}
       tag={tag?.trim() || undefined}
-      countryCode={params.countryCode}
+      countryCode={resolvedParams.countryCode}
     />
   )
 }

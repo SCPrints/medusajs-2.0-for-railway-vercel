@@ -19,77 +19,35 @@ export const retrieveRegion = cache(async function (id: string) {
 
 const regionMap = new Map<string, HttpTypes.StoreRegion>()
 
-export const getRegion = cache(async function (countryCode: string) {
+export async function getRegion(countryCode: string) {
   try {
-    if (regionMap.has(countryCode)) {
-      return regionMap.get(countryCode)
+    const normalizedCountryCode = String(countryCode ?? "").trim().toLowerCase()
+
+    if (!normalizedCountryCode) {
+      return null
+    }
+
+    if (regionMap.has(normalizedCountryCode)) {
+      return regionMap.get(normalizedCountryCode) ?? null
     }
 
     const regions = await listRegions()
 
     if (!regions) {
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "b984c7",
-          },
-          body: JSON.stringify({
-            sessionId: "b984c7",
-            location: "regions.ts:getRegion",
-            message: "listRegions empty or falsy",
-            data: { countryCode },
-            timestamp: Date.now(),
-            hypothesisId: "H3",
-          }),
-        }
-      ).catch(() => {})
-      // #endregion
       return null
     }
 
     regions.forEach((region) => {
       region.countries?.forEach((c) => {
-        regionMap.set(c?.iso_2 ?? "", region)
+        const iso2 = String(c?.iso_2 ?? "").trim().toLowerCase()
+        if (iso2) {
+          regionMap.set(iso2, region)
+        }
       })
     })
 
-    const region = countryCode
-      ? regionMap.get(countryCode)
-      : regionMap.get("us")
-
-    if (!region) {
-      // #region agent log
-      fetch(
-        "http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Debug-Session-Id": "b984c7",
-          },
-          body: JSON.stringify({
-            sessionId: "b984c7",
-            location: "regions.ts:getRegion",
-            message: "no region for countryCode",
-            data: {
-              countryCode,
-              listedRegions: regions.length,
-              sampleKeys: Array.from(regionMap.keys()).slice(0, 8),
-            },
-            timestamp: Date.now(),
-            hypothesisId: "H3",
-          }),
-        }
-      ).catch(() => {})
-      // #endregion
-    }
-
-    return region
+    return regionMap.get(normalizedCountryCode) ?? null
   } catch (e: any) {
     return null
   }
-})
+}

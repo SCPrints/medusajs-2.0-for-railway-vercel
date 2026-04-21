@@ -4,6 +4,8 @@ import { ChangeEvent, useState } from "react"
 
 type InputPanelProps = {
   onUploadFile: (file: File) => Promise<void>
+  uploads: Array<{ id: string; name: string; previewUrl: string; type: string }>
+  onReuseUpload: (uploadId: string) => Promise<void>
   onAddText: (input: { text: string; color: string; fontFamily: string; letterSpacing: number }) => void
   onAddCurvedText: (input: { text: string; color: string; radius: number }) => void
   onRemoveSelectedImage: () => void
@@ -13,6 +15,8 @@ type InputPanelProps = {
 
 export default function InputPanel({
   onUploadFile,
+  uploads,
+  onReuseUpload,
   onAddText,
   onAddCurvedText,
   onRemoveSelectedImage,
@@ -48,6 +52,33 @@ export default function InputPanel({
         <label className="text-xs font-medium text-ui-fg-subtle">Image uploader (PNG/JPG/SVG)</label>
         <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={onFileChange} className="w-full text-sm" />
       </div>
+
+      {uploads.length > 0 ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <label className="text-xs font-medium text-ui-fg-subtle">My uploads</label>
+            <span className="text-[11px] text-ui-fg-subtle">Reusable across views</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {uploads.map((upload) => (
+              <button
+                key={upload.id}
+                type="button"
+                onClick={() => onReuseUpload(upload.id)}
+                className="group overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-subtle text-left hover:border-ui-fg-subtle"
+                title={`Add ${upload.name} to this view`}
+              >
+                <div className="aspect-square w-full overflow-hidden bg-ui-bg-base/40">
+                  <img src={upload.previewUrl} alt={upload.name} className="h-full w-full object-cover" />
+                </div>
+                <p className="truncate px-1.5 py-1 text-[11px] text-ui-fg-subtle group-hover:text-ui-fg-base">
+                  {upload.name}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <button
         type="button"

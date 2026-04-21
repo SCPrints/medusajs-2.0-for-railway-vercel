@@ -76,15 +76,7 @@ const Item = ({ item, type = "full" }: ItemProps) => {
         </Text>
         <LineItemOptions variant={item.variant} data-testid="product-variant" />
         {customizerMetadata && (
-          <Text className="txt-small text-ui-fg-subtle mt-1">
-            Custom design attached
-            {customizerMetadata.sizes?.length
-              ? ` (${customizerMetadata.sizes
-                  .filter((size: any) => Number(size.quantity) > 0)
-                  .map((size: any) => `${size.size}:${size.quantity}`)
-                  .join(", ")})`
-              : ""}
-          </Text>
+          <Text className="txt-small text-ui-fg-subtle mt-1">Custom design attached</Text>
         )}
       </Table.Cell>
 

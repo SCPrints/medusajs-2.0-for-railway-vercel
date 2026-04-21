@@ -5,6 +5,7 @@ import { getProductsList } from "@lib/data/products"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { extractDefaultGarmentFromProduct } from "@modules/customizer/lib/default-garment"
 import CustomizerTemplate from "@modules/customizer/templates"
+import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -126,10 +127,12 @@ export default async function CustomizerPage({ params, searchParams }: Customize
   const defaultGarment = extractDefaultGarmentFromProduct(customizerProduct)
 
   return (
-    <CustomizerTemplate
-      defaultGarmentImage={defaultGarment?.url ?? null}
-      defaultGarmentTitle={defaultGarment?.title ?? null}
-      product={customizerProduct}
-    />
+    <ProductOptionsProvider product={customizerProduct}>
+      <CustomizerTemplate
+        defaultGarmentImage={defaultGarment?.url ?? null}
+        defaultGarmentTitle={defaultGarment?.title ?? null}
+        product={customizerProduct}
+      />
+    </ProductOptionsProvider>
   )
 }
