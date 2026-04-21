@@ -7,12 +7,39 @@ import MarketingHero from "@modules/common/components/marketing-hero"
 import { getServiceBySlug } from "@modules/services/data"
 
 const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
-  embroidery: Array(3).fill("/placeholders/services/embroidery.svg"),
   "digital-transfers": Array(3).fill("/placeholders/services/digital-transfers.svg"),
   "uv-printing": Array(3).fill("/placeholders/services/uv-printing.svg"),
 }
 
-type ServiceGalleryImage = { src: string; alt: string }
+type ServiceGalleryImage = {
+  src: string
+  alt: string
+  /** Inner frame size vs cell; >1 shows more of the photo (zoom out). */
+  frameScale?: number
+  /** For framed images, passed to CSS object-position. */
+  objectPosition?: string
+}
+
+const EMBROIDERY_GALLERY: ServiceGalleryImage[] = [
+  {
+    src: "/images/services/embroidery/anime-character-grid.png",
+    alt: "Collage of detailed anime and character embroidery samples on assorted coloured fabrics.",
+    frameScale: 1.14,
+    objectPosition: "center center",
+  },
+  {
+    src: "/images/services/embroidery/gundam-mecha-polo.png",
+    alt: "Intricate multi-colour mecha embroidery on royal blue pique fabric.",
+    frameScale: 1.1,
+    objectPosition: "center 24%",
+  },
+  {
+    src: "/images/services/embroidery/snip-society-scissors.png",
+    alt: "Detailed gold and silver embroidery on black fabric: crossed scissors, crown, gems, and Snip Society banner lettering.",
+    frameScale: 1.22,
+    objectPosition: "center center",
+  },
+]
 
 const SCREEN_PRINTING_GALLERY: ServiceGalleryImage[] = [
   {
@@ -107,22 +134,52 @@ export default async function ServiceDetailPage({ params }: Props) {
         <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
           <div className="relative h-[420px] small:h-[520px]">
             <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-0">
-              {galleryImages.map((image, index) => (
-                <div
-                  key={`${service.slug}-gallery-${index}`}
-                  className={`relative overflow-hidden ${
-                    index === 0 ? "row-span-2" : ""
-                  }`}
-                >
-                  <Image
-                    src={image.src}
-                    alt={image.alt}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover object-top"
-                  />
-                </div>
-              ))}
+              {galleryImages.map((image, index) => {
+                const frameScale = image.frameScale ?? 1
+                const useFramedCrop =
+                  frameScale !== 1 || image.objectPosition !== undefined
+
+                return (
+                  <div
+                    key={`${service.slug}-gallery-${index}`}
+                    className={`relative overflow-hidden ${
+                      index === 0 ? "row-span-2" : ""
+                    }`}
+                  >
+                    {useFramedCrop ? (
+                      <div className="absolute inset-0 overflow-hidden">
+                        <div
+                          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                          style={{
+                            width: `${frameScale * 100}%`,
+                            height: `${frameScale * 100}%`,
+                          }}
+                        >
+                          <Image
+                            src={image.src}
+                            alt={image.alt}
+                            fill
+                            sizes="(max-width: 1024px) 100vw, 50vw"
+                            className="object-cover"
+                            style={{
+                              objectPosition:
+                                image.objectPosition ?? "center center",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <Image
+                        src={image.src}
+                        alt={image.alt}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        className="object-cover object-top"
+                      />
+                    )}
+                  </div>
+                )
+              })}
               {galleryImages.length < 3 &&
                 Array.from({ length: 3 - galleryImages.length }).map((_, index) => (
                   <div key={`${service.slug}-fallback-tile-${index}`} className="bg-ui-bg-base" />
@@ -224,6 +281,10 @@ function buildServiceGalleryImages(
 ): ServiceGalleryImage[] {
   if (serviceSlug === "screen-printing") {
     return SCREEN_PRINTING_GALLERY
+  }
+
+  if (serviceSlug === "embroidery") {
+    return EMBROIDERY_GALLERY
   }
 
   const urls =
