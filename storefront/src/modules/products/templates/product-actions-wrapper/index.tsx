@@ -8,9 +8,11 @@ import ProductActions from "@modules/products/components/product-actions"
 export default async function ProductActionsWrapper({
   id,
   region,
+  hideInlinePurchaseControls = false,
 }: {
   id: string
   region: HttpTypes.StoreRegion
+  hideInlinePurchaseControls?: boolean
 }) {
   const [product] = await getProductsById({
     ids: [id],
@@ -21,5 +23,11 @@ export default async function ProductActionsWrapper({
     return null
   }
 
-  return <ProductActions product={product} region={region} />
+  return (
+    <ProductActions
+      product={product}
+      region={region}
+      hideInlinePurchaseControls={hideInlinePurchaseControls}
+    />
+  )
 }

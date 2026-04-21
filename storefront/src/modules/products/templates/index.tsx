@@ -53,6 +53,8 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
     )
   }
 
+  const hasEmbeddedCustomizer = shouldRenderEmbeddedCustomizer(product)
+
   return (
     <>
       <div className="content-container py-6 relative" data-testid="product-container">
@@ -79,14 +81,19 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
                       disabled={true}
                       product={product}
                       region={region}
+                      hideInlinePurchaseControls={hasEmbeddedCustomizer}
                     />
                   }
                 >
-                  <ProductActionsWrapper id={product.id} region={region} />
+                  <ProductActionsWrapper
+                    id={product.id}
+                    region={region}
+                    hideInlinePurchaseControls={hasEmbeddedCustomizer}
+                  />
                 </Suspense>
               </div>
             </div>
-            {shouldRenderEmbeddedCustomizer(product) ? (
+            {hasEmbeddedCustomizer ? (
               <PdpCustomizerBoundary>
                 <EmbeddedProductCustomizer product={product} />
               </PdpCustomizerBoundary>

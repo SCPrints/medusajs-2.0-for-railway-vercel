@@ -26,6 +26,7 @@ type ProductActionsProps = {
   product: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   disabled?: boolean
+  hideInlinePurchaseControls?: boolean
 }
 
 const DEFAULT_RENDER_SURFACE = {
@@ -80,6 +81,7 @@ export default function ProductActions({
   product,
   region,
   disabled,
+  hideInlinePurchaseControls = false,
 }: ProductActionsProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [quantity, setQuantity] = useState(1)
@@ -276,58 +278,62 @@ export default function ProductActions({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <label htmlFor="product-quantity" className="text-sm font-medium text-ui-fg-base">
-            Quantity
-          </label>
-          <div className="flex items-center border rounded-md border-ui-border-base">
-            <button
-              type="button"
-              className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
-              onClick={() => updateQuantity(quantity - 1)}
-              disabled={quantity <= 1 || isAdding || !!disabled}
-              aria-label="Decrease quantity"
-            >
-              -
-            </button>
-            <input
-              id="product-quantity"
-              type="number"
-              min={1}
-              max={999}
-              value={quantity}
-              onChange={(event) => updateQuantity(Number.parseInt(event.target.value, 10))}
-              className="w-16 border-x border-ui-border-base py-2 text-center text-sm outline-none"
-              disabled={isAdding || !!disabled}
-            />
-            <button
-              type="button"
-              className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
-              onClick={() => updateQuantity(quantity + 1)}
-              disabled={quantity >= 999 || isAdding || !!disabled}
-              aria-label="Increase quantity"
-            >
-              +
-            </button>
+        {!hideInlinePurchaseControls ? (
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="product-quantity" className="text-sm font-medium text-ui-fg-base">
+              Quantity
+            </label>
+            <div className="flex items-center border rounded-md border-ui-border-base">
+              <button
+                type="button"
+                className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
+                onClick={() => updateQuantity(quantity - 1)}
+                disabled={quantity <= 1 || isAdding || !!disabled}
+                aria-label="Decrease quantity"
+              >
+                -
+              </button>
+              <input
+                id="product-quantity"
+                type="number"
+                min={1}
+                max={999}
+                value={quantity}
+                onChange={(event) => updateQuantity(Number.parseInt(event.target.value, 10))}
+                className="w-16 border-x border-ui-border-base py-2 text-center text-sm outline-none"
+                disabled={isAdding || !!disabled}
+              />
+              <button
+                type="button"
+                className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
+                onClick={() => updateQuantity(quantity + 1)}
+                disabled={quantity >= 999 || isAdding || !!disabled}
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <ProductPrice product={product} variant={selectedVariant} quantity={quantity} />
 
-        <Button
-          onClick={handleAddToCart}
-          disabled={!inStock || !selectedVariant || !!disabled || isAdding}
-          variant="primary"
-          className="w-full h-10"
-          isLoading={isAdding}
-          data-testid="add-product-button"
-        >
-          {!selectedVariant
-            ? "Select variant"
-            : !inStock
-            ? "Out of stock"
-            : "Add to cart"}
-        </Button>
+        {!hideInlinePurchaseControls ? (
+          <Button
+            onClick={handleAddToCart}
+            disabled={!inStock || !selectedVariant || !!disabled || isAdding}
+            variant="primary"
+            className="w-full h-10"
+            isLoading={isAdding}
+            data-testid="add-product-button"
+          >
+            {!selectedVariant
+              ? "Select variant"
+              : !inStock
+              ? "Out of stock"
+              : "Add to cart"}
+          </Button>
+        ) : null}
         {addToCartError ? (
           <p className="txt-small text-rose-600" role="alert">
             {addToCartError}
