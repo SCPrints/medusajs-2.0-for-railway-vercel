@@ -13,8 +13,8 @@ export default async function Nav() {
 
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
-      <header className="relative h-16 mx-auto border-b border-white/20 bg-ui-fg-base duration-200">
-        <nav className="content-container txt-xsmall-plus flex h-full w-full items-center justify-between gap-6 text-small-regular text-[rgba(248,250,252,0.9)]">
+      <header className="relative h-20 mx-auto border-b-2 border-white/20 bg-ui-fg-base duration-200">
+        <nav className="content-container flex h-full w-full items-center justify-between gap-6 text-base font-medium text-[rgba(248,250,252,0.9)]">
           <div className="flex-1 basis-0 h-full flex items-center">
             <div className="h-full">
               <SideMenu regions={regions} />
@@ -32,7 +32,7 @@ export default async function Nav() {
                 alt="SC Prints"
                 width={158}
                 height={52}
-                className="h-10 w-auto"
+                className="h-12 w-auto"
                 priority
               />
             </LocalizedClientLink>
@@ -40,13 +40,13 @@ export default async function Nav() {
 
           <div className="flex items-center gap-x-6 h-full flex-1 basis-0 justify-end">
             <LocalizedClientLink
-              className="inline-flex items-center hover:text-[var(--brand-accent)]"
+              className="inline-flex items-center justify-center hover:text-[var(--brand-accent)]"
               href="/search"
               scroll={false}
               data-testid="nav-search-link"
               aria-label="Search site"
             >
-              <MagnifyingGlassMini />
+              <MagnifyingGlassMini className="h-7 w-7 shrink-0" aria-hidden />
             </LocalizedClientLink>
             <div className="hidden small:flex items-center gap-x-6 h-full">
               <LocalizedClientLink
@@ -60,7 +60,7 @@ export default async function Nav() {
             <Suspense
               fallback={
                 <LocalizedClientLink
-                  className="flex gap-2 hover:text-[var(--brand-accent)]"
+                  className="flex gap-2 text-base font-medium hover:text-[var(--brand-accent)]"
                   href="/cart"
                   data-testid="nav-cart-link"
                 >

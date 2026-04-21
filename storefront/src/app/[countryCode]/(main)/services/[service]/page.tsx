@@ -7,11 +7,27 @@ import MarketingHero from "@modules/common/components/marketing-hero"
 import { getServiceBySlug } from "@modules/services/data"
 
 const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
-  "screen-printing": Array(3).fill("/placeholders/services/screen-printing.svg"),
   embroidery: Array(3).fill("/placeholders/services/embroidery.svg"),
   "digital-transfers": Array(3).fill("/placeholders/services/digital-transfers.svg"),
   "uv-printing": Array(3).fill("/placeholders/services/uv-printing.svg"),
 }
+
+type ServiceGalleryImage = { src: string; alt: string }
+
+const SCREEN_PRINTING_GALLERY: ServiceGalleryImage[] = [
+  {
+    src: "/images/services/screen-printing/onpoint-kitchens.png",
+    alt: "Assorted shirt colours showing yellow and white screen-printed Onpoint Kitchens branding and contact details.",
+  },
+  {
+    src: "/images/services/screen-printing/eco-flush-plumbing.png",
+    alt: "Black t-shirts with a neon green and white multi-colour screen-printed plumbing services design.",
+  },
+  {
+    src: "/images/services/screen-printing/hitec-drainage-hivis.png",
+    alt: "Bulk stack of hi-vis orange workwear with navy screen-printed Hitec Drainage branding.",
+  },
+]
 
 type Props = {
   params: Promise<{
@@ -58,7 +74,7 @@ export default async function ServiceDetailPage({ params }: Props) {
     notFound()
   }
 
-  const galleryImages = buildServiceGalleryImages(service.slug)
+  const galleryImages = buildServiceGalleryImages(service.slug, service.title)
 
   return (
     <div className="content-container py-14 small:py-20">
@@ -91,7 +107,7 @@ export default async function ServiceDetailPage({ params }: Props) {
         <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
           <div className="relative h-[420px] small:h-[520px]">
             <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-0">
-              {galleryImages.map((imageUrl, index) => (
+              {galleryImages.map((image, index) => (
                 <div
                   key={`${service.slug}-gallery-${index}`}
                   className={`relative overflow-hidden ${
@@ -99,15 +115,14 @@ export default async function ServiceDetailPage({ params }: Props) {
                   }`}
                 >
                   <Image
-                    src={imageUrl}
-                    alt={`${service.title} sample ${index + 1}`}
+                    src={image.src}
+                    alt={image.alt}
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"
                     className="object-cover object-top"
                   />
                 </div>
               ))}
-              {/* Fallback tiles in case image configuration changes */}
               {galleryImages.length < 3 &&
                 Array.from({ length: 3 - galleryImages.length }).map((_, index) => (
                   <div key={`${service.slug}-fallback-tile-${index}`} className="bg-ui-bg-base" />
@@ -203,8 +218,20 @@ export default async function ServiceDetailPage({ params }: Props) {
   )
 }
 
-function buildServiceGalleryImages(serviceSlug: string) {
-  return (
-    SERVICE_PLACEHOLDER_IMAGES_BY_SLUG[serviceSlug] ?? Array(3).fill("/placeholders/service-1.svg")
-  )
+function buildServiceGalleryImages(
+  serviceSlug: string,
+  serviceTitle: string
+): ServiceGalleryImage[] {
+  if (serviceSlug === "screen-printing") {
+    return SCREEN_PRINTING_GALLERY
+  }
+
+  const urls =
+    SERVICE_PLACEHOLDER_IMAGES_BY_SLUG[serviceSlug] ??
+    Array(3).fill("/placeholders/service-1.svg")
+
+  return urls.map((src, index) => ({
+    src,
+    alt: `${serviceTitle} sample ${index + 1}`,
+  }))
 }
