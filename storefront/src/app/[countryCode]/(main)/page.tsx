@@ -14,6 +14,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
+import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
 import Thumbnail from "@modules/products/components/thumbnail"
 import ProductTags from "@modules/products/components/product-tags"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -199,6 +200,8 @@ export default async function Home({
             __html: JSON.stringify(homeStructuredData),
           }}
         />
+        <ScrollingPictureBar />
+
         <section className="content-container py-12 small:py-16">
           <MarketingHero
             eyebrow="Australian custom decoration"
