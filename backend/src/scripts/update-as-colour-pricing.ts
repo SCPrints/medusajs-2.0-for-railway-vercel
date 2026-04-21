@@ -253,6 +253,9 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
   const query = container.resolve(ContainerRegistrationKeys.QUERY) as {
     graph: (args: Record<string, unknown>) => Promise<{ data?: unknown[] }>
   }
+  const link = container.resolve(ContainerRegistrationKeys.LINK) as {
+    create: (data: Record<string, unknown>) => Promise<unknown>
+  }
   const productModuleService = container.resolve(Modules.PRODUCT) as {
     updateProductVariants: (id: string, data: Record<string, unknown>) => Promise<unknown>
   }
@@ -434,10 +437,26 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
         metadata: nextMetadata,
       })
     } else {
-      await productModuleService.updateProductVariants(variant.id, {
-        metadata: nextMetadata,
-        prices: pricesForPriceSet,
+      const createdPriceSets = (await pricingModuleService.upsertPriceSets([
+        {
+          prices: pricesForPriceSet,
+        },
+      ])) as Array<{ id?: string }>
+      const createdPriceSetId = createdPriceSets[0]?.id
+      if (!createdPriceSetId) {
+        throw new Error(`Failed to create price set for variant ${variant.id}`)
+      }
+
+      await link.create({
+        [Modules.PRODUCT]: {
+          variant_id: variant.id,
+        },
+        [Modules.PRICING]: {
+          price_set_id: createdPriceSetId,
+        },
       })
+      // Variants missing a price set can trigger an ORM bug when updating metadata in the same flow.
+      // Link the new price set first to restore purchasability; metadata can be backfilled separately.
       updatedWithoutPriceSetCount++
     }
     updatedVariantCount++
