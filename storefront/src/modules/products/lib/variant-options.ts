@@ -4,6 +4,92 @@ import { isEqual } from "lodash"
 /** Same values as customizer `GarmentSide`; kept local to avoid importing customizer from product lib. */
 type PrintGarmentSide = "front" | "back" | "left_sleeve" | "right_sleeve"
 
+/** Short-sleeve side-view mockups (`public/placeholders/customizer/`). */
+const SLEEVE_PLACEHOLDER_LEFT_SHORT = "/placeholders/customizer/left-sleeve-placeholder.png"
+const SLEEVE_PLACEHOLDER_RIGHT_SHORT = "/placeholders/customizer/right-sleeve-placeholder.png"
+
+/** Long-sleeve side-view mockups. */
+const SLEEVE_PLACEHOLDER_LEFT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.png"
+const SLEEVE_PLACEHOLDER_RIGHT_LONG = "/placeholders/customizer/right-sleeve-long-placeholder.png"
+
+/**
+ * Whether sleeve print areas should use long-sleeve placeholder art.
+ * Uses product metadata when set; otherwise title/handle/description heuristics
+ * (e.g. hoodies vs tees). Override with `metadata.sleeve_length`: "long" | "short".
+ */
+export function isLongSleeveGarmentProduct(
+  product: HttpTypes.StoreProduct | undefined | null
+): boolean {
+  if (!product) {
+    return false
+  }
+
+  const meta = (product.metadata ?? {}) as Record<string, unknown>
+  const metaString = (key: string): string | null => {
+    const v = meta[key]
+    return typeof v === "string" && v.trim() ? v.trim().toLowerCase() : null
+  }
+
+  for (const key of [
+    "sleeve_length",
+    "sleeve_type",
+    "sleeves",
+    "apparel_sleeve",
+    "garment_sleeve",
+  ] as const) {
+    const s = metaString(key)
+    if (s) {
+      if (/\blong\b/.test(s)) {
+        return true
+      }
+      if (/\bshort\b/.test(s)) {
+        return false
+      }
+    }
+  }
+
+  const blob = [
+    product.title,
+    product.handle,
+    product.subtitle,
+    product.description,
+    metaString("style"),
+    metaString("product_type"),
+  ]
+    .filter(Boolean)
+    .join(" ")
+
+  const lower = blob.toLowerCase()
+
+  if (/\b(short[\s-]*sleeve|shortsleeve|s\/s)\b/i.test(blob)) {
+    return false
+  }
+  if (/\b(long[\s-]*sleeve|longsleeve|l\/s)\b/i.test(blob)) {
+    return true
+  }
+
+  if (/\b(hoodie|hood\b|sweatshirt|sweat\s*shirt|fleece|pullover|jumper|sweater)\b/i.test(lower)) {
+    return true
+  }
+
+  if (/\b(tee|t-?shirt|tank|singlet|polo)\b/i.test(lower)) {
+    return false
+  }
+
+  return false
+}
+
+function getSleevePlaceholderUrl(
+  side: "left_sleeve" | "right_sleeve",
+  product: HttpTypes.StoreProduct | undefined
+): string {
+  const long = isLongSleeveGarmentProduct(product)
+  if (side === "left_sleeve") {
+    return long ? SLEEVE_PLACEHOLDER_LEFT_LONG : SLEEVE_PLACEHOLDER_LEFT_SHORT
+  }
+  return long ? SLEEVE_PLACEHOLDER_RIGHT_LONG : SLEEVE_PLACEHOLDER_RIGHT_SHORT
+}
+
 /** Normalizes option titles and colour labels for stable matching across UI and API. */
 export const toTitleSlug = (value: string) =>
   value
@@ -408,9 +494,9 @@ const garmentUrlLooksLikeFront = (url: string) => {
 }
 
 /**
- * Garment mockup URL for the customizer canvas and mockup renders, matched to print side
- * (front vs back). Uses variant `garment_images` when present, then colour-matched product images,
- * then filename heuristics (e.g. `...-back.jpg`).
+ * Garment mockup URL for the customizer canvas and mockup renders, matched to print side.
+ * Front/back: variant `garment_images`, colour-matched product images, then filename heuristics.
+ * Sleeves: static placeholders (no per-product sleeve photography in catalog).
  */
 export function getGarmentImageUrlForPrintSide(
   product: HttpTypes.StoreProduct | undefined,
@@ -418,6 +504,13 @@ export function getGarmentImageUrlForPrintSide(
   side: PrintGarmentSide,
   defaultGarmentImage: string | null
 ): string | null {
+  if (side === "left_sleeve") {
+    return getSleevePlaceholderUrl("left_sleeve", product)
+  }
+  if (side === "right_sleeve") {
+    return getSleevePlaceholderUrl("right_sleeve", product)
+  }
+
   const primaryFallback = getPrimaryGarmentImageUrl(product, variant) ?? defaultGarmentImage
 
   if (!product) {
@@ -447,10 +540,6 @@ export function getGarmentImageUrlForPrintSide(
 
   const matchesColor = (url: string) =>
     !selectedColor || urlMatchesColorLabelStrict(url, selectedColor)
-
-  if (side === "left_sleeve" || side === "right_sleeve") {
-    return primaryFallback
-  }
 
   const meta = variant ? ((variant.metadata ?? {}) as Record<string, unknown>) : {}
   const parsed = parseGarmentImagesObject(meta.garment_images)

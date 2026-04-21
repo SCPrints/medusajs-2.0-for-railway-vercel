@@ -23,7 +23,8 @@ type OptionSelectProps = {
   "data-testid"?: string
 }
 
-const COLOR_OPTION_MATCHER = /(color|colour)/i
+/** Match option titles used for garment colours (incl. “Shade”). */
+const COLOR_OPTION_MATCHER = /(color|colour|shade)/i
 
 const getColorSwatchImageMap = (
   product: HttpTypes.StoreProduct,

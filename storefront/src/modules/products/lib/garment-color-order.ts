@@ -56,6 +56,55 @@ const rgbToHsl = (r: number, g: number, b: number): { h: number; s: number; l: n
   return { h: h * 360, s, l }
 }
 
+/** H in degrees 0–360; s,l in 0–1. Used when CSS is hsl() so we can measure RGB chroma. */
+const hslToRgb = (h: number, s: number, l: number): { r: number; g: number; b: number } => {
+  const hd = ((h % 360) + 360) % 360
+  const hn = hd / 360
+  let r: number
+  let g: number
+  let b: number
+  if (s < 1e-6) {
+    r = g = b = l
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      let tt = t
+      if (tt < 0) {
+        tt += 1
+      }
+      if (tt > 1) {
+        tt -= 1
+      }
+      if (tt < 1 / 6) {
+        return p + (q - p) * 6 * tt
+      }
+      if (tt < 1 / 2) {
+        return q
+      }
+      if (tt < 2 / 3) {
+        return p + (q - p) * (2 / 3 - tt) * 6
+      }
+      return p
+    }
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    const p = 2 * l - q
+    r = hue2rgb(p, q, hn + 1 / 3)
+    g = hue2rgb(p, q, hn)
+    b = hue2rgb(p, q, hn - 1 / 3)
+  }
+  return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) }
+}
+
+const rgbFromResolvedCss = (
+  css: string,
+  hsl: { h: number; s: number; l: number }
+): { r: number; g: number; b: number } => {
+  const fromHex = hexToRgb(css.trim())
+  if (fromHex) {
+    return fromHex
+  }
+  return hslToRgb(hsl.h, hsl.s, hsl.l)
+}
+
 const parseCssColorToHsl = (css: string): { h: number; s: number; l: number } | null => {
   const trimmed = css.trim()
   const rgbFromHex = hexToRgb(trimmed)
@@ -91,11 +140,22 @@ const labelLexemes = (label: string): Set<string> => {
   return new Set([compact, ...parts])
 }
 
+/** RGB chroma (0–255). Low values are greys/slates even when HSL “saturation” reads high. */
+const rgbChroma = (r: number, g: number, b: number) => {
+  return Math.max(r, g, b) - Math.min(r, g, b)
+}
+
 /**
- * Build a sort key: whites/creams → rainbow (hue) → cool greys → black.
- * Uses the same resolved CSS as swatches so order matches what you see.
+ * Greys and charcoals often pick up a blue tint; HSL s can exceed 0.11 while still being neutral.
+ * Chroma catches those so they sort in the grey ramp, not scattered through the rainbow.
  */
-const sortKeyForLabel = (label: string, hsl: { h: number; s: number; l: number }): number[] => {
+const CHROMA_NEUTRAL_MAX = 36
+
+const sortKeyForLabel = (
+  label: string,
+  hsl: { h: number; s: number; l: number },
+  rgb: { r: number; g: number; b: number }
+): number[] => {
   let { h, s, l } = hsl
   if (Number.isNaN(h)) {
     h = 0
@@ -106,31 +166,27 @@ const sortKeyForLabel = (label: string, hsl: { h: number; s: number; l: number }
   const isWhiteName = lexWords.some((w) => WHITE_LABEL_LEXEMES.has(w))
   const isBlackName = lexWords.some((w) => BLACK_LABEL_LEXEMES.has(w))
 
-  const achromatic = s < 0.11
+  const chroma = rgbChroma(rgb.r, rgb.g, rgb.b)
+  const neutralByChroma = chroma <= CHROMA_NEUTRAL_MAX
+  const achromatic = s < 0.14 || neutralByChroma
 
-  if (isBlackName || (l < 0.12 && achromatic)) {
+  if (isBlackName || (l < 0.12 && achromatic && neutralByChroma)) {
     return [4, 0, 0, l]
   }
 
-  if (isWhiteName || (l > 0.96 && s < 0.07)) {
+  if (isWhiteName || (l >= 0.95 && s < 0.09 && neutralByChroma)) {
     return [0, 0, -l, h]
   }
 
-  // Cream / ivory / warm off‑white (high lightness, modest chroma)
-  if (l > 0.85 && s >= 0.04 && s < 0.22 && !achromatic) {
-    return [0, 1, h, -l]
-  }
+  // Do not pull “pastel blue / lilac / ice” into an early band — they must sort by hue with the rest
+  // of the spectrum (see previous bug: light blues appeared before pure reds).
 
-  if (l > 0.92 && achromatic) {
-    return [0, 2, -l, h]
-  }
-
-  // Grey and silver ramp (cool neutrals, not black/white)
-  if (achromatic && l >= 0.13 && l <= 0.94) {
+  // All non‑white greys (light → dark) after the rainbow, never mixed into row 1 after white
+  if (neutralByChroma && l >= 0.12 && l <= 0.94) {
     return [3, l, h, 0]
   }
 
-  // Chromatic: classic hue order (0° red → 360°)
+  // Chromatic: hue order (0° red → 360°)
   return [2, h, -l, s]
 }
 
@@ -141,7 +197,8 @@ export const sortGarmentColorLabels = (labels: string[]): string[] => {
     if (!hsl) {
       return { label, key: [99, 0, 0, 0] as number[] }
     }
-    return { label, key: sortKeyForLabel(label, hsl) }
+    const rgb = rgbFromResolvedCss(css, hsl)
+    return { label, key: sortKeyForLabel(label, hsl, rgb) }
   })
 
   const cmpArr = (a: number[], b: number[]) => {
