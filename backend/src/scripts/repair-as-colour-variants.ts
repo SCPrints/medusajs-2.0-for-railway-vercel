@@ -498,7 +498,6 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
         sku: variant.sku,
         barcode: variant.barcode,
         options: variant.options,
-        prices: variant.prices,
         metadata: variant.metadata,
         ...withNonTrackedInventoryDefaults({}),
       })
