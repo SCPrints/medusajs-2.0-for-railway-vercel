@@ -1,9 +1,9 @@
 import type { BrandTile } from "@modules/brands/data/brands"
 
-/** Upper bound for tile size (w-14 = 3.5rem) */
-const TILE_PX = 58
-/** Minimum gap between tile edges */
-const MIN_GAP_PX = 16
+/** Upper bound for tile size (hero logo tiles: 6rem / 8rem) */
+const TILE_PX = 128
+/** Minimum gap between tile centers (larger = less overlap / clutter) */
+const MIN_GAP_PX = 44
 
 function hash(str: string): number {
   let h = 2166136261
@@ -55,9 +55,9 @@ export function computeTilePositions(
   const dim = Math.min(w, h)
   const minCenterDist = TILE_PX + MIN_GAP_PX
 
-  /** Orbit further from center so tiles sit toward the outer edge of the ring */
-  const rMin = Math.max(dim * 0.34, 128)
-  const rMax = Math.max(dim * 0.54, rMin + 88)
+  /** Wider annulus = more room between brands */
+  const rMin = Math.max(dim * 0.30, 140)
+  const rMax = Math.max(dim * 0.60, rMin + 120)
 
   const n = tiles.length
   const positions: { x: number; y: number }[] = []
@@ -86,14 +86,14 @@ export function computeTilePositions(
     positions.push({ x, y })
   }
 
-  for (let iter = 0; iter < 28; iter++) {
+  for (let iter = 0; iter < 36; iter++) {
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         const dx = positions[j].x - positions[i].x
         const dy = positions[j].y - positions[i].y
         const d = Math.hypot(dx, dy) || 1
         if (d < minCenterDist) {
-          const push = (minCenterDist - d) * 0.52 + 0.35
+          const push = (minCenterDist - d) * 0.6 + 0.45
           const ux = dx / d
           const uy = dy / d
           positions[i].x -= ux * push
@@ -149,14 +149,14 @@ export function computeTilePositions(
     }
   }
 
-  for (let iter = 0; iter < 12; iter++) {
+  for (let iter = 0; iter < 18; iter++) {
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         const dx = positions[j].x - positions[i].x
         const dy = positions[j].y - positions[i].y
         const d = Math.hypot(dx, dy) || 1
         if (d < minCenterDist) {
-          const push = (minCenterDist - d) * 0.5 + 0.25
+          const push = (minCenterDist - d) * 0.55 + 0.35
           const ux = dx / d
           const uy = dy / d
           positions[i].x -= ux * push

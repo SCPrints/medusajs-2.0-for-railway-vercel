@@ -3,10 +3,11 @@
 import { useGSAP } from "@gsap/react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
-import { useRef, type CSSProperties } from "react"
+import { useRef, useState, type CSSProperties } from "react"
 
 import { BRAND_TILES } from "@modules/brands/data/brands"
 import { computeTilePositions } from "@modules/brands/components/brands-hero/tile-placement"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -22,6 +23,7 @@ export default function BrandsHero() {
   const ringRef = useRef<HTMLDivElement>(null)
   const tileRefs = useRef<(HTMLDivElement | null)[]>([])
   const textLineRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [logoLoadFailed, setLogoLoadFailed] = useState<Record<string, boolean>>({})
 
   useGSAP(
     () => {
@@ -174,38 +176,65 @@ export default function BrandsHero() {
 
           <div
             ref={ringRef}
-            className="pointer-events-none relative z-[1] mt-6 flex min-h-[min(42vh,22rem)] w-full max-w-[min(96vw,44rem)] flex-1 items-center justify-center small:mt-8 small:min-h-[min(46vh,26rem)]"
-            aria-hidden
+            className="relative z-[1] mt-6 flex min-h-[min(52vh,28rem)] w-full max-w-[min(96vw,56rem)] flex-1 items-center justify-center small:mt-8 small:min-h-[min(56vh,32rem)]"
           >
-            {BRAND_TILES.map((brand, i) => (
-              <div
-                key={brand.id}
-                ref={(el) => {
-                  tileRefs.current[i] = el
-                }}
-                className="absolute left-1/2 top-1/2 h-[3.25rem] w-[3.25rem] small:h-14 small:w-14 will-change-transform"
-              >
+            {BRAND_TILES.map((brand, i) => {
+              const showLogo = Boolean(brand.logoSrc) && !logoLoadFailed[brand.id]
+              const brandParam = brand.storeQuery ?? brand.name
+              const storeHref = `/store?brand=${encodeURIComponent(brandParam)}`
+              return (
                 <div
-                  className={
-                    i % 2 === 0
-                      ? "motion-safe:animate-brand-tile-float motion-reduce:animate-none h-full w-full will-change-transform"
-                      : "motion-safe:animate-brand-tile-float-alt motion-reduce:animate-none h-full w-full will-change-transform"
-                  }
-                  style={
-                    {
-                      animationDelay: `${(i % 7) * 0.22}s`,
-                      "--brand-float-duration": `${5.2 + (i % 6) * 0.42}s`,
-                    } as CSSProperties
-                  }
+                  key={brand.id}
+                  ref={(el) => {
+                    tileRefs.current[i] = el
+                  }}
+                  className="absolute left-1/2 top-1/2 z-[2] h-24 w-24 small:h-32 small:w-32 will-change-transform"
                 >
                   <div
-                    className={`flex h-full w-full items-center justify-center rounded-2xl text-[0.65rem] font-bold uppercase tracking-tight text-white shadow-lg ring-1 ring-black/10 small:text-xs ${brand.bgClass}`}
+                    className={
+                      i % 2 === 0
+                        ? "motion-safe:animate-brand-tile-float motion-reduce:animate-none h-full w-full will-change-transform"
+                        : "motion-safe:animate-brand-tile-float-alt motion-reduce:animate-none h-full w-full will-change-transform"
+                    }
+                    style={
+                      {
+                        animationDelay: `${(i % 7) * 0.22}s`,
+                        "--brand-float-duration": `${5.2 + (i % 6) * 0.42}s`,
+                      } as CSSProperties
+                    }
                   >
-                    {brand.initials}
+                    <LocalizedClientLink
+                      href={storeHref}
+                      className="block h-full w-full rounded-2xl no-underline outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2"
+                      aria-label={`View all ${brand.name} products`}
+                    >
+                      {showLogo && brand.logoSrc ? (
+                        <span className="flex h-full w-full items-center justify-center">
+                          <img
+                            src={brand.logoSrc}
+                            alt=""
+                            className="h-full w-full max-h-full max-w-full object-contain [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.12))] motion-reduce:transition-none"
+                            loading="lazy"
+                            decoding="async"
+                            onError={() =>
+                              setLogoLoadFailed((prev) => ({ ...prev, [brand.id]: true }))
+                            }
+                          />
+                        </span>
+                      ) : (
+                        <span
+                          className={`flex h-full w-full items-center justify-center rounded-2xl text-[0.65rem] font-bold uppercase tracking-tight text-white shadow-lg ring-1 ring-black/10 small:text-xs ${brand.bgClass}`}
+                        >
+                          <span className="select-none" aria-hidden>
+                            {brand.initials}
+                          </span>
+                        </span>
+                      )}
+                    </LocalizedClientLink>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
