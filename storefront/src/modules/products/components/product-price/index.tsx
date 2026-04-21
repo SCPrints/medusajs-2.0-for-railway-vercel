@@ -49,6 +49,19 @@ const getBulkPricingTiers = (variant?: HttpTypes.StoreProductVariant): BulkTier[
     .sort((a, b) => a.min_quantity - b.min_quantity)
 }
 
+const getBulkPricingCurrency = (variant?: HttpTypes.StoreProductVariant) => {
+  const metadata = (variant?.metadata ?? {}) as Record<string, unknown>
+  const bulkPricing = metadata.bulk_pricing as
+    | {
+        currency_code?: unknown
+      }
+    | undefined
+
+  return typeof bulkPricing?.currency_code === "string"
+    ? bulkPricing.currency_code.toLowerCase()
+    : null
+}
+
 const resolveTierForQuantity = (tiers: BulkTier[], quantity: number) =>
   tiers.find((tier) => {
     if (quantity < tier.min_quantity) {
@@ -80,18 +93,20 @@ export default function ProductPrice({
   })
 
   const selectedPrice = variant ? variantPrice : cheapestPrice
+  const bulkTiers = getBulkPricingTiers(variant)
+  const selectedQuantity = Math.max(1, quantity)
+  const activeBulkTier =
+    variant && bulkTiers.length ? resolveTierForQuantity(bulkTiers, selectedQuantity) : null
 
-  if (!selectedPrice) {
+  if (!selectedPrice && !activeBulkTier) {
     return <div className="block w-32 h-9 bg-gray-100 animate-pulse" />
   }
 
-  const bulkTiers = getBulkPricingTiers(variant)
-  const activeBulkTier =
-    variant && bulkTiers.length ? resolveTierForQuantity(bulkTiers, Math.max(1, quantity)) : null
-  const activeUnitAmount = activeBulkTier?.amount ?? selectedPrice.calculated_price_number
+  const currencyCode = selectedPrice?.currency_code ?? getBulkPricingCurrency(variant) ?? "aud"
+  const activeUnitAmount = activeBulkTier?.amount ?? selectedPrice?.calculated_price_number ?? 0
   const activeUnitPrice = convertToLocale({
     amount: activeUnitAmount,
-    currency_code: selectedPrice.currency_code,
+    currency_code: currencyCode,
   })
   const baseTierAmount = bulkTiers[0]?.amount ?? activeUnitAmount
 
@@ -112,10 +127,10 @@ export default function ProductPrice({
       </span>
       {activeBulkTier ? (
         <span className="text-xs text-ui-fg-subtle">
-          Bulk tier {formatTierRange(activeBulkTier)} applied at qty {Math.max(1, quantity)}
+          Bulk tier {formatTierRange(activeBulkTier)} applied at qty {selectedQuantity}
         </span>
       ) : null}
-      {selectedPrice.price_type === "sale" && (
+      {selectedPrice?.price_type === "sale" && (
         <>
           <p>
             <span className="text-ui-fg-subtle">Original: </span>
@@ -148,7 +163,7 @@ export default function ProductPrice({
                   <span className="text-ui-fg-base">
                     {convertToLocale({
                       amount: tier.amount,
-                      currency_code: selectedPrice.currency_code,
+                      currency_code: currencyCode,
                     })}
                     {savingsPct > 0 ? ` (${savingsPct}% off)` : ""}
                   </span>
