@@ -11,22 +11,19 @@ const brandImageLinks: BrandImageLink[] = [
   {
     name: "AS Colour",
     href: "/store?brand=AS%20Colour",
-    imageSrc:
-      "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=1600&q=80",
+    imageSrc: "/images/brands/as-colour-banner.png",
     imageAlt: "AS Colour apparel range",
   },
   {
     name: "Syzmik",
     href: "/store?brand=Syzmik",
-    imageSrc:
-      "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=1600&q=80",
+    imageSrc: "/images/brands/syzmik-banner.png",
     imageAlt: "Syzmik workwear collection",
   },
   {
     name: "Biz Collection",
     href: "/store?brand=Biz%20Collection",
-    imageSrc:
-      "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?auto=format&fit=crop&w=1600&q=80",
+    imageSrc: "/images/brands/biz-collection-banner.png",
     imageAlt: "Biz Collection uniforms and apparel",
   },
 ]
