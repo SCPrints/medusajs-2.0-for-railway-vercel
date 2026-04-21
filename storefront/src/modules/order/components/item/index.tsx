@@ -4,8 +4,12 @@ import { Table, Text } from "@medusajs/ui"
 import LineItemOptions from "@modules/common/components/line-item-options"
 import LineItemPrice from "@modules/common/components/line-item-price"
 import LineItemUnitPrice from "@modules/common/components/line-item-unit-price"
-import { getCustomizerMetadata } from "@modules/customizer/lib/metadata"
-import Thumbnail from "@modules/products/components/thumbnail"
+import LineItemMockupPreview from "@modules/customizer/components/line-item-mockup-preview"
+import {
+  getCustomizerMetadata,
+  getCustomizerMockupArtifacts,
+  getCustomizerMockupUrls,
+} from "@modules/customizer/lib/metadata"
 
 type ItemProps = {
   item: HttpTypes.StoreCartLineItem | HttpTypes.StoreOrderLineItem
@@ -13,13 +17,19 @@ type ItemProps = {
 
 const Item = ({ item }: ItemProps) => {
   const customizerMetadata = getCustomizerMetadata(item)
-  const firstMockup = customizerMetadata?.artifacts?.[0]?.mockupUrl
+  const mockupUrls = getCustomizerMockupUrls(item)
+  const mockupArtifacts = getCustomizerMockupArtifacts(item)
 
   return (
     <Table.Row className="w-full" data-testid="product-row">
       <Table.Cell className="!pl-0 p-4 w-24">
         <div className="flex w-16">
-          <Thumbnail thumbnail={firstMockup ?? item.thumbnail} size="square" />
+          <LineItemMockupPreview
+            mockups={mockupArtifacts}
+            mockupUrls={mockupUrls}
+            productThumbnail={item.thumbnail}
+            size="square"
+          />
         </div>
       </Table.Cell>
 

@@ -3,8 +3,7 @@
 import { HttpTypes } from "@medusajs/types"
 import { Container } from "@medusajs/ui"
 import Image from "next/image"
-import { useEffect, useMemo, useRef } from "react"
-import { usePdpCustomizerGallerySync } from "@modules/products/context/pdp-customizer-gallery-sync-context"
+import { useMemo } from "react"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import {
   findProductImageByUrl,
@@ -24,8 +23,6 @@ const COLOR_OPTION_MATCHER = /(color|colour)/i
 
 const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
   const { options } = useProductOptions()
-  const pdpGallerySync = usePdpCustomizerGallerySync()
-  const scrollTargetRefs = useRef<(HTMLDivElement | null)[]>([])
 
   const galleryImages = useMemo(() => {
     const validImages = images
@@ -94,29 +91,6 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
 
   const hasProductImages = fallbackImages.length > 0
 
-  useEffect(() => {
-    const url = pdpGallerySync?.sync?.activeGarmentImageUrl
-    if (!url) {
-      return
-    }
-    const normalizedTarget = normalizeImageUrl(url)
-    const idx = fallbackImages.findIndex(
-      (img) => normalizeImageUrl(img.url) === normalizedTarget
-    )
-    if (idx < 0) {
-      return
-    }
-    const el = scrollTargetRefs.current[idx]
-    if (!el) {
-      return
-    }
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" })
-  }, [
-    pdpGallerySync?.sync?.activeGarmentImageUrl,
-    pdpGallerySync?.sync?.printSide,
-    fallbackImages,
-  ])
-
   return (
     <div className="flex items-start relative">
       <div className="flex flex-col flex-1 small:mx-16 gap-y-4">
@@ -131,9 +105,6 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
         {fallbackImages.map((image, index) => (
           <div
             key={`${image.id}-${index}-${normalizeImageUrl(image.url).slice(-48)}`}
-            ref={(el) => {
-              scrollTargetRefs.current[index] = el
-            }}
             className="w-full scroll-mt-28"
           >
           <Container

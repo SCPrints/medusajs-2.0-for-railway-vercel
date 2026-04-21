@@ -10,8 +10,12 @@ import { HttpTypes } from "@medusajs/types"
 import DeleteButton from "@modules/common/components/delete-button"
 import LineItemOptions from "@modules/common/components/line-item-options"
 import LineItemPrice from "@modules/common/components/line-item-price"
+import LineItemMockupPreview from "@modules/customizer/components/line-item-mockup-preview"
+import {
+  getCustomizerMockupArtifacts,
+  getCustomizerMockupUrls,
+} from "@modules/customizer/lib/metadata"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import Thumbnail from "@modules/products/components/thumbnail"
 
 const CartDropdown = ({
   cart: cartState,
@@ -120,9 +124,11 @@ const CartDropdown = ({
                           href={`/products/${item.variant?.product?.handle}`}
                           className="w-24"
                         >
-                          <Thumbnail
-                            thumbnail={item.variant?.product?.thumbnail}
-                            images={item.variant?.product?.images}
+                          <LineItemMockupPreview
+                            mockups={getCustomizerMockupArtifacts(item)}
+                            mockupUrls={getCustomizerMockupUrls(item)}
+                            productThumbnail={item.variant?.product?.thumbnail}
+                            productImages={item.variant?.product?.images}
                             size="square"
                           />
                         </LocalizedClientLink>

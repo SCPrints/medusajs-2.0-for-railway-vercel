@@ -10,11 +10,11 @@ import {
   extractRenderArtifactUrl,
   normalizePersistedArtifactUrl,
 } from "@modules/customizer/lib/artifact-url"
+import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/lib/garment-url-for-render"
 import { calculatePricing } from "@modules/customizer/lib/pricing"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import { CustomizerMetadata, GarmentSide, SizeQuantity } from "@modules/customizer/lib/types"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
-import { usePdpCustomizerGallerySync } from "@modules/products/context/pdp-customizer-gallery-sync-context"
 import { useProductOptionsOptional } from "@modules/products/context/product-options-context"
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
 import { getGarmentImageUrlForPrintSide } from "@modules/products/lib/variant-options"
@@ -301,6 +301,11 @@ export default function CustomizerTemplate({
 
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [currentSide, setCurrentSide] = useState<GarmentSide>("front")
+  /** Fabric listeners are registered once; read the latest side when persisting so we don’t always write to `front`. */
+  const currentSideRef = useRef<GarmentSide>(currentSide)
+  currentSideRef.current = currentSide
+  /** Avoid persisting while clearing/loading the canvas — `clear()` emits removals that would wipe the wrong side. */
+  const suppressFabricPersistenceRef = useRef(false)
   const [layers, setLayers] = useState<
     Array<{ id: string; label: string; visible: boolean; locked: boolean; type?: string }>
   >([])
@@ -377,18 +382,6 @@ export default function CustomizerTemplate({
       ),
     [selectedProduct, selectedVariant, currentSide, defaultGarmentImage]
   )
-
-  const setPdpGallerySync = usePdpCustomizerGallerySync()?.setSync
-  useEffect(() => {
-    if (!embedded || !setPdpGallerySync) {
-      return
-    }
-    setPdpGallerySync({
-      printSide: currentSide,
-      activeGarmentImageUrl: garmentImageUrl,
-    })
-    return () => setPdpGallerySync(null)
-  }, [embedded, setPdpGallerySync, currentSide, garmentImageUrl])
 
   const garmentDisplayTitle = selectedProduct?.title ?? defaultGarmentTitle
 
@@ -595,6 +588,9 @@ export default function CustomizerTemplate({
   }, [sessionUploads])
 
   const saveCurrentSide = () => {
+    if (suppressFabricPersistenceRef.current) {
+      return
+    }
     const canvas = fabricCanvasRef.current
     if (!canvas) {
       return
@@ -606,7 +602,10 @@ export default function CustomizerTemplate({
       "sourceWidthPx",
       "sourceHeightPx",
     ])
-    sideLayoutsRef.current[currentSide] = (serialized.objects ?? []) as Record<string, unknown>[]
+    sideLayoutsRef.current[currentSideRef.current] = (serialized.objects ?? []) as Record<
+      string,
+      unknown
+    >[]
     bumpLayoutVersion()
   }
 
@@ -615,25 +614,30 @@ export default function CustomizerTemplate({
     if (!canvas) {
       return
     }
-    const loadVersion = ++sideLoadVersionRef.current
+    suppressFabricPersistenceRef.current = true
+    try {
+      const loadVersion = ++sideLoadVersionRef.current
 
-    canvas.clear()
-    const objects = sideLayoutsRef.current[side] ?? []
-    const json = {
-      version: "7.0.0",
-      objects,
+      canvas.clear()
+      const objects = sideLayoutsRef.current[side] ?? []
+      const json = {
+        version: "7.0.0",
+        objects,
+      }
+      await (canvas as any).loadFromJSON(json)
+      if (loadVersion !== sideLoadVersionRef.current) {
+        return
+      }
+      canvas.getObjects().forEach((object: any) => {
+        getObjectId(object)
+      })
+      canvas.renderAll()
+      updateLayers()
+      updateDpiWarning()
+      bumpLayoutVersion()
+    } finally {
+      suppressFabricPersistenceRef.current = false
     }
-    await (canvas as any).loadFromJSON(json)
-    if (loadVersion !== sideLoadVersionRef.current) {
-      return
-    }
-    canvas.getObjects().forEach((object: any) => {
-      getObjectId(object)
-    })
-    canvas.renderAll()
-    updateLayers()
-    updateDpiWarning()
-    bumpLayoutVersion()
   }
 
   useEffect(() => {
@@ -1077,9 +1081,10 @@ export default function CustomizerTemplate({
     const artworkSvg = staticCanvas.toSVG()
     staticCanvas.dispose()
 
-    const rawGarment = mockupGarmentUrl ?? defaultGarmentImage
-    const garmentImageUrlForApi =
-      typeof rawGarment === "string" && rawGarment.trim().length > 0 ? rawGarment.trim() : null
+    const garmentImageUrlForApi = resolveGarmentImageUrlForCustomizerRender(
+      mockupGarmentUrl,
+      defaultGarmentImage
+    )
 
     const pw = Math.max(1, Math.round(printArea.width))
     const ph = Math.max(1, Math.round(printArea.height))
@@ -1183,6 +1188,15 @@ export default function CustomizerTemplate({
         mockupUrl: normalizePersistedArtifactUrl(artifact.mockupUrl),
       }))
 
+      const renderHadPrintAndMockupStrings = renderedArtifacts.every(
+        (a) =>
+          typeof a.printUrl === "string" &&
+          a.printUrl.trim().length > 0 &&
+          typeof a.mockupUrl === "string" &&
+          a.mockupUrl.trim().length > 0
+      )
+      const cartHasHostedArtifactUrls = artifacts.every((a) => a.printUrl && a.mockupUrl)
+
       const sizeOption = selectedProduct.options?.find((option) =>
         (option.title ?? "").toLowerCase().includes("size")
       )
@@ -1265,10 +1279,16 @@ export default function CustomizerTemplate({
         })
       }
 
-      if (artifacts.some((artifact) => !artifact.printUrl || !artifact.mockupUrl)) {
-        setStatusMessage(
-          "Customized items were added, but hosted print/mockup files are unavailable in this environment."
-        )
+      if (!cartHasHostedArtifactUrls) {
+        if (renderHadPrintAndMockupStrings) {
+          setStatusMessage(
+            "Added to your cart. Print/mockup files were generated, but cart metadata only keeps hosted URLs—inline fallbacks (when Minio/S3 is not configured) are dropped. Normal for local dev; configure object storage on Medusa for public links."
+          )
+        } else {
+          setStatusMessage(
+            "Customized items were added, but the render service returned no print/mockup data. Check Medusa logs and storage env (e.g. MINIO_*)."
+          )
+        }
         return
       }
 

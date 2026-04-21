@@ -12,8 +12,12 @@ import LineItemPrice from "@modules/common/components/line-item-price"
 import LineItemUnitPrice from "@modules/common/components/line-item-unit-price"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Spinner from "@modules/common/icons/spinner"
-import { getCustomizerMetadata } from "@modules/customizer/lib/metadata"
-import Thumbnail from "@modules/products/components/thumbnail"
+import LineItemMockupPreview from "@modules/customizer/components/line-item-mockup-preview"
+import {
+  getCustomizerMetadata,
+  getCustomizerMockupArtifacts,
+  getCustomizerMockupUrls,
+} from "@modules/customizer/lib/metadata"
 import { useState } from "react"
 
 type ItemProps = {
@@ -27,7 +31,8 @@ const Item = ({ item, type = "full" }: ItemProps) => {
 
   const { handle } = item.variant?.product ?? {}
   const customizerMetadata = getCustomizerMetadata(item)
-  const firstMockup = customizerMetadata?.artifacts?.[0]?.mockupUrl
+  const mockupUrls = getCustomizerMockupUrls(item)
+  const mockupArtifacts = getCustomizerMockupArtifacts(item)
 
   const changeQuantity = async (quantity: number) => {
     setError(null)
@@ -59,9 +64,11 @@ const Item = ({ item, type = "full" }: ItemProps) => {
             "small:w-24 w-12": type === "full",
           })}
         >
-          <Thumbnail
-            thumbnail={firstMockup ?? item.variant?.product?.thumbnail}
-            images={item.variant?.product?.images}
+          <LineItemMockupPreview
+            mockups={mockupArtifacts}
+            mockupUrls={mockupUrls}
+            productThumbnail={item.variant?.product?.thumbnail}
+            productImages={item.variant?.product?.images}
             size="square"
           />
         </LocalizedClientLink>

@@ -50,7 +50,15 @@ export const validateGarmentImageUrl = (value: string) => {
   }
 
   const host = parsed.hostname.toLowerCase()
-  if (isPrivateHost(host)) {
+  /** Local dev uses same-origin garment URLs (e.g. localhost sleeve placeholders); production should use public CDN URLs. */
+  const isProduction = process.env.NODE_ENV === "production"
+  const explicitPrivateOk =
+    String(process.env.CUSTOMIZER_ALLOW_PRIVATE_GARMENT_URLS ?? "")
+      .trim()
+      .toLowerCase() === "true"
+  const allowPrivateGarmentUrls = explicitPrivateOk || !isProduction
+
+  if (!allowPrivateGarmentUrls && isPrivateHost(host)) {
     throw new MedusaError(
       MedusaError.Types.INVALID_DATA,
       "Private or local network garment image URLs are not allowed."
