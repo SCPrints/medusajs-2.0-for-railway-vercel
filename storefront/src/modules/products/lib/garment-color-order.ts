@@ -1,7 +1,18 @@
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
+import { toTitleSlug } from "@modules/products/lib/variant-options"
 
-const NEUTRAL_S_MAX = 0.14
 const CLEAN_TOKEN_RE = /[^a-z0-9]+/g
+
+/** Near-white labels — pinned to the start before creams/off-whites. */
+const WHITE_LABEL_LEXEMES = new Set(["white", "brightwhite", "purewhite", "opticwhite", "snow"])
+
+/** Near-black labels — pinned to the very end after charcoal greys. */
+const BLACK_LABEL_LEXEMES = new Set([
+  "black",
+  "jet",
+  "onyx",
+  "ebony",
+])
 
 const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
   const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(hex.trim())
@@ -73,71 +84,80 @@ const parseCssColorToHsl = (css: string): { h: number; s: number; l: number } | 
   return null
 }
 
-const FAMILY_KEYWORDS: Array<{ rank: number; words: string[] }> = [
-  { rank: 0, words: ["black", "charcoal", "charcoalmarl", "ink", "asphalt", "midnight"] },
-  { rank: 1, words: ["white", "cream", "natural", "paper", "bone", "oatmeal", "ecru", "beige", "sand", "stone", "pebble", "fog", "silver", "grey", "gray", "heather", "marle", "smoke", "shadow", "storm", "slate"] },
-  { rank: 2, words: ["brown", "chocolate", "coffee", "tan", "camel", "khaki", "walnut", "walnutbrown", "mushroom", "copper", "rust"] },
-  { rank: 3, words: ["red", "maroon", "burgundy", "wine", "crimson"] },
-  { rank: 4, words: ["pink", "rose", "blush", "coral"] },
-  { rank: 5, words: ["orange", "amber", "apricot", "peach"] },
-  { rank: 6, words: ["yellow", "gold", "butter", "mustard"] },
-  { rank: 7, words: ["green", "forest", "olive", "sage", "lime"] },
-  { rank: 8, words: ["teal", "mint", "aqua", "turquoise", "cyan"] },
-  { rank: 9, words: ["blue", "navy", "royal", "cobalt", "denim", "sky", "arctic", "arcticblue"] },
-  { rank: 10, words: ["purple", "plum", "lilac", "lavender", "orchid", "violet"] },
-]
-
-const familyRankFromLabel = (label: string): number => {
-  const normalized = label.toLowerCase().replace(CLEAN_TOKEN_RE, " ").trim()
-  const compact = normalized.replace(/\s+/g, "")
-  const tokens = normalized.split(" ").filter(Boolean)
-
-  for (const family of FAMILY_KEYWORDS) {
-    if (
-      family.words.includes(compact) ||
-      tokens.some((token) => family.words.includes(token)) ||
-      family.words.some((w) => compact.includes(w))
-    ) {
-      return family.rank
-    }
-  }
-
-  return 99
+const labelLexemes = (label: string): Set<string> => {
+  const slug = toTitleSlug(label).replace(CLEAN_TOKEN_RE, " ").trim()
+  const compact = slug.replace(/\s+/g, "")
+  const parts = slug.split(" ").filter(Boolean)
+  return new Set([compact, ...parts])
 }
 
 /**
- * Sort labels into human-friendly colour families first, then by light/dark and hue.
+ * Build a sort key: whites/creams → rainbow (hue) → cool greys → black.
+ * Uses the same resolved CSS as swatches so order matches what you see.
  */
+const sortKeyForLabel = (label: string, hsl: { h: number; s: number; l: number }): number[] => {
+  let { h, s, l } = hsl
+  if (Number.isNaN(h)) {
+    h = 0
+  }
+
+  const lex = labelLexemes(label)
+  const lexWords = Array.from(lex)
+  const isWhiteName = lexWords.some((w) => WHITE_LABEL_LEXEMES.has(w))
+  const isBlackName = lexWords.some((w) => BLACK_LABEL_LEXEMES.has(w))
+
+  const achromatic = s < 0.11
+
+  if (isBlackName || (l < 0.12 && achromatic)) {
+    return [4, 0, 0, l]
+  }
+
+  if (isWhiteName || (l > 0.96 && s < 0.07)) {
+    return [0, 0, -l, h]
+  }
+
+  // Cream / ivory / warm off‑white (high lightness, modest chroma)
+  if (l > 0.85 && s >= 0.04 && s < 0.22 && !achromatic) {
+    return [0, 1, h, -l]
+  }
+
+  if (l > 0.92 && achromatic) {
+    return [0, 2, -l, h]
+  }
+
+  // Grey and silver ramp (cool neutrals, not black/white)
+  if (achromatic && l >= 0.13 && l <= 0.94) {
+    return [3, l, h, 0]
+  }
+
+  // Chromatic: classic hue order (0° red → 360°)
+  return [2, h, -l, s]
+}
+
 export const sortGarmentColorLabels = (labels: string[]): string[] => {
   const scored = labels.map((label) => {
     const css = resolveGarmentSwatchColor(label)
     const hsl = parseCssColorToHsl(css)
     if (!hsl) {
-      return { label, key: [familyRankFromLabel(label), 999, 999, 999] as [number, number, number, number] }
+      return { label, key: [99, 0, 0, 0] as number[] }
     }
-    const { h, s, l } = hsl
-    const familyRank = familyRankFromLabel(label)
-    const neutral = s < NEUTRAL_S_MAX
-    if (neutral && familyRank >= 99) {
-      return { label, key: [1, l, h, s] as [number, number, number, number] }
-    }
-    if (familyRank < 99) {
-      return { label, key: [familyRank, l, h, s] as [number, number, number, number] }
-    }
-    return { label, key: [50, h, s, l] as [number, number, number, number] }
+    return { label, key: sortKeyForLabel(label, hsl) }
   })
 
-  const cmp = (a: [number, number, number, number], b: [number, number, number, number]) => {
-    for (let i = 0; i < 4; i++) {
-      if (a[i] !== b[i]) {
-        return a[i] - b[i]
+  const cmpArr = (a: number[], b: number[]) => {
+    const n = Math.max(a.length, b.length)
+    for (let i = 0; i < n; i++) {
+      const da = a[i] ?? 0
+      const db = b[i] ?? 0
+      if (da !== db) {
+        return da - db
       }
     }
     return 0
   }
 
   scored.sort((a, b) => {
-    const d = cmp(a.key, b.key)
+    const d = cmpArr(a.key, b.key)
     if (d !== 0) {
       return d
     }
