@@ -15,6 +15,7 @@ import DtfAutoBuilderTemplate, {
 import { HttpTypes } from "@medusajs/types"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
 import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
+import { PdpCustomizerGallerySyncProvider } from "@modules/products/context/pdp-customizer-gallery-sync-context"
 
 type ProductTemplateProps = {
   product: HttpTypes.StoreProduct
@@ -59,6 +60,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
       <div className="content-container py-6 relative" data-testid="product-container">
         <PrintPlacementProvider>
           <ProductOptionsProvider product={product}>
+            <PdpCustomizerGallerySyncProvider>
             <div className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:items-start lg:gap-x-8 lg:gap-y-8">
               <aside className="flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:col-span-3 lg:max-w-none lg:py-0">
                 <ProductInfo product={product} />
@@ -92,6 +94,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
                 <EmbeddedProductCustomizer product={product} />
               </PdpCustomizerBoundary>
             ) : null}
+            </PdpCustomizerGallerySyncProvider>
           </ProductOptionsProvider>
         </PrintPlacementProvider>
       </div>

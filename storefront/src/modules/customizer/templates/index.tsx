@@ -14,6 +14,7 @@ import { calculatePricing } from "@modules/customizer/lib/pricing"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import { CustomizerMetadata, GarmentSide, SizeQuantity } from "@modules/customizer/lib/types"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
+import { usePdpCustomizerGallerySync } from "@modules/products/context/pdp-customizer-gallery-sync-context"
 import { useProductOptionsOptional } from "@modules/products/context/product-options-context"
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
 import { getGarmentImageUrlForPrintSide } from "@modules/products/lib/variant-options"
@@ -376,6 +377,18 @@ export default function CustomizerTemplate({
       ),
     [selectedProduct, selectedVariant, currentSide, defaultGarmentImage]
   )
+
+  const setPdpGallerySync = usePdpCustomizerGallerySync()?.setSync
+  useEffect(() => {
+    if (!embedded || !setPdpGallerySync) {
+      return
+    }
+    setPdpGallerySync({
+      printSide: currentSide,
+      activeGarmentImageUrl: garmentImageUrl,
+    })
+    return () => setPdpGallerySync(null)
+  }, [embedded, setPdpGallerySync, currentSide, garmentImageUrl])
 
   const garmentDisplayTitle = selectedProduct?.title ?? defaultGarmentTitle
 
