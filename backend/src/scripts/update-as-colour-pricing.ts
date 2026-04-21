@@ -325,6 +325,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     id: string
     sku?: string
     product_id?: string
+    product?: { handle?: string }
     metadata?: Record<string, unknown>
     price_set?: { id?: string }
   }> = []
@@ -332,7 +333,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
   for (const productIdBatch of productIdBatches) {
     const { data } = await query.graph({
       entity: "product_variant",
-      fields: ["id", "sku", "product_id", "metadata", "price_set.id"],
+      fields: ["id", "sku", "product_id", "product.handle", "metadata", "price_set.id"],
       filters: {
         product_id: productIdBatch,
       },
@@ -342,6 +343,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
       id: string
       sku?: string
       product_id?: string
+      product?: { handle?: string }
       metadata?: Record<string, unknown>
       price_set?: { id?: string }
     }>) {
@@ -365,7 +367,8 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
 
   let matchedStyleCount = 0
   let updatedVariantCount = 0
-  let skippedVariantCount = 0
+  let noStyleMatchCount = 0
+  let updatedWithoutPriceSetCount = 0
 
   for (const variant of variantRows) {
     const metadataStyleCode = normalizeStyleCode(
@@ -373,7 +376,8 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     )
     const handleStyleCode = normalizeStyleCode(
       extractStyleCodeFromHandle(
-        variant.product_id ? productHandleById.get(variant.product_id) : undefined
+        variant.product?.handle ??
+          (variant.product_id ? productHandleById.get(variant.product_id) : undefined)
       )
     )
     const styleCandidates = [
@@ -385,12 +389,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     const resolvedStyleCode = styleCandidates.find((candidate) => byStyleCode.has(candidate))
     const stylePricing = resolvedStyleCode ? byStyleCode.get(resolvedStyleCode) : undefined
     if (!stylePricing) {
-      skippedVariantCount++
-      continue
-    }
-    const priceSetId = variant.price_set?.id
-    if (!priceSetId) {
-      skippedVariantCount++
+      noStyleMatchCount++
       continue
     }
 
@@ -422,25 +421,36 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
       continue
     }
 
-    await pricingModuleService.upsertPriceSets([
-      {
-        id: priceSetId,
-        prices: pricesForPriceSet,
-      },
-    ])
+    const priceSetId = variant.price_set?.id
+    if (priceSetId) {
+      await pricingModuleService.upsertPriceSets([
+        {
+          id: priceSetId,
+          prices: pricesForPriceSet,
+        },
+      ])
 
-    await productModuleService.updateProductVariants(variant.id, {
-      metadata: nextMetadata,
-    })
+      await productModuleService.updateProductVariants(variant.id, {
+        metadata: nextMetadata,
+      })
+    } else {
+      await productModuleService.updateProductVariants(variant.id, {
+        metadata: nextMetadata,
+        prices: pricesForPriceSet,
+      })
+      updatedWithoutPriceSetCount++
+    }
     updatedVariantCount++
   }
 
   logger.info(
-    `Matched ${matchedStyleCount} variants to style pricing rows. Skipped ${skippedVariantCount} variants with no STYLECODE match.`
+    `Matched ${matchedStyleCount} variants to style pricing rows. Unmatched variants: ${noStyleMatchCount}.`
   )
 
   if (apply) {
-    logger.info(`Updated ${updatedVariantCount} variant prices with quantity tiers and metadata.`)
+    logger.info(
+      `Updated ${updatedVariantCount} variant prices with quantity tiers and metadata (${updatedWithoutPriceSetCount} variants created/updated via direct prices fallback).`
+    )
   } else {
     logger.info("Dry run complete. Re-run with -- --apply to persist price updates.")
   }
