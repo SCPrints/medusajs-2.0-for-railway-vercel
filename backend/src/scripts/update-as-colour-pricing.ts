@@ -223,6 +223,31 @@ const parseSkuSetFromAsColourImport = (rows: CsvRow[]) => {
   return Array.from(skuSet)
 }
 
+const parseHandleSetFromAsColourImport = (rows: CsvRow[]) => {
+  const handles = new Set<string>()
+
+  for (const row of rows) {
+    const handle = row["Product Handle"]?.trim().toLowerCase()
+    if (!handle || !handle.startsWith("as-colour-")) {
+      continue
+    }
+    handles.add(handle)
+  }
+
+  return Array.from(handles)
+}
+
+const extractStyleCodeFromHandle = (handle?: string) => {
+  if (!handle) {
+    return ""
+  }
+
+  const normalized = handle.trim().toUpperCase()
+  const parts = normalized.split("-").filter(Boolean)
+  const tail = parts[parts.length - 1] ?? ""
+  return tail.replace(/[^A-Z0-9]/g, "")
+}
+
 export default async function updateAsColourPricing({ container, args }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const query = container.resolve(ContainerRegistrationKeys.QUERY) as {
@@ -258,6 +283,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
 
   const { byStyleCode, duplicateStyleCodes } = buildStylePricingMap(pricingRows)
   const asColourSkus = parseSkuSetFromAsColourImport(importRows)
+  const asColourHandles = parseHandleSetFromAsColourImport(importRows)
 
   if (!byStyleCode.size) {
     throw new Error("No valid style pricing rows found in price CSV")
@@ -266,6 +292,9 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
   if (!asColourSkus.length) {
     throw new Error("No AS Colour SKUs found in import CSV")
   }
+  if (!asColourHandles.length) {
+    throw new Error("No AS Colour product handles found in import CSV")
+  }
 
   if (duplicateStyleCodes.length) {
     logger.warn(
@@ -273,28 +302,46 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     )
   }
 
-  logger.info(`Loaded ${byStyleCode.size} style price rows and ${asColourSkus.length} AS Colour SKUs`)
+  logger.info(
+    `Loaded ${byStyleCode.size} style price rows, ${asColourSkus.length} AS Colour SKUs, and ${asColourHandles.length} AS Colour handles`
+  )
 
-  const skuBatches = chunk(asColourSkus, BATCH_SIZE)
+  const { data: asColourProductsData } = await query.graph({
+    entity: "product",
+    fields: ["id", "handle"],
+    filters: {
+      handle: asColourHandles,
+    },
+  })
+  const asColourProducts = (asColourProductsData ?? []) as Array<{ id: string; handle: string }>
+  if (!asColourProducts.length) {
+    throw new Error("No AS Colour products found in DB for handles from import CSV")
+  }
+
+  const asColourProductIds = asColourProducts.map((product) => product.id)
+  const productHandleById = new Map(asColourProducts.map((product) => [product.id, product.handle]))
+  const productIdBatches = chunk(asColourProductIds, BATCH_SIZE)
   const variantRows: Array<{
     id: string
-    sku: string
+    sku?: string
+    product_id?: string
     metadata?: Record<string, unknown>
     price_set?: { id?: string }
   }> = []
 
-  for (const skuBatch of skuBatches) {
+  for (const productIdBatch of productIdBatches) {
     const { data } = await query.graph({
       entity: "product_variant",
-      fields: ["id", "sku", "metadata", "price_set.id"],
+      fields: ["id", "sku", "product_id", "metadata", "price_set.id"],
       filters: {
-        sku: skuBatch,
+        product_id: productIdBatch,
       },
     })
 
     for (const row of (data ?? []) as Array<{
       id: string
-      sku: string
+      sku?: string
+      product_id?: string
       metadata?: Record<string, unknown>
       price_set?: { id?: string }
     }>) {
@@ -306,10 +353,14 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     throw new Error("No matching product variants found in database for AS Colour SKUs")
   }
 
-  const foundSkuSet = new Set(variantRows.map((variant) => variant.sku))
+  const foundSkuSet = new Set(
+    variantRows
+      .map((variant) => variant.sku)
+      .filter((sku): sku is string => typeof sku === "string" && sku.length > 0)
+  )
   const missingSkuCount = asColourSkus.filter((sku) => !foundSkuSet.has(sku)).length
   if (missingSkuCount) {
-    logger.warn(`SKUs present in import CSV but not in DB: ${missingSkuCount}`)
+    logger.warn(`SKUs present in import CSV but not found in AS Colour product variants: ${missingSkuCount}`)
   }
 
   let matchedStyleCount = 0
@@ -320,9 +371,15 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     const metadataStyleCode = normalizeStyleCode(
       (variant.metadata as Record<string, unknown> | undefined)?.as_colour_style_code as string | undefined
     )
+    const handleStyleCode = normalizeStyleCode(
+      extractStyleCodeFromHandle(
+        variant.product_id ? productHandleById.get(variant.product_id) : undefined
+      )
+    )
     const styleCandidates = [
       metadataStyleCode,
       ...extractStyleCodeCandidatesFromSku(variant.sku),
+      handleStyleCode,
     ].filter(Boolean)
 
     const resolvedStyleCode = styleCandidates.find((candidate) => byStyleCode.has(candidate))
