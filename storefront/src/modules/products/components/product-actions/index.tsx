@@ -82,6 +82,7 @@ export default function ProductActions({
   disabled,
 }: ProductActionsProps) {
   const [isAdding, setIsAdding] = useState(false)
+  const [quantity, setQuantity] = useState(1)
   const [addToCartError, setAddToCartError] = useState<string | null>(null)
   const countryCode = useParams().countryCode as string
   const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
@@ -239,7 +240,7 @@ export default function ProductActions({
 
     const addResult = await addToCartSafe({
         variantId: selectedVariant.id,
-        quantity: 1,
+        quantity,
         countryCode,
         metadata: printPlacementMetadata,
     })
@@ -247,6 +248,14 @@ export default function ProductActions({
       setAddToCartError(addResult.error)
     }
     setIsAdding(false)
+  }
+
+  const updateQuantity = (nextQuantity: number) => {
+    if (!Number.isFinite(nextQuantity)) {
+      return
+    }
+    const sanitized = Math.min(999, Math.max(1, Math.floor(nextQuantity)))
+    setQuantity(sanitized)
   }
 
   return (
@@ -267,7 +276,43 @@ export default function ProductActions({
           )}
         </div>
 
-        <ProductPrice product={product} variant={selectedVariant} />
+        <div className="flex items-center justify-between gap-4">
+          <label htmlFor="product-quantity" className="text-sm font-medium text-ui-fg-base">
+            Quantity
+          </label>
+          <div className="flex items-center border rounded-md border-ui-border-base">
+            <button
+              type="button"
+              className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
+              onClick={() => updateQuantity(quantity - 1)}
+              disabled={quantity <= 1 || isAdding || !!disabled}
+              aria-label="Decrease quantity"
+            >
+              -
+            </button>
+            <input
+              id="product-quantity"
+              type="number"
+              min={1}
+              max={999}
+              value={quantity}
+              onChange={(event) => updateQuantity(Number.parseInt(event.target.value, 10))}
+              className="w-16 border-x border-ui-border-base py-2 text-center text-sm outline-none"
+              disabled={isAdding || !!disabled}
+            />
+            <button
+              type="button"
+              className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
+              onClick={() => updateQuantity(quantity + 1)}
+              disabled={quantity >= 999 || isAdding || !!disabled}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+        </div>
+
+        <ProductPrice product={product} variant={selectedVariant} quantity={quantity} />
 
         <Button
           onClick={handleAddToCart}
