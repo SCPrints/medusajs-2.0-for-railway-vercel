@@ -105,6 +105,16 @@ const resolveVariantPrice = (variant?: HttpTypes.StoreProductVariant) => {
   return 0
 }
 
+const variantHasConfiguredPrice = (variant?: HttpTypes.StoreProductVariant) => {
+  const variantRecord = variant as any
+  if (typeof variantRecord?.calculated_price?.calculated_amount === "number") {
+    return true
+  }
+  return Array.isArray(variantRecord?.prices)
+    ? variantRecord.prices.some((price: any) => typeof price?.amount === "number")
+    : false
+}
+
 const formatMoneyDisplay = (amountCents: number, currencyCode: string) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -1253,24 +1263,52 @@ export default function CustomizerTemplate({
                 }
 
                 return {
-                  variantId: variant.id,
+                  variant,
+                  size: entry.size,
                   quantity: entry.quantity,
                 }
               })
-              .filter((entry): entry is { variantId: string; quantity: number } => !!entry && entry.quantity > 0)
-          : [{ variantId: selectedVariant.id, quantity: totalQuantity }]
+              .filter(
+                (
+                  entry
+                ): entry is {
+                  variant: HttpTypes.StoreProductVariant
+                  size: string
+                  quantity: number
+                } => !!entry && entry.quantity > 0
+              )
+          : [
+              {
+                variant: selectedVariant,
+                size: "Default",
+                quantity: totalQuantity,
+              },
+            ]
+
+      const unpricedSelections = resolvedQuantities.filter(
+        (entry) => !variantHasConfiguredPrice(entry.variant)
+      )
+      if (unpricedSelections.length) {
+        const labels = Array.from(new Set(unpricedSelections.map((entry) => entry.size))).join(", ")
+        setUploadError(
+          labels
+            ? `Some selected sizes are unavailable in the selected region: ${labels}.`
+            : "One or more selected variants are unavailable in the selected region."
+        )
+        return
+      }
 
       for (const quantityEntry of resolvedQuantities) {
         const lineItemMetadata: CustomizerMetadata = {
           ...metadataBase,
-          variantId: quantityEntry.variantId,
+          variantId: quantityEntry.variant.id,
           // Cart line metadata must stay small for Medusa; print files live in `artifacts`.
           // Full Fabric state stays in-browser only (not persisted on the line item).
           sideLayouts: DESIGN_SIDES.map((side) => ({ side, objects: [] })),
         }
 
         const addResult = await addToCartSafe({
-          variantId: quantityEntry.variantId,
+          variantId: quantityEntry.variant.id,
           quantity: quantityEntry.quantity,
           countryCode,
           metadata: {

@@ -33,6 +33,16 @@ const DEFAULT_RENDER_SURFACE = {
   height: 1500,
 }
 
+const variantHasConfiguredPrice = (variant?: HttpTypes.StoreProductVariant) => {
+  const variantRecord = variant as any
+  if (typeof variantRecord?.calculated_price?.calculated_amount === "number") {
+    return true
+  }
+  return Array.isArray(variantRecord?.prices)
+    ? variantRecord.prices.some((price: any) => typeof price?.amount === "number")
+    : false
+}
+
 const resolveImageDimensions = (url: string) =>
   new Promise<{ width: number; height: number } | null>((resolve) => {
     if (typeof window === "undefined") {
@@ -186,6 +196,12 @@ export default function ProductActions({
 
     setIsAdding(true)
     setAddToCartError(null)
+
+    if (!variantHasConfiguredPrice(selectedVariant)) {
+      setAddToCartError("This variant is unavailable in the selected region.")
+      setIsAdding(false)
+      return
+    }
 
     const printPlacementMetadata: Record<string, unknown> | undefined = overlayUrl
       ? {
