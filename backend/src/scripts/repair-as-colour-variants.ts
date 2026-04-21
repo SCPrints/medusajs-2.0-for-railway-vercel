@@ -4,6 +4,7 @@ import path from "node:path"
 import { CreateProductVariantDTO, ExecArgs, UpdateProductVariantDTO } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 import { createProductsWorkflow, updateProductOptionsWorkflow } from "@medusajs/medusa/core-flows"
+import { withNonTrackedInventoryDefaults } from "./utils/variant-inventory-defaults"
 
 type CsvRow = Record<string, string>
 
@@ -14,6 +15,8 @@ type ParsedVariant = {
   options: Record<string, string>
   prices: Array<{ amount: number; currency_code: string }>
   metadata: Record<string, unknown>
+  manage_inventory: boolean
+  allow_backorder: boolean
 }
 
 type ParsedProduct = {
@@ -298,6 +301,7 @@ const parseProductsFromCsv = (rows: CsvRow[]) => {
             all: [frontImage, backImage].filter(Boolean),
           },
         },
+        ...withNonTrackedInventoryDefaults({}),
       }
     })
 
@@ -466,6 +470,7 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
             ...((existing.metadata ?? {}) as Record<string, unknown>),
             ...variant.metadata,
           },
+          ...withNonTrackedInventoryDefaults({}),
         }
       })
 
@@ -494,12 +499,14 @@ export default async function repairAsColourVariants({ container, args }: ExecAr
         barcode: variant.barcode,
         options: variant.options,
         metadata: variant.metadata,
+        ...withNonTrackedInventoryDefaults({}),
       })
     }
 
     for (const update of existingVariantUpdates) {
       await productModuleService.updateProductVariants(update.id, {
         metadata: update.metadata,
+        ...withNonTrackedInventoryDefaults({}),
       })
     }
   }

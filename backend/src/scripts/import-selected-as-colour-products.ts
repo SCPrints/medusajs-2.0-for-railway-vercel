@@ -4,6 +4,7 @@ import path from "node:path"
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
+import { withNonTrackedInventoryDefaults } from "./utils/variant-inventory-defaults"
 
 type CsvRow = Record<string, string>
 type VariantGarmentImages = {
@@ -228,6 +229,7 @@ export default async function importSelectedAsColourProducts({ container }: Exec
             currency_code: PRICE_CURRENCY_CODE,
           },
         ],
+        ...withNonTrackedInventoryDefaults({}),
       }
     })
 
