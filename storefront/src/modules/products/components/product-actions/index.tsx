@@ -19,7 +19,7 @@ import {
 } from "@modules/products/lib/variant-options"
 
 import ProductPrice from "../product-price"
-import { addToCart } from "@lib/data/cart"
+import { addToCartSafe } from "@lib/data/cart"
 import { HttpTypes } from "@medusajs/types"
 
 type ProductActionsProps = {
@@ -221,22 +221,16 @@ export default function ProductActions({
       }
     }
 
-    try {
-      await addToCart({
+    const addResult = await addToCartSafe({
         variantId: selectedVariant.id,
         quantity: 1,
         countryCode,
         metadata: printPlacementMetadata,
-      })
-    } catch (error) {
-      setAddToCartError(
-        error instanceof Error
-          ? error.message
-          : "Could not add this item to your cart right now."
-      )
-    } finally {
-      setIsAdding(false)
+    })
+    if (!addResult.ok) {
+      setAddToCartError(addResult.error)
     }
+    setIsAdding(false)
   }
 
   return (

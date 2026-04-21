@@ -1,6 +1,6 @@
 "use client"
 
-import { addToCart } from "@lib/data/cart"
+import { addToCartSafe } from "@lib/data/cart"
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import InputPanel from "@modules/customizer/components/input-panel"
 import ManagementPanel from "@modules/customizer/components/management-panel"
@@ -1269,7 +1269,7 @@ export default function CustomizerTemplate({
           sideLayouts: DESIGN_SIDES.map((side) => ({ side, objects: [] })),
         }
 
-        await addToCart({
+        const addResult = await addToCartSafe({
           variantId: quantityEntry.variantId,
           quantity: quantityEntry.quantity,
           countryCode,
@@ -1277,6 +1277,10 @@ export default function CustomizerTemplate({
             customizerDesign: sanitizeCustomizerDesignForCart(lineItemMetadata),
           },
         })
+
+        if (!addResult.ok) {
+          throw new Error(addResult.error)
+        }
       }
 
       if (!cartHasHostedArtifactUrls) {

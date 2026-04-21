@@ -105,6 +105,37 @@ export async function addToCart({
     .catch(medusaError)
 }
 
+type AddToCartResult =
+  | { ok: true }
+  | {
+      ok: false
+      error: string
+    }
+
+/**
+ * Use this from client components that should show inline errors instead of
+ * triggering the PDP server-component error boundary when add-to-cart fails.
+ */
+export async function addToCartSafe(input: {
+  variantId: string
+  quantity: number
+  countryCode: string
+  metadata?: Record<string, unknown>
+}): Promise<AddToCartResult> {
+  try {
+    await addToCart(input)
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not add this item to your cart right now.",
+    }
+  }
+}
+
 export async function updateLineItem({
   lineId,
   quantity,
