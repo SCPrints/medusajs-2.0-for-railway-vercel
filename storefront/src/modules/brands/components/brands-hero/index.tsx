@@ -16,6 +16,15 @@ const LINE_SCROLL_GAP = 0.42
 const LINE_SCROLL_DURATION = 0.32
 /** Fade/slide up from below */
 const LINE_START_Y = 48
+/** Brand tiles: quick move to final layout, then CSS float (no scroll-scrub) */
+const TILES_INTRO_DURATION = 0.5
+const TILES_INTRO_STAGGER = 0.035
+const TILES_INTRO_EASE = "power2.out"
+/** Start float after this tile’s intro segment + small buffer (seconds) */
+const floatDelayForIndex = (i: number) =>
+  TILES_INTRO_DURATION + i * TILES_INTRO_STAGGER + 0.08 + (i % 7) * 0.16
+/** Scroll area height — shorter = “Full list” earlier; still room for headline scroll */
+const SCROLL_TRACK_VH = 200
 
 export default function BrandsHero() {
   const scrollTrackRef = useRef<HTMLDivElement>(null)
@@ -46,25 +55,49 @@ export default function BrandsHero() {
         reduced = false
       }
 
-      const applyFinalTiles = () => {
+      const applyFinalTiles = (animate: boolean) => {
         const targets = computeTilePositions(BRAND_TILES, ring)
-        tiles.forEach((el, i) => {
-          const t = targets[i]
+        if (!animate || reduced) {
+          tiles.forEach((el, i) => {
+            const t = targets[i]
+            gsap.set(el, {
+              xPercent: -50,
+              yPercent: -50,
+              x: t.x,
+              y: t.y,
+              scale: 1,
+              opacity: 1,
+              force3D: true,
+            })
+          })
+          return
+        }
+        tiles.forEach((el) => {
           gsap.set(el, {
             xPercent: -50,
             yPercent: -50,
-            x: t.x,
-            y: t.y,
-            scale: 1,
-            opacity: 1,
+            x: 0,
+            y: 0,
+            scale: 0.9,
+            opacity: 0.75,
             force3D: true,
           })
+        })
+        gsap.killTweensOf(tiles)
+        gsap.to(tiles, {
+          x: (i: number) => targets[i]!.x,
+          y: (i: number) => targets[i]!.y,
+          scale: 1,
+          opacity: 1,
+          duration: TILES_INTRO_DURATION,
+          ease: TILES_INTRO_EASE,
+          stagger: TILES_INTRO_STAGGER,
         })
       }
 
       if (reduced) {
         gsap.set(lines, { opacity: 1, y: 0 })
-        applyFinalTiles()
+        applyFinalTiles(false)
         return
       }
 
@@ -88,40 +121,41 @@ export default function BrandsHero() {
         )
       })
 
-      const targets = computeTilePositions(BRAND_TILES, ring)
-      tiles.forEach((el, i) => {
-        const t = targets[i]
-        gsap.set(el, {
-          xPercent: -50,
-          yPercent: -50,
-          x: 0,
-          y: 0,
-          scale: 0.82,
-          opacity: 0.72,
-          force3D: true,
-        })
-        gsap.to(el, {
-          x: t.x,
-          y: t.y,
-          scale: 1,
-          opacity: 1,
-          ease: "none",
-          scrollTrigger: {
-            ...scrollTriggerOpts,
-            id: `brand-tile-${i}`,
-          },
+      let resizeTimer: ReturnType<typeof setTimeout> | undefined
+      const onResize = () => {
+        clearTimeout(resizeTimer)
+        resizeTimer = setTimeout(() => {
+          gsap.killTweensOf(tiles)
+          applyFinalTiles(false)
+        }, 100)
+      }
+      window.addEventListener("resize", onResize)
+      const raf1 = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          applyFinalTiles(true)
         })
       })
+
+      return () => {
+        clearTimeout(resizeTimer)
+        window.removeEventListener("resize", onResize)
+        cancelAnimationFrame(raf1)
+        gsap.killTweensOf(tiles)
+      }
     },
     { scope: scrollTrackRef, dependencies: [] }
   )
 
   return (
-    <div ref={scrollTrackRef} className="relative min-h-[260vh] w-full">
-      <div className="sticky top-0 flex h-[100dvh] w-full items-center justify-center overflow-hidden bg-ui-bg-base">
+    <div
+      ref={scrollTrackRef}
+      className="relative w-full"
+      style={{ minHeight: `${SCROLL_TRACK_VH}vh` }}
+    >
+      <div className="sticky top-0 flex h-[100dvh] max-h-[100dvh] w-full items-stretch justify-center overflow-hidden bg-ui-bg-base">
         <div
           ref={stageRef}
-          className="relative mx-auto flex h-full w-full max-w-[min(100%,56rem)] flex-col items-center justify-start px-4 pb-20 pt-10 small:px-8 small:pt-12"
+          className="relative mx-auto flex h-full min-h-0 w-full max-w-[min(100%,56rem)] flex-col items-center justify-start px-4 pb-8 pt-24 small:px-8 small:pb-10 small:pt-28"
         >
           <div className="relative z-20 w-full max-w-xl shrink-0 px-2 text-center">
             <div
@@ -176,7 +210,7 @@ export default function BrandsHero() {
 
           <div
             ref={ringRef}
-            className="relative z-[1] mt-6 flex min-h-[min(52vh,28rem)] w-full max-w-[min(96vw,56rem)] flex-1 items-center justify-center small:mt-8 small:min-h-[min(56vh,32rem)]"
+            className="relative z-[1] mt-4 flex min-h-0 w-full min-w-0 max-w-[min(96vw,56rem)] flex-1 items-center justify-center small:mt-5"
           >
             {BRAND_TILES.map((brand, i) => {
               const showLogo = Boolean(brand.logoSrc) && !logoLoadFailed[brand.id]
@@ -198,7 +232,7 @@ export default function BrandsHero() {
                     }
                     style={
                       {
-                        animationDelay: `${(i % 7) * 0.22}s`,
+                        animationDelay: `${floatDelayForIndex(i)}s`,
                         "--brand-float-duration": `${5.2 + (i % 6) * 0.42}s`,
                       } as CSSProperties
                     }
