@@ -1,12 +1,13 @@
 "use client"
 
-import { Button, Input, Text } from "@medusajs/ui"
+import { Button, Text } from "@medusajs/ui"
 import { HttpTypes } from "@medusajs/types"
 import { useParams, useRouter } from "next/navigation"
 import { useMemo, useState, useTransition } from "react"
 
 import {
   SavedCartLineInput,
+  deleteLineItem,
   replaceCartWithSavedItems,
 } from "@lib/data/cart"
 
@@ -20,8 +21,6 @@ type SavedCartPayload = {
   items: SavedCartLineInput[]
 }
 
-const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-
 const CartEngagement = ({ cart }: { cart: HttpTypes.StoreCart }) => {
   const router = useRouter()
   const { countryCode } = useParams() as { countryCode?: string | string[] }
@@ -31,9 +30,7 @@ const CartEngagement = ({ cart }: { cart: HttpTypes.StoreCart }) => {
   const [savedAtLabel, setSavedAtLabel] = useState<string | null>(null)
   const [savedItemCount, setSavedItemCount] = useState<number>(0)
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null)
-  const [email, setEmail] = useState(cart.email ?? "")
-  const [followupMessage, setFollowupMessage] = useState<string | null>(null)
-  const [isSubmittingFollowup, setIsSubmittingFollowup] = useState(false)
+  const [clearMessage, setClearMessage] = useState<string | null>(null)
 
   const savedCartItems: SavedCartLineInput[] = useMemo(
     () =>
@@ -107,65 +104,23 @@ const CartEngagement = ({ cart }: { cart: HttpTypes.StoreCart }) => {
     })
   }
 
-  const submitCartFollowup = async (notifyCustomer: boolean) => {
-    const normalizedEmail = email.trim().toLowerCase()
-
-    if (!isValidEmail(normalizedEmail)) {
-      setFollowupMessage("Please enter a valid email for follow-up.")
+  const handleClearCart = () => {
+    const itemIds = (cart.items ?? []).map((item) => item.id).filter(Boolean)
+    if (!itemIds.length) {
+      setClearMessage("Your cart is already empty.")
       return
     }
 
-    setIsSubmittingFollowup(true)
-    setFollowupMessage(
-      notifyCustomer ? "Sending cart reminder..." : "Submitting follow-up request..."
-    )
-
-    const items = (cart.items ?? []).map((item) => ({
-      line_item_id: item.id,
-      variant_id: item.variant_id,
-      product_id: item.product_id,
-      title: item.title,
-      quantity: item.quantity,
-      unit_price: item.unit_price ?? null,
-      subtotal: item.subtotal ?? null,
-    }))
-
-    try {
-      const response = await fetch("/api/abandoned-cart", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          cart_id: cart.id,
-          email: normalizedEmail,
-          country_code: normalizedCountryCode ?? null,
-          currency_code: cart.currency_code ?? null,
-          cart_total: cart.total ?? null,
-          item_count: items.reduce((sum, item) => sum + item.quantity, 0),
-          items,
-          notify_customer: notifyCustomer,
-        }),
-      })
-
-      const body = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        setFollowupMessage(body?.message ?? "Could not save follow-up request right now.")
-        return
+    setClearMessage("Clearing your cart...")
+    startTransition(async () => {
+      try {
+        await Promise.all(itemIds.map((id) => deleteLineItem(id)))
+        setClearMessage("Your cart has been cleared.")
+        router.refresh()
+      } catch {
+        setClearMessage("Could not clear your cart. Please try again.")
       }
-
-      setFollowupMessage(
-        body?.message ??
-          (notifyCustomer
-            ? "Cart saved and reminder email sent."
-            : "We saved your cart for follow-up.")
-      )
-    } catch {
-      setFollowupMessage("Could not save follow-up request right now.")
-    } finally {
-      setIsSubmittingFollowup(false)
-    }
+    })
   }
 
   return (
@@ -204,38 +159,22 @@ const CartEngagement = ({ cart }: { cart: HttpTypes.StoreCart }) => {
       </div>
 
       <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4">
-        <Text className="txt-compact-small-plus text-ui-fg-base">Abandoned-cart follow-up</Text>
+        <Text className="txt-compact-small-plus text-ui-fg-base">Clear cart</Text>
         <Text className="mt-2 text-sm text-ui-fg-subtle">
-          Share your email and we will keep a record of this cart for follow-up.
+          Remove all items from this cart in one click.
         </Text>
-        <div className="mt-4 flex gap-2">
-          <Input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@company.com"
-          />
-          <Button
-            type="button"
-            className="h-10 shrink-0"
-            onClick={() => submitCartFollowup(false)}
-            disabled={isSubmittingFollowup}
-          >
-            Save follow-up
-          </Button>
+        <div className="mt-4 flex">
           <Button
             type="button"
             variant="secondary"
-            className="h-10 shrink-0"
-            onClick={() => submitCartFollowup(true)}
-            disabled={isSubmittingFollowup}
+            className="h-10"
+            onClick={handleClearCart}
+            disabled={isPending}
           >
-            Email me this cart
+            Clear cart
           </Button>
         </div>
-        {followupMessage && (
-          <Text className="mt-3 text-xs text-ui-fg-subtle">{followupMessage}</Text>
-        )}
+        {clearMessage && <Text className="mt-3 text-xs text-ui-fg-subtle">{clearMessage}</Text>}
       </div>
     </div>
   )

@@ -72,6 +72,7 @@ export default function ProductActions({
   disabled,
 }: ProductActionsProps) {
   const [isAdding, setIsAdding] = useState(false)
+  const [addToCartError, setAddToCartError] = useState<string | null>(null)
   const countryCode = useParams().countryCode as string
   const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
   const { options, setOptionValue } = useProductOptions()
@@ -184,6 +185,7 @@ export default function ProductActions({
     if (!selectedVariant?.id) return null
 
     setIsAdding(true)
+    setAddToCartError(null)
 
     const printPlacementMetadata: Record<string, unknown> | undefined = overlayUrl
       ? {
@@ -219,14 +221,22 @@ export default function ProductActions({
       }
     }
 
-    await addToCart({
-      variantId: selectedVariant.id,
-      quantity: 1,
-      countryCode,
-      metadata: printPlacementMetadata,
-    })
-
-    setIsAdding(false)
+    try {
+      await addToCart({
+        variantId: selectedVariant.id,
+        quantity: 1,
+        countryCode,
+        metadata: printPlacementMetadata,
+      })
+    } catch (error) {
+      setAddToCartError(
+        error instanceof Error
+          ? error.message
+          : "Could not add this item to your cart right now."
+      )
+    } finally {
+      setIsAdding(false)
+    }
   }
 
   return (
@@ -263,6 +273,11 @@ export default function ProductActions({
             ? "Out of stock"
             : "Add to cart"}
         </Button>
+        {addToCartError ? (
+          <p className="txt-small text-rose-600" role="alert">
+            {addToCartError}
+          </p>
+        ) : null}
       </div>
     </>
   )
