@@ -23,4 +23,24 @@ describe("calculatePricing", () => {
 
     expect(pricing.totalPriceCents).toBe(1500)
   })
+
+  it("uses bulk tiers as base unit pricing when provided", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 3000,
+      decoratedSidesCount: 2,
+      totalQuantity: 55,
+      bulkPricingTiers: [
+        { minQuantity: 1, maxQuantity: 9, amountCents: 2390 },
+        { minQuantity: 10, maxQuantity: 49, amountCents: 2151 },
+        { minQuantity: 50, maxQuantity: 99, amountCents: 1912 },
+        { minQuantity: 100, amountCents: 1792 },
+      ],
+    })
+
+    expect(pricing.hasBulkPricing).toBe(true)
+    expect(pricing.baseUnitPriceCents).toBe(1912)
+    expect(pricing.sideSurchargePerUnitCents).toBe(500)
+    expect(pricing.discountedUnitPriceCents).toBe(2412)
+    expect(pricing.totalPriceCents).toBe(132660)
+  })
 })

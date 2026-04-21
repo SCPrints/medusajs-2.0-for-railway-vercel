@@ -13,7 +13,12 @@ import {
 import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/lib/garment-url-for-render"
 import { calculatePricing } from "@modules/customizer/lib/pricing"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
-import { CustomizerMetadata, GarmentSide, SizeQuantity } from "@modules/customizer/lib/types"
+import {
+  BulkPricingTier,
+  CustomizerMetadata,
+  GarmentSide,
+  SizeQuantity,
+} from "@modules/customizer/lib/types"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
 import { useProductOptionsOptional } from "@modules/products/context/product-options-context"
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
@@ -115,6 +120,51 @@ const variantHasConfiguredPrice = (variant?: HttpTypes.StoreProductVariant) => {
     : false
 }
 
+const toFiniteNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseInt(value, 10)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+  return null
+}
+
+const resolveVariantBulkPricingTiers = (
+  variant?: HttpTypes.StoreProductVariant
+): BulkPricingTier[] => {
+  const metadata = (variant?.metadata ?? {}) as Record<string, unknown>
+  const bulkPricing = metadata.bulk_pricing as
+    | {
+        tiers?: Array<Record<string, unknown>>
+      }
+    | undefined
+
+  if (!Array.isArray(bulkPricing?.tiers)) {
+    return []
+  }
+
+  return bulkPricing.tiers
+    .map((tier) => {
+      const minQuantity = toFiniteNumber(tier.min_quantity)
+      const maxQuantity = toFiniteNumber(tier.max_quantity)
+      const amountCents = toFiniteNumber(tier.amount)
+      if (minQuantity === null || amountCents === null) {
+        return null
+      }
+      return {
+        minQuantity,
+        maxQuantity: maxQuantity ?? undefined,
+        amountCents,
+      }
+    })
+    .filter((tier): tier is BulkPricingTier => tier !== null)
+    .sort((a, b) => a.minQuantity - b.minQuantity)
+}
+
 const formatMoneyDisplay = (amountCents: number, currencyCode: string) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -148,9 +198,11 @@ const uniqueSizesForVariant = (
   reference: HttpTypes.StoreProductVariant
 ): SizeQuantity[] => {
   const sizeOption = getSizeOption(product)
-  const pool = (product.variants ?? []).filter((v) =>
+  const basePool = (product.variants ?? []).filter((v) =>
     variantMatchesNonSizeOptions(v, product, reference)
   )
+  const pricedPool = basePool.filter((variant) => variantHasConfiguredPrice(variant))
+  const pool = pricedPool.length ? pricedPool : basePool
   const seen = new Set<string>()
   const sizes: string[] = []
   for (const v of pool) {
@@ -213,8 +265,13 @@ const findVariantAfterOptionChange = (
       return want === got
     })
   }
+  const strictMatches = (product.variants ?? []).filter((v) => matches(v, false))
+  const relaxedMatches = (product.variants ?? []).filter((v) => matches(v, true))
   return (
-    product.variants?.find((v) => matches(v, false)) ?? product.variants?.find((v) => matches(v, true))
+    strictMatches.find((variant) => variantHasConfiguredPrice(variant)) ??
+    relaxedMatches.find((variant) => variantHasConfiguredPrice(variant)) ??
+    strictMatches[0] ??
+    relaxedMatches[0]
   )
 }
 
@@ -368,6 +425,10 @@ export default function CustomizerTemplate({
     (selectedVariant as any)?.prices?.[0]?.currency_code ??
     "usd"
   const basePriceCents = resolveVariantPrice(selectedVariant)
+  const bulkPricingTiers = useMemo(
+    () => resolveVariantBulkPricingTiers(selectedVariant),
+    [selectedVariant]
+  )
 
   const productBrand = useMemo(() => {
     const sub = selectedProduct?.subtitle
@@ -405,6 +466,7 @@ export default function CustomizerTemplate({
     basePriceCents,
     decoratedSidesCount,
     totalQuantity: totalQty,
+    bulkPricingTiers,
   })
 
   const updateLayers = () => {

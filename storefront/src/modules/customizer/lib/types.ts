@@ -16,6 +16,13 @@ export type PricingInput = {
   basePriceCents: number
   decoratedSidesCount: number
   totalQuantity: number
+  bulkPricingTiers?: BulkPricingTier[]
+}
+
+export type BulkPricingTier = {
+  minQuantity: number
+  maxQuantity?: number
+  amountCents: number
 }
 
 export type PricingBreakdown = {
@@ -23,6 +30,9 @@ export type PricingBreakdown = {
   sideSurchargePerUnitCents: number
   sideSurchargeTotalCents: number
   quantityDiscountRate: number
+  hasBulkPricing: boolean
+  activeBulkTier?: BulkPricingTier
+  bulkPricingTiers?: BulkPricingTier[]
   discountedUnitPriceCents: number
   totalPriceCents: number
 }

@@ -19,6 +19,9 @@ const formatMoney = (amountCents: number, currencyCode: string) =>
     currency: currencyCode.toUpperCase(),
   }).format(amountCents / 100)
 
+const formatTierRange = (minQuantity: number, maxQuantity?: number) =>
+  typeof maxQuantity === "number" ? `${minQuantity}-${maxQuantity}` : `${minQuantity}+`
+
 export default function PricingPanel({
   currencyCode,
   pricing,
@@ -89,6 +92,17 @@ export default function PricingPanel({
           <span>Discount</span>
           <span>{Math.round(pricing.quantityDiscountRate * 100)}%</span>
         </p>
+        {pricing.hasBulkPricing && pricing.bulkPricingTiers?.length ? (
+          <div className="space-y-1 pt-1">
+            <p className="font-medium text-ui-fg-base">Bulk pricing tiers</p>
+            {pricing.bulkPricingTiers.map((tier) => (
+              <p key={formatTierRange(tier.minQuantity, tier.maxQuantity)} className="flex justify-between">
+                <span>{formatTierRange(tier.minQuantity, tier.maxQuantity)} pcs</span>
+                <span>{formatMoney(tier.amountCents, currencyCode)}</span>
+              </p>
+            ))}
+          </div>
+        ) : null}
         <p className="flex justify-between font-medium">
           <span>Unit after discount</span>
           <span>{formatMoney(pricing.discountedUnitPriceCents, currencyCode)}</span>

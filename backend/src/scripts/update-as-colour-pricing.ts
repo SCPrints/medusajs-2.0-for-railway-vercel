@@ -117,13 +117,31 @@ const parseMoneyToMinor = (value?: string): number | null => {
 
 const normalizeStyleCode = (value?: string) => value?.trim().toUpperCase() || ""
 
-const extractStyleCodeFromSku = (sku?: string) => {
+const extractStyleCodeCandidatesFromSku = (sku?: string) => {
   if (!sku) {
-    return null
+    return []
   }
 
-  const match = sku.trim().toUpperCase().match(/^([A-Z0-9]+)-/)
-  return match?.[1] ?? null
+  const normalized = sku.trim().toUpperCase()
+  if (!normalized) {
+    return []
+  }
+
+  const tokens = normalized
+    .split("-")
+    .map((token) => token.replace(/[^A-Z0-9]/g, ""))
+    .filter(Boolean)
+
+  const candidates = new Set<string>()
+  for (const token of tokens.slice(0, 3)) {
+    candidates.add(token)
+  }
+
+  if (tokens[0]?.startsWith("ASC") && tokens[0].length > 3) {
+    candidates.add(tokens[0].slice(3))
+  }
+
+  return Array.from(candidates)
 }
 
 const chunk = <T>(items: T[], size: number) => {
@@ -299,13 +317,16 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
   let skippedVariantCount = 0
 
   for (const variant of variantRows) {
-    const styleCode = extractStyleCodeFromSku(variant.sku)
-    if (!styleCode) {
-      skippedVariantCount++
-      continue
-    }
+    const metadataStyleCode = normalizeStyleCode(
+      (variant.metadata as Record<string, unknown> | undefined)?.as_colour_style_code as string | undefined
+    )
+    const styleCandidates = [
+      metadataStyleCode,
+      ...extractStyleCodeCandidatesFromSku(variant.sku),
+    ].filter(Boolean)
 
-    const stylePricing = byStyleCode.get(styleCode)
+    const resolvedStyleCode = styleCandidates.find((candidate) => byStyleCode.has(candidate))
+    const stylePricing = resolvedStyleCode ? byStyleCode.get(resolvedStyleCode) : undefined
     if (!stylePricing) {
       skippedVariantCount++
       continue
@@ -326,7 +347,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
         currency_code: PRICE_CURRENCY_CODE,
         tiers: stylePricing.tiers,
       },
-      as_colour_style_code: styleCode,
+      as_colour_style_code: stylePricing.styleCode,
     }
 
     if (stylePricing.costPriceMinor !== null) {
