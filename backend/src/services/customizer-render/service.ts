@@ -143,10 +143,16 @@ const uploadToMinio = async (buffer: Buffer, fileName: string, mimeType: string)
   })
 
   const key = `customizer/${fileName}`
-  await client.putObject(config.bucket, key, buffer, buffer.length, {
-    "Content-Type": mimeType,
-    "x-amz-acl": "public-read",
-  })
+  try {
+    await client.putObject(config.bucket, key, buffer, buffer.length, {
+      "Content-Type": mimeType,
+      "x-amz-acl": "public-read",
+    })
+  } catch {
+    // Storage misconfiguration should not block add-to-cart in local/dev flows.
+    // Callers already fall back to compact inline data URLs when this returns null.
+    return null
+  }
 
   const protocol = config.useSSL ? "https" : "http"
   return `${protocol}://${config.endPoint}/${config.bucket}/${key}`
