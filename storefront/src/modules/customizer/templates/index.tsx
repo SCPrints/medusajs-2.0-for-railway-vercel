@@ -1552,6 +1552,16 @@ export default function CustomizerTemplate({
               </div>
             ) : null}
 
+            <PricingPanel
+              currencyCode={currencyCode}
+              pricing={pricing}
+              sizes={sizeMatrix}
+              onChangeSizeQty={changeSizeQuantity}
+              onAddToCart={addCustomizedToCart}
+              isSubmitting={isSubmitting}
+              embeddedOnPdp={embedded}
+            />
+
             <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
@@ -1605,16 +1615,6 @@ export default function CustomizerTemplate({
               onToggleLayerLock={toggleLayerLock}
               onAlign={alignSelection}
               onReplaceSvgColor={recolorSelectedSvg}
-            />
-
-            <PricingPanel
-              currencyCode={currencyCode}
-              pricing={pricing}
-              sizes={sizeMatrix}
-              onChangeSizeQty={changeSizeQuantity}
-              onAddToCart={addCustomizedToCart}
-              isSubmitting={isSubmitting}
-              embeddedOnPdp={embedded}
             />
             </>
   )
