@@ -83,7 +83,7 @@ export const BRAND_TILES: BrandTile[] = [
     name: "Grace Collection",
     initials: "GC",
     bgClass: "bg-stone-500",
-    logoSrc: `${LOGO_BASE}/grace.png`,
+    logoSrc: `${LOGO_BASE}/grace.svg`,
   },
   {
     id: "ramo",
