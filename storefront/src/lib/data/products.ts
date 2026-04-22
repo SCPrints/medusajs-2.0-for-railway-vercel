@@ -6,6 +6,24 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
 
+function productBrandMatchesClientFilter(
+  productBrandLower: string,
+  filterRaw: string
+): boolean {
+  const f = filterRaw.trim().toLowerCase()
+  if (productBrandLower.includes(f)) {
+    return true
+  }
+  if (f === "ramo") {
+    return (
+      productBrandLower.includes("ramo") ||
+      productBrandLower.includes("stanley") ||
+      productBrandLower.includes("stella")
+    )
+  }
+  return false
+}
+
 /** Include variant metadata (e.g. garment_images) for PDP gallery + swatches + product tags for the storefront UI. */
 const STORE_PRODUCT_FIELDS =
   "*variants.calculated_price,+variants.inventory_quantity,+variants.metadata,+tags"
@@ -191,12 +209,13 @@ export const getProductsListWithSort = cache(async function ({
       return false
     }
 
-    if (filters?.brand && brand && !brand.includes(filters.brand.toLowerCase())) {
-      return false
-    }
-
-    if (filters?.brand && !brand) {
-      return false
+    if (filters?.brand) {
+      if (!brand) {
+        return false
+      }
+      if (!productBrandMatchesClientFilter(brand, filters.brand)) {
+        return false
+      }
     }
 
     if (filters?.fabric && fabric && !fabric.includes(filters.fabric.toLowerCase())) {

@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 
+import { isRamoStoreBrand } from "@modules/brands/data/brands"
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
 import RefinementList from "@modules/store/components/refinement-list"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -30,6 +31,8 @@ const StoreTemplate = ({
 }) => {
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
+  const isRamo = isRamoStoreBrand(brand)
+  const catalogTitle = isRamo ? "Ramo" : "All products"
 
   return (
     <div
@@ -49,7 +52,7 @@ const StoreTemplate = ({
       <div className="w-full">
         <div className="mb-8">
           <h1 className="page-title-catalog" data-testid="store-page-title">
-            All products
+            {catalogTitle}
           </h1>
         </div>
         <Suspense fallback={<SkeletonProductGrid />}>

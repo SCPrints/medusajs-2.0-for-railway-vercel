@@ -1,11 +1,25 @@
 import { Metadata } from "next"
 
+import { isRamoStoreBrand } from "@modules/brands/data/brands"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 import StoreTemplate from "@modules/store/templates"
 
-export const metadata: Metadata = {
-  title: "Store",
-  description: "Explore all of our products.",
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ brand?: string }>
+}): Promise<Metadata> {
+  const { brand } = await searchParams
+  if (isRamoStoreBrand(brand)) {
+    return {
+      title: "Ramo",
+      description: "Ramo by Stanley/Stella — explore products.",
+    }
+  }
+  return {
+    title: "Store",
+    description: "Explore all of our products.",
+  }
 }
 
 type Params = {

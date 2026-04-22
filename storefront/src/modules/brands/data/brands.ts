@@ -1,5 +1,22 @@
 const LOGO_BASE = "/images/brands/logos"
 
+/** Canonical `?brand=` for the Ramo storefront (maps to Stanley/Stella supplier metadata in filters) */
+export const RAMO_BRAND_QUERY = "Ramo"
+
+/**
+ * @deprecated Kept for bookmarks / old links. Prefer {@link RAMO_BRAND_QUERY}.
+ * Product filtering for both values is handled in the storefront product list.
+ */
+export const STANLEY_STELLA_BRAND_FILTER = "Stanley/Stella"
+
+export function isRamoStoreBrand(brand?: string | null): boolean {
+  const b = brand?.trim()
+  if (!b) {
+    return false
+  }
+  return b === RAMO_BRAND_QUERY || b === STANLEY_STELLA_BRAND_FILTER
+}
+
 export type BrandTile = {
   id: string
   name: string
@@ -68,7 +85,14 @@ export const BRAND_TILES: BrandTile[] = [
     bgClass: "bg-stone-500",
     logoSrc: `${LOGO_BASE}/grace.png`,
   },
-  { id: "stanley", name: "Stanley/Stella", initials: "S/S", bgClass: "bg-emerald-800" },
+  {
+    id: "ramo",
+    name: "Ramo",
+    initials: "R",
+    bgClass: "bg-emerald-800",
+    logoSrc: `${LOGO_BASE}/ramo.svg`,
+    storeQuery: RAMO_BRAND_QUERY,
+  },
   { id: "next-level", name: "Next Level", initials: "NL", bgClass: "bg-slate-700" },
   { id: "champion", name: "Champion", initials: "C", bgClass: "bg-red-900" },
   { id: "patagonia", name: "Patagonia", initials: "P", bgClass: "bg-amber-900" },

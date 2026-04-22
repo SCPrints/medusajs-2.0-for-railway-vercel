@@ -7,6 +7,7 @@ import { useRef, useState, type CSSProperties } from "react"
 
 import { BRAND_TILES } from "@modules/brands/data/brands"
 import { computeTilePositions } from "@modules/brands/components/brands-hero/tile-placement"
+import { RamoLogoInline } from "@modules/brands/components/ramo-logo-inline"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 gsap.registerPlugin(ScrollTrigger)
@@ -213,7 +214,9 @@ export default function BrandsHero() {
             className="relative z-[1] mt-3 flex min-h-[21rem] w-full min-w-0 max-w-[min(99vw,76rem)] flex-1 items-center justify-center -translate-y-6 small:mt-4 small:min-h-[26rem] small:-translate-y-8"
           >
             {BRAND_TILES.map((brand, i) => {
-              const showLogo = Boolean(brand.logoSrc) && !logoLoadFailed[brand.id]
+              const isRamoTile = brand.id === "ramo"
+              const showLogo =
+                !isRamoTile && Boolean(brand.logoSrc) && !logoLoadFailed[brand.id]
               const brandParam = brand.storeQuery ?? brand.name
               const storeHref = `/store?brand=${encodeURIComponent(brandParam)}`
               return (
@@ -242,7 +245,11 @@ export default function BrandsHero() {
                       className="block h-full w-full rounded-2xl no-underline outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2"
                       aria-label={`View all ${brand.name} products`}
                     >
-                      {showLogo && brand.logoSrc ? (
+                      {isRamoTile ? (
+                        <span className="flex h-full w-full items-center justify-center px-0.5">
+                          <RamoLogoInline className="h-full w-full max-h-full max-w-full object-contain [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.12))]" />
+                        </span>
+                      ) : showLogo && brand.logoSrc ? (
                         <span className="flex h-full w-full items-center justify-center">
                           <img
                             src={brand.logoSrc}
