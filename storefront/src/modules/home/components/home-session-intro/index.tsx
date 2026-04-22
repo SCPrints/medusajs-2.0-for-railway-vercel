@@ -28,7 +28,7 @@ const PARTICLE_LAYER_FADE_MS = 200
 const PARTICLE_MIN = 20
 const PARTICLE_MAX = 30
 
-const LOGO_SRC = "/branding/sc-prints-logo-transparent.png"
+const LOGO_SRC = "/branding/scp-vector.svg"
 const LOGO_CLASS =
   "mx-auto w-full max-w-[min(18rem,82vw)] h-auto max-h-[min(32vh,11rem)] object-contain object-center small:max-h-[min(34vh,13rem)]"
 const LOGO_W = 832

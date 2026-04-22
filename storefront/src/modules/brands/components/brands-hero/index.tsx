@@ -155,7 +155,7 @@ export default function BrandsHero() {
       <div className="sticky top-0 flex h-[100dvh] max-h-[100dvh] w-full items-stretch justify-center overflow-hidden bg-ui-bg-base">
         <div
           ref={stageRef}
-          className="relative mx-auto flex h-full min-h-0 w-full max-w-[min(100%,56rem)] flex-col items-center justify-start px-4 pb-8 pt-24 small:px-8 small:pb-10 small:pt-28"
+          className="relative mx-auto flex h-full min-h-0 w-full max-w-[min(100%,76rem)] flex-col items-center justify-start px-4 pb-8 pt-24 small:px-8 small:pb-10 small:pt-28"
         >
           <div className="relative z-20 w-full max-w-xl shrink-0 px-2 text-center">
             <div
@@ -210,7 +210,7 @@ export default function BrandsHero() {
 
           <div
             ref={ringRef}
-            className="relative z-[1] mt-4 flex min-h-0 w-full min-w-0 max-w-[min(96vw,56rem)] flex-1 items-center justify-center small:mt-5"
+            className="relative z-[1] mt-3 flex min-h-[21rem] w-full min-w-0 max-w-[min(99vw,76rem)] flex-1 items-center justify-center -translate-y-6 small:mt-4 small:min-h-[26rem] small:-translate-y-8"
           >
             {BRAND_TILES.map((brand, i) => {
               const showLogo = Boolean(brand.logoSrc) && !logoLoadFailed[brand.id]

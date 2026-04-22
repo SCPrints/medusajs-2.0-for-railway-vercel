@@ -1,9 +1,11 @@
 import type { BrandTile } from "@modules/brands/data/brands"
 
-/** Upper bound for tile size (hero logo tiles: 6rem / 8rem) */
-const TILE_PX = 128
-/** Minimum gap between tile centers (larger = less overlap / clutter) */
-const MIN_GAP_PX = 44
+/** Effective tile footprint used by the solver (visual logos are lighter than full square boxes). */
+const TILE_PX = 112
+/** Minimum gap between tile centers (higher = more spread, too high causes bunching). */
+const MIN_GAP_PX = 30
+/** Keep tiles away from ring edges */
+const EDGE_PADDING_PX = 12
 
 function hash(str: string): number {
   let h = 2166136261
@@ -54,10 +56,20 @@ export function computeTilePositions(
   const h = ringEl.offsetHeight
   const dim = Math.min(w, h)
   const minCenterDist = TILE_PX + MIN_GAP_PX
+  const tileHalf = TILE_PX / 2
+
+  const xMin = -w / 2 + tileHalf + EDGE_PADDING_PX
+  const xMax = w / 2 - tileHalf - EDGE_PADDING_PX
+  /**
+   * Keep logos within ring bounds with soft top/bottom margins.
+   * The previous narrow central band over-constrained placement and made tiles bunch.
+   */
+  const yMin = -h / 2 + tileHalf + EDGE_PADDING_PX + 12
+  const yMax = h / 2 - tileHalf - EDGE_PADDING_PX - 12
 
   /** Wider annulus = more room between brands */
-  const rMin = Math.max(dim * 0.30, 140)
-  const rMax = Math.max(dim * 0.60, rMin + 120)
+  const rMin = Math.max(dim * 0.3, 148)
+  const rMax = Math.max(dim * 0.62, rMin + 132)
 
   const n = tiles.length
   const positions: { x: number; y: number }[] = []
@@ -65,14 +77,14 @@ export function computeTilePositions(
   for (let i = 0; i < n; i++) {
     const seed = hash(tiles[i].id)
     const seed2 = hash(tiles[i].id + "r")
-    const baseAngle = (i / n) * Math.PI * 2 + (rand01(seed) - 0.5) * 0.38
-    let angle = nudgeAngleOutOfExclusion(baseAngle + (rand01(seed2) - 0.5) * 0.26)
+    const baseAngle = (i / n) * Math.PI * 2 + (rand01(seed) - 0.5) * 0.18
+    let angle = nudgeAngleOutOfExclusion(baseAngle + (rand01(seed2) - 0.5) * 0.12)
 
     const rJitter = (rand01(seed >>> 1) - 0.5) * 0.14 * (rMax - rMin)
     let r = rMin + rand01(seed >>> 2) * (rMax - rMin) + rJitter
     r = Math.min(rMax, Math.max(rMin, r))
 
-    angle += (rand01(seed >>> 4) - 0.5) * 0.18
+    angle += (rand01(seed >>> 4) - 0.5) * 0.08
 
     let x = Math.cos(angle) * r
     let y = Math.sin(angle) * r
@@ -125,26 +137,8 @@ export function computeTilePositions(
         x = Math.cos(a) * dist
         y = Math.sin(a) * dist
       }
-      positions[i] = { x, y }
-    }
-  }
-
-  /** Keep tiles in the lower part of the ring (positive screen-y) so they don’t sit under the headline */
-  const minY = Math.max(32, dim * 0.07)
-  for (let i = 0; i < n; i++) {
-    let { x, y } = positions[i]
-    if (y < minY) {
-      y = minY
-      let dist = Math.hypot(x, y)
-      if (dist < rMin) {
-        const s = rMin / dist
-        x *= s
-        y *= s
-      } else if (dist > rMax) {
-        const s = rMax / dist
-        x *= s
-        y *= s
-      }
+      x = Math.min(xMax, Math.max(xMin, x))
+      y = Math.min(yMax, Math.max(yMin, y))
       positions[i] = { x, y }
     }
   }
@@ -181,19 +175,8 @@ export function computeTilePositions(
         y *= s
         dist = rMax
       }
-      if (y < minY) {
-        y = minY
-        dist = Math.hypot(x, y)
-        if (dist < rMin) {
-          const s = rMin / dist
-          x *= s
-          y *= s
-        } else if (dist > rMax) {
-          const s = rMax / dist
-          x *= s
-          y *= s
-        }
-      }
+      x = Math.min(xMax, Math.max(xMin, x))
+      y = Math.min(yMax, Math.max(yMin, y))
       positions[i] = { x, y }
     }
   }
