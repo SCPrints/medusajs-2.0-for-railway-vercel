@@ -247,6 +247,7 @@ def _map_urls(
     cookie: str | None,
 ) -> dict[str, str]:
     mapping: dict[str, str] = {}
+    skipped_sources = 0
     if cache_path and cache_path.is_file():
         try:
             mapping = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -256,7 +257,19 @@ def _map_urls(
     for i, src in enumerate(sources):
         if src in mapping:
             continue
-        data, fname, mime = _load_source_bytes(src, ssl_ctx)
+        try:
+            data, fname, mime = _load_source_bytes(src, ssl_ctx)
+        except Exception as e:
+            # Some vendor image URLs are stale (404). Keep original URL so import can continue.
+            skipped_sources += 1
+            mapping[src] = src
+            if cache_path:
+                cache_path.write_text(
+                    json.dumps(mapping, indent=2, sort_keys=True),
+                    encoding="utf-8",
+                )
+            print(f"  skipped source ({type(e).__name__}): {src}", flush=True)
+            continue
         # Retry a few times for transient CDN / network errors
         last_err: Exception | None = None
         for attempt in range(3):
@@ -281,6 +294,12 @@ def _map_urls(
             time.sleep(sleep_s)
         if (i + 1) % 25 == 0:
             print(f"  uploaded {i + 1}/{len(sources)} distinct sources...", flush=True)
+
+    if skipped_sources:
+        print(
+            f"Skipped {skipped_sources} source image(s); kept original URL in CSV mapping.",
+            flush=True,
+        )
 
     return mapping
 
