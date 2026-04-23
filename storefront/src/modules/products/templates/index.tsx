@@ -54,6 +54,31 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
   }
 
   const hasEmbeddedCustomizer = shouldRenderEmbeddedCustomizer(product)
+  const gallerySlot = (
+    <ImageGallery
+      product={product}
+      images={product?.images || []}
+      thumbnail={product?.thumbnail || null}
+    />
+  )
+  const variantPickersSlot = (
+    <Suspense
+      fallback={
+        <ProductActions
+          disabled={true}
+          product={product}
+          region={region}
+          hideInlinePurchaseControls={hasEmbeddedCustomizer}
+        />
+      }
+    >
+      <ProductActionsWrapper
+        id={product.id}
+        region={region}
+        hideInlinePurchaseControls={hasEmbeddedCustomizer}
+      />
+    </Suspense>
+  )
 
   return (
     <>
@@ -66,38 +91,29 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
                 <ProductTabs product={product} />
               </aside>
 
-              <div className="block w-full relative lg:col-span-6">
-                <ImageGallery
-                  product={product}
-                  images={product?.images || []}
-                  thumbnail={product?.thumbnail || null}
-                />
-              </div>
-
-              <div className="flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:col-span-3 lg:max-w-none lg:py-0">
-                <Suspense
-                  fallback={
-                    <ProductActions
-                      disabled={true}
+              {hasEmbeddedCustomizer ? (
+                <div className="lg:col-span-9 grid gap-8 lg:grid-cols-9 lg:items-start">
+                  <PdpCustomizerBoundary>
+                    <EmbeddedProductCustomizer
                       product={product}
-                      region={region}
-                      hideInlinePurchaseControls={hasEmbeddedCustomizer}
+                      integratedPdpSlots={{
+                        gallery: gallerySlot,
+                        variantPickers: variantPickersSlot,
+                      }}
                     />
-                  }
-                >
-                  <ProductActionsWrapper
-                    id={product.id}
-                    region={region}
-                    hideInlinePurchaseControls={hasEmbeddedCustomizer}
-                  />
-                </Suspense>
-              </div>
+                  </PdpCustomizerBoundary>
+                </div>
+              ) : (
+                <>
+                  <div className="block w-full relative lg:col-span-6">
+                    {gallerySlot}
+                  </div>
+                  <div className="flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:col-span-3 lg:max-w-none lg:py-0">
+                    {variantPickersSlot}
+                  </div>
+                </>
+              )}
             </div>
-            {hasEmbeddedCustomizer ? (
-              <PdpCustomizerBoundary>
-                <EmbeddedProductCustomizer product={product} />
-              </PdpCustomizerBoundary>
-            ) : null}
           </ProductOptionsProvider>
         </PrintPlacementProvider>
       </div>

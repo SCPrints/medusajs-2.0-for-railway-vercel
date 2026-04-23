@@ -271,6 +271,7 @@ export default function ProductActions({
                 options={options}
                 updateOption={setOptionValue}
                 disabled={!!disabled || isAdding}
+                showSizeQuantityInputs={!hideInlinePurchaseControls}
                 data-testid="product-options"
               />
               <Divider />

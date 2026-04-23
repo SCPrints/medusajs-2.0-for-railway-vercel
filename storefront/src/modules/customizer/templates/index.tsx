@@ -165,12 +165,6 @@ const resolveVariantBulkPricingTiers = (
     .sort((a, b) => a.minQuantity - b.minQuantity)
 }
 
-const formatMoneyDisplay = (amountCents: number, currencyCode: string) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode.toUpperCase(),
-  }).format(amountCents / 100)
-
 const getSizeOption = (product: HttpTypes.StoreProduct) =>
   product.options?.find((option) => (option.title ?? "").toLowerCase().includes("size"))
 
@@ -1445,6 +1439,7 @@ export default function CustomizerTemplate({
                     <CanvasStage
                       garmentImage={garmentImageUrl}
                       garmentTitle={garmentDisplayTitle}
+                      omitBackgroundImage={embedded}
                       printSideKey={currentSide}
                       printArea={printArea}
                       showPrintAreaGuides={showPrintAreaGuides}
@@ -1470,21 +1465,11 @@ export default function CustomizerTemplate({
             <>
             <header className="space-y-2 border-b border-ui-border-base pb-5">
               {embedded ? (
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-lg font-semibold text-ui-fg-base">Print &amp; quantity</p>
-                    <p className="mt-2 text-sm text-ui-fg-subtle">
-                      {integratedPdpSlots
-                        ? "Pick colour here, set quantity per size, then add artwork in the preview and add to cart when ready."
-                        : "Uses the colour and size you selected above. Add artwork, then set how many to print."}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-ui-fg-base">
-                      From {formatMoneyDisplay(basePriceCents, currencyCode)}
-                    </p>
-                    <p className="text-xs text-ui-fg-subtle">+ print locations, quantity tiers</p>
-                  </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
+                  <p className="mt-2 text-sm text-ui-fg-subtle">
+                    Follow the steps below: place artwork, choose print side, set quantities, then add to cart.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -1501,12 +1486,6 @@ export default function CustomizerTemplate({
                       <p className="mt-2 text-sm text-ui-fg-subtle">
                         Front, back, and sleeve placements with live pricing.
                       </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-semibold text-ui-fg-base">
-                        From {formatMoneyDisplay(basePriceCents, currencyCode)}
-                      </p>
-                      <p className="text-xs text-ui-fg-subtle">+ print locations, quantity tiers</p>
                     </div>
                   </div>
                 </>
@@ -1552,20 +1531,10 @@ export default function CustomizerTemplate({
               </div>
             ) : null}
 
-            <PricingPanel
-              currencyCode={currencyCode}
-              pricing={pricing}
-              sizes={sizeMatrix}
-              onChangeSizeQty={changeSizeQuantity}
-              onAddToCart={addCustomizedToCart}
-              isSubmitting={isSubmitting}
-              embeddedOnPdp={embedded}
-            />
-
             <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-                  Print locations
+                  {embedded ? "2. Print location" : "Print locations"}
                 </h2>
                 <span className="text-xs text-ui-fg-subtle capitalize">
                   {currentSide.replace("_", " ")}
@@ -1577,45 +1546,65 @@ export default function CustomizerTemplate({
               </p>
             </div>
 
-            <ManagementPanel
-              layers={layers}
-              selectedLayerId={selectedLayerId}
-              onSelectLayer={selectLayer}
-              onDeleteLayer={() => {
-                const canvas = fabricCanvasRef.current
-                const active = canvas?.getActiveObject()
-                if (!active) {
-                  return
-                }
-                canvas.remove(active)
-                updateLayers()
-                saveCurrentSide()
-              }}
-              onBringForward={() => {
-                const canvas = fabricCanvasRef.current
-                const active = canvas?.getActiveObject()
-                if (!active) {
-                  return
-                }
-                canvas.bringObjectForward(active)
-                canvas.renderAll()
-                saveCurrentSide()
-              }}
-              onSendBackward={() => {
-                const canvas = fabricCanvasRef.current
-                const active = canvas?.getActiveObject()
-                if (!active) {
-                  return
-                }
-                canvas.sendObjectBackwards(active)
-                canvas.renderAll()
-                saveCurrentSide()
-              }}
-              onToggleLayerVisibility={toggleLayerVisibility}
-              onToggleLayerLock={toggleLayerLock}
-              onAlign={alignSelection}
-              onReplaceSvgColor={recolorSelectedSvg}
+            <PricingPanel
+              currencyCode={currencyCode}
+              pricing={pricing}
+              sizes={sizeMatrix}
+              onChangeSizeQty={changeSizeQuantity}
+              onAddToCart={addCustomizedToCart}
+              isSubmitting={isSubmitting}
+              embeddedOnPdp={embedded}
             />
+
+            <details className="group rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold uppercase tracking-wide text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center justify-between">
+                  Advanced layer tools
+                  <span className="text-ui-fg-subtle transition group-open:rotate-180">▼</span>
+                </span>
+              </summary>
+              <div className="mt-3 border-t border-ui-border-base pt-3">
+                <ManagementPanel
+                  layers={layers}
+                  selectedLayerId={selectedLayerId}
+                  onSelectLayer={selectLayer}
+                  onDeleteLayer={() => {
+                    const canvas = fabricCanvasRef.current
+                    const active = canvas?.getActiveObject()
+                    if (!active) {
+                      return
+                    }
+                    canvas.remove(active)
+                    updateLayers()
+                    saveCurrentSide()
+                  }}
+                  onBringForward={() => {
+                    const canvas = fabricCanvasRef.current
+                    const active = canvas?.getActiveObject()
+                    if (!active) {
+                      return
+                    }
+                    canvas.bringObjectForward(active)
+                    canvas.renderAll()
+                    saveCurrentSide()
+                  }}
+                  onSendBackward={() => {
+                    const canvas = fabricCanvasRef.current
+                    const active = canvas?.getActiveObject()
+                    if (!active) {
+                      return
+                    }
+                    canvas.sendObjectBackwards(active)
+                    canvas.renderAll()
+                    saveCurrentSide()
+                  }}
+                  onToggleLayerVisibility={toggleLayerVisibility}
+                  onToggleLayerLock={toggleLayerLock}
+                  onAlign={alignSelection}
+                  onReplaceSvgColor={recolorSelectedSvg}
+                />
+              </div>
+            </details>
             </>
   )
 

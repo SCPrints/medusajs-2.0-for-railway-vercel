@@ -20,6 +20,7 @@ type OptionSelectProps = {
   updateOption: (title: string, value: string) => void
   title: string
   disabled: boolean
+  showSizeQuantityInputs?: boolean
   "data-testid"?: string
 }
 
@@ -101,6 +102,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
   title,
   "data-testid": dataTestId,
   disabled,
+  showSizeQuantityInputs = true,
 }) => {
   const { sizeQuantities, setSizeQuantity } = useProductOptions()
   const rawOptionValues = option.values?.map((v) => v.value)
@@ -117,7 +119,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
         : rawOptionValues
   const colorSwatchImageMap = isColorOption ? getColorSwatchImageMap(product, title) : null
 
-  if (isSizeOption && filteredOptions?.length) {
+  if (isSizeOption && showSizeQuantityInputs && filteredOptions?.length) {
     return (
       <div className="flex flex-col gap-2 pt-2 pb-1 text-small-regular" data-testid={dataTestId}>
         <p className="text-xs text-ui-fg-subtle">

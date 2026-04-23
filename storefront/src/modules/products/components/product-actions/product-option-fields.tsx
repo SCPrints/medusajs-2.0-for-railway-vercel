@@ -11,6 +11,7 @@ type ProductOptionFieldsProps = {
   options: Record<string, string | undefined>
   updateOption: (title: string, value: string) => void
   disabled: boolean
+  showSizeQuantityInputs?: boolean
   "data-testid"?: string
 }
 
@@ -29,6 +30,7 @@ export default function ProductOptionFields({
   options,
   updateOption,
   disabled,
+  showSizeQuantityInputs = true,
   "data-testid": dataTestId,
 }: ProductOptionFieldsProps) {
   const productOptions = product.options ?? []
@@ -56,6 +58,7 @@ export default function ProductOptionFields({
                 updateOption={updateOption}
                 title={title}
                 disabled={disabled}
+                showSizeQuantityInputs={showSizeQuantityInputs}
                 data-testid={dataTestId}
               />
             </Accordion.Item>
