@@ -323,6 +323,13 @@ const loadSvgObject = async (svg: string) => {
   })
 }
 
+const ExpandCollapsePlus = () => (
+  <span className="relative h-5 w-5">
+    <span className="absolute inset-y-[31.75%] left-[48%] right-1/2 w-[1.5px] rounded-full bg-ui-fg-subtle transition-all duration-300 group-open:rotate-90" />
+    <span className="absolute inset-x-[31.75%] bottom-1/2 top-[48%] h-[1.5px] rounded-full bg-ui-fg-subtle transition-all duration-300 group-open:left-1/2 group-open:right-1/2 group-open:rotate-90" />
+  </span>
+)
+
 export default function CustomizerTemplate({
   defaultGarmentImage,
   defaultGarmentTitle,
@@ -1559,7 +1566,7 @@ export default function CustomizerTemplate({
               <summary className="cursor-pointer list-none text-sm font-semibold uppercase tracking-wide text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
                 <span className="flex items-center justify-between">
                   Advanced layer tools
-                  <span className="text-ui-fg-subtle transition group-open:rotate-180">▼</span>
+                  <ExpandCollapsePlus />
                 </span>
               </summary>
               <div className="mt-3 border-t border-ui-border-base pt-3">

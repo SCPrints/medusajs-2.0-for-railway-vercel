@@ -59,6 +59,13 @@ const resolveDtfQuantityTierIndex = (quantity: number) =>
     return true
   })
 
+const ExpandCollapsePlus = () => (
+  <span className="relative h-5 w-5">
+    <span className="absolute inset-y-[31.75%] left-[48%] right-1/2 w-[1.5px] rounded-full bg-ui-fg-subtle transition-all duration-300 group-open:rotate-90" />
+    <span className="absolute inset-x-[31.75%] bottom-1/2 top-[48%] h-[1.5px] rounded-full bg-ui-fg-subtle transition-all duration-300 group-open:left-1/2 group-open:right-1/2 group-open:rotate-90" />
+  </span>
+)
+
 export default function PricingPanel({
   currencyCode,
   pricing,
@@ -138,7 +145,7 @@ export default function PricingPanel({
         <summary className="cursor-pointer list-none text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
             DTF tier estimator
-            <span className="text-ui-fg-subtle transition group-open:rotate-180">▼</span>
+            <ExpandCollapsePlus />
           </span>
         </summary>
         <div className="mt-3 space-y-3 border-t border-ui-border-base pt-3">
@@ -186,7 +193,7 @@ export default function PricingPanel({
         <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
             Price breakdown
-            <span className="text-ui-fg-subtle transition group-open:rotate-180">▼</span>
+            <ExpandCollapsePlus />
           </span>
         </summary>
         <div className="space-y-1 border-t border-ui-border-base px-3 pb-3 pt-2 text-xs">

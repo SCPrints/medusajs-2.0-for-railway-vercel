@@ -18,9 +18,15 @@ type StylePricing = {
   tiers: Tier[]
 }
 
+type ExtendedSizeBand = "4XL" | "5XL"
+
+const PRICING_CSV_SOURCE_LABEL = "as_colour_final_website_pricing.csv"
+
 const DEFAULT_PRICE_CSV_CANDIDATES = [
   process.env.AS_COLOUR_PRICE_CSV?.trim() || "",
+  path.resolve(process.cwd(), "data", PRICING_CSV_SOURCE_LABEL),
   path.resolve(process.cwd(), "data", "as_colour_higher_base_tiers.csv"),
+  path.resolve(process.cwd(), "../as_colour_final_website_pricing.csv"),
   path.resolve(process.cwd(), "../as_colour_higher_base_tiers.csv"),
 ].filter(Boolean)
 
@@ -116,6 +122,33 @@ const parseMoneyToMinor = (value?: string): number | null => {
 }
 
 const normalizeStyleCode = (value?: string) => value?.trim().toUpperCase() || ""
+
+const parseExtendedSizeBandFromProductName = (productName?: string): ExtendedSizeBand | null => {
+  if (!productName) {
+    return null
+  }
+  const match = productName.match(/\((4XL|5XL)\)/i)
+  if (!match?.[1]) {
+    return null
+  }
+  const band = match[1].toUpperCase()
+  return band === "4XL" || band === "5XL" ? band : null
+}
+
+const extractExtendedSizeBandFromSku = (sku?: string): ExtendedSizeBand | null => {
+  if (!sku) {
+    return null
+  }
+  const match = sku.trim().toUpperCase().match(/-(4XL|5XL)$/)
+  if (!match?.[1]) {
+    return null
+  }
+  const band = match[1].toUpperCase()
+  return band === "4XL" || band === "5XL" ? band : null
+}
+
+const stylePricingLookupKey = (styleCode: string, band: ExtendedSizeBand | null) =>
+  band ? `${styleCode}:${band}` : styleCode
 
 const extractStyleCodeCandidatesFromSku = (sku?: string) => {
   if (!sku) {
