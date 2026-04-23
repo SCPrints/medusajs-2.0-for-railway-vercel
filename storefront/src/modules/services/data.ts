@@ -7,6 +7,52 @@ export type ServiceItem = {
   bestFor: string
   notIdealFor: string
   typicalTurnaround: string
+  pricing?: ServicePricingTable
+}
+
+export type ServicePricingTier = {
+  label: string
+  minQuantity: number
+  maxQuantity?: number
+}
+
+export type ServicePricingRow = {
+  printAreaLabel: string
+  pricesByTierCents: number[]
+}
+
+export type ServicePricingTable = {
+  title: string
+  subtitle: string
+  currencyCode: string
+  quantityTiers: ServicePricingTier[]
+  rows: ServicePricingRow[]
+}
+
+const DTF_GARMENT_PRICING_TABLE: ServicePricingTable = {
+  title: "DTF garment print pricing",
+  subtitle: "Pricing is per print location and scales with garment quantity.",
+  currencyCode: "aud",
+  quantityTiers: [
+    { label: "Qty 1-9", minQuantity: 1, maxQuantity: 9 },
+    { label: "Qty 10-49", minQuantity: 10, maxQuantity: 49 },
+    { label: "Qty 50-99", minQuantity: 50, maxQuantity: 99 },
+    { label: "Qty 100+", minQuantity: 100 },
+  ],
+  rows: [
+    {
+      printAreaLabel: "Left Chest (Up to A6)",
+      pricesByTierCents: [850, 650, 550, 500],
+    },
+    {
+      printAreaLabel: "Standard Print (Up to A3)",
+      pricesByTierCents: [1250, 950, 850, 800],
+    },
+    {
+      printAreaLabel: "Oversize Print",
+      pricesByTierCents: [1500, 1250, 1150, 1100],
+    },
+  ],
 }
 
 export const services: ServiceItem[] = [
@@ -69,6 +115,7 @@ export const services: ServiceItem[] = [
       "Very large repeat runs where traditional screen printing is usually more cost-effective per unit.",
     typicalTurnaround:
       "Often 5-8 business days after artwork sign-off, depending on garment supply and print complexity.",
+    pricing: DTF_GARMENT_PRICING_TABLE,
   },
   {
     slug: "uv-printing",

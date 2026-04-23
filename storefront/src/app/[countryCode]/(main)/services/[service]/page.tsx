@@ -4,6 +4,7 @@ import Image from "next/image"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
+import DtfPricingEstimator from "@modules/services/components/dtf-pricing-estimator"
 import { getServiceBySlug } from "@modules/services/data"
 
 const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
@@ -249,6 +250,47 @@ export default async function ServiceDetailPage({ params }: Props) {
         </aside>
       </section>
 
+      {service.pricing ? (
+        <section className="mt-8 rounded-xl border border-ui-border-base bg-white p-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-ui-fg-base">{service.pricing.title}</h2>
+            <p className="mt-1 text-sm text-ui-fg-subtle">{service.pricing.subtitle}</p>
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border border-ui-border-base">
+            <table className="min-w-full divide-y divide-ui-border-base text-sm">
+              <thead className="bg-ui-bg-subtle">
+                <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-ui-fg-base">Print area</th>
+                  {service.pricing.quantityTiers.map((tier) => (
+                    <th key={tier.label} className="px-4 py-3 text-right font-semibold text-ui-fg-base">
+                      {tier.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ui-border-base">
+                {service.pricing.rows.map((row) => (
+                  <tr key={row.printAreaLabel}>
+                    <th className="px-4 py-3 text-left font-medium text-ui-fg-base">{row.printAreaLabel}</th>
+                    {row.pricesByTierCents.map((priceCents, index) => (
+                      <td key={`${row.printAreaLabel}-${index}`} className="px-4 py-3 text-right text-ui-fg-subtle">
+                        {formatMoney(priceCents, service.pricing.currencyCode)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-xs text-ui-fg-muted">
+            Prices are per garment, per print location. Final quote can vary for specialty garments, extra setup, or
+            urgent turnarounds.
+          </p>
+          <DtfPricingEstimator pricing={service.pricing} />
+        </section>
+      ) : null}
+
       <section className="mt-8 grid gap-4 small:grid-cols-3">
         <article className="rounded-xl border border-ui-border-base bg-white p-5">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
@@ -274,6 +316,12 @@ export default async function ServiceDetailPage({ params }: Props) {
     </div>
   )
 }
+
+const formatMoney = (amountCents: number, currencyCode: string) =>
+  new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: currencyCode.toUpperCase(),
+  }).format(amountCents / 100)
 
 function buildServiceGalleryImages(
   serviceSlug: string,
