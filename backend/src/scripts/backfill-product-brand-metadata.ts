@@ -142,6 +142,14 @@ function inferBrand(handle: string, title: string): string | null {
   return brandFromHandle(handle) ?? brandFromTitle(title)
 }
 
+function isNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false
+  }
+  const err = error as { type?: string; message?: string }
+  return err.type === "not_found" || /was not found/i.test(err.message ?? "")
+}
+
 const PRODUCT_ID_KEYS = ["Product Id", "product_id", "product id"]
 const HANDLE_KEYS = ["Product Handle", "product_handle", "product handle"]
 const TITLE_KEYS = ["Product Title", "product_title", "product title"]
@@ -221,7 +229,9 @@ export default async function backfillProductBrandMetadata({ container }: ExecAr
   let skippedUnmatched = 0
   let skippedUnchanged = 0
   let skippedConflicting = 0
+  let skippedMissingProduct = 0
   const unmatchedSamples: string[] = []
+  const missingProductSamples: string[] = []
   let dryRunLogged = 0
 
   for (const [productId, { handle, title }] of byProductId) {
@@ -234,9 +244,21 @@ export default async function backfillProductBrandMetadata({ container }: ExecAr
       continue
     }
 
-    const existing = await productModule.retrieveProduct(productId, {
-      select: ["id", "metadata"],
-    })
+    let existing: { id: string; metadata?: Record<string, unknown> | null } | null = null
+    try {
+      existing = await productModule.retrieveProduct(productId, {
+        select: ["id", "metadata"],
+      })
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        skippedMissingProduct++
+        if (missingProductSamples.length < 15) {
+          missingProductSamples.push(`${productId} handle=${handle || "?"}`)
+        }
+        continue
+      }
+      throw error
+    }
     const meta = (existing?.metadata ?? {}) as Record<string, unknown>
     const currentBrand = typeof meta.brand === "string" ? meta.brand.trim() : ""
 
@@ -270,11 +292,17 @@ export default async function backfillProductBrandMetadata({ container }: ExecAr
   }
 
   logger.info(
-    `Summary: apply=${apply} set=${wouldSet} unchanged=${skippedUnchanged} unmatched=${skippedUnmatched} conflicting_skipped=${skippedConflicting}`
+    `Summary: apply=${apply} set=${wouldSet} unchanged=${skippedUnchanged} unmatched=${skippedUnmatched} missing_in_db=${skippedMissingProduct} conflicting_skipped=${skippedConflicting}`
   )
   if (unmatchedSamples.length) {
     logger.warn("Sample product ids with no brand inference (add handle/title rules or set metadata in Admin):")
     for (const s of unmatchedSamples) {
+      logger.warn(`  ${s}`)
+    }
+  }
+  if (missingProductSamples.length) {
+    logger.warn("Sample product ids missing in current database connection:")
+    for (const s of missingProductSamples) {
       logger.warn(`  ${s}`)
     }
   }
