@@ -1439,7 +1439,6 @@ export default function CustomizerTemplate({
                     <CanvasStage
                       garmentImage={garmentImageUrl}
                       garmentTitle={garmentDisplayTitle}
-                      omitBackgroundImage={embedded}
                       printSideKey={currentSide}
                       printArea={printArea}
                       showPrintAreaGuides={showPrintAreaGuides}
