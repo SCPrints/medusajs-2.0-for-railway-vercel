@@ -1,17 +1,25 @@
 import { HttpTypes } from "@medusajs/types"
 import { getPercentageDiff } from "./get-precentage-diff"
 import { convertMinorToLocale } from "./money"
+import { getFirstBulkTierMinor, resolveHeadlineMinorAmount } from "./resolve-display-minor"
 
 export const getPricesForVariant = (variant: any) => {
   if (!variant?.calculated_price?.calculated_amount) {
     return null
   }
 
+  const calculatedMinor = variant.calculated_price.calculated_amount
+  const displayMinor = resolveHeadlineMinorAmount(
+    getFirstBulkTierMinor(variant),
+    calculatedMinor
+  )
+
   return {
-    /** Minor units (smallest currency amount), same as Medusa API. */
-    calculated_price_number: variant.calculated_price.calculated_amount,
+    /** Minor units (smallest currency amount), raw Medusa API value. */
+    calculated_price_number: calculatedMinor,
+    /** Locale string using resolved display minor (bulk vs calculated when metadata scale is off). */
     calculated_price: convertMinorToLocale({
-      amount: variant.calculated_price.calculated_amount,
+      amount: displayMinor,
       currency_code: variant.calculated_price.currency_code,
     }),
     original_price_number: variant.calculated_price.original_amount,
@@ -23,7 +31,7 @@ export const getPricesForVariant = (variant: any) => {
     price_type: variant.calculated_price.calculated_price.price_list_type,
     percentage_diff: getPercentageDiff(
       variant.calculated_price.original_amount,
-      variant.calculated_price.calculated_amount
+      calculatedMinor
     ),
   }
 }
@@ -44,14 +52,15 @@ export function getProductPrice({
       return null
     }
 
+    const displayMinor = (v: any) =>
+      resolveHeadlineMinorAmount(
+        getFirstBulkTierMinor(v),
+        v.calculated_price?.calculated_amount
+      )
+
     const cheapestVariant: any = product.variants
       .filter((v: any) => !!v.calculated_price)
-      .sort((a: any, b: any) => {
-        return (
-          a.calculated_price.calculated_amount -
-          b.calculated_price.calculated_amount
-        )
-      })[0]
+      .sort((a: any, b: any) => displayMinor(a) - displayMinor(b))[0]
 
     return getPricesForVariant(cheapestVariant)
   }

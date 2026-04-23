@@ -1,6 +1,7 @@
 import { clx } from "@medusajs/ui"
 
 import { getProductPrice } from "@lib/util/get-product-price"
+import { resolveHeadlineMinorAmount } from "@lib/util/resolve-display-minor"
 import { convertToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
@@ -111,7 +112,17 @@ export default function ProductPrice({
   }
 
   const currencyCode = selectedPrice?.currency_code ?? getBulkPricingCurrency(variant) ?? "aud"
-  const activeUnitAmount = activeBulkTier?.amount ?? selectedPrice?.calculated_price_number ?? 0
+  const rawBulkTierAmount = activeBulkTier?.amount
+  const activeUnitAmount = resolveHeadlineMinorAmount(
+    rawBulkTierAmount,
+    selectedPrice?.calculated_price_number
+  )
+  const headlineUsesBulkTier =
+    !!activeBulkTier &&
+    typeof rawBulkTierAmount === "number" &&
+    Number.isFinite(rawBulkTierAmount) &&
+    activeUnitAmount === rawBulkTierAmount
+
   const activeUnitPrice = convertToLocale({
     amount: activeUnitAmount / 100,
     currency_code: currencyCode,
@@ -133,7 +144,7 @@ export default function ProductPrice({
           {activeUnitPrice}
         </span>
       </span>
-      {activeBulkTier ? (
+      {headlineUsesBulkTier ? (
         <span className="text-xs text-ui-fg-subtle">
           Bulk tier {formatTierRange(activeBulkTier)} applied at qty {selectedQuantity}
         </span>
