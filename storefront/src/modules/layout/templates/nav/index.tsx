@@ -38,16 +38,16 @@ export default async function Nav() {
             </LocalizedClientLink>
           </div>
 
-          <div className="flex items-center gap-x-6 h-full flex-1 basis-0 justify-end">
+          <div className="flex h-full flex-1 basis-0 items-center justify-end gap-x-6 leading-none">
             <LocalizedClientLink
-              className="flex h-full items-center justify-center hover:text-[var(--brand-accent)]"
+              className="flex h-full min-h-10 min-w-10 items-center justify-center hover:text-[var(--brand-accent)]"
               href="/search"
               scroll={false}
               data-testid="nav-search-link"
               aria-label="Search site"
             >
               <MagnifyingGlassMini
-                className="block h-6 w-6 shrink-0 text-[currentColor]"
+                className="block size-6 shrink-0 translate-y-1.5 text-[currentColor]"
                 aria-hidden
               />
             </LocalizedClientLink>
