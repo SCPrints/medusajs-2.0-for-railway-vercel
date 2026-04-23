@@ -24,9 +24,9 @@ function productBrandMatchesClientFilter(
   return false
 }
 
-/** Include variant metadata (e.g. garment_images) for PDP gallery + swatches + product tags for the storefront UI. */
+/** Include product + variant metadata (e.g. brand, garment_images) and tags for the storefront. */
 const STORE_PRODUCT_FIELDS =
-  "*variants.calculated_price,+variants.inventory_quantity,+variants.metadata,+tags"
+  "+metadata,*variants.calculated_price,+variants.inventory_quantity,+variants.metadata,+tags"
 export const getProductsById = cache(async function ({
   ids,
   regionId,
