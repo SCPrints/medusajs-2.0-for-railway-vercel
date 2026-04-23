@@ -27,6 +27,15 @@ function productBrandMatchesClientFilter(
 /** Include product + variant metadata (e.g. brand, garment_images) and tags for the storefront. */
 const STORE_PRODUCT_FIELDS =
   "+metadata,*variants.calculated_price,+variants.inventory_quantity,+variants.metadata,+tags"
+
+/**
+ * Next.js Data Cache: tag for on-demand `revalidateTag("products")`, plus a max age so catalog
+ * changes (e.g. Draft after trim script) are not served forever without a redeploy.
+ */
+const PRODUCT_LIST_FETCH_INIT = {
+  next: { tags: ["products"] as const, revalidate: 120 },
+}
+
 export const getProductsById = cache(async function ({
   ids,
   regionId,
@@ -41,7 +50,7 @@ export const getProductsById = cache(async function ({
         region_id: regionId,
         fields: STORE_PRODUCT_FIELDS,
       },
-      { next: { tags: ["products"] } }
+      PRODUCT_LIST_FETCH_INIT
     )
     .then(({ products }) => products)
 })
@@ -70,7 +79,7 @@ export async function getProductByHandle(
         ...baseParams,
         region_id: regionId,
       },
-      { next: { tags: ["products"] } }
+      PRODUCT_LIST_FETCH_INIT
     )
 
     return products[0] ?? null
@@ -112,7 +121,7 @@ export const getProductsList = cache(async function ({
         fields: STORE_PRODUCT_FIELDS,
         ...queryParams,
       },
-      { next: { tags: ["products"] } }
+      PRODUCT_LIST_FETCH_INIT
     )
     .then(({ products, count }) => {
       const nextPage = count > offset + limit ? pageParam + 1 : null

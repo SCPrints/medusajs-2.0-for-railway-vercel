@@ -236,9 +236,9 @@ export default async function trimAsColourCatalogByAllowlist({ container, args }
     `Summary: apply=${apply} publish=${wouldPublish} draft=${wouldDraft} unchanged=${unchanged} empty_style=${skippedEmptyStyle}`
   )
 
-  if (emptyStyleWarnings.length) {
+  if (skippedEmptyStyle > 0) {
     logger.warn(
-      `Could not extract STYLECODE from handle (last segment empty after normalize) — ${emptyStyleWarnings.length} product(s), samples:`
+      `Could not extract STYLECODE from handle (last segment empty after normalize) — ${skippedEmptyStyle} product(s), samples:`
     )
     for (const w of emptyStyleWarnings.slice(0, 10)) {
       logger.warn(`  ${w}`)
@@ -255,7 +255,7 @@ export default async function trimAsColourCatalogByAllowlist({ container, args }
 
   if (apply) {
     logger.info(
-      "Post-run: if Meilisearch is enabled, reindex products or wait for sync. Invalidate storefront caches if needed."
+      "Post-run storefront: Vercel/Next may have cached the old product list (tag: products). Options: (1) Wait up to 2 minutes (storefront revalidates product fetches every 120s), (2) POST /api/revalidate-products on the storefront with Authorization: Bearer $REVALIDATE_SECRET, (3) Redeploy the storefront. If Meilisearch is enabled, reindex or wait for plugin sync."
     )
   }
 }
