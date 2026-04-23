@@ -192,8 +192,8 @@ const getApplyFlag = (args: string[]) =>
   process.env.AS_COLOUR_PRICING_APPLY === "true"
 
 const buildStylePricingMap = (rows: CsvRow[]) => {
-  const byStyleCode = new Map<string, StylePricing>()
-  const duplicateStyleCodes = new Set<string>()
+  const byLookupKey = new Map<string, StylePricing>()
+  const duplicateLookupKeys = new Set<string>()
 
   for (const row of rows) {
     const styleCode = normalizeStyleCode(row["STYLECODE"])
@@ -228,16 +228,19 @@ const buildStylePricingMap = (rows: CsvRow[]) => {
       tiers,
     }
 
-    if (byStyleCode.has(styleCode)) {
-      duplicateStyleCodes.add(styleCode)
+    const band = parseExtendedSizeBandFromProductName(row["PRODUCT_NAME"])
+    const lookupKey = stylePricingLookupKey(styleCode, band)
+
+    if (byLookupKey.has(lookupKey)) {
+      duplicateLookupKeys.add(lookupKey)
     }
 
-    byStyleCode.set(styleCode, stylePricing)
+    byLookupKey.set(lookupKey, stylePricing)
   }
 
   return {
-    byStyleCode,
-    duplicateStyleCodes: Array.from(duplicateStyleCodes),
+    byLookupKey,
+    duplicateLookupKeys: Array.from(duplicateLookupKeys),
   }
 }
 
