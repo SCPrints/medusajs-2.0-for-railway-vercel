@@ -1,7 +1,7 @@
 import { clx } from "@medusajs/ui"
 
 import { getProductPrice } from "@lib/util/get-product-price"
-import { convertMinorToLocale } from "@lib/util/money"
+import { convertToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
 type BulkTier = {
@@ -10,12 +10,20 @@ type BulkTier = {
   amount: number
 }
 
-const toNumber = (value: unknown) =>
-  typeof value === "number"
-    ? value
-    : typeof value === "string"
-    ? Number.parseInt(value, 10)
-    : Number.NaN
+const toNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === "string") {
+    const cleaned = value.replace(/,/g, "").trim()
+    if (!cleaned) {
+      return Number.NaN
+    }
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : Number.NaN
+  }
+  return Number.NaN
+}
 
 const getBulkPricingTiers = (variant?: HttpTypes.StoreProductVariant): BulkTier[] => {
   const metadata = (variant?.metadata ?? {}) as Record<string, unknown>
@@ -104,8 +112,8 @@ export default function ProductPrice({
 
   const currencyCode = selectedPrice?.currency_code ?? getBulkPricingCurrency(variant) ?? "aud"
   const activeUnitAmount = activeBulkTier?.amount ?? selectedPrice?.calculated_price_number ?? 0
-  const activeUnitPrice = convertMinorToLocale({
-    amount: activeUnitAmount,
+  const activeUnitPrice = convertToLocale({
+    amount: activeUnitAmount / 100,
     currency_code: currencyCode,
   })
   const baseTierAmount = bulkTiers[0]?.amount ?? activeUnitAmount
@@ -114,7 +122,7 @@ export default function ProductPrice({
     <div className="flex flex-col text-ui-fg-base">
       <span
         className={clx("text-xl-semi", {
-          "text-ui-fg-interactive": selectedPrice.price_type === "sale",
+          "text-ui-fg-interactive": selectedPrice?.price_type === "sale",
         })}
       >
         {!variant && "From "}
@@ -161,8 +169,8 @@ export default function ProductPrice({
                 <div key={formatTierRange(tier)} className="flex items-center justify-between gap-4">
                   <span>{formatTierRange(tier)} pcs</span>
                   <span className="text-ui-fg-base">
-                    {convertMinorToLocale({
-                      amount: tier.amount,
+                    {convertToLocale({
+                      amount: tier.amount / 100,
                       currency_code: currencyCode,
                     })}
                     {savingsPct > 0 ? ` (${savingsPct}% off)` : ""}
