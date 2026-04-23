@@ -20,11 +20,9 @@ type StylePricing = {
 
 type ExtendedSizeBand = "4XL" | "5XL"
 
-const PRICING_CSV_SOURCE_LABEL = "as_colour_final_website_pricing.csv"
-
 const DEFAULT_PRICE_CSV_CANDIDATES = [
   process.env.AS_COLOUR_PRICE_CSV?.trim() || "",
-  path.resolve(process.cwd(), "data", PRICING_CSV_SOURCE_LABEL),
+  path.resolve(process.cwd(), "data", "as_colour_final_website_pricing.csv"),
   path.resolve(process.cwd(), "data", "as_colour_higher_base_tiers.csv"),
   path.resolve(process.cwd(), "../as_colour_final_website_pricing.csv"),
   path.resolve(process.cwd(), "../as_colour_higher_base_tiers.csv"),
@@ -284,6 +282,50 @@ const extractStyleCodeFromHandle = (handle?: string) => {
   return tail.replace(/[^A-Z0-9]/g, "")
 }
 
+const resolveStylePricingForVariant = (
+  variant: {
+    sku?: string
+    product_id?: string
+    product?: { handle?: string }
+    metadata?: Record<string, unknown>
+  },
+  productHandleById: Map<string, string>,
+  byLookupKey: Map<string, StylePricing>
+): StylePricing | undefined => {
+  const metadataStyleCode = normalizeStyleCode(
+    (variant.metadata as Record<string, unknown> | undefined)?.as_colour_style_code as string | undefined
+  )
+  const handle =
+    variant.product?.handle ??
+    (variant.product_id ? productHandleById.get(variant.product_id) : undefined)
+  const handleStyleCode = normalizeStyleCode(extractStyleCodeFromHandle(handle))
+
+  const styleCandidates = Array.from(
+    new Set(
+      [metadataStyleCode, ...extractStyleCodeCandidatesFromSku(variant.sku), handleStyleCode].filter(
+        Boolean
+      ) as string[]
+    )
+  )
+
+  const skuBand = extractExtendedSizeBandFromSku(variant.sku)
+
+  for (const code of styleCandidates) {
+    if (skuBand) {
+      const extendedHit = byLookupKey.get(stylePricingLookupKey(code, skuBand))
+      if (extendedHit) {
+        return extendedHit
+      }
+    }
+    const baseHit = byLookupKey.get(code)
+    if (baseHit) {
+      return baseHit
+    }
+  }
+
+  return undefined
+}
+
 export default async function updateAsColourPricing({ container, args }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const query = container.resolve(ContainerRegistrationKeys.QUERY) as {
@@ -320,11 +362,11 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
   const pricingRows = parseCsv(fs.readFileSync(priceCsvPath, "utf8"))
   const importRows = parseCsv(fs.readFileSync(importCsvPath, "utf8"))
 
-  const { byStyleCode, duplicateStyleCodes } = buildStylePricingMap(pricingRows)
+  const { byLookupKey, duplicateLookupKeys } = buildStylePricingMap(pricingRows)
   const asColourSkus = parseSkuSetFromAsColourImport(importRows)
   const asColourHandles = parseHandleSetFromAsColourImport(importRows)
 
-  if (!byStyleCode.size) {
+  if (!byLookupKey.size) {
     throw new Error("No valid style pricing rows found in price CSV")
   }
 
@@ -335,14 +377,14 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     throw new Error("No AS Colour product handles found in import CSV")
   }
 
-  if (duplicateStyleCodes.length) {
+  if (duplicateLookupKeys.length) {
     logger.warn(
-      `Duplicate STYLECODE values found in pricing CSV. Last row wins for: ${duplicateStyleCodes.join(", ")}`
+      `Duplicate pricing CSV keys found. Last row wins for: ${duplicateLookupKeys.join(", ")}`
     )
   }
 
   logger.info(
-    `Loaded ${byStyleCode.size} style price rows, ${asColourSkus.length} AS Colour SKUs, and ${asColourHandles.length} AS Colour handles`
+    `Loaded ${byLookupKey.size} style price rows, ${asColourSkus.length} AS Colour SKUs, and ${asColourHandles.length} AS Colour handles`
   )
 
   const { data: asColourProductsData } = await query.graph({
@@ -410,23 +452,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
   let updatedWithoutPriceSetCount = 0
 
   for (const variant of variantRows) {
-    const metadataStyleCode = normalizeStyleCode(
-      (variant.metadata as Record<string, unknown> | undefined)?.as_colour_style_code as string | undefined
-    )
-    const handleStyleCode = normalizeStyleCode(
-      extractStyleCodeFromHandle(
-        variant.product?.handle ??
-          (variant.product_id ? productHandleById.get(variant.product_id) : undefined)
-      )
-    )
-    const styleCandidates = [
-      metadataStyleCode,
-      ...extractStyleCodeCandidatesFromSku(variant.sku),
-      handleStyleCode,
-    ].filter(Boolean)
-
-    const resolvedStyleCode = styleCandidates.find((candidate) => byStyleCode.has(candidate))
-    const stylePricing = resolvedStyleCode ? byStyleCode.get(resolvedStyleCode) : undefined
+    const stylePricing = resolveStylePricingForVariant(variant, productHandleById, byLookupKey)
     if (!stylePricing) {
       noStyleMatchCount++
       continue
@@ -438,7 +464,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     const nextMetadata: Record<string, unknown> = {
       ...existingMetadata,
       bulk_pricing: {
-        source: "as_colour_higher_base_tiers.csv",
+        source: path.basename(priceCsvPath),
         currency_code: PRICE_CURRENCY_CODE,
         tiers: stylePricing.tiers,
       },
