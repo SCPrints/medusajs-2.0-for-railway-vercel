@@ -17,6 +17,7 @@
     "seed": "npx medusa exec ./src/scripts/seed.ts",
     "backfill-product-brands": "npx medusa exec ./src/scripts/backfill-product-brand-metadata.ts",
     "update-as-colour-pricing": "npx medusa exec ./src/scripts/update-as-colour-pricing.ts --",
+    "trim-as-colour-catalog": "npx medusa exec ./src/scripts/trim-as-colour-catalog-by-allowlist.ts --",
     "ib": "init-backend",
     "start": "init-backend && cd .medusa/server && npx medusa start --verbose",
     "dev": "npx medusa develop",

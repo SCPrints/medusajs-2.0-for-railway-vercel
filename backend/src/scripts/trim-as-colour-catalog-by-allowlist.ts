@@ -190,6 +190,7 @@ export default async function trimAsColourCatalogByAllowlist({ container, args }
   let wouldPublish = 0
   let wouldDraft = 0
   let unchanged = 0
+  let skippedEmptyStyle = 0
   const emptyStyleWarnings: string[] = []
   const dryRunSample: string[] = []
 
@@ -197,6 +198,7 @@ export default async function trimAsColourCatalogByAllowlist({ container, args }
     const handle = product.handle ?? ""
     const styleCode = normalizeStyleCode(extractStyleCodeFromHandle(handle))
     if (!styleCode) {
+      skippedEmptyStyle++
       if (emptyStyleWarnings.length < 25) {
         emptyStyleWarnings.push(`${product.id} handle=${handle || "?"}`)
       }
@@ -206,8 +208,9 @@ export default async function trimAsColourCatalogByAllowlist({ container, args }
     const inList = allowedStyleCodes.has(styleCode)
     const targetStatus = inList ? ProductStatus.PUBLISHED : ProductStatus.DRAFT
     const current = (product.status ?? "").toLowerCase()
+    const targetLower = String(targetStatus).toLowerCase()
 
-    if (current === targetStatus) {
+    if (current === targetLower) {
       unchanged++
       continue
     }
@@ -230,10 +233,7 @@ export default async function trimAsColourCatalogByAllowlist({ container, args }
   }
 
   logger.info(
-    `Summary: apply=${apply} publish=${wouldPublish} draft=${wouldDraft} unchanged=${unchanged} empty_style_skipped=${
-      asColourProducts.length -
-      (wouldPublish + wouldDraft + unchanged + (emptyStyleWarnings.length ? 0 : 0))
-    }`
+    `Summary: apply=${apply} publish=${wouldPublish} draft=${wouldDraft} unchanged=${unchanged} empty_style=${skippedEmptyStyle}`
   )
 
   if (emptyStyleWarnings.length) {
