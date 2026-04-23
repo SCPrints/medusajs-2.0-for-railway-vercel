@@ -127,7 +127,19 @@ export default function ProductPrice({
     amount: activeUnitAmount / 100,
     currency_code: currencyCode,
   })
-  const baseTierAmount = bulkTiers[0]?.amount ?? activeUnitAmount
+
+  const firstTierRaw = bulkTiers[0]?.amount
+  const calcMinor = selectedPrice?.calculated_price_number
+  const bulkMinorScale =
+    typeof firstTierRaw === "number" &&
+    firstTierRaw > 0 &&
+    typeof calcMinor === "number" &&
+    Number.isFinite(calcMinor)
+      ? resolveHeadlineMinorAmount(firstTierRaw, calcMinor) / firstTierRaw
+      : 1
+
+  const scaledTierMinor = (tier: BulkTier) => Math.round(tier.amount * bulkMinorScale)
+  const baseTierAmount = scaledTierMinor(bulkTiers[0] ?? { min_quantity: 1, amount: activeUnitAmount })
 
   return (
     <div className="flex flex-col text-ui-fg-base">
@@ -171,9 +183,10 @@ export default function ProductPrice({
           <p className="mb-2 text-sm font-medium text-ui-fg-base">Bulk pricing</p>
           <div className="space-y-1 text-sm text-ui-fg-subtle">
             {bulkTiers.map((tier) => {
+              const tierMinor = scaledTierMinor(tier)
               const savingsPct =
-                baseTierAmount > tier.amount
-                  ? Math.round(((baseTierAmount - tier.amount) / baseTierAmount) * 100)
+                baseTierAmount > tierMinor
+                  ? Math.round(((baseTierAmount - tierMinor) / baseTierAmount) * 100)
                   : 0
 
               return (
@@ -181,7 +194,7 @@ export default function ProductPrice({
                   <span>{formatTierRange(tier)} pcs</span>
                   <span className="text-ui-fg-base">
                     {convertToLocale({
-                      amount: tier.amount / 100,
+                      amount: tierMinor / 100,
                       currency_code: currencyCode,
                     })}
                     {savingsPct > 0 ? ` (${savingsPct}% off)` : ""}

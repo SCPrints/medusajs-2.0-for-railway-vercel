@@ -40,8 +40,14 @@ export const getFirstBulkTierMinor = (
 }
 
 /**
+ * When bulk tier and Medusa `calculated_price` disagree by more than this ratio, trust Medusa.
+ * (50× was too strict: e.g. bulk 30 vs calculated 1235 ≈ 41× wrongly kept bulk → A$0.30 instead of A$12.35.)
+ */
+const BULK_VS_CALCULATED_MISMATCH_RATIO = 2
+
+/**
  * Choose a minor-unit amount for display when `bulk_pricing` metadata may disagree with
- * Medusa `calculated_price` (e.g. tiers stored at wrong scale).
+ * Medusa `calculated_price` (e.g. tiers stored at wrong scale or stale CSV match).
  */
 export const resolveHeadlineMinorAmount = (
   bulkTierAmount: number | undefined,
@@ -51,10 +57,10 @@ export const resolveHeadlineMinorAmount = (
   const c = typeof calculatedMinor === "number" && Number.isFinite(calculatedMinor) ? calculatedMinor : null
 
   if (b !== null && b > 0 && c !== null && c > 0) {
-    if (c >= b * 50) {
+    if (c >= b * BULK_VS_CALCULATED_MISMATCH_RATIO) {
       return c
     }
-    if (b >= c * 50) {
+    if (b >= c * BULK_VS_CALCULATED_MISMATCH_RATIO) {
       return c
     }
     return b

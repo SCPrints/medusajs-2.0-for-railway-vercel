@@ -300,9 +300,11 @@ const resolveStylePricingForVariant = (
     (variant.product_id ? productHandleById.get(variant.product_id) : undefined)
   const handleStyleCode = normalizeStyleCode(extractStyleCodeFromHandle(handle))
 
+  // Prefer handle + SKU-derived codes before `as_colour_style_code` metadata so a stale/wrong
+  // style on the variant cannot override the product handle (e.g. kids 3005 matched to another style).
   const styleCandidates = Array.from(
     new Set(
-      [metadataStyleCode, ...extractStyleCodeCandidatesFromSku(variant.sku), handleStyleCode].filter(
+      [handleStyleCode, ...extractStyleCodeCandidatesFromSku(variant.sku), metadataStyleCode].filter(
         Boolean
       ) as string[]
     )
