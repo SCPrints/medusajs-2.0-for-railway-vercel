@@ -5,7 +5,7 @@ import { Button } from "@medusajs/ui"
 import { usePathname } from "next/navigation"
 import { Fragment, useEffect, useRef, useState } from "react"
 
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import DeleteButton from "@modules/common/components/delete-button"
 import LineItemOptions from "@modules/common/components/line-item-options"
@@ -183,7 +183,7 @@ const CartDropdown = ({
                       data-testid="cart-subtotal"
                       data-value={subtotal}
                     >
-                      {convertToLocale({
+                      {convertMinorToLocale({
                         amount: subtotal,
                         currency_code: cartState.currency_code,
                       })}

@@ -3,7 +3,7 @@ import { useMemo } from "react"
 
 import Thumbnail from "@modules/products/components/thumbnail"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
 type OrderCardProps = {
@@ -33,7 +33,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
           {new Date(order.created_at).toDateString()}
         </span>
         <span className="px-2" data-testid="order-amount">
-          {convertToLocale({
+          {convertMinorToLocale({
             amount: order.total,
             currency_code: order.currency_code,
           })}

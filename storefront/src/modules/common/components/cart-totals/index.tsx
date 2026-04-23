@@ -1,6 +1,6 @@
 "use client"
 
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { InformationCircleSolid } from "@medusajs/icons"
 import { Tooltip } from "@medusajs/ui"
 import React from "react"
@@ -36,7 +36,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
             Subtotal (excl. shipping and taxes)
           </span>
           <span data-testid="cart-subtotal" data-value={subtotal || 0}>
-            {convertToLocale({ amount: subtotal ?? 0, currency_code })}
+            {convertMinorToLocale({ amount: subtotal ?? 0, currency_code })}
           </span>
         </div>
         {!!discount_total && (
@@ -48,20 +48,20 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
               data-value={discount_total || 0}
             >
               -{" "}
-              {convertToLocale({ amount: discount_total ?? 0, currency_code })}
+              {convertMinorToLocale({ amount: discount_total ?? 0, currency_code })}
             </span>
           </div>
         )}
         <div className="flex items-center justify-between">
           <span>Shipping</span>
           <span data-testid="cart-shipping" data-value={shipping_total || 0}>
-            {convertToLocale({ amount: shipping_total ?? 0, currency_code })}
+            {convertMinorToLocale({ amount: shipping_total ?? 0, currency_code })}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="flex gap-x-1 items-center ">Taxes</span>
           <span data-testid="cart-taxes" data-value={tax_total || 0}>
-            {convertToLocale({ amount: tax_total ?? 0, currency_code })}
+            {convertMinorToLocale({ amount: tax_total ?? 0, currency_code })}
           </span>
         </div>
         {!!gift_card_total && (
@@ -73,7 +73,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
               data-value={gift_card_total || 0}
             >
               -{" "}
-              {convertToLocale({ amount: gift_card_total ?? 0, currency_code })}
+              {convertMinorToLocale({ amount: gift_card_total ?? 0, currency_code })}
             </span>
           </div>
         )}
@@ -86,7 +86,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
           data-testid="cart-total"
           data-value={total || 0}
         >
-          {convertToLocale({ amount: total ?? 0, currency_code })}
+          {convertMinorToLocale({ amount: total ?? 0, currency_code })}
         </span>
       </div>
       <div className="h-px w-full border-b border-gray-200 mt-4" />

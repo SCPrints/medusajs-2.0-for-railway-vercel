@@ -10,7 +10,7 @@ import ErrorMessage from "@modules/checkout/components/error-message"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
 import { setShippingMethod } from "@lib/data/cart"
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
 type ShippingProps = {
@@ -117,7 +117,7 @@ const Shipping: React.FC<ShippingProps> = ({
                       <span className="text-base-regular">{option.name}</span>
                     </div>
                     <span className="justify-self-end text-ui-fg-base">
-                      {convertToLocale({
+                      {convertMinorToLocale({
                         amount: option.amount!,
                         currency_code: cart?.currency_code,
                       })}
@@ -154,7 +154,7 @@ const Shipping: React.FC<ShippingProps> = ({
                 </Text>
                 <Text className="txt-medium text-ui-fg-subtle">
                   {selectedShippingMethod?.name}{" "}
-                  {convertToLocale({
+                  {convertMinorToLocale({
                     amount: selectedShippingMethod?.amount!,
                     currency_code: cart?.currency_code,
                   })}

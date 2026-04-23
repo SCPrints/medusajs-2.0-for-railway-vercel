@@ -1,4 +1,4 @@
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import { Heading, Text } from "@medusajs/ui"
 
@@ -57,7 +57,7 @@ const ShippingDetails = ({ order }: ShippingDetailsProps) => {
           <Text className="txt-medium-plus text-ui-fg-base mb-1">Method</Text>
           <Text className="txt-medium text-ui-fg-subtle">
             {(order as any).shipping_methods[0]?.name} (
-            {convertToLocale({
+            {convertMinorToLocale({
               amount: order.shipping_methods?.[0].total ?? 0,
               currency_code: order.currency_code,
             })

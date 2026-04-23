@@ -5,7 +5,7 @@ import React from "react"
 import { useFormState } from "react-dom"
 
 import { applyPromotions, submitPromotionForm } from "@lib/data/cart"
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { InformationCircleSolid } from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
 import Trash from "@modules/common/icons/trash"
@@ -128,7 +128,7 @@ const DiscountCode: React.FC<DiscountCodeProps> = ({ cart }) => {
                               {promotion.application_method.type ===
                               "percentage"
                                 ? `${promotion.application_method.value}%`
-                                : convertToLocale({
+                                : convertMinorToLocale({
                                     amount: promotion.application_method.value,
                                     currency_code:
                                       promotion.application_method

@@ -8,6 +8,10 @@ type ConvertToLocaleParams = {
   locale?: string
 }
 
+/**
+ * `amount` is in major units (dollars for AUD) — the value `Intl` expects for `style: "currency"`.
+ * Prefer `convertMinorToLocale` for any money coming from the Medusa store API, which uses minor units.
+ */
 export const convertToLocale = ({
   amount,
   currency_code,
@@ -24,3 +28,9 @@ export const convertToLocale = ({
       }).format(amount)
     : amount.toString()
 }
+
+/** Medusa (cart, order, product `calculated_price`, `bulk_pricing` tier amounts) uses minor units (e.g. cents). */
+export const convertMinorToLocale = (params: ConvertToLocaleParams) =>
+  convertToLocale({ ...params, amount: params.amount / 100 })
+
+export const minorToMajor = (amountMinor: number) => amountMinor / 100

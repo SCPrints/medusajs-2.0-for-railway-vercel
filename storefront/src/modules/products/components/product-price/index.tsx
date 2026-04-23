@@ -1,7 +1,7 @@
 import { clx } from "@medusajs/ui"
 
 import { getProductPrice } from "@lib/util/get-product-price"
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
 type BulkTier = {
@@ -104,7 +104,7 @@ export default function ProductPrice({
 
   const currencyCode = selectedPrice?.currency_code ?? getBulkPricingCurrency(variant) ?? "aud"
   const activeUnitAmount = activeBulkTier?.amount ?? selectedPrice?.calculated_price_number ?? 0
-  const activeUnitPrice = convertToLocale({
+  const activeUnitPrice = convertMinorToLocale({
     amount: activeUnitAmount,
     currency_code: currencyCode,
   })
@@ -161,7 +161,7 @@ export default function ProductPrice({
                 <div key={formatTierRange(tier)} className="flex items-center justify-between gap-4">
                   <span>{formatTierRange(tier)} pcs</span>
                   <span className="text-ui-fg-base">
-                    {convertToLocale({
+                    {convertMinorToLocale({
                       amount: tier.amount,
                       currency_code: currencyCode,
                     })}

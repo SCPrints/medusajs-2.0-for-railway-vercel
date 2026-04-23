@@ -2,7 +2,7 @@ import { clx } from "@medusajs/ui"
 
 import { getPercentageDiff } from "@lib/util/get-precentage-diff"
 import { getPricesForVariant } from "@lib/util/get-product-price"
-import { convertToLocale } from "@lib/util/money"
+import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
 type LineItemPriceProps = {
@@ -36,7 +36,7 @@ const LineItemPrice = ({ item, style = "default" }: LineItemPriceProps) => {
                 className="line-through text-ui-fg-muted"
                 data-testid="product-original-price"
               >
-                {convertToLocale({
+                {convertMinorToLocale({
                   amount: originalPrice,
                   currency_code,
                 })}
@@ -55,7 +55,7 @@ const LineItemPrice = ({ item, style = "default" }: LineItemPriceProps) => {
           })}
           data-testid="product-price"
         >
-          {convertToLocale({
+          {convertMinorToLocale({
             amount: currentPrice,
             currency_code,
           })}
