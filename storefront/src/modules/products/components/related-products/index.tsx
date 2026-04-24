@@ -8,12 +8,8 @@ type RelatedProductsProps = {
   countryCode: string
 }
 
-type StoreProductParamsWithTags = HttpTypes.StoreProductParams & {
-  tags?: string[]
-}
-
 type StoreProductWithTags = HttpTypes.StoreProduct & {
-  tags?: { value: string }[]
+  tags?: { id: string; value?: string }[]
 }
 
 export default async function RelatedProducts({
@@ -23,22 +19,23 @@ export default async function RelatedProducts({
   const region = await getRegion(countryCode)
 
   if (!region) {
-  const queryParams: StoreProductParamsWithTags = {}
+    return null
   }
 
-  // edit this function to define your related products logic
-  const queryParams: StoreProductParamsWithTags = {}
-  if (region?.id) {
-    queryParams.region_id = region.id
-  }
+  // Medusa Store API uses `tag_id` (array of tag IDs), NOT `tags`; sending
+  // `tags` causes "Invalid request: Unrecognized fields: 'tags'" (400) for
+  // any product that actually has tags in the catalog.
+  const queryParams: HttpTypes.StoreProductParams = {}
+  queryParams.region_id = region.id
   if (product.collection_id) {
     queryParams.collection_id = [product.collection_id]
   }
   const productWithTags = product as StoreProductWithTags
-  if (productWithTags.tags) {
-    queryParams.tags = productWithTags.tags
-      .map((t) => t.value)
-      .filter(Boolean) as string[]
+  const tagIds = productWithTags.tags
+    ?.map((tag) => tag?.id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0)
+  if (tagIds?.length) {
+    queryParams.tag_id = tagIds
   }
   queryParams.is_giftcard = false
 
