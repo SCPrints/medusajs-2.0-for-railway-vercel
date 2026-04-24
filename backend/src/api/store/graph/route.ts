@@ -67,6 +67,7 @@ type ProductRow = {
   variants?: Array<{
     id: string
     prices?: Array<{ amount: number; currency_code: string }>
+    metadata?: Record<string, unknown> | null
   }>
   categories?: Array<{
     id: string
@@ -148,24 +149,139 @@ function resolveProductBrand(row: ProductRow): string | null {
   return inferBrandFromHandle(row.handle)
 }
 
+const BULK_VS_CALCULATED_MISMATCH_RATIO = 2
+const SUSPICIOUSLY_LOW_CALCULATED_MINOR = 100
+const PLAUSIBLE_RETAIL_BULK_MINOR = 500
+const AS_COLOUR_HANDLE_PREFIX = "as-colour-"
+
+const toNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === "string") {
+    const cleaned = value.replace(/,/g, "").trim()
+    if (!cleaned) {
+      return Number.NaN
+    }
+    const n = Number(cleaned)
+    return Number.isFinite(n) ? n : Number.NaN
+  }
+  return Number.NaN
+}
+
+const getFirstBulkTierMinor = (variant: {
+  metadata?: Record<string, unknown> | null
+}): number | undefined => {
+  const metadata = (variant.metadata ?? {}) as Record<string, unknown>
+  const bulkPricing = metadata.bulk_pricing as { tiers?: Array<Record<string, unknown>> } | undefined
+  if (!Array.isArray(bulkPricing?.tiers) || bulkPricing.tiers.length === 0) {
+    return undefined
+  }
+
+  const parsed = bulkPricing.tiers
+    .map((tier) => {
+      const minQuantity = toNumber(tier.min_quantity)
+      const amount = toNumber(tier.amount)
+      if (!Number.isFinite(minQuantity) || !Number.isFinite(amount)) {
+        return null
+      }
+      return { min_quantity: minQuantity, amount }
+    })
+    .filter((t): t is { min_quantity: number; amount: number } => t !== null)
+    .sort((a, b) => a.min_quantity - b.min_quantity)
+
+  const first = parsed[0]
+  return first && Number.isFinite(first.amount) ? first.amount : undefined
+}
+
+const resolveHeadlineMinorAmount = (
+  bulkTierAmount: number | undefined,
+  calculatedMinor: number
+): number => {
+  const b =
+    typeof bulkTierAmount === "number" && Number.isFinite(bulkTierAmount) ? bulkTierAmount : null
+  const c = calculatedMinor
+
+  if (b !== null && b > 0 && c > 0) {
+    if (c >= b * BULK_VS_CALCULATED_MISMATCH_RATIO) {
+      return c
+    }
+    if (b >= c * BULK_VS_CALCULATED_MISMATCH_RATIO) {
+      if (
+        c < SUSPICIOUSLY_LOW_CALCULATED_MINOR &&
+        b > PLAUSIBLE_RETAIL_BULK_MINOR &&
+        b >= c * 10
+      ) {
+        return b
+      }
+      return c
+    }
+    return b
+  }
+
+  if (b !== null && b > 0) {
+    return b
+  }
+
+  return c
+}
+
+const finalizeAudAsColourMinorIfHundredfoldTypo = (
+  resolvedMinor: number,
+  apiMinor: number,
+  productHandle: string | null | undefined,
+  currencyCode: string
+): number => {
+  const cc = String(currencyCode ?? "").toLowerCase()
+  if (cc !== "aud") {
+    return resolvedMinor
+  }
+
+  const h = String(productHandle ?? "").trim().toLowerCase()
+  if (!h.startsWith(AS_COLOUR_HANDLE_PREFIX)) {
+    return resolvedMinor
+  }
+
+  if (resolvedMinor !== apiMinor) {
+    return resolvedMinor
+  }
+
+  if (!(apiMinor >= 5 && apiMinor <= 199)) {
+    return resolvedMinor
+  }
+
+  const scaled = Math.round(apiMinor * 100)
+  if (scaled < 500 || scaled > 600_000) {
+    return resolvedMinor
+  }
+  return scaled
+}
+
 /**
- * Pick the lowest-priced variant in a sensible default currency.
- *
- * The store graph endpoint is anonymous (no region binding in the URL), so we
- * prefer the storefront's configured default region currency when we can
- * derive one from env, then fall back to the lowest-priced variant in any
- * currency. This is only a hint for tooltip rendering; the storefront resolves
- * the real regional price when navigating to the product page.
+ * Pick qty-1 headline-style minor amount for graph cards so Explorer aligns with PDP.
+ * Uses preferred currency when available, then falls back to lowest minor in any currency.
  */
 function lowestPrice(row: ProductRow, preferredCurrency: string | null): GraphPrice | null {
   const all: GraphPrice[] = []
+
   for (const variant of row.variants ?? []) {
+    const bulkFirst = getFirstBulkTierMinor(variant)
     for (const price of variant.prices ?? []) {
-      if (typeof price.amount === "number" && price.currency_code) {
-        all.push({ amount: price.amount, currency_code: price.currency_code.toLowerCase() })
+      if (typeof price.amount !== "number" || !price.currency_code) {
+        continue
       }
+      const currencyCode = price.currency_code.toLowerCase()
+      const headlineResolved = resolveHeadlineMinorAmount(bulkFirst, price.amount)
+      const displayMinor = finalizeAudAsColourMinorIfHundredfoldTypo(
+        headlineResolved,
+        price.amount,
+        row.handle,
+        currencyCode
+      )
+      all.push({ amount: displayMinor, currency_code: currencyCode })
     }
   }
+
   if (!all.length) return null
   if (preferredCurrency) {
     const inPreferred = all.filter((p) => p.currency_code === preferredCurrency.toLowerCase())
@@ -260,6 +376,7 @@ const PRODUCT_FIELDS = [
   "variants.id",
   "variants.prices.amount",
   "variants.prices.currency_code",
+  "variants.metadata",
   "categories.id",
   "categories.name",
   "categories.parent_category_id",

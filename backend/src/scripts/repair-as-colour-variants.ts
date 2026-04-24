@@ -4,7 +4,7 @@ import path from "node:path"
 import { CreateProductVariantDTO, ExecArgs, UpdateProductVariantDTO } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 import { createProductsWorkflow, updateProductOptionsWorkflow } from "@medusajs/medusa/core-flows"
-import { parseCsvPriceToMedusaMinor } from "../utils/parse-money-to-minor"
+import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
 import { withNonTrackedInventoryDefaults } from "./utils/variant-inventory-defaults"
 
 type CsvRow = Record<string, string>
@@ -276,7 +276,7 @@ const parseProductsFromCsv = (rows: CsvRow[]) => {
         }
       }
 
-      const amount = parseCsvPriceToMedusaMinor(row["Variant Price AUD"]) ?? 0
+      const amount = parseMoneyToMinor(row["Variant Price AUD"]) ?? 0
       const frontImage = row["Product Image 1"] || row["Product Thumbnail"] || undefined
       const backImage = row["Product Image 2"] || undefined
 

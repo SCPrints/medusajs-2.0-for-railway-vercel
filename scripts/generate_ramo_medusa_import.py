@@ -3,8 +3,7 @@
 Build Medusa product-import CSV rows from Ramo export data.
 
 `Variant Price AUD` uses decimal dollars (e.g. `9.40`). Backend scripts use
-parseCsvPriceToMedusaMinor(): decimals → dollars→cents; integer-only cells are treated as
-already in cents (Medusa export style).
+parseMoneyToMinor() to convert to cents for Medusa `prices[].amount`.
 
 Usage:
   python3 scripts/generate_ramo_medusa_import.py \
