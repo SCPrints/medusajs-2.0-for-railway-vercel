@@ -3,104 +3,171 @@
 import { clx } from "@medusajs/ui"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
+const BRAND_PRIMARY = "#1a1a2e"
+const BRAND_SECONDARY = "#ff2e63"
+const BRAND_BACKGROUND = "#eeeeee"
+
+// Shared layout + motion classes for every button in the pagination bar.
+const BASE_BUTTON_CLASSES =
+  "group relative inline-flex items-center justify-center min-w-10 h-10 px-3 rounded-full leading-none select-none transition-[transform,background-color,color,box-shadow] duration-200 ease-out focus:outline-none"
+
 export function Pagination({
   page,
   totalPages,
-  'data-testid': dataTestid
+  "data-testid": dataTestid,
 }: {
   page: number
   totalPages: number
-  'data-testid'?: string
+  "data-testid"?: string
 }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
-  // Helper function to generate an array of numbers within a range
   const arrayRange = (start: number, stop: number) =>
     Array.from({ length: stop - start + 1 }, (_, index) => start + index)
 
-  // Function to handle page changes
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams)
     params.set("page", newPage.toString())
     router.push(`${pathname}?${params.toString()}`)
   }
 
-  // Function to render a page button
-  const renderPageButton = (
-    p: number,
-    label: string | number,
+  // Mouse hover state must drive scale + color: we use CSS sibling selectors via
+  // inline onMouseEnter/Leave to keep all styling self-contained and avoid
+  // Tailwind JIT quirks with CSS variable opacity.
+  const PageButton = ({
+    p,
+    label,
+    isCurrent,
+  }: {
+    p: number
+    label: string | number
     isCurrent: boolean
-  ) => (
+  }) => (
     <button
-      key={p}
       aria-label={`Go to page ${label}`}
       aria-current={isCurrent ? "page" : undefined}
-      className={clx(
-        "txt-xlarge-plus inline-flex items-center justify-center min-w-10 h-10 px-3 rounded-full leading-none select-none transition-transform transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--brand-background)]",
-        {
-          "bg-[var(--brand-secondary)] text-white shadow-md scale-110 cursor-default":
-            isCurrent,
-          "text-[var(--brand-primary)]/70 hover:text-white hover:bg-[var(--brand-secondary)] hover:scale-125 active:scale-110":
-            !isCurrent,
-        }
-      )}
       disabled={isCurrent}
       onClick={() => handlePageChange(p)}
+      className={clx(
+        BASE_BUTTON_CLASSES,
+        "text-base font-semibold",
+        isCurrent
+          ? "scale-110 shadow-md cursor-default"
+          : "hover:scale-125 active:scale-110 cursor-pointer"
+      )}
+      style={
+        isCurrent
+          ? {
+              backgroundColor: BRAND_SECONDARY,
+              color: "#ffffff",
+            }
+          : {
+              backgroundColor: "transparent",
+              color: BRAND_PRIMARY,
+            }
+      }
+      onMouseEnter={(e) => {
+        if (isCurrent) return
+        e.currentTarget.style.backgroundColor = BRAND_SECONDARY
+        e.currentTarget.style.color = "#ffffff"
+      }}
+      onMouseLeave={(e) => {
+        if (isCurrent) return
+        e.currentTarget.style.backgroundColor = "transparent"
+        e.currentTarget.style.color = BRAND_PRIMARY
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.boxShadow = `0 0 0 3px ${BRAND_BACKGROUND}, 0 0 0 5px ${BRAND_SECONDARY}`
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.boxShadow = isCurrent
+          ? "0 4px 12px rgba(255, 46, 99, 0.35)"
+          : "none"
+      }}
     >
       {label}
     </button>
   )
 
-  // Function to render ellipsis
-  const renderEllipsis = (key: string) => (
+  const Ellipsis = ({ id }: { id: string }) => (
     <span
-      key={key}
-      className="txt-xlarge-plus inline-flex items-center justify-center min-w-10 h-10 text-[var(--brand-primary)]/50 cursor-default select-none"
+      key={id}
+      className="inline-flex items-center justify-center min-w-10 h-10 text-base font-semibold select-none cursor-default"
+      style={{ color: "rgba(26, 26, 46, 0.45)" }}
     >
-      ...
+      …
     </span>
   )
 
-  // Function to render a navigation arrow button (first / prev / next / last)
-  const renderNavButton = (
-    target: number,
-    label: string,
-    icon: React.ReactNode,
+  const NavButton = ({
+    target,
+    label,
+    disabled,
+    children,
+  }: {
+    target: number
+    label: string
     disabled: boolean
-  ) => (
+    children: React.ReactNode
+  }) => (
     <button
-      key={label}
       aria-label={label}
-      className={clx(
-        "inline-flex items-center justify-center min-w-10 h-10 px-2 rounded-full leading-none select-none transition-transform transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--brand-background)]",
-        {
-          "text-[var(--brand-primary)]/30 cursor-not-allowed": disabled,
-          "text-[var(--brand-primary)]/70 hover:text-white hover:bg-[var(--brand-secondary)] hover:scale-125 active:scale-110":
-            !disabled,
-        }
-      )}
+      title={label}
       disabled={disabled}
       onClick={() => handlePageChange(target)}
+      className={clx(
+        BASE_BUTTON_CLASSES,
+        "px-2",
+        disabled
+          ? "cursor-not-allowed"
+          : "hover:scale-125 active:scale-110 cursor-pointer"
+      )}
+      style={{
+        backgroundColor: "transparent",
+        color: disabled ? "rgba(26, 26, 46, 0.25)" : BRAND_PRIMARY,
+      }}
+      onMouseEnter={(e) => {
+        if (disabled) return
+        e.currentTarget.style.backgroundColor = BRAND_SECONDARY
+        e.currentTarget.style.color = "#ffffff"
+      }}
+      onMouseLeave={(e) => {
+        if (disabled) return
+        e.currentTarget.style.backgroundColor = "transparent"
+        e.currentTarget.style.color = BRAND_PRIMARY
+      }}
+      onFocus={(e) => {
+        if (disabled) return
+        e.currentTarget.style.boxShadow = `0 0 0 3px ${BRAND_BACKGROUND}, 0 0 0 5px ${BRAND_SECONDARY}`
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.boxShadow = "none"
+      }}
     >
-      {icon}
+      {children}
     </button>
   )
 
-  // Inline chevron icons for consistent stroke sizing
-  const ChevronIcon = ({ double = false, direction }: { double?: boolean; direction: "left" | "right" }) => (
+  const Chevron = ({
+    double = false,
+    direction,
+  }: {
+    double?: boolean
+    direction: "left" | "right"
+  }) => (
     <svg
-      width="18"
-      height="18"
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="2.25"
+      strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className={direction === "right" ? "rotate-180" : undefined}
+      style={{ transform: direction === "right" ? "rotate(180deg)" : undefined }}
     >
       {double ? (
         <>
@@ -113,51 +180,30 @@ export function Pagination({
     </svg>
   )
 
-  // Function to render page buttons based on the current page and total pages
   const renderPageButtons = () => {
-    const buttons = []
+    const buttons: React.ReactNode[] = []
+
+    const pushPage = (p: number) =>
+      buttons.push(
+        <PageButton key={`p-${p}`} p={p} label={p} isCurrent={p === page} />
+      )
 
     if (totalPages <= 7) {
-      // Show all pages
-      buttons.push(
-        ...arrayRange(1, totalPages).map((p) =>
-          renderPageButton(p, p, p === page)
-        )
-      )
+      arrayRange(1, totalPages).forEach(pushPage)
+    } else if (page <= 4) {
+      arrayRange(1, 5).forEach(pushPage)
+      buttons.push(<Ellipsis key="ellipsis1" id="ellipsis1" />)
+      pushPage(totalPages)
+    } else if (page >= totalPages - 3) {
+      pushPage(1)
+      buttons.push(<Ellipsis key="ellipsis2" id="ellipsis2" />)
+      arrayRange(totalPages - 4, totalPages).forEach(pushPage)
     } else {
-      // Handle different cases for displaying pages and ellipses
-      if (page <= 4) {
-        // Show 1, 2, 3, 4, 5, ..., lastpage
-        buttons.push(
-          ...arrayRange(1, 5).map((p) => renderPageButton(p, p, p === page))
-        )
-        buttons.push(renderEllipsis("ellipsis1"))
-        buttons.push(
-          renderPageButton(totalPages, totalPages, totalPages === page)
-        )
-      } else if (page >= totalPages - 3) {
-        // Show 1, ..., lastpage - 4, lastpage - 3, lastpage - 2, lastpage - 1, lastpage
-        buttons.push(renderPageButton(1, 1, 1 === page))
-        buttons.push(renderEllipsis("ellipsis2"))
-        buttons.push(
-          ...arrayRange(totalPages - 4, totalPages).map((p) =>
-            renderPageButton(p, p, p === page)
-          )
-        )
-      } else {
-        // Show 1, ..., page - 1, page, page + 1, ..., lastpage
-        buttons.push(renderPageButton(1, 1, 1 === page))
-        buttons.push(renderEllipsis("ellipsis3"))
-        buttons.push(
-          ...arrayRange(page - 1, page + 1).map((p) =>
-            renderPageButton(p, p, p === page)
-          )
-        )
-        buttons.push(renderEllipsis("ellipsis4"))
-        buttons.push(
-          renderPageButton(totalPages, totalPages, totalPages === page)
-        )
-      }
+      pushPage(1)
+      buttons.push(<Ellipsis key="ellipsis3" id="ellipsis3" />)
+      arrayRange(page - 1, page + 1).forEach(pushPage)
+      buttons.push(<Ellipsis key="ellipsis4" id="ellipsis4" />)
+      pushPage(totalPages)
     }
 
     return buttons
@@ -166,38 +212,38 @@ export function Pagination({
   const isFirstPage = page <= 1
   const isLastPage = page >= totalPages
 
-  // Render the component
   return (
     <div className="flex justify-center w-full mt-12">
-      <div
-        className="flex gap-2 items-center"
-        data-testid={dataTestid}
-      >
-        {renderNavButton(
-          1,
-          "Go to first page",
-          <ChevronIcon double direction="left" />,
-          isFirstPage
-        )}
-        {renderNavButton(
-          Math.max(1, page - 1),
-          "Go to previous page",
-          <ChevronIcon direction="left" />,
-          isFirstPage
-        )}
+      <div className="flex gap-2 items-center" data-testid={dataTestid}>
+        <NavButton
+          target={1}
+          label="Go to first page"
+          disabled={isFirstPage}
+        >
+          <Chevron double direction="left" />
+        </NavButton>
+        <NavButton
+          target={Math.max(1, page - 1)}
+          label="Go to previous page"
+          disabled={isFirstPage}
+        >
+          <Chevron direction="left" />
+        </NavButton>
         {renderPageButtons()}
-        {renderNavButton(
-          Math.min(totalPages, page + 1),
-          "Go to next page",
-          <ChevronIcon direction="right" />,
-          isLastPage
-        )}
-        {renderNavButton(
-          totalPages,
-          "Go to last page",
-          <ChevronIcon double direction="right" />,
-          isLastPage
-        )}
+        <NavButton
+          target={Math.min(totalPages, page + 1)}
+          label="Go to next page"
+          disabled={isLastPage}
+        >
+          <Chevron direction="right" />
+        </NavButton>
+        <NavButton
+          target={totalPages}
+          label="Go to last page"
+          disabled={isLastPage}
+        >
+          <Chevron double direction="right" />
+        </NavButton>
       </div>
     </div>
   )
