@@ -514,6 +514,29 @@ async function buildBrand(
   return { nodes, links, mode: "brand", offset, total }
 }
 
+/**
+ * Resolve a category's display name directly from `product_category`, rather
+ * than relying on it appearing as a relation on a returned product. This keeps
+ * the UI correct even when the category currently contains zero products.
+ */
+async function fetchCategoryName(
+  query: QueryGraph,
+  categoryId: string
+): Promise<string | null> {
+  try {
+    const { data } = await query.graph({
+      entity: "product_category",
+      fields: ["id", "name"],
+      filters: { id: categoryId },
+    })
+    const row = (data as Array<{ id: string; name: string }>)[0]
+    return row?.name ?? null
+  } catch (error) {
+    console.warn(`[/store/graph] failed to fetch category ${categoryId} name`, error)
+    return null
+  }
+}
+
 async function buildCategory(
   query: QueryGraph,
   categoryId: string,
@@ -524,15 +547,52 @@ async function buildCategory(
   const nodes: GraphNode[] = []
   const links: GraphLink[] = []
 
-  const { rows, total } = await fetchProducts(
-    query,
-    { categories: { id: categoryId } },
-    limit,
-    offset
-  )
+  /**
+   * Resolve the canonical category name up-front so the node label is always
+   * correct — even when the category contains zero products, or when the
+   * primary product→category filter returns nothing.
+   */
+  const resolvedName = await fetchCategoryName(query, categoryId)
+
+  let rows: ProductRow[] = []
+  let total = 0
+  const attempts: Array<{ label: string; filter: Record<string, unknown> }> = [
+    { label: "categories.id", filter: { categories: { id: categoryId } } },
+    { label: "category_id", filter: { category_id: categoryId } },
+  ]
+
+  for (const attempt of attempts) {
+    try {
+      const result = await fetchProducts(query, attempt.filter, limit, offset)
+      if (result.rows.length > 0 || result.total > 0) {
+        rows = result.rows
+        total = result.total
+        break
+      }
+      // Keep the latest attempt's total in case every attempt returns zero —
+      // so the UI still shows `0` rather than `undefined` in the badge.
+      total = result.total
+    } catch (error) {
+      console.warn(
+        `[/store/graph] category filter "${attempt.label}" failed for ${categoryId}`,
+        error
+      )
+    }
+  }
+
+  if (!rows.length) {
+    console.info(
+      `[/store/graph] category ${categoryId} (${
+        resolvedName ?? "unknown"
+      }) returned 0 products. This usually means no products are assigned to this category in Medusa Admin, or their status != "published".`
+    )
+  }
 
   const categoryLabel =
-    rows[0]?.categories?.find((c) => c.id === categoryId)?.name ?? categoryId
+    resolvedName ??
+    rows[0]?.categories?.find((c) => c.id === categoryId)?.name ??
+    "Category"
+
   nodes.push({
     id: `cat:${categoryId}`,
     kind: "category",

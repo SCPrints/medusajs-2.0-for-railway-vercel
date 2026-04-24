@@ -91,6 +91,18 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
     ? payload.nodes.find((n) => n.id === lastExpandedId) ?? null
     : null
   const canLoadMore = Boolean(lastInfo && lastInfo.loaded < lastInfo.total)
+  /**
+   * Empty-state flag: user expanded a brand/category but the backend returned
+   * zero products. Surfaced in the HUD so it's clear the graph is working and
+   * the category is genuinely empty, rather than looking like a bug.
+   */
+  const emptyExpansion = Boolean(
+    lastNode &&
+      lastInfo &&
+      lastInfo.total === 0 &&
+      state !== "loading" &&
+      (lastNode.kind === "brand" || lastNode.kind === "category")
+  )
 
   const handleLoadMore = useCallback(() => {
     if (!lastNode) return
@@ -179,6 +191,11 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
           </p>
           {state === "loading" ? <p>Expanding…</p> : null}
           {state === "error" && error ? <p className="text-rose-400">{error}</p> : null}
+          {emptyExpansion && lastNode ? (
+            <p className="text-ui-fg-muted">
+              No products are currently assigned to <strong>{lastNode.label}</strong>.
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => graphRef.current?.zoomToFit(500, 80)}
