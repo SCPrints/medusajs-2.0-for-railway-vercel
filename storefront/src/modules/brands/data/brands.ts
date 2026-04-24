@@ -49,6 +49,7 @@ export const BRAND_TILES: BrandTile[] = [
     name: "Syzmik",
     initials: "SY",
     bgClass: "bg-slate-800",
+    logoSrc: `${LOGO_BASE}/syzmik-workwear.svg`,
   },
   {
     id: "biz-collection",
@@ -93,7 +94,6 @@ export const BRAND_TILES: BrandTile[] = [
     logoSrc: `${LOGO_BASE}/ramo.svg`,
     storeQuery: RAMO_BRAND_QUERY,
   },
-  { id: "next-level", name: "Next Level", initials: "NL", bgClass: "bg-slate-700" },
   { id: "champion", name: "Champion", initials: "C", bgClass: "bg-red-900" },
   { id: "patagonia", name: "Patagonia", initials: "P", bgClass: "bg-amber-900" },
 ]
