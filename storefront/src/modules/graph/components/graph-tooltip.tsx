@@ -1,5 +1,7 @@
 "use client"
 
+import { useLayoutEffect, useRef, useState } from "react"
+
 import type { GraphNode } from "../../../types/graph"
 
 type Props = {
@@ -20,24 +22,83 @@ function formatPrice(price: GraphNode["price"]): string | null {
 }
 
 /**
+ * Gap between the hovered node and the edge of the tooltip card. Should be
+ * larger than the biggest node radius we render so the card never sits on top
+ * of a brand/category node or its label.
+ */
+const NODE_CLEARANCE = 28
+
+/**
  * Absolutely-positioned hover card rendered as DOM (not on the canvas) so the
  * thumbnail and typography render crisply regardless of graph zoom.
  *
- * The parent positions the card via `position` (client coordinates). We offset
- * slightly so the pointer doesn't sit underneath the card and retrigger hover.
+ * Placement algorithm:
+ *   - Prefer to the right of the node, vertically centered. Flip to the left
+ *     if it would overflow the viewport.
+ *   - After placement, if it would still clip vertically, nudge it back inside
+ *     the viewport.
+ *   - `pointer-events-none` means hovering the card won't retrigger hover
+ *     events on the underlying canvas.
  */
 export function GraphTooltip({ node, position }: Props) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [placement, setPlacement] = useState<{ left: number; top: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!position || !ref.current) {
+      setPlacement(null)
+      return
+    }
+    const card = ref.current.getBoundingClientRect()
+    const viewportW = window.innerWidth
+    const viewportH = window.innerHeight
+    const margin = 8
+
+    // Default to the right of the node, vertically centered on its midpoint.
+    let left = position.x + NODE_CLEARANCE
+    let top = position.y - card.height / 2
+
+    // Flip horizontally if the card would run off the right edge.
+    if (left + card.width + margin > viewportW) {
+      left = position.x - NODE_CLEARANCE - card.width
+    }
+    // If still off-screen to the left (very cramped viewport), clamp and fall
+    // back to placing above the node instead, which is always visible.
+    if (left < margin) {
+      left = Math.max(margin, position.x - card.width / 2)
+      top = position.y - NODE_CLEARANCE - card.height
+    }
+
+    if (top < margin) top = margin
+    if (top + card.height + margin > viewportH) {
+      top = viewportH - card.height - margin
+    }
+
+    setPlacement({ left, top })
+  }, [position, node?.id])
+
   if (!node || !position) return null
 
   const priceLabel = node.kind === "product" ? formatPrice(node.price) : null
-  const kindLabel = node.kind === "product" ? "Product" : node.kind === "brand" ? "Brand" : node.kind === "category" ? "Category" : "Catalog"
+  const kindLabel =
+    node.kind === "product"
+      ? "Product"
+      : node.kind === "brand"
+      ? "Brand"
+      : node.kind === "category"
+      ? "Category"
+      : "Catalog"
 
   return (
     <div
+      ref={ref}
       className="pointer-events-none fixed z-50 max-w-[15rem] rounded-xl border border-ui-border-base bg-ui-bg-base/95 p-3 text-left text-small-regular text-ui-fg-base shadow-xl backdrop-blur"
       style={{
-        left: position.x + 14,
-        top: position.y + 14,
+        left: placement?.left ?? position.x + NODE_CLEARANCE,
+        top: placement?.top ?? position.y,
+        // Hide the first paint before useLayoutEffect measures the card to
+        // avoid a visible jump from the default anchor to the flipped one.
+        visibility: placement ? "visible" : "hidden",
       }}
     >
       {node.kind === "product" && node.thumbnail ? (

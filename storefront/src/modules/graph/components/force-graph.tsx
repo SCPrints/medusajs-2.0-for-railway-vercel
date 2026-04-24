@@ -70,6 +70,10 @@ const ForceGraph2D = dynamic(
 /**
  * Shared label rasterizer. Draws a dark halo behind the label so it remains
  * readable over both the dark UI chrome and any background color.
+ *
+ * NOTE: `lineJoin`/`lineCap` must be `round` — the canvas default is `miter`,
+ * which produces spike artifacts at the sharp corners of characters when the
+ * stroke is wide relative to the font size (most visible on Ws, Vs, Ks, etc.).
  */
 function drawLabel(
   ctx: CanvasRenderingContext2D,
@@ -85,6 +89,9 @@ function drawLabel(
   ctx.textAlign = "center"
   ctx.textBaseline = "top"
   ctx.lineWidth = Math.max(3, fontSize / 3)
+  ctx.lineJoin = "round"
+  ctx.lineCap = "round"
+  ctx.miterLimit = 2
   ctx.strokeStyle = "rgba(15, 23, 42, 0.85)"
   ctx.strokeText(text, x, y)
   ctx.fillStyle = color
@@ -278,6 +285,64 @@ export const ForceGraph = forwardRef<ForceGraphHandle, Props>(function ForceGrap
           // the node (never in bulk) to keep the canvas readable.
           if (isPrimary && globalScale > 1.4) {
             drawLabel(ctx, node.label, x, y + radius + 3, globalScale, true, style.labelHighlightColor)
+          }
+          return
+        }
+      }
+
+      /**
+       * Brand nodes render their `logoSrc` on a white pill inside the circle
+       * when the image is loaded. Drawing the logo on a solid white fill keeps
+       * dark-on-transparent logos (e.g. American Apparel wordmark) legible
+       * regardless of the background. Falls back to the flat highlight color
+       * while the image is still loading or when the brand has no logo.
+       */
+      if (node.kind === "brand" && node.logoSrc) {
+        const logo = getImage(node.logoSrc)
+        if (logo) {
+          const r = radius + 2
+          ctx.save()
+          ctx.globalAlpha = alpha
+          // White disc backing so the logo reads on any canvas background.
+          ctx.fillStyle = "#ffffff"
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Fit the logo inside the disc while preserving aspect ratio. Pad a
+          // little so the glyph doesn't touch the circle edge.
+          const pad = r * 0.25
+          const maxW = (r - pad) * 2
+          const maxH = (r - pad) * 2
+          const ratio = logo.width / Math.max(1, logo.height)
+          let drawW = maxW
+          let drawH = maxW / ratio
+          if (drawH > maxH) {
+            drawH = maxH
+            drawW = maxH * ratio
+          }
+          ctx.drawImage(logo, x - drawW / 2, y - drawH / 2, drawW, drawH)
+          ctx.restore()
+
+          ctx.save()
+          ctx.globalAlpha = alpha
+          ctx.strokeStyle = isPrimary
+            ? "#fbbf24"
+            : inFocus
+            ? style.highlightFill
+            : style.stroke
+          ctx.lineWidth = isPrimary ? 2.5 : inFocus ? 1.75 : 1
+          ctx.beginPath()
+          ctx.arc(x, y, r + 0.5, 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.restore()
+
+          const isLabelEligibleKind = true
+          const highZoom = globalScale > 2.2
+          const showLabel = highZoom || (hasFocus && inFocus)
+          if (isLabelEligibleKind && showLabel) {
+            const labelColor = inFocus || isPrimary ? style.labelHighlightColor : style.labelColor
+            drawLabel(ctx, node.label, x, y + r + 4, globalScale, isPrimary, labelColor)
           }
           return
         }

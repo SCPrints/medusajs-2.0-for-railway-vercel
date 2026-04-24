@@ -131,10 +131,13 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialFocus])
 
-  /** Warm up thumbnails + top brands once the initial engine run settles. */
+  /** Warm up thumbnails + brand logos + top brands once the initial engine run settles. */
   useEffect(() => {
     if (!settled) return
-    preloadImages(payload.nodes.map((n) => n.thumbnail))
+    preloadImages([
+      ...payload.nodes.map((n) => n.thumbnail),
+      ...payload.nodes.map((n) => n.logoSrc),
+    ])
     prefetchTopBrands(3)
   }, [settled, payload.nodes, prefetchTopBrands])
 
