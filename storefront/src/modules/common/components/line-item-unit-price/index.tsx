@@ -11,6 +11,32 @@ const LineItemUnitPrice = ({
   item,
   style = "default",
 }: LineItemUnitPriceProps) => {
+  // See LineItemPrice — Medusa cart variants may lack `.product.handle`, so we
+  // infer it from common item fields to let the finalizer apply.
+  const itemRecord = item as unknown as {
+    variant?: Record<string, unknown> & {
+      product?: { handle?: string }
+      metadata?: Record<string, unknown>
+    }
+    product_handle?: string
+    metadata?: Record<string, unknown>
+  }
+  const inferredHandle =
+    (typeof itemRecord.variant?.product?.handle === "string" &&
+      itemRecord.variant.product.handle) ||
+    (typeof itemRecord.product_handle === "string" && itemRecord.product_handle) ||
+    (typeof itemRecord.metadata?.product_handle === "string" &&
+      (itemRecord.metadata.product_handle as string)) ||
+    undefined
+  const variantForPricing = inferredHandle
+    ? {
+        ...(item.variant as unknown as Record<string, unknown>),
+        product: {
+          ...(itemRecord.variant?.product ?? {}),
+          handle: inferredHandle,
+        },
+      }
+    : item.variant
   const {
     original_price,
     calculated_price,
@@ -18,7 +44,7 @@ const LineItemUnitPrice = ({
     calculated_price_number,
     display_unit_minor,
     percentage_diff,
-  } = getPricesForVariant(item.variant) ?? {}
+  } = getPricesForVariant(variantForPricing) ?? {}
   const unitMinor =
     typeof display_unit_minor === "number" && Number.isFinite(display_unit_minor)
       ? display_unit_minor

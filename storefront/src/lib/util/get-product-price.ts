@@ -3,9 +3,20 @@ import { getPercentageDiff } from "./get-precentage-diff"
 import { convertMinorToLocale } from "./money"
 import { resolveDisplayMinorForVariant } from "./resolve-display-minor"
 
+/**
+ * Force-set product handle on a variant so downstream `resolveDisplayMinorForVariant`
+ * can apply the AS Colour AUD hundredfold fix. Medusa sometimes returns a partial
+ * `variant.product` (id only, no handle) — merging instead of short-circuiting avoids
+ * silently dropping the handle and defeating the finalizer.
+ */
 const variantWithProductHandle = (product: HttpTypes.StoreProduct, variant: any) => ({
   ...variant,
-  product: variant?.product ?? { handle: product.handle },
+  product: {
+    ...(variant?.product ?? {}),
+    handle:
+      (typeof variant?.product?.handle === "string" && variant.product.handle) ||
+      product?.handle,
+  },
 })
 
 /** Resolved unit minor for UI (bulk vs Medusa + AS Colour AUD hundredfold when both are wrong). */

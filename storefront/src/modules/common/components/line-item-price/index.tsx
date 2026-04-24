@@ -11,8 +11,34 @@ type LineItemPriceProps = {
 }
 
 const LineItemPrice = ({ item, style = "default" }: LineItemPriceProps) => {
+  // Medusa cart variant may have a partial `.product` without handle, which would
+  // defeat the AS Colour AUD hundredfold fix. Pull handle from common fallbacks.
+  const itemRecord = item as unknown as {
+    variant?: Record<string, unknown> & {
+      product?: { handle?: string }
+      metadata?: Record<string, unknown>
+    }
+    product_handle?: string
+    metadata?: Record<string, unknown>
+  }
+  const inferredHandle =
+    (typeof itemRecord.variant?.product?.handle === "string" &&
+      itemRecord.variant.product.handle) ||
+    (typeof itemRecord.product_handle === "string" && itemRecord.product_handle) ||
+    (typeof itemRecord.metadata?.product_handle === "string" &&
+      (itemRecord.metadata.product_handle as string)) ||
+    undefined
+  const variantForPricing = inferredHandle
+    ? {
+        ...(item.variant as unknown as Record<string, unknown>),
+        product: {
+          ...(itemRecord.variant?.product ?? {}),
+          handle: inferredHandle,
+        },
+      }
+    : item.variant
   const { currency_code, original_price_number, display_unit_minor, calculated_price_number } =
-    getPricesForVariant(item.variant) ?? {}
+    getPricesForVariant(variantForPricing) ?? {}
 
   const adjustmentsSum = (item.adjustments || []).reduce(
     (acc, adjustment) => adjustment.amount + acc,

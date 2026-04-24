@@ -105,7 +105,16 @@ const resolveVariantPrice = (
   if (typeof calculated === "number") {
     const merged =
       product?.handle != null
-        ? { ...variantRecord, product: variantRecord.product ?? { handle: product.handle } }
+        ? {
+            ...variantRecord,
+            product: {
+              ...(variantRecord.product ?? {}),
+              handle:
+                (typeof variantRecord.product?.handle === "string" &&
+                  variantRecord.product.handle) ||
+                product.handle,
+            },
+          }
         : variantRecord
     return getDisplayUnitMinorForVariant(merged)
   }
