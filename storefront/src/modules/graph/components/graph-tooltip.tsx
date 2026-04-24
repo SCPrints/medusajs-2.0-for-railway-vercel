@@ -2,6 +2,8 @@
 
 import { useLayoutEffect, useRef, useState } from "react"
 
+import { minorToMajor } from "@lib/util/money"
+
 import type { GraphNode } from "../../../types/graph"
 
 type Props = {
@@ -11,13 +13,14 @@ type Props = {
 
 function formatPrice(price: GraphNode["price"]): string | null {
   if (!price) return null
+  const major = minorToMajor(price.amount)
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: price.currency_code.toUpperCase(),
-    }).format(price.amount)
+    }).format(major)
   } catch {
-    return `${price.amount} ${price.currency_code.toUpperCase()}`
+    return `${major} ${price.currency_code.toUpperCase()}`
   }
 }
 

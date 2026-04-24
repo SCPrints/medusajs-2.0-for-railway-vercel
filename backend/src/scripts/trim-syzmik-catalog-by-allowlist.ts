@@ -28,7 +28,7 @@ import path from "node:path"
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 
-import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
+import { parseCsvPriceToMedusaMinor } from "../utils/parse-money-to-minor"
 
 type CsvRow = Record<string, string>
 
@@ -256,11 +256,11 @@ export default async function trimSyzmikCatalogByAllowlist({ container, args }: 
           "Matching prices by **Product Handle + Variant Title** instead. Re-export SKUs as text to enable SKU-based matching too."
       )
     }
-    const baseM = parseMoneyToMinor(row["BASE_SALE_PRICE"])
-    const t10M = parseMoneyToMinor(row["TIER_10_TO_49_PRICE"])
-    const t50M = parseMoneyToMinor(row["TIER_50_TO_99_PRICE"])
-    const t100Direct = parseMoneyToMinor(row["TIER_100_PLUS_PRICE"])
-    const t100FromVariant = parseMoneyToMinor(row["Variant Price AUD"])
+    const baseM = parseCsvPriceToMedusaMinor(row["BASE_SALE_PRICE"])
+    const t10M = parseCsvPriceToMedusaMinor(row["TIER_10_TO_49_PRICE"])
+    const t50M = parseCsvPriceToMedusaMinor(row["TIER_50_TO_99_PRICE"])
+    const t100Direct = parseCsvPriceToMedusaMinor(row["TIER_100_PLUS_PRICE"])
+    const t100FromVariant = parseCsvPriceToMedusaMinor(row["Variant Price AUD"])
     const t100M = t100Direct ?? t100FromVariant
 
     if (baseM === null || t10M === null || t50M === null || t100M === null) {

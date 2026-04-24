@@ -10,6 +10,7 @@ export type GraphMode = "summary" | "brand" | "category" | "all"
 
 export type NodeKind = "root" | "brand" | "category" | "product"
 
+/** `amount` is Medusa minor units (e.g. cents); format for display with ÷100. */
 export type GraphPrice = {
   amount: number
   currency_code: string
