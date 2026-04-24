@@ -4,7 +4,11 @@ import { notFound } from "next/navigation"
 import Wrapper from "@modules/checkout/components/payment-wrapper"
 import CheckoutForm from "@modules/checkout/templates/checkout-form"
 import CheckoutSummary from "@modules/checkout/templates/checkout-summary"
-import { enrichLineItems, retrieveCart } from "@lib/data/cart"
+import {
+  applyDisplayPriceCorrectionToCart,
+  enrichLineItems,
+  retrieveCart,
+} from "@lib/data/cart"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomer } from "@lib/data/customer"
 
@@ -21,6 +25,7 @@ const fetchCart = async () => {
   if (cart?.items?.length) {
     const enrichedItems = await enrichLineItems(cart?.items, cart?.region_id!)
     cart.items = enrichedItems as HttpTypes.StoreCartLineItem[]
+    applyDisplayPriceCorrectionToCart(cart)
   }
 
   return cart

@@ -11,7 +11,7 @@ type LineItemPriceProps = {
 }
 
 const LineItemPrice = ({ item, style = "default" }: LineItemPriceProps) => {
-  const { currency_code, calculated_price_number, original_price_number } =
+  const { currency_code, original_price_number, display_unit_minor, calculated_price_number } =
     getPricesForVariant(item.variant) ?? {}
 
   const adjustmentsSum = (item.adjustments || []).reduce(
@@ -19,8 +19,13 @@ const LineItemPrice = ({ item, style = "default" }: LineItemPriceProps) => {
     0
   )
 
+  const unitMinor =
+    typeof display_unit_minor === "number" && Number.isFinite(display_unit_minor)
+      ? display_unit_minor
+      : (calculated_price_number ?? 0)
+
   const originalPrice = original_price_number * item.quantity
-  const currentPrice = calculated_price_number * item.quantity - adjustmentsSum
+  const currentPrice = unitMinor * item.quantity - adjustmentsSum
   const hasReducedPrice = currentPrice < originalPrice
 
   return (

@@ -12,6 +12,7 @@ import {
 } from "@modules/customizer/lib/artifact-url"
 import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/lib/garment-url-for-render"
 import { calculatePricing } from "@modules/customizer/lib/pricing"
+import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import {
   BulkPricingTier,
@@ -99,7 +100,7 @@ const resolveVariantPrice = (variant?: HttpTypes.StoreProductVariant) => {
   const variantRecord = variant as any
   const calculated = variantRecord?.calculated_price?.calculated_amount
   if (typeof calculated === "number") {
-    return calculated
+    return getDisplayUnitMinorForVariant(variantRecord)
   }
 
   const amount = variantRecord?.prices?.find((price: any) => typeof price?.amount === "number")?.amount
@@ -430,35 +431,6 @@ export default function CustomizerTemplate({
     () => resolveVariantBulkPricingTiers(selectedVariant),
     [selectedVariant]
   )
-
-  // #region agent log
-  useEffect(() => {
-    if (!selectedVariant) {
-      return
-    }
-    const vr = selectedVariant as any
-    const bulk0 = bulkPricingTiers[0]?.amountCents
-    fetch("http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fde93" },
-      body: JSON.stringify({
-        sessionId: "6fde93",
-        hypothesisId: "H3",
-        location: "customizer/templates/index.tsx:useEffect_price",
-        message: "customizer_basePrice_vs_bulk",
-        data: {
-          productTitle: selectedProduct?.title,
-          variantId: vr?.id,
-          variantSku: vr?.sku,
-          basePriceCents,
-          rawCalculatedAmount: vr?.calculated_price?.calculated_amount,
-          bulkTier0Cents: bulk0,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {})
-  }, [selectedVariant, basePriceCents, bulkPricingTiers, selectedProduct?.title])
-  // #endregion
 
   const productBrand = useMemo(() => {
     const sub = selectedProduct?.subtitle

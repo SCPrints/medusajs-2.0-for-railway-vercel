@@ -16,9 +16,14 @@ const LineItemUnitPrice = ({
     calculated_price,
     original_price_number,
     calculated_price_number,
+    display_unit_minor,
     percentage_diff,
   } = getPricesForVariant(item.variant) ?? {}
-  const hasReducedPrice = calculated_price_number < original_price_number
+  const unitMinor =
+    typeof display_unit_minor === "number" && Number.isFinite(display_unit_minor)
+      ? display_unit_minor
+      : (calculated_price_number ?? 0)
+  const hasReducedPrice = unitMinor < (original_price_number ?? 0)
 
   return (
     <div className="flex flex-col text-ui-fg-muted justify-center h-full">

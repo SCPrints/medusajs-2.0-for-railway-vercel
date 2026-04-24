@@ -7,6 +7,8 @@ export type FeaturedProduct = {
 
 export type VariantPrice = {
   calculated_price_number: number
+  /** Resolved garment unit (minor) for cart / line math when bulk metadata corrects Medusa. */
+  display_unit_minor?: number
   calculated_price: string
   original_price_number: number
   original_price: string

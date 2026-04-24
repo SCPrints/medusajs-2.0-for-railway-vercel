@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation"
 import CartDropdown from "../cart-dropdown"
-import { enrichLineItems, retrieveCart } from "@lib/data/cart"
+import {
+  applyDisplayPriceCorrectionToCart,
+  enrichLineItems,
+  retrieveCart,
+} from "@lib/data/cart"
 
 const fetchCart = async () => {
   const cart = await retrieveCart()
@@ -12,6 +16,7 @@ const fetchCart = async () => {
   if (cart?.items?.length) {
     const enrichedItems = await enrichLineItems(cart.items, cart.region_id!)
     cart.items = enrichedItems
+    applyDisplayPriceCorrectionToCart(cart)
   }
 
   return cart
