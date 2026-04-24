@@ -1,7 +1,10 @@
 import { clx } from "@medusajs/ui"
 
 import { getProductPrice } from "@lib/util/get-product-price"
-import { resolveHeadlineMinorAmount } from "@lib/util/resolve-display-minor"
+import {
+  finalizeAudAsColourMinorIfHundredfoldTypo,
+  resolveHeadlineMinorAmount,
+} from "@lib/util/resolve-display-minor"
 import { convertToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
@@ -113,9 +116,19 @@ export default function ProductPrice({
 
   const currencyCode = selectedPrice?.currency_code ?? getBulkPricingCurrency(variant) ?? "aud"
   const rawBulkTierAmount = activeBulkTier?.amount
-  const activeUnitAmount = resolveHeadlineMinorAmount(
+  const headlineResolved = resolveHeadlineMinorAmount(
     rawBulkTierAmount,
     selectedPrice?.calculated_price_number
+  )
+  const apiMinorForFinalize =
+    typeof selectedPrice?.calculated_price_number === "number"
+      ? selectedPrice.calculated_price_number
+      : headlineResolved
+  const activeUnitAmount = finalizeAudAsColourMinorIfHundredfoldTypo(
+    headlineResolved,
+    apiMinorForFinalize,
+    product.handle,
+    currencyCode
   )
   const headlineUsesBulkTier =
     !!activeBulkTier &&
@@ -130,12 +143,24 @@ export default function ProductPrice({
 
   const firstTierRaw = bulkTiers[0]?.amount
   const calcMinor = selectedPrice?.calculated_price_number
-  const bulkMinorScale =
+  const firstTierResolved =
     typeof firstTierRaw === "number" &&
     firstTierRaw > 0 &&
     typeof calcMinor === "number" &&
     Number.isFinite(calcMinor)
-      ? resolveHeadlineMinorAmount(firstTierRaw, calcMinor) / firstTierRaw
+      ? finalizeAudAsColourMinorIfHundredfoldTypo(
+          resolveHeadlineMinorAmount(firstTierRaw, calcMinor),
+          calcMinor,
+          product.handle,
+          currencyCode
+        )
+      : null
+  const bulkMinorScale =
+    typeof firstTierRaw === "number" &&
+    firstTierRaw > 0 &&
+    firstTierResolved !== null &&
+    Number.isFinite(firstTierResolved)
+      ? firstTierResolved / firstTierRaw
       : 1
 
   const scaledTierMinor = (tier: BulkTier) => Math.round(tier.amount * bulkMinorScale)

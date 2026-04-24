@@ -1,7 +1,14 @@
 import { instantMeiliSearch } from "@meilisearch/instant-meilisearch"
 
+const isBrowser = typeof window !== "undefined"
+
+// In the browser, never fall back to loopback — a public HTTPS origin hitting
+// 127.0.0.1 triggers Chrome's Local Network Access prompt. When the env var is
+// missing client-side, point at same-origin (`/_disabled-search`) so the client
+// silently returns empty results without asking for device permissions.
 const endpoint =
-  process.env.NEXT_PUBLIC_SEARCH_ENDPOINT || "http://127.0.0.1:7700"
+  process.env.NEXT_PUBLIC_SEARCH_ENDPOINT ||
+  (isBrowser ? "/_disabled-search" : "http://127.0.0.1:7700")
 
 const apiKey = process.env.NEXT_PUBLIC_SEARCH_API_KEY || "test_key"
 

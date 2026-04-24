@@ -1,19 +1,15 @@
 import { HttpTypes } from "@medusajs/types"
 import { getPercentageDiff } from "./get-precentage-diff"
 import { convertMinorToLocale } from "./money"
-import { getFirstBulkTierMinor, resolveHeadlineMinorAmount } from "./resolve-display-minor"
+import { resolveDisplayMinorForVariant } from "./resolve-display-minor"
 
-/** Resolved unit minor for UI (bulk metadata vs Medusa when they disagree). */
-export const getDisplayUnitMinorForVariant = (variant: {
-  calculated_price?: { calculated_amount?: number }
-  metadata?: Record<string, unknown>
-}) => {
-  const c = variant?.calculated_price?.calculated_amount
-  if (typeof c !== "number" || !Number.isFinite(c)) {
-    return 0
-  }
-  return resolveHeadlineMinorAmount(getFirstBulkTierMinor(variant as any), c)
-}
+const variantWithProductHandle = (product: HttpTypes.StoreProduct, variant: any) => ({
+  ...variant,
+  product: variant?.product ?? { handle: product.handle },
+})
+
+/** Resolved unit minor for UI (bulk vs Medusa + AS Colour AUD hundredfold when both are wrong). */
+export const getDisplayUnitMinorForVariant = (variant: any) => resolveDisplayMinorForVariant(variant)
 
 export const getPricesForVariant = (variant: any) => {
   if (!variant?.calculated_price?.calculated_amount) {
@@ -21,10 +17,7 @@ export const getPricesForVariant = (variant: any) => {
   }
 
   const calculatedMinor = variant.calculated_price.calculated_amount
-  const displayMinor = resolveHeadlineMinorAmount(
-    getFirstBulkTierMinor(variant),
-    calculatedMinor
-  )
+  const displayMinor = resolveDisplayMinorForVariant(variant)
 
   return {
     /** Raw Medusa `calculated_amount` (minor). Use for logic that must match the API. */
@@ -66,17 +59,13 @@ export function getProductPrice({
       return null
     }
 
-    const displayMinor = (v: any) =>
-      resolveHeadlineMinorAmount(
-        getFirstBulkTierMinor(v),
-        v.calculated_price?.calculated_amount
-      )
+    const displayMinor = (v: any) => resolveDisplayMinorForVariant(variantWithProductHandle(product, v))
 
     const cheapestVariant: any = product.variants
       .filter((v: any) => !!v.calculated_price)
       .sort((a: any, b: any) => displayMinor(a) - displayMinor(b))[0]
 
-    return getPricesForVariant(cheapestVariant)
+    return getPricesForVariant(variantWithProductHandle(product, cheapestVariant))
   }
 
   const variantPrice = () => {
@@ -92,7 +81,7 @@ export function getProductPrice({
       return null
     }
 
-    return getPricesForVariant(variant)
+    return getPricesForVariant(variantWithProductHandle(product, variant))
   }
 
   return {

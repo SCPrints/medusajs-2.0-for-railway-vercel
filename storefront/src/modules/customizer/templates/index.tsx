@@ -96,11 +96,18 @@ const getPrintArea = (width: number, height: number) => ({
   height: height * 0.72,
 })
 
-const resolveVariantPrice = (variant?: HttpTypes.StoreProductVariant) => {
+const resolveVariantPrice = (
+  variant?: HttpTypes.StoreProductVariant,
+  product?: HttpTypes.StoreProduct | null
+) => {
   const variantRecord = variant as any
   const calculated = variantRecord?.calculated_price?.calculated_amount
   if (typeof calculated === "number") {
-    return getDisplayUnitMinorForVariant(variantRecord)
+    const merged =
+      product?.handle != null
+        ? { ...variantRecord, product: variantRecord.product ?? { handle: product.handle } }
+        : variantRecord
+    return getDisplayUnitMinorForVariant(merged)
   }
 
   const amount = variantRecord?.prices?.find((price: any) => typeof price?.amount === "number")?.amount
@@ -426,7 +433,7 @@ export default function CustomizerTemplate({
     (selectedVariant as any)?.calculated_price?.currency_code ??
     (selectedVariant as any)?.prices?.[0]?.currency_code ??
     "usd"
-  const basePriceCents = resolveVariantPrice(selectedVariant)
+  const basePriceCents = resolveVariantPrice(selectedVariant, selectedProduct)
   const bulkPricingTiers = useMemo(
     () => resolveVariantBulkPricingTiers(selectedVariant),
     [selectedVariant]

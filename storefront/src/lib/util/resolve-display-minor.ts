@@ -87,3 +87,76 @@ export const resolveHeadlineMinorAmount = (
 
   return c ?? 0
 }
+
+const AS_COLOUR_HANDLE_PREFIX = "as-colour-"
+
+/**
+ * When Admin shows ~$53 but Store + `bulk_pricing` both carry **53** minor (100× under-scale),
+ * `resolveHeadlineMinorAmount` cannot infer a fix. For **AUD** + `as-colour-*` handles only,
+ * if the resolver left the value equal to raw Medusa and it looks like "dollars stored as cents",
+ * multiply by 100 into a plausible garment band ($5–$6000).
+ */
+export const finalizeAudAsColourMinorIfHundredfoldTypo = (
+  resolvedMinor: number,
+  apiCalculatedMinor: number,
+  productHandle: string | undefined,
+  currencyCode: string | undefined
+): number => {
+  const cc = String(currencyCode ?? "").toLowerCase()
+  if (cc !== "aud") {
+    return resolvedMinor
+  }
+
+  const h = String(productHandle ?? "").trim().toLowerCase()
+  if (!h.startsWith(AS_COLOUR_HANDLE_PREFIX)) {
+    return resolvedMinor
+  }
+
+  if (resolvedMinor !== apiCalculatedMinor) {
+    return resolvedMinor
+  }
+
+  const c = apiCalculatedMinor
+  if (!(c >= 5 && c <= 199)) {
+    return resolvedMinor
+  }
+
+  const scaled = Math.round(c * 100)
+  if (scaled < 500 || scaled > 600_000) {
+    return resolvedMinor
+  }
+
+  return scaled
+}
+
+type VariantForDisplayMinor = {
+  calculated_price?: { calculated_amount?: number; currency_code?: string }
+  metadata?: Record<string, unknown>
+  product?: { handle?: string }
+}
+
+/** Single entry point: bulk vs Medusa resolve + AS Colour AUD hundredfold when both are wrong. */
+export const resolveDisplayMinorForVariant = (variant: VariantForDisplayMinor): number => {
+  const c = variant?.calculated_price?.calculated_amount
+  if (typeof c !== "number" || !Number.isFinite(c)) {
+    return 0
+  }
+
+  const bulk = getFirstBulkTierMinor(variant as { metadata?: Record<string, unknown> })
+  let resolved = resolveHeadlineMinorAmount(bulk, c)
+
+  const handle =
+    (typeof variant.product?.handle === "string" && variant.product.handle) ||
+    (typeof variant.metadata?.product_handle === "string"
+      ? (variant.metadata.product_handle as string)
+      : undefined)
+
+  resolved = finalizeAudAsColourMinorIfHundredfoldTypo(
+    resolved,
+    c,
+    handle,
+    variant.calculated_price?.currency_code
+  )
+
+  return resolved
+}

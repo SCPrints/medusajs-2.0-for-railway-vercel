@@ -29,50 +29,7 @@ async function getRegionMap() {
       },
     })
 
-    // #region agent log
-    fetch("http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "b984c7",
-      },
-      body: JSON.stringify({
-        sessionId: "b984c7",
-        location: "middleware.ts:getRegionMap",
-        message: "middleware regions fetch",
-        data: {
-          hasBackendUrl: Boolean(BACKEND_URL),
-          hasPublishableKey: Boolean(PUBLISHABLE_API_KEY),
-          status: regionFetchRes.status,
-          ok: regionFetchRes.ok,
-        },
-        timestamp: Date.now(),
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {})
-    // #endregion
-
     const { regions } = await regionFetchRes.json()
-
-    // #region agent log
-    fetch("http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug-Session-Id": "b984c7",
-      },
-      body: JSON.stringify({
-        sessionId: "b984c7",
-        location: "middleware.ts:getRegionMap",
-        message: "middleware regions parsed",
-        data: {
-          regionsCount: Array.isArray(regions) ? regions.length : null,
-        },
-        timestamp: Date.now(),
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {})
-    // #endregion
 
     if (!regions?.length) {
       notFound()
@@ -143,28 +100,6 @@ export async function middleware(request: NextRequest) {
   const regionMap = await getRegionMap()
 
   const countryCode = regionMap && (await getCountryCode(request, regionMap))
-
-  // #region agent log
-  fetch("http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "b984c7",
-    },
-    body: JSON.stringify({
-      sessionId: "b984c7",
-      location: "middleware.ts:middleware",
-      message: "middleware country resolution",
-      data: {
-        countryCode: countryCode ?? null,
-        regionMapSize: regionMap?.size ?? null,
-        pathname: request.nextUrl.pathname,
-      },
-      timestamp: Date.now(),
-      hypothesisId: "H3",
-    }),
-  }).catch(() => {})
-  // #endregion
 
   const urlHasCountryCode =
     countryCode && request.nextUrl.pathname.split("/")[1].includes(countryCode)
