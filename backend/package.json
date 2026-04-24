@@ -19,6 +19,7 @@
     "update-as-colour-pricing": "npx medusa exec ./src/scripts/update-as-colour-pricing.ts --",
     "trim-as-colour-catalog": "npx medusa exec ./src/scripts/trim-as-colour-catalog-by-allowlist.ts --",
     "trim-syzmik-catalog": "npx medusa exec ./src/scripts/trim-syzmik-catalog-by-allowlist.ts --",
+    "trim-ramo-catalog": "npx medusa exec ./src/scripts/trim-ramo-catalog-by-allowlist.ts --",
     "ib": "init-backend",
     "start": "init-backend && cd .medusa/server && npx medusa start --verbose",
     "dev": "npx medusa develop",

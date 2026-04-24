@@ -1,8 +1,11 @@
 import { Metadata } from "next"
 
+import { getGraphSummary } from "@lib/data/graph"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import BrandsHero from "@modules/brands/components/brands-hero"
 import { BRAND_TILES } from "@modules/brands/data/brands"
+import { BrandsGraphPreview } from "@modules/graph/components/brands-graph-preview"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -35,9 +38,50 @@ export async function generateMetadata({ params }: MetadataProps): Promise<Metad
 }
 
 export default async function BrandsPage() {
+  /**
+   * Load the catalog graph summary for the preview embed. The `/store/graph`
+   * summary payload is tiny (root + brand + category super-nodes) and is
+   * cached via Next.js fetch tags, so we share the same cache with `/explore`.
+   * If the backend is unreachable we silently degrade — the text list below
+   * still renders and tells the full story.
+   */
+  let graphSummary = null
+  try {
+    graphSummary = await getGraphSummary()
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("BrandsPage: failed to load graph summary", error)
+    }
+  }
+
   return (
     <>
       <BrandsHero />
+
+      {graphSummary ? (
+        <section className="content-container border-t border-ui-border-base py-16 small:py-20">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-2xl font-semibold tracking-tight text-ui-fg-base">
+              Explore the catalog
+            </h2>
+            <p className="mt-3 text-ui-fg-subtle">
+              Each dot is a brand in our catalog. Click one to open the full interactive map of
+              its products and categories.
+            </p>
+          </div>
+          <div className="mx-auto mt-10 max-w-5xl">
+            <BrandsGraphPreview summary={graphSummary} />
+            <div className="mt-4 flex justify-center">
+              <LocalizedClientLink
+                href="/explore"
+                className="rounded-full border border-ui-border-base bg-ui-bg-base px-4 py-2 text-small-regular text-ui-fg-base hover:bg-ui-bg-subtle"
+              >
+                Open full catalog graph
+              </LocalizedClientLink>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="content-container border-t border-ui-border-base py-16 small:py-20">
         <div className="mx-auto max-w-2xl text-center">

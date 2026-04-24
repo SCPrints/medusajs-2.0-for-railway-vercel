@@ -13,6 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const marketingPaths = [
     `/${defaultCountryCode}`,
     `/${defaultCountryCode}/store`,
+    `/${defaultCountryCode}/explore`,
+    `/${defaultCountryCode}/brands`,
     `/${defaultCountryCode}/services`,
     `/${defaultCountryCode}/contact`,
     `/${defaultCountryCode}/faq`,
