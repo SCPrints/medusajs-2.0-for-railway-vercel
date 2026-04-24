@@ -53,7 +53,13 @@ export function getImage(url: string | null | undefined): HTMLImageElement | nul
   }
   const image = new Image()
   image.decoding = "async"
-  image.crossOrigin = "anonymous"
+  // NOTE: intentionally do NOT set `crossOrigin`. We only ever draw these
+  // images to canvas (never read pixel data via toDataURL/getImageData), so
+  // tainting the canvas is harmless — and critically, omitting the
+  // `crossOrigin` attribute lets us display images from hosts that don't
+  // return `Access-Control-Allow-Origin` headers (e.g. supplier CDNs used
+  // for some imported catalogues). Setting `anonymous` here caused such
+  // images to silently fail to load and render as the fallback square.
   const entry: PoolEntry = { image, loaded: false, failed: false }
   pool.set(url, entry)
   queue.push(url)
