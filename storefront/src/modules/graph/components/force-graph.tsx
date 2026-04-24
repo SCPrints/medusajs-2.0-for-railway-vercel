@@ -206,13 +206,20 @@ export const ForceGraph = forwardRef<ForceGraphHandle, Props>(function ForceGrap
         ctx.stroke()
       }
 
-      if (globalScale > 0.9 && (node.kind === "brand" || node.kind === "category" || node.kind === "root")) {
-        ctx.fillStyle = style.labelColor
-        const fontSize = Math.max(10, 14 / Math.max(1, globalScale))
+      if (
+        globalScale > 0.9 &&
+        (node.kind === "brand" || node.kind === "category" || node.kind === "root")
+      ) {
+        const fontSize = Math.max(11, 14 / Math.max(1, globalScale))
         ctx.font = `${fontSize}px Inter, system-ui, sans-serif`
         ctx.textAlign = "center"
         ctx.textBaseline = "top"
-        ctx.fillText(node.label, x, y + radius + 2)
+        const ty = y + radius + 3
+        ctx.lineWidth = Math.max(3, fontSize / 3)
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.85)"
+        ctx.strokeText(node.label, x, ty)
+        ctx.fillStyle = style.labelColor
+        ctx.fillText(node.label, x, ty)
       }
 
       ctx.restore()

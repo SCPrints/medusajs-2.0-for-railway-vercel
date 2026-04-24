@@ -49,9 +49,16 @@ export default async function BrandsPage() {
   try {
     graphSummary = await getGraphSummary()
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("BrandsPage: failed to load graph summary", error)
-    }
+    // Log in all environments so production failures are diagnosable in Vercel
+    // function logs — the /store/graph route is a fresh endpoint and the most
+    // likely cause of a production outage is the Medusa backend not having
+    // been redeployed with it yet.
+    console.error(
+      "[BrandsPage] /store/graph summary unavailable — hiding graph preview. " +
+        "If this is unexpected, confirm the Medusa backend was redeployed " +
+        "and NEXT_PUBLIC_MEDUSA_BACKEND_URL points at it.",
+      error
+    )
   }
 
   return (

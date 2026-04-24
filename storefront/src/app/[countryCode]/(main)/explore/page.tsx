@@ -1,8 +1,10 @@
 import { Metadata } from "next"
+import Link from "next/link"
 
 import { getGraphSummary } from "@lib/data/graph"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { ExploreTemplate } from "@modules/graph/templates/explore-template"
+import type { GraphPayload } from "../../../../types/graph"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -39,15 +41,54 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-export default async function ExplorePage({ searchParams }: PageProps) {
-  const [summary, search] = await Promise.all([
-    getGraphSummary(),
+export default async function ExplorePage({ params, searchParams }: PageProps) {
+  const [{ countryCode }, search, summaryResult] = await Promise.all([
+    params,
     searchParams,
+    getGraphSummary()
+      .then((payload): { ok: true; payload: GraphPayload } => ({ ok: true, payload }))
+      .catch(
+        (error: unknown): { ok: false; error: string } => ({
+          ok: false,
+          error: error instanceof Error ? error.message : "unknown error",
+        })
+      ),
   ])
+
+  if (!summaryResult.ok) {
+    return (
+      <div className="content-container py-16 flex flex-col items-start gap-4">
+        <h1 className="text-2xl font-semibold text-ui-fg-base">
+          Explore the catalog
+        </h1>
+        <p className="text-ui-fg-subtle max-w-prose">
+          The interactive graph can&rsquo;t reach the catalog service right now.
+          This usually means the Medusa backend hasn&rsquo;t finished redeploying
+          with the new <code>/store/graph</code> route, or the storefront
+          environment is pointing at a different backend.
+        </p>
+        <details className="text-xs text-ui-fg-muted max-w-prose">
+          <summary className="cursor-pointer">Technical details</summary>
+          <pre className="whitespace-pre-wrap mt-2">{summaryResult.error}</pre>
+        </details>
+        <Link
+          href={`/${countryCode}/brands`}
+          className="text-ui-fg-interactive hover:underline"
+        >
+          Browse brands instead
+        </Link>
+      </div>
+    )
+  }
 
   const focusRaw = search?.focus
   const focus = Array.isArray(focusRaw) ? focusRaw[0] : focusRaw
   const initialFocus = typeof focus === "string" && focus.length ? focus : null
 
-  return <ExploreTemplate initialPayload={summary} initialFocus={initialFocus} />
+  return (
+    <ExploreTemplate
+      initialPayload={summaryResult.payload}
+      initialFocus={initialFocus}
+    />
+  )
 }

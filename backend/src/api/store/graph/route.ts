@@ -109,6 +109,27 @@ const HANDLE_PREFIX_BRAND: Array<{ prefix: string; brand: string }> = [
   { prefix: "patagonia", brand: "Patagonia" },
 ].sort((a, b) => b.prefix.length - a.prefix.length)
 
+/**
+ * Canonical brands always rendered in the summary graph, even when the
+ * catalogue currently has zero products for them. Mirrors
+ * `storefront/src/modules/brands/data/brands.ts` so the graph stays in sync
+ * with the `/brands` page. `logoSrc` paths are relative to the storefront
+ * public dir — the graph renderer prefixes them with the storefront origin.
+ */
+const CANONICAL_BRANDS: Array<{ name: string; logoSrc: string | null }> = [
+  { name: "AS Colour", logoSrc: "/images/brands/logos/as-colour.png" },
+  { name: "Gildan", logoSrc: "/images/brands/logos/gildan.png" },
+  { name: "Syzmik", logoSrc: "/images/brands/logos/syzmik-workwear.svg" },
+  { name: "Biz Collection", logoSrc: "/images/brands/logos/biz-collection.png" },
+  { name: "American Apparel", logoSrc: "/images/brands/logos/american-apparel.png" },
+  { name: "Anvil", logoSrc: "/images/brands/logos/anvil.png" },
+  { name: "DNC Workwear", logoSrc: "/images/brands/logos/dnc.png" },
+  { name: "Grace Collection", logoSrc: "/images/brands/logos/grace.svg" },
+  { name: "Ramo", logoSrc: "/images/brands/logos/ramo.svg" },
+  { name: "Champion", logoSrc: null },
+  { name: "Patagonia", logoSrc: null },
+]
+
 function inferBrandFromHandle(handle: string | null | undefined): string | null {
   if (!handle) return null
   const h = handle.trim().toLowerCase()
@@ -155,19 +176,49 @@ function lowestPrice(row: ProductRow, preferredCurrency: string | null): GraphPr
   return all.reduce((min, p) => (p.amount < min.amount ? p : min))
 }
 
-function setCors(req: MedusaRequest, res: MedusaResponse) {
-  const origin = req.headers.origin
-  const defaultOrigins = [
+/**
+ * STORE_CORS entries may be plain origins (`https://foo.com`) or JS-style
+ * regexes wrapped in slashes (`/\.vercel\.app$/`). We accept both so Vercel
+ * preview URLs like `medusajs-2-0-for-railway-vercel-<hash>.vercel.app` can be
+ * matched without hard-coding every deploy.
+ */
+function isAllowedOrigin(origin: string): boolean {
+  if (!origin) return false
+
+  const defaults: Array<string | RegExp> = [
     "https://medusajs-2-0-for-railway-vercel.vercel.app",
     "http://localhost:8000",
+    /^https:\/\/medusajs-2-0-for-railway-vercel[a-z0-9-]*\.vercel\.app$/,
   ]
+
   const configured = (process.env.STORE_CORS ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
-  const allowed = new Set<string>([...defaultOrigins, ...configured])
+    .map<string | RegExp>((entry) => {
+      if (entry.startsWith("/") && entry.endsWith("/") && entry.length > 2) {
+        try {
+          return new RegExp(entry.slice(1, -1))
+        } catch {
+          return entry
+        }
+      }
+      return entry
+    })
 
-  if (origin && allowed.has(origin)) {
+  for (const rule of [...defaults, ...configured]) {
+    if (typeof rule === "string") {
+      if (rule === origin) return true
+    } else if (rule.test(origin)) {
+      return true
+    }
+  }
+  return false
+}
+
+function setCors(req: MedusaRequest, res: MedusaResponse) {
+  const origin = req.headers.origin ?? ""
+  if (origin && isAllowedOrigin(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin)
   }
   res.setHeader("Vary", "Origin")
@@ -349,7 +400,32 @@ async function buildSummary(query: QueryGraph): Promise<GraphPayload> {
     skip += take
   }
 
+  /**
+   * Always emit every canonical brand so the graph matches the `/brands` page,
+   * even when a brand has zero products in the current catalogue (common for
+   * newly-added brands or regions without stock). Non-canonical brands
+   * discovered from product metadata are appended afterwards.
+   */
+  const emittedBrands = new Set<string>()
+  for (const canonical of CANONICAL_BRANDS) {
+    emittedBrands.add(canonical.name)
+    nodes.push({
+      id: `brand:${canonical.name}`,
+      kind: "brand",
+      label: canonical.name,
+      productCount: brandCounts.get(canonical.name) ?? 0,
+      logoSrc: canonical.logoSrc,
+    })
+    links.push({
+      source: `brand:${canonical.name}`,
+      target: ROOT_ID,
+      kind: "brand-root",
+    })
+  }
+
   for (const [brand, count] of brandCounts) {
+    if (emittedBrands.has(brand)) continue
+    emittedBrands.add(brand)
     nodes.push({
       id: `brand:${brand}`,
       kind: "brand",

@@ -52,22 +52,37 @@ async function fetchGraph(
     headers["x-publishable-api-key"] = key
   }
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers,
-    next: {
-      tags: tags as string[],
-      revalidate: GRAPH_REVALIDATE_SECONDS,
-    },
-  })
+  let response: Response
+  try {
+    response = await fetch(url, {
+      method: "GET",
+      headers,
+      next: {
+        tags: tags as string[],
+        revalidate: GRAPH_REVALIDATE_SECONDS,
+      },
+    })
+  } catch (error) {
+    console.error(
+      `[graph] network error reaching ${url} — is the Medusa backend deployed and reachable?`,
+      error
+    )
+    throw error
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => "")
-    throw new Error(
-      `Failed to fetch ${url}: ${response.status} ${response.statusText}${
-        text ? ` — ${text.slice(0, 200)}` : ""
-      }`
-    )
+    const message = `Failed to fetch ${url}: ${response.status} ${response.statusText}${
+      text ? ` — ${text.slice(0, 200)}` : ""
+    }`
+    if (response.status === 404) {
+      console.error(
+        `[graph] ${url} returned 404. The backend is running but the /store/graph route is missing — redeploy the Medusa backend after committing backend/src/api/store/graph/route.ts.`
+      )
+    } else {
+      console.error(`[graph] ${message}`)
+    }
+    throw new Error(message)
   }
 
   return (await response.json()) as GraphPayload
