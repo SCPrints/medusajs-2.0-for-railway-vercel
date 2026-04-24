@@ -71,10 +71,20 @@ const ForceGraph2D = dynamic(
  * Shared label rasterizer. Draws a dark halo behind the label so it remains
  * readable over both the dark UI chrome and any background color.
  *
+ * Canvas text is specified in the current transform's units (graph
+ * coordinates), which then get multiplied by `globalScale` to produce screen
+ * pixels. To keep labels at a constant on-screen size regardless of zoom, we
+ * use `TARGET_SCREEN_PX / globalScale` as the graph-unit font size. The prior
+ * `Math.max(11, ...)` floor accidentally grew text with zoom: at globalScale=3
+ * it produced 11 graph units × 3 = 33 screen pixels, which is why a hovered
+ * product label was spanning the whole viewport.
+ *
  * NOTE: `lineJoin`/`lineCap` must be `round` — the canvas default is `miter`,
  * which produces spike artifacts at the sharp corners of characters when the
  * stroke is wide relative to the font size (most visible on Ws, Vs, Ks, etc.).
  */
+const LABEL_TARGET_SCREEN_PX = 12
+
 function drawLabel(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -84,11 +94,12 @@ function drawLabel(
   bold: boolean,
   color: string
 ) {
-  const fontSize = Math.max(11, 14 / Math.max(1, globalScale))
+  const safeScale = Math.max(0.2, globalScale)
+  const fontSize = LABEL_TARGET_SCREEN_PX / safeScale
   ctx.font = `${bold ? "600 " : ""}${fontSize}px Inter, system-ui, sans-serif`
   ctx.textAlign = "center"
   ctx.textBaseline = "top"
-  ctx.lineWidth = Math.max(3, fontSize / 3)
+  ctx.lineWidth = Math.max(2, fontSize / 3)
   ctx.lineJoin = "round"
   ctx.lineCap = "round"
   ctx.miterLimit = 2
@@ -281,11 +292,10 @@ export const ForceGraph = forwardRef<ForceGraphHandle, Props>(function ForceGrap
           ctx.stroke()
           ctx.restore()
 
-          // Product labels only render when user is directly hovering/selecting
-          // the node (never in bulk) to keep the canvas readable.
-          if (isPrimary && globalScale > 1.4) {
-            drawLabel(ctx, node.label, x, y + radius + 3, globalScale, true, style.labelHighlightColor)
-          }
+          // Intentionally no canvas-drawn label for products: the DOM tooltip
+          // that appears on hover already shows the product title, thumbnail
+          // and price, so drawing the same text on the canvas just created a
+          // huge redundant overlay that collided with the tooltip card.
           return
         }
       }
