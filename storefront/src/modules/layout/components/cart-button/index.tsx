@@ -1,10 +1,7 @@
 import { notFound } from "next/navigation"
 import CartDropdown from "../cart-dropdown"
-import {
-  applyDisplayPriceCorrectionToCart,
-  enrichLineItems,
-  retrieveCart,
-} from "@lib/data/cart"
+import { enrichLineItems, retrieveCart } from "@lib/data/cart"
+import { applyDisplayPriceCorrectionToCart } from "@lib/util/apply-display-price-correction"
 
 const fetchCart = async () => {
   const cart = await retrieveCart()

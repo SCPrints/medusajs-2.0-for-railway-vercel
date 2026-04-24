@@ -4,11 +4,8 @@ import { notFound } from "next/navigation"
 import Wrapper from "@modules/checkout/components/payment-wrapper"
 import CheckoutForm from "@modules/checkout/templates/checkout-form"
 import CheckoutSummary from "@modules/checkout/templates/checkout-summary"
-import {
-  applyDisplayPriceCorrectionToCart,
-  enrichLineItems,
-  retrieveCart,
-} from "@lib/data/cart"
+import { enrichLineItems, retrieveCart } from "@lib/data/cart"
+import { applyDisplayPriceCorrectionToCart } from "@lib/util/apply-display-price-correction"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomer } from "@lib/data/customer"
 
