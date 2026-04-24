@@ -5,7 +5,9 @@
  *   - `syzmik` / `syzmik-*` handles in the allowlist (Product Handle) → Published
  *   - Other Syzmik products → Draft
  *
- * Pricing (per `Variant Sku` on allowlisted products only):
+ * Pricing (allowlisted products only; matches by **Product Handle + Variant Title** so it works
+ * when `Variant Sku` is broken — e.g. every row is `9.40104E+12` from Excel. Optional: also matches
+ * by SKU when the CSV has unique, real SKUs.)
  *   - BASE_SALE_PRICE, TIER_10_TO_49_PRICE, TIER_50_TO_99_PRICE
  *   - TIER_100_PLUS; if empty, `Variant Price AUD` (100+ anchor)
  *   - Price set: qty 1–9, 10–49, 50–99, 100+ (same as `update-as-colour-pricing.ts`)
@@ -69,22 +71,64 @@ const parseCsvLine = (line: string): string[] => {
   return out
 }
 
+/**
+ * Split into CSV *records* (not physical lines) so quoted fields with embedded newlines work.
+ */
+const splitCsvRecords = (raw: string): string[] => {
+  const records: string[] = []
+  let current = ""
+  let inQuotes = false
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]
+    if (ch === '"') {
+      if (inQuotes && raw[i + 1] === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+        current += ch
+      }
+      continue
+    }
+    if (!inQuotes) {
+      if (ch === "\n") {
+        if (current.length > 0 || records.length > 0) {
+          records.push(current)
+        }
+        current = ""
+        continue
+      }
+      if (ch === "\r") {
+        if (raw[i + 1] === "\n") {
+          i++
+        }
+        if (current.length > 0 || records.length > 0) {
+          records.push(current)
+        }
+        current = ""
+        continue
+      }
+    }
+    current += ch
+  }
+  if (current.length > 0 || records.length > 0) {
+    records.push(current)
+  }
+  return records.filter((r) => r.trim().length > 0)
+}
+
 const parseCsv = (raw: string): CsvRow[] => {
-  const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0)
+  const lines = splitCsvRecords(raw)
   if (!lines.length) {
     return []
   }
-
   const headers = parseCsvLine(lines[0])
-
   return lines.slice(1).map((line) => {
     const parts = parseCsvLine(line)
     const row: CsvRow = {}
-
     headers.forEach((header, idx) => {
       row[header] = (parts[idx] ?? "").trim()
     })
-
     return row
   })
 }
@@ -158,9 +202,15 @@ const buildPricesForPriceSet = (m: TierMoneyMinor): Array<Record<string, unknown
 
 const isSyzmikHandle = (h: string) => h === "syzmik" || h.startsWith("syzmik-")
 
+const normalizeKeyPart = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim()
+
+const variantRowKey = (productHandle: string, variantTitle: string) =>
+  `${normalizeKeyPart(productHandle)}|${normalizeKeyPart(variantTitle)}`
+
 type VariantRow = {
   id: string
   sku?: string
+  title?: string | null
   product_id?: string
   metadata?: Record<string, unknown>
   price_set?: { id?: string }
@@ -195,21 +245,31 @@ export default async function trimSyzmikCatalogByAllowlist({ container, args }: 
   const dataRows = parseCsv(rawCsv)
 
   const allowHandles = new Set<string>()
-  const skuTiers = new Map<string, TierMoneyMinor>()
+  const tierByVariantKey = new Map<string, TierMoneyMinor>()
+  const tierBySku = new Map<string, TierMoneyMinor>()
+  const duplicateTitleKeys: string[] = []
   const duplicateSkus: string[] = []
+  let warnedScientificSku = false
+  const uniqueSkus = new Set<string>()
 
   for (const row of dataRows) {
     const ph = (row["Product Handle"] || "").trim().toLowerCase()
     if (ph) {
       allowHandles.add(ph)
     }
-    const sku = (row["Variant Sku"] || "").trim()
-    if (!sku) {
+    const vTitle = (row["Variant Title"] || "").trim()
+    if (!vTitle) {
       continue
     }
-    if (isLikelyScientificSku(sku)) {
+    const sku = (row["Variant Sku"] || "").trim()
+    if (sku) {
+      uniqueSkus.add(sku)
+    }
+    if (sku && isLikelyScientificSku(sku) && !warnedScientificSku) {
+      warnedScientificSku = true
       logger.warn(
-        `Variant Sku may not match Medusa (scientific-notation like export): ${sku} — re-export with text or fix barcodes.`
+        "CSV has scientific-notation or broken Variant Sku values (e.g. 9.40104E+12). " +
+          "Matching prices by **Product Handle + Variant Title** instead. Re-export SKUs as text to enable SKU-based matching too."
       )
     }
     const baseM = parseMoneyToMinor(row["BASE_SALE_PRICE"])
@@ -223,28 +283,44 @@ export default async function trimSyzmikCatalogByAllowlist({ container, args }: 
       continue
     }
 
-    if (skuTiers.has(sku)) {
-      duplicateSkus.push(sku)
+    const rowTiers: TierMoneyMinor = { base: baseM, t10: t10M, t50: t50M, t100: t100M }
+    const vk = variantRowKey(ph, vTitle)
+    if (tierByVariantKey.has(vk)) {
+      duplicateTitleKeys.push(vk)
     }
-    skuTiers.set(sku, { base: baseM, t10: t10M, t50: t50M, t100: t100M })
+    tierByVariantKey.set(vk, rowTiers)
+
+    if (sku && !isLikelyScientificSku(sku)) {
+      if (tierBySku.has(sku)) {
+        duplicateSkus.push(sku)
+      }
+      tierBySku.set(sku, rowTiers)
+    }
   }
 
   if (!allowHandles.size) {
     throw new Error("No Product Handle values in CSV allowlist")
   }
-  if (!skuTiers.size) {
-    throw new Error("No valid SKU + tier price rows in CSV (check column names and amounts)")
+  if (!tierByVariantKey.size) {
+    throw new Error("No valid Product Handle + Variant Title + tier price rows in CSV (check column names and amounts)")
   }
 
-  if (duplicateSkus.length) {
-    const uniq = Array.from(new Set(duplicateSkus))
+  if (duplicateTitleKeys.length) {
+    const uniq = new Set(duplicateTitleKeys)
     logger.warn(
-      `${uniq.length} duplicate SKU(s) in CSV; last row wins. Samples: ${uniq.slice(0, 8).join(", ")}`
+      `${uniq.size} duplicate handle|VariantTitle key(s) in CSV; last row wins.`
+    )
+  }
+  if (duplicateSkus.length) {
+    const uniq = new Set(duplicateSkus)
+    logger.warn(
+      `${uniq.size} duplicate SKU(s) in CSV; last row wins. Samples: ${[...uniq].slice(0, 6).join(", ")}`
     )
   }
 
   logger.info(
-    `Loaded ${allowHandles.size} allowlist handle(s), ${skuTiers.size} priced SKU(s) from ${path.basename(csvPath)} (${dataRows.length} data rows). apply=${apply}`
+    `Loaded ${allowHandles.size} allowlist handle(s), ${tierByVariantKey.size} variant tier row(s) (handle + Variant Title), ` +
+      `${tierBySku.size} SKU key(s) from ${path.basename(csvPath)} (${dataRows.length} data rows, ${uniqueSkus.size} unique CSV SKUs). apply=${apply}`
   )
 
   const syzmikProducts: ProductRow[] = []
@@ -309,11 +385,36 @@ export default async function trimSyzmikCatalogByAllowlist({ container, args }: 
     logger.info("Re-run with --apply to persist status.")
   }
 
-  const allowlistedProductIds = new Set(
+  const productIdToHandle = new Map<string, string>(
     syzmikProducts
       .filter((p) => allowHandles.has((p.handle ?? "").trim().toLowerCase()))
-      .map((p) => p.id)
+      .map((p) => [p.id, (p.handle ?? "").trim().toLowerCase()])
   )
+
+  const allowlistedProductIds = new Set(syzmikProducts.filter((p) => productIdToHandle.has(p.id)).map((p) => p.id))
+
+  const resolveTiers = (v: VariantRow): TierMoneyMinor | null => {
+    const pid = v.product_id
+    if (!pid) {
+      return null
+    }
+    const h = productIdToHandle.get(pid)
+    if (!h) {
+      return null
+    }
+    const title = (v.title || "").trim()
+    if (title) {
+      const fromTitle = tierByVariantKey.get(variantRowKey(h, title))
+      if (fromTitle) {
+        return fromTitle
+      }
+    }
+    const sku = (v.sku || "").trim()
+    if (sku && tierBySku.has(sku)) {
+      return tierBySku.get(sku) ?? null
+    }
+    return null
+  }
 
   const variantRows: VariantRow[] = []
   for (const idBatch of chunk([...allowlistedProductIds], BATCH_SIZE)) {
@@ -322,7 +423,7 @@ export default async function trimSyzmikCatalogByAllowlist({ container, args }: 
     }
     const { data } = await query.graph({
       entity: "product_variant",
-      fields: ["id", "sku", "product_id", "metadata", "price_set.id"],
+      fields: ["id", "sku", "title", "product_id", "metadata", "price_set.id"],
       filters: { product_id: idBatch },
     })
     for (const row of (data ?? []) as VariantRow[]) {
@@ -332,44 +433,28 @@ export default async function trimSyzmikCatalogByAllowlist({ container, args }: 
 
   let matchedVariantCount = 0
   for (const v of variantRows) {
-    const sku = (v.sku || "").trim()
-    if (sku && skuTiers.has(sku)) {
+    if (resolveTiers(v)) {
       matchedVariantCount++
     }
   }
 
-  const missingInDb: string[] = []
-  for (const sku of skuTiers.keys()) {
-    if (!variantRows.some((v) => (v.sku || "").trim() === sku)) {
-      if (missingInDb.length < 50) {
-        missingInDb.push(sku)
-      }
-    }
-  }
-  if (missingInDb.length) {
+  if (matchedVariantCount < variantRows.length) {
     logger.warn(
-      `SKUs in CSV with tier prices but not found on allowlisted Syzmik variants: at least ${missingInDb.length} (sample of ${Math.min(20, missingInDb.length)} below).`
+      `Some allowlisted DB variants have no matching CSV row (by handle + title or SKU). ` +
+        `unmatched ≈ ${variantRows.length - matchedVariantCount} of ${variantRows.length}. Check Variant Title / handle alignment with the export.`
     )
-    for (const s of missingInDb.slice(0, 20)) {
-      logger.warn(`  ${s}`)
-    }
   }
 
   let newPriceSetLinks = 0
-  let noSku = 0
   let notInCsv = 0
 
   for (const variant of variantRows) {
-    const sku = (variant.sku || "").trim()
-    if (!sku) {
-      noSku++
-      continue
-    }
-    const tiersM = skuTiers.get(sku)
+    const tiersM = resolveTiers(variant)
     if (!tiersM) {
       notInCsv++
       continue
     }
+    const sku = (variant.sku || "").trim()
 
     const pricesForPriceSet = buildPricesForPriceSet(tiersM)
     const existingMeta = (variant.metadata ?? {}) as Record<string, unknown>
@@ -413,7 +498,8 @@ export default async function trimSyzmikCatalogByAllowlist({ container, args }: 
   }
 
   logger.info(
-    `Pricing: allowlisted products=${allowlistedProductIds.size} variant rows=${variantRows.length} with_csv_tier_prices=${matchedVariantCount} no_sku=${noSku} not_in_csv=${notInCsv} new_price_set_links=${apply ? newPriceSetLinks : 0} apply=${apply}`
+    `Pricing: allowlisted products=${allowlistedProductIds.size} variant rows=${variantRows.length} ` +
+      `matched_for_tiers=${matchedVariantCount} no_csv_match=${notInCsv} new_price_set_links=${apply ? newPriceSetLinks : 0} apply=${apply}`
   )
   if (!apply) {
     logger.info("Dry run: no price or metadata written. Re-run with -- --apply to persist pricing.")
