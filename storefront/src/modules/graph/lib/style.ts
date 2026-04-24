@@ -1,10 +1,16 @@
 import type { NodeKind } from "../../../types/graph"
 
 export type NodeStyle = {
+  /** Resting fill when the node is unrelated to the active focus/hover. */
   fill: string
+  /** Fill used when the node is hovered, selected, or adjacent to focus. */
+  highlightFill: string
   stroke: string
   baseRadius: number
+  /** Label color in the resting state. */
   labelColor: string
+  /** Label color in the highlighted state. */
+  labelHighlightColor: string
 }
 
 /**
@@ -12,35 +18,43 @@ export type NodeStyle = {
  * CSS vars because react-force-graph-2d renders to canvas, which cannot
  * inherit CSS variables.
  *
- * Palette tuned for AA-ish contrast against both the site's dark chrome and
- * the lighter content backgrounds used on /brands. Fills are bright enough to
- * pop on either background; strokes and labels are high-contrast white/pale
- * tints so labels stay legible at small zoom levels.
+ * Palette follows an Obsidian-style aesthetic: nodes sit in a muted resting
+ * state and only "light up" to their highlight color when they are hovered,
+ * selected, or adjacent to the active node. This keeps the default view calm
+ * and reserves color saliency for the interactive neighborhood.
  */
 export const NODE_STYLE: Record<NodeKind, NodeStyle> = {
   root: {
-    fill: "#f8fafc",
-    stroke: "#0f172a",
-    baseRadius: 14,
-    labelColor: "#0f172a",
+    fill: "#d1d5db",
+    highlightFill: "#f8fafc",
+    stroke: "#64748b",
+    baseRadius: 12,
+    labelColor: "#475569",
+    labelHighlightColor: "#f8fafc",
   },
   brand: {
-    fill: "#14b8a6",
-    stroke: "#ffffff",
-    baseRadius: 11,
-    labelColor: "#f1f5f9",
+    fill: "#64748b",
+    highlightFill: "#2dd4bf",
+    stroke: "#94a3b8",
+    baseRadius: 9,
+    labelColor: "#94a3b8",
+    labelHighlightColor: "#f1f5f9",
   },
   category: {
-    fill: "#f97316",
-    stroke: "#ffffff",
-    baseRadius: 8,
-    labelColor: "#f1f5f9",
+    fill: "#6b7280",
+    highlightFill: "#fb923c",
+    stroke: "#94a3b8",
+    baseRadius: 7,
+    labelColor: "#94a3b8",
+    labelHighlightColor: "#f1f5f9",
   },
   product: {
-    fill: "#60a5fa",
-    stroke: "#ffffff",
-    baseRadius: 5,
-    labelColor: "#e0e7ff",
+    fill: "#94a3b8",
+    highlightFill: "#93c5fd",
+    stroke: "#cbd5e1",
+    baseRadius: 4,
+    labelColor: "#94a3b8",
+    labelHighlightColor: "#e0e7ff",
   },
 }
 
@@ -56,5 +70,9 @@ export function nodeRadius(kind: NodeKind, productCount?: number): number {
   return base + Math.min(8, Math.log2(productCount + 1))
 }
 
-export const LINK_COLOR = "rgba(148, 163, 184, 0.45)"
-export const LINK_COLOR_HIGHLIGHT = "rgba(191, 219, 254, 0.9)"
+/** Default link color: faint cool grey so the web recedes into the background. */
+export const LINK_COLOR = "rgba(148, 163, 184, 0.25)"
+/** Link color when the link touches the hovered/selected/search-matched node. */
+export const LINK_COLOR_HIGHLIGHT = "rgba(147, 197, 253, 0.95)"
+/** Link color for links that are neither active nor adjacent to the focus. */
+export const LINK_COLOR_DIMMED = "rgba(148, 163, 184, 0.06)"

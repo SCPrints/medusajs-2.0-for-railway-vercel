@@ -40,8 +40,8 @@ export function GraphFilters({ value, onChange }: Props) {
               checked={value[item.key]}
               onChange={() => toggle(item.key)}
               className={`${
-                value[item.key] ? "bg-[var(--brand-secondary,#0f766e)]" : "bg-ui-bg-component"
-              } relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-ui-border-base transition-colors duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary,#0f766e)]`}
+                value[item.key] ? "bg-slate-700" : "bg-ui-bg-component"
+              } relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-ui-border-base transition-colors duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}
               aria-label={`Toggle ${item.label}`}
             >
               <span

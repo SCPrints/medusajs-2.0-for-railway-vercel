@@ -21,7 +21,7 @@ export function GraphLegend() {
                 aria-hidden
                 className="inline-block h-3 w-3 rounded-full border"
                 style={{
-                  backgroundColor: style.fill,
+                  backgroundColor: style.highlightFill,
                   borderColor: style.stroke,
                 }}
               />

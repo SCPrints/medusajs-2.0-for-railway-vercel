@@ -44,6 +44,7 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
 
   const graphRef = useRef<ForceGraphHandle | null>(null)
   const [lastExpandedId, setLastExpandedId] = useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
   const {
     payload,
@@ -68,6 +69,7 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
         router.push(`/${cc}/products/${node.handle}`)
         return
       }
+      setSelectedNodeId(node.id)
       if (node.kind === "brand" || node.kind === "category") {
         if (!expandedNodeIds.has(node.id)) {
           void expandNode(node)
@@ -79,6 +81,10 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
     },
     [countryCode, router, expandNode, expandedNodeIds]
   )
+
+  const handleBackgroundClick = useCallback(() => {
+    setSelectedNodeId(null)
+  }, [])
 
   const lastInfo = lastExpandedId ? getExpansionInfo(lastExpandedId) : null
   const lastNode = lastExpandedId
@@ -144,8 +150,10 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
           ref={graphRef}
           payload={filteredPayload}
           highlightQuery={search}
+          selectedNodeId={selectedNodeId}
           onNodeClick={handleNodeClick}
           onNodeHover={handleNodeHover}
+          onBackgroundClick={handleBackgroundClick}
           onEngineStop={onEngineStop}
           cooldownTicks={settled ? 0 : 120}
           className="pointer-events-auto"
