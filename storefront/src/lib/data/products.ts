@@ -82,7 +82,39 @@ export async function getProductByHandle(
       PRODUCT_LIST_FETCH_INIT
     )
 
-    return products[0] ?? null
+    const product = products[0] ?? null
+    // #region agent log
+    if (product?.variants?.length) {
+      const variants = product.variants as Array<{
+        sku?: string
+        calculated_price?: { calculated_amount?: number }
+        metadata?: Record<string, unknown>
+      }>
+      const sample = variants.slice(0, 8).map((v) => {
+        const tiers = (v.metadata?.bulk_pricing as { tiers?: { amount?: unknown }[] } | undefined)?.tiers
+        const bulk0 = Array.isArray(tiers) ? tiers[0]?.amount : undefined
+        return {
+          sku: v.sku,
+          calculated_amount: v.calculated_price?.calculated_amount,
+          bulk_tier0_amount: bulk0,
+        }
+      })
+      fetch("http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fde93" },
+        body: JSON.stringify({
+          sessionId: "6fde93",
+          hypothesisId: "H1_H4_H5",
+          location: "products.ts:getProductByHandle",
+          message: "store_product_list_prices",
+          data: { handle: normalizedHandle, regionId, variantCount: variants.length, sample },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+    }
+    // #endregion
+
+    return product
   } catch {
     return null
   }

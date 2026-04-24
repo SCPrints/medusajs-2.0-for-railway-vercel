@@ -19,7 +19,42 @@ export async function retrieveCart() {
 
   return await sdk.store.cart
     .retrieve(cartId, {}, { next: { tags: ["cart"] }, ...(await getAuthHeaders()) })
-    .then(({ cart }) => cart)
+    .then(({ cart }) => {
+      // #region agent log
+      const items = cart?.items ?? []
+      if (items.length) {
+        const first = items[0] as Record<string, unknown> & {
+          title?: string
+          variant?: { sku?: string; calculated_price?: { calculated_amount?: number } }
+        }
+        const fv = first.variant
+        fetch("http://127.0.0.1:7514/ingest/d011aee9-9c02-46d7-8ea3-0d9f69f8eed0", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "6fde93" },
+          body: JSON.stringify({
+            sessionId: "6fde93",
+            hypothesisId: "H2",
+            location: "cart.ts:retrieveCart",
+            message: "cart_line_variant_prices",
+            data: {
+              cartId: cart.id,
+              regionId: cart.region_id,
+              cartSubtotal: cart.subtotal,
+              itemCount: items.length,
+              firstTitle: first.title,
+              firstSku: fv?.sku,
+              firstVariantCalculatedAmount: fv?.calculated_price?.calculated_amount,
+              firstLineUnitPrice: first.unit_price,
+              firstLineSubtotal: first.subtotal,
+              firstLineKeys: Object.keys(first).slice(0, 25),
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {})
+      }
+      // #endregion
+      return cart
+    })
     .catch(() => {
       return null
     })
