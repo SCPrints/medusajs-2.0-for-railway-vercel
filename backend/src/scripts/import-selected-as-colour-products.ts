@@ -4,6 +4,7 @@ import path from "node:path"
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
+import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
 import { withNonTrackedInventoryDefaults } from "./utils/variant-inventory-defaults"
 
 type CsvRow = Record<string, string>
@@ -204,7 +205,7 @@ export default async function importSelectedAsColourProducts({ container }: Exec
         }
       }
 
-      const amount = toNullableInt(row["Variant Price AUD"]) ?? 0
+      const amount = parseMoneyToMinor(row["Variant Price AUD"]) ?? 0
       const frontImage = row["Product Image 1"] || row["Product Thumbnail"] || undefined
       const backImage = row["Product Image 2"] || undefined
       const garmentImages: VariantGarmentImages = {

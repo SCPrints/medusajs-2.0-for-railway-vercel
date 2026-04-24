@@ -2,6 +2,9 @@
 """
 Build Medusa product-import CSV rows from Ramo export data.
 
+`Variant Price AUD` in the output is in AUD dollars (major units). Backend Medusa scripts
+use parseMoneyToMinor() to convert to cents for `prices[].amount`.
+
 Usage:
   python3 scripts/generate_ramo_medusa_import.py \
     --csv Export_Core_2026-02-19.csv \

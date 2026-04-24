@@ -4,6 +4,8 @@ import path from "node:path"
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
+import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
+
 type CsvRow = Record<string, string>
 
 type Tier = {
@@ -99,24 +101,6 @@ const resolveExistingPath = (candidates: string[], label: string) => {
   throw new Error(
     `${label} not found. Tried: ${candidates.map((p) => path.resolve(p)).join(", ")}`
   )
-}
-
-const parseMoneyToMinor = (value?: string): number | null => {
-  if (!value) {
-    return null
-  }
-
-  const normalized = value.replace(/[^0-9.-]/g, "")
-  if (!normalized) {
-    return null
-  }
-
-  const parsed = Number.parseFloat(normalized)
-  if (!Number.isFinite(parsed)) {
-    return null
-  }
-
-  return Math.round(parsed * 100)
 }
 
 const normalizeStyleCode = (value?: string) => value?.trim().toUpperCase() || ""

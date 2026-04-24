@@ -4,6 +4,7 @@ import path from "node:path"
 import { CreateProductVariantDTO, ExecArgs, UpdateProductVariantDTO } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 import { createProductsWorkflow, updateProductOptionsWorkflow } from "@medusajs/medusa/core-flows"
+import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
 import { withNonTrackedInventoryDefaults } from "./utils/variant-inventory-defaults"
 
 type CsvRow = Record<string, string>
@@ -202,14 +203,6 @@ const parseCsv = (raw: string): CsvRow[] => {
   })
 }
 
-const toNullableInt = (value?: string) => {
-  if (!value) {
-    return undefined
-  }
-  const n = Number.parseInt(value, 10)
-  return Number.isFinite(n) ? n : undefined
-}
-
 const getVariantColor = (row: CsvRow) => {
   for (let optionIdx = 1; optionIdx <= 3; optionIdx++) {
     const optionName = row[`Variant Option ${optionIdx} Name`]
@@ -283,7 +276,7 @@ const parseProductsFromCsv = (rows: CsvRow[]) => {
         }
       }
 
-      const amount = toNullableInt(row["Variant Price AUD"]) ?? 0
+      const amount = parseMoneyToMinor(row["Variant Price AUD"]) ?? 0
       const frontImage = row["Product Image 1"] || row["Product Thumbnail"] || undefined
       const backImage = row["Product Image 2"] || undefined
 

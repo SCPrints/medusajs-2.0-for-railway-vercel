@@ -31,6 +31,8 @@ import path from "node:path"
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 
+import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
+
 type CsvRow = Record<string, string>
 
 const PAGE_SIZE = 500
@@ -190,24 +192,6 @@ const parseCsv = (raw: string): CsvRow[] => {
     })
     return row
   })
-}
-
-const parseMoneyToMinor = (value?: string): number | null => {
-  if (!value) {
-    return null
-  }
-
-  const normalized = value.replace(/[^0-9.-]/g, "")
-  if (!normalized) {
-    return null
-  }
-
-  const parsed = Number.parseFloat(normalized)
-  if (!Number.isFinite(parsed)) {
-    return null
-  }
-
-  return Math.round(parsed * 100)
 }
 
 const isLikelyScientificSku = (s: string) => /^-?\d+(\.\d+)?[eE][+-]?\d+$/.test(s.trim())
