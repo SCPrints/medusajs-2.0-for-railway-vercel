@@ -143,11 +143,14 @@ const CLIENT_FILTER_PAGE_BATCH = 100
 const CLIENT_FILTER_MAX_PAGES = 80
 
 /**
- * Fetches products for list views. When brand/fabric (or other client-side) filters apply,
- * pages through the catalog so matches are not limited to the first 100 API results.
+ * Fetches products for list views.
+ * - Default “Latest” (`created_at`) with no client filters: one Medusa page + API `count` so
+ *   pagination matches the full catalog (not capped at 100 items / 9 pages).
+ * - Price/title sort or brand-fabric-price-stock filters: loads catalog in batches (up to a cap),
+ *   then filters/sorts/slices in memory.
  */
 export const getProductsListWithSort = cache(async function ({
-  page = 0,
+  page = 1,
   queryParams,
   sortBy = "created_at",
   filters,
@@ -164,6 +167,8 @@ export const getProductsListWithSort = cache(async function ({
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
 }> {
   const limit = queryParams?.limit || 12
+  const resolvedPage = !page || page < 1 ? 1 : page
+
   const getMetadataValue = (product: HttpTypes.StoreProduct, keys: string[]) => {
     const metadata = (product.metadata ?? {}) as Record<string, unknown>
 
@@ -177,7 +182,7 @@ export const getProductsListWithSort = cache(async function ({
     return null
   }
 
-  const needsFullCatalogForClientFilters = Boolean(
+  const hasClientFilters = Boolean(
     filters?.brand ||
       filters?.fabric ||
       typeof filters?.minPrice === "number" ||
@@ -185,39 +190,46 @@ export const getProductsListWithSort = cache(async function ({
       filters?.inStock
   )
 
-  let products: HttpTypes.StoreProduct[] = []
-  let count = 0
+  const useApiPagination = sortBy === "created_at" && !hasClientFilters
 
-  if (needsFullCatalogForClientFilters) {
-    let pageIdx = 1
-    while (pageIdx <= CLIENT_FILTER_MAX_PAGES) {
-      const batch = await getProductsList({
-        pageParam: pageIdx,
-        queryParams: {
-          ...queryParams,
-          limit: CLIENT_FILTER_PAGE_BATCH,
-        },
-        countryCode,
-      })
-      const batchProducts = batch.response.products
-      count = batch.response.count
-      products.push(...batchProducts)
-      if (batchProducts.length < CLIENT_FILTER_PAGE_BATCH || products.length >= count) {
-        break
-      }
-      pageIdx++
-    }
-  } else {
-    const batch = await getProductsList({
-      pageParam: 1,
+  if (useApiPagination) {
+    const { response } = await getProductsList({
+      pageParam: resolvedPage,
       queryParams: {
         ...queryParams,
-        limit: 100,
+        limit,
       },
       countryCode,
     })
-    products = batch.response.products
-    count = batch.response.count
+    const { products, count } = response
+    const offsetStart = (resolvedPage - 1) * limit
+    const hasMore = count > offsetStart + products.length
+    return {
+      response: { products, count },
+      nextPage: hasMore ? resolvedPage + 1 : null,
+      queryParams,
+    }
+  }
+
+  let products: HttpTypes.StoreProduct[] = []
+
+  let pageIdx = 1
+  while (pageIdx <= CLIENT_FILTER_MAX_PAGES) {
+    const batch = await getProductsList({
+      pageParam: pageIdx,
+      queryParams: {
+        ...queryParams,
+        limit: CLIENT_FILTER_PAGE_BATCH,
+      },
+      countryCode,
+    })
+    const batchProducts = batch.response.products
+    const total = batch.response.count
+    products.push(...batchProducts)
+    if (batchProducts.length < CLIENT_FILTER_PAGE_BATCH || products.length >= total) {
+      break
+    }
+    pageIdx++
   }
 
   const filteredProducts = products.filter((product) => {
@@ -283,12 +295,12 @@ export const getProductsListWithSort = cache(async function ({
 
   const sortedProducts = sortProducts(filteredProducts, sortBy)
 
-  const pageParam = (page - 1) * limit
+  const sliceStart = (resolvedPage - 1) * limit
 
   const filteredCount = sortedProducts.length
-  const nextPage = filteredCount > pageParam + limit ? pageParam + limit : null
+  const nextPage = filteredCount > sliceStart + limit ? sliceStart + limit : null
 
-  const paginatedProducts = sortedProducts.slice(pageParam, pageParam + limit)
+  const paginatedProducts = sortedProducts.slice(sliceStart, sliceStart + limit)
 
   return {
     response: {

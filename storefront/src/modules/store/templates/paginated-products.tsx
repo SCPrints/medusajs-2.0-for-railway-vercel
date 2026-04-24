@@ -64,7 +64,8 @@ export default async function PaginatedProducts({
   }
 
   if (sortBy === "created_at") {
-    queryParams["order"] = "created_at"
+    /** Descending (newest first), aligned with client-side sort in `sort-products.ts` */
+    queryParams["order"] = "-created_at"
   }
 
   const region = await getRegion(countryCode)
