@@ -5,6 +5,7 @@ import { getRegion } from "./regions"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
+import { inferBrandFromHandle } from "@lib/util/infer-brand-from-handle"
 
 function productBrandMatchesClientFilter(
   productBrandLower: string,
@@ -137,9 +138,13 @@ export const getProductsList = cache(async function ({
     })
 })
 
+const CLIENT_FILTER_PAGE_BATCH = 100
+/** Avoid unbounded API loops if `count` is wrong or the catalog is huge */
+const CLIENT_FILTER_MAX_PAGES = 80
+
 /**
- * This will fetch 100 products to the Next.js cache and sort them based on the sortBy parameter.
- * It will then return the paginated products based on the page and limit parameters.
+ * Fetches products for list views. When brand/fabric (or other client-side) filters apply,
+ * pages through the catalog so matches are not limited to the first 100 API results.
  */
 export const getProductsListWithSort = cache(async function ({
   page = 0,
@@ -172,16 +177,48 @@ export const getProductsListWithSort = cache(async function ({
     return null
   }
 
-  const {
-    response: { products, count },
-  } = await getProductsList({
-    pageParam: 0,
-    queryParams: {
-      ...queryParams,
-      limit: 100,
-    },
-    countryCode,
-  })
+  const needsFullCatalogForClientFilters = Boolean(
+    filters?.brand ||
+      filters?.fabric ||
+      typeof filters?.minPrice === "number" ||
+      typeof filters?.maxPrice === "number" ||
+      filters?.inStock
+  )
+
+  let products: HttpTypes.StoreProduct[] = []
+  let count = 0
+
+  if (needsFullCatalogForClientFilters) {
+    let pageIdx = 1
+    while (pageIdx <= CLIENT_FILTER_MAX_PAGES) {
+      const batch = await getProductsList({
+        pageParam: pageIdx,
+        queryParams: {
+          ...queryParams,
+          limit: CLIENT_FILTER_PAGE_BATCH,
+        },
+        countryCode,
+      })
+      const batchProducts = batch.response.products
+      count = batch.response.count
+      products.push(...batchProducts)
+      if (batchProducts.length < CLIENT_FILTER_PAGE_BATCH || products.length >= count) {
+        break
+      }
+      pageIdx++
+    }
+  } else {
+    const batch = await getProductsList({
+      pageParam: 1,
+      queryParams: {
+        ...queryParams,
+        limit: 100,
+      },
+      countryCode,
+    })
+    products = batch.response.products
+    count = batch.response.count
+  }
 
   const filteredProducts = products.filter((product) => {
     const variantPrices = (product.variants ?? [])
@@ -194,7 +231,13 @@ export const getProductsListWithSort = cache(async function ({
         (variant as HttpTypes.StoreProductVariant)?.inventory_quantity === null ||
         (variant as HttpTypes.StoreProductVariant).inventory_quantity! > 0
     )
-    const brand = getMetadataValue(product, ["brand", "manufacturer", "label"])?.toLowerCase()
+    const brandMeta = getMetadataValue(product, ["brand", "manufacturer", "label"])
+    const brandFromHandle = inferBrandFromHandle(product.handle ?? "")
+    const brand =
+      (brandMeta?.trim()
+        ? brandMeta.trim()
+        : brandFromHandle
+      )?.toLowerCase() ?? null
     const fabric = getMetadataValue(product, [
       "fabric_type",
       "fabric",

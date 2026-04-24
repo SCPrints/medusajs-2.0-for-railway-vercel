@@ -32,7 +32,7 @@ const StoreTemplate = ({
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
   const isRamo = isRamoStoreBrand(brand)
-  const catalogTitle = isRamo ? "Ramo" : "All products"
+  const catalogTitle = isRamo ? "Ramo" : brand?.trim() ? brand.trim() : "All products"
 
   return (
     <div
