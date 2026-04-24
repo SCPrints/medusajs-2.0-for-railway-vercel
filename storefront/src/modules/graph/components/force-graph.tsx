@@ -12,6 +12,8 @@ import {
   type MutableRefObject,
 } from "react"
 
+import { forceCollide } from "d3-force"
+
 import type { GraphLink, GraphNode, GraphPayload } from "../../../types/graph"
 import { LINK_COLOR, LINK_COLOR_HIGHLIGHT, NODE_STYLE, nodeRadius } from "../lib/style"
 import { getImage } from "../lib/image-pool"
@@ -24,12 +26,21 @@ import { getImage } from "../lib/image-pool"
  * The library exports a function component that accepts a mutable ref to its
  * imperative methods object. We cast to a minimal subset we actually use.
  */
+type D3Force = {
+  strength?: (value: number | ((d: unknown) => number)) => D3Force
+  distance?: (value: number | ((link: unknown) => number)) => D3Force
+  radius?: (value: number | ((d: unknown) => number)) => D3Force
+  iterations?: (value: number) => D3Force
+}
+
 type ForceGraphMethods = {
   centerAt: (x: number, y: number, durationMs?: number) => unknown
   zoom: (scale: number, durationMs?: number) => unknown
   zoomToFit: (durationMs?: number, padding?: number) => unknown
   graph2ScreenCoords: (x: number, y: number) => { x: number; y: number }
   screen2GraphCoords: (x: number, y: number) => { x: number; y: number }
+  d3Force: (name: string, force?: unknown) => D3Force | undefined
+  d3ReheatSimulation?: () => unknown
 }
 
 type ForceGraph2DComponent = React.ComponentType<
@@ -296,6 +307,58 @@ export const ForceGraph = forwardRef<ForceGraphHandle, Props>(function ForceGrap
     [graphData.nodes]
   )
 
+  /**
+   * Tune the underlying d3-force simulation for a dense, Obsidian-style
+   * circular layout. Default react-force-graph parameters are tuned for sparse
+   * networks and make brand→product halos drift far from the center; we
+   * shorten links, soften repulsion, and add a collision force so nodes pack
+   * tightly without overlapping.
+   *
+   * Re-run whenever the payload identity changes because expanding a node
+   * swaps in a new `graphData` reference and d3 rebuilds its force state.
+   */
+  useEffect(() => {
+    const instance = instanceRef.current
+    if (!instance?.d3Force) return
+
+    const link = instance.d3Force("link")
+    link?.distance?.((l: unknown) => {
+      const kind = (l as { kind?: string } | null)?.kind
+      // Product→brand and product→category halos want to hug the hub; links
+      // between super-nodes (brand→root, category→root) can be a touch longer.
+      if (kind === "product-brand" || kind === "product-category") return 14
+      if (kind === "category-parent") return 18
+      return 28
+    })
+    link?.strength?.(0.6)
+
+    const charge = instance.d3Force("charge")
+    charge?.strength?.((d: unknown) => {
+      const kind = (d as { kind?: string } | null)?.kind
+      // Root and brand hubs exert stronger pull; products are nearly inert so
+      // they settle into a ring around their parent rather than spraying out.
+      if (kind === "root") return -220
+      if (kind === "brand") return -90
+      if (kind === "category") return -60
+      return -18
+    })
+
+    instance.d3Force(
+      "collide",
+      forceCollide()
+        .radius((d: unknown) => {
+          const node = d as RenderNode
+          return nodeRadius(node.kind, node.productCount) + 1.5
+        })
+        .iterations(2)
+    )
+
+    const center = instance.d3Force("center")
+    center?.strength?.(0.08)
+
+    instance.d3ReheatSimulation?.()
+  }, [graphData])
+
   return (
     <div
       ref={containerRef}
@@ -322,9 +385,9 @@ export const ForceGraph = forwardRef<ForceGraphHandle, Props>(function ForceGrap
           onNodeClick={handleNodeClick}
           onNodeHover={handleNodeHover}
           enableNodeDrag={true}
-          warmupTicks={30}
-          d3AlphaDecay={0.045}
-          d3VelocityDecay={0.28}
+          warmupTicks={80}
+          d3AlphaDecay={0.035}
+          d3VelocityDecay={0.32}
         />
       )}
     </div>

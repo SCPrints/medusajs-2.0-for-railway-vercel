@@ -120,7 +120,19 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
     prefetchTopBrands(3)
   }, [settled, payload.nodes, prefetchTopBrands])
 
-  const onEngineStop = useCallback(() => setSettled(true), [])
+  const hasAutoFittedRef = useRef(false)
+  const onEngineStop = useCallback(() => {
+    setSettled(true)
+    // Frame the whole graph exactly once on the first settle so the tight
+    // Obsidian-style cluster fills the viewport. Subsequent expansions keep
+    // the user's current camera position.
+    if (!hasAutoFittedRef.current) {
+      hasAutoFittedRef.current = true
+      if (!initialFocus) {
+        window.setTimeout(() => graphRef.current?.zoomToFit(400, 60), 50)
+      }
+    }
+  }, [initialFocus])
 
   const totalNodes = payload.nodes.length
   const visibleNodes = filteredPayload.nodes.length
