@@ -40,14 +40,22 @@ export const getFirstBulkTierMinor = (
 }
 
 /**
- * When bulk tier and Medusa `calculated_price` disagree by more than this ratio, trust Medusa.
+ * When bulk tier and Medusa `calculated_price` disagree by more than this ratio, pick the sane value.
  * (50× was too strict: e.g. bulk 30 vs calculated 1235 ≈ 41× wrongly kept bulk → A$0.30 instead of A$12.35.)
  */
 const BULK_VS_CALCULATED_MISMATCH_RATIO = 2
 
+/** Below this minor amount, `calculated_price` is treated as suspicious (e.g. 53 minor vs 5300 bulk / Admin). */
+const SUSPICIOUSLY_LOW_CALCULATED_MINOR = 100
+/** Bulk above this is plausibly a real garment tier in AUD minor units. */
+const PLAUSIBLE_RETAIL_BULK_MINOR = 500
+
 /**
  * Choose a minor-unit amount for display when `bulk_pricing` metadata may disagree with
  * Medusa `calculated_price` (e.g. tiers stored at wrong scale or stale CSV match).
+ *
+ * When bulk >> calculated we used to always trust Medusa; that breaks when the Store API
+ * returns an under-scaled amount (53) while metadata (and Admin) align on retail (5300).
  */
 export const resolveHeadlineMinorAmount = (
   bulkTierAmount: number | undefined,
@@ -61,6 +69,13 @@ export const resolveHeadlineMinorAmount = (
       return c
     }
     if (b >= c * BULK_VS_CALCULATED_MISMATCH_RATIO) {
+      if (
+        c < SUSPICIOUSLY_LOW_CALCULATED_MINOR &&
+        b > PLAUSIBLE_RETAIL_BULK_MINOR &&
+        b >= c * 10
+      ) {
+        return b
+      }
       return c
     }
     return b
