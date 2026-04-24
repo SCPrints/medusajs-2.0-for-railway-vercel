@@ -63,6 +63,56 @@ export function Pagination({
     </span>
   )
 
+  // Function to render a navigation arrow button (first / prev / next / last)
+  const renderNavButton = (
+    target: number,
+    label: string,
+    icon: React.ReactNode,
+    disabled: boolean
+  ) => (
+    <button
+      key={label}
+      aria-label={label}
+      className={clx(
+        "inline-flex items-center justify-center min-w-10 h-10 px-2 rounded-full leading-none select-none transition-transform transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--brand-background)]",
+        {
+          "text-[var(--brand-primary)]/30 cursor-not-allowed": disabled,
+          "text-[var(--brand-primary)]/70 hover:text-white hover:bg-[var(--brand-secondary)] hover:scale-125 active:scale-110":
+            !disabled,
+        }
+      )}
+      disabled={disabled}
+      onClick={() => handlePageChange(target)}
+    >
+      {icon}
+    </button>
+  )
+
+  // Inline chevron icons for consistent stroke sizing
+  const ChevronIcon = ({ double = false, direction }: { double?: boolean; direction: "left" | "right" }) => (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={direction === "right" ? "rotate-180" : undefined}
+    >
+      {double ? (
+        <>
+          <polyline points="17 17 12 12 17 7" />
+          <polyline points="11 17 6 12 11 7" />
+        </>
+      ) : (
+        <polyline points="15 18 9 12 15 6" />
+      )}
+    </svg>
+  )
+
   // Function to render page buttons based on the current page and total pages
   const renderPageButtons = () => {
     const buttons = []
@@ -113,6 +163,9 @@ export function Pagination({
     return buttons
   }
 
+  const isFirstPage = page <= 1
+  const isLastPage = page >= totalPages
+
   // Render the component
   return (
     <div className="flex justify-center w-full mt-12">
@@ -120,7 +173,31 @@ export function Pagination({
         className="flex gap-2 items-center"
         data-testid={dataTestid}
       >
+        {renderNavButton(
+          1,
+          "Go to first page",
+          <ChevronIcon double direction="left" />,
+          isFirstPage
+        )}
+        {renderNavButton(
+          Math.max(1, page - 1),
+          "Go to previous page",
+          <ChevronIcon direction="left" />,
+          isFirstPage
+        )}
         {renderPageButtons()}
+        {renderNavButton(
+          Math.min(totalPages, page + 1),
+          "Go to next page",
+          <ChevronIcon direction="right" />,
+          isLastPage
+        )}
+        {renderNavButton(
+          totalPages,
+          "Go to last page",
+          <ChevronIcon double direction="right" />,
+          isLastPage
+        )}
       </div>
     </div>
   )
