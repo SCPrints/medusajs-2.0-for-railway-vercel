@@ -90,6 +90,28 @@ Env guardrails:
 4. Verify at least 3 SKUs (Explorer card + PDP page).
 5. Revalidate storefront cache / reindex search if used.
 
+## DNC Workwear (`import-dnc-products`)
+
+Run from `backend/`:
+
+```bash
+# Dry run (no DB writes)
+pnpm run import-dnc-products
+
+# Create products + tiered price sets + bulk_pricing metadata
+pnpm run import-dnc-products -- --apply
+```
+
+Env:
+
+- `DNC_CSV` — absolute or relative path to the DNC CSV (defaults: `data/dnc-vol-13.csv`, `../DNC Workwear Volume 13 Price List - Product data (CSV).csv`).
+- `DNC_IMPORT_APPLY=1` — same as `--apply` if you cannot pass args.
+- `DNC_MAX_PRODUCTS` — cap how many products to import (testing).
+- `DNC_PRODUCT_BATCH` — `createProductsWorkflow` batch size (default `25`).
+- `DNC_DERIVE_T50`, `DNC_DERIVE_T10_FROM_T50`, `DNC_DERIVE_BASE_FROM_T10` — lower-tier ratios from the 100+ anchor (same defaults as Ramo).
+
+Post-import: revalidate storefront cache; reindex Meilisearch if used.
+
 ## Quick Verification Checklist
 
 - No guardrail aborts.

@@ -8,12 +8,12 @@ import { DTF_AUTO_BUILDER_HANDLE } from "@modules/dtf-builder/constants"
 import GangsheetBuilder from "@modules/dtf-builder/gangsheet-builder"
 
 type Props = {
-  params: { countryCode: string }
-  searchParams: { variantId?: string }
+  params: Promise<{ countryCode: string }>
+  searchParams: Promise<{ variantId?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { countryCode } = params
+  const { countryCode } = await params
   const canonicalPath = `/${countryCode}/dtf-builder`
   const description =
     "Upload transparent PNGs, arrange them on your DTF roll size, and download a print-ready gang sheet."
@@ -39,7 +39,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function DtfBuilderPage({ params, searchParams }: Props) {
-  const { countryCode } = params
+  const { countryCode } = await params
+  const { variantId: variantIdParam } = await searchParams
   const region = await getRegion(countryCode)
 
   if (!region) {
@@ -53,7 +54,7 @@ export default async function DtfBuilderPage({ params, searchParams }: Props) {
   }
 
   const requestedVariant =
-    product.variants.find((v) => v.id === searchParams.variantId) ?? product.variants[0]
+    product.variants.find((v) => v.id === variantIdParam) ?? product.variants[0]
 
   return (
     <GangsheetBuilder
