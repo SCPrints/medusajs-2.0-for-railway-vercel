@@ -26,6 +26,12 @@ const brandImageLinks: BrandImageLink[] = [
     imageSrc: "/images/brands/biz-collection-banner.png",
     imageAlt: "Biz Collection uniforms and apparel",
   },
+  {
+    name: "DNC Workwear",
+    href: "/dnc",
+    imageSrc: "/images/brands/dnc-banner.png",
+    imageAlt: "DNC Workwear segmented hi-vis and workwear range",
+  },
 ]
 
 const ScrollingPictureBar = () => {
