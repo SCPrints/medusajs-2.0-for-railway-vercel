@@ -110,6 +110,8 @@ Env:
 - `DNC_PRODUCT_BATCH` — `createProductsWorkflow` batch size (default `25`).
 - `DNC_DERIVE_T50`, `DNC_DERIVE_T10_FROM_T50`, `DNC_DERIVE_BASE_FROM_T10` — lower-tier ratios from the 100+ anchor (same defaults as Ramo).
 
+Each product gets `metadata.brand` = `DNC Workwear` and `metadata.brand_slug` = `dnc` (same as the storefront brand tile id). The `dnc-…` handle already infers the brand if metadata were ever missing.
+
 Post-import: revalidate storefront cache; reindex Meilisearch if used.
 
 ## Quick Verification Checklist

@@ -565,7 +565,10 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
         status: ProductStatus.PUBLISHED,
         thumbnail: thumbnail || undefined,
         images: Array.from(imgs).map((url) => ({ url })),
-        metadata: { brand: "DNC Workwear" },
+        metadata: {
+          brand: "DNC Workwear",
+          brand_slug: "dnc",
+        },
         options,
         variants: medusaVariants,
         shipping_profile_id: shippingProfileId,
