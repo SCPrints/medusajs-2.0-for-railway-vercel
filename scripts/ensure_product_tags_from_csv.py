@@ -19,6 +19,12 @@ Auth/env matches fill_variant_ids_in_import_csv.py:
     --input syzmik_medusa_import_medusa_files.csv \\
     --mapping-out product_tags_mapping.json \\
     --rewrite-csv-out syzmik_with_tag_ids.csv
+
+  # Supplier-style CSV: comma-separated labels in one column (e.g. AS Colour \"Tags\"):
+  .venv-upload/bin/python scripts/ensure_product_tags_from_csv.py \\
+    --env-file medusa-upload.env \\
+    --input as_colour_with_rich_tags.csv \\
+    --tags-column Tags
 """
 
 from __future__ import annotations
@@ -161,15 +167,27 @@ def _tag_columns(fieldnames: list[str] | None) -> list[str]:
     return [c for c in fieldnames if c and _TAG_COL.match(c.strip())]
 
 
-def _collect_labels_from_csv(paths: list[Path]) -> tuple[list[str], dict[Path, list[str]]]:
+def _collect_labels_from_csv(
+    paths: list[Path],
+    extra_tag_columns: list[str] | None = None,
+) -> tuple[list[str], dict[Path, list[str]]]:
     labels: set[str] = set()
     cols_per_file: dict[Path, list[str]] = {}
+    extra = [c.strip() for c in (extra_tag_columns or []) if c and c.strip()]
     for p in paths:
         with p.open("r", encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames or []
             cols = _tag_columns(reader.fieldnames)
             cols_per_file[p] = cols
-            if not cols:
+            extras_in_file = [c for c in extra if c in fieldnames]
+            missing_extra = [c for c in extra if c not in fieldnames]
+            if missing_extra:
+                print(
+                    f"Warning: --tags-column not in {p.name}: {', '.join(missing_extra)}",
+                    file=sys.stderr,
+                )
+            if not cols and not extras_in_file:
                 continue
             for row in reader:
                 for c in cols:
@@ -177,6 +195,14 @@ def _collect_labels_from_csv(paths: list[Path]) -> tuple[list[str], dict[Path, l
                     if not raw or _PTAG_ID.match(raw):
                         continue
                     labels.add(raw)
+                for c in extras_in_file:
+                    cell = (row.get(c) or "").strip()
+                    if not cell:
+                        continue
+                    for part in cell.split(","):
+                        raw = part.strip()
+                        if raw and not _PTAG_ID.match(raw):
+                            labels.add(raw)
     return sorted(labels), cols_per_file
 
 
@@ -209,6 +235,16 @@ def main() -> None:
         default=None,
         help="Write a copy of the first --input with tag columns rewritten to ids",
     )
+    parser.add_argument(
+        "--tags-column",
+        action="append",
+        dest="tags_columns",
+        default=None,
+        help=(
+            "Also collect labels from this column (repeatable); "
+            "comma-separated human-readable tag names per cell (e.g. Tags)."
+        ),
+    )
     parser.add_argument("--sleep", type=float, default=0.05)
     parser.add_argument("--page-size", type=int, default=100)
     args = parser.parse_args()
@@ -230,10 +266,17 @@ def main() -> None:
             print(f"Not found: {p}", file=sys.stderr)
             sys.exit(1)
 
-    labels, cols_per_file = _collect_labels_from_csv(args.inputs)
+    labels, cols_per_file = _collect_labels_from_csv(
+        args.inputs, args.tags_columns
+    )
     for p, cols in cols_per_file.items():
-        if not cols:
+        if not cols and not (args.tags_columns or []):
             print(f"Warning: no 'Product Tag …' columns in {p}", file=sys.stderr)
+        elif not cols and (args.tags_columns or []):
+            print(
+                f"Note: no 'Product Tag …' columns in {p} (using --tags-column only).",
+                file=sys.stderr,
+            )
 
     print(f"Unique tag labels from CSV(s): {len(labels)}")
     for v in labels:
