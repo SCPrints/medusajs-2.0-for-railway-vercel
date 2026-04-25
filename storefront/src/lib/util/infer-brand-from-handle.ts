@@ -14,8 +14,8 @@ const HANDLE_PREFIX_BRAND: Array<{ prefix: string; brand: string }> = [
   { prefix: "gildan", brand: "Gildan" },
   { prefix: "syzmik", brand: "Syzmik" },
   { prefix: "anvil", brand: "Anvil" },
-  { prefix: "champion", brand: "Champion" },
-  { prefix: "patagonia", brand: "Patagonia" },
+  { prefix: "aussie-pacific", brand: "Aussie Pacific" },
+  { prefix: "winning-spirit", brand: "Winning Spirit" },
   { prefix: "stanley", brand: "Stanley/Stella" },
 ].sort((a, b) => b.prefix.length - a.prefix.length)
 

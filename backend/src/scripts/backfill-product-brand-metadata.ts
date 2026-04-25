@@ -96,8 +96,8 @@ const HANDLE_PREFIX_BRAND: Array<{ prefix: string; brand: string }> = [
   { prefix: "gildan", brand: "Gildan" },
   { prefix: "syzmik", brand: "Syzmik" },
   { prefix: "anvil", brand: "Anvil" },
-  { prefix: "champion", brand: "Champion" },
-  { prefix: "patagonia", brand: "Patagonia" },
+  { prefix: "aussie-pacific", brand: "Aussie Pacific" },
+  { prefix: "winning-spirit", brand: "Winning Spirit" },
   { prefix: "stanley", brand: "Stanley/Stella" },
 ].sort((a, b) => b.prefix.length - a.prefix.length)
 
@@ -124,8 +124,8 @@ const TITLE_LEADING_BRAND: Array<{ phrase: string; brand: string }> = [
   { phrase: "gildan", brand: "Gildan" },
   { phrase: "syzmik", brand: "Syzmik" },
   { phrase: "anvil", brand: "Anvil" },
-  { phrase: "champion", brand: "Champion" },
-  { phrase: "patagonia", brand: "Patagonia" },
+  { phrase: "aussie pacific", brand: "Aussie Pacific" },
+  { phrase: "winning spirit", brand: "Winning Spirit" },
 ].sort((a, b) => b.phrase.length - a.phrase.length)
 
 function brandFromTitle(title: string): string | null {

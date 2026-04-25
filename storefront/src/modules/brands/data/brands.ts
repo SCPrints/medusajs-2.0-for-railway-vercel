@@ -56,7 +56,7 @@ export const BRAND_TILES: BrandTile[] = [
     name: "Biz Collection",
     initials: "B+",
     bgClass: "bg-rose-800",
-    logoSrc: `${LOGO_BASE}/biz-collection.png`,
+    logoSrc: `${LOGO_BASE}/biz-collection.svg`,
   },
   {
     id: "american-apparel",
@@ -94,6 +94,6 @@ export const BRAND_TILES: BrandTile[] = [
     logoSrc: `${LOGO_BASE}/ramo.svg`,
     storeQuery: RAMO_BRAND_QUERY,
   },
-  { id: "champion", name: "Champion", initials: "C", bgClass: "bg-red-900" },
-  { id: "patagonia", name: "Patagonia", initials: "P", bgClass: "bg-amber-900" },
+  { id: "aussie-pacific", name: "Aussie Pacific", initials: "AP", bgClass: "bg-sky-900" },
+  { id: "winning-spirit", name: "Winning Spirit", initials: "WS", bgClass: "bg-indigo-900" },
 ]

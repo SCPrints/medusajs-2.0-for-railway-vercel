@@ -106,8 +106,8 @@ const HANDLE_PREFIX_BRAND: Array<{ prefix: string; brand: string }> = [
   { prefix: "gildan", brand: "Gildan" },
   { prefix: "syzmik", brand: "Syzmik" },
   { prefix: "anvil", brand: "Anvil" },
-  { prefix: "champion", brand: "Champion" },
-  { prefix: "patagonia", brand: "Patagonia" },
+  { prefix: "aussie-pacific", brand: "Aussie Pacific" },
+  { prefix: "winning-spirit", brand: "Winning Spirit" },
 ].sort((a, b) => b.prefix.length - a.prefix.length)
 
 /**
@@ -121,14 +121,14 @@ const CANONICAL_BRANDS: Array<{ name: string; logoSrc: string | null }> = [
   { name: "AS Colour", logoSrc: "/images/brands/logos/as-colour.png" },
   { name: "Gildan", logoSrc: "/images/brands/logos/gildan.png" },
   { name: "Syzmik", logoSrc: "/images/brands/logos/syzmik-workwear.svg" },
-  { name: "Biz Collection", logoSrc: "/images/brands/logos/biz-collection.png" },
+  { name: "Biz Collection", logoSrc: "/images/brands/logos/biz-collection.svg" },
   { name: "American Apparel", logoSrc: "/images/brands/logos/american-apparel.png" },
   { name: "Anvil", logoSrc: "/images/brands/logos/anvil.png" },
   { name: "DNC Workwear", logoSrc: "/images/brands/logos/dnc.png" },
   { name: "Grace Collection", logoSrc: "/images/brands/logos/grace.svg" },
   { name: "Ramo", logoSrc: "/images/brands/logos/ramo.svg" },
-  { name: "Champion", logoSrc: null },
-  { name: "Patagonia", logoSrc: null },
+  { name: "Aussie Pacific", logoSrc: null },
+  { name: "Winning Spirit", logoSrc: null },
 ]
 
 function inferBrandFromHandle(handle: string | null | undefined): string | null {
