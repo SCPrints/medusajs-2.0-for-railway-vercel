@@ -13,19 +13,22 @@ BEFORE you import
    Medusa Admin → Settings → Sales channels → open the channel your store uses → copy id
    (format like sc_01KP...). This must be the same channel linked to your publishable API key.
 
-2) Prices in "Variant Price AUD" are in dollars (e.g. 24.00 = A$24.00), matching the seed
+2) **Product Id (first column):** Must be set on **every** row for an **update** when the product
+   already exists. The CSV uses `prod_01KQ1B4VVD1TBNKB5GY5Z1SK95` from your Admin product URL; if
+   your id differs, replace it on all 5 data rows (or run:
+   `python3 scripts/fill_product_ids_in_import_csv.py` with your env file — see that script).
+   If Product Id is **blank**, Medusa **creates** a new product and errors with
+   "Product with handle: dtf-auto-builder, already exists."
+
+3) Prices in "Variant Price AUD" are in dollars (e.g. 24.00 = A$24.00), matching the seed
    amounts: $24, $48, $72, $96, $120 for the five lengths.
 
-3) If the product dtf-auto-builder ALREADY EXISTS
-   - Option A: Delete the product in Admin, then import this CSV (Product Id left blank = create).
-   - Option B: For update mode, set "Product Id" (first column) on all five rows to your existing
-     product id (Admin → product URL contains prod_...), then run the import. If Medusa still
-     errors on duplicate handle, use Option A or fill ids using scripts/fill_product_ids_in_import_csv.py
-     (see that script’s header comment).
+4) If the product dtf-auto-builder does not exist yet, **clear** the Product Id on all five rows
+   (empty first column) so the import **creates** the product, or use a new handle.
 
-4) If your CSV import expects EUR/USD as well, add price columns the same way your other import
+5) If your CSV import expects EUR/USD as well, add price columns the same way your other import
    files do; this file only sets AUD to match a typical AU storefront.
 
-5) After import, remove any leftover "default" option/variant if Admin shows duplicates.
+6) After import, remove any leftover "default" option/variant if Admin shows duplicates.
 
 Gang sheet size values use the Unicode multiply sign (×) as in the storefront parser.
