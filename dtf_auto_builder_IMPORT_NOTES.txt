@@ -1,0 +1,31 @@
+DTF Auto Builder — Medusa product import CSV
+==============================================
+
+File: dtf_auto_builder_medusa_import.csv
+
+This matches the column layout used in this repo (see syzmik_medusa_import_part_01.csv and
+scripts/verify_medusa_product_import_csv.js). The file has been run through
+`node scripts/verify_medusa_product_import_csv.js dtf_auto_builder_medusa_import.csv` successfully.
+
+BEFORE you import
+-----------------
+1) Replace every YOUR_SALES_CHANNEL_ID with your real sales channel id from
+   Medusa Admin → Settings → Sales channels → open the channel your store uses → copy id
+   (format like sc_01KP...). This must be the same channel linked to your publishable API key.
+
+2) Prices in "Variant Price AUD" are in dollars (e.g. 24.00 = A$24.00), matching the seed
+   amounts: $24, $48, $72, $96, $120 for the five lengths.
+
+3) If the product dtf-auto-builder ALREADY EXISTS
+   - Option A: Delete the product in Admin, then import this CSV (Product Id left blank = create).
+   - Option B: For update mode, set "Product Id" (first column) on all five rows to your existing
+     product id (Admin → product URL contains prod_...), then run the import. If Medusa still
+     errors on duplicate handle, use Option A or fill ids using scripts/fill_product_ids_in_import_csv.py
+     (see that script’s header comment).
+
+4) If your CSV import expects EUR/USD as well, add price columns the same way your other import
+   files do; this file only sets AUD to match a typical AU storefront.
+
+5) After import, remove any leftover "default" option/variant if Admin shows duplicates.
+
+Gang sheet size values use the Unicode multiply sign (×) as in the storefront parser.
