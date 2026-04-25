@@ -13,6 +13,7 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
+import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
 import {
@@ -61,13 +62,6 @@ export async function generateMetadata({
     },
   }
 }
-
-const PROCESS_STEPS = [
-  "Browse garments & promo products",
-  "Choose screen print, embroidery, or transfers",
-  "Lock in placement and approve your artwork",
-  "Order online—we decorate and ship",
-]
 
 const VALUE_PROPS = [
   "Volume pricing for teams & businesses",
@@ -199,19 +193,6 @@ export default async function Home({
             titleSpacing="relaxed"
             padding="spacious"
           >
-            <ol className="mt-8 grid gap-4 small:grid-cols-2 large:grid-cols-4">
-              {PROCESS_STEPS.map((step, index) => (
-                <li
-                  key={step}
-                  className="rounded-xl border border-ui-border-base bg-white p-4 text-sm font-medium text-ui-fg-base"
-                >
-                  <span className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[var(--brand-secondary)] text-xs font-semibold text-[var(--brand-primary)]">
-                    {index + 1}
-                  </span>
-                  <p>{step}</p>
-                </li>
-              ))}
-            </ol>
             <div className="mt-8">
               <LocalizedClientLink
                 href="/store"
@@ -222,6 +203,8 @@ export default async function Home({
             </div>
           </MarketingHero>
         </section>
+
+        <HowOrderWorksSection />
 
         <section className="content-container py-12">
           <div className="mb-6 flex items-end justify-between">
