@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import Image from "next/image"
 import { MagnifyingGlassMini } from "@medusajs/icons"
 
+import { getCollectionsList } from "@lib/data/collections"
 import { listRegions } from "@lib/data/regions"
 import { StoreRegion } from "@medusajs/types"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -9,7 +10,17 @@ import CartButton from "@modules/layout/components/cart-button"
 import SideMenu from "@modules/layout/components/side-menu"
 
 export default async function Nav() {
-  const regions = await listRegions().then((regions: StoreRegion[]) => regions)
+  const [regions, { collections }] = await Promise.all([
+    listRegions().then((regions: StoreRegion[]) => regions),
+    getCollectionsList(0, 100),
+  ])
+
+  const menuCollectionLinks = [...collections]
+    .filter((c) => c.handle && c.title)
+    .map((c) => ({ handle: c.handle as string, title: c.title as string }))
+    .sort((a, b) =>
+      a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+    )
 
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
@@ -17,7 +28,10 @@ export default async function Nav() {
         <nav className="content-container flex h-full w-full items-center justify-between gap-6 text-base font-medium text-[rgba(248,250,252,0.9)]">
           <div className="flex-1 basis-0 h-full flex items-center">
             <div className="h-full">
-              <SideMenu regions={regions} />
+              <SideMenu
+                regions={regions}
+                collectionLinks={menuCollectionLinks}
+              />
             </div>
           </div>
 
