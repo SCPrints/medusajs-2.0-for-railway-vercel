@@ -15,6 +15,16 @@ import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
+import {
+  DesignIcon,
+  DigitalTransferIcon,
+  EmbroideryIcon,
+  FoldAndBagIcon,
+  NeckTagIcon,
+  ScreenPrintIcon,
+  UvPrintingIcon,
+  WarehousingIcon,
+} from "@modules/home/components/service-icons"
 import Thumbnail from "@modules/products/components/thumbnail"
 import ProductTags from "@modules/products/components/product-tags"
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
@@ -66,15 +76,18 @@ const VALUE_PROPS = [
   "In-house design and digital proofs",
 ]
 
-const CORE_SERVICES = [
-  { title: "Screen Print", icon: "SP" },
-  { title: "Digital Transfer", icon: "DT" },
-  { title: "Embroidery", icon: "EM" },
-  { title: "Neck Tags", icon: "NT" },
-  { title: "Fold & Bag", icon: "FB" },
-  { title: "Warehousing & Fulfillment", icon: "WF" },
-  { title: "UV Printing", icon: "UV" },
-  { title: "Design", icon: "DS" },
+const CORE_SERVICES: Array<{
+  title: string
+  Icon: (props: { className?: string; "aria-hidden"?: boolean }) => JSX.Element
+}> = [
+  { title: "Screen Print", Icon: ScreenPrintIcon },
+  { title: "Digital Transfer", Icon: DigitalTransferIcon },
+  { title: "Embroidery", Icon: EmbroideryIcon },
+  { title: "Neck Tags", Icon: NeckTagIcon },
+  { title: "Fold & Bag", Icon: FoldAndBagIcon },
+  { title: "Warehousing & Fulfillment", Icon: WarehousingIcon },
+  { title: "UV Printing", Icon: UvPrintingIcon },
+  { title: "Design", Icon: DesignIcon },
 ]
 
 const getMetadataValue = (product: HttpTypes.StoreProduct, keys: string[]) => {
@@ -346,8 +359,11 @@ export default async function Home({
                 key={service.title}
                 className="rounded-xl border border-ui-border-base bg-white p-5 text-center transition-colors hover:border-[var(--brand-secondary)]/55"
               >
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-secondary)]/15 text-2xl text-[var(--brand-secondary)]">
-                  {service.icon}
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-secondary)]/15 text-[var(--brand-secondary)]">
+                  <service.Icon
+                    className="h-6 w-6"
+                    aria-hidden
+                  />
                 </div>
                 <p className="text-sm font-semibold text-ui-fg-base">
                   {service.title}
@@ -380,16 +396,10 @@ export default async function Home({
               </a>
               <LocalizedClientLink
                 href="/contact"
-                className="inline-flex rounded-lg border border-ui-border-base bg-white px-5 py-3 text-sm font-semibold text-ui-fg-base transition hover:bg-ui-bg-subtle"
+                className="inline-flex rounded-lg bg-ui-fg-base px-5 py-3 text-sm font-semibold text-white transition hover:bg-black"
               >
                 Contact form
               </LocalizedClientLink>
-              <a
-                href="tel:+61390000000"
-                className="inline-flex rounded-lg bg-ui-fg-base px-5 py-3 text-sm font-semibold text-white transition hover:bg-black"
-              >
-                Call us
-              </a>
             </div>
           </div>
         </section>

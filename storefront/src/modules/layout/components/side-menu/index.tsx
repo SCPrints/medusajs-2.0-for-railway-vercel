@@ -23,41 +23,18 @@ const SideMenuItems = {
   Cart: "/cart",
 }
 
-const BROWSE_GROUPS: Array<{
+export type SideMenuBrowseGroup = {
   title: string
   items: Array<{ label: string; href: string }>
-}> = [
-  {
-    title: "Mens / Womens / Kids",
-    items: [
-      { label: "Mens", href: "/store" },
-      { label: "Womens", href: "/store" },
-      { label: "Kids", href: "/store" },
-    ],
-  },
-  {
-    title: "Workwear / Uniforms",
-    items: [
-      { label: "Workwear", href: "/store" },
-      { label: "Corporate Uniforms", href: "/store" },
-    ],
-  },
-  {
-    title: "Services",
-    items: services.map((s) => ({
-      label: s.title,
-      href: `/services/${s.slug}`,
-    })),
-  },
-  {
-    title: "Industries",
-    items: [
-      { label: "Hospitality", href: "/store" },
-      { label: "Trades", href: "/store" },
-      { label: "Schools & Clubs", href: "/store" },
-    ],
-  },
-]
+}
+
+const SERVICES_GROUP: SideMenuBrowseGroup = {
+  title: "Services",
+  items: services.map((s) => ({
+    label: s.title,
+    href: `/services/${s.slug}`,
+  })),
+}
 
 const discoverAndHelpLinks: Array<{
   label: string
@@ -92,13 +69,20 @@ export type MenuCollectionLink = {
 const SideMenu = ({
   regions,
   collectionLinks,
+  categoryBrowseGroups = [],
 }: {
   regions: HttpTypes.StoreRegion[] | null
   collectionLinks: MenuCollectionLink[]
+  categoryBrowseGroups?: SideMenuBrowseGroup[]
 }) => {
   const toggleState = useToggleState()
   const collectionPreview = collectionLinks.slice(0, MENU_COLLECTIONS_CAP)
   const hasMoreCollections = collectionLinks.length > MENU_COLLECTIONS_CAP
+
+  const browseGroups: SideMenuBrowseGroup[] = [
+    ...categoryBrowseGroups,
+    SERVICES_GROUP,
+  ].filter((g) => g.items.length > 0)
 
   return (
     <div className="h-full">
@@ -166,7 +150,7 @@ const SideMenu = ({
                             Browse products &amp; services
                           </h2>
                           <div className="grid gap-6 sm:grid-cols-2">
-                            {BROWSE_GROUPS.map((group) => (
+                            {browseGroups.map((group) => (
                               <div key={group.title}>
                                 <h3 className="mb-2 txt-compact-small text-[var(--brand-accent)]">
                                   {group.title}

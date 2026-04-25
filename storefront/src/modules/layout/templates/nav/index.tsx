@@ -2,17 +2,87 @@ import { Suspense } from "react"
 import Image from "next/image"
 import { MagnifyingGlassMini } from "@medusajs/icons"
 
+import { listCategories } from "@lib/data/categories"
 import { getCollectionsList } from "@lib/data/collections"
 import { listRegions } from "@lib/data/regions"
 import { StoreRegion } from "@medusajs/types"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import CartButton from "@modules/layout/components/cart-button"
-import SideMenu from "@modules/layout/components/side-menu"
+import SideMenu, {
+  type SideMenuBrowseGroup,
+} from "@modules/layout/components/side-menu"
+
+type RawCategory = {
+  id?: string
+  handle?: string | null
+  name?: string | null
+  parent_category_id?: string | null
+  parent_category?: { id?: string } | null
+  category_children?: RawCategory[] | null
+  rank?: number | null
+}
+
+const sortByRankThenName = (a: RawCategory, b: RawCategory) => {
+  const ra = typeof a.rank === "number" ? a.rank : Number.POSITIVE_INFINITY
+  const rb = typeof b.rank === "number" ? b.rank : Number.POSITIVE_INFINITY
+  if (ra !== rb) return ra - rb
+  return (a.name ?? "").localeCompare(b.name ?? "", undefined, {
+    sensitivity: "base",
+  })
+}
+
+const buildCategoryBrowseGroups = (
+  categories: RawCategory[]
+): SideMenuBrowseGroup[] => {
+  const topLevel = categories
+    .filter((c) => {
+      const parentId = c.parent_category_id ?? c.parent_category?.id ?? null
+      return !parentId && c.handle && c.name
+    })
+    .sort(sortByRankThenName)
+
+  const groups: SideMenuBrowseGroup[] = []
+  const flatItems: SideMenuBrowseGroup["items"] = []
+
+  for (const parent of topLevel) {
+    const children = (parent.category_children ?? [])
+      .filter((c) => c.handle && c.name)
+      .sort(sortByRankThenName)
+
+    if (children.length > 0) {
+      groups.push({
+        title: parent.name as string,
+        items: [
+          {
+            label: `All ${parent.name}`,
+            href: `/categories/${parent.handle}`,
+          },
+          ...children.map((c) => ({
+            label: c.name as string,
+            href: `/categories/${parent.handle}/${c.handle}`,
+          })),
+        ],
+      })
+    } else {
+      flatItems.push({
+        label: parent.name as string,
+        href: `/categories/${parent.handle}`,
+      })
+    }
+  }
+
+  if (flatItems.length > 0) {
+    groups.unshift({ title: "Shop categories", items: flatItems })
+  }
+
+  return groups
+}
 
 export default async function Nav() {
-  const [regions, { collections }] = await Promise.all([
+  const [regions, { collections }, categories] = await Promise.all([
     listRegions().then((regions: StoreRegion[]) => regions),
     getCollectionsList(0, 100),
+    listCategories().catch(() => [] as RawCategory[]),
   ])
 
   const menuCollectionLinks = [...collections]
@@ -21,6 +91,10 @@ export default async function Nav() {
     .sort((a, b) =>
       a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
     )
+
+  const categoryBrowseGroups = buildCategoryBrowseGroups(
+    (categories as RawCategory[]) ?? []
+  )
 
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
@@ -31,6 +105,7 @@ export default async function Nav() {
               <SideMenu
                 regions={regions}
                 collectionLinks={menuCollectionLinks}
+                categoryBrowseGroups={categoryBrowseGroups}
               />
             </div>
           </div>

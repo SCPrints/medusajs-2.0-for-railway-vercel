@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ChevronDown from "@modules/common/icons/chevron-down"
 import MedusaCTA from "@modules/layout/components/medusa-cta"
@@ -26,10 +28,19 @@ export default function CheckoutLayout({
           </LocalizedClientLink>
           <LocalizedClientLink
             href="/"
-            className="txt-compact-xlarge-plus text-ui-fg-subtle hover:text-ui-fg-base uppercase"
+            className="inline-flex items-center"
             data-testid="store-link"
+            aria-label="SC Prints home"
           >
-            SC PRINTS
+            <Image
+              src="/branding/scp-vector.svg"
+              alt="SC Prints"
+              width={158}
+              height={52}
+              className="h-9 w-auto"
+              priority
+            />
+            <span className="sr-only">SC Prints</span>
           </LocalizedClientLink>
           <div className="flex-1 basis-0" />
         </nav>

@@ -40,14 +40,6 @@ export default async function Footer() {
               >
                 Instagram
               </a>
-              <a
-                href="https://www.facebook.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-small-semi text-ui-fg-subtle hover:text-ui-fg-base"
-              >
-                Facebook
-              </a>
             </div>
           </div>
 
