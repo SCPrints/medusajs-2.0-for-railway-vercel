@@ -202,6 +202,17 @@ const getApplyFlag = (args: string[]) =>
   process.env.RAMO_CATALOG_TRIM_APPLY === "1" ||
   process.env.RAMO_CATALOG_TRIM_APPLY === "true"
 
+const getBrandStatusSyncFlag = (args: string[]) =>
+  args.includes("--brand-status-sync") ||
+  process.argv.includes("--brand-status-sync") ||
+  process.env.RAMO_BRAND_STATUS_SYNC === "1" ||
+  process.env.RAMO_BRAND_STATUS_SYNC === "true"
+
+const getBoolEnv = (key: string) => {
+  const v = process.env[key]?.trim().toLowerCase()
+  return v === "1" || v === "true" || v === "yes"
+}
+
 const chunk = <T>(items: T[], size: number) => {
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) {
@@ -299,9 +310,14 @@ export default async function trimRamoCatalogByAllowlist({ container, args }: Ex
   }
 
   const apply = getApplyFlag(args ?? [])
+  const brandStatusSync = getBrandStatusSyncFlag(args ?? [])
   const csvPaths = resolveRamoCsvPaths(process.cwd())
   const deriveMult = getDeriveMultipliers()
   let warnedDerive = false
+  let derivedTierRows = 0
+  const minMatchRatio = parseEnvFloat("RAMO_MIN_MATCH_RATIO", 0.75)
+  const minMinorFloor = Math.max(0, Math.round(parseEnvFloat("RAMO_MIN_MINOR_FLOOR", 100)))
+  const allowSubDollar = getBoolEnv("RAMO_ALLOW_SUB_DOLLAR")
 
   const dataRows: CsvRow[] = []
   for (const p of csvPaths) {
@@ -350,6 +366,9 @@ export default async function trimRamoCatalogByAllowlist({ container, args }: Ex
           "Add explicit columns in the CSV to override."
       )
     }
+    if (perRowDidDerive.value) {
+      derivedTierRows++
+    }
     const vk = variantRowKey(ph, vTitle)
     if (tierByVariantKey.has(vk)) {
       duplicateTitleKeys.push(vk)
@@ -388,60 +407,100 @@ export default async function trimRamoCatalogByAllowlist({ container, args }: Ex
       `${tierBySku.size} SKU key(s) from ${sourceLabel} (${dataRows.length} data rows, ${uniqueSkus.size} unique CSV SKUs, files=${csvPaths.length}). apply=${apply}`
   )
 
-  const ramoProducts: ProductRow[] = []
-  let pOffset = 0
-  while (true) {
-    const { data: page } = await query.graph({
+  const allowHandleList = [...allowHandles]
+  const allowlistedProducts: ProductRow[] = []
+  for (const handleBatch of chunk(allowHandleList, 250)) {
+    if (!handleBatch.length) {
+      continue
+    }
+    const { data } = await query.graph({
       entity: "product",
       fields: ["id", "handle", "status"],
-      pagination: { take: PAGE_SIZE, skip: pOffset },
+      filters: { handle: handleBatch },
+      pagination: { take: PAGE_SIZE, skip: 0 },
     })
-    const batch = (page ?? []) as ProductRow[]
-    if (!batch.length) {
-      break
-    }
-    for (const p of batch) {
-      const h = p.handle
-      if (typeof h === "string" && isRamoHandle(h)) {
-        ramoProducts.push(p)
-      }
-    }
-    pOffset += PAGE_SIZE
+    allowlistedProducts.push(...((data ?? []) as ProductRow[]))
   }
 
-  logger.info(`Found ${ramoProducts.length} Ramo product(s) in DB (ramo / ramo-*).`)
+  logger.info(
+    `Found ${allowlistedProducts.length} allowlisted Ramo product(s) in DB from current CSV.`
+  )
 
   let wouldPublish = 0
   let wouldDraft = 0
   let statusUnchanged = 0
   const statusSamples: string[] = []
 
-  for (const product of ramoProducts) {
-    const handle = (product.handle ?? "").trim().toLowerCase()
-    const inList = allowHandles.has(handle)
-    const targetStatus = inList ? ProductStatus.PUBLISHED : ProductStatus.DRAFT
-    const current = (product.status ?? "").toLowerCase()
-    const targetLower = String(targetStatus).toLowerCase()
+  if (brandStatusSync) {
+    const ramoProducts: ProductRow[] = []
+    let pOffset = 0
+    while (true) {
+      const { data: page } = await query.graph({
+        entity: "product",
+        fields: ["id", "handle", "status"],
+        pagination: { take: PAGE_SIZE, skip: pOffset },
+      })
+      const batch = (page ?? []) as ProductRow[]
+      if (!batch.length) {
+        break
+      }
+      for (const p of batch) {
+        const h = p.handle
+        if (typeof h === "string" && isRamoHandle(h)) {
+          ramoProducts.push(p)
+        }
+      }
+      pOffset += PAGE_SIZE
+    }
 
-    if (current === targetLower) {
-      statusUnchanged++
-      continue
+    logger.warn(
+      `Status sync mode=brand-wide enabled (${ramoProducts.length} ramo/ramo-* products). ` +
+        "Use only when intentionally updating products outside the current CSV."
+    )
+
+    for (const product of ramoProducts) {
+      const handle = (product.handle ?? "").trim().toLowerCase()
+      const inList = allowHandles.has(handle)
+      const targetStatus = inList ? ProductStatus.PUBLISHED : ProductStatus.DRAFT
+      const current = (product.status ?? "").toLowerCase()
+      const targetLower = String(targetStatus).toLowerCase()
+      if (current === targetLower) {
+        statusUnchanged++
+        continue
+      }
+      if (inList) {
+        wouldPublish++
+      } else {
+        wouldDraft++
+      }
+      if (!apply && statusSamples.length < 25) {
+        statusSamples.push(`${targetStatus} <- ${current || "?"}  ${product.handle ?? ""}`)
+      }
+      if (apply) {
+        await productModule.updateProducts(product.id, { status: targetStatus })
+      }
     }
-    if (inList) {
+  } else {
+    for (const product of allowlistedProducts) {
+      const current = (product.status ?? "").toLowerCase()
+      const targetLower = String(ProductStatus.PUBLISHED).toLowerCase()
+      if (current === targetLower) {
+        statusUnchanged++
+        continue
+      }
       wouldPublish++
-    } else {
-      wouldDraft++
-    }
-    if (!apply && statusSamples.length < 25) {
-      statusSamples.push(`${targetStatus} <- ${current || "?"}  ${product.handle ?? ""}`)
-    }
-    if (apply) {
-      await productModule.updateProducts(product.id, { status: targetStatus })
+      if (!apply && statusSamples.length < 25) {
+        statusSamples.push(`${ProductStatus.PUBLISHED} <- ${current || "?"}  ${product.handle ?? ""}`)
+      }
+      if (apply) {
+        await productModule.updateProducts(product.id, { status: ProductStatus.PUBLISHED })
+      }
     }
   }
 
   logger.info(
-    `Status: apply=${apply} would_publish=${wouldPublish} would_draft=${wouldDraft} unchanged=${statusUnchanged}`
+    `Status: mode=${brandStatusSync ? "brand-wide" : "csv-only"} apply=${apply} ` +
+      `would_publish=${wouldPublish} would_draft=${wouldDraft} unchanged=${statusUnchanged}`
   )
   if (!apply && (wouldPublish > 0 || wouldDraft > 0)) {
     for (const line of statusSamples) {
@@ -451,12 +510,10 @@ export default async function trimRamoCatalogByAllowlist({ container, args }: Ex
   }
 
   const productIdToHandle = new Map<string, string>(
-    ramoProducts
-      .filter((p) => allowHandles.has((p.handle ?? "").trim().toLowerCase()))
-      .map((p) => [p.id, (p.handle ?? "").trim().toLowerCase()])
+    allowlistedProducts.map((p) => [p.id, (p.handle ?? "").trim().toLowerCase()])
   )
 
-  const allowlistedProductIds = new Set(ramoProducts.filter((p) => productIdToHandle.has(p.id)).map((p) => p.id))
+  const allowlistedProductIds = new Set(allowlistedProducts.map((p) => p.id))
 
   const resolveTiers = (v: VariantRow): TierMoneyMinor | null => {
     const pid = v.product_id
@@ -510,6 +567,21 @@ export default async function trimRamoCatalogByAllowlist({ container, args }: Ex
     )
   }
 
+  const unmatchedVariantCount = variantRows.length - matchedVariantCount
+  const csvCoverage =
+    tierByVariantKey.size > 0 ? matchedVariantCount / tierByVariantKey.size : 1
+  logger.info(
+    `Guardrails: csv_rows=${dataRows.length} tier_rows=${tierByVariantKey.size} matched_variants=${matchedVariantCount} ` +
+      `unmatched_variants=${unmatchedVariantCount} derived_tier_rows=${derivedTierRows} ` +
+      `write_targets=${matchedVariantCount} coverage=${csvCoverage.toFixed(3)} min_match_ratio=${minMatchRatio}`
+  )
+  if (csvCoverage < minMatchRatio) {
+    throw new Error(
+      `Coverage guardrail failed: matched_variants/tier_rows=${csvCoverage.toFixed(3)} < ${minMatchRatio}. ` +
+        "Aborting before writes. Check Variant Title/handle alignment or lower RAMO_MIN_MATCH_RATIO intentionally."
+    )
+  }
+
   let newPriceSetLinks = 0
   let notInCsv = 0
   const bulkSource = sourceLabel
@@ -521,6 +593,22 @@ export default async function trimRamoCatalogByAllowlist({ container, args }: Ex
       continue
     }
     const sku = (variant.sku || "").trim()
+
+    if (!allowSubDollar) {
+      const lowTiers = [
+        { band: "1-9", amount: tiersM.base },
+        { band: "10-49", amount: tiersM.t10 },
+        { band: "50-99", amount: tiersM.t50 },
+        { band: "100+", amount: tiersM.t100 },
+      ].filter((tier) => tier.amount < minMinorFloor)
+      if (lowTiers.length) {
+        const details = lowTiers.map((tier) => `${tier.band}=${tier.amount}`).join(", ")
+        throw new Error(
+          `Minor-floor guardrail failed for variant ${variant.id} (sku ${sku || "n/a"}): ${details} ` +
+            `< ${minMinorFloor}. Set RAMO_ALLOW_SUB_DOLLAR=1 or lower RAMO_MIN_MINOR_FLOOR intentionally if expected.`
+        )
+      }
+    }
 
     const pricesForPriceSet = buildPricesForPriceSet(tiersM)
     const existingMeta = (variant.metadata ?? {}) as Record<string, unknown>

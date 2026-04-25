@@ -62,3 +62,11 @@ Then, pass the arguments in the `exec` command after the file path:
 ```bash
 npx medusa exec ./src/scripts/my-script.ts arg1 arg2
 ```
+
+---
+
+## Pricing Imports
+
+For production-safe pricing imports and brand trim scripts, use:
+
+- [`IMPORT_PRICING_RUNBOOK.md`](./IMPORT_PRICING_RUNBOOK.md)
