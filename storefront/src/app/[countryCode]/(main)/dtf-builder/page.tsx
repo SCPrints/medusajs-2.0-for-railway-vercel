@@ -1,11 +1,14 @@
 import { Metadata } from "next"
-import { notFound } from "next/navigation"
 
 import { getProductByHandle } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { DTF_AUTO_BUILDER_HANDLE } from "@modules/dtf-builder/constants"
+import { DtfBuilderInvalidRegion, DtfBuilderMissingProduct } from "@modules/dtf-builder/dtf-builder-states"
 import GangsheetBuilder from "@modules/dtf-builder/gangsheet-builder"
+
+/** Avoid Data Cache serving a long-lived “product missing” after you add/seed `dtf-auto-builder`. */
+export const dynamic = "force-dynamic"
 
 type Props = {
   params: Promise<{ countryCode: string }>
@@ -44,13 +47,13 @@ export default async function DtfBuilderPage({ params, searchParams }: Props) {
   const region = await getRegion(countryCode)
 
   if (!region) {
-    notFound()
+    return <DtfBuilderInvalidRegion countryCode={countryCode} />
   }
 
   const product = await getProductByHandle(DTF_AUTO_BUILDER_HANDLE, region.id)
 
   if (!product?.variants?.length) {
-    notFound()
+    return <DtfBuilderMissingProduct countryCode={countryCode} />
   }
 
   const requestedVariant =
