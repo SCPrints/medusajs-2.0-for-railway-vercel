@@ -101,8 +101,9 @@ export async function middleware(request: NextRequest) {
 
   const countryCode = regionMap && (await getCountryCode(request, regionMap))
 
-  const urlHasCountryCode =
-    countryCode && request.nextUrl.pathname.split("/")[1].includes(countryCode)
+  const pathFirstSegment = request.nextUrl.pathname.split("/").filter(Boolean)[0]?.toLowerCase() ?? ""
+  const resolved = countryCode ? String(countryCode).toLowerCase() : ""
+  const urlHasCountryCode = Boolean(resolved && pathFirstSegment === resolved)
 
   // check if one of the country codes is in the url
   if (
