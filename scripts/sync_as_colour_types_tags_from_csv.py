@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import http.client
 import json
 import os
 import re
@@ -102,17 +103,38 @@ def _request_json(
     *,
     data: bytes | None = None,
     method: str | None = None,
+    retries: int = 5,
 ) -> dict:
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    kwargs: dict = {"timeout": 120}
+    kwargs: dict = {"timeout": 180}
     if url.lower().startswith("https://"):
         kwargs["context"] = ctx
-    try:
-        with urllib.request.urlopen(req, **kwargs) as resp:
-            return json.loads(resp.read().decode())
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="replace")
-        raise RuntimeError(f"HTTP {e.code} {url}: {detail}") from e
+    last_exc: BaseException | None = None
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(req, **kwargs) as resp:
+                return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")
+            if e.code in (502, 503, 504) and attempt < retries - 1:
+                time.sleep(min(2**attempt, 30))
+                continue
+            raise RuntimeError(f"HTTP {e.code} {url}: {detail}") from e
+        except (
+            http.client.RemoteDisconnected,
+            ConnectionResetError,
+            TimeoutError,
+            urllib.error.URLError,
+            OSError,
+        ) as e:
+            last_exc = e
+            if attempt < retries - 1:
+                time.sleep(min(2**attempt, 30))
+                continue
+            raise RuntimeError(
+                f"Request failed after {retries} attempt(s) {url}: {last_exc!r}"
+            ) from last_exc
+    raise RuntimeError(f"Request failed {url}")  # pragma: no cover
 
 
 def _get_json(url: str, headers: dict[str, str], ctx: ssl.SSLContext) -> dict:
