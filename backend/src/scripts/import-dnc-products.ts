@@ -13,7 +13,7 @@
  *   pnpm run import-dnc-products -- --apply
  *
  * Env:
- *   DNC_CSV — path to CSV (default: ../DNC Workwear Volume 13... or data/dnc-vol-13.csv)
+ *   DNC_CSV — path to CSV (optional; otherwise tries ./data/ and ./backend/data/ for known filenames)
  *   DNC_MAX_PRODUCTS — cap number of products to import (for testing)
  *   DNC_PRODUCT_BATCH — createProductsWorkflow batch size (default 25)
  *   DNC_DERIVE_T50, DNC_DERIVE_T10_FROM_T50, DNC_DERIVE_BASE_FROM_T10 — same defaults as Ramo
@@ -160,14 +160,25 @@ const isDiscontinued = (row: CsvRow) =>
 
 const isHeaderRow = (row: CsvRow) => !(row["Description2"] || "").trim() && !(row["Description3"] || "").trim()
 
+const DNC_CSV_FILENAMES = [
+  "dnc-vol-13.csv",
+  "DNC Workwear Volume 13 Price List - Product data (CSV).csv",
+] as const
+
 const resolveCsvPath = (cwd: string): string => {
   const fromEnv = process.env.DNC_CSV?.trim()
-  const candidates = [
-    fromEnv ? path.resolve(fromEnv) : "",
-    path.resolve(cwd, "data", "dnc-vol-13.csv"),
-    path.resolve(cwd, "data", "DNC Workwear Volume 13 Price List - Product data (CSV).csv"),
-    path.resolve(cwd, "..", "DNC Workwear Volume 13 Price List - Product data (CSV).csv"),
-  ].filter(Boolean)
+  const candidates: string[] = []
+  if (fromEnv) {
+    candidates.push(path.resolve(fromEnv))
+  }
+  // Medusa `cwd` is usually `backend/`; on some hosts (e.g. Railway) it may be the repo root — try both.
+  for (const name of DNC_CSV_FILENAMES) {
+    candidates.push(path.resolve(cwd, "data", name))
+    candidates.push(path.resolve(cwd, "backend", "data", name))
+  }
+  candidates.push(
+    path.resolve(cwd, "..", "DNC Workwear Volume 13 Price List - Product data (CSV).csv")
+  )
 
   for (const p of candidates) {
     if (fs.existsSync(p)) {
@@ -175,7 +186,7 @@ const resolveCsvPath = (cwd: string): string => {
     }
   }
   throw new Error(
-    `DNC CSV not found. Set DNC_CSV or place the file at one of: ${candidates.join(", ")}`
+    `DNC CSV not found. Set DNC_CSV to the file path, or add one of: ${DNC_CSV_FILENAMES.join(", ")} under data/ (backend root or repo root). Tried: ${candidates.join(", ")}`
   )
 }
 

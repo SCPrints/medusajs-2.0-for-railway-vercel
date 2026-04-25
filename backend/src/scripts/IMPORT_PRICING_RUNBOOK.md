@@ -104,7 +104,7 @@ pnpm run import-dnc-products -- --apply
 
 Env:
 
-- `DNC_CSV` — absolute or relative path to the DNC CSV (defaults: `data/dnc-vol-13.csv`, `../DNC Workwear Volume 13 Price List - Product data (CSV).csv`).
+- `DNC_CSV` — absolute or relative path to the DNC CSV. If unset, the script looks for `dnc-vol-13.csv` or `DNC Workwear Volume 13 Price List - Product data (CSV).csv` under `data/` from the process cwd, then under `backend/data/` (so it works when cwd is the repo root or the `backend` folder).
 - `DNC_IMPORT_APPLY=1` — same as `--apply` if you cannot pass args.
 - `DNC_MAX_PRODUCTS` — cap how many products to import (testing).
 - `DNC_PRODUCT_BATCH` — `createProductsWorkflow` batch size (default `25`).
