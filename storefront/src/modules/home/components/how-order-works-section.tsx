@@ -16,7 +16,7 @@ const STEPS: Array<{
   { label: "Upload your design", Icon: UploadDesignTeeIcon },
   { label: "We print, embroider & prove it", Icon: MagicTeeIcon },
   { label: "Your order is delivered", Icon: DeliveryBoxIcon },
-  { label: "Or pick up from us", Icon: PickupIcon },
+  { label: "Or pick up from Lansvale", Icon: PickupIcon },
 ]
 
 type Props = {
