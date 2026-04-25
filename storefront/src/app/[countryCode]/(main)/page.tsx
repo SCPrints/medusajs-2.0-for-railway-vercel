@@ -17,6 +17,8 @@ import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
 import Thumbnail from "@modules/products/components/thumbnail"
 import ProductTags from "@modules/products/components/product-tags"
+import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
+import { isColorOptionTitle } from "@modules/products/lib/variant-options"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 type MetadataProps = {
@@ -75,24 +77,6 @@ const CORE_SERVICES = [
   { title: "Design", icon: "DS" },
 ]
 
-const COLOR_SWATCHES: Record<string, string> = {
-  black: "#111827",
-  white: "#f9fafb",
-  navy: "#1e3a8a",
-  red: "#dc2626",
-  blue: "#2563eb",
-  green: "#15803d",
-  yellow: "#facc15",
-  orange: "#f97316",
-  purple: "#7c3aed",
-  pink: "#ec4899",
-  grey: "#6b7280",
-  gray: "#6b7280",
-  charcoal: "#374151",
-  cream: "#fef3c7",
-  maroon: "#7f1d1d",
-}
-
 const getMetadataValue = (product: HttpTypes.StoreProduct, keys: string[]) => {
   const metadata = (product.metadata ?? {}) as Record<string, unknown>
 
@@ -109,7 +93,7 @@ const getMetadataValue = (product: HttpTypes.StoreProduct, keys: string[]) => {
 const getColorValues = (product: HttpTypes.StoreProduct) => {
   const colorOptionIds = new Set(
     (product.options ?? [])
-      .filter((option) => /color/i.test(option.title ?? ""))
+      .filter((option) => isColorOptionTitle(option.title))
       .map((option) => option.id)
       .filter(Boolean) as string[]
   )
@@ -129,15 +113,6 @@ const getColorValues = (product: HttpTypes.StoreProduct) => {
   })
 
   return Array.from(colors).slice(0, 6)
-}
-
-const swatchColor = (colorValue: string) => {
-  const normalized = colorValue.toLowerCase()
-  return (
-    COLOR_SWATCHES[normalized] ??
-    COLOR_SWATCHES[normalized.split(" ")[0]] ??
-    "#d1d5db"
-  )
 }
 
 export default async function Home({
@@ -324,7 +299,7 @@ export default async function Home({
                               title={colorValue}
                               className="inline-block h-5 w-5 rounded-full border border-ui-border-base"
                               style={{
-                                backgroundColor: swatchColor(colorValue),
+                                backgroundColor: resolveGarmentSwatchColor(colorValue),
                               }}
                             />
                           ))

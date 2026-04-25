@@ -98,6 +98,12 @@ export const toTitleSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
 
+/** Shared matcher for color-like product option titles (Color/Colour/Shade). */
+export const COLOR_OPTION_MATCHER = /(color|colour|shade)/i
+
+export const isColorOptionTitle = (title: string | undefined | null): boolean =>
+  typeof title === "string" && COLOR_OPTION_MATCHER.test(title)
+
 export const normalizeImageUrl = (url: string) => url.split("?")[0].trim()
 
 export const optionsAsKeymap = (variantOptions: unknown[] | undefined) => {
@@ -326,12 +332,12 @@ export function resolveVariantFromOptions(
     return partial
   }
 
-  const colorOption = product.options?.find((o) => /color|colour/i.test(o.title ?? ""))
+  const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
   const colorTitle = colorOption?.title
   const selectedColor =
     typeof colorTitle === "string" ? options[colorTitle] : undefined
   const sizeOption = product.options?.find(
-    (o) => /size/i.test(o.title ?? "") && !/color|colour/i.test(o.title ?? "")
+    (o) => /size/i.test(o.title ?? "") && !isColorOptionTitle(o.title)
   )
   const sizeTitle = sizeOption?.title
   const selectedSize =
@@ -379,7 +385,7 @@ export function getDefaultProductOptions(
     return pickDefinedStringOptions(optionsAsKeymap(variants[0].options ?? undefined))
   }
 
-  const colorOption = product.options?.find((o) => /color|colour/i.test(o.title ?? ""))
+  const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
   const colorTitle = colorOption?.title
 
   let chosen: HttpTypes.StoreProductVariant
@@ -410,8 +416,6 @@ export const findProductOptionByTitle = (
   return product.options?.find((o) => o.title && toTitleSlug(o.title) === want)
 }
 
-const COLOR_OPTION_MATCHER = /(color|colour)/i
-
 /**
  * Primary garment mockup URL for the selected variant — same resolution rules as the PDP
  * image gallery (variant `garment_images` metadata, then colour-matched product images).
@@ -434,7 +438,7 @@ export function getPrimaryGarmentImageUrl(
       url: image.url as string,
     }))
 
-  const colorOption = product.options?.find((o) => COLOR_OPTION_MATCHER.test(o.title ?? ""))
+  const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
   const colorTitle = colorOption?.title
   const selectedColor = colorTitle ? getVariantOptionValue(variant, colorTitle) : undefined
 
@@ -533,7 +537,7 @@ export function getGarmentImageUrlForPrintSide(
     return fromProduct?.url ?? trimmed
   }
 
-  const colorOption = product.options?.find((o) => COLOR_OPTION_MATCHER.test(o.title ?? ""))
+  const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
   const colorTitle = colorOption?.title
   const selectedColor =
     variant && colorTitle ? getVariantOptionValue(variant, colorTitle) : undefined

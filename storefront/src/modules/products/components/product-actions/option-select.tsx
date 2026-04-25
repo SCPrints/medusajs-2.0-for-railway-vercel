@@ -10,7 +10,9 @@ import {
   findProductOptionByTitle,
   getGarmentSwatchImageUrlFromMetadata,
   getVariantOptionValue,
+  isColorOptionTitle,
   toTitleSlug,
+  urlMatchesColorLabelStrict,
 } from "@modules/products/lib/variant-options"
 
 type OptionSelectProps = {
@@ -24,9 +26,6 @@ type OptionSelectProps = {
   "data-testid"?: string
 }
 
-/** Match option titles used for garment colours (incl. “Shade”). */
-const COLOR_OPTION_MATCHER = /(color|colour|shade)/i
-
 const getColorSwatchImageMap = (
   product: HttpTypes.StoreProduct,
   optionTitle: string
@@ -37,57 +36,46 @@ const getColorSwatchImageMap = (
     return swatchImageMap
   }
 
-  const byColorKey = new Map<string, HttpTypes.StoreProductVariant[]>()
-
-  for (const variant of product.variants ?? []) {
-    const colorValue = getVariantOptionValue(variant, optionTitle)
-    if (!colorValue) {
-      continue
-    }
-    const key = toTitleSlug(colorValue)
-    const list = byColorKey.get(key) ?? []
-    list.push(variant)
-    byColorKey.set(key, list)
-  }
-
-  for (const [key, variants] of Array.from(byColorKey.entries())) {
-    const urls = variants
-      .map((v: HttpTypes.StoreProductVariant) =>
-        getGarmentSwatchImageUrlFromMetadata(((v as { metadata?: Record<string, unknown> }).metadata ?? {}) as Record<string, unknown>)
-      )
-      .filter((url: string | undefined): url is string => typeof url === "string" && url.length > 0)
-
-    if (urls.length) {
-      swatchImageMap.set(key, urls[0])
-    }
-  }
-
   for (const optionValue of optionDef.values ?? []) {
     const rawValue = optionValue.value ?? ""
     const key = toTitleSlug(rawValue)
 
-    if (!key || swatchImageMap.has(key)) {
+    if (!key) {
       continue
     }
 
-    const tokens = key.split(" ").filter(Boolean)
-    const matchedImage = (product.images ?? [])
+    const variantsForColor = (product.variants ?? []).filter((variant) => {
+      const colorValue = getVariantOptionValue(variant, optionTitle)
+      return typeof colorValue === "string" && toTitleSlug(colorValue) === key
+    })
+
+    const matchedMetadataImage = variantsForColor
+      .map((variant: HttpTypes.StoreProductVariant) =>
+        getGarmentSwatchImageUrlFromMetadata(
+          ((variant as { metadata?: Record<string, unknown> }).metadata ?? {}) as Record<
+            string,
+            unknown
+          >
+        )
+      )
+      .find(
+        (url): url is string =>
+          typeof url === "string" && url.length > 0 && urlMatchesColorLabelStrict(url, rawValue)
+      )
+
+    if (matchedMetadataImage) {
+      swatchImageMap.set(key, matchedMetadataImage)
+      continue
+    }
+
+    const matchedProductImage = (product.images ?? [])
       .map((image) => image.url)
       .find((url) => {
-        if (!url) {
-          return false
-        }
-
-        const normalizedUrl = toTitleSlug(url)
-        return (
-          normalizedUrl.includes(key) ||
-          normalizedUrl.includes(key.replace(/\s+/g, "")) ||
-          tokens.some((token) => normalizedUrl.includes(token))
-        )
+        return typeof url === "string" && urlMatchesColorLabelStrict(url, rawValue)
       })
 
-    if (matchedImage) {
-      swatchImageMap.set(key, matchedImage)
+    if (matchedProductImage) {
+      swatchImageMap.set(key, matchedProductImage)
     }
   }
 
@@ -106,7 +94,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
 }) => {
   const { sizeQuantities, setSizeQuantity } = useProductOptions()
   const rawOptionValues = option.values?.map((v) => v.value)
-  const isColorOption = COLOR_OPTION_MATCHER.test(title)
+  const isColorOption = isColorOptionTitle(title)
   const isSizeOption = !isColorOption && /size/i.test(title)
   const stringValues = (rawOptionValues ?? []).filter(
     (v): v is string => v != null && v !== ""

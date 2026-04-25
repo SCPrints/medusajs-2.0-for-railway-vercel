@@ -8,6 +8,7 @@ import { useProductOptions } from "@modules/products/context/product-options-con
 import {
   findProductImageByUrl,
   getGarmentImageUrlsFromMetadata,
+  isColorOptionTitle,
   normalizeImageUrl,
   resolveVariantFromOptions,
   urlMatchesColorLabelStrict,
@@ -18,8 +19,6 @@ type ImageGalleryProps = {
   images: HttpTypes.StoreProductImage[]
   thumbnail?: string | null
 }
-
-const COLOR_OPTION_MATCHER = /(color|colour)/i
 
 const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
   const { options } = useProductOptions()
@@ -32,9 +31,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
         url: image.url as string,
       }))
 
-    const selectedColor = Object.entries(options).find(([title]) =>
-      COLOR_OPTION_MATCHER.test(title)
-    )?.[1]
+    const selectedColor = Object.entries(options).find(([title]) => isColorOptionTitle(title))?.[1]
 
     const selectedVariant = resolveVariantFromOptions(product, options)
 
