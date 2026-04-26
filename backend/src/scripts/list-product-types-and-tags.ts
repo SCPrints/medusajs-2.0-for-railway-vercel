@@ -23,7 +23,7 @@ type ParsedCli = {
 }
 
 const parseCli = (rawArgs: string[]): ParsedCli => {
-  const args = rawArgs ?? []
+  const args = (rawArgs ?? []).filter((x) => x && x !== "--")
   let outPath: string | undefined
   let format: "json" | "csv" = "json"
   for (let i = 0; i < args.length; i++) {
@@ -46,7 +46,11 @@ const parseCli = (rawArgs: string[]): ParsedCli => {
       continue
     }
   }
-  return { outPath, format }
+  const envOut = process.env.LIST_TYPES_TAGS_OUT?.trim()
+  return {
+    outPath: outPath || envOut || undefined,
+    format,
+  }
 }
 
 const listAll = async <T extends Row>(
