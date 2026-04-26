@@ -1,11 +1,13 @@
 import type { HttpTypes } from "@medusajs/types"
 
 import {
+  buildColorNeedlesForRelaxedMatch,
   findProductOptionByTitle,
   getGarmentSwatchImageUrlFromMetadata,
   getVariantOptionValue,
   toTitleSlug,
   urlMatchesColorLabelStrict,
+  urlMatchesColorNeedles,
 } from "@modules/products/lib/variant-options"
 
 /**
@@ -35,7 +37,7 @@ export function getColorSwatchImageMap(
       return typeof colorValue === "string" && toTitleSlug(colorValue) === key
     })
 
-    const matchedMetadataImage = variantsForColor
+    const metadataFromVariants = variantsForColor
       .map((variant: HttpTypes.StoreProductVariant) =>
         getGarmentSwatchImageUrlFromMetadata(
           ((variant as { metadata?: Record<string, unknown> }).metadata ?? {}) as Record<
@@ -44,24 +46,40 @@ export function getColorSwatchImageMap(
           >
         )
       )
-      .find(
-        (url): url is string =>
-          typeof url === "string" && url.length > 0 && urlMatchesColorLabelStrict(url, rawValue)
-      )
+      .filter((url): url is string => typeof url === "string" && url.length > 0)
 
-    if (matchedMetadataImage) {
-      swatchImageMap.set(key, matchedMetadataImage)
+    const strictMeta = metadataFromVariants.find((url) =>
+      urlMatchesColorLabelStrict(url, rawValue)
+    )
+    const swatchFromMeta = strictMeta ?? metadataFromVariants[0]
+
+    if (swatchFromMeta) {
+      swatchImageMap.set(key, swatchFromMeta)
       continue
     }
 
-    const matchedProductImage = (product.images ?? [])
+    const strictProduct = (product.images ?? [])
       .map((image) => image.url)
-      .find((url) => {
-        return typeof url === "string" && urlMatchesColorLabelStrict(url, rawValue)
-      })
+      .find(
+        (url) =>
+          typeof url === "string" && urlMatchesColorLabelStrict(url, rawValue)
+      )
 
-    if (matchedProductImage) {
-      swatchImageMap.set(key, matchedProductImage)
+    if (strictProduct) {
+      swatchImageMap.set(key, strictProduct)
+      continue
+    }
+
+    const relaxedNeedles = buildColorNeedlesForRelaxedMatch(rawValue)
+    const relaxedProduct = (product.images ?? [])
+      .map((image) => image.url)
+      .find(
+        (url) =>
+          typeof url === "string" && urlMatchesColorNeedles(url, relaxedNeedles)
+      )
+
+    if (relaxedProduct) {
+      swatchImageMap.set(key, relaxedProduct)
     }
   }
 

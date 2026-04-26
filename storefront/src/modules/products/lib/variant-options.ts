@@ -317,6 +317,72 @@ export const urlMatchesColorLabelStrict = (url: string, colorLabel: string): boo
   return Boolean(compact && normalizedUrl.includes(compact))
 }
 
+/**
+ * Wholesaler / filename tokens that often stand in for a colour (when the label
+ * is "Tan" but the file only contains `KHK_` or `blk`).
+ */
+const APPAREL_COLOR_CODE_HINTS: Record<string, string[]> = {
+  black: ["blk", "blck", "bkk", "bkg"],
+  navy: ["navy", "nvy", "nav", "nvd"],
+  tan: ["tan", "khk", "khc", "kaki", "oat", "sand", "bge"],
+  khaki: ["khk", "khc", "tan", "sand", "bge"],
+  stone: ["stone", "sto", "gry", "mrl"],
+  natural: ["natural", "nat", "natur"],
+  beige: ["beige", "bge", "bgr"],
+  marle: ["marle", "mrl", "mrla"],
+  grey: ["grey", "gry", "gray", "grye"],
+  gray: ["grey", "gry", "gray"],
+  white: ["white", "wht", "whte"],
+  charcoal: ["charcoal", "char", "chc"],
+  green: ["green", "grn", "kgn"],
+  red: ["red", "crd", "bgrd"],
+  orange: ["orange", "ong", "org", "gng"],
+  yellow: ["yellow", "yel", "gld"],
+  pink: ["pink", "pik", "pnk"],
+  purple: ["purple", "ppl", "pur"],
+  maroon: ["maroon", "mrn", "bgy"],
+  brown: ["brown", "brn", "brwn"],
+  rust: ["rust", "rts"],
+  olive: ["olive", "olv", "oli"],
+  bone: ["bone", "bne", "bwn"],
+  silver: ["silver", "slv", "slvr"],
+  gold: ["gold", "gld", "gol"],
+}
+
+/**
+ * Broader than {@link buildColorNeedles} — adds common apparel abbreviations
+ * for relaxed URL matching when strict matching fails.
+ */
+export function buildColorNeedlesForRelaxedMatch(colorLabel: string): string[] {
+  const base = buildColorNeedles(colorLabel)
+  const slug = toTitleSlug(colorLabel)
+  if (!slug) {
+    return base
+  }
+  const first = slug.split(/\s+/).find((w) => w.length >= 2) ?? slug
+  const hint = APPAREL_COLOR_CODE_HINTS[first]
+  if (!hint) {
+    return base
+  }
+  return Array.from(new Set([...base, ...hint.map((h) => h.toLowerCase())]))
+}
+
+/**
+ * `garment_images` on a variant already refers to that variant; URLs often have no
+ * human-readable colour token. If strict name matching removes every URL, keep the
+ * variant’s metadata URLs.
+ */
+export function filterGarmentImageUrlsForVariantColor(
+  urls: string[],
+  selectedColor: string | undefined
+): string[] {
+  if (!selectedColor || urls.length === 0) {
+    return urls
+  }
+  const narrowed = urls.filter((url) => urlMatchesColorLabelStrict(url, selectedColor))
+  return narrowed.length > 0 ? narrowed : urls
+}
+
 function variantIsPurchasable(variant: HttpTypes.StoreProductVariant): boolean {
   if (!variant.manage_inventory) {
     return true
@@ -498,15 +564,13 @@ export function getPrimaryGarmentImageUrl(
     ? getVariantOptionValue(variant, colorTitle, product)
     : undefined
 
-  let mappedVariantImages = getGarmentImageUrlsFromMetadata(
+  const rawFromMetadata = getGarmentImageUrlsFromMetadata(
     (variant.metadata ?? {}) as Record<string, unknown>
   )
-
-  if (selectedColor && mappedVariantImages.length) {
-    mappedVariantImages = mappedVariantImages.filter((url) =>
-      urlMatchesColorLabelStrict(url, selectedColor)
-    )
-  }
+  const mappedVariantImages = filterGarmentImageUrlsForVariantColor(
+    rawFromMetadata,
+    selectedColor
+  )
 
   if (mappedVariantImages.length) {
     const firstUrl = mappedVariantImages[0]
@@ -518,12 +582,21 @@ export function getPrimaryGarmentImageUrl(
     return validImages[0]?.url ?? product.thumbnail ?? null
   }
 
-  const matched = validImages.filter((image) =>
+  const strict = validImages.filter((image) =>
     urlMatchesColorLabelStrict(image.url, selectedColor)
   )
 
-  if (matched.length) {
-    return matched[0].url
+  if (strict.length) {
+    return strict[0].url
+  }
+
+  const relaxedNeedles = buildColorNeedlesForRelaxedMatch(selectedColor)
+  const relaxed = validImages.filter((image) =>
+    urlMatchesColorNeedles(image.url, relaxedNeedles)
+  )
+
+  if (relaxed.length) {
+    return relaxed[0].url
   }
 
   return validImages[0]?.url ?? product.thumbnail ?? null

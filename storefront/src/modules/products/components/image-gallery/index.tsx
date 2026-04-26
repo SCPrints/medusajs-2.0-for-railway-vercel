@@ -6,12 +6,15 @@ import Image from "next/image"
 import { useMemo } from "react"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import {
+  buildColorNeedlesForRelaxedMatch,
+  filterGarmentImageUrlsForVariantColor,
   findProductImageByUrl,
   getGarmentImageUrlsFromMetadata,
   isColorOptionTitle,
   normalizeImageUrl,
   resolveVariantFromOptions,
   urlMatchesColorLabelStrict,
+  urlMatchesColorNeedles,
 } from "@modules/products/lib/variant-options"
 
 type ImageGalleryProps = {
@@ -46,16 +49,13 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
 
     const selectedVariant = resolveVariantFromOptions(product, effectiveOptions)
 
-    let mappedVariantImages = getGarmentImageUrlsFromMetadata(
+    const rawFromMetadata = getGarmentImageUrlsFromMetadata(
       (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
     )
-
-    if (selectedColor && mappedVariantImages.length) {
-      const narrowed = mappedVariantImages.filter((url) =>
-        urlMatchesColorLabelStrict(url, selectedColor)
-      )
-      mappedVariantImages = narrowed
-    }
+    const mappedVariantImages = filterGarmentImageUrlsForVariantColor(
+      rawFromMetadata,
+      selectedColor
+    )
 
     if (mappedVariantImages.length) {
       return mappedVariantImages.map((mappedUrl, index) => {
@@ -74,15 +74,24 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
       return validImages
     }
 
-    const matched = validImages.filter((image) =>
+    const strict = validImages.filter((image) =>
       urlMatchesColorLabelStrict(image.url, selectedColor)
     )
 
-    if (!matched.length) {
-      return validImages
+    if (strict.length) {
+      return strict
     }
 
-    return matched
+    const relaxedNeedles = buildColorNeedlesForRelaxedMatch(selectedColor)
+    const relaxed = validImages.filter((image) =>
+      urlMatchesColorNeedles(image.url, relaxedNeedles)
+    )
+
+    if (relaxed.length) {
+      return relaxed
+    }
+
+    return validImages
   }, [images, effectiveOptions, product, product.variants])
 
   const fallbackImages = useMemo(() => {

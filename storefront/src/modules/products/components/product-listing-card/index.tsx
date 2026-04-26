@@ -168,15 +168,7 @@ export default function ProductListingCard({
         </div>
       </LocalizedClientLink>
 
-      <div
-        className="mt-4"
-        onMouseLeave={resetPreview}
-        onBlurCapture={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-            resetPreview()
-          }
-        }}
-      >
+      <div className="mt-4">
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
           Available colors
         </p>
