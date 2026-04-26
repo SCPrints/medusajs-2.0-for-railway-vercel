@@ -22,8 +22,18 @@ type ParsedCli = {
   format: "json" | "csv"
 }
 
+const argvAfterMedusaDoubleDash = (): string[] => {
+  const dash = process.argv.indexOf("--")
+  if (dash === -1) {
+    return []
+  }
+  return process.argv.slice(dash + 1).filter((x) => x && x !== "--")
+}
+
 const parseCli = (rawArgs: string[]): ParsedCli => {
-  const args = (rawArgs ?? []).filter((x) => x && x !== "--")
+  const args = [...argvAfterMedusaDoubleDash(), ...(rawArgs ?? [])].filter(
+    (x) => x && x !== "--"
+  )
   let outPath: string | undefined
   let format: "json" | "csv" = "json"
   for (let i = 0; i < args.length; i++) {
