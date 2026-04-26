@@ -49,6 +49,7 @@ export function Pagination({
       aria-label={`Go to page ${label}`}
       aria-current={isCurrent ? "page" : undefined}
       disabled={isCurrent}
+      data-no-squish
       onClick={() => handlePageChange(p)}
       className={clx(
         BASE_BUTTON_CLASSES,
@@ -116,6 +117,7 @@ export function Pagination({
       aria-label={label}
       title={label}
       disabled={disabled}
+      data-no-squish
       onClick={() => handlePageChange(target)}
       className={clx(
         BASE_BUTTON_CLASSES,

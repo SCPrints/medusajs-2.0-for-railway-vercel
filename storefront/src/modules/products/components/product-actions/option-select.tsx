@@ -121,6 +121,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
                   }
                 }}
                 onClick={() => updateOption(option.title ?? "", v ?? "")}
+                data-no-squish
                 className={clx(
                   "h-8 w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",
                   {

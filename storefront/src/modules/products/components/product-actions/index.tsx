@@ -1,10 +1,12 @@
 "use client"
 
-import { Button } from "@medusajs/ui"
 import { useParams } from "next/navigation"
 import { useMemo, useState } from "react"
 
 import Divider from "@modules/common/components/divider"
+import FlyToCartAddButton, {
+  resolvePdpFlyImageSrc,
+} from "@modules/common/components/fly-to-cart-add-button"
 import {
   extractRenderArtifactUrl,
   normalizePersistedArtifactUrl,
@@ -216,7 +218,7 @@ export default function ProductActions({
         }
       : undefined
 
-    if (overlayUrl) {
+    if (overlayUrl && printPlacementMetadata) {
       try {
         const artifacts = await renderPlacementArtifacts(overlayUrl)
         if (artifacts.mockupUrl || artifacts.printUrl) {
@@ -291,6 +293,7 @@ export default function ProductActions({
                 onClick={() => updateQuantity(quantity - 1)}
                 disabled={quantity <= 1 || isAdding || !!disabled}
                 aria-label="Decrease quantity"
+                data-no-squish
               >
                 -
               </button>
@@ -310,6 +313,7 @@ export default function ProductActions({
                 onClick={() => updateQuantity(quantity + 1)}
                 disabled={quantity >= 999 || isAdding || !!disabled}
                 aria-label="Increase quantity"
+                data-no-squish
               >
                 +
               </button>
@@ -320,20 +324,22 @@ export default function ProductActions({
         <ProductPrice product={product} variant={selectedVariant} quantity={quantity} />
 
         {!hideInlinePurchaseControls ? (
-          <Button
-            onClick={handleAddToCart}
+          <FlyToCartAddButton
+            onAddToCart={() => {
+              void handleAddToCart()
+            }}
             disabled={!inStock || !selectedVariant || !!disabled || isAdding}
-            variant="primary"
-            className="w-full h-10"
             isLoading={isAdding}
+            className="w-full h-10"
             data-testid="add-product-button"
+            flyImageSrc={resolvePdpFlyImageSrc(product, selectedVariant)}
           >
             {!selectedVariant
               ? "Select variant"
               : !inStock
               ? "Out of stock"
               : "Add to cart"}
-          </Button>
+          </FlyToCartAddButton>
         ) : null}
         {addToCartError ? (
           <p className="txt-small text-rose-600" role="alert">

@@ -375,7 +375,13 @@ export default function GangsheetBuilder({
 
           <ProductPrice product={product} variant={selectedVariant} />
 
-          <Button variant="primary" className="w-full" onClick={handleAddToCart} isLoading={isAdding} disabled={!selectedVariant}>
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={handleAddToCart}
+            isLoading={isAdding}
+            disabled={!selectedVariant}
+          >
             Add to cart
           </Button>
 

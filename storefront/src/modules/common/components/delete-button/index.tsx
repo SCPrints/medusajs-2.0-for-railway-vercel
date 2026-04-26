@@ -29,8 +29,10 @@ const DeleteButton = ({
       )}
     >
       <button
+        type="button"
         className="flex gap-x-1 text-ui-fg-subtle hover:text-ui-fg-base cursor-pointer"
         onClick={() => handleDelete(id)}
+        data-no-squish
       >
         {isDeleting ? <Spinner className="animate-spin" /> : <Trash />}
         <span>{children}</span>

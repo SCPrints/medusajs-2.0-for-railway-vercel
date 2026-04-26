@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+
 import { PricingBreakdown, SizeQuantity } from "@modules/customizer/lib/types"
 
 type PricingPanelProps = {
