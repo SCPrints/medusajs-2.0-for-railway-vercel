@@ -132,6 +132,23 @@ export const getVariantOptionValue = (
   )
 }
 
+/** First variant whose colour option matches `colorValue` (slug-safe), for gallery/thumbnail previews. */
+export function findFirstVariantForColorValue(
+  product: HttpTypes.StoreProduct,
+  colorValue: string
+): HttpTypes.StoreProductVariant | undefined {
+  const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
+  const colorTitle = colorOption?.title
+  if (!colorTitle) {
+    return undefined
+  }
+  const want = toTitleSlug(colorValue)
+  return (product.variants ?? []).find((v) => {
+    const val = getVariantOptionValue(v, colorTitle)
+    return typeof val === "string" && toTitleSlug(val) === want
+  })
+}
+
 const parseGarmentImagesObject = (
   garmentImages: unknown
 ): { front?: string; back?: string; urls: string[] } => {

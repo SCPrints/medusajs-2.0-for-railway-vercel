@@ -3,7 +3,6 @@ import { Lora } from "next/font/google"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import ByoCtaSection from "@modules/home/components/byo-cta-section"
 import ByoInquiryForm from "@modules/home/components/byo-inquiry-form"
 import ScrollExpandingSection from "@modules/home/components/scroll-expanding-section"
 
@@ -87,8 +86,6 @@ export default async function ByoPage({
             Jump to the BYO question form
           </a>
         </header>
-
-        <ByoCtaSection withForm={false} />
       </div>
 
       <ScrollExpandingSection

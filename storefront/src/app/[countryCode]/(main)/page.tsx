@@ -10,14 +10,12 @@ import { getProductsById, getProductsList } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
-import BrandsHero from "@modules/brands/components/brands-hero"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
-import ScrollExpandingSection from "@modules/home/components/scroll-expanding-section"
 import {
   DesignIcon,
   DigitalTransferIcon,
@@ -28,10 +26,12 @@ import {
   UvPrintingIcon,
   WarehousingIcon,
 } from "@modules/home/components/service-icons"
-import Thumbnail from "@modules/products/components/thumbnail"
-import ProductTags from "@modules/products/components/product-tags"
-import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
-import { isColorOptionTitle } from "@modules/products/lib/variant-options"
+import HomeFeaturedProductCard from "@modules/home/components/home-featured-product-card"
+import {
+  findFirstVariantForColorValue,
+  getPrimaryGarmentImageUrl,
+  isColorOptionTitle,
+} from "@modules/products/lib/variant-options"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 type MetadataProps = {
@@ -206,9 +206,6 @@ export default async function Home({
           </MarketingHero>
         </section>
 
-        <BrandsHero />
-        <ScrollExpandingSection />
-
         <HowOrderWorksSection />
 
         <section className="content-container py-12">
@@ -247,72 +244,26 @@ export default async function Home({
               ])
               const colors = getColorValues(product)
               const tagLabels = getStoreProductTagValues(product)
+              const fallbackUrl = getPrimaryGarmentImageUrl(product, undefined)
+              const swatches = colors.map((colorValue) => {
+                const variant = findFirstVariantForColorValue(product, colorValue)
+                const url =
+                  getPrimaryGarmentImageUrl(product, variant) ?? fallbackUrl ?? ""
+                return { colorLabel: colorValue, imageUrl: url }
+              })
 
               return (
-                <li
+                <HomeFeaturedProductCard
                   key={product.id}
-                  className="w-[280px] shrink-0 snap-start rounded-xl border border-ui-border-base bg-white p-4 transition-colors hover:border-[var(--brand-secondary)]/55"
-                >
-                  <LocalizedClientLink
-                    href={`/products/${product.handle}`}
-                    className="group block"
-                  >
-                    <Thumbnail
-                      thumbnail={product.thumbnail}
-                      images={product.images}
-                      size="square"
-                      className="rounded-lg"
-                    />
-                    <h3 className="mt-4 text-base font-semibold text-ui-fg-base">
-                      {product.title}
-                    </h3>
-                    <ProductTags labels={tagLabels} className="mt-2" />
-                    <div className="mt-3 space-y-1 text-sm text-ui-fg-subtle">
-                      <p>
-                        <span className="font-medium text-ui-fg-base">
-                          Fabric:
-                        </span>{" "}
-                        {fabricType ?? "See product details"}
-                      </p>
-                      <p>
-                        <span className="font-medium text-ui-fg-base">
-                          Weight:
-                        </span>{" "}
-                        {fabricWeight ?? "Varies by style"}
-                      </p>
-                      <p>
-                        <span className="font-medium text-ui-fg-base">
-                          Price:
-                        </span>{" "}
-                        {cheapestPrice?.calculated_price ?? "Request quote"} ex
-                        GST
-                      </p>
-                    </div>
-                    <div className="mt-4">
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
-                        Available colors
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {colors.length ? (
-                          colors.map((colorValue) => (
-                            <span
-                              key={`${product.id}-${colorValue}`}
-                              title={colorValue}
-                              className="inline-block h-5 w-5 rounded-full border border-ui-border-base"
-                              style={{
-                                backgroundColor: resolveGarmentSwatchColor(colorValue),
-                              }}
-                            />
-                          ))
-                        ) : (
-                          <span className="text-xs text-ui-fg-muted">
-                            Color options on product page
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </LocalizedClientLink>
-                </li>
+                  href={`/products/${product.handle}`}
+                  title={product.title ?? "Product"}
+                  tagLabels={tagLabels}
+                  fabricType={fabricType ?? "See product details"}
+                  fabricWeight={fabricWeight ?? "Varies by style"}
+                  priceLine={`${cheapestPrice?.calculated_price ?? "Request quote"} ex GST`}
+                  defaultImageUrl={fallbackUrl}
+                  swatches={swatches}
+                />
               )
             })}
           </ul>
