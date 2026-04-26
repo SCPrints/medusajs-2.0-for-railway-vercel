@@ -13,11 +13,11 @@ export default async function Footer() {
   return (
     <footer className="border-t border-ui-border-base w-full">
       <div className="content-container flex flex-col w-full">
-        <div className="grid gap-10 py-16 small:grid-cols-2 large:grid-cols-4">
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 items-start gap-y-10 gap-x-8 py-12 lg:grid-cols-4 lg:gap-y-0">
+          <div className="flex min-w-0 flex-col gap-4 lg:pr-2">
             <LocalizedClientLink
               href="/"
-              className="inline-flex items-center rounded-lg bg-ui-fg-base px-3 py-2"
+              className="inline-flex w-fit items-center rounded-lg bg-ui-fg-base px-3 py-2"
             >
               <Image
                 src="/branding/sc-prints-logo-transparent.png"
@@ -31,7 +31,7 @@ export default async function Footer() {
               Premium decorated apparel and merchandise for teams, brands, and events across
               Australia.
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <a
                 href={instagramUrl}
                 target="_blank"
@@ -43,9 +43,9 @@ export default async function Footer() {
             </div>
           </div>
 
-          <div className="text-small-regular">
-            <span className="txt-small-plus txt-ui-fg-base">Quick Links</span>
-            <ul className="mt-3 grid gap-y-2 text-ui-fg-subtle txt-small">
+          <div className="min-w-0 text-small-regular">
+            <h2 className="txt-small-plus text-ui-fg-base">Quick Links</h2>
+            <ul className="mt-3 grid grid-cols-1 gap-1.5 text-ui-fg-subtle txt-small sm:grid-cols-2 sm:gap-x-6 sm:gap-y-1.5 lg:grid-cols-1">
               <li>
                 <LocalizedClientLink href="/" className="hover:text-ui-fg-base">
                   Home
@@ -94,9 +94,9 @@ export default async function Footer() {
             </ul>
           </div>
 
-          <div className="text-small-regular">
-            <span className="txt-small-plus txt-ui-fg-base">Policies</span>
-            <ul className="mt-3 grid gap-y-2 text-ui-fg-subtle txt-small">
+          <div className="min-w-0 text-small-regular">
+            <h2 className="txt-small-plus text-ui-fg-base">Policies</h2>
+            <ul className="mt-3 flex flex-col gap-1.5 text-ui-fg-subtle txt-small">
               <li>
                 <LocalizedClientLink href="/shipping-policy" className="hover:text-ui-fg-base">
                   Shipping Policy
@@ -115,8 +115,8 @@ export default async function Footer() {
             </ul>
           </div>
 
-          <div className="text-small-regular">
-            <span className="txt-small-plus txt-ui-fg-base">Newsletter</span>
+          <div className="min-w-0 text-small-regular">
+            <h2 className="txt-small-plus text-ui-fg-base">Newsletter</h2>
             <p className="mt-3 text-ui-fg-subtle txt-small">
               Get product updates, promos, and print tips straight to your inbox.
             </p>
@@ -126,7 +126,7 @@ export default async function Footer() {
 
         {collections && collections.length > 0 && (
           <div className="border-t border-ui-border-base py-8">
-            <span className="txt-small-plus txt-ui-fg-base">Top Collections</span>
+            <h2 className="txt-small-plus text-ui-fg-base">Top Collections</h2>
             <ul
               className={clx(
                 "mt-3 grid gap-2 text-ui-fg-subtle txt-small grid-cols-2 small:grid-cols-3 large:grid-cols-6"
@@ -143,8 +143,8 @@ export default async function Footer() {
           </div>
         )}
 
-        <div className="flex w-full mb-8 justify-between text-ui-fg-muted">
-          <Text className="txt-compact-small">
+        <div className="flex w-full border-t border-ui-border-base pt-8 text-ui-fg-muted">
+          <Text className="txt-compact-small" as="p">
             © {new Date().getFullYear()} SC PRINTS. All rights reserved.
           </Text>
         </div>
