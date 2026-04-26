@@ -5,6 +5,9 @@
  *   pnpm run list-product-types-tags
  *   pnpm run list-product-types-tags -- --out ./data/product_types_and_tags.json
  *   pnpm run list-product-types-tags -- --format csv --out ./data/types_tags.csv
+ *
+ * Env:
+ *   LIST_TYPES_TAGS_OUT — optional output path if you cannot pass --out (e.g. some medusa exec wrappers)
  */
 
 import fs from "node:fs"
