@@ -1,4 +1,4 @@
-import Product from "../product-preview"
+import ProductPreview from "@modules/products/components/product-preview"
 import { getRegion } from "@lib/data/regions"
 import { getProductsList } from "@lib/data/products"
 import { HttpTypes } from "@medusajs/types"
@@ -63,10 +63,16 @@ export default async function RelatedProducts({
         </p>
       </div>
 
-      <ul className="grid grid-cols-2 small:grid-cols-3 medium:grid-cols-4 gap-x-6 gap-y-8">
+      <ul className="grid w-full grid-cols-2 small:grid-cols-3 medium:grid-cols-4 gap-x-6 gap-y-10 medium:gap-x-8">
         {products.map((product) => (
-          <li key={product.id}>
-            {region && <Product region={region} product={product} />}
+          <li key={product.id} className="h-full">
+            {region && (
+              <ProductPreview
+                product={product}
+                region={region}
+                layout="boxed"
+              />
+            )}
           </li>
         ))}
       </ul>
