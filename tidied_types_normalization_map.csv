@@ -1,0 +1,10 @@
+csv_type,normalized_type,label_changed
+Hoodie,Hoodies,true
+Longsleeve Shirt,Longsleeves,true
+Other,Other,false
+Polo,Polos,true
+Shirt,Shirts,true
+Shortsleeve Shirt,Shirts,true
+Singlet,Singlets / Tanks,true
+Sweatshirt,Sweatshirts,true
+T-Shirt,T-Shirts,true
