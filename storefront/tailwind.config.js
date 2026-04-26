@@ -153,38 +153,68 @@ module.exports = {
           "50%": { transform: "translate3d(2px, -1.5px, 0) rotate(0.5deg)" },
           "75%": { transform: "translate3d(-1.5px, -2px, 0) rotate(-0.35deg)" },
         },
-        /** Pointer leave: wobble from flat resting state (after hover transition) */
-        "card-listing-wobble": {
-          "0%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
-          "20%": { transform: "translate3d(1.5px, 2.5px, 0) scale(1.008) rotate(0.45deg)" },
-          "40%": { transform: "translate3d(-1.25px, -0.75px, 0) scale(0.996) rotate(-0.35deg)" },
-          "60%": { transform: "translate3d(0.75px, 0.5px, 0) scale(1.003) rotate(0.2deg)" },
-          "80%": { transform: "translate3d(-0.35px, -0.25px, 0) scale(0.999) rotate(-0.08deg)" },
-          "100%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
-        },
         /**
-         * Pointer enter: matches ProductListingCard hover: `-translate-y-2.5` + `scale(1.04)` (+4% size).
+         * Product listing card: grow + wobble in one timeline (rest → `-translate-y-2.5` + `scale(1.04)`).
          */
-        "card-listing-wobble-expanded": {
-          "0%, 100%": {
+        "card-listing-enter": {
+          "0%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
+          "14%": {
+            transform:
+              "translate3d(2.4px, -6.5px, 0) scale(1.026) rotate(0.55deg)",
+          },
+          "28%": {
+            transform:
+              "translate3d(-1.9px, calc(-0.625rem * 0.42), 0) scale(1.036) rotate(-0.45deg)",
+          },
+          "42%": {
+            transform:
+              "translate3d(2.3px, calc(-0.625rem * 0.72), 0) scale(1.044) rotate(0.68deg)",
+          },
+          "56%": {
+            transform:
+              "translate3d(-1.6px, calc(-0.625rem * 0.92), 0) scale(1.047) rotate(-0.42deg)",
+          },
+          "70%": {
+            transform:
+              "translate3d(1.2px, calc(-0.625rem * 0.98), 0) scale(1.044) rotate(0.28deg)",
+          },
+          "84%": {
+            transform:
+              "translate3d(-0.6px, calc(-0.625rem * 0.995), 0) scale(1.041) rotate(-0.12deg)",
+          },
+          "100%": {
             transform: "translate3d(0, -0.625rem, 0) scale(1.04) rotate(0deg)",
           },
-          "20%": {
-            transform:
-              "translate3d(1.5px, calc(-0.625rem + 2.5px), 0) scale(1.048) rotate(0.45deg)",
+        },
+        /**
+         * Shrink + wobble from expanded pose to rest. Uses `--listing-exit-bias-x` / `-y` (−1…1),
+         * set on the element for overshoot opposite pointer exit velocity.
+         */
+        "card-listing-leave-dynamic": {
+          "0%": {
+            transform: "translate3d(0, -0.625rem, 0) scale(1.04) rotate(0deg)",
           },
-          "40%": {
+          "14%": {
             transform:
-              "translate3d(-1.25px, calc(-0.625rem - 0.75px), 0) scale(1.036) rotate(-0.35deg)",
+              "translate3d(calc(var(--listing-exit-bias-x, 0) * 16px), calc(-0.625rem + var(--listing-exit-bias-y, 0) * 11px), 0) scale(1.018) rotate(calc(var(--listing-exit-bias-x, 0) * 0.85deg))",
           },
-          "60%": {
+          "32%": {
             transform:
-              "translate3d(0.75px, calc(-0.625rem + 0.5px), 0) scale(1.043) rotate(0.2deg)",
+              "translate3d(calc(var(--listing-exit-bias-x, 0) * -8px - 2px), calc(-0.38rem + var(--listing-exit-bias-y, 0) * -5.5px), 0) scale(1.008) rotate(calc(var(--listing-exit-bias-x, 0) * -0.52deg))",
           },
-          "80%": {
+          "50%": {
             transform:
-              "translate3d(-0.35px, calc(-0.625rem - 0.25px), 0) scale(1.039) rotate(-0.08deg)",
+              "translate3d(calc(1.3px + var(--listing-exit-bias-x, 0) * 4.5px), calc(-0.18rem + var(--listing-exit-bias-y, 0) * -2.9px), 0) scale(1.003) rotate(calc(var(--listing-exit-bias-x, 0) * 0.3deg))",
           },
+          "68%": {
+            transform:
+              "translate3d(calc(-0.75px + var(--listing-exit-bias-x, 0) * 2px), calc(-0.06rem + var(--listing-exit-bias-y, 0) * -1.3px), 0) scale(1.001) rotate(calc(var(--listing-exit-bias-x, 0) * -0.16deg))",
+          },
+          "86%": {
+            transform:
+              "translate3d(calc(0.35px + var(--listing-exit-bias-x, 0) * 0.65px), -5px, 0) scale(1.0005) rotate(calc(var(--listing-exit-bias-x, 0) * 0.07deg))",
+          },
+          "100%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
         },
       },
       animation: {
@@ -205,12 +235,11 @@ module.exports = {
           "brand-tile-float var(--brand-float-duration, 6s) ease-in-out infinite",
         "brand-tile-float-alt":
           "brand-tile-float-alt var(--brand-float-duration, 6.5s) ease-in-out infinite",
-        /** Pointer enter: longer; keyframes = expanded hover pose */
-        "card-listing-wobble-in":
-          "card-listing-wobble-expanded 0.68s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 both",
-        /** Pointer leave: same motion, slightly shorter */
-        "card-listing-wobble-out":
-          "card-listing-wobble 0.4s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 both",
+        /** Product listing card pointer enter / leave (see `card-listing-enter` / `card-listing-leave-dynamic`) */
+        "card-listing-enter":
+          "card-listing-enter 0.68s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 forwards",
+        "card-listing-leave":
+          "card-listing-leave-dynamic 0.5s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 forwards",
       },
     },
   },

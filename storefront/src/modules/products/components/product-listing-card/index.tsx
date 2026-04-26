@@ -2,7 +2,14 @@
 
 import { Container, clx } from "@medusajs/ui"
 import Image from "next/image"
-import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react"
 
 import PlaceholderImage from "@modules/common/icons/placeholder-image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -13,9 +20,29 @@ type ProductListingCardProps = ProductListingCardData & {
   className?: string
 }
 
-/** Kept in sync with `duration-300` on the card hover transform. */
-const CARD_HOVER_EXPAND_MS = 300
-const ENTER_WOBBLE_DELAY_MS = CARD_HOVER_EXPAND_MS + 16
+type CardPhase = "rest" | "enter" | "hold" | "leave"
+
+const VELOCITY_EPS = 0.5
+
+function subscribeReducedMotion(cb: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+  mq.addEventListener("change", cb)
+  return () => mq.removeEventListener("change", cb)
+}
+
+function getReducedMotionSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+}
+
+function getReducedMotionServerSnapshot() {
+  return false
+}
+
+function normalizeBias(nx: number, ny: number): { x: string; y: string } {
+  const len = Math.hypot(nx, ny)
+  if (len < 1e-6) return { x: "0", y: "0" }
+  return { x: String(nx / len), y: String(ny / len) }
+}
 
 function CardImage({
   imageUrl,
@@ -60,22 +87,40 @@ export default function ProductListingCard({
   totalSwatchCount,
 }: ProductListingCardProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
-  const [wobble, setWobble] = useState<"in" | "out" | null>(null)
+  const [phase, setPhase] = useState<CardPhase>("rest")
+  const [exitBias, setExitBias] = useState<{ x: string; y: string } | null>(null)
+  const prefersReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  )
+
+  const articleRef = useRef<HTMLElement | null>(null)
   const pointerInsideRef = useRef(false)
-  const enterWobbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const leaveWobbleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null)
+  const prevPointerRef = useRef<{ x: number; y: number } | null>(null)
+  const moveRafRef = useRef<number | null>(null)
+  const pendingMoveRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     setPreviewUrl(defaultImageUrl)
   }, [defaultImageUrl])
 
+  /**
+   * React Strict Mode remounts (or a missed `mouseenter`) can leave `:hover` true while `phase` is still `rest`.
+   */
+  useLayoutEffect(() => {
+    const el = articleRef.current
+    if (!el || prefersReducedMotion) return
+    if (el.matches(":hover")) {
+      setPhase((p) => (p === "rest" ? "enter" : p))
+    }
+  }, [prefersReducedMotion])
+
   useEffect(() => {
     return () => {
-      if (enterWobbleTimeoutRef.current) {
-        clearTimeout(enterWobbleTimeoutRef.current)
-      }
-      if (leaveWobbleTimeoutRef.current) {
-        clearTimeout(leaveWobbleTimeoutRef.current)
+      if (moveRafRef.current !== null) {
+        cancelAnimationFrame(moveRafRef.current)
       }
     }
   }, [])
@@ -84,71 +129,126 @@ export default function ProductListingCard({
     setPreviewUrl(defaultImageUrl)
   }, [defaultImageUrl])
 
-  const clearLeaveWobbleTimeout = useCallback(() => {
-    if (leaveWobbleTimeoutRef.current) {
-      clearTimeout(leaveWobbleTimeoutRef.current)
-      leaveWobbleTimeoutRef.current = null
+  const flushPointerMove = useCallback(() => {
+    moveRafRef.current = null
+    const p = pendingMoveRef.current
+    if (!p) return
+    pendingMoveRef.current = null
+    const prev = lastPointerRef.current
+    if (prev) {
+      prevPointerRef.current = prev
     }
+    lastPointerRef.current = p
   }, [])
 
-  const clearEnterWobbleTimeout = useCallback(() => {
-    if (enterWobbleTimeoutRef.current) {
-      clearTimeout(enterWobbleTimeoutRef.current)
-      enterWobbleTimeoutRef.current = null
-    }
-  }, [])
+  const computeExitBias = useCallback(
+    (clientX: number, clientY: number) => {
+      const last = lastPointerRef.current
+      const prev = prevPointerRef.current
+      let nx = 0
+      let ny = 0
+      if (last && prev) {
+        const vx = last.x - prev.x
+        const vy = last.y - prev.y
+        nx = -vx
+        ny = -vy
+      }
+      if (Math.hypot(nx, ny) < VELOCITY_EPS && articleRef.current) {
+        const r = articleRef.current.getBoundingClientRect()
+        const cx = r.left + r.width / 2
+        const cy = r.top + r.height / 2
+        nx = -(clientX - cx)
+        ny = -(clientY - cy)
+      }
+      return normalizeBias(nx, ny)
+    },
+    []
+  )
 
-  const shouldPlayWobble = useCallback(
-    () =>
-      typeof window !== "undefined" &&
-      !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  const onMouseEnter = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      pointerInsideRef.current = true
+      lastPointerRef.current = { x: e.clientX, y: e.clientY }
+      prevPointerRef.current = { x: e.clientX, y: e.clientY }
+      if (prefersReducedMotion) return
+      setExitBias(null)
+      setPhase("enter")
+    },
+    [prefersReducedMotion]
+  )
+
+  const onMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      if (prefersReducedMotion) return
+      pendingMoveRef.current = { x: e.clientX, y: e.clientY }
+      if (moveRafRef.current !== null) return
+      moveRafRef.current = requestAnimationFrame(flushPointerMove)
+    },
+    [prefersReducedMotion, flushPointerMove]
+  )
+
+  const onMouseLeave = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      pointerInsideRef.current = false
+      if (moveRafRef.current !== null) {
+        cancelAnimationFrame(moveRafRef.current)
+        moveRafRef.current = null
+      }
+      flushPointerMove()
+      lastPointerRef.current = { x: e.clientX, y: e.clientY }
+      resetPreview()
+      if (prefersReducedMotion) return
+      setExitBias(computeExitBias(e.clientX, e.clientY))
+      setPhase("leave")
+    },
+    [prefersReducedMotion, flushPointerMove, resetPreview, computeExitBias]
+  )
+
+  const onAnimationEnd = useCallback(
+    (ev: React.AnimationEvent<HTMLElement>) => {
+      if (ev.target !== ev.currentTarget) return
+      const name = ev.animationName.toLowerCase()
+      if (name.includes("card-listing-enter")) {
+        if (pointerInsideRef.current) setPhase("hold")
+        else setPhase("rest")
+        return
+      }
+      if (name.includes("card-listing-leave")) {
+        setPhase("rest")
+        setExitBias(null)
+      }
+    },
     []
   )
 
   return (
     <article
+      ref={articleRef}
       data-testid="product-wrapper"
-      onMouseEnter={() => {
-        pointerInsideRef.current = true
-        clearLeaveWobbleTimeout()
-        setWobble(null)
-        if (!shouldPlayWobble()) return
-        clearEnterWobbleTimeout()
-        enterWobbleTimeoutRef.current = setTimeout(() => {
-          enterWobbleTimeoutRef.current = null
-          if (!pointerInsideRef.current) return
-          setWobble("in")
-        }, ENTER_WOBBLE_DELAY_MS)
-      }}
-      onMouseLeave={() => {
-        pointerInsideRef.current = false
-        clearEnterWobbleTimeout()
-        setWobble(null)
-        resetPreview()
-        if (!shouldPlayWobble()) return
-        clearLeaveWobbleTimeout()
-        leaveWobbleTimeoutRef.current = setTimeout(() => {
-          leaveWobbleTimeoutRef.current = null
-          setWobble("out")
-        }, 220)
-      }}
-      onAnimationEnd={(e) => {
-        if (e.target !== e.currentTarget) return
-        const name = e.animationName.toLowerCase()
-        if (name.includes("card-listing-wobble")) {
-          setWobble(null)
-        }
-      }}
+      onMouseEnter={onMouseEnter}
+      onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
+      onAnimationEnd={onAnimationEnd}
+      style={
+        phase === "leave" && exitBias
+          ? ({
+              "--listing-exit-bias-x": exitBias.x,
+              "--listing-exit-bias-y": exitBias.y,
+            } as React.CSSProperties)
+          : undefined
+      }
       className={clx(
         "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
-        "relative z-0 transform-gpu transition-[transform,box-shadow,border-color] duration-300 ease-out",
+        "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
         "hover:border-[var(--brand-secondary)]/70 hover:shadow-elevation-card-hover",
-        "hover:z-10",
-        /* +4% vs resting size: scale(1.04) on each axis. z-10 paints above siblings so the grow does not “hide” under neighbours */
-        "motion-safe:hover:-translate-y-2.5 motion-safe:hover:scale-[1.04]",
+        !prefersReducedMotion && (phase !== "rest" ? "z-10" : "z-0"),
+        prefersReducedMotion && "motion-reduce:z-0 motion-reduce:hover:z-10",
         "group",
-        wobble === "in" && "motion-safe:animate-card-listing-wobble-in",
-        wobble === "out" && "motion-safe:animate-card-listing-wobble-out",
+        prefersReducedMotion &&
+          "motion-reduce:transition-[transform,box-shadow,border-color] motion-reduce:duration-300 motion-reduce:ease-out motion-reduce:hover:-translate-y-2.5 motion-reduce:hover:scale-[1.04]",
+        !prefersReducedMotion && phase === "enter" && "animate-card-listing-enter",
+        !prefersReducedMotion && phase === "leave" && "animate-card-listing-leave",
+        !prefersReducedMotion && phase === "hold" && "-translate-y-2.5 scale-[1.04]",
         className
       )}
     >
