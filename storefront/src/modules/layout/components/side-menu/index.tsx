@@ -147,7 +147,7 @@ const SideMenu = ({
                         </div>
 
                         <div className="lg:col-span-5">
-                          <h2 className="mb-4 border-t border-[rgba(0,173,181,0.35)] pt-6 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-accent)] lg:border-t-0 lg:pt-0">
+                          <h2 className="mb-4 border-t border-[var(--brand-accent)]/35 pt-6 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-accent)] lg:border-t-0 lg:pt-0">
                             Browse products &amp; services
                           </h2>
                           <div className="grid gap-6 sm:grid-cols-2">
@@ -174,7 +174,7 @@ const SideMenu = ({
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-8 border-t border-[rgba(0,173,181,0.35)] pt-6 lg:col-span-4 lg:border-t-0 lg:pt-0">
+                        <div className="flex flex-col gap-8 border-t border-[var(--brand-accent)]/35 pt-6 lg:col-span-4 lg:border-t-0 lg:pt-0">
                           <div>
                             <h2 className="mb-3 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-accent)]">
                               Discover &amp; help
@@ -232,7 +232,7 @@ const SideMenu = ({
                         </div>
                       </div>
                     </div>
-                    <div className="mt-4 flex flex-col gap-y-6 border-t border-[rgba(0,173,181,0.2)] pt-4">
+                    <div className="mt-4 flex flex-col gap-y-6 border-t border-[var(--brand-accent)]/20 pt-4">
                       <div
                         className="flex justify-between text-[var(--brand-secondary)]"
                         onMouseEnter={toggleState.open}
