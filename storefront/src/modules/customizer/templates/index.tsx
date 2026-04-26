@@ -1,6 +1,7 @@
 "use client"
 
 import { addToCartSafe } from "@lib/data/cart"
+import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-add-button"
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import InputPanel from "@modules/customizer/components/input-panel"
 import ManagementPanel from "@modules/customizer/components/management-panel"
@@ -421,6 +422,11 @@ export default function CustomizerTemplate({
       selectedProduct?.variants?.find((variant) => variant.id === activeVariantId) ??
       selectedProduct?.variants?.[0],
     [activeVariantId, selectedProduct]
+  )
+
+  const flyImageSrcForAddToCart = useMemo(
+    () => resolvePdpFlyImageSrc(selectedProduct, selectedVariant),
+    [selectedProduct, selectedVariant]
   )
 
   const nonSizeOptions = useMemo(
@@ -1577,6 +1583,7 @@ export default function CustomizerTemplate({
               onAddToCart={addCustomizedToCart}
               isSubmitting={isSubmitting}
               embeddedOnPdp={embedded}
+              flyImageSrc={flyImageSrcForAddToCart}
             />
 
             <details className="group rounded-xl border border-ui-border-base bg-ui-bg-base p-4">

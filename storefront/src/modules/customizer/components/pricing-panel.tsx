@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 
+import FlyToCartAddButton from "@modules/common/components/fly-to-cart-add-button"
 import { PricingBreakdown, SizeQuantity } from "@modules/customizer/lib/types"
 
 type PricingPanelProps = {
@@ -13,6 +14,8 @@ type PricingPanelProps = {
   isSubmitting: boolean
   /** PDP embed: single size row, shorter copy. */
   embeddedOnPdp?: boolean
+  /** When set, Add to cart uses the PDP fly + squish interaction (see fly-to-cart-add-button). */
+  flyImageSrc?: string
 }
 
 type DtfQuantityTier = {
@@ -75,6 +78,7 @@ export default function PricingPanel({
   onAddToCart,
   isSubmitting,
   embeddedOnPdp = false,
+  flyImageSrc,
 }: PricingPanelProps) {
   const quantity = sizes.reduce((total, entry) => total + entry.quantity, 0)
   const [selectedPrintAreaId, setSelectedPrintAreaId] = useState(DTF_PRINT_AREA_OPTIONS[0].id)
@@ -232,14 +236,30 @@ export default function PricingPanel({
         </div>
       </details>
 
-      <button
-        type="button"
-        onClick={onAddToCart}
-        disabled={isSubmitting || quantity <= 0}
-        className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:opacity-50"
-      >
-        {isSubmitting ? "Adding..." : "Add to cart"}
-      </button>
+      {flyImageSrc ? (
+        <FlyToCartAddButton
+          onAddToCart={() => {
+            void onAddToCart()
+          }}
+          disabled={isSubmitting || quantity <= 0}
+          isLoading={isSubmitting}
+          className="w-full rounded-xl px-4 py-3.5 text-base font-semibold shadow-sm transition hover:opacity-95 disabled:opacity-50"
+          flyImageSrc={flyImageSrc}
+        >
+          {isSubmitting ? "Adding..." : "Add to cart"}
+        </FlyToCartAddButton>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            void onAddToCart()
+          }}
+          disabled={isSubmitting || quantity <= 0}
+          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:opacity-50"
+        >
+          {isSubmitting ? "Adding..." : "Add to cart"}
+        </button>
+      )}
     </div>
   )
 }
