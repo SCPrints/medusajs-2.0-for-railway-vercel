@@ -14,7 +14,7 @@ const SkeletonRelatedProducts = () => {
       <ul className="grid grid-cols-2 small:grid-cols-3 medium:grid-cols-4 gap-x-6 gap-y-8 flex-1">
         {repeat(3).map((index) => (
           <li key={index}>
-            <SkeletonProductPreview />
+            <SkeletonProductPreview layout="portrait" />
           </li>
         ))}
       </ul>

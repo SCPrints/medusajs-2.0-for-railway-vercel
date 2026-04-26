@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-import { HttpTypes } from "@medusajs/types"
 
 import {
   getInstagramFeedMedia,
@@ -26,16 +25,8 @@ import {
   UvPrintingIcon,
   WarehousingIcon,
 } from "@modules/home/components/service-icons"
-import HomeFeaturedProductCard from "@modules/home/components/home-featured-product-card"
-import { getColorSwatchImageMap } from "@modules/products/lib/color-swatch-images"
-import { sortGarmentColorLabels } from "@modules/products/lib/garment-color-order"
-import {
-  findFirstVariantForColorValue,
-  getPrimaryGarmentImageUrl,
-  isColorOptionTitle,
-  toTitleSlug,
-} from "@modules/products/lib/variant-options"
-import { getStoreProductTagValues } from "@lib/util/product-tags"
+import ProductListingCard from "@modules/products/components/product-listing-card"
+import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -88,44 +79,6 @@ const CORE_SERVICES: Array<{
   { title: "UV Printing", Icon: UvPrintingIcon },
   { title: "Design", Icon: DesignIcon },
 ]
-
-const getMetadataValue = (product: HttpTypes.StoreProduct, keys: string[]) => {
-  const metadata = (product.metadata ?? {}) as Record<string, unknown>
-
-  for (const key of keys) {
-    const value = metadata[key]
-    if (typeof value === "string" && value.trim()) {
-      return value.trim()
-    }
-  }
-
-  return null
-}
-
-const getColorValues = (product: HttpTypes.StoreProduct) => {
-  const colorOptionIds = new Set(
-    (product.options ?? [])
-      .filter((option) => isColorOptionTitle(option.title))
-      .map((option) => option.id)
-      .filter(Boolean) as string[]
-  )
-
-  const colors = new Set<string>()
-
-  ;(product.variants ?? []).forEach((variant) => {
-    ;((variant as any).options ?? []).forEach((optionValue: any) => {
-      if (!optionValue?.value) {
-        return
-      }
-
-      if (!colorOptionIds.size || colorOptionIds.has(optionValue.option_id)) {
-        colors.add(String(optionValue.value).trim())
-      }
-    })
-  })
-
-  return Array.from(colors).slice(0, 6)
-}
 
 export default async function Home({
   params,
@@ -227,68 +180,25 @@ export default async function Home({
             </LocalizedClientLink>
           </div>
 
-          <ul className="no-scrollbar flex snap-x gap-5 overflow-x-auto pb-2">
+          <ul className="no-scrollbar flex list-none snap-x gap-5 overflow-x-auto pb-2">
             {products.map((product) => {
-              const pricedProduct = pricedMap.get(product.id)
+              const pricedProduct = product.id
+                ? pricedMap.get(product.id)
+                : undefined
               const { cheapestPrice } = pricedProduct
                 ? getProductPrice({ product: pricedProduct })
                 : { cheapestPrice: null }
-              const fabricType = getMetadataValue(product, [
-                "fabric_type",
-                "fabric",
-                "material",
-              ])
-              const fabricWeight = getMetadataValue(product, [
-                "fabric_weight",
-                "weight",
-                "gsm",
-              ])
-              const tagLabels = getStoreProductTagValues(product)
-              const rawColors = getColorValues(product)
-              const colorOption = product.options?.find((o) =>
-                isColorOptionTitle(o.title)
+              const data = buildProductListingCardData(
+                pricedProduct ?? product,
+                cheapestPrice
               )
-              const colorOptionTitle = colorOption?.title
-              const colors =
-                rawColors.length > 0
-                  ? sortGarmentColorLabels([...rawColors]).slice(0, 6)
-                  : []
-              const swatchPhotoMap =
-                typeof colorOptionTitle === "string" && colorOptionTitle.length > 0
-                  ? getColorSwatchImageMap(product, colorOptionTitle)
-                  : new Map<string, string>()
-              const catalogFallback = getPrimaryGarmentImageUrl(product, undefined)
-              const swatches = colors.map((colorValue) => {
-                const variant = findFirstVariantForColorValue(product, colorValue)
-                const imageUrl =
-                  getPrimaryGarmentImageUrl(product, variant) ??
-                  catalogFallback ??
-                  ""
-                const slug = toTitleSlug(colorValue)
-                const swatchPhotoUrl = slug ? swatchPhotoMap.get(slug) : undefined
-                return {
-                  colorLabel: colorValue,
-                  imageUrl,
-                  swatchPhotoUrl: swatchPhotoUrl ?? undefined,
-                }
-              })
-              const defaultImageUrl =
-                swatches.length > 0
-                  ? swatches[0].imageUrl || catalogFallback
-                  : catalogFallback
-
               return (
-                <HomeFeaturedProductCard
+                <li
                   key={product.id}
-                  href={`/products/${product.handle}`}
-                  title={product.title ?? "Product"}
-                  tagLabels={tagLabels}
-                  fabricType={fabricType ?? "See product details"}
-                  fabricWeight={fabricWeight ?? "Varies by style"}
-                  priceLine={`${cheapestPrice?.calculated_price ?? "Request quote"} ex GST`}
-                  defaultImageUrl={defaultImageUrl}
-                  swatches={swatches}
-                />
+                  className="w-[280px] shrink-0 snap-start"
+                >
+                  <ProductListingCard {...data} />
+                </li>
               )
             })}
           </ul>

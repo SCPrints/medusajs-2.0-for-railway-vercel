@@ -8,6 +8,8 @@ import { getProductsById } from "@lib/data/products"
 import { HttpTypes } from "@medusajs/types"
 import ProductTags from "@modules/products/components/product-tags"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
+import ProductListingCard from "@modules/products/components/product-listing-card"
+import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
 export default async function ProductPreview({
   product,
@@ -36,30 +38,11 @@ export default async function ProductPreview({
   const tagLabels = getStoreProductTagValues(pricedProduct)
 
   if (layout === "boxed") {
-    return (
-      <LocalizedClientLink href={`/products/${product.handle}`} className="group block h-full">
-        <article
-          className="h-full rounded-xl border border-ui-border-base bg-white p-4 transform-gpu transition-all duration-200 ease-out hover:border-[var(--brand-secondary)]/55 hover:shadow-elevation-card-hover motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.01]"
-          data-testid="product-wrapper"
-        >
-          <Thumbnail
-            thumbnail={product.thumbnail}
-            images={product.images}
-            size="square"
-            className="rounded-lg"
-          />
-          <div className="mt-4 flex items-start justify-between gap-x-3">
-            <Text className="text-sm font-medium text-ui-fg-base" data-testid="product-title">
-              {product.title}
-            </Text>
-            <div className="shrink-0">
-              {cheapestPrice && <PreviewPrice price={cheapestPrice} />}
-            </div>
-          </div>
-          <ProductTags labels={tagLabels} className="mt-2" />
-        </article>
-      </LocalizedClientLink>
+    const cardData = buildProductListingCardData(
+      pricedProduct,
+      cheapestPrice
     )
+    return <ProductListingCard className="h-full" {...cardData} />
   }
 
   return (

@@ -153,6 +153,15 @@ module.exports = {
           "50%": { transform: "translate3d(2px, -1.5px, 0) rotate(0.5deg)" },
           "75%": { transform: "translate3d(-1.5px, -2px, 0) rotate(-0.35deg)" },
         },
+        /** One-shot wobble (enter + leave); use two animation durations in tailwind.config */
+        "card-listing-wobble": {
+          "0%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
+          "20%": { transform: "translate3d(1.5px, 2.5px, 0) scale(1.008) rotate(0.45deg)" },
+          "40%": { transform: "translate3d(-1.25px, -0.75px, 0) scale(0.996) rotate(-0.35deg)" },
+          "60%": { transform: "translate3d(0.75px, 0.5px, 0) scale(1.003) rotate(0.2deg)" },
+          "80%": { transform: "translate3d(-0.35px, -0.25px, 0) scale(0.999) rotate(-0.08deg)" },
+          "100%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
+        },
       },
       animation: {
         ring: "ring 2.2s cubic-bezier(0.5, 0, 0.5, 1) infinite",
@@ -172,6 +181,12 @@ module.exports = {
           "brand-tile-float var(--brand-float-duration, 6s) ease-in-out infinite",
         "brand-tile-float-alt":
           "brand-tile-float-alt var(--brand-float-duration, 6.5s) ease-in-out infinite",
+        /** Pointer enter: longer */
+        "card-listing-wobble-in":
+          "card-listing-wobble 0.68s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 both",
+        /** Pointer leave: same motion, slightly shorter */
+        "card-listing-wobble-out":
+          "card-listing-wobble 0.4s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 both",
       },
     },
   },
