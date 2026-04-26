@@ -153,7 +153,7 @@ module.exports = {
           "50%": { transform: "translate3d(2px, -1.5px, 0) rotate(0.5deg)" },
           "75%": { transform: "translate3d(-1.5px, -2px, 0) rotate(-0.35deg)" },
         },
-        /** One-shot wobble (enter + leave); use two animation durations in tailwind.config */
+        /** Pointer leave: wobble from flat resting state (after hover transition) */
         "card-listing-wobble": {
           "0%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
           "20%": { transform: "translate3d(1.5px, 2.5px, 0) scale(1.008) rotate(0.45deg)" },
@@ -161,6 +161,30 @@ module.exports = {
           "60%": { transform: "translate3d(0.75px, 0.5px, 0) scale(1.003) rotate(0.2deg)" },
           "80%": { transform: "translate3d(-0.35px, -0.25px, 0) scale(0.999) rotate(-0.08deg)" },
           "100%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
+        },
+        /**
+         * Pointer enter: matches ProductListingCard hover: `-translate-y-2.5` + `scale(1.04)` (+4% size).
+         */
+        "card-listing-wobble-expanded": {
+          "0%, 100%": {
+            transform: "translate3d(0, -0.625rem, 0) scale(1.04) rotate(0deg)",
+          },
+          "20%": {
+            transform:
+              "translate3d(1.5px, calc(-0.625rem + 2.5px), 0) scale(1.048) rotate(0.45deg)",
+          },
+          "40%": {
+            transform:
+              "translate3d(-1.25px, calc(-0.625rem - 0.75px), 0) scale(1.036) rotate(-0.35deg)",
+          },
+          "60%": {
+            transform:
+              "translate3d(0.75px, calc(-0.625rem + 0.5px), 0) scale(1.043) rotate(0.2deg)",
+          },
+          "80%": {
+            transform:
+              "translate3d(-0.35px, calc(-0.625rem - 0.25px), 0) scale(1.039) rotate(-0.08deg)",
+          },
         },
       },
       animation: {
@@ -181,9 +205,9 @@ module.exports = {
           "brand-tile-float var(--brand-float-duration, 6s) ease-in-out infinite",
         "brand-tile-float-alt":
           "brand-tile-float-alt var(--brand-float-duration, 6.5s) ease-in-out infinite",
-        /** Pointer enter: longer */
+        /** Pointer enter: longer; keyframes = expanded hover pose */
         "card-listing-wobble-in":
-          "card-listing-wobble 0.68s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 both",
+          "card-listing-wobble-expanded 0.68s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 both",
         /** Pointer leave: same motion, slightly shorter */
         "card-listing-wobble-out":
           "card-listing-wobble 0.4s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 both",

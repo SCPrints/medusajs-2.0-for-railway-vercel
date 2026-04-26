@@ -17,6 +17,8 @@ export type ProductListingSwatch = {
   swatchPhotoUrl?: string
 }
 
+const MAX_SWATCHES_DISPLAY = 6
+
 export type ProductListingCardData = {
   href: string
   title: string
@@ -26,6 +28,8 @@ export type ProductListingCardData = {
   priceLine: string
   defaultImageUrl: string | null
   swatches: ProductListingSwatch[]
+  /** Full garment color count (may exceed `swatches.length`). */
+  totalSwatchCount: number
 }
 
 export const getMetadataValue = (
@@ -67,7 +71,7 @@ export const getColorValues = (product: HttpTypes.StoreProduct) => {
     })
   })
 
-  return Array.from(colors).slice(0, 6)
+  return Array.from(colors)
 }
 
 /**
@@ -95,10 +99,10 @@ export function buildProductListingCardData(
     isColorOptionTitle(o.title)
   )
   const colorOptionTitle = colorOption?.title
-  const colors =
-    rawColors.length > 0
-      ? sortGarmentColorLabels([...rawColors]).slice(0, 6)
-      : []
+  const allColorsSorted =
+    rawColors.length > 0 ? sortGarmentColorLabels([...rawColors]) : []
+  const totalSwatchCount = allColorsSorted.length
+  const colors = allColorsSorted.slice(0, MAX_SWATCHES_DISPLAY)
   const swatchPhotoMap =
     typeof colorOptionTitle === "string" && colorOptionTitle.length > 0
       ? getColorSwatchImageMap(product, colorOptionTitle)
@@ -130,5 +134,6 @@ export function buildProductListingCardData(
     priceLine: `${cheapestPrice?.calculated_price ?? "Request quote"} ex GST`,
     defaultImageUrl,
     swatches,
+    totalSwatchCount,
   }
 }
