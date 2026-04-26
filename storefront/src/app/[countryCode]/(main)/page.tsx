@@ -10,12 +10,15 @@ import { getProductsById, getProductsList } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import BrandsHero from "@modules/brands/components/brands-hero"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
+import ByoCtaSection from "@modules/home/components/byo-cta-section"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
+import ScrollExpandingSection from "@modules/home/components/scroll-expanding-section"
 import {
   DesignIcon,
   DigitalTransferIcon,
@@ -204,7 +207,12 @@ export default async function Home({
           </MarketingHero>
         </section>
 
+        <BrandsHero />
+        <ScrollExpandingSection />
+
         <HowOrderWorksSection />
+
+        <ByoCtaSection />
 
         <section className="content-container py-12">
           <div className="mb-6 flex items-end justify-between">

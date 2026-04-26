@@ -1,0 +1,332 @@
+"use client"
+
+import { useId, useState } from "react"
+
+const PRINTING_TYPES = [
+  { value: "", label: "Select printing type" },
+  { value: "Screen print", label: "Screen print" },
+  { value: "DTG (direct to garment)", label: "DTG (direct to garment)" },
+  { value: "Embroidery", label: "Embroidery" },
+  { value: "Transfers / DTF", label: "Transfers / DTF" },
+  { value: "UV printing", label: "UV printing" },
+  { value: "Unsure", label: "Unsure" },
+  { value: "Other", label: "Other" },
+] as const
+
+const GARMENT_TYPES = [
+  { id: "t-shirts", label: "T-shirts" },
+  { id: "singlets", label: "Singlets" },
+  { id: "hoodies", label: "Hoodies" },
+  { id: "polos", label: "Polos" },
+  { id: "headwear", label: "Headwear" },
+  { id: "tote-bags", label: "Tote bags" },
+  { id: "other", label: "Other" },
+] as const
+
+const BYO_SUBJECT = "BYO (bring your own) inquiry"
+
+type ByoInquiryFormProps = {
+  /** For in-page anchor links (e.g. #byo-inquiry) */
+  id?: string
+  className?: string
+}
+
+export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormProps) {
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [printingType, setPrintingType] = useState("")
+  const [printingOther, setPrintingOther] = useState("")
+  const [garmentOther, setGarmentOther] = useState("")
+  const [selectedGarments, setSelectedGarments] = useState<Set<string>>(() => new Set())
+  const formTitleId = useId()
+
+  const inputClass =
+    "w-full rounded-lg border border-[var(--brand-primary)]/35 bg-white px-3 py-2.5 text-sm text-ui-fg-base placeholder:text-ui-fg-muted/80 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/30"
+
+  const labelClass = "mb-1.5 block text-xs font-semibold text-ui-fg-base"
+
+  const toggleGarment = (id: string) => {
+    setSelectedGarments((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const buildMessage = (userMessage: string) => {
+    const printingLine =
+      printingType === "Other" && printingOther.trim()
+        ? `Other: ${printingOther.trim()}`
+        : printingType || "Not specified"
+
+    const garmentLabels = GARMENT_TYPES.filter((g) => selectedGarments.has(g.id)).map(
+      (g) => (g.id === "other" && garmentOther.trim() ? `Other (${garmentOther.trim()})` : g.label)
+    )
+    const garmentLine =
+      garmentLabels.length > 0 ? garmentLabels.join(", ") : "Not specified"
+
+    return [
+      `Printing: ${printingLine}`,
+      `Garment types: ${garmentLine}`,
+      "",
+      userMessage,
+    ].join("\n")
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setLoading(true)
+
+    const form = e.currentTarget
+    const data = new FormData(form)
+    const first = typeof data.get("first-name") === "string" ? (data.get("first-name") as string).trim() : ""
+    const last = typeof data.get("last-name") === "string" ? (data.get("last-name") as string).trim() : ""
+    const email = typeof data.get("email") === "string" ? (data.get("email") as string).trim() : ""
+    const userMessage = typeof data.get("message") === "string" ? (data.get("message") as string).trim() : ""
+
+    if (!printingType) {
+      setLoading(false)
+      return
+    }
+    if (printingType === "Other" && !printingOther.trim()) {
+      alert("Please describe the printing type, or change your selection.")
+      setLoading(false)
+      return
+    }
+    if (selectedGarments.has("other") && !garmentOther.trim()) {
+      alert("Please describe other garment types, or uncheck Other.")
+      setLoading(false)
+      return
+    }
+    if (!userMessage) {
+      alert("Please add a message with your question.")
+      setLoading(false)
+      return
+    }
+
+    const payload = {
+      first_name: first || null,
+      last_name: last || null,
+      email,
+      subject: BYO_SUBJECT,
+      message: buildMessage(userMessage),
+    }
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (response.ok) {
+        setSuccess(true)
+        form.reset()
+        setPrintingType("")
+        setPrintingOther("")
+        setGarmentOther("")
+        setSelectedGarments(new Set())
+      } else {
+        const body = await response.json().catch(() => null)
+        alert(
+          body?.message ?? "Message could not be sent right now. Please try again shortly."
+        )
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Failed to send message. Please try again shortly.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (success) {
+    return (
+      <div
+        id={id}
+        className={`rounded-2xl border border-[var(--brand-primary)]/25 bg-white p-6 text-center${id ? " scroll-mt-28" : ""} ${className}`.trim()}
+        aria-labelledby={formTitleId}
+      >
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-primary)]/8 text-[var(--brand-primary)]">
+          <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+        <h3 id={formTitleId} className="text-lg font-semibold text-ui-fg-base">
+          Message received
+        </h3>
+        <p className="mt-2 text-sm text-ui-fg-subtle">
+          We will get back to you about your BYO enquiry shortly.
+        </p>
+        <button
+          type="button"
+          onClick={() => setSuccess(false)}
+          className="mt-5 text-sm font-semibold text-[var(--brand-secondary)] underline hover:text-[var(--brand-accent)]"
+        >
+          Send another message
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      id={id}
+      onSubmit={handleSubmit}
+      className={`space-y-4${id ? " scroll-mt-28" : ""} ${className}`.trim()}
+      aria-label="BYO inquiry form"
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="byo-first-name" className={labelClass}>
+            First name
+          </label>
+          <input
+            id="byo-first-name"
+            name="first-name"
+            type="text"
+            autoComplete="given-name"
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor="byo-last-name" className={labelClass}>
+            Last name
+          </label>
+          <input
+            id="byo-last-name"
+            name="last-name"
+            type="text"
+            autoComplete="family-name"
+            className={inputClass}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="byo-email" className={labelClass}>
+          Email
+        </label>
+        <input
+          id="byo-email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="byo-printing" className={labelClass}>
+          Printing type
+        </label>
+        <select
+          id="byo-printing"
+          name="printing"
+          value={printingType}
+          onChange={(e) => {
+            setPrintingType(e.target.value)
+            if (e.target.value !== "Other") {
+              setPrintingOther("")
+            }
+          }}
+          required
+          className={inputClass}
+        >
+          {PRINTING_TYPES.map((opt) => (
+            <option
+              key={String(opt.value)}
+              value={opt.value}
+              disabled={opt.value === ""}
+            >
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        {printingType === "Other" && (
+          <div className="mt-2">
+            <label htmlFor="byo-printing-other" className="sr-only">
+              Describe printing type
+            </label>
+            <input
+              id="byo-printing-other"
+              name="printing-other"
+              type="text"
+              value={printingOther}
+              onChange={(e) => setPrintingOther(e.target.value)}
+              placeholder="Describe the printing type"
+              className={inputClass}
+            />
+          </div>
+        )}
+      </div>
+
+      <fieldset className="space-y-2">
+        <legend className={`${labelClass} mb-2`}>Garment types</legend>
+        <p className="mb-2 text-xs text-ui-fg-subtle">Select all that apply</p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {GARMENT_TYPES.map((g) => (
+            <label
+              key={g.id}
+              className="flex cursor-pointer items-center gap-2 text-sm text-ui-fg-base"
+            >
+              <input
+                type="checkbox"
+                checked={selectedGarments.has(g.id)}
+                onChange={() => toggleGarment(g.id)}
+                className="h-4 w-4 rounded border-[var(--brand-primary)]/40 text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
+              />
+              {g.label}
+            </label>
+          ))}
+        </div>
+        {selectedGarments.has("other") && (
+          <div className="mt-2">
+            <label htmlFor="byo-garment-other" className="sr-only">
+              Other garment types
+            </label>
+            <input
+              id="byo-garment-other"
+              name="garment-other"
+              type="text"
+              value={garmentOther}
+              onChange={(e) => setGarmentOther(e.target.value)}
+              placeholder="Describe other garment types"
+              className={inputClass}
+            />
+          </div>
+        )}
+      </fieldset>
+
+      <div>
+        <label htmlFor="byo-message" className={labelClass}>
+          Your question
+        </label>
+        <textarea
+          id="byo-message"
+          name="message"
+          rows={4}
+          required
+          className={`${inputClass} resize-y`}
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full rounded-lg bg-[var(--brand-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {loading ? "Sending…" : "Send BYO question"}
+      </button>
+    </form>
+  )
+}

@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     `/${defaultCountryCode}/brands`,
     `/${defaultCountryCode}/services`,
     `/${defaultCountryCode}/contact`,
+    `/${defaultCountryCode}/byo`,
     `/${defaultCountryCode}/faq`,
     `/${defaultCountryCode}/sitemap`,
     `/${defaultCountryCode}/shipping-policy`,
