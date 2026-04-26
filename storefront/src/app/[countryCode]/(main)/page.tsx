@@ -14,7 +14,6 @@ import BrandsHero from "@modules/brands/components/brands-hero"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
-import ByoCtaSection from "@modules/home/components/byo-cta-section"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
@@ -211,8 +210,6 @@ export default async function Home({
         <ScrollExpandingSection />
 
         <HowOrderWorksSection />
-
-        <ByoCtaSection />
 
         <section className="content-container py-12">
           <div className="mb-6 flex items-end justify-between">

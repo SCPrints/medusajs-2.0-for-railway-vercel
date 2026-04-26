@@ -43,15 +43,28 @@ function SparkleIcon({ className, gradientId }: { className?: string; gradientId
   )
 }
 
-export default function ByoCtaSection() {
+type ByoCtaSectionProps = {
+  /** When false, only the hero copy + CTAs (use on /byo where the form lives below). */
+  withForm?: boolean
+}
+
+export default function ByoCtaSection({ withForm = true }: ByoCtaSectionProps) {
+  const sparkleId = withForm ? "byo-cta-sparkle" : "byo-page-cta-sparkle"
+
   return (
     <section className="content-container py-10 small:py-14">
       <div className="relative overflow-hidden rounded-3xl border-2 border-[var(--brand-primary)] bg-[#faf8f5] p-6 small:p-10">
         <div className="pointer-events-none absolute right-5 top-5 small:right-8 small:top-8">
-          <SparkleIcon className="h-8 w-8 small:h-9 small:w-9" gradientId="byo-cta-sparkle" />
+          <SparkleIcon className="h-8 w-8 small:h-9 small:w-9" gradientId={sparkleId} />
         </div>
 
-        <div className="grid gap-10 large:grid-cols-2 large:items-start large:gap-14">
+        <div
+          className={
+            withForm
+              ? "grid gap-10 large:grid-cols-2 large:items-start large:gap-14"
+              : "max-w-3xl"
+          }
+        >
           <div className="pr-0 large:pr-4">
             <h2
               className={`${lora.className} text-2xl font-semibold text-[var(--brand-primary)] small:text-3xl`}
@@ -64,39 +77,63 @@ export default function ByoCtaSection() {
               custom clothing plans happen.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-4">
-              <LocalizedClientLink
-                href="/byo"
-                className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--brand-primary)] bg-transparent px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary)]/5"
-              >
-                BYO merch
-                <svg
-                  className="h-3.5 w-3.5"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  aria-hidden
+              {withForm ? (
+                <>
+                  <LocalizedClientLink
+                    href="/byo"
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--brand-primary)] bg-transparent px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary)]/5"
+                  >
+                    BYO merch
+                    <svg
+                      className="h-3.5 w-3.5"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      aria-hidden
+                    >
+                      <path d="M2 10L10 2M4 2h6v6" />
+                    </svg>
+                  </LocalizedClientLink>
+                  <a
+                    href="#byo-inquiry"
+                    className="text-sm font-semibold text-[var(--brand-secondary)] underline-offset-4 hover:underline"
+                  >
+                    Skip to form
+                  </a>
+                </>
+              ) : (
+                <a
+                  href="#byo-inquiry"
+                  className="inline-flex items-center gap-2 rounded-full border-2 border-[var(--brand-primary)] bg-transparent px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand-primary)] transition hover:bg-[var(--brand-primary)]/5"
                 >
-                  <path d="M2 10L10 2M4 2h6v6" />
-                </svg>
-              </LocalizedClientLink>
-              <a
-                href="#byo-inquiry"
-                className="text-sm font-semibold text-[var(--brand-secondary)] underline-offset-4 hover:underline"
-              >
-                Skip to form
-              </a>
+                  Ask a BYO question
+                  <svg
+                    className="h-3.5 w-3.5"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    aria-hidden
+                  >
+                    <path d="M2 10L10 2M4 2h6v6" />
+                  </svg>
+                </a>
+              )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[var(--brand-primary)]/20 bg-white/80 p-5 small:p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-muted">
-              BYO questions
-            </p>
-            <h3 className="mt-1 text-lg font-semibold text-ui-fg-base">Ask us about print &amp; garments</h3>
-            <ByoInquiryForm className="mt-5" id="byo-inquiry" />
-          </div>
+          {withForm ? (
+            <div className="rounded-2xl border border-[var(--brand-primary)]/20 bg-white/80 p-5 small:p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-muted">
+                BYO questions
+              </p>
+              <h3 className="mt-1 text-lg font-semibold text-ui-fg-base">Ask us about print &amp; garments</h3>
+              <ByoInquiryForm className="mt-5" id="byo-inquiry" />
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
