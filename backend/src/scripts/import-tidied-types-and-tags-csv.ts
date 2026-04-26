@@ -7,7 +7,11 @@
  *   pnpm run import-tidied-types-tags -- ../tidied_types_and_tags.csv --mapping-out ./data/map.csv
  *
  * Env:
- *   TIDIED_TYPES_TAGS_CSV — optional path to input CSV
+ *   TIDIED_TYPES_TAGS_CSV — optional absolute path to input CSV (useful on Railway:
+ *   the repo CSV is not in the image unless you copy it in or set this to a mounted path).
+ *
+ * You can pass multiple paths after `--`; the first one that exists as a file wins
+ * (e.g. `npx medusa exec ... -- .. ../tidied_types_and_tags.csv`).
  */
 
 import fs from "node:fs"
@@ -127,15 +131,20 @@ const normalizeTypeValue = (csvType: string): string => {
 }
 
 const resolveExistingPath = (candidates: string[], label: string) => {
+  const tried: string[] = []
   for (const candidate of candidates) {
     const resolved = path.resolve(candidate)
-    if (fs.existsSync(resolved)) {
-      return resolved
+    tried.push(resolved)
+    try {
+      const st = fs.statSync(resolved)
+      if (st.isFile()) {
+        return resolved
+      }
+    } catch {
+      /* missing path */
     }
   }
-  throw new Error(
-    `${label} not found. Tried: ${candidates.map((p) => path.resolve(p)).join(", ")}`
-  )
+  throw new Error(`${label} not found. Tried: ${tried.join(", ")}`)
 }
 
 const escapeCsvField = (s: string): string => {
@@ -146,7 +155,8 @@ const escapeCsvField = (s: string): string => {
 }
 
 type ParsedCli = {
-  inputPath?: string
+  /** Explicit CSV paths in order (each is tried until one exists as a file). */
+  inputPaths: string[]
   mappingOut?: string
 }
 
@@ -164,11 +174,11 @@ const parseCli = (rawArgs: string[]): ParsedCli => {
       continue
     }
     if (a && !a.startsWith("--")) {
-      positional.push(a)
+      positional.push(a.trim())
     }
   }
   return {
-    inputPath: positional[0]?.trim() || undefined,
+    inputPaths: positional.filter(Boolean),
     mappingOut,
   }
 }
@@ -181,7 +191,7 @@ export default async function importTidiedTypesAndTagsCsv({ container, args }: E
   const cli = parseCli(args ?? [])
 
   const defaultCandidates = [
-    cli.inputPath || "",
+    ...cli.inputPaths,
     process.env.TIDIED_TYPES_TAGS_CSV?.trim() || "",
     path.resolve(process.cwd(), "tidied_types_and_tags.csv"),
     path.resolve(process.cwd(), "../tidied_types_and_tags.csv"),
