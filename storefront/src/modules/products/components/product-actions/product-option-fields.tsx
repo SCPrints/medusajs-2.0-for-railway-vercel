@@ -12,6 +12,8 @@ type ProductOptionFieldsProps = {
   updateOption: (title: string, value: string) => void
   disabled: boolean
   showSizeQuantityInputs?: boolean
+  /** Embedded customizer: size + quantities live in the pricing panel. */
+  hideSizeOption?: boolean
   "data-testid"?: string
 }
 
@@ -25,15 +27,23 @@ const optionItemValue = (option: HttpTypes.StoreProductOption) => {
   return option.title ?? "option"
 }
 
+const isSizeOptionTitle = (title: string) => title.toLowerCase().includes("size")
+
 export default function ProductOptionFields({
   product,
   options,
   updateOption,
   disabled,
   showSizeQuantityInputs = true,
+  hideSizeOption = false,
   "data-testid": dataTestId,
 }: ProductOptionFieldsProps) {
-  const productOptions = product.options ?? []
+  const productOptions = (product.options ?? []).filter(
+    (o) => !(hideSizeOption && isSizeOptionTitle(o.title ?? ""))
+  )
+  if (productOptions.length === 0) {
+    return null
+  }
   const defaultOpen = productOptions.map(optionItemValue)
 
   return (

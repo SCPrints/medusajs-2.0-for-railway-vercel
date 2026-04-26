@@ -16,6 +16,13 @@ type PricingPanelProps = {
   embeddedOnPdp?: boolean
   /** When set, Add to cart uses the PDP fly + squish interaction (see fly-to-cart-add-button). */
   flyImageSrc?: string
+  /**
+   * DTF reference estimator (separate from checkout math). Set via product metadata
+   * `show_dtf_tier_estimator: true` in Admin when you want this block visible.
+   */
+  showDtfTierEstimator?: boolean
+  /** Shown with `embeddedOnPdp` as the step index before "Quantity & checkout" (2 or 3). */
+  embedPdpQuantityStepNumber?: number
 }
 
 type DtfQuantityTier = {
@@ -79,6 +86,8 @@ export default function PricingPanel({
   isSubmitting,
   embeddedOnPdp = false,
   flyImageSrc,
+  showDtfTierEstimator = false,
+  embedPdpQuantityStepNumber = 3,
 }: PricingPanelProps) {
   const quantity = sizes.reduce((total, entry) => total + entry.quantity, 0)
   const [selectedPrintAreaId, setSelectedPrintAreaId] = useState(DTF_PRINT_AREA_OPTIONS[0].id)
@@ -104,7 +113,9 @@ export default function PricingPanel({
     <div className="space-y-4 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
       <div>
         <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-          {embeddedOnPdp ? "3. Quantity & checkout" : "Size & quantity"}
+          {embeddedOnPdp
+            ? `${embedPdpQuantityStepNumber}. Quantity & checkout`
+            : "Size & quantity"}
         </h3>
         <p className="mt-1 text-xs text-ui-fg-subtle">
           Set quantities per size. Totals update with print locations and volume.
@@ -146,53 +157,55 @@ export default function PricingPanel({
         </p>
       </div>
 
-      <details className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
-        <summary className="cursor-pointer list-none text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
-          <span className="flex items-center justify-between gap-2">
-            DTF tier estimator
-            <ExpandCollapsePlus />
-          </span>
-        </summary>
-        <div className="mt-3 space-y-3 border-t border-ui-border-base pt-3">
-        <div>
-          <p className="mt-1 text-xs text-ui-fg-subtle">
-            Per garment, per print location. Uses your selected quantity to apply the right tier.
-          </p>
-        </div>
+      {showDtfTierEstimator ? (
+        <details className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center justify-between gap-2">
+              DTF tier estimator
+              <ExpandCollapsePlus />
+            </span>
+          </summary>
+          <div className="mt-3 space-y-3 border-t border-ui-border-base pt-3">
+            <div>
+              <p className="mt-1 text-xs text-ui-fg-subtle">
+                Per garment, per print location. Uses your selected quantity to apply the right tier.
+              </p>
+            </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-ui-fg-subtle">Print area</label>
-          <select
-            className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm"
-            value={activePrintArea.id}
-            onChange={(event) => setSelectedPrintAreaId(event.target.value)}
-          >
-            {DTF_PRINT_AREA_OPTIONS.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-ui-fg-subtle">Print area</label>
+              <select
+                className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm"
+                value={activePrintArea.id}
+                onChange={(event) => setSelectedPrintAreaId(event.target.value)}
+              >
+                {DTF_PRINT_AREA_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <p className="flex justify-between text-xs">
-          <span className="text-ui-fg-subtle">Applied tier</span>
-          <span className="font-medium text-ui-fg-base">
-            {DTF_QUANTITY_TIERS[resolvedDtfTierIndex]?.label ?? "Qty 1-9"}
-          </span>
-        </p>
-        <p className="flex justify-between text-xs">
-          <span className="text-ui-fg-subtle">Unit price</span>
-          <span className="font-medium text-ui-fg-base">
-            {formatMoney(dtfUnitPriceCents, currencyCode)}
-          </span>
-        </p>
-        <p className="flex justify-between text-sm font-semibold">
-          <span className="text-ui-fg-base">Estimated total ({safeEstimatorQuantity})</span>
-          <span className="text-ui-fg-base">{formatMoney(dtfTotalPriceCents, currencyCode)}</span>
-        </p>
-        </div>
-      </details>
+            <p className="flex justify-between text-xs">
+              <span className="text-ui-fg-subtle">Applied tier</span>
+              <span className="font-medium text-ui-fg-base">
+                {DTF_QUANTITY_TIERS[resolvedDtfTierIndex]?.label ?? "Qty 1-9"}
+              </span>
+            </p>
+            <p className="flex justify-between text-xs">
+              <span className="text-ui-fg-subtle">Unit price</span>
+              <span className="font-medium text-ui-fg-base">
+                {formatMoney(dtfUnitPriceCents, currencyCode)}
+              </span>
+            </p>
+            <p className="flex justify-between text-sm font-semibold">
+              <span className="text-ui-fg-base">Estimated total ({safeEstimatorQuantity})</span>
+              <span className="text-ui-fg-base">{formatMoney(dtfTotalPriceCents, currencyCode)}</span>
+            </p>
+          </div>
+        </details>
+      ) : null}
 
       <details className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/50">
         <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">

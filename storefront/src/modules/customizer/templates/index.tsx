@@ -97,6 +97,11 @@ const getPrintArea = (width: number, height: number) => ({
   height: height * 0.72,
 })
 
+const productMetadataShowsDtfTierEstimator = (product: HttpTypes.StoreProduct) => {
+  const m = product.metadata as Record<string, unknown> | undefined
+  return m?.show_dtf_tier_estimator === true
+}
+
 const resolveVariantPrice = (
   variant?: HttpTypes.StoreProductVariant,
   product?: HttpTypes.StoreProduct | null
@@ -417,6 +422,10 @@ export default function CustomizerTemplate({
     [canvasSize.height, canvasSize.width]
   )
   const selectedProduct = product
+  const pdpHasVariantOptions = (selectedProduct.variants?.length ?? 0) > 1
+  const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
+  const embedPdpPrintStepNumber = showPdpLabeledOptionsStep ? 2 : 1
+  const embedPdpQuantityStepNumber = showPdpLabeledOptionsStep ? 3 : 2
   const selectedVariant = useMemo(
     () =>
       selectedProduct?.variants?.find((variant) => variant.id === activeVariantId) ??
@@ -1149,16 +1158,20 @@ export default function CustomizerTemplate({
   }
 
   const changeSizeQuantity = (size: string, quantity: number) => {
+    const safeQty = Math.max(0, Math.floor(Number.isFinite(quantity) ? quantity : 0))
     setSizeMatrix((current) =>
       current.map((entry) =>
-        entry.size === size
-          ? {
-              ...entry,
-              quantity: Math.max(0, Math.floor(Number.isFinite(quantity) ? quantity : 0)),
-            }
-          : entry
+        entry.size === size ? { ...entry, quantity: safeQty } : entry
       )
     )
+    if (productOptionsFromPdp) {
+      productOptionsFromPdp.setSizeQuantity(size, safeQty)
+      const sizeOption = getSizeOption(selectedProduct)
+      const sizeTitle = sizeOption?.title
+      if (sizeTitle) {
+        productOptionsFromPdp.setOptionValue(sizeTitle, size)
+      }
+    }
   }
 
   const renderSideArtifacts = async (
@@ -1490,6 +1503,91 @@ export default function CustomizerTemplate({
           </div>
   )
 
+  const embeddedPdpFlowBlurb =
+    "Choose product options, add artwork in the design preview, then set print side and per-size quantities using the steps below."
+
+  const customizeRailPrintQtyAdvanced = (
+    <>
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+                  {embedded ? `${embedPdpPrintStepNumber}. Print location` : "Print locations"}
+                </h2>
+                <span className="text-xs text-ui-fg-subtle capitalize">
+                  {currentSide.replace("_", " ")}
+                </span>
+              </div>
+              <SideSelector currentSide={currentSide} onSelectSide={switchSide} />
+              <p className="text-xs text-ui-fg-subtle">
+                Switch sides to place art on the front, back, or sleeves. Each side is saved separately.
+              </p>
+            </div>
+
+            <PricingPanel
+              currencyCode={currencyCode}
+              pricing={pricing}
+              sizes={sizeMatrix}
+              onChangeSizeQty={changeSizeQuantity}
+              onAddToCart={addCustomizedToCart}
+              isSubmitting={isSubmitting}
+              embeddedOnPdp={embedded}
+              flyImageSrc={flyImageSrcForAddToCart}
+              showDtfTierEstimator={productMetadataShowsDtfTierEstimator(selectedProduct)}
+              embedPdpQuantityStepNumber={embedPdpQuantityStepNumber}
+            />
+
+            <details className="group rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold uppercase tracking-wide text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
+                <span className="flex items-center justify-between">
+                  Advanced layer tools
+                  <ExpandCollapsePlus />
+                </span>
+              </summary>
+              <div className="mt-3 border-t border-ui-border-base pt-3">
+                <ManagementPanel
+                  layers={layers}
+                  selectedLayerId={selectedLayerId}
+                  onSelectLayer={selectLayer}
+                  onDeleteLayer={() => {
+                    const canvas = fabricCanvasRef.current
+                    const active = canvas?.getActiveObject()
+                    if (!active) {
+                      return
+                    }
+                    canvas.remove(active)
+                    updateLayers()
+                    saveCurrentSide()
+                  }}
+                  onBringForward={() => {
+                    const canvas = fabricCanvasRef.current
+                    const active = canvas?.getActiveObject()
+                    if (!active) {
+                      return
+                    }
+                    canvas.bringObjectForward(active)
+                    canvas.renderAll()
+                    saveCurrentSide()
+                  }}
+                  onSendBackward={() => {
+                    const canvas = fabricCanvasRef.current
+                    const active = canvas?.getActiveObject()
+                    if (!active) {
+                      return
+                    }
+                    canvas.sendObjectBackwards(active)
+                    canvas.renderAll()
+                    saveCurrentSide()
+                  }}
+                  onToggleLayerVisibility={toggleLayerVisibility}
+                  onToggleLayerLock={toggleLayerLock}
+                  onAlign={alignSelection}
+                  onReplaceSvgColor={recolorSelectedSvg}
+                />
+              </div>
+            </details>
+    </>
+  )
+
   const sidebarInner = (
             <>
             <header className="space-y-2 border-b border-ui-border-base pb-5">
@@ -1497,7 +1595,7 @@ export default function CustomizerTemplate({
                 <div className="min-w-0">
                   <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
                   <p className="mt-2 text-sm text-ui-fg-subtle">
-                    Follow the steps below: place artwork, choose print side, set quantities, then add to cart.
+                    {embeddedPdpFlowBlurb}
                   </p>
                 </div>
               ) : (
@@ -1560,81 +1658,7 @@ export default function CustomizerTemplate({
               </div>
             ) : null}
 
-            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-                  {embedded ? "2. Print location" : "Print locations"}
-                </h2>
-                <span className="text-xs text-ui-fg-subtle capitalize">
-                  {currentSide.replace("_", " ")}
-                </span>
-              </div>
-              <SideSelector currentSide={currentSide} onSelectSide={switchSide} />
-              <p className="text-xs text-ui-fg-subtle">
-                Switch sides to place art on the front, back, or sleeves. Each side is saved separately.
-              </p>
-            </div>
-
-            <PricingPanel
-              currencyCode={currencyCode}
-              pricing={pricing}
-              sizes={sizeMatrix}
-              onChangeSizeQty={changeSizeQuantity}
-              onAddToCart={addCustomizedToCart}
-              isSubmitting={isSubmitting}
-              embeddedOnPdp={embedded}
-              flyImageSrc={flyImageSrcForAddToCart}
-            />
-
-            <details className="group rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <summary className="cursor-pointer list-none text-sm font-semibold uppercase tracking-wide text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center justify-between">
-                  Advanced layer tools
-                  <ExpandCollapsePlus />
-                </span>
-              </summary>
-              <div className="mt-3 border-t border-ui-border-base pt-3">
-                <ManagementPanel
-                  layers={layers}
-                  selectedLayerId={selectedLayerId}
-                  onSelectLayer={selectLayer}
-                  onDeleteLayer={() => {
-                    const canvas = fabricCanvasRef.current
-                    const active = canvas?.getActiveObject()
-                    if (!active) {
-                      return
-                    }
-                    canvas.remove(active)
-                    updateLayers()
-                    saveCurrentSide()
-                  }}
-                  onBringForward={() => {
-                    const canvas = fabricCanvasRef.current
-                    const active = canvas?.getActiveObject()
-                    if (!active) {
-                      return
-                    }
-                    canvas.bringObjectForward(active)
-                    canvas.renderAll()
-                    saveCurrentSide()
-                  }}
-                  onSendBackward={() => {
-                    const canvas = fabricCanvasRef.current
-                    const active = canvas?.getActiveObject()
-                    if (!active) {
-                      return
-                    }
-                    canvas.sendObjectBackwards(active)
-                    canvas.renderAll()
-                    saveCurrentSide()
-                  }}
-                  onToggleLayerVisibility={toggleLayerVisibility}
-                  onToggleLayerLock={toggleLayerLock}
-                  onAlign={alignSelection}
-                  onReplaceSvgColor={recolorSelectedSvg}
-                />
-              </div>
-            </details>
+            {customizeRailPrintQtyAdvanced}
             </>
   )
 
@@ -1661,8 +1685,30 @@ export default function CustomizerTemplate({
           {editorColumn}
         </div>
         <div className="flex min-w-0 flex-col gap-5 self-start lg:col-span-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
-          {integratedPdpSlots.variantPickers}
-          <div className="space-y-5">{sidebarInner}</div>
+          {showPdpLabeledOptionsStep ? (
+            <div className="space-y-2 border-b border-ui-border-base pb-5">
+              <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+                1. Product options
+              </h3>
+              <p className="text-xs text-ui-fg-subtle">
+                Choose color and other options where shown. Set per-size quantities in step 3. The
+                gallery and design preview follow your color. Add artwork in the design preview to
+                the left, then use print location (step 2) and checkout (step 3) below.
+              </p>
+              {integratedPdpSlots.variantPickers}
+            </div>
+          ) : (
+            <div className="space-y-2 border-b border-ui-border-base pb-5">
+              <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
+              <p className="text-xs text-ui-fg-subtle">
+                Add artwork in the design preview, then set print side and per-size quantities
+                (steps {embedPdpPrintStepNumber} and {embedPdpQuantityStepNumber}) below.
+              </p>
+              {integratedPdpSlots.variantPickers}
+            </div>
+          )}
+          <div className="space-y-5">{customizeRailPrintQtyAdvanced}</div>
         </div>
       </div>
     )

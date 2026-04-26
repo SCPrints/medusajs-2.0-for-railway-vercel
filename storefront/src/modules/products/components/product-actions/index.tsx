@@ -97,6 +97,17 @@ export default function ProductActions({
     [product, options]
   )
 
+  const hasVisibleProductOptions = useMemo(() => {
+    if ((product.variants?.length ?? 0) <= 1) {
+      return false
+    }
+    const opts = product.options ?? []
+    if (!hideInlinePurchaseControls) {
+      return opts.length > 0
+    }
+    return opts.some((o) => !(o.title ?? "").toLowerCase().includes("size"))
+  }, [product.variants?.length, product.options, hideInlinePurchaseControls])
+
   const renderPlacementArtifacts = async (artworkUrl: string) => {
     const overlayDimensions = await resolveImageDimensions(artworkUrl)
     const garmentCandidateUrl = getPrimaryGarmentImageUrl(product, selectedVariant)
@@ -266,7 +277,7 @@ export default function ProductActions({
     <>
       <div className="flex flex-col gap-y-2">
         <div>
-          {(product.variants?.length ?? 0) > 1 && (
+          {hasVisibleProductOptions && (
             <div className="flex flex-col gap-y-4">
               <ProductOptionFields
                 product={product}
@@ -274,9 +285,10 @@ export default function ProductActions({
                 updateOption={setOptionValue}
                 disabled={!!disabled || isAdding}
                 showSizeQuantityInputs={!hideInlinePurchaseControls}
+                hideSizeOption={!!hideInlinePurchaseControls}
                 data-testid="product-options"
               />
-              <Divider />
+              {!hideInlinePurchaseControls ? <Divider /> : null}
             </div>
           )}
         </div>
@@ -321,7 +333,9 @@ export default function ProductActions({
           </div>
         ) : null}
 
-        <ProductPrice product={product} variant={selectedVariant} quantity={quantity} />
+        {!hideInlinePurchaseControls ? (
+          <ProductPrice product={product} variant={selectedVariant} quantity={quantity} />
+        ) : null}
 
         {!hideInlinePurchaseControls ? (
           <FlyToCartAddButton

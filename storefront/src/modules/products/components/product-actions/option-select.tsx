@@ -104,7 +104,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
               setColorHoverPreview(null)
             }
           : undefined
-      }
+    }
     >
       {filteredOptions?.map((v) => {
         const isSelected = v === current
