@@ -187,6 +187,26 @@ export default async function Home({
             __html: JSON.stringify(homeStructuredData),
           }}
         />
+        <section className="content-container py-12 small:py-16">
+          <MarketingHero
+            eyebrow="Australian custom decoration"
+            title="Branded apparel and merch for teams, workwear, and events"
+            subtitle="Screen printing, embroidery, transfers, and more—browse blanks, choose how you want them decorated, and check out online. Built for Australian businesses, clubs, and resellers who need reliable quality at volume."
+            subtitleClassName="text-base small:text-lg"
+            titleSpacing="relaxed"
+            padding="spacious"
+          >
+            <div className="mt-8">
+              <LocalizedClientLink
+                href="/store"
+                className="inline-flex items-center rounded-lg bg-ui-fg-base px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
+              >
+                Browse the catalogue
+              </LocalizedClientLink>
+            </div>
+          </MarketingHero>
+        </section>
+
         <ScrollingPictureBar />
 
         <section className="content-container py-12">
@@ -272,26 +292,6 @@ export default async function Home({
               )
             })}
           </ul>
-        </section>
-
-        <section className="content-container py-12 small:py-16">
-          <MarketingHero
-            eyebrow="Australian custom decoration"
-            title="Branded apparel and merch for teams, workwear, and events"
-            subtitle="Screen printing, embroidery, transfers, and more—browse blanks, choose how you want them decorated, and check out online. Built for Australian businesses, clubs, and resellers who need reliable quality at volume."
-            subtitleClassName="text-base small:text-lg"
-            titleSpacing="relaxed"
-            padding="spacious"
-          >
-            <div className="mt-8">
-              <LocalizedClientLink
-                href="/store"
-                className="inline-flex items-center rounded-lg bg-ui-fg-base px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
-              >
-                Browse the catalogue
-              </LocalizedClientLink>
-            </div>
-          </MarketingHero>
         </section>
 
         <HowOrderWorksSection />
