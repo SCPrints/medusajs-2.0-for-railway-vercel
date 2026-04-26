@@ -8,6 +8,7 @@ import {
   isColorOptionTitle,
   toTitleSlug,
 } from "@modules/products/lib/variant-options"
+import { getProductListingCardPriceLines } from "@lib/util/listing-card-price-text"
 import type { VariantPrice } from "types/global"
 
 export type ProductListingSwatch = {
@@ -21,7 +22,10 @@ const MAX_SWATCHES_DISPLAY = 6
 export type ProductListingCardData = {
   href: string
   title: string
-  priceLine: string
+  /** e.g. `From A$12.00 * ex GST` */
+  priceFromLine: string
+  /** e.g. `100+ A$8.00 ex GST` when bulk_pricing has a tier covering qty 100 */
+  priceHundredPlusLine: string | null
   defaultImageUrl: string | null
   swatches: ProductListingSwatch[]
   /** Full garment color count (may exceed `swatches.length`). */
@@ -60,7 +64,7 @@ export const getColorValues = (product: HttpTypes.StoreProduct) => {
  */
 export function buildProductListingCardData(
   product: HttpTypes.StoreProduct,
-  cheapestPrice: VariantPrice | null
+  _cheapestPrice: VariantPrice | null
 ): ProductListingCardData {
   const handle = product.handle ?? ""
   const rawColors = getColorValues(product)
@@ -94,10 +98,13 @@ export function buildProductListingCardData(
       ? swatches[0].imageUrl || catalogFallback
       : catalogFallback
 
+  const { fromLine, hundredPlusLine } = getProductListingCardPriceLines(product)
+
   return {
     href: `/products/${handle}`,
     title: product.title ?? "Product",
-    priceLine: `${cheapestPrice?.calculated_price ?? "Request quote"} ex GST`,
+    priceFromLine: fromLine,
+    priceHundredPlusLine: hundredPlusLine,
     defaultImageUrl,
     swatches,
     totalSwatchCount,

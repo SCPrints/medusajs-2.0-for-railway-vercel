@@ -53,7 +53,8 @@ export default function ProductListingCard({
   className,
   href,
   title,
-  priceLine,
+  priceFromLine,
+  priceHundredPlusLine,
   defaultImageUrl,
   swatches,
   totalSwatchCount,
@@ -159,7 +160,12 @@ export default function ProductListingCard({
         >
           {title}
         </h3>
-        <p className="mt-2 text-sm text-ui-fg-subtle">{priceLine}</p>
+        <div className="mt-2 text-sm text-ui-fg-subtle">
+          <p>{priceFromLine}</p>
+          {priceHundredPlusLine ? (
+            <p className="mt-0.5 text-xs text-ui-fg-muted">{priceHundredPlusLine}</p>
+          ) : null}
+        </div>
       </LocalizedClientLink>
 
       <div
