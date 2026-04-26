@@ -12,6 +12,8 @@ import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-
 export type HomeFeaturedSwatch = {
   colorLabel: string
   imageUrl: string
+  /** Cropped product/metadata image for the swatch disc, matching PDP colour picker when set. */
+  swatchPhotoUrl?: string
 }
 
 type HomeFeaturedProductCardProps = {
@@ -110,7 +112,7 @@ export default function HomeFeaturedProductCard({
         </p>
         <div className="flex flex-wrap gap-2">
           {swatches.length ? (
-            swatches.map(({ colorLabel, imageUrl }) => (
+            swatches.map(({ colorLabel, imageUrl, swatchPhotoUrl }) => (
               <button
                 key={`${href}-${colorLabel}`}
                 type="button"
@@ -119,6 +121,13 @@ export default function HomeFeaturedProductCard({
                 className="inline-block h-5 w-5 rounded-full border border-ui-border-base transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
                 style={{
                   backgroundColor: resolveGarmentSwatchColor(colorLabel),
+                  ...(swatchPhotoUrl
+                    ? {
+                        backgroundImage: `url("${swatchPhotoUrl}")`,
+                        backgroundSize: "235%",
+                        backgroundPosition: "center 35%",
+                      }
+                    : {}),
                 }}
                 onMouseEnter={() => setPreviewUrl(imageUrl)}
                 onFocus={() => setPreviewUrl(imageUrl)}

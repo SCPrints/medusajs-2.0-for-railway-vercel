@@ -27,10 +27,13 @@ import {
   WarehousingIcon,
 } from "@modules/home/components/service-icons"
 import HomeFeaturedProductCard from "@modules/home/components/home-featured-product-card"
+import { getColorSwatchImageMap } from "@modules/products/lib/color-swatch-images"
+import { sortGarmentColorLabels } from "@modules/products/lib/garment-color-order"
 import {
   findFirstVariantForColorValue,
   getPrimaryGarmentImageUrl,
   isColorOptionTitle,
+  toTitleSlug,
 } from "@modules/products/lib/variant-options"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
 
@@ -186,28 +189,6 @@ export default async function Home({
         />
         <ScrollingPictureBar />
 
-        <section className="content-container py-12 small:py-16">
-          <MarketingHero
-            eyebrow="Australian custom decoration"
-            title="Branded apparel and merch for teams, workwear, and events"
-            subtitle="Screen printing, embroidery, transfers, and more—browse blanks, choose how you want them decorated, and check out online. Built for Australian businesses, clubs, and resellers who need reliable quality at volume."
-            subtitleClassName="text-base small:text-lg"
-            titleSpacing="relaxed"
-            padding="spacious"
-          >
-            <div className="mt-8">
-              <LocalizedClientLink
-                href="/store"
-                className="inline-flex items-center rounded-lg bg-ui-fg-base px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
-              >
-                Browse the catalogue
-              </LocalizedClientLink>
-            </div>
-          </MarketingHero>
-        </section>
-
-        <HowOrderWorksSection />
-
         <section className="content-container py-12">
           <div className="mb-6 flex items-end justify-between">
             <div className="border-l-4 border-[var(--brand-secondary)] pl-4">
@@ -242,15 +223,39 @@ export default async function Home({
                 "weight",
                 "gsm",
               ])
-              const colors = getColorValues(product)
               const tagLabels = getStoreProductTagValues(product)
-              const fallbackUrl = getPrimaryGarmentImageUrl(product, undefined)
+              const rawColors = getColorValues(product)
+              const colorOption = product.options?.find((o) =>
+                isColorOptionTitle(o.title)
+              )
+              const colorOptionTitle = colorOption?.title
+              const colors =
+                rawColors.length > 0
+                  ? sortGarmentColorLabels([...rawColors]).slice(0, 6)
+                  : []
+              const swatchPhotoMap =
+                typeof colorOptionTitle === "string" && colorOptionTitle.length > 0
+                  ? getColorSwatchImageMap(product, colorOptionTitle)
+                  : new Map<string, string>()
+              const catalogFallback = getPrimaryGarmentImageUrl(product, undefined)
               const swatches = colors.map((colorValue) => {
                 const variant = findFirstVariantForColorValue(product, colorValue)
-                const url =
-                  getPrimaryGarmentImageUrl(product, variant) ?? fallbackUrl ?? ""
-                return { colorLabel: colorValue, imageUrl: url }
+                const imageUrl =
+                  getPrimaryGarmentImageUrl(product, variant) ??
+                  catalogFallback ??
+                  ""
+                const slug = toTitleSlug(colorValue)
+                const swatchPhotoUrl = slug ? swatchPhotoMap.get(slug) : undefined
+                return {
+                  colorLabel: colorValue,
+                  imageUrl,
+                  swatchPhotoUrl: swatchPhotoUrl ?? undefined,
+                }
               })
+              const defaultImageUrl =
+                swatches.length > 0
+                  ? swatches[0].imageUrl || catalogFallback
+                  : catalogFallback
 
               return (
                 <HomeFeaturedProductCard
@@ -261,13 +266,35 @@ export default async function Home({
                   fabricType={fabricType ?? "See product details"}
                   fabricWeight={fabricWeight ?? "Varies by style"}
                   priceLine={`${cheapestPrice?.calculated_price ?? "Request quote"} ex GST`}
-                  defaultImageUrl={fallbackUrl}
+                  defaultImageUrl={defaultImageUrl}
                   swatches={swatches}
                 />
               )
             })}
           </ul>
         </section>
+
+        <section className="content-container py-12 small:py-16">
+          <MarketingHero
+            eyebrow="Australian custom decoration"
+            title="Branded apparel and merch for teams, workwear, and events"
+            subtitle="Screen printing, embroidery, transfers, and more—browse blanks, choose how you want them decorated, and check out online. Built for Australian businesses, clubs, and resellers who need reliable quality at volume."
+            subtitleClassName="text-base small:text-lg"
+            titleSpacing="relaxed"
+            padding="spacious"
+          >
+            <div className="mt-8">
+              <LocalizedClientLink
+                href="/store"
+                className="inline-flex items-center rounded-lg bg-ui-fg-base px-6 py-3 text-sm font-semibold text-white transition hover:bg-black"
+              >
+                Browse the catalogue
+              </LocalizedClientLink>
+            </div>
+          </MarketingHero>
+        </section>
+
+        <HowOrderWorksSection />
 
         <section className="overflow-hidden border-y border-ui-border-base bg-ui-bg-subtle py-4">
           <div className="value-marquee-track flex min-w-max gap-6 whitespace-nowrap px-6 text-sm font-semibold uppercase tracking-[0.12em] text-ui-fg-base">
