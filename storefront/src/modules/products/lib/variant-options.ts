@@ -268,6 +268,63 @@ export const findProductImageByUrl = (
   )
 }
 
+/** Minimum digit length in an image filename to treat as a SKU-mappable product code. */
+const MIN_IMAGE_SKU_CODE_LEN = 5
+
+/**
+ * Extracts a numeric “style code” from an image path (DNC: `.../3335100.jpg` — no colour words in URL).
+ * Prefers a basename that is all digits; otherwise the longest 5+ digit run in the filename.
+ */
+function extractImageBasenameNumericCode(url: string): string | null {
+  const noQuery = url.split("?")[0] ?? url
+  const lastSegment = (noQuery.split("/").pop() ?? "").split("?")[0] ?? ""
+  if (!lastSegment) {
+    return null
+  }
+  const nameOnly = lastSegment.split(".")[0] ?? lastSegment
+  if (/^\d+$/.test(nameOnly) && nameOnly.length >= MIN_IMAGE_SKU_CODE_LEN) {
+    return nameOnly
+  }
+  const m = nameOnly.match(/(\d{5,})/g)
+  if (!m?.length) {
+    return null
+  }
+  const best = m.reduce((a, b) => (b.length > a.length ? b : a))
+  return best.length >= MIN_IMAGE_SKU_CODE_LEN ? best : null
+}
+
+/**
+ * Picks the product image whose filename code is a prefix of `variant.sku` (longest match wins).
+ * Used for suppliers that encode colour in SKU digits but not in image URL text.
+ */
+export function findProductImageByVariantSku(
+  validImages: Array<{ id: string; url: string }>,
+  variant: HttpTypes.StoreProductVariant
+): { id: string; url: string } | undefined {
+  const rawSku = (variant as { sku?: string | null }).sku
+  const sku = typeof rawSku === "string" && rawSku.length > 0 ? rawSku.trim() : ""
+  if (!sku || validImages.length <= 1) {
+    return undefined
+  }
+  const pairs: { code: string; image: { id: string; url: string } }[] = []
+  for (const image of validImages) {
+    const code = extractImageBasenameNumericCode(image.url)
+    if (code) {
+      pairs.push({ code, image })
+    }
+  }
+  if (pairs.length === 0) {
+    return undefined
+  }
+  pairs.sort((a, b) => b.code.length - a.code.length)
+  for (const { code, image } of pairs) {
+    if (sku.startsWith(code)) {
+      return image
+    }
+  }
+  return undefined
+}
+
 /** Tokens derived from a colour label for matching inside image URLs/filenames. */
 export const buildColorNeedles = (colorValue: string): string[] => {
   const normalized = toTitleSlug(colorValue)
@@ -578,25 +635,32 @@ export function getPrimaryGarmentImageUrl(
     return fromProduct?.url ?? firstUrl
   }
 
-  if (!selectedColor || validImages.length <= 1) {
+  if (validImages.length <= 1) {
     return validImages[0]?.url ?? product.thumbnail ?? null
   }
 
-  const strict = validImages.filter((image) =>
-    urlMatchesColorLabelStrict(image.url, selectedColor)
-  )
-
-  if (strict.length) {
-    return strict[0].url
+  if (selectedColor) {
+    const strict = validImages.filter((image) =>
+      urlMatchesColorLabelStrict(image.url, selectedColor)
+    )
+    if (strict.length) {
+      return strict[0].url
+    }
   }
 
-  const relaxedNeedles = buildColorNeedlesForRelaxedMatch(selectedColor)
-  const relaxed = validImages.filter((image) =>
-    urlMatchesColorNeedles(image.url, relaxedNeedles)
-  )
+  const bySku = findProductImageByVariantSku(validImages, variant)
+  if (bySku) {
+    return bySku.url
+  }
 
-  if (relaxed.length) {
-    return relaxed[0].url
+  if (selectedColor) {
+    const relaxedNeedles = buildColorNeedlesForRelaxedMatch(selectedColor)
+    const relaxed = validImages.filter((image) =>
+      urlMatchesColorNeedles(image.url, relaxedNeedles)
+    )
+    if (relaxed.length) {
+      return relaxed[0].url
+    }
   }
 
   return validImages[0]?.url ?? product.thumbnail ?? null

@@ -9,6 +9,7 @@ import {
   buildColorNeedlesForRelaxedMatch,
   filterGarmentImageUrlsForVariantColor,
   findProductImageByUrl,
+  findProductImageByVariantSku,
   getGarmentImageUrlsFromMetadata,
   isColorOptionTitle,
   normalizeImageUrl,
@@ -70,25 +71,34 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
       })
     }
 
-    if (!selectedColor || validImages.length <= 1) {
+    if (validImages.length <= 1) {
       return validImages
     }
 
-    const strict = validImages.filter((image) =>
-      urlMatchesColorLabelStrict(image.url, selectedColor)
-    )
-
-    if (strict.length) {
-      return strict
+    if (selectedColor) {
+      const strict = validImages.filter((image) =>
+        urlMatchesColorLabelStrict(image.url, selectedColor)
+      )
+      if (strict.length) {
+        return strict
+      }
     }
 
-    const relaxedNeedles = buildColorNeedlesForRelaxedMatch(selectedColor)
-    const relaxed = validImages.filter((image) =>
-      urlMatchesColorNeedles(image.url, relaxedNeedles)
-    )
+    if (selectedVariant) {
+      const bySku = findProductImageByVariantSku(validImages, selectedVariant)
+      if (bySku) {
+        return [bySku]
+      }
+    }
 
-    if (relaxed.length) {
-      return relaxed
+    if (selectedColor) {
+      const relaxedNeedles = buildColorNeedlesForRelaxedMatch(selectedColor)
+      const relaxed = validImages.filter((image) =>
+        urlMatchesColorNeedles(image.url, relaxedNeedles)
+      )
+      if (relaxed.length) {
+        return relaxed
+      }
     }
 
     return validImages
