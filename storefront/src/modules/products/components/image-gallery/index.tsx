@@ -21,7 +21,16 @@ type ImageGalleryProps = {
 }
 
 const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
-  const { options } = useProductOptions()
+  const { options, colorHoverPreview } = useProductOptions()
+
+  const effectiveOptions = useMemo(() => {
+    const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
+    const t = colorOption?.title
+    if (typeof t !== "string" || colorHoverPreview == null || colorHoverPreview === "") {
+      return options
+    }
+    return { ...options, [t]: colorHoverPreview }
+  }, [options, colorHoverPreview, product.options])
 
   const galleryImages = useMemo(() => {
     const validImages = images
@@ -31,9 +40,11 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
         url: image.url as string,
       }))
 
-    const selectedColor = Object.entries(options).find(([title]) => isColorOptionTitle(title))?.[1]
+    const selectedColor = Object.entries(effectiveOptions).find(([title]) =>
+      isColorOptionTitle(title)
+    )?.[1]
 
-    const selectedVariant = resolveVariantFromOptions(product, options)
+    const selectedVariant = resolveVariantFromOptions(product, effectiveOptions)
 
     let mappedVariantImages = getGarmentImageUrlsFromMetadata(
       (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
@@ -72,7 +83,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
     }
 
     return matched
-  }, [images, options, product.variants])
+  }, [images, effectiveOptions, product, product.variants])
 
   const fallbackImages = useMemo(() => {
     if (galleryImages.length > 0) {

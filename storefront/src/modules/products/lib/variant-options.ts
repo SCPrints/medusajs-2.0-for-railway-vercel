@@ -106,11 +106,24 @@ export const isColorOptionTitle = (title: string | undefined | null): boolean =>
 
 export const normalizeImageUrl = (url: string) => url.split("?")[0].trim()
 
-export const optionsAsKeymap = (variantOptions: unknown[] | undefined) => {
+export const optionsAsKeymap = (
+  variantOptions: unknown[] | undefined,
+  product?: HttpTypes.StoreProduct
+) => {
   return (variantOptions ?? []).reduce(
     (acc: Record<string, string | undefined>, varopt: any) => {
-      if (varopt.option?.title && varopt.value !== null && varopt.value !== undefined) {
+      if (varopt.value === null || varopt.value === undefined) {
+        return acc
+      }
+      if (varopt.option?.title) {
         acc[varopt.option.title] = varopt.value
+        return acc
+      }
+      if (product?.options?.length && varopt.option_id) {
+        const def = product.options.find((o) => o.id === varopt.option_id)
+        if (def?.title) {
+          acc[def.title] = varopt.value
+        }
       }
       return acc
     },
@@ -118,18 +131,38 @@ export const optionsAsKeymap = (variantOptions: unknown[] | undefined) => {
   )
 }
 
+/**
+ * Resolves a variant’s value for a product option, including when the Store API
+ * returns `options` entries with `option_id` but no nested `option.title`.
+ */
 export const getVariantOptionValue = (
   variant: HttpTypes.StoreProductVariant,
-  optionTitle: string
+  optionTitle: string,
+  product?: HttpTypes.StoreProduct
 ) => {
   const normalizedTitle = toTitleSlug(optionTitle)
 
-  return (
-    (variant.options ?? []).find((variantOption: any) => {
-      const title = variantOption?.option?.title
-      return typeof title === "string" && toTitleSlug(title) === normalizedTitle
-    })?.value ?? undefined
+  const fromEmbedded = (variant.options ?? []).find((variantOption: any) => {
+    const title = variantOption?.option?.title
+    return typeof title === "string" && toTitleSlug(title) === normalizedTitle
+  })
+  if (fromEmbedded) {
+    return (fromEmbedded.value as string | undefined) ?? undefined
+  }
+
+  if (!product?.options?.length) {
+    return undefined
+  }
+  const productOption = product.options.find(
+    (o) => o.title && toTitleSlug(o.title) === normalizedTitle
   )
+  if (!productOption?.id) {
+    return undefined
+  }
+  const byId = (variant.options ?? []).find(
+    (vo: { option_id?: string }) => vo?.option_id === productOption.id
+  )
+  return (byId as { value?: string } | undefined)?.value
 }
 
 /** First variant whose colour option matches `colorValue` (slug-safe), for gallery/thumbnail previews. */
@@ -144,7 +177,7 @@ export function findFirstVariantForColorValue(
   }
   const want = toTitleSlug(colorValue)
   return (product.variants ?? []).find((v) => {
-    const val = getVariantOptionValue(v, colorTitle)
+    const val = getVariantOptionValue(v, colorTitle, product)
     return typeof val === "string" && toTitleSlug(val) === want
   })
 }
@@ -328,7 +361,9 @@ export function resolveVariantFromOptions(
     return undefined
   }
 
-  const exact = variants.find((v) => isEqual(optionsAsKeymap(v.options), options))
+  const exact = variants.find((v) =>
+    isEqual(optionsAsKeymap(v.options, product), options)
+  )
   if (exact) {
     return exact
   }
@@ -342,7 +377,7 @@ export function resolveVariantFromOptions(
   }
 
   const partial = variants.find((v) => {
-    const vo = optionsAsKeymap(v.options)
+    const vo = optionsAsKeymap(v.options, product)
     return selectedEntries.every(([title, value]) => value === vo[title])
   })
   if (partial) {
@@ -364,7 +399,7 @@ export function resolveVariantFromOptions(
   if (typeof selectedColor === "string" && colorTitle) {
     const want = toTitleSlug(selectedColor)
     const colorFiltered = variants.filter((v) => {
-      const val = getVariantOptionValue(v, colorTitle)
+      const val = getVariantOptionValue(v, colorTitle, product)
       return typeof val === "string" && toTitleSlug(val) === want
     })
     if (colorFiltered.length) {
@@ -375,7 +410,7 @@ export function resolveVariantFromOptions(
   if (typeof selectedSize === "string" && sizeTitle) {
     const wantSize = toTitleSlug(selectedSize)
     const sizeMatch = pool.find((v) => {
-      const val = getVariantOptionValue(v, sizeTitle)
+      const val = getVariantOptionValue(v, sizeTitle, product)
       return typeof val === "string" && toTitleSlug(val) === wantSize
     })
     if (sizeMatch) {
@@ -399,7 +434,9 @@ export function getDefaultProductOptions(
   }
 
   if (variants.length === 1) {
-    return pickDefinedStringOptions(optionsAsKeymap(variants[0].options ?? undefined))
+    return pickDefinedStringOptions(
+      optionsAsKeymap(variants[0].options ?? undefined, product)
+    )
   }
 
   const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
@@ -409,7 +446,7 @@ export function getDefaultProductOptions(
 
   if (colorTitle) {
     const blackVariants = variants.filter((v) => {
-      const c = getVariantOptionValue(v, colorTitle)
+      const c = getVariantOptionValue(v, colorTitle, product)
       return typeof c === "string" && isBlackGarmentColor(c)
     })
     chosen =
@@ -421,7 +458,7 @@ export function getDefaultProductOptions(
     chosen = variants.find(variantIsPurchasable) ?? variants[0]
   }
 
-  return pickDefinedStringOptions(optionsAsKeymap(chosen.options ?? undefined))
+  return pickDefinedStringOptions(optionsAsKeymap(chosen.options ?? undefined, product))
 }
 
 /** Match product option by title (slug-safe). */
@@ -457,7 +494,9 @@ export function getPrimaryGarmentImageUrl(
 
   const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
   const colorTitle = colorOption?.title
-  const selectedColor = colorTitle ? getVariantOptionValue(variant, colorTitle) : undefined
+  const selectedColor = colorTitle
+    ? getVariantOptionValue(variant, colorTitle, product)
+    : undefined
 
   let mappedVariantImages = getGarmentImageUrlsFromMetadata(
     (variant.metadata ?? {}) as Record<string, unknown>
@@ -557,7 +596,9 @@ export function getGarmentImageUrlForPrintSide(
   const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
   const colorTitle = colorOption?.title
   const selectedColor =
-    variant && colorTitle ? getVariantOptionValue(variant, colorTitle) : undefined
+    variant && colorTitle
+      ? getVariantOptionValue(variant, colorTitle, product)
+      : undefined
 
   const matchesColor = (url: string) =>
     !selectedColor || urlMatchesColorLabelStrict(url, selectedColor)

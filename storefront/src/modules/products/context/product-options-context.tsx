@@ -19,6 +19,9 @@ const buildEmptySizeQuantities = (product: HttpTypes.StoreProduct): Record<strin
 type ProductOptionsContextValue = {
   options: Record<string, string | undefined>
   setOptionValue: (title: string, value: string) => void
+  /** Temporary colour for PDP main image (hover on swatch); does not change cart selection. */
+  colorHoverPreview: string | null
+  setColorHoverPreview: (value: string | null) => void
   /** Quantity per size label (customizer + multi-size cart). Keys match size option values. */
   sizeQuantities: Record<string, number>
   setSizeQuantity: (size: string, quantity: number) => void
@@ -39,9 +42,14 @@ export const ProductOptionsProvider = ({
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>(() =>
     buildEmptySizeQuantities(product)
   )
+  const [colorHoverPreview, setColorHoverPreview] = useState<string | null>(null)
 
   useEffect(() => {
     setSizeQuantities(buildEmptySizeQuantities(product))
+  }, [product.id])
+
+  useEffect(() => {
+    setColorHoverPreview(null)
   }, [product.id])
 
   const setOptionValue = useCallback((title: string, value: string) => {
@@ -63,10 +71,12 @@ export const ProductOptionsProvider = ({
     () => ({
       options,
       setOptionValue,
+      colorHoverPreview,
+      setColorHoverPreview,
       sizeQuantities,
       setSizeQuantity,
     }),
-    [options, setOptionValue, sizeQuantities, setSizeQuantity]
+    [options, setOptionValue, colorHoverPreview, sizeQuantities, setSizeQuantity]
   )
 
   return (

@@ -30,7 +30,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
   disabled,
   showSizeQuantityInputs = true,
 }) => {
-  const { sizeQuantities, setSizeQuantity } = useProductOptions()
+  const { sizeQuantities, setSizeQuantity, setColorHoverPreview } = useProductOptions()
   const rawOptionValues = option.values?.map((v) => v.value)
   const isColorOption = isColorOptionTitle(title)
   const isSizeOption = !isColorOption && /size/i.test(title)
@@ -98,6 +98,13 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
         "justify-between": !isColorOption,
       })}
       data-testid={dataTestId}
+      onPointerLeave={
+        isColorOption
+          ? () => {
+              setColorHoverPreview(null)
+            }
+          : undefined
+      }
     >
       {filteredOptions?.map((v) => {
         const isSelected = v === current
@@ -108,6 +115,11 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
           return (
             <div key={v} className="group/swatch relative">
               <button
+                onPointerEnter={() => {
+                  if (v != null && v !== "") {
+                    setColorHoverPreview(v)
+                  }
+                }}
                 onClick={() => updateOption(option.title ?? "", v ?? "")}
                 className={clx(
                   "h-8 w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",

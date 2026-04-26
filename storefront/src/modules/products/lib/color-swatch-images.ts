@@ -31,7 +31,7 @@ export function getColorSwatchImageMap(
     }
 
     const variantsForColor = (product.variants ?? []).filter((variant) => {
-      const colorValue = getVariantOptionValue(variant, optionTitle)
+      const colorValue = getVariantOptionValue(variant, optionTitle, product)
       return typeof colorValue === "string" && toTitleSlug(colorValue) === key
     })
 
