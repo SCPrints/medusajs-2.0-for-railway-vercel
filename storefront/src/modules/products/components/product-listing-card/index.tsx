@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import PlaceholderImage from "@modules/common/icons/placeholder-image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import ProductTags from "@modules/products/components/product-tags"
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
 import type { ProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
@@ -54,9 +53,6 @@ export default function ProductListingCard({
   className,
   href,
   title,
-  tagLabels,
-  fabricType,
-  fabricWeight,
   priceLine,
   defaultImageUrl,
   swatches,
@@ -163,21 +159,7 @@ export default function ProductListingCard({
         >
           {title}
         </h3>
-        <ProductTags labels={tagLabels} className="mt-2" />
-        <div className="mt-3 space-y-1 text-sm text-ui-fg-subtle">
-          <p>
-            <span className="font-medium text-ui-fg-base">Fabric:</span>{" "}
-            {fabricType}
-          </p>
-          <p>
-            <span className="font-medium text-ui-fg-base">Weight:</span>{" "}
-            {fabricWeight}
-          </p>
-          <p>
-            <span className="font-medium text-ui-fg-base">Price:</span>{" "}
-            {priceLine}
-          </p>
-        </div>
+        <p className="mt-2 text-sm text-ui-fg-subtle">{priceLine}</p>
       </LocalizedClientLink>
 
       <div

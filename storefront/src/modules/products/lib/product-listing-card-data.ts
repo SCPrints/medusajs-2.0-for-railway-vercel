@@ -8,7 +8,6 @@ import {
   isColorOptionTitle,
   toTitleSlug,
 } from "@modules/products/lib/variant-options"
-import { getStoreProductTagValues } from "@lib/util/product-tags"
 import type { VariantPrice } from "types/global"
 
 export type ProductListingSwatch = {
@@ -22,30 +21,11 @@ const MAX_SWATCHES_DISPLAY = 6
 export type ProductListingCardData = {
   href: string
   title: string
-  tagLabels: string[]
-  fabricType: string
-  fabricWeight: string
   priceLine: string
   defaultImageUrl: string | null
   swatches: ProductListingSwatch[]
   /** Full garment color count (may exceed `swatches.length`). */
   totalSwatchCount: number
-}
-
-export const getMetadataValue = (
-  product: HttpTypes.StoreProduct,
-  keys: string[]
-) => {
-  const metadata = (product.metadata ?? {}) as Record<string, unknown>
-
-  for (const key of keys) {
-    const value = metadata[key]
-    if (typeof value === "string" && value.trim()) {
-      return value.trim()
-    }
-  }
-
-  return null
 }
 
 export const getColorValues = (product: HttpTypes.StoreProduct) => {
@@ -83,17 +63,6 @@ export function buildProductListingCardData(
   cheapestPrice: VariantPrice | null
 ): ProductListingCardData {
   const handle = product.handle ?? ""
-  const fabricType = getMetadataValue(product, [
-    "fabric_type",
-    "fabric",
-    "material",
-  ])
-  const fabricWeight = getMetadataValue(product, [
-    "fabric_weight",
-    "weight",
-    "gsm",
-  ])
-  const tagLabels = getStoreProductTagValues(product)
   const rawColors = getColorValues(product)
   const colorOption = product.options?.find((o) =>
     isColorOptionTitle(o.title)
@@ -128,9 +97,6 @@ export function buildProductListingCardData(
   return {
     href: `/products/${handle}`,
     title: product.title ?? "Product",
-    tagLabels,
-    fabricType: fabricType ?? "See product details",
-    fabricWeight: fabricWeight ?? "Varies by style",
     priceLine: `${cheapestPrice?.calculated_price ?? "Request quote"} ex GST`,
     defaultImageUrl,
     swatches,
