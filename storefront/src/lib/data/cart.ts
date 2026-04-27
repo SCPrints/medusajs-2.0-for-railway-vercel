@@ -188,17 +188,33 @@ export async function enrichLineItems(
 ) {
   if (!lineItems) return []
 
-  // Prepare query parameters
-  const queryParams = {
-    ids: lineItems.map((lineItem) => lineItem.product_id!),
-    regionId: regionId,
+  // One row per size/design can repeat the same product_id 100+ times. Passing
+  // duplicate ids balloons the list API query and can 414/fail checkout RSC.
+  const uniqueIds = [
+    ...new Set(
+      lineItems
+        .map((lineItem) => lineItem.product_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    ),
+  ]
+
+  let products: Awaited<ReturnType<typeof getProductsById>> | null = null
+  try {
+    if (uniqueIds.length && regionId) {
+      products = await getProductsById({ ids: uniqueIds, regionId })
+    }
+  } catch {
+    products = null
   }
 
-  // Fetch products by their IDs
-  const products = await getProductsById(queryParams)
-  // If there are no line items or products, return an empty array
-  if (!lineItems?.length || !products) {
+  if (!lineItems.length) {
     return []
+  }
+
+  // If the catalog fetch failed, keep checkout alive with unenriched lines
+  // rather than returning [] (which would wipe the cart UI).
+  if (!products?.length) {
+    return lineItems as HttpTypes.StoreCartLineItem[]
   }
 
   // Enrich line items with product and variant information
@@ -242,6 +258,7 @@ export async function setShippingMethod({
     )
     .then(() => {
       revalidateTag("cart")
+      revalidateTag("shipping")
     })
     .catch(medusaError)
 }
