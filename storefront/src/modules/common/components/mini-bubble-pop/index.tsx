@@ -13,6 +13,11 @@ const BUBBLE_COLORS = [
 
 const COLOR_COUNT = BUBBLE_COLORS.length
 const BUBBLE_R = 15
+/** Contact radius: slightly larger than 2*R to forgive edge grazes. */
+const HIT_R_MULT = 1.04
+const HIT_R2 = (2 * BUBBLE_R * HIT_R_MULT) ** 2
+/** Center distance when two bubbles touch. */
+const CONTACT_D = 2 * BUBBLE_R * HIT_R_MULT
 const STEP = 2 * BUBBLE_R
 const ROW_H = BUBBLE_R * Math.sqrt(3)
 const CANVAS_W = 360
@@ -22,24 +27,28 @@ const GRID_TOP = 48
 const MAX_ROWS = 14
 const FILLED_START_ROWS = 6
 const TRAJ_STEPS = 120
-const SUB_STEPS = 8
-const SHOT_SPEED = 9.5
+/** Micro-moves per animation frame; higher = better segment–circle accuracy. */
+const MICROS_PER_FRAME = 64
+/** Pixels the shot travels per frame (split across `MICROS_PER_FRAME` steps). */
+const SHOT_SPEED = 7.2
+const SHOTS_PER_CEILING = 5
+const MAX_COL = 8
 
 function colCount(r: number): number {
   return r % 2 === 0 ? 8 : 7
 }
 
 function inBounds(r: number, c: number): boolean {
-  return r >= 0 && r < MAX_ROWS && c >= 0 && c < colCount(r)
+  return r >= 0 && r < MAX_ROWS && c >= 0 && c < colCount(r) && c < MAX_COL
 }
 
 type Cell = number | null
 type Grid = Cell[][]
 
 function makeEmptyGrid(): Grid {
-  return Array.from({ length: MAX_ROWS }, (_, r) =>
-    Array.from({ length: colCount(r) }, () => null)
-  )
+  return Array.from({ length: MAX_ROWS }, () =>
+    Array.from({ length: MAX_COL }, () => null)
+  ) as Grid
 }
 
 function fillTopRows(g: Grid): void {
@@ -69,10 +78,172 @@ function boardHasAnyBubble(g: Grid): boolean {
   return false
 }
 
+function rowHasAnyBubble(g: Grid, r: number): boolean {
+  for (let c = 0; c < colCount(r); c++) {
+    if (g[r]![c] !== null) {
+      return true
+    }
+  }
+  return false
+}
+
+/** Pushes a new row at the top, shifts the field down; losing row is the bottom. */
+function shiftGridDown(g: Grid): "ok" | "gameover" {
+  if (rowHasAnyBubble(g, MAX_ROWS - 1)) {
+    return "gameover"
+  }
+  for (let r = MAX_ROWS - 1; r >= 1; r--) {
+    for (let c = 0; c < MAX_COL; c++) {
+      g[r]![c] = g[r - 1]![c] ?? null
+    }
+    if (r % 2 === 1) {
+      g[r]![7] = null
+    }
+  }
+  for (let c = 0; c < colCount(0); c++) {
+    g[0]![c] = (Math.random() * COLOR_COUNT) | 0
+  }
+  for (let c = colCount(0); c < MAX_COL; c++) {
+    g[0]![c] = null
+  }
+  return "ok"
+}
+
 function dist2(ax: number, ay: number, bx: number, by: number) {
   const dx = ax - bx
   const dy = ay - by
   return dx * dx + dy * dy
+}
+
+/**
+ * Y coordinate of the topmost edge of the mass (smallest y on screen).
+ * For ceiling snap: only when the shot passes *above* this line do we use row-0;
+ * a fixed `GRID_TOP` is wrong for bank shots that are still level with the stack.
+ */
+function topClusterSurfaceY(
+  g: Grid,
+  w: number,
+  h: number
+): number | null {
+  let minCy = Infinity
+  for (let r = 0; r < MAX_ROWS; r++) {
+    for (let c = 0; c < colCount(r); c++) {
+      if (g[r]![c] === null) {
+        continue
+      }
+      const y = centerXY(r, c, w, h).y
+      if (y < minCy) {
+        minCy = y
+      }
+    }
+  }
+  if (minCy === Infinity) {
+    return null
+  }
+  return minCy - BUBBLE_R
+}
+
+type SegHit = { t: number; x: number; y: number }
+
+/**
+ * First intersection of segment A→B with a circle of radius r around C
+ * (entry from outside, smallest t in (0,1]).
+ */
+function segmentCircleFirstHit(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  cx: number,
+  cy: number,
+  r: number
+): SegHit | null {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const a = dx * dx + dy * dy
+  if (a < 1e-10) {
+    return null
+  }
+  const ex = x1 - cx
+  const ey = y1 - cy
+  const b = 2 * (ex * dx + ey * dy)
+  const c = ex * ex + ey * ey - r * r
+  const disc = b * b - 4 * a * c
+  if (disc < 0) {
+    return null
+  }
+  const s = Math.sqrt(disc)
+  const t0 = (-b - s) / (2 * a)
+  const t1 = (-b + s) / (2 * a)
+  const tCandidates: number[] = []
+  for (const t of [t0, t1]) {
+    if (t > 0 && t <= 1) {
+      tCandidates.push(t)
+    }
+  }
+  if (c <= 0 && tCandidates.length === 0) {
+    if (ex * ex + ey * ey <= r * r) {
+      return { t: 0, x: x1, y: y1 }
+    }
+  }
+  if (tCandidates.length === 0) {
+    return null
+  }
+  const t = Math.min(...tCandidates)
+  return { t, x: x1 + t * dx, y: y1 + t * dy }
+}
+
+type BubbleSegHit = { r: number; c: number; t: number; x: number; y: number }
+
+function firstBubbleOnSegment(
+  ox: number,
+  oy: number,
+  nx: number,
+  ny: number,
+  g: Grid,
+  w: number,
+  h: number
+): BubbleSegHit | null {
+  let best: BubbleSegHit | null = null
+  for (let r = 0; r < MAX_ROWS; r++) {
+    for (let c = 0; c < colCount(r); c++) {
+      if (g[r]![c] === null) {
+        continue
+      }
+      const { x: cx, y: cy } = centerXY(r, c, w, h)
+      const h2 = segmentCircleFirstHit(ox, oy, nx, ny, cx, cy, CONTACT_D)
+      if (!h2) {
+        continue
+      }
+      if (best === null || h2.t < best.t) {
+        best = { r, c, t: h2.t, x: h2.x, y: h2.y }
+      }
+    }
+  }
+  return best
+}
+
+function closestBubbleCenterOverlap(
+  x: number,
+  y: number,
+  g: Grid,
+  w: number,
+  h: number
+): { r: number; c: number; d2: number } | null {
+  let best: { r: number; c: number; d2: number } | null = null
+  for (let r = 0; r < MAX_ROWS; r++) {
+    for (let c = 0; c < colCount(r); c++) {
+      if (g[r]![c] === null) {
+        continue
+      }
+      const { x: cx, y: cy } = centerXY(r, c, w, h)
+      const d2 = dist2(x, y, cx, cy)
+      if (d2 < HIT_R2 && (best === null || d2 < best.d2)) {
+        best = { r, c, d2 }
+      }
+    }
+  }
+  return best
 }
 
 /**
@@ -256,6 +427,15 @@ function pickSnapCell(
   return { r: best.r, c: best.c }
 }
 
+function hasEmptyInRow0(g: Grid): boolean {
+  for (let c = 0; c < colCount(0); c++) {
+    if (g[0]![c] === null) {
+      return true
+    }
+  }
+  return false
+}
+
 function firstEmptyTopRow(
   x: number,
   y: number,
@@ -282,6 +462,90 @@ function firstEmptyTopRow(
   return { r: 0, c: best.c }
 }
 
+/** Aim preview: same wall + micro + segment + dynamic ceiling as the live shot. */
+function buildAimPoints(
+  g: Grid,
+  w: number,
+  h: number,
+  angle: number
+): { x: number; y: number }[] {
+  const p = {
+    x: w / 2,
+    y: CANNON_Y,
+    vx: Math.sin(angle) * SHOT_SPEED,
+    vy: -Math.cos(angle) * SHOT_SPEED,
+  }
+  const out: { x: number; y: number }[] = [{ x: p.x, y: p.y }]
+  let done = false
+  outer: for (let f = 0; f < TRAJ_STEPS && !done; f++) {
+    for (let m = 0; m < MICROS_PER_FRAME; m++) {
+      const ox = p.x
+      const oy = p.y
+      p.x += p.vx / MICROS_PER_FRAME
+      p.y += p.vy / MICROS_PER_FRAME
+      if (p.x < BUBBLE_R) {
+        p.x = BUBBLE_R
+        p.vx *= -1
+      }
+      if (p.x > w - BUBBLE_R) {
+        p.x = w - BUBBLE_R
+        p.vx *= -1
+      }
+      const segHit = firstBubbleOnSegment(ox, oy, p.x, p.y, g, w, h)
+      if (segHit) {
+        p.x = segHit.x
+        p.y = segHit.y
+        out.push({ x: segHit.x, y: segHit.y })
+        done = true
+        break outer
+      }
+      if (closestBubbleCenterOverlap(p.x, p.y, g, w, h)) {
+        out.push({ x: p.x, y: p.y })
+        done = true
+        break outer
+      }
+      const skyY = topClusterSurfaceY(g, w, h)
+      if (boardHasAnyBubble(g) && skyY !== null) {
+        if (p.y < skyY) {
+          if (hasEmptyInRow0(g)) {
+            const sn = firstEmptyTopRow(p.x, p.y, g, w, h)
+            if (sn) {
+              const cxy = centerXY(0, sn.c, w, h)
+              out.push({ x: cxy.x, y: cxy.y })
+              done = true
+              break outer
+            }
+          } else {
+            p.y = skyY
+            p.vy = Math.abs(p.vy)
+          }
+        }
+      } else {
+        if (p.y < GRID_TOP - BUBBLE_R) {
+          const sn = firstEmptyTopRow(p.x, p.y, g, w, h)
+          if (sn) {
+            const cxy = centerXY(0, sn.c, w, h)
+            out.push({ x: cxy.x, y: cxy.y })
+            done = true
+            break outer
+          }
+          p.y = GRID_TOP - BUBBLE_R
+          p.vy = Math.abs(p.vy)
+        }
+      }
+      if (p.y - BUBBLE_R > h) {
+        out.push({ x: p.x, y: p.y })
+        done = true
+        break outer
+      }
+    }
+    if (f % 2 === 0) {
+      out.push({ x: p.x, y: p.y })
+    }
+  }
+  return out
+}
+
 type Projectile = { x: number; y: number; vx: number; vy: number; color: number }
 
 export default function MiniBubblePop() {
@@ -289,12 +553,16 @@ export default function MiniBubblePop() {
   const aimRef = useRef({ angle: -Math.PI / 2, mouse: { x: 0, y: 0 } })
   const [score, setScore] = useState(0)
   const [nextIdx, setNextIdx] = useState(0)
+  const [gameOver, setGameOver] = useState(false)
+  const [shotsToCeiling, setShotsToCeiling] = useState(SHOTS_PER_CEILING)
   const gameRef = useRef({
     grid: makeEmptyGrid() as Grid,
     queue: [0, 0] as [number, number],
     projectile: null as Projectile | null,
     w: CANVAS_W,
     h: CANVAS_H,
+    shotCount: 0,
+    gameOver: false,
   })
 
   const pullQueue = useCallback((g: typeof gameRef.current) => {
@@ -304,9 +572,12 @@ export default function MiniBubblePop() {
 
   useEffect(() => {
     const g = gameRef.current
+    g.shotCount = 0
+    g.gameOver = false
     fillTopRows(g.grid)
     g.queue = [(Math.random() * COLOR_COUNT) | 0, (Math.random() * COLOR_COUNT) | 0]
     setNextIdx(g.queue[0]!)
+    setShotsToCeiling(SHOTS_PER_CEILING)
 
     const canvas = ref.current
     if (!canvas) {
@@ -329,9 +600,19 @@ export default function MiniBubblePop() {
 
     let raf = 0
     const shoot = (angle: number) => {
-      if (g.projectile) {
+      if (g.projectile || g.gameOver) {
         return
       }
+      g.shotCount += 1
+      if (g.shotCount % SHOTS_PER_CEILING === 0) {
+        if (shiftGridDown(g.grid) === "gameover") {
+          g.gameOver = true
+          setGameOver(true)
+          return
+        }
+      }
+      const rem = g.shotCount % SHOTS_PER_CEILING
+      setShotsToCeiling(rem === 0 ? SHOTS_PER_CEILING : SHOTS_PER_CEILING - rem)
       const color = g.queue[0]!
       g.projectile = {
         x: g.w / 2,
@@ -372,16 +653,19 @@ export default function MiniBubblePop() {
       )
     }
 
-    const HIT_R2 = (2 * BUBBLE_R * 0.9) * (2 * BUBBLE_R * 0.9)
-
     const stepProjectile = () => {
+      if (g.gameOver) {
+        return
+      }
       const p = g.projectile
       if (!p) {
         return
       }
-      for (let s = 0; s < SUB_STEPS; s++) {
-        p.x += p.vx
-        p.y += p.vy
+      for (let m = 0; m < MICROS_PER_FRAME; m++) {
+        const ox = p.x
+        const oy = p.y
+        p.x += p.vx / MICROS_PER_FRAME
+        p.y += p.vy / MICROS_PER_FRAME
         if (p.x < BUBBLE_R) {
           p.x = BUBBLE_R
           p.vx *= -1
@@ -391,24 +675,13 @@ export default function MiniBubblePop() {
           p.vx *= -1
         }
 
-        let bestHit: { r: number; c: number; d2: number } | null = null
-        for (let r = 0; r < MAX_ROWS; r++) {
-          for (let c = 0; c < colCount(r); c++) {
-            if (g.grid[r]![c] === null) {
-              continue
-            }
-            const { x: cx, y: cy } = centerXY(r, c, g.w, g.h)
-            const d2c = dist2(p.x, p.y, cx, cy)
-            if (d2c < HIT_R2 && (bestHit === null || d2c < bestHit.d2)) {
-              bestHit = { r, c, d2: d2c }
-            }
-          }
-        }
-
-        if (bestHit) {
+        const segHit = firstBubbleOnSegment(ox, oy, p.x, p.y, g.grid, g.w, g.h)
+        if (segHit) {
+          p.x = segHit.x
+          p.y = segHit.y
           const snap = pickSnapCell(
-            bestHit.r,
-            bestHit.c,
+            segHit.r,
+            segHit.c,
             p.x,
             p.y,
             g.grid,
@@ -419,21 +692,58 @@ export default function MiniBubblePop() {
             g.grid[snap.r]![snap.c] = p.color
             g.projectile = null
             afterPlace(snap.r, snap.c)
-            return
+          } else {
+            g.projectile = null
           }
-          g.projectile = null
           return
         }
 
-        if (p.y < GRID_TOP - BUBBLE_R) {
-          const sn = firstEmptyTopRow(p.x, p.y, g.grid, g.w, g.h)
-          if (sn) {
-            g.grid[sn.r]![sn.c] = p.color
+        const inside = closestBubbleCenterOverlap(p.x, p.y, g.grid, g.w, g.h)
+        if (inside) {
+          const snap = pickSnapCell(
+            inside.r,
+            inside.c,
+            p.x,
+            p.y,
+            g.grid,
+            g.w,
+            g.h
+          )
+          if (snap) {
+            g.grid[snap.r]![snap.c] = p.color
             g.projectile = null
-            afterPlace(sn.r, sn.c)
-            return
+            afterPlace(snap.r, snap.c)
+          } else {
+            g.projectile = null
           }
-          if (boardHasAnyBubble(g.grid)) {
+          return
+        }
+
+        const skyY = topClusterSurfaceY(g.grid, g.w, g.h)
+        if (boardHasAnyBubble(g.grid) && skyY !== null) {
+          if (p.y < skyY) {
+            if (hasEmptyInRow0(g.grid)) {
+              const sn = firstEmptyTopRow(p.x, p.y, g.grid, g.w, g.h)
+              if (sn) {
+                g.grid[sn.r]![sn.c] = p.color
+                g.projectile = null
+                afterPlace(sn.r, sn.c)
+                return
+              }
+            } else {
+              p.y = skyY
+              p.vy = Math.abs(p.vy)
+            }
+          }
+        } else {
+          if (p.y < GRID_TOP - BUBBLE_R) {
+            const sn = firstEmptyTopRow(p.x, p.y, g.grid, g.w, g.h)
+            if (sn) {
+              g.grid[sn.r]![sn.c] = p.color
+              g.projectile = null
+              afterPlace(sn.r, sn.c)
+              return
+            }
             p.y = GRID_TOP - BUBBLE_R
             p.vy = Math.abs(p.vy)
           }
@@ -464,34 +774,17 @@ export default function MiniBubblePop() {
         return
       }
       const { angle } = aimRef.current
-      let x = g.w / 2
-      let y = CANNON_Y
-      let vx = Math.sin(angle) * SHOT_SPEED
-      let vy = -Math.cos(angle) * SHOT_SPEED
+      const pts = buildAimPoints(g.grid, g.w, g.h, angle)
+      if (pts.length < 2) {
+        return
+      }
       ctx2.setLineDash([4, 4])
       ctx2.strokeStyle = "rgba(26, 26, 46, 0.4)"
       ctx2.lineWidth = 1.5
       ctx2.beginPath()
-      ctx2.moveTo(x, y)
-      for (let i = 0; i < TRAJ_STEPS; i++) {
-        for (let s = 0; s < 4; s++) {
-          x += vx
-          y += vy
-          if (x < BUBBLE_R) {
-            x = BUBBLE_R
-            vx *= -1
-          }
-          if (x > g.w - BUBBLE_R) {
-            x = g.w - BUBBLE_R
-            vx *= -1
-          }
-        }
-        if (i % 2 === 0) {
-          ctx2.lineTo(x, y)
-        }
-        if (y < 20) {
-          break
-        }
+      ctx2.moveTo(pts[0]!.x, pts[0]!.y)
+      for (let i = 1; i < pts.length; i++) {
+        ctx2.lineTo(pts[i]!.x, pts[i]!.y)
       }
       ctx2.stroke()
       ctx2.setLineDash([])
@@ -505,10 +798,24 @@ export default function MiniBubblePop() {
       if (g.projectile) {
         const p = g.projectile
         drawBubble(ctx, p.x, p.y, BUBBLE_COLORS[p.color]!)
-      } else {
+      } else if (!g.gameOver) {
         const q = g.queue[0]!
         drawBubble(ctx, g.w / 2, CANNON_Y, BUBBLE_COLORS[q]!, true)
         drawAim(ctx)
+      }
+      if (g.gameOver) {
+        ctx.fillStyle = "rgba(26, 26, 46, 0.7)"
+        ctx.fillRect(0, 0, g.w, g.h)
+        ctx.fillStyle = "rgba(248, 250, 252, 0.98)"
+        ctx.font = "700 20px system-ui, sans-serif"
+        ctx.textAlign = "center"
+        ctx.textBaseline = "middle"
+        ctx.fillText("Game over", g.w / 2, g.h * 0.45)
+        ctx.font = "400 12px system-ui, sans-serif"
+        ctx.fillStyle = "rgba(248, 250, 252, 0.85)"
+        ctx.fillText("Bubbles reached the bottom row.", g.w / 2, g.h * 0.45 + 24)
+        ctx.textAlign = "left"
+        ctx.textBaseline = "alphabetic"
       }
       raf = requestAnimationFrame(loop)
     }
@@ -578,18 +885,23 @@ export default function MiniBubblePop() {
     g.grid = makeEmptyGrid()
     fillTopRows(g.grid)
     g.projectile = null
+    g.shotCount = 0
+    g.gameOver = false
     g.queue = [(Math.random() * COLOR_COUNT) | 0, (Math.random() * COLOR_COUNT) | 0]
     setNextIdx(g.queue[0]!)
     setScore(0)
+    setGameOver(false)
+    setShotsToCeiling(SHOTS_PER_CEILING)
   }, [])
 
   return (
     <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 small:p-5 max-w-2xl w-full">
       <p className="text-xs text-ui-fg-muted mb-3 max-w-2xl">
-        Bubble shooter: aim with the mouse, click to fire. The shot bounces off the
-        side walls, sticks to the hex-style grid, clears groups of 3+ of the same
-        colour, then drops any bubbles no longer connected to the ceiling. Dashed
-        line is the aim preview. Brand palette matches the storefront.
+        Bubble shooter: aim with the mouse, click to fire. Shots use small physics
+        steps for reliable wall and bubble contact. Every {SHOTS_PER_CEILING} shots
+        the ceiling drops a new row &mdash; if any bubble sits on the bottom row
+        when it tries to push, it&rsquo;s game over. Match-3+ clears and orphan
+        drops work as before. Dashed line matches the tuned trajectory.
       </p>
       <div className="flex flex-col small:flex-row gap-4 small:items-start">
         <div className="shrink-0">
@@ -620,6 +932,20 @@ export default function MiniBubblePop() {
               aria-hidden
             />
           </div>
+          <div>
+            <p className="text-xs font-medium text-ui-fg-muted uppercase tracking-wide">
+              Ceiling in
+            </p>
+            <p className="text-lg font-semibold tabular-nums">
+              {gameOver ? "—" : shotsToCeiling}{" "}
+              <span className="text-xs font-normal text-ui-fg-muted">shots</span>
+            </p>
+          </div>
+          {gameOver ? (
+            <p className="text-sm text-ui-fg-base font-medium" role="status">
+              New game to try again.
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={newGame}

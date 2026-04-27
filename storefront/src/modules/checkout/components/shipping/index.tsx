@@ -108,10 +108,7 @@ const Shipping: React.FC<ShippingProps> = ({
       {isOpen ? (
         <div data-testid="delivery-options-container">
           {shippingTier && typeof totalWeightGrams === "number" && (
-            <Text
-              as="p"
-              className="text-small-regular mb-4 rounded-lg border border-[rgba(61,207,194,0.35)] bg-[rgba(61,207,194,0.1)] px-3 py-2.5 text-ui-fg-subtle"
-            >
+            <p className="text-small-regular mb-4 rounded-lg border border-[rgba(61,207,194,0.35)] bg-[rgba(61,207,194,0.1)] px-3 py-2.5 text-ui-fg-subtle">
               {shippingTier === "flat"
                 ? `Eligible for flat-rate shipping (cart weight ${formatKg(
                     totalWeightGrams
@@ -127,7 +124,7 @@ const Shipping: React.FC<ShippingProps> = ({
                       ? ` to ${cart.shipping_address.postal_code}`
                       : ""
                   }.`}
-            </Text>
+            </p>
           )}
           <div className="pb-8">
             <RadioGroup value={selectedShippingMethod?.id} onChange={set}>

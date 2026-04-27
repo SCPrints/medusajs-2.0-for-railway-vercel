@@ -1513,7 +1513,7 @@ export default function ButtonAnimationsDemo() {
 
         <Section
           title="13. Mini bubble pop (shooter)"
-          description="Aim with the mouse, click to fire: the shot bounces off the walls, lands on a staggered hex-style grid, clears same-colour groups of 3+ (BFS), then drops any bubbles that are no longer connected to the ceiling (flood fill). Dashed line shows the predicted path. New game restarts the board; queue shows the next colour."
+          description="Aim with the mouse, click to fire: wall-bounce, staggered grid, 3+ match (BFS), ceiling-connected orphan drop (flood), dashed aim line. Physics use 16 microsteps per frame and a looser contact radius; every 5th shot a new top row is inserted and the field shifts down—bubbles in the bottom row at that moment end the run."
         >
           <MiniBubblePop />
         </Section>
