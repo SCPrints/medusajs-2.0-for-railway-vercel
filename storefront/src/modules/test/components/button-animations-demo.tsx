@@ -15,6 +15,9 @@ import {
 } from "react"
 import { createPortal } from "react-dom"
 
+import MiniBubblePop from "@modules/common/components/mini-bubble-pop"
+import MiniTetris from "@modules/common/components/mini-tetris"
+
 const SLOT_H = 40
 const LASER_BURST_BEAM_COUNT = 30
 const TRAIL_LASER_BEAM_COUNT = 20
@@ -1499,6 +1502,20 @@ export default function ButtonAnimationsDemo() {
           description="Subtle chime on click via the Web Audio API (no file). Mute the tab or your OS to compare. You can drop in use-sound and a very small /public sound for a custom earcon."
         >
           <EarconAddButton />
+        </Section>
+
+        <Section
+          title="12. Mini Tetris (easter egg)"
+          description="A tiny client-side pass time while comparing interactions. The board, pieces, and controls use the same brand CSS variables and Medusa UI treatment as the rest of the test page. Focus the playfield for keyboard: arrows, X or up to rotate, Space or Enter to hard drop. Restart is always available."
+        >
+          <MiniTetris />
+        </Section>
+
+        <Section
+          title="13. Mini bubble pop (shooter)"
+          description="Aim with the mouse, click to fire: the shot bounces off the walls, lands on a staggered hex-style grid, clears same-colour groups of 3+ (BFS), then drops any bubbles that are no longer connected to the ceiling (flood fill). Dashed line shows the predicted path. New game restarts the board; queue shows the next colour."
+        >
+          <MiniBubblePop />
         </Section>
       </div>
     </div>

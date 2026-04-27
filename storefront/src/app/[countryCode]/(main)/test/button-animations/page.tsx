@@ -13,7 +13,7 @@ export async function generateMetadata({
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/test/button-animations`
   const description =
-    "Internal page to preview add-to-cart micro-interactions (incl. fly-to-cart, morph, confetti, 3D flip, slot text, progress fill, shimmer, earcon, and more)."
+    "Internal page to preview add-to-cart micro-interactions (incl. fly-to-cart, morph, confetti, 3D flip, slot text, progress fill, shimmer, earcon) plus small themed minigames: Tetris and bubble pop."
 
   return {
     title: "Button animation tests",
@@ -40,8 +40,8 @@ export default function ButtonAnimationsTestPage() {
             Add-to-cart interaction tests
           </h1>
           <p className="mt-2 max-w-2xl text-ui-fg-muted text-sm small:text-base">
-            Thirteen interaction patterns (including fly + squish and fly + confetti + squish + slot combos). Open this
-            route with a country prefix, e.g.{" "}
+            Fifteen items on this page, including a tiny Tetris, a bubble pop grid, and thirteen add-to-cart interaction
+            patterns (e.g. fly + squish, fly + confetti + squish + slot). Open this route with a country prefix, e.g.{" "}
             <code className="text-ui-fg-base">/au/test/button-animations</code>.
           </p>
         </div>
