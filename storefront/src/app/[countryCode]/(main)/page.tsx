@@ -5,7 +5,7 @@ import {
   getInstagramHandleDisplay,
   getInstagramProfileUrl,
 } from "@lib/data/instagram"
-import { getProductsById, getProductsList } from "@lib/data/products"
+import { getHomeFeaturedRangeProducts, getProductsById } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
@@ -27,7 +27,6 @@ import {
 } from "@modules/home/components/service-icons"
 import ProductListingCard from "@modules/products/components/product-listing-card"
 import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
-import { isHoodieGarmentProduct } from "@modules/products/lib/variant-options"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -88,23 +87,15 @@ export default async function Home({
 }) {
   const { countryCode } = await params
   const region = await getRegion(countryCode)
-  const FEATURED_RAIL_LIMIT = 12
-  const FEATURED_FETCH_WINDOW = 48
-
-  const {
-    response: { products: fetchedProducts },
-  } = await getProductsList({
-    countryCode,
-    queryParams: { limit: FEATURED_FETCH_WINDOW },
-  })
-
-  const hoodieProducts = fetchedProducts.filter(isHoodieGarmentProduct)
-  const otherProducts = fetchedProducts.filter((p) => !isHoodieGarmentProduct(p))
-  const products = [...hoodieProducts, ...otherProducts].slice(0, FEATURED_RAIL_LIMIT)
 
   if (!region) {
     return null
   }
+
+  const products = await getHomeFeaturedRangeProducts({
+    countryCode,
+    limit: 12,
+  })
 
   const productIds = (products ?? [])
     .map((product) => product.id)

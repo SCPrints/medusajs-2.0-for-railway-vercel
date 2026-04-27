@@ -6,6 +6,7 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
 import { inferBrandFromHandle } from "@lib/util/infer-brand-from-handle"
+import { isHoodieGarmentProduct } from "@modules/products/lib/variant-options"
 
 function productBrandMatchesClientFilter(
   productBrandLower: string,
@@ -136,6 +137,80 @@ export const getProductsList = cache(async function ({
         queryParams,
       }
     })
+})
+
+const HOME_FEATURED_LIMIT = 12
+const HOME_FEATURED_SEARCH_FETCH = 48
+const HOME_FEATURED_CATALOG_BATCH = 100
+const HOME_FEATURED_MAX_CATALOG_PAGES = 40
+
+/**
+ * Home “Featured range”: load hoodies via store search (`q`) plus a catalog scan.
+ * Newest products alone are often bags/accessories, so a plain `limit` slice misses apparel.
+ */
+export const getHomeFeaturedRangeProducts = cache(async function ({
+  countryCode,
+  limit = HOME_FEATURED_LIMIT,
+}: {
+  countryCode: string
+  limit?: number
+}): Promise<HttpTypes.StoreProduct[]> {
+  const region = await getRegion(countryCode)
+  if (!region) {
+    return []
+  }
+
+  const addHoodies = (
+    acc: Map<string, HttpTypes.StoreProduct>,
+    list: HttpTypes.StoreProduct[]
+  ) => {
+    for (const p of list) {
+      if (!p.id || acc.has(p.id)) {
+        continue
+      }
+      if (isHoodieGarmentProduct(p)) {
+        acc.set(p.id, p)
+      }
+    }
+  }
+
+  const byId = new Map<string, HttpTypes.StoreProduct>()
+
+  for (const q of ["hoodie", "hood", "sweatshirt"]) {
+    if (byId.size >= limit) {
+      break
+    }
+    const { response } = await getProductsList({
+      countryCode,
+      queryParams: { q, limit: HOME_FEATURED_SEARCH_FETCH },
+    })
+    addHoodies(byId, response.products)
+  }
+
+  let page = 1
+  while (byId.size < limit && page <= HOME_FEATURED_MAX_CATALOG_PAGES) {
+    const { response } = await getProductsList({
+      countryCode,
+      pageParam: page,
+      queryParams: { limit: HOME_FEATURED_CATALOG_BATCH },
+    })
+    if (!response.products.length) {
+      break
+    }
+    addHoodies(byId, response.products)
+    page++
+  }
+
+  const hoodies = Array.from(byId.values()).slice(0, limit)
+  if (hoodies.length > 0) {
+    return hoodies
+  }
+
+  const { response } = await getProductsList({
+    countryCode,
+    queryParams: { limit },
+  })
+  return response.products
 })
 
 const CLIENT_FILTER_PAGE_BATCH = 100
