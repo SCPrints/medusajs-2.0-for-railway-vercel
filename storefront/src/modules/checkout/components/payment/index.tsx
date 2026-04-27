@@ -46,7 +46,8 @@ const Payment = ({
     cart?.gift_cards && cart?.gift_cards?.length > 0 && cart?.total === 0
 
   const paymentReady =
-    (activeSession && cart?.shipping_methods.length !== 0) || paidByGiftcard
+    (activeSession && (cart?.shipping_methods?.length ?? 0) > 0) ||
+    paidByGiftcard
 
   const useOptions: StripeCardElementOptions = useMemo(() => {
     return {
