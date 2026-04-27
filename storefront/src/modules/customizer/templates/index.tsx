@@ -17,6 +17,7 @@ import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import {
   BulkPricingTier,
+  CUSTOMIZER_PRINT_NOTES_MAX_LENGTH,
   CustomizerMetadata,
   GarmentSide,
   SizeQuantity,
@@ -406,6 +407,7 @@ export default function CustomizerTemplate({
   const [dpiWarning, setDpiWarning] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [printNotes, setPrintNotes] = useState("")
   const [activeVariantId, setActiveVariantId] = useState<string>(
     product.variants?.[0]?.id ?? ""
   )
@@ -1313,6 +1315,10 @@ export default function CustomizerTemplate({
         (selectedVariant.options ?? []).map((entry) => [entry.option_id, entry.value ?? ""])
       )
 
+      const normalizedPrintNotes = printNotes
+        .trim()
+        .slice(0, CUSTOMIZER_PRINT_NOTES_MAX_LENGTH)
+
       const metadataBase: Omit<CustomizerMetadata, "variantId"> = {
         version: 2,
         type: "fabric_customizer",
@@ -1330,6 +1336,7 @@ export default function CustomizerTemplate({
         sizes: sizeMatrix,
         pricing,
         artifacts,
+        ...(normalizedPrintNotes ? { printNotes: normalizedPrintNotes } : {}),
       }
 
       const resolvedQuantities =
@@ -1520,6 +1527,38 @@ export default function CustomizerTemplate({
               <SideSelector currentSide={currentSide} onSelectSide={switchSide} />
               <p className="text-xs text-ui-fg-subtle">
                 Switch sides to place art on the front, back, or sleeves. Each side is saved separately.
+              </p>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <div>
+                <label
+                  htmlFor="customizer-print-notes"
+                  className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base"
+                >
+                  Notes for production
+                </label>
+                <p className="mt-1 text-xs text-ui-fg-subtle">
+                  Optional. Special instructions for printing or placement (max{" "}
+                  {CUSTOMIZER_PRINT_NOTES_MAX_LENGTH} characters).
+                </p>
+              </div>
+              <textarea
+                id="customizer-print-notes"
+                value={printNotes}
+                onChange={(e) =>
+                  setPrintNotes(
+                    e.target.value.slice(0, CUSTOMIZER_PRINT_NOTES_MAX_LENGTH)
+                  )
+                }
+                rows={4}
+                maxLength={CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
+                placeholder="e.g. Match logo PMS 185 C, keep 3 cm from collar seam…"
+                className="w-full resize-y rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted outline-none focus:border-ui-border-interactive focus:ring-2 focus:ring-ui-border-interactive/20"
+                disabled={isSubmitting}
+              />
+              <p className="text-xs text-ui-fg-muted tabular-nums">
+                {printNotes.length}/{CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
               </p>
             </div>
 

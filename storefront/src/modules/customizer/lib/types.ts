@@ -57,6 +57,9 @@ export type RenderArtifact = {
   mockupUrl: string | null
 }
 
+/** Max length for `printNotes` on cart line metadata (keep payloads small for Medusa). */
+export const CUSTOMIZER_PRINT_NOTES_MAX_LENGTH = 2000
+
 export type CustomizerMetadata = {
   version: 2
   type: "fabric_customizer"
@@ -67,4 +70,6 @@ export type CustomizerMetadata = {
   sizes: SizeQuantity[]
   pricing: PricingBreakdown
   artifacts: RenderArtifact[]
+  /** Customer instructions for production; omitted when empty. */
+  printNotes?: string
 }
