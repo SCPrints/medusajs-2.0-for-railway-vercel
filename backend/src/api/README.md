@@ -224,6 +224,30 @@ storefront's `TrackingList`.
 ]
 ```
 
+### Admin visibility
+
+Two read-only widgets surface the shipping picture on the Admin Order page:
+
+- **Shipping decision** (sidebar, `order.details.side.after`) reads
+  `order.metadata.shipping_decision` and renders the chosen tier
+  (Flat-rate vs Live ShipStation quote), cart weight at checkout, the
+  threshold, ship-from postcode/country, and `computed_at`. The blob is
+  written by `/store/cart-shipping-options` onto the cart on every poll, and a
+  defensive `order.placed` subscriber
+  (`src/subscribers/order-placed-stamp-shipping-decision.ts`) mirrors it onto
+  the order if the core completion flow doesn't carry cart metadata across.
+  Older orders predating this rollout simply show an empty state.
+- **ShipStation parcels** (full-width, `order.details.after`) re-fetches the
+  order with `+fulfillments.metadata` and renders one table per fulfillment:
+  carrier · service, tracking number + Track link, per-parcel weight, label
+  PDF link, and a Voided / Shipped / Pending status pill. Falls back to native
+  `fulfillment.labels[]` when `metadata.parcels` is absent so manual flat-rate
+  fulfillments still render usefully.
+
+Both widgets are view-only; reprint and void label actions are intentionally
+out of scope. Edit shipping data via ShipStation itself — the webhook will
+sync changes back into `metadata.parcels` on the next event.
+
 ### Smoke test
 
 Validate the threshold logic without booting the storefront:
