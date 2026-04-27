@@ -18,7 +18,7 @@ import {
   getCustomizerMockupArtifacts,
   getCustomizerMockupUrls,
 } from "@modules/customizer/lib/metadata"
-import { useState } from "react"
+import { memo, useState } from "react"
 
 type ItemProps = {
   item: HttpTypes.StoreCartLineItem
@@ -144,4 +144,17 @@ const Item = ({ item, type = "full" }: ItemProps) => {
   )
 }
 
-export default Item
+// 100+ line carts re-render heavily when any one line changes. Memoise so a
+// quantity change on row 17 doesn't repaint rows 1-16 / 18-100.
+export default memo(Item, (prev, next) => {
+  if (prev.type !== next.type) return false
+  const a = prev.item
+  const b = next.item
+  return (
+    a.id === b.id &&
+    a.quantity === b.quantity &&
+    a.unit_price === b.unit_price &&
+    a.variant_id === b.variant_id &&
+    a.product_title === b.product_title
+  )
+})

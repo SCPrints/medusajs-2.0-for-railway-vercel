@@ -284,7 +284,6 @@ export default function ProductActions({
                 options={options}
                 updateOption={setOptionValue}
                 disabled={!!disabled || isAdding}
-                showSizeQuantityInputs={!hideInlinePurchaseControls}
                 hideSizeOption={!!hideInlinePurchaseControls}
                 data-testid="product-options"
               />
@@ -354,7 +353,27 @@ export default function ProductActions({
               ? "Out of stock"
               : "Add to cart"}
           </FlyToCartAddButton>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window === "undefined") return
+              const target = document.getElementById("product-customizer")
+              if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" })
+                const focusable = target.querySelector<HTMLElement>(
+                  "input, button, [tabindex]:not([tabindex='-1'])"
+                )
+                focusable?.focus({ preventScroll: true })
+              }
+            }}
+            disabled={!!disabled}
+            className="w-full h-10 rounded-rounded bg-ui-button-inverted text-ui-fg-on-inverted text-small-regular hover:bg-ui-button-inverted-hover disabled:opacity-50"
+            data-testid="customize-product-button"
+          >
+            Customize this product
+          </button>
+        )}
         {addToCartError ? (
           <p className="txt-small text-rose-600" role="alert">
             {addToCartError}

@@ -270,6 +270,71 @@ type VariantDef = {
   useSizeOption: boolean
   useTypeOption: boolean
   priceRaw: string
+  weightGrams?: number
+}
+
+/** Multi-key probe for weight columns; DNC exports vary the column header. */
+const WEIGHT_COLUMN_KEYS = [
+  "Weight",
+  "Weight (g)",
+  "Weight g",
+  "Weight Grams",
+  "WeightGrams",
+  "Garment Weight",
+  "Variant Weight",
+  "Product Weight",
+] as const
+
+const SIZE_WEIGHT_MULTIPLIER: Record<string, number> = {
+  XXS: 0.85,
+  XS: 0.9,
+  S: 0.95,
+  M: 1,
+  L: 1.07,
+  XL: 1.14,
+  "2XL": 1.22,
+  XXL: 1.22,
+  "3XL": 1.3,
+  XXXL: 1.3,
+  "4XL": 1.38,
+  "5XL": 1.46,
+  "6XL": 1.54,
+  "7XL": 1.62,
+}
+
+const parseWeightFromRow = (row: CsvRow): number | undefined => {
+  for (const key of WEIGHT_COLUMN_KEYS) {
+    const raw = (row[key] || "").trim()
+    if (!raw) {
+      continue
+    }
+    const numeric = Number.parseFloat(raw.replace(/,/g, ""))
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      continue
+    }
+    if (/kg/i.test(raw)) {
+      return Math.round(numeric * 1000)
+    }
+    return Math.round(numeric)
+  }
+  return undefined
+}
+
+const resolveVariantWeightGrams = (
+  row: CsvRow,
+  baseWeight: number | undefined,
+  size: string | undefined
+): number | undefined => {
+  const direct = parseWeightFromRow(row)
+  if (direct) {
+    return direct
+  }
+  if (typeof baseWeight !== "number" || !Number.isFinite(baseWeight) || baseWeight <= 0) {
+    return undefined
+  }
+  const sizeKey = (size || "").trim().toUpperCase()
+  const multiplier = SIZE_WEIGHT_MULTIPLIER[sizeKey] ?? 1
+  return Math.round(baseWeight * multiplier)
 }
 
 const buildVariantRows = (g: DncGroup): { productTitle: string; thumbnail: string; imageUrls: string[]; variantRows: CsvRow[] } | null => {
@@ -314,7 +379,12 @@ const collectOptionFlags = (variantSource: CsvRow[]) => {
   return { hasD2, hasD3 }
 }
 
-const toVariantDef = (row: CsvRow, hasD2: boolean, hasD3: boolean): VariantDef | null => {
+const toVariantDef = (
+  row: CsvRow,
+  hasD2: boolean,
+  hasD3: boolean,
+  groupBaseWeight: number | undefined
+): VariantDef | null => {
   const title = (row["Description"] || "").trim() || (row["ProductCode"] || "").trim()
   const sku = (row["ProductCode"] || "").trim()
   const barcode = (row["Barcode"] || "").trim() || undefined
@@ -326,6 +396,7 @@ const toVariantDef = (row: CsvRow, hasD2: boolean, hasD3: boolean): VariantDef |
   if (!sku) {
     return null
   }
+  const sizeForWeight = useSize ? d3 || undefined : undefined
   return {
     title,
     sku,
@@ -336,6 +407,7 @@ const toVariantDef = (row: CsvRow, hasD2: boolean, hasD3: boolean): VariantDef |
     useSizeOption: useSize,
     useTypeOption: useType,
     priceRaw: row["Price"] || "",
+    weightGrams: resolveVariantWeightGrams(row, groupBaseWeight, sizeForWeight),
   }
 }
 
@@ -458,9 +530,15 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
 
     const { hasD2, hasD3 } = collectOptionFlags(pricedRows)
 
+    const headerWeight = parseWeightFromRow(g.rows[0]!)
+    const fallbackVariantWeight = pricedRows
+      .map((r) => parseWeightFromRow(r))
+      .find((w): w is number => typeof w === "number")
+    const groupBaseWeight = headerWeight ?? fallbackVariantWeight
+
     const variantDefs: VariantDef[] = []
     for (const r of pricedRows) {
-      const v = toVariantDef(r, hasD2, hasD3)
+      const v = toVariantDef(r, hasD2, hasD3, groupBaseWeight)
       if (v) {
         variantDefs.push(v)
       }
@@ -531,6 +609,7 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
         title: v.title,
         sku: v.sku,
         barcode: v.barcode,
+        weight: v.weightGrams,
         options: optionsMap,
         prices: [{ amount: tiers.base, currency_code: PRICE_CURRENCY_CODE }],
         metadata: meta,
@@ -564,6 +643,7 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
         handle,
         status: ProductStatus.PUBLISHED,
         thumbnail: thumbnail || undefined,
+        weight: groupBaseWeight,
         images: Array.from(imgs).map((url) => ({ url })),
         metadata: {
           brand: "DNC Workwear",

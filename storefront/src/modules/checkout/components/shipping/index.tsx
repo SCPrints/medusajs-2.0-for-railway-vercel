@@ -16,11 +16,25 @@ import { HttpTypes } from "@medusajs/types"
 type ShippingProps = {
   cart: HttpTypes.StoreCart
   availableShippingMethods: HttpTypes.StoreCartShippingOption[] | null
+  shippingTier?: "flat" | "live"
+  totalWeightGrams?: number
+  thresholdGrams?: number
+}
+
+const formatKg = (grams: number) => {
+  if (!grams || !Number.isFinite(grams)) {
+    return "0 kg"
+  }
+  const kg = grams / 1000
+  return `${kg.toFixed(kg >= 10 ? 1 : 2)} kg`
 }
 
 const Shipping: React.FC<ShippingProps> = ({
   cart,
   availableShippingMethods,
+  shippingTier,
+  totalWeightGrams,
+  thresholdGrams,
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -94,6 +108,25 @@ const Shipping: React.FC<ShippingProps> = ({
       </div>
       {isOpen ? (
         <div data-testid="delivery-options-container">
+          {shippingTier && typeof totalWeightGrams === "number" && (
+            <Text className="text-small-regular text-ui-fg-subtle mb-4">
+              {shippingTier === "flat"
+                ? `Eligible for flat-rate shipping (cart weight ${formatKg(
+                    totalWeightGrams
+                  )}${
+                    thresholdGrams
+                      ? `, under the ${formatKg(thresholdGrams)} threshold`
+                      : ""
+                  }).`
+                : `Live freight quotes shown — cart weight ${formatKg(
+                    totalWeightGrams
+                  )}${
+                    cart?.shipping_address?.postal_code
+                      ? ` to ${cart.shipping_address.postal_code}`
+                      : ""
+                  }.`}
+            </Text>
+          )}
           <div className="pb-8">
             <RadioGroup value={selectedShippingMethod?.id} onChange={set}>
               {availableShippingMethods?.map((option) => {

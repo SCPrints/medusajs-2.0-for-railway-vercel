@@ -5,11 +5,14 @@ import medusaError from "@lib/util/medusa-error"
 import { cache } from "react"
 import { getAuthHeaders } from "./cookies"
 
+const ORDER_FIELDS =
+  "*payment_collections.payments,*fulfillments,+fulfillments.metadata,+fulfillments.labels,*shipping_methods,+shipping_methods.detail"
+
 export const retrieveOrder = cache(async function (id: string) {
   return sdk.store.order
     .retrieve(
       id,
-      { fields: "*payment_collections.payments" },
+      { fields: ORDER_FIELDS },
       { next: { tags: ["order"] }, ...getAuthHeaders() }
     )
     .then(({ order }) => order)
@@ -21,7 +24,10 @@ export const listOrders = cache(async function (
   offset: number = 0
 ) {
   return sdk.store.order
-    .list({ limit, offset }, { next: { tags: ["order"] }, ...getAuthHeaders() })
+    .list(
+      { limit, offset, fields: ORDER_FIELDS },
+      { next: { tags: ["order"] }, ...getAuthHeaders() }
+    )
     .then(({ orders }) => orders)
     .catch((err) => medusaError(err))
 })

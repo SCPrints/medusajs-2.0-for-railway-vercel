@@ -16,7 +16,6 @@ type OptionSelectProps = {
   updateOption: (title: string, value: string) => void
   title: string
   disabled: boolean
-  showSizeQuantityInputs?: boolean
   "data-testid"?: string
 }
 
@@ -28,9 +27,8 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
   title,
   "data-testid": dataTestId,
   disabled,
-  showSizeQuantityInputs = true,
 }) => {
-  const { sizeQuantities, setSizeQuantity, setColorHoverPreview } = useProductOptions()
+  const { setColorHoverPreview } = useProductOptions()
   const rawOptionValues = option.values?.map((v) => v.value)
   const isColorOption = isColorOptionTitle(title)
   const isSizeOption = !isColorOption && /size/i.test(title)
@@ -44,52 +42,6 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
         ? sortGarmentColorLabels([...stringValues])
         : rawOptionValues
   const colorSwatchImageMap = isColorOption ? getColorSwatchImageMap(product, title) : null
-
-  if (isSizeOption && showSizeQuantityInputs && filteredOptions?.length) {
-    return (
-      <div className="flex flex-col gap-2 pt-2 pb-1 text-small-regular" data-testid={dataTestId}>
-        <p className="text-xs text-ui-fg-subtle">
-          Set quantity per size for this colour. The preview follows the size you last changed.
-        </p>
-        <div className="flex flex-col gap-2">
-          {filteredOptions.map((v) => {
-            if (v == null) {
-              return null
-            }
-            const qty = sizeQuantities[v] ?? 0
-            return (
-              <div
-                key={v}
-                className="flex flex-wrap items-center gap-2 rounded-md border border-ui-border-base bg-ui-bg-subtle px-2 py-1.5"
-              >
-                <span className="min-w-[2.5rem] shrink-0 text-sm font-medium text-ui-fg-base">
-                  {v}
-                </span>
-                <label className="ml-auto flex items-center gap-1.5 text-xs text-ui-fg-subtle">
-                  <span className="sr-only">Quantity for size {v}</span>
-                  <span aria-hidden>Qty</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={999}
-                    value={qty}
-                    onChange={(event) => {
-                      const next = Number(event.target.value)
-                      setSizeQuantity(v, next)
-                      updateOption(title, v)
-                    }}
-                    disabled={disabled}
-                    className="w-16 rounded-md border border-ui-border-base bg-ui-bg-base px-2 py-1 text-sm tabular-nums"
-                    data-testid="size-qty-input"
-                  />
-                </label>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div

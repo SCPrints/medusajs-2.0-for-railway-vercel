@@ -46,6 +46,39 @@ export const REDIS_URL = process.env.REDIS_URL
 export const STRIPE_API_KEY = process.env.STRIPE_API_KEY
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 export const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY
+export const SHIPSTATION_WEBHOOK_SECRET = process.env.SHIPSTATION_WEBHOOK_SECRET
+export const SHIPSTATION_WAREHOUSE_POSTCODE = process.env.SHIPSTATION_WAREHOUSE_POSTCODE
+export const SHIPSTATION_WAREHOUSE_COUNTRY_CODE =
+  process.env.SHIPSTATION_WAREHOUSE_COUNTRY_CODE || "AU"
+export const SHIPSTATION_WAREHOUSE_CITY = process.env.SHIPSTATION_WAREHOUSE_CITY
+export const SHIPSTATION_WAREHOUSE_STATE = process.env.SHIPSTATION_WAREHOUSE_STATE
+export const SHIPSTATION_WAREHOUSE_NAME =
+  process.env.SHIPSTATION_WAREHOUSE_NAME || "Warehouse"
+export const SHIPSTATION_WAREHOUSE_ADDRESS_1 =
+  process.env.SHIPSTATION_WAREHOUSE_ADDRESS_1
+export const SHIPSTATION_WAREHOUSE_PHONE = process.env.SHIPSTATION_WAREHOUSE_PHONE
+
+const parseIntEnv = (raw: string | undefined, fallback: number) => {
+  if (!raw) {
+    return fallback
+  }
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
+/**
+ * Hybrid shipping threshold: anything ≤ this weight (incl. packaging overhead)
+ * is offered the manual flat-rate tiers. Anything heavier suppresses flat rates
+ * and surfaces ShipStation calculated quotes.
+ */
+export const SHIPPING_FLAT_RATE_MAX_GRAMS = parseIntEnv(
+  process.env.SHIPPING_FLAT_RATE_MAX_GRAMS,
+  3000
+)
+export const SHIPPING_PACKAGING_OVERHEAD_GRAMS = parseIntEnv(
+  process.env.SHIPPING_PACKAGING_OVERHEAD_GRAMS,
+  150
+)
 
 export const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT
 export const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY

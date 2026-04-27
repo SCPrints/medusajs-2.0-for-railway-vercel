@@ -166,27 +166,27 @@ const medusaConfig = {
         }]
       : []),
 
-    ...(SHIPSTATION_API_KEY
-      ? [{
-          key: Modules.FULFILLMENT,
-          resolve: "@medusajs/fulfillment",
-          options: {
-            providers: [
-              {
-                resolve: "@medusajs/fulfillment-manual",
-                id: "manual",
-              },
-              {
+    {
+      key: Modules.FULFILLMENT,
+      resolve: "@medusajs/fulfillment",
+      options: {
+        providers: [
+          {
+            resolve: "@medusajs/fulfillment-manual",
+            id: "manual",
+          },
+          ...(SHIPSTATION_API_KEY
+            ? [{
                 resolve: "./src/modules/shipstation",
                 id: "shipstation",
                 options: {
                   api_key: SHIPSTATION_API_KEY,
                 },
-              },
-            ],
-          },
-        }]
-      : []),
+              }]
+            : []),
+        ],
+      },
+    },
   ],
 
   plugins: [

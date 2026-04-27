@@ -40,7 +40,7 @@ export default function ButtonAnimationsTestPage() {
             Add-to-cart interaction tests
           </h1>
           <p className="mt-2 max-w-2xl text-ui-fg-muted text-sm small:text-base">
-            Twelve interaction patterns (including a fly + squish combo). Open this
+            Thirteen interaction patterns (including fly + squish and fly + confetti + squish + slot combos). Open this
             route with a country prefix, e.g.{" "}
             <code className="text-ui-fg-base">/au/test/button-animations</code>.
           </p>

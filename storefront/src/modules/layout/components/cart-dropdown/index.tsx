@@ -111,13 +111,17 @@ const CartDropdown = ({
             {cartState && cartState.items?.length ? (
               <>
                 <div className="overflow-y-scroll max-h-[402px] px-4 grid grid-cols-1 gap-y-8 no-scrollbar p-px">
-                  {cartState.items
-                    .sort((a, b) => {
-                      return (a.created_at ?? "") > (b.created_at ?? "")
-                        ? -1
-                        : 1
-                    })
-                    .map((item) => (
+                  {(() => {
+                    const sorted = [...(cartState.items || [])].sort((a, b) =>
+                      (a.created_at ?? "") > (b.created_at ?? "") ? -1 : 1
+                    )
+                    const cap = 6
+                    const isBulk = sorted.length > 20
+                    const visible = isBulk ? sorted.slice(0, cap) : sorted
+                    const hidden = isBulk ? sorted.length - visible.length : 0
+                    return (
+                      <>
+                        {visible.map((item) => (
                       <div
                         className="grid grid-cols-[122px_1fr] gap-x-4"
                         key={item.id}
@@ -174,6 +178,18 @@ const CartDropdown = ({
                         </div>
                       </div>
                     ))}
+                        {hidden > 0 ? (
+                          <div
+                            className="text-center text-small-regular text-ui-fg-subtle py-2"
+                            data-testid="cart-dropdown-truncated"
+                          >
+                            and {hidden} more — open cart to view all{" "}
+                            {sorted.length} lines.
+                          </div>
+                        ) : null}
+                      </>
+                    )
+                  })()}
                 </div>
                 <div className="p-4 flex flex-col gap-y-4 text-small-regular">
                   <div className="flex items-center justify-between">

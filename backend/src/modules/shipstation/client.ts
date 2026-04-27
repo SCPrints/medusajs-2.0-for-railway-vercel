@@ -98,4 +98,36 @@ export class ShipStationClient {
       method: "PUT",
     })
   }
+
+  /**
+   * Retrieves a single label (e.g. when a webhook references it directly).
+   * ShipStation returns the resource at `/labels/{label_id}`.
+   */
+  async getLabel(id: string): Promise<Label> {
+    return await this.sendRequest(`/labels/${id}`)
+  }
+
+  /**
+   * Lists all labels for a shipment. Multi-parcel shipments produce multiple
+   * labels — used by the webhook to materialise the parcels array on the
+   * Medusa fulfillment.
+   */
+  async listLabelsForShipment(shipmentId: string): Promise<{ labels: Label[] }> {
+    return await this.sendRequest(
+      `/labels?shipment_id=${encodeURIComponent(shipmentId)}`
+    )
+  }
+
+  /**
+   * Generic GET against an arbitrary ShipStation resource URL (e.g.
+   * `webhook.resource_url`). Falls back to a no-op if the URL doesn't
+   * point at the v2 API.
+   */
+  async getByUrl<T = unknown>(url: string): Promise<T | null> {
+    if (!url) return null
+    const v2Prefix = "https://api.shipstation.com/v2"
+    const path = url.startsWith(v2Prefix) ? url.slice(v2Prefix.length) : null
+    if (!path) return null
+    return await this.sendRequest(path)
+  }
 }

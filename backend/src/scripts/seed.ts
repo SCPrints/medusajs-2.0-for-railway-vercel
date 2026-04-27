@@ -62,8 +62,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
   const salesChannelModuleService = container.resolve(Modules.SALES_CHANNEL);
   const storeModuleService = container.resolve(Modules.STORE);
 
-  const countries = ["gb", "de", "dk", "se", "fr", "es", "it"];
-
   logger.info("Seeding store data...");
   const [store] = await storeModuleService.listStores();
   let defaultSalesChannel = await salesChannelModuleService.listSalesChannels({
@@ -91,14 +89,8 @@ export default async function seedDemoData({ container }: ExecArgs) {
       store_id: store.id,
       supported_currencies: [
         {
-          currency_code: "eur",
-          is_default: true,
-        },
-        {
-          currency_code: "usd",
-        },
-        {
           currency_code: "aud",
+          is_default: true,
         },
       ],
     },
@@ -117,12 +109,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
     input: {
       regions: [
         {
-          name: "Europe",
-          currency_code: "eur",
-          countries,
-          payment_providers: ["pp_system_default"],
-        },
-        {
           name: "Australia",
           currency_code: "aud",
           countries: ["au"],
@@ -131,16 +117,17 @@ export default async function seedDemoData({ container }: ExecArgs) {
       ],
     },
   });
-  const euRegion = regionResult[0];
-  const auRegion = regionResult[1];
+  const auRegion = regionResult[0];
   logger.info("Finished seeding regions.");
 
   logger.info("Seeding tax regions...");
   await createTaxRegionsWorkflow(container).run({
-    input: [...countries, "au"].map((country_code) => ({
-      country_code,
-      provider_id: "tp_system",
-    })),
+    input: [
+      {
+        country_code: "au",
+        provider_id: "tp_system",
+      },
+    ],
   });
   logger.info("Finished seeding tax regions.");
 
@@ -151,10 +138,10 @@ export default async function seedDemoData({ container }: ExecArgs) {
     input: {
       locations: [
         {
-          name: "European Warehouse",
+          name: "Australian Warehouse",
           address: {
-            city: "Copenhagen",
-            country_code: "DK",
+            city: "Sydney",
+            country_code: "AU",
             address_1: "",
           },
         },
@@ -203,42 +190,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
   }
 
   const fulfillmentSet = await fulfillmentModuleService.createFulfillmentSets({
-    name: "European Warehouse delivery",
+    name: "Australian Warehouse delivery",
     type: "shipping",
     service_zones: [
-      {
-        name: "Europe",
-        geo_zones: [
-          {
-            country_code: "gb",
-            type: "country",
-          },
-          {
-            country_code: "de",
-            type: "country",
-          },
-          {
-            country_code: "dk",
-            type: "country",
-          },
-          {
-            country_code: "se",
-            type: "country",
-          },
-          {
-            country_code: "fr",
-            type: "country",
-          },
-          {
-            country_code: "es",
-            type: "country",
-          },
-          {
-            country_code: "it",
-            type: "country",
-          },
-        ],
-      },
       {
         name: "Australia",
         geo_zones: [
@@ -260,160 +214,166 @@ export default async function seedDemoData({ container }: ExecArgs) {
     },
   });
 
-  const europeServiceZone = fulfillmentSet.service_zones.find(
-    (z) => z.name === "Europe"
-  )!;
   const australiaServiceZone = fulfillmentSet.service_zones.find(
     (z) => z.name === "Australia"
   )!;
 
+  // Two-tier shipping for the AU region:
+  //   - Manual flat $10 / $15 AUD options (used when cart ≤ ~3kg)
+  //   - ShipStation calculated options (used when cart > ~3kg)
+  // The custom /store/cart-shipping-options route filters between the two
+  // tiers based on total cart weight + packaging overhead.
+  const auShippingOptions: any[] = [
+    {
+      name: "Standard Shipping (AU)",
+      price_type: "flat",
+      provider_id: "manual_manual",
+      service_zone_id: australiaServiceZone.id,
+      shipping_profile_id: shippingProfile.id,
+      type: {
+        label: "Standard",
+        description: "Flat-rate Australia Post (≤ 3kg).",
+        code: "standard_au",
+      },
+      prices: [
+        {
+          currency_code: "aud",
+          amount: 1000,
+        },
+        {
+          region_id: auRegion.id,
+          amount: 1000,
+        },
+      ],
+      rules: [
+        {
+          attribute: "enabled_in_store",
+          value: "true",
+          operator: "eq",
+        },
+        {
+          attribute: "is_return",
+          value: "false",
+          operator: "eq",
+        },
+      ],
+    },
+    {
+      name: "Express Shipping (AU)",
+      price_type: "flat",
+      provider_id: "manual_manual",
+      service_zone_id: australiaServiceZone.id,
+      shipping_profile_id: shippingProfile.id,
+      type: {
+        label: "Express",
+        description: "Flat-rate Australia Post Express (≤ 3kg).",
+        code: "express_au",
+      },
+      prices: [
+        {
+          currency_code: "aud",
+          amount: 1500,
+        },
+        {
+          region_id: auRegion.id,
+          amount: 1500,
+        },
+      ],
+      rules: [
+        {
+          attribute: "enabled_in_store",
+          value: "true",
+          operator: "eq",
+        },
+        {
+          attribute: "is_return",
+          value: "false",
+          operator: "eq",
+        },
+      ],
+    },
+  ];
+
+  // Only seed the calculated tier if the ShipStation provider is configured;
+  // otherwise the option would 500 on every checkout when an admin tries to
+  // resolve a rate. Admin can still create these options manually later.
+  const fulfillmentProviders =
+    await fulfillmentModuleService.listFulfillmentProviders({
+      id: "shipstation_shipstation",
+    });
+  const hasShipStation = fulfillmentProviders.length > 0;
+
+  if (hasShipStation) {
+    auShippingOptions.push(
+      {
+        name: "Standard Live Quote (AU)",
+        price_type: "calculated",
+        provider_id: "shipstation_shipstation",
+        service_zone_id: australiaServiceZone.id,
+        shipping_profile_id: shippingProfile.id,
+        type: {
+          label: "Standard",
+          description: "Live freight quote via ShipStation (>3kg).",
+          code: "standard_live_au",
+        },
+        // Carrier IDs vary per ShipStation account — leave blank so admins
+        // wire them up via the Admin once the carriers are imported.
+        data: {
+          carrier_id: "",
+          carrier_service_code: "",
+        },
+        prices: [],
+        rules: [
+          {
+            attribute: "enabled_in_store",
+            value: "true",
+            operator: "eq",
+          },
+          {
+            attribute: "is_return",
+            value: "false",
+            operator: "eq",
+          },
+        ],
+      },
+      {
+        name: "Express Live Quote (AU)",
+        price_type: "calculated",
+        provider_id: "shipstation_shipstation",
+        service_zone_id: australiaServiceZone.id,
+        shipping_profile_id: shippingProfile.id,
+        type: {
+          label: "Express",
+          description: "Live express freight quote via ShipStation (>3kg).",
+          code: "express_live_au",
+        },
+        data: {
+          carrier_id: "",
+          carrier_service_code: "",
+        },
+        prices: [],
+        rules: [
+          {
+            attribute: "enabled_in_store",
+            value: "true",
+            operator: "eq",
+          },
+          {
+            attribute: "is_return",
+            value: "false",
+            operator: "eq",
+          },
+        ],
+      }
+    );
+  } else {
+    logger.info(
+      "ShipStation provider not registered (SHIPSTATION_API_KEY unset) — skipping calculated shipping options. Set SHIPSTATION_API_KEY and re-seed (or create the options via Admin) to enable live quotes."
+    );
+  }
+
   await createShippingOptionsWorkflow(container).run({
-    input: [
-      {
-        name: "Standard Shipping",
-        price_type: "flat",
-        provider_id: "manual_manual",
-        service_zone_id: europeServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Standard",
-          description: "Ship in 2-3 days.",
-          code: "standard",
-        },
-        prices: [
-          {
-            currency_code: "usd",
-            amount: 10,
-          },
-          {
-            currency_code: "eur",
-            amount: 10,
-          },
-          {
-            region_id: euRegion.id,
-            amount: 10,
-          },
-        ],
-        rules: [
-          {
-            attribute: "enabled_in_store",
-            value: "true",
-            operator: "eq",
-          },
-          {
-            attribute: "is_return",
-            value: "false",
-            operator: "eq",
-          },
-        ],
-      },
-      {
-        name: "Express Shipping",
-        price_type: "flat",
-        provider_id: "manual_manual",
-        service_zone_id: europeServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Express",
-          description: "Ship in 24 hours.",
-          code: "express",
-        },
-        prices: [
-          {
-            currency_code: "usd",
-            amount: 10,
-          },
-          {
-            currency_code: "eur",
-            amount: 10,
-          },
-          {
-            region_id: euRegion.id,
-            amount: 10,
-          },
-        ],
-        rules: [
-          {
-            attribute: "enabled_in_store",
-            value: "true",
-            operator: "eq",
-          },
-          {
-            attribute: "is_return",
-            value: "false",
-            operator: "eq",
-          },
-        ],
-      },
-      {
-        name: "Standard Shipping (AU)",
-        price_type: "flat",
-        provider_id: "manual_manual",
-        service_zone_id: australiaServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Standard",
-          description: "Australia Post regular.",
-          code: "standard_au",
-        },
-        prices: [
-          {
-            currency_code: "aud",
-            amount: 1000,
-          },
-          {
-            region_id: auRegion.id,
-            amount: 1000,
-          },
-        ],
-        rules: [
-          {
-            attribute: "enabled_in_store",
-            value: "true",
-            operator: "eq",
-          },
-          {
-            attribute: "is_return",
-            value: "false",
-            operator: "eq",
-          },
-        ],
-      },
-      {
-        name: "Express Shipping (AU)",
-        price_type: "flat",
-        provider_id: "manual_manual",
-        service_zone_id: australiaServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Express",
-          description: "Australia Post express.",
-          code: "express_au",
-        },
-        prices: [
-          {
-            currency_code: "aud",
-            amount: 1400,
-          },
-          {
-            region_id: auRegion.id,
-            amount: 1400,
-          },
-        ],
-        rules: [
-          {
-            attribute: "enabled_in_store",
-            value: "true",
-            operator: "eq",
-          },
-          {
-            attribute: "is_return",
-            value: "false",
-            operator: "eq",
-          },
-        ],
-      },
-    ],
+    input: auShippingOptions,
   });
   logger.info("Finished seeding fulfillment data.");
 
@@ -522,144 +482,120 @@ export default async function seedDemoData({ container }: ExecArgs) {
             {
               title: "S / Black",
               sku: "SHIRT-S-BLACK",
+              weight: 170,
               options: {
                 Size: "S",
                 Color: "Black",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "S / White",
               sku: "SHIRT-S-WHITE",
+              weight: 170,
               options: {
                 Size: "S",
                 Color: "White",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "M / Black",
               sku: "SHIRT-M-BLACK",
+              weight: 185,
               options: {
                 Size: "M",
                 Color: "Black",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "M / White",
               sku: "SHIRT-M-WHITE",
+              weight: 185,
               options: {
                 Size: "M",
                 Color: "White",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "L / Black",
               sku: "SHIRT-L-BLACK",
+              weight: 200,
               options: {
                 Size: "L",
                 Color: "Black",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "L / White",
               sku: "SHIRT-L-WHITE",
+              weight: 200,
               options: {
                 Size: "L",
                 Color: "White",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "XL / Black",
               sku: "SHIRT-XL-BLACK",
+              weight: 220,
               options: {
                 Size: "XL",
                 Color: "Black",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "XL / White",
               sku: "SHIRT-XL-WHITE",
+              weight: 220,
               options: {
                 Size: "XL",
                 Color: "White",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
@@ -699,68 +635,56 @@ export default async function seedDemoData({ container }: ExecArgs) {
             {
               title: "S",
               sku: "SWEATSHIRT-S",
+              weight: 500,
               options: {
                 Size: "S",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "M",
               sku: "SWEATSHIRT-M",
+              weight: 540,
               options: {
                 Size: "M",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "L",
               sku: "SWEATSHIRT-L",
+              weight: 590,
               options: {
                 Size: "L",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "XL",
               sku: "SWEATSHIRT-XL",
+              weight: 640,
               options: {
                 Size: "XL",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
@@ -800,68 +724,56 @@ export default async function seedDemoData({ container }: ExecArgs) {
             {
               title: "S",
               sku: "SWEATPANTS-S",
+              weight: 400,
               options: {
                 Size: "S",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "M",
               sku: "SWEATPANTS-M",
+              weight: 440,
               options: {
                 Size: "M",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "L",
               sku: "SWEATPANTS-L",
+              weight: 480,
               options: {
                 Size: "L",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "XL",
               sku: "SWEATPANTS-XL",
+              weight: 520,
               options: {
                 Size: "XL",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
@@ -901,68 +813,56 @@ export default async function seedDemoData({ container }: ExecArgs) {
             {
               title: "S",
               sku: "SHORTS-S",
+              weight: 200,
               options: {
                 Size: "S",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "M",
               sku: "SHORTS-M",
+              weight: 220,
               options: {
                 Size: "M",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "L",
               sku: "SHORTS-L",
+              weight: 240,
               options: {
                 Size: "L",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
             {
               title: "XL",
               sku: "SHORTS-XL",
+              weight: 260,
               options: {
                 Size: "XL",
               },
               prices: [
                 {
-                  amount: 10,
-                  currency_code: "eur",
-                },
-                {
-                  amount: 15,
-                  currency_code: "usd",
+                  amount: 1500,
+                  currency_code: "aud",
                 },
               ],
             },
@@ -1011,61 +911,56 @@ export default async function seedDemoData({ container }: ExecArgs) {
             {
               title: "58cm × 100cm",
               sku: "DTF-AUTO-58x100",
+              weight: 200,
               options: {
                 "Gang sheet size": "58cm × 100cm",
               },
               prices: [
                 { amount: 2400, currency_code: "aud" },
-                { amount: 1500, currency_code: "eur" },
-                { amount: 1600, currency_code: "usd" },
               ],
             },
             {
               title: "58cm × 200cm",
               sku: "DTF-AUTO-58x200",
+              weight: 380,
               options: {
                 "Gang sheet size": "58cm × 200cm",
               },
               prices: [
                 { amount: 4800, currency_code: "aud" },
-                { amount: 3000, currency_code: "eur" },
-                { amount: 3200, currency_code: "usd" },
               ],
             },
             {
               title: "58cm × 300cm",
               sku: "DTF-AUTO-58x300",
+              weight: 560,
               options: {
                 "Gang sheet size": "58cm × 300cm",
               },
               prices: [
                 { amount: 7200, currency_code: "aud" },
-                { amount: 4500, currency_code: "eur" },
-                { amount: 4800, currency_code: "usd" },
               ],
             },
             {
               title: "58cm × 400cm",
               sku: "DTF-AUTO-58x400",
+              weight: 740,
               options: {
                 "Gang sheet size": "58cm × 400cm",
               },
               prices: [
                 { amount: 9600, currency_code: "aud" },
-                { amount: 6000, currency_code: "eur" },
-                { amount: 6400, currency_code: "usd" },
               ],
             },
             {
               title: "58cm × 500cm",
               sku: "DTF-AUTO-58x500",
+              weight: 920,
               options: {
                 "Gang sheet size": "58cm × 500cm",
               },
               prices: [
                 { amount: 12000, currency_code: "aud" },
-                { amount: 7500, currency_code: "eur" },
-                { amount: 8000, currency_code: "usd" },
               ],
             },
           ],

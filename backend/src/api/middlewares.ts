@@ -19,5 +19,15 @@ export default defineMiddlewares({
       methods: ["POST"],
       bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
     },
+    {
+      // ShipStation v2 webhook endpoint. Preserve the raw request body so we
+      // can verify the HMAC-SHA256 signature header.
+      matcher: "/hooks/shipstation",
+      methods: ["POST"],
+      bodyParser: {
+        preserveRawBody: true,
+        sizeLimit: "1mb",
+      },
+    },
   ],
 })

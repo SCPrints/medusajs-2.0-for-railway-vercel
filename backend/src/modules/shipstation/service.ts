@@ -10,8 +10,45 @@ import {
   StockLocationAddressDTO,
 } from "@medusajs/framework/types"
 import { AbstractFulfillmentProviderService, MedusaError } from "@medusajs/framework/utils"
+import {
+  SHIPPING_PACKAGING_OVERHEAD_GRAMS,
+  SHIPSTATION_WAREHOUSE_ADDRESS_1,
+  SHIPSTATION_WAREHOUSE_CITY,
+  SHIPSTATION_WAREHOUSE_COUNTRY_CODE,
+  SHIPSTATION_WAREHOUSE_NAME,
+  SHIPSTATION_WAREHOUSE_PHONE,
+  SHIPSTATION_WAREHOUSE_POSTCODE,
+  SHIPSTATION_WAREHOUSE_STATE,
+} from "../../lib/constants"
 import { ShipStationClient } from "./client"
 import { GetShippingRatesResponse, Rate, ShipStationAddress } from "./types"
+
+const coerceWeightGrams = (raw: unknown): number => {
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+    return raw
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    const parsed = Number.parseFloat(raw)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed
+    }
+  }
+  return 0
+}
+
+const lineItemWeightGrams = (item: any): number => {
+  const fromMetadata = item?.metadata
+    ? coerceWeightGrams(item.metadata.weight_grams)
+    : 0
+  if (fromMetadata) {
+    return fromMetadata
+  }
+  const variantWeight = coerceWeightGrams(item?.variant?.weight)
+  if (variantWeight) {
+    return variantWeight
+  }
+  return coerceWeightGrams(item?.variant?.product?.weight ?? item?.product?.weight)
+}
 
 type InjectedDependencies = {
   logger: Logger
@@ -44,6 +81,14 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
     }
   }
 
+  /**
+   * Exposes the underlying ShipStation client for trusted callers
+   * (e.g. the `/hooks/shipstation` webhook route).
+   */
+  getClient(): ShipStationClient {
+    return this.client
+  }
+
   async getFulfillmentOptions(): Promise<FulfillmentOption[]> {
     const { carriers } = await this.client.getCarriers()
     const fulfillmentOptions: FulfillmentOption[] = []
@@ -68,6 +113,33 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
     return true
   }
 
+  private buildShipFrom(from_address?: {
+    name?: string
+    address?: Omit<StockLocationAddressDTO, "created_at" | "updated_at" | "deleted_at">
+  }): ShipStationAddress {
+    const a = from_address?.address
+    const postal = a?.postal_code || SHIPSTATION_WAREHOUSE_POSTCODE || ""
+    const country = a?.country_code || SHIPSTATION_WAREHOUSE_COUNTRY_CODE || ""
+
+    if (!postal || !country) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "ShipStation requires a from postcode and country code (set the stock location address or SHIPSTATION_WAREHOUSE_* envs)."
+      )
+    }
+
+    return {
+      name: from_address?.name || SHIPSTATION_WAREHOUSE_NAME || "Warehouse",
+      phone: a?.phone || SHIPSTATION_WAREHOUSE_PHONE || "",
+      address_line1: a?.address_1 || SHIPSTATION_WAREHOUSE_ADDRESS_1 || "",
+      city_locality: a?.city || SHIPSTATION_WAREHOUSE_CITY || "",
+      state_province: a?.province || SHIPSTATION_WAREHOUSE_STATE || "",
+      postal_code: postal,
+      country_code: country,
+      address_residential_indicator: "unknown",
+    }
+  }
+
   private async createShipment({
     carrier_id,
     carrier_service_code,
@@ -75,6 +147,8 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
     to_address,
     items,
     currency_code,
+    external_order_id,
+    external_shipment_id,
   }: {
     carrier_id: string
     carrier_service_code: string
@@ -85,29 +159,24 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
     to_address?: Omit<CartAddressDTO, "created_at" | "updated_at" | "deleted_at" | "id">
     items: CartLineItemDTO[] | OrderLineItemDTO[]
     currency_code: string
+    /** Medusa order id — surfaced as ShipStation `external_order_id` so the webhook can resolve back. */
+    external_order_id?: string
+    /** Medusa fulfillment id — surfaced as `external_shipment_id`. */
+    external_shipment_id?: string
   }): Promise<GetShippingRatesResponse> {
-    if (!from_address?.address) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "from_location.address is required to calculate shipping rate"
-      )
-    }
-
-    const ship_from: ShipStationAddress = {
-      name: from_address?.name || "",
-      phone: from_address?.address?.phone || "",
-      address_line1: from_address?.address?.address_1 || "",
-      city_locality: from_address?.address?.city || "",
-      state_province: from_address?.address?.province || "",
-      postal_code: from_address?.address?.postal_code || "",
-      country_code: from_address?.address?.country_code || "",
-      address_residential_indicator: "unknown",
-    }
+    const ship_from = this.buildShipFrom(from_address)
 
     if (!to_address) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
         "shipping_address is required to calculate shipping rate"
+      )
+    }
+
+    if (!to_address.postal_code || !to_address.country_code) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "shipping_address.postal_code and country_code are required to calculate shipping rate"
       )
     }
 
@@ -117,15 +186,22 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
       address_line1: to_address.address_1 || "",
       city_locality: to_address.city || "",
       state_province: to_address.province || "",
-      postal_code: to_address.postal_code || "",
-      country_code: to_address.country_code || "",
+      postal_code: to_address.postal_code,
+      country_code: to_address.country_code,
       address_residential_indicator: "unknown",
     }
 
-    const packageWeight = items.reduce((sum, item) => {
-      // @ts-ignore variant may differ by context
-      return sum + (item.variant?.weight || 0)
+    // Σ(item weight × quantity) in grams, then add packaging overhead, then convert to kg.
+    const itemsWeightGrams = items.reduce((sum, item) => {
+      const qty = (item as any)?.quantity ?? 1
+      return sum + lineItemWeightGrams(item) * (typeof qty === "number" && qty > 0 ? qty : 1)
     }, 0)
+    const totalWeightGrams = itemsWeightGrams + (SHIPPING_PACKAGING_OVERHEAD_GRAMS || 0)
+    // ShipStation expects a positive weight. Fall back to 100g if every item is
+    // missing a weight so the rate call doesn't 400 — the storefront and admin
+    // widgets will surface the missing-weight warning separately.
+    const safeWeightGrams = totalWeightGrams > 0 ? totalWeightGrams : 100
+    const packageWeightKg = Number((safeWeightGrams / 1000).toFixed(3))
 
     return await this.client.getShippingRates({
       shipment: {
@@ -133,6 +209,10 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
         service_code: carrier_service_code,
         ship_to,
         ship_from,
+        // @ts-ignore external_order_id accepted by ShipStation but not in local type
+        external_order_id,
+        // @ts-ignore external_shipment_id accepted by ShipStation but not in local type
+        external_shipment_id,
         // @ts-ignore accepted by ShipStation but not in local type
         validate_address: "no_validation",
         items: items?.map((item) => ({
@@ -146,7 +226,7 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
         packages: [
           {
             weight: {
-              value: packageWeight,
+              value: packageWeightKg,
               unit: "kilogram",
             },
           },
@@ -285,6 +365,9 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
       })
     })
 
+    const orderId = (order as any)?.id as string | undefined
+    const fulfillmentId = (fulfillment as any)?.id as string | undefined
+
     const newShipment = await this.createShipment({
       carrier_id: originalShipment.carrier_id,
       carrier_service_code: originalShipment.service_code,
@@ -312,6 +395,8 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
       items: orderItemsToFulfill as OrderLineItemDTO[],
       // @ts-ignore order object is dynamic
       currency_code: order?.currency_code,
+      external_order_id: orderId,
+      external_shipment_id: fulfillmentId,
     })
 
     const label = await this.client.purchaseLabelForShipment(newShipment.shipment_id)
@@ -321,6 +406,8 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
         ...(((fulfillment.data as object) || {}) as object),
         label_id: label.label_id,
         shipment_id: label.shipment_id,
+        external_order_id: orderId,
+        external_shipment_id: fulfillmentId,
       },
     }
   }

@@ -97,6 +97,58 @@ const getVariantColor = (row: CsvRow) => {
   return undefined
 }
 
+const getVariantSize = (row: CsvRow) => {
+  for (let optionIdx = 1; optionIdx <= 3; optionIdx++) {
+    const optionName = row[`Variant Option ${optionIdx} Name`]
+    const optionValue = row[`Variant Option ${optionIdx} Value`]
+    if (!optionName || !optionValue) {
+      continue
+    }
+    if (/size/i.test(optionName)) {
+      return optionValue
+    }
+  }
+  return undefined
+}
+
+/**
+ * Garments grow by ~10–15% in mass per size step. When a CSV provides only the
+ * product (mid-size) weight we scale per variant so the ShipStation rate calls
+ * receive plausible per-size weights instead of one flat number.
+ */
+const SIZE_WEIGHT_MULTIPLIER: Record<string, number> = {
+  XXS: 0.85,
+  XS: 0.9,
+  S: 0.95,
+  M: 1,
+  L: 1.07,
+  XL: 1.14,
+  "2XL": 1.22,
+  XXL: 1.22,
+  "3XL": 1.3,
+  XXXL: 1.3,
+  "4XL": 1.38,
+  "5XL": 1.46,
+}
+
+const resolveVariantWeightGrams = (row: CsvRow, productWeight: number | undefined): number | undefined => {
+  const variantWeightRaw = (row["Variant Weight"] || "").trim()
+  if (variantWeightRaw) {
+    const parsed = Number.parseInt(variantWeightRaw, 10)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed
+    }
+  }
+
+  if (typeof productWeight !== "number" || !Number.isFinite(productWeight) || productWeight <= 0) {
+    return undefined
+  }
+
+  const size = (getVariantSize(row) || "").trim().toUpperCase()
+  const multiplier = SIZE_WEIGHT_MULTIPLIER[size] ?? 1
+  return Math.round(productWeight * multiplier)
+}
+
 export default async function importSelectedAsColourProducts({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
@@ -194,6 +246,8 @@ export default async function importSelectedAsColourProducts({ container }: Exec
       values: Array.from(values),
     }))
 
+    const productWeight = toNullableInt(first["Product Weight"])
+
     const variants = productRows.map((row, index) => {
       const variantOptions: Record<string, string> = {}
 
@@ -214,11 +268,13 @@ export default async function importSelectedAsColourProducts({ container }: Exec
         all: [frontImage, backImage].filter(Boolean) as string[],
       }
       const variantColor = getVariantColor(row)
+      const variantWeight = resolveVariantWeightGrams(row, productWeight)
 
       return {
         title: row["Variant Title"] || `Variant ${index + 1}`,
         sku: row["Variant Sku"] || undefined,
         barcode: row["Variant Barcode"] || undefined,
+        weight: variantWeight,
         metadata: {
           garment_color: variantColor,
           garment_images: garmentImages,
@@ -241,7 +297,7 @@ export default async function importSelectedAsColourProducts({ container }: Exec
       handle,
       status: ProductStatus.PUBLISHED,
       thumbnail: first["Product Thumbnail"] || undefined,
-      weight: toNullableInt(first["Product Weight"]),
+      weight: productWeight,
       material: first["Product Material"] || undefined,
       origin_country: first["Product Origin Country"] || undefined,
       hs_code: first["Product Hs Code"] || undefined,

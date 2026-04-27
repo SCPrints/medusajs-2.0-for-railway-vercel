@@ -21,19 +21,6 @@ type ProductTemplateProps = {
   countryCode: string
 }
 
-const isPdpEmbedCustomizerEnabled = () =>
-  String(process.env.NEXT_PUBLIC_PDP_EMBED_CUSTOMIZER ?? "true")
-    .trim()
-    .toLowerCase() === "true"
-
-const shouldRenderEmbeddedCustomizer = (product: HttpTypes.StoreProduct) => {
-  if (!isPdpEmbedCustomizerEnabled()) {
-    return false
-  }
-
-  return true
-}
-
 const ProductTemplate: React.FC<ProductTemplateProps> = ({
   product,
   region,
@@ -53,7 +40,10 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
     )
   }
 
-  const hasEmbeddedCustomizer = shouldRenderEmbeddedCustomizer(product)
+  // The customizer flow is the only purchase path — blank garments cannot be
+  // ordered directly. ProductActions renders a "Customize this product" CTA
+  // (via `hideInlinePurchaseControls`) that scrolls to the embedded
+  // customizer.
   const gallerySlot = (
     <ImageGallery
       product={product}
@@ -68,14 +58,14 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
           disabled={true}
           product={product}
           region={region}
-          hideInlinePurchaseControls={hasEmbeddedCustomizer}
+          hideInlinePurchaseControls
         />
       }
     >
       <ProductActionsWrapper
         id={product.id}
         region={region}
-        hideInlinePurchaseControls={hasEmbeddedCustomizer}
+        hideInlinePurchaseControls
       />
     </Suspense>
   )
@@ -91,28 +81,20 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
                 <ProductTabs product={product} />
               </aside>
 
-              {hasEmbeddedCustomizer ? (
-                <div className="lg:col-span-9 grid gap-8 lg:grid-cols-9 lg:items-start">
-                  <PdpCustomizerBoundary>
-                    <EmbeddedProductCustomizer
-                      product={product}
-                      integratedPdpSlots={{
-                        gallery: gallerySlot,
-                        variantPickers: variantPickersSlot,
-                      }}
-                    />
-                  </PdpCustomizerBoundary>
-                </div>
-              ) : (
-                <>
-                  <div className="block w-full relative lg:col-span-6">
-                    {gallerySlot}
-                  </div>
-                  <div className="flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:col-span-3 lg:max-w-none lg:py-0">
-                    {variantPickersSlot}
-                  </div>
-                </>
-              )}
+              <div
+                id="product-customizer"
+                className="lg:col-span-9 grid gap-8 lg:grid-cols-9 lg:items-start"
+              >
+                <PdpCustomizerBoundary>
+                  <EmbeddedProductCustomizer
+                    product={product}
+                    integratedPdpSlots={{
+                      gallery: gallerySlot,
+                      variantPickers: variantPickersSlot,
+                    }}
+                  />
+                </PdpCustomizerBoundary>
+              </div>
             </div>
           </ProductOptionsProvider>
         </PrintPlacementProvider>
