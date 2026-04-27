@@ -79,6 +79,52 @@ export function isLongSleeveGarmentProduct(
   return false
 }
 
+const HOODIE_META_KEYS = [
+  "garment_type",
+  "style",
+  "product_type",
+  "category",
+  "apparel_category",
+] as const
+
+/** Hoodie / hooded fleece products — used for home “featured range” and similar rails. */
+export function isHoodieGarmentProduct(
+  product: HttpTypes.StoreProduct | undefined | null
+): boolean {
+  if (!product) {
+    return false
+  }
+
+  const meta = (product.metadata ?? {}) as Record<string, unknown>
+  const metaString = (key: string): string | null => {
+    const v = meta[key]
+    return typeof v === "string" && v.trim() ? v.trim().toLowerCase() : null
+  }
+
+  for (const key of HOODIE_META_KEYS) {
+    const s = metaString(key)
+    if (s && /\bhoodie\b/.test(s)) {
+      return true
+    }
+  }
+
+  const blob = [
+    product.title,
+    product.handle,
+    product.subtitle,
+    product.description,
+    metaString("style"),
+    metaString("product_type"),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+
+  return /\b(hoodie|hoodies|hooded|hood\b|zip\s*hood|zip\s*hoodie|sweatshirt|sweat\s*shirt)\b/.test(
+    blob
+  )
+}
+
 function getSleevePlaceholderUrl(
   side: "left_sleeve" | "right_sleeve",
   product: HttpTypes.StoreProduct | undefined

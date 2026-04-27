@@ -27,6 +27,7 @@ import {
 } from "@modules/home/components/service-icons"
 import ProductListingCard from "@modules/products/components/product-listing-card"
 import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
+import { isHoodieGarmentProduct } from "@modules/products/lib/variant-options"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -87,12 +88,19 @@ export default async function Home({
 }) {
   const { countryCode } = await params
   const region = await getRegion(countryCode)
+  const FEATURED_RAIL_LIMIT = 12
+  const FEATURED_FETCH_WINDOW = 48
+
   const {
-    response: { products },
+    response: { products: fetchedProducts },
   } = await getProductsList({
     countryCode,
-    queryParams: { limit: 12 },
+    queryParams: { limit: FEATURED_FETCH_WINDOW },
   })
+
+  const hoodieProducts = fetchedProducts.filter(isHoodieGarmentProduct)
+  const otherProducts = fetchedProducts.filter((p) => !isHoodieGarmentProduct(p))
+  const products = [...hoodieProducts, ...otherProducts].slice(0, FEATURED_RAIL_LIMIT)
 
   if (!region) {
     return null
