@@ -398,7 +398,31 @@ function gameReducer(state: GameState, action: Action): GameState {
   return state
 }
 
-export default function MiniTetris() {
+/** Default vs 1.5× (not-found) cell dimensions */
+const TETRIS_SIZES = {
+  default: {
+    cellEmpty:
+      "w-3.5 h-3.5 small:w-4 small:h-4 border border-ui-border-base/50 bg-ui-bg-subtle",
+    cellFilled:
+      "w-3.5 h-3.5 small:w-4 small:h-4 border border-ui-border-base box-border",
+    next: "w-3 h-3 border border-ui-border-base/50",
+  },
+  lg: {
+    cellEmpty:
+      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-ui-border-base/50 bg-ui-bg-subtle",
+    cellFilled:
+      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-ui-border-base box-border",
+    next: "w-[1.125rem] h-[1.125rem] border border-ui-border-base/50",
+  },
+} as const
+
+export type MiniTetrisProps = {
+  /** `"lg"` = 1.5× playfield and preview cells (e.g. 404). */
+  size?: "default" | "lg"
+}
+
+export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
+  const s = TETRIS_SIZES[size]
   const [state, dispatch] = useReducer(
     gameReducer,
     undefined,
@@ -497,9 +521,18 @@ export default function MiniTetris() {
 
   const nextMat = getShapeM(state.next, 0)
 
+  const wrapPad =
+    size === "lg" ? "p-6 small:p-8 max-w-5xl" : "p-4 small:p-5 max-w-2xl"
+  const colGap = size === "lg" ? "gap-9" : "gap-6"
+  const sideMinW = size === "lg" ? "min-w-[15rem]" : "min-w-[10rem]"
+
   return (
-    <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 small:p-5 max-w-2xl">
-      <div className="flex flex-col small:flex-row gap-6 small:items-start">
+    <div
+      className={`rounded-lg border border-ui-border-base bg-ui-bg-subtle ${wrapPad}`}
+    >
+      <div
+        className={`flex flex-col small:flex-row ${colGap} small:items-start`}
+      >
         <div
           className="inline-block outline-none"
           onKeyDown={onKeyDown}
@@ -524,7 +557,7 @@ export default function MiniTetris() {
                 if (cell === 0) {
                   return (
                     <div
-                      className="w-3.5 h-3.5 small:w-4 small:h-4 border border-ui-border-base/50 bg-ui-bg-subtle"
+                      className={s.cellEmpty}
                       key={`${ri}-${ci}`}
                     />
                   )
@@ -532,7 +565,7 @@ export default function MiniTetris() {
                 const v = (cell - 1) as number
                 return (
                   <div
-                    className="w-3.5 h-3.5 small:w-4 small:h-4 border border-ui-border-base box-border"
+                    className={s.cellFilled}
                     key={`${ri}-${ci}`}
                     style={{
                       background: PIECE_FILL[v] ?? "var(--brand-primary)",
@@ -544,18 +577,36 @@ export default function MiniTetris() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 min-w-[10rem] text-sm text-ui-fg-base">
+        <div
+          className={`flex flex-col gap-3 ${sideMinW} text-sm text-ui-fg-base`}
+        >
           <div>
             <p className="text-xs font-medium text-ui-fg-muted uppercase tracking-wide">
               Score
             </p>
-            <p className="text-xl font-semibold tabular-nums">{state.score}</p>
+            <p
+              className={
+                size === "lg"
+                  ? "text-2xl font-semibold tabular-nums"
+                  : "text-xl font-semibold tabular-nums"
+              }
+            >
+              {state.score}
+            </p>
           </div>
           <div>
             <p className="text-xs font-medium text-ui-fg-muted uppercase tracking-wide">
               Lines
             </p>
-            <p className="text-lg font-semibold tabular-nums">{state.lines}</p>
+            <p
+              className={
+                size === "lg"
+                  ? "text-2xl font-semibold tabular-nums"
+                  : "text-lg font-semibold tabular-nums"
+              }
+            >
+              {state.lines}
+            </p>
           </div>
           <div>
             <p className="text-xs font-medium text-ui-fg-muted mb-1 uppercase tracking-wide">
@@ -568,7 +619,7 @@ export default function MiniTetris() {
               {nextMat.map((row, ri) =>
                 row.map((cell, ci) => (
                   <div
-                    className="w-3 h-3 border border-ui-border-base/50"
+                    className={s.next}
                     key={`n-${ri}-${ci}`}
                     style={
                       cell === 1
