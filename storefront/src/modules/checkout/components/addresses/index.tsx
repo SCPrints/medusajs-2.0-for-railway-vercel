@@ -4,7 +4,6 @@ import { CheckCircleSolid } from "@medusajs/icons"
 import { Heading, Text, useToggleState } from "@medusajs/ui"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
-import Divider from "@modules/common/components/divider"
 import Spinner from "@modules/common/icons/spinner"
 
 import { setAddresses } from "@lib/data/cart"
@@ -42,13 +41,13 @@ const Addresses = ({
   const [message, formAction] = useFormState(setAddresses, null)
 
   return (
-    <div className="bg-white">
+    <div className="bg-transparent">
       <div className="flex flex-row items-center justify-between mb-6">
         <Heading
           level="h2"
-          className="flex flex-row text-3xl-regular gap-x-2 items-baseline"
+          className="flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-[var(--brand-primary)]"
         >
-          Shipping Address
+          Shipping address
           {!isOpen && <CheckCircleSolid />}
         </Heading>
         {!isOpen && cart?.shipping_address && (
@@ -85,7 +84,10 @@ const Addresses = ({
                 <BillingAddress cart={cart} />
               </div>
             )}
-            <SubmitButton className="mt-6" data-testid="submit-address-button">
+            <SubmitButton
+              className="mt-6 w-full small:w-auto"
+              data-testid="submit-address-button"
+            >
               Continue to delivery
             </SubmitButton>
             <ErrorMessage error={message} data-testid="address-error-message" />
@@ -178,7 +180,6 @@ const Addresses = ({
           </div>
         </div>
       )}
-      <Divider className="mt-8" />
     </div>
   )
 }

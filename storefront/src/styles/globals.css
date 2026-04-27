@@ -98,6 +98,34 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
   color: var(--brand-primary);
 }
 
+/* Checkout flow — high-contrast primary actions (Medusa default primary can read as grey) */
+.checkout-primary-action:not(:disabled) {
+  background-color: var(--brand-primary) !important;
+  color: rgba(248, 250, 252, 0.98) !important;
+  border-color: transparent !important;
+}
+.checkout-primary-action:hover:not(:disabled) {
+  background-color: var(--brand-secondary) !important;
+  color: rgba(248, 250, 252, 0.98) !important;
+}
+.checkout-primary-action:disabled {
+  opacity: 0.45;
+}
+
+/* Checkout nav: don't let global `a { color: var(--brand-secondary) }` override light-on-navy links */
+a.checkout-nav-link {
+  color: rgba(248, 250, 252, 0.9) !important;
+}
+a.checkout-nav-link:hover {
+  color: var(--brand-accent) !important;
+}
+a.checkout-nav-link--subtle {
+  color: rgba(248, 250, 252, 0.75) !important;
+}
+a.checkout-nav-link--subtle:hover {
+  color: var(--brand-accent) !important;
+}
+
 .focus\:ring-ui-fg-base:focus {
   --tw-ring-color: var(--brand-secondary);
 }

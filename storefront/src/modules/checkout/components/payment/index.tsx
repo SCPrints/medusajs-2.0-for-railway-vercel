@@ -9,7 +9,6 @@ import { Button, Container, Heading, Text, Tooltip, clx } from "@medusajs/ui"
 import { CardElement } from "@stripe/react-stripe-js"
 import { StripeCardElementOptions } from "@stripe/stripe-js"
 
-import Divider from "@modules/common/components/divider"
 import PaymentContainer from "@modules/checkout/components/payment-container"
 import { isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants"
 import { StripeContext } from "@modules/checkout/components/payment-wrapper"
@@ -114,15 +113,14 @@ const Payment = ({
   }, [isOpen])
 
   return (
-    <div className="bg-white">
+    <div className="bg-transparent">
       <div className="flex flex-row items-center justify-between mb-6">
         <Heading
           level="h2"
           className={clx(
-            "flex flex-row text-3xl-regular gap-x-2 items-baseline",
+            "flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-[var(--brand-primary)]",
             {
-              "opacity-50 pointer-events-none select-none":
-                !isOpen && !paymentReady,
+              "pointer-events-none select-none opacity-50": !isOpen && !paymentReady,
             }
           )}
         >
@@ -207,7 +205,8 @@ const Payment = ({
 
           <Button
             size="large"
-            className="mt-6"
+            variant="primary"
+            className="checkout-primary-action mt-6 w-full small:w-auto"
             onClick={handleSubmit}
             isLoading={isLoading}
             disabled={
@@ -273,7 +272,6 @@ const Payment = ({
           ) : null}
         </div>
       </div>
-      <Divider className="mt-8" />
     </div>
   )
 }

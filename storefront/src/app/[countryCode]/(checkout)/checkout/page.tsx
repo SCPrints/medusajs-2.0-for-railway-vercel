@@ -33,11 +33,28 @@ export default async function Checkout() {
   const customer = await getCustomer()
 
   return (
-    <div className="grid grid-cols-1 small:grid-cols-[1fr_416px] content-container gap-x-40 py-12">
-      <Wrapper cart={cart}>
-        <CheckoutForm cart={cart} customer={customer} />
-      </Wrapper>
-      <CheckoutSummary cart={cart} />
+    <div className="content-container py-8 small:py-10 pb-14">
+      <div className="mb-8 small:mb-10 max-w-2xl">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+          Secure checkout
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-[var(--brand-primary)] small:text-4xl">
+          Checkout
+        </h1>
+        <p className="mt-2 text-sm text-ui-fg-subtle">
+          Review your details, delivery, and payment — same look and feel as the
+          rest of SC Prints.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8 small:grid-cols-[1fr_min(100%,400px)] small:gap-x-10 small:items-start">
+        <div className="rounded-2xl border border-[rgba(26,26,46,0.1)] bg-white/95 p-5 shadow-[0_4px_40px_rgba(26,26,46,0.08)] backdrop-blur-sm small:p-8">
+          <Wrapper cart={cart}>
+            <CheckoutForm cart={cart} customer={customer} />
+          </Wrapper>
+        </div>
+        <CheckoutSummary cart={cart} />
+      </div>
     </div>
   )
 }

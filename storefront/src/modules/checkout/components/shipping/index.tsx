@@ -4,7 +4,6 @@ import { RadioGroup } from "@headlessui/react"
 import { CheckCircleSolid } from "@medusajs/icons"
 import { Button, Heading, Text, clx } from "@medusajs/ui"
 
-import Divider from "@modules/common/components/divider"
 import Radio from "@modules/common/components/radio"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
@@ -74,14 +73,14 @@ const Shipping: React.FC<ShippingProps> = ({
   }, [isOpen])
 
   return (
-    <div className="bg-white">
+    <div className="bg-transparent">
       <div className="flex flex-row items-center justify-between mb-6">
         <Heading
           level="h2"
           className={clx(
-            "flex flex-row text-3xl-regular gap-x-2 items-baseline",
+            "flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-[var(--brand-primary)]",
             {
-              "opacity-50 pointer-events-none select-none":
+              "pointer-events-none select-none opacity-50":
                 !isOpen && cart.shipping_methods?.length === 0,
             }
           )}
@@ -109,7 +108,10 @@ const Shipping: React.FC<ShippingProps> = ({
       {isOpen ? (
         <div data-testid="delivery-options-container">
           {shippingTier && typeof totalWeightGrams === "number" && (
-            <Text className="text-small-regular text-ui-fg-subtle mb-4">
+            <Text
+              as="p"
+              className="text-small-regular mb-4 rounded-lg border border-[rgba(61,207,194,0.35)] bg-[rgba(61,207,194,0.1)] px-3 py-2.5 text-ui-fg-subtle"
+            >
               {shippingTier === "flat"
                 ? `Eligible for flat-rate shipping (cart weight ${formatKg(
                     totalWeightGrams
@@ -136,9 +138,9 @@ const Shipping: React.FC<ShippingProps> = ({
                     value={option.id}
                     data-testid="delivery-option-radio"
                     className={clx(
-                      "flex items-center justify-between text-small-regular cursor-pointer py-4 border rounded-rounded px-8 mb-2 hover:shadow-borders-interactive-with-active",
+                      "mb-2 flex cursor-pointer items-center justify-between rounded-rounded border border-[rgba(26,26,46,0.14)] bg-[rgba(255,255,255,0.6)] px-6 py-4 text-small-regular transition-shadow hover:border-[rgba(26,26,46,0.22)] hover:shadow-md small:px-8",
                       {
-                        "border-ui-border-interactive":
+                        "border-[var(--brand-secondary)] ring-1 ring-[var(--brand-secondary)]/30":
                           option.id === selectedShippingMethod?.id,
                       }
                     )}
@@ -168,7 +170,8 @@ const Shipping: React.FC<ShippingProps> = ({
 
           <Button
             size="large"
-            className="mt-6"
+            variant="primary"
+            className="checkout-primary-action mt-6 w-full small:w-auto"
             onClick={handleSubmit}
             isLoading={isLoading}
             disabled={!cart.shipping_methods?.[0]}
@@ -197,7 +200,6 @@ const Shipping: React.FC<ShippingProps> = ({
           </div>
         </div>
       )}
-      <Divider className="mt-8" />
     </div>
   )
 }

@@ -26,12 +26,12 @@ export default async function CheckoutForm({
 
   return (
     <div>
-      <div className="w-full grid grid-cols-1 gap-y-8">
-        <div>
+      <div className="grid w-full grid-cols-1 gap-y-0 divide-y divide-[rgba(26,26,46,0.1)]">
+        <div className="pb-10 pt-0 first:pt-0">
           <Addresses cart={cart} customer={customer} />
         </div>
 
-        <div>
+        <div className="py-10">
           <Shipping
             cart={cart}
             availableShippingMethods={shippingResponse.shipping_options}
@@ -41,11 +41,11 @@ export default async function CheckoutForm({
           />
         </div>
 
-        <div>
+        <div className="py-10">
           <Payment cart={cart} availablePaymentMethods={paymentMethods} />
         </div>
 
-        <div>
+        <div className="pb-0 pt-10">
           <Review cart={cart} />
         </div>
       </div>

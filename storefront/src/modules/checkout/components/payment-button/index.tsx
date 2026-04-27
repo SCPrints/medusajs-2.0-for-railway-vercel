@@ -75,6 +75,9 @@ const GiftCardPaymentButton = () => {
     <Button
       onClick={handleOrder}
       isLoading={submitting}
+      size="large"
+      variant="primary"
+      className="checkout-primary-action w-full small:w-auto"
       data-testid="submit-order-button"
     >
       Place order
@@ -176,6 +179,8 @@ const StripePaymentButton = ({
         disabled={disabled || notReady}
         onClick={handlePayment}
         size="large"
+        variant="primary"
+        className="checkout-primary-action w-full small:w-auto"
         isLoading={submitting}
         data-testid={dataTestId}
       >
@@ -286,6 +291,8 @@ const ManualTestPaymentButton = ({ notReady }: { notReady: boolean }) => {
         isLoading={submitting}
         onClick={handlePayment}
         size="large"
+        variant="primary"
+        className="checkout-primary-action w-full small:w-auto"
         data-testid="submit-order-button"
       >
         Place order

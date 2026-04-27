@@ -19,14 +19,14 @@ const Review = ({ cart }: { cart: any }) => {
     (cart.payment_collection || paidByGiftcard)
 
   return (
-    <div className="bg-white">
+    <div className="bg-transparent">
       <div className="flex flex-row items-center justify-between mb-6">
         <Heading
           level="h2"
           className={clx(
-            "flex flex-row text-3xl-regular gap-x-2 items-baseline",
+            "flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-[var(--brand-primary)]",
             {
-              "opacity-50 pointer-events-none select-none": !isOpen,
+              "pointer-events-none select-none opacity-50": !isOpen,
             }
           )}
         >
