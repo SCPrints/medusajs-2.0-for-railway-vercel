@@ -1,0 +1,16 @@
+---
+description: Medusa JS SDK, Server Actions, caching, and Edge constraints for the storefront
+globs: storefront/src/lib/**/*.{ts,tsx},storefront/src/middleware.ts
+alwaysApply: false
+---
+
+# Medusa storefront integration (Next.js)
+
+- Apply only under `storefront/src/lib/**` and `storefront/src/middleware.ts`.
+- Use the shared `Medusa` client from `@lib/config` (`sdk`); do not create duplicate SDK instances unless there is a strong reason.
+- When handling API errors from the SDK, use the existing `medusaError` helper from `@lib/util/medusa-error` for user-facing flows so error shapes stay consistent.
+- For Server Actions and data loaders, align with existing patterns: `revalidateTag` and Next `cache` options (`next.tags`, `revalidate`) using the same tag names as the rest of the app (e.g. `cart`, `regions`, feature-specific tags) so cache invalidation stays predictable.
+- **Edge middleware:** do not import `@medusajs/js-sdk` or other Node-only server data modules in `middleware.ts`. Use `fetch` to the Medusa backend with `x-publishable-api-key` (see existing middleware) because the Edge runtime is not the same as the Node server used by the SDK.
+- For modules that must never run in the client bundle, follow existing usage of `import "server-only"` in server data modules.
+- **Environment variables:** only `NEXT_PUBLIC_*` values are exposed to the browser. Never place secret API keys, admin tokens, or database URLs in `NEXT_PUBLIC_*` or in client components. Publishable store keys are intended for the storefront; keep them out of server-only secrets documentation and vice versa.
+- **SDK versions:** the storefront may use `@medusajs/js-sdk` on a `preview` dist while the backend pins a specific Medusa version. When changing SDK calls or types, check that behavior matches the backend’s Medusa version and update both sides in lockstep if the API surface changes.

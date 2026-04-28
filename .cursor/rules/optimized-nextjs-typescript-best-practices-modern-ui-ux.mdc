@@ -1,12 +1,26 @@
 ---
-description: Storefront modern UI and performance patterns
-globs: storefront/src/**/*.{ts,tsx,css}
+description: Storefront Next.js, engineering standards, and modern UI/performance patterns
+globs: storefront/**/*.{ts,tsx,js,jsx,mjs,cjs,css}
 alwaysApply: false
 ---
 
-# Storefront UI and UX Rules
+# Storefront rules (Next.js, React, UI)
 
-- Apply these rules only for `storefront/src/**`.
+- Apply these rules to files under `storefront/`.
+
+## Engineering
+
+- Prefer TypeScript, functional components, and composable modules.
+- Avoid duplication; extract helpers/hooks when logic repeats.
+- Keep naming explicit (`isLoading`, `hasError`, `canSubmit`).
+- Favor server-rendered patterns where practical; minimize unnecessary client state/effects.
+- Handle edge cases and failures with clear user-facing fallbacks.
+- Validate and sanitize external/user input.
+- Keep suggestions incremental: small changes with quick verification steps.
+- Preserve existing identifiers and literals unless a rename is required.
+
+## UI, accessibility, and performance
+
 - Build accessible UI first: semantic HTML, keyboard support, and visible focus states.
 - Use Tailwind and existing design patterns/components before introducing new primitives.
 - Keep component state minimal; derive values when possible.
@@ -14,4 +28,4 @@ alwaysApply: false
 - Optimize images with Next image tooling and explicit sizing.
 - Prefer mobile-first responsive layouts and progressive enhancement.
 - Use Zod validation for external or form inputs.
-- Add targeted tests for behavior-heavy components and critical user flows.
+- Add targeted tests for behavior-heavy components and critical user flows (see Playwright rules under `storefront/e2e/**` for end-to-end).

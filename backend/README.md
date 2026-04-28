@@ -14,6 +14,16 @@ Video instructions: https://youtu.be/PPxenu7IjGM
 - **MinIO storage** (Automatic setup when using the Railway template) - fallback to local storage.
 - **Meilisearch** (Automatic setup when using the Railway template)
 
+### Stripe payments
+
+- Add **`STRIPE_API_KEY`** (secret key, `sk_test_...` or `sk_live_...`) and **`STRIPE_WEBHOOK_SECRET`** (`whsec_...`) to `backend/.env`. Both are required for the Payment module to register; restart the backend after changing them.
+- Add **`NEXT_PUBLIC_STRIPE_KEY`** (publishable key, `pk_test_...` or `pk_live_...`) to the storefront env and redeploy the storefront. Use the same Stripe mode (test vs live) as the backend.
+- **Stripe webhook URL:** `{your-backend-origin}/hooks/payment/stripe_stripe` (replace with your public backend URL, e.g. Railway).
+- **Recommended webhook events:** `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.amount_capturable_updated`, and `payment_intent.partially_funded` (when applicable).
+- For **local development**, run Stripe CLI: `stripe listen --forward-to localhost:9000/hooks/payment/stripe_stripe`, then set `STRIPE_WEBHOOK_SECRET` to the signing secret the CLI prints.
+- Regions must include the **`pp_stripe_stripe`** payment provider for Stripe at checkout. The seed script adds it automatically when both Stripe env vars are set before running migrations/seed; otherwise add Stripe under **Settings → Regions** in Medusa Admin.
+- **Smoke-test checkout:** With test keys, complete an order using Stripe’s test card `4242424242424242`, any future expiry, any CVC; confirm the payment appears authorized/captured and the order shows as paid in Admin.
+
 ### shipstation setup
 - Add `SHIPSTATION_API_KEY` to `backend/.env` (from your ShipStation API settings).
 - Restart the backend after updating env vars so the fulfillment provider is registered.

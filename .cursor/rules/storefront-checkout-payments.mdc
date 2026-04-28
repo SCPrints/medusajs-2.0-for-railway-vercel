@@ -1,0 +1,13 @@
+---
+description: Checkout, Stripe, and PayPal in the Medusa storefront
+globs: storefront/src/modules/checkout/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Storefront checkout and payments
+
+- Apply only to `storefront/src/modules/checkout/**`. Complement Stripe’s general best practices (user/plugin skills) with Medusa-specific flow in this app.
+- Keep card and payment method entry inside Stripe or PayPal’s official client components; never log or persist raw card numbers, CVC, or other PCI-sensitive data in application logs or your own API payloads.
+- Rely on Medusa’s payment collection and session completion patterns already wired in the checkout (create/update payment sessions, then complete the cart) rather than ad hoc charges from the client.
+- Use `NEXT_PUBLIC_*` only for publishable keys and URLs the browser must know; all server-to-server or admin credentials stay in server env vars.
+- If you change the payment wrapper under `storefront/src/modules/checkout/components/payment-wrapper/`, keep Stripe.js and PayPal script loading and error boundaries aligned with the existing components so the checkout can recover from provider failures with clear user messaging.

@@ -1,0 +1,15 @@
+---
+description: Custom HTTP API routes in the Medusa backend
+globs: backend/src/api/**/*.ts
+alwaysApply: false
+---
+
+# Custom Medusa API routes
+
+- Apply only to files under `backend/src/api/`.
+- Prefer `MedusaRequest` and `MedusaResponse` (e.g. from `@medusajs/framework` or `@medusajs/framework/http`) and resolve services with `req.scope.resolve(...)` and `Modules.*` (or the appropriate service token), consistent with existing routes.
+- Validate request bodies, query parameters, and route params with Zod (or the same validation approach as neighboring routes) before using values; reject with clear HTTP status codes and JSON bodies.
+- Return JSON with consistent error shapes: include a machine-readable `message` or `error` field and an appropriate `status` code; use `MedusaError` from `@medusajs/framework/utils` when the failure should follow Medusa’s error conventions.
+- For routes that are callable from the public internet, treat them as part of your attack surface: avoid leaking stack traces; consider rate limiting and abuse controls for high-risk endpoints (e.g. contact forms, key exchange).
+- **Publishable keys and “public” routes:** the storefront publishable key is meant for client use, but any route that lists or issues keys is sensitive—align behavior with how the storefront consumes it and document whether the route is store-scoped, admin-only, or build-time only.
+- For CORS when the browser calls a custom route directly, follow patterns like `contact/route.ts` (allowlist origins, `Vary: Origin`, correct methods) rather than `*` in production.

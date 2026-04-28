@@ -1,0 +1,15 @@
+---
+description: Playwright e2e tests for the Medusa Next.js storefront
+globs: storefront/e2e/**/*,storefront/playwright.config.ts
+alwaysApply: false
+---
+
+# Storefront e2e (Playwright)
+
+- Apply to `storefront/e2e/**` and `storefront/playwright.config.ts`.
+- Config lives in `storefront/playwright.config.ts`; `testDir` is `./e2e`. Prefer `baseURL` from `NEXT_PUBLIC_BASE_URL` and existing `use` options (e.g. `trace: "retain-on-failure"`).
+- `STORAGE_STATE` is exported from the config and points at `playwright/.auth/user.json` for authenticated flows—reuse the setup/teardown projects rather than reimplementing login state.
+- Global setup and teardown live under `e2e/tests/global/`; new suites should hook into the same patterns when they need DB cleanup or auth.
+- Reuse page objects and merged fixtures from `e2e/fixtures/` and `e2e/index.ts` (`mergeTests`) instead of duplicating selectors; add new fixtures next to related domains (e.g. `fixtures/cart-page.ts`, `fixtures/account/`).
+- Prefer stable, user-visible locators and existing helper patterns over brittle CSS-only selectors; keep tests aligned with `fullyParallel: false` / `workers: 1` unless you intentionally change the config and fix ordering assumptions.
+- Run locally with `npm run test-e2e` from `storefront/` (see `package.json`).

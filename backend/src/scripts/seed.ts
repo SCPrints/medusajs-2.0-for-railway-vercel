@@ -1,9 +1,22 @@
 import { CreateInventoryLevelInput, ExecArgs } from "@medusajs/framework/types";
 import {
   ContainerRegistrationKeys,
+  loadEnv,
   Modules,
   ProductStatus,
 } from "@medusajs/framework/utils";
+
+loadEnv(process.env.NODE_ENV || "development", process.cwd());
+
+function seedPaymentProviders(): string[] {
+  const hasStripe =
+    Boolean(process.env.STRIPE_API_KEY?.trim()) &&
+    Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim());
+  if (hasStripe) {
+    return ["pp_system_default", "pp_stripe_stripe"];
+  }
+  return ["pp_system_default"];
+}
 import {
   createApiKeysWorkflow,
   createInventoryLevelsWorkflow,
@@ -112,7 +125,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
           name: "Australia",
           currency_code: "aud",
           countries: ["au"],
-          payment_providers: ["pp_system_default"],
+          payment_providers: seedPaymentProviders(),
         },
       ],
     },
