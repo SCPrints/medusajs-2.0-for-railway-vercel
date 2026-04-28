@@ -3,8 +3,70 @@
 import confetti from "canvas-confetti"
 import { AnimatePresence, motion } from "framer-motion"
 import dynamic from "next/dynamic"
+import { useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInView } from "react-intersection-observer"
+
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
+
+import {
+  ANIMATION_LAB_PRE_BUTTON_SECTION_COUNT,
+  ANIMATION_LAB_SECTIONS_PER_PAGE,
+} from "@modules/test/animation-lab-constants"
+
+import {
+  LabGsapScrollTrigger,
+  LabScratchOffCanvas,
+  LabStartingStyleDemo,
+  LabStickyStoryNav,
+  LabTossCard,
+  LabViewTransitionDemo,
+} from "./animation-widgets-lab-advanced-blocks"
+import {
+  LabAccordion,
+  LabAnimatedStat,
+  LabAuroraMesh,
+  LabBadgePulse,
+  LabBlurInWords,
+  LabBottomSheet,
+  LabCartBump,
+  LabCopyMorph,
+  LabCrossfadePosters,
+  LabDashedBorderCard,
+  LabDocumentScrollProgress,
+  LabDragCarousel,
+  LabElasticDrag,
+  LabFakeVideoPoster,
+  LabFilmGrain,
+  LabGlassSheen,
+  LabGradientText,
+  LabImageZoomHover,
+  LabKenBurns,
+  LabLinkUnderline,
+  LabMagneticButton,
+  LabMarquee,
+  LabParallaxScrollBox,
+  LabProgressRing,
+  LabRippleButton,
+  LabScrambleText,
+  LabScrollSnapStrip,
+  LabSkeletonShimmerReduced,
+  LabSliderTicks,
+  LabSparklineBars,
+  LabSpotlightGlow,
+  LabStaggeredReveal,
+  LabStarRating,
+  LabStepper,
+  LabStockMeter,
+  LabSvgStrokeDraw,
+  LabSwitch,
+  LabTabsUnderline,
+  LabTiltCard,
+  LabToastStack,
+} from "./animation-widgets-lab-extra-blocks"
+import { useButtonAnimationsLabSections } from "./button-animations-demo"
+
+const SECTIONS_PER_PAGE = ANIMATION_LAB_SECTIONS_PER_PAGE
 
 const LordiconBlock = dynamic(() => import("./animation-widgets-lordicon-block"), {
   ssr: false,
@@ -32,6 +94,16 @@ const ParticlesBlock = dynamic(() => import("./animation-widgets-particles-block
 const Snowfall = dynamic(() => import("react-snowfall"), {
   ssr: false,
   loading: () => null,
+})
+
+const RiveLabBlock = dynamic(() => import("./animation-widgets-rive-block"), {
+  ssr: false,
+  loading: () => <div className="h-[220px] w-full animate-pulse rounded-xl bg-ui-bg-subtle" />,
+})
+
+const ThreeLabBlock = dynamic(() => import("./animation-widgets-three-block"), {
+  ssr: false,
+  loading: () => <div className="h-[220px] w-full animate-pulse rounded-xl bg-ui-bg-subtle" />,
 })
 
 /** Demo countdown target (Australia/Sydney-friendly fixed instant). */
@@ -433,9 +505,91 @@ function SocialEmbedSection() {
   )
 }
 
+function LabPagination({
+  currentPage,
+  totalPages,
+}: {
+  currentPage: number
+  totalPages: number
+}) {
+  if (totalPages <= 1) {
+    return null
+  }
+
+  const hrefFor = (p: number) =>
+    p <= 1 ? "/test/animation-widgets" : `/test/animation-widgets?page=${p}`
+
+  return (
+    <nav
+      className="content-container border-t border-ui-border-base py-8"
+      aria-label="Animation lab pages"
+    >
+      <div className="flex flex-col items-stretch justify-between gap-4 small:flex-row small:items-center">
+        <p className="text-sm text-ui-fg-muted">
+          Page <span className="tabular-nums text-ui-fg-base">{currentPage}</span> of{" "}
+          <span className="tabular-nums text-ui-fg-base">{totalPages}</span>
+          <span className="text-ui-fg-subtle"> — </span>
+          {SECTIONS_PER_PAGE} sections per page
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {currentPage <= 1 ? (
+            <span
+              className="rounded-full border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-sm font-medium text-ui-fg-muted opacity-50"
+              aria-disabled
+            >
+              Previous
+            </span>
+          ) : (
+            <LocalizedClientLink
+              href={hrefFor(currentPage - 1)}
+              className="rounded-full border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-sm font-medium text-ui-fg-base hover:bg-ui-bg-subtle"
+            >
+              Previous
+            </LocalizedClientLink>
+          )}
+          <ul className="flex flex-wrap gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <li key={p}>
+                <LocalizedClientLink
+                  href={hrefFor(p)}
+                  className={
+                    p === currentPage
+                      ? "inline-flex min-w-[2.25rem] justify-center rounded-full bg-ui-fg-base px-2 py-1 text-sm font-medium text-ui-bg-base"
+                      : "inline-flex min-w-[2.25rem] justify-center rounded-full border border-ui-border-base px-2 py-1 text-sm text-ui-fg-base hover:bg-ui-bg-subtle"
+                  }
+                  aria-current={p === currentPage ? "page" : undefined}
+                >
+                  {p}
+                </LocalizedClientLink>
+              </li>
+            ))}
+          </ul>
+          {currentPage >= totalPages ? (
+            <span
+              className="rounded-full border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-sm font-medium text-ui-fg-muted opacity-50"
+              aria-disabled
+            >
+              Next
+            </span>
+          ) : (
+            <LocalizedClientLink
+              href={hrefFor(currentPage + 1)}
+              className="rounded-full border border-ui-border-base bg-ui-bg-base px-3 py-1.5 text-sm font-medium text-ui-fg-base hover:bg-ui-bg-subtle"
+            >
+              Next
+            </LocalizedClientLink>
+          )}
+        </div>
+      </div>
+    </nav>
+  )
+}
+
 export default function AnimationWidgetsDemo() {
+  const searchParams = useSearchParams()
   const reducedMotion = usePrefersReducedMotion()
   const [snowOn, setSnowOn] = useState(true)
+  const buttonLab = useButtonAnimationsLabSections(Section)
 
   const fireworkBurst = useCallback(() => {
     if (reducedMotion) {
@@ -458,79 +612,86 @@ export default function AnimationWidgetsDemo() {
     })
   }, [reducedMotion])
 
-  return (
-    <div className="relative pb-24">
+  const animationSectionsOnly = useMemo(
+    () => [
       <Section
+        key="lordicon"
         title="Lordicon-style animated icons"
         description="Hover or focus each control to replay. JSON is fetched from Lordicon’s CDN (host copies in production if uptime is critical)."
       >
         <LordiconBlock />
-      </Section>
+      </Section>,
 
       <Section
+        key="lottie"
         title="Lottie (scroll / view)"
         description="Vector animation loaded from a public Lottie JSON URL; playback follows visibility."
       >
         <LottieBlock reducedMotion={reducedMotion} />
-      </Section>
+      </Section>,
 
       <Section
+        key="blobs"
         title="Floating blobs"
         description="Lightweight gradient shapes for depth — no 3D runtime."
       >
         <FloatingBlobs reducedMotion={reducedMotion} />
-      </Section>
+      </Section>,
 
       <Section
+        key="cursor"
         title="Custom cursor playground"
         description="Only on this page the global trail cursor is disabled (see root layout)."
       >
         <CustomCursorPlayground />
-      </Section>
+      </Section>,
 
       <Section
+        key="countdown"
         title="Countdown"
         description="Fixed demo end date in code — swap for a real launch or sale."
       >
         <CountdownDisplay />
-      </Section>
+      </Section>,
 
       <Section
+        key="before-after"
         title="Before / after"
         description="Drag anywhere on the frame (pointer capture) to move the divider."
       >
         <BeforeAfterSlider />
-      </Section>
+      </Section>,
 
       <Section
+        key="loader"
         title="Loading overlay"
         description="Local overlay mock — not a Next.js route loading.tsx."
       >
         <LoaderOverlayDemo reducedMotion={reducedMotion} />
-      </Section>
+      </Section>,
 
-      <Section
-        title="Social embed"
-        description="Optional iframe via environment variable."
-      >
+      <Section key="embed" title="Social embed" description="Optional iframe via environment variable.">
         <SocialEmbedSection />
-      </Section>
+      </Section>,
 
       <Section
+        key="typewriter"
         title="Typewriter headline"
         description="Characters reveal when this block enters the viewport (so it doesn’t finish before you scroll here). Pink block cursor pulses while visible. Use Replay typing to run again. With prefers reduced motion, the full line shows immediately."
       >
         <TypewriterHeadline reducedMotion={reducedMotion} />
-      </Section>
+      </Section>,
 
       <Section
+        key="particles"
         title="Particle field"
         description="tsParticles (slim) with grab interaction — lazy-loaded with this chunk."
       >
         <ParticlesBlock reducedMotion={reducedMotion} />
-      </Section>
+      </Section>,
 
       <Section
+        key="snow"
         title="Snow + confetti burst"
         description="Snow uses react-snowfall; “fireworks” reuse canvas-confetti (no extra sim library)."
       >
@@ -572,7 +733,441 @@ export default function AnimationWidgetsDemo() {
             </button>
           </div>
         </div>
-      </Section>
+      </Section>,
+
+      <Section
+        key="stagger-reveal"
+        title="Staggered scroll reveal"
+        description="Fake product grid: children animate in with stagger when the block enters the viewport."
+      >
+        <LabStaggeredReveal reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="stat-tick"
+        title="Animated stat (spring counter)"
+        description="Number springs toward a target once in view — prefers reduced motion shows the final value immediately."
+      >
+        <LabAnimatedStat reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="marquee"
+        title="Marquee ticker"
+        description="Infinite horizontal promo strip; pauses as static copy when reduced motion is on."
+      >
+        <LabMarquee reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="skeleton"
+        title="Skeleton + shimmer"
+        description="Placeholder card with a moving sheen (disabled under reduced motion)."
+      >
+        <LabSkeletonShimmerReduced reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="svg-stroke"
+        title="SVG stroke draw"
+        description="Checkmark path uses pathLength — lightweight alternative to Lottie for line icons."
+      >
+        <LabSvgStrokeDraw reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="progress-ring"
+        title="Progress ring"
+        description="SVG circular progress — inline task or checkout step indicator."
+      >
+        <LabProgressRing reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="parallax-box"
+        title="Parallax (scroll container)"
+        description="Background layer moves on a slower curve while scrolling inside a fixed-height region."
+      >
+        <LabParallaxScrollBox reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="spotlight"
+        title="Spotlight glow"
+        description="Radial highlight follows the pointer inside a dark panel."
+      >
+        <LabSpotlightGlow />
+      </Section>,
+
+      <Section
+        key="ripple"
+        title="Press ripple"
+        description="Material-style ripple from the contact point on a primary button."
+      >
+        <LabRippleButton />
+      </Section>,
+
+      <Section
+        key="tilt-card"
+        title="3D tilt card"
+        description="Pointer-driven rotateX / rotateY with spring; flattened when reduced motion is preferred."
+      >
+        <LabTiltCard reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="accordion"
+        title="Accordion"
+        description="FAQ-style expand/collapse with AnimatePresence height."
+      >
+        <LabAccordion reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tabs"
+        title="Tabs + sliding underline"
+        description="layoutId shared element for the active tab indicator."
+      >
+        <LabTabsUnderline />
+      </Section>,
+
+      <Section
+        key="scroll-snap"
+        title="Horizontal scroll snap"
+        description="Native scroll-snap chips — good for related products on mobile."
+      >
+        <LabScrollSnapStrip />
+      </Section>,
+
+      <Section
+        key="doc-scroll-progress"
+        title="Document scroll progress"
+        description="Thin Framer Motion bar tied to page scroll — only visible while this demo is mounted on a lab page."
+      >
+        <LabDocumentScrollProgress />
+      </Section>,
+
+      <Section
+        key="stepper"
+        title="Stepper"
+        description="Checkout-style steps with an animated connector."
+      >
+        <LabStepper />
+      </Section>,
+
+      <Section
+        key="cart-bump"
+        title="Cart icon bump"
+        description="Spring scale on fake “add” for feedback without haptics."
+      >
+        <LabCartBump reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="copy-morph"
+        title="Copy button morph"
+        description="Label crossfades to “Copied ✓” with aria-live for screen readers."
+      >
+        <LabCopyMorph />
+      </Section>,
+
+      <Section
+        key="switch"
+        title="Toggle switch"
+        description="Spring thumb on an iOS-style switch."
+      >
+        <LabSwitch reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="stars"
+        title="Star rating"
+        description="Click stars or use the link to stagger-fill for a reviews UI."
+      >
+        <LabStarRating reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="badge-pulse"
+        title="Pulsing badge"
+        description="Subtle attention loop for “live” or status pills."
+      >
+        <LabBadgePulse reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="elastic-drag"
+        title="Elastic drag"
+        description="Framer drag with rubber-band constraints inside a playground."
+      >
+        <LabElasticDrag />
+      </Section>,
+
+      <Section
+        key="gradient-text"
+        title="Animated gradient text"
+        description="background-clip text with shifting gradient stops."
+      >
+        <LabGradientText reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="link-underline"
+        title="Link underline draw"
+        description="Underline scales in on hover and focus-visible."
+      >
+        <LabLinkUnderline />
+      </Section>,
+
+      <Section
+        key="blur-words"
+        title="Blur-in words"
+        description="Words lose blur as they enter the viewport."
+      >
+        <LabBlurInWords reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="scramble"
+        title="Scramble / decode text"
+        description="Decorative decode; reduced motion shows the final string only."
+      >
+        <LabScrambleText reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="img-zoom"
+        title="Image zoom on hover"
+        description="Product-tile pattern: overflow hidden + scale on hover."
+      >
+        <LabImageZoomHover />
+      </Section>,
+
+      <Section
+        key="ken-burns"
+        title="Ken Burns still"
+        description="Slow pan and zoom on a still — static when reduced motion is on."
+      >
+        <LabKenBurns reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="crossfade"
+        title="Crossfading posters"
+        description="Two stills alternate with opacity — no video asset."
+      >
+        <LabCrossfadePosters reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="fake-video"
+        title="Fake video poster"
+        description="Play affordance with pulsing ring; click shows a short “buffering” overlay."
+      >
+        <LabFakeVideoPoster reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="film-grain"
+        title="Film grain overlay"
+        description="SVG fractalNoise texture at low opacity over a gradient."
+      >
+        <LabFilmGrain />
+      </Section>,
+
+      <Section
+        key="aurora"
+        title="Aurora mesh"
+        description="Rotating conic gradient with heavy blur — distinct from the floating blobs demo."
+      >
+        <LabAuroraMesh reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="dashed-border"
+        title="Animated dashed border"
+        description="SVG stroke-dashoffset marquee around a promo card."
+      >
+        <LabDashedBorderCard />
+      </Section>,
+
+      <Section
+        key="glass-sheen"
+        title="Glass + sheen"
+        description="backdrop-blur panel with a periodic highlight sweep."
+      >
+        <LabGlassSheen reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="sparkline"
+        title="Sparkline bars"
+        description="Bars grow with stagger when the chart enters view."
+      >
+        <LabSparklineBars reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="stock-meter"
+        title="Stock meter"
+        description="Low-inventory bar with warning color and gentle pulse copy."
+      >
+        <LabStockMeter reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="slider-ticks"
+        title="Range slider + tick pop"
+        description="Ticks scale when the thumb passes nearby."
+      >
+        <LabSliderTicks reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="drag-carousel"
+        title="Draggable strip"
+        description="Horizontal drag with elastic constraints (mouse-first carousel feel)."
+      >
+        <LabDragCarousel />
+      </Section>,
+
+      <Section
+        key="magnetic-btn"
+        title="Magnetic button"
+        description="CTA subtly pulls toward the pointer within range."
+      >
+        <LabMagneticButton />
+      </Section>,
+
+      <Section
+        key="bottom-sheet"
+        title="Bottom sheet"
+        description="Slide-up panel with backdrop tap to dismiss."
+      >
+        <LabBottomSheet />
+      </Section>,
+
+      <Section
+        key="toast"
+        title="Toast"
+        description="Short status toast from the bottom center with spring motion."
+      >
+        <LabToastStack />
+      </Section>,
+
+      <Section
+        key="gsap-scroll"
+        title="GSAP ScrollTrigger"
+        description="Scroll-linked scrub animation (same stack as brands hero). Static fallback when prefers reduced motion."
+      >
+        <LabGsapScrollTrigger reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="rive"
+        title="Rive"
+        description="Vector animation runtime — optional custom .riv via NEXT_PUBLIC_ANIMATION_LAB_RIVE_SRC."
+      >
+        <RiveLabBlock reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="three-r3f"
+        title="WebGL (React Three Fiber)"
+        description="Lightweight scene with orbit controls; spin pauses under reduced motion."
+      >
+        <ThreeLabBlock reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="scratch-off"
+        title="Canvas scratch-off"
+        description="destination-out brush reveals a photo under a grey overlay."
+      >
+        <LabScratchOffCanvas reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="toss-card"
+        title="Toss / fling card"
+        description="High-velocity drag throws the card off-canvas with spring exit."
+      >
+        <LabTossCard reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="sticky-story"
+        title="Sticky chapter label"
+        description="Mini storytelling pattern: sticky title + scroll-spied sections inside a panel."
+      >
+        <LabStickyStoryNav />
+      </Section>,
+
+      <Section
+        key="view-transition"
+        title="View Transition API"
+        description="document.startViewTransition for same-document UI swaps where supported."
+      >
+        <LabViewTransitionDemo reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="starting-style"
+        title="CSS @starting-style"
+        description="First-paint entrance when a card is mounted (feature-detect in supporting browsers)."
+      >
+        <LabStartingStyleDemo reducedMotion={reducedMotion} />
+      </Section>,
+    ],
+    [reducedMotion, snowOn, fireworkBurst]
+  )
+
+  const allSections = useMemo(
+    () => [...animationSectionsOnly, ...buttonLab.sections],
+    [animationSectionsOnly, buttonLab.sections]
+  )
+
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV === "development" &&
+      animationSectionsOnly.length !== ANIMATION_LAB_PRE_BUTTON_SECTION_COUNT
+    ) {
+      // Keeps `/test/button-animations` redirect and docs aligned when widgets are added above the merge point.
+      console.warn(
+        `[animation widgets lab] ANIMATION_LAB_PRE_BUTTON_SECTION_COUNT (${ANIMATION_LAB_PRE_BUTTON_SECTION_COUNT}) does not match animation-only section count (${animationSectionsOnly.length}). Update storefront/src/modules/test/animation-lab-constants.ts`
+      )
+    }
+  }, [animationSectionsOnly.length])
+
+  const totalPages = Math.max(1, Math.ceil(allSections.length / SECTIONS_PER_PAGE))
+  const rawPage = parseInt(searchParams.get("page") ?? "1", 10)
+  const pageFromUrl = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1
+  const currentPage = Math.min(pageFromUrl, totalPages)
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [currentPage])
+
+  const start = (currentPage - 1) * SECTIONS_PER_PAGE
+  const visibleSections = allSections.slice(start, start + SECTIONS_PER_PAGE)
+
+  const animationOnlyCount = animationSectionsOnly.length
+  const pageEndIndex = start + SECTIONS_PER_PAGE - 1
+  const lastButtonIdx = animationOnlyCount + buttonLab.sections.length - 1
+  const showButtonChrome =
+    buttonLab.sections.length > 0 &&
+    pageEndIndex >= animationOnlyCount &&
+    start <= lastButtonIdx
+
+  return (
+    <div className="relative pb-8">
+      {showButtonChrome ? (
+        <div className="content-container border-b border-ui-border-base py-6 space-y-4">
+          {buttonLab.chrome}
+        </div>
+      ) : null}
+      {visibleSections}
+      <LabPagination currentPage={currentPage} totalPages={totalPages} />
     </div>
   )
 }

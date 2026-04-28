@@ -64,7 +64,7 @@ function resolveCartTargetRect(): DOMRect | null {
 }
 
 /**
- * #1 + #4 from the button animation test page: product chip flies to the nav cart, trigger uses Framer
+ * #1 + #4 from the animation widgets lab (add-to-cart block): product chip flies to the nav cart, trigger uses Framer
  * `whileTap` squish. Sets `data-no-squish` so the site-wide CSS press does not double-stack.
  */
 export default function FlyToCartAddButton({

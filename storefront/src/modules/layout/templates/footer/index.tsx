@@ -91,6 +91,11 @@ export default async function Footer() {
                   Account
                 </LocalizedClientLink>
               </li>
+              <li>
+                <LocalizedClientLink href="/test/animation-widgets" className="hover:text-ui-fg-base">
+                  Animation widgets lab
+                </LocalizedClientLink>
+              </li>
             </ul>
           </div>
 

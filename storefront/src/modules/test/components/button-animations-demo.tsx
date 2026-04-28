@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -602,22 +603,10 @@ function TrailingLaserBurst({
   )
 }
 
-function Section({
-  title,
-  description,
-  children,
-}: {
+export type AnimationLabSectionProps = {
   title: string
-  description: string
+  description?: string
   children: React.ReactNode
-}) {
-  return (
-    <section className="border border-ui-border-base rounded-lg p-6 bg-ui-bg-subtle">
-      <h2 className="text-lg font-semibold text-ui-fg-base">{title}</h2>
-      <p className="mt-1 text-sm text-ui-fg-muted max-w-3xl">{description}</p>
-      <div className="mt-5">{children}</div>
-    </section>
-  )
 }
 
 function FlyToCartButton({
@@ -1304,7 +1293,9 @@ function EarconAddButton() {
   )
 }
 
-export default function ButtonAnimationsDemo() {
+export function useButtonAnimationsLabSections(
+  LabSection: (props: AnimationLabSectionProps) => React.ReactElement | null
+) {
   const demoCartRef = useRef<HTMLButtonElement>(null)
   const [flyHint, setFlyHint] = useState(false)
   const [flyHintSquish, setFlyHintSquish] = useState(false)
@@ -1316,15 +1307,15 @@ export default function ButtonAnimationsDemo() {
     getHeartConfettiShape()
   }, [])
 
-  return (
-    <div className="content-container py-10 small:py-16">
-      <p className="text-xs text-ui-fg-muted mb-6 max-w-2xl">
-        Dev-only UI playground. The fly-to-cart target prefers the main nav link{" "}
-        <code className="text-ui-fg-base">{NAV_CART_SELECTOR}</code> when
-        present; the secondary button is a stand-in.
+  const chrome = (
+    <>
+      <p className="text-xs text-ui-fg-muted max-w-2xl">
+        Dev-only add-to-cart lab. The fly-to-cart target prefers the main nav link{" "}
+        <code className="text-ui-fg-base">{NAV_CART_SELECTOR}</code> when present;
+        the secondary button is a stand-in.
       </p>
 
-      <div className="mb-8 flex flex-wrap items-center justify-end gap-3 rounded-lg border border-dashed border-ui-border-base p-3 bg-ui-bg-subtle/50">
+      <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg border border-dashed border-ui-border-base p-3 bg-ui-bg-subtle/50">
         <span className="text-sm text-ui-fg-muted">Demo cart target (fallback):</span>
         <button
           type="button"
@@ -1335,12 +1326,16 @@ export default function ButtonAnimationsDemo() {
           Cart (0)
         </button>
       </div>
+    </>
+  )
 
-      <div className="grid gap-8">
-        <Section
-          title="1. Fly-to-cart"
-          description="The storefront logo flies in a heart-shaped mask from the add button toward the cart. Uses Framer Motion, createPortal, and the nav cart when available."
-        >
+  const sections = useMemo(
+    () => [
+      <LabSection
+        key="btn-fly"
+        title="1. Fly-to-cart"
+        description="The storefront logo flies in a heart-shaped mask from the add button toward the cart. Uses Framer Motion, createPortal, and the nav cart when available."
+      >
           <div className="flex flex-col gap-2">
             {flyHint && (
               <p className="text-sm text-emerald-700" role="status">
@@ -1355,9 +1350,9 @@ export default function ButtonAnimationsDemo() {
               }}
             />
           </div>
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="1 + 4. Fly-to-cart with tactile squish"
           description="The same cart flight as #1, but the trigger is a Framer Motion button with the spring whileTap from #4—press feedback and success motion in one control."
         >
@@ -1376,9 +1371,9 @@ export default function ButtonAnimationsDemo() {
               }}
             />
           </div>
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="1 + 3 + 4 + 8. Fly, confetti, squish &amp; slot text"
           description="Pick a preset below to try different trail vs arrival combinations. Confetti uses heart shapes (`shapeFromPath`) so particles respect the greyscale or default color palette; if `Path2D` is unavailable they fall back to basic shapes. Spring squish (#4) and slot text (#8) are unchanged; re-triggers after the slot resets (~2s)."
         >
@@ -1432,92 +1427,101 @@ export default function ButtonAnimationsDemo() {
               }}
             />
           </div>
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="2. Morph &amp; success state"
           description="Loading state, then success color, checkmark, and copy that resets. Mirrors a typical add-to-cart flow with React state and Tailwind transitions."
         >
           <MorphAddButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="3. Confetti / sparkles"
           description="canvas-confetti burst from the button center. Works well for playful or celebratory brands."
         >
           <ConfettiAddButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="4. Tactile squish / bounce"
           description="whileTap scale with a spring for press feedback. Framer Motion makes this a few lines of code."
         >
           <SquishAddButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="5. Material-style ripple"
           description="Click coordinates seed an expanding ring inside an overflow-hidden button. Uses Framer Motion for the ripple (pure CSS is another valid approach)."
         >
           <RippleAddButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="6. Haptic feedback"
           description="navigator.vibrate for supported mobile browsers; wrapped in a capability check so desktop is unaffected."
         >
           <HapticAddButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="7. 3D coin flip"
           description="Front: Add to cart. Back: Added with icon. Framer Motion rotates on the X-axis with preserve-3d and hidden back-faces, similar to pure CSS 3D card flips."
         >
           <CoinFlip3DButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="8. Slot machine text roll"
           description="Fixed height, overflow hidden; the text column translates up on click so an Added! line slides into view. Typography-only feedback without a big color change."
         >
           <SlotMachineTextButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="9. Integrated progress fill"
           description="A darker layer creeps left-to-right, then the label flips to success—good when cart API can take a moment. Demo uses a 1.2s fill; wire width to a real request for production."
         >
           <ProgressFillButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="10. Glossy shimmer / sweep"
           description="A diagonal light beam crosses the button after each click, keyed so repeated clicks replay the sweep. Gradient overlay + Framer position animation (keyframes work too)."
         >
           <ShimmerSweepButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="11. Auditory feedback (earcon)"
           description="Subtle chime on click via the Web Audio API (no file). Mute the tab or your OS to compare. You can drop in use-sound and a very small /public sound for a custom earcon."
         >
           <EarconAddButton />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="12. Mini Tetris (easter egg)"
           description="A tiny client-side pass time while comparing interactions. The board, pieces, and controls use the same brand CSS variables and Medusa UI treatment as the rest of the test page. Focus the playfield for keyboard: arrows, X or up to rotate, Space or Enter to hard drop. Restart is always available."
         >
           <MiniTetris />
-        </Section>
+        </LabSection>,
 
-        <Section
+      <LabSection
           title="13. Mini bubble pop (shooter)"
           description="Aim with the mouse, click to fire: wall-bounce, staggered grid, 3+ match (BFS), ceiling-connected orphan drop (flood), dashed aim line. Physics use 16 microsteps per frame and a looser contact radius; every 5th shot a new top row is inserted and the field shifts down—bubbles in the bottom row at that moment end the run."
         >
           <MiniBubblePop />
-        </Section>
-      </div>
-    </div>
+        </LabSection>,
+    ],
+    [
+      LabSection,
+      demoCartRef,
+      flyHint,
+      flyHintSquish,
+      flyHint138,
+      flyComboVariant,
+    ]
   )
+
+  return { chrome, sections }
 }
