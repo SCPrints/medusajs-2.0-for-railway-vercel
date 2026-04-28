@@ -4,6 +4,7 @@ import OrderCompletedTemplate from "@modules/order/templates/order-completed-tem
 import { notFound } from "next/navigation"
 import { enrichLineItems } from "@lib/data/cart"
 import { retrieveOrder } from "@lib/data/orders"
+import { applyDisplayPriceCorrectionToOrder } from "@lib/util/apply-display-price-correction"
 import { HttpTypes } from "@medusajs/types"
 
 type Props = {
@@ -18,11 +19,12 @@ async function getOrder(id: string) {
   }
 
   const enrichedItems = await enrichLineItems(order.items, order.region_id!)
-
-  return {
+  const withItems = {
     ...order,
     items: enrichedItems,
   } as unknown as HttpTypes.StoreOrder
+  applyDisplayPriceCorrectionToOrder(withItems)
+  return withItems
 }
 
 export const metadata: Metadata = {
