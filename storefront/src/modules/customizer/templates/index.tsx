@@ -15,6 +15,7 @@ import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/l
 import { calculatePricing } from "@modules/customizer/lib/pricing"
 import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
+import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 import {
   BulkPricingTier,
   CUSTOMIZER_PRINT_NOTES_MAX_LENGTH,
@@ -324,49 +325,6 @@ type SessionUploadAsset = {
   dataUrl: string
   /** Hosted copy of the exact bytes the customer uploaded (MinIO/S3); optional if storage failed. */
   originalStorageUrl?: string
-}
-
-async function fileToBase64Payload(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const s = String(reader.result ?? "")
-      const comma = s.indexOf(",")
-      resolve(comma >= 0 ? s.slice(comma + 1) : s)
-    }
-    reader.onerror = () => reject(new Error("Unable to read file"))
-    reader.readAsDataURL(file)
-  })
-}
-
-/** Persists the customer's file byte-for-byte on object storage (Medusa `upload-original`). */
-async function uploadCustomerOriginalUnchanged(file: File): Promise<string | null> {
-  const mimeType: "image/png" | "image/jpeg" | "image/svg+xml" =
-    file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/svg+xml"
-      ? file.type
-      : "image/png"
-  try {
-    const dataBase64 = await fileToBase64Payload(file)
-    const res = await fetch("/api/customizer/upload-original", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fileName: file.name || "upload",
-        mimeType,
-        dataBase64,
-      }),
-      cache: "no-store",
-    })
-    const j = (await res.json().catch(() => ({}))) as { url?: string; message?: string }
-    if (!res.ok) {
-      console.warn("[customizer] Original file upload failed:", j.message ?? res.status)
-      return null
-    }
-    return typeof j.url === "string" && j.url.trim() ? j.url.trim() : null
-  } catch (e) {
-    console.warn("[customizer] Original file upload error:", e)
-    return null
-  }
 }
 
 const loadSvgObject = async (svg: string) => {
@@ -1353,6 +1311,16 @@ export default function CustomizerTemplate({
           ? Math.round(canvasSize.height)
           : Math.max(500, Math.round(printArea.height / 0.72))
       const effectiveCanvas = { width: canvasW, height: canvasH }
+
+      const uploadsWithoutArchive = sessionUploads.filter((u) => !u.originalStorageUrl)
+      if (uploadsWithoutArchive.length > 0) {
+        setUploadError(
+          "Your uploaded file(s) could not be stored on Medusa yet. Confirm MinIO on the backend, STORE_CORS " +
+            "includes this storefront URL, NEXT_PUBLIC_MEDUSA_BACKEND_URL, and NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY. " +
+            "Checkout requires the original file to be archived (not the rendered print PNG only)."
+        )
+        return
+      }
 
       const renderedArtifacts = await Promise.all(
         decoratedSides.map(async (side) => {

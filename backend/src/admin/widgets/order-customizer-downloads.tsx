@@ -188,7 +188,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                             />
                             <div className="border-t border-ui-border-base px-3 py-2">
                               <Text size="xsmall" className="text-ui-fg-subtle mb-1">
-                                Print file (PNG, trimmed artwork)
+                                Generated print file (not the customer upload)
                               </Text>
                               <a
                                 href={art.print_url}
@@ -196,7 +196,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                                 rel="noreferrer noopener"
                                 className="text-small text-blue-600 hover:underline break-all"
                               >
-                                Open print PNG (right-click → Save as…)
+                                Open generated print PNG (right-click → Save as…)
                               </a>
                             </div>
                           </div>
