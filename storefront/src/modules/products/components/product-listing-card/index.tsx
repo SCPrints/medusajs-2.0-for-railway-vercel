@@ -96,6 +96,8 @@ export default function ProductListingCard({
   )
 
   const articleRef = useRef<HTMLElement | null>(null)
+  /** Defer `swatchPhotoUrl` background fetches until the card is near the viewport (or user interacts). */
+  const [swatchPhotosActive, setSwatchPhotosActive] = useState(false)
   const pointerInsideRef = useRef(false)
   const lastPointerRef = useRef<{ x: number; y: number } | null>(null)
   const prevPointerRef = useRef<{ x: number; y: number } | null>(null)
@@ -123,6 +125,27 @@ export default function ProductListingCard({
         cancelAnimationFrame(moveRafRef.current)
       }
     }
+  }, [])
+
+  useEffect(() => {
+    const el = articleRef.current
+    if (!el) {
+      return
+    }
+    if (typeof IntersectionObserver === "undefined") {
+      setSwatchPhotosActive(true)
+      return
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSwatchPhotosActive(true)
+        }
+      },
+      { rootMargin: "160px 0px", threshold: 0 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
   }, [])
 
   const resetPreview = useCallback(() => {
@@ -272,7 +295,11 @@ export default function ProductListingCard({
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
           Available colors
         </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+          className="flex flex-wrap items-center gap-2"
+          onMouseEnter={() => setSwatchPhotosActive(true)}
+          onFocusCapture={() => setSwatchPhotosActive(true)}
+        >
           {swatches.length ? (
             <>
               {swatches.map(({ colorLabel, imageUrl, swatchPhotoUrl }) => (
@@ -284,7 +311,7 @@ export default function ProductListingCard({
                   className="inline-block h-5 w-5 rounded-full border border-ui-border-base transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
                   style={{
                     backgroundColor: resolveGarmentSwatchColor(colorLabel),
-                    ...(swatchPhotoUrl
+                    ...(swatchPhotosActive && swatchPhotoUrl
                       ? {
                           backgroundImage: `url("${swatchPhotoUrl}")`,
                           backgroundSize: "235%",

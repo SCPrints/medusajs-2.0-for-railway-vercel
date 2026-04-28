@@ -15,7 +15,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    /** Set NEXT_PUBLIC_UNOPTIMIZED_IMAGES=true to skip the image optimizer (debug / broken remote hosts). Default: optimized WebP/AVIF + sizing via `/_next/image`. */
+    unoptimized: process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === "true",
     remotePatterns: [
       {
         protocol: "http",

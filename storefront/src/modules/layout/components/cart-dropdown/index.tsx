@@ -87,6 +87,7 @@ const CartDropdown = ({
           <LocalizedClientLink
             className="flex h-full items-center text-base font-medium hover:text-ui-fg-base"
             href="/cart"
+            prefetch={false}
             data-testid="nav-cart-link"
           >{`Cart (${totalItems})`}</LocalizedClientLink>
         </Popover.Button>
@@ -129,6 +130,7 @@ const CartDropdown = ({
                       >
                         <LocalizedClientLink
                           href={`/products/${item.variant?.product?.handle}`}
+                          prefetch={false}
                           className="w-24"
                         >
                           <LineItemMockupPreview
@@ -146,6 +148,7 @@ const CartDropdown = ({
                                 <h3 className="text-base-regular overflow-hidden text-ellipsis">
                                   <LocalizedClientLink
                                     href={`/products/${item.variant?.product?.handle}`}
+                                    prefetch={false}
                                     data-testid="product-link"
                                   >
                                     {item.title}
@@ -208,7 +211,7 @@ const CartDropdown = ({
                       })}
                     </span>
                   </div>
-                  <LocalizedClientLink href="/cart" passHref>
+                  <LocalizedClientLink href="/cart" prefetch={false} passHref>
                     <Button
                       className="w-full"
                       size="large"
@@ -227,7 +230,7 @@ const CartDropdown = ({
                   </div>
                   <span>Your shopping bag is empty.</span>
                   <div>
-                    <LocalizedClientLink href="/store">
+                    <LocalizedClientLink href="/store" prefetch={false}>
                       <>
                         <span className="sr-only">Go to all products page</span>
                         <Button onClick={close}>Explore products</Button>

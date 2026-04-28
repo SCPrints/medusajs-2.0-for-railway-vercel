@@ -33,6 +33,7 @@ const Hit = ({ hit }: HitProps) => {
         <Thumbnail
           thumbnail={hit.thumbnail}
           size="square"
+          sizes="(max-width: 639px) 48px, (max-width: 1024px) 40vw, 280px"
           className="group h-12 w-12 sm:h-full sm:w-full"
         />
         <div className="flex flex-col justify-between group">

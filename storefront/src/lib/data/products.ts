@@ -90,6 +90,11 @@ export async function getProductByHandle(
   }
 }
 
+/**
+ * Product listing uses the Store API `limit` + `offset` parameters (cursor pagination is not exposed
+ * on `sdk.store.product.list`). Large `page` values increase database work proportional to OFFSET.
+ * Complement storefront caching with Postgres indexes — see `backend/scripts/sql/catalog-product-list-index.sql`.
+ */
 export const getProductsList = cache(async function ({
   pageParam = 1,
   queryParams,

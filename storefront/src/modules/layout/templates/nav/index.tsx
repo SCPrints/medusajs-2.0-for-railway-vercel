@@ -113,6 +113,7 @@ export default async function Nav() {
           <div className="flex items-center h-full">
             <LocalizedClientLink
               href="/"
+              prefetch={false}
               className="inline-flex items-center"
               data-testid="nav-store-link"
             >
@@ -131,6 +132,7 @@ export default async function Nav() {
             <LocalizedClientLink
               className="flex h-full min-h-10 min-w-10 items-center justify-center hover:text-[var(--brand-accent)]"
               href="/search"
+              prefetch={false}
               scroll={false}
               data-testid="nav-search-link"
               aria-label="Search site"
@@ -144,6 +146,7 @@ export default async function Nav() {
               <LocalizedClientLink
                 className="flex h-full items-center hover:text-[var(--brand-accent)]"
                 href="/account"
+                prefetch={false}
                 data-testid="nav-account-link"
               >
                 Account
@@ -154,6 +157,7 @@ export default async function Nav() {
                 <LocalizedClientLink
                   className="flex gap-2 text-base font-medium hover:text-[var(--brand-accent)]"
                   href="/cart"
+                  prefetch={false}
                   data-testid="nav-cart-link"
                 >
                   Cart (0)

@@ -16,8 +16,9 @@ type ThumbnailProps = {
   "data-testid"?: string
 }
 
+/** Tight viewport-relative sizes for catalog grids (avoids oversized `/_next/image` srcset widths). */
 const DEFAULT_SIZES =
-  "(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"
+  "(max-width: 576px) 50vw, (max-width: 992px) 33vw, 260px"
 
 const Thumbnail: React.FC<ThumbnailProps> = ({
   thumbnail,
