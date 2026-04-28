@@ -52,6 +52,14 @@ const nextConfig = {
         protocol: "https",
         hostname: "cdn11.bigcommerce.com",
       },
+      {
+        protocol: "https",
+        hostname: "www.dncworkwear.com.au",
+      },
+      {
+        protocol: "https",
+        hostname: "dncworkwear.com.au",
+      },
     ],
   },
   serverRuntimeConfig: {
