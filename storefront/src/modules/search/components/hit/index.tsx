@@ -23,6 +23,7 @@ const Hit = ({ hit }: HitProps) => {
   return (
     <LocalizedClientLink
       href={`/products/${hit.handle}`}
+      prefetch={false}
       data-testid="search-result"
     >
       <Container

@@ -11,6 +11,15 @@ import { getStoreProductTagValues } from "@lib/util/product-tags"
 import ProductListingCard from "@modules/products/components/product-listing-card"
 import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
+/** Medusa list responses include `calculated_price`; avoid N+1 `getProductsById` per tile. */
+function productHasRegionalPrices(product: HttpTypes.StoreProduct): boolean {
+  return (product.variants ?? []).some(
+    (v) =>
+      (v as { calculated_price?: { calculated_amount?: unknown } })
+        ?.calculated_price?.calculated_amount != null
+  )
+}
+
 export default async function ProductPreview({
   product,
   isFeatured,
@@ -22,10 +31,14 @@ export default async function ProductPreview({
   region: HttpTypes.StoreRegion
   layout?: "default" | "boxed"
 }) {
-  const [pricedProduct] = await getProductsById({
-    ids: [product.id!],
-    regionId: region.id,
-  })
+  const pricedProduct = productHasRegionalPrices(product)
+    ? product
+    : (
+        await getProductsById({
+          ids: [product.id!],
+          regionId: region.id,
+        })
+      )[0]
 
   if (!pricedProduct) {
     return null
@@ -45,9 +58,14 @@ export default async function ProductPreview({
     return <ProductListingCard className="h-full" {...cardData} />
   }
 
+  const gridThumbSizes = isFeatured
+    ? "(max-width: 576px) 50vw, (max-width: 992px) 40vw, 400px"
+    : "(max-width: 576px) 50vw, (max-width: 992px) 33vw, 260px"
+
   return (
     <LocalizedClientLink
       href={`/products/${product.handle}`}
+      prefetch={false}
       className="group block transform-gpu transition-transform duration-200 ease-out motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.01]"
     >
       <div data-testid="product-wrapper">
@@ -56,6 +74,7 @@ export default async function ProductPreview({
           images={product.images}
           size="full"
           isFeatured={isFeatured}
+          sizes={gridThumbSizes}
         />
         <div className="flex txt-compact-medium mt-4 justify-between">
           <Text className="text-ui-fg-subtle" data-testid="product-title">

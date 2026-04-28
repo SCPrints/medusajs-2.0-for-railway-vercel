@@ -10,15 +10,21 @@ type ThumbnailProps = {
   images?: any[] | null
   size?: "small" | "medium" | "large" | "full" | "square"
   isFeatured?: boolean
+  /** Passed to `next/image` `sizes` — use a tight value for catalog grids to shrink srcset. */
+  sizes?: string
   className?: string
   "data-testid"?: string
 }
+
+const DEFAULT_SIZES =
+  "(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"
 
 const Thumbnail: React.FC<ThumbnailProps> = ({
   thumbnail,
   images,
   size = "small",
   isFeatured,
+  sizes,
   className,
   "data-testid": dataTestid,
 }) => {
@@ -41,7 +47,11 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
       )}
       data-testid={dataTestid}
     >
-      <ImageOrPlaceholder image={initialImage} size={size} />
+      <ImageOrPlaceholder
+        image={initialImage}
+        size={size}
+        sizes={sizes ?? DEFAULT_SIZES}
+      />
     </Container>
   )
 }
@@ -49,7 +59,8 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
 const ImageOrPlaceholder = ({
   image,
   size,
-}: Pick<ThumbnailProps, "size"> & { image?: string }) => {
+  sizes,
+}: Pick<ThumbnailProps, "size"> & { image?: string; sizes: string }) => {
   return image ? (
     <Image
       src={image}
@@ -57,7 +68,7 @@ const ImageOrPlaceholder = ({
       className="absolute inset-0 object-cover object-center"
       draggable={false}
       quality={50}
-      sizes="(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"
+      sizes={sizes}
       fill
     />
   ) : (

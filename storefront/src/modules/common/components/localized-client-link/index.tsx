@@ -40,10 +40,13 @@ const runPageTransition = () => {
 const LocalizedClientLink = ({
   children,
   href,
+  prefetch,
   ...props
 }: {
   children?: React.ReactNode
   href: string
+  /** Set `false` on dense product grids to avoid many RSC prefetches competing with the current page. */
+  prefetch?: boolean
   className?: string
   onClick?: (() => void) | React.MouseEventHandler<HTMLAnchorElement>
   passHref?: true
@@ -98,7 +101,12 @@ const LocalizedClientLink = ({
   }
 
   return (
-    <Link href={localizedHref} {...props} onClick={handleClick}>
+    <Link
+      href={localizedHref}
+      prefetch={prefetch}
+      {...props}
+      onClick={handleClick}
+    >
       {children}
     </Link>
   )

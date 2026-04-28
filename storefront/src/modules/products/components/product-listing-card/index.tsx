@@ -64,7 +64,7 @@ function CardImage({
           className="absolute inset-0 object-cover object-center transition-transform duration-300 ease-out will-change-transform group-hover:scale-110"
           draggable={false}
           quality={50}
-          sizes="(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"
+          sizes="(max-width: 576px) 50vw, (max-width: 1024px) 33vw, 260px"
           fill
         />
       ) : (
@@ -252,7 +252,7 @@ export default function ProductListingCard({
         className
       )}
     >
-      <LocalizedClientLink href={href} className="block min-w-0">
+      <LocalizedClientLink href={href} className="block min-w-0" prefetch={false}>
         <CardImage imageUrl={previewUrl} title={title} />
         <h3
           className="mt-4 text-base font-semibold text-ui-fg-base"
