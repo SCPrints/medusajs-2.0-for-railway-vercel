@@ -2,7 +2,6 @@ import Image from "next/image"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ChevronDown from "@modules/common/icons/chevron-down"
-import MedusaCTA from "@modules/layout/components/medusa-cta"
 
 export default function CheckoutLayout({
   children,
@@ -55,9 +54,6 @@ export default function CheckoutLayout({
         data-testid="checkout-container"
       >
         {children}
-      </div>
-      <div className="mt-auto w-full border-t border-[rgba(26,26,46,0.1)] bg-[var(--brand-background)] py-6">
-        <MedusaCTA />
       </div>
     </div>
   )
