@@ -1315,9 +1315,8 @@ export default function CustomizerTemplate({
       const uploadsWithoutArchive = sessionUploads.filter((u) => !u.originalStorageUrl)
       if (uploadsWithoutArchive.length > 0) {
         setUploadError(
-          "Your uploaded file(s) could not be stored on Medusa yet. Confirm MinIO on the backend, STORE_CORS " +
-            "includes this storefront URL, NEXT_PUBLIC_MEDUSA_BACKEND_URL, and NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY. " +
-            "Checkout requires the original file to be archived (not the rendered print PNG only)."
+          "Could not archive your uploaded file(s). On the Railway Medusa server set MinIO vars (MINIO_*), STORE_CORS to include your Vercel URL, " +
+            "and redeploy. Then remove uploads in “My uploads” and choose your file again."
         )
         return
       }
