@@ -12,6 +12,9 @@ import {
 import { AbstractFulfillmentProviderService, MedusaError } from "@medusajs/framework/utils"
 import {
   SHIPPING_PACKAGING_OVERHEAD_GRAMS,
+  SHIPSTATION_PACKAGE_HEIGHT_CM,
+  SHIPSTATION_PACKAGE_LENGTH_CM,
+  SHIPSTATION_PACKAGE_WIDTH_CM,
   SHIPSTATION_WAREHOUSE_ADDRESS_1,
   SHIPSTATION_WAREHOUSE_CITY,
   SHIPSTATION_WAREHOUSE_COUNTRY_CODE,
@@ -34,6 +37,12 @@ const coerceWeightGrams = (raw: unknown): number => {
     }
   }
   return 0
+}
+
+/** Medusa often stores ISO codes lowercase (`au`); ShipStation compares uppercase (`AU`). */
+function normalizeCountryCode(code: string | undefined | null): string {
+  const raw = typeof code === "string" ? code.trim() : ""
+  return raw ? raw.toUpperCase() : ""
 }
 
 const lineItemWeightGrams = (item: any): number => {
@@ -119,7 +128,9 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
   }): ShipStationAddress {
     const a = from_address?.address
     const postal = a?.postal_code || SHIPSTATION_WAREHOUSE_POSTCODE || ""
-    const country = a?.country_code || SHIPSTATION_WAREHOUSE_COUNTRY_CODE || ""
+    const country = normalizeCountryCode(
+      a?.country_code || SHIPSTATION_WAREHOUSE_COUNTRY_CODE || ""
+    )
 
     if (!postal || !country) {
       throw new MedusaError(
@@ -202,7 +213,7 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
       city_locality: to_address.city || "",
       state_province: to_address.province || "",
       postal_code: to_address.postal_code,
-      country_code: to_address.country_code,
+      country_code: normalizeCountryCode(to_address.country_code),
       address_residential_indicator: "unknown",
     }
 
@@ -243,6 +254,12 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
             weight: {
               value: packageWeightKg,
               unit: "kilogram",
+            },
+            dimensions: {
+              unit: "centimeter",
+              length: SHIPSTATION_PACKAGE_LENGTH_CM,
+              width: SHIPSTATION_PACKAGE_WIDTH_CM,
+              height: SHIPSTATION_PACKAGE_HEIGHT_CM,
             },
           },
         ],

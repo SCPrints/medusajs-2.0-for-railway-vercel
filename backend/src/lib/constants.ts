@@ -58,6 +58,27 @@ export const SHIPSTATION_WAREHOUSE_ADDRESS_1 =
   process.env.SHIPSTATION_WAREHOUSE_ADDRESS_1
 export const SHIPSTATION_WAREHOUSE_PHONE = process.env.SHIPSTATION_WAREHOUSE_PHONE
 
+/** Nominal parcel dimensions for ShipStation rate quotes (cm). Carriers often require L×W×H. */
+const parsePackageDimCm = (raw: string | undefined, fallback: number) => {
+  const n = Number.parseFloat(raw ?? "")
+  if (!Number.isFinite(n) || n <= 0 || n > 200) {
+    return fallback
+  }
+  return n
+}
+export const SHIPSTATION_PACKAGE_LENGTH_CM = parsePackageDimCm(
+  process.env.SHIPSTATION_PACKAGE_LENGTH_CM,
+  40
+)
+export const SHIPSTATION_PACKAGE_WIDTH_CM = parsePackageDimCm(
+  process.env.SHIPSTATION_PACKAGE_WIDTH_CM,
+  30
+)
+export const SHIPSTATION_PACKAGE_HEIGHT_CM = parsePackageDimCm(
+  process.env.SHIPSTATION_PACKAGE_HEIGHT_CM,
+  15
+)
+
 const parseIntEnv = (raw: string | undefined, fallback: number) => {
   if (!raw) {
     return fallback
