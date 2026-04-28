@@ -60,6 +60,7 @@ const STATIC_GROUPS: LinkGroup[] = [
       { href: "/cart", label: "Cart" },
       { href: "/contact", label: "Contact" },
       { href: "/faq", label: "FAQ" },
+      { href: "/guides/cmyk-dtf", label: "CMYK guide for DTF" },
     ],
   },
   {

@@ -4,6 +4,7 @@ import confetti from "canvas-confetti"
 import { AnimatePresence, motion } from "framer-motion"
 import dynamic from "next/dynamic"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useInView } from "react-intersection-observer"
 
 const LordiconBlock = dynamic(() => import("./animation-widgets-lordicon-block"), {
   ssr: false,
@@ -246,37 +247,76 @@ function LoaderOverlayDemo({ reducedMotion }: { reducedMotion: boolean }) {
   )
 }
 
+const TYPEWRITER_TEXT = "Motion that guides attention — without stealing it."
+
 function TypewriterHeadline({ reducedMotion }: { reducedMotion: boolean }) {
-  const text = "Motion that guides attention — without stealing it."
-  const [len, setLen] = useState(reducedMotion ? text.length : 0)
+  const { ref, inView } = useInView({ threshold: 0.35, triggerOnce: false })
+  const [len, setLen] = useState(0)
+  const [replayKey, setReplayKey] = useState(0)
+
+  const text = TYPEWRITER_TEXT
+  const fullLen = text.length
 
   useEffect(() => {
     if (reducedMotion) {
-      setLen(text.length)
+      setLen(fullLen)
       return
     }
-    if (len >= text.length) {
+    if (!inView) {
       return
     }
-    const t = window.setTimeout(() => setLen((n) => n + 1), 42)
-    return () => clearTimeout(t)
-  }, [len, reducedMotion, text.length])
 
-  useEffect(() => {
-    if (reducedMotion) {
-      setLen(text.length)
-    } else {
-      setLen(0)
+    let cancelled = false
+    let current = 0
+    let activeId: ReturnType<typeof setTimeout> | undefined
+    setLen(0)
+
+    const step = () => {
+      if (cancelled) {
+        return
+      }
+      current += 1
+      setLen(Math.min(current, fullLen))
+      if (current < fullLen) {
+        activeId = window.setTimeout(step, 48)
+      }
     }
-  }, [reducedMotion, text])
+
+    activeId = window.setTimeout(step, 48)
+    return () => {
+      cancelled = true
+      if (activeId !== undefined) {
+        window.clearTimeout(activeId)
+      }
+    }
+  }, [fullLen, inView, reducedMotion, replayKey])
 
   const visible = text.slice(0, len)
+  const showCaret = !reducedMotion && inView
 
   return (
-    <p className="font-mono text-base text-ui-fg-base small:text-lg">
-      {visible}
-      <span className="inline-block w-2 animate-pulse border-l-2 border-ui-fg-base align-baseline" />
-    </p>
+    <div ref={ref} className="space-y-3">
+      <p className="font-mono text-base text-ui-fg-base small:text-lg">
+        {visible}
+        {showCaret ? (
+          <span
+            className="ml-0.5 inline-block h-[1.1em] w-2 translate-y-[0.08em] bg-[#FF2E63] align-middle motion-safe:animate-pulse"
+            aria-hidden
+          />
+        ) : null}
+      </p>
+      {!reducedMotion ? (
+        <button
+          type="button"
+          className="text-xs font-medium text-ui-fg-muted underline decoration-ui-border-base underline-offset-2 hover:text-ui-fg-base"
+          onClick={() => setReplayKey((k) => k + 1)}
+        >
+          Replay typing
+        </button>
+      ) : (
+        <p className="text-xs text-ui-fg-muted">Full line shown (prefers reduced motion).</p>
+      )}
+    </div>
   )
 }
 
@@ -478,7 +518,7 @@ export default function AnimationWidgetsDemo() {
 
       <Section
         title="Typewriter headline"
-        description="Simple character reveal; respects reduced motion (shows full line)."
+        description="Characters reveal when this block enters the viewport (so it doesn’t finish before you scroll here). Pink block cursor pulses while visible. Use Replay typing to run again. With prefers reduced motion, the full line shows immediately."
       >
         <TypewriterHeadline reducedMotion={reducedMotion} />
       </Section>

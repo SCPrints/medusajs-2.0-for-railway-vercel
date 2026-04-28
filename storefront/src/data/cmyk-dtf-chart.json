@@ -1,0 +1,313 @@
+{
+  "cmyk_color_chart": [
+    {
+      "category": "Blacks",
+      "description": "Standard black is used for text, while rich black is recommended for large background areas to prevent a washed-out look.",
+      "colors": [
+        {
+          "name": "Standard Black",
+          "c": 0,
+          "m": 0,
+          "y": 0,
+          "k": 100,
+          "hex": "#000000",
+          "notes": "Use for text and fine details."
+        },
+        {
+          "name": "Rich Black",
+          "c": 60,
+          "m": 40,
+          "y": 40,
+          "k": 100,
+          "hex": "#0a0a0a",
+          "notes": "Use for large solid backgrounds. Do not set all values to 100 to avoid over-saturation."
+        }
+      ]
+    },
+    {
+      "category": "Greys",
+      "description": "Greys can be created using only the Black (K) channel for a safe, perfectly neutral result. Rich greys use a mix of CMYK for deeper, warmer, or cooler tones, but require careful balancing to avoid unwanted colour shifts.",
+      "colors": [
+        {
+          "name": "Light Neutral Grey",
+          "c": 0,
+          "m": 0,
+          "y": 0,
+          "k": 20,
+          "hex": "#D1D3D4",
+          "notes": "Safe, neutral light grey using only black ink. Perfect for subtle backgrounds."
+        },
+        {
+          "name": "Medium Neutral Grey",
+          "c": 0,
+          "m": 0,
+          "y": 0,
+          "k": 50,
+          "hex": "#939598",
+          "notes": "Standard mid-tone grey. No risk of colour casting."
+        },
+        {
+          "name": "Dark Neutral Grey",
+          "c": 0,
+          "m": 0,
+          "y": 0,
+          "k": 80,
+          "hex": "#58595B",
+          "notes": "Dark, flat grey. Good for deep shadows without using rich black."
+        },
+        {
+          "name": "Cool Rich Grey",
+          "c": 40,
+          "m": 30,
+          "y": 30,
+          "k": 60,
+          "hex": "#5A6065",
+          "notes": "A deeper grey with a slight blue/steely undertone. Cyan is slightly higher than Magenta and Yellow."
+        },
+        {
+          "name": "Warm Rich Grey",
+          "c": 30,
+          "m": 40,
+          "y": 40,
+          "k": 60,
+          "hex": "#655A55",
+          "notes": "A deeper grey with a slight brownish/warm undertone. Magenta and Yellow are higher than Cyan."
+        }
+      ]
+    },
+    {
+      "category": "Reds",
+      "description": "Watch out for magenta and yellow levels. Too much magenta turns it pink; too much yellow turns it orange.",
+      "colors": [
+        {
+          "name": "Vibrant Red",
+          "c": 0,
+          "m": 100,
+          "y": 100,
+          "k": 0,
+          "hex": "#ED1C24",
+          "notes": "Standard pure CMYK red."
+        },
+        {
+          "name": "Deep Red",
+          "c": 15,
+          "m": 100,
+          "y": 100,
+          "k": 20,
+          "hex": "#AF0011",
+          "notes": "A darker, richer red without turning muddy."
+        }
+      ]
+    },
+    {
+      "category": "Oranges & Browns",
+      "description": "Combine two parts yellow and one part magenta for a bright orange.",
+      "colors": [
+        {
+          "name": "Bright Orange",
+          "c": 0,
+          "m": 50,
+          "y": 100,
+          "k": 0,
+          "hex": "#F7931D",
+          "notes": "Balanced formula for vibrant orange."
+        },
+        {
+          "name": "Earthy Brown",
+          "c": 30,
+          "m": 50,
+          "y": 75,
+          "k": 10,
+          "hex": "#A07144",
+          "notes": "A balanced, warm brown."
+        }
+      ]
+    },
+    {
+      "category": "Earth Tones & Neutrals",
+      "description": "Muted, natural tones are incredibly popular in modern streetwear. These require careful balancing of all four channels to achieve a dusty look.",
+      "colors": [
+        {
+          "name": "Olive Drab",
+          "c": 50,
+          "m": 30,
+          "y": 80,
+          "k": 20,
+          "hex": "#6B705C",
+          "notes": "Classic military/streetwear olive green. High yellow and cyan with enough black to mute it."
+        },
+        {
+          "name": "Terracotta",
+          "c": 10,
+          "m": 60,
+          "y": 70,
+          "k": 15,
+          "hex": "#BC5B45",
+          "notes": "Rusty, burnt orange-red. Earthy and warm."
+        },
+        {
+          "name": "Sand / Khaki",
+          "c": 15,
+          "m": 20,
+          "y": 35,
+          "k": 5,
+          "hex": "#D2C2A4",
+          "notes": "Warm beige. Great as an accent colour against dark fabrics."
+        }
+      ]
+    },
+    {
+      "category": "Yellows & Greens",
+      "description": "Equal parts Cyan and Yellow make vibrant greens. Yellow should be handled carefully to avoid mustard tones.",
+      "colors": [
+        {
+          "name": "Pure Yellow",
+          "c": 0,
+          "m": 0,
+          "y": 100,
+          "k": 0,
+          "hex": "#FFF200",
+          "notes": "Maximum yellow density."
+        },
+        {
+          "name": "Vibrant Green",
+          "c": 100,
+          "m": 0,
+          "y": 100,
+          "k": 0,
+          "hex": "#00A651",
+          "notes": "Equal parts Cyan and Yellow."
+        }
+      ]
+    },
+    {
+      "category": "Teals & Aquas",
+      "description": "High-impact cool tones. These rely heavily on Cyan and Yellow while keeping Magenta strictly at zero to prevent the colours from looking muddy or turning into a dull blue.",
+      "colors": [
+        {
+          "name": "Bright Aqua",
+          "c": 70,
+          "m": 0,
+          "y": 20,
+          "k": 0,
+          "hex": "#00BFC5",
+          "notes": "Punchy tropical blue-green. Great for summer apparel."
+        },
+        {
+          "name": "Deep Teal",
+          "c": 85,
+          "m": 20,
+          "y": 45,
+          "k": 10,
+          "hex": "#008080",
+          "notes": "Rich, jewel-toned teal. The slight magenta and black add depth without destroying vibrancy."
+        }
+      ]
+    },
+    {
+      "category": "Blues",
+      "description": "Blue is challenging in CMYK. Keep mixtures balanced to avoid purple or green tints.",
+      "colors": [
+        {
+          "name": "Balanced Blue",
+          "c": 100,
+          "m": 50,
+          "y": 0,
+          "k": 0,
+          "hex": "#0071BC",
+          "notes": "Reliable print blue."
+        },
+        {
+          "name": "Pure Cyan",
+          "c": 100,
+          "m": 0,
+          "y": 0,
+          "k": 0,
+          "hex": "#00AEEF",
+          "notes": "Standard pure CMYK cyan."
+        },
+        {
+          "name": "Navy Blue",
+          "c": 100,
+          "m": 75,
+          "y": 0,
+          "k": 30,
+          "hex": "#003270",
+          "notes": "Deep, strong dark blue."
+        }
+      ]
+    },
+    {
+      "category": "Purples",
+      "description": "Regal purple tones are CMYK friendly using a 3:2 magenta to cyan ratio.",
+      "colors": [
+        {
+          "name": "Regal Purple",
+          "c": 79,
+          "m": 100,
+          "y": 0,
+          "k": 0,
+          "hex": "#662D91",
+          "notes": "Magenta-heavy purple."
+        }
+      ]
+    },
+    {
+      "category": "Pinks",
+      "description": "Pinks rely on Magenta. Keep cyan, yellow, and black low for true pinks.",
+      "colors": [
+        {
+          "name": "Hot Pink / Pure Magenta",
+          "c": 0,
+          "m": 100,
+          "y": 0,
+          "k": 0,
+          "hex": "#EC008C",
+          "notes": "Maximum magenta density."
+        },
+        {
+          "name": "Soft Pink",
+          "c": 0,
+          "m": 30,
+          "y": 0,
+          "k": 0,
+          "hex": "#F6B2D5",
+          "notes": "A lighter pastel pink variation."
+        }
+      ]
+    },
+    {
+      "category": "Pastels & Soft Tones",
+      "description": "Pastels look incredible in DTF because they utilise the bright white ink base layer. Keep your C, M, and Y values under 30% for the best soft-touch effect.",
+      "colors": [
+        {
+          "name": "Mint Green",
+          "c": 30,
+          "m": 0,
+          "y": 20,
+          "k": 0,
+          "hex": "#A8E6CF",
+          "notes": "Crisp, cool pastel green."
+        },
+        {
+          "name": "Soft Lavender",
+          "c": 15,
+          "m": 30,
+          "y": 0,
+          "k": 0,
+          "hex": "#D1B3D4",
+          "notes": "Gentle floral purple. Zero yellow keeps it cool and clean."
+        },
+        {
+          "name": "Peach",
+          "c": 0,
+          "m": 20,
+          "y": 30,
+          "k": 0,
+          "hex": "#FFCBA4",
+          "notes": "Warm, soft pastel. Popular on modern graphic tees."
+        }
+      ]
+    }
+  ]
+}
