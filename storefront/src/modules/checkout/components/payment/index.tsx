@@ -10,6 +10,10 @@ import { CardElement } from "@stripe/react-stripe-js"
 import { StripeCardElementOptions } from "@stripe/stripe-js"
 
 import PaymentContainer from "@modules/checkout/components/payment-container"
+import {
+  StripeAcceptedCardMarks,
+  StripePaymentTrustFootnote,
+} from "@modules/checkout/components/stripe-payment-trust"
 import { isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants"
 import { StripeContext } from "@modules/checkout/components/payment-wrapper"
 import { initiatePaymentSession } from "@lib/data/cart"
@@ -170,10 +174,12 @@ const Payment = ({
                   })}
               </RadioGroup>
               {stripeSelected && stripeReady && (
-                <div className="mt-5 transition-all duration-150 ease-in-out">
-                  <Text className="txt-medium-plus text-ui-fg-base mb-1">
+                <div className="mt-5 space-y-3 transition-all duration-150 ease-in-out">
+                  <Text className="txt-medium-plus text-ui-fg-base">
                     Enter your card details:
                   </Text>
+
+                  <StripeAcceptedCardMarks />
 
                   <CardElement
                     options={useOptions as StripeCardElementOptions}
@@ -186,6 +192,8 @@ const Payment = ({
                       setCardComplete(e.complete)
                     }}
                   />
+
+                  <StripePaymentTrustFootnote />
                 </div>
               )}
             </>

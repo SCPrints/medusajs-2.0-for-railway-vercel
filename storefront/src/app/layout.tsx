@@ -3,7 +3,7 @@ import { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans } from "next/font/google"
 import "styles/globals.css"
 import { ViewTransitions } from "next-view-transitions"
-import CursorDot from "@modules/layout/components/cursor-dot"
+import ConditionalCursorDot from "@modules/layout/components/conditional-cursor-dot"
 
 const plusJakartaSans = Plus_Jakarta_Sans({ 
   subsets: ["latin"],
@@ -106,7 +106,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         <body 
           className={`${plusJakartaSans.className} antialiased selection:bg-[#FF2E63] selection:text-[#EEEEEE]`}
         >
-          <CursorDot />
+          <ConditionalCursorDot />
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
