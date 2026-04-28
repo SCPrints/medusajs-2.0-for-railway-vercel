@@ -1,0 +1,57 @@
+{
+  "theme": {
+    "primary_color": "#1A365D",
+    "accent_color": "#38B2AC",
+    "style": "minimalist line art"
+  },
+  "icons": [
+    {
+      "id": "select_product",
+      "title": "Select your product",
+      "description": "A t-shirt being selected with a cursor.",
+      "format": "svg",
+      "viewBox": "0 0 64 64",
+      "svg_content": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='#1A365D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M16 20l16-8 16 8v32H16z'/><path d='M32 12v8'/><path d='M20 22h24'/><circle cx='48' cy='48' r='10' stroke='#38B2AC'/><path d='M44 48l8-4v8z' fill='#38B2AC'/></svg>"
+    },
+    {
+      "id": "choose_colours_sizes",
+      "title": "Choose colours & sizes",
+      "description": "A color wheel/palette and size labels.",
+      "format": "svg",
+      "viewBox": "0 0 64 64",
+      "svg_content": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='#1A365D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='28' cy='32' r='16'/><path d='M28 16v32M12 32h32M20 20l16 16M20 44l16-16'/><rect x='48' y='16' width='12' height='10' rx='2' stroke='#38B2AC'/><text x='51' y='23' font-size='6' stroke='none' fill='#38B2AC'>S</text><rect x='48' y='28' width='12' height='10' rx='2' stroke='#38B2AC'/><text x='50' y='35' font-size='6' stroke='none' fill='#38B2AC'>M</text><rect x='48' y='40' width='12' height='10' rx='2' stroke='#38B2AC'/><text x='51' y='47' font-size='6' stroke='none' fill='#38B2AC'>L</text></svg>"
+    },
+    {
+      "id": "upload_design",
+      "title": "Upload your design",
+      "description": "A document with an image being uploaded.",
+      "format": "svg",
+      "viewBox": "0 0 64 64",
+      "svg_content": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='#1A365D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 12h16l12 12v28a2 2 0 01-2 2H20a2 2 0 01-2-2V14a2 2 0 012-2z'/><path d='M36 12v12h12'/><circle cx='32' cy='36' r='6'/><circle cx='48' cy='48' r='10' stroke='#38B2AC'/><path d='M48 52V44M44 48l4-4 4 4' stroke='#38B2AC'/></svg>"
+    },
+    {
+      "id": "print_embroider_prove",
+      "title": "We print, embroider & prove it",
+      "description": "Combined machinery and a checkmark.",
+      "format": "svg",
+      "viewBox": "0 0 64 64",
+      "svg_content": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='#1A365D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='10' y='24' width='20' height='16' rx='2'/><path d='M14 24v-6h12v6'/><path d='M20 34v6'/><rect x='34' y='24' width='20' height='16' rx='2'/><path d='M38 24v-8h12v8'/><path d='M40 24v4M44 24v4M48 24v4'/><circle cx='32' cy='48' r='8' stroke='#38B2AC'/><path d='M28 48l3 3 6-6' stroke='#38B2AC'/></svg>"
+    },
+    {
+      "id": "order_delivered",
+      "title": "Your order is delivered",
+      "description": "A shipping box in motion.",
+      "format": "svg",
+      "viewBox": "0 0 64 64",
+      "svg_content": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='#1A365D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M32 18L16 26l16 8 16-8-16-8z'/><path d='M16 26v16l16 8 16-8V26'/><path d='M32 34v24'/><path d='M24 30l16-8'/><path d='M12 36h-4M16 44h-8' stroke='#38B2AC'/></svg>"
+    },
+    {
+      "id": "pickup_lansvale",
+      "title": "Or pick up from Lansvale",
+      "description": "A storefront with a location pin.",
+      "format": "svg",
+      "viewBox": "0 0 64 64",
+      "svg_content": "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='#1A365D' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 30h40v22H12z'/><path d='M12 30l-4-8h48l-4 8'/><path d='M16 30v-8M24 30v-8M32 30v-8M40 30v-8M48 30v-8'/><rect x='26' y='40' width='12' height='12'/><path d='M48 22c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 8 12 20 12 20s12-12 12-20z' stroke='#38B2AC'/><circle cx='36' cy='22' r='4' stroke='#38B2AC'/></svg>"
+    }
+  ]
+}

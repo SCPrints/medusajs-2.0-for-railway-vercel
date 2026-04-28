@@ -332,3 +332,114 @@ a.checkout-nav-link--subtle:hover {
   z-index: 10000;
   animation: none !important;
 }
+
+/* --- Custom “How to order” SVG icon motion --- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .how-order-icon-animate--pulse {
+    animation: how-order-pulse 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .how-order-icon-animate--rotate {
+    animation: how-order-rotate 3s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .how-order-icon-animate--bob {
+    animation: how-order-bob 2s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .how-order-icon-animate--pulse-soft {
+    animation: how-order-pulse-soft 2.8s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .how-order-icon-animate--slide {
+    animation: how-order-slide 2.2s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  .how-order-icon-animate--float {
+    animation: how-order-float 2.6s ease-in-out infinite;
+    transform-origin: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .how-order-icon-animate--pulse,
+  .how-order-icon-animate--rotate,
+  .how-order-icon-animate--bob,
+  .how-order-icon-animate--pulse-soft,
+  .how-order-icon-animate--slide,
+  .how-order-icon-animate--float {
+    animation: none !important;
+  }
+}
+
+@keyframes how-order-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+@keyframes how-order-pulse-soft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes how-order-rotate {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-2.5deg);
+  }
+  75% {
+    transform: rotate(2.5deg);
+  }
+}
+
+@keyframes how-order-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes how-order-slide {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes how-order-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+  66% {
+    transform: translateY(-2px) rotate(1deg);
+  }
+}
