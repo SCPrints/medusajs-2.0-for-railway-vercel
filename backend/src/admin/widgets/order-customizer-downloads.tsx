@@ -7,13 +7,6 @@ function adminCustomizerDownloadPath(orderId: string) {
   return `/admin/orders/${orderId}/customizer-download`
 }
 
-function adminCustomizerDownloadUrlForDisplay(orderId: string) {
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}/admin/orders/${orderId}/customizer-download`
-  }
-  return adminCustomizerDownloadPath(orderId)
-}
-
 type ArtifactPayload = {
   side: string
   side_label: string
@@ -87,9 +80,14 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
   }
 
   return (
-    <Container className="divide-y p-0">
+    <Container className="divide-y p-0 border-t border-ui-border-base">
       <div className="flex items-center justify-between px-6 py-4">
-        <Heading level="h2">Customizer files</Heading>
+        <div>
+          <Heading level="h2">Customizer print & preview</Heading>
+          <Text size="small" className="text-ui-fg-subtle mt-1">
+            Print PNG and garment mockup saved with the order (same URLs as in line item metadata).
+          </Text>
+        </div>
       </div>
 
       <div className="px-6 py-4">
@@ -147,30 +145,54 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                           </Badge>
                         ) : null}
                       </div>
-                      <div className="mt-2 flex flex-col gap-1">
+                      <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
                         {art.print_url ? (
-                          <a
-                            href={art.print_url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="text-small text-blue-600 hover:underline break-all"
-                          >
-                            Download print file (PNG)
-                          </a>
+                          <div className="rounded-lg border border-ui-border-base bg-ui-bg-base overflow-hidden">
+                            <img
+                              src={art.print_url}
+                              alt={`Print artwork ${art.side_label}`}
+                              className="mx-auto block max-h-48 w-auto object-contain bg-ui-bg-component p-2"
+                            />
+                            <div className="border-t border-ui-border-base px-3 py-2">
+                              <Text size="xsmall" className="text-ui-fg-subtle mb-1">
+                                Print file (PNG, trimmed artwork)
+                              </Text>
+                              <a
+                                href={art.print_url}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="text-small text-blue-600 hover:underline break-all"
+                              >
+                                Open print PNG (right-click → Save as…)
+                              </a>
+                            </div>
+                          </div>
                         ) : !art.print_url_inline_omitted ? (
                           <Text size="xsmall" className="text-ui-fg-subtle">
                             No print URL on record for this side.
                           </Text>
                         ) : null}
                         {art.mockup_url ? (
-                          <a
-                            href={art.mockup_url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="text-small text-blue-600 hover:underline break-all"
-                          >
-                            Open garment preview image
-                          </a>
+                          <div className="rounded-lg border border-ui-border-base bg-ui-bg-base overflow-hidden">
+                            <img
+                              src={art.mockup_url}
+                              alt={`Garment preview ${art.side_label}`}
+                              className="mx-auto block max-h-48 w-auto object-contain bg-ui-bg-component p-2"
+                            />
+                            <div className="border-t border-ui-border-base px-3 py-2">
+                              <Text size="xsmall" className="text-ui-fg-subtle mb-1">
+                                Garment mockup (JPEG)
+                              </Text>
+                              <a
+                                href={art.mockup_url}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="text-small text-blue-600 hover:underline break-all"
+                              >
+                                Open mockup JPEG (right-click → Save as…)
+                              </a>
+                            </div>
+                          </div>
                         ) : null}
                       </div>
                     </li>
@@ -181,16 +203,14 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
           </ul>
         )}
 
-        <Text size="xsmall" className="text-ui-fg-muted mt-4">
-          API: <code>{adminCustomizerDownloadUrlForDisplay(orderId)}</code>
-        </Text>
       </div>
     </Container>
   )
 }
 
 export const config = defineWidgetConfig({
-  zone: "order.details.side.after",
+  /** Main column (full width) — above JSON debug; easy to scan without expanding metadata. */
+  zone: "order.details.after",
 })
 
 export default OrderCustomizerDownloadsWidget

@@ -161,35 +161,143 @@ const uploadToMinio = async (buffer: Buffer, fileName: string, mimeType: string)
 const dataUrlFromBuffer = (buffer: Buffer, mimeType: string) =>
   `data:${mimeType};base64,${buffer.toString("base64")}`
 
-export const renderPrintAsset = async (payload: RenderRequestPayload) => {
-  const width = clampDimension(payload.placement.width, 400, 4000)
-  const height = clampDimension(payload.placement.height, 400, 4000)
-  const svgBuffer = Buffer.from(payload.artworkSvg)
-  const pngBuffer = await sharp(svgBuffer)
-    .resize({
-      width,
-      height,
-      fit: "contain",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png({ compressionLevel: 9 })
+/**
+ * Fabric `toSVG()` plus Sharp density can yield a bitmap not exactly matching the editor canvas;
+ * normalize so placement pixels match the storefront.
+ */
+const rasterizeCustomizerSvgToCanvas = async (
+  svgBuffer: Buffer,
+  canvas?: { width: number; height: number }
+): Promise<{ buffer: Buffer; width: number; height: number }> => {
+  let buf = await sharp(svgBuffer, { density: 144 }).ensureAlpha().png().toBuffer()
+  let meta = await sharp(buf).metadata()
+  let w = meta.width ?? 0
+  let h = meta.height ?? 0
+
+  if (
+    canvas?.width &&
+    canvas?.height &&
+    (w !== canvas.width || h !== canvas.height)
+  ) {
+    buf = await sharp(buf)
+      .resize(canvas.width, canvas.height)
+      .png()
+      .toBuffer()
+    meta = await sharp(buf).metadata()
+    w = meta.width ?? canvas.width
+    h = meta.height ?? canvas.height
+  }
+
+  if (!w || !h) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "Customizer SVG did not rasterize to a valid bitmap."
+    )
+  }
+
+  return { buffer: buf, width: w, height: h }
+}
+
+/**
+ * Mirrors CSS `object-fit: cover`: center crop then resize to viewport (same as storefront img).
+ */
+const garmentCoverMatchCanvas = async (
+  garmentBuffer: Buffer,
+  viewportWidth: number,
+  viewportHeight: number
+) => {
+  const meta = await sharp(garmentBuffer).metadata()
+  const iw = meta.width ?? viewportWidth
+  const ih = meta.height ?? viewportHeight
+  if (iw < 1 || ih < 1) {
+    return sharp(garmentBuffer).resize(viewportWidth, viewportHeight).png().toBuffer()
+  }
+
+  const scale = Math.max(viewportWidth / iw, viewportHeight / ih)
+  let extractWidth = Math.floor(viewportWidth / scale)
+  let extractHeight = Math.floor(viewportHeight / scale)
+  extractWidth = Math.min(extractWidth, iw)
+  extractHeight = Math.min(extractHeight, ih)
+
+  let left = Math.floor((iw - extractWidth) / 2)
+  let top = Math.floor((ih - extractHeight) / 2)
+  left = clampDimension(left, 0, Math.max(0, iw - 1))
+  top = clampDimension(top, 0, Math.max(0, ih - 1))
+  extractWidth = Math.min(extractWidth, iw - left)
+  extractHeight = Math.min(extractHeight, ih - top)
+
+  return sharp(garmentBuffer)
+    .extract({ left, top, width: extractWidth, height: extractHeight })
+    .resize(viewportWidth, viewportHeight)
+    .png()
     .toBuffer()
+}
+
+export const renderPrintAsset = async (payload: RenderRequestPayload) => {
+  const svgBuffer = Buffer.from(payload.artworkSvg)
+  const { buffer: fullPng, width: imgW, height: imgH } = await rasterizeCustomizerSvgToCanvas(
+    svgBuffer,
+    payload.canvas
+  )
+
+  const px = clampDimension(Math.floor(payload.placement.x), 0, Math.max(0, imgW - 1))
+  const py = clampDimension(Math.floor(payload.placement.y), 0, Math.max(0, imgH - 1))
+  const maxW = Math.max(1, imgW - px)
+  const maxH = Math.max(1, imgH - py)
+  const ew = clampDimension(Math.round(payload.placement.width), 1, Math.min(maxW, 4000))
+  const eh = clampDimension(Math.round(payload.placement.height), 1, Math.min(maxH, 4000))
+
+  let printBuffer = await sharp(fullPng).extract({ left: px, top: py, width: ew, height: eh }).png().toBuffer()
+
+  try {
+    const trimmed = await sharp(printBuffer)
+      .trim({ threshold: 12 })
+      .png({ compressionLevel: 9 })
+      .toBuffer()
+    if (trimmed.length > 80) {
+      printBuffer = trimmed
+    }
+  } catch {
+    // Transparent-only or Sharp trim rejection — keep boxed extract.
+  }
+
+  const outMeta = await sharp(printBuffer).metadata()
 
   const fileName = `print-${payload.side}-${ulid()}.png`
-  const minioUrl = await uploadToMinio(pngBuffer, fileName, "image/png")
+  const minioUrl = await uploadToMinio(printBuffer, fileName, "image/png")
 
   return {
-    url: minioUrl ?? dataUrlFromBuffer(pngBuffer, "image/png"),
-    bytes: pngBuffer.length,
-    width,
-    height,
+    url: minioUrl ?? dataUrlFromBuffer(printBuffer, "image/png"),
+    bytes: printBuffer.length,
+    width: outMeta.width ?? ew,
+    height: outMeta.height ?? eh,
   }
 }
 
 export const renderMockupAsset = async (payload: RenderRequestPayload) => {
-  const placementWidth = clampDimension(payload.placement.width, 240, 2200)
-  const placementHeight = clampDimension(payload.placement.height, 240, 2200)
   const artworkSvgBuffer = Buffer.from(payload.artworkSvg)
+
+  const { buffer: fullRasterBuffer, width: fullW, height: fullH } =
+    await rasterizeCustomizerSvgToCanvas(artworkSvgBuffer, payload.canvas)
+
+  const placementWidth = clampDimension(payload.placement.width, 1, Math.min(fullW, 2200))
+  const placementHeight = clampDimension(payload.placement.height, 1, Math.min(fullH, 2200))
+
+  const leftCut = clampDimension(Math.floor(payload.placement.x), 0, Math.max(0, fullW - 1))
+  const topCut = clampDimension(Math.floor(payload.placement.y), 0, Math.max(0, fullH - 1))
+  const maxEw = Math.max(1, fullW - leftCut)
+  const maxEh = Math.max(1, fullH - topCut)
+  const ew = Math.min(Math.floor(placementWidth), maxEw)
+  const eh = Math.min(Math.floor(placementHeight), maxEh)
+
+  const artwork = await sharp(fullRasterBuffer)
+    .extract({ left: leftCut, top: topCut, width: ew, height: eh })
+    .png()
+    .toBuffer()
+
+  const canvasDims = payload.canvas
+  let mockupWidth: number
+  let mockupHeight: number
 
   let garmentBase: Buffer
   if (payload.garmentImageUrl) {
@@ -206,14 +314,27 @@ export const renderMockupAsset = async (payload: RenderRequestPayload) => {
       }
 
       const arrayBuffer = await response.arrayBuffer()
-      garmentBase = Buffer.from(arrayBuffer)
+      let rawGarment = Buffer.from(arrayBuffer)
+      if (canvasDims?.width && canvasDims?.height) {
+        garmentBase = await garmentCoverMatchCanvas(rawGarment, canvasDims.width, canvasDims.height)
+        mockupWidth = canvasDims.width
+        mockupHeight = canvasDims.height
+      } else {
+        const gm = await sharp(rawGarment).metadata()
+        mockupWidth = gm.width ?? DEFAULT_MOCKUP_SIZE.width
+        mockupHeight = gm.height ?? DEFAULT_MOCKUP_SIZE.height
+        garmentBase = rawGarment
+      }
     } catch (error) {
       rethrowIfMedusaError(error)
 
+      mockupWidth = canvasDims?.width ?? DEFAULT_MOCKUP_SIZE.width
+      mockupHeight = canvasDims?.height ?? DEFAULT_MOCKUP_SIZE.height
+
       garmentBase = await sharp({
         create: {
-          width: DEFAULT_MOCKUP_SIZE.width,
-          height: DEFAULT_MOCKUP_SIZE.height,
+          width: mockupWidth,
+          height: mockupHeight,
           channels: 4,
           background: "#f3f4f6",
         },
@@ -222,10 +343,13 @@ export const renderMockupAsset = async (payload: RenderRequestPayload) => {
         .toBuffer()
     }
   } else {
+    mockupWidth = canvasDims?.width ?? DEFAULT_MOCKUP_SIZE.width
+    mockupHeight = canvasDims?.height ?? DEFAULT_MOCKUP_SIZE.height
+
     garmentBase = await sharp({
       create: {
-        width: DEFAULT_MOCKUP_SIZE.width,
-        height: DEFAULT_MOCKUP_SIZE.height,
+        width: mockupWidth,
+        height: mockupHeight,
         channels: 4,
         background: "#f3f4f6",
       },
@@ -234,36 +358,33 @@ export const renderMockupAsset = async (payload: RenderRequestPayload) => {
       .toBuffer()
   }
 
-  const garmentMeta = await sharp(garmentBase).metadata()
-  const mockupWidth = garmentMeta.width ?? DEFAULT_MOCKUP_SIZE.width
-  const mockupHeight = garmentMeta.height ?? DEFAULT_MOCKUP_SIZE.height
+  if (!(payload.garmentImageUrl && canvasDims?.width && canvasDims?.height)) {
+    const garmentMeta = await sharp(garmentBase).metadata()
+    mockupWidth = garmentMeta.width ?? mockupWidth
+    mockupHeight = garmentMeta.height ?? mockupHeight
+  }
 
-  const left = clampDimension(payload.placement.x, 0, mockupWidth - 1)
-  const top = clampDimension(payload.placement.y, 0, mockupHeight - 1)
+  const left = clampDimension(payload.placement.x, 0, Math.max(0, mockupWidth - 1))
+  const top = clampDimension(payload.placement.y, 0, Math.max(0, mockupHeight - 1))
+  const artMeta = await sharp(artwork).metadata()
+  const artW = artMeta.width ?? ew
+  const artH = artMeta.height ?? eh
   const maxCompositeWidth = Math.max(1, mockupWidth - left)
   const maxCompositeHeight = Math.max(1, mockupHeight - top)
-  const artworkWidth = Math.min(placementWidth, maxCompositeWidth)
-  const artworkHeight = Math.min(placementHeight, maxCompositeHeight)
 
-  const artwork = await sharp(artworkSvgBuffer)
-    .resize({
-      width: artworkWidth,
-      height: artworkHeight,
-      fit: "contain",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer()
+  /** Scale overlay if canvas ↔ garment pixel sizes drift by a pixel due to Sharp resize rounding. */
+  let artworkScaled = artwork
+  if (artW > maxCompositeWidth || artH > maxCompositeHeight) {
+    const scale = Math.min(maxCompositeWidth / artW, maxCompositeHeight / artH, 1)
+    const nw = Math.max(1, Math.floor(artW * scale))
+    const nh = Math.max(1, Math.floor(artH * scale))
+    artworkScaled = await sharp(artwork).resize(nw, nh).png().toBuffer()
+  }
 
   const mockupBuffer = await sharp(garmentBase)
-    .resize({
-      width: mockupWidth,
-      height: mockupHeight,
-      fit: "cover",
-    })
     .composite([
       {
-        input: artwork,
+        input: artworkScaled,
         left,
         top,
       },

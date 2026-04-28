@@ -16,6 +16,16 @@ export const renderRequestSchema = z.object({
     z.union([z.string().url(), z.null()])
   ),
   placement: renderPlacementSchema,
+  /**
+   * Fabric canvas dimensions (must match storefront editor). Used to crop garment photographs
+   * the same way as CSS `object-cover`, and to extract the print-area after full-canvas render.
+   */
+  canvas: z
+    .object({
+      width: z.number().min(120).max(8000),
+      height: z.number().min(120).max(8000),
+    })
+    .optional(),
 })
 
 export type RenderRequestPayload = z.infer<typeof renderRequestSchema>

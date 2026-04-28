@@ -1179,11 +1179,17 @@ export default function CustomizerTemplate({
   const renderSideArtifacts = async (
     side: GarmentSide,
     sideObjects: Record<string, unknown>[],
-    mockupGarmentUrl: string | null
+    mockupGarmentUrl: string | null,
+    canvasDims: { width: number; height: number }
   ): Promise<{ printUrl: string | null; mockupUrl: string | null }> => {
+    /**
+     * Full-canvas export (same coordinate space as the live editor). The backend crops the
+     * print rectangle and trims transparent margins for the PNG; mockup uses the same crop
+     * plus object-cover garment alignment.
+     */
     const staticCanvas = new (fabric as any).StaticCanvas(null, {
-      width: Math.round(printArea.width),
-      height: Math.round(printArea.height),
+      width: Math.round(canvasDims.width),
+      height: Math.round(canvasDims.height),
     })
     await staticCanvas.loadFromJSON({
       version: "7.0.0",
@@ -1209,6 +1215,10 @@ export default function CustomizerTemplate({
         y: Math.max(0, Math.round(printArea.y)),
         width: pw,
         height: ph,
+      },
+      canvas: {
+        width: Math.round(canvasDims.width),
+        height: Math.round(canvasDims.height),
       },
     }
 
@@ -1273,6 +1283,16 @@ export default function CustomizerTemplate({
     setUploadError(null)
 
     try {
+      const canvasW =
+        canvasSize.width > MIN_PRINT_AREA_PX
+          ? Math.round(canvasSize.width)
+          : Math.max(400, Math.round(printArea.width / 0.68))
+      const canvasH =
+        canvasSize.height > MIN_PRINT_AREA_PX
+          ? Math.round(canvasSize.height)
+          : Math.max(500, Math.round(printArea.height / 0.72))
+      const effectiveCanvas = { width: canvasW, height: canvasH }
+
       const renderedArtifacts = await Promise.all(
         decoratedSides.map(async (side) => {
           const mockupUrlForSide = getGarmentImageUrlForPrintSide(
@@ -1284,7 +1304,8 @@ export default function CustomizerTemplate({
           const rendered = await renderSideArtifacts(
             side,
             sideLayoutsRef.current[side] ?? [],
-            mockupUrlForSide
+            mockupUrlForSide,
+            effectiveCanvas
           )
           return {
             side,
