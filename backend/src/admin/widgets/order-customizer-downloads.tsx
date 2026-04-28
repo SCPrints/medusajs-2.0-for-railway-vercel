@@ -25,6 +25,11 @@ type LinePayload = {
   has_customizer: boolean
   print_notes: string | null
   artifacts: ArtifactPayload[]
+  customer_original_files?: Array<{
+    url: string
+    file_name: string
+    mime_type: string
+  }>
 }
 
 type DownloadPayload = {
@@ -85,7 +90,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
         <div>
           <Heading level="h2">Customizer print & preview</Heading>
           <Text size="small" className="text-ui-fg-subtle mt-1">
-            Print PNG and garment mockup saved with the order (same URLs as in line item metadata).
+            Customer uploads (exact file), rendered print PNG, and garment mockup from order metadata.
           </Text>
         </div>
       </div>
@@ -116,6 +121,34 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                 <Text size="xsmall" className="text-ui-fg-subtle mt-0.5">
                   Qty {line.quantity}
                 </Text>
+
+                {line.customer_original_files && line.customer_original_files.length > 0 ? (
+                  <div className="mt-3 rounded-md border border-ui-border-base bg-ui-bg-component px-3 py-2">
+                    <Text size="xsmall" weight="plus">
+                      Customer upload (original file — unchanged)
+                    </Text>
+                    <ul className="mt-2 list-none m-0 p-0 flex flex-col gap-y-2">
+                      {line.customer_original_files.map((f) => (
+                        <li key={f.url}>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-xsmall text-ui-fg-muted">{f.mime_type}</span>
+                            <span className="text-xsmall text-ui-fg-subtle truncate max-w-[200px]" title={f.file_name}>
+                              {f.file_name}
+                            </span>
+                          </div>
+                          <a
+                            href={f.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="text-small text-blue-600 hover:underline break-all mt-0.5 inline-block"
+                          >
+                            Download original ({f.file_name})
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
 
                 {line.artifacts.length === 0 ? (
                   <Text size="xsmall" className="text-ui-fg-subtle mt-2">

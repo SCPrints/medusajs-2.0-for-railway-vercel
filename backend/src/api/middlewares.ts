@@ -20,6 +20,11 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
     },
     {
+      matcher: "/store/customizer/upload-original",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
+    },
+    {
       // ShipStation v2 webhook endpoint. Preserve the raw request body so we
       // can verify the HMAC-SHA256 signature header.
       matcher: "/hooks/shipstation",

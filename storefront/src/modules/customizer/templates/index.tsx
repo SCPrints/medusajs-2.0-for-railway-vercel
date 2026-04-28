@@ -322,6 +322,51 @@ type SessionUploadAsset = {
   name: string
   type: string
   dataUrl: string
+  /** Hosted copy of the exact bytes the customer uploaded (MinIO/S3); optional if storage failed. */
+  originalStorageUrl?: string
+}
+
+async function fileToBase64Payload(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const s = String(reader.result ?? "")
+      const comma = s.indexOf(",")
+      resolve(comma >= 0 ? s.slice(comma + 1) : s)
+    }
+    reader.onerror = () => reject(new Error("Unable to read file"))
+    reader.readAsDataURL(file)
+  })
+}
+
+/** Persists the customer's file byte-for-byte on object storage (Medusa `upload-original`). */
+async function uploadCustomerOriginalUnchanged(file: File): Promise<string | null> {
+  const mimeType: "image/png" | "image/jpeg" | "image/svg+xml" =
+    file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/svg+xml"
+      ? file.type
+      : "image/png"
+  try {
+    const dataBase64 = await fileToBase64Payload(file)
+    const res = await fetch("/api/customizer/upload-original", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: file.name || "upload",
+        mimeType,
+        dataBase64,
+      }),
+      cache: "no-store",
+    })
+    const j = (await res.json().catch(() => ({}))) as { url?: string; message?: string }
+    if (!res.ok) {
+      console.warn("[customizer] Original file upload failed:", j.message ?? res.status)
+      return null
+    }
+    return typeof j.url === "string" && j.url.trim() ? j.url.trim() : null
+  } catch (e) {
+    console.warn("[customizer] Original file upload error:", e)
+    return null
+  }
 }
 
 const loadSvgObject = async (svg: string) => {
@@ -675,6 +720,10 @@ export default function CustomizerTemplate({
           name: String((entry as any).name ?? "Upload"),
           type: String((entry as any).type ?? "image/png"),
           dataUrl: String((entry as any).dataUrl ?? ""),
+          originalStorageUrl:
+            typeof (entry as any).originalStorageUrl === "string"
+              ? (entry as any).originalStorageUrl
+              : undefined,
         }))
         .filter((entry) => entry.id && entry.dataUrl)
       setSessionUploads(hydrated)
@@ -963,25 +1012,31 @@ export default function CustomizerTemplate({
     setUploadError(null)
     try {
       if (file.type === "image/svg+xml") {
+        const originalPromise = uploadCustomerOriginalUnchanged(file)
         const svg = await readFileAsText(file)
+        const originalStorageUrl = await originalPromise
         const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
         const nextAsset: SessionUploadAsset = {
           id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
           name: file.name || "SVG",
           type: file.type,
           dataUrl,
+          ...(originalStorageUrl ? { originalStorageUrl } : {}),
         }
         setSessionUploads((current) => [nextAsset, ...current.filter((entry) => entry.dataUrl !== dataUrl)])
         await addUploadedAssetToCanvas({ name: nextAsset.name, type: nextAsset.type, svgText: svg })
         return
       }
 
+      const originalPromise = uploadCustomerOriginalUnchanged(file)
       const dataUrl = await readFileAsDataUrl(file)
+      const originalStorageUrl = await originalPromise
       const nextAsset: SessionUploadAsset = {
         id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         name: file.name || "Image",
         type: file.type,
         dataUrl,
+        ...(originalStorageUrl ? { originalStorageUrl } : {}),
       }
       setSessionUploads((current) => [nextAsset, ...current.filter((entry) => entry.dataUrl !== dataUrl)])
       await addUploadedAssetToCanvas({ name: nextAsset.name, type: nextAsset.type, dataUrl })
@@ -1203,16 +1258,22 @@ export default function CustomizerTemplate({
       defaultGarmentImage
     )
 
-    const pw = Math.max(1, Math.round(printArea.width))
-    const ph = Math.max(1, Math.round(printArea.height))
+    /**
+     * Placement MUST be derived from the same pixel dimensions as the StaticCanvas / payload.canvas.
+     * Using the outer `printArea` hook value can desync when effective canvas fallbacks differ from
+     * `canvasSize`, which misaligns mockups and leaves the print PNG with empty margins on the wrong side.
+     */
+    const pa = getPrintArea(Math.round(canvasDims.width), Math.round(canvasDims.height))
+    const pw = Math.max(1, Math.round(pa.width))
+    const ph = Math.max(1, Math.round(pa.height))
 
     const payload = {
       side,
       artworkSvg,
       garmentImageUrl: garmentImageUrlForApi,
       placement: {
-        x: Math.max(0, Math.round(printArea.x)),
-        y: Math.max(0, Math.round(printArea.y)),
+        x: Math.max(0, Math.round(pa.x)),
+        y: Math.max(0, Math.round(pa.y)),
         width: pw,
         height: ph,
       },
@@ -1340,6 +1401,14 @@ export default function CustomizerTemplate({
         .trim()
         .slice(0, CUSTOMIZER_PRINT_NOTES_MAX_LENGTH)
 
+      const originalFilesPayload = sessionUploads
+        .filter((u) => u.originalStorageUrl)
+        .map((u) => ({
+          url: u.originalStorageUrl!,
+          fileName: u.name,
+          mimeType: u.type,
+        }))
+
       const metadataBase: Omit<CustomizerMetadata, "variantId"> = {
         version: 2,
         type: "fabric_customizer",
@@ -1358,6 +1427,7 @@ export default function CustomizerTemplate({
         pricing,
         artifacts,
         ...(normalizedPrintNotes ? { printNotes: normalizedPrintNotes } : {}),
+        ...(originalFilesPayload.length > 0 ? { customerOriginalFiles: originalFilesPayload } : {}),
       }
 
       const resolvedQuantities =

@@ -240,25 +240,45 @@ export const renderPrintAsset = async (payload: RenderRequestPayload) => {
     payload.canvas
   )
 
-  const px = clampDimension(Math.floor(payload.placement.x), 0, Math.max(0, imgW - 1))
-  const py = clampDimension(Math.floor(payload.placement.y), 0, Math.max(0, imgH - 1))
-  const maxW = Math.max(1, imgW - px)
-  const maxH = Math.max(1, imgH - py)
-  const ew = clampDimension(Math.round(payload.placement.width), 1, Math.min(maxW, 4000))
-  const eh = clampDimension(Math.round(payload.placement.height), 1, Math.min(maxH, 4000))
+  const alphaSource = await sharp(fullPng).ensureAlpha().png().toBuffer()
 
-  let printBuffer = await sharp(fullPng).extract({ left: px, top: py, width: ew, height: eh }).png().toBuffer()
-
+  /**
+   * Production file: tight crop around opaque pixels (not the dashed print-area box unless needed).
+   * Some SVG → PNG paths paint an opaque white full-canvas bleed; `.trim()` would then refuse to shrink.
+   * In that case we fall back to the print rectangle from the payload + trim inside that.
+   */
+  let printBuffer: Buffer
   try {
-    const trimmed = await sharp(printBuffer)
-      .trim({ threshold: 12 })
+    printBuffer = await sharp(alphaSource)
+      .trim({ threshold: 8, lineArt: true })
       .png({ compressionLevel: 9 })
       .toBuffer()
-    if (trimmed.length > 80) {
-      printBuffer = trimmed
-    }
   } catch {
-    // Transparent-only or Sharp trim rejection — keep boxed extract.
+    printBuffer = alphaSource
+  }
+
+  const boxMeta = await sharp(printBuffer).metadata()
+  const stillFullBleed =
+    boxMeta.width &&
+    boxMeta.height &&
+    imgW > 50 &&
+    imgH > 50 &&
+    boxMeta.width >= Math.floor(imgW * 0.9) &&
+    boxMeta.height >= Math.floor(imgH * 0.9)
+
+  if (printBuffer.length < 80 || stillFullBleed) {
+    const px = clampDimension(Math.floor(payload.placement.x), 0, Math.max(0, imgW - 1))
+    const py = clampDimension(Math.floor(payload.placement.y), 0, Math.max(0, imgH - 1))
+    const maxW = Math.max(1, imgW - px)
+    const maxH = Math.max(1, imgH - py)
+    const ew = clampDimension(Math.round(payload.placement.width), 1, Math.min(maxW, 4000))
+    const eh = clampDimension(Math.round(payload.placement.height), 1, Math.min(maxH, 4000))
+    printBuffer = await sharp(alphaSource)
+      .extract({ left: px, top: py, width: ew, height: eh })
+      .ensureAlpha()
+      .trim({ threshold: 16, lineArt: true })
+      .png({ compressionLevel: 9 })
+      .toBuffer()
   }
 
   const outMeta = await sharp(printBuffer).metadata()
@@ -269,31 +289,24 @@ export const renderPrintAsset = async (payload: RenderRequestPayload) => {
   return {
     url: minioUrl ?? dataUrlFromBuffer(printBuffer, "image/png"),
     bytes: printBuffer.length,
-    width: outMeta.width ?? ew,
-    height: outMeta.height ?? eh,
+    width: outMeta.width ?? 0,
+    height: outMeta.height ?? 0,
   }
 }
 
 export const renderMockupAsset = async (payload: RenderRequestPayload) => {
   const artworkSvgBuffer = Buffer.from(payload.artworkSvg)
 
-  const { buffer: fullRasterBuffer, width: fullW, height: fullH } =
-    await rasterizeCustomizerSvgToCanvas(artworkSvgBuffer, payload.canvas)
-
-  const placementWidth = clampDimension(payload.placement.width, 1, Math.min(fullW, 2200))
-  const placementHeight = clampDimension(payload.placement.height, 1, Math.min(fullH, 2200))
-
-  const leftCut = clampDimension(Math.floor(payload.placement.x), 0, Math.max(0, fullW - 1))
-  const topCut = clampDimension(Math.floor(payload.placement.y), 0, Math.max(0, fullH - 1))
-  const maxEw = Math.max(1, fullW - leftCut)
-  const maxEh = Math.max(1, fullH - topCut)
-  const ew = Math.min(Math.floor(placementWidth), maxEw)
-  const eh = Math.min(Math.floor(placementHeight), maxEh)
-
-  const artwork = await sharp(fullRasterBuffer)
-    .extract({ left: leftCut, top: topCut, width: ew, height: eh })
-    .png()
-    .toBuffer()
+  /**
+   * Full-canvas PNG (same WxH as the Fabric editor): composite at (0,0) onto the garment bitmap
+   * that matches CSS `object-cover`, so logos land exactly where users position them — no slicing
+   * + re-placing artwork with error-prone x/y bookkeeping.
+   */
+  const { buffer: overlayRaw } = await rasterizeCustomizerSvgToCanvas(
+    artworkSvgBuffer,
+    payload.canvas
+  )
+  const fullOverlay = await sharp(overlayRaw).ensureAlpha().png().toBuffer()
 
   const canvasDims = payload.canvas
   let mockupWidth: number
@@ -364,29 +377,26 @@ export const renderMockupAsset = async (payload: RenderRequestPayload) => {
     mockupHeight = garmentMeta.height ?? mockupHeight
   }
 
-  const left = clampDimension(payload.placement.x, 0, Math.max(0, mockupWidth - 1))
-  const top = clampDimension(payload.placement.y, 0, Math.max(0, mockupHeight - 1))
-  const artMeta = await sharp(artwork).metadata()
-  const artW = artMeta.width ?? ew
-  const artH = artMeta.height ?? eh
-  const maxCompositeWidth = Math.max(1, mockupWidth - left)
-  const maxCompositeHeight = Math.max(1, mockupHeight - top)
-
-  /** Scale overlay if canvas ↔ garment pixel sizes drift by a pixel due to Sharp resize rounding. */
-  let artworkScaled = artwork
-  if (artW > maxCompositeWidth || artH > maxCompositeHeight) {
-    const scale = Math.min(maxCompositeWidth / artW, maxCompositeHeight / artH, 1)
-    const nw = Math.max(1, Math.floor(artW * scale))
-    const nh = Math.max(1, Math.floor(artH * scale))
-    artworkScaled = await sharp(artwork).resize(nw, nh).png().toBuffer()
+  const overlayMeta = await sharp(fullOverlay).metadata()
+  let overlayBuf = fullOverlay
+  if (
+    canvasDims?.width &&
+    canvasDims?.height &&
+    (overlayMeta.width !== mockupWidth || overlayMeta.height !== mockupHeight)
+  ) {
+    overlayBuf = await sharp(fullOverlay)
+      .resize(mockupWidth, mockupHeight)
+      .png()
+      .toBuffer()
   }
 
   const mockupBuffer = await sharp(garmentBase)
     .composite([
       {
-        input: artworkScaled,
-        left,
-        top,
+        input: overlayBuf,
+        left: 0,
+        top: 0,
+        blend: "over",
       },
     ])
     .jpeg({ quality: 82 })

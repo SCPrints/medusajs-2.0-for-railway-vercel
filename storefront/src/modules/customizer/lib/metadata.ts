@@ -41,12 +41,16 @@ export const getCustomizerMetadata = (item: AnyLineItem) => {
   const printNotes =
     typeof rawNotes === "string" && rawNotes.trim().length > 0 ? rawNotes.trim() : null
 
+  const rawOriginals = (payload as { customerOriginalFiles?: unknown }).customerOriginalFiles
+  const customerOriginalFiles = Array.isArray(rawOriginals) ? rawOriginals : []
+
   return {
     artifacts,
     sizes,
     pricing: (payload as any).pricing ?? null,
     type: String((payload as any).type ?? ""),
     printNotes,
+    customerOriginalFiles,
   }
 }
 

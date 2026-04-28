@@ -45,6 +45,12 @@ export type CustomizerArtifactExport = {
   mockup_url_inline_omitted: boolean
 }
 
+export type CustomerOriginalFileExport = {
+  url: string
+  file_name: string
+  mime_type: string
+}
+
 export type OrderLineCustomizerExport = {
   line_item_id: string
   product_title: string | null
@@ -54,6 +60,7 @@ export type OrderLineCustomizerExport = {
   has_customizer: boolean
   print_notes: string | null
   artifacts: CustomizerArtifactExport[]
+  customer_original_files: CustomerOriginalFileExport[]
 }
 
 export function buildLineCustomizerExport(line: {
@@ -71,6 +78,7 @@ export function buildLineCustomizerExport(line: {
 
   let printNotes: string | null = null
   const artifacts: CustomizerArtifactExport[] = []
+  const customerOriginalFiles: CustomerOriginalFileExport[] = []
 
   if (hasCustomizer && rawDesign && typeof rawDesign === "object") {
     const rawNotes = (rawDesign as { printNotes?: unknown }).printNotes
@@ -98,6 +106,28 @@ export function buildLineCustomizerExport(line: {
         })
       }
     }
+
+    const rawOriginals = (rawDesign as { customerOriginalFiles?: unknown }).customerOriginalFiles
+    if (Array.isArray(rawOriginals)) {
+      for (const f of rawOriginals) {
+        if (!f || typeof f !== "object") {
+          continue
+        }
+        const u = (f as { url?: unknown }).url
+        const url = typeof u === "string" ? u.trim() : ""
+        if (!url) {
+          continue
+        }
+        const fn = (f as { fileName?: unknown }).fileName
+        const mt = (f as { mimeType?: unknown }).mimeType
+        customerOriginalFiles.push({
+          url,
+          file_name: typeof fn === "string" && fn.trim() ? fn.trim() : "upload",
+          mime_type:
+            typeof mt === "string" && mt.trim() ? mt.trim() : "application/octet-stream",
+        })
+      }
+    }
   }
 
   const q = typeof line.quantity === "number" ? line.quantity : Number(line.quantity)
@@ -112,5 +142,6 @@ export function buildLineCustomizerExport(line: {
     has_customizer: hasCustomizer,
     print_notes: printNotes,
     artifacts,
+    customer_original_files: customerOriginalFiles,
   }
 }
