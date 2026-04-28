@@ -39,7 +39,8 @@ const Payment = ({
 
   const isOpen = searchParams.get("step") === "payment"
 
-  const isStripe = isStripeFunc(activeSession?.provider_id)
+  /** Use the *selected* provider for UI/validation, not the pending session (selection can differ until submit). */
+  const stripeSelected = isStripeFunc(selectedPaymentMethod)
   const stripeReady = useContext(StripeContext)
 
   const paidByGiftcard =
@@ -85,23 +86,28 @@ const Payment = ({
   const handleSubmit = async () => {
     setIsLoading(true)
     try {
-      const shouldInputCard =
-        isStripeFunc(selectedPaymentMethod) && !activeSession
+      const needsPaymentInit =
+        !activeSession ||
+        activeSession.provider_id !== selectedPaymentMethod
 
-      if (!activeSession) {
+      if (needsPaymentInit) {
         await initiatePaymentSession(cart, {
           provider_id: selectedPaymentMethod,
         })
+        router.refresh()
       }
 
-      if (!shouldInputCard) {
-        return router.push(
-          pathname + "?" + createQueryString("step", "review"),
-          {
-            scroll: false,
-          }
-        )
+      // Stripe requires a complete card element before leaving this step (first submit may only create session).
+      if (stripeSelected && !cardComplete) {
+        return
       }
+
+      return router.push(
+        pathname + "?" + createQueryString("step", "review"),
+        {
+          scroll: false,
+        }
+      )
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -163,7 +169,7 @@ const Payment = ({
                     )
                   })}
               </RadioGroup>
-              {isStripe && stripeReady && (
+              {stripeSelected && stripeReady && (
                 <div className="mt-5 transition-all duration-150 ease-in-out">
                   <Text className="txt-medium-plus text-ui-fg-base mb-1">
                     Enter your card details:
@@ -211,7 +217,7 @@ const Payment = ({
             onClick={handleSubmit}
             isLoading={isLoading}
             disabled={
-              (isStripe && !cardComplete) ||
+              (stripeSelected && !cardComplete) ||
               (!selectedPaymentMethod && !paidByGiftcard)
             }
             data-testid="submit-payment-button"
