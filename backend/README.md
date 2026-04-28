@@ -30,6 +30,7 @@ The backend exposes **`GET /key-exchange`**, which returns the publishable Store
 
 ### shipstation setup
 - Add `SHIPSTATION_API_KEY` to `backend/.env` (from your ShipStation API settings).
+- ShipStation rate requests need a **complete “ship from” address**. Either fill **Settings → Stock locations** in Medusa Admin (street, city, state, postcode, country, phone), **or** set **`SHIPSTATION_WAREHOUSE_ADDRESS_1`**, **`SHIPSTATION_WAREHOUSE_CITY`**, **`SHIPSTATION_WAREHOUSE_STATE`**, **`SHIPSTATION_WAREHOUSE_POSTCODE`**, **`SHIPSTATION_WAREHOUSE_COUNTRY_CODE`** (e.g. `AU`), and **`SHIPSTATION_WAREHOUSE_PHONE`** on the backend. Postcode + country alone are not enough for ShipStation’s API.
 - Restart the backend after updating env vars so the fulfillment provider is registered.
 - In Medusa Admin, create shipping options that use the `shipstation` provider.
 - Make sure each shipping option stores both `carrier_id` and `carrier_service_code` in its option data (required by the provider to fetch rates/labels).

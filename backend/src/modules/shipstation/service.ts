@@ -128,12 +128,27 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
       )
     }
 
+    const address_line1 = (a?.address_1 || SHIPSTATION_WAREHOUSE_ADDRESS_1 || "").trim()
+    const city_locality = (a?.city || SHIPSTATION_WAREHOUSE_CITY || "").trim()
+    const state_province = (a?.province || SHIPSTATION_WAREHOUSE_STATE || "").trim()
+    const phone = (a?.phone || SHIPSTATION_WAREHOUSE_PHONE || "").trim()
+
+    // ShipStation v2 validates ship_from strictly; empty strings produce opaque API errors.
+    if (!address_line1 || !city_locality || !state_province || !phone) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "ShipStation requires a complete warehouse address for rate quotes: street (address line 1), city, state, postcode, country, and phone. " +
+          "In Medusa Admin, open Settings → Stock locations → your location and fill the full address and phone, **or** set backend env vars " +
+          "SHIPSTATION_WAREHOUSE_ADDRESS_1, SHIPSTATION_WAREHOUSE_CITY, SHIPSTATION_WAREHOUSE_STATE, SHIPSTATION_WAREHOUSE_POSTCODE, SHIPSTATION_WAREHOUSE_COUNTRY_CODE, SHIPSTATION_WAREHOUSE_PHONE."
+      )
+    }
+
     return {
       name: from_address?.name || SHIPSTATION_WAREHOUSE_NAME || "Warehouse",
-      phone: a?.phone || SHIPSTATION_WAREHOUSE_PHONE || "",
-      address_line1: a?.address_1 || SHIPSTATION_WAREHOUSE_ADDRESS_1 || "",
-      city_locality: a?.city || SHIPSTATION_WAREHOUSE_CITY || "",
-      state_province: a?.province || SHIPSTATION_WAREHOUSE_STATE || "",
+      phone,
+      address_line1,
+      city_locality,
+      state_province,
       postal_code: postal,
       country_code: country,
       address_residential_indicator: "unknown",
