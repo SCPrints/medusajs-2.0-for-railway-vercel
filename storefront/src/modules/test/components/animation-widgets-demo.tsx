@@ -810,7 +810,7 @@ export default function AnimationWidgetsDemo() {
       <Section
         key="tilt-card"
         title="3D tilt card"
-        description="Pointer-driven rotateX / rotateY with spring; flattened when reduced motion is preferred."
+        description="Pointer-driven rotateX / rotateY with spring; flattened when reduced motion is preferred — compared with legacy bounce vs the default storefront listing (tilt + lift)."
       >
         <LabTiltCard reducedMotion={reducedMotion} />
       </Section>,

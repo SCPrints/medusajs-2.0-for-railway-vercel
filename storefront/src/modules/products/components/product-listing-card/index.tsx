@@ -1,6 +1,7 @@
 "use client"
 
 import { Container, clx } from "@medusajs/ui"
+import { motion } from "framer-motion"
 import Image from "next/image"
 import {
   useCallback,
@@ -16,13 +17,22 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
 import type { ProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
-type ProductListingCardProps = ProductListingCardData & {
+/** Default catalog behavior is `tiltLift`. Use `bounce` only for the legacy keyed enter/leave animation. */
+export type ProductListingInteraction = "bounce" | "tiltLift"
+
+export type ProductListingCardProps = ProductListingCardData & {
   className?: string
+  interaction?: ProductListingInteraction
 }
 
 type CardPhase = "rest" | "enter" | "hold" | "leave"
 
 const VELOCITY_EPS = 0.5
+
+const CARD_LIFT_OFFSET_PX = 10
+const CARD_SCALE = 1.04
+
+const TILT_SPRING = { type: "spring" as const, stiffness: 260, damping: 22 }
 
 function subscribeReducedMotion(cb: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -76,59 +86,108 @@ function CardImage({
   )
 }
 
-export default function ProductListingCard({
-  className,
+type ListingCardContentProps = {
+  href: string
+  title: string
+  previewUrl: string | null
+  setPreviewUrl: (url: string | null) => void
+  priceFromLine: string
+  priceHundredPlusLine: string | null
+  swatches: ProductListingCardData["swatches"]
+  totalSwatchCount: number
+  swatchPhotosActive: boolean
+  setSwatchPhotosActive: (v: boolean) => void
+}
+
+function ListingCardContent({
   href,
   title,
+  previewUrl,
+  setPreviewUrl,
   priceFromLine,
   priceHundredPlusLine,
-  defaultImageUrl,
   swatches,
   totalSwatchCount,
-}: ProductListingCardProps) {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
-  const [phase, setPhase] = useState<CardPhase>("rest")
-  const [exitBias, setExitBias] = useState<{ x: string; y: string } | null>(null)
-  const prefersReducedMotion = useSyncExternalStore(
-    subscribeReducedMotion,
-    getReducedMotionSnapshot,
-    getReducedMotionServerSnapshot
+  swatchPhotosActive,
+  setSwatchPhotosActive,
+}: ListingCardContentProps) {
+  return (
+    <>
+      <LocalizedClientLink href={href} className="block min-w-0" prefetch={false}>
+        <CardImage imageUrl={previewUrl} title={title} />
+        <h3
+          className="mt-4 text-base font-semibold text-ui-fg-base"
+          data-testid="product-title"
+        >
+          {title}
+        </h3>
+        <div className="mt-2 text-sm text-ui-fg-subtle">
+          <p>{priceFromLine}</p>
+          {priceHundredPlusLine ? (
+            <p className="mt-0.5 text-xs text-ui-fg-muted">{priceHundredPlusLine}</p>
+          ) : null}
+        </div>
+      </LocalizedClientLink>
+
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
+          Available colors
+        </p>
+        <div
+          className="flex flex-wrap items-center gap-2"
+          onMouseEnter={() => setSwatchPhotosActive(true)}
+          onFocusCapture={() => setSwatchPhotosActive(true)}
+        >
+          {swatches.length ? (
+            <>
+              {swatches.map(({ colorLabel, imageUrl, swatchPhotoUrl }) => (
+                <button
+                  key={`${href}-${colorLabel}`}
+                  type="button"
+                  title={colorLabel}
+                  aria-label={`Preview ${title} in ${colorLabel}`}
+                  className="inline-block h-5 w-5 rounded-full border border-ui-border-base transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
+                  style={{
+                    backgroundColor: resolveGarmentSwatchColor(colorLabel),
+                    ...(swatchPhotosActive && swatchPhotoUrl
+                      ? {
+                          backgroundImage: `url("${swatchPhotoUrl}")`,
+                          backgroundSize: "235%",
+                          backgroundPosition: "center 35%",
+                        }
+                      : {}),
+                  }}
+                  onMouseEnter={() => setPreviewUrl(imageUrl)}
+                  onFocus={() => setPreviewUrl(imageUrl)}
+                />
+              ))}
+              {totalSwatchCount > swatches.length ? (
+                <span
+                  className="inline-flex h-5 min-w-[1.25rem] max-w-[2rem] shrink-0 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle px-1 text-[10px] font-semibold tabular-nums leading-none text-ui-fg-subtle"
+                  title={`${totalSwatchCount} colors total — see all on the product page`}
+                  aria-label={`${totalSwatchCount} total colors. Fewer swatches are shown; open the product page for the full list.`}
+                >
+                  {totalSwatchCount}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-xs text-ui-fg-muted">
+              Color options on product page
+            </span>
+          )}
+        </div>
+      </div>
+    </>
   )
+}
 
-  const articleRef = useRef<HTMLElement | null>(null)
-  /** Defer `swatchPhotoUrl` background fetches until the card is near the viewport (or user interacts). */
-  const [swatchPhotosActive, setSwatchPhotosActive] = useState(false)
-  const pointerInsideRef = useRef(false)
-  const lastPointerRef = useRef<{ x: number; y: number } | null>(null)
-  const prevPointerRef = useRef<{ x: number; y: number } | null>(null)
-  const moveRafRef = useRef<number | null>(null)
-  const pendingMoveRef = useRef<{ x: number; y: number } | null>(null)
-
+function useListingCardSwatchesObserver(
+  rootRef: React.RefObject<HTMLElement | null>,
+  setSwatchPhotosActive: (v: boolean) => void
+) {
   useEffect(() => {
-    setPreviewUrl(defaultImageUrl)
-  }, [defaultImageUrl])
-
-  /**
-   * React Strict Mode remounts (or a missed `mouseenter`) can leave `:hover` true while `phase` is still `rest`.
-   */
-  useLayoutEffect(() => {
-    const el = articleRef.current
-    if (!el || prefersReducedMotion) return
-    if (el.matches(":hover")) {
-      setPhase((p) => (p === "rest" ? "enter" : p))
-    }
-  }, [prefersReducedMotion])
-
-  useEffect(() => {
-    return () => {
-      if (moveRafRef.current !== null) {
-        cancelAnimationFrame(moveRafRef.current)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
-    const el = articleRef.current
+    const el = rootRef.current
     if (!el) {
       return
     }
@@ -146,7 +205,59 @@ export default function ProductListingCard({
     )
     obs.observe(el)
     return () => obs.disconnect()
+  }, [rootRef, setSwatchPhotosActive])
+}
+
+type ShellProps = ProductListingCardData & { className?: string }
+
+function ProductListingCardBounce({
+  className,
+  href,
+  title,
+  priceFromLine,
+  priceHundredPlusLine,
+  defaultImageUrl,
+  swatches,
+  totalSwatchCount,
+}: ShellProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
+  const [phase, setPhase] = useState<CardPhase>("rest")
+  const [exitBias, setExitBias] = useState<{ x: string; y: string } | null>(null)
+  const prefersReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  )
+
+  const articleRef = useRef<HTMLElement | null>(null)
+  const [swatchPhotosActive, setSwatchPhotosActive] = useState(false)
+  const pointerInsideRef = useRef(false)
+  const lastPointerRef = useRef<{ x: number; y: number } | null>(null)
+  const prevPointerRef = useRef<{ x: number; y: number } | null>(null)
+  const moveRafRef = useRef<number | null>(null)
+  const pendingMoveRef = useRef<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    setPreviewUrl(defaultImageUrl)
+  }, [defaultImageUrl])
+
+  useLayoutEffect(() => {
+    const el = articleRef.current
+    if (!el || prefersReducedMotion) return
+    if (el.matches(":hover")) {
+      setPhase((p) => (p === "rest" ? "enter" : p))
+    }
+  }, [prefersReducedMotion])
+
+  useEffect(() => {
+    return () => {
+      if (moveRafRef.current !== null) {
+        cancelAnimationFrame(moveRafRef.current)
+      }
+    }
   }, [])
+
+  useListingCardSwatchesObserver(articleRef, setSwatchPhotosActive)
 
   const resetPreview = useCallback(() => {
     setPreviewUrl(defaultImageUrl)
@@ -227,22 +338,19 @@ export default function ProductListingCard({
     [prefersReducedMotion, flushPointerMove, resetPreview, computeExitBias]
   )
 
-  const onAnimationEnd = useCallback(
-    (ev: React.AnimationEvent<HTMLElement>) => {
-      if (ev.target !== ev.currentTarget) return
-      const name = ev.animationName.toLowerCase()
-      if (name.includes("card-listing-enter")) {
-        if (pointerInsideRef.current) setPhase("hold")
-        else setPhase("rest")
-        return
-      }
-      if (name.includes("card-listing-leave")) {
-        setPhase("rest")
-        setExitBias(null)
-      }
-    },
-    []
-  )
+  const onAnimationEnd = useCallback((ev: React.AnimationEvent<HTMLElement>) => {
+    if (ev.target !== ev.currentTarget) return
+    const name = ev.animationName.toLowerCase()
+    if (name.includes("card-listing-enter")) {
+      if (pointerInsideRef.current) setPhase("hold")
+      else setPhase("rest")
+      return
+    }
+    if (name.includes("card-listing-leave")) {
+      setPhase("rest")
+      setExitBias(null)
+    }
+  }, [])
 
   return (
     <article
@@ -275,71 +383,152 @@ export default function ProductListingCard({
         className
       )}
     >
-      <LocalizedClientLink href={href} className="block min-w-0" prefetch={false}>
-        <CardImage imageUrl={previewUrl} title={title} />
-        <h3
-          className="mt-4 text-base font-semibold text-ui-fg-base"
-          data-testid="product-title"
-        >
-          {title}
-        </h3>
-        <div className="mt-2 text-sm text-ui-fg-subtle">
-          <p>{priceFromLine}</p>
-          {priceHundredPlusLine ? (
-            <p className="mt-0.5 text-xs text-ui-fg-muted">{priceHundredPlusLine}</p>
-          ) : null}
-        </div>
-      </LocalizedClientLink>
-
-      <div className="mt-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
-          Available colors
-        </p>
-        <div
-          className="flex flex-wrap items-center gap-2"
-          onMouseEnter={() => setSwatchPhotosActive(true)}
-          onFocusCapture={() => setSwatchPhotosActive(true)}
-        >
-          {swatches.length ? (
-            <>
-              {swatches.map(({ colorLabel, imageUrl, swatchPhotoUrl }) => (
-                <button
-                  key={`${href}-${colorLabel}`}
-                  type="button"
-                  title={colorLabel}
-                  aria-label={`Preview ${title} in ${colorLabel}`}
-                  className="inline-block h-5 w-5 rounded-full border border-ui-border-base transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
-                  style={{
-                    backgroundColor: resolveGarmentSwatchColor(colorLabel),
-                    ...(swatchPhotosActive && swatchPhotoUrl
-                      ? {
-                          backgroundImage: `url("${swatchPhotoUrl}")`,
-                          backgroundSize: "235%",
-                          backgroundPosition: "center 35%",
-                        }
-                      : {}),
-                  }}
-                  onMouseEnter={() => setPreviewUrl(imageUrl)}
-                  onFocus={() => setPreviewUrl(imageUrl)}
-                />
-              ))}
-              {totalSwatchCount > swatches.length ? (
-                <span
-                  className="inline-flex h-5 min-w-[1.25rem] max-w-[2rem] shrink-0 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle px-1 text-[10px] font-semibold tabular-nums leading-none text-ui-fg-subtle"
-                  title={`${totalSwatchCount} colors total — see all on the product page`}
-                  aria-label={`${totalSwatchCount} total colors. Fewer swatches are shown; open the product page for the full list.`}
-                >
-                  {totalSwatchCount}
-                </span>
-              ) : null}
-            </>
-          ) : (
-            <span className="text-xs text-ui-fg-muted">
-              Color options on product page
-            </span>
-          )}
-        </div>
-      </div>
+      <ListingCardContent
+        href={href}
+        title={title}
+        previewUrl={previewUrl}
+        setPreviewUrl={setPreviewUrl}
+        priceFromLine={priceFromLine}
+        priceHundredPlusLine={priceHundredPlusLine}
+        swatches={swatches}
+        totalSwatchCount={totalSwatchCount}
+        swatchPhotosActive={swatchPhotosActive}
+        setSwatchPhotosActive={setSwatchPhotosActive}
+      />
     </article>
   )
+}
+
+function ProductListingCardTiltLift({
+  className,
+  href,
+  title,
+  priceFromLine,
+  priceHundredPlusLine,
+  defaultImageUrl,
+  swatches,
+  totalSwatchCount,
+}: ShellProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
+  const prefersReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  )
+  const [rotate, setRotate] = useState({ x: 0, y: 0 })
+  const [pointerInside, setPointerInside] = useState(false)
+
+  const cardRootRef = useRef<HTMLElement | null>(null)
+  const [swatchPhotosActive, setSwatchPhotosActive] = useState(false)
+
+  useEffect(() => {
+    setPreviewUrl(defaultImageUrl)
+  }, [defaultImageUrl])
+
+  useListingCardSwatchesObserver(cardRootRef, setSwatchPhotosActive)
+
+  const resetPreview = useCallback(() => {
+    setPreviewUrl(defaultImageUrl)
+  }, [defaultImageUrl])
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      if (prefersReducedMotion || !cardRootRef.current) {
+        return
+      }
+      const b = cardRootRef.current.getBoundingClientRect()
+      const px = (e.clientX - b.left) / b.width - 0.5
+      const py = (e.clientY - b.top) / b.height - 0.5
+      setRotate({ x: py * -12, y: px * 14 })
+    },
+    [prefersReducedMotion]
+  )
+
+  const onPointerLeave = useCallback(() => {
+    resetPreview()
+    setPointerInside(false)
+    setRotate({ x: 0, y: 0 })
+  }, [resetPreview])
+
+  const onPointerEnter = useCallback(() => {
+    setPointerInside(true)
+  }, [])
+
+  const content = (
+    <ListingCardContent
+      href={href}
+      title={title}
+      previewUrl={previewUrl}
+      setPreviewUrl={setPreviewUrl}
+      priceFromLine={priceFromLine}
+      priceHundredPlusLine={priceHundredPlusLine}
+      swatches={swatches}
+      totalSwatchCount={totalSwatchCount}
+      swatchPhotosActive={swatchPhotosActive}
+      setSwatchPhotosActive={setSwatchPhotosActive}
+    />
+  )
+
+  if (prefersReducedMotion) {
+    return (
+      <article
+        ref={cardRootRef}
+        data-testid="product-wrapper"
+        className={clx(
+          "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
+          "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
+          "hover:border-[var(--brand-secondary)]/70 hover:shadow-elevation-card-hover",
+          "motion-reduce:z-0 motion-reduce:hover:z-10 group",
+          "motion-reduce:transition-[transform,box-shadow,border-color] motion-reduce:duration-300 motion-reduce:ease-out motion-reduce:hover:-translate-y-2.5 motion-reduce:hover:scale-[1.04]",
+          className
+        )}
+      >
+        {content}
+      </article>
+    )
+  }
+
+  const liftSpring = { type: "spring" as const, stiffness: 280, damping: 24 }
+
+  return (
+    <div style={{ perspective: 800 }} className={clx(className)}>
+      <motion.article
+        ref={cardRootRef}
+        data-testid="product-wrapper"
+        onPointerEnter={onPointerEnter}
+        onPointerMove={onPointerMove}
+        onPointerLeave={onPointerLeave}
+        animate={{
+          rotateX: rotate.x,
+          rotateY: rotate.y,
+          y: pointerInside ? -CARD_LIFT_OFFSET_PX : 0,
+          scale: pointerInside ? CARD_SCALE : 1,
+        }}
+        transition={{
+          rotateX: TILT_SPRING,
+          rotateY: TILT_SPRING,
+          y: liftSpring,
+          scale: liftSpring,
+        }}
+        style={{ transformStyle: "preserve-3d" }}
+        className={clx(
+          "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
+          "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
+          "hover:border-[var(--brand-secondary)]/70 hover:shadow-elevation-card-hover",
+          pointerInside ? "z-10" : "z-0",
+          "group"
+        )}
+      >
+        {content}
+      </motion.article>
+    </div>
+  )
+}
+
+export default function ProductListingCard(props: ProductListingCardProps) {
+  const { interaction = "tiltLift", ...rest } = props
+  if (interaction === "tiltLift") {
+    return <ProductListingCardTiltLift {...rest} />
+  }
+  return <ProductListingCardBounce {...rest} />
 }

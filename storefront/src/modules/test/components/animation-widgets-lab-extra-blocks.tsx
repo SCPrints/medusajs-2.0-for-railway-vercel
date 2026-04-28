@@ -4,6 +4,19 @@ import { AnimatePresence, LayoutGroup, motion, useMotionValue, useScroll, useSpr
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInView } from "react-intersection-observer"
 
+import ProductListingCard from "@modules/products/components/product-listing-card"
+import type { ProductListingCardData } from "@modules/products/lib/product-listing-card-data"
+
+const LAB_TILT_LISTING_CARD_DEMO: ProductListingCardData = {
+  href: "/products/sample",
+  title: "Storefront listing card",
+  priceFromLine: "From A$0.00 * ex GST",
+  priceHundredPlusLine: null,
+  defaultImageUrl: null,
+  swatches: [],
+  totalSwatchCount: 0,
+}
+
 const DEMO_ITEMS = ["Tee", "Hoodie", "Cap", "Tote", "Sticker", "Mug"]
 
 const staggerContainer = {
@@ -311,19 +324,42 @@ export function LabTiltCard({ reducedMotion }: { reducedMotion: boolean }) {
   }
 
   return (
-    <div className="flex justify-center py-4" style={{ perspective: 800 }}>
-      <motion.div
-        ref={ref}
-        onPointerMove={onMove}
-        onPointerLeave={() => setRotate({ x: 0, y: 0 })}
-        animate={{ rotateX: rotate.x, rotateY: rotate.y }}
-        transition={{ type: "spring", stiffness: 260, damping: 22 }}
-        className="w-full max-w-xs rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-6 shadow-lg"
-        style={{ transformStyle: "preserve-3d" }}
-      >
-        <p className="text-sm font-semibold text-ui-fg-base">Product tile</p>
-        <p className="mt-2 text-xs text-ui-fg-muted">Hover and move the pointer — subtle 3D tilt.</p>
-      </motion.div>
+    <div className="flex flex-col items-center justify-center gap-8 py-4 small:flex-row small:items-start small:flex-wrap">
+      <div className="flex w-full max-w-xs flex-col items-stretch gap-2">
+        <p className="text-center text-xs font-medium uppercase tracking-wide text-ui-fg-muted">
+          Lab tilt (spring)
+        </p>
+        <div style={{ perspective: 800 }}>
+          <motion.div
+            ref={ref}
+            onPointerMove={onMove}
+            onPointerLeave={() => setRotate({ x: 0, y: 0 })}
+            animate={{ rotateX: rotate.x, rotateY: rotate.y }}
+            transition={{ type: "spring", stiffness: 260, damping: 22 }}
+            className="w-full max-w-xs rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-6 shadow-lg"
+            style={{ transformStyle: "preserve-3d" }}
+          >
+            <p className="text-sm font-semibold text-ui-fg-base">Product tile</p>
+            <p className="mt-2 text-xs text-ui-fg-muted">Hover and move the pointer — subtle 3D tilt.</p>
+          </motion.div>
+        </div>
+      </div>
+      <div className="flex w-full max-w-xs flex-col items-stretch gap-2">
+        <p className="text-center text-xs font-medium uppercase tracking-wide text-ui-fg-muted">
+          Legacy bounce (listing)
+        </p>
+        <ProductListingCard
+          interaction="bounce"
+          className="w-full max-w-xs"
+          {...LAB_TILT_LISTING_CARD_DEMO}
+        />
+      </div>
+      <div className="flex w-full max-w-xs flex-col items-stretch gap-2">
+        <p className="text-center text-xs font-medium uppercase tracking-wide text-ui-fg-muted">
+          Default listing (tilt + lift)
+        </p>
+        <ProductListingCard className="w-full max-w-xs" {...LAB_TILT_LISTING_CARD_DEMO} />
+      </div>
     </div>
   )
 }
