@@ -12,19 +12,10 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeSessionIntro from "@modules/home/components/home-session-intro"
+import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
-import {
-  DesignIcon,
-  DigitalTransferIcon,
-  EmbroideryIcon,
-  FoldAndBagIcon,
-  NeckTagIcon,
-  ScreenPrintIcon,
-  UvPrintingIcon,
-  WarehousingIcon,
-} from "@modules/home/components/service-icons"
 import ProductListingCard from "@modules/products/components/product-listing-card"
 import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
@@ -64,20 +55,6 @@ const VALUE_PROPS = [
   "Consistent colour and finish you can trust",
   "Huge range of apparel and promo products",
   "In-house design and digital proofs",
-]
-
-const CORE_SERVICES: Array<{
-  title: string
-  Icon: (props: { className?: string; "aria-hidden"?: boolean }) => JSX.Element
-}> = [
-  { title: "Screen Print", Icon: ScreenPrintIcon },
-  { title: "Digital Transfer", Icon: DigitalTransferIcon },
-  { title: "Embroidery", Icon: EmbroideryIcon },
-  { title: "Neck Tags", Icon: NeckTagIcon },
-  { title: "Fold & Bag", Icon: FoldAndBagIcon },
-  { title: "Warehousing & Fulfillment", Icon: WarehousingIcon },
-  { title: "UV Printing", Icon: UvPrintingIcon },
-  { title: "Design", Icon: DesignIcon },
 ]
 
 export default async function Home({
@@ -228,24 +205,7 @@ export default async function Home({
               Services we offer on your order
             </h2>
           </div>
-          <div className="mt-8 grid gap-4 small:grid-cols-2 large:grid-cols-4">
-            {CORE_SERVICES.map((service) => (
-              <article
-                key={service.title}
-                className="rounded-xl border border-ui-border-base bg-white p-5 text-center transition-colors hover:border-[var(--brand-secondary)]/55"
-              >
-                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-secondary)]/15 text-[var(--brand-secondary)]">
-                  <service.Icon
-                    className="h-6 w-6"
-                    aria-hidden
-                  />
-                </div>
-                <p className="text-sm font-semibold text-ui-fg-base">
-                  {service.title}
-                </p>
-              </article>
-            ))}
-          </div>
+          <HomeCoreServicesLordicons />
         </section>
 
         <section className="content-container pb-16">

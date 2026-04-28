@@ -1,3 +1,7 @@
+"use client"
+
+import { HOW_ORDER_LORDICON_URLS } from "@modules/home/components/home-lordicon-urls"
+import LordiconDecorativeIcon from "@modules/home/components/lordicon-decorative-icon"
 import {
   ColoursTeesIcon,
   DeliveryBoxIcon,
@@ -7,17 +11,38 @@ import {
   UploadDesignTeeIcon,
 } from "@modules/home/components/order-process-icons"
 
-const STEPS: Array<{
-  label: string
-  Icon: (props: { className?: string; "aria-hidden"?: boolean }) => JSX.Element
-}> = [
-  { label: "Select your product", Icon: ProductTeeIcon },
-  { label: "Choose colours & sizes", Icon: ColoursTeesIcon },
-  { label: "Upload your design", Icon: UploadDesignTeeIcon },
-  { label: "We print, embroider & prove it", Icon: MagicTeeIcon },
-  { label: "Your order is delivered", Icon: DeliveryBoxIcon },
-  { label: "Or pick up from Lansvale", Icon: PickupIcon },
-]
+const STEPS = [
+  {
+    label: "Select your product",
+    lordiconUrl: HOW_ORDER_LORDICON_URLS[0],
+    FallbackIcon: ProductTeeIcon,
+  },
+  {
+    label: "Choose colours & sizes",
+    lordiconUrl: HOW_ORDER_LORDICON_URLS[1],
+    FallbackIcon: ColoursTeesIcon,
+  },
+  {
+    label: "Upload your design",
+    lordiconUrl: HOW_ORDER_LORDICON_URLS[2],
+    FallbackIcon: UploadDesignTeeIcon,
+  },
+  {
+    label: "We print, embroider & prove it",
+    lordiconUrl: HOW_ORDER_LORDICON_URLS[3],
+    FallbackIcon: MagicTeeIcon,
+  },
+  {
+    label: "Your order is delivered",
+    lordiconUrl: HOW_ORDER_LORDICON_URLS[4],
+    FallbackIcon: DeliveryBoxIcon,
+  },
+  {
+    label: "Or pick up from Lansvale",
+    lordiconUrl: HOW_ORDER_LORDICON_URLS[5],
+    FallbackIcon: PickupIcon,
+  },
+] as const
 
 type Props = {
   title?: string
@@ -48,7 +73,13 @@ export default function HowOrderWorksSection({
                 className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] bg-[var(--brand-accent)]/10 text-ui-fg-base"
                 aria-hidden
               >
-                <step.Icon className="h-7 w-7" aria-hidden />
+                <LordiconDecorativeIcon
+                  lordiconJsonUrl={step.lordiconUrl}
+                  size={56}
+                  className="flex items-center justify-center"
+                  FallbackIcon={step.FallbackIcon}
+                  fallbackClassName="h-7 w-7"
+                />
               </div>
               <p className="mt-3 max-w-[9.5rem] text-sm font-medium text-ui-fg-base">
                 {step.label}
