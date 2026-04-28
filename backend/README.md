@@ -24,6 +24,10 @@ Video instructions: https://youtu.be/PPxenu7IjGM
 - Regions must include the **`pp_stripe_stripe`** payment provider for Stripe at checkout. The seed script adds it automatically when both Stripe env vars are set before running migrations/seed; otherwise add Stripe under **Settings → Regions** in Medusa Admin.
 - **Smoke-test checkout:** With test keys, complete an order using Stripe’s test card `4242424242424242`, any future expiry, any CVC; confirm the payment appears authorized/captured and the order shows as paid in Admin.
 
+### Publishable key endpoint (`/key-exchange`)
+
+The backend exposes **`GET /key-exchange`**, which returns the publishable Store API key titled **Webshop** when present. For production, set **`KEY_EXCHANGE_SECRET`** in `.env` and send it as header **`x-medusa-key-exchange-secret`** (or query **`?secret=`**) on every request; requests without a matching secret receive **401**. If **`KEY_EXCHANGE_SECRET`** is unset, behavior matches older setups (no extra auth).
+
 ### shipstation setup
 - Add `SHIPSTATION_API_KEY` to `backend/.env` (from your ShipStation API settings).
 - Restart the backend after updating env vars so the fulfillment provider is registered.

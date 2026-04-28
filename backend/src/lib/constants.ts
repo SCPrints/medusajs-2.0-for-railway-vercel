@@ -91,6 +91,9 @@ export const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY
 export const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_FROM
 export const CONTACT_NOTIFICATION_EMAIL = process.env.CONTACT_NOTIFICATION_EMAIL
 
+/** If set, GET /key-exchange requires header x-medusa-key-exchange-secret (same value). */
+export const KEY_EXCHANGE_SECRET = process.env.KEY_EXCHANGE_SECRET
+
 export const MEILISEARCH_HOST = process.env.MEILISEARCH_HOST
 export const MEILISEARCH_ADMIN_KEY = process.env.MEILISEARCH_ADMIN_KEY
 
