@@ -1,4 +1,8 @@
 {
+  "scripts": {
+    "generate-as-colour-website-pricing-import-csv": "pnpm --dir backend run generate-as-colour-website-pricing-import-csv --",
+    "strip-product-import-supplemental": "pnpm --dir backend run strip-product-import-supplemental --"
+  },
   "dependencies": {
     "d3-force": "^3.0.0",
     "react-force-graph-2d": "^1.29.1"

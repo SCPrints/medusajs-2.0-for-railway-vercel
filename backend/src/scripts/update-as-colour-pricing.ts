@@ -5,6 +5,15 @@ import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
 import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
+import {
+  AsColourStylePricing,
+  AsColourPriceTier,
+  buildExplicitStylePricingMapFromCsvRows,
+  normalizeStyleCode,
+  parseExtendedSizeBandFromProductName,
+  resolveStylePricingForHandlesAndSku,
+  stylePricingLookupKey,
+} from "../utils/as-colour-explicit-pricing-from-csv"
 import { tiersFromCostMinor } from "../utils/as-colour-tier-math"
 
 /**
@@ -25,19 +34,9 @@ import { tiersFromCostMinor } from "../utils/as-colour-tier-math"
 
 type CsvRow = Record<string, string>
 
-type Tier = {
-  min_quantity: number
-  max_quantity?: number
-  amount: number
-}
+type Tier = AsColourPriceTier
 
-type StylePricing = {
-  styleCode: string
-  costPriceMinor: number | null
-  tiers: Tier[]
-}
-
-type ExtendedSizeBand = "4XL" | "5XL"
+type StylePricing = AsColourStylePricing
 
 const DEFAULT_PRICE_CSV_CANDIDATES = [
   process.env.AS_COLOUR_PRICE_CSV?.trim() || "",
@@ -118,62 +117,6 @@ const resolveExistingPath = (candidates: string[], label: string) => {
   throw new Error(
     `${label} not found. Tried: ${candidates.map((p) => path.resolve(p)).join(", ")}`
   )
-}
-
-const normalizeStyleCode = (value?: string) => value?.trim().toUpperCase() || ""
-
-const parseExtendedSizeBandFromProductName = (productName?: string): ExtendedSizeBand | null => {
-  if (!productName) {
-    return null
-  }
-  const match = productName.match(/\((4XL|5XL)\)/i)
-  if (!match?.[1]) {
-    return null
-  }
-  const band = match[1].toUpperCase()
-  return band === "4XL" || band === "5XL" ? band : null
-}
-
-const extractExtendedSizeBandFromSku = (sku?: string): ExtendedSizeBand | null => {
-  if (!sku) {
-    return null
-  }
-  const match = sku.trim().toUpperCase().match(/-(4XL|5XL)$/)
-  if (!match?.[1]) {
-    return null
-  }
-  const band = match[1].toUpperCase()
-  return band === "4XL" || band === "5XL" ? band : null
-}
-
-const stylePricingLookupKey = (styleCode: string, band: ExtendedSizeBand | null) =>
-  band ? `${styleCode}:${band}` : styleCode
-
-const extractStyleCodeCandidatesFromSku = (sku?: string) => {
-  if (!sku) {
-    return []
-  }
-
-  const normalized = sku.trim().toUpperCase()
-  if (!normalized) {
-    return []
-  }
-
-  const tokens = normalized
-    .split("-")
-    .map((token) => token.replace(/[^A-Z0-9]/g, ""))
-    .filter(Boolean)
-
-  const candidates = new Set<string>()
-  for (const token of tokens.slice(0, 3)) {
-    candidates.add(token)
-  }
-
-  if (tokens[0]?.startsWith("ASC") && tokens[0].length > 3) {
-    candidates.add(tokens[0].slice(3))
-  }
-
-  return Array.from(candidates)
 }
 
 const chunk = <T>(items: T[], size: number) => {
@@ -282,60 +225,6 @@ const sheetLooksLikeGoldCostOnly = (rows: CsvRow[]): boolean => {
   })
 }
 
-/** Explicit BASE_SALE_PRICE / TIER_* columns (four qty bands, 10–49 merged). */
-const buildStylePricingMap = (rows: CsvRow[]) => {
-  const byLookupKey = new Map<string, StylePricing>()
-  const duplicateLookupKeys = new Set<string>()
-
-  for (const row of rows) {
-    const styleCode = normalizeStyleCode(row["STYLECODE"])
-    if (!styleCode) {
-      continue
-    }
-
-    const baseSaleMinor = parseMoneyToMinor(row["BASE_SALE_PRICE"])
-    const tier10Minor = parseMoneyToMinor(row["TIER_10_TO_49_PRICE"])
-    const tier50Minor = parseMoneyToMinor(row["TIER_50_TO_99_PRICE"])
-    const tier100Minor = parseMoneyToMinor(row["TIER_100_PLUS_PRICE"])
-
-    if (baseSaleMinor === null) {
-      continue
-    }
-
-    const tiers: Tier[] = [{ min_quantity: 1, max_quantity: 9, amount: baseSaleMinor }]
-
-    if (tier10Minor !== null) {
-      tiers.push({ min_quantity: 10, max_quantity: 49, amount: tier10Minor })
-    }
-    if (tier50Minor !== null) {
-      tiers.push({ min_quantity: 50, max_quantity: 99, amount: tier50Minor })
-    }
-    if (tier100Minor !== null) {
-      tiers.push({ min_quantity: 100, amount: tier100Minor })
-    }
-
-    const stylePricing: StylePricing = {
-      styleCode,
-      costPriceMinor: parseMoneyToMinor(row["PRICE"]),
-      tiers,
-    }
-
-    const band = parseExtendedSizeBandFromProductName(row["PRODUCT_NAME"])
-    const lookupKey = stylePricingLookupKey(styleCode, band)
-
-    if (byLookupKey.has(lookupKey)) {
-      duplicateLookupKeys.add(lookupKey)
-    }
-
-    byLookupKey.set(lookupKey, stylePricing)
-  }
-
-  return {
-    byLookupKey,
-    duplicateLookupKeys: Array.from(duplicateLookupKeys),
-  }
-}
-
 /** STYLECODE + PRICE (supplier cost); tiers derived via tiersFromCostMinor (five bands). */
 const buildStylePricingMapFromGold = (rows: CsvRow[]) => {
   const byLookupKey = new Map<string, StylePricing>()
@@ -409,17 +298,6 @@ const parseHandleSetFromAsColourImport = (rows: CsvRow[]) => {
   return Array.from(handles)
 }
 
-const extractStyleCodeFromHandle = (handle?: string) => {
-  if (!handle) {
-    return ""
-  }
-
-  const normalized = handle.trim().toUpperCase()
-  const parts = normalized.split("-").filter(Boolean)
-  const tail = parts[parts.length - 1] ?? ""
-  return tail.replace(/[^A-Z0-9]/g, "")
-}
-
 const resolveStylePricingForVariant = (
   variant: {
     sku?: string
@@ -430,40 +308,13 @@ const resolveStylePricingForVariant = (
   productHandleById: Map<string, string>,
   byLookupKey: Map<string, StylePricing>
 ): StylePricing | undefined => {
-  const metadataStyleCode = normalizeStyleCode(
-    (variant.metadata as Record<string, unknown> | undefined)?.as_colour_style_code as string | undefined
-  )
+  const metadataStyleCode = (variant.metadata as Record<string, unknown> | undefined)
+    ?.as_colour_style_code as string | undefined
   const handle =
     variant.product?.handle ??
     (variant.product_id ? productHandleById.get(variant.product_id) : undefined)
-  const handleStyleCode = normalizeStyleCode(extractStyleCodeFromHandle(handle))
 
-  // Prefer handle + SKU-derived codes before `as_colour_style_code` metadata so a stale/wrong
-  // style on the variant cannot override the product handle (e.g. kids 3005 matched to another style).
-  const styleCandidates = Array.from(
-    new Set(
-      [handleStyleCode, ...extractStyleCodeCandidatesFromSku(variant.sku), metadataStyleCode].filter(
-        Boolean
-      ) as string[]
-    )
-  )
-
-  const skuBand = extractExtendedSizeBandFromSku(variant.sku)
-
-  for (const code of styleCandidates) {
-    if (skuBand) {
-      const extendedHit = byLookupKey.get(stylePricingLookupKey(code, skuBand))
-      if (extendedHit) {
-        return extendedHit
-      }
-    }
-    const baseHit = byLookupKey.get(code)
-    if (baseHit) {
-      return baseHit
-    }
-  }
-
-  return undefined
+  return resolveStylePricingForHandlesAndSku(handle, variant.sku, metadataStyleCode, byLookupKey)
 }
 
 export default async function updateAsColourPricing({ container, args }: ExecArgs) {
@@ -523,7 +374,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
 
   const { byLookupKey, duplicateLookupKeys } = fromGoldCost
     ? buildStylePricingMapFromGold(pricingRows)
-    : buildStylePricingMap(pricingRows)
+    : buildExplicitStylePricingMapFromCsvRows(pricingRows)
   const asColourSkus = parseSkuSetFromAsColourImport(importRows)
   const asColourHandles = parseHandleSetFromAsColourImport(importRows)
 

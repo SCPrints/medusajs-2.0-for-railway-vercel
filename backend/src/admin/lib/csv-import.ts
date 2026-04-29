@@ -80,8 +80,10 @@ export const parseCsv = (text: string): ParsedCsv => {
   if (!lines.length) {
     return { headers: [], rows: [] }
   }
-  const headerParts = parseCsvLine(lines[0])
-  const headers = headerParts.map((h) => h.trim().toLowerCase()).filter(Boolean)
+  const headerParts = parseCsvLine(lines[0].replace(/^\ufeff/, ""))
+  const headers = headerParts
+    .map((h) => h.trim().replace(/^\ufeff/, "").toLowerCase())
+    .filter(Boolean)
   const rows = lines.slice(1).map((line) => {
     const parts = parseCsvLine(line)
     const row: Record<string, string> = {}
