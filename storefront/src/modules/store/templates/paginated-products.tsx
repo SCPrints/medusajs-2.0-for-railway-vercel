@@ -1,3 +1,5 @@
+import { HttpTypes } from "@medusajs/types"
+
 import { getProductsListWithSort } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import ProductPreview from "@modules/products/components/product-preview"
@@ -6,15 +8,6 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 
 const PRODUCT_LIMIT = 12
-
-type PaginatedProductsParams = {
-  limit: number
-  collection_id?: string[]
-  category_id?: string[]
-  id?: string[]
-  tags?: string[]
-  order?: string
-}
 
 export default async function PaginatedProducts({
   sortBy,
@@ -27,7 +20,11 @@ export default async function PaginatedProducts({
   inStock,
   brand,
   fabric,
+  /** Prefer over legacy `tag` (Medusa Store API uses tag IDs). */
+  tagId,
+  /** @deprecated Use `tagId`; kept for bookmarks using `?tag=`. */
   tag,
+  typeId,
   countryCode,
 }: {
   sortBy?: SortOptions
@@ -40,27 +37,35 @@ export default async function PaginatedProducts({
   inStock?: boolean
   brand?: string
   fabric?: string
+  tagId?: string
   tag?: string
+  typeId?: string
   countryCode: string
 }) {
-  const queryParams: PaginatedProductsParams = {
+  const queryParams: HttpTypes.StoreProductListParams = {
     limit: PRODUCT_LIMIT,
   }
 
   if (collectionId) {
-    queryParams["collection_id"] = [collectionId]
+    queryParams.collection_id = [collectionId]
   }
 
   if (categoryId) {
-    queryParams["category_id"] = [categoryId]
+    queryParams.category_id = [categoryId]
   }
 
   if (productsIds) {
-    queryParams["id"] = productsIds
+    queryParams.id = productsIds
   }
 
-  if (tag) {
-    queryParams["tags"] = [tag]
+  const resolvedTagId = tagId?.trim() || tag?.trim()
+  if (resolvedTagId) {
+    queryParams.tag_id = [resolvedTagId]
+  }
+
+  const trimmedTypeId = typeId?.trim()
+  if (trimmedTypeId) {
+    queryParams.type_id = [trimmedTypeId]
   }
 
   if (sortBy === "created_at") {

@@ -37,7 +37,10 @@ type Params = {
     inStock?: string
     brand?: string
     fabric?: string
+    /** Legacy; prefer `tagId` */
     tag?: string
+    tagId?: string
+    typeId?: string
   }>
   params: Promise<{
     countryCode: string
@@ -60,7 +63,20 @@ const parsePositiveNumber = (value?: string) => {
 export default async function StorePage({ searchParams, params }: Params) {
   const resolvedSearchParams = await searchParams
   const resolvedParams = await params
-  const { sortBy, page, minPrice, maxPrice, inStock, brand, fabric, tag } = resolvedSearchParams
+  const {
+    sortBy,
+    page,
+    minPrice,
+    maxPrice,
+    inStock,
+    brand,
+    fabric,
+    tag,
+    tagId,
+    typeId,
+  } = resolvedSearchParams
+
+  const resolvedTagId = tagId?.trim() || tag?.trim() || undefined
 
   return (
     <StoreTemplate
@@ -71,7 +87,8 @@ export default async function StorePage({ searchParams, params }: Params) {
       inStock={inStock === "1"}
       brand={brand?.trim() || undefined}
       fabric={fabric?.trim() || undefined}
-      tag={tag?.trim() || undefined}
+      typeId={typeId?.trim() || undefined}
+      tagId={resolvedTagId}
       countryCode={resolvedParams.countryCode}
     />
   )
