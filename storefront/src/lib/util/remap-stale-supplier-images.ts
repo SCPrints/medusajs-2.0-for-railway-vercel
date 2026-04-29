@@ -24,6 +24,15 @@ const STALE_LOOKUP_KEY_TO_REPLACEMENT = new Map<string, string>([
     "dncworkwear.com.au|/images/hires/1701colour.jpg",
     "https://www.dncworkwear.com.au/images/hires/1701.jpg",
   ],
+  // P/C Full Bib Apron — importer used short basename `2511.jpg` (404); CDN serves `2511349.jpg`.
+  [
+    "www.dncworkwear.com.au|/images/hires/2511.jpg",
+    "https://www.dncworkwear.com.au/images/hires/2511349.jpg",
+  ],
+  [
+    "dncworkwear.com.au|/images/hires/2511.jpg",
+    "https://www.dncworkwear.com.au/images/hires/2511349.jpg",
+  ],
 ])
 
 /** Strip scheme + query — compare Apples-to-Apples regardless of tracking params */
