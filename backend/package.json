@@ -21,6 +21,7 @@
     "trim-syzmik-catalog": "npx medusa exec ./src/scripts/trim-syzmik-catalog-by-allowlist.ts --",
     "trim-ramo-catalog": "npx medusa exec ./src/scripts/trim-ramo-catalog-by-allowlist.ts --",
     "import-dnc-products": "npx medusa exec ./src/scripts/import-dnc-products.ts --",
+    "audit-pricing-csv": "node -r ts-node/register/transpile-only ./src/scripts/audit-wholesale-pricing-csv.ts --",
     "import-tidied-types-tags": "npx medusa exec ./src/scripts/import-tidied-types-and-tags-csv.ts --",
     "list-product-types-tags": "npx medusa exec ./src/scripts/list-product-types-and-tags.ts --",
     "ib": "init-backend",

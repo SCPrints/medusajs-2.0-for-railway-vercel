@@ -1,24 +1,14 @@
 "use client"
 
-import { Popover, Transition } from "@headlessui/react"
+import { Popover } from "@headlessui/react"
 import { ArrowRightMini, XMark } from "@medusajs/icons"
 import { clx, useToggleState } from "@medusajs/ui"
-import { Fragment } from "react"
 import NavLink from "@modules/common/components/nav-link"
 import CountrySelect from "../country-select"
 import { services } from "@modules/services/data"
 import { HttpTypes } from "@medusajs/types"
 
 const MENU_COLLECTIONS_CAP = 10
-
-const TRANSITION_COMMON = {
-  enter: "transition ease-out duration-150 motion-reduce:transition-none motion-reduce:duration-0",
-  enterFrom: "opacity-0",
-  enterTo: "opacity-100",
-  leave: "transition ease-in duration-125 motion-reduce:transition-none motion-reduce:duration-0",
-  leaveFrom: "opacity-100",
-  leaveTo: "opacity-0",
-} as const
 
 const SideMenuItems = {
   Home: "/",
@@ -86,8 +76,9 @@ const SideMenu = ({
   categoryBrowseGroups?: SideMenuBrowseGroup[]
 }) => {
   const toggleState = useToggleState()
-  const collectionPreview = collectionLinks.slice(0, MENU_COLLECTIONS_CAP)
-  const hasMoreCollections = collectionLinks.length > MENU_COLLECTIONS_CAP
+  const safeCollectionLinks = collectionLinks ?? []
+  const collectionPreview = safeCollectionLinks.slice(0, MENU_COLLECTIONS_CAP)
+  const hasMoreCollections = safeCollectionLinks.length > MENU_COLLECTIONS_CAP
 
   const browseGroups: SideMenuBrowseGroup[] = [
     ...categoryBrowseGroups,
@@ -98,7 +89,7 @@ const SideMenu = ({
     <div className="h-full">
       <div className="flex items-center h-full">
         <Popover className="h-full flex">
-          {({ open, close }) => (
+          {({ close }) => (
             <>
               <div className="relative flex h-full">
                 <Popover.Button
@@ -110,16 +101,12 @@ const SideMenu = ({
                 </Popover.Button>
               </div>
 
-              <Transition show={open} as={Fragment} {...TRANSITION_COMMON}>
-                <Popover.Overlay className="fixed inset-0 z-[35] bg-[var(--brand-primary)]/35" static />
-              </Transition>
-              <Transition show={open} as={Fragment} {...TRANSITION_COMMON}>
-                <Popover.Panel
-                  static
-                  data-testid="nav-menu-popup"
-                  className="fixed inset-x-0 top-20 z-40 flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden border-t border-[var(--brand-primary)]/10 bg-[var(--brand-background)] text-[var(--brand-primary)] shadow-lg"
-                >
-                    <div className="content-container flex min-h-0 flex-1 flex-col py-6">
+              <Popover.Overlay className="fixed inset-0 z-[35] bg-[var(--brand-primary)]/35" />
+              <Popover.Panel
+                data-testid="nav-menu-popup"
+                className="fixed inset-x-0 top-20 z-40 flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden border-t border-[var(--brand-primary)]/10 bg-[var(--brand-background)] text-[var(--brand-primary)] shadow-lg outline-none"
+              >
+                <div className="content-container flex min-h-0 flex-1 flex-col py-6">
                       <div className="flex shrink-0 justify-end pb-4">
                         <button
                           data-testid="close-menu-button"
@@ -223,7 +210,7 @@ const SideMenu = ({
                                 {hasMoreCollections && (
                                   <li className="pt-1 text-xs text-[var(--brand-primary)]/55">
                                     Showing {MENU_COLLECTIONS_CAP} of{" "}
-                                    {collectionLinks.length}
+                                    {safeCollectionLinks.length}
                                   </li>
                                 )}
                                 <li>
@@ -264,8 +251,7 @@ const SideMenu = ({
                         </div>
                       </div>
                     </div>
-                </Popover.Panel>
-              </Transition>
+              </Popover.Panel>
             </>
           )}
         </Popover>

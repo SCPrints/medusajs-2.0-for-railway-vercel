@@ -1,0 +1,754 @@
+﻿product_id,product_handle,product_title,product_status,flagged_variant_count,min_aud_across_variants,max_aud_across_variants
+prod_01KPJQCCXX66PWF06XK96XXPYR,as-colour-parcel-tote-1000,AS Colour Parcel Tote 1000,published,3,0.27,0.27
+prod_01KPJQCCXXAP6DRAYRFXVZN9PG,as-colour-duffel-bag-1003,AS Colour Duffel Bag 1003,draft,2,0.93,0.93
+prod_01KPJQCCXXC4R0D5RE60NR6WFV,as-colour-shoulder-tote-1002,AS Colour Shoulder Tote 1002,published,2,0.33,0.33
+prod_01KPJQCCXXFC720RC4DKV4H79X,as-colour-basic-tote-1007,AS Colour Basic Tote 1007,published,2,0.27,0.27
+prod_01KPJQCCXXJRZQ15M9W3M1GFFV,as-colour-recycled-camera-bag-1010,AS Colour Recycled Camera Bag 1010,draft,1,0.38,0.38
+prod_01KPJQCCXXKJ5BBF3WYJ12X4ZE,as-colour-escape-travel-bag-1009,AS Colour Escape Travel Bag 1009,draft,4,1.8,1.8
+prod_01KPJQCCXXN9G3MFWPTVTG3B3H,as-colour-canvas-duffel-bag-1004,AS Colour Canvas Duffel Bag 1004,draft,1,0.93,0.93
+prod_01KPJQCCXXSFN6BCQ0KC6XRQMJ,as-colour-two-tone-carrie-tote-1008,AS Colour Two-Tone Carrie Tote 1008,published,5,0.42,0.42
+prod_01KPJQCCXXW0EQRE55G84F7F7Y,as-colour-carrie-tote-1001,AS Colour Carrie Tote 1001,published,11,0.3,0.3
+prod_01KPJQCCXY2QDR8TYZQQPKQ503,as-colour-backpack-1018,AS Colour Backpack 1018,draft,1,0.93,0.93
+prod_01KPJQCCXY88XYJMG775SM4C1N,as-colour-recycled-phone-bag-1011,AS Colour Recycled Phone Bag 1011,draft,1,0.33,0.33
+prod_01KPJQCCXYDQWFD5D7KK25SS5K,as-colour-waist-bag-1014,AS Colour Waist Bag 1014,draft,1,0.45,0.45
+prod_01KPJQCCXYGP49D9EYRF2K1CTP,as-colour-recycled-pocket-waist-bag-1019,AS Colour Recycled Pocket Waist Bag 1019,draft,1,0.68,0.68
+prod_01KPJQCCXYH1NAAH50H9YT3RN8,as-colour-recycled-waist-bag-1013,AS Colour Recycled Waist Bag 1013,draft,1,0.6,0.6
+prod_01KPJQCCXYQWBTRXTH3WDYGPSQ,as-colour-carrie-denim-tote-1012,AS Colour Carrie Denim Tote 1012,published,2,0.39,0.39
+prod_01KPJQCCXZ4XW605QNFV0FWCET,as-colour-recycled-transit-bag-1026,AS Colour Recycled Transit Bag 1026,draft,1,0.45,0.45
+prod_01KPJQCCXZ8QR836K48MKQ6NEN,as-colour-recycled-double-waist-bag-1025,AS Colour Recycled Double Waist Bag 1025,draft,1,0.68,0.68
+prod_01KPJQCCXZ8W31KBPJCYQ83BC8,as-colour-recycled-rucksack-1028,AS Colour Recycled Rucksack 1028,draft,1,1.42,1.42
+prod_01KPJQCCXZBEJFDA20Y0R7V0PE,as-colour-recycled-long-wallet-1034,AS Colour Recycled Long Wallet 1034,draft,1,0.45,0.45
+prod_01KPJQCCXZD04FJCW7XFWA0BA7,as-colour-recycled-toiletry-bag-1022,AS Colour Recycled Toiletry Bag 1022,draft,1,0.38,0.38
+prod_01KPJQCCXZMVEPEZVZ07877SMX,as-colour-recycled-travel-backpack-1030,AS Colour Recycled Travel Backpack 1030,draft,1,1.88,1.88
+prod_01KPJQCCXZPTKEH1FJ9ARQ6BP0,as-colour-recycled-laptop-sleeve-1024,AS Colour Recycled Laptop Sleeve 1024,draft,1,0.6,0.6
+prod_01KPJQCCXZRHDVF72345XB74YJ,as-colour-recycled-zip-wallet-1033,AS Colour Recycled Zip Wallet 1033,draft,1,0.38,0.38
+prod_01KPJQCCXZVAK3K2HAE2TYMT3Z,as-colour-recycled-fold-wallet-1032,AS Colour Recycled Fold Wallet 1032,draft,1,0.38,0.38
+prod_01KPJQCCXZWQVP8J688V4FH5S3,as-colour-recycled-messenger-bag-1027,AS Colour Recycled Messenger Bag 1027,draft,1,1.35,1.35
+prod_01KPJQCCXZXJH8EQ0S4KR16NS9,as-colour-grocery-bag-1021,AS Colour Grocery Bag 1021,draft,1,0.23,0.23
+prod_01KPJQCCY019FTRMNJHPPNNWDA,as-colour-canvas-apron-1080,AS Colour Canvas Apron 1080,draft,2,0.83,0.83
+prod_01KPJQCCY01ZSAKK37N6S05ECT,as-colour-stock-faded-trucker-1102,AS Colour Stock Faded Trucker 1102,published,4,0.39,0.39
+prod_01KPJQCCY02S7V5PRBR4KVHN92,as-colour-carrie-apron-1082,AS Colour Carrie Apron 1082,draft,5,0.75,0.75
+prod_01KPJQCCY051PS914D3VMV5BVG,as-colour-carrie-half-apron-1083,AS Colour Carrie Half Apron 1083,draft,5,0.6,0.6
+prod_01KPJQCCY06TESMK50PQ0ABQG7,as-colour-canvas-half-apron-1081,AS Colour Canvas Half Apron 1081,draft,2,0.75,0.75
+prod_01KPJQCCY06Z8E6XGBV8FVBFJD,as-colour-area-pattern-duffel-bag-1035,AS Colour Area Pattern Duffel Bag 1035,draft,1,1.27,1.27
+prod_01KPJQCCY084FQVXND899N8DE3,as-colour-recycled-gear-bag-1037,AS Colour Recycled Gear Bag 1037,draft,1,0.6,0.6
+prod_01KPJQCCY08PXV5CJ4BJ2N13RE,as-colour-pocket-tote-bag-1041,AS Colour Pocket Tote Bag 1041,published,2,0.45,0.45
+prod_01KPJQCCY098HYB58AEVW7ST85,as-colour-linen-apron-1086,AS Colour Linen Apron 1086,draft,2,0.93,0.93
+prod_01KPJQCCY0A56WWJ4DFPMXZKH8,as-colour-finn-nylon-cap-1104,AS Colour Finn Nylon Cap 1104,published,4,0.42,0.42
+prod_01KPJQCCY0DP9V7M0FMN4NS336,as-colour-oversized-tote-bag-1040,AS Colour Oversized Tote Bag 1040,published,2,0.38,0.38
+prod_01KPJQCCY0F5E3R4A276H0ZYBX,as-colour-finn-two-tone-nylon-cap-1105,AS Colour Finn Two-Tone Nylon Cap 1105,published,2,0.42,0.42
+prod_01KPJQCCY0H47X8VQ2BWSBZX5Z,as-colour-stock-cap-1100,AS Colour Stock Cap 1100,published,10,0.42,0.42
+prod_01KPJQCCY0J00SQ5X51XTW18VZ,as-colour-rain-duffel-bag-1036,AS Colour Rain Duffel Bag 1036,draft,1,1.8,1.8
+prod_01KPJQCCY0K1EEE362ZAKHDWTB,as-colour-recycled-light-duffel-bag-1038,AS Colour Recycled Light Duffel Bag 1038,draft,1,0.68,0.68
+prod_01KPJQCCY0K5214DHJDQQGRMBE,as-colour-denim-half-apron-1085,AS Colour Denim Half Apron 1085,draft,2,0.83,0.83
+prod_01KPJQCCY0P4CBMEKE5KEYASEC,as-colour-finn-five-panel-cap-1103,AS Colour Finn Five Panel Cap 1103,published,4,0.39,0.39
+prod_01KPJQCCY0WH1EJ7T0PN75HSVW,as-colour-denim-apron-1084,AS Colour Denim Apron 1084,draft,2,0.93,0.93
+prod_01KPJQCCY0XQE7N4QDF72ANJH7,as-colour-linen-half-apron-1087,AS Colour Linen Half Apron 1087,draft,2,0.83,0.83
+prod_01KPJQCCY11S2Z65X1VJERJXBX,as-colour-cuff-beanie-1107,AS Colour Cuff Beanie 1107,published,17,0.33,0.33
+prod_01KPJQCCY162Z19477QEYJPYDB,as-colour-stock-trucker-cap-1108,AS Colour Stock Trucker Cap 1108,published,6,0.39,0.39
+prod_01KPJQCCY17FT0RV3E84XM9SN4,as-colour-cable-beanie-1120,AS Colour Cable Beanie 1120,published,16,0.33,0.33
+prod_01KPJQCCY18B7V95GBBH18ZSFQ,as-colour-surf-cap-1114,AS Colour Surf Cap 1114,published,48,0.39,0.39
+prod_01KPJQCCY1BD2AM3CJ2PF84XMH,as-colour-stock-flex-cap-1106,AS Colour Stock Flex Cap 1106,published,24,0.39,0.39
+prod_01KPJQCCY1C1297FK0XVT4F26C,as-colour-gauge-beanie-1125,AS Colour Gauge Beanie 1125,published,4,0.39,0.39
+prod_01KPJQCCY1E6VFEMWPP3Q6JDZ2,as-colour-surf-cotton-cap-1119,AS Colour Surf Cotton Cap 1119,published,6,0.45,0.45
+prod_01KPJQCCY1FP0VGVGWQ53DEF7X,as-colour-stock-contrast-trucker-1110,AS Colour Stock Contrast Trucker 1110,published,7,0.39,0.39
+prod_01KPJQCCY1JAW6QNRJ57T3B08X,as-colour-pom-pom-beanie-1124,AS Colour Pom Pom Beanie 1124,published,3,0.33,0.33
+prod_01KPJQCCY1VFPQXFHYHVBCC4GP,as-colour-surf-rope-cap-1123,AS Colour Surf Rope Cap 1123,published,6,0.39,0.39
+prod_01KPJQCCY1VVMS3J94KVNAPNE9,as-colour-knit-beanie-1115,AS Colour Knit Beanie 1115,published,2,0.39,0.39
+prod_01KPJQCCY1X3XW3D7YT11RRMFB,as-colour-bucket-hat-1117,AS Colour Bucket Hat 1117,published,13,0.45,0.45
+prod_01KPJQCCY21D9JX3XYCYBGD648,as-colour-icon-nylon-cap-1142,AS Colour Icon Nylon Cap 1142,published,4,0.39,0.39
+prod_01KPJQCCY21QD5R750M2MZ2AP4,as-colour-access-canvas-cap-1131,AS Colour Access Canvas Cap 1131,published,5,0.39,0.39
+prod_01KPJQCCY2AZJMTXQ49TKNG62C,as-colour-wo-s-access-cap-1138,AS Colour Wo's Access Cap 1138,published,3,0.39,0.39
+prod_01KPJQCCY2E362G27M8FKX73MS,as-colour-icon-trucker-cap-1141,AS Colour Icon Trucker Cap 1141,published,5,0.39,0.39
+prod_01KPJQCCY2E6JQQC42ZCK0BS8J,as-colour-icon-kids-cap-1149,AS Colour Icon Kids Cap 1149,published,1,0.39,0.39
+prod_01KPJQCCY2ED0RCQ3ZXH0YN73A,as-colour-access-five-panel-cap-1132,AS Colour Access Five Panel Cap 1132,published,4,0.39,0.39
+prod_01KPJQCCY2FZ2W267TMVC6MV4J,as-colour-icon-cap-1140,AS Colour Icon Cap 1140,published,10,0.39,0.39
+prod_01KPJQCCY2PSPCXVQM362EZ80C,as-colour-access-cord-cap-1135,AS Colour Access Cord Cap 1135,published,4,0.39,0.39
+prod_01KPJQCCY2R46W3W8W3TZW18JR,as-colour-icon-flex-cap-1143,AS Colour Icon Flex Cap 1143,published,16,0.39,0.39
+prod_01KPJQCCY2RVFX5DH5XKB22M67,as-colour-access-faded-cap-1134,AS Colour Access Faded Cap 1134,published,4,0.39,0.39
+prod_01KPJQCCY2W2XYC2MSV3HS231D,as-colour-surf-kids-cap-1129,AS Colour Surf Kids Cap 1129,published,2,0.33,0.33
+prod_01KPJQCCY2XR2BRKPRKFG6CKE9,as-colour-access-cap-1130,AS Colour Access Cap 1130,published,10,0.39,0.39
+prod_01KPJQCCY2YQY04RP03TB5637Y,as-colour-access-active-cap-1133,AS Colour Access Active Cap 1133,published,2,0.45,0.45
+prod_01KPJQCCY31RF2FJGB6VXHVFY1,as-colour-class-wool-cap-1151,AS Colour Class Wool Cap 1151,published,2,0.45,0.45
+prod_01KPJQCCY33K9EZM184FHRJ33V,as-colour-class-cord-cap-1152,AS Colour Class Cord Cap 1152,published,9,0.45,0.45
+prod_01KPJQCCY34EYQWBY63J65N3GB,as-colour-frame-foam-trucker-cap-1161,AS Colour Frame Foam Trucker Cap 1161,published,12,0.45,0.45
+prod_01KPJQCCY35SKZX89G9A1AJE07,as-colour-frame-foam-two-tone-trucker-1163,AS Colour Frame Foam Two-Tone Trucker 1163,published,3,0.45,0.45
+prod_01KPJQCCY35Z30ZKNJQJH43TDF,as-colour-class-performance-cap-1155,AS Colour Class Performance Cap 1155,published,4,0.39,0.39
+prod_01KPJQCCY38X9Q7SWEZHZJFKNV,as-colour-class-linen-cap-1158,AS Colour Class Linen Cap 1158,published,2,0.45,0.45
+prod_01KPJQCCY3GDS437F158J8KV9W,as-colour-class-cord-two-tone-cap-1159,AS Colour Class Cord Two-Tone Cap 1159,published,8,0.48,0.48
+prod_01KPJQCCY3HP44PEQVBN64NWRQ,as-colour-class-five-panel-cap-1153,AS Colour Class Five Panel Cap 1153,published,4,0.39,0.39
+prod_01KPJQCCY3Q4Q5SEB2226MNJ0E,as-colour-frame-cap-1160,AS Colour Frame Cap 1160,published,6,0.39,0.39
+prod_01KPJQCCY3R8Z3PSKVKA7DMR0M,as-colour-class-cap-1150,AS Colour Class Cap 1150,published,4,0.39,0.39
+prod_01KPJQCCY3RA5G4WPGX4TCAFTY,as-colour-class-two-tone-cap-1154,AS Colour Class Two-Tone Cap 1154,published,17,0.39,0.39
+prod_01KPJQCCY3S5R2S41CPH22KAJZ,as-colour-frame-nylon-cap-1162,AS Colour Frame Nylon Cap 1162,published,5,0.39,0.39
+prod_01KPJQCCY3VVV8BBYB8S1CS5Q6,as-colour-class-cord-trucker-cap-1157,AS Colour Class Cord Trucker Cap 1157,published,3,0.39,0.39
+prod_01KPJQCCY3VZMDX9Y4FFNGH5HX,as-colour-class-canvas-cap-1156,AS Colour Class Canvas Cap 1156,published,8,0.39,0.39
+prod_01KPJQCCY40MTG7CXQ99R5THSE,as-colour-frame-two-tone-cap-1165,AS Colour Frame Two-Tone Cap 1165,published,7,0.48,0.48
+prod_01KPJQCCY41AJJ9SGE8CJ1VHTH,as-colour-terry-bucket-hat-1175,AS Colour Terry Bucket Hat 1175,published,6,0.45,0.45
+prod_01KPJQCCY450JSZV5Z65KK66YS,as-colour-nylon-wide-brim-bucket-hat-1174,AS Colour Nylon Wide Brim Bucket Hat 1174,published,5,0.45,0.45
+prod_01KPJQCCY49294QG6JE4E4MFGT,as-colour-wo-s-bucket-hat-1178,AS Colour Wo's Bucket Hat 1178,published,3,0.45,0.45
+prod_01KPJQCCY4ADKM2NKYWJ0J3E5Z,as-colour-frame-soft-cap-1164,AS Colour Frame Soft Cap 1164,published,4,0.48,0.48
+prod_01KPJQCCY4BXFSA9D1SX485K36,as-colour-kids-bucket-hat-1170,AS Colour Kids Bucket Hat 1170,published,2,0.45,0.45
+prod_01KPJQCCY4ETWJHRN06G715ZXY,as-colour-frame-perforated-cap-1166,AS Colour Frame Perforated Cap 1166,draft,5,0.48,0.48
+prod_01KPJQCCY4F04HGTF5QQRGJCDB,as-colour-nylon-bucket-hat-1171,AS Colour Nylon Bucket Hat 1171,published,11,0.45,0.45
+prod_01KPJQCCY4KPVWTYYN94F5DBV9,as-colour-cord-bucket-hat-1176,AS Colour Cord Bucket Hat 1176,published,8,0.45,0.45
+prod_01KPJQCCY4Y8SWY96M1AQQFWSD,as-colour-active-finn-cap-1180,AS Colour Active Finn Cap 1180,published,3,0.39,0.39
+prod_01KPJQCCY4YJXE651K9W9DK3WV,as-colour-wide-brim-bucket-hat-1172,AS Colour Wide Brim Bucket Hat 1172,published,4,0.45,0.45
+prod_01KPJQCCY54W1WM7Q5E7Z90C1G,as-colour-class-cord-rope-cap-1185,AS Colour Class Cord Rope Cap 1185,published,9,0.48,0.48
+prod_01KPJQCCY5ED1TWTDA5TCBAGMS,as-colour-mesh-trucker-cap-1190,AS Colour Mesh Trucker Cap 1190,published,12,0.48,0.48
+prod_01KPJQCCY5FKDYEKSRZPETV6ZV,as-colour-boxer-briefs-1201,AS Colour Boxer Briefs 1201,draft,15,0.23,0.23
+prod_01KPJQCCY5GTHR4QP3KCB74CPZ,as-colour-boxer-shorts-1202,AS Colour Boxer Shorts 1202,draft,20,0.3,0.3
+prod_01KPJQCCY5K3EDCFVZFJ96R6EX,as-colour-faded-bucket-hat-1181,AS Colour Faded Bucket Hat 1181,published,3,0.48,0.48
+prod_01KPJQCCY5MH0V0F0GA7Q96QHB,as-colour-stock-7-panel-cap-1184,AS Colour Stock 7-Panel Cap 1184,published,4,0.39,0.39
+prod_01KPJQCCY5VR2AQQB4RX99E8XB,as-colour-marle-socks-2-pairs-1205,AS Colour Marle Socks (2 Pairs) 1205,draft,4,0.23,0.23
+prod_01KPJQCCY61G84MFS5B9X5TJ6E,as-colour-invisible-socks-2-pairs-1206,AS Colour Invisible Socks (2 Pairs) 1206,draft,8,0.18,0.18
+prod_01KPJQCCY61RWA02HFARTXK8DP,as-colour-relax-stripe-socks-2-pairs-1210,AS Colour Relax Stripe Socks (2 Pairs) 1210,draft,8,0.3,0.3
+prod_01KPJQCCY62JA5ERY2X70D2A2B,as-colour-braided-leather-belt-1405,AS Colour Braided Leather Belt 1405,draft,8,0.97,0.97
+prod_01KPJQCCY63KKF4DEX5BR8C156,as-colour-knit-socks-2-pairs-1214,AS Colour Knit Socks (2 Pairs) 1214,draft,6,0.53,0.53
+prod_01KPJQCCY6AVW92ZJASMC1R3SJ,as-colour-relax-socks-2-pairs-1208,AS Colour Relax Socks (2 Pairs) 1208,draft,32,0.23,0.23
+prod_01KPJQCCY6B6KVFCKRSHPHQNVY,as-colour-trunks-1211,AS Colour Trunks 1211,draft,20,0.23,0.23
+prod_01KPJQCCY6CFECHWFYS0XQZ959,as-colour-business-socks-2-pairs-1213,AS Colour Business Socks (2 Pairs) 1213,draft,6,0.3,0.3
+prod_01KPJQCCY6FZE6VK3JGJXMVRAS,as-colour-boxer-check-shorts-1215,AS Colour Boxer Check Shorts 1215,draft,5,0.3,0.3
+prod_01KPJQCCY6GQ5KNGC14FGGXES7,as-colour-speckle-socks-2-pairs-1209,AS Colour Speckle Socks (2 Pairs) 1209,draft,2,0.3,0.3
+prod_01KPJQCCY6QJEXEDCBH4TDKFS5,as-colour-cotton-webbing-belt-1406,AS Colour Cotton Webbing Belt 1406,draft,8,0.54,0.54
+prod_01KPJQCCY6VBGGSW754C3795NG,as-colour-boxer-fine-stripe-shorts-1216,AS Colour Boxer Fine Stripe Shorts 1216,draft,20,0.3,0.3
+prod_01KPJQCCY6Y185CBSHCJX86KCN,as-colour-slub-socks-2-pairs-1217,AS Colour Slub Socks (2 Pairs) 1217,draft,4,0.3,0.3
+prod_01KPJQCCY6Y91ZETEFECG4NC73,as-colour-leather-belt-1404,AS Colour Leather Belt 1404,draft,8,0.6,0.6
+prod_01KPJQCCY6Z5AMZQPZ3GK88P27,as-colour-logo-briefs-1218,AS Colour Logo Briefs 1218,draft,10,0.27,0.27
+prod_01KPJQCCY6ZEFKEMA716KX08NQ,as-colour-briefs-1212,AS Colour Briefs 1212,draft,20,0.12,0.12
+prod_01KPJQCCY6ZJPWD4VVYTGA7MW6,as-colour-asc-coffee-cup-1500,AS Colour ASC Coffee Cup 1500,draft,1,0.15,0.15
+prod_01KPJQCCY72VEWK9T642SZ5F9V,as-colour-asc-tape-measure-1510,AS Colour ASC Tape Measure 1510,draft,1,0.3,0.3
+prod_01KPJQCCY793MP3K8RZR4RNT61,as-colour-asc-pen-1503,AS Colour ASC Pen 1503,draft,1,0.03,0.03
+prod_01KPJQCCY7BEB3SHHH1SKRXXF5,as-colour-asc-utility-knife-1509,AS Colour ASC Utility Knife 1509,draft,1,0.38,0.38
+prod_01KPJQCCY7ECPS95CHMSTQX0EV,as-colour-asc-mini-b-ball-set-1505,AS Colour ASC Mini B-Ball Set 1505,draft,2,1.35,1.35
+prod_01KPJQCCY7GVS1V94PCT1KAY92,as-colour-asc-builders-pencil-10-pack-1508,AS Colour ASC Builders Pencil 10 Pack 1508,draft,1,0.15,0.15
+prod_01KPJQCCY7QZRNFF1VG87S1GNZ,as-colour-asc-utility-stool-1507,AS Colour ASC Utility Stool 1507,draft,1,0.53,0.53
+prod_01KPJQCCY7WMDGN5Y8E8F4QRRN,as-colour-asc-drink-bottle-1501,AS Colour ASC Drink Bottle 1501,draft,1,0.3,0.3
+prod_01KPJQCCY7XKWHZAMVNSPHF6ZD,as-colour-asc-pet-bowl-1506,AS Colour ASC Pet Bowl 1506,draft,1,0.3,0.3
+prod_01KPJQCCY7YAQQ66Y89SFME3J6,as-colour-asc-keychain-1504,AS Colour ASC Keychain 1504,draft,1,0.15,0.15
+prod_01KPJQCCY82VAQVS50ZPC5EMZ2,as-colour-asc-palette-knife-1515,AS Colour ASC Palette Knife 1515,draft,1,0.27,0.27
+prod_01KPJQCCY88KP6RYYHN5RM8DQF,as-colour-script-sticker-1517,AS Colour Script Sticker 1517,draft,1,0.03,0.03
+prod_01KPJQCCY8932PJQ31P19B7ZY3,as-colour-asc-squeegee-1514,AS Colour ASC Squeegee 1514,draft,1,1.05,1.05
+prod_01KPJQCCY8A42EW6D27YNTH83H,as-colour-canvas-flag-1512,AS Colour Canvas Flag 1512,draft,2,0.23,0.23
+prod_01KPJQCCY8FPE0AT0YAXN9CY5A,as-colour-canvas-pennant-flag-1513,AS Colour Canvas Pennant Flag 1513,draft,2,0.23,0.23
+prod_01KPJQCCY8GC1S7242WZY37ZKN,as-colour-canvas-large-flag-1519,AS Colour Canvas Large Flag 1519,draft,2,0.3,0.3
+prod_01KPJQCCY8KWK7HJCM378E5C4H,as-colour-logo-sticker-1516,AS Colour Logo Sticker 1516,draft,1,0.03,0.03
+prod_01KPJQCCY8WS48PW1HRVPGNQFS,as-colour-as-sticker-1518,AS Colour AS Sticker 1518,draft,1,0.03,0.03
+prod_01KPJQCCY8XR8KDYZP3VG99A83,as-colour-tea-towel-1511,AS Colour Tea Towel 1511,draft,3,0.15,0.15
+prod_01KPJQCCY912RMY472X5Z5EXQM,as-colour-organic-infant-mini-me-one-piece-3003,AS Colour Organic Infant Mini-Me One-Piece 3003,published,30,0.27,0.27
+prod_01KPJQCCY91PAX2QSRZ662J4JF,as-colour-asc-mini-baseball-set-1521,AS Colour ASC Mini Baseball Set 1521,draft,1,0.75,0.75
+prod_01KPJQCCY91V9D96T5PRNATE9E,as-colour-youth-staple-tee-3006,AS Colour Youth Staple Tee 3006,published,115,0.3,0.3
+prod_01KPJQCCY92531KZFEAQ09HCCW,as-colour-kids-staple-l-s-tee-3007,AS Colour Kids Staple L/S Tee 3007,published,9,0.38,0.38
+prod_01KPJQCCY92S32R79VY43HB0CQ,as-colour-kids-staple-tee-3005,AS Colour Kids Staple Tee 3005,published,69,0.3,0.3
+prod_01KPJQCCY96Q9J98MZ1ATSB45X,as-colour-youth-staple-l-s-tee-3008,AS Colour Youth Staple L/S Tee 3008,published,15,0.38,0.38
+prod_01KPJQCCY99X6XDT0J9P88AEPM,as-colour-organic-infant-wee-tee-3001,AS Colour Organic Infant Wee Tee 3001,published,30,0.23,0.23
+prod_01KPJQCCY9AEB41GPVEFCCQE6J,as-colour-asc-lanyard-1523,AS Colour ASC Lanyard 1523,draft,1,0.12,0.12
+prod_01KPJQCCY9SDXG03Z233ASRP5W,as-colour-asc-corkscrew-1522,AS Colour ASC Corkscrew 1522,draft,1,0.3,0.3
+prod_01KPJQCHPS21EBF1CQ4W8FEVNY,as-colour-kids-barnard-tank-3009,AS Colour Kids Barnard Tank 3009,published,12,0.3,0.3
+prod_01KPJQCHPS2T49X4DS2YPH8VVT,as-colour-youth-barnard-tank-3010,AS Colour Youth Barnard Tank 3010,published,20,0.3,0.3
+prod_01KPJQCHPS6PZS1ANBE2TMJZWW,as-colour-youth-supply-track-pants-3024,AS Colour Youth Supply Track Pants 3024,draft,12,0.54,0.54
+prod_01KPJQCHPS8T5QPGK1K6TRZWKG,as-colour-kids-supply-track-pants-3023,AS Colour Kids Supply Track Pants 3023,draft,9,0.54,0.54
+prod_01KPJQCHPSATS2RWEMWN4ZCBC4,as-colour-kids-supply-crew-3030,AS Colour Kids Supply Crew 3030,published,6,0.54,0.54
+prod_01KPJQCHPSEX3KT4ZK6PKGPTJQ,as-colour-youth-supply-crew-3031,AS Colour Youth Supply Crew 3031,published,6,0.54,0.54
+prod_01KPJQCHPSKB43K7QEJ7M8V3KS,as-colour-kids-supply-hood-3032,AS Colour Kids Supply Hood 3032,published,21,0.63,0.63
+prod_01KPJQCHPSNHG5VX76368MZKG0,as-colour-kids-stadium-shorts-3025,AS Colour Kids Stadium Shorts 3025,draft,3,0.45,0.45
+prod_01KPJQCHPSVXGKPEDVVAJ1F0RK,as-colour-youth-supply-hood-3033,AS Colour Youth Supply Hood 3033,published,21,0.63,0.63
+prod_01KPJQCHPSZCAY4C6ZX6021RTP,as-colour-youth-stadium-shorts-3026,AS Colour Youth Stadium Shorts 3026,draft,4,0.45,0.45
+prod_01KPJQCHPT2NX83ZHFGNWKKHCY,as-colour-kids-relax-track-shorts-3042,AS Colour Kids Relax Track Shorts 3042,draft,6,0.6,0.6
+prod_01KPJQCHPT39WXXCJQ5KY9FRQT,as-colour-kids-relax-zip-hood-3038,AS Colour Kids Relax Zip Hood 3038,published,3,0.75,0.75
+prod_01KPJQCHPT42KE0VFMG8KHVG3P,as-colour-youth-relax-crew-3035,AS Colour Youth Relax Crew 3035,published,6,0.63,0.63
+prod_01KPJQCHPT5CXMGVVZC6YE17Y0,as-colour-youth-relax-track-pants-3041,AS Colour Youth Relax Track Pants 3041,draft,3,0.63,0.63
+prod_01KPJQCHPT9KJ61C3BEAZXJYC0,as-colour-youth-classic-l-s-tee-3063,AS Colour Youth Classic L/S Tee 3063,published,10,0.39,0.39
+prod_01KPJQCHPT9REXM7Z4WCC6ZE3Y,as-colour-kids-heavy-faded-tee-3070,AS Colour Kids Heavy Faded Tee 3070,published,9,0.42,0.42
+prod_01KPJQCHPT9VVCSQSWTZ8SCM6X,as-colour-kids-classic-l-s-tee-3062,AS Colour Kids Classic L/S Tee 3062,published,6,0.39,0.39
+prod_01KPJQCHPTBXZS17KCRRXERNWR,as-colour-wo-s-martina-tee-4006,AS Colour Wo's Martina Tee 4006,published,56,0.48,0.48
+prod_01KPJQCHPTG5H98NQR7QTDJ3ZM,as-colour-youth-relax-zip-hood-3039,AS Colour Youth Relax Zip Hood 3039,published,3,0.75,0.75
+prod_01KPJQCHPTHD7PVFTKDTHF556Z,as-colour-youth-relax-track-shorts-3043,AS Colour Youth Relax Track Shorts 3043,draft,8,0.6,0.6
+prod_01KPJQCHPTJ9MR0NX5D3JDK02G,as-colour-kids-relax-crew-3034,AS Colour Kids Relax Crew 3034,published,6,0.63,0.63
+prod_01KPJQCHPTKEMQR2DH0BF481FJ,as-colour-wo-s-maple-tee-4001,AS Colour Wo's Maple Tee 4001,published,320,0.42,0.42
+prod_01KPJQCHPTR8NG5G92REGF8KFG,as-colour-youth-relax-hood-3037,AS Colour Youth Relax Hood 3037,published,6,0.68,0.68
+prod_01KPJQCHPTRHTJ6MBZWHHRW6ES,as-colour-kids-classic-tee-3060,AS Colour Kids Classic Tee 3060,published,42,0.33,0.33
+prod_01KPJQCHPTRR94CTGH54ASYTZE,as-colour-kids-relax-track-pants-3040,AS Colour Kids Relax Track Pants 3040,draft,3,0.63,0.63
+prod_01KPJQCHPTVCNX58QQ372GSE89,as-colour-kids-relax-hood-3036,AS Colour Kids Relax Hood 3036,published,6,0.68,0.68
+prod_01KPJQCHPTXG3GSC4K4VR615CR,as-colour-youth-heavy-faded-tee-3071,AS Colour Youth Heavy Faded Tee 3071,published,12,0.42,0.42
+prod_01KPJQCHPTYQRXTPVKFNGV9NM4,as-colour-youth-classic-tee-3061,AS Colour Youth Classic Tee 3061,published,70,0.33,0.33
+prod_01KPJQCHPTYWJXYM484VGV8C8R,as-colour-wo-s-mali-tee-4008,AS Colour Wo's Mali Tee 4008,published,51,0.42,0.42
+prod_01KPJQCHPV0BJ83A78VBY5CAV3,as-colour-wo-s-mali-l-s-tee-4009,AS Colour Wo's Mali L/S Tee 4009,published,12,0.45,0.45
+prod_01KPJQCHPV3Z7DZF5AH7VCZ6QT,as-colour-wo-s-maple-scoop-tee-4019,AS Colour Wo's Maple Scoop Tee 4019,published,12,0.42,0.42
+prod_01KPJQCHPV76N724ZQVTBN9WYQ,as-colour-wo-s-maple-minus-tee-8cm-4025-4025,AS Colour Wo's Maple Minus Tee [-8cm] 4025 4025,published,12,0.08,0.08
+prod_01KPJQCHPVBYJB9TXARGPGH77B,as-colour-wo-s-classic-tee-4026,AS Colour Wo's Classic Tee 4026,published,97,0.48,0.48
+prod_01KPJQCHPVC3EN4QDKADD0W38T,as-colour-wo-s-maple-v-neck-tee-4023,AS Colour Wo's Maple V Neck Tee 4023,published,12,0.42,0.42
+prod_01KPJQCHPVE8GJCGDEMZ9PDSEK,as-colour-wo-s-maple-tank-4017,AS Colour Wo's Maple Tank 4017,draft,12,0.42,0.42
+prod_01KPJQCHPVGEDP105VE0WZ0H74,as-colour-wo-s-maple-l-s-tee-4020,AS Colour Wo's Maple L/S Tee 4020,published,12,0.6,0.6
+prod_01KPJQCHPVGV64D099ABXP8E6T,as-colour-wo-s-mali-racerback-4013,AS Colour Wo's Mali Racerback 4013,draft,12,0.39,0.39
+prod_01KPJQCHPVR35SA86ETHDM2A4E,as-colour-wo-s-maple-curve-tee-4024,AS Colour Wo's Maple Curve Tee 4024,published,30,0.42,0.42
+prod_01KPJQCHPVXD9W5G221FSK7GJ0,as-colour-wo-s-maple-curve-l-s-tee-4021,AS Colour Wo's Maple Curve L/S Tee 4021,published,30,0.6,0.6
+prod_01KPJQCHPVZ52ZKS64Y5HBZZ6T,as-colour-wo-s-shallow-scoop-tee-4011,AS Colour Wo's Shallow Scoop Tee 4011,published,14,0.42,0.42
+prod_01KPJQFJ0VCZR8P24B07T2PXEV,as-colour-authentic-singlet-5004,AS Colour Authentic Singlet 5004,draft,10,0.42,0.42
+prod_01KPJQFJ0W6TBET4XWBN27FKKE,as-colour-classic-pocket-tee-5027,AS Colour Classic Pocket Tee 5027,published,35,0.53,0.53
+prod_01KPJQFJ0W9HV8XZDQ00ET3CR3,as-colour-base-l-s-tee-5029,AS Colour Base L/S Tee 5029,published,12,0.6,0.6
+prod_01KPJQFJ0WDSREMN24KBR7297G,as-colour-raglan-tee-5012,AS Colour Raglan Tee 5012,published,24,0.54,0.54
+prod_01KPJQFJ0WFCJ776P4DSDB981H,as-colour-staple-l-s-tee-5020,AS Colour Staple L/S Tee 5020,published,88,0.6,0.6
+prod_01KPJQFJ0WKXM3QJNMJNPCW7RS,as-colour-staple-stripe-tee-5028,AS Colour Staple Stripe Tee 5028,published,24,0.54,0.54
+prod_01KPJQFJ0WS5NRGCXX6GHF7FM6,as-colour-barnard-tank-5025,AS Colour Barnard Tank 5025,draft,62,0.42,0.42
+prod_01KPJQFJ0WW8RG78B301DT4XHX,as-colour-organic-tee-5005,AS Colour Organic Tee 5005,published,6,0.48,0.48
+prod_01KPJQFJ0WZ2QY6PJ49D342K59,as-colour-lowdown-singlet-5007,AS Colour Lowdown Singlet 5007,draft,12,0.39,0.39
+prod_01KPJQFJ0XNW0FMFT1T10TQB98,as-colour-basic-tee-5051,AS Colour Basic Tee 5051,published,216,0.39,0.39
+prod_01KPJQFJ0XTYVPTJCNQZ7RJ5YM,as-colour-box-tee-5030,AS Colour Box Tee 5030,published,60,0.54,0.54
+prod_01KPJQFJ0XY5ZWQETJ48G30HB1,as-colour-staple-stone-wash-tee-5040,AS Colour Staple Stone Wash Tee 5040,published,60,0.54,0.54
+prod_01KPJQFPF9F1J2A2NZ738DXA2H,as-colour-block-oversized-tee-5052,AS Colour Block Oversized Tee 5052,published,24,0.42,0.42
+prod_01KPJQFPFA074EQMNH4GNAW7QA,as-colour-classic-pocket-l-s-tee-5072,AS Colour Classic Pocket L/S Tee 5072,published,10,0.69,0.69
+prod_01KPJQFPFA3A6T06HC968KK48J,as-colour-block-l-s-tee-5054,AS Colour Block L/S Tee 5054,published,36,0.48,0.48
+prod_01KPJQFPFA5RJ7C0W38SDC29KM,as-colour-staple-minus-tee-5cm-5074-5074,AS Colour Staple Minus Tee [-5cm] 5074 5074,published,42,0.42,0.42
+prod_01KPJQFPFA95JRSG8268DF8D48,as-colour-staple-plus-tee-5cm-5075-5075,AS Colour Staple Plus Tee [+5cm] 5075 5075,published,12,0.48,0.48
+prod_01KPJQFPFAA5GAXKKD8TY6RTRR,as-colour-classic-oversized-tee-5069,AS Colour Classic Oversized Tee 5069,published,36,0.54,0.54
+prod_01KPJQFPFADQRMNWXAQXCXZ7T9,as-colour-staple-curve-tee-5076,AS Colour Staple Curve Tee 5076,published,24,0.42,0.42
+prod_01KPJQFPFANQ4E7PS939CF050H,as-colour-staple-ringer-tee-5053,AS Colour Staple Ringer Tee 5053,published,18,0.48,0.48
+prod_01KPJQFPFARCH5FQBG5RR71KEX,as-colour-classic-l-s-tee-5071,AS Colour Classic L/S Tee 5071,published,98,0.63,0.63
+prod_01KPJQFPFATE5TG92E4XHVKCB5,as-colour-classic-tank-5073,AS Colour Classic Tank 5073,draft,42,0.45,0.45
+prod_01KPJQFPFAWNH60VE8ZR73F115,as-colour-classic-plus-tee-5cm-5070-5070,AS Colour Classic Plus Tee [+5cm] 5070 5070,published,24,0.54,0.54
+prod_01KPJQFPFAY4CZ8TG6RFSRA72C,as-colour-staple-faded-tee-5065,AS Colour Staple Faded Tee 5065,published,48,0.54,0.54
+prod_01KPJQFPFB1CDMTC14P7Q8CV7B,as-colour-staple-tank-5090,AS Colour Staple Tank 5090,draft,12,0.45,0.45
+prod_01KPJQFPFB29TDGXRS282BHV0X,as-colour-classic-minus-tee-5cm-5079-5079,AS Colour Classic Minus Tee [-5cm] 5079 5079,published,56,0.48,0.48
+prod_01KPJQFPFB3YWSENH7CWYSEP42,as-colour-heavy-faded-l-s-tee-5083,AS Colour Heavy Faded L/S Tee 5083,published,24,0.72,0.72
+prod_01KPJQFPFBBSBPDKWGRGZY84K0,as-colour-staple-curve-tank-5091,AS Colour Staple Curve Tank 5091,draft,12,0.45,0.45
+prod_01KPJQFPFBBXP9PWWT2J5HH1PC,as-colour-stone-wash-heavy-tee-5085,AS Colour Stone Wash Heavy Tee 5085,published,18,0.68,0.68
+prod_01KPJQFPFBC6HSD413Z9NZA07P,as-colour-heavy-faded-minus-tee-5cm-5086-5086,AS Colour Heavy Faded Minus Tee [-5cm] 5086 5086,published,24,0.6,0.6
+prod_01KPJQFPFBDF21MJ1T3TFFVRAS,as-colour-heavy-faded-tank-5084,AS Colour Heavy Faded Tank 5084,draft,24,0.6,0.6
+prod_01KPJQFPFBGV3FG4B2F1V4E9B1,as-colour-supply-crew-5100,AS Colour Supply Crew 5100,published,67,0.83,0.83
+prod_01KPJQFPFBKTGH55ZPZ9C1RH5E,as-colour-heavy-l-s-tee-5081,AS Colour Heavy L/S Tee 5081,published,36,0.72,0.72
+prod_01KPJQFPFBS2ND2Y9X0GP3F4E5,as-colour-staple-recycled-tee-5077,AS Colour Staple Recycled Tee 5077,published,12,0.48,0.48
+prod_01KPJQFPFBW1QHZ5EK7NM08QR8,as-colour-staple-active-tank-5078,AS Colour Staple Active Tank 5078,draft,18,0.54,0.54
+prod_01KPJQFPFBXMH8DZ6M2YX8Z2P7,as-colour-heavy-faded-tee-5082,AS Colour Heavy Faded Tee 5082,published,119,0.68,0.68
+prod_01KPJQFPFCBTSZRB6E2DBRRW3Z,as-colour-supply-hood-5101,AS Colour Supply Hood 5101,published,39,0.87,0.87
+prod_01KPJQGAP10H2KXK0PRB1SAQMQ,as-colour-wo-s-organic-rib-tank-4063g,AS Colour Wo's Organic Rib Tank 4063G,draft,41,0.54,0.54
+prod_01KPJQGAP165G4JJCQ2KGTZN0S,as-colour-staple-organic-tee-5001g,AS Colour Staple Organic Tee 5001G,published,56,0.48,0.48
+prod_01KPJQGAP1A97TCA3DTR1Y9Y36,as-colour-wo-s-organic-rib-tee-4092g,AS Colour Wo's Organic Rib Tee 4092G,published,12,0.63,0.63
+prod_01KPJQGAP1D649BSFCFNSNHPTS,as-colour-wo-s-organic-rib-crop-tank-4064g,AS Colour Wo's Organic Rib Crop Tank 4064G,draft,55,0.51,0.51
+prod_01KPJQGAP1JAAPES7YSERXAJHP,as-colour-staple-active-tee-5001a,AS Colour Staple Active Tee 5001A,published,18,0.68,0.68
+prod_01KPJQGAP25KAAHEKQQK0XKZ0D,as-colour-block-safety-l-s-tee-5054f,AS Colour Block Safety L/S Tee 5054F,published,12,0.63,0.63
+prod_01KPJQGAP293MVFZ8ZZJTX55HJ,as-colour-block-tubular-tee-5050t,AS Colour Block Tubular Tee 5050T,published,82,0.42,0.42
+prod_01KPJQGAP299V7573FR64CJHQ6,as-colour-staple-active-l-s-tee-5020a,AS Colour Staple Active L/S Tee 5020A,published,12,0.72,0.72
+prod_01KPJQGAP2B8NBJAH64CVPHH6Y,as-colour-staple-marle-tee-5001m,AS Colour Staple Marle Tee 5001M,published,36,0.42,0.42
+prod_01KPJQGAP2DVFD7WHQBPQCDVR2,as-colour-classic-organic-tee-5026g,AS Colour Classic Organic Tee 5026G,published,36,0.53,0.53
+prod_01KPJQGAP2F7EDVRDBW8ZG8BR7,as-colour-stencil-camo-hood-5102c,AS Colour Stencil Camo Hood 5102C,published,14,0.97,0.97
+prod_01KPJQGAP2FBNWS9VQ8MFMCPVP,as-colour-organic-rib-singlet-5063g,AS Colour Organic Rib Singlet 5063G,draft,12,0.63,0.63
+prod_01KPJQGAP2GND0SB7RX05XXPD9,as-colour-organic-stencil-hood-5102g,AS Colour Organic Stencil Hood 5102G,published,14,1.05,1.05
+prod_01KPJQGAP2MC3R4PCNT6CG4A3S,as-colour-staple-organic-l-s-tee-5020g,AS Colour Staple Organic L/S Tee 5020G,published,21,0.63,0.63
+prod_01KPJQGAP2MXFJE8537T53KA4H,as-colour-stencil-safety-hood-5102f,AS Colour Stencil Safety Hood 5102F,published,14,0.97,0.97
+prod_01KPJQGAP2Q9PTQ6T2DFQCGA7B,as-colour-staple-raglan-tee-5001r,AS Colour Staple Raglan Tee 5001R,published,12,0.42,0.42
+prod_01KPJQGAP2RDTP3VG4GBSYKSR7,as-colour-staple-v-neck-tee-5001v,AS Colour Staple V Neck Tee 5001V,published,12,0.42,0.42
+prod_01KPJQGAP2VBJBTANY8MHDP4DB,as-colour-block-safety-tee-5050f,AS Colour Block Safety Tee 5050F,published,22,0.42,0.42
+prod_01KPJQGAP3T9DKPXBA2MXZRVV8,as-colour-work-safety-polo-5425f,AS Colour Work Safety Polo 5425F,published,16,0.72,0.72
+prod_01KPM39FA2HWWY3DMWSK9HZ1ED,syzmik-knee-pad-za018,Syzmik Knee Pad ZA018,draft,1,0.0795,0.0795
+prod_01KPM39FA2QMYJZ82P761H7RRP,syzmik-mens-service-overall-zc503,Syzmik Mens Service Overall ZC503,draft,11,0.345,0.345
+prod_01KPM39FA3A6QQQ6KH3KTZGZXM,syzmik-mens-lightweight-cotton-drill-overall-zc560,Syzmik Mens Lightweight Cotton Drill Overall ZC560,draft,10,0.41950000000000004,0.41950000000000004
+prod_01KPM39FA3FA3HHEY40ZVF8D2P,syzmik-mens-orange-flame-overall-hoop-taped-zc525,Syzmik Mens Orange Flame Overall - Hoop Taped ZC525,draft,20,1.5995,1.5995
+prod_01KPM39FA3T1VP3NP7S4VDZA0F,syzmik-mens-rugged-cooling-taped-overall-zc804,Syzmik Mens Rugged Cooling Taped Overall ZC804,draft,20,0.6295000000000001,0.6295000000000001
+prod_01KPM39K5Z6M8NTYZ8DNH4XK05,syzmik-unisex-antarctic-softshell-jacket-zj253,Syzmik Unisex Antarctic Softshell Jacket ZJ253,draft,22,0.5795,0.5795
+prod_01KPM39K5ZCBFEQ2V5TW4WJPY2,syzmik-mens-hi-vis-basic-4-in-1-waterproof-jacket-zj220,Syzmik Mens Hi Vis Basic 4 In 1 Waterproof Jacket ZJ220,draft,44,0.6295000000000001,0.6295000000000001
+prod_01KPM39K5ZJ6WG0952XA6DXEEH,syzmik-unisex-streetworx-hooded-puffer-jacket-zj240,Syzmik Unisex Streetworx Hooded Puffer Jacket ZJ240,draft,44,0.5595,0.5595
+prod_01KPM39K600CTV1K2N91849SGD,syzmik-unisex-super-light-segmented-tape-packable-rain-jacket-zj560,Syzmik Unisex Super Light Segmented Tape Packable Rain Jacket ZJ560,draft,22,0.47950000000000004,0.47950000000000004
+prod_01KPM39K6060CKH5XF40X3CFYM,syzmik-unisex-streetworx-2-in-1-stretch-softshell-jacket-zj263,Syzmik Unisex Streetworx 2 In 1 Stretch Softshell Jacket ZJ263,draft,44,0.49950000000000006,0.49950000000000006
+prod_01KPM39K60D6XFN52PVH063TZP,syzmik-unisex-hi-vis-antarctic-softshell-jacket-zj553,Syzmik Unisex Hi Vis Antarctic Softshell Jacket ZJ553,draft,22,0.6295000000000001,0.6295000000000001
+prod_01KPM39K60D8T7RCRDXA8JJ50J,syzmik-mens-hi-vis-cotton-drill-jacket-zj590,Syzmik Mens Hi Vis Cotton Drill Jacket ZJ590,draft,22,0.5595,0.5595
+prod_01KPM39K60D9H2W2ZVP4P8KT3C,syzmik-mens-hi-vis-quilted-flying-jacket-zj351,Syzmik Mens Hi Vis Quilted Flying Jacket ZJ351,draft,16,0.3895,0.3895
+prod_01KPM39K60E1Z5CX5V92KMZA2H,syzmik-unisex-hi-vis-x-back-2-in-1-softshell-jacket-zj680,Syzmik Unisex Hi Vis X Back 2 In 1 Softshell Jacket ZJ680,draft,22,0.47950000000000004,0.47950000000000004
+prod_01KPM39K60FKPVRFCJHT0CADYB,syzmik-mens-hi-vis-x-back-4-in-1-waterproof-jacket-zj616,Syzmik Mens Hi Vis X Back 4 In 1 Waterproof Jacket ZJ616,draft,11,0.8195,0.8195
+prod_01KPM39K60FQNSRTWCE1XQARM8,syzmik-unisex-streetworx-stretch-waterproof-jacket-zj310,Syzmik Unisex Streetworx Stretch Waterproof Jacket ZJ310,draft,22,0.5595,0.5595
+prod_01KPM39K60G1JZ38YP1Q2G3T48,syzmik-unisex-hi-vis-vic-rail-4-in-1-waterproof-jacket-zj580,Syzmik Unisex Hi Vis VIC Rail 4 In 1 Waterproof Jacket ZJ580,draft,11,0.6695,0.6695
+prod_01KPM39K60H5G3Z816DP8YZ7JT,syzmik-mens-hi-vis-storm-jacket-zj350,Syzmik Mens Hi Vis Storm Jacket ZJ350,draft,44,0.48950000000000005,0.48950000000000005
+prod_01KPM39K60HSN8XHNT48ZSB2KW,syzmik-unisex-streetworx-reflective-waterproof-jacket-zj380,Syzmik Unisex Streetworx Reflective Waterproof Jacket ZJ380,draft,11,0.46950000000000003,0.46950000000000003
+prod_01KPM39K60KEE49S54KGMN92C0,syzmik-unisex-hi-vis-softshell-jacket-zj353,Syzmik Unisex Hi Vis Softshell Jacket ZJ353,draft,40,0.42950000000000005,0.42950000000000005
+prod_01KPM39K60KGVPH44YAPKHE99Y,syzmik-unisex-super-light-packable-rain-jacket-zj260,Syzmik Unisex Super Light Packable Rain Jacket ZJ260,draft,132,0.3795,0.3795
+prod_01KPM39K60KN6JZ5HT26T91G9S,syzmik-mens-hi-vis-4-in-1-waterproof-jacket-zj532,Syzmik Mens Hi Vis 4 In 1 Waterproof Jacket ZJ532,draft,22,0.7495,0.7495
+prod_01KPM39K60NYNBSR32E7QRBME6,syzmik-mens-hi-vis-taped-storm-pant-zj352,Syzmik Mens Hi Vis Taped Storm Pant ZJ352,draft,27,0.2195,0.2195
+prod_01KPM39K615ZR51T6WNN0ZFERF,syzmik-mens-orange-flame-arc-rated-antistatic-waterproof-jacket-zj900,Syzmik Mens Orange Flame Arc Rated Antistatic Waterproof Jacket ZJ900,draft,22,1.7994999999999999,1.7994999999999999
+prod_01KPM39K619T5WFABM8M838SXW,syzmik-womens-hi-vis-nsw-rail-x-back-2-in-1-softshell-jacket-zj770,Syzmik Womens Hi Vis NSW Rail X Back 2 In 1 Softshell Jacket ZJ770,draft,9,0.47950000000000004,0.47950000000000004
+prod_01KPM39K61A7PJYXD6WFK9C2QN,syzmik-mens-essential-basic-stretch-cargo-pant-zp230,Syzmik Mens Essential Basic Stretch Cargo Pant ZP230,draft,52,0.2895,0.2895
+prod_01KPM39K61HWGJ6XT7N5HXPCE2,syzmik-mens-streetworx-stretch-pant-cuffed-zp340,Syzmik Mens Streetworx Stretch Pant - Cuffed ZP340,draft,48,0.47950000000000004,0.47950000000000004
+prod_01KPM39K61NN2R954F3H4CK1VC,syzmik-mens-streetworx-stretch-pant-zp320,Syzmik Mens Streetworx Stretch Pant ZP320,draft,52,0.4595,0.4595
+prod_01KPM39K61VFEZXT6EGXY8T7R0,syzmik-unisex-hi-vis-vic-rail-2-in-1-softshell-jacket-zj780,Syzmik Unisex Hi Vis VIC Rail 2 In 1 Softshell Jacket ZJ780,draft,11,0.47950000000000004,0.47950000000000004
+prod_01KPM39K61YXQRPDB9PCJ08680,syzmik-womens-streetworx-2-in-1-stretch-softshell-jacket-zj753,Syzmik Womens Streetworx 2 In 1 Stretch Softshell Jacket ZJ753,draft,18,0.5995,0.5995
+prod_01KPM39PHH1EYJSPQN9QFV6XDP,syzmik-mens-basic-cargo-pant-regular-zp501,Syzmik Mens Basic Cargo Pant (Regular) ZP501,draft,10,0.2695,0.2695
+prod_01KPM39PHH68W3E5ZNTQYSXPX5,syzmik-mens-stretch-denim-work-jean-zp507,Syzmik Mens Stretch Denim Work Jean ZP507,draft,13,0.36950000000000005,0.36950000000000005
+prod_01KPM39PHH7NKT09NK3NSZYKEM,syzmik-mens-rugged-cooling-cargo-pant-regular-zp504,Syzmik Mens Rugged Cooling Cargo Pant (Regular) ZP504,draft,52,0.34950000000000003,0.34950000000000003
+prod_01KPM39PHHAT1GAVK116AW554N,syzmik-womens-rugged-cooling-cargo-pant-zp704,Syzmik Womens Rugged Cooling Cargo Pant ZP704,draft,44,0.3395,0.3395
+prod_01KPM39PHHBY5FRE33SSEJQ3ZA,syzmik-mens-rugged-cooling-stretch-pant-zp604,Syzmik Mens Rugged Cooling Stretch Pant ZP604,draft,52,0.3995,0.3995
+prod_01KPM39PHHE261KXSPARBT4DES,syzmik-mens-streetworx-heritage-pant-cuffed-zp420,Syzmik Mens Streetworx Heritage Pant - Cuffed ZP420,draft,44,0.42950000000000005,0.42950000000000005
+prod_01KPM39PHHEH22G5YQ5AFZ1E2B,syzmik-womens-orange-flame-taped-cargo-pant-zp522,Syzmik Womens Orange Flame Taped Cargo Pant ZP522,draft,9,0.8695,0.8695
+prod_01KPM39PHHF7BN937SC3PY7J47,syzmik-men-streetworx-comfort-pant-zp444,Syzmik Men Streetworx Comfort Pant ZP444,draft,26,0.4595,0.4595
+prod_01KPM39PHHKTRT37WW1SBKWPC7,syzmik-mens-streetworx-tough-pant-zp550,Syzmik Mens Streetworx Tough Pant ZP550,draft,52,0.4595,0.4595
+prod_01KPM39PHHNMA1N5F1SWSRKYNB,syzmik-mens-streetworx-stretch-jean-zp540,Syzmik Mens Streetworx Stretch Jean ZP540,draft,22,0.42950000000000005,0.42950000000000005
+prod_01KPM39PHHQKADRTJFX7NWRM88,syzmik-mens-orange-flame-taped-cargo-pant-regular-zp521,Syzmik Mens Orange Flame Taped Cargo Pant (Regular) ZP521,draft,13,0.8695,0.8695
+prod_01KPM39PHHS2GS8AP29FJNXWD1,syzmik-mens-lightweight-drill-cargo-pant-zp505,Syzmik Mens Lightweight Drill Cargo Pant ZP505,draft,39,0.2595,0.2595
+prod_01KPM39PHHWKT2D6TE4NJ5DARX,syzmik-mens-cordura-stretch-denim-work-jean-zp508,Syzmik Mens CORDURA� Stretch Denim Work Jean ZP508,draft,13,0.4395,0.4395
+prod_01KPM39PHHWPV9H9P15NV9283P,syzmik-mens-ultralite-multi-pocket-pant-zp509,Syzmik Mens Ultralite Multi-Pocket Pant ZP509,draft,26,0.42950000000000005,0.42950000000000005
+prod_01KPM39PHHX8FG6NHTYHPZWQA7,syzmik-mens-orange-flame-traditional-style-taped-work-pant-zp523,Syzmik Mens Orange Flame Traditional Style Taped Work Pant ZP523,draft,13,0.8495,0.8495
+prod_01KPM39PHHXQ3YVSMRTTJR2HST,syzmik-mens-streetworx-curved-cargo-pant-zp360,Syzmik Mens Streetworx Curved Cargo Pant ZP360,draft,52,0.4595,0.4595
+prod_01KPM39PHJ177W4K76P01DS6XQ,syzmik-mens-essential-stretch-cargo-short-zs235,Syzmik Mens Essential Stretch Cargo Short ZS235,draft,39,0.2695,0.2695
+prod_01KPM39PHJ363ZS7KMKQWHZC0F,syzmik-mens-rugged-cooling-stretch-taped-pant-zp924,Syzmik Mens Rugged Cooling Stretch Taped Pant ZP924,draft,13,0.42950000000000005,0.42950000000000005
+prod_01KPM39PHJ7STXDKJEHY12QVN5,syzmik-mens-bio-motion-taped-pant-regular-zp920,Syzmik Mens Bio Motion Taped Pant (Regular) ZP920,draft,26,0.2995,0.2995
+prod_01KPM39PHJ90B7XHK7CVQJDH59,syzmik-mens-bio-motion-taped-stretch-jean-zp907,Syzmik Mens Bio Motion Taped Stretch Jean ZP907,draft,13,0.3895,0.3895
+prod_01KPM39PHJ9TH17QH6NWFT8CS2,syzmik-mens-streetworx-heritage-pant-zp820,Syzmik Mens Streetworx Heritage Pant ZP820,draft,52,0.40950000000000003,0.40950000000000003
+prod_01KPM39PHJC291Z9VFPXMTXPEP,syzmik-mens-rugged-cooling-taped-pant-regular-zp904,Syzmik Mens Rugged Cooling Taped Pant (Regular) ZP904,draft,13,0.3795,0.3795
+prod_01KPM39PHJC83Y92C5T2NRN771,syzmik-womens-stretch-denim-work-jean-zp707,Syzmik Womens Stretch Denim Work Jean ZP707,draft,12,0.36950000000000005,0.36950000000000005
+prod_01KPM39PHJD2439TZSGN7WHS05,syzmik-mens-summer-cargo-short-zs146,Syzmik Mens Summer Cargo Short ZS146,draft,52,0.2495,0.2495
+prod_01KPM39PHJEKQ3JB6A2WKP6WKC,syzmik-mens-streetworx-board-short-zs240,Syzmik Mens Streetworx Board Short ZS240,draft,55,0.2695,0.2695
+prod_01KPM39PHJEMD9XKASKFEZ7BDK,syzmik-mens-essential-stretch-taped-cargo-pant-zp923,Syzmik Mens Essential Stretch Taped Cargo Pant ZP923,draft,13,0.3395,0.3395
+prod_01KPM39PHJH8E3Y04PARTX2Z5R,syzmik-mens-streetworx-curved-cargo-short-zs360,Syzmik Mens Streetworx Curved Cargo Short ZS360,draft,39,0.3995,0.3995
+prod_01KPM39PHJHX3BGHEF4J7K0VRB,syzmik-womens-essential-stretch-taped-cargo-pant-zp733,Syzmik Womens Essential Stretch Taped Cargo Pant ZP733,draft,11,0.3395,0.3395
+prod_01KPM39PHJJF81B1DDQW1CDAVJ,syzmik-womens-essential-basic-stretch-cargo-pant-zp730,Syzmik Womens Essential Basic Stretch Cargo Pant ZP730,draft,44,0.2895,0.2895
+prod_01KPM39PHJJR3MZKJS60GR6SCJ,syzmik-mens-essential-stretch-taped-cargo-pant-cuffed-zp935,Syzmik Mens Essential Stretch Taped Cargo Pant - Cuffed ZP935,draft,13,0.35950000000000004,0.35950000000000004
+prod_01KPM39PHJMZ4PSBVET6GBCJGD,syzmik-mens-lightweight-outdoor-short-zs180,Syzmik Mens Lightweight Outdoor Short ZS180,draft,52,0.2895,0.2895
+prod_01KPM39PHJPR05QXPDZ0RY9FY3,syzmik-womens-bio-motion-taped-pant-zp720,Syzmik Womens Bio Motion Taped Pant ZP720,draft,9,0.2995,0.2995
+prod_01KPM39PHJRM2TBW2294E6P5DE,syzmik-mens-rugby-short-zs105,Syzmik Mens Rugby Short ZS105,draft,20,0.1495,0.1495
+prod_01KPM39PHJSB64DPBM8XPQGKSJ,syzmik-mens-streetworx-stretch-short-zs340,Syzmik Mens Streetworx Stretch Short ZS340,draft,48,0.41950000000000004,0.41950000000000004
+prod_01KPM39PHJTFAZTDW8Q46K4TBZ,syzmik-mens-bio-motion-hi-vis-taped-pant-zp980,Syzmik Mens Bio Motion Hi Vis Taped Pant ZP980,draft,13,0.3195,0.3195
+prod_01KPM39PHJX51M2BGAQRS5TNJA,syzmik-womens-essential-stretch-taped-cargo-pant-cuffed-zp735,Syzmik Womens Essential Stretch Taped Cargo Pant - Cuffed ZP735,draft,11,0.35950000000000004,0.35950000000000004
+prod_01KPM39SZD0SCHJ1WP2ECKTR2Y,syzmik-mens-streetworx-heritage-short-zs822,Syzmik Mens Streetworx Heritage Short ZS822,draft,52,0.3295,0.3295
+prod_01KPM39SZD17S8ZFZVFRNJPC4Y,syzmik-mens-rugged-cooling-stretch-short-short-zs607,Syzmik Mens Rugged Cooling Stretch Short Short ZS607,draft,33,0.2995,0.2995
+prod_01KPM39SZD28T9WM1N35PKR5XT,syzmik-mens-streetworx-comfort-short-zs445,Syzmik Mens Streetworx Comfort Short ZS445,draft,26,0.3995,0.3995
+prod_01KPM39SZDDHM3BT7BE3N0VYNM,syzmik-mens-rugged-cooling-vented-short-zs505,Syzmik Mens Rugged Cooling Vented Short ZS505,draft,52,0.2595,0.2595
+prod_01KPM39SZDDZ0AQD40F2D283M2,syzmik-womens-essential-stretch-cargo-short-zs735,Syzmik Womens Essential Stretch Cargo Short ZS735,draft,33,0.2695,0.2695
+prod_01KPM39SZDKNDB97H8XQAWD71K,syzmik-mens-rugged-cooling-stretch-short-zs605,Syzmik Mens Rugged Cooling Stretch Short ZS605,draft,52,0.3295,0.3295
+prod_01KPM39SZDM94TPWF8WD77A1TD,syzmik-unisex-streetworx-lightweight-1-4-zip-polar-fleece-zt210,Syzmik Unisex Streetworx Lightweight 1/4 Zip Polar Fleece ZT210,draft,22,0.2695,0.2695
+prod_01KPM39SZDNWTNZDCNTQCM36R8,syzmik-mens-streetworx-tough-short-zs550,Syzmik Mens Streetworx Tough Short ZS550,draft,52,0.3995,0.3995
+prod_01KPM39SZDQ7ZNA51SYRS85M4K,syzmik-mens-orange-flame-hi-vis-1-4-zip-pullover-hoop-taped-zt150,Syzmik Mens Orange Flame Hi Vis 1/4 Zip Pullover - Hoop Taped ZT150,draft,22,1.2894999999999999,1.2894999999999999
+prod_01KPM39SZDSVA7D6HWJ9TV1K8D,syzmik-mens-rugged-cooling-short-short-zs507,Syzmik Mens Rugged Cooling Short Short ZS507,draft,52,0.22949999999999998,0.22949999999999998
+prod_01KPM39SZDTBTZJZXXQBA92BAA,syzmik-mens-basic-cargo-short-zs502,Syzmik Mens Basic Cargo Short ZS502,draft,13,0.2395,0.2395
+prod_01KPM39SZDXB23F84MW691H0DY,syzmik-womens-rugged-cooling-vented-short-zs704,Syzmik Womens Rugged Cooling Vented Short ZS704,draft,44,0.2595,0.2595
+prod_01KPM39SZE23V5N58M7364NXBY,syzmik-unisex-hi-vis-polar-fleece-pullover-shoulder-taped-zt462,Syzmik Unisex Hi Vis Polar Fleece Pullover - Shoulder Taped ZT462,draft,18,0.2895,0.2895
+prod_01KPM39SZECM7TEFTHBA2RWHH8,syzmik-unisex-streetworx-reinforced-knit-1-2-zip-pullover-zt380,Syzmik Unisex Streetworx Reinforced Knit 1/2 Zip Pullover ZT380,draft,44,0.3795,0.3795
+prod_01KPM39SZED5J409BF7YEQTYRV,syzmik-unisex-hi-vis-1-2-zip-polar-fleece-pullover-zt460,Syzmik Unisex Hi Vis 1/2 Zip Polar Fleece Pullover ZT460,draft,22,0.2395,0.2395
+prod_01KPM39SZEM721R8F14FNF4SMX,syzmik-unisex-1-4-zip-brushed-fleece-pullover-zt366,Syzmik Unisex 1/4 Zip Brushed Fleece Pullover ZT366,draft,44,0.2895,0.2895
+prod_01KPM39SZERQBMY1T43W6KF28A,syzmik-unisex-hi-vis-polar-fleece-pullover-hoop-taped-zt461,Syzmik Unisex Hi Vis Polar Fleece Pullover - Hoop Taped ZT461,draft,18,0.2895,0.2895
+prod_01KPM39SZEWH89J9DQ4TAPJ204,syzmik-unisex-streetworx-full-zip-sherpa-fleece-zt285,Syzmik Unisex Streetworx Full Zip Sherpa Fleece ZT285,draft,44,0.42950000000000005,0.42950000000000005
+prod_01KPM39SZEXCACY29J8BSEKD4D,syzmik-unisex-hi-vis-1-2-zip-pullover-zt476,Syzmik Unisex Hi Vis 1/2 Zip Pullover ZT476,draft,44,0.2495,0.2495
+prod_01KPM39X9R4MEYQKSC8KX6933Z,syzmik-unisex-hi-vis-waterproof-reversible-vest-zv228,Syzmik Unisex Hi Vis Waterproof Reversible Vest ZV228,draft,44,0.2995,0.2995
+prod_01KPM39X9RDZ1RA3N7K4XW6VB0,syzmik-unisex-merino-wool-mid-layer-pullover-zt766,Syzmik Unisex Merino Wool Mid-Layer Pullover ZT766,draft,11,0.6895,0.6895
+prod_01KPM39X9RWYYXFM6PDW2ZJTBC,syzmik-unisex-streetworx-water-resistant-1-4-zip-pullover-zt665,Syzmik Unisex Streetworx Water Resistant 1/4 Zip Pullover ZT665,draft,88,0.3895,0.3895
+prod_01KPM39X9S0FBE8XXNM4T05GJZ,syzmik-unisex-streetworx-hooded-puffer-vest-zv245,Syzmik Unisex Streetworx Hooded Puffer Vest ZV245,draft,44,0.46950000000000003,0.46950000000000003
+prod_01KPM39X9S2D34H7YYKM80N5V4,syzmik-unisex-hi-vis-zip-vest-zv998,Syzmik Unisex Hi Vis Zip Vest ZV998,draft,27,0.059500000000000004,0.059500000000000004
+prod_01KPM39X9S3NC648QWKMKR1F95,syzmik-mens-midweight-drill-cargo-pant-regular-zw001,Syzmik Mens Midweight Drill Cargo Pant (Regular) ZW001,draft,39,0.2695,0.2695
+prod_01KPM39X9S4YA30EEKKJS567QA,syzmik-mens-hi-vis-lightweight-waterproof-vest-zv358,Syzmik Mens Hi Vis Lightweight Waterproof Vest ZV358,draft,18,0.3195,0.3195
+prod_01KPM39X9S75J6X7PCCYT0EH21,syzmik-unisex-hi-vis-softshell-vest-zv426,Syzmik Unisex Hi Vis Softshell Vest ZV426,draft,22,0.3295,0.3295
+prod_01KPM39X9S9Y7M95WWRF40QPZJ,syzmik-mens-plain-utility-pant-zw002,Syzmik Mens Plain Utility Pant ZW002,draft,78,0.22949999999999998,0.22949999999999998
+prod_01KPM39X9SATG65WBFPPAFMVKF,syzmik-mens-taped-utility-pant-regular-zw004,Syzmik Mens Taped Utility Pant (Regular) ZW004,draft,52,0.2695,0.2695
+prod_01KPM39X9SDB7P20EZNYX4BKSZ,syzmik-mens-plain-utility-short-zw011,Syzmik Mens Plain Utility Short ZW011,draft,39,0.1895,0.1895
+prod_01KPM39X9SJG8M77B3RWRGD0D3,syzmik-unisex-hi-vis-nsw-rail-vest-zv697,Syzmik Unisex Hi Vis NSW Rail Vest ZV697,draft,9,0.105,0.105
+prod_01KPM39X9SNW4WEMPTH50T8NF9,syzmik-unisex-hi-vis-vic-rail-zip-vest-zv687,Syzmik Unisex Hi Vis VIC Rail Zip Vest ZV687,draft,9,0.059500000000000004,0.059500000000000004
+prod_01KPM8ZYQQ5RJJ9TDX2HDY8P5N,syzmik-mens-summer-cargo-pant-regular-zp145r,Syzmik Mens Summer Cargo Pant (Regular) ZP145R,draft,52,0.2995,0.2995
+prod_01KPM8ZYQQ762NPNP00Q13D8AB,syzmik-unisex-streetworx-beanie-zmbean,Syzmik Unisex Streetworx Beanie ZMBEAN,draft,3,0.0695,0.0695
+prod_01KPM8ZYQQCG1C4HK3B0RHNYYS,syzmik-mens-rugged-cooling-cargo-pant-stout-zp504s,Syzmik Mens Rugged Cooling Cargo Pant (Stout) ZP504S,draft,40,0.34950000000000003,0.34950000000000003
+prod_01KPM8ZYQQJWY47EP1G5B2Q70Z,syzmik-mens-summer-cargo-pant-stout-zp145s,Syzmik Mens Summer Cargo Pant (Stout) ZP145S,draft,20,0.2995,0.2995
+prod_01KPM8ZYQQZSMJE58N93CKAVRN,syzmik-mens-basic-cargo-pant-stout-zp501s,Syzmik Mens Basic Cargo Pant (Stout) ZP501S,draft,10,0.2695,0.2695
+prod_01KPM8ZYQR0SMWP8FTPC57V54H,syzmik-mens-bio-motion-taped-pant-stout-zp920s,Syzmik Mens Bio Motion Taped Pant (Stout) ZP920S,draft,10,0.2995,0.2995
+prod_01KPM8ZYQRDSNG3CD24PJZ7RJ7,syzmik-mens-orange-flame-taped-cargo-pant-stout-zp521s,Syzmik Mens Orange Flame Taped Cargo Pant (Stout) ZP521S,draft,10,0.8695,0.8695
+prod_01KPM8ZYQRKMBM5WJYA2G7B9T2,syzmik-mens-midweight-drill-cargo-pant-stout-zw001s,Syzmik Mens Midweight Drill Cargo Pant (Stout) ZW001S,draft,30,0.2695,0.2695
+prod_01KPM8ZYQRMXPCGCDWAAA8VA5H,syzmik-womens-plain-utility-pant-zwl002,Syzmik Womens Plain Utility Pant ZWL002,draft,33,0.22949999999999998,0.22949999999999998
+prod_01KPM8ZYQRQ5P3T0QV3JDNS16K,syzmik-mens-taped-utility-pant-stout-zw004s,Syzmik Mens Taped Utility Pant (Stout) ZW004S,draft,10,0.2695,0.2695
+prod_01KPM8ZYQRSW8VAZT0G0FAHKM2,syzmik-mens-rugged-cooling-taped-pant-stout-zp904s,Syzmik Mens Rugged Cooling Taped Pant (Stout) ZP904S,draft,10,0.3795,0.3795
+prod_01KPM9027M3BNW464B0E9HQG1Z,syzmik-mens-hi-vis-x-back-ultralite-waterproof-jacket-zj657-au,Syzmik Mens Hi Vis X Back Ultralite Waterproof Jacket ZJ657-AU,draft,11,0.42950000000000005,0.42950000000000005
+prod_01KPM9027M8ZVZAAV2BYW8Z7FE,syzmik-womens-plain-utility-short-zwl011,Syzmik Womens Plain Utility Short ZWL011,draft,27,0.22949999999999998,0.22949999999999998
+prod_01KPM9027MKMJZFZ5M4H861EN0,syzmik-womens-taped-utility-pant-zwl004,Syzmik Womens Taped Utility Pant ZWL004,draft,18,0.2695,0.2695
+prod_01KPM9027MPP864T5B93XNZHYV,syzmik-bamboo-work-socks-3-pack-zmsock3,Syzmik Bamboo Work Socks (3 Pack) ZMSOCK3,draft,1,0.1595,0.1595
+prod_01KPM9027MVMXCCHN2FXX8GNW8,syzmik-mens-hi-vis-x-back-heavy-duty-waterproof-jacket-zj620-au,Syzmik Mens Hi Vis X Back Heavy Duty Waterproof Jacket ZJ620-AU,draft,11,0.7395,0.7395
+prod_01KPTEP6A0YYEYM86JAKNESKY5,ramo-short-waist-apron-100-cotton-canvas-ap401s,Ramo Short Waist Apron - 100% cotton canvas,draft,6,0.09,0.09
+prod_01KPTEP6A13ZRFDMPMKXWRR28B,ramo-full-bib-apron-190-gsm-poly-cotton-ap503b,Ramo Full-Bib Apron - 190 gsm poly/cotton,draft,1,0.105,0.105
+prod_01KPTEP6A16HK2JWZX2586SWZW,ramo-long-waist-cotton-denim-apron-ap702l,Ramo Long Waist Cotton/Denim Apron,draft,3,0.13,0.13
+prod_01KPTEP6A181YCCQDVVTSZP128,ramo-long-waist-apron-100-cotton-canvas-ap402l,Ramo Long Waist Apron - 100% Cotton Canvas,draft,6,0.105,0.105
+prod_01KPTEP6A18D93BQ2V3ESKJRBN,ramo-short-waist-apron-190-gsm-poly-cotton-ap501s,Ramo Short Waist Apron - 190 gsm Poly/cotton,draft,1,0.07200000000000001,0.07200000000000001
+prod_01KPTEP6A1N7KZ2B0EWM76T69V,ramo-long-waist-apron-190-gsm-poly-cotton-ap502l,Ramo Long Waist Apron - 190 gsm poly/cotton,draft,1,0.09,0.09
+prod_01KPTEP6A1NSJD2P6QKTZF743C,ramo-stripe-apron-full-bib-ap603b,Ramo Stripe Apron - Full Bib,draft,4,0.145,0.145
+prod_01KPTEP6A1RJKRYTXA27709DTT,ramo-striped-apron-full-waist-ap602l,Ramo Striped Apron - Full-waist,draft,4,0.13,0.13
+prod_01KPTEP6A1TBA4WDSH2P5V9446,ramo-full-body-cotton-denim-apron-ap703b,Ramo Full Body Cotton/Denim Apron,draft,3,0.14,0.14
+prod_01KPTEP6A1THMGE6AZ2ZK3BPA4,ramo-full-bib-apron-100-cotton-canvas-apron-ap403b,Ramo Full-bib Apron - 100% cotton canvas apron,draft,6,0.115,0.115
+prod_01KPTEP6A2046B6JZ11SJ0A356,ramo-baby-blanket-b121bk,Ramo Baby Blanket,draft,3,0.08800000000000001,0.08800000000000001
+prod_01KPTEP6A21NFWQ3WDD6JNGPMA,ramo-baby-contrast-bib-b101ap,Ramo Baby Contrast Bib,draft,3,0.044000000000000004,0.044000000000000004
+prod_01KPTEP6A250HJW77EEB951YND,ramo-baby-cap-b101ca,Ramo Baby Cap,draft,18,0.044000000000000004,0.044000000000000004
+prod_01KPTEP6A255BYX0B8M6G72MV4,ramo-organic-kids-bib-b141ap,Ramo Organic Kids Bib,draft,3,0.055,0.055
+prod_01KPTEP6A2DNVF68NNBCF7MFZ5,ramo-rabbit-ears-b131ca,Ramo Rabbit Ears,draft,9,0.044000000000000004,0.044000000000000004
+prod_01KPTEP6A2F92K9MYJWYXJBMC0,ramo-baby-short-sleeve-romper-b101bl,Ramo Baby Short Sleeve Romper,draft,15,0.1,0.1
+prod_01KPTEP6A2MQAJQD6FQPWFWGYC,ramo-hooded-organic-cotton-baby-suit-b151bb,Ramo Hooded Organic Cotton Baby Suit,draft,16,0.11,0.11
+prod_01KPTEP6A2SY1KCCPBX5R89Z1X,ramo-oxford-bag-bg001o,Ramo Oxford Bag,draft,3,0.24,0.24
+prod_01KPTEP6A2ZR90TTKM4NZ7Z505,ramo-baby-pants-b108pa,Ramo Baby Pants,draft,15,0.066,0.066
+prod_01KPTEP6A33QNTEST2PJ2BC4TC,ramo-babies-varsity-jacket-f160bb,Ramo Babies Varsity Jacket,draft,40,0.25,0.25
+prod_01KPTEP6A34B9R733FEJ8YA0VM,ramo-contrast-bag-bg004u,Ramo Contrast Bag,draft,7,0.24,0.24
+prod_01KPTEP6A38A2GTRHGPZK2STPD,ramo-jute-bag-bg008j,Ramo Jute Bag,draft,1,0.05,0.05
+prod_01KPTEP6A398JE5F5QZYS5X2DH,ramo-280gsm-100-cotton-drill-washed-bucket-hat-c004hy,Ramo 280gsm 100% cotton drill washed bucket hat,draft,9,0.053,0.053
+prod_01KPTEP6A3CVCV3BHM89A3DCRR,ramo-280gsm-100-cotton-drill-5-panel-cap-c002hy,Ramo 280gsm 100% cotton drill 5 panel cap,draft,5,0.0325,0.0325
+prod_01KPTEP6A3EN3E1ABD3BD7J3TZ,ramo-heavy-tote-bag-bg007t,Ramo Heavy Tote Bag,published,8,0.06,0.06
+prod_01KPTEP6A3NKGAKS1A1GASX5DY,ramo-mini-contrast-bag-bg006s,Ramo Mini Contrast Bag,draft,3,0.153,0.153
+prod_01KPTEP6A3PVYM7CSEBDPA1MHA,ramo-5-panel-sports-mesh-cap-c006hy,Ramo 5 panel Sports Mesh Cap,draft,4,0.053,0.053
+prod_01KPTEP6A3QYE18H6JYV80MS44,ramo-230gsm-6-panel-cap-c001hy,"Ramo 230gsm, 6 panel cap",draft,7,0.027999999999999997,0.027999999999999997
+prod_01KPTEP6A3XQXQJTRA5FJF1AS4,ramo-100-poly-trucker-cap-c003hy,Ramo 100% poly trucker cap,draft,8,0.045,0.045
+prod_01KPTEPBM0CQRRSS0RD2T46QFW,ramo-men-s-enterprise-half-zip-fleece-f365hz,Ramo Men's Enterprise Half Zip Fleece,draft,40,0.26,0.33799999999999997
+prod_01KPTEPBM0K385RN7ZA9NWFB8E,ramo-womens-enterprise-half-zip-fleece-f365ld,Ramo Womens' Enterprise Half Zip Fleece,draft,40,0.255,0.255
+prod_01KPTEPBM1AAVK1WWG8037450R,ramo-320gsm-women-s-polar-fleece-half-zip-top-f371ld,Ramo 320gsm Women's Polar Fleece Half Zip Top,draft,36,0.25,0.25
+prod_01KPTEPBM1EYKB86P4G63E6NRR,ramo-500gsm-men-s-unisex-wool-blend-soft-shell-varsity-jacket-f372ws,Ramo 500gsm Men's/Unisex Wool Blend Soft Shell Varsity Jacket,draft,16,0.47,0.611
+prod_01KPTEPBM1EZFQZ1PZ0358BXR9,ramo-kids-v-neck-fleece-f373ks,Ramo Kids v-neck Fleece,draft,35,0.17,0.17
+prod_01KPTEPBM1HPZ9X2S2AGTVK675,ramo-500gsm-women-s-junior-wool-blend-soft-shell-varsity-jacket-f372un,Ramo 500gsm Women's/Junior Wool Blend Soft Shell Varsity Jacket,draft,12,0.46,0.46
+prod_01KPTEPBM1JAY5ZC6FXDCTNDQC,ramo-320gsm-men-s-unisex-polar-fleece-half-zip-top-f371bp,Ramo 320gsm Men's / Unisex Polar Fleece Half Zip Top,draft,32,0.26,0.33799999999999997
+prod_01KPTEPBM1SBNN81ENYMGT5F67,ramo-men-s-unisex-v-neck-fleece-f373vn,Ramo Men's/Unisex V-neck Fleece,draft,40,0.19,0.247
+prod_01KPTEPBM29MZHNTERBW4RTAYG,ramo-adult-s-easy-fit-oversize-crew-neck-fleece-4xl-5xl-f376co,Ramo Adult's Easy Fit Oversize Crew Neck Fleece - 4xl & 5xl,draft,50,0.24,0.312
+prod_01KPTEPBM2QEB01EAPNT47QDHX,ramo-womens-girls-cotton-care-half-zip-f380gl,Ramo Womens/Girls Cotton Care Half-Zip,draft,21,0.29,0.29
+prod_01KPTEQS6A164ARCNT090H1NYF,ramo-womens-junior-shower-proof-sportech-nylon-jacket-j008un,Ramo Womens/Junior Shower Proof Sportech Nylon Jacket,draft,30,0.335,0.335
+prod_01KPTEQS6A4FEN595ZAS6EVPF8,ramo-mens-shower-proof-sportech-nylon-jacket-j008hz,Ramo Mens Shower Proof Sportech Nylon Jacket,draft,35,0.34,0.34
+prod_01KPTEQS6AP2A1W2TE6MBT458D,ramo-womens-ava-nylon-spandex-jacket-j480ld,Ramo Womens AVA Nylon/Spandex Jacket,draft,16,0.308,0.308
+prod_01KPTEQS6APAF8K6DRDCDECZG9,ramo-mens-tempest-soft-shell-jacket-j481hz,Ramo Mens Tempest Soft Shell Jacket,draft,23,0.345,0.518
+prod_01KPTEQS6B2Z4SVYK5MEVD19AH,ramo-womens-icon-jacket-420-gsm-j487ld,Ramo Womens' Icon Jacket - 420 gsm,draft,36,0.33,0.33
+prod_01KPTEQS6BCP3YZVJRMHRJZTZ8,ramo-womens-tempest-plus-jacket-j486ld,Ramo Womens' Tempest Plus Jacket,draft,9,0.34700000000000003,0.34700000000000003
+prod_01KPTEQS6BEK7VWJGVAN43PFRF,ramo-womens-air-jacket-j485ld,Ramo Womens' Air Jacket,draft,36,0.17,0.17
+prod_01KPTEQS6BFP44HEMRHVDR0NVQ,ramo-mens-icon-jacket-420-gsm-j487hz,Ramo Mens' Icon Jacket - 420 gsm,draft,32,0.34,0.442
+prod_01KPTEQS6BGSHV0DN2FFE4H2A7,ramo-men-s-air-jacket-j485hz,Ramo Men's Air Jacket,draft,28,0.17,0.17
+prod_01KPTEQS6BHBREB1KVD20MY684,ramo-womens-soft-shell-hooded-jacket-tempest-range-j483ld,Ramo Womens Soft Shell HOODED Jacket - TEMPEST Range,draft,18,0.358,0.358
+prod_01KPTEQS6BJTYBNV56VBEAJPXW,ramo-men-s-tempest-plus-jacket-j486hz,Ramo Men's Tempest Plus Jacket,draft,6,0.34700000000000003,0.34700000000000003
+prod_01KPTEQS6BMBK4146M482VPWV5,ramo-men-s-soft-shell-vest-tempest-range-j482vs,Ramo Men's Soft Shell VEST - TEMPEST Range,draft,12,0.319,0.319
+prod_01KPTEQS6BTYVTRMXJ9E3F5Z41,ramo-womens-soft-shell-vest-tempest-range-j482ld,Ramo Womens Soft Shell Vest - TEMPEST Range,draft,18,0.319,0.319
+prod_01KPTEQS6BVZ461APCWXGTNNBN,ramo-men-s-soft-shell-hooded-jacket-tempest-range-j483hz,Ramo Men's Soft Shell HOODED Jacket - TEMPEST Range,draft,12,0.358,0.358
+prod_01KPTEQS6BYRASX3SBBPCEXFW2,ramo-womens-tempest-soft-shell-jacket-j481ld,Ramo Womens Tempest Soft Shell Jacket,draft,27,0.345,0.345
+prod_01KPTEQYHWA9VMDZMSCP258PHA,ramo-men-s-unisex-cotton-pique-knit-with-piping-p700hb,Ramo Men's / Unisex Cotton Pique Knit With Piping,draft,42,0.135,0.135
+prod_01KPTEQYHWSTRPGKG1ABDYA7FH,ramo-women-s-cotton-pique-knit-with-piping-p700ld,Ramo Women's Cotton Pique Knit With Piping,draft,42,0.13,0.13
+prod_01KPTEQYHX5WCD401BS93JTMYQ,ramo-100-combed-cotton-drill-short-sleeve-s007ms,Ramo 100% Combed Cotton Drill Short Sleeve,draft,16,0.24,0.24
+prod_01KPTEQYHXB9CF7ZQCQHCEFMQ3,ramo-mens-flex-shorts-4-way-stretch-s611hb,Ramo Mens' FLEX Shorts - 4 way stretch,draft,14,0.13,0.13
+prod_01KPTEQYHXECQV7DW26QK6C7WZ,ramo-womens-cotton-spandex-full-length-legging-s606ld,Ramo Womens Cotton Spandex Full Length Legging,draft,7,0.165,0.165
+prod_01KPTEQYHY0RB1ACK1YMG9BNTW,ramo-womens-high-rise-legging-shorts-s616ld,Ramo Womens High Rise Legging Shorts,draft,9,0.14,0.14
+prod_01KPTEQYHY2P87HMMAJNWEMDP0,ramo-kids-legging-s615gl,Ramo Kids legging,draft,6,0.1,0.1
+prod_01KPTEQYHY3EV40K41JX1WJZW2,ramo-seamless-legging-s789ld,Ramo Seamless legging,draft,8,0.205,0.205
+prod_01KPTEQYHY4RPH7FVTE1HHV5PJ,ramo-mens-cotton-sandwich-shorts-s614hs,Ramo Mens' Cotton Sandwich Shorts,draft,18,0.24,0.312
+prod_01KPTEQYHYBEJMFX9QR60C9J93,ramo-womens-shorts-s707ld,Ramo Womens Shorts,draft,12,0.13,0.13
+prod_01KPTEQYHYBVWC07M0EA8SFEAV,ramo-womens-high-rise-3-4-leggings-s612ld,Ramo Womens High-rise 3/4 Leggings,draft,9,0.185,0.185
+prod_01KPTEQYHYC8VAZKYS3B8YKPEC,ramo-mens-shorts-s707hs,Ramo Mens Shorts,draft,10,0.13,0.13
+prod_01KPTEQYHYJD2XA6FD9CRCW7FQ,ramo-womens-flex-shorts-4-way-stretch-s611ld,Ramo Womens' FLEX Shorts - 4 way stretch,draft,18,0.12,0.12
+prod_01KPTEQYHYN14504V2KT4HGCJH,ramo-womens-cotton-spandex-3-4-leggings-s808ld,Ramo Womens Cotton Spandex 3/4 Leggings,draft,6,0.155,0.155
+prod_01KPTEQYHYS8G91RC3AHTFS5GF,ramo-womens-high-rise-full-length-leggings-s613ld,Ramo Womens High Rise full length leggings,draft,9,0.19,0.19
+prod_01KPTEQYHYY4DRC0YRC5B7XST0,ramo-kids-flex-shorts-4-way-stretch-s611ks,Ramo Kids' FLEX shorts - 4 way stretch,draft,12,0.12,0.12
+prod_01KPTERFXTQJH0EXTYEWQ1KR4P,ramo-kids-marl-crew-neck-t-shirt-t306ks,Ramo Kids Marl Crew Neck T-shirt,published,50,4.4,7.51
+prod_01KPTES6MT3JTBFRB7RWC5H3FP,ramo-adult-poly-cotton-fleece-sloppy-joe-tp212s,Ramo Adult Poly cotton fleece sloppy joe,published,86,0.19,0.247
+prod_01KPTES6MT4D4XTDY6BYDVETKF,ramo-unisex-wide-leg-fleece-pants-tr09un,Ramo Unisex Wide leg fleece pants,draft,14,0.295,0.295
+prod_01KPTES6MT5HK0GWJD8QCRP180,ramo-womens-3-layer-cotton-sandwich-pants-tr08ld,Ramo Womens' 3 Layer Cotton Sandwich Pants,draft,18,0.3,0.3
+prod_01KPTES6MTCZQMG5E6VNA4VK02,ramo-junior-track-pants-tr03un,Ramo Junior Track Pants,draft,24,0.172,0.172
+prod_01KPTES6MTDPYX7G2X8CQ03GPZ,ramo-mens-striped-track-pants-tr01mn,Ramo Mens Striped Track Pants,draft,54,0.253,0.253
+prod_01KPTES6MTHGJPT5ZRFW5YMS16,ramo-womens-stance-brushed-fleece-pants-tr07ld,Ramo Womens' STANCE brushed fleece pants,draft,40,0.25,0.25
+prod_01KPTES6MTPBMHEZ1MNMDP8GTA,ramo-mens-fleece-track-pants-tr03mn,Ramo Mens Fleece Track Pants,draft,21,0.182,0.182
+prod_01KPTES6MTQB26F6NDDRR8YER3,ramo-mens-stance-brushed-fleece-pants-tr07mn,Ramo Mens' STANCE brushed fleece pants,draft,40,0.26,0.33799999999999997
+prod_01KPTES6MTVG98ZZPH5X61CTD6,ramo-men-s-three-layer-cotton-sandwich-pants-tr08mn,Ramo Men's three layer Cotton Sandwich Pants,draft,18,0.3,0.39
+prod_01KPTES6MTXXCDKS1W12ZYD0BX,ramo-womens-striped-track-pants-tr01ld,Ramo Womens Striped Track Pants,draft,54,0.248,0.248
+prod_01KPTES6MV4GHKY9QEARJQJSH8,ramo-kids-s-three-layer-cotton-sandwich-pants-tr10ks,Ramo Kids's three layer Cotton Sandwich Pants,draft,14,0.25,0.25
+prod_01KPTES6MV4W7MQ55VTB56Y2AC,ramo-bamboo-hand-towel-tw002h,Ramo Bamboo Hand Towel,draft,4,0.09,0.09
+prod_01KPTES6MV4ZSEMGZYEJXXXG1S,ramo-womens-juniors-zipper-hoodies-with-pocket-tz66un,Ramo Womens/Juniors Zipper Hoodies with Pocket,published,175,0.2,0.2
+prod_01KPTES6MV6F9QQVYRS7X4JXGN,ramo-bath-towel-tw004b,Ramo Bath Towel,draft,4,0.24,0.24
+prod_01KPTES6MVATPM3KBHWR5AM5XX,ramo-kid-s-380gsm-poly-nylon-hooded-towel-with-kangaroo-pocket-tw08ks,Ramo Kid's 380gsm poly/nylon hooded towel with kangaroo pocket,draft,9,0.2,0.2
+prod_01KPTES6MVGYE8EXTZXT0QPRMH,ramo-bamboo-fitness-towel-tw003f,Ramo Bamboo Fitness Towel,draft,5,0.115,0.115
+prod_01KPTES6MVKY4QGHRY9QDZPK81,ramo-kid-s-380gsm-cotton-hooded-towel-with-kangaroo-pocket-tw06ks,Ramo Kid's 380gsm Cotton hooded towel with kangaroo pocket,draft,8,0.275,0.275
+prod_01KPTES6MVQC04136V6PD8N9FW,ramo-bamboo-golf-towel-with-plastic-hook-tw001g,Ramo Bamboo Golf Towel with plastic hook,draft,4,0.1,0.1
+prod_01KPTES6MVX44Y78J26HH67WKA,ramo-mens-zip-hoodies-with-pocket-tz612h,Ramo Mens Zip Hoodies with Pocket,published,198,0.21,0.315
+prod_01KPTES6MVX85D938Y4ZRZRFFY,ramo-adult-s-380gsm-100-cotton-hooded-towel-with-kangaroo-pocket-tw05hq,Ramo Adult's 380gsm 100% cotton hooded towel with kangaroo pocket,draft,6,0.2895,0.2895
+prod_01KPTES6MVXCGHWSZBRHWQ3HR5,ramo-adult-s-300gsm-polyester-nylon-hooded-towel-with-kangaroo-pocket-tw07hb,Ramo Adult's 300gsm polyester/nylon hooded towel with kangaroo pocket,draft,6,0.21,0.21
+prod_01KPTESC8B1PZER4MHHGGKNHTM,ramo-womens-challenger-100-polyester-polo-p446ldm,Ramo Womens' Challenger 100% polyester Polo,published,56,0.15,0.15
+prod_01KPTESC8B5E85X4CF2C1JD9TB,ramo-men-shoulder-contrast-panel-hoodie-workwear-f303hpw,Ramo Men Shoulder Contrast Panel Hoodie - WORKWEAR,published,16,0.265,0.265
+prod_01KPTESC8B6QKFBSQ75A1ADHZ5,ramo-100-polyeter-vest-with-3m-reflective-tape-v001hp,Ramo 100% Polyeter Vest with 3M reflective tape,draft,14,0.105,0.105
+prod_01KPTESC8BB0XDRR31MW1MWX02,ramo-kid-s-challenger-100-polyester-polo-p346ksm,Ramo Kid's' Challenger 100% polyester Polo,published,49,0.14,0.14
+prod_01KPTESC8BDRPZM7KP03A9TXH5,ramo-womens-tempest-x-heather-soft-shell-jacket-j481ldm,Ramo Womens Tempest X Heather Soft Shell Jacket,draft,18,0.36,0.36
+prod_01KPTESC8BHM9PKJS035WHSF9E,ramo-men-shoulder-contrast-zipper-hoodies-workwear-f303hzw,Ramo Men Shoulder Contrast Zipper Hoodies - WORKWEAR,published,16,0.27,0.27
+prod_01KPTESC8BHTDEEAA4P7S0SWPB,ramo-100-polyeter-vest-without-reflective-tape-v001ho,Ramo 100% Polyeter Vest without reflective tape,draft,14,0.075,0.075
+prod_01KPTESC8BPFR1FDV1TKG0P6PV,ramo-mens-unisex-challenger-polyester-polo-p446hbm,Ramo Mens' / Unisex Challenger polyester Polo,published,56,0.165,0.165
+prod_01KPTESC8BYNZQWC0XCZZT716T,ramo-mens-tempest-x-heather-soft-shell-jacket-j481hzm,Ramo Mens Tempest X Heather Soft Shell Jacket,draft,12,0.37,0.37
+prod_01KPTESC8C0MRQSRFJ5ZKTYP1A,ramo-mens-kangaroo-pocket-hoodies-max-tp212hx,Ramo Mens Kangaroo Pocket Hoodies Max,published,32,0.2,0.26
+prod_01KPTESC8C2CFNDN2JT8E945FC,ramo-womens-juniors-kangaroo-pocket-hoodies-max-print-area-th22unx,Ramo Womens/Juniors Kangaroo Pocket Hoodies Max (Print Area),published,28,0.19,0.19
+prod_01KPTESC8C4FGPQY6GNGV21TYV,ramo-men-s-meta-hoodie-f366hz-5,Ramo Men's Meta Hoodie,published,6,0.494,0.494
+prod_01KPTESC8C6XE8CK3RN4KRYJ4Q,ramo-men-s-soft-shell-vest-tempest-range-j482vs-5,Ramo Men's Soft Shell VEST - TEMPEST Range,draft,2,0.4147,0.4147
+prod_01KPTESC8C6XX1NYCKSVSRZZB5,ramo-women-s-challenger-100-polyester-t-shirt-t447ldm,Ramo Women's Challenger 100% polyester T-shirt,published,56,0.099,0.099
+prod_01KPTESC8C7GDH67AH205VSVJS,ramo-unisex-stone-wash-sweatshirts-f800cw-5,Ramo Unisex Stone Wash Sweatshirts,published,6,0.299,0.299
+prod_01KPTESC8C8J6QC3CQ7ASEFNAG,ramo-men-s-unisex-challenger-100-polyester-t-shirt-t447msm,Ramo Men's / Unisex Challenger 100% polyester T-shirt,published,49,0.099,0.099
+prod_01KPTESC8CA4WVS34124NJ6T0J,ramo-kid-s-challenger-100-polyester-t-shirt-t307ksm,Ramo Kid's Challenger 100% polyester T-shirt,published,49,0.094,0.094
+prod_01KPTESC8CFQY9B1WVPZY11MCB,ramo-kids-challenger-100-polyester-singlet-t308sgm,Ramo Kids' Challenger 100% polyester singlet,published,49,0.09,0.09
+prod_01KPTESC8CKPY8VA0YMR1C8R5F,ramo-men-s-greatness-heather-jacket-f390hz-5,Ramo Men's Greatness Heather Jacket,draft,5,0.3289,0.3289
+prod_01KPTESC8CY48GRK6SGWP7FQ3V,ramo-men-s-challenger-100-polyester-singlet-t448sgm,Ramo Men's Challenger 100% polyester Singlet,published,49,0.095,0.095
+prod_01KPTESC8CZ3EY219NXEAZ20GQ,ramo-womens-challenger-100-polyester-singlet-t448ldm,Ramo Womens' Challenger 100% polyester singlet,published,56,0.095,0.095
+prod_01KPTESC8D1HCPWC6Y7VC7J99F,ramo-adult-3-layer-one-piece-face-masks-with-adjustable-toggle-masks-cotton-071pa,Ramo Adult 3 Layer One Piece Face Masks with Adjustable toggle,draft,6,0.043,0.043
+prod_01KPTESC8D4BXAP8JMQXDH2Z5E,ramo-100-middle-seamed-cotton-face-masks-masks-cotton-02,Ramo 100% Middle Seamed Cotton Face Masks,draft,2,0.027000000000000003,0.027000000000000003
+prod_01KPTESC8D5WS1F07A4ZZ59F3Z,ramo-mens-unisex-earth-care-t-shirt-t805hd-7,Ramo Mens' / Unisex Earth Care T-shirt,published,1,0.10800000000000001,0.10800000000000001
+prod_01KPTESC8D6SA9KPFFYKZ0ZK7T,ramo-100-one-piece-cotton-face-masks-masks-cotton-01,Ramo 100% One Piece Cotton Face Masks,draft,2,0.027000000000000003,0.027000000000000003
+prod_01KPTESC8DC5SH0QMYVBDNRNZ3,ramo-mens-unisex-earth-care-t-shirt-t805hd-6,Ramo Mens' / Unisex Earth Care T-shirt,published,1,0.10800000000000001,0.10800000000000001
+prod_01KPTESC8DF1H5JXGNANCPJVH2,ramo-men-s-tempest-plus-jacket-j486hz-5,Ramo Men's Tempest Plus Jacket,draft,1,0.4511,0.4511
+prod_01KPTESC8DJQQKXXZTKE0KAGN5,ramo-100-one-piece-cotton-face-masks-with-adjustable-toggle-masks-cotton-01p,Ramo 100% One Piece Cotton Face Masks With Adjustable toggle,draft,8,0.037000000000000005,0.037000000000000005
+prod_01KPTESC8DPYX0ZF4ECD346D6K,ramo-100-cotton-face-masks-masks-cotton,Ramo 100% Cotton Face Masks,draft,1,0.015,0.015
+prod_01KPTESC8DQ2HN3JR7APYSYDBD,ramo-mens-tempest-x-heather-soft-shell-jacket-j481hzm-5,Ramo Mens Tempest X Heather Soft Shell Jacket,draft,2,0.48100000000000004,0.48100000000000004
+prod_01KPTESC8DQH83FZEMRPC973RD,ramo-men-s-soft-shell-hooded-jacket-tempest-range-j483hz-5,Ramo Men's Soft Shell HOODED Jacket - TEMPEST Range,draft,2,0.4654,0.4654
+prod_01KPTESC8DS0A8RRZHKF5YD75A,ramo-contrast-one-piece-cotton-face-masks-with-adjustable-toggle-masks-cotton-03p,Ramo Contrast One Piece Cotton Face Masks With Adjustable toggle,draft,4,0.0395,0.0395
+prod_01KPTESC8DTVDKKH7HQTKGY3WM,ramo-mens-unisex-earth-care-t-shirt-t805hd-5,Ramo Mens' / Unisex Earth Care T-shirt,published,16,0.09359999999999999,0.09359999999999999
+prod_01KPTESC8DY935NPKGXMW5QENC,ramo-middle-seamed-cotton-face-masks-with-adjustable-toggle-masks-cotton-02p,Ramo Middle Seamed Cotton Face Masks with Adjustable toggle,draft,7,0.037000000000000005,0.037000000000000005
+prod_01KPTESC8EA1QHW4QGH3STKBMV,ramo-kids-3-layer-one-piece-cotton-face-masks-with-adjustable-toggle-masks-cotton-081pk,Ramo Kids 3 Layer One Piece Cotton Face Masks With Adjustable toggle,draft,6,0.037000000000000005,0.0375
+prod_01KQ19Z972Q5HJ3PA82TFBVX6W,dnc-1751,Chef Jacket Buttons,published,3,4.29,7.32
+prod_01KQ19Z972W92Z4J7EG1AZEDFJ,dnc-1701,Neck Chief,published,4,4.13,7.05
+prod_01KQ19ZNQWWZVSGGK5E2BYNFJX,dnc-1755,Waiter Jacket Buttons,published,2,1.65,2.81
+prod_01KQ1B4VVD1TBNKB5GY5Z1SK95,dtf-auto-builder,DTF Auto Builder (Easy),published,5,0.24,1.2
+prod_01KQBC8A64YM8A3DPN06HMJ60V,biz-collection-womens-elite-short-sleeve-polo-p3225,Womens Elite Short Sleeve Polo,published,18,0.18899999999999997,0.18899999999999997
+prod_01KQBC8A6531H3YFCS932G9HZN,biz-collection-mens-micro-waffle-short-sleeve-polo-p3300,Mens Micro Waffle Short Sleeve Polo,published,14,0.168,0.168
+prod_01KQBC8A65ED0GE8YY8XY5NWDQ,biz-collection-mens-crew-short-sleeve-polo-p400ms,Mens Crew Short Sleeve Polo,published,153,0.105,0.105
+prod_01KQBC8A65KYPXKXQ1BHTATC38,biz-collection-mens-crew-long-sleeve-polo-p400ml,Mens Crew Long Sleeve Polo,published,24,0.147,0.147
+prod_01KQBC8A65R9D5H0B6B1J3EGM2,biz-collection-womens-crew-short-sleeve-polo-p400ls,Womens Crew Short Sleeve Polo,published,108,0.105,0.105
+prod_01KQBC8A65S1JDTWAJ8T856VK2,biz-collection-womens-talon-short-sleeve-polo-p401ls,Womens Talon Short Sleeve Polo,published,81,0.147,0.147
+prod_01KQBC8A65SFY7N5ZCSCB8J1NQ,biz-collection-kids-crew-short-sleeve-polo-p400ks,Kids Crew Short Sleeve Polo,published,119,0.0895,0.0895
+prod_01KQBC8A65T2K1M6XFDJHRE3Y7,biz-collection-womens-crew-long-sleeve-polo-p400ll,Womens Crew Long Sleeve Polo,published,30,0.147,0.147
+prod_01KQBC8A65ZB5P3F5Z4MQ4KPJS,biz-collection-womens-micro-waffle-short-sleeve-polo-p3325,Womens Micro Waffle Short Sleeve Polo,published,18,0.168,0.168
+prod_01KQBC8A660CXA1GDDPMKZDZTZ,biz-collection-womens-orbit-short-sleeve-polo-p410ls,Womens Orbit Short Sleeve Polo,published,40,0.17,0.17
+prod_01KQBC8A66J15B4A6H7ARAPNXZ,biz-collection-womens-razor-short-sleeve-polo-p405ls,Womens Razor Short Sleeve Polo,published,126,0.168,0.168
+prod_01KQBC8A66XFCAB21QB98EWAYR,biz-collection-kids-razor-short-sleeve-polo-p405ks,Kids Razor Short Sleeve Polo,published,98,0.136,0.136
+prod_01KQBC8A66Y9JA5946QZWWY701,biz-collection-mens-razor-short-sleeve-polo-p405ms,Mens Razor Short Sleeve Polo,published,126,0.168,0.168
+prod_01KQBC8A66ZRFKT01F9Z30K1NX,biz-collection-mens-talon-short-sleeve-polo-p401ms,Mens Talon Short Sleeve Polo,published,63,0.147,0.147
+prod_01KQBC8FM24K37CT95XDJC4B3M,biz-collection-womens-echo-short-sleeve-polo-p412ls,Womens Echo Short Sleeve Polo,published,20,0.175,0.175
+prod_01KQBC8FM2JV7C6TDAR50CEB03,biz-collection-mens-orbit-short-sleeve-polo-p410ms,Mens Orbit Short Sleeve Polo,published,32,0.17,0.17
+prod_01KQBC8FM33154F7G83XRCG4PK,biz-collection-mens-rival-short-sleeve-polo-p705ms,Mens Rival Short Sleeve Polo,published,49,0.154,0.154
+prod_01KQBC8FM34SX0WDAHE2KW2A73,biz-collection-womens-shadow-short-sleeve-polo-p501ls,Womens Shadow Short Sleeve Polo,published,27,0.184,0.184
+prod_01KQBC8FM351HPE7X0KJJGBG5P,biz-collection-unisex-grid-short-sleeve-polo-p413us,Unisex Grid Short Sleeve Polo,published,50,0.17,0.17
+prod_01KQBC8FM37ZMAG4EH474JXP6Q,biz-collection-kids-renegade-short-sleeve-polo-p700ks,Kids Renegade Short Sleeve Polo,published,63,0.136,0.136
+prod_01KQBC8FM382ZM6YRJ8CR081KN,biz-collection-womens-renegade-short-sleeve-polo-p700ls,Womens Renegade Short Sleeve Polo,published,70,0.168,0.168
+prod_01KQBC8FM3959KNWBAEA35VS2F,biz-collection-mens-cyber-short-sleeve-polo-p604ms,Mens Cyber Short Sleeve Polo,published,35,0.17800000000000002,0.17800000000000002
+prod_01KQBC8FM3EH6WPC81M05ZJ495,biz-collection-womens-lotus-short-sleeve-polo-p515ls,Womens Lotus Short Sleeve Polo,published,40,0.13949999999999999,0.13949999999999999
+prod_01KQBC8FM3G74EE3KY9A7ATB32,biz-collection-mens-renegade-short-sleeve-polo-p700ms,Mens Renegade Short Sleeve Polo,published,63,0.168,0.168
+prod_01KQBC8FM3HK7SZRFJKW2SGB12,biz-collection-womens-rival-short-sleeve-polo-p705ls,Womens Rival Short Sleeve Polo,published,70,0.154,0.154
+prod_01KQBC8FM3JX38NBD71WY16K0E,biz-collection-mens-shadow-short-sleeve-polo-p501ms,Mens Shadow Short Sleeve Polo,published,21,0.184,0.184
+prod_01KQBC8FM3N55NN875CF8SE19A,biz-collection-mens-charger-short-sleeve-polo-p500ms,Mens Charger Short Sleeve Polo,published,35,0.163,0.163
+prod_01KQBC8FM3NQABR63E1XMACH4B,biz-collection-mens-echo-short-sleeve-polo-p412ms,Mens Echo Short Sleeve Polo,published,16,0.175,0.175
+prod_01KQBC8FM3P94QSNN5ZRDTNA5Y,biz-collection-mens-dart-short-sleeve-polo-p419ms,Mens Dart Short Sleeve Polo,published,40,0.1595,0.1595
+prod_01KQBC8FM3Q4VRX2ZXB99QKWBS,biz-collection-womens-cyber-short-sleeve-polo-p604ls,Womens Cyber Short Sleeve Polo,published,45,0.17800000000000002,0.17800000000000002
+prod_01KQBC8FM3RF6T3VPMWQNW4XMF,biz-collection-womens-dart-short-sleeve-polo-p419ls,Womens Dart Short Sleeve Polo,published,50,0.1595,0.1595
+prod_01KQBC8FM3SNC4AHWCG9ZXVKD7,biz-collection-womens-profile-short-sleeve-polo-p706ls,Womens Profile Short Sleeve Polo,published,60,0.18899999999999997,0.18899999999999997
+prod_01KQBC8FM3T6FWBJBNZNAN4SYK,biz-collection-mens-lotus-short-sleeve-polo-p515ms,Mens Lotus Short Sleeve Polo,published,32,0.13949999999999999,0.13949999999999999
+prod_01KQBC8FM4JJFSWA1FRY2ZS5D5,biz-collection-mens-profile-short-sleeve-polo-p706ms,Mens Profile Short Sleeve Polo,published,42,0.18899999999999997,0.18899999999999997
+prod_01KQBC8FM4Q2KF76W2N3BQCERP,biz-collection-mens-splice-short-sleeve-polo-p7700,Mens Splice Short Sleeve Polo,published,91,0.136,0.136
+prod_01KQBC8FM4RHW4D1XVGTSQKQBX,biz-collection-kids-splice-short-sleeve-polo-p7700b,Kids Splice Short Sleeve Polo,published,70,0.111,0.111
+prod_01KQBC8M6JA0R9901CXB2R9SMK,biz-collection-womens-galaxy-short-sleeve-polo-p900ls,Womens Galaxy Short Sleeve Polo,published,90,0.168,0.168
+prod_01KQBC8M6JDXVPYMT8BDXGVSV7,biz-collection-mens-aero-short-sleeve-polo-p815ms,Mens Aero Short Sleeve Polo,published,48,0.126,0.126
+prod_01KQBC8M6JM4S17Q9ADFX7V11M,biz-collection-mens-oceana-short-sleeve-polo-p9000,Mens Oceana Short Sleeve Polo,published,14,0.18899999999999997,0.18899999999999997
+prod_01KQBC8M6JV2YTBA7B503KJYZT,biz-collection-womens-aero-short-sleeve-polo-p815ls,Womens Aero Short Sleeve Polo,published,60,0.126,0.126
+prod_01KQBC8M6K6EK9Z1NZNBCMFPHT,biz-collection-mens-nitro-short-sleeve-shirt-s10112,Mens Nitro Short Sleeve Shirt,published,21,0.263,0.263
+prod_01KQBC8M6K7H86JNKEATDF8BVM,biz-collection-mens-galaxy-short-sleeve-polo-p900ms,Mens Galaxy Short Sleeve Polo,published,72,0.168,0.168
+prod_01KQBC8M6K7JNVTT4EC3SZGK29,biz-collection-womens-camden-long-sleeve-shirt-s016ll,Womens Camden Long Sleeve Shirt,published,33,0.304,0.304
+prod_01KQBC8M6KAMWQSSG5Y6S5VV6N,biz-collection-womens-resort-short-sleeve-polo-p9925,Womens Resort Short Sleeve Polo,published,36,0.174,0.174
+prod_01KQBC8M6KJAE8TGYVCH0V3TJN,biz-collection-mens-heavy-weight-fleece-pf380,Mens Heavy Weight Fleece,published,14,0.294,0.294
+prod_01KQBC8M6KKDYPH2AW8KQA9SHH,biz-collection-mens-resort-short-sleeve-polo-p9900,Mens Resort Short Sleeve Polo,published,28,0.174,0.174
+prod_01KQBC8M6KN3067PGHZGR6EBXM,biz-collection-mens-plain-jacket-pf630,Mens Plain Jacket,published,16,0.24100000000000002,0.24100000000000002
+prod_01KQBC8M6KNA6XHZZ5MYA1TFYD,biz-collection-womens-plain-vest-pf905,Womens Plain Vest,published,18,0.18899999999999997,0.18899999999999997
+prod_01KQBC8M6KPE22G6DPY0591K1X,biz-collection-womens-sonar-short-sleeve-polo-p901ls,Womens Sonar Short Sleeve Polo,published,80,0.163,0.163
+prod_01KQBC8M6KQ1R242JQWWMSV8AP,biz-collection-womens-oceana-short-sleeve-polo-p9025,Womens Oceana Short Sleeve Polo,published,20,0.18899999999999997,0.18899999999999997
+prod_01KQBC8M6KW2GRQ2HDAB94P3JF,biz-collection-mens-sonar-short-sleeve-polo-p901ms,Mens Sonar Short Sleeve Polo,published,64,0.163,0.163
+prod_01KQBC8M6KXWHPJ6M1TPNZ1T1S,biz-collection-womens-plain-jacket-pf631,Womens Plain Jacket,published,18,0.24100000000000002,0.24100000000000002
+prod_01KQBC8M6KYJWP7Q6VSPRXJEAK,biz-collection-mens-camden-long-sleeve-shirt-s016ml,Mens Camden Long Sleeve Shirt,published,27,0.304,0.304
+prod_01KQBC8M6M29TRM3BF636CZK4M,biz-collection-mens-ambassador-short-sleeve-shirt-s251ms,Mens Ambassador Short Sleeve Shirt,published,16,0.262,0.262
+prod_01KQBC8M6M2EW552EYEQMYVQTD,biz-collection-womens-ambassador-3-4-sleeve-shirt-s29521,Womens Ambassador 3/4 Sleeve Shirt,published,20,0.268,0.268
+prod_01KQBC8M6M4VRFPPH2VFFMGX9J,biz-collection-womens-ambassador-long-sleeve-shirt-s29520,Womens Ambassador Long Sleeve Shirt,published,20,0.273,0.273
+prod_01KQBC8M6M86902HBFG6ZSVPS1,biz-collection-mens-base-short-sleeve-shirt-s10512,Mens Base Short Sleeve Shirt,published,27,0.16,0.16
+prod_01KQBC8M6M9CK2FPNZQ57338D1,biz-collection-mens-ambassador-long-sleeve-shirt-s29510,Mens Ambassador Long Sleeve Shirt,published,16,0.273,0.273
+prod_01KQBC8M6MAARX03YT70CFYS3R,biz-collection-womens-luxe-long-sleeve-shirt-s118ll,Womens Luxe Long Sleeve Shirt,published,20,0.3195,0.3195
+prod_01KQBC8M6MH5RSJ7AP5EEPXFAF,biz-collection-mens-edge-long-sleeve-shirt-s267ml,Mens Edge Long Sleeve Shirt,published,16,0.3,0.3
+prod_01KQBC8M6MMN9N889WWNA8XH04,biz-collection-womens-oasis-overblouse-s265ls,Womens Oasis Overblouse,published,52,0.2495,0.2495
+prod_01KQBC8M6MNS6J5X0FTH7BDM3Q,biz-collection-womens-base-3-4-sleeve-shirt-s10521,Womens Base 3/4 Sleeve Shirt,published,30,0.165,0.165
+prod_01KQBC8M6MP075ZXN0Q6ZY0Z9Z,biz-collection-womens-memphis-long-sleeve-shirt-s127ll,Womens Memphis Long Sleeve Shirt,published,55,0.273,0.273
+prod_01KQBC8M6MP4ZQT9ZZ93B2WVTJ,biz-collection-mens-luxe-long-sleeve-shirt-s10210,Mens Luxe Long Sleeve Shirt,published,16,0.3195,0.3195
+prod_01KQBC8M6MXGGQZ45RZBFKF3AZ,biz-collection-mens-memphis-long-sleeve-shirt-s127ml,Mens Memphis Long Sleeve Shirt,published,45,0.273,0.273
+prod_01KQBC8M6MZ59BW4CX9MGZCQV6,biz-collection-mens-base-long-sleeve-shirt-s10510,Mens Base Long Sleeve Shirt,published,27,0.165,0.165
+prod_01KQBCAC3433KBBAVG80S0WC10,biz-collection-womens-slimline-belt-bb10929,Womens Slimline Belt,published,6,0.136,0.136
+prod_01KQBCAC3474SMTVHVA3TYWYFF,biz-collection-urban-bib-apron-ba55,Urban Bib Apron,published,4,0.142,0.142
+prod_01KQBCAC3483WXA0A7FNT4P1D5,biz-collection-barley-apron-ba35,Barley Apron,published,4,0.142,0.142
+prod_01KQBCAC3489MF0HGMY76N6DA7,biz-collection-bib-apron-ba95,Bib Apron,published,11,0.10949999999999999,0.10949999999999999
+prod_01KQBCAC348V4MDBWDX5MXBTRN,biz-collection-womens-semi-patient-belt-bb10920,Womens Semi-Patient Belt,published,6,0.136,0.136
+prod_01KQBCAC3498K0ACKVMVC3KWYP,biz-collection-urban-waist-straps-ba51,Urban Waist Straps,published,6,0.037000000000000005,0.037000000000000005
+prod_01KQBCAC349XNX1ETSQAWAQA7J,biz-collection-urban-waist-apron-ba54,Urban Waist Apron,published,4,0.121,0.121
+prod_01KQBCAC34CK0MBBQ59HCM812D,biz-collection-urban-bib-straps-ba52,Urban Bib Straps,published,6,0.037000000000000005,0.037000000000000005
+prod_01KQBCAC34KW0RP8PPXPEDZHGN,biz-collection-clout-apron-ba40,Clout Apron,published,3,0.1495,0.1495
+prod_01KQBCAC34SCA7NXSRWMZS6T5R,biz-collection-mens-corporate-belt-bb10919,Mens Corporate Belt,published,2,0.142,0.142
+prod_01KQBCAC34ZD9SN5WAJY7EN4J1,biz-collection-short-waisted-apron-ba94,Short Waisted Apron,published,1,0.09,0.09
+prod_01KQBCAC3536HWHWP8Z9J1F976,biz-collection-mens-venture-short-sleeve-polo-bp2616ms,Mens Venture Short Sleeve Polo,published,16,0.1895,0.1895
+prod_01KQBCAC355TVJ0BA8BSA08215,biz-collection-womens-lawson-chino-short-bs021l,Womens Lawson Chino Short,published,44,0.2595,0.2595
+prod_01KQBCAC35966647F1R3NN20QV,biz-collection-womens-lawson-skirt-bs022l,Womens Lawson Skirt,published,44,0.2595,0.2595
+prod_01KQBCAC359CPKDT1EHT9RBZGE,biz-collection-mens-tailor-jacket-bj2602m,Mens Tailor Jacket,published,16,0.4495,0.4495
+prod_01KQBCAC35E43B873ZWB1SZB2G,biz-collection-mens-phoenix-short-sleeve-polo-bp2610ms,Mens Phoenix Short Sleeve Polo,published,32,0.1495,0.1495
+prod_01KQBCAC35FG7N1WDB7SCTT7DN,biz-collection-womens-phoenix-short-sleeve-polo-bp2610ls,Womens Phoenix Short Sleeve Polo,published,40,0.1495,0.1495
+prod_01KQBCAC35MTGAHCCGBW3K529M,biz-collection-womens-venture-short-sleeve-polo-bp2616ls,Womens Venture Short Sleeve Polo,published,20,0.1895,0.1895
+prod_01KQBCAC35PRCGFDPJDJAXYSSN,biz-collection-mens-lawson-short-bs021m,Mens Lawson Short,published,48,0.2595,0.2595
+prod_01KQBCAC35QCSPH4C5JZAWF9H3,biz-collection-mens-standard-belt-bb248m,Mens Standard Belt,published,2,0.157,0.157
+prod_01KQBCAC35QMTBSTBYADSQZ1A1,biz-collection-mens-detroit-pant-regular-bs10110r,Mens Detroit Pant (Regular),published,14,0.2495,0.2495
+prod_01KQBCAC35RNT5W4EKPAEVDE5H,biz-collection-womens-grace-t-shirt-midi-dress-bbs2605l,Womens Grace T-Shirt Midi Dress,published,20,0.3795,0.3795
+prod_01KQBCAC35TQE1ZVEWE217YR6Q,biz-collection-womens-soft-stretch-pant-bb2606l,Womens Soft Stretch Pant,published,24,0.2995,0.2995
+prod_01KQBCAC35VV90MHQ7MYNCNVXD,biz-collection-womens-tailor-jacket-bj2602l,Womens Tailor Jacket,published,12,0.4495,0.4495
+prod_01KQBCAC363AJXVA20AXP5B96D,biz-collection-womens-classic-knee-length-skirt-bs128ls,Womens Classic Knee Length Skirt,published,33,0.325,0.325
+prod_01KQBCAC363HD08DKZH89BDF3A,biz-collection-mens-detroit-short-regular-bs10112r,Mens Detroit Short (Regular),published,14,0.2395,0.2395
+prod_01KQBCAC3661Y6355EE3AS5D51,biz-collection-mens-classic-pleat-pant-bs29110,Mens Classic Pleat Pant,published,36,0.35700000000000004,0.35700000000000004
+prod_01KQBCAC367T3F6YX5TZN9RK1H,biz-collection-mens-detroit-short-stout-bs10112s,Mens Detroit Short (Stout),published,22,0.2395,0.2395
+prod_01KQBCAC3687J8ARNG8V8822YV,biz-collection-mens-classic-flat-pant-bs29210,Mens Classic Flat Pant,published,36,0.35700000000000004,0.35700000000000004
+prod_01KQBCAC3693V2G7Q72P1RAR37,biz-collection-womens-venture-pant-bs423l,Womens Venture Pant,published,11,0.35,0.35
+prod_01KQBCAC36C6ZTCNRMFGDNWNRM,biz-collection-mens-detroit-pant-stout-bs10110s,Mens Detroit Pant (Stout),published,18,0.2495,0.2495
+prod_01KQBCAC36DF2BR384KT801DNQ,biz-collection-womens-bella-pant-bs125l,Womens Bella Pant,published,8,0.34600000000000003,0.34600000000000003
+prod_01KQBCAC36KGC0P3T3CSDHM2KE,biz-collection-womens-venture-long-sleeve-shirt-bs2619ll,Womens Venture Long Sleeve Shirt,published,20,0.3295,0.3295
+prod_01KQBCAC36QBBJR30J7B99MFPW,biz-collection-mens-venture-long-sleeve-shirt-bs2619ml,Mens Venture Long Sleeve Shirt,published,18,0.3295,0.3295
+prod_01KQBCAC36QN7JJ3HV6BHYPDJC,biz-collection-womens-classic-below-knee-skirt-bs29323,Womens Classic Below Knee Skirt,published,33,0.325,0.325
+prod_01KQBCAC36SS2QPV8PJ9VXHN87,biz-collection-mens-venture-pant-bs423m,Mens Venture Pant,published,12,0.35,0.35
+prod_01KQBCAC36W7XBNEPBCE4QQM6E,biz-collection-womens-detroit-short-bs10322,Womens Detroit Short,published,26,0.2395,0.2395
+prod_01KQBCAC36YQ4WD6X29R7N66ZK,biz-collection-womens-classic-pant-bs29320,Womens Classic Pant,published,33,0.35700000000000004,0.35700000000000004
+prod_01KQBCAC373N7YWF5471AHEETQ,biz-collection-mens-classic-slim-pant-bs720m,Mens Classic Slim Pant,published,14,0.35700000000000004,0.35700000000000004
+prod_01KQBCAC376R72HPMV0K7YC852,biz-collection-womens-stella-perfect-pant-bs506l,Womens Stella Perfect Pant,published,14,0.325,0.325
+prod_01KQBCAC377ASWZECYZP6HSPK7,biz-collection-womens-lawson-chino-pant-bs724l,Womens Lawson Chino Pant,published,44,0.2695,0.2695
+prod_01KQBCAC378737S2QNAVNYSQFY,biz-collection-mens-classic-jacket-bs722m,Mens Classic Jacket,published,24,0.84,0.84
+prod_01KQBCAC37CHVYR1GZFDMR7RG6,biz-collection-womens-bianca-jacket-bs732l,Womens Bianca Jacket,published,24,0.7240000000000001,0.7240000000000001
+prod_01KQBCAC37G85DZF47W0MSPT20,biz-collection-womens-eve-perfect-pant-bs508l,Womens Eve Perfect Pant,published,18,0.325,0.325
+prod_01KQBCAC37K5GY9MBC3SNJE7AE,biz-collection-womens-loren-skirt-bs734l,Womens Loren Skirt,published,24,0.325,0.325
+prod_01KQBCAC37Q7ZQHYAHSPRTD9JH,biz-collection-womens-detroit-pant-bs610l,Womens Detroit Pant,published,28,0.2495,0.2495
+prod_01KQBCAC37TCGQZWST102XWXKF,biz-collection-mens-lawson-chino-pant-bs724m,Mens Lawson Chino Pant,published,48,0.2695,0.2695
+prod_01KQBCAC37WPYPEVV30N63EVWJ,biz-collection-womens-audrey-dress-bs730l,Womens Audrey Dress,published,18,0.546,0.546
+prod_01KQBCAC37WZ01Z1QYQEXJ18HP,biz-collection-womens-kate-perfect-pant-bs507l,Womens Kate Perfect Pant,published,14,0.325,0.325
+prod_01KQBCAC37XDXF5CY9Q1VZ94W0,biz-collection-womens-detroit-skirt-bs612s,Womens Detroit Skirt,published,24,0.2495,0.2495
+prod_01KQBCAC37ZD22TDMY2MK41XF0,biz-collection-womens-remy-pant-bs909l,Womens Remy Pant,published,24,0.325,0.325
+prod_01KQBCAGMT4P6NJVAA1DMK2DC5,biz-collection-womens-dash-pant-ch234l,Womens Dash Pant,published,12,0.21,0.21
+prod_01KQBCAGMTADGVKEDJF5QD9QD4,biz-collection-womens-paris-dress-bs911l,Womens Paris Dress,published,14,0.43,0.43
+prod_01KQBCAGMTCT1NETY38EV6XH21,biz-collection-womens-zest-short-sleeve-jacket-ch232ls,Womens Zest Short Sleeve Jacket,published,12,0.258,0.258
+prod_01KQBCAGMTE6SBXMAJS2QVB939,biz-collection-mens-zest-long-sleeve-jacket-ch232ml,Mens Zest Long Sleeve Jacket,published,16,0.268,0.268
+prod_01KQBCAGMTH0Z8N1MH3750P3BX,biz-collection-mens-al-dente-long-sleeve-chef-jacket-ch230ml,Mens Al Dente Long Sleeve Chef Jacket,published,24,0.237,0.237
+prod_01KQBCAGMTJMW32FQHM6JZ6MR7,biz-collection-mens-zest-short-sleeve-chef-jacket-ch232ms,Mens Zest Short Sleeve Chef Jacket,published,16,0.258,0.258
+prod_01KQBCAGMV4RSB8J69V4T62B2M,biz-collection-womens-gusto-long-sleeve-chef-jacket-ch430ll,Womens Gusto Long Sleeve Chef Jacket,published,12,0.305,0.305
+prod_01KQBCAGMV8JYHME6P7F9D6BWY,biz-collection-chef-jacket-button-ch235,Chef Jacket Button,published,2,0.132,0.132
+prod_01KQBCAGMVAXSAAKH1HS11SC1W,biz-collection-womens-alfresco-short-sleeve-chef-jacket-ch330ls,Womens Alfresco Short Sleeve Chef Jacket,published,12,0.28300000000000003,0.28300000000000003
+prod_01KQBCAGMVDF40RT37D0QMHQK3,biz-collection-mens-alfresco-long-sleeve-chef-jacket-ch330ml,Mens Alfresco Long Sleeve Chef Jacket,published,16,0.294,0.294
+prod_01KQBCAGMVDSA1C6WBS3JVV2QN,biz-collection-twist-chef-bandana-ch331,Twist Chef Bandana,published,4,0.05,0.05
+prod_01KQBCAGMVM7HHBGBC6D4Y1GAW,biz-collection-mens-dash-pant-ch234m,Mens Dash Pant,published,24,0.21,0.21
+prod_01KQBCAGMVMP4KTXVM5SRHRGRR,biz-collection-mens-salsa-short-sleeve-chef-shirt-ch329ms,Mens Salsa Short Sleeve Chef Shirt,published,24,0.294,0.294
+prod_01KQBCAGMVQ4038GH92DFM2YM7,biz-collection-womens-alfresco-long-sleeve-chef-jacket-ch330ll,Womens Alfresco Long Sleeve Chef Jacket,published,12,0.294,0.294
+prod_01KQBCAGMVV7251AZ307DD2M8C,biz-collection-chef-cap-ch238,Chef Cap,published,3,0.05,0.05
+prod_01KQBCAGMVVRPP16M6TG61MQQ6,biz-collection-mesh-flat-top-hat-ch333,Mesh Flat Top Hat,published,2,0.05,0.05
+prod_01KQBCAGMVZ7035SGGM1NH9WAC,biz-collection-mens-gusto-long-sleeve-chef-jacket-ch430ml,Mens Gusto Long Sleeve Chef Jacket,published,16,0.305,0.305
+prod_01KQBCAGMVZYC3NY9V80E1XV90,biz-collection-mens-alfresco-short-sleeve-chef-jacket-ch330ms,Mens Alfresco Short Sleeve Chef Jacket,published,16,0.28300000000000003,0.28300000000000003
+prod_01KQBCAGMW5HMP8M0TAJZK3T3Z,biz-collection-womens-classic-scrub-top-h10622,Womens Classic Scrub Top,published,49,0.16949999999999998,0.16949999999999998
+prod_01KQBCAGMW700QM76KB3GWMJ7E,biz-collection-mens-plain-vest-f233mn,Mens Plain Vest,published,16,0.18899999999999997,0.18899999999999997
+prod_01KQBCAGMW79GKAJSSE8YT4P2H,biz-collection-mens-trinity-fleece-f10510,Mens Trinity Fleece,published,14,0.17800000000000002,0.17800000000000002
+prod_01KQBCAGMWA52127Z1BPRGFK0Q,biz-collection-womens-zen-tunic-h134ls,Womens Zen Tunic,published,16,0.3095,0.3095
+prod_01KQBCAGMWBP2WC9XMG3N5NWGA,biz-collection-womens-contrast-scrub-top-h10722,Womens Contrast Scrub Top,published,40,0.1895,0.1895
+prod_01KQBCAGMWGCGXJKY2FYFXN73X,biz-collection-mens-cajun-chef-jogger-pant-ch433m,Mens Cajun Chef Jogger Pant,published,8,0.3,0.3
+prod_01KQBCAGMWGDKCNHZ8AMGBBVGG,biz-collection-womens-saffron-chef-flex-pant-ch432l,Womens Saffron Chef Flex Pant,published,8,0.3,0.3
+prod_01KQBCAGMWJN6BP4VESDMH8TM4,biz-collection-mens-saffron-chef-flex-pant-ch432m,Mens Saffron Chef Flex Pant,published,7,0.3,0.3
+prod_01KQBCAGMWKDA5K2S6BERBBKVK,biz-collection-womens-classic-scrub-pant-h10620,Womens Classic Scrub Pant,published,56,0.16949999999999998,0.16949999999999998
+prod_01KQBCAGMWNSZC779M9BP78R68,biz-collection-womens-cajun-chef-jogger-pant-ch433l,Womens Cajun Chef Jogger Pant,published,6,0.3,0.3
+prod_01KQBCAGMWP7NR5HG1F4DFD3WQ,biz-collection-lab-coat-h132ml,Lab Coat,published,8,0.2395,0.2395
+prod_01KQBCAGMWT6F6CHBRNAGMJBCA,biz-collection-unisex-classic-scrub-top-h10612,Unisex Classic Scrub Top,published,56,0.16949999999999998,0.16949999999999998
+prod_01KQBCAGMWVFHQF7VNAN4NRP33,biz-collection-womens-eden-tunic-h133ls,Womens Eden Tunic,published,16,0.3095,0.3095
+prod_01KQBCAGMWX6MPV86Q3AAK4VP5,biz-collection-womens-spa-tunic-h630l,Womens Spa Tunic,published,8,0.3395,0.3395
+prod_01KQBCAGMWYCCK2DJZHKMGMBX8,biz-collection-womens-trinity-fleece-f10520,Womens Trinity Fleece,published,10,0.17800000000000002,0.17800000000000002
+prod_01KQBCAGMWYCRHS9BQ7G08QATA,biz-collection-womens-bliss-tunic-h632l,Womens Bliss Tunic,published,8,0.34950000000000003,0.34950000000000003
+prod_01KQBCAGMWYNQ249NVWBXZPT55,biz-collection-unisex-classic-scrub-pant-h10610,Unisex Classic  Scrub Pant,published,56,0.16949999999999998,0.16949999999999998
+prod_01KQBCAGMX0Z0E32RQ5XN2308G,biz-collection-womens-alpine-jacket-j212l,Womens Alpine Jacket,published,12,0.35700000000000004,0.35700000000000004
+prod_01KQBCAGMX1CD74PS2XN2KYWYA,biz-collection-mens-alpine-vest-j211m,Mens Alpine Vest,published,16,0.273,0.273
+prod_01KQBCAGMX6S46GFEEE1DXNPZ1,biz-collection-mens-summit-jacket-j10910,Mens Summit Jacket,published,14,0.6745,0.6745
+prod_01KQBCAGMX73BW5S1TTVTCMZ2W,biz-collection-unisex-patrol-jacket-j134m,Unisex Patrol Jacket,published,18,0.525,0.525
+prod_01KQBCAGMX7FGTBTP43F3RN7FV,biz-collection-womens-summit-jacket-j10920,Womens Summit Jacket,published,10,0.6745,0.6745
+prod_01KQBCAGMX7STK1B45S83X0BX7,biz-collection-unisex-nitro-jacket-j10110,Unisex Nitro Jacket,published,48,0.5770000000000001,0.5770000000000001
+prod_01KQBCAGMXBSJJ7P86JY7CRYHE,biz-collection-mens-expedition-vest-j213m,Mens Expedition Vest,published,14,0.35450000000000004,0.35450000000000004
+prod_01KQBCAGMXCTH143MRASJP38AD,biz-collection-womens-alpine-vest-j211l,Womens Alpine Vest,published,12,0.273,0.273
+prod_01KQBCAGMXEJC8RDC9T6DR1HCQ,biz-collection-womens-geo-jacket-j135l,Womens Geo Jacket,published,10,0.457,0.457
+prod_01KQBCAGMXHGGN2Z6N2RSEGXAJ,biz-collection-mens-alpine-jacket-j212m,Mens Alpine Jacket,published,16,0.35700000000000004,0.35700000000000004
+prod_01KQBCAGMXJMEVDVQ7PDQSNKSG,biz-collection-mens-eclipse-jacket-j132m,Mens Eclipse Jacket,published,14,0.777,0.777
+prod_01KQBCAGMXJTGXV6PWPDJGFEY5,biz-collection-womens-eclipse-jacket-j132l,Womens Eclipse Jacket,published,10,0.777,0.777
+prod_01KQBCAGMXSJKMJHVNCZEQCJJM,biz-collection-womens-expedition-vest-j213l,Womens Expedition Vest,published,12,0.35450000000000004,0.35450000000000004
+prod_01KQBCAGMXYZNC9EJE4H8Z4HN7,biz-collection-mens-geo-jacket-j135m,Mens Geo Jacket,published,14,0.457,0.457
+prod_01KQBCAGMYDW7A8DA8X7TP0GVD,biz-collection-kids-flash-jacket-j3150b,Kids Flash Jacket,published,20,0.237,0.237
+prod_01KQBCAGMYP2EEG6RVVF9SF6SA,biz-collection-unisex-core-jacket-j236ml,Unisex Core Jacket,published,36,0.39399999999999996,0.39399999999999996
+prod_01KQBCAGMYPVXYNXJ9EVFD7MY5,biz-collection-womens-softshell-vest-j29123,Womens Softshell Vest,published,10,0.445,0.445
+prod_01KQBCAGMYSVZH9ZVXAG9FQ3AQ,biz-collection-kids-geneva-jacket-j307k,Kids Geneva Jacket,published,24,0.3775,0.3775
+prod_01KQBCAGMYT20RJ7QMPYRQ5VB4,biz-collection-mens-geneva-jacket-j307m,Mens Geneva Jacket,published,28,0.3985,0.3985
+prod_01KQBCAGMYTT1ARNNBX5ZSC86M,biz-collection-unisex-flash-jacket-j3150,Unisex Flash Jacket,published,32,0.268,0.268
+prod_01KQBCAGMYY2ZQZ0KR04V7TE6B,biz-collection-womens-geneva-jacket-j307l,Womens Geneva Jacket,published,20,0.3985,0.3985
+prod_01KQBCAMSZ5Q0RZ42WPT933VE4,biz-collection-unisex-reactor-jacket-j3887,Unisex Reactor Jacket,published,14,0.373,0.373
+prod_01KQBCAMSZ9QECCD8EH9VHEFSZ,biz-collection-womens-atlas-jacket-j502l,Womens Atlas Jacket,published,10,0.395,0.395
+prod_01KQBCAMSZB7JNSDHDCNYB4TEB,biz-collection-mens-atlas-jacket-j502m,Mens Atlas Jacket,published,16,0.395,0.395
+prod_01KQBCAMSZDKSEXWZS4J2R60M5,biz-collection-womens-geneva-vest-j404l,Womens Geneva Vest,published,20,0.34600000000000003,0.34600000000000003
+prod_01KQBCAMSZEMZZ3S37DHANNBZF,biz-collection-mens-geneva-vest-j404m,Mens Geneva Vest,published,28,0.34600000000000003,0.34600000000000003
+prod_01KQBCAMSZFR9CKE2H8YWENAWA,biz-collection-womens-tempest-jacket-j426l,Womens Tempest Jacket,published,5,0.395,0.395
+prod_01KQBCAMSZH50XQFAZQNAV57ND,biz-collection-unisex-sphere-jacket-j428u,Unisex Sphere Jacket,published,9,0.75,0.75
+prod_01KQBCAMSZHX6DCMRNP616C8NM,biz-collection-mens-softshell-vest-j3881,Mens Softshell Vest,published,14,0.445,0.445
+prod_01KQBCAMSZK68WVKP3XERFK19K,biz-collection-mens-tempest-jacket-j426m,Mens Tempest Jacket,published,7,0.395,0.395
+prod_01KQBCAMSZP7W5K1XSV3A59MRQ,biz-collection-womens-softshell-jacket-j3825,Womens Softshell Jacket,published,10,0.5145000000000001,0.5145000000000001
+prod_01KQBCAMSZRS4XS91QDTZ3HE19,biz-collection-mens-softshell-jacket-j3880,Mens Softshell Jacket,published,14,0.5145000000000001,0.5145000000000001
+prod_01KQBCAMSZS2363HR8AC6DGWHM,biz-collection-unisex-razor-jacket-j408m,Unisex Razor Jacket,published,80,0.336,0.336
+prod_01KQBCAMT0R6ZKP8FAJ7BT1W4Z,biz-collection-unisex-charger-jacket-j510m,Unisex Charger Jacket,published,45,0.46799999999999997,0.46799999999999997
+prod_01KQBCAMT10ZVEGXMMYR0DT596,biz-collection-mens-stealth-jacket-j515m,Mens Stealth Jacket,published,7,0.405,0.405
+prod_01KQBCAMT13WKX4MRQVR130AMD,biz-collection-womens-stealth-jacket-j515l,Womens Stealth Jacket,published,6,0.405,0.405
+prod_01KQBCAMT14C210KV11013VXZ1,biz-collection-unisex-spinnaker-jacket-j833,Unisex Spinnaker Jacket,published,16,0.273,0.273
+prod_01KQBCAMT14HSP4KNPHM1SWGW4,biz-collection-womens-lana-3-4-sleeve-top-k819lt,Womens Lana 3/4 Sleeve Top,published,22,0.22,0.22
+prod_01KQBCAMT151MQ2Y5J328R30QJ,biz-collection-unisex-trekka-jacket-j8600,Unisex Trekka Jacket,published,18,0.493,0.493
+prod_01KQBCAMT17D97PPA1RTCEW229,biz-collection-mens-apex-vest-j830m,Mens Apex Vest,published,24,0.24100000000000002,0.24100000000000002
+prod_01KQBCAMT18K7HYT54DH9066QJ,biz-collection-mens-apex-jacket-j740m,Mens Apex Jacket,published,24,0.28300000000000003,0.28300000000000003
+prod_01KQBCAMT19RES0TFRMH1WQ97N,biz-collection-womens-apex-jacket-j740l,Womens Apex Jacket,published,24,0.28300000000000003,0.28300000000000003
+prod_01KQBCAMT1C5AYZ5XTBH81DY1Q,biz-collection-zippies-j744,Zippies,published,11,0.038,0.038
+prod_01KQBCAMT1F1GSAEQ8DKFXT7ZB,biz-collection-womens-luna-7-8-length-legging-l323lt,Womens Luna 7/8 Length Legging,published,8,0.262,0.262
+prod_01KQBCAMT1FF5KCE57R1CA139H,biz-collection-kids-apex-jacket-j740k,Kids Apex Jacket,published,18,0.2515,0.2515
+prod_01KQBCAMT1FHJEVPGAKHS8XXMQ,biz-collection-mens-stealth-vest-j616m,Mens Stealth Vest,published,7,0.35200000000000004,0.35200000000000004
+prod_01KQBCAMT1HGE0DYPN9CK2V2JG,biz-collection-womens-apex-vest-j830l,Womens Apex Vest,published,18,0.24100000000000002,0.24100000000000002
+prod_01KQBCAMT1JA858BYX0JZ4WJPF,biz-collection-womens-chic-top-k315ls,Womens Chic Top,published,33,0.22,0.22
+prod_01KQBCAMT1R445N2VHAPS1ZR8N,biz-collection-womens-ava-top-k625ls,Womens Ava Top,published,22,0.22,0.22
+prod_01KQBCAMT1TMFR2JQGTGM3ABS0,biz-collection-womens-expedition-jacket-j750l,Womens Expedition Jacket,published,12,0.45,0.45
+prod_01KQBCAMT1VTR0EDGW1GBBXGS8,biz-collection-womens-lana-short-sleeve-top-k819ls,Womens Lana Short Sleeve Top,published,22,0.22,0.22
+prod_01KQBCAMT1VZQY4R41RW9XG64E,biz-collection-mens-expedition-jacket-j750m,Mens Expedition Jacket,published,14,0.45,0.45
+prod_01KQBCAMT1W1W1CYTMWKG8MX56,biz-collection-womens-stealth-vest-j616l,Womens Stealth Vest,published,6,0.35200000000000004,0.35200000000000004
+prod_01KQBCAMT1XFFNWP4C5SKWG7MK,biz-collection-womens-luna-bike-short-l323ls,Womens Luna Bike Short,published,7,0.231,0.231
+prod_01KQBCAMT1YAJKM557AW07VFNV,biz-collection-womens-mia-top-k624ls,Womens Mia Top,published,22,0.22,0.22
+prod_01KQBCAMT23MPPATXYP5BYQ6F3,biz-collection-womens-metro-3-4-sleeve-shirt-lb7300,Womens Metro 3/4 Sleeve Shirt,published,66,0.231,0.231
+prod_01KQBCAMT24TZGEQ6QF8A7VNS8,biz-collection-womens-oasis-3-4-sleeve-shirt-lb3600,Womens Oasis 3/4 Sleeve Shirt,published,99,0.255,0.255
+prod_01KQBCAMT2675ZTQDAZC03YKW6,biz-collection-womens-chambray-long-sleeve-shirt-lb6201,Womens Chambray Long Sleeve Shirt,published,9,0.24100000000000002,0.24100000000000002
+prod_01KQBCAMT27B4WCNSZM4H7CP20,biz-collection-womens-micro-check-3-4-sleeve-shirt-lb8200,Womens Micro Check 3/4 Sleeve Shirt,published,27,0.22,0.22
+prod_01KQBCAMT2BTGHPA7FWHRN7K9D,biz-collection-womens-chambray-short-sleeve-shirt-lb6200,Womens Chambray Short Sleeve Shirt,published,9,0.23600000000000002,0.23600000000000002
+prod_01KQBCAMT2C93YFR7C68E1V48G,biz-collection-womens-flex-3-4-leggings-l513lt,Womens Flex 3/4 Leggings,published,7,0.262,0.262
+prod_01KQBCAMT2J8TZQWNE30BXDWMM,biz-collection-womens-metro-short-sleeve-shirt-lb7301,Womens Metro Short Sleeve Shirt,published,66,0.226,0.226
+prod_01KQBCAMT2QSTZEYKYZ70A1DP5,biz-collection-womens-oasis-short-sleeve-shirt-lb3601,Womens Oasis Short Sleeve Shirt,published,99,0.2495,0.2495
+prod_01KQBCAMT2ZE7TZ8N8S1Q4TKAZ,biz-collection-womens-flex-leggings-l514ll,Womens Flex Leggings,published,7,0.28300000000000003,0.28300000000000003
+prod_01KQBCAS1Q7FJC8MP6WA686ZWG,biz-collection-womens-woolmix-cardigan-lc8008,Womens Woolmix Cardigan,published,10,0.462,0.462
+prod_01KQBCAS1Q9QWFK23N1FJP4GP3,biz-collection-womens-2-way-zip-cardigan-lc3505,Womens 2-Way Zip Cardigan,published,21,0.44,0.44
+prod_01KQBCAS1QC2DWAN6MAHEGBTZ9,biz-collection-womens-v-neck-knit-vest-lv3504,Womens V-Neck Knit Vest,published,21,0.28300000000000003,0.28300000000000003
+prod_01KQBCAS1QFMXDS3QJHW3J67TJ,biz-collection-womens-v-neck-knit-pullover-lp3506,Womens V-Neck Knit Pullover,published,21,0.38799999999999996,0.38799999999999996
+prod_01KQBCAS1QMTZZ7CGP35ZDPF0K,biz-collection-womens-milano-cardigan-lc417l,Womens Milano Cardigan,published,21,0.452,0.452
+prod_01KQBCAS1QV8KSSN6BVK72AVHF,biz-collection-womens-milano-pullover-lp618l,Womens Milano Pullover,published,21,0.452,0.452
+prod_01KQBCAS1QY6783DAJZKX0Y5HB,biz-collection-womens-roma-knit-cardigan-lc916l,Womens Roma Knit Cardigan,published,14,0.447,0.447
+prod_01KQBCAS1R3HFF61MJN5N6Y7Q8,biz-collection-womens-aston-short-sleeve-polo-p106ls,Womens Aston Short Sleeve Polo,published,20,0.17800000000000002,0.17800000000000002
+prod_01KQBCAS1R7AT44T1J6JA7Q9BA,biz-collection-mens-aston-short-sleeve-polo-p106ms,Mens Aston Short Sleeve Polo,published,14,0.17800000000000002,0.17800000000000002
+prod_01KQBCAS1R9AQC5MRRH2Y4G64H,biz-collection-womens-nitro-short-sleeve-polo-p10122,Womens Nitro Short Sleeve Polo,published,54,0.168,0.168
+prod_01KQBCAS1RCEDZAXQYQBM0EQE2,biz-collection-mens-city-short-sleeve-polo-p105ms,Mens City Short Sleeve Polo,published,49,0.17800000000000002,0.17800000000000002
+prod_01KQBCAS1RD86SJCFJZQX6Q6EC,biz-collection-mens-nitro-short-sleeve-polo-p10112,Mens Nitro Short Sleeve Polo,published,42,0.168,0.168
+prod_01KQBCAS1RF840XAM8MG2JRJCM,biz-collection-mens-byron-short-sleeve-polo-p011ms,Mens Byron Short Sleeve Polo,published,28,0.19899999999999998,0.19899999999999998
+prod_01KQBCAS1RGJN6ZX63Q92W7CV0,biz-collection-womens-byron-short-sleeve-polo-p011ls,Womens Byron Short Sleeve Polo,published,36,0.19899999999999998,0.19899999999999998
+prod_01KQBCAS1RGMEXGC94JSM32E3R,biz-collection-mens-academy-short-sleeve-polo-p012ms,Mens Academy Short Sleeve Polo,published,42,0.168,0.168
+prod_01KQBCAS1RMJGW84WRV7JV8F4S,biz-collection-womens-city-short-sleeve-polo-p105ls,Womens City Short Sleeve Polo,published,70,0.17800000000000002,0.17800000000000002
+prod_01KQBCAS1RMKW8QXDA5FZVG1PQ,biz-collection-unisex-reversible-fleece-vest-nv5300,Unisex Reversible Fleece Vest,published,16,0.273,0.273
+prod_01KQBCAS1RQNZAQ8SJEM9FZNTY,biz-collection-womens-academy-short-sleeve-polo-p012ls,Womens Academy Short Sleeve Polo,published,54,0.168,0.168
+prod_01KQBCAS1RW16T7R9JVY2EM1S9,biz-collection-womens-milano-vest-lv619l,Womens Milano Vest,published,21,0.39899999999999997,0.39899999999999997
+prod_01KQBCAS1S1RM08CBPKRQFF057,biz-collection-womens-balance-short-sleeve-polo-p200ls,Womens Balance Short Sleeve Polo,published,110,0.168,0.168
+prod_01KQBCAS1S7YWRM5KDYYPGBX5X,biz-collection-mens-balance-short-sleeve-polo-p200ms,Mens Balance Short Sleeve Polo,published,77,0.168,0.168
+prod_01KQBCAS1SAMBFQ7F27JKN2REX,biz-collection-kids-action-short-sleeve-polo-p206ks,Kids Action Short Sleeve Polo,published,30,0.1,0.1
+prod_01KQBCAS1SHCZ09R7RAY9YK0YW,biz-collection-womens-action-short-sleeve-polo-p206ls,Womens Action Short Sleeve Polo,published,60,0.121,0.121
+prod_01KQBCAS1SJBKVFKHCZY5CJJZ1,biz-collection-womens-action-long-sleeve-polo-p206ll,Womens Action Long Sleeve Polo,published,20,0.13949999999999999,0.13949999999999999
+prod_01KQBCAS1SKS0N06ER781KHF56,biz-collection-mens-action-long-sleeve-polo-p206ml,Mens Action Long Sleeve Polo,published,20,0.13949999999999999,0.13949999999999999
+prod_01KQBCAS1SNB4D20Z1RW7DZMC9,biz-collection-womens-ice-short-sleeve-polo-p112ls,Womens Ice Short Sleeve Polo,published,27,0.1255,0.1255
+prod_01KQBCAS1STY64QTCF3A3TA7B7,biz-collection-mens-ice-short-sleeve-polo-p112ms,Mens Ice Short Sleeve Polo,published,21,0.1255,0.1255
+prod_01KQBCAS1SZ859XY1CWKHEVMF3,biz-collection-kids-balance-short-sleeve-polo-p200ks,Kids Balance Short Sleeve Polo,published,66,0.136,0.136
+prod_01KQBCAY025Z5PC4W6RX0H2NVR,biz-collection-mens-action-short-sleeve-polo-p206ms,Mens Action Short Sleeve Polo,published,60,0.121,0.121
+prod_01KQBCAY032GP830Y1ZJCHV1DH,biz-collection-womens-jet-short-sleeve-polo-p226ls,Womens Jet Short Sleeve Polo,published,45,0.142,0.142
+prod_01KQBCAY03492PPB9F7RC8R9PD,biz-collection-womens-neon-short-sleeve-polo-p2125,Womens Neon Short Sleeve Polo,published,40,0.147,0.147
+prod_01KQBCAY035743R31DBP25Q1G4,biz-collection-mens-triton-short-sleeve-polo-p225ms,Mens Triton Short Sleeve Polo,published,49,0.153,0.153
+prod_01KQBCAY037EJSGYK1EFZ5JJP2,biz-collection-mens-jet-short-sleeve-polo-p226ms,Mens Jet Short Sleeve Polo,published,35,0.142,0.142
+prod_01KQBCAY03BC803BGFW6MEFQYJ,biz-collection-mens-united-short-sleeve-polo-p244ms,Mens United Short Sleeve Polo,published,77,0.157,0.157
+prod_01KQBCAY03BS716B2F0E054YNY,biz-collection-womens-triton-short-sleeve-polo-p225ls,Womens Triton Short Sleeve Polo,published,63,0.153,0.153
+prod_01KQBCAY03DAN77K1T5809PHC7,biz-collection-mens-neon-short-sleeve-polo-p2100,Mens Neon Short Sleeve Polo,published,28,0.147,0.147
+prod_01KQBCAY03FGQ21ZME3CCK1B8W,biz-collection-womens-united-short-sleeve-polo-p244ls,Womens United Short Sleeve Polo,published,108,0.157,0.157
+prod_01KQBCAY03RGEN8BBK0BHSRBFX,biz-collection-womens-cambridge-short-sleeve-polo-p227ls,Womens Cambridge Short Sleeve Polo,published,54,0.142,0.142
+prod_01KQBCAY03TJRNHCAF0F4XD1PP,biz-collection-mens-cambridge-short-sleeve-polo-p227ms,Mens Cambridge Short Sleeve Polo,published,42,0.142,0.142
+prod_01KQBCAY03Y7G29C6S4ZPNCP98,biz-collection-mens-fusion-short-sleeve-polo-p29012,Mens Fusion Short Sleeve Polo,published,28,0.18899999999999997,0.18899999999999997
+prod_01KQBCAY03YN40TYD3CS2KZVGR,biz-collection-womens-fusion-short-sleeve-polo-p29022,Womens Fusion Short Sleeve Polo,published,36,0.18899999999999997,0.18899999999999997
+prod_01KQBCAY048KM6SWSCMC5JPBZG,biz-collection-womens-focus-short-sleeve-polo-p313ls,Womens Focus Short Sleeve Polo,published,170,0.157,0.157
+prod_01KQBCAY04CMBN9RHE2DVB4Z65,biz-collection-kids-sprint-short-sleeve-polo-p300ks,Kids Sprint Short Sleeve Polo,published,35,0.084,0.084
+prod_01KQBCAY04CXZEHQWSCP2X051A,biz-collection-womens-edge-short-sleeve-polo-p305ls,Womens Edge Short Sleeve Polo,published,10,0.184,0.184
+prod_01KQBCAY04FFTSNDRFSH6PQC28,biz-collection-womens-blade-short-sleeve-polo-p303ls,Womens Blade Short Sleeve Polo,published,50,0.19899999999999998,0.19899999999999998
+prod_01KQBCAY04HS75Y5Q50VCKN0F4,biz-collection-mens-blade-short-sleeve-polo-p303ms,Mens Blade Short Sleeve Polo,published,35,0.19899999999999998,0.19899999999999998
+prod_01KQBCAY04WFMBNHYYYZVV551B,biz-collection-mens-edge-short-sleeve-polo-p305ms,Mens Edge Short Sleeve Polo,published,7,0.184,0.184
+prod_01KQBCAY04X46QVE8WP7P4A2W7,biz-collection-womens-sprint-short-sleeve-polo-p300ls,Womens Sprint Short Sleeve Polo,published,50,0.105,0.105
+prod_01KQBCAY04YE0THYQK1GS1GCKT,biz-collection-mens-sprint-short-sleeve-polo-p300ms,Mens Sprint Short Sleeve Polo,published,35,0.105,0.105
+prod_01KQBCB2HPQMMA9Q715KMJ2HY6,biz-collection-mens-focus-short-sleeve-polo-p313ms,Mens Focus Short Sleeve Polo,published,161,0.157,0.157
+prod_01KQBCB2HQEK9J3HSEVFK0K18W,biz-collection-mens-elite-short-sleeve-polo-p3200,Mens Elite Short Sleeve Polo,published,14,0.18899999999999997,0.18899999999999997
