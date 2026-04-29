@@ -154,36 +154,36 @@ module.exports = {
           "75%": { transform: "translate3d(-1.5px, -2px, 0) rotate(-0.35deg)" },
         },
         /**
-         * Product listing card: grow + wobble in one timeline (rest → `-translate-y-2.5` + `scale(1.04)`).
+         * Product listing card: grow + wobble (rest → −1.75rem lift + scale 1.12, matches LISTING_CARD_POP).
          */
         "card-listing-enter": {
           "0%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
           "14%": {
             transform:
-              "translate3d(2.4px, -6.5px, 0) scale(1.026) rotate(0.55deg)",
+              "translate3d(2.4px, -18px, 0) scale(1.078) rotate(0.55deg)",
           },
           "28%": {
             transform:
-              "translate3d(-1.9px, calc(-0.625rem * 0.42), 0) scale(1.036) rotate(-0.45deg)",
+              "translate3d(-1.9px, calc(-1.75rem * 0.42), 0) scale(1.108) rotate(-0.45deg)",
           },
           "42%": {
             transform:
-              "translate3d(2.3px, calc(-0.625rem * 0.72), 0) scale(1.044) rotate(0.68deg)",
+              "translate3d(2.3px, calc(-1.75rem * 0.72), 0) scale(1.12) rotate(0.68deg)",
           },
           "56%": {
             transform:
-              "translate3d(-1.6px, calc(-0.625rem * 0.92), 0) scale(1.047) rotate(-0.42deg)",
+              "translate3d(-1.6px, calc(-1.75rem * 0.92), 0) scale(1.12) rotate(-0.42deg)",
           },
           "70%": {
             transform:
-              "translate3d(1.2px, calc(-0.625rem * 0.98), 0) scale(1.044) rotate(0.28deg)",
+              "translate3d(1.2px, calc(-1.75rem * 0.98), 0) scale(1.12) rotate(0.28deg)",
           },
           "84%": {
             transform:
-              "translate3d(-0.6px, calc(-0.625rem * 0.995), 0) scale(1.041) rotate(-0.12deg)",
+              "translate3d(-0.6px, calc(-1.75rem * 0.995), 0) scale(1.115) rotate(-0.12deg)",
           },
           "100%": {
-            transform: "translate3d(0, -0.625rem, 0) scale(1.04) rotate(0deg)",
+            transform: "translate3d(0, -1.75rem, 0) scale(1.12) rotate(0deg)",
           },
         },
         /**
@@ -192,27 +192,27 @@ module.exports = {
          */
         "card-listing-leave-dynamic": {
           "0%": {
-            transform: "translate3d(0, -0.625rem, 0) scale(1.04) rotate(0deg)",
+            transform: "translate3d(0, -1.75rem, 0) scale(1.12) rotate(0deg)",
           },
           "14%": {
             transform:
-              "translate3d(calc(var(--listing-exit-bias-x, 0) * 16px), calc(-0.625rem + var(--listing-exit-bias-y, 0) * 11px), 0) scale(1.018) rotate(calc(var(--listing-exit-bias-x, 0) * 0.85deg))",
+              "translate3d(calc(var(--listing-exit-bias-x, 0) * 16px), calc(-1.75rem + var(--listing-exit-bias-y, 0) * 31px), 0) scale(1.052) rotate(calc(var(--listing-exit-bias-x, 0) * 0.85deg))",
           },
           "32%": {
             transform:
-              "translate3d(calc(var(--listing-exit-bias-x, 0) * -8px - 2px), calc(-0.38rem + var(--listing-exit-bias-y, 0) * -5.5px), 0) scale(1.008) rotate(calc(var(--listing-exit-bias-x, 0) * -0.52deg))",
+              "translate3d(calc(var(--listing-exit-bias-x, 0) * -8px - 2px), calc(-1.064rem + var(--listing-exit-bias-y, 0) * -15px), 0) scale(1.024) rotate(calc(var(--listing-exit-bias-x, 0) * -0.52deg))",
           },
           "50%": {
             transform:
-              "translate3d(calc(1.3px + var(--listing-exit-bias-x, 0) * 4.5px), calc(-0.18rem + var(--listing-exit-bias-y, 0) * -2.9px), 0) scale(1.003) rotate(calc(var(--listing-exit-bias-x, 0) * 0.3deg))",
+              "translate3d(calc(1.3px + var(--listing-exit-bias-x, 0) * 4.5px), calc(-0.504rem + var(--listing-exit-bias-y, 0) * -8px), 0) scale(1.08) rotate(calc(var(--listing-exit-bias-x, 0) * 0.3deg))",
           },
           "68%": {
             transform:
-              "translate3d(calc(-0.75px + var(--listing-exit-bias-x, 0) * 2px), calc(-0.06rem + var(--listing-exit-bias-y, 0) * -1.3px), 0) scale(1.001) rotate(calc(var(--listing-exit-bias-x, 0) * -0.16deg))",
+              "translate3d(calc(-0.75px + var(--listing-exit-bias-x, 0) * 2px), calc(-0.168rem + var(--listing-exit-bias-y, 0) * -4px), 0) scale(1.044) rotate(calc(var(--listing-exit-bias-x, 0) * -0.16deg))",
           },
           "86%": {
             transform:
-              "translate3d(calc(0.35px + var(--listing-exit-bias-x, 0) * 0.65px), -5px, 0) scale(1.0005) rotate(calc(var(--listing-exit-bias-x, 0) * 0.07deg))",
+              "translate3d(calc(0.35px + var(--listing-exit-bias-x, 0) * 0.65px), -14px, 0) scale(1.028) rotate(calc(var(--listing-exit-bias-x, 0) * 0.07deg))",
           },
           "100%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
         },

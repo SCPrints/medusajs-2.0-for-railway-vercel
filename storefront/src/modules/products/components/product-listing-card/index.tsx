@@ -18,6 +18,11 @@ import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-ima
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
 import type { ProductListingCardData } from "@modules/products/lib/product-listing-card-data"
+import {
+  LISTING_CARD_INNER_IMAGE_HOVER_CLASSES,
+  LISTING_CARD_POP,
+  LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES,
+} from "@modules/products/lib/listing-card-pop-motion"
 
 /** Default catalog behavior is `tiltLift`. Use `bounce` only for the legacy keyed enter/leave animation. */
 export type ProductListingInteraction = "bounce" | "tiltLift"
@@ -30,11 +35,6 @@ export type ProductListingCardProps = ProductListingCardData & {
 type CardPhase = "rest" | "enter" | "hold" | "leave"
 
 const VELOCITY_EPS = 0.5
-
-const CARD_LIFT_OFFSET_PX = 10
-const CARD_SCALE = 1.04
-
-const TILT_SPRING = { type: "spring" as const, stiffness: 260, damping: 22 }
 
 function subscribeReducedMotion(cb: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -76,7 +76,10 @@ function CardImage({
         <Image
           src={resolved}
           alt={title}
-          className="absolute inset-0 object-cover object-center transition-transform duration-300 ease-out will-change-transform group-hover:scale-110"
+          className={clx(
+            "absolute inset-0 object-cover object-center",
+            LISTING_CARD_INNER_IMAGE_HOVER_CLASSES
+          )}
           draggable={false}
           quality={50}
           sizes="(max-width: 576px) 50vw, (max-width: 1024px) 33vw, 260px"
@@ -376,15 +379,15 @@ function ProductListingCardBounce({
       className={clx(
         "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
         "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
-        "hover:border-[var(--brand-secondary)]/70 hover:shadow-elevation-card-hover",
-        !prefersReducedMotion && (phase !== "rest" ? "z-10" : "z-0"),
-        prefersReducedMotion && "motion-reduce:z-0 motion-reduce:hover:z-10",
+        LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES,
+        !prefersReducedMotion && (phase !== "rest" ? "z-30" : "z-0"),
+        prefersReducedMotion && "motion-reduce:z-0 motion-reduce:hover:z-30",
         "group",
         prefersReducedMotion &&
-          "motion-reduce:transition-[transform,box-shadow,border-color] motion-reduce:duration-300 motion-reduce:ease-out motion-reduce:hover:-translate-y-2.5 motion-reduce:hover:scale-[1.04]",
+          "motion-reduce:transition-[transform,box-shadow,border-color] motion-reduce:duration-300 motion-reduce:ease-out motion-reduce:hover:-translate-y-6 motion-reduce:hover:scale-[1.1]",
         !prefersReducedMotion && phase === "enter" && "animate-card-listing-enter",
         !prefersReducedMotion && phase === "leave" && "animate-card-listing-leave",
-        !prefersReducedMotion && phase === "hold" && "-translate-y-2.5 scale-[1.04]",
+        !prefersReducedMotion && phase === "hold" && "-translate-y-7 scale-[1.12]",
         className
       )}
     >
@@ -444,7 +447,7 @@ function ProductListingCardTiltLift({
       const b = cardRootRef.current.getBoundingClientRect()
       const px = (e.clientX - b.left) / b.width - 0.5
       const py = (e.clientY - b.top) / b.height - 0.5
-      setRotate({ x: py * -12, y: px * 14 })
+      setRotate({ x: py * LISTING_CARD_POP.rotateXCoeff, y: px * LISTING_CARD_POP.rotateYCoeff })
     },
     [prefersReducedMotion]
   )
@@ -482,9 +485,9 @@ function ProductListingCardTiltLift({
         className={clx(
           "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
           "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
-          "hover:border-[var(--brand-secondary)]/70 hover:shadow-elevation-card-hover",
-          "motion-reduce:z-0 motion-reduce:hover:z-10 group",
-          "motion-reduce:transition-[transform,box-shadow,border-color] motion-reduce:duration-300 motion-reduce:ease-out motion-reduce:hover:-translate-y-2.5 motion-reduce:hover:scale-[1.04]",
+          LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES,
+          "motion-reduce:z-0 motion-reduce:hover:z-30 group",
+          "motion-reduce:transition-[transform,box-shadow,border-color] motion-reduce:duration-300 motion-reduce:ease-out motion-reduce:hover:-translate-y-6 motion-reduce:hover:scale-[1.1]",
           className
         )}
       >
@@ -493,10 +496,10 @@ function ProductListingCardTiltLift({
     )
   }
 
-  const liftSpring = { type: "spring" as const, stiffness: 280, damping: 24 }
+  const liftSpring = LISTING_CARD_POP.liftSpring
 
   return (
-    <div style={{ perspective: 800 }} className={clx(className)}>
+    <div style={{ perspective: LISTING_CARD_POP.perspectivePx }} className={clx(className)}>
       <motion.article
         ref={cardRootRef}
         data-testid="product-wrapper"
@@ -506,12 +509,12 @@ function ProductListingCardTiltLift({
         animate={{
           rotateX: rotate.x,
           rotateY: rotate.y,
-          y: pointerInside ? -CARD_LIFT_OFFSET_PX : 0,
-          scale: pointerInside ? CARD_SCALE : 1,
+          y: pointerInside ? -LISTING_CARD_POP.liftPx : 0,
+          scale: pointerInside ? LISTING_CARD_POP.hoverScale : 1,
         }}
         transition={{
-          rotateX: TILT_SPRING,
-          rotateY: TILT_SPRING,
+          rotateX: LISTING_CARD_POP.tiltSpring,
+          rotateY: LISTING_CARD_POP.tiltSpring,
           y: liftSpring,
           scale: liftSpring,
         }}
@@ -519,8 +522,8 @@ function ProductListingCardTiltLift({
         className={clx(
           "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
           "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
-          "hover:border-[var(--brand-secondary)]/70 hover:shadow-elevation-card-hover",
-          pointerInside ? "z-10" : "z-0",
+          LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES,
+          pointerInside ? "z-30" : "z-0",
           "group"
         )}
       >
