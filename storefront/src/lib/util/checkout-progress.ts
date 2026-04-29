@@ -90,10 +90,14 @@ export function buildCheckoutProgressSteps(
   })
 }
 
-/** Illustrative post-dispatch journey — not live order data. */
+/**
+ * Illustrative post-dispatch journey — not live order data.
+ * All steps stay `upcoming` so we never show checkmarks here during checkout;
+ * ticks belong only on real progress (above).
+ */
 export const FULFILLMENT_PREVIEW_STEPS: VerticalTimelineStep[] = [
-  { id: "ordered", label: "Ordered", state: "complete" },
-  { id: "shipped", label: "Shipped", state: "complete" },
-  { id: "transit", label: "In transit", state: "current" },
+  { id: "ordered", label: "Ordered", state: "upcoming" },
+  { id: "shipped", label: "Shipped", state: "upcoming" },
+  { id: "transit", label: "In transit", state: "upcoming" },
   { id: "delivered", label: "Delivered", state: "upcoming" },
 ]
