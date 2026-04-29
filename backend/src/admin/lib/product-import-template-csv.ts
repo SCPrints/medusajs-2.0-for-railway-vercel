@@ -57,9 +57,11 @@ export const PRODUCT_IMPORT_SUPPLEMENTAL_COLUMNS = [
   "Product Tag 1 Id",
   "Variant Price AUD",
   "BASE_SALE_PRICE",
-  "TIER_10_TO_49_PRICE",
+  "TIER_10_TO_19_PRICE",
+  "TIER_20_TO_49_PRICE",
   "TIER_50_TO_99_PRICE",
   "TIER_100_PLUS_PRICE",
+  "TIER_10_TO_49_PRICE",
   "Variant Bulk Pricing JSON",
 ] as const
 
@@ -183,15 +185,24 @@ const priceRowMaxQ = (row: Record<string, unknown>): number | undefined => {
   return Number.isFinite(n) ? n : undefined
 }
 
-type TierBandKey = "base" | "tier10" | "tier50" | "tier100"
+type TierBandKey = "base" | "tier10" | "tier20" | "tier50" | "tier100"
+
+type ClassifiedTierBand = TierBandKey | "tier10_legacy"
 
 /** Ramo/Syzmik-style quantity bands stored in bulk_pricing and pricing-module rows. */
-const classifyBand = (minQ: number, maxQ: number | undefined): TierBandKey | null => {
+const classifyBand = (minQ: number, maxQ: number | undefined): ClassifiedTierBand | null => {
   if (minQ === 1 && maxQ === 9) {
     return "base"
   }
-  if (minQ === 10 && maxQ === 49) {
+  if (minQ === 10 && maxQ === 19) {
     return "tier10"
+  }
+  if (minQ === 20 && maxQ === 49) {
+    return "tier20"
+  }
+  /** Legacy single row covering old 10–49 band — duplicate into 10–19 and 20–49 columns on export. */
+  if (minQ === 10 && maxQ === 49) {
+    return "tier10_legacy"
   }
   if (minQ === 50 && maxQ === 99) {
     return "tier50"
@@ -202,21 +213,34 @@ const classifyBand = (minQ: number, maxQ: number | undefined): TierBandKey | nul
   return null
 }
 
-/** When classification fails, infer four ascending tiers by sort order (same convention as trim scripts). */
-const assignFourTiersPositional = (sorted: Array<Record<string, unknown>>): Record<TierBandKey, string> | null => {
-  if (sorted.length !== 4) {
-    return null
+/** When classification fails, infer tiers by sort order (4 legacy rows or 5 new rows). */
+const assignTierPositionalFallback = (
+  sorted: Array<Record<string, unknown>>
+): Record<TierBandKey, string> | null => {
+  if (sorted.length === 5) {
+    return {
+      base: minorToMajorCsv(sorted[0]?.amount),
+      tier10: minorToMajorCsv(sorted[1]?.amount),
+      tier20: minorToMajorCsv(sorted[2]?.amount),
+      tier50: minorToMajorCsv(sorted[3]?.amount),
+      tier100: minorToMajorCsv(sorted[4]?.amount),
+    }
   }
-  return {
-    base: minorToMajorCsv(sorted[0]?.amount),
-    tier10: minorToMajorCsv(sorted[1]?.amount),
-    tier50: minorToMajorCsv(sorted[2]?.amount),
-    tier100: minorToMajorCsv(sorted[3]?.amount),
+  if (sorted.length === 4) {
+    const t10 = minorToMajorCsv(sorted[1]?.amount)
+    return {
+      base: minorToMajorCsv(sorted[0]?.amount),
+      tier10: t10,
+      tier20: t10,
+      tier50: minorToMajorCsv(sorted[2]?.amount),
+      tier100: minorToMajorCsv(sorted[3]?.amount),
+    }
   }
+  return null
 }
 
 const mergeBandCells = (byBand: Record<TierBandKey, string>): boolean =>
-  !!(byBand.base || byBand.tier10 || byBand.tier50 || byBand.tier100)
+  !!(byBand.base || byBand.tier10 || byBand.tier20 || byBand.tier50 || byBand.tier100)
 
 const fillBandsFromTierRows = (
   sorted: Array<Record<string, unknown>>
@@ -224,6 +248,7 @@ const fillBandsFromTierRows = (
   const byBand: Record<TierBandKey, string> = {
     base: "",
     tier10: "",
+    tier20: "",
     tier50: "",
     tier100: "",
   }
@@ -232,14 +257,17 @@ const fillBandsFromTierRows = (
     const maxQ = priceRowMaxQ(t)
     const maj = minorToMajorCsv((t as Record<string, unknown>).amount)
     const band = classifyBand(minQ, maxQ)
-    if (band) {
+    if (band === "tier10_legacy") {
+      byBand.tier10 = maj
+      byBand.tier20 = maj
+    } else if (band) {
       byBand[band] = maj
     }
   }
   if (mergeBandCells(byBand)) {
     return byBand
   }
-  return assignFourTiersPositional(sorted)
+  return assignTierPositionalFallback(sorted)
 }
 
 const stringifyBulkPricingJson = (metadata: unknown): string => {
@@ -321,6 +349,7 @@ const audTierCellsForVariant = (variant: Record<string, unknown>): {
   variantPriceAud: string
   base: string
   tier10: string
+  tier20: string
   tier50: string
   tier100: string
   bulkPricingJson: string
@@ -333,6 +362,7 @@ const audTierCellsForVariant = (variant: Record<string, unknown>): {
       variantPriceAud: t100,
       base: fromBp.base,
       tier10: fromBp.tier10,
+      tier20: fromBp.tier20,
       tier50: fromBp.tier50,
       tier100: t100,
       bulkPricingJson,
@@ -346,6 +376,7 @@ const audTierCellsForVariant = (variant: Record<string, unknown>): {
       variantPriceAud: t100,
       base: fromPrices.base,
       tier10: fromPrices.tier10,
+      tier20: fromPrices.tier20,
       tier50: fromPrices.tier50,
       tier100: t100,
       bulkPricingJson,
@@ -358,6 +389,7 @@ const audTierCellsForVariant = (variant: Record<string, unknown>): {
       variantPriceAud: flat,
       base: flat,
       tier10: flat,
+      tier20: flat,
       tier50: flat,
       tier100: flat,
       bulkPricingJson,
@@ -368,6 +400,7 @@ const audTierCellsForVariant = (variant: Record<string, unknown>): {
     variantPriceAud: "",
     base: "",
     tier10: "",
+    tier20: "",
     tier50: "",
     tier100: "",
     bulkPricingJson,
@@ -548,8 +581,10 @@ export function buildProductImportTemplateRows(products: unknown[]): string[][] 
         audTiers.variantPriceAud,
         audTiers.base,
         audTiers.tier10,
+        audTiers.tier20,
         audTiers.tier50,
         audTiers.tier100,
+        audTiers.tier10,
         audTiers.bulkPricingJson,
       ])
     }

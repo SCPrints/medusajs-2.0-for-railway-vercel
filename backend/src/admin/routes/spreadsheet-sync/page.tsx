@@ -3,13 +3,17 @@ import { Button, Container, Heading, Input, Text } from "@medusajs/ui"
 import { useCallback, useMemo, useState } from "react"
 
 import {
+  applyDefaultCollectionIdToParsedCsv,
   buildBatchCreatesFromParsedCsv,
   chunkCreates,
   computeSpreadsheetPreview,
   detectFashionBizVariantCatalog,
   detectGoldCatalogFormat,
+  expandFashionBizCatalogToTemplate,
+  expandGoldCatalogToTemplate,
   normalizeSpreadsheetForImport,
   PRODUCT_BATCH_CHUNK_SIZE,
+  slugifyCollectionHandle,
 } from "../../lib/spreadsheet-sync-import"
 import type { TierMoneyMinor } from "../../lib/spreadsheet-money"
 import { parseCsv } from "../../lib/csv-import"
@@ -22,10 +26,16 @@ const adminFetchPath = (path: string) => {
 
 type TierApplyResult = { variant_id: string; ok: boolean; message?: string }
 
+/** Used only to preview wholesale expansion counts before the user pastes a real shipping profile id. */
+const PREVIEW_ONLY_SHIPPING_PROFILE_ID = "sp__spreadsheet_sync_preview_only"
+
 const SpreadsheetSyncPage = () => {
   const [fileName, setFileName] = useState<string | null>(null)
   const [rawCsvText, setRawCsvText] = useState<string | null>(null)
   const [defaultShippingProfileId, setDefaultShippingProfileId] = useState("")
+  const [defaultCollectionId, setDefaultCollectionId] = useState("")
+  const [newCollectionTitle, setNewCollectionTitle] = useState("")
+  const [newCollectionHandle, setNewCollectionHandle] = useState("")
   const [parseError, setParseError] = useState<string | null>(null)
 
   const [syncing, setSyncing] = useState(false)
@@ -53,7 +63,30 @@ const SpreadsheetSyncPage = () => {
       !defaultShippingProfileId.trim() &&
       (detectFashionBizVariantCatalog(normalized.rawParsed) ||
         detectGoldCatalogFormat(normalized.rawParsed))
+    /** Wholesale rows are not expanded until shipping id is set — simulate expansion so product/tier counts match reality. */
     if (needsShippingOnly) {
+      if (detectFashionBizVariantCatalog(normalized.rawParsed)) {
+        const expanded = expandFashionBizCatalogToTemplate(
+          normalized.rawParsed,
+          PREVIEW_ONLY_SHIPPING_PROFILE_ID
+        )
+        const p = computeSpreadsheetPreview(expanded)
+        return {
+          ...p,
+          variantCount: normalized.rawParsed.rows.length,
+        }
+      }
+      if (detectGoldCatalogFormat(normalized.rawParsed)) {
+        const expanded = expandGoldCatalogToTemplate(
+          normalized.rawParsed,
+          PREVIEW_ONLY_SHIPPING_PROFILE_ID
+        )
+        const p = computeSpreadsheetPreview(expanded)
+        return {
+          ...p,
+          variantCount: normalized.rawParsed.rows.length,
+        }
+      }
       return {
         productCount: 0,
         variantCount: normalized.rawParsed.rows.length,
@@ -111,7 +144,42 @@ const SpreadsheetSyncPage = () => {
     setTierResults(null)
 
     const log: string[] = []
-    const { creates, tierBySku, errors } = buildBatchCreatesFromParsedCsv(toSync)
+
+    let workingParsed = toSync
+
+    try {
+      const createTitle = newCollectionTitle.trim()
+      if (createTitle) {
+        const handle = newCollectionHandle.trim() || slugifyCollectionHandle(createTitle)
+        log.push(`Creating collection "${createTitle}" (handle: ${handle})…`)
+        const createRes = (await sdk.admin.productCollection.create({
+          title: createTitle,
+          handle,
+        })) as { collection?: { id?: string } }
+        const cid = createRes.collection?.id
+        if (!cid) {
+          log.push("Collection create returned no id — aborting.")
+          setSyncLog(log)
+          setSyncing(false)
+          return
+        }
+        log.push(`Created collection ${cid}.`)
+        workingParsed = applyDefaultCollectionIdToParsedCsv(workingParsed, cid)
+      } else {
+        const existing = defaultCollectionId.trim()
+        if (existing) {
+          log.push(`Using collection ${existing} for rows without Product Collection Id.`)
+          workingParsed = applyDefaultCollectionIdToParsedCsv(workingParsed, existing)
+        }
+      }
+    } catch (e) {
+      log.push(`Collection step failed: ${e instanceof Error ? e.message : String(e)}`)
+      setSyncLog(log)
+      setSyncing(false)
+      return
+    }
+
+    const { creates, tierBySku, errors } = buildBatchCreatesFromParsedCsv(workingParsed)
 
     if (errors.length) {
       errors.forEach((e) => log.push(`Validation: ${e}`))
@@ -200,7 +268,9 @@ const SpreadsheetSyncPage = () => {
         const bad = allTierResults.filter((r) => !r.ok).length
         log.push(`Tier pricing finished: ${okN} ok, ${bad} failed.`)
       } else {
-        log.push("No tier ladders to apply (use tier columns or flat AUD prices only).")
+        log.push(
+          "No tier ladders to apply (explicit supplemental tier columns missing — derived AUD ladders use Variant Price AUD only)."
+        )
       }
 
       log.push("Done.")
@@ -211,12 +281,18 @@ const SpreadsheetSyncPage = () => {
     } finally {
       setSyncing(false)
     }
-  }, [rawCsvText, defaultShippingProfileId])
+  }, [
+    rawCsvText,
+    defaultShippingProfileId,
+    defaultCollectionId,
+    newCollectionTitle,
+    newCollectionHandle,
+  ])
 
-  const goldNeedsShipping =
+  const wholesaleNeedsShipping =
     !!normalized &&
-    detectGoldCatalogFormat(normalized.rawParsed) &&
-    !defaultShippingProfileId.trim()
+    !defaultShippingProfileId.trim() &&
+    (detectFashionBizVariantCatalog(normalized.rawParsed) || detectGoldCatalogFormat(normalized.rawParsed))
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -267,6 +343,50 @@ const SpreadsheetSyncPage = () => {
             Required for wholesale CSVs that omit <code className="text-xs">Shipping Profile Id</code>. Copy from{" "}
             <strong>Settings → Locations &amp; shipping → Shipping profiles</strong>.
           </Text>
+          {defaultShippingProfileId.trim().toLowerCase().startsWith("sc_") ? (
+            <Text size="small" className="text-ui-fg-warning">
+              Values starting with <code className="text-xs">sc_</code> are usually <strong>sales channel</strong> IDs.
+              Shipping profiles almost always start with <code className="text-xs">sp_</code>. Open{" "}
+              <strong>Shipping profiles</strong> and copy the profile id from there — not from Sales channels.
+            </Text>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-3 px-6 py-4">
+          <Text weight="plus" size="small">
+            Collection (optional)
+          </Text>
+          <Input
+            placeholder="Existing collection id (e.g. pcol_01...)"
+            value={defaultCollectionId}
+            onChange={(e) => setDefaultCollectionId(e.target.value)}
+            className="max-w-md"
+          />
+          <Text size="small" className="text-ui-fg-muted">
+            Products are assigned via <code className="text-xs">Product Collection Id</code> on each row. Paste an id from{" "}
+            <strong>Products → Collections</strong> to fill rows that leave it empty.
+          </Text>
+          <Text size="small" className="text-ui-fg-muted">
+            Or create a new collection when you sync:
+          </Text>
+          <Input
+            placeholder="New collection title (creates collection before products)"
+            value={newCollectionTitle}
+            onChange={(e) => setNewCollectionTitle(e.target.value)}
+            className="max-w-md"
+          />
+          <Input
+            placeholder="Handle (optional — derived from title if empty)"
+            value={newCollectionHandle}
+            onChange={(e) => setNewCollectionHandle(e.target.value)}
+            className="max-w-md"
+          />
+          {newCollectionTitle.trim() ? (
+            <Text size="small" className="text-ui-fg-warning">
+              <strong>New collection title</strong> is set — sync will create that collection first and assign imported
+              products to it (the existing collection id field above is ignored).
+            </Text>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3 px-6 py-4">
@@ -287,10 +407,12 @@ const SpreadsheetSyncPage = () => {
                   {hint}
                 </div>
               ))}
-              {goldNeedsShipping ? (
-                <Text size="small" className="text-ui-fg-muted">
-                  Enter your shipping profile id above — the preview will switch to Medusa-ready rows (handles like{" "}
-                  <code className="text-xs">ascolour-1000</code>).
+              {wholesaleNeedsShipping ? (
+                <Text size="small" className="text-ui-fg-warning">
+                  Paste <strong>Default shipping profile id</strong> above to enable sync. Until then, products are not
+                  created — the preview counts below assume that id will be set (same expansion as after you paste it).
+                  Gold: handles like <code className="text-xs">ascolour-…</code>; wholesale grids:{" "}
+                  <code className="text-xs">biz-collection-…</code>.
                 </Text>
               ) : null}
               {preview ? (
@@ -302,7 +424,8 @@ const SpreadsheetSyncPage = () => {
                     Variant rows: <strong>{preview.variantCount}</strong>
                   </Text>
                   <Text size="small">
-                    Tier pricing rules (four supplemental tier columns): <strong>{preview.tierRuleCount}</strong>
+                    Tier pricing rules (explicit tier columns or derived from Variant Price AUD):{" "}
+                    <strong>{preview.tierRuleCount}</strong>
                   </Text>
                   {preview.validationErrors.length ? (
                     <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
@@ -320,7 +443,11 @@ const SpreadsheetSyncPage = () => {
                     </div>
                   ) : readyParsed ? (
                     <Text size="small" className="text-ui-fg-success">
-                      Looks valid — click Sync to push to Medusa.
+                      Looks valid — click Confirm sync to create products in Medusa.
+                    </Text>
+                  ) : wholesaleNeedsShipping && preview.productCount > 0 ? (
+                    <Text size="small" className="text-ui-fg-muted">
+                      Preview counts are ready — paste shipping profile id to unlock Confirm sync.
                     </Text>
                   ) : null}
                 </div>
@@ -339,9 +466,9 @@ const SpreadsheetSyncPage = () => {
                 No rows to sync.
               </Text>
             ) : null}
-            {!canSync && goldNeedsShipping ? (
+            {!canSync && wholesaleNeedsShipping ? (
               <Text size="small" className="text-ui-fg-muted">
-                Add shipping profile id to enable sync.
+                Add shipping profile id — sync stays disabled until Medusa can assign a profile to each product.
               </Text>
             ) : null}
           </div>
@@ -351,6 +478,10 @@ const SpreadsheetSyncPage = () => {
           <div className="flex flex-col gap-2 px-6 py-4">
             <Text weight="plus" size="small">
               Result log
+            </Text>
+            <Text size="small" className="text-ui-fg-muted">
+              From your last <strong>Confirm sync</strong> only. Preview warnings above reflect the current file;
+              this block stays until you sync again or pick a new file.
             </Text>
             <pre className="max-h-96 overflow-auto rounded-md bg-ui-bg-subtle p-3 font-mono text-xs text-ui-fg-base whitespace-pre-wrap">
               {syncLog.join("\n")}

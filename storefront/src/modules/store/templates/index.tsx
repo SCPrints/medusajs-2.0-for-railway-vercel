@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 
-import { isRamoStoreBrand } from "@modules/brands/data/brands"
+import AsColourStoreUgcMasonry from "@modules/brands/components/as-colour-store-ugc-masonry"
+import { isAsColourStoreBrand, isRamoStoreBrand } from "@modules/brands/data/brands"
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
 import RefinementList from "@modules/store/components/refinement-list"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -32,6 +33,7 @@ const StoreTemplate = ({
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
   const isRamo = isRamoStoreBrand(brand)
+  const isAsColour = isAsColourStoreBrand(brand)
   const catalogTitle = isRamo ? "Ramo" : brand?.trim() ? brand.trim() : "All products"
 
   return (
@@ -55,6 +57,7 @@ const StoreTemplate = ({
             {catalogTitle}
           </h1>
         </div>
+        {isAsColour && pageNumber === 1 ? <AsColourStoreUgcMasonry /> : null}
         <Suspense fallback={<SkeletonProductGrid />}>
           <PaginatedProducts
             sortBy={sort}

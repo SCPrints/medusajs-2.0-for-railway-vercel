@@ -1,6 +1,6 @@
 import { Metadata } from "next"
 
-import { isRamoStoreBrand } from "@modules/brands/data/brands"
+import { isAsColourStoreBrand, isRamoStoreBrand } from "@modules/brands/data/brands"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 import StoreTemplate from "@modules/store/templates"
 
@@ -14,6 +14,12 @@ export async function generateMetadata({
     return {
       title: "Ramo",
       description: "Ramo by Stanley/Stella — explore products.",
+    }
+  }
+  if (isAsColourStoreBrand(brand)) {
+    return {
+      title: "AS Colour",
+      description: "Browse AS Colour basics and apparel.",
     }
   }
   return {

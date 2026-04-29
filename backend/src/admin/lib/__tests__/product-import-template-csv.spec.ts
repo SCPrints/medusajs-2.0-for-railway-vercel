@@ -135,9 +135,11 @@ describe("buildProductImportTemplateRows", () => {
 
     const row = buildProductImportTemplateRows(products as unknown[])[0]
     expect(row[idx("BASE_SALE_PRICE")]).toBe("10")
-    expect(row[idx("TIER_10_TO_49_PRICE")]).toBe("9")
+    expect(row[idx("TIER_10_TO_19_PRICE")]).toBe("9")
+    expect(row[idx("TIER_20_TO_49_PRICE")]).toBe("9")
     expect(row[idx("TIER_50_TO_99_PRICE")]).toBe("8")
     expect(row[idx("TIER_100_PLUS_PRICE")]).toBe("7")
+    expect(row[idx("TIER_10_TO_49_PRICE")]).toBe("9")
     expect(row[idx("Variant Price AUD")]).toBe("7")
     expect(row[idx("Variant Bulk Pricing JSON")]).toContain('"tiers"')
   })

@@ -1,6 +1,47 @@
 import type { ParsedCsv } from "./csv-import"
 import { PRODUCT_IMPORT_CSV_HEADERS } from "./product-import-template-csv"
-import { parseMoneyToMinor, type TierMoneyMinor } from "./spreadsheet-money"
+import {
+  deriveTierMinorFromSpreadsheet100PlusAnchor,
+  parseMoneyToMinor,
+  type TierMoneyMinor,
+} from "./spreadsheet-money"
+
+/** URL-safe handle from a collection title (Medusa product collection `handle`). */
+export function slugifyCollectionHandle(title: string): string {
+  const s = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120)
+  return s || "collection"
+}
+
+/**
+ * Stamp `product collection id` on each row so batch create assigns products to that collection.
+ * When `onlyIfEmpty` is true (default), rows that already have a collection id keep it.
+ */
+export function applyDefaultCollectionIdToParsedCsv(
+  parsed: ParsedCsv,
+  collectionId: string,
+  opts?: { onlyIfEmpty?: boolean }
+): ParsedCsv {
+  const id = collectionId.trim()
+  if (!id) {
+    return parsed
+  }
+  const onlyIfEmpty = opts?.onlyIfEmpty !== false
+  return {
+    ...parsed,
+    rows: parsed.rows.map((row) => {
+      const cur = (row["product collection id"] ?? "").trim()
+      if (onlyIfEmpty && cur) {
+        return row
+      }
+      return { ...row, "product collection id": id }
+    }),
+  }
+}
 
 export function normalizeSpreadsheetHeaderKey(key: string): string {
   return key
@@ -177,6 +218,114 @@ const VARIANT_GRID_COLOUR_HEADERS = [
   "color description",
 ] as const
 
+/** Wholesale price columns — biz-collection / FashionBiz naming varies widely per supplier export. */
+const VARIANT_GRID_PRICE_HEADERS = [
+  "price",
+  "price1",
+  "price 1",
+  "price2",
+  "price 2",
+  "sell_price",
+  "sell price",
+  "aud_price",
+  "aud price",
+  "unit_price",
+  "unit price",
+  "trade_price",
+  "trade price",
+  "variant price aud",
+  "list price",
+  "sell price inc gst",
+  "sell price ex gst",
+  "rrp",
+  "recommended retail",
+  "recommended retail price",
+  "your price",
+  "trade",
+  "nett",
+  "nett price",
+  "each",
+  "buy price",
+  "buy",
+  "web price",
+  "unit sell",
+  "unit sell price",
+  "sell",
+  "wholesale price",
+  "cost price",
+  "cost",
+  "dealer price",
+  "gst exclusive",
+  "price ex gst",
+  "price inc gst",
+  "inc gst",
+  "ex gst",
+  "sell aud",
+  "aud sell",
+] as const
+
+function fashionBizPriceFromRow(row: Record<string, string>): string {
+  const direct = getCellAliased(row, [...VARIANT_GRID_PRICE_HEADERS])
+  if (direct) {
+    return direct
+  }
+  /** Supplier-specific headers (e.g. "Sell AUD", "Trade inc GST") not listed above — infer by name + parseable money. */
+  for (const [k, v] of Object.entries(row)) {
+    const nk = normalizeSpreadsheetHeaderKey(k)
+    if (!nk) {
+      continue
+    }
+    if (
+      nk.includes("freight") ||
+      nk.includes("weight") ||
+      nk.includes("quantity") ||
+      nk.includes("qty") ||
+      nk.includes("box qty") ||
+      (nk.includes("cost") && !nk.includes("price") && !nk.includes("sell"))
+    ) {
+      continue
+    }
+    if (!fashionBizHeaderLooksLikePriceColumn(nk)) {
+      continue
+    }
+    const val = (v ?? "").trim()
+    if (!val || parseMoneyToMinor(val) === null) {
+      continue
+    }
+    return val
+  }
+  return ""
+}
+
+/** True when normalized CSV header plausibly denotes a unit sell price column (not SKU/style/etc.). */
+function fashionBizHeaderLooksLikePriceColumn(nk: string): boolean {
+  if (nk.includes("rrp")) {
+    return true
+  }
+  if (/(^|\s)(price|pricing)(\s|$)/.test(nk)) {
+    return true
+  }
+  if (nk.includes("nett") || nk.includes("trade") || nk.includes("wholesale") || nk.includes("retail")) {
+    return true
+  }
+  if (nk.includes("srp") || nk.includes("msrp")) {
+    return true
+  }
+  if (nk.includes("sell") || nk.includes("list")) {
+    return true
+  }
+  if (nk.includes("each")) {
+    return true
+  }
+  if ((nk.includes("aud") || nk.includes("gst")) && (nk.includes("sell") || nk.includes("trade") || nk.includes("unit"))) {
+    return true
+  }
+  if (nk.endsWith(" aud") || nk.startsWith("aud ") || nk.includes(" aud ")) {
+    return true
+  }
+  return false
+}
+
 /**
  * AS Colour / wholesale feeds: STYLECODE + PRODUCT_NAME (+ PRICE), no Medusa template columns.
  */
@@ -263,25 +412,23 @@ export function expandFashionBizCatalogToTemplate(parsed: ParsedCsv, shippingPro
       getCellAliased(first, ["image_url", "thumbnail", "product_url", "product url", "product image 1 url"]) ||
       ""
 
+    let stylePriceFallback = ""
+    for (const row of groupRows) {
+      const p = fashionBizPriceFromRow(row)
+      if (p) {
+        stylePriceFallback = p
+        break
+      }
+    }
+
     for (const row of groupRows) {
       const sku = getCellAliased(row, [...VARIANT_GRID_SKU_HEADERS])
       const size = getCellAliased(row, [...VARIANT_GRID_SIZE_HEADERS])
       const colour = getCellAliased(row, [...VARIANT_GRID_COLOUR_HEADERS])
-      const price = getCellAliased(row, [
-        "price",
-        "price1",
-        "sell_price",
-        "aud_price",
-        "unit_price",
-        "trade_price",
-        "variant price aud",
-        "unit price",
-        "sell price",
-        "list price",
-        "rrp",
-        "wholesale price",
-        "cost price",
-      ])
+      let price = fashionBizPriceFromRow(row)
+      if (!price) {
+        price = stylePriceFallback
+      }
 
       const base = emptyTemplateRow()
       base["variant option 2 name"] = ""
@@ -462,7 +609,9 @@ const normalizeStatus = (raw: string | undefined): ProductCreateStatus => {
 export const tierColumnsPartiallyFilled = (row: Record<string, string>): boolean => {
   const keys = [
     "base_sale_price",
+    "tier_10_to_19_price",
     "tier_10_to_49_price",
+    "tier_20_to_49_price",
     "tier_50_to_99_price",
     "tier_100_plus_price",
   ] as const
@@ -470,46 +619,109 @@ export const tierColumnsPartiallyFilled = (row: Record<string, string>): boolean
 }
 
 /**
- * Parse four-band tier amounts from CSV (major units → minor). All four required when tier cols are used.
+ * Parse tier amounts from CSV supplemental columns (major units → minor). Prefer explicit split columns for 10–19 vs 20–49 when present.
  */
 export const parseTierMinorFromRow = (
   row: Record<string, string>,
   rowLabel: string
 ): { tiers: TierMoneyMinor } | { error: string } => {
   const base = parseMoneyToMinor(row["base_sale_price"])
-  const t10 = parseMoneyToMinor(row["tier_10_to_49_price"])
+  const t1019Explicit = parseMoneyToMinor(row["tier_10_to_19_price"])
+  const t2049Explicit = parseMoneyToMinor(row["tier_20_to_49_price"])
+  const t1049Legacy = parseMoneyToMinor(row["tier_10_to_49_price"])
   const t50 = parseMoneyToMinor(row["tier_50_to_99_price"])
   const t100 = parseMoneyToMinor(row["tier_100_plus_price"])
-  if (base === null || t10 === null || t50 === null || t100 === null) {
+
+  let t10_19: number
+  let t20_49: number
+
+  if (t1019Explicit !== null && t2049Explicit !== null) {
+    t10_19 = t1019Explicit
+    t20_49 = t2049Explicit
+  } else if (t1049Legacy !== null) {
+    t10_19 = t1049Legacy
+    t20_49 = t1049Legacy
+  } else {
     return {
-      error: `${rowLabel}: when tier pricing is used, BASE_SALE_PRICE, TIER_10_TO_49_PRICE, TIER_50_TO_99_PRICE, and TIER_100_PLUS_PRICE must all be valid amounts.`,
+      error: `${rowLabel}: tier pricing requires BASE_SALE_PRICE, TIER_50_TO_99_PRICE, TIER_100_PLUS_PRICE, and either TIER_10_TO_19_PRICE + TIER_20_TO_49_PRICE or legacy TIER_10_TO_49_PRICE.`,
     }
   }
-  return { tiers: { base, t10, t50, t100 } }
+
+  if (base === null || t50 === null || t100 === null) {
+    return {
+      error: `${rowLabel}: tier pricing requires BASE_SALE_PRICE, TIER_50_TO_99_PRICE, TIER_100_PLUS_PRICE, and either TIER_10_TO_19_PRICE + TIER_20_TO_49_PRICE or legacy TIER_10_TO_49_PRICE.`,
+    }
+  }
+
+  return {
+    tiers: {
+      t1_9: base,
+      t10_19,
+      t20_49,
+      t50_99: t50,
+      t100_plus: t100,
+    },
+  }
 }
 
+/** Spreadsheet sync targets AUD only (store regions/currencies). EUR/USD columns in the template are ignored here. */
 const variantPricesFromRow = (
   row: Record<string, string>,
   tierHint: TierMoneyMinor | undefined
 ): VariantPrice[] => {
   const prices: VariantPrice[] = []
   const audFlat = parseMoneyToMinor(row["variant price aud"])
-  const eur = parseMoneyToMinor(row["variant price eur"])
-  const usd = parseMoneyToMinor(row["variant price usd"])
 
   if (tierHint) {
-    prices.push({ amount: tierHint.base, currency_code: "aud" })
+    prices.push({ amount: tierHint.t1_9, currency_code: "aud" })
   } else if (audFlat !== null) {
     prices.push({ amount: audFlat, currency_code: "aud" })
   }
-  if (eur !== null) {
-    prices.push({ amount: eur, currency_code: "eur" })
-  }
-  if (usd !== null) {
-    prices.push({ amount: usd, currency_code: "usd" })
-  }
 
   return prices
+}
+
+export type VariantPricingResolution =
+  | { ok: false; error: string }
+  | {
+      ok: true
+      tierHint: TierMoneyMinor | undefined
+      /** Rows that contribute to preview “tier pricing rules” (explicit tiers or AUD anchor ladder). */
+      countsTowardTierRulePreview: boolean
+    }
+
+/**
+ * Single source of truth for per-variant pricing checks used by preview and `buildBatchCreatesFromParsedCsv`.
+ */
+export const resolveVariantRowPricing = (
+  row: Record<string, string>,
+  rowLabel: string
+): VariantPricingResolution => {
+  const audFlat = parseMoneyToMinor(row["variant price aud"])
+  let tierHint: TierMoneyMinor | undefined
+
+  if (tierColumnsPartiallyFilled(row)) {
+    const parsedTier = parseTierMinorFromRow(row, rowLabel)
+    if ("error" in parsedTier) {
+      return { ok: false, error: parsedTier.error }
+    }
+    tierHint = parsedTier.tiers
+  } else if (audFlat !== null && audFlat > 0) {
+    tierHint = deriveTierMinorFromSpreadsheet100PlusAnchor(audFlat)
+  }
+
+  const prices = variantPricesFromRow(row, tierHint)
+  if (!prices.length) {
+    return {
+      ok: false,
+      error: `${rowLabel}: set Variant Price AUD, or supplemental tier columns for the AUD ladder.`,
+    }
+  }
+
+  const countsTowardTierRulePreview =
+    tierColumnsPartiallyFilled(row) || (audFlat !== null && audFlat > 0)
+
+  return { ok: true, tierHint, countsTowardTierRulePreview }
 }
 
 export type SpreadsheetPreview = {
@@ -553,13 +765,13 @@ export const computeSpreadsheetPreview = (parsed: ParsedCsv): SpreadsheetPreview
     }
     handles.add(handle)
 
-    if (tierColumnsPartiallyFilled(row)) {
-      const r = parseTierMinorFromRow(row, rowLabel)
-      if ("error" in r) {
-        validationErrors.push(r.error)
-      } else {
-        tierRules++
-      }
+    const pricing = resolveVariantRowPricing(row, rowLabel)
+    if (!pricing.ok) {
+      validationErrors.push(pricing.error)
+      return
+    }
+    if (pricing.countsTowardTierRulePreview) {
+      tierRules++
     }
   })
 
@@ -612,8 +824,11 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
     return { creates: [], tierBySku, errors }
   }
 
-  const preview = computeSpreadsheetPreview(parsed)
-  preview.validationErrors.forEach((e) => errors.push(e))
+  const previewRun = computeSpreadsheetPreview(parsed)
+  previewRun.validationErrors.forEach((e) => errors.push(e))
+  if (previewRun.validationErrors.length > 0) {
+    return { creates: [], tierBySku, errors }
+  }
 
   const grouped = groupRowsByHandle(parsed.rows)
   const creates: SpreadsheetProductCreate[] = []
@@ -680,14 +895,13 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
         return
       }
 
-      let tierHint: TierMoneyMinor | undefined
-      if (tierColumnsPartiallyFilled(row)) {
-        const parsedTier = parseTierMinorFromRow(row, rowLabel)
-        if ("error" in parsedTier) {
-          errors.push(parsedTier.error)
-          return
-        }
-        tierHint = parsedTier.tiers
+      const pricing = resolveVariantRowPricing(row, rowLabel)
+      if (!pricing.ok) {
+        errors.push(pricing.error)
+        return
+      }
+      const { tierHint } = pricing
+      if (tierHint) {
         tierBySku.set(sku, tierHint)
       }
 
@@ -699,10 +913,6 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
       }
 
       const prices = variantPricesFromRow(row, tierHint)
-      if (!prices.length) {
-        errors.push(`${rowLabel}: set Variant Price AUD (and/or EUR/USD), or tier columns for AUD base.`)
-        return
-      }
 
       const weightRaw = (row["variant weight"] ?? "").trim()
       let weight: number | undefined

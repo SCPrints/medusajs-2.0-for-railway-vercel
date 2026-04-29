@@ -80,8 +80,9 @@ const ProductsImportTemplateExport = () => {
           <Text size="small" className="text-ui-fg-muted">
             CSV matching Medusa product-import columns (one row per variant). After collection title,
             type value, sales channel id, and tag id, includes AUD tier columns (Variant Price AUD,
-            BASE_SALE_PRICE, TIER_10_TO_49_PRICE, TIER_50_TO_99_PRICE, TIER_100_PLUS_PRICE) and
-            Variant Bulk Pricing JSON when metadata is present.
+            BASE_SALE_PRICE, TIER_10_TO_19_PRICE, TIER_20_TO_49_PRICE, TIER_50_TO_99_PRICE,
+            TIER_100_PLUS_PRICE, legacy TIER_10_TO_49_PRICE) and Variant Bulk Pricing JSON when
+            metadata is present.
           </Text>
         </div>
         <Button size="small" variant="secondary" disabled={exportLoading} onClick={onExport}>

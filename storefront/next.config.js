@@ -50,6 +50,10 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "cdn.fashionbizapps.nz",
+      },
+      {
+        protocol: "https",
         hostname: "cdn11.bigcommerce.com",
       },
       {

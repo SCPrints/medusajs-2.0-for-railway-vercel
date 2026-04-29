@@ -145,5 +145,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|favicon.ico|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg).*)"], // prevents redirecting on static files
+  matcher: [
+    "/((?!api|_next/static|favicon.ico|animation-lab/|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg|.*\\.riv).*)",
+  ],
 }

@@ -1,6 +1,7 @@
 import { PRODUCT_IMPORT_CSV_HEADERS } from "../product-import-template-csv"
 import { parseCsv } from "../csv-import"
 import {
+  applyDefaultCollectionIdToParsedCsv,
   buildBatchCreatesFromParsedCsv,
   computeSpreadsheetPreview,
   detectFashionBizVariantCatalog,
@@ -8,6 +9,7 @@ import {
   expandFashionBizCatalogToTemplate,
   expandGoldCatalogToTemplate,
   normalizeSpreadsheetForImport,
+  slugifyCollectionHandle,
 } from "../spreadsheet-sync-import"
 
 const emptyRow = (): Record<string, string> => {
@@ -29,6 +31,52 @@ const buildCsv = (rows: Record<string, string>[]): string => {
 }
 
 describe("spreadsheet-sync-import", () => {
+  it("slugifyCollectionHandle produces stable handles", () => {
+    expect(slugifyCollectionHandle("Summer 2026 — Basics")).toBe("summer-2026-basics")
+    expect(slugifyCollectionHandle("   ")).toBe("collection")
+  })
+
+  it("applyDefaultCollectionIdToParsedCsv fills empty Product Collection Id cells", () => {
+    const r = emptyRow()
+    r["product handle"] = "a"
+    r["product title"] = "A"
+    r["shipping profile id"] = "sp_x"
+    r["variant sku"] = "SKU1"
+    r["variant price aud"] = "10"
+    const r2 = emptyRow()
+    r2["product handle"] = "b"
+    r2["product title"] = "B"
+    r2["shipping profile id"] = "sp_x"
+    r2["variant sku"] = "SKU2"
+    r2["variant price aud"] = "20"
+    r2["product collection id"] = "pcol_keep"
+
+    const parsed = parseCsv(buildCsv([r, r2]))
+    const stamped = applyDefaultCollectionIdToParsedCsv(parsed, "pcol_new")
+
+    expect(stamped.rows[0]!["product collection id"]).toBe("pcol_new")
+    expect(stamped.rows[1]!["product collection id"]).toBe("pcol_keep")
+  })
+
+  it("computeSpreadsheetPreview flags rows missing variant pricing (matches sync validation)", () => {
+    const r = emptyRow()
+    r["product handle"] = "acme-shirt"
+    r["product title"] = "Acme Shirt"
+    r["product status"] = "published"
+    r["shipping profile id"] = "sp_test"
+    r["variant sku"] = "ACM-NO-PRICE"
+    r["variant title"] = "M"
+    r["variant option 1 name"] = "Size"
+    r["variant option 1 value"] = "M"
+
+    const parsed = parseCsv(buildCsv([r]))
+    const preview = computeSpreadsheetPreview(parsed)
+
+    expect(preview.validationErrors.some((e) => e.includes("Variant Price AUD"))).toBe(true)
+    const { errors } = buildBatchCreatesFromParsedCsv(parsed)
+    expect(errors.some((e) => e.includes("Variant Price AUD"))).toBe(true)
+  })
+
   it("computeSpreadsheetPreview counts products and tier rules", () => {
     const r = emptyRow()
     r["product handle"] = "acme-shirt"
@@ -53,7 +101,29 @@ describe("spreadsheet-sync-import", () => {
     expect(preview.validationErrors.length).toBe(0)
   })
 
-  it("buildBatchCreatesFromParsedCsv builds one product with tier map", () => {
+  it("buildBatchCreatesFromParsedCsv derives AUD tiers from Variant Price AUD alone (100+ anchor)", () => {
+    const r = emptyRow()
+    r["product handle"] = "anchor-shirt"
+    r["product title"] = "Anchor Shirt"
+    r["product status"] = "published"
+    r["shipping profile id"] = "sp_test"
+    r["variant sku"] = "ANCH-001"
+    r["variant title"] = "M"
+    r["variant option 1 name"] = "Size"
+    r["variant option 1 value"] = "M"
+    r["variant price aud"] = "8"
+
+    const parsed = parseCsv(buildCsv([r]))
+    const { tierBySku, errors } = buildBatchCreatesFromParsedCsv(parsed)
+
+    expect(errors.length).toBe(0)
+    expect(tierBySku.has("ANCH-001")).toBe(true)
+    const t = tierBySku.get("ANCH-001")!
+    expect(t.t100_plus).toBe(800)
+    expect(t.t1_9).toBeGreaterThan(t.t100_plus)
+  })
+
+  it("buildBatchCreatesFromParsedCsv builds one product with supplemental tier columns", () => {
     const r = emptyRow()
     r["product handle"] = "acme-shirt"
     r["product title"] = "Acme Shirt"
@@ -79,10 +149,11 @@ describe("spreadsheet-sync-import", () => {
 
     expect(tierBySku.has("ACM-SHIRT-BLU-M")).toBe(true)
     expect(tierBySku.get("ACM-SHIRT-BLU-M")).toEqual({
-      base: 10000,
-      t10: 9500,
-      t50: 9000,
-      t100: 8500,
+      t1_9: 10000,
+      t10_19: 9500,
+      t20_49: 9500,
+      t50_99: 9000,
+      t100_plus: 8500,
     })
   })
 
@@ -155,7 +226,9 @@ describe("spreadsheet-sync-import", () => {
     expect(exp.rows[0]?.["product handle"]).toBe("biz-collection-p3225")
     expect(exp.rows[0]?.["variant option 1 name"]).toBe("Size")
     expect(exp.rows[0]?.["variant option 2 name"]).toBe("Colour")
-    expect(computeSpreadsheetPreview(exp).validationErrors.length).toBe(0)
+    const prev = computeSpreadsheetPreview(exp)
+    expect(prev.validationErrors.length).toBe(0)
+    expect(prev.tierRuleCount).toBe(2)
 
     const { creates, errors } = buildBatchCreatesFromParsedCsv(exp)
     expect(errors.length).toBe(0)
@@ -168,6 +241,24 @@ describe("spreadsheet-sync-import", () => {
     expect(vars?.length).toBe(2)
     expect(vars?.[0]?.options["Size"]).toBe("M")
     expect(vars?.[0]?.options["Colour"]).toBe("Navy")
+  })
+
+  it("expandFashionBizCatalogToTemplate reads AUD from loosely named price columns", () => {
+    const raw =
+      "sku,style_code,size,colour,Supplier Line Sell AUD inc GST\nA,P1,M,Navy,18.50\nB,P1,L,Navy,18.50"
+    const parsed = parseCsv(raw)
+    const exp = expandFashionBizCatalogToTemplate(parsed, "sp_test")
+    expect(exp.rows[0]?.["variant price aud"]).toBe("18.50")
+  })
+
+  it("expandFashionBizCatalogToTemplate fills variant price from first row of style when others omit price", () => {
+    const raw = "sku,style_code,size,colour,price\nA,P1,M,Navy,12.00\nB,P1,L,Navy,\nC,P1,M,Red,"
+    const parsed = parseCsv(raw)
+    const exp = expandFashionBizCatalogToTemplate(parsed, "sp_test")
+    expect(exp.rows.length).toBe(3)
+    expect(exp.rows[0]?.["variant price aud"]).toBe("12.00")
+    expect(exp.rows[1]?.["variant price aud"]).toBe("12.00")
+    expect(exp.rows[2]?.["variant price aud"]).toBe("12.00")
   })
 
   it("normalizeSpreadsheetForImport requires shipping profile for FashionBiz CSV", () => {

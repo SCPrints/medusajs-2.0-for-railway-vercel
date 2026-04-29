@@ -13,6 +13,8 @@ import {
   ANIMATION_LAB_PRE_BUTTON_SECTION_COUNT,
   ANIMATION_LAB_SECTIONS_PER_PAGE,
 } from "@modules/test/animation-lab-constants"
+import { ANIMATION_LAB_RIVE_PRESETS } from "@modules/test/animation-lab-rive-presets"
+import { ANIMATION_LAB_SPLINE_PRESETS } from "@modules/test/animation-lab-spline-presets"
 
 import {
   LabGsapScrollTrigger,
@@ -160,9 +162,19 @@ const Snowfall = dynamic(() => import("react-snowfall"), {
   loading: () => null,
 })
 
-const RiveLabBlock = dynamic(() => import("./animation-widgets-rive-block"), {
+const RivePresetBlock = dynamic(() => import("./animation-widgets-rive-preset-block"), {
   ssr: false,
   loading: () => <div className="h-[220px] w-full animate-pulse rounded-xl bg-ui-bg-subtle" />,
+})
+
+const SplinePresetBlock = dynamic(() => import("./animation-widgets-spline-preset-block"), {
+  ssr: false,
+  loading: () => <div className="h-[280px] w-full animate-pulse rounded-xl bg-ui-bg-subtle" />,
+})
+
+const ParticleTextLabBlock = dynamic(() => import("./animation-widgets-particle-text-block"), {
+  ssr: false,
+  loading: () => <div className="h-[280px] w-full animate-pulse rounded-xl bg-black" />,
 })
 
 const ThreeLabBlock = dynamic(() => import("./animation-widgets-three-block"), {
@@ -1127,13 +1139,25 @@ export default function AnimationWidgetsDemo() {
         <LabGsapScrollTrigger reducedMotion={reducedMotion} />
       </Section>,
 
+      ...ANIMATION_LAB_RIVE_PRESETS.map((p, i) => (
+        <Section key={p.id} title={p.sectionTitle} description={p.sectionDescription}>
+          <RivePresetBlock preset={p} envIndex={i + 1} reducedMotion={reducedMotion} />
+        </Section>
+      )),
+
       <Section
-        key="rive"
-        title="Rive"
-        description="Vector animation runtime — optional custom .riv via NEXT_PUBLIC_ANIMATION_LAB_RIVE_SRC."
+        key="particle-stipple-type"
+        title="Particle stipple typography"
+        description="Canvas stippled lettering on black: pointer repels grains; springs return to glyph homes when the cursor leaves (newmix-style). Static under reduced motion."
       >
-        <RiveLabBlock reducedMotion={reducedMotion} />
+        <ParticleTextLabBlock reducedMotion={reducedMotion} />
       </Section>,
+
+      ...ANIMATION_LAB_SPLINE_PRESETS.map((p) => (
+        <Section key={p.id} title={p.sectionTitle} description={p.sectionDescription}>
+          <SplinePresetBlock preset={p} reducedMotion={reducedMotion} />
+        </Section>
+      )),
 
       <Section
         key="three-r3f"

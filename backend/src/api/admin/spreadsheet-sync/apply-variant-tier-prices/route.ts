@@ -10,10 +10,11 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 
 const tiersSchema = z.object({
-  base: z.number().int().positive(),
-  t10: z.number().int().positive(),
-  t50: z.number().int().positive(),
-  t100: z.number().int().positive(),
+  t1_9: z.number().int().positive(),
+  t10_19: z.number().int().positive(),
+  t20_49: z.number().int().positive(),
+  t50_99: z.number().int().positive(),
+  t100_plus: z.number().int().positive(),
 })
 
 const bodySchema = z.object({

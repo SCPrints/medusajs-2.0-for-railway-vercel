@@ -15,6 +15,7 @@
   "scripts": {
     "build": "npx medusa build && node src/scripts/postBuild.js",
     "seed": "npx medusa exec ./src/scripts/seed.ts",
+    "delete-all-products": "npx medusa exec ./src/scripts/delete-all-products.ts --",
     "backfill-product-brands": "npx medusa exec ./src/scripts/backfill-product-brand-metadata.ts",
     "update-as-colour-pricing": "npx medusa exec ./src/scripts/update-as-colour-pricing.ts --",
     "trim-as-colour-catalog": "npx medusa exec ./src/scripts/trim-as-colour-catalog-by-allowlist.ts --",

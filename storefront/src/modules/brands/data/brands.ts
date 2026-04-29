@@ -9,12 +9,20 @@ export const RAMO_BRAND_QUERY = "Ramo"
  */
 export const STANLEY_STELLA_BRAND_FILTER = "Stanley/Stella"
 
+/** Canonical `?brand=` value for AS Colour (matches {@link BRAND_TILES} `name`). */
+export const AS_COLOUR_BRAND_QUERY = "AS Colour"
+
 export function isRamoStoreBrand(brand?: string | null): boolean {
   const b = brand?.trim()
   if (!b) {
     return false
   }
   return b === RAMO_BRAND_QUERY || b === STANLEY_STELLA_BRAND_FILTER
+}
+
+export function isAsColourStoreBrand(brand?: string | null): boolean {
+  const b = brand?.trim().toLowerCase()
+  return b === AS_COLOUR_BRAND_QUERY.toLowerCase()
 }
 
 export type BrandTile = {
