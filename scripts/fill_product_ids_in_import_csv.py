@@ -3,9 +3,9 @@
 Fill the "Product Id" column in a Medusa product-import CSV using existing products'
 ids from the Admin API (same auth as rewrite_csv_image_urls_via_medusa_upload.py).
 
-Use when a previous import partially created products and a re-import fails with
-"Product with handle: … already exists" — rows with Product Id set are treated as
-updates by Medusa's CSV normalizer.
+Handles with no Product Id are treated as creates; if the handle already exists,
+import fails with "already exists". Rows with an empty Product Handle (variant
+continuation rows) reuse the last non-empty handle's product id.
 
   .venv-upload/bin/python scripts/fill_product_ids_in_import_csv.py \\
     --env-file medusa-upload.env \\
@@ -165,12 +165,22 @@ def main() -> None:
         )
 
     updated = 0
+    last_handle = ""
     for row in rows:
         h = (row.get(handle_key) or "").strip()
+        if h:
+            last_handle = h
+
+        hid = ""
         if h and h in handle_to_id:
-            if (row.get(id_key) or "").strip() != handle_to_id[h]:
+            hid = handle_to_id[h]
+        elif last_handle and last_handle in handle_to_id:
+            hid = handle_to_id[last_handle]
+
+        if hid:
+            if (row.get(id_key) or "").strip() != hid:
                 updated += 1
-            row[id_key] = handle_to_id[h]
+            row[id_key] = hid
 
     with out_path.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")

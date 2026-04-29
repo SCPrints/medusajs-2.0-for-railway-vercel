@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/test/animation-widgets`
   const description =
-    "Internal lab page for motion and UI experiments (10 sections per page): embeds, particles, reveals, sheets, micro-interactions, and add-to-cart / button interaction tests (fly-to-cart, Tetris, bubble pop, etc.). Use ?page=2, ?page=3, etc."
+    "Internal lab page for motion and UI experiments (10 sections per page): embeds, particles, Tier A/B/C/D interaction catalog (cart/checkout patterns, trust rows, lists, CSS experiments, Tier C navigation chrome, dashboards, scroll-timeline and :has demos), plus add-to-cart / button labs. Use ?page=2, ?page=3, etc."
 
   return {
     title: "Animation widgets lab",
@@ -60,7 +60,7 @@ export default function AnimationWidgetsTestPage() {
             Unlisted test route for motion, embed, and add-to-cart interaction experiments. Open with a country
             prefix, e.g. <code className="text-ui-fg-base">/au/test/animation-widgets</code>. Sections are paginated (
             <code className="text-ui-fg-base">?page=2</code>, 10 per page); add-to-cart / button interaction blocks
-            start around page 6 (see footer pagination). The old{" "}
+            start around page 12 (see footer pagination). The old{" "}
             <code className="text-ui-fg-base">/test/button-animations</code> URL redirects to that page. Global cursor
             trail is disabled so the custom cursor demo is visible.
           </p>

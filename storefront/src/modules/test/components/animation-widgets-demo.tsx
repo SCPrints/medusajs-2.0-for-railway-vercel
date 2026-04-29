@@ -64,6 +64,70 @@ import {
   LabTiltCard,
   LabToastStack,
 } from "./animation-widgets-lab-extra-blocks"
+import {
+  LabTierCActivityHeatmap,
+  LabTierCCascadingContextMenu,
+  LabTierCCommandPalette,
+  LabTierCCurtainWipeImage,
+  LabTierCDirectionalHoverOverlay,
+  LabTierCDraggablePip,
+  LabTierCDynamicIsland,
+  LabTierCFabSpeedDial,
+  LabTierCFluidCursorTrail,
+  LabTierCFloatingLabelInput,
+  LabTierCGaugeNeedle,
+  LabTierCGlitchHover,
+  LabTierCGridPolkaDrift,
+  LabTierCHasSiblingDim,
+  LabTierCJellyButton,
+  LabTierCLikeParticleBurst,
+  LabTierCMarqueeOutlineFill,
+  LabTierCMaskImageWipe,
+  LabTierCMegaMenuStagger,
+  LabTierCNeonFlicker,
+  LabTierCNotificationDrawer,
+  LabTierCPasswordStrengthMeter,
+  LabTierCPiePullOut,
+  LabTierCPinchZoomBox,
+  LabTierCPullRefreshTeardrop,
+  LabTierCScrollDrivenBar,
+  LabTierCSidebarSqueeze,
+  LabTierCSlotMachineWords,
+  LabTierCSwipeDeleteRow,
+  LabTierCTextHighlightMarker,
+} from "./animation-widgets-lab-tier-c-blocks"
+import {
+  LabTierDAddressCardExpand,
+  LabTierDAsSeenCrossfade,
+  LabTierDBreadcrumbMorph,
+  LabTierDCartUndoToast,
+  LabTierDConfettiShapes,
+  LabTierDContentVisibilityDemo,
+  LabTierDExpandableTableRow,
+  LabTierDFilterChips,
+  LabTierDFocusRingMorph,
+  LabTierDHeroSplitTextMask,
+  LabTierDLogoWallWave,
+  LabTierDMiniCartDropdown,
+  LabTierDNoiseGradientBorder,
+  LabTierDOrderTimeline,
+  LabTierDPromoCheckmark,
+  LabTierDQtyStepper,
+  LabTierDReducedMotionToggleDemo,
+  LabTierDReorderList,
+  LabTierDReviewCarouselDrag,
+  LabTierDScrollbarGutterDemo,
+  LabTierDSearchSuggest,
+  LabTierDSectionDividerSweep,
+  LabTierDSkeletonListShimmer,
+  LabTierDStickyCtaScrollDir,
+  LabTierDStockCountdownPulse,
+  LabTierDSvgBlobMorph,
+  LabTierDTrustBadgeCarousel,
+  LabTierDUGCMasonry,
+  LabTierDViewTransitionScoped,
+  LabTierDWillChangeStress,
+} from "./animation-widgets-lab-tier-d-blocks"
 import { useButtonAnimationsLabSections } from "./button-animations-demo"
 
 const SECTIONS_PER_PAGE = ANIMATION_LAB_SECTIONS_PER_PAGE
@@ -1117,6 +1181,486 @@ export default function AnimationWidgetsDemo() {
         description="First-paint entrance when a card is mounted (feature-detect in supporting browsers)."
       >
         <LabStartingStyleDemo reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-dynamic-island"
+        title="Dynamic island / morphing pill"
+        description="Compact badge that expands with layout animation and crossfaded detail."
+      >
+        <LabTierCDynamicIsland reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-mega-menu"
+        title="Mega-menu stagger"
+        description="Nested columns and links with staggerChildren inside AnimatePresence."
+      >
+        <LabTierCMegaMenuStagger reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-sidebar-squeeze"
+        title="Sidebar push / squeeze"
+        description="Drawer opens by animating gridTemplateColumns so the main column reflows."
+      >
+        <LabTierCSidebarSqueeze reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-fab-dial"
+        title="FAB speed-dial"
+        description="Primary button rotates while radial actions stagger in."
+      >
+        <LabTierCFabSpeedDial reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-swipe-delete"
+        title="Swipe-to-delete row"
+        description="Horizontal drag reveals trash; exceeds threshold to dismiss."
+      >
+        <LabTierCSwipeDeleteRow reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-float-label"
+        title="Floating label input"
+        description="Material-style label driven by :focus-within and :placeholder-shown."
+      >
+        <LabTierCFloatingLabelInput />
+      </Section>,
+
+      <Section
+        key="tier-c-like-burst"
+        title="Like particle burst"
+        description="Heart tap spawns radial dots; reduced motion keeps a simple scale."
+      >
+        <LabTierCLikeParticleBurst reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-password-meter"
+        title="Password strength meter"
+        description="Segments spring-fill from derived score."
+      >
+        <LabTierCPasswordStrengthMeter reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-pull-teardrop"
+        title="Pull-to-refresh teardrop"
+        description="Stretchy SVG blob from vertical drag (lab mock)."
+      >
+        <LabTierCPullRefreshTeardrop reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-highlight-pen"
+        title="Highlighter marker"
+        description="Marker bar scales on X as copy enters view."
+      >
+        <LabTierCTextHighlightMarker reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-slot-words"
+        title="Rotating words (slot machine)"
+        description="AnimatePresence mode wait with vertical motion between phrases."
+      >
+        <LabTierCSlotMachineWords reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-marquee-outline"
+        title="Marquee outline fill"
+        description="Stroked headline with gradient fill scrolling horizontally."
+      >
+        <LabTierCMarqueeOutlineFill reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-curtain-wipe"
+        title="Image curtain wipe"
+        description="Full-bleed shutter unclipped by scroll into view."
+      >
+        <LabTierCCurtainWipeImage reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-directional-hover"
+        title="Directional hover overlay"
+        description="Overlay slides from the nearest edge based on pointer entry."
+      >
+        <LabTierCDirectionalHoverOverlay />
+      </Section>,
+
+      <Section
+        key="tier-c-glitch"
+        title="Glitch (hover)"
+        description="Short clipped RGB offset — disabled entirely for prefers-reduced-motion."
+      >
+        <LabTierCGlitchHover reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-polka-drift"
+        title="Polka / grid drift"
+        description="Infinite CSS background-position drift on a radial dot grid."
+      >
+        <LabTierCGridPolkaDrift reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-fluid-trail"
+        title="Fluid cursor trail"
+        description="Delayed spring follower vs. immediate cursor dot in a sandbox."
+      >
+        <LabTierCFluidCursorTrail reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-neon-flicker"
+        title="Neon tube flicker"
+        description="Sequenced drop-shadow keyframes; static copy when reduced motion."
+      >
+        <LabTierCNeonFlicker reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-gauge"
+        title="Gauge needle (SVG)"
+        description="Half-circle dial with spring-smoothed needle from a slider."
+      >
+        <LabTierCGaugeNeedle reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-heatmap"
+        title="Activity heatmap stagger"
+        description="GitHub-style grid with column-weighted stagger on reveal."
+      >
+        <LabTierCActivityHeatmap reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-pie-pull"
+        title="Pie chart hover pull-out"
+        description="SVG slices translate along centroid on hover."
+      >
+        <LabTierCPiePullOut />
+      </Section>,
+
+      <Section
+        key="tier-c-jelly-btn"
+        title="Jelly button"
+        description="Exaggerated squash-and-stretch on tap."
+      >
+        <LabTierCJellyButton reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-pinch-zoom"
+        title="Pinch / ctrl-wheel zoom"
+        description="Ctrl+scroll (trackpad pinch) scales content inside a viewport."
+      >
+        <LabTierCPinchZoomBox reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-pip"
+        title="Draggable PiP tile"
+        description="Mini panel draggable within dashed bounds."
+      >
+        <LabTierCDraggablePip reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-cmdk"
+        title="Command palette (⌘K)"
+        description="Modal with spring scale, backdrop blur, and basic focus on open."
+      >
+        <LabTierCCommandPalette reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-context-menu"
+        title="Cascading context menu"
+        description="Menu shell then staggered list items."
+      >
+        <LabTierCCascadingContextMenu />
+      </Section>,
+
+      <Section
+        key="tier-c-notif-drawer"
+        title="Notification drawer"
+        description="Full-height panel slides from the right with scrim."
+      >
+        <LabTierCNotificationDrawer reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-c-scroll-timeline"
+        title="CSS scroll-driven animation"
+        description="Progress bar driven by animation-timeline scroll() in a local scroller."
+      >
+        <LabTierCScrollDrivenBar />
+      </Section>,
+
+      <Section
+        key="tier-c-has-dim"
+        title="CSS :has() sibling dim"
+        description="Grid dims non-hovered cards with pure CSS."
+      >
+        <LabTierCHasSiblingDim />
+      </Section>,
+
+      <Section
+        key="tier-c-mask-wipe"
+        title="CSS mask-image wipe"
+        description="Organic reveal via animated mask-position on a gradient block."
+      >
+        <LabTierCMaskImageWipe reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-mini-cart"
+        title="Mini-cart slide-down"
+        description="Dropdown with staggered line items and height animation."
+      >
+        <LabTierDMiniCartDropdown reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-qty-stepper"
+        title="Quantity stepper with spring"
+        description="Tap bounce and shake when clamped at min/max."
+      >
+        <LabTierDQtyStepper reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-cart-undo"
+        title="Cart line undo toast"
+        description="Row exits; thin undo bar pairs with the removal."
+      >
+        <LabTierDCartUndoToast reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-address-card"
+        title="Address card selection"
+        description="Selected card scales and pulses border; others fade back."
+      >
+        <LabTierDAddressCardExpand reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-promo-check"
+        title="Promo code success checkmark"
+        description="Stroke draw and brief scale on success."
+      >
+        <LabTierDPromoCheckmark reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-order-timeline"
+        title="Order timeline"
+        description="Vertical steps; connector grows when the block enters view."
+      >
+        <LabTierDOrderTimeline reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-trust-row"
+        title="Trust badge row"
+        description="Slow horizontal crawl; pauses on hover via motion pause."
+      >
+        <LabTierDTrustBadgeCarousel reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-review-drag"
+        title="Review carousel drag"
+        description="Horizontal drag with snap to index and dot controls."
+      >
+        <LabTierDReviewCarouselDrag reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-ugc-masonry"
+        title="UGC masonry stagger"
+        description="Column-biased stagger for a fake image grid."
+      >
+        <LabTierDUGCMasonry reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-as-seen"
+        title="As seen on crossfade"
+        description="Lightweight title opacity cycle."
+      >
+        <LabTierDAsSeenCrossfade reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-stock-count"
+        title="Reservation countdown"
+        description="Time-based copy and bar with subtle urgency pulse."
+      >
+        <LabTierDStockCountdownPulse reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-reorder"
+        title="Reorder list"
+        description="Vertical drag-and-drop handles reorder local state."
+      >
+        <LabTierDReorderList reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-expand-row"
+        title="Expandable table row"
+        description="Detail panel via grid-template-rows 0fr → 1fr."
+      >
+        <LabTierDExpandableTableRow reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-filter-chips"
+        title="Filter chips"
+        description="Chips enter with layout; remove animates width away."
+      >
+        <LabTierDFilterChips reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-typeahead"
+        title="Search suggestions"
+        description="Fake typeahead with stagger on open."
+      >
+        <LabTierDSearchSuggest reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-breadcrumb"
+        title="Breadcrumb morph"
+        description="Long trail vs compact with shared layoutId on the last crumb."
+      >
+        <LabTierDBreadcrumbMorph reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-divider"
+        title="Section divider sweep"
+        description="Decorative rule grows on scroll into view."
+      >
+        <LabTierDSectionDividerSweep reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-sticky-cta"
+        title="Sticky CTA scroll direction"
+        description="Mini bar hides on downward scroll, returns on upward (local scroller)."
+      >
+        <LabTierDStickyCtaScrollDir reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-hero-mask"
+        title="Hero split text mask"
+        description="Per-word clip reveal on Y."
+      >
+        <LabTierDHeroSplitTextMask reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-logo-wave"
+        title="Logo wall wave"
+        description="Grid cells breathe with offset timing."
+      >
+        <LabTierDLogoWallWave reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-blob"
+        title="SVG blob toggle"
+        description="Two hand-tuned paths swap with a short crossfade."
+      >
+        <LabTierDSvgBlobMorph reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-confetti-star"
+        title="Confetti shape burst"
+        description="canvas-confetti with star shapes (distinct from snow lab)."
+      >
+        <LabTierDConfettiShapes reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-noise-border"
+        title="Conic gradient border"
+        description="Rotating gradient ring with counter-spun inner card."
+      >
+        <LabTierDNoiseGradientBorder reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-skeleton-list"
+        title="Skeleton list shimmer"
+        description="Five rows with staggered shimmer bars."
+      >
+        <LabTierDSkeletonListShimmer reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-focus-ring"
+        title="Focus ring demo"
+        description="Contrasting radii on button vs input with focus-visible."
+      >
+        <LabTierDFocusRingMorph reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-rm-toggle"
+        title="Reduced-motion preview toggle"
+        description="Local data-motion wrapper to preview simpler motion."
+      >
+        <LabTierDReducedMotionToggleDemo reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-will-change"
+        title="Will-change stress note"
+        description="Optional heavy blur layer with rAF fps note."
+      >
+        <LabTierDWillChangeStress reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-content-vis"
+        title="content-visibility"
+        description="Tall mock blocks skip work until near the viewport."
+      >
+        <LabTierDContentVisibilityDemo reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-view-transition"
+        title="Scoped view transition"
+        description="Pair of cards using view-transition-name where supported."
+      >
+        <LabTierDViewTransitionScoped reducedMotion={reducedMotion} />
+      </Section>,
+
+      <Section
+        key="tier-d-scrollbar-gutter"
+        title="scrollbar-gutter / scroll-padding"
+        description="Stable gutter plus anchor scroll margin under a sticky header."
+      >
+        <LabTierDScrollbarGutterDemo reducedMotion={reducedMotion} />
       </Section>,
     ],
     [reducedMotion, snowOn, fireworkBurst]
