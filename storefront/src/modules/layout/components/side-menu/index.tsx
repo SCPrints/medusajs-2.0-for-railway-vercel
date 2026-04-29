@@ -110,15 +110,15 @@ const SideMenu = ({
                 </Popover.Button>
               </div>
 
-              <Transition show={open} as={Fragment}>
-                <Transition.Child as={Fragment} {...TRANSITION_COMMON}>
-                  <Popover.Overlay className="fixed inset-0 z-[35] bg-[var(--brand-primary)]/35" />
-                </Transition.Child>
-                <Transition.Child as={Fragment} {...TRANSITION_COMMON}>
-                  <Popover.Panel
-                    data-testid="nav-menu-popup"
-                    className="fixed inset-x-0 top-20 z-40 flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden border-t border-[var(--brand-primary)]/10 bg-[var(--brand-background)] text-[var(--brand-primary)] shadow-lg"
-                  >
+              <Transition show={open} as={Fragment} {...TRANSITION_COMMON}>
+                <Popover.Overlay className="fixed inset-0 z-[35] bg-[var(--brand-primary)]/35" static />
+              </Transition>
+              <Transition show={open} as={Fragment} {...TRANSITION_COMMON}>
+                <Popover.Panel
+                  static
+                  data-testid="nav-menu-popup"
+                  className="fixed inset-x-0 top-20 z-40 flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden border-t border-[var(--brand-primary)]/10 bg-[var(--brand-background)] text-[var(--brand-primary)] shadow-lg"
+                >
                     <div className="content-container flex min-h-0 flex-1 flex-col py-6">
                       <div className="flex shrink-0 justify-end pb-4">
                         <button
@@ -264,8 +264,7 @@ const SideMenu = ({
                         </div>
                       </div>
                     </div>
-                  </Popover.Panel>
-                </Transition.Child>
+                </Popover.Panel>
               </Transition>
             </>
           )}
