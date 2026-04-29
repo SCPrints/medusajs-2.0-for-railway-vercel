@@ -11,6 +11,15 @@ import { HttpTypes } from "@medusajs/types"
 
 const MENU_COLLECTIONS_CAP = 10
 
+const TRANSITION_COMMON = {
+  enter: "transition ease-out duration-150 motion-reduce:transition-none motion-reduce:duration-0",
+  enterFrom: "opacity-0",
+  enterTo: "opacity-100",
+  leave: "transition ease-in duration-125 motion-reduce:transition-none motion-reduce:duration-0",
+  leaveFrom: "opacity-100",
+  leaveTo: "opacity-0",
+} as const
+
 const SideMenuItems = {
   Home: "/",
   Store: "/store",
@@ -101,161 +110,162 @@ const SideMenu = ({
                 </Popover.Button>
               </div>
 
-              <Transition
-                show={open}
-                as={Fragment}
-                enter="transition ease-out duration-150"
-                enterFrom="opacity-0"
-                enterTo="opacity-100 backdrop-blur-2xl"
-                leave="transition ease-in duration-150"
-                leaveFrom="opacity-100 backdrop-blur-2xl"
-                leaveTo="opacity-0"
-              >
-                <Popover.Panel className="absolute left-0 z-30 m-2 flex h-[calc(100vh-1rem)] w-[calc(100%-1rem)] max-w-5xl flex-col text-sm text-[#F8FAFC] backdrop-blur-2xl">
-                  <div
+              <Transition show={open} as={Fragment}>
+                <Transition.Child as={Fragment} {...TRANSITION_COMMON}>
+                  <Popover.Overlay className="fixed inset-0 z-[35] bg-[var(--brand-primary)]/35" />
+                </Transition.Child>
+                <Transition.Child as={Fragment} {...TRANSITION_COMMON}>
+                  <Popover.Panel
                     data-testid="nav-menu-popup"
-                    className="flex h-full flex-col justify-between rounded-rounded bg-[rgba(12,17,23,0.82)] p-6"
+                    className="fixed inset-x-0 top-20 z-40 flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden border-t border-[var(--brand-primary)]/10 bg-[var(--brand-background)] text-[var(--brand-primary)] shadow-lg"
                   >
-                    <div className="flex justify-end" id="xmark">
-                      <button
-                        data-testid="close-menu-button"
-                        data-no-squish
-                        onClick={close}
-                        className="text-[rgba(248,250,252,0.95)] hover:text-[var(--brand-secondary)]"
-                      >
-                        <XMark />
-                      </button>
-                    </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto pr-1 no-scrollbar">
-                      <div className="grid gap-8 lg:grid-cols-12 lg:gap-6">
-                        <div className="lg:col-span-3">
-                          <h2 className="mb-3 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-accent)]">
-                            Quick links
-                          </h2>
-                          <ul className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 lg:grid-cols-1">
-                            {Object.entries(SideMenuItems).map(([name, href]) => (
-                              <li key={name}>
-                                <NavLink
-                                  href={href}
-                                  onClick={close}
-                                  className="text-xl leading-snug text-[rgba(248,250,252,0.96)] hover:text-[var(--brand-secondary)] min-[400px]:text-2xl"
-                                  data-testid={`${name.toLowerCase()}-link`}
-                                >
-                                  {name}
-                                </NavLink>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                    <div className="content-container flex min-h-0 flex-1 flex-col py-6">
+                      <div className="flex shrink-0 justify-end pb-4">
+                        <button
+                          data-testid="close-menu-button"
+                          data-no-squish
+                          type="button"
+                          onClick={close}
+                          className="rounded-full p-1 text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]"
+                        >
+                          <XMark className="size-6" aria-hidden />
+                        </button>
+                      </div>
 
-                        <div className="lg:col-span-5">
-                          <h2 className="mb-4 border-t border-[var(--brand-accent)]/35 pt-6 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-accent)] lg:border-t-0 lg:pt-0">
-                            Browse products &amp; services
-                          </h2>
-                          <div className="grid gap-6 sm:grid-cols-2">
-                            {browseGroups.map((group) => (
-                              <div key={group.title}>
-                                <h3 className="mb-2 txt-compact-small text-[var(--brand-accent)]">
-                                  {group.title}
-                                </h3>
-                                <ul className="space-y-1">
-                                  {group.items.map((item) => (
-                                    <li key={`${group.title}-${item.label}`}>
-                                      <NavLink
-                                        href={item.href}
-                                        onClick={close}
-                                        className="text-sm leading-6 text-[rgba(248,250,252,0.95)] hover:text-[var(--brand-secondary)]"
-                                      >
-                                        {item.label}
-                                      </NavLink>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-8 border-t border-[var(--brand-accent)]/35 pt-6 lg:col-span-4 lg:border-t-0 lg:pt-0">
-                          <div>
-                            <h2 className="mb-3 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-accent)]">
-                              Discover &amp; help
+                      <div className="min-h-0 flex-1 overflow-y-auto pr-1 no-scrollbar">
+                        <div className="grid gap-10 lg:grid-cols-12 lg:gap-8">
+                          <div className="lg:col-span-3">
+                            <h2 className="mb-4 txt-compact-small font-semibold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                              Quick links
                             </h2>
-                            <ul className="space-y-1.5">
-                              {discoverAndHelpLinks.map((item) => (
-                                <li key={item.href}>
+                            <ul className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 lg:grid-cols-1">
+                              {Object.entries(SideMenuItems).map(([name, href]) => (
+                                <li key={name}>
                                   <NavLink
-                                    href={item.href}
+                                    href={href}
                                     onClick={close}
-                                    className="text-sm leading-6 text-[rgba(248,250,252,0.95)] hover:text-[var(--brand-secondary)]"
-                                    data-testid={item.testId}
+                                    className="text-lg font-medium leading-snug text-[var(--brand-primary)] transition-colors hover:text-[var(--brand-secondary)] min-[400px]:text-xl"
+                                    data-testid={`${name.toLowerCase()}-link`}
                                   >
-                                    {item.label}
+                                    {name}
                                   </NavLink>
                                 </li>
                               ))}
                             </ul>
                           </div>
 
-                          <div>
-                            <h2 className="mb-3 txt-compact-small uppercase tracking-[0.12em] text-[var(--brand-accent)]">
-                              Shop by collection
+                          <div className="border-t border-[var(--brand-primary)]/15 pt-8 lg:col-span-6 lg:border-t-0 lg:pt-0">
+                            <h2 className="mb-6 txt-compact-small font-semibold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                              Browse products &amp; services
                             </h2>
-                            <ul className="space-y-1.5">
-                              {collectionPreview.map((c) => (
-                                <li key={c.handle}>
+                            <div className="grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
+                              {browseGroups.map((group) => (
+                                <div key={group.title} className="min-w-0">
+                                  <h3 className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--brand-primary)]">
+                                    {group.title}
+                                  </h3>
+                                  <ul className="space-y-2">
+                                    {group.items.map((item) => (
+                                      <li key={`${group.title}-${item.label}`}>
+                                        <NavLink
+                                          href={item.href}
+                                          onClick={close}
+                                          className="text-sm leading-6 text-[var(--brand-primary)]/90 transition-colors hover:text-[var(--brand-secondary)]"
+                                        >
+                                          {item.label}
+                                        </NavLink>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-8 border-t border-[var(--brand-primary)]/15 pt-8 lg:col-span-3 lg:border-t-0 lg:pt-0">
+                            <div>
+                              <h2 className="mb-3 txt-compact-small font-semibold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                                Discover &amp; help
+                              </h2>
+                              <ul className="space-y-2">
+                                {discoverAndHelpLinks.map((item) => (
+                                  <li key={item.href}>
+                                    <NavLink
+                                      href={item.href}
+                                      onClick={close}
+                                      className="text-sm leading-6 text-[var(--brand-primary)]/90 transition-colors hover:text-[var(--brand-secondary)]"
+                                      data-testid={item.testId}
+                                    >
+                                      {item.label}
+                                    </NavLink>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div>
+                              <h2 className="mb-3 txt-compact-small font-semibold uppercase tracking-[0.14em] text-[var(--brand-primary)]">
+                                Shop by collection
+                              </h2>
+                              <ul className="space-y-2">
+                                {collectionPreview.map((c) => (
+                                  <li key={c.handle}>
+                                    <NavLink
+                                      href={`/collections/${c.handle}`}
+                                      onClick={close}
+                                      className="text-sm leading-6 text-[var(--brand-primary)]/90 transition-colors hover:text-[var(--brand-secondary)]"
+                                      data-testid={`nav-menu-collection-${c.handle}`}
+                                    >
+                                      {c.title}
+                                    </NavLink>
+                                  </li>
+                                ))}
+                                {hasMoreCollections && (
+                                  <li className="pt-1 text-xs text-[var(--brand-primary)]/55">
+                                    Showing {MENU_COLLECTIONS_CAP} of{" "}
+                                    {collectionLinks.length}
+                                  </li>
+                                )}
+                                <li>
                                   <NavLink
-                                    href={`/collections/${c.handle}`}
+                                    href="/sitemap"
                                     onClick={close}
-                                    className="text-sm leading-6 text-[rgba(248,250,252,0.95)] hover:text-[var(--brand-secondary)]"
-                                    data-testid={`nav-menu-collection-${c.handle}`}
+                                    className="text-sm font-medium leading-6 text-[var(--brand-secondary)] transition-colors hover:text-[var(--brand-accent)]"
+                                    data-testid="nav-menu-sitemap-link"
                                   >
-                                    {c.title}
+                                    Site map (all pages &amp; collections)
                                   </NavLink>
                                 </li>
-                              ))}
-                              {hasMoreCollections && (
-                                <li className="pt-1 text-xs text-[rgba(248,250,252,0.6)]">
-                                  Showing {MENU_COLLECTIONS_CAP} of {collectionLinks.length}
-                                </li>
-                              )}
-                              <li>
-                                <NavLink
-                                  href="/sitemap"
-                                  onClick={close}
-                                  className="text-sm font-medium leading-6 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
-                                  data-testid="nav-menu-sitemap-link"
-                                >
-                                  Site map (all pages &amp; collections)
-                                </NavLink>
-                              </li>
-                            </ul>
+                              </ul>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="mt-4 flex flex-col gap-y-6 border-t border-[var(--brand-accent)]/20 pt-4">
-                      <div
-                        className="flex justify-between text-[var(--brand-secondary)]"
-                        onMouseEnter={toggleState.open}
-                        onMouseLeave={toggleState.close}
-                      >
-                        {regions && (
-                          <CountrySelect
-                            toggleState={toggleState}
-                            regions={regions}
-                          />
-                        )}
-                        <ArrowRightMini
-                          className={clx(
-                            "transition-transform duration-150",
-                            toggleState.state ? "-rotate-90" : ""
+
+                      <div className="mt-6 shrink-0 border-t border-[var(--brand-primary)]/15 pt-4">
+                        <div
+                          className="flex justify-between text-[var(--brand-secondary)]"
+                          onMouseEnter={toggleState.open}
+                          onMouseLeave={toggleState.close}
+                        >
+                          {regions && (
+                            <CountrySelect
+                              toggleState={toggleState}
+                              regions={regions}
+                            />
                           )}
-                        />
+                          <ArrowRightMini
+                            className={clx(
+                              "size-5 shrink-0 transition-transform duration-150",
+                              toggleState.state ? "-rotate-90" : ""
+                            )}
+                            aria-hidden
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Popover.Panel>
+                  </Popover.Panel>
+                </Transition.Child>
               </Transition>
             </>
           )}

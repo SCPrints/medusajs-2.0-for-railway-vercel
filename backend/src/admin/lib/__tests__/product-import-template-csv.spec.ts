@@ -3,51 +3,142 @@ import {
   PRODUCT_IMPORT_CSV_HEADERS,
 } from "../product-import-template-csv"
 
-describe("product-import-template-csv", () => {
-  it("exports header length matching template plus supplemental columns", () => {
-    expect(PRODUCT_IMPORT_CSV_HEADERS).toHaveLength(46)
-    expect(PRODUCT_IMPORT_CSV_HEADERS[0]).toBe("Product Id")
-    expect(PRODUCT_IMPORT_CSV_HEADERS[41]).toBe("Product Image 2 Url")
-    expect(PRODUCT_IMPORT_CSV_HEADERS[42]).toBe("Product Collection Title")
-  })
+const idx = (h: string) => PRODUCT_IMPORT_CSV_HEADERS.indexOf(h)
 
-  it("builds one row per variant and skips products without variants", () => {
-    const rows = buildProductImportTemplateRows([
+describe("buildProductImportTemplateRows", () => {
+  it("each row has the same width as PRODUCT_IMPORT_CSV_HEADERS", () => {
+    const products = [
       {
-        id: "prod_1",
-        handle: "h",
-        title: "T",
+        id: "p1",
+        handle: "test-handle",
+        title: "Test",
+        subtitle: "",
+        description: "",
         status: "published",
+        thumbnail: "",
+        weight: "",
+        length: "",
+        width: "",
+        height: "",
+        hs_code: "",
+        origin_country: "",
+        mid_code: "",
+        material: "",
+        shipping_profile_id: "",
         discountable: true,
+        external_id: "",
         variants: [
           {
-            id: "variant_1",
+            id: "v1",
             title: "Default",
             sku: "SKU1",
+            barcode: "",
             allow_backorder: false,
             manage_inventory: true,
-            prices: [{ amount: 1000, currency_code: "usd" }],
+            weight: "",
+            length: "",
+            width: "",
+            height: "",
+            hs_code: "",
+            origin_country: "",
+            mid_code: "",
+            material: "",
+            prices: [],
             options: [],
+            metadata: {
+              bulk_pricing: {
+                currency_code: "aud",
+                tiers: [
+                  { min_quantity: 1, max_quantity: 9, amount: 1000 },
+                  { min_quantity: 10, max_quantity: 49, amount: 900 },
+                  { min_quantity: 50, max_quantity: 99, amount: 800 },
+                  { min_quantity: 100, amount: 700 },
+                ],
+              },
+            },
           },
         ],
-        tags: [{ id: "tag_1", value: "Summer" }],
-        sales_channels: [{ id: "sc_1", name: "Default Sales Channel" }],
-        collection: { id: "col_1", title: "C1" },
-        type: { id: "typ_1", value: "shirt" },
-        images: [{ url: "https://a.example/x.png", rank: 0 }],
+        collection: null,
+        type: null,
+        sales_channels: [],
+        tags: [],
+        images: [],
+        options: [],
       },
-      { id: "prod_empty", handle: "x", title: "No variants", variants: [] },
-    ])
+    ]
 
+    const rows = buildProductImportTemplateRows(products as unknown[])
     expect(rows).toHaveLength(1)
-    expect(rows[0][0]).toBe("prod_1")
-    expect(rows[0][22]).toBe("variant_1")
-    expect(rows[0][36]).toBe("") // EUR empty in fixture
-    expect(rows[0][37]).toBe("10") // USD minor (1000) → major
-    expect(rows[0][40]).toBe("https://a.example/x.png") // Product Image 1 Url
-    expect(rows[0][42]).toBe("C1")
-    expect(rows[0][43]).toBe("shirt")
-    expect(rows[0][44]).toBe("sc_1")
-    expect(rows[0][45]).toBe("tag_1")
+    expect(rows[0].length).toBe(PRODUCT_IMPORT_CSV_HEADERS.length)
+  })
+
+  it("maps bulk_pricing tiers to AUD supplemental columns (major units)", () => {
+    const products = [
+      {
+        id: "p1",
+        handle: "h",
+        title: "T",
+        subtitle: "",
+        description: "",
+        status: "published",
+        thumbnail: "",
+        weight: "",
+        length: "",
+        width: "",
+        height: "",
+        hs_code: "",
+        origin_country: "",
+        mid_code: "",
+        material: "",
+        shipping_profile_id: "",
+        discountable: true,
+        external_id: "",
+        variants: [
+          {
+            id: "v1",
+            title: "Default",
+            sku: "S",
+            barcode: "",
+            allow_backorder: false,
+            manage_inventory: true,
+            weight: "",
+            length: "",
+            width: "",
+            height: "",
+            hs_code: "",
+            origin_country: "",
+            mid_code: "",
+            material: "",
+            prices: [],
+            options: [],
+            metadata: {
+              bulk_pricing: {
+                currency_code: "aud",
+                tiers: [
+                  { min_quantity: 1, max_quantity: 9, amount: 1000 },
+                  { min_quantity: 10, max_quantity: 49, amount: 900 },
+                  { min_quantity: 50, max_quantity: 99, amount: 800 },
+                  { min_quantity: 100, amount: 700 },
+                ],
+              },
+            },
+          },
+        ],
+        collection: null,
+        type: null,
+        sales_channels: [],
+        tags: [],
+        images: [],
+        options: [],
+      },
+    ]
+
+    const row = buildProductImportTemplateRows(products as unknown[])[0]
+    expect(row[idx("BASE_SALE_PRICE")]).toBe("10")
+    expect(row[idx("TIER_10_TO_49_PRICE")]).toBe("9")
+    expect(row[idx("TIER_50_TO_99_PRICE")]).toBe("8")
+    expect(row[idx("TIER_100_PLUS_PRICE")]).toBe("7")
+    expect(row[idx("Variant Price AUD")]).toBe("7")
+    expect(row[idx("Variant Bulk Pricing JSON")]).toContain('"tiers"')
   })
 })

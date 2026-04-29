@@ -21,6 +21,7 @@ import json
 import os
 import ssl
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -71,8 +72,23 @@ def _get_json(url: str, headers: dict[str, str], ctx: ssl.SSLContext) -> dict:
     kwargs: dict = {"timeout": 120}
     if url.lower().startswith("https://"):
         kwargs["context"] = ctx
-    with urllib.request.urlopen(req, **kwargs) as resp:
-        return json.loads(resp.read().decode())
+    try:
+        with urllib.request.urlopen(req, **kwargs) as resp:
+            return json.loads(resp.read().decode())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")[:600]
+        print(
+            f"HTTP {e.code} from Admin API. Response (truncated): {body}",
+            file=sys.stderr,
+        )
+        if e.code == 401:
+            print(
+                "Admin auth failed. Set a fresh MEDUSA_ADMIN_TOKEN from Admin Settings → Users / API,"
+                "\nor refresh MEDUSA_ADMIN_COOKIE from a logged-in Admin session,"
+                '\nor run scripts/fill_product_ids_from_store_api.py with NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY.',
+                file=sys.stderr,
+            )
+        raise
 
 
 def _fetch_handle_to_id(

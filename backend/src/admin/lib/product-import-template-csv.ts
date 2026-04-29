@@ -55,6 +55,12 @@ export const PRODUCT_IMPORT_SUPPLEMENTAL_COLUMNS = [
   "Product Type Value",
   "Product Sales Channel 1 Id",
   "Product Tag 1 Id",
+  "Variant Price AUD",
+  "BASE_SALE_PRICE",
+  "TIER_10_TO_49_PRICE",
+  "TIER_50_TO_99_PRICE",
+  "TIER_100_PLUS_PRICE",
+  "Variant Bulk Pricing JSON",
 ] as const
 
 export const PRODUCT_IMPORT_CSV_HEADERS: string[] = [
@@ -92,6 +98,7 @@ export const PRODUCT_IMPORT_EXPORT_LIST_FIELDS =
     "*sales_channels",
     "*variants",
     "*variants.prices",
+    "*variants.metadata",
     "*variants.options",
     "*options",
     "*options.values",
@@ -141,16 +148,230 @@ const priceMajorForCurrency = (prices: unknown, currency: string): string => {
     return ""
   }
   const want = currency.trim().toLowerCase()
-  const row = prices.find(
+  type PriceRow = Record<string, unknown>
+  const matches = prices.filter((p) => {
+    const row = p as PriceRow
+    return String(row.currency_code ?? "")
+      .trim()
+      .toLowerCase() === want
+  }) as PriceRow[]
+  if (matches.length === 0) {
+    return ""
+  }
+  if (matches.length === 1) {
+    return minorToMajorCsv(matches[0].amount)
+  }
+  const sorted = [...matches].sort((a, b) => priceRowMinQ(a) - priceRowMinQ(b))
+  return minorToMajorCsv(sorted[0].amount)
+}
+
+const priceRowMinQ = (row: Record<string, unknown>): number => {
+  const v = row.min_quantity
+  if (v === undefined || v === null || v === "") {
+    return 1
+  }
+  const n = typeof v === "number" ? v : Number(v)
+  return Number.isFinite(n) ? n : 1
+}
+
+const priceRowMaxQ = (row: Record<string, unknown>): number | undefined => {
+  const v = row.max_quantity
+  if (v === undefined || v === null || v === "") {
+    return undefined
+  }
+  const n = typeof v === "number" ? v : Number(v)
+  return Number.isFinite(n) ? n : undefined
+}
+
+type TierBandKey = "base" | "tier10" | "tier50" | "tier100"
+
+/** Ramo/Syzmik-style quantity bands stored in bulk_pricing and pricing-module rows. */
+const classifyBand = (minQ: number, maxQ: number | undefined): TierBandKey | null => {
+  if (minQ === 1 && maxQ === 9) {
+    return "base"
+  }
+  if (minQ === 10 && maxQ === 49) {
+    return "tier10"
+  }
+  if (minQ === 50 && maxQ === 99) {
+    return "tier50"
+  }
+  if (minQ >= 100) {
+    return "tier100"
+  }
+  return null
+}
+
+/** When classification fails, infer four ascending tiers by sort order (same convention as trim scripts). */
+const assignFourTiersPositional = (sorted: Array<Record<string, unknown>>): Record<TierBandKey, string> | null => {
+  if (sorted.length !== 4) {
+    return null
+  }
+  return {
+    base: minorToMajorCsv(sorted[0]?.amount),
+    tier10: minorToMajorCsv(sorted[1]?.amount),
+    tier50: minorToMajorCsv(sorted[2]?.amount),
+    tier100: minorToMajorCsv(sorted[3]?.amount),
+  }
+}
+
+const mergeBandCells = (byBand: Record<TierBandKey, string>): boolean =>
+  !!(byBand.base || byBand.tier10 || byBand.tier50 || byBand.tier100)
+
+const fillBandsFromTierRows = (
+  sorted: Array<Record<string, unknown>>
+): Record<TierBandKey, string> | null => {
+  const byBand: Record<TierBandKey, string> = {
+    base: "",
+    tier10: "",
+    tier50: "",
+    tier100: "",
+  }
+  for (const t of sorted) {
+    const minQ = priceRowMinQ(t)
+    const maxQ = priceRowMaxQ(t)
+    const maj = minorToMajorCsv((t as Record<string, unknown>).amount)
+    const band = classifyBand(minQ, maxQ)
+    if (band) {
+      byBand[band] = maj
+    }
+  }
+  if (mergeBandCells(byBand)) {
+    return byBand
+  }
+  return assignFourTiersPositional(sorted)
+}
+
+const stringifyBulkPricingJson = (metadata: unknown): string => {
+  const meta = metadata as Record<string, unknown> | null | undefined
+  const bp = meta?.bulk_pricing
+  if (bp === undefined || bp === null) {
+    return ""
+  }
+  try {
+    return JSON.stringify(bp)
+  } catch {
+    return ""
+  }
+}
+
+/** Prefer metadata.bulk_pricing tiers (canonical for storefront/graph). */
+const extractTierBandsFromBulkPricing = (metadata: unknown): Record<TierBandKey, string> | null => {
+  const meta = metadata as Record<string, unknown> | undefined
+  const bp = meta?.bulk_pricing as { tiers?: Array<Record<string, unknown>> } | undefined
+  if (!Array.isArray(bp?.tiers) || bp.tiers.length === 0) {
+    return null
+  }
+  const sorted = [...bp.tiers].sort((a, b) => {
+    const ma = Number((a as Record<string, unknown>).min_quantity ?? 0)
+    const mb = Number((b as Record<string, unknown>).min_quantity ?? 0)
+    return ma - mb
+  })
+  return fillBandsFromTierRows(sorted)
+}
+
+/** Fallback: parse AUD rows on variant.prices (pricing module). */
+const extractTierBandsFromAudPrices = (prices: unknown): Record<TierBandKey, string> | null => {
+  if (!Array.isArray(prices)) {
+    return null
+  }
+  const aud = prices.filter(
     (p) =>
       String((p as Record<string, unknown>).currency_code ?? "")
         .trim()
-        .toLowerCase() === want
-  ) as Record<string, unknown> | undefined
-  if (!row) {
-    return ""
+        .toLowerCase() === "aud"
+  ) as Array<Record<string, unknown>>
+  if (aud.length === 0) {
+    return null
   }
-  return minorToMajorCsv(row.amount)
+  const sorted = [...aud].sort((a, b) => priceRowMinQ(a) - priceRowMinQ(b))
+  return fillBandsFromTierRows(sorted)
+}
+
+/**
+ * Single AUD price with no quantity ladder (one row, default qty) — repeat for all bands + 100+ column per runbook.
+ */
+const extractFlatSingularAudMajor = (prices: unknown): string | null => {
+  if (!Array.isArray(prices)) {
+    return null
+  }
+  const aud = prices.filter(
+    (p) =>
+      String((p as Record<string, unknown>).currency_code ?? "")
+        .trim()
+        .toLowerCase() === "aud"
+  ) as Array<Record<string, unknown>>
+  if (aud.length !== 1) {
+    return null
+  }
+  const row = aud[0]
+  const minQ = priceRowMinQ(row)
+  const maxQ = priceRowMaxQ(row)
+  if (maxQ !== undefined) {
+    return null
+  }
+  if (minQ > 1) {
+    return null
+  }
+  const maj = minorToMajorCsv(row.amount)
+  return maj || null
+}
+
+const audTierCellsForVariant = (variant: Record<string, unknown>): {
+  variantPriceAud: string
+  base: string
+  tier10: string
+  tier50: string
+  tier100: string
+  bulkPricingJson: string
+} => {
+  const bulkPricingJson = stringifyBulkPricingJson(variant.metadata)
+  const fromBp = extractTierBandsFromBulkPricing(variant.metadata)
+  if (fromBp && mergeBandCells(fromBp)) {
+    const t100 = fromBp.tier100
+    return {
+      variantPriceAud: t100,
+      base: fromBp.base,
+      tier10: fromBp.tier10,
+      tier50: fromBp.tier50,
+      tier100: t100,
+      bulkPricingJson,
+    }
+  }
+
+  const fromPrices = extractTierBandsFromAudPrices(variant.prices)
+  if (fromPrices && mergeBandCells(fromPrices)) {
+    const t100 = fromPrices.tier100
+    return {
+      variantPriceAud: t100,
+      base: fromPrices.base,
+      tier10: fromPrices.tier10,
+      tier50: fromPrices.tier50,
+      tier100: t100,
+      bulkPricingJson,
+    }
+  }
+
+  const flat = extractFlatSingularAudMajor(variant.prices)
+  if (flat) {
+    return {
+      variantPriceAud: flat,
+      base: flat,
+      tier10: flat,
+      tier50: flat,
+      tier100: flat,
+      bulkPricingJson,
+    }
+  }
+
+  return {
+    variantPriceAud: "",
+    base: "",
+    tier10: "",
+    tier50: "",
+    tier100: "",
+    bulkPricingJson,
+  }
 }
 
 const sortImagesByRank = (images: unknown): Array<Record<string, unknown>> => {
@@ -273,6 +494,7 @@ export function buildProductImportTemplateRows(products: unknown[]): string[][] 
       }
       const variant = vr as Record<string, unknown>
       const prices = variant.prices
+      const audTiers = audTierCellsForVariant(variant)
 
       const opt = firstVariantOptionPair(product, variant)
 
@@ -323,6 +545,12 @@ export function buildProductImportTemplateRows(products: unknown[]): string[][] 
         typeValue,
         channelId,
         tagId,
+        audTiers.variantPriceAud,
+        audTiers.base,
+        audTiers.tier10,
+        audTiers.tier50,
+        audTiers.tier100,
+        audTiers.bulkPricingJson,
       ])
     }
   }
