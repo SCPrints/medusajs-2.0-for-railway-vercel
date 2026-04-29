@@ -19,6 +19,8 @@ import { tiersFromCostMinor } from "../utils/as-colour-tier-math"
  * for `as-colour-*` products (any columns; only handle/sku used for which variants to touch).
  *
  * `npm run update-as-colour-pricing -- --from-gold-cost /path/to/gold.csv` (add `-- --apply` to persist).
+ * (`--from-gold-csv`, `--gold`, and `--from-gold-csv=/abs/path.csv` work. `--file` / `--price-csv` set the price sheet path.)
+ * A sheet with `STYLECODE` + `PRICE` but no `BASE_SALE_PRICE` values is **auto-treated as gold** (five tiers).
  */
 
 type CsvRow = Record<string, string>
@@ -182,16 +184,103 @@ const chunk = <T>(items: T[], size: number) => {
   return out
 }
 
+/**
+ * `npm run … -- …` and `medusa exec … -- …` put user flags after `--`.
+ * Medusa often passes an empty `args` array, so we also read `process.argv`.
+ */
+const argvAfterDoubleDash = (): string[] => {
+  const i = process.argv.findIndex((a) => a === "--")
+  return i >= 0 ? process.argv.slice(i + 1) : []
+}
+
+const mergeScriptArgv = (execArgs: unknown): string[] => {
+  const fromExec = Array.isArray(execArgs)
+    ? execArgs.filter((a): a is string => typeof a === "string")
+    : []
+  return [...fromExec, ...argvAfterDoubleDash()]
+}
+
+/**
+ * `--from-gold-csv=/path/file.csv` is one shell token; split so the flag and path parse correctly.
+ */
+const normalizeGoldCostArgv = (tokens: string[]): string[] => {
+  const out: string[] = []
+  for (const t of tokens) {
+    const m = t.match(/^--from-gold-(?:cost|csv)=(.*)$/)
+    if (m) {
+      out.push("--from-gold-cost", (m[1] ?? "").trim())
+      continue
+    }
+    out.push(t)
+  }
+  return out
+}
+
+/**
+ * `--file` / `--price-csv` set the supplier price spreadsheet path (same as first positional arg).
+ */
+const extractExplicitPriceCsvPath = (tokens: string[]): { rest: string[]; path?: string } => {
+  const rest: string[] = []
+  let path: string | undefined
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]
+    if (t === "--file" || t === "--price-csv") {
+      const next = tokens[i + 1]
+      if (next && !next.startsWith("--")) {
+        path = next.trim()
+        i++
+      }
+      continue
+    }
+    const mFile = t.match(/^--file=(.*)$/)
+    const mPrice = t.match(/^--price-csv=(.*)$/)
+    if (mFile?.[1]) {
+      path = mFile[1].trim()
+      continue
+    }
+    if (mPrice?.[1]) {
+      path = mPrice[1].trim()
+      continue
+    }
+    rest.push(t)
+  }
+  return { rest, path }
+}
+
 const getApplyFlag = (scriptArgs: string[]) =>
   scriptArgs.includes("--apply") ||
   process.argv.includes("--apply") ||
   process.env.AS_COLOUR_PRICING_APPLY === "1" ||
   process.env.AS_COLOUR_PRICING_APPLY === "true"
 
+/** `--from-gold-csv` / `--gold` are aliases. Supports `--from-gold-csv=/path` (equals form). */
 const getFromGoldCostFlag = (scriptArgs: string[]) =>
   scriptArgs.includes("--from-gold-cost") ||
+  scriptArgs.includes("--from-gold-csv") ||
+  scriptArgs.includes("--gold") ||
+  scriptArgs.some((a) => /^--from-gold-(?:cost|csv)=/.test(a)) ||
+  process.argv.some((a) => /^--from-gold-(?:cost|csv)=/.test(a)) ||
+  process.argv.includes("--from-gold-cost") ||
+  process.argv.includes("--from-gold-csv") ||
+  process.argv.includes("--gold") ||
   process.env.AS_COLOUR_FROM_GOLD_COST === "1" ||
   process.env.AS_COLOUR_FROM_GOLD_COST === "true"
+
+/** No BASE_SALE_PRICE values but STYLECODE + PRICE → treat as gold cost sheet. */
+const sheetLooksLikeGoldCostOnly = (rows: CsvRow[]): boolean => {
+  if (!rows.length) {
+    return false
+  }
+  const anyBase = rows.some((r) => parseMoneyToMinor(r["BASE_SALE_PRICE"]) !== null)
+  if (anyBase) {
+    return false
+  }
+  return rows.some((r) => {
+    const sc = normalizeStyleCode(r["STYLECODE"])
+    const p = parseMoneyToMinor(r["PRICE"])
+    return Boolean(sc && p !== null && p > 0)
+  })
+}
 
 /** Explicit BASE_SALE_PRICE / TIER_* columns (four qty bands, 10–49 merged). */
 const buildStylePricingMap = (rows: CsvRow[]) => {
@@ -399,10 +488,15 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     throw new Error("Pricing module method upsertPriceSets is unavailable")
   }
 
-  const scriptArgs = (args ?? []).filter((a): a is string => typeof a === "string")
+  const { rest: scriptArgs, path: priceCsvFromFlag } = extractExplicitPriceCsvPath(
+    normalizeGoldCostArgv(mergeScriptArgv(args))
+  )
   const apply = getApplyFlag(scriptArgs)
-  const fromGoldCost = getFromGoldCostFlag(scriptArgs)
-  const positionalArgs = scriptArgs.filter((a) => !a.startsWith("--"))
+  const goldFlag = getFromGoldCostFlag(scriptArgs)
+  const positionalArgs = [
+    ...(priceCsvFromFlag ? [priceCsvFromFlag] : []),
+    ...scriptArgs.filter((a) => !a.startsWith("--")),
+  ]
 
   const priceCsvPath = resolveExistingPath(
     positionalArgs[0] ? [positionalArgs[0], ...DEFAULT_PRICE_CSV_CANDIDATES] : DEFAULT_PRICE_CSV_CANDIDATES,
@@ -410,15 +504,22 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
   )
   const importCsvPath = resolveExistingPath(DEFAULT_IMPORT_CSV_CANDIDATES, "AS Colour import CSV")
 
+  const pricingRows = parseCsv(fs.readFileSync(priceCsvPath, "utf8"))
+  const fromGoldCost = goldFlag || sheetLooksLikeGoldCostOnly(pricingRows)
+  const importRows = parseCsv(fs.readFileSync(importCsvPath, "utf8"))
+
   logger.info(`Mode: ${apply ? "APPLY" : "DRY RUN"} (pass -- --apply to write changes)`)
   logger.info(
-    `Pricing mode: ${fromGoldCost ? "gold (--from-gold-cost: STYLECODE + PRICE → five tiers)" : "explicit BASE_SALE_PRICE / TIER_* columns (four tiers)"}`
+    `Pricing mode: ${
+      !fromGoldCost
+        ? "explicit BASE_SALE_PRICE / TIER_* columns (four tiers)"
+        : goldFlag
+          ? "gold (flag: STYLECODE + PRICE → five tiers)"
+          : "gold (auto: no BASE_SALE_PRICE column values → five tiers from PRICE)"
+    }`
   )
   logger.info(`Price CSV: ${priceCsvPath}`)
   logger.info(`Import CSV: ${importCsvPath}`)
-
-  const pricingRows = parseCsv(fs.readFileSync(priceCsvPath, "utf8"))
-  const importRows = parseCsv(fs.readFileSync(importCsvPath, "utf8"))
 
   const { byLookupKey, duplicateLookupKeys } = fromGoldCost
     ? buildStylePricingMapFromGold(pricingRows)
