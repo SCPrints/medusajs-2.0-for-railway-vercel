@@ -13,6 +13,8 @@ import {
 } from "react"
 
 import PlaceholderImage from "@modules/common/icons/placeholder-image"
+
+import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
 import type { ProductListingCardData } from "@modules/products/lib/product-listing-card-data"
@@ -61,15 +63,18 @@ function CardImage({
   imageUrl: string | null
   title: string
 }) {
+  const resolved = imageUrl
+    ? remapStaleExternalGarmentUrl(imageUrl) ?? imageUrl
+    : null
   return (
     <Container
       className={clx(
         "relative w-full overflow-hidden p-4 bg-ui-bg-subtle shadow-elevation-card-rest rounded-large group-hover:shadow-elevation-card-hover transition-shadow ease-in-out duration-150 aspect-[1/1] rounded-lg"
       )}
     >
-      {imageUrl ? (
+      {resolved ? (
         <Image
-          src={imageUrl}
+          src={resolved}
           alt={title}
           className="absolute inset-0 object-cover object-center transition-transform duration-300 ease-out will-change-transform group-hover:scale-110"
           draggable={false}

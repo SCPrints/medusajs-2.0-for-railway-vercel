@@ -4,6 +4,8 @@ import React from "react"
 
 import PlaceholderImage from "@modules/common/icons/placeholder-image"
 
+import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
+
 type ThumbnailProps = {
   thumbnail?: string | null
   // TODO: Fix image typings
@@ -29,7 +31,10 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
   className,
   "data-testid": dataTestid,
 }) => {
-  const initialImage = thumbnail || images?.[0]?.url
+  const rawThumbnail = thumbnail || images?.[0]?.url
+  const initialImage = rawThumbnail
+    ? remapStaleExternalGarmentUrl(rawThumbnail) ?? rawThumbnail
+    : undefined
 
   return (
     <Container

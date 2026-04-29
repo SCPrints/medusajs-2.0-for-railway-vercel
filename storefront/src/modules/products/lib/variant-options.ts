@@ -1,6 +1,8 @@
 import type { HttpTypes } from "@medusajs/types"
 import { isEqual } from "lodash"
 
+import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
+
 /** Same values as customizer `GarmentSide`; kept local to avoid importing customizer from product lib. */
 type PrintGarmentSide = "front" | "back" | "left_sleeve" | "right_sleeve"
 
@@ -651,7 +653,9 @@ export function getPrimaryGarmentImageUrl(
     return null
   }
   if (!variant) {
-    return product.thumbnail ?? product.images?.find((i) => i.url)?.url ?? null
+    return remapStaleExternalGarmentUrl(
+      product.thumbnail ?? product.images?.find((i) => i.url)?.url ?? null
+    )
   }
 
   const validImages = (product.images ?? [])
@@ -678,11 +682,11 @@ export function getPrimaryGarmentImageUrl(
   if (mappedVariantImages.length) {
     const firstUrl = mappedVariantImages[0]
     const fromProduct = findProductImageByUrl(firstUrl, validImages)
-    return fromProduct?.url ?? firstUrl
+    return remapStaleExternalGarmentUrl(fromProduct?.url ?? firstUrl)
   }
 
   if (validImages.length <= 1) {
-    return validImages[0]?.url ?? product.thumbnail ?? null
+    return remapStaleExternalGarmentUrl(validImages[0]?.url ?? product.thumbnail ?? null)
   }
 
   if (selectedColor) {
@@ -690,13 +694,13 @@ export function getPrimaryGarmentImageUrl(
       urlMatchesColorLabelStrict(image.url, selectedColor)
     )
     if (strict.length) {
-      return strict[0].url
+      return remapStaleExternalGarmentUrl(strict[0].url)
     }
   }
 
   const bySku = findProductImageByVariantSku(validImages, variant)
   if (bySku) {
-    return bySku.url
+    return remapStaleExternalGarmentUrl(bySku.url)
   }
 
   if (selectedColor) {
@@ -705,11 +709,11 @@ export function getPrimaryGarmentImageUrl(
       urlMatchesColorNeedles(image.url, relaxedNeedles)
     )
     if (relaxed.length) {
-      return relaxed[0].url
+      return remapStaleExternalGarmentUrl(relaxed[0].url)
     }
   }
 
-  return validImages[0]?.url ?? product.thumbnail ?? null
+  return remapStaleExternalGarmentUrl(validImages[0]?.url ?? product.thumbnail ?? null)
 }
 
 const garmentUrlLooksLikeBack = (url: string) => {

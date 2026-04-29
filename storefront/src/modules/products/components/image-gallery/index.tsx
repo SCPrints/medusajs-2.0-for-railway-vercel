@@ -4,6 +4,7 @@ import { HttpTypes } from "@medusajs/types"
 import { Container } from "@medusajs/ui"
 import Image from "next/image"
 import { useMemo } from "react"
+import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import {
   buildColorNeedlesForRelaxedMatch,
@@ -116,7 +117,27 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
     return []
   }, [galleryImages, thumbnail])
 
-  const hasProductImages = fallbackImages.length > 0
+  /** Remap known 404 garment URLs + drop duplicates when remap collapses variants (e.g. colour chart → hero). */
+  const displayImages = useMemo(() => {
+    const merged = fallbackImages.map((img) => {
+      const u = remapStaleExternalGarmentUrl(img.url) ?? img.url
+      return { ...img, url: u }
+    })
+    const out: typeof merged = []
+    for (const row of merged) {
+      const key = normalizeImageUrl(row.url)
+      if (
+        out.length > 0 &&
+        normalizeImageUrl(out[out.length - 1].url) === key
+      ) {
+        continue
+      }
+      out.push(row)
+    }
+    return out
+  }, [fallbackImages])
+
+  const hasProductImages = displayImages.length > 0
 
   return (
     <div className="flex items-start relative">
@@ -129,7 +150,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
           </Container>
         )}
 
-        {fallbackImages.map((image, index) => (
+        {displayImages.map((image, index) => (
           <div
             key={`${image.id}-${index}-${normalizeImageUrl(image.url).slice(-48)}`}
             className="w-full scroll-mt-28"
