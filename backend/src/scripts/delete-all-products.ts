@@ -3,7 +3,8 @@
  *
  * Usage (from `backend/`):
  *   pnpm run delete-all-products           # dry run: count only
- *   pnpm run delete-all-products -- --apply
+ *   pnpm run delete-all-products:apply       # delete (uses DELETE_PRODUCTS_APPLY=1)
+ *   pnpm run delete-all-products -- --apply  # alternative
  *
  * Env: DELETE_PRODUCTS_APPLY=1 also enables apply.
  */
