@@ -5,6 +5,21 @@ import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
 import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
+import { tiersFromCostMinor } from "../utils/as-colour-tier-math"
+
+/**
+ * Updates AS Colour variant price sets (AUD, qty tiers) and `bulk_pricing` metadata.
+ *
+ * Gold / supplier cost sheet: pass `--from-gold-cost` and a CSV with `STYLECODE` + `PRICE`
+ * (ex-GST cost per style). Tiers are derived; optional `PRODUCT_NAME` with "(4XL)" / "(5XL)" for extended SKUs.
+ *
+ * Legacy sheet: omit `--from-gold-cost` and supply `BASE_SALE_PRICE`, `TIER_10_TO_49_PRICE`, etc.
+ *
+ * Scoping: set `AS_COLOUR_IMPORT_CSV` or use `data/as_colour_medusa_import.csv` with `Product Handle` + `Variant Sku`
+ * for `as-colour-*` products (any columns; only handle/sku used for which variants to touch).
+ *
+ * `npm run update-as-colour-pricing -- --from-gold-cost /path/to/gold.csv` (add `-- --apply` to persist).
+ */
 
 type CsvRow = Record<string, string>
 
@@ -167,12 +182,18 @@ const chunk = <T>(items: T[], size: number) => {
   return out
 }
 
-const getApplyFlag = (args: string[]) =>
-  args.includes("--apply") ||
+const getApplyFlag = (scriptArgs: string[]) =>
+  scriptArgs.includes("--apply") ||
   process.argv.includes("--apply") ||
   process.env.AS_COLOUR_PRICING_APPLY === "1" ||
   process.env.AS_COLOUR_PRICING_APPLY === "true"
 
+const getFromGoldCostFlag = (scriptArgs: string[]) =>
+  scriptArgs.includes("--from-gold-cost") ||
+  process.env.AS_COLOUR_FROM_GOLD_COST === "1" ||
+  process.env.AS_COLOUR_FROM_GOLD_COST === "true"
+
+/** Explicit BASE_SALE_PRICE / TIER_* columns (four qty bands, 10–49 merged). */
 const buildStylePricingMap = (rows: CsvRow[]) => {
   const byLookupKey = new Map<string, StylePricing>()
   const duplicateLookupKeys = new Set<string>()
@@ -207,6 +228,50 @@ const buildStylePricingMap = (rows: CsvRow[]) => {
     const stylePricing: StylePricing = {
       styleCode,
       costPriceMinor: parseMoneyToMinor(row["PRICE"]),
+      tiers,
+    }
+
+    const band = parseExtendedSizeBandFromProductName(row["PRODUCT_NAME"])
+    const lookupKey = stylePricingLookupKey(styleCode, band)
+
+    if (byLookupKey.has(lookupKey)) {
+      duplicateLookupKeys.add(lookupKey)
+    }
+
+    byLookupKey.set(lookupKey, stylePricing)
+  }
+
+  return {
+    byLookupKey,
+    duplicateLookupKeys: Array.from(duplicateLookupKeys),
+  }
+}
+
+/** STYLECODE + PRICE (supplier cost); tiers derived via tiersFromCostMinor (five bands). */
+const buildStylePricingMapFromGold = (rows: CsvRow[]) => {
+  const byLookupKey = new Map<string, StylePricing>()
+  const duplicateLookupKeys = new Set<string>()
+
+  for (const row of rows) {
+    const styleCode = normalizeStyleCode(row["STYLECODE"])
+    if (!styleCode) {
+      continue
+    }
+
+    const costMinor = parseMoneyToMinor(row["PRICE"])
+    if (costMinor === null || costMinor <= 0) {
+      continue
+    }
+
+    const tiers: Tier[] = tiersFromCostMinor(costMinor).map((t) => ({
+      min_quantity: t.min_quantity,
+      ...(typeof t.max_quantity === "number" ? { max_quantity: t.max_quantity } : {}),
+      amount: t.amount,
+    }))
+
+    const stylePricing: StylePricing = {
+      styleCode,
+      costPriceMinor: costMinor,
       tiers,
     }
 
@@ -334,21 +399,30 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     throw new Error("Pricing module method upsertPriceSets is unavailable")
   }
 
-  const apply = getApplyFlag(args)
+  const scriptArgs = (args ?? []).filter((a): a is string => typeof a === "string")
+  const apply = getApplyFlag(scriptArgs)
+  const fromGoldCost = getFromGoldCostFlag(scriptArgs)
+  const positionalArgs = scriptArgs.filter((a) => !a.startsWith("--"))
+
   const priceCsvPath = resolveExistingPath(
-    args[0] ? [args[0], ...DEFAULT_PRICE_CSV_CANDIDATES] : DEFAULT_PRICE_CSV_CANDIDATES,
+    positionalArgs[0] ? [positionalArgs[0], ...DEFAULT_PRICE_CSV_CANDIDATES] : DEFAULT_PRICE_CSV_CANDIDATES,
     "AS Colour price CSV"
   )
   const importCsvPath = resolveExistingPath(DEFAULT_IMPORT_CSV_CANDIDATES, "AS Colour import CSV")
 
   logger.info(`Mode: ${apply ? "APPLY" : "DRY RUN"} (pass -- --apply to write changes)`)
+  logger.info(
+    `Pricing mode: ${fromGoldCost ? "gold (--from-gold-cost: STYLECODE + PRICE → five tiers)" : "explicit BASE_SALE_PRICE / TIER_* columns (four tiers)"}`
+  )
   logger.info(`Price CSV: ${priceCsvPath}`)
   logger.info(`Import CSV: ${importCsvPath}`)
 
   const pricingRows = parseCsv(fs.readFileSync(priceCsvPath, "utf8"))
   const importRows = parseCsv(fs.readFileSync(importCsvPath, "utf8"))
 
-  const { byLookupKey, duplicateLookupKeys } = buildStylePricingMap(pricingRows)
+  const { byLookupKey, duplicateLookupKeys } = fromGoldCost
+    ? buildStylePricingMapFromGold(pricingRows)
+    : buildStylePricingMap(pricingRows)
   const asColourSkus = parseSkuSetFromAsColourImport(importRows)
   const asColourHandles = parseHandleSetFromAsColourImport(importRows)
 
