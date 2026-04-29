@@ -11,7 +11,6 @@ import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
-import HomeSessionIntro from "@modules/home/components/home-session-intro"
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
@@ -108,8 +107,7 @@ export default async function Home({
   }
 
   return (
-    <HomeSessionIntro>
-      <div className="bg-ui-bg-base">
+    <div className="bg-ui-bg-base">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -245,6 +243,5 @@ export default async function Home({
           handleDisplay={instagramHandle}
         />
       </div>
-    </HomeSessionIntro>
   )
 }

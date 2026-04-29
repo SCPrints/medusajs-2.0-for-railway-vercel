@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 
-const STORAGE_KEY = "sc-home-intro-session"
+const STORAGE_KEY = "sc-contact-intro-session"
 
 /** Final zoom scale — 1 keeps logo + tagline within the constrained column (no viewport overflow) */
 const ZOOM_END_SCALE = 1
@@ -72,8 +72,8 @@ function generateParticles(count: number): ParticleSpec[] {
   })
 }
 
-/** Full-screen intro shown once per browser tab session on the home page only. */
-export default function HomeSessionIntro({
+/** Full-screen brand intro shown once per browser tab session for the wrapping route (e.g. Contact). */
+export default function SessionIntro({
   children,
 }: {
   children: React.ReactNode

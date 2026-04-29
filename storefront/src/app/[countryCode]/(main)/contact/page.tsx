@@ -4,6 +4,7 @@ import ContactForm from "@modules/contact/components/contact-form"
 import ContactMap from "@modules/contact/components/contact-map"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
+import SessionIntro from "@modules/home/components/home-session-intro"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -56,48 +57,50 @@ export default async function ContactPage({
   }
 
   return (
-    <div className="content-container py-14 small:py-20">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(contactStructuredData) }}
-      />
-      <div className="mb-12">
-        <MarketingHero
-          align="center"
-          eyebrow="Customer support"
-          title="Contact Us"
-          subtitle="Have a question about our products or your order? We're here to help."
-          subtitleClassName="text-lg"
-        >
-          <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 text-sm text-ui-fg-subtle">
-            <span>Need an instant answer?</span>
-            <LocalizedClientLink
-              href="/faq"
-              className="font-semibold text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] hover:underline"
-            >
-              Check our Frequently Asked Questions
-            </LocalizedClientLink>
-          </div>
-        </MarketingHero>
-      </div>
+    <SessionIntro>
+      <div className="content-container py-14 small:py-20">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(contactStructuredData) }}
+        />
+        <div className="mb-12">
+          <MarketingHero
+            align="center"
+            eyebrow="Customer support"
+            title="Contact Us"
+            subtitle="Have a question about our products or your order? We're here to help."
+            subtitleClassName="text-lg"
+          >
+            <div className="mt-6 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-4 text-sm text-ui-fg-subtle">
+              <span>Need an instant answer?</span>
+              <LocalizedClientLink
+                href="/faq"
+                className="font-semibold text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] hover:underline"
+              >
+                Check our Frequently Asked Questions
+              </LocalizedClientLink>
+            </div>
+          </MarketingHero>
+        </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 items-start gap-12 md:grid-cols-2 lg:gap-16">
-        {/* LEFT COLUMN: Contact Form */}
-        <ContactForm />
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 items-start gap-12 md:grid-cols-2 lg:gap-16">
+          {/* LEFT COLUMN: Contact Form */}
+          <ContactForm />
 
-        {/* RIGHT COLUMN: Map + Store Hours */}
-        <div className="flex flex-col gap-6">
-          <ContactMap />
+          {/* RIGHT COLUMN: Map + Store Hours */}
+          <div className="flex flex-col gap-6">
+            <ContactMap />
 
-          <div className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-6 text-center">
-            <h3 className="mb-1 font-bold text-ui-fg-base">Store Hours</h3>
-            <p className="text-sm text-[var(--brand-secondary)]">
-              Monday - Friday: 9:00am - 5:00pm AEST
-            </p>
+            <div className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-6 text-center">
+              <h3 className="mb-1 font-bold text-ui-fg-base">Store Hours</h3>
+              <p className="text-sm text-[var(--brand-secondary)]">
+                Monday - Friday: 9:00am - 5:00pm AEST
+              </p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </SessionIntro>
   )
 }
