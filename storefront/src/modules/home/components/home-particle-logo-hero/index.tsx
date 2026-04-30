@@ -15,6 +15,7 @@ import {
   ANIMATED_PARTICLE_CAP,
   DRAG_RADIUS,
   FRICTION,
+  FULL_HERO_HOME_FRACTION,
   PARALLAX_EASE,
   PARALLAX_MOUSE_SENSITIVITY,
   PARALLAX_MULT_C,
@@ -27,6 +28,7 @@ import {
   PHYSICS_DIST_EPSILON,
   PUSH_FORCE,
   SMEAR_FORCE,
+  SPRING_GAIN,
   SPRING_STIFFNESS,
   SWIRL_FORCE,
   WOBBLE_AMP_X_CSS,
@@ -436,17 +438,44 @@ export default function HomeParticleLogoHero({ logoSrc = DEFAULT_LOGO_SRC }: Pro
       }
     }
 
-    const n = candidates.length
-    const cap = n > 0 ? ANIMATED_PARTICLE_CAP : 0
+    const nLogo = candidates.length
+    const cap = ANIMATED_PARTICLE_CAP
+    const heroHomeCount =
+      nLogo > 0
+        ? Math.min(cap, Math.round(cap * FULL_HERO_HOME_FRACTION))
+        : cap
+    const logoHomeCount = cap - heroHomeCount
     const particles: ParallaxParticle[] = []
 
-    for (let k = 0; k < cap; k++) {
-      const randomIndex = Math.floor(Math.random() * n)
+    for (let k = 0; k < heroHomeCount; k++) {
+      const hx = Math.random() * Math.max(1, W - 1)
+      const hy = Math.random() * Math.max(1, H - 1)
+      const phase = stippleHash(k + 901, k * 17 + W) * Math.PI * 2 + k * 0.001
+      const speedMul = 0.5 + stippleHash(k, hx + hy) * 0.5
+      particles.push({
+        hx,
+        hy,
+        x: hx,
+        y: hy,
+        wobbleAngleX: phase,
+        wobbleAngleY: phase * 1.03,
+        speed: speedMul,
+        radiusCss:
+          PARTICLE_RADIUS_MIN_CSS +
+          stippleHash(k, hx + hy) * PARTICLE_RADIUS_RANGE_CSS,
+        baseAlpha:
+          PARTICLE_ALPHA_MIN + stippleHash(hy, k * 31) * PARTICLE_ALPHA_RANGE,
+        vx: 0,
+        vy: 0,
+      })
+    }
+
+    for (let k = 0; k < logoHomeCount; k++) {
+      const randomIndex = Math.floor(Math.random() * nLogo)
       const { x: hxRaw, y: hyRaw } = candidates[randomIndex]!
       const hx = (Number(hxRaw) || 0) + (Math.random() * 2 - 1)
       const hy = (Number(hyRaw) || 0) + (Math.random() * 2 - 1)
       const phase = stippleHash(k + 17, hyRaw) * Math.PI * 2 + k * 0.001
-      /** Scales `WOBBLE_RAD_PER_SEC_BASE`; U(0.5, 1). */
       const speedMul = 0.5 + stippleHash(hxRaw, k) * 0.5
       particles.push({
         hx,
@@ -488,7 +517,7 @@ export default function HomeParticleLogoHero({ logoSrc = DEFAULT_LOGO_SRC }: Pro
     const dotDpr = c2.width / Math.max(1, c2.clientWidth)
     drawLayer(ctx2, c2, particles, sx, sy, 0, mouseRef, dotDpr, 0, 0, !reduceParallax)
 
-    setLogoRasterReady(n > 0 && particles.length > 0)
+    setLogoRasterReady(particles.length > 0)
 
     if (lastPointerClientRef.current == null) {
       const { wBox, hBox } = viewportBox()
@@ -714,8 +743,8 @@ export default function HomeParticleLogoHero({ logoSrc = DEFAULT_LOGO_SRC }: Pro
 
           const homeDx = hx - x
           const homeDy = hy - y
-          vx += homeDx * SPRING_STIFFNESS * 1.5
-          vy += homeDy * SPRING_STIFFNESS * 1.5
+          vx += homeDx * SPRING_STIFFNESS * SPRING_GAIN
+          vy += homeDy * SPRING_STIFFNESS * SPRING_GAIN
           vx *= FRICTION
           vy *= FRICTION
           x += vx

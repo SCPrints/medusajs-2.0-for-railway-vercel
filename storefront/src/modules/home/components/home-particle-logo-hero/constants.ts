@@ -2,7 +2,13 @@
  * Single visible stipple: animated particles on canvasC only (see ANIMATED_PARTICLE_CAP).
  * Canvases O/A stay cleared — avoids a “frozen” double layer vs newmix-style motion.
  */
-export const ANIMATED_PARTICLE_CAP = 15000
+export const ANIMATED_PARTICLE_CAP = 18000
+
+/**
+ * Fraction of particles whose home `(hx, hy)` is uniform across the full hero bitmap `W×H`.
+ * The rest are sampled from the logo mask so the wordmark stays readable when settled.
+ */
+export const FULL_HERO_HOME_FRACTION = 0.62
 
 /** Cursor influence radius in bitmap px. */
 export const DRAG_RADIUS = 450
@@ -12,10 +18,12 @@ export const PUSH_FORCE = 0.58
 export const SMEAR_FORCE = 1.05
 /** Tangential twist coefficient (paired with perpendicular to radial). */
 export const SWIRL_FORCE = 3.5
-/** Pull toward home position (hx, hy) per frame. */
-export const SPRING_STIFFNESS = 0.014
+/** Pull toward home position (hx, hy) per frame; lower = slower drift back (“more delay”). */
+export const SPRING_STIFFNESS = 0.0055
+/** Extra multiplier on spring acceleration in the tick loop. */
+export const SPRING_GAIN = 1
 /** Velocity damping after integration step. */
-export const FRICTION = 0.935
+export const FRICTION = 0.938
 /** Skip normalize / radial when dist is ~0 to avoid NaN. */
 export const PHYSICS_DIST_EPSILON = 1e-6
 
