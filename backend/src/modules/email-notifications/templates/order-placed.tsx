@@ -14,6 +14,8 @@ export interface OrderPlacedTemplateProps {
   order: OrderDTO & { display_id: string; summary: { raw_current_order_total: { value: number } } }
   shippingAddress: OrderAddressDTO
   preview?: string
+  /** When `merchant`, copy is aimed at the shop inbox instead of the customer. */
+  audience?: 'customer' | 'merchant'
 }
 
 export const isOrderPlacedTemplateData = (data: any): data is OrderPlacedTemplateProps =>
@@ -21,21 +23,56 @@ export const isOrderPlacedTemplateData = (data: any): data is OrderPlacedTemplat
 
 export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   PreviewProps: OrderPlacedPreviewProps
-} = ({ order, shippingAddress, preview = 'Your order has been placed!' }) => {
+} = ({
+  order,
+  shippingAddress,
+  preview,
+  audience = 'customer',
+}) => {
+  const isMerchant = audience === 'merchant'
+  const effectivePreview =
+    preview ??
+    (isMerchant
+      ? `New order #${order.display_id}`
+      : 'Your order has been placed!')
+  const title = isMerchant ? 'New order received' : 'Order Confirmation'
+  const greeting = isMerchant ? (
+    <>
+      <Text style={{ margin: '0 0 15px' }}>
+        Customer: {shippingAddress.first_name} {shippingAddress.last_name}
+      </Text>
+      <Text style={{ margin: '0 0 15px' }}>
+        Customer email: {order.email ?? '—'}
+      </Text>
+      <Text style={{ margin: '0 0 15px' }}>
+        Internal order id: {order.id}
+      </Text>
+    </>
+  ) : (
+    <Text style={{ margin: '0 0 15px' }}>
+      Dear {shippingAddress.first_name} {shippingAddress.last_name},
+    </Text>
+  )
+  const intro = isMerchant ? (
+    <Text style={{ margin: '0 0 30px' }}>Below is a copy of the order details.</Text>
+  ) : (
+    <Text style={{ margin: '0 0 30px' }}>
+      Thank you for your recent order! Here are your order details:
+    </Text>
+  )
+
+  const items = order.items ?? []
+
   return (
-    <Base preview={preview}>
+    <Base preview={effectivePreview}>
       <Section>
         <Text style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', margin: '0 0 30px' }}>
-          Order Confirmation
+          {title}
         </Text>
 
-        <Text style={{ margin: '0 0 15px' }}>
-          Dear {shippingAddress.first_name} {shippingAddress.last_name},
-        </Text>
+        {greeting}
 
-        <Text style={{ margin: '0 0 30px' }}>
-          Thank you for your recent order! Here are your order details:
-        </Text>
+        {intro}
 
         <Text style={{ fontSize: '18px', fontWeight: 'bold', margin: '0 0 10px' }}>
           Order Summary
@@ -88,7 +125,7 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
             <Text style={{ fontWeight: 'bold' }}>Quantity</Text>
             <Text style={{ fontWeight: 'bold' }}>Price</Text>
           </div>
-          {order.items.map((item) => (
+          {items.map((item) => (
             <div key={item.id} style={{
               display: 'flex',
               justifyContent: 'space-between',

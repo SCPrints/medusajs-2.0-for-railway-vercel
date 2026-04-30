@@ -1,7 +1,7 @@
 import { INotificationModuleService, IUserModuleService } from '@medusajs/framework/types'
 import { Modules } from '@medusajs/framework/utils'
 import { SubscriberArgs, SubscriberConfig } from '@medusajs/framework'
-import { BACKEND_URL } from '../lib/constants'
+import { BACKEND_URL, SUPPORT_REPLY_TO_EMAIL } from '../lib/constants'
 import { EmailTemplates } from '../modules/email-notifications/templates'
 
 export default async function userInviteHandler({
@@ -22,7 +22,7 @@ export default async function userInviteHandler({
       template: EmailTemplates.INVITE_USER,
       data: {
         emailOptions: {
-          replyTo: 'info@example.com',
+          replyTo: SUPPORT_REPLY_TO_EMAIL,
           subject: "You've been invited to Medusa!"
         },
         inviteLink: `${BACKEND_URL}/app/invite?token=${invite.token}`,

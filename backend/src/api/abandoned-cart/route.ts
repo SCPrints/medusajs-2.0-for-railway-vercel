@@ -4,7 +4,7 @@ import { Modules } from "@medusajs/framework/utils"
 import { Pool } from "pg"
 import { ulid } from "ulid"
 
-import { CONTACT_NOTIFICATION_EMAIL, DATABASE_URL } from "../../lib/constants"
+import { CONTACT_NOTIFICATION_EMAIL, DATABASE_URL, SUPPORT_REPLY_TO_EMAIL } from "../../lib/constants"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
 
 const DEFAULT_ALLOWED_ORIGINS = [
@@ -170,7 +170,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           data: {
             emailOptions: {
               subject: "Your SC PRINTS cart reminder",
-              replyTo: supportRecipient || undefined,
+              replyTo: supportRecipient || SUPPORT_REPLY_TO_EMAIL,
             },
             reminder: {
               cartId,

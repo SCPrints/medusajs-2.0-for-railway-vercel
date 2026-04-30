@@ -4,6 +4,7 @@ import {
   IOrderModuleService,
 } from '@medusajs/framework/types'
 import { SubscriberArgs, SubscriberConfig } from '@medusajs/medusa'
+import { SUPPORT_REPLY_TO_EMAIL } from '../lib/constants'
 import { EmailTemplates } from '../modules/email-notifications/templates'
 import type { OrderShippedParcel } from '../modules/email-notifications/templates/order-shipped'
 
@@ -102,7 +103,7 @@ export default async function orderShipmentCreatedHandler({
       template: EmailTemplates.ORDER_SHIPPED,
       data: {
         emailOptions: {
-          replyTo: 'info@example.com',
+          replyTo: SUPPORT_REPLY_TO_EMAIL,
           subject: `Your order ${(order as any).display_id ?? orderId} has shipped`,
           ...(SENDGRID_ORDER_SHIPPED_TEMPLATE_ID
             ? { templateId: SENDGRID_ORDER_SHIPPED_TEMPLATE_ID }

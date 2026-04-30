@@ -4,6 +4,7 @@ import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { Pool } from "pg"
 import { ulid } from "ulid"
 import { CONTACT_NOTIFICATION_EMAIL, DATABASE_URL } from "../../lib/constants"
+import { isValidEmail } from "../../lib/email-validation"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
 
 const DEFAULT_ALLOWED_ORIGINS = [
@@ -125,6 +126,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(400).json({
       success: false,
       message: "Email and message are required",
+    })
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({
+      success: false,
+      message: "Please enter a valid email address.",
     })
   }
 

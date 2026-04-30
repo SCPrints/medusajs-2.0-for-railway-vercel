@@ -112,6 +112,26 @@ export const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY
 export const SENDGRID_FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_FROM
 export const CONTACT_NOTIFICATION_EMAIL = process.env.CONTACT_NOTIFICATION_EMAIL
 
+/**
+ * Comma-separated inboxes for internal "new order" alerts. Falls back to CONTACT_NOTIFICATION_EMAIL.
+ * Requires notification module (Resend or SendGrid) like contact emails.
+ */
+export const ORDER_NOTIFICATION_EMAIL = process.env.ORDER_NOTIFICATION_EMAIL
+
+/**
+ * Reply-To on transactional customer emails (order placed, shipped). Falls back to verified from-address.
+ */
+export const SUPPORT_REPLY_TO_EMAIL =
+  process.env.SUPPORT_REPLY_TO_EMAIL?.trim() ||
+  RESEND_FROM_EMAIL?.trim() ||
+  SENDGRID_FROM_EMAIL?.trim() ||
+  undefined
+
+/**
+ * Who receives "new newsletter subscriber" alerts. Falls back to CONTACT_NOTIFICATION_EMAIL.
+ */
+export const NEWSLETTER_NOTIFICATION_EMAIL = process.env.NEWSLETTER_NOTIFICATION_EMAIL
+
 /** If set, GET /key-exchange requires header x-medusa-key-exchange-secret (same value). */
 export const KEY_EXCHANGE_SECRET = process.env.KEY_EXCHANGE_SECRET
 

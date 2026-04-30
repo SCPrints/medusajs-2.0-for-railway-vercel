@@ -1,7 +1,16 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { INotificationModuleService } from "@medusajs/framework/types"
+import { Modules } from "@medusajs/framework/utils"
 import { Pool } from "pg"
 import { ulid } from "ulid"
-import { DATABASE_URL } from "../../lib/constants"
+import {
+  CONTACT_NOTIFICATION_EMAIL,
+  DATABASE_URL,
+  NEWSLETTER_NOTIFICATION_EMAIL,
+} from "../../lib/constants"
+import { isValidEmail } from "../../lib/email-validation"
+import { parseNotificationEmailList } from "../../lib/notification-recipients"
+import { EmailTemplates } from "../../modules/email-notifications/templates"
 
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://medusajs-2-0-for-railway-vercel.vercel.app",
@@ -56,9 +65,6 @@ async function ensureNewsletterTable() {
   await ensureNewsletterTablePromise
 }
 
-const isValidEmail = (value: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
   setManualCors(req, res)
   return res.status(204).send()
@@ -106,6 +112,46 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       success: true,
       message: "You're already subscribed.",
     })
+  }
+
+  const subscriptionId = (result.rows[0] as { id?: string })?.id ?? ulid()
+  const teamRecipients = parseNotificationEmailList(
+    NEWSLETTER_NOTIFICATION_EMAIL || CONTACT_NOTIFICATION_EMAIL
+  )
+
+  if (teamRecipients.length) {
+    try {
+      const notificationModuleService: INotificationModuleService = req.scope.resolve(
+        Modules.NOTIFICATION
+      )
+      for (const inbox of teamRecipients) {
+        await notificationModuleService.createNotifications({
+          to: inbox,
+          channel: "email",
+          template: EmailTemplates.CONTACT_SUBMISSION,
+          data: {
+            emailOptions: {
+              subject: "New newsletter subscriber",
+              replyTo: email,
+            },
+            submission: {
+              id: subscriptionId,
+              firstName: null,
+              lastName: null,
+              email,
+              subject: "Newsletter subscription",
+              message: `New newsletter subscriber:\n${email}`,
+              sourceOrigin,
+              sourceIp,
+              userAgent,
+            },
+            preview: "A new newsletter subscription was received.",
+          },
+        })
+      }
+    } catch (error) {
+      console.error("Failed to send newsletter subscription notification", error)
+    }
   }
 
   return res.status(200).json({

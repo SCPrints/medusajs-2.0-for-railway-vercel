@@ -13,6 +13,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import MarketingHero from "@modules/common/components/marketing-hero"
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
+import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
 import ProductListingCard from "@modules/products/components/product-listing-card"
@@ -114,6 +115,7 @@ export default async function Home({
             __html: JSON.stringify(homeStructuredData),
           }}
         />
+        <HomeParticleLogoHero />
         <section className="content-container py-12 small:py-16">
           <MarketingHero
             eyebrow="Australian custom decoration"
