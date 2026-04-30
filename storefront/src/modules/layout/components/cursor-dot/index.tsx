@@ -2,6 +2,9 @@
 
 import { useEffect, useRef } from "react"
 
+/** Teal brand-accent pointer trail (17 dots, speed-gated). Set false to disable sitewide. */
+export const CURSOR_FOLLOW_TRAIL_ENABLED = false
+
 /** Dots in the follow chain; more = longer trail but more work per frame. */
 const PARTICLE_COUNT = 17
 /**
@@ -36,6 +39,10 @@ const CursorDot = () => {
   const trailRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!CURSOR_FOLLOW_TRAIL_ENABLED) {
+      return
+    }
+
     const trail = trailRef.current
 
     if (!trail) {
@@ -168,6 +175,10 @@ const CursorDot = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
   }, [])
+
+  if (!CURSOR_FOLLOW_TRAIL_ENABLED) {
+    return null
+  }
 
   return (
     <div aria-hidden className="cursor-follow-trail" ref={trailRef}>

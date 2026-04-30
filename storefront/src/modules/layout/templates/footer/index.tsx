@@ -92,6 +92,11 @@ export default async function Footer() {
                 </LocalizedClientLink>
               </li>
               <li>
+                <LocalizedClientLink href="/particle-logo" className="hover:text-ui-fg-base">
+                  Particle logo
+                </LocalizedClientLink>
+              </li>
+              <li>
                 <LocalizedClientLink href="/test/animation-widgets" className="hover:text-ui-fg-base">
                   Animation widgets lab
                 </LocalizedClientLink>
