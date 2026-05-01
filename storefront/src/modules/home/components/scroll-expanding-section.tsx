@@ -24,7 +24,8 @@ const TRACK_BG = "#F5F2ED"
 const CARD_BG = "#1A1A1A"
 const CARD_MAX_PX = 1200
 const CARD_RADIUS_PX = 32
-const TRACK_MIN_HEIGHT_VH = 240
+/** Scroll distance (viewport heights) mapped to the expand animation; lower = quicker to scroll past. */
+const TRACK_MIN_HEIGHT_VH = 150
 const SIDE_GUTTER_PX = 24
 /** Starting width as a fraction of viewport before expansion (larger “hero” card) */
 const CARD_START_VW = 0.56
@@ -287,7 +288,7 @@ export default function ScrollExpandingSection({
           {/*
             Content stays a fixed-size cluster centered in the card; only the dark panel grows outward.
           */}
-          <div className="flex min-h-[min(52dvh,420px)] w-full items-center justify-center px-6 py-11 small:min-h-[min(58dvh,480px)] small:px-10 small:py-14">
+          <div className="flex min-h-[min(62dvh,520px)] w-full items-center justify-center px-6 py-11 small:min-h-[min(68dvh,580px)] small:px-10 small:py-14">
             <div className="flex max-w-full flex-col items-center justify-center gap-8 small:flex-row small:gap-10 md:gap-12">
               <div className="w-[min(100%,17.5rem)] shrink-0 text-center small:w-[min(100%,19rem)] small:text-left md:w-[min(100%,22rem)]">
                 {eyebrow ? (
