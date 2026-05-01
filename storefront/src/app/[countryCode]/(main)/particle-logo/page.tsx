@@ -2,7 +2,6 @@ import { Metadata } from "next"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
 import { ParticleLogoViscousTuningSection } from "./particle-logo-viscous-tuning-section"
 
 type MetadataProps = {
@@ -15,7 +14,7 @@ export async function generateMetadata({
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/particle-logo`
   const description =
-    "Particle logo lab: fluid wake vs viscous coffee (path memory, shear, slow fill-in)."
+    "Particle logo lab: tune viscous coffee (path memory, shear, slow fill-in)."
 
   return {
     title: "Interactive particle logo",
@@ -46,14 +45,6 @@ export default function ParticleLogoPage() {
         </div>
       </div>
       <div className="pt-14">
-        <p className="border-b border-white/15 px-4 py-3 text-center text-sm text-white/70 sm:px-6">
-          Fluid wake (path memory)
-        </p>
-        <HomeParticleLogoHero
-          presentation="embedded"
-          interactionMode="fluidWake"
-          sectionAriaLabel="SC Prints — fluid wake particle logo"
-        />
         <ParticleLogoViscousTuningSection />
       </div>
     </div>
