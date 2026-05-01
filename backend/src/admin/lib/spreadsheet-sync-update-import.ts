@@ -7,6 +7,43 @@ export const PRODUCT_UPDATE_BATCH_CHUNK_SIZE = 15
 
 export const PRODUCT_UPDATE_REQUIRED_HEADERS = ["product id"] as const
 
+/** Template CSV columns mapped to Admin product.update fields (first row per Product Id wins). */
+export type ProductPatchColumnDef = {
+  /** Parsed CSV header key (lowercase, after spreadsheet aliases when applicable). */
+  csvKey: string
+  /** Human-readable label for the checklist UI. */
+  label: string
+}
+
+/** Single entry for spreadsheet column analysis UI. */
+export type ProductUpdateColumnCandidate = ProductPatchColumnDef & {
+  /** Distinct Product Ids whose first row would populate this patch field (non-empty by same rules as the builder). */
+  affectedProductCount: number
+}
+
+export const PRODUCT_PATCH_COLUMN_DEFS: readonly ProductPatchColumnDef[] = [
+  { csvKey: "product title", label: "Product title" },
+  { csvKey: "product subtitle", label: "Product subtitle" },
+  { csvKey: "product description", label: "Product description" },
+  { csvKey: "product handle", label: "Product handle" },
+  { csvKey: "product thumbnail", label: "Product thumbnail" },
+  { csvKey: "product status", label: "Product status" },
+  { csvKey: "product discountable", label: "Product discountable" },
+  { csvKey: "product external id", label: "Product external id" },
+  { csvKey: "product collection id", label: "Product collection id" },
+  { csvKey: "product type id", label: "Product type id" },
+  { csvKey: "shipping profile id", label: "Shipping profile id" },
+  { csvKey: "product sales channel 1 id", label: "Product sales channel 1 id" },
+  { csvKey: "product tag 1 id", label: "Product tag 1 id" },
+  { csvKey: "product hs code", label: "Product HS code" },
+  { csvKey: "product origin country", label: "Product origin country" },
+  { csvKey: "product mid code", label: "Product MID code" },
+  { csvKey: "product material", label: "Product material" },
+  { csvKey: "product weight", label: "Product weight" },
+] as const
+
+const PATCH_CSV_KEYS = new Set(PRODUCT_PATCH_COLUMN_DEFS.map((d) => d.csvKey))
+
 export type ProductUpdatePreview = {
   productCount: number
   variantRowCount: number
@@ -26,6 +63,97 @@ const normalizeStatus = (raw: string | undefined): ProductUpdateStatus => {
     return s
   }
   return "draft"
+}
+
+/** True iff the first row per product feeds this CSV column into product.update ( mirrors build patches ). */
+function firstRowFeedsPatch(first: Record<string, string>, csvKey: string): boolean {
+  switch (csvKey) {
+    case "product title":
+      return !!(first["product title"] ?? "").trim()
+    case "product subtitle":
+      return !!(first["product subtitle"] ?? "").trim()
+    case "product description":
+      return !!(first["product description"] ?? "").trim()
+    case "product handle":
+      return !!(first["product handle"] ?? "").trim()
+    case "product thumbnail":
+      return !!(first["product thumbnail"] ?? "").trim()
+    case "product status":
+      return (first["product status"] ?? "").trim() !== ""
+    case "product discountable":
+      return (first["product discountable"] ?? "").trim() !== ""
+    case "product external id":
+      return !!(first["product external id"] ?? "").trim()
+    case "product collection id":
+      return !!(first["product collection id"] ?? "").trim()
+    case "product type id":
+      return !!(first["product type id"] ?? "").trim()
+    case "shipping profile id":
+      return !!(first["shipping profile id"] ?? "").trim()
+    case "product sales channel 1 id":
+      return !!(first["product sales channel 1 id"] ?? "").trim()
+    case "product tag 1 id":
+      return !!(first["product tag 1 id"] ?? "").trim()
+    case "product hs code":
+      return !!(first["product hs code"] ?? "").trim()
+    case "product origin country":
+      return !!(first["product origin country"] ?? "").trim()
+    case "product mid code":
+      return !!(first["product mid code"] ?? "").trim()
+    case "product material":
+      return !!(first["product material"] ?? "").trim()
+    case "product weight": {
+      const raw = (first["product weight"] ?? "").trim()
+      if (raw === "") {
+        return false
+      }
+      const n = Number(raw)
+      return Number.isFinite(n)
+    }
+    default:
+      return false
+  }
+}
+
+/**
+ * Rows present in CSV for unknown headers (not patched here) — for visibility only.
+ */
+const REQUIRED_HEADER_SET = new Set<string>(PRODUCT_UPDATE_REQUIRED_HEADERS)
+
+export function spreadsheetHeadersIgnoringPatchable(parsed: ParsedCsv): string[] {
+  const extras: string[] = []
+  const seen = new Set<string>()
+  for (const h of parsed.headers) {
+    if (REQUIRED_HEADER_SET.has(h) || PATCH_CSV_KEYS.has(h)) {
+      continue
+    }
+    if (!seen.has(h)) {
+      seen.add(h)
+      extras.push(h)
+    }
+  }
+  return extras
+}
+
+/** Per-patchable-column counts across first row of each distinct Product Id. */
+export function computeProductUpdateColumnCandidates(parsed: ParsedCsv): ProductUpdateColumnCandidate[] {
+  const grouped = groupRowsByProductId(parsed.rows)
+  const defs = PRODUCT_PATCH_COLUMN_DEFS.filter((d) => parsed.headers.includes(d.csvKey))
+
+  const out: ProductUpdateColumnCandidate[] = []
+  for (const def of defs) {
+    let n = 0
+    for (const rows of grouped.values()) {
+      const first = rows[0]!
+      if (firstRowFeedsPatch(first, def.csvKey)) {
+        n++
+      }
+    }
+    if (n > 0) {
+      out.push({ ...def, affectedProductCount: n })
+    }
+  }
+  return out
 }
 
 export function validateProductUpdateHeaders(parsed: ParsedCsv): string | null {
@@ -85,14 +213,169 @@ const groupRowsByProductId = (rows: Record<string, string>[]): Map<string, Recor
   return map
 }
 
+export type BuildBatchUpdateOptions = {
+  /**
+   * When set (including empty), only these CSV patch columns contribute to each product patch.
+   * Omit to include every patch column that has a value on the first row per product (legacy behaviour).
+   */
+  enabledCsvKeys?: ReadonlySet<string>
+}
+
+function applyProductPatchColumns(
+  first: Record<string, string>,
+  patch: SpreadsheetProductUpdate,
+  enabledCsvKeys: ReadonlySet<string> | undefined
+): void {
+  const allow = (k: string): boolean =>
+    enabledCsvKeys === undefined ? PATCH_CSV_KEYS.has(k) : enabledCsvKeys.has(k)
+
+  if (allow("product title")) {
+    const title = (first["product title"] ?? "").trim()
+    if (title) {
+      patch.title = title
+    }
+  }
+
+  if (allow("product subtitle")) {
+    const subtitle = (first["product subtitle"] ?? "").trim()
+    if (subtitle) {
+      patch.subtitle = subtitle
+    }
+  }
+
+  if (allow("product description")) {
+    const description = (first["product description"] ?? "").trim()
+    if (description) {
+      patch.description = description
+    }
+  }
+
+  if (allow("product handle")) {
+    const handle = (first["product handle"] ?? "").trim()
+    if (handle) {
+      patch.handle = handle
+    }
+  }
+
+  if (allow("product thumbnail")) {
+    const thumbnail = (first["product thumbnail"] ?? "").trim()
+    if (thumbnail) {
+      patch.thumbnail = thumbnail
+    }
+  }
+
+  if (allow("product status")) {
+    const statusRaw = (first["product status"] ?? "").trim()
+    if (statusRaw !== "") {
+      patch.status = normalizeStatus(statusRaw)
+    }
+  }
+
+  if (allow("product discountable")) {
+    const discountRaw = (first["product discountable"] ?? "").trim()
+    if (discountRaw !== "") {
+      patch.discountable = TRUEISH(discountRaw)
+    }
+  }
+
+  if (allow("product external id")) {
+    const externalId = (first["product external id"] ?? "").trim()
+    if (externalId) {
+      patch.external_id = externalId
+    }
+  }
+
+  if (allow("product collection id")) {
+    const collectionId = (first["product collection id"] ?? "").trim()
+    if (collectionId) {
+      patch.collection_id = collectionId
+    }
+  }
+
+  if (allow("product type id")) {
+    const typeId = (first["product type id"] ?? "").trim()
+    if (typeId) {
+      patch.type_id = typeId
+    }
+  }
+
+  if (allow("shipping profile id")) {
+    const shippingProfileId = (first["shipping profile id"] ?? "").trim()
+    if (shippingProfileId) {
+      patch.shipping_profile_id = shippingProfileId
+    }
+  }
+
+  if (allow("product sales channel 1 id")) {
+    const salesChannelId = (first["product sales channel 1 id"] ?? "").trim()
+    if (salesChannelId) {
+      patch.sales_channels = [{ id: salesChannelId }]
+    }
+  }
+
+  if (allow("product tag 1 id")) {
+    const tagId = (first["product tag 1 id"] ?? "").trim()
+    if (tagId) {
+      patch.tags = [{ id: tagId }]
+    }
+  }
+
+  if (allow("product hs code")) {
+    const hs = (first["product hs code"] ?? "").trim()
+    if (hs) {
+      patch.hs_code = hs
+    }
+  }
+
+  if (allow("product origin country")) {
+    const origin = (first["product origin country"] ?? "").trim()
+    if (origin) {
+      patch.origin_country = origin
+    }
+  }
+
+  if (allow("product mid code")) {
+    const mid = (first["product mid code"] ?? "").trim()
+    if (mid) {
+      patch.mid_code = mid
+    }
+  }
+
+  if (allow("product material")) {
+    const material = (first["product material"] ?? "").trim()
+    if (material) {
+      patch.material = material
+    }
+  }
+
+  if (allow("product weight")) {
+    const weightRaw = (first["product weight"] ?? "").trim()
+    if (weightRaw !== "") {
+      const n = Number(weightRaw)
+      if (Number.isFinite(n)) {
+        patch.weight = n
+      }
+    }
+  }
+}
+
 /**
  * Build partial product updates from template CSV rows (first row per Product Id wins for product-level fields).
  */
-export function buildBatchUpdatesFromParsedCsv(parsed: ParsedCsv): {
+export function buildBatchUpdatesFromParsedCsv(
+  parsed: ParsedCsv,
+  options?: BuildBatchUpdateOptions
+): {
   updates: SpreadsheetProductUpdate[]
   errors: string[]
 } {
   const errors: string[] = []
+  const { enabledCsvKeys } = options ?? {}
+
+  if (enabledCsvKeys !== undefined && enabledCsvKeys.size === 0) {
+    errors.push("Select at least one column to update.")
+    return { updates: [], errors }
+  }
 
   const headerErr = validateProductUpdateHeaders(parsed)
   if (headerErr) {
@@ -116,104 +399,14 @@ export function buildBatchUpdatesFromParsedCsv(parsed: ParsedCsv): {
       id: productId,
     }
 
-    const title = (first["product title"] ?? "").trim()
-    if (title) {
-      patch.title = title
-    }
-
-    const subtitle = (first["product subtitle"] ?? "").trim()
-    if (subtitle) {
-      patch.subtitle = subtitle
-    }
-
-    const description = (first["product description"] ?? "").trim()
-    if (description) {
-      patch.description = description
-    }
-
-    const handle = (first["product handle"] ?? "").trim()
-    if (handle) {
-      patch.handle = handle
-    }
-
-    const thumbnail = (first["product thumbnail"] ?? "").trim()
-    if (thumbnail) {
-      patch.thumbnail = thumbnail
-    }
-
-    const statusRaw = (first["product status"] ?? "").trim()
-    if (statusRaw !== "") {
-      patch.status = normalizeStatus(statusRaw)
-    }
-
-    const discountRaw = (first["product discountable"] ?? "").trim()
-    if (discountRaw !== "") {
-      patch.discountable = TRUEISH(discountRaw)
-    }
-
-    const externalId = (first["product external id"] ?? "").trim()
-    if (externalId) {
-      patch.external_id = externalId
-    }
-
-    const collectionId = (first["product collection id"] ?? "").trim()
-    if (collectionId) {
-      patch.collection_id = collectionId
-    }
-
-    const typeId = (first["product type id"] ?? "").trim()
-    if (typeId) {
-      patch.type_id = typeId
-    }
-
-    const shippingProfileId = (first["shipping profile id"] ?? "").trim()
-    if (shippingProfileId) {
-      patch.shipping_profile_id = shippingProfileId
-    }
-
-    const salesChannelId = (first["product sales channel 1 id"] ?? "").trim()
-    if (salesChannelId) {
-      patch.sales_channels = [{ id: salesChannelId }]
-    }
-
-    const tagId = (first["product tag 1 id"] ?? "").trim()
-    if (tagId) {
-      patch.tags = [{ id: tagId }]
-    }
-
-    const hs = (first["product hs code"] ?? "").trim()
-    if (hs) {
-      patch.hs_code = hs
-    }
-
-    const origin = (first["product origin country"] ?? "").trim()
-    if (origin) {
-      patch.origin_country = origin
-    }
-
-    const mid = (first["product mid code"] ?? "").trim()
-    if (mid) {
-      patch.mid_code = mid
-    }
-
-    const material = (first["product material"] ?? "").trim()
-    if (material) {
-      patch.material = material
-    }
-
-    const weightRaw = (first["product weight"] ?? "").trim()
-    if (weightRaw !== "") {
-      const n = Number(weightRaw)
-      if (Number.isFinite(n)) {
-        patch.weight = n
-      }
-    }
+    applyProductPatchColumns(first, patch, enabledCsvKeys)
 
     /** Only `id` means nothing to change — skip or warn */
     const keysToSend = Object.keys(patch).filter((k) => k !== "id")
     if (keysToSend.length === 0) {
       errors.push(
-        `Product "${productId}": no non-empty product-level fields to update (first row only; fill columns like Title, Collection Id, Type Id, Tag 1 Id, etc.).`
+        `Product "${productId}": no non-empty columns to update among your selection ` +
+          `(first row only; widen selection or fill cells for those columns).`
       )
       continue
     }

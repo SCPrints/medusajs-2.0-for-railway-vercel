@@ -24,7 +24,10 @@ import {
   LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES,
 } from "@modules/products/lib/listing-card-pop-motion"
 
-/** Default catalog behavior is `tiltLift`. Use `bounce` only for the legacy keyed enter/leave animation. */
+/**
+ * Default catalog behavior is `tiltLift` (lift + scale on hover; no 3D tilt).
+ * Use `bounce` only for the legacy keyed enter/leave animation.
+ */
 export type ProductListingInteraction = "bounce" | "tiltLift"
 
 export type ProductListingCardProps = ProductListingCardData & {
@@ -423,7 +426,6 @@ function ProductListingCardTiltLift({
     getReducedMotionSnapshot,
     getReducedMotionServerSnapshot
   )
-  const [rotate, setRotate] = useState({ x: 0, y: 0 })
   const [pointerInside, setPointerInside] = useState(false)
 
   const cardRootRef = useRef<HTMLElement | null>(null)
@@ -439,23 +441,9 @@ function ProductListingCardTiltLift({
     setPreviewUrl(defaultImageUrl)
   }, [defaultImageUrl])
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLElement>) => {
-      if (prefersReducedMotion || !cardRootRef.current) {
-        return
-      }
-      const b = cardRootRef.current.getBoundingClientRect()
-      const px = (e.clientX - b.left) / b.width - 0.5
-      const py = (e.clientY - b.top) / b.height - 0.5
-      setRotate({ x: py * LISTING_CARD_POP.rotateXCoeff, y: px * LISTING_CARD_POP.rotateYCoeff })
-    },
-    [prefersReducedMotion]
-  )
-
   const onPointerLeave = useCallback(() => {
     resetPreview()
     setPointerInside(false)
-    setRotate({ x: 0, y: 0 })
   }, [resetPreview])
 
   const onPointerEnter = useCallback(() => {
@@ -499,37 +487,30 @@ function ProductListingCardTiltLift({
   const liftSpring = LISTING_CARD_POP.liftSpring
 
   return (
-    <div style={{ perspective: LISTING_CARD_POP.perspectivePx }} className={clx(className)}>
-      <motion.article
-        ref={cardRootRef}
-        data-testid="product-wrapper"
-        onPointerEnter={onPointerEnter}
-        onPointerMove={onPointerMove}
-        onPointerLeave={onPointerLeave}
-        animate={{
-          rotateX: rotate.x,
-          rotateY: rotate.y,
-          y: pointerInside ? -LISTING_CARD_POP.liftPx : 0,
-          scale: pointerInside ? LISTING_CARD_POP.hoverScale : 1,
-        }}
-        transition={{
-          rotateX: LISTING_CARD_POP.tiltSpring,
-          rotateY: LISTING_CARD_POP.tiltSpring,
-          y: liftSpring,
-          scale: liftSpring,
-        }}
-        style={{ transformStyle: "preserve-3d" }}
-        className={clx(
-          "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
-          "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
-          LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES,
-          pointerInside ? "z-30" : "z-0",
-          "group"
-        )}
-      >
-        {content}
-      </motion.article>
-    </div>
+    <motion.article
+      ref={cardRootRef}
+      data-testid="product-wrapper"
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
+      animate={{
+        y: pointerInside ? -LISTING_CARD_POP.liftPx : 0,
+        scale: pointerInside ? LISTING_CARD_POP.hoverScale : 1,
+      }}
+      transition={{
+        y: liftSpring,
+        scale: liftSpring,
+      }}
+      className={clx(
+        "flex h-full w-full flex-col rounded-xl border border-ui-border-base bg-white p-4",
+        "relative transform-gpu transition-[box-shadow,border-color] duration-300 ease-out",
+        LISTING_CARD_SHELL_HOVER_SURFACE_CLASSES,
+        pointerInside ? "z-30" : "z-0",
+        "group",
+        className
+      )}
+    >
+      {content}
+    </motion.article>
   )
 }
 
