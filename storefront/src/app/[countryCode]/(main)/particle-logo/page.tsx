@@ -3,6 +3,7 @@ import { Metadata } from "next"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
+import { ParticleLogoViscousTuningSection } from "./particle-logo-viscous-tuning-section"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -53,14 +54,7 @@ export default function ParticleLogoPage() {
           interactionMode="fluidWake"
           sectionAriaLabel="SC Prints — fluid wake particle logo"
         />
-        <p className="border-b border-white/15 px-4 py-3 text-center text-sm text-white/70 sm:px-6">
-          Viscous coffee (trail, shear, slow fill-in)
-        </p>
-        <HomeParticleLogoHero
-          presentation="embedded"
-          interactionMode="viscousCoffee"
-          sectionAriaLabel="SC Prints — viscous coffee particle logo"
-        />
+        <ParticleLogoViscousTuningSection />
       </div>
     </div>
   )

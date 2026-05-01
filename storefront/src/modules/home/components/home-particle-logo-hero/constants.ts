@@ -146,33 +146,60 @@ export const BLACK_HOLE_TRAIL_FOLLOW_ACCEL = 0.52
 /**
  * `interactionMode: "viscousCoffee"` — polyline path memory: tangent drag + shear along stroke, viscous slow fill-in.
  */
-export const VISCOUS_COFFEE_TRAIL_MAX_POINTS = 40
-export const VISCOUS_COFFEE_SAMPLE_DIST_BMP = 4
-/** Weight falloff for older segments along the path (newer stroke dominates). */
-export const VISCOUS_COFFEE_PATH_DECAY = 0.9
+/** Longer polyline = mouse wake persists farther (bottom viscousCoffee). */
+export const VISCOUS_COFFEE_TRAIL_MAX_POINTS = 160
+export const VISCOUS_COFFEE_SAMPLE_DIST_BMP = 3
+/** Weight falloff for older segments along the path (higher = longer “memory”). */
+export const VISCOUS_COFFEE_PATH_DECAY = 0.94
 /** Half-width of influence corridor around each path segment (bitmap px). */
-export const VISCOUS_COFFEE_LINE_RADIUS_BMP = 44
+export const VISCOUS_COFFEE_LINE_RADIUS_BMP = 54
 /** Along-stroke “drag” (viscous coffee following the spoon direction). */
-export const VISCOUS_COFFEE_ALONG_STRENGTH = 0.72
+export const VISCOUS_COFFEE_ALONG_STRENGTH = 0.84
 /** Normal displacement (groove walls / shearing). */
 export const VISCOUS_COFFEE_SHEAR_STRENGTH = 0.38
-/** Live cursor repulse vs full `PUSH_FORCE` / swirl. */
-export const VISCOUS_COFFEE_LIVE_PUSH_FRAC = 0.48
-export const VISCOUS_COFFEE_LIVE_SWIRL_FRAC = 0.62
 /** Slow return to logo homes. */
 export const VISCOUS_COFFEE_SPRING_STIFFNESS = 0.03
 export const VISCOUS_COFFEE_FRICTION = 0.928
-/** When pointer leaves stipple, drop oldest path point every N ticks (fading memory). */
-export const VISCOUS_COFFEE_ERODE_EVERY_FRAMES = 3
+/** When pointer leaves stipple, drop oldest path point every N ticks (slower = longer trailing wake). */
+export const VISCOUS_COFFEE_ERODE_EVERY_FRAMES = 6
 
-/** Extra dots that ride the spoon polyline (bottom `viscousCoffee` only); spring-lagged behind moving targets. */
-export const VISCOUS_COFFEE_WAKE_PARTICLE_COUNT = 72
-/** Last wake dot stops this fraction of total stroke length short of the freshest sample (keeps wake behind cursor). */
-export const VISCOUS_COFFEE_WAKE_ARC_HEAD_KEEP = 0.88
-/** Lateral spread along trail normal (bitmap px) — slightly thickens the visible wake. */
-export const VISCOUS_COFFEE_WAKE_SPREAD_BMP = 8
-/** Slightly snappier than logo particles so the wake reads as a coherent “stripe”. */
-export const VISCOUS_COFFEE_WAKE_SPRING_STIFFNESS = 0.055
-export const VISCOUS_COFFEE_WAKE_FRICTION = 0.905
+/**
+ * Spoon-through-coffee live disk (bottom `viscousCoffee` only): directional vortex + ring flow + rear wash.
+ * Uses motion vector from trail; front = push out, sides = counter-rotating swirl, back = inward + half-R orbit + drift into wake.
+ */
+export const VISCOUS_COFFEE_SPOON_FRONT_PUSH = 6.2
+export const VISCOUS_COFFEE_SPOON_SIDE_VORTEX = 3.1
+export const VISCOUS_COFFEE_SPOON_RING_SWIRL = 4.4
+export const VISCOUS_COFFEE_SPOON_BACK_INWARD = 2.25
+export const VISCOUS_COFFEE_SPOON_HALF_RADIUS_ORBIT = 2.0
+/** Drag along −motion behind the spoon so fluid feeds into the polyline wake. */
+export const VISCOUS_COFFEE_SPOON_BACK_WASH = 1.35
+/** Low-pass motion from trail samples (0…1), higher = faster heading lock. */
+export const VISCOUS_COFFEE_SPOON_VEL_SMOOTH = 0.42
+
+/**
+ * Extra stipple along the spoon polyline (bottom `viscousCoffee` only).
+ * Higher count + softer spring ≈ long, brushy trail like crema behind the cursor.
+ */
+export const VISCOUS_COFFEE_WAKE_PARTICLE_COUNT = 260
+/** Use almost the full stroke so the visible trail stretches behind the spoon. */
+export const VISCOUS_COFFEE_WAKE_ARC_HEAD_KEEP = 0.97
+/**
+ * Leave this many newest polyline samples “ahead” of the wake so the ribbon sits behind the cursor,
+ * not stacked on the live tip.
+ */
+export const VISCOUS_COFFEE_WAKE_TAIL_BACK_SAMPLES = 5
+/**
+ * `u = (i/(N-1)) ** GAMMA` maps dot index → arc position. Above 1 biases density toward the older
+ * end of the stroke (longer visible tail behind the spoon).
+ */
+export const VISCOUS_COFFEE_WAKE_ARC_DISTRIB_GAMMA = 1.38
+/** Lateral spread along trail normal (bitmap px) — thicker “ribbon”. */
+export const VISCOUS_COFFEE_WAKE_SPREAD_BMP = 13
+/** Lower = more lag / smear along the path (longer lived motion). */
+export const VISCOUS_COFFEE_WAKE_SPRING_STIFFNESS = 0.05
+export const VISCOUS_COFFEE_WAKE_FRICTION = 0.935
+/** Each frame, nudge wake dots along local stroke tangent (toward newer samples) — reads as “chasing” the mouse. */
+export const VISCOUS_COFFEE_WAKE_ALONG_DRAG = 0.38
 /** Multiplier on `PARTICLE_BASE_ALPHA` when the trail has enough length to show. */
-export const VISCOUS_COFFEE_WAKE_ALPHA_MULT = 0.92
+export const VISCOUS_COFFEE_WAKE_ALPHA_MULT = 0.98

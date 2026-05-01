@@ -59,24 +59,9 @@ import {
   BLACK_HOLE_FRICTION,
   BLACK_HOLE_TRAIL_FOLLOW_MS,
   BLACK_HOLE_TRAIL_FOLLOW_ACCEL,
-  VISCOUS_COFFEE_TRAIL_MAX_POINTS,
-  VISCOUS_COFFEE_SAMPLE_DIST_BMP,
-  VISCOUS_COFFEE_PATH_DECAY,
-  VISCOUS_COFFEE_LINE_RADIUS_BMP,
-  VISCOUS_COFFEE_ALONG_STRENGTH,
-  VISCOUS_COFFEE_SHEAR_STRENGTH,
-  VISCOUS_COFFEE_LIVE_PUSH_FRAC,
-  VISCOUS_COFFEE_LIVE_SWIRL_FRAC,
-  VISCOUS_COFFEE_SPRING_STIFFNESS,
-  VISCOUS_COFFEE_FRICTION,
-  VISCOUS_COFFEE_ERODE_EVERY_FRAMES,
-  VISCOUS_COFFEE_WAKE_PARTICLE_COUNT,
-  VISCOUS_COFFEE_WAKE_ARC_HEAD_KEEP,
-  VISCOUS_COFFEE_WAKE_SPREAD_BMP,
-  VISCOUS_COFFEE_WAKE_SPRING_STIFFNESS,
-  VISCOUS_COFFEE_WAKE_FRICTION,
-  VISCOUS_COFFEE_WAKE_ALPHA_MULT,
 } from "./constants"
+import type { ViscousCoffeeLiveTuning } from "./viscous-coffee-live-tuning"
+import { mergeViscousCoffeeLiveTuning } from "./viscous-coffee-live-tuning"
 
 const DEFAULT_LOGO_SRC = "/branding/sc-prints-logo-transparent.png"
 const FALLBACK_SRC = "/branding/sc-prints-logo-white.png"
@@ -219,6 +204,9 @@ type ParallaxParticle = {
   bhPrevInRadius: boolean
   /** Black hole: `performance.now()` deadline for escort-toward-cursor; null if inactive. */
   bhTrailUntilMs: number | null
+  /** Viscous coffee wake pool only: unit tangent along stroke at this particle’s trail slot. */
+  wakeTx?: number
+  wakeTy?: number
 }
 
 type LogoInteractBounds = {
@@ -480,13 +468,14 @@ function closestPointOnSegment(
 /** Viscous stroke: drag along path tangent + normal shear from each segment (coffee remembers spoon). */
 function applyViscousCoffeeAlongPath(
   p: ParallaxParticle,
-  trail: Array<{ x: number; y: number }>
+  trail: Array<{ x: number; y: number }>,
+  t: ViscousCoffeeLiveTuning
 ): void {
   if (trail.length < 2) {
     return
   }
   const n = trail.length
-  const R = VISCOUS_COFFEE_LINE_RADIUS_BMP
+  const R = t.lineRadiusBmp
   for (let i = 0; i < n - 1; i++) {
     const a = trail[i]!
     const b = trail[i + 1]!
@@ -518,16 +507,124 @@ function applyViscousCoffeeAlongPath(
     const ty = by / segLen
     const nx = -ty
     const ny = tx
-    const ageW = Math.pow(VISCOUS_COFFEE_PATH_DECAY, n - 2 - i)
+    const ageW = Math.pow(t.pathDecay, n - 2 - i)
     const edgeW = 1 - dist / R
     const w = ageW * edgeW * edgeW
-    p.vx += tx * VISCOUS_COFFEE_ALONG_STRENGTH * w
-    p.vy += ty * VISCOUS_COFFEE_ALONG_STRENGTH * w
+    p.vx += tx * t.alongStrength * w
+    p.vy += ty * t.alongStrength * w
     const side = (p.x - cx) * nx + (p.y - cy) * ny
     const sgn = side >= 0 ? 1 : -1
-    p.vx += nx * VISCOUS_COFFEE_SHEAR_STRENGTH * w * sgn
-    p.vy += ny * VISCOUS_COFFEE_SHEAR_STRENGTH * w * sgn
+    p.vx += nx * t.shearStrength * w * sgn
+    p.vy += ny * t.shearStrength * w * sgn
   }
+}
+
+/**
+ * Spoon motion `gx,gy` (unit). Ahead of cursor: outward push. Sides: counter-rotating vortices.
+ * Near outer shell: tangential “rim” flow. Behind: inward pinch, half-radius orbit, wash into wake.
+ */
+function applyViscousCoffeeSpoonField(
+  p: ParallaxParticle,
+  cx: number,
+  cy: number,
+  gx: number,
+  gy: number,
+  t: ViscousCoffeeLiveTuning
+): void {
+  const radius = t.dragRadius
+  if (cx <= -9000 || radius <= 0) {
+    return
+  }
+  const dx = p.x - cx
+  const dy = p.y - cy
+  const dist = Math.hypot(dx, dy)
+  if (dist >= radius || dist < PHYSICS_DIST_EPSILON) {
+    return
+  }
+  const ux = dx / dist
+  const uy = dy / dist
+  const edge = (radius - dist) / radius
+  const falloff = Math.pow(
+    Math.max(0, Math.min(1, edge)),
+    t.spoonRepulseFalloffPower
+  )
+
+  const gmag = Math.hypot(gx, gy)
+  let fxf = gx
+  let fyf = gy
+  if (gmag < 1e-5) {
+    fxf = 1
+    fyf = 0
+  } else {
+    fxf /= gmag
+    fyf /= gmag
+  }
+  const rx = -fyf
+  const ry = fxf
+  const along = dx * fxf + dy * fyf
+  const perp = dx * rx + dy * ry
+  const invR = 1 / radius
+  const alongN = along * invR
+
+  const ccwX = -uy
+  const ccwY = ux
+  /** Upper side of stroke → CCW; lower → CW for typical horizontal passes. */
+  const vSgn = perp >= 0 ? -1 : 1
+  const tvx = vSgn * ccwX
+  const tvy = vSgn * ccwY
+
+  let ax = 0
+  let ay = 0
+
+  if (alongN > 0.07) {
+    const cap = Math.min(1, (alongN - 0.07) / 0.5)
+    const push = t.spoonFrontPush * falloff * cap
+    ax += ux * push
+    ay += uy * push
+  }
+
+  const shell = Math.exp(
+    -Math.pow((dist - radius * 0.9) / (radius * 0.15), 2)
+  )
+  const ringSw = t.spoonRingSwirl * falloff * shell
+  ax += tvx * ringSw
+  ay += tvy * ringSw
+
+  const sideGauss = Math.exp(-Math.pow(alongN / 0.52, 2))
+  const sideSw =
+    t.spoonSideVortex *
+    falloff *
+    sideGauss *
+    (0.28 + 0.72 * shell)
+  ax += tvx * sideSw
+  ay += tvy * sideSw
+
+  if (alongN < -0.04) {
+    const back = Math.min(1, -alongN / 0.62)
+    const inward = t.spoonBackInward * falloff * back
+    ax -= ux * inward
+    ay -= uy * inward
+
+    const halfR = radius * 0.5
+    const radialErr = dist - halfR
+    const orbitK =
+      t.spoonHalfRadiusOrbit *
+      falloff *
+      back *
+      Math.exp(-Math.pow(radialErr / (radius * 0.32), 2))
+    const sre = radialErr >= 0 ? 1 : -1
+    ax -= ux * orbitK * 0.45 * sre
+    ay -= uy * orbitK * 0.45 * sre
+    ax += tvx * orbitK
+    ay += tvy * orbitK
+
+    const wash = t.spoonBackWash * falloff * back
+    ax -= fxf * wash
+    ay -= fyf * wash
+  }
+
+  p.vx += ax
+  p.vy += ay
 }
 
 function polylineTotalLength(
@@ -543,51 +640,6 @@ function polylineTotalLength(
     L += Math.hypot(b.x - a.x, b.y - a.y)
   }
   return L
-}
-
-/** Point `distAlong` from trail start, unit tangent at that point (for lateral spread). */
-function pointOnPolylineAtDistance(
-  trail: Array<{ x: number; y: number }>,
-  distAlong: number
-): { x: number; y: number; tx: number; ty: number } {
-  if (trail.length === 0) {
-    return { x: 0, y: 0, tx: 1, ty: 0 }
-  }
-  if (trail.length === 1) {
-    const p = trail[0]!
-    return { x: p.x, y: p.y, tx: 1, ty: 0 }
-  }
-  let remaining = Math.max(0, distAlong)
-  for (let i = 0; i < trail.length - 1; i++) {
-    const a = trail[i]!
-    const b = trail[i + 1]!
-    const dx = b.x - a.x
-    const dy = b.y - a.y
-    const segLen = Math.hypot(dx, dy)
-    if (segLen < 1e-6) {
-      continue
-    }
-    if (remaining <= segLen) {
-      const t = remaining / segLen
-      const tx = dx / segLen
-      const ty = dy / segLen
-      return {
-        x: a.x + t * dx,
-        y: a.y + t * dy,
-        tx,
-        ty,
-      }
-    }
-    remaining -= segLen
-  }
-  const a = trail[trail.length - 2]!
-  const b = trail[trail.length - 1]!
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  const segLen = Math.hypot(dx, dy)
-  const tx = segLen > 1e-6 ? dx / segLen : 1
-  const ty = segLen > 1e-6 ? dy / segLen : 0
-  return { x: b.x, y: b.y, tx, ty }
 }
 
 function createCoffeeWakeParticlePool(
@@ -615,60 +667,102 @@ function createCoffeeWakeParticlePool(
       entranceOpacity: 1,
       bhPrevInRadius: false,
       bhTrailUntilMs: null,
+      wakeTx: undefined,
+      wakeTy: undefined,
     })
   }
   return out
 }
 
-/** Move wake targets along the stroke; fade in as the path gains length. */
+/**
+ * Wake dots sit on actual mouse samples from trail[0] (oldest) up to trail[lastIdx] (behind cursor).
+ * Tangent push + index-based slots keep the ribbon glued to the path in motion.
+ */
 function assignCoffeeWakeTargets(
   wake: ParallaxParticle[],
-  trail: Array<{ x: number; y: number }>
+  trail: Array<{ x: number; y: number }>,
+  t: ViscousCoffeeLiveTuning
 ): void {
   const nW = wake.length
   if (nW === 0) {
     return
   }
-  const totalLen = polylineTotalLength(trail)
-  if (trail.length < 2 || totalLen < 2) {
+  const n = trail.length
+  if (n < 2) {
     for (const p of wake) {
       p.baseAlpha = 0
+      p.wakeTx = undefined
+      p.wakeTy = undefined
     }
     return
   }
-  const maxDist = totalLen * VISCOUS_COFFEE_WAKE_ARC_HEAD_KEEP
-  const fadeLen = Math.min(1, totalLen / 28)
-  const fadePts = Math.min(1, (trail.length - 1) / 2.5)
+
+  const back = Math.min(t.wakeTailBackSamples, Math.max(0, n - 2))
+  let lastIdx = Math.max(1, n - 1 - back)
+  lastIdx = Math.max(
+    1,
+    Math.min(
+      lastIdx,
+      Math.round((n - 1 - back) * t.wakeArcHeadKeep)
+    )
+  )
+
+  const totalLen = polylineTotalLength(trail)
+  const fadeLen = Math.min(1, totalLen / 12)
+  const fadePts = Math.min(1, (n - 1) / 1.2)
   const alphaBase =
-    PARTICLE_BASE_ALPHA *
-    VISCOUS_COFFEE_WAKE_ALPHA_MULT *
-    fadeLen *
-    fadePts
+    PARTICLE_BASE_ALPHA * t.wakeAlphaMult * fadeLen * fadePts
 
   const denom = Math.max(1, nW - 1)
+  const gamma = t.wakeArcDistribGamma
   for (let i = 0; i < nW; i++) {
     const p = wake[i]!
-    const u = i / denom
-    const d = u * maxDist
-    const { x, y, tx, ty } = pointOnPolylineAtDistance(trail, d)
+    const uLin = i / denom
+    const u =
+      gamma <= 0 ? uLin : Math.pow(Math.max(0, Math.min(1, uLin)), gamma)
+    const idxF = u * lastIdx
+    const i0 = Math.min(Math.floor(idxF), lastIdx - 1)
+    const i1 = Math.min(i0 + 1, lastIdx)
+    const w = idxF - i0
+    const a = trail[i0]!
+    const b = trail[i1]!
+    const x = a.x + w * (b.x - a.x)
+    const y = a.y + w * (b.y - a.y)
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const sl = Math.hypot(dx, dy)
+    const tx = sl > 1e-6 ? dx / sl : 1
+    const ty = sl > 1e-6 ? dy / sl : 0
     const nx = -ty
     const ny = tx
     const rng = ((i * 2654435761) >>> 0) / 4294967296
-    const spread = (rng - 0.5) * 2 * VISCOUS_COFFEE_WAKE_SPREAD_BMP
+    const spread = (rng - 0.5) * 2 * t.wakeSpreadBmp
     p.hx = x + nx * spread
     p.hy = y + ny * spread
+    p.wakeTx = tx
+    p.wakeTy = ty
     p.baseAlpha = alphaBase
   }
 }
 
-function integrateCoffeeWakeParticles(wake: ParallaxParticle[]): void {
-  const sk = VISCOUS_COFFEE_WAKE_SPRING_STIFFNESS
-  const fk = VISCOUS_COFFEE_WAKE_FRICTION
+function integrateCoffeeWakeParticles(
+  wake: ParallaxParticle[],
+  t: ViscousCoffeeLiveTuning
+): void {
+  const sk = t.wakeSpringStiffness
+  const fk = t.wakeFriction
+  const ad = t.wakeAlongDrag
   for (const p of wake) {
     if ((p.baseAlpha ?? 0) <= 1e-6) {
       p.vx = 0
       p.vy = 0
       continue
+    }
+    const tx = p.wakeTx
+    const ty = p.wakeTy
+    if (tx != null && ty != null && ad !== 0) {
+      p.vx += tx * ad
+      p.vy += ty * ad
     }
     p.vx += (p.hx - p.x) * sk
     p.vy += (p.hy - p.y) * sk
@@ -816,6 +910,11 @@ type Props = {
   interactionMode?: "default" | "fluidWake" | "blackHole" | "viscousCoffee"
   /** Overrides default `aria-label` on the outer `<section>` (embedded). */
   sectionAriaLabel?: string
+  /**
+ * When `interactionMode="viscousCoffee"`, merged into physics each frame (sliders / lab).
+ * Omitted = built-in defaults from `viscous-coffee-live-tuning.ts`.
+ */
+  viscousCoffeeLiveTuning?: Partial<ViscousCoffeeLiveTuning> | null
 }
 
 export default function HomeParticleLogoHero({
@@ -824,6 +923,7 @@ export default function HomeParticleLogoHero({
   animatedParticleCap = ANIMATED_PARTICLE_CAP,
   interactionMode = "default",
   sectionAriaLabel,
+  viscousCoffeeLiveTuning = null,
 }: Props) {
   const presentationRef = useRef(presentation)
   presentationRef.current = presentation
@@ -835,8 +935,21 @@ export default function HomeParticleLogoHero({
   const viscousCoffeeWakeParticlesRef = useRef<ParallaxParticle[] | null>(
     null
   )
+  /** Previous cursor (bitmap) for spoon heading when the trail has fewer than two samples. */
+  const viscousCoffeePrevCursorRef = useRef({ x: 0, y: 0 })
+  const viscousCoffeeSpoonVelRef = useRef({ vx: 1, vy: 0 })
+  const viscousCoffeeSpoonPrimedRef = useRef(false)
+  const viscousCoffeeLiveMergedRef = useRef<ViscousCoffeeLiveTuning>(
+    mergeViscousCoffeeLiveTuning()
+  )
+  const viscousWakeBuiltCountRef = useRef<number | undefined>(undefined)
 
-  /** Always-on interaction; never set to false. */
+  useLayoutEffect(() => {
+    Object.assign(
+      viscousCoffeeLiveMergedRef.current,
+      mergeViscousCoffeeLiveTuning(viscousCoffeeLiveTuning)
+    )
+  }, [viscousCoffeeLiveTuning])
   const reducedMotion = useReducedMotion()
   /** Layer parallax respects OS reduced-motion. */
   const reduceParallax = reducedMotion === true
@@ -1156,8 +1269,10 @@ export default function HomeParticleLogoHero({
       viscousCoffeeWakeParticlesRef.current = createCoffeeWakeParticlePool(
         W,
         H,
-        VISCOUS_COFFEE_WAKE_PARTICLE_COUNT
+        viscousCoffeeLiveMergedRef.current.wakeParticleCount
       )
+      viscousWakeBuiltCountRef.current =
+        viscousCoffeeLiveMergedRef.current.wakeParticleCount
     } else {
       viscousCoffeeWakeParticlesRef.current = null
     }
@@ -1199,6 +1314,25 @@ export default function HomeParticleLogoHero({
   }, [logoImg, reduceParallax, animatedParticleCap, interactionMode])
 
   buildRef.current = build
+
+  useEffect(() => {
+    if (interactionModeRef.current !== "viscousCoffee") {
+      return
+    }
+    if (!portalReady || !layerReady) {
+      return
+    }
+    const want = viscousCoffeeLiveMergedRef.current.wakeParticleCount
+    if (viscousWakeBuiltCountRef.current === undefined) {
+      viscousWakeBuiltCountRef.current = want
+      return
+    }
+    if (viscousWakeBuiltCountRef.current === want) {
+      return
+    }
+    viscousWakeBuiltCountRef.current = want
+    buildRef.current()
+  }, [viscousCoffeeLiveTuning, portalReady, layerReady])
 
   useLayoutEffect(() => {
     if (!portalReady || !layerReady) {
@@ -1387,6 +1521,8 @@ export default function HomeParticleLogoHero({
         const blackHole = interactionModeRef.current === "blackHole"
         const viscousCoffee =
           interactionModeRef.current === "viscousCoffee"
+        const vc = viscousCoffee ? viscousCoffeeLiveMergedRef.current : null
+        const viscousDragR = vc != null ? vc.dragRadius : DRAG_RADIUS
         const nowTick = performance.now()
         const bhBounds = logoInteractBoundsRef.current
         const inBlackHoleStipple =
@@ -1412,7 +1548,7 @@ export default function HomeParticleLogoHero({
             currentMouseY,
             bhBounds,
             particles,
-            DRAG_RADIUS
+            viscousDragR
           )
 
         if (fluidWake && !entranceActive) {
@@ -1445,7 +1581,7 @@ export default function HomeParticleLogoHero({
           }
         }
 
-        if (viscousCoffee && !entranceActive) {
+        if (viscousCoffee && !entranceActive && vc != null) {
           const bV = logoInteractBoundsRef.current
           const nearV =
             bV != null &&
@@ -1455,7 +1591,7 @@ export default function HomeParticleLogoHero({
               currentMouseY,
               bV,
               particles,
-              DRAG_RADIUS
+              viscousDragR
             )
           const trail = viscousCoffeeTrailRef.current
           if (nearV) {
@@ -1465,14 +1601,14 @@ export default function HomeParticleLogoHero({
               Math.hypot(
                 currentMouseX - last.x,
                 currentMouseY - last.y
-              ) >= VISCOUS_COFFEE_SAMPLE_DIST_BMP
+              ) >= vc.sampleDistBmp
             ) {
               trail.push({
                 x: currentMouseX,
                 y: currentMouseY,
               })
               while (
-                trail.length > VISCOUS_COFFEE_TRAIL_MAX_POINTS
+                trail.length > vc.trailMaxPoints
               ) {
                 trail.shift()
               }
@@ -1482,7 +1618,7 @@ export default function HomeParticleLogoHero({
             viscousCoffeeErodeAccRef.current++
             if (
               viscousCoffeeErodeAccRef.current >=
-              VISCOUS_COFFEE_ERODE_EVERY_FRAMES
+              vc.erodeEveryFrames
             ) {
               viscousCoffeeErodeAccRef.current = 0
               if (trail.length > 0) {
@@ -1494,21 +1630,69 @@ export default function HomeParticleLogoHero({
 
         const springKBase = fluidWake
           ? WAKE_SPRING_STIFFNESS
-          : viscousCoffee
-            ? VISCOUS_COFFEE_SPRING_STIFFNESS
+          : viscousCoffee && vc != null
+            ? vc.springStiffness
             : blackHole
               ? SPRING_STIFFNESS * BLACK_HOLE_SPRING_STIFFNESS_MULT
               : SPRING_STIFFNESS
         const frictionK = fluidWake
           ? WAKE_FRICTION
-          : viscousCoffee
-            ? VISCOUS_COFFEE_FRICTION
+          : viscousCoffee && vc != null
+            ? vc.friction
             : blackHole
               ? BLACK_HOLE_FRICTION
               : FRICTION
         const trailSnap = wakeTrailRef.current
         const bhRadius = DRAG_RADIUS * BLACK_HOLE_RADIUS_MULT
         const cursorOk = currentMouseX > -9000
+
+        let applyCoffeeSpoon = false
+        let spoonGx = 1
+        let spoonGy = 0
+        if (
+          viscousCoffee &&
+          !entranceActive &&
+          inViscousStipple &&
+          cursorOk
+        ) {
+          const vcTrail = viscousCoffeeTrailRef.current
+          const pr = viscousCoffeePrevCursorRef.current
+          if (!viscousCoffeeSpoonPrimedRef.current) {
+            pr.x = currentMouseX
+            pr.y = currentMouseY
+            viscousCoffeeSpoonPrimedRef.current = true
+          } else {
+            let rx = 0
+            let ry = 0
+            if (vcTrail.length >= 2) {
+              const a = vcTrail[vcTrail.length - 2]!
+              const b = vcTrail[vcTrail.length - 1]!
+              rx = b.x - a.x
+              ry = b.y - a.y
+            }
+            if (rx * rx + ry * ry < 0.25) {
+              rx = currentMouseX - pr.x
+              ry = currentMouseY - pr.y
+            }
+            const sv = viscousCoffeeSpoonVelRef.current
+            const sm = viscousCoffeeLiveMergedRef.current.spoonVelSmooth
+            sv.vx += (rx - sv.vx) * sm
+            sv.vy += (ry - sv.vy) * sm
+            spoonGx = sv.vx
+            spoonGy = sv.vy
+          }
+          pr.x = currentMouseX
+          pr.y = currentMouseY
+          applyCoffeeSpoon = true
+        }
+
+        if (
+          viscousCoffee &&
+          !entranceActive &&
+          (!inViscousStipple || !cursorOk)
+        ) {
+          viscousCoffeeSpoonPrimedRef.current = false
+        }
 
         if (!entranceActive) {
           for (const p of particles) {
@@ -1578,23 +1762,24 @@ export default function HomeParticleLogoHero({
               p.y += p.vy
 
               p.bhPrevInRadius = inCaptureDiskGeom
-            } else if (viscousCoffee) {
+            } else if (viscousCoffee && vc != null) {
               p.bhPrevInRadius = false
               p.bhTrailUntilMs = null
 
               applyViscousCoffeeAlongPath(
                 p,
-                viscousCoffeeTrailRef.current
+                viscousCoffeeTrailRef.current,
+                vc
               )
 
-              if (inViscousStipple) {
-                applyRadialSwirlImpulse(
+              if (applyCoffeeSpoon) {
+                applyViscousCoffeeSpoonField(
                   p,
                   currentMouseX,
                   currentMouseY,
-                  DRAG_RADIUS,
-                  VISCOUS_COFFEE_LIVE_PUSH_FRAC,
-                  VISCOUS_COFFEE_LIVE_SWIRL_FRAC
+                  spoonGx,
+                  spoonGy,
+                  vc
                 )
               }
 
@@ -1668,9 +1853,13 @@ export default function HomeParticleLogoHero({
         ) {
           assignCoffeeWakeTargets(
             coffeeWake,
-            viscousCoffeeTrailRef.current
+            viscousCoffeeTrailRef.current,
+            viscousCoffeeLiveMergedRef.current
           )
-          integrateCoffeeWakeParticles(coffeeWake)
+          integrateCoffeeWakeParticles(
+            coffeeWake,
+            viscousCoffeeLiveMergedRef.current
+          )
         }
 
         const dotDprTick = c2.width / Math.max(1, c2.clientWidth)
@@ -1763,12 +1952,16 @@ export default function HomeParticleLogoHero({
 
       const parts = particlesRef.current
       const b = logoInteractBoundsRef.current
+      const stippleR =
+        interactionModeRef.current === "viscousCoffee"
+          ? viscousCoffeeLiveMergedRef.current.dragRadius
+          : DRAG_RADIUS
       const nearStipple = pointerInStippleInteractionRange(
         mx,
         my,
         b,
         parts,
-        DRAG_RADIUS
+        stippleR
       )
 
       const rect = canvas.getBoundingClientRect()
@@ -1870,6 +2063,8 @@ export default function HomeParticleLogoHero({
       wakeTrailRef.current = []
       viscousCoffeeTrailRef.current = []
       viscousCoffeeErodeAccRef.current = 0
+      viscousCoffeeSpoonPrimedRef.current = false
+      viscousCoffeeSpoonVelRef.current = { vx: 1, vy: 0 }
       const cw = viscousCoffeeWakeParticlesRef.current
       if (cw != null) {
         for (const p of cw) {
