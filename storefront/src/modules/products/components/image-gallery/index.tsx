@@ -18,6 +18,7 @@ import {
   urlMatchesColorLabelStrict,
   urlMatchesColorNeedles,
 } from "@modules/products/lib/variant-options"
+import { PRODUCT_VIEW_IMAGE_META_KEYS_ORDERED } from "@lib/util/product-view-image-metadata"
 
 type ImageGalleryProps = {
   product: HttpTypes.StoreProduct
@@ -117,9 +118,37 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
     return []
   }, [galleryImages, thumbnail])
 
+  /** AS Colour / importer: extras on product.metadata, appended after hero gallery (deduped). */
+  const fallbackWithCatalogAngles = useMemo(() => {
+    const meta = (product.metadata ?? {}) as Record<string, unknown>
+    const extras: { id: string; url: string }[] = []
+    for (const key of PRODUCT_VIEW_IMAGE_META_KEYS_ORDERED) {
+      const raw = meta[key]
+      if (typeof raw !== "string") {
+        continue
+      }
+      const url = raw.trim()
+      if (!url) {
+        continue
+      }
+      extras.push({ id: `catalog-view-${key}`, url })
+    }
+    const seen = new Set(fallbackImages.map((i) => normalizeImageUrl(i.url)))
+    const out = [...fallbackImages]
+    for (const e of extras) {
+      const n = normalizeImageUrl(e.url)
+      if (!n || seen.has(n)) {
+        continue
+      }
+      seen.add(n)
+      out.push(e)
+    }
+    return out
+  }, [fallbackImages, product.metadata])
+
   /** Remap known 404 garment URLs + drop duplicates when remap collapses variants (e.g. colour chart → hero). */
   const displayImages = useMemo(() => {
-    const merged = fallbackImages.map((img) => {
+    const merged = fallbackWithCatalogAngles.map((img) => {
       const u = remapStaleExternalGarmentUrl(img.url) ?? img.url
       return { ...img, url: u }
     })
@@ -135,7 +164,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
       out.push(row)
     }
     return out
-  }, [fallbackImages])
+  }, [fallbackWithCatalogAngles])
 
   const hasProductImages = displayImages.length > 0
 

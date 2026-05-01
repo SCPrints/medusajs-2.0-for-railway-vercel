@@ -171,14 +171,22 @@ def main() -> int:
                 continue
             gold_by_style[sc.upper()] = row
 
-    # Group stock rows by styleCode
+    # Group stock rows by styleCode, dedup by stockCode (source has ~20 duplicate SKU rows)
     stock_by_style: dict[str, list[dict[str, str]]] = defaultdict(list)
+    seen_skus: set[str] = set()
+    duplicate_sku_count = 0
     with stock_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             sc = (row.get("styleCode") or "").strip()
             if not sc:
                 continue
+            sku = (row.get("stockCode") or "").strip()
+            if sku and sku in seen_skus:
+                duplicate_sku_count += 1
+                continue
+            if sku:
+                seen_skus.add(sku)
             stock_by_style[sc.upper()].append(row)
 
     missing_cost: list[str] = []
@@ -338,6 +346,7 @@ def main() -> int:
     print(f"Wrote {out_path}", file=sys.stderr)
     print(f"  styles:   {n_styles}", file=sys.stderr)
     print(f"  variants: {n_variants}", file=sys.stderr)
+    print(f"  duplicate stockCode rows skipped: {duplicate_sku_count}", file=sys.stderr)
     print(f"  missing cost (styles not in gold): {len(missing_cost)}", file=sys.stderr)
     if missing_cost:
         print("    " + ", ".join(missing_cost[:20]) + ("..." if len(missing_cost) > 20 else ""), file=sys.stderr)

@@ -329,7 +329,10 @@ const SpreadsheetSyncPage = () => {
         </Text>
         <Text size="small" className="text-ui-fg-muted mt-2">
           Prefer the CSV from <strong>Products → Export products (import template)</strong>. Wholesale feeds such as AS
-          Colour (STYLECODE / PRODUCT_NAME), DNC Workwear (<code className="text-xs">ProductCode</code> /{" "}
+          Colour (<code className="text-xs">STYLECODE</code>, <code className="text-xs">PRODUCT_NAME</code>). When
+          present, <code className="text-xs">ImageUrl_Standard</code> / <code className="text-xs">ImageFrontUrl</code> /{" "}
+          <code className="text-xs">ImageBackUrl</code> / <code className="text-xs">ImageSideUrl</code> map to product
+          metadata for extra PDP views. DNC Workwear (<code className="text-xs">ProductCode</code> /{" "}
           <code className="text-xs">Description</code> / <code className="text-xs">Description2–3</code>), and biz-style variant grids map automatically once you set a default shipping profile. Optional AUD tier pricing uses the Pricing Module after create.
         </Text>
       </div>

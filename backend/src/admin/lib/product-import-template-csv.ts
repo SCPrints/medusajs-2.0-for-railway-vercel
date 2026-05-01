@@ -63,6 +63,11 @@ export const PRODUCT_IMPORT_SUPPLEMENTAL_COLUMNS = [
   "TIER_100_PLUS_PRICE",
   "TIER_10_TO_49_PRICE",
   "Variant Bulk Pricing JSON",
+  /** Catalog angled views (stored on product `metadata`; lazy-loaded on PDP). */
+  "Image Standard Url",
+  "Image Front Url",
+  "Image Back Url",
+  "Image Side Url",
 ] as const
 
 export const PRODUCT_IMPORT_CSV_HEADERS: string[] = [
@@ -586,6 +591,10 @@ export function buildProductImportTemplateRows(products: unknown[]): string[][] 
         audTiers.tier100,
         audTiers.tier10,
         audTiers.bulkPricingJson,
+        formatCell((product.metadata as Record<string, unknown> | undefined)?.image_standard_url ?? ""),
+        formatCell((product.metadata as Record<string, unknown> | undefined)?.image_front_url ?? ""),
+        formatCell((product.metadata as Record<string, unknown> | undefined)?.image_back_url ?? ""),
+        formatCell((product.metadata as Record<string, unknown> | undefined)?.image_side_url ?? ""),
       ])
     }
   }

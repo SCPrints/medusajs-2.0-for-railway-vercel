@@ -6,6 +6,27 @@ import {
   type TierMoneyMinor,
 } from "./spreadsheet-money"
 
+/** Persisted on `product.metadata`; storefront PDP appends these after main gallery (deduped, lazy-loaded). */
+export const PRODUCT_VIEW_IMAGE_METADATA_KEYS = {
+  standard: "image_standard_url",
+  front: "image_front_url",
+  back: "image_back_url",
+  side: "image_side_url",
+} as const
+
+const GOLD_ANGLE_URL_ALIASES = {
+  standard: [
+    "imageurl standard",
+    "image url standard",
+    "image standard url",
+    "standard image url",
+    "catalog image standard",
+  ],
+  front: ["imagefronturl", "image front url", "image_front_url", "image front"],
+  back: ["imagebackurl", "image back url", "image_back_url", "image back"],
+  side: ["imagesideurl", "image side url", "image_side_url", "image side"],
+} as const
+
 /** URL-safe handle from a collection title (Medusa product collection `handle`). */
 export function slugifyCollectionHandle(title: string): string {
   const s = title
@@ -497,6 +518,10 @@ export function expandGoldCatalogToTemplate(parsed: ParsedCsv, shippingProfileId
     const price = (row["price"] ?? "").trim()
     const productUrl =
       (row["product url"] ?? row["product_url"] ?? row["producturl"] ?? "").trim()
+    const imageStandard = getCellAliased(row, [...GOLD_ANGLE_URL_ALIASES.standard])
+    const imageFront = getCellAliased(row, [...GOLD_ANGLE_URL_ALIASES.front])
+    const imageBack = getCellAliased(row, [...GOLD_ANGLE_URL_ALIASES.back])
+    const imageSide = getCellAliased(row, [...GOLD_ANGLE_URL_ALIASES.side])
 
     const base = emptyTemplateRow()
     base["product handle"] = slugHandleFromStyleCode(style)
@@ -511,9 +536,23 @@ export function expandGoldCatalogToTemplate(parsed: ParsedCsv, shippingProfileId
     base["variant allow backorder"] = "TRUE"
     base["variant option 1 name"] = "Style"
     base["variant option 1 value"] = style
-    if (productUrl) {
-      base["product thumbnail"] = productUrl
-      base["product image 1 url"] = productUrl
+    if (imageStandard) {
+      base["image standard url"] = imageStandard
+    }
+    if (imageFront) {
+      base["image front url"] = imageFront
+    }
+    if (imageBack) {
+      base["image back url"] = imageBack
+    }
+    if (imageSide) {
+      base["image side url"] = imageSide
+    }
+
+    const heroUrl = productUrl || imageStandard || imageFront || imageBack || imageSide
+    if (heroUrl) {
+      base["product thumbnail"] = heroUrl
+      base["product image 1 url"] = heroUrl
     }
 
     rowsOut.push(base)
@@ -954,6 +993,29 @@ const parseManageInventory = (raw: string | undefined): boolean =>
 const parseAllowBackorder = (raw: string | undefined): boolean =>
   raw !== undefined && raw !== "" ? TRUEISH(raw) : false
 
+function buildProductViewImageMetadataFromRow(
+  first: Record<string, string>
+): Record<string, string> | undefined {
+  const std = (first["image standard url"] ?? "").trim()
+  const front = (first["image front url"] ?? "").trim()
+  const back = (first["image back url"] ?? "").trim()
+  const side = (first["image side url"] ?? "").trim()
+  const meta: Record<string, string> = {}
+  if (std) {
+    meta[PRODUCT_VIEW_IMAGE_METADATA_KEYS.standard] = std
+  }
+  if (front) {
+    meta[PRODUCT_VIEW_IMAGE_METADATA_KEYS.front] = front
+  }
+  if (back) {
+    meta[PRODUCT_VIEW_IMAGE_METADATA_KEYS.back] = back
+  }
+  if (side) {
+    meta[PRODUCT_VIEW_IMAGE_METADATA_KEYS.side] = side
+  }
+  return Object.keys(meta).length ? meta : undefined
+}
+
 /** Max duplicate-barcode detail lines returned (rest summarized). */
 const BARCODE_DEDUPE_WARNING_CAP = 40
 
@@ -1114,6 +1176,8 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
       continue
     }
 
+    const viewImageMetadata = buildProductViewImageMetadataFromRow(first)
+
     creates.push({
       title: (first["product title"] ?? "").trim() || handle,
       subtitle: (first["product subtitle"] ?? "").trim() || undefined,
@@ -1145,6 +1209,7 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
       images: images.length ? images : undefined,
       options,
       variants,
+      ...(viewImageMetadata ? { metadata: viewImageMetadata } : {}),
     })
   }
 

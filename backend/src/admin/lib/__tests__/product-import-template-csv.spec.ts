@@ -64,12 +64,22 @@ describe("buildProductImportTemplateRows", () => {
         tags: [],
         images: [],
         options: [],
+        metadata: {
+          image_standard_url: "https://std.example/a.jpg",
+          image_front_url: "https://front.example/b.jpg",
+          image_back_url: "https://back.example/c.jpg",
+          image_side_url: "https://side.example/d.jpg",
+        },
       },
     ]
 
     const rows = buildProductImportTemplateRows(products as unknown[])
     expect(rows).toHaveLength(1)
     expect(rows[0].length).toBe(PRODUCT_IMPORT_CSV_HEADERS.length)
+    expect(rows[0][idx("Image Standard Url")]).toBe("https://std.example/a.jpg")
+    expect(rows[0][idx("Image Front Url")]).toBe("https://front.example/b.jpg")
+    expect(rows[0][idx("Image Back Url")]).toBe("https://back.example/c.jpg")
+    expect(rows[0][idx("Image Side Url")]).toBe("https://side.example/d.jpg")
   })
 
   it("maps bulk_pricing tiers to AUD supplemental columns (major units)", () => {

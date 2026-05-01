@@ -216,6 +216,29 @@ describe("spreadsheet-sync-import", () => {
     expect(computeSpreadsheetPreview(exp).validationErrors.length).toBe(0)
   })
 
+  it("expandGoldCatalogToTemplate maps AS Colour angle URLs to template + create metadata", () => {
+    const header = `${GOLD_HEADER},ImageUrl_Standard,ImageFrontUrl,ImageBackUrl,ImageSideUrl`
+    const row =
+      "3,1000,Parcel Tote,,,,,,50,6.95,BAGS,41000,https://example.com/hero.jpg,https://example.com/std.jpg,https://example.com/front.jpg,https://example.com/back.jpg,https://example.com/side.jpg"
+    const parsed = parseCsv(`${header}\n${row}`)
+    const exp = expandGoldCatalogToTemplate(parsed, "sp_test")
+    expect(exp.rows.length).toBe(1)
+    const r = exp.rows[0]!
+    expect(r["product thumbnail"]).toBe("https://example.com/hero.jpg")
+    expect(r["image standard url"]).toBe("https://example.com/std.jpg")
+    expect(r["image front url"]).toBe("https://example.com/front.jpg")
+    expect(r["image back url"]).toBe("https://example.com/back.jpg")
+    expect(r["image side url"]).toBe("https://example.com/side.jpg")
+
+    const { creates, errors } = buildBatchCreatesFromParsedCsv(exp)
+    expect(errors.length).toBe(0)
+    const meta = creates[0]?.metadata as Record<string, string> | undefined
+    expect(meta?.image_standard_url).toBe("https://example.com/std.jpg")
+    expect(meta?.image_front_url).toBe("https://example.com/front.jpg")
+    expect(meta?.image_back_url).toBe("https://example.com/back.jpg")
+    expect(meta?.image_side_url).toBe("https://example.com/side.jpg")
+  })
+
   it("normalizeSpreadsheetForImport requires shipping profile for gold CSV", () => {
     const parsed = parseCsv(`${GOLD_HEADER}\n3,1000,T,,,,,,1,1,,,`)
     expect(normalizeSpreadsheetForImport(parsed, {}).readyParsed).toBeNull()
