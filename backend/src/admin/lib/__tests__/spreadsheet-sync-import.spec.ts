@@ -4,8 +4,10 @@ import {
   applyDefaultCollectionIdToParsedCsv,
   buildBatchCreatesFromParsedCsv,
   computeSpreadsheetPreview,
+  detectDncWorkwearCatalog,
   detectFashionBizVariantCatalog,
   detectGoldCatalogFormat,
+  expandDncWorkwearCatalogToTemplate,
   expandFashionBizCatalogToTemplate,
   expandGoldCatalogToTemplate,
   normalizeSpreadsheetForImport,
@@ -266,6 +268,50 @@ describe("spreadsheet-sync-import", () => {
     expect(normalizeSpreadsheetForImport(parsed, {}).readyParsed).toBeNull()
     expect(
       normalizeSpreadsheetForImport(parsed, { defaultShippingProfileId: "sp_x" }).readyParsed?.rows.length
+    ).toBe(1)
+  })
+
+  const DNC_HEADER =
+    "ProductCode,Description,Description2,Description3,Barcode,Image,URL,Condition,Price,Picture 1,Picture 2,Picture 3"
+
+  it("detects DNC Workwear CSV shape when dnc URLs are present", () => {
+    const raw = `${DNC_HEADER}
+1101,Parent Tee,,,,https://cdn.dncworkwear.com.au/x.jpg,https://www.dncworkwear.com.au/Product/1101,,$22.50,,,
+SKUB,Child Blue M,Blue,M,931111,https://cdn.dncworkwear.com.au/y.jpg,,,$22.50,,`
+    const parsed = parseCsv(raw)
+    expect(detectDncWorkwearCatalog(parsed)).toBe(true)
+  })
+
+  it("does not detect DNC when URL fingerprint is missing", () => {
+    const raw = `${DNC_HEADER}
+1101,Parent,,,,http://othersupplier.example/l.jpg,,,$1,,`
+    expect(detectDncWorkwearCatalog(parseCsv(raw))).toBe(false)
+  })
+
+  it("expandDncWorkwearCatalogToTemplate maps summary + variants", () => {
+    const raw = `${DNC_HEADER}
+1101,Chef Jacket SS,,,,https://cdn.dncworkwear.com.au/p.jpg,https://www.dncworkwear.com.au/Product/1101,,$20.30,,,
+110110061,Chef Jacket SS Black XXS,Black,XXS,9335975124903,https://cdn.dncworkwear.com.au/v.jpg,,,$20.30,,`
+    const parsed = parseCsv(raw)
+    const exp = expandDncWorkwearCatalogToTemplate(parsed, "sp_dnc")
+    expect(exp.rows.length).toBe(1)
+    expect(exp.rows[0]?.["product handle"]).toBe("dnc-1101")
+    expect(exp.rows[0]?.["product title"]).toBe("Chef Jacket SS")
+    expect(exp.rows[0]?.["variant sku"]).toBe("110110061")
+    expect(exp.rows[0]?.["variant barcode"]).toBe("9335975124903")
+    expect(exp.rows[0]?.["variant option 1 value"]).toBe("XXS")
+    expect(exp.rows[0]?.["variant option 2 value"]).toBe("Black")
+    expect(computeSpreadsheetPreview(exp).validationErrors.length).toBe(0)
+  })
+
+  it("normalizeSpreadsheetForImport requires shipping profile for DNC CSV", () => {
+    const raw = `${DNC_HEADER}
+1101,Chef Jacket SS,,,,https://cdn.dncworkwear.com.au/p.jpg,https://www.dncworkwear.com.au/Product/1101,,20.30,,,
+110110061,Jacket Black XXS,Black,XXS,9335975124903,https://cdn.dncworkwear.com.au/v.jpg,,,,20.30,,`
+    const parsed = parseCsv(raw)
+    expect(normalizeSpreadsheetForImport(parsed, {}).readyParsed).toBeNull()
+    expect(
+      normalizeSpreadsheetForImport(parsed, { defaultShippingProfileId: "sp_z" }).readyParsed?.rows.length
     ).toBe(1)
   })
 })

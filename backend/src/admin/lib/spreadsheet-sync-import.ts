@@ -522,6 +522,136 @@ export function expandGoldCatalogToTemplate(parsed: ParsedCsv, shippingProfileId
   return { headers, rows: rowsOut }
 }
 
+function slugDncHandle(styleCodeRaw: string): string {
+  const slug = `dnc-${styleCodeRaw.trim().toLowerCase()}`
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+  return (slug || "dnc-product").slice(0, 120)
+}
+
+/** DNC listing row: grouped style line with colour/size/barcodes empty. */
+export function isDncStyleSummaryRow(row: Record<string, string>): boolean {
+  const d2 = (row["description2"] ?? "").trim()
+  const d3 = (row["description3"] ?? "").trim()
+  const bc = (row["barcode"] ?? "").trim()
+  return !d2 && !d3 && !bc
+}
+
+/**
+ * DNC Workwear price exports: parent row (style ProductCode + Description title), then SKU rows with
+ * Description2=colour, Description3=size, URLs on dncworkwear.com.au.
+ */
+export function detectDncWorkwearCatalog(parsed: ParsedCsv): boolean {
+  const keys = normalizedHeaderKeySet(parsed)
+  const hasShape =
+    keys.has("productcode") &&
+    keys.has("description") &&
+    keys.has("description2") &&
+    keys.has("description3") &&
+    keys.has("url") &&
+    keys.has("image")
+  const noMedusaHandle = !columnFilledSomewhere(parsed, "product handle")
+  if (!hasShape || !noMedusaHandle) {
+    return false
+  }
+
+  const cap = Math.min(parsed.rows.length, 48)
+  for (let i = 0; i < cap; i++) {
+    const row = parsed.rows[i]!
+    const blob = `${row["url"] ?? ""}${row["image"] ?? ""}`.toLowerCase()
+    if (blob.includes("dncworkwear")) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * One Medusa row per DNC variant SKU; parent summary row sets handle/title until the next summary row.
+ */
+export function expandDncWorkwearCatalogToTemplate(
+  parsed: ParsedCsv,
+  shippingProfileId: string
+): ParsedCsv {
+  const headersBase = PRODUCT_IMPORT_CSV_HEADERS.map((h) => h.toLowerCase())
+  const extra = ["variant option 2 name", "variant option 2 value"]
+  const headers = [...headersBase]
+  for (const e of extra) {
+    if (!headers.includes(e)) {
+      headers.push(e)
+    }
+  }
+
+  const rowsOut: Record<string, string>[] = []
+  let parentStyle: string | null = null
+  let parentTitle = ""
+  let stylePriceFallback = ""
+
+  for (const row of parsed.rows) {
+    const code = (row["productcode"] ?? "").trim()
+    if (!code) {
+      continue
+    }
+
+    if (isDncStyleSummaryRow(row)) {
+      parentStyle = code
+      parentTitle = (row["description"] ?? "").trim()
+      const p = fashionBizPriceFromRow(row)
+      if (p) {
+        stylePriceFallback = p
+      }
+      continue
+    }
+
+    if (!parentStyle) {
+      continue
+    }
+
+    const colour = (row["description2"] ?? "").trim()
+    const size = (row["description3"] ?? "").trim()
+
+    let price = fashionBizPriceFromRow(row)
+    if (!price) {
+      price = stylePriceFallback
+    }
+
+    const thumb = (row["image"] ?? "").trim()
+    const lineTitle = (row["description"] ?? "").trim()
+
+    const base = emptyTemplateRow()
+    base["variant option 2 name"] = ""
+    base["variant option 2 value"] = ""
+
+    base["product handle"] = slugDncHandle(parentStyle)
+    base["product title"] = parentTitle || lineTitle || parentStyle
+    base["product status"] = "published"
+    base["product discountable"] = "TRUE"
+    base["shipping profile id"] = shippingProfileId
+    base["variant sku"] = code
+    base["variant title"] = lineTitle || [size, colour].filter(Boolean).join(" / ") || code
+    base["variant price aud"] = price
+    base["variant manage inventory"] = "FALSE"
+    base["variant allow backorder"] = "TRUE"
+    base["variant option 1 name"] = "Size"
+    base["variant option 1 value"] = size || "One Size"
+    base["variant option 2 name"] = "Colour"
+    base["variant option 2 value"] = colour || "Default"
+
+    const bar = (row["barcode"] ?? "").trim()
+    if (bar) {
+      base["variant barcode"] = bar
+    }
+    if (thumb) {
+      base["product thumbnail"] = thumb
+      base["product image 1 url"] = thumb
+    }
+
+    rowsOut.push(base)
+  }
+
+  return { headers, rows: rowsOut }
+}
+
 export type SpreadsheetImportOptions = {
   /** Required for AS Colour–style CSVs that omit Shipping Profile Id. */
   defaultShippingProfileId?: string
@@ -567,6 +697,22 @@ export function normalizeSpreadsheetForImport(
     const expanded = expandGoldCatalogToTemplate(rawParsed, sp)
     hints.push(
       `Mapped ${expanded.rows.length} unique STYLECODE row(s) to Medusa products (handle pattern \`ascolour-<stylecode>\`).`
+    )
+    return { readyParsed: expanded, rawParsed, hints }
+  }
+
+  if (detectDncWorkwearCatalog(rawParsed)) {
+    const sp = opts.defaultShippingProfileId?.trim()
+    if (!sp) {
+      hints.push(
+        "Detected DNC Workwear price CSV (ProductCode / Description / Description2–3 / URL). Paste **Default shipping profile id** below (Settings → Shipping Profiles), then re-upload or change the field to refresh preview."
+      )
+      return { readyParsed: null, rawParsed, hints }
+    }
+    const expanded = expandDncWorkwearCatalogToTemplate(rawParsed, sp)
+    const distinctHandles = new Set(expanded.rows.map((r) => (r["product handle"] ?? "").trim())).size
+    hints.push(
+      `Mapped ${expanded.rows.length} variant row(s) from DNC Workwear (${distinctHandles} product handle(s), pattern \`dnc-<stylecode>\`).`
     )
     return { readyParsed: expanded, rawParsed, hints }
   }
