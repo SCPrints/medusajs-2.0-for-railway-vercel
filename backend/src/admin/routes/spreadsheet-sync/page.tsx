@@ -193,7 +193,7 @@ const SpreadsheetSyncPage = () => {
       return
     }
 
-    const { creates, tierBySku, errors } = buildBatchCreatesFromParsedCsv(workingParsed)
+    const { creates, tierBySku, errors, warnings } = buildBatchCreatesFromParsedCsv(workingParsed)
 
     if (errors.length) {
       errors.forEach((e) => log.push(`Validation: ${e}`))
@@ -201,6 +201,8 @@ const SpreadsheetSyncPage = () => {
       setSyncing(false)
       return
     }
+
+    warnings.forEach((w) => log.push(`Note: ${w}`))
 
     if (!creates.length) {
       log.push("Nothing to create — no product groups found.")

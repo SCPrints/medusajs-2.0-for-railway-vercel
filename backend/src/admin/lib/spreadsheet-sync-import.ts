@@ -954,26 +954,34 @@ const parseManageInventory = (raw: string | undefined): boolean =>
 const parseAllowBackorder = (raw: string | undefined): boolean =>
   raw !== undefined && raw !== "" ? TRUEISH(raw) : false
 
+/** Max duplicate-barcode detail lines returned (rest summarized). */
+const BARCODE_DEDUPE_WARNING_CAP = 40
+
 export type BuildCreatesResult = {
   creates: SpreadsheetProductCreate[]
   tierBySku: Map<string, TierMoneyMinor>
   errors: string[]
+  /** Human-readable warnings (e.g. duplicate barcodes stripped so sync can proceed). */
+  warnings: string[]
 }
 
 export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesResult => {
   const errors: string[] = []
+  const barcodeDedupeDetails: string[] = []
   const tierBySku = new Map<string, TierMoneyMinor>()
+  const seenBarcodes = new Set<string>()
+  let barcodeDedupeCount = 0
 
   const headerErr = validateHeaders(parsed)
   if (headerErr) {
     errors.push(headerErr)
-    return { creates: [], tierBySku, errors }
+    return { creates: [], tierBySku, errors, warnings: [] }
   }
 
   const previewRun = computeSpreadsheetPreview(parsed)
   previewRun.validationErrors.forEach((e) => errors.push(e))
   if (previewRun.validationErrors.length > 0) {
-    return { creates: [], tierBySku, errors }
+    return { creates: [], tierBySku, errors, warnings: [] }
   }
 
   const grouped = groupRowsByHandle(parsed.rows)
@@ -1069,10 +1077,26 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
         }
       }
 
+      const barcodeRaw = (row["variant barcode"] ?? "").trim()
+      let barcode: string | undefined = barcodeRaw || undefined
+      if (barcodeRaw) {
+        if (seenBarcodes.has(barcodeRaw)) {
+          barcodeDedupeCount++
+          if (barcodeDedupeDetails.length < BARCODE_DEDUPE_WARNING_CAP) {
+            barcodeDedupeDetails.push(
+              `${rowLabel}: duplicate barcode "${barcodeRaw}" — omitted on this variant (SKU ${sku} still imported; first occurrence in file keeps barcode).`
+            )
+          }
+          barcode = undefined
+        } else {
+          seenBarcodes.add(barcodeRaw)
+        }
+      }
+
       variants.push({
         title: (row["variant title"] ?? "").trim() || sku,
         sku,
-        barcode: (row["variant barcode"] ?? "").trim() || undefined,
+        barcode,
         allow_backorder: parseAllowBackorder(row["variant allow backorder"]),
         manage_inventory: parseManageInventory(row["variant manage inventory"]),
         weight: weight !== undefined && Number.isFinite(weight) ? weight : undefined,
@@ -1124,7 +1148,20 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
     })
   }
 
-  return { creates, tierBySku, errors }
+  const warnings: string[] = []
+  if (barcodeDedupeCount > 0) {
+    warnings.push(
+      `Stripped ${barcodeDedupeCount} duplicate barcode entr${barcodeDedupeCount === 1 ? "y" : "ies"} across the spreadsheet (Medusa barcode must be unique).`
+    )
+    warnings.push(...barcodeDedupeDetails)
+    if (barcodeDedupeCount > BARCODE_DEDUPE_WARNING_CAP) {
+      warnings.push(
+        `…and ${barcodeDedupeCount - BARCODE_DEDUPE_WARNING_CAP} more duplicate barcode(s); barcodes omitted on those variants (SKUs unchanged).`
+      )
+    }
+  }
+
+  return { creates, tierBySku, errors, warnings }
 }
 
 export const PRODUCT_BATCH_CHUNK_SIZE = 10

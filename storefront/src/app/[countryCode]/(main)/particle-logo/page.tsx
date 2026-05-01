@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/particle-logo`
   const description =
-    "Full-viewport interactive particle logo: mix reveal entrance and fluid hover physics."
+    "Particle logo lab: fluid wake vs viscous coffee (path memory, shear, slow fill-in)."
 
   return {
     title: "Interactive particle logo",
@@ -44,7 +44,24 @@ export default function ParticleLogoPage() {
           </LocalizedClientLink>
         </div>
       </div>
-      <HomeParticleLogoHero presentation="fullscreen" />
+      <div className="pt-14">
+        <p className="border-b border-white/15 px-4 py-3 text-center text-sm text-white/70 sm:px-6">
+          Fluid wake (path memory)
+        </p>
+        <HomeParticleLogoHero
+          presentation="embedded"
+          interactionMode="fluidWake"
+          sectionAriaLabel="SC Prints — fluid wake particle logo"
+        />
+        <p className="border-b border-white/15 px-4 py-3 text-center text-sm text-white/70 sm:px-6">
+          Viscous coffee (trail, shear, slow fill-in)
+        </p>
+        <HomeParticleLogoHero
+          presentation="embedded"
+          interactionMode="viscousCoffee"
+          sectionAriaLabel="SC Prints — viscous coffee particle logo"
+        />
+      </div>
     </div>
   )
 }

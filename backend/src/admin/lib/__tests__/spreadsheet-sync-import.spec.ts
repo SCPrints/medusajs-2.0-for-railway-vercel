@@ -159,6 +159,37 @@ describe("spreadsheet-sync-import", () => {
     })
   })
 
+  it("buildBatchCreatesFromParsedCsv omits barcode on duplicates (first occurrence wins)", () => {
+    const dup = "1.98057E+11"
+    const a = emptyRow()
+    a["product handle"] = "dedupe-bc"
+    a["product title"] = "Dedupe Barcode Demo"
+    a["product status"] = "published"
+    a["shipping profile id"] = "sp_test"
+    a["variant sku"] = "SKU-FIRST"
+    a["variant barcode"] = dup
+    a["variant title"] = "M"
+    a["variant option 1 name"] = "Size"
+    a["variant option 1 value"] = "M"
+    a["variant price aud"] = "12"
+
+    const b = emptyRow()
+    Object.assign(b, a)
+    b["variant sku"] = "SKU-SECOND"
+    b["variant option 1 value"] = "L"
+
+    const parsed = parseCsv(buildCsv([a, b]))
+    const { creates, errors, warnings } = buildBatchCreatesFromParsedCsv(parsed)
+
+    expect(errors.length).toBe(0)
+    expect(warnings.length).toBeGreaterThan(0)
+    expect(warnings.some((w) => w.includes("duplicate barcode"))).toBe(true)
+    const vars = creates[0]?.variants as Array<{ sku: string; barcode?: string }>
+    expect(vars?.length).toBe(2)
+    expect(vars?.[0]?.barcode).toBe(dup)
+    expect(vars?.[1]?.barcode).toBeUndefined()
+  })
+
   it("reports missing required columns", () => {
     const parsed = parseCsv("foo,bar\n1,2")
     const preview = computeSpreadsheetPreview(parsed)
