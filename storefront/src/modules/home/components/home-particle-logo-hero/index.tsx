@@ -16,26 +16,17 @@ import {
   ANIMATED_PARTICLE_CAP,
   DRAG_RADIUS,
   FRICTION,
+  FULL_HERO_HOME_FRACTION,
   FULLSCREEN_ASSEMBLE_MS,
   FULLSCREEN_ASSEMBLE_SPRING_MULT,
-  FULLSCREEN_FRICTION,
   FULLSCREEN_LOGO_NUDGE_Y_CSS,
   FULLSCREEN_LOGO_PAD,
   FULLSCREEN_PARTICLE_DRAW_SIZE_BMP,
   FULLSCREEN_SPAWN_SPREAD_FRAC,
-  FULLSCREEN_SPRING_STIFFNESS,
-  FULL_HERO_HOME_FRACTION,
-  PARALLAX_EASE,
-  PARALLAX_MOUSE_SENSITIVITY,
-  PARALLAX_MULT_C,
   MOUSE_CURSOR_STIPPLE_COUPLED_EFFECTS_ENABLED,
-  MOUSE_CURSOR_WAKE_PHYSICS_ENABLED,
   ANIMATED_PARTICLE_ALPHA_MULT,
   PARTICLE_ALPHA_CAP,
-  PARTICLE_ALPHA_MIN,
-  PARTICLE_ALPHA_RANGE,
-  PARTICLE_REST_SNAP_DIST_BMP,
-  PARTICLE_REST_SNAP_VSQ,
+  PARTICLE_BASE_ALPHA,
   PARTICLE_BRAND_R,
   PARTICLE_BRAND_G,
   PARTICLE_BRAND_B,
@@ -43,43 +34,16 @@ import {
   PARTICLE_AMBIENT_G,
   PARTICLE_AMBIENT_B,
   PARTICLE_DRAW_SIZE_BMP,
-  PARTICLE_MAX_VELOCITY_BMP,
   PARTICLE_RADIUS_MIN_CSS,
-  PARTICLE_RADIUS_RANGE_CSS,
   PHYSICS_DIST_EPSILON,
   PUSH_FORCE,
-  PUSH_FALLOFF_POWER,
-  SMEAR_FORCE,
-  SMEAR_FALLOFF_POWER,
-  SETTLE_SLOW_ZONE_BMP,
-  SETTLE_SPRING_NEAR_SCALE,
-  SETTLE_UNCOUPLED_FRICTION_MULT,
-  SETTLE_UNCOUPLED_FRICTION_ZONE_BMP,
-  SPRING_GAIN,
+  PUSH_REPULSE_FALLOFF_POWER,
   SPRING_STIFFNESS,
-  SWIRL_AMP,
   SWIRL_FORCE,
-  WOBBLE_AMP_X_CSS,
-  WOBBLE_AMP_Y_COS_SCALE,
-  WOBBLE_ENERGY_DECAY_PER_SEC,
-  WOBBLE_ENERGY_RISE_PER_SEC,
-  WOBBLE_RAD_PER_SEC_BASE,
-  WOBBLE_Y_ANGLE_SPEED_SCALE,
+  PARALLAX_EASE,
+  PARALLAX_MOUSE_SENSITIVITY,
+  PARALLAX_MULT_C,
   SHOW_MOUSE_CURSOR_DEBUG_MARKER,
-  POINTER_MOVE_EPS_BMP_SQ,
-  POINTER_TRAIL_MEMORY_MS,
-  SPOON_SWIRL_SPEED_SCALE,
-  SPOON_TRAIL_DRAG,
-  TRAIL_PATH_MAX_SAMPLES,
-  TRAIL_PATH_MIN_SPACING_BMP,
-  TRAIL_PATH_SAMPLE_DECAY,
-  TRAIL_PATH_SKIP_NEAR_CURSOR_BMP,
-  TRAIL_PATH_SMEAR_MULT,
-  TRAIL_PATH_SWIRL_MULT,
-  TRAIL_PATH_WAKE_RADIUS_BMP,
-  TRAIL_VELOCITY_BLEND,
-  TRAIL_VELOCITY_IDLE_RETENTION,
-  stippleHash,
 } from "./constants"
 
 const DEFAULT_LOGO_SRC = "/branding/sc-prints-logo-transparent.png"
@@ -198,24 +162,17 @@ function gatherBrightInkCandidates(
 }
 
 /**
- * Bitmap-space particles; wobble via `wobbleAngleX` / `wobbleAngleY` advanced each RAF frame.
+ * Bitmap-space particles; position integrated in the RAF fluid loop only.
  */
 type ParallaxParticle = {
   hx: number
   hy: number
-  /** Current position in bitmap space (integrated from vx, vy). */
   x: number
   y: number
-  wobbleAngleX: number
-  wobbleAngleY: number
-  /** Multiplier on `WOBBLE_RAD_PER_SEC_BASE` (typically ~0.5…1). */
-  speed: number
-  radiusCss: number
-  baseAlpha: number
-  /** Velocity in bitmap px/frame. */
   vx: number
   vy: number
-  /** Sampled from logo ink mask; ambient hero fill otherwise. */
+  radiusCss: number
+  baseAlpha: number
   fromLogoMask: boolean
 }
 
@@ -356,8 +313,6 @@ function drawLayer(
   particles: ParallaxParticle[],
   sx: number,
   sy: number,
-  /** 0 = crisp rest logo; 1 = full idle wobble (motion-activated). */
-  wobbleAmpScale: number,
   mouseRef: { current: { x: number; y: number } },
   /** Multiply debug dot radius (use backing-store DPR). */
   debugDotDpr: number,
@@ -374,10 +329,9 @@ function drawLayer(
   if (applyCanvasParallax) {
     ctx.translate(parallaxX * sx, parallaxY * sy)
   }
-  const wAmp = Math.max(0, Math.min(1, wobbleAmpScale))
   const d = drawSizeBmp
   for (const p of particles) {
-    const ba = Number.isFinite(p.baseAlpha) ? p.baseAlpha : PARTICLE_ALPHA_MIN
+    const ba = Number.isFinite(p.baseAlpha) ? p.baseAlpha : PARTICLE_BASE_ALPHA
     const alpha = Math.min(
       PARTICLE_ALPHA_CAP,
       Math.max(0.1, ba * ANIMATED_PARTICLE_ALPHA_MULT)
@@ -386,24 +340,12 @@ function drawLayer(
     const pg = p.fromLogoMask ? PARTICLE_BRAND_G : PARTICLE_AMBIENT_G
     const pb = p.fromLogoMask ? PARTICLE_BRAND_B : PARTICLE_AMBIENT_B
     ctx.fillStyle = `rgba(${Math.round(pr)},${Math.round(pg)},${Math.round(pb)},${alpha})`
-    let wx = 0
-    let wy = 0
-    if (wAmp > 0) {
-      const ax = Number.isFinite(p.wobbleAngleX) ? p.wobbleAngleX : 0
-      const ay = Number.isFinite(p.wobbleAngleY) ? p.wobbleAngleY : 0
-      wx = WOBBLE_AMP_X_CSS * Math.sin(ax) * wAmp
-      wy =
-        WOBBLE_AMP_X_CSS *
-        Math.cos(ay) *
-        WOBBLE_AMP_Y_COS_SCALE *
-        wAmp
-    }
     const hx = Number.isFinite(p.hx) ? p.hx : 0
     const hy = Number.isFinite(p.hy) ? p.hy : 0
     const px = Number.isFinite(p.x) ? p.x : hx
     const py = Number.isFinite(p.y) ? p.y : hy
-    let xBmp = px + wx * sx
-    let yBmp = py + wy * sy
+    let xBmp = px
+    let yBmp = py
     if (!Number.isFinite(xBmp)) {
       xBmp = px
     }
@@ -447,34 +389,17 @@ export default function HomeParticleLogoHero({
 
   /** Always-on interaction; never set to false. */
   const reducedMotion = useReducedMotion()
-  /** Layer parallax respects OS reduced-motion; stipple wobble respects it too. */
+  /** Layer parallax respects OS reduced-motion. */
   const reduceParallax = reducedMotion === true
-  const reduceWobble = reducedMotion === true
 
-  const mousePrevBmpRef = useRef<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  })
-  /**
-   * `performance.now()` when the pointer last moved while near logo stipple (−1 ⇒ never).
-   * Black-hero / navbar motion does not refresh this, so parallax and wakes stay off there.
-   */
-  const lastStipplePointerMoveMsRef = useRef(-1)
   /** Axis-aligned logo home bounds in bitmap px (for fast hit reject). */
   const logoInteractBoundsRef = useRef<LogoInteractBounds | null>(null)
-  const trailVelBmpRef = useRef({ x: 0, y: 0 })
-  /** Bitmap samples along recent pointer path (coffee-trail wake); cleared when trail expires. */
-  const trailPathBmpRef = useRef<Array<{ x: number; y: number }>>([])
-  /** Bitmap-space cursor anchor for trail-only swirl/smear locality. */
-  const lastFrozenInfluenceBmpRef = useRef({ x: 0, y: 0 })
-  /** After load, boost spring so TL-clustered particles snap into the logo. */
+  /** Fullscreen fly-in: `performance.now()` ceiling while spring boost applies. */
   const fullscreenAssembleBoostEndMsRef = useRef(0)
   const particleDrawSizeBmpRef = useRef(PARTICLE_DRAW_SIZE_BMP)
 
   const reduceParallaxRef = useRef(reduceParallax)
-  const reduceWobbleRef = useRef(reduceWobble)
   reduceParallaxRef.current = reduceParallax
-  reduceWobbleRef.current = reduceWobble
 
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const stackRef = useRef<HTMLDivElement>(null)
@@ -501,10 +426,6 @@ export default function HomeParticleLogoHero({
     deltaX: 0,
     deltaY: 0,
   })
-  /** Wall-clock seconds for wobble integration (rad/s × dt). */
-  const wobbleClockRef = useRef<number | null>(null)
-  /** 0 at rest (crisp logo); ramps toward 1 while the pointer moves over the hero. */
-  const wobbleEnergyRef = useRef(0)
   const parallaxLRef = useRef({ x: 0, y: 0 })
   const parallaxTRef = useRef({ x: 0, y: 0 })
   const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null)
@@ -657,24 +578,26 @@ export default function HomeParticleLogoHero({
     const logoHomeCount = cap - heroHomeCount
     const particles: ParallaxParticle[] = []
 
+    const gridCols = Math.max(1, Math.ceil(Math.sqrt(heroHomeCount)))
+    const gridRows = Math.max(1, Math.ceil(heroHomeCount / gridCols))
     for (let k = 0; k < heroHomeCount; k++) {
-      const hx = Math.random() * Math.max(1, W - 1)
-      const hy = Math.random() * Math.max(1, H - 1)
-      const phase = stippleHash(k + 901, k * 17 + W) * Math.PI * 2 + k * 0.001
-      const speedMul = 0.5 + stippleHash(k, hx + hy) * 0.5
+      const col = k % gridCols
+      const row = Math.floor(k / gridCols)
+      const hx = Math.min(
+        W - 1,
+        Math.round(((col + 0.5) / Math.max(1, gridCols)) * (W - 1))
+      )
+      const hy = Math.min(
+        H - 1,
+        Math.round(((row + 0.5) / Math.max(1, gridRows)) * (H - 1))
+      )
       particles.push({
         hx,
         hy,
         x: hx,
         y: hy,
-        wobbleAngleX: phase,
-        wobbleAngleY: phase * 1.03,
-        speed: speedMul,
-        radiusCss:
-          PARTICLE_RADIUS_MIN_CSS +
-          stippleHash(k, hx + hy) * PARTICLE_RADIUS_RANGE_CSS,
-        baseAlpha:
-          PARTICLE_ALPHA_MIN + stippleHash(hy, k * 31) * PARTICLE_ALPHA_RANGE,
+        radiusCss: PARTICLE_RADIUS_MIN_CSS,
+        baseAlpha: PARTICLE_BASE_ALPHA,
         vx: 0,
         vy: 0,
         fromLogoMask: false,
@@ -682,25 +605,28 @@ export default function HomeParticleLogoHero({
     }
 
     for (let k = 0; k < logoHomeCount; k++) {
-      const randomIndex = Math.floor(Math.random() * nLogo)
-      const { x: hxRaw, y: hyRaw } = candidates[randomIndex]!
-      const hx = (Number(hxRaw) || 0) + (Math.random() * 2 - 1)
-      const hy = (Number(hyRaw) || 0) + (Math.random() * 2 - 1)
-      const phase = stippleHash(k + 17, hyRaw) * Math.PI * 2 + k * 0.001
-      const speedMul = 0.5 + stippleHash(hxRaw, k) * 0.5
+      let idx: number
+      if (nLogo >= logoHomeCount) {
+        idx =
+          logoHomeCount <= 1
+            ? 0
+            : Math.min(
+                nLogo - 1,
+                Math.floor((k * (nLogo - 1)) / (logoHomeCount - 1))
+              )
+      } else {
+        idx = k % nLogo
+      }
+      const c = candidates[idx]!
+      const hx = Number(c.x) || 0
+      const hy = Number(c.y) || 0
       particles.push({
         hx,
         hy,
         x: hx,
         y: hy,
-        wobbleAngleX: phase,
-        wobbleAngleY: phase * 1.03,
-        speed: speedMul,
-        radiusCss:
-          PARTICLE_RADIUS_MIN_CSS +
-          stippleHash(k, hxRaw + hyRaw) * PARTICLE_RADIUS_RANGE_CSS,
-        baseAlpha:
-          PARTICLE_ALPHA_MIN + stippleHash(hyRaw, k * 31) * PARTICLE_ALPHA_RANGE,
+        radiusCss: PARTICLE_RADIUS_MIN_CSS,
+        baseAlpha: PARTICLE_BASE_ALPHA,
         vx: 0,
         vy: 0,
         fromLogoMask: true,
@@ -709,15 +635,16 @@ export default function HomeParticleLogoHero({
 
     if (isFsBuild) {
       particleDrawSizeBmpRef.current = FULLSCREEN_PARTICLE_DRAW_SIZE_BMP
-      if (!reduceWobbleRef.current) {
+      if (!reduceParallaxRef.current) {
         const spread = Math.min(W, H) * FULLSCREEN_SPAWN_SPREAD_FRAC
-        const tlx = W * 0.02
-        const tly = H * 0.025
-        for (const p of particles) {
-          const xh = Number.isFinite(p.hx) ? p.hx : 0
-          const yh = Number.isFinite(p.hy) ? p.hy : 0
-          p.x = tlx + stippleHash(xh, yh) * spread
-          p.y = tly + stippleHash(yh, xh + 17) * spread
+        const tlx = W * 0.02 - spread * 0.38
+        const tly = H * 0.0225
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i]!
+          const u = ((i * 2654435761) >>> 0) / 4294967296
+          const v = ((i * 2246822519) >>> 0) / 4294967296
+          p.x = tlx + u * spread
+          p.y = tly + v * spread
           p.vx = 0
           p.vy = 0
         }
@@ -733,8 +660,6 @@ export default function HomeParticleLogoHero({
 
     parallaxTRef.current = { x: 0, y: 0 }
     parallaxLRef.current = { x: 0, y: 0 }
-    trailVelBmpRef.current = { x: 0, y: 0 }
-    trailPathBmpRef.current.length = 0
 
     const ctx0 = c0.getContext("2d", { alpha: true })
     const ctx1 = c1.getContext("2d", { alpha: true })
@@ -747,7 +672,6 @@ export default function HomeParticleLogoHero({
     canvasCCtxRef.current = ctx2
     particlesRef.current = particles
     logoInteractBoundsRef.current = logoHomeBounds(particles)
-    wobbleEnergyRef.current = 0
     const { sx, sy } = canvasScale(c0)
 
     ctx0.clearRect(0, 0, c0.width, c0.height)
@@ -761,7 +685,6 @@ export default function HomeParticleLogoHero({
       particles,
       sx,
       sy,
-      0,
       mouseRef,
       dotDpr,
       0,
@@ -782,13 +705,8 @@ export default function HomeParticleLogoHero({
         x: sb.x,
         y: sb.y,
       }
-      mousePrevBmpRef.current = { x: sb.x, y: sb.y }
-      lastFrozenInfluenceBmpRef.current = {
-        x: Number.isFinite(sb.x) ? sb.x : W * 0.5,
-        y: Number.isFinite(sb.y) ? sb.y : H * 0.5,
-      }
     }
-  }, [logoImg, reduceWobble, reduceParallax])
+  }, [logoImg, reduceParallax])
 
   buildRef.current = build
 
@@ -855,7 +773,6 @@ export default function HomeParticleLogoHero({
         const ctx2 = canvasCCtxRef.current
         const particles = particlesRef.current
         const reduceParallaxNow = reduceParallaxRef.current
-        const reduceWobbleNow = reduceWobbleRef.current
 
         if (!c2) {
           return
@@ -885,21 +802,6 @@ export default function HomeParticleLogoHero({
           return
         }
         const isFs = presentationRef.current === "fullscreen"
-        const friction = isFs ? FULLSCREEN_FRICTION : FRICTION
-        const springKBase = isFs ? FULLSCREEN_SPRING_STIFFNESS : SPRING_STIFFNESS
-        const assembleMult =
-          isFs &&
-          performance.now() < fullscreenAssembleBoostEndMsRef.current
-            ? FULLSCREEN_ASSEMBLE_SPRING_MULT
-            : 1
-        const springK = springKBase * assembleMult
-        const nowSec = performance.now() / 1000
-        const prevSec = wobbleClockRef.current
-        wobbleClockRef.current = nowSec
-        const dt =
-          prevSec != null
-            ? Math.min(0.1, Math.max(0, nowSec - prevSec))
-            : 1 / 60
         const L = parallaxLRef.current
         const T = parallaxTRef.current
         const Tx = Number.isFinite(T.x) ? T.x : 0
@@ -937,7 +839,6 @@ export default function HomeParticleLogoHero({
 
         const raw = mouseRawBmpRef.current
 
-        /** Same scale as `drawLayer` `ctx.translate(T * MULT * sx, …)`. */
         const hitBx = applyCanvasParallax ? T.x * PARALLAX_MULT_C * sx : 0
         const hitBy = applyCanvasParallax ? T.y * PARALLAX_MULT_C * sy : 0
 
@@ -946,422 +847,49 @@ export default function HomeParticleLogoHero({
         if (raw != null && Number.isFinite(raw.x) && Number.isFinite(raw.y)) {
           currentMouseX = raw.x - hitBx
           currentMouseY = raw.y - hitBy
-        } else if (c2.width > 0) {
-          const rr = c2.getBoundingClientRect()
-          const ctr = clientToBitmapViewport(
-            rr.left + rr.width * 0.5,
-            rr.top + rr.height * 0.5,
-            c2
-          )
-          currentMouseX = ctr.x - hitBx
-          currentMouseY = ctr.y - hitBy
         }
 
         mouseRef.current.x = currentMouseX
         mouseRef.current.y = currentMouseY
 
-        const pm = mousePrevBmpRef.current
-        let mouseDeltaX = 0
-        let mouseDeltaY = 0
-        const pointerMapped =
-          mouseRef.current.active &&
-          Number.isFinite(currentMouseX) &&
-          Number.isFinite(currentMouseY) &&
-          currentMouseX > -9000 &&
-          raw != null
-        if (pointerMapped) {
-          mouseDeltaX = currentMouseX - pm.x
-          mouseDeltaY = currentMouseY - pm.y
-        }
-        pm.x = currentMouseX
-        pm.y = currentMouseY
-        mouseRef.current.deltaX = mouseDeltaX
-        mouseRef.current.deltaY = mouseDeltaY
-
-        const nowMsClock = performance.now()
-        const nearStipple = pointerInStippleInteractionRange(
-          currentMouseX,
-          currentMouseY,
-          logoInteractBoundsRef.current,
-          particles,
-          DRAG_RADIUS
-        )
-
-        const mouseMovedBmp =
-          pointerMapped &&
-          mouseDeltaX * mouseDeltaX + mouseDeltaY * mouseDeltaY >
-            POINTER_MOVE_EPS_BMP_SQ
-
-        let idleSinceStippleMoveMs =
-          lastStipplePointerMoveMsRef.current < 0
-            ? Number.POSITIVE_INFINITY
-            : nowMsClock - lastStipplePointerMoveMsRef.current
-
-        const wakeWindowActiveForReset =
-          lastStipplePointerMoveMsRef.current >= 0 &&
-          idleSinceStippleMoveMs < POINTER_TRAIL_MEMORY_MS
-
-        if (
-          pointerMapped &&
-          mouseMovedBmp &&
-          (presentationRef.current === "fullscreen" ||
-            nearStipple ||
-            wakeWindowActiveForReset)
-        ) {
-          lastStipplePointerMoveMsRef.current = nowMsClock
-          idleSinceStippleMoveMs = 0
-        }
-
-        const cursorCoupled =
-          MOUSE_CURSOR_STIPPLE_COUPLED_EFFECTS_ENABLED &&
-          pointerMapped &&
-          lastStipplePointerMoveMsRef.current >= 0 &&
-          idleSinceStippleMoveMs < POINTER_TRAIL_MEMORY_MS
-
-        if (!cursorCoupled && !reduceParallaxNow && !isFs) {
-          parallaxLRef.current = { x: 0, y: 0 }
-        }
-
-        const tv = trailVelBmpRef.current
-        const blendTrail = TRAIL_VELOCITY_BLEND
-
-        if (MOUSE_CURSOR_WAKE_PHYSICS_ENABLED && cursorCoupled) {
-          if (mouseMovedBmp) {
-            tv.x = tv.x * (1 - blendTrail) + mouseDeltaX * blendTrail
-            tv.y = tv.y * (1 - blendTrail) + mouseDeltaY * blendTrail
-          } else {
-            tv.x *= TRAIL_VELOCITY_IDLE_RETENTION
-            tv.y *= TRAIL_VELOCITY_IDLE_RETENTION
-          }
-        } else {
-          tv.x *= 0.88
-          tv.y *= 0.88
-        }
-
-        if (cursorCoupled) {
-          const fr = lastFrozenInfluenceBmpRef.current
-          fr.x = currentMouseX
-          fr.y = currentMouseY
-        }
-
-        const trailPath = trailPathBmpRef.current
-        if (!cursorCoupled) {
-          trailPath.length = 0
-        } else if (
-          pointerMapped &&
-          mouseMovedBmp &&
-          MOUSE_CURSOR_WAKE_PHYSICS_ENABLED
-        ) {
-          const minD2 =
-            TRAIL_PATH_MIN_SPACING_BMP * TRAIL_PATH_MIN_SPACING_BMP
-          const last = trailPath[trailPath.length - 1]
-          if (!last) {
-            trailPath.push({ x: currentMouseX, y: currentMouseY })
-          } else {
-            const jx = currentMouseX - last.x
-            const jy = currentMouseY - last.y
-            if (jx * jx + jy * jy >= minD2) {
-              trailPath.push({ x: currentMouseX, y: currentMouseY })
-              while (trailPath.length > TRAIL_PATH_MAX_SAMPLES) {
-                trailPath.shift()
-              }
-            }
-          }
-        }
-
-        const infXBmp = cursorCoupled
-          ? lastFrozenInfluenceBmpRef.current.x
-          : -9999
-        const infYBmp = cursorCoupled
-          ? lastFrozenInfluenceBmpRef.current.y
-          : -9999
-
-        const tvMagForSwirl = Math.hypot(tv.x, tv.y)
-        const spoonBoostFrame =
-          1 + SPOON_SWIRL_SPEED_SCALE * Math.min(tvMagForSwirl, 14)
-
-        let pathWakeDx = 0
-        let pathWakeDy = 0
-        let pathWakeOn = false
-        if (
-          MOUSE_CURSOR_WAKE_PHYSICS_ENABLED &&
-          cursorCoupled &&
-          pointerMapped
-        ) {
-          pathWakeOn = true
-          if (mouseMovedBmp) {
-            pathWakeDx = mouseDeltaX
-            pathWakeDy = mouseDeltaY
-          } else {
-            pathWakeDx = tv.x * SPOON_TRAIL_DRAG
-            pathWakeDy = tv.y * SPOON_TRAIL_DRAG
-          }
-        }
-
-        const springGainMult = SPRING_GAIN
-
-        let wobbleEnergy = wobbleEnergyRef.current
-        if (reduceWobbleNow || !cursorCoupled) {
-          wobbleEnergy = 0
-        } else {
-          if (
-            MOUSE_CURSOR_STIPPLE_COUPLED_EFFECTS_ENABLED &&
-            mouseRef.current.active &&
-            mouseMovedBmp &&
-            pointerMapped &&
-            (presentationRef.current === "fullscreen" || nearStipple)
-          ) {
-            wobbleEnergy = Math.min(
-              1,
-              wobbleEnergy + WOBBLE_ENERGY_RISE_PER_SEC * dt
-            )
-          } else {
-            wobbleEnergy = Math.max(
-              0,
-              wobbleEnergy - WOBBLE_ENERGY_DECAY_PER_SEC * dt
-            )
-          }
-        }
-        wobbleEnergyRef.current = wobbleEnergy
-        const wobbleAmpScale = reduceWobbleNow ? 0 : wobbleEnergy
-
-        if (!reduceWobbleNow && wobbleEnergy > 0.001) {
-          for (const p of particles) {
-            const mul =
-              Number.isFinite(p.speed) && p.speed > 0 ? p.speed : 1
-            const dAngle = WOBBLE_RAD_PER_SEC_BASE * mul * dt
-            p.wobbleAngleX += dAngle
-            p.wobbleAngleY += dAngle * WOBBLE_Y_ANGLE_SPEED_SCALE
-          }
-        }
-
-        const Wbmp = Math.max(1, c2.width)
-        const Hbmp = Math.max(1, c2.height)
-        const margin = particleDrawSizeBmpRef.current * 0.5
-        const xMinClamp = margin
-        const xMaxClamp = Math.max(xMinClamp + 1e-6, Wbmp - margin)
-        const yMinClamp = margin
-        const yMaxClamp = Math.max(yMinClamp + 1e-6, Hbmp - margin)
-
-        const influenceR = DRAG_RADIUS
-        const pathLen = trailPath.length
+        const assembleSpringMult =
+          isFs && performance.now() < fullscreenAssembleBoostEndMsRef.current
+            ? FULLSCREEN_ASSEMBLE_SPRING_MULT
+            : 1
+        const springK = SPRING_STIFFNESS * assembleSpringMult
 
         for (const p of particles) {
-          const hx = Number.isFinite(p.hx) ? p.hx : 0
-          const hy = Number.isFinite(p.hy) ? p.hy : 0
-          let x = Number.isFinite(p.x) ? p.x : hx
-          let y = Number.isFinite(p.y) ? p.y : hy
-          let vx = Number.isFinite(p.vx) ? p.vx : 0
-          let vy = Number.isFinite(p.vy) ? p.vy : 0
-
-          const dx = x - infXBmp
-          const dy = y - infYBmp
+          const dx = p.x - currentMouseX
+          const dy = p.y - currentMouseY
           const dist = Math.hypot(dx, dy)
-          const falloff =
-            Number.isFinite(dist) &&
-            Number.isFinite(infXBmp) &&
-            Number.isFinite(infYBmp) &&
-            infXBmp > -9000 &&
-            dist < influenceR
-              ? Math.max(0, 1 - dist / influenceR)
-              : 0
-
-          const inv = dist > PHYSICS_DIST_EPSILON ? 1 / dist : 0
-          const nx = dx * inv
-          const ny = dy * inv
-
-          const allowPush =
-            MOUSE_CURSOR_STIPPLE_COUPLED_EFFECTS_ENABLED &&
-            cursorCoupled &&
-            pointerMapped
-
-          if (allowPush && falloff > 0) {
-            const pushW = Math.pow(falloff, PUSH_FALLOFF_POWER)
-            vx += nx * pushW * PUSH_FORCE
-            vy += ny * pushW * PUSH_FORCE
-          }
-
-          if (MOUSE_CURSOR_WAKE_PHYSICS_ENABLED && falloff > 0) {
-            const smearW = Math.pow(falloff, SMEAR_FALLOFF_POWER)
-            let wakeDx = 0
-            let wakeDy = 0
-            let swirlScale = 0
-            if (cursorCoupled && pointerMapped) {
-              if (mouseMovedBmp) {
-                wakeDx = mouseDeltaX
-                wakeDy = mouseDeltaY
-              } else {
-                wakeDx = tv.x * SPOON_TRAIL_DRAG
-                wakeDy = tv.y * SPOON_TRAIL_DRAG
-              }
-              swirlScale = 1
-            }
-            if (swirlScale > 1e-4 || wakeDx !== 0 || wakeDy !== 0) {
-              vx += wakeDx * smearW * SMEAR_FORCE
-              vy += wakeDy * smearW * SMEAR_FORCE
-              const swirl =
-                smearW *
-                SWIRL_FORCE *
-                SWIRL_AMP *
-                swirlScale *
-                spoonBoostFrame
-              vx += ny * swirl
-              vy -= nx * swirl
-            }
-          }
 
           if (
-            pathWakeOn &&
-            pathLen > 0 &&
-            (pathWakeDx !== 0 ||
-              pathWakeDy !== 0 ||
-              tvMagForSwirl > 1e-6)
+            dist < DRAG_RADIUS &&
+            currentMouseX > -9000 &&
+            dist >= PHYSICS_DIST_EPSILON
           ) {
-            const skipNear2 =
-              TRAIL_PATH_SKIP_NEAR_CURSOR_BMP *
-              TRAIL_PATH_SKIP_NEAR_CURSOR_BMP
-            for (let pi = 0; pi < pathLen; pi++) {
-              const sample = trailPath[pi]
-              if (!sample) {
-                continue
-              }
-              const cdx = currentMouseX - sample.x
-              const cdy = currentMouseY - sample.y
-              if (cdx * cdx + cdy * cdy < skipNear2) {
-                continue
-              }
-              const pdx = x - sample.x
-              const pdy = y - sample.y
-              const pd = Math.hypot(pdx, pdy)
-              if (
-                pd >= TRAIL_PATH_WAKE_RADIUS_BMP ||
-                pd < PHYSICS_DIST_EPSILON
-              ) {
-                continue
-              }
-              const ageW = Math.pow(
-                TRAIL_PATH_SAMPLE_DECAY,
-                pathLen - 1 - pi
-              )
-              const pathFall = Math.pow(
-                1 - pd / TRAIL_PATH_WAKE_RADIUS_BMP,
-                SMEAR_FALLOFF_POWER
-              )
-              const pathW = pathFall * ageW
-              vx += pathWakeDx * SMEAR_FORCE * TRAIL_PATH_SMEAR_MULT * pathW
-              vy += pathWakeDy * SMEAR_FORCE * TRAIL_PATH_SMEAR_MULT * pathW
-              const invp = 1 / pd
-              const snx = pdx * invp
-              const sny = pdy * invp
-              const pathSwirl =
-                pathW *
-                SWIRL_FORCE *
-                SWIRL_AMP *
-                spoonBoostFrame *
-                TRAIL_PATH_SWIRL_MULT
-              vx += sny * pathSwirl
-              vy -= snx * pathSwirl
-            }
+            const t = (DRAG_RADIUS - dist) / DRAG_RADIUS
+            const force = Math.pow(
+              Math.max(0, Math.min(1, t)),
+              PUSH_REPULSE_FALLOFF_POWER
+            )
+            const inv = 1 / dist
+            const ux = dx * inv
+            const uy = dy * inv
+            const pushX = ux * force * PUSH_FORCE
+            const pushY = uy * force * PUSH_FORCE
+            const swirlX = uy * force * SWIRL_FORCE
+            const swirlY = -ux * force * SWIRL_FORCE
+            p.vx += pushX + swirlX
+            p.vy += pushY + swirlY
           }
 
-          const homeDx = hx - x
-          const homeDy = hy - y
-          const homeDist = Math.hypot(homeDx, homeDy)
-
-          const settleT = Math.min(
-            1,
-            homeDist / Math.max(1e-6, SETTLE_SLOW_ZONE_BMP)
-          )
-          const settleSpringMul =
-            SETTLE_SPRING_NEAR_SCALE +
-            (1 - SETTLE_SPRING_NEAR_SCALE) * settleT * settleT
-          vx +=
-            homeDx *
-            springK *
-            springGainMult *
-            settleSpringMul
-          vy +=
-            homeDy *
-            springK *
-            springGainMult *
-            settleSpringMul
-          let frictionUse = friction
-          if (
-            !cursorCoupled &&
-            homeDist < SETTLE_UNCOUPLED_FRICTION_ZONE_BMP
-          ) {
-            frictionUse *= SETTLE_UNCOUPLED_FRICTION_MULT
-          }
-          vx *= frictionUse
-          vy *= frictionUse
-          const vmax = PARTICLE_MAX_VELOCITY_BMP
-          const vSq = vx * vx + vy * vy
-          if (vSq > vmax * vmax) {
-            const s = vmax / Math.sqrt(vSq)
-            vx *= s
-            vy *= s
-          }
-          x += vx
-          y += vy
-
-          if (x <= xMinClamp) {
-            x = xMinClamp
-            if (vx < 0) {
-              vx = 0
-            }
-          }
-          if (x >= xMaxClamp) {
-            x = xMaxClamp
-            if (vx > 0) {
-              vx = 0
-            }
-          }
-          if (y <= yMinClamp) {
-            y = yMinClamp
-            if (vy < 0) {
-              vy = 0
-            }
-          }
-          if (y >= yMaxClamp) {
-            y = yMaxClamp
-            if (vy > 0) {
-              vy = 0
-            }
-          }
-
-          if (!Number.isFinite(vx)) {
-            vx = 0
-          }
-          if (!Number.isFinite(vy)) {
-            vy = 0
-          }
-
-          p.vx = vx
-          p.vy = vy
-          p.x = x
-          p.y = y
-        }
-
-        if (!cursorCoupled) {
-          for (const p of particles) {
-            const hx0 = Number.isFinite(p.hx) ? p.hx : 0
-            const hy0 = Number.isFinite(p.hy) ? p.hy : 0
-            const px0 = Number.isFinite(p.x) ? p.x : hx0
-            const py0 = Number.isFinite(p.y) ? p.y : hy0
-            const vx0 = Number.isFinite(p.vx) ? p.vx : 0
-            const vy0 = Number.isFinite(p.vy) ? p.vy : 0
-            const dHome = Math.hypot(px0 - hx0, py0 - hy0)
-            const vSq = vx0 * vx0 + vy0 * vy0
-            if (
-              dHome < PARTICLE_REST_SNAP_DIST_BMP &&
-              vSq < PARTICLE_REST_SNAP_VSQ
-            ) {
-              p.x = hx0
-              p.y = hy0
-              p.vx = 0
-              p.vy = 0
-            }
-          }
+          p.vx += (p.hx - p.x) * springK
+          p.vy += (p.hy - p.y) * springK
+          p.vx *= FRICTION
+          p.vy *= FRICTION
+          p.x += p.vx
+          p.y += p.vy
         }
 
         const dotDprTick = c2.width / Math.max(1, c2.clientWidth)
@@ -1373,7 +901,6 @@ export default function HomeParticleLogoHero({
           particles,
           sx,
           sy,
-          wobbleAmpScale,
           mouseRef,
           dotDprTick,
           parallaxX,
@@ -1515,9 +1042,6 @@ export default function HomeParticleLogoHero({
     const clearPointerLeaveDocument = () => {
       lastPointerClientRef.current = null
       mouseRawBmpRef.current = null
-      lastStipplePointerMoveMsRef.current = -1
-      trailVelBmpRef.current = { x: 0, y: 0 }
-      trailPathBmpRef.current.length = 0
       parallaxLRef.current = { x: 0, y: 0 }
       mouseRef.current.x = -9999
       mouseRef.current.y = -9999

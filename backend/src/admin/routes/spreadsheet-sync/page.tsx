@@ -7,8 +7,10 @@ import {
   buildBatchCreatesFromParsedCsv,
   chunkCreates,
   computeSpreadsheetPreview,
+  detectDncWorkwearCatalog,
   detectFashionBizVariantCatalog,
   detectGoldCatalogFormat,
+  expandDncWorkwearCatalogToTemplate,
   expandFashionBizCatalogToTemplate,
   expandGoldCatalogToTemplate,
   normalizeSpreadsheetForImport,
@@ -62,7 +64,8 @@ const SpreadsheetSyncPage = () => {
     const needsShippingOnly =
       !defaultShippingProfileId.trim() &&
       (detectFashionBizVariantCatalog(normalized.rawParsed) ||
-        detectGoldCatalogFormat(normalized.rawParsed))
+        detectGoldCatalogFormat(normalized.rawParsed) ||
+        detectDncWorkwearCatalog(normalized.rawParsed))
     /** Wholesale rows are not expanded until shipping id is set — simulate expansion so product/tier counts match reality. */
     if (needsShippingOnly) {
       if (detectFashionBizVariantCatalog(normalized.rawParsed)) {
@@ -78,6 +81,17 @@ const SpreadsheetSyncPage = () => {
       }
       if (detectGoldCatalogFormat(normalized.rawParsed)) {
         const expanded = expandGoldCatalogToTemplate(
+          normalized.rawParsed,
+          PREVIEW_ONLY_SHIPPING_PROFILE_ID
+        )
+        const p = computeSpreadsheetPreview(expanded)
+        return {
+          ...p,
+          variantCount: normalized.rawParsed.rows.length,
+        }
+      }
+      if (detectDncWorkwearCatalog(normalized.rawParsed)) {
+        const expanded = expandDncWorkwearCatalogToTemplate(
           normalized.rawParsed,
           PREVIEW_ONLY_SHIPPING_PROFILE_ID
         )
@@ -292,17 +306,29 @@ const SpreadsheetSyncPage = () => {
   const wholesaleNeedsShipping =
     !!normalized &&
     !defaultShippingProfileId.trim() &&
-    (detectFashionBizVariantCatalog(normalized.rawParsed) || detectGoldCatalogFormat(normalized.rawParsed))
+    (detectFashionBizVariantCatalog(normalized.rawParsed) ||
+      detectGoldCatalogFormat(normalized.rawParsed) ||
+      detectDncWorkwearCatalog(normalized.rawParsed))
 
   return (
     <div className="flex flex-col gap-6 p-8">
       <div>
-        <Heading level="h1">Spreadsheet sync</Heading>
+        <Heading level="h1">Spreadsheet sync (new products)</Heading>
         <Text size="small" className="text-ui-fg-muted mt-1">
+          <strong>Creates new products only</strong> via <code className="text-xs">sdk.admin.product.batch</code>{" "}
+          (<code className="text-xs">create</code>). Existing rows are not upserted by <code className="text-xs">
+            Product Id
+          </code>{" "}
+          or handle — duplicate handles follow Medusa/API rules. Bulk updates to existing products live under{" "}
+          <a href="/app/spreadsheet-sync-update" className="text-ui-fg-interactive hover:underline">
+            Spreadsheet sync (updates)
+          </a>
+          .
+        </Text>
+        <Text size="small" className="text-ui-fg-muted mt-2">
           Prefer the CSV from <strong>Products → Export products (import template)</strong>. Wholesale feeds such as AS
-          Colour (STYLECODE / PRODUCT_NAME / PRICE) are mapped automatically once you set a default shipping profile.
-          Sync uses <code className="text-xs">sdk.admin.product.batch</code> and optional AUD tier pricing via the Pricing
-          Module.
+          Colour (STYLECODE / PRODUCT_NAME), DNC Workwear (<code className="text-xs">ProductCode</code> /{" "}
+          <code className="text-xs">Description</code> / <code className="text-xs">Description2–3</code>), and biz-style variant grids map automatically once you set a default shipping profile. Optional AUD tier pricing uses the Pricing Module after create.
         </Text>
       </div>
 
@@ -412,7 +438,7 @@ const SpreadsheetSyncPage = () => {
                   Paste <strong>Default shipping profile id</strong> above to enable sync. Until then, products are not
                   created — the preview counts below assume that id will be set (same expansion as after you paste it).
                   Gold: handles like <code className="text-xs">ascolour-…</code>; wholesale grids:{" "}
-                  <code className="text-xs">biz-collection-…</code>.
+                  <code className="text-xs">biz-collection-…</code>; DNC: <code className="text-xs">dnc-…</code>.
                 </Text>
               ) : null}
               {preview ? (
@@ -443,7 +469,7 @@ const SpreadsheetSyncPage = () => {
                     </div>
                   ) : readyParsed ? (
                     <Text size="small" className="text-ui-fg-success">
-                      Looks valid — click Confirm sync to create products in Medusa.
+                      Looks valid — click Confirm sync to create new products in Medusa.
                     </Text>
                   ) : wholesaleNeedsShipping && preview.productCount > 0 ? (
                     <Text size="small" className="text-ui-fg-muted">
@@ -499,8 +525,8 @@ const SpreadsheetSyncPage = () => {
 }
 
 export const config = defineRouteConfig({
-  label: "Spreadsheet sync",
-  rank: 99,
+  label: "Spreadsheet sync (new)",
+  rank: 98,
 })
 
 export default SpreadsheetSyncPage
