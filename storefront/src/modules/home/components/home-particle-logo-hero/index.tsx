@@ -1053,8 +1053,12 @@ function drawLayer(
     )
     const hx = Number.isFinite(p.hx) ? p.hx : 0
     const hy = Number.isFinite(p.hy) ? p.hy : 0
-    const { r: pr, g: pg, b: pb } = rainbowRgbForHome(hx, hy, bitmapW, bitmapH)
-    ctx.fillStyle = `rgba(${pr},${pg},${pb},${alpha})`
+    void rainbowRgbForHome
+    void bitmapW
+    void bitmapH
+    void hx
+    void hy
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`
     const px = Number.isFinite(p.x) ? p.x : hx
     const py = Number.isFinite(p.y) ? p.y : hy
     let xBmp = px
