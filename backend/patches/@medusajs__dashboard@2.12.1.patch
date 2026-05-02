@@ -131,3 +131,66 @@ index e4760559b694c9c9a1c831304cdf84ce4add2bee..92dc9271e00df6d4ddc33527438276d9
  };
  var VariantHeader = () => {
    const { t } = useTranslation4();
+diff --git a/dist/product-detail-ATPFDPI2.mjs b/dist/product-detail-ATPFDPI2.mjs
+index a2be9ca8caa13af689f54f40bcb05a257aa998d8..cfa439818003e04437c2ef43d7c30c2aa538cdc1 100644
+--- a/dist/product-detail-ATPFDPI2.mjs
++++ b/dist/product-detail-ATPFDPI2.mjs
+@@ -647,7 +647,7 @@ var ProductOrganizationSection = ({
+       SectionRow,
+       {
+         title: t("fields.categories"),
+-        value: product.categories?.length ? product.categories.map((pcat) => /* @__PURE__ */ jsx6(
++        value: product.categories?.length ? product.categories.filter((pcat) => pcat != null && typeof pcat === "object").map((pcat) => /* @__PURE__ */ jsx6(
+           OrganizationTag,
+           {
+             label: pcat.name,
+@@ -676,10 +676,11 @@ var ProductSalesChannelSection = ({
+ }) => {
+   const { count } = useSalesChannels();
+   const { t } = useTranslation6();
+-  const availableInSalesChannels = product.sales_channels?.map((sc) => ({
++  const rawSc = Array.isArray(product.sales_channels) ? product.sales_channels : [];
++  const availableInSalesChannels = rawSc.filter((sc) => sc != null && typeof sc === "object").map((sc) => ({
+     id: sc.id,
+-    name: sc.name
+-  })) ?? [];
++    name: String(sc.name ?? "")
++  }));
+   const firstChannels = availableInSalesChannels.slice(0, 3);
+   const restChannels = availableInSalesChannels.slice(3);
+   return /* @__PURE__ */ jsxs6(Container6, { className: "flex flex-col gap-y-4 px-6 py-4", children: [
+@@ -709,7 +710,7 @@ var ProductSalesChannelSection = ({
+         restChannels.length > 0 && /* @__PURE__ */ jsx7(
+           Tooltip3,
+           {
+-            content: /* @__PURE__ */ jsx7("ul", { children: restChannels.map((sc) => /* @__PURE__ */ jsx7("li", { children: sc.name }, sc.id)) }),
++            content: /* @__PURE__ */ jsx7("ul", { children: restChannels.map((sc, i) => /* @__PURE__ */ jsx7("li", { children: sc.name }, sc.id ?? `sc-${i}`)) }),
+             children: /* @__PURE__ */ jsx7(
+               Text2,
+               {
+diff --git a/dist/product-sales-channels-5YIO22UW.mjs b/dist/product-sales-channels-5YIO22UW.mjs
+index 25cb1b6f27765004eebc31a393b17b97c81828a3..5ad2f4c33503a9b535db27ea35da60b7beccfb4b 100644
+--- a/dist/product-sales-channels-5YIO22UW.mjs
++++ b/dist/product-sales-channels-5YIO22UW.mjs
+@@ -56,17 +56,18 @@ var EditSalesChannelsForm = ({
+ }) => {
+   const { t } = useTranslation();
+   const { handleSuccess } = useRouteModal();
++  const safeSalesChannels = (product.sales_channels ?? []).filter((sc) => sc != null && typeof sc === "object" && sc.id != null);
+   const form = useForm({
+     defaultValues: {
+-      sales_channels: product.sales_channels?.map((sc) => sc.id) ?? []
++      sales_channels: safeSalesChannels.map((sc) => sc.id)
+     },
+     resolver: zodResolver(EditSalesChannelsSchema)
+   });
+   const { setValue } = form;
+-  const initialState = product.sales_channels?.reduce((acc, curr) => {
++  const initialState = safeSalesChannels.reduce((acc, curr) => {
+     acc[curr.id] = true;
+     return acc;
+-  }, {}) ?? {};
++  }, {});
+   const [rowSelection, setRowSelection] = useState(initialState);
+   useEffect(() => {
+     const ids = Object.keys(rowSelection);
