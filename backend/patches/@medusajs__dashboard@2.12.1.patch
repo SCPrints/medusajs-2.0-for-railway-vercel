@@ -1,3 +1,17 @@
+diff --git a/dist/chunk-IQBAUTU5.mjs b/dist/chunk-IQBAUTU5.mjs
+index e3a72ee54ee1c53baaeae0ff7b3218352eacdba9..d0226b8e6c797794604bfe9ca60c0e6661d7f952 100644
+--- a/dist/chunk-IQBAUTU5.mjs
++++ b/dist/chunk-IQBAUTU5.mjs
+@@ -6,6 +6,9 @@ import {
+ import { useTranslation } from "react-i18next";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ var ProductCell = ({ product }) => {
++  if (!product || typeof product !== "object") {
++    return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate text-ui-fg-muted", children: "—" }) });
++  }
+   return /* @__PURE__ */ jsxs("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: [
+     /* @__PURE__ */ jsx("div", { className: "w-fit flex-shrink-0", children: /* @__PURE__ */ jsx(Thumbnail, { src: product.thumbnail }) }),
+     /* @__PURE__ */ jsx("span", { title: product.title, className: "truncate", children: product.title })
 diff --git a/dist/chunk-PCFUZKDS.mjs b/dist/chunk-PCFUZKDS.mjs
 index 0def99505968fea5ec0b228dfab075e9a8b2ac0f..9b022372bf35ae9320d7ea92c370a28c6b4878d4 100644
 --- a/dist/chunk-PCFUZKDS.mjs
