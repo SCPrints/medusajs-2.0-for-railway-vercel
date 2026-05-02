@@ -1417,22 +1417,22 @@ export default function HomeParticleLogoHero({
       })
     }
 
+    /** Replace the previous scan-line-ordered deterministic stride (which produced visible
+     * grid patterns on the wordmark) with a hashed pseudo-random pick. Same density, but
+     * candidate positions are drawn uniformly from the mask without any spatial ordering bias. */
     for (let k = 0; k < logoHomeCount; k++) {
-      let idx: number
-      if (nLogo >= logoHomeCount) {
-        idx =
-          logoHomeCount <= 1
-            ? 0
-            : Math.min(
-                nLogo - 1,
-                Math.floor((k * (nLogo - 1)) / (logoHomeCount - 1))
-              )
-      } else {
-        idx = k % nLogo
-      }
+      /** Two independent hashes per particle: one for candidate index, two for sub-pixel
+       * jitter (breaks the integer-pixel grid the alpha mask collected on). Deterministic
+       * (reproduces same layout on reload) but uncorrelated with scan-line order. */
+      const h1 = ((k * 2654435761) ^ ((k * 1597334677) >>> 0)) >>> 0
+      const h2 = ((k * 374761393) ^ ((k * 668265263) >>> 0)) >>> 0
+      const h3 = ((k * 3266489917) ^ ((k * 2246822519) >>> 0)) >>> 0
+      const idx = h1 % nLogo
+      const jx = ((h2 & 0xffff) / 0xffff - 0.5) * 1.6
+      const jy = ((h3 & 0xffff) / 0xffff - 0.5) * 1.6
       const c = candidates[idx]!
-      const hx = Number(c.x) || 0
-      const hy = Number(c.y) || 0
+      const hx = (Number(c.x) || 0) + jx
+      const hy = (Number(c.y) || 0) + jy
       particles.push({
         hx,
         hy,
