@@ -10,12 +10,18 @@ export type NewmixLiveTuning = {
   backInward: number
   falloffPower: number
   trailFollowMs: number
-  trailFollowAccel: number
-  trailFollowPathBias: number
+  /** Playback pace for the cursor history: 1.0 = particle stays at cursor (no trail);
+   * <1.0 = particle traces path slower than real time, falling behind as a wake. */
+  wakePace: number
+  /** Fraction of swirl velocity preserved on the release frame (lower = trail playback takes over immediately). */
+  releaseVelocityKeep: number
   friction: number
   springStiffnessMult: number
   homeSpringSuppress: number
-  releaseKickMult: number
+  /** Per-frame fraction of remaining distance home that's closed each tick (0..1). */
+  homeReturnRate: number
+  /** Idle-gate threshold (ms). If no mouse motion for this long, capture/swirl freezes. */
+  idleThresholdMs: number
 }
 
 /** Must stay aligned with `constants.ts` exports for newmix. */
@@ -27,12 +33,13 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   backInward: 2.0,
   falloffPower: 1.4,
   trailFollowMs: 3000,
-  trailFollowAccel: 0.36,
-  trailFollowPathBias: 0.7,
-  friction: 0.92,
-  springStiffnessMult: 0.65,
+  wakePace: 0.55,
+  releaseVelocityKeep: 0.0,
+  friction: 0.94,
+  springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
-  releaseKickMult: 1.1,
+  homeReturnRate: 0.08,
+  idleThresholdMs: 2000,
 })
 
 export function mergeNewmixLiveTuning(

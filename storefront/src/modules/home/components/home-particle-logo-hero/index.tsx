@@ -212,6 +212,17 @@ type ParallaxParticle = {
   /** Viscous coffee wake pool only: unit tangent along stroke at this particle’s trail slot. */
   wakeTx?: number
   wakeTy?: number
+  /** Newmix: arc-length along the trail (bitmap px from oldest end) where this particle was released. */
+  newmixTrailArc?: number
+  /** Newmix: lateral offset along the trail normal at the release slot, preserved across frames. */
+  newmixLateral?: number
+  /** Newmix: cursor position at release frame (bitmap px). Used to advect the particle by
+   * the cursor's net displacement so it traces the exact path the cursor draws. */
+  newmixCursorOriginX?: number
+  newmixCursorOriginY?: number
+  /** Newmix: home position snapshot at release (so we lerp back to logo home, not a moving target). */
+  newmixHomeAtReleaseX?: number
+  newmixHomeAtReleaseY?: number
 }
 
 type LogoInteractBounds = {
@@ -525,45 +536,96 @@ function applyNewmixCaptureImpulse(
 }
 
 /**
- * Newmix mode: hybrid wake follow. Just-released particles target the most recent trail
- * sample (sit in the wake near the cursor's recent position); as the deadline approaches
- * the target lerps toward the live cursor before the home spring re-engages.
+ * Look up the cursor's recorded position at a given wall-clock timestamp by linear
+ * interpolation between the two surrounding history samples. Returns null if the buffer
+ * is empty or the timestamp is past the newest sample (caller should treat as "caught up").
  */
-function applyNewmixTrailFollow(
-  p: ParallaxParticle,
-  cx: number,
-  cy: number,
+function lookupCursorHistoryAtTime(
+  history: Array<{ x: number; y: number; t: number }>,
+  targetTime: number
+): { x: number; y: number; pastHead: boolean } | null {
+  const n = history.length
+  if (n === 0) {
+    return null
+  }
+  const head = history[n - 1]!
+  if (targetTime >= head.t) {
+    return { x: head.x, y: head.y, pastHead: true }
+  }
+  const tail = history[0]!
+  if (targetTime <= tail.t) {
+    return { x: tail.x, y: tail.y, pastHead: false }
+  }
+  /** Binary search for the segment containing targetTime. */
+  let lo = 0
+  let hi = n - 1
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >>> 1
+    if (history[mid]!.t <= targetTime) {
+      lo = mid
+    } else {
+      hi = mid
+    }
+  }
+  const a = history[lo]!
+  const b = history[hi]!
+  const span = b.t - a.t
+  const u = span > 1e-6 ? (targetTime - a.t) / span : 0
+  return {
+    x: a.x + (b.x - a.x) * u,
+    y: a.y + (b.y - a.y) * u,
+    pastHead: false,
+  }
+}
+
+/**
+ * Walk the trail polyline starting from the head (newest sample, cursor side) backward
+ * along older segments by `arcFromHead` bitmap pixels. Returns the world position and the
+ * local tangent (pointing from older → newer, i.e. the direction the mouse moved).
+ * If `arcFromHead` exceeds the trail's total length, returns the oldest sample.
+ */
+function pointAlongTrailFromHead(
   trail: Array<{ x: number; y: number }>,
-  remainingMs: number,
-  t: NewmixLiveTuning
-): void {
-  if (cx <= -9000) {
-    return
+  arcFromHead: number
+): { x: number; y: number; tx: number; ty: number } | null {
+  const n = trail.length
+  if (n === 0) {
+    return null
   }
-  const u = Math.max(
-    0,
-    Math.min(1, remainingMs / Math.max(1, t.trailFollowMs))
-  )
-  let tailX = cx
-  let tailY = cy
-  if (trail.length > 0) {
-    const tail = trail[trail.length - 1]!
-    tailX = tail.x
-    tailY = tail.y
+  if (n === 1) {
+    return { x: trail[0]!.x, y: trail[0]!.y, tx: 1, ty: 0 }
   }
-  const bias = u * t.trailFollowPathBias
-  const tx = tailX * bias + cx * (1 - bias)
-  const ty = tailY * bias + cy * (1 - bias)
-  const dx = tx - p.x
-  const dy = ty - p.y
-  const dist = Math.hypot(dx, dy)
-  if (dist < PHYSICS_DIST_EPSILON) {
-    return
+  let remaining = Math.max(0, arcFromHead)
+  for (let i = n - 1; i > 0; i--) {
+    const b = trail[i]!
+    const a = trail[i - 1]!
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const segLen = Math.hypot(dx, dy)
+    if (segLen <= 1e-6) {
+      continue
+    }
+    if (remaining <= segLen) {
+      const u = remaining / segLen
+      const tx = dx / segLen
+      const ty = dy / segLen
+      return {
+        x: b.x - dx * u,
+        y: b.y - dy * u,
+        tx,
+        ty,
+      }
+    }
+    remaining -= segLen
   }
-  const inv = 1 / dist
-  const a = t.trailFollowAccel
-  p.vx += dx * inv * a
-  p.vy += dy * inv * a
+  const a = trail[0]!
+  const b = trail[1]!
+  const dx = b.x - a.x
+  const dy = b.y - a.y
+  const segLen = Math.hypot(dx, dy)
+  const tx = segLen > 1e-6 ? dx / segLen : 1
+  const ty = segLen > 1e-6 ? dy / segLen : 0
+  return { x: a.x, y: a.y, tx, ty }
 }
 
 function closestPointOnSegment(
@@ -1084,6 +1146,17 @@ export default function HomeParticleLogoHero({
   const newmixSpoonVelRef = useRef({ vx: 1, vy: 0 })
   const newmixSpoonPrimedRef = useRef(false)
   const newmixPrevCursorRef = useRef({ x: 0, y: 0 })
+  /** Wall-clock of the last frame the cursor moved (used to gate capture/swirl after idle). */
+  const newmixLastMotionMsRef = useRef(0)
+  /** Per-frame cursor delta in bitmap px — used to advect trailing particles at mouse pace. */
+  const newmixFrameMouseDeltaRef = useRef({ dx: 0, dy: 0 })
+  /** Previous tick's cursor position (bitmap px) for delta computation. */
+  const newmixTickPrevCursorRef = useRef({ x: -9999, y: -9999 })
+  /** Per-frame cursor history (bitmap px). Each tick pushes the live cursor position;
+   * trailing particles play back this buffer to trace the EXACT path the mouse drew. */
+  const newmixCursorHistoryRef = useRef<
+    Array<{ x: number; y: number; t: number }>
+  >([])
   const newmixLiveMergedRef = useRef<NewmixLiveTuning>(
     mergeNewmixLiveTuning()
   )
@@ -1933,6 +2006,46 @@ export default function HomeParticleLogoHero({
           newmixSpoonPrimedRef.current = false
         }
 
+        let newmixIdle = false
+        if (newmix && nm != null) {
+          const tprev = newmixTickPrevCursorRef.current
+          if (cursorOk) {
+            if (tprev.x <= -9000 || tprev.y <= -9000) {
+              newmixFrameMouseDeltaRef.current.dx = 0
+              newmixFrameMouseDeltaRef.current.dy = 0
+              newmixLastMotionMsRef.current = nowTick
+            } else {
+              const ddx = currentMouseX - tprev.x
+              const ddy = currentMouseY - tprev.y
+              newmixFrameMouseDeltaRef.current.dx = ddx
+              newmixFrameMouseDeltaRef.current.dy = ddy
+              if (ddx * ddx + ddy * ddy > 0.04) {
+                newmixLastMotionMsRef.current = nowTick
+              }
+            }
+            tprev.x = currentMouseX
+            tprev.y = currentMouseY
+          } else {
+            newmixFrameMouseDeltaRef.current.dx = 0
+            newmixFrameMouseDeltaRef.current.dy = 0
+            tprev.x = -9999
+            tprev.y = -9999
+          }
+          newmixIdle =
+            nowTick - newmixLastMotionMsRef.current >= nm.idleThresholdMs
+
+          /** Push the live cursor position into the history buffer for trail playback.
+           * Trim entries older than the longest possible wake duration + a safety margin. */
+          if (cursorOk) {
+            const hist = newmixCursorHistoryRef.current
+            hist.push({ x: currentMouseX, y: currentMouseY, t: nowTick })
+            const cutoff = nowTick - nm.trailFollowMs - 500
+            while (hist.length > 0 && hist[0]!.t < cutoff) {
+              hist.shift()
+            }
+          }
+        }
+
         if (!entranceActive) {
           for (const p of particles) {
             if (blackHole) {
@@ -2002,11 +2115,16 @@ export default function HomeParticleLogoHero({
 
               p.bhPrevInRadius = inCaptureDiskGeom
             } else if (newmix && nm != null) {
+              /** Expire the wake timer if the deadline has passed. */
               if (
                 p.bhTrailUntilMs != null &&
                 nowTick >= p.bhTrailUntilMs
               ) {
                 p.bhTrailUntilMs = null
+                p.newmixCursorOriginX = undefined
+                p.newmixCursorOriginY = undefined
+                p.newmixHomeAtReleaseX = undefined
+                p.newmixHomeAtReleaseY = undefined
               }
 
               const distM = cursorOk
@@ -2017,11 +2135,18 @@ export default function HomeParticleLogoHero({
                 : Infinity
               const inCaptureDiskGeom =
                 cursorOk && distM < newmixRadius
+              const trailingActive =
+                p.bhTrailUntilMs != null &&
+                nowTick < p.bhTrailUntilMs
+              /** Idle gate: freeze capture/swirl when the mouse hasn't moved for `idleThresholdMs`. */
               const captured =
-                inNewmixStipple && inCaptureDiskGeom
+                inNewmixStipple &&
+                inCaptureDiskGeom &&
+                !newmixIdle &&
+                !trailingActive
 
               if (captured) {
-                p.bhTrailUntilMs = null
+                /** Apply the swirl impulse — particle is being curled around the cursor. */
                 applyNewmixCaptureImpulse(
                   p,
                   currentMouseX,
@@ -2033,54 +2158,107 @@ export default function HomeParticleLogoHero({
                 )
               } else if (
                 p.bhPrevInRadius &&
-                !inCaptureDiskGeom
+                !inCaptureDiskGeom &&
+                !newmixIdle &&
+                cursorOk
               ) {
+                /** Release: store the wall-clock time. The wake playhead reads cursor history
+                 * at `releaseTime + (now - releaseTime) * pace`, so the particle traces the
+                 * EXACT path the cursor drew, falling further behind as time passes (pace<1). */
                 p.bhTrailUntilMs = nowTick + nm.trailFollowMs
-                /** Single-frame velocity boost so released particles leave with
-                 * residual swirl velocity that reads as a completed swirl. */
-                p.vx *= nm.releaseKickMult
-                p.vy *= nm.releaseKickMult
+                /** `newmixCursorOriginX/Y` doubles as `releaseTime` — store nowTick in X. */
+                p.newmixCursorOriginX = nowTick
+                p.newmixCursorOriginY = 0
+                /** Offset from cursor-at-release (history at this exact time = current cursor)
+                 * so initial particle position = history[releaseTime] + offset = release pos. */
+                p.newmixTrailArc = p.x - currentMouseX
+                p.newmixLateral = p.y - currentMouseY
+                /** Snapshot home so the post-wake home lerp targets the logo home, not whatever
+                 * the home array happens to be. */
+                p.newmixHomeAtReleaseX = p.hx
+                p.newmixHomeAtReleaseY = p.hy
+                /** Kill all residual velocity — the wake is purely kinematic from here. */
+                p.vx = 0
+                p.vy = 0
               }
 
               const trailing =
                 p.bhTrailUntilMs != null &&
                 nowTick < p.bhTrailUntilMs &&
-                !inCaptureDiskGeom
+                !captured
 
-              if (trailing && cursorOk) {
-                const remaining =
-                  (p.bhTrailUntilMs as number) - nowTick
-                applyNewmixTrailFollow(
-                  p,
-                  currentMouseX,
-                  currentMouseY,
-                  newmixTrailRef.current,
-                  remaining,
-                  nm
+              if (captured) {
+                /** In-disk integration: spring + friction + suppression so dots can drift around the cursor. */
+                let springMul = 1
+                if (distM < newmixRadius * 1.05) {
+                  const u = Math.max(
+                    0,
+                    1 - distM / (newmixRadius * 1.05)
+                  )
+                  springMul = 1 - nm.homeSpringSuppress * u * u
+                }
+                p.vx += (p.hx - p.x) * springKBase * springMul
+                p.vy += (p.hy - p.y) * springKBase * springMul
+                p.vx *= frictionK
+                p.vy *= frictionK
+                p.x += p.vx
+                p.y += p.vy
+              } else if (
+                trailing &&
+                p.newmixCursorOriginX != null
+              ) {
+                /** WAKE PLAYBACK: the particle plays back the cursor's recorded path at
+                 * `wakePace` of real time. Each frame the playhead advances by `pace * Δt`
+                 * while real time advances by `Δt` — so the particle falls progressively
+                 * behind the cursor, tracing the EXACT path the cursor drew with a growing
+                 * delay. When the cursor stops, history stops growing and the particle
+                 * naturally catches up to the cursor's last position. */
+                const releaseTime = p.newmixCursorOriginX
+                const elapsed = nowTick - releaseTime
+                const playheadTime =
+                  releaseTime + elapsed * nm.wakePace
+                const sample = lookupCursorHistoryAtTime(
+                  newmixCursorHistoryRef.current,
+                  playheadTime
                 )
+                const offX = p.newmixTrailArc ?? 0
+                const offY = p.newmixLateral ?? 0
+                if (sample != null) {
+                  /** Decay the swirl-exit offset over the wake duration so by the end the
+                   * particle is on the path itself (no permanent sideways drift). */
+                  const u = Math.max(
+                    0,
+                    Math.min(1, elapsed / Math.max(1, nm.trailFollowMs))
+                  )
+                  const offDecay = 1 - u
+                  p.x = sample.x + offX * offDecay
+                  p.y = sample.y + offY * offDecay
+                } else if (cursorOk) {
+                  p.x = currentMouseX + offX
+                  p.y = currentMouseY + offY
+                }
+                p.vx = 0
+                p.vy = 0
+              } else {
+                /** Home return: pure positional lerp toward home with zero velocity, zero
+                 * spring. Snap-to-home when within 0.5 px so we don't asymptotically wiggle. */
+                p.vx = 0
+                p.vy = 0
+                const rate = Math.max(0, Math.min(1, nm.homeReturnRate))
+                const dx = p.hx - p.x
+                const dy = p.hy - p.y
+                if (dx * dx + dy * dy < 0.25) {
+                  p.x = p.hx
+                  p.y = p.hy
+                } else {
+                  p.x += dx * rate
+                  p.y += dy * rate
+                }
               }
 
-              let springMul = 1
-              if (captured && distM < newmixRadius * 1.05) {
-                const u = Math.max(
-                  0,
-                  1 - distM / (newmixRadius * 1.05)
-                )
-                springMul = 1 - nm.homeSpringSuppress * u * u
-              }
-
-              const homeSpring = trailing ? 0 : 1
-
-              p.vx +=
-                (p.hx - p.x) * springKBase * springMul * homeSpring
-              p.vy +=
-                (p.hy - p.y) * springKBase * springMul * homeSpring
-              p.vx *= frictionK
-              p.vy *= frictionK
-              p.x += p.vx
-              p.y += p.vy
-
-              p.bhPrevInRadius = inCaptureDiskGeom
+              /** Update prev-in-radius flag, but suppress it during/just-after trailing so the
+               * particle doesn't re-trigger release while still riding the wake near the cursor. */
+              p.bhPrevInRadius = inCaptureDiskGeom && !trailing
             } else if (viscousCoffee && vc != null) {
               p.bhPrevInRadius = false
               p.bhTrailUntilMs = null
@@ -2389,6 +2567,10 @@ export default function HomeParticleLogoHero({
       newmixTrailRef.current = []
       newmixSpoonPrimedRef.current = false
       newmixSpoonVelRef.current = { vx: 1, vy: 0 }
+      newmixLastMotionMsRef.current = 0
+      newmixFrameMouseDeltaRef.current = { dx: 0, dy: 0 }
+      newmixTickPrevCursorRef.current = { x: -9999, y: -9999 }
+      newmixCursorHistoryRef.current = []
       const cw = viscousCoffeeWakeParticlesRef.current
       if (cw != null) {
         for (const p of cw) {

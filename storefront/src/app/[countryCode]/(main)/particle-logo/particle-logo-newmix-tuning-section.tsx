@@ -6,11 +6,12 @@ import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-he
 import type { NewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 import { mergeNewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 
-const LS_KEY = "newmix-live-tuning-v1"
+const LS_KEY = "newmix-live-tuning-v3"
 
 const INT_KEYS = new Set<keyof NewmixLiveTuning>([
   "radius",
   "trailFollowMs",
+  "idleThresholdMs",
 ])
 
 function loadTuning(): NewmixLiveTuning {
@@ -103,37 +104,55 @@ const SLIDERS: SliderSpec[] = [
     step: 50,
   },
   {
-    key: "trailFollowAccel",
-    label: "Wake follow accel",
+    key: "wakePace",
+    label: "Wake pace (path replay speed)",
     description:
-      "Per-frame acceleration toward the trail/cursor target during the wake follow window. Higher = particles chase faster.",
-    min: 0,
-    max: 1.5,
+      "Speed at which a released particle replays the cursor's recorded path. 1.0 = stays at the cursor (no trail). 0.5 = traces the cursor's path at half real-time speed, so it falls behind as a wake. Lower = longer/slower trail.",
+    min: 0.1,
+    max: 1,
     step: 0.01,
   },
   {
-    key: "trailFollowPathBias",
-    label: "Wake path bias",
+    key: "releaseVelocityKeep",
+    label: "Release velocity keep",
     description:
-      "At release, weight on the most-recent trail sample vs. the live cursor (decays as the deadline approaches). Higher = particles ride the path the mouse drew; lower = they chase the cursor head.",
+      "Fraction of the swirl velocity preserved on the release frame. 0 = trail-lock takes over instantly with no fly-off.",
     min: 0,
     max: 1,
     step: 0.02,
   },
   {
-    key: "friction",
-    label: "Friction",
+    key: "homeReturnRate",
+    label: "Home return rate",
     description:
-      "Per-frame velocity multiplier on logo particles in newmix mode (higher = more glide, lower = quicker stop).",
+      "Per-frame fraction of the remaining distance home that's closed each tick after the wake expires. Pure position lerp — zero velocity, zero bounce.",
+    min: 0.02,
+    max: 0.5,
+    step: 0.005,
+  },
+  {
+    key: "idleThresholdMs",
+    label: "Idle threshold (ms)",
+    description:
+      "After this many ms of no mouse motion, the capture/swirl effect freezes. Trailing particles still complete their wake and return home.",
+    min: 200,
+    max: 8000,
+    step: 50,
+  },
+  {
+    key: "friction",
+    label: "In-disk friction",
+    description:
+      "Per-frame velocity multiplier while particles are inside the capture disk. Higher = more glide.",
     min: 0.78,
     max: 0.995,
     step: 0.002,
   },
   {
     key: "springStiffnessMult",
-    label: "Home spring multiplier",
+    label: "Home spring multiplier (in disk)",
     description:
-      "Scales the home-position spring while in newmix mode (relative to the default 0.075 stiffness). Lower = particles take longer to return to the wordmark after the wake.",
+      "Scales the home spring while inside the capture disk (relative to the default 0.075 stiffness).",
     min: 0.1,
     max: 1.5,
     step: 0.02,
@@ -142,18 +161,9 @@ const SLIDERS: SliderSpec[] = [
     key: "homeSpringSuppress",
     label: "Home spring suppress (in disk)",
     description:
-      "Inside the capture disk, reduce the home spring by this factor so captured dots can drift around the cursor before being released.",
+      "Inside the capture disk, reduce the home spring by this factor so captured dots drift around the cursor before release.",
     min: 0,
     max: 0.99,
-    step: 0.01,
-  },
-  {
-    key: "releaseKickMult",
-    label: "Release kick",
-    description:
-      "Single-frame velocity multiplier applied on the edge-exit frame. Slightly above 1 makes released particles leave with extra residual swirl velocity.",
-    min: 0.8,
-    max: 1.6,
     step: 0.01,
   },
 ]
@@ -162,8 +172,16 @@ function formatValue(key: keyof NewmixLiveTuning, v: number): string {
   if (INT_KEYS.has(key)) {
     return String(Math.round(v))
   }
-  if (key === "trailFollowPathBias" || key === "homeSpringSuppress") {
+  if (
+    key === "homeSpringSuppress" ||
+    key === "wakePace" ||
+    key === "releaseVelocityKeep" ||
+    key === "homeReturnRate"
+  ) {
     return v.toFixed(2)
+  }
+  if (key === "friction") {
+    return v.toFixed(3)
   }
   return Number.isInteger(v) ? String(v) : v.toFixed(2)
 }
