@@ -6,12 +6,20 @@ import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-he
 import type { NewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 import { mergeNewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 
-const LS_KEY = "newmix-live-tuning-v3"
+const LS_KEY = "newmix-live-tuning-v6"
 
 const INT_KEYS = new Set<keyof NewmixLiveTuning>([
   "radius",
   "trailFollowMs",
   "idleThresholdMs",
+  "wakeLateralSpreadBmp",
+  "wakeReleaseStaggerMs",
+  "wakeBandSpreadBmp",
+  "wakeAlongStretchBmp",
+  "wakeDiffusionBmp",
+  "homeReturnMs",
+  "homeReturnCurveBmp",
+  "homeReturnDiffusionBmp",
 ])
 
 function loadTuning(): NewmixLiveTuning {
@@ -113,6 +121,69 @@ const SLIDERS: SliderSpec[] = [
     step: 0.01,
   },
   {
+    key: "wakePaceJitter",
+    label: "Wake pace jitter (per-particle)",
+    description:
+      "Random variation in pace per particle (±this fraction of wake pace). Higher = particles spread along the trail at different speeds; 0 = all particles move in perfect lockstep clumps.",
+    min: 0,
+    max: 0.8,
+    step: 0.01,
+  },
+  {
+    key: "wakeLateralSpreadBmp",
+    label: "Wake lateral spread (px, mid-peak)",
+    description:
+      "Bell-shaped perpendicular drift that peaks mid-wake (zero at release and at the end). Adds extra spread to the band in the middle of the trail.",
+    min: 0,
+    max: 80,
+    step: 1,
+  },
+  {
+    key: "wakeBandSpreadBmp",
+    label: "Wake band spread (px, constant)",
+    description:
+      "Constant per-particle perpendicular offset along the entire trail. Each particle gets a unique sign + amount — particles fan out into a band along the whole wake, breaking up clumping.",
+    min: 0,
+    max: 80,
+    step: 1,
+  },
+  {
+    key: "wakeReleaseStaggerMs",
+    label: "Wake release stagger (ms, per-particle)",
+    description:
+      "Each particle's wake playback start is delayed by up to this much. Particles released in the same frame don't move in lockstep — the wake trickles out over time.",
+    min: 0,
+    max: 2000,
+    step: 25,
+  },
+  {
+    key: "wakeAlongStretchBmp",
+    label: "Wake along-tangent stretch (px)",
+    description:
+      "Per-particle signed offset along the cursor heading. Stretches particles out along the trail axis rather than clumping at one path point — produces a long elongated trail.",
+    min: 0,
+    max: 200,
+    step: 1,
+  },
+  {
+    key: "wakeDiffusionBmp",
+    label: "Wake diffusion noise (px)",
+    description:
+      "Continuous sine-noise wobble per particle during the wake. Each particle drifts on its own slow wandering path so they don't move in lockstep — breaks up clumping.",
+    min: 0,
+    max: 60,
+    step: 1,
+  },
+  {
+    key: "wakeDiffusionHz",
+    label: "Wake diffusion frequency (Hz)",
+    description:
+      "Speed of the diffusion wobble. Lower = slow drift, higher = jittery wiggle.",
+    min: 0.1,
+    max: 4,
+    step: 0.05,
+  },
+  {
     key: "releaseVelocityKeep",
     label: "Release velocity keep",
     description:
@@ -122,13 +193,40 @@ const SLIDERS: SliderSpec[] = [
     step: 0.02,
   },
   {
-    key: "homeReturnRate",
-    label: "Home return rate",
+    key: "homeReturnMs",
+    label: "Home return duration (ms)",
     description:
-      "Per-frame fraction of the remaining distance home that's closed each tick after the wake expires. Pure position lerp — zero velocity, zero bounce.",
-    min: 0.02,
-    max: 0.5,
-    step: 0.005,
+      "Total time from wake-end to home along a curved Bezier path. Cubic ease-out so particles glide in smoothly. Zero velocity throughout — no bounce.",
+    min: 200,
+    max: 4000,
+    step: 50,
+  },
+  {
+    key: "homeReturnCurveBmp",
+    label: "Home return curve (px)",
+    description:
+      "Perpendicular bend in the home-return Bezier path. Each particle's curve has a unique sign + magnitude, so paths fan out across the canvas rather than all converging on a straight line.",
+    min: 0,
+    max: 250,
+    step: 1,
+  },
+  {
+    key: "homeReturnDurationJitter",
+    label: "Home return duration jitter",
+    description:
+      "Per-particle variation (±this fraction) of the home-return duration. Higher = particles arrive home over a wider time window, less synchronized.",
+    min: 0,
+    max: 0.95,
+    step: 0.02,
+  },
+  {
+    key: "homeReturnDiffusionBmp",
+    label: "Home return diffusion (px)",
+    description:
+      "Sine-noise wobble during the home-return Bezier. Bell-shaped envelope (peaks mid-flight, zero at home), so paths spread on the way back without sacrificing precise final landing.",
+    min: 0,
+    max: 50,
+    step: 1,
   },
   {
     key: "idleThresholdMs",
@@ -175,8 +273,10 @@ function formatValue(key: keyof NewmixLiveTuning, v: number): string {
   if (
     key === "homeSpringSuppress" ||
     key === "wakePace" ||
+    key === "wakePaceJitter" ||
     key === "releaseVelocityKeep" ||
-    key === "homeReturnRate"
+    key === "homeReturnDurationJitter" ||
+    key === "wakeDiffusionHz"
   ) {
     return v.toFixed(2)
   }

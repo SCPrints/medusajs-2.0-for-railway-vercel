@@ -223,6 +223,11 @@ type ParallaxParticle = {
   /** Newmix: home position snapshot at release (so we lerp back to logo home, not a moving target). */
   newmixHomeAtReleaseX?: number
   newmixHomeAtReleaseY?: number
+  /** Newmix: position snapshot at the moment the wake timer expired (start of home return). */
+  newmixHomeReturnFromX?: number
+  newmixHomeReturnFromY?: number
+  /** Newmix: wall-clock when home return started (used for ease-out timing along the curved path). */
+  newmixHomeReturnStartMs?: number
 }
 
 type LogoInteractBounds = {
@@ -2115,7 +2120,7 @@ export default function HomeParticleLogoHero({
 
               p.bhPrevInRadius = inCaptureDiskGeom
             } else if (newmix && nm != null) {
-              /** Expire the wake timer if the deadline has passed. */
+              /** Expire the wake timer if the deadline has passed — start home return. */
               if (
                 p.bhTrailUntilMs != null &&
                 nowTick >= p.bhTrailUntilMs
@@ -2125,6 +2130,10 @@ export default function HomeParticleLogoHero({
                 p.newmixCursorOriginY = undefined
                 p.newmixHomeAtReleaseX = undefined
                 p.newmixHomeAtReleaseY = undefined
+                /** Snapshot wake-end position as the home-return start. */
+                p.newmixHomeReturnFromX = p.x
+                p.newmixHomeReturnFromY = p.y
+                p.newmixHomeReturnStartMs = nowTick
               }
 
               const distM = cursorOk
@@ -2138,12 +2147,22 @@ export default function HomeParticleLogoHero({
               const trailingActive =
                 p.bhTrailUntilMs != null &&
                 nowTick < p.bhTrailUntilMs
-              /** Idle gate: freeze capture/swirl when the mouse hasn't moved for `idleThresholdMs`. */
+              /** Re-capture: trailing particles inside the disk re-enter the swirl cycle. */
               const captured =
-                inNewmixStipple &&
-                inCaptureDiskGeom &&
-                !newmixIdle &&
-                !trailingActive
+                inNewmixStipple && inCaptureDiskGeom && !newmixIdle
+
+              /** When re-capturing a trailing particle, clear the wake state so the swirl/release
+               * cycle starts fresh. */
+              if (captured && trailingActive) {
+                p.bhTrailUntilMs = null
+                p.newmixCursorOriginX = undefined
+                p.newmixCursorOriginY = undefined
+                p.newmixHomeAtReleaseX = undefined
+                p.newmixHomeAtReleaseY = undefined
+                p.newmixHomeReturnFromX = undefined
+                p.newmixHomeReturnFromY = undefined
+                p.newmixHomeReturnStartMs = undefined
+              }
 
               if (captured) {
                 /** Apply the swirl impulse — particle is being curled around the cursor. */
@@ -2207,58 +2226,223 @@ export default function HomeParticleLogoHero({
                 trailing &&
                 p.newmixCursorOriginX != null
               ) {
-                /** WAKE PLAYBACK: the particle plays back the cursor's recorded path at
-                 * `wakePace` of real time. Each frame the playhead advances by `pace * Δt`
-                 * while real time advances by `Δt` — so the particle falls progressively
-                 * behind the cursor, tracing the EXACT path the cursor drew with a growing
-                 * delay. When the cursor stops, history stops growing and the particle
-                 * naturally catches up to the cursor's last position. */
+                /** WAKE PLAYBACK with per-particle pace, stagger, and band spread. Each
+                 * particle reads cursor history at its own playhead time and is offset
+                 * laterally by a unique constant amount, so the wake reads as a long spread
+                 * trail rather than a tight clump. */
                 const releaseTime = p.newmixCursorOriginX
-                const elapsed = nowTick - releaseTime
-                const playheadTime =
-                  releaseTime + elapsed * nm.wakePace
-                const sample = lookupCursorHistoryAtTime(
-                  newmixCursorHistoryRef.current,
-                  playheadTime
-                )
-                const offX = p.newmixTrailArc ?? 0
-                const offY = p.newmixLateral ?? 0
-                if (sample != null) {
-                  /** Decay the swirl-exit offset over the wake duration so by the end the
-                   * particle is on the path itself (no permanent sideways drift). */
+                /** Deterministic per-particle hashes (uniform 0..1). */
+                const hashSrc =
+                  ((p.hx | 0) * 2654435761 + (p.hy | 0) * 1597334677) >>> 0
+                const rand01 = (hashSrc & 0xffffff) / 0xffffff
+                const rand2 =
+                  ((((hashSrc >>> 8) * 2246822519) >>> 0) & 0xffffff) /
+                  0xffffff
+                const rand3 =
+                  ((((hashSrc >>> 16) * 374761393) >>> 0) & 0xffffff) /
+                  0xffffff
+                /** Stagger: each particle's effective release is delayed by up to staggerMs.
+                 * Before its stagger expires the particle stays put. */
+                const stagger = rand3 * nm.wakeReleaseStaggerMs
+                const elapsed = nowTick - releaseTime - stagger
+                if (elapsed <= 0) {
+                  /** Hold release position until stagger expires. */
+                  p.vx = 0
+                  p.vy = 0
+                } else {
+                  const paceFactor =
+                    1 + (rand01 * 2 - 1) * nm.wakePaceJitter
+                  const particlePace = Math.max(
+                    0.05,
+                    nm.wakePace * paceFactor
+                  )
+                  const playheadTime =
+                    releaseTime + stagger + elapsed * particlePace
+                  const sample = lookupCursorHistoryAtTime(
+                    newmixCursorHistoryRef.current,
+                    playheadTime
+                  )
+                  const offX = p.newmixTrailArc ?? 0
+                  const offY = p.newmixLateral ?? 0
+                  const wakeTotalMs = Math.max(
+                    1,
+                    nm.trailFollowMs - stagger
+                  )
                   const u = Math.max(
                     0,
-                    Math.min(1, elapsed / Math.max(1, nm.trailFollowMs))
+                    Math.min(1, elapsed / wakeTotalMs)
                   )
                   const offDecay = 1 - u
-                  p.x = sample.x + offX * offDecay
-                  p.y = sample.y + offY * offDecay
-                } else if (cursorOk) {
-                  p.x = currentMouseX + offX
-                  p.y = currentMouseY + offY
+                  if (sample != null) {
+                    let tanX = 1
+                    let tanY = 0
+                    let perpX = 0
+                    let perpY = 0
+                    const lookAhead = lookupCursorHistoryAtTime(
+                      newmixCursorHistoryRef.current,
+                      playheadTime + 50
+                    )
+                    if (lookAhead != null) {
+                      const tdx = lookAhead.x - sample.x
+                      const tdy = lookAhead.y - sample.y
+                      const tlen = Math.hypot(tdx, tdy)
+                      if (tlen > 1e-3) {
+                        tanX = tdx / tlen
+                        tanY = tdy / tlen
+                        perpX = -tanY
+                        perpY = tanX
+                      }
+                    }
+                    /** Constant per-particle band offset so the wake spreads into a band
+                     * along its entire length. */
+                    const bandSign = rand2 * 2 - 1
+                    const bandAmp = nm.wakeBandSpreadBmp * bandSign
+                    /** Bell-shaped extra spread peaking mid-wake. */
+                    const env = 4 * u * (1 - u)
+                    const dynLateralAmp =
+                      nm.wakeLateralSpreadBmp * bandSign * env
+                    /** Per-particle along-tangent stretch: signed offset along cursor heading
+                     * so particles spread along the trail axis, not just perpendicular. */
+                    const stretchSign = rand01 * 2 - 1
+                    const stretchAmp =
+                      nm.wakeAlongStretchBmp * stretchSign
+                    /** Diffusion: deterministic sine-noise wobble per particle, function of
+                     * time + per-particle phase. Two orthogonal sines on different freqs so
+                     * each particle traces its own slow wandering path. */
+                    const diffPhase1 = rand01 * Math.PI * 2
+                    const diffPhase2 = rand2 * Math.PI * 2
+                    const tSec = nowTick * 0.001
+                    const diffX =
+                      Math.sin(
+                        tSec * Math.PI * 2 * nm.wakeDiffusionHz +
+                          diffPhase1
+                      ) *
+                      nm.wakeDiffusionBmp
+                    const diffY =
+                      Math.cos(
+                        tSec * Math.PI * 2 * nm.wakeDiffusionHz * 1.37 +
+                          diffPhase2
+                      ) *
+                      nm.wakeDiffusionBmp
+                    p.x =
+                      sample.x +
+                      offX * offDecay +
+                      tanX * stretchAmp +
+                      perpX * (bandAmp + dynLateralAmp) +
+                      diffX
+                    p.y =
+                      sample.y +
+                      offY * offDecay +
+                      tanY * stretchAmp +
+                      perpY * (bandAmp + dynLateralAmp) +
+                      diffY
+                  } else if (cursorOk) {
+                    p.x = currentMouseX + offX * offDecay
+                    p.y = currentMouseY + offY * offDecay
+                  }
+                  p.vx = 0
+                  p.vy = 0
                 }
+              } else if (
+                p.newmixHomeReturnStartMs != null &&
+                p.newmixHomeReturnFromX != null &&
+                p.newmixHomeReturnFromY != null
+              ) {
+                /** HOME RETURN along a per-particle curved path, eased over `homeReturnMs`.
+                 * Each particle's path bends via a perpendicular control offset chosen by
+                 * a per-particle hash, so paths fan out instead of all converging on a
+                 * straight line — matching the spread-out green-line look. Zero velocity. */
+                const hashSrc =
+                  ((p.hx | 0) * 2654435761 + (p.hy | 0) * 1597334677) >>> 0
+                const rand1 = (hashSrc & 0xffffff) / 0xffffff
+                const rand2 =
+                  ((((hashSrc >>> 8) * 2246822519) >>> 0) & 0xffffff) /
+                  0xffffff
+                const durJitter =
+                  1 + (rand1 * 2 - 1) * nm.homeReturnDurationJitter
+                const dur = Math.max(
+                  100,
+                  nm.homeReturnMs * durJitter
+                )
+                const elapsed = nowTick - p.newmixHomeReturnStartMs
+                const t = Math.max(0, Math.min(1, elapsed / dur))
+                /** Cubic ease-out for graceful arrival at home. */
+                const e = 1 - (1 - t) * (1 - t) * (1 - t)
+                const sx = p.newmixHomeReturnFromX
+                const sy = p.newmixHomeReturnFromY
+                const ex = p.hx
+                const ey = p.hy
+                /** Quadratic Bezier control point: midpoint of (start, end) plus a
+                 * perpendicular offset whose sign and magnitude are unique per particle. */
+                const dx = ex - sx
+                const dy = ey - sy
+                const dist = Math.hypot(dx, dy)
+                let nx = 0
+                let ny = 0
+                if (dist > 1e-3) {
+                  nx = -dy / dist
+                  ny = dx / dist
+                }
+                const curveSign = rand2 * 2 - 1
+                /** Curve magnitude scales with path length (capped) so short returns aren't
+                 * dominated by the curve. */
+                const curveAmp =
+                  nm.homeReturnCurveBmp *
+                  curveSign *
+                  Math.min(1, dist / 200)
+                const mx = (sx + ex) * 0.5 + nx * curveAmp
+                const my = (sy + ey) * 0.5 + ny * curveAmp
+                /** Quadratic Bezier(t) = (1-t)² * S + 2(1-t)t * M + t² * E (eased on e). */
+                const oneMinusE = 1 - e
+                const bx =
+                  oneMinusE * oneMinusE * sx +
+                  2 * oneMinusE * e * mx +
+                  e * e * ex
+                const by =
+                  oneMinusE * oneMinusE * sy +
+                  2 * oneMinusE * e * my +
+                  e * e * ey
+                /** Diffusion wobble during home return — bell-shaped envelope so paths spread
+                 * mid-flight and converge precisely on home. Per-particle phase so each dot
+                 * traces its own noisy curve. */
+                const homeEnv = 4 * t * (1 - t)
+                const homePhase1 = rand1 * Math.PI * 2
+                const homePhase2 = rand2 * Math.PI * 2
+                const homeTSec = nowTick * 0.001
+                const homeDiffX =
+                  Math.sin(homeTSec * 4.1 + homePhase1) *
+                  nm.homeReturnDiffusionBmp *
+                  homeEnv
+                const homeDiffY =
+                  Math.cos(homeTSec * 5.3 + homePhase2) *
+                  nm.homeReturnDiffusionBmp *
+                  homeEnv
+                p.x = bx + homeDiffX
+                p.y = by + homeDiffY
                 p.vx = 0
                 p.vy = 0
-              } else {
-                /** Home return: pure positional lerp toward home with zero velocity, zero
-                 * spring. Snap-to-home when within 0.5 px so we don't asymptotically wiggle. */
-                p.vx = 0
-                p.vy = 0
-                const rate = Math.max(0, Math.min(1, nm.homeReturnRate))
-                const dx = p.hx - p.x
-                const dy = p.hy - p.y
-                if (dx * dx + dy * dy < 0.25) {
+                if (t >= 1) {
                   p.x = p.hx
                   p.y = p.hy
-                } else {
-                  p.x += dx * rate
-                  p.y += dy * rate
+                  p.newmixHomeReturnFromX = undefined
+                  p.newmixHomeReturnFromY = undefined
+                  p.newmixHomeReturnStartMs = undefined
+                }
+              } else {
+                /** Resting at home — no force, no velocity. */
+                p.vx = 0
+                p.vy = 0
+                /** Snap any subpixel residual. */
+                if ((p.hx - p.x) * (p.hx - p.x) +
+                    (p.hy - p.y) * (p.hy - p.y) < 0.25) {
+                  p.x = p.hx
+                  p.y = p.hy
                 }
               }
 
-              /** Update prev-in-radius flag, but suppress it during/just-after trailing so the
-               * particle doesn't re-trigger release while still riding the wake near the cursor. */
-              p.bhPrevInRadius = inCaptureDiskGeom && !trailing
+              /** Track in-radius status so the next exit triggers a release. Trailing particles
+               * inside the disk are re-captured (handled above) and will re-enter the swirl cycle. */
+              p.bhPrevInRadius = inCaptureDiskGeom
             } else if (viscousCoffee && vc != null) {
               p.bhPrevInRadius = false
               p.bhTrailUntilMs = null
