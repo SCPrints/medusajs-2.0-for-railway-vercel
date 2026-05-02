@@ -125,7 +125,7 @@ function gatherAlphaCandidates(
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4
       const a = data[i + 3]
-      if (a > 128) {
+      if (a > 200) {
         out.push({ x, y })
       }
     }
@@ -1428,8 +1428,8 @@ export default function HomeParticleLogoHero({
       const h2 = ((k * 374761393) ^ ((k * 668265263) >>> 0)) >>> 0
       const h3 = ((k * 3266489917) ^ ((k * 2246822519) >>> 0)) >>> 0
       const idx = h1 % nLogo
-      const jx = ((h2 & 0xffff) / 0xffff - 0.5) * 1.6
-      const jy = ((h3 & 0xffff) / 0xffff - 0.5) * 1.6
+      const jx = ((h2 & 0xffff) / 0xffff - 0.5) * 0.8
+      const jy = ((h3 & 0xffff) / 0xffff - 0.5) * 0.8
       const c = candidates[idx]!
       const hx = (Number(c.x) || 0) + jx
       const hy = (Number(c.y) || 0) + jy

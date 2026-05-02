@@ -29,7 +29,7 @@ export const FRICTION = 0.88
 export const PHYSICS_DIST_EPSILON = 1e-6
 
 /** Fixed stipple opacity (crisp logo; no per-dot random variance). */
-export const PARTICLE_BASE_ALPHA = 0.24
+export const PARTICLE_BASE_ALPHA = 0.5
 export const ANIMATED_PARTICLE_ALPHA_MULT = 1.58
 export const PARTICLE_ALPHA_MIN = 0.12
 export const PARTICLE_ALPHA_CAP = 0.9
