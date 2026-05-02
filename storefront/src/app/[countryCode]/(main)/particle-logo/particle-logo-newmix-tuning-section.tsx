@@ -6,7 +6,7 @@ import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-he
 import type { NewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 import { mergeNewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 
-const LS_KEY = "newmix-live-tuning-v6"
+const LS_KEY = "newmix-live-tuning-v7"
 
 const INT_KEYS = new Set<keyof NewmixLiveTuning>([
   "radius",
@@ -17,6 +17,7 @@ const INT_KEYS = new Set<keyof NewmixLiveTuning>([
   "wakeBandSpreadBmp",
   "wakeAlongStretchBmp",
   "wakeDiffusionBmp",
+  "wakeTimeOffsetMs",
   "homeReturnMs",
   "homeReturnCurveBmp",
   "homeReturnDiffusionBmp",
@@ -184,6 +185,15 @@ const SLIDERS: SliderSpec[] = [
     step: 0.05,
   },
   {
+    key: "wakeTimeOffsetMs",
+    label: "Wake time offset (ms, per-particle)",
+    description:
+      "Each particle's playhead is shifted backward in cursor history by up to this many ms. Spreads particles released in the same swirl-pass across the entire recent path-history, so the wake reads as a single continuous trail rather than discrete clumps. Set to ≥ wake duration for max spread.",
+    min: 0,
+    max: 12000,
+    step: 100,
+  },
+  {
     key: "releaseVelocityKeep",
     label: "Release velocity keep",
     description:
@@ -205,10 +215,10 @@ const SLIDERS: SliderSpec[] = [
     key: "homeReturnCurveBmp",
     label: "Home return curve (px)",
     description:
-      "Perpendicular bend in the home-return Bezier path. Each particle's curve has a unique sign + magnitude, so paths fan out across the canvas rather than all converging on a straight line.",
+      "Bend magnitude in the home-return Bezier path. Each particle's curve has a unique sweep angle (any direction, not just two sides) and individually-jittered magnitude, so return paths fan out radially across the canvas.",
     min: 0,
-    max: 250,
-    step: 1,
+    max: 500,
+    step: 2,
   },
   {
     key: "homeReturnDurationJitter",
@@ -225,7 +235,7 @@ const SLIDERS: SliderSpec[] = [
     description:
       "Sine-noise wobble during the home-return Bezier. Bell-shaped envelope (peaks mid-flight, zero at home), so paths spread on the way back without sacrificing precise final landing.",
     min: 0,
-    max: 50,
+    max: 100,
     step: 1,
   },
   {

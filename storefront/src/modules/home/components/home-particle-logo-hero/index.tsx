@@ -2040,11 +2040,13 @@ export default function HomeParticleLogoHero({
             nowTick - newmixLastMotionMsRef.current >= nm.idleThresholdMs
 
           /** Push the live cursor position into the history buffer for trail playback.
-           * Trim entries older than the longest possible wake duration + a safety margin. */
+           * Keep enough history for the wake duration + the per-particle time offset so
+           * particles released "in the past" can read valid history samples. */
           if (cursorOk) {
             const hist = newmixCursorHistoryRef.current
             hist.push({ x: currentMouseX, y: currentMouseY, t: nowTick })
-            const cutoff = nowTick - nm.trailFollowMs - 500
+            const cutoff =
+              nowTick - nm.trailFollowMs - nm.wakeTimeOffsetMs - 500
             while (hist.length > 0 && hist[0]!.t < cutoff) {
               hist.shift()
             }
@@ -2241,6 +2243,9 @@ export default function HomeParticleLogoHero({
                 const rand3 =
                   ((((hashSrc >>> 16) * 374761393) >>> 0) & 0xffffff) /
                   0xffffff
+                const rand4 =
+                  ((((hashSrc >>> 4) * 3266489917) >>> 0) & 0xffffff) /
+                  0xffffff
                 /** Stagger: each particle's effective release is delayed by up to staggerMs.
                  * Before its stagger expires the particle stays put. */
                 const stagger = rand3 * nm.wakeReleaseStaggerMs
@@ -2256,8 +2261,16 @@ export default function HomeParticleLogoHero({
                     0.05,
                     nm.wakePace * paceFactor
                   )
+                  /** Per-particle time offset: shift this particle's playhead backward in
+                   * history by `rand2 * wakeTimeOffsetMs`. This spreads particles released
+                   * in a single swirl-pass across the entire recent path-history, producing
+                   * a continuous trail instead of discrete clumps at the cursor. */
+                  const timeOffset = rand4 * nm.wakeTimeOffsetMs
                   const playheadTime =
-                    releaseTime + stagger + elapsed * particlePace
+                    releaseTime +
+                    stagger +
+                    elapsed * particlePace -
+                    timeOffset
                   const sample = lookupCursorHistoryAtTime(
                     newmixCursorHistoryRef.current,
                     playheadTime
@@ -2358,6 +2371,9 @@ export default function HomeParticleLogoHero({
                 const rand2 =
                   ((((hashSrc >>> 8) * 2246822519) >>> 0) & 0xffffff) /
                   0xffffff
+                const rand3 =
+                  ((((hashSrc >>> 16) * 374761393) >>> 0) & 0xffffff) /
+                  0xffffff
                 const durJitter =
                   1 + (rand1 * 2 - 1) * nm.homeReturnDurationJitter
                 const dur = Math.max(
@@ -2372,26 +2388,24 @@ export default function HomeParticleLogoHero({
                 const sy = p.newmixHomeReturnFromY
                 const ex = p.hx
                 const ey = p.hy
-                /** Quadratic Bezier control point: midpoint of (start, end) plus a
-                 * perpendicular offset whose sign and magnitude are unique per particle. */
+                /** Quadratic Bezier control point: a fully randomized control direction
+                 * (any angle around the start, not just perpendicular to start→home), with
+                 * unique magnitude per particle. This produces home-return arcs that fan
+                 * out across the canvas in every direction rather than two symmetric sides. */
                 const dx = ex - sx
                 const dy = ey - sy
                 const dist = Math.hypot(dx, dy)
-                let nx = 0
-                let ny = 0
-                if (dist > 1e-3) {
-                  nx = -dy / dist
-                  ny = dx / dist
-                }
-                const curveSign = rand2 * 2 - 1
-                /** Curve magnitude scales with path length (capped) so short returns aren't
-                 * dominated by the curve. */
+                /** Unique sweep angle ∈ [-π, π) per particle. */
+                const sweepAngle = (rand2 - 0.5) * Math.PI * 2
+                /** Magnitude varies per particle (rand3) on top of the global setting. */
                 const curveAmp =
                   nm.homeReturnCurveBmp *
-                  curveSign *
-                  Math.min(1, dist / 200)
-                const mx = (sx + ex) * 0.5 + nx * curveAmp
-                const my = (sy + ey) * 0.5 + ny * curveAmp
+                  (0.4 + rand3 * 1.2) *
+                  Math.min(1, dist / 200 + 0.3)
+                const cdx = Math.cos(sweepAngle) * curveAmp
+                const cdy = Math.sin(sweepAngle) * curveAmp
+                const mx = (sx + ex) * 0.5 + cdx
+                const my = (sy + ey) * 0.5 + cdy
                 /** Quadratic Bezier(t) = (1-t)² * S + 2(1-t)t * M + t² * E (eased on e). */
                 const oneMinusE = 1 - e
                 const bx =

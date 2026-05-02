@@ -37,6 +37,10 @@ export type NewmixLiveTuning = {
   wakeDiffusionBmp: number
   /** Diffusion frequency (Hz). Higher = faster wobble; lower = slower drift. */
   wakeDiffusionHz: number
+  /** Each particle's effective release time is shifted backward in history by a per-particle
+   * fraction of this many ms. Spreads a single swirl-pass across the entire path-history
+   * so the wake reads as a continuous trail rather than discrete clumps at the cursor. */
+  wakeTimeOffsetMs: number
   /** Fraction of swirl velocity preserved on the release frame (lower = trail playback takes over immediately). */
   releaseVelocityKeep: number
   friction: number
@@ -67,23 +71,27 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   frontPush: 3.0,
   backInward: 2.0,
   falloffPower: 1.4,
-  trailFollowMs: 3000,
+  trailFollowMs: 8000,
   wakePace: 0.55,
   wakePaceJitter: 0.85,
   wakeLateralSpreadBmp: 22,
   wakeReleaseStaggerMs: 900,
   wakeBandSpreadBmp: 28,
-  wakeAlongStretchBmp: 60,
-  wakeDiffusionBmp: 18,
+  wakeAlongStretchBmp: 90,
+  wakeDiffusionBmp: 22,
   wakeDiffusionHz: 0.6,
+  /** Each particle's effective release time is shifted backward in history by a per-particle
+   * fraction of this many ms, so a single swirl-pass spreads its particles across the full
+   * recent path instead of all starting at the cursor's current position. */
+  wakeTimeOffsetMs: 6000,
   releaseVelocityKeep: 0.0,
   friction: 0.94,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
-  homeReturnMs: 1600,
-  homeReturnCurveBmp: 130,
-  homeReturnDurationJitter: 0.7,
-  homeReturnDiffusionBmp: 14,
+  homeReturnMs: 2000,
+  homeReturnCurveBmp: 220,
+  homeReturnDurationJitter: 0.85,
+  homeReturnDiffusionBmp: 28,
   idleThresholdMs: 2000,
 })
 
