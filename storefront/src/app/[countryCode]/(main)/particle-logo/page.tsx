@@ -2,7 +2,7 @@ import { Metadata } from "next"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { ParticleLogoViscousTuningSection } from "./particle-logo-viscous-tuning-section"
+import { ParticleLogoNewmixTuningSection } from "./particle-logo-newmix-tuning-section"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/particle-logo`
   const description =
-    "Particle logo lab: tune viscous coffee (path memory, shear, slow fill-in)."
+    "Particle logo lab: tune newmix-style direction-aware capture swirl + 3s wake follow."
 
   return {
     title: "Interactive particle logo",
@@ -45,7 +45,7 @@ export default function ParticleLogoPage() {
         </div>
       </div>
       <div className="pt-14">
-        <ParticleLogoViscousTuningSection />
+        <ParticleLogoNewmixTuningSection />
       </div>
     </div>
   )
