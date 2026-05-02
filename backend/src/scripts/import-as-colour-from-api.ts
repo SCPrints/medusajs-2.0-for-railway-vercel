@@ -1,0 +1,352 @@
+import { ExecArgs } from "@medusajs/framework/types"
+import {
+  ContainerRegistrationKeys,
+  Modules,
+  ProductStatus,
+} from "@medusajs/framework/utils"
+import {
+  createProductsWorkflow,
+  createInventoryLevelsWorkflow,
+  updateInventoryLevelsWorkflow,
+} from "@medusajs/medusa/core-flows"
+import { ASCOLOUR_MODULE } from "../modules/ascolour"
+import AsColourService from "../modules/ascolour/service"
+import {
+  AsColourImage,
+  AsColourInventoryItem,
+  AsColourPriceListEntry,
+  AsColourProduct,
+  AsColourVariant,
+} from "../modules/ascolour/types"
+import {
+  buildBulkPricingMetadata,
+  buildPriceLadder,
+  toMinorAud,
+} from "../modules/ascolour/pricing"
+
+const PRICE_CURRENCY_CODE = "aud"
+const AS_COLOUR_TAG = "as-colour"
+const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
+
+const slugify = (s: string) =>
+  (s || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+
+const handleForStyle = (style: AsColourProduct) => {
+  const name = style.productName ?? style.styleCode ?? "as-colour-product"
+  return `as-colour-${slugify(`${name}-${style.styleCode}`)}`
+}
+
+const titleCase = (s: string | undefined) => {
+  if (!s) return ""
+  return s
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
+    .join(" ")
+}
+
+type EnrichedStyle = {
+  product: AsColourProduct
+  variants: AsColourVariant[]
+  images: AsColourImage[]
+}
+
+const extractArray = <T,>(resp: any): T[] => {
+  if (!resp) return []
+  if (Array.isArray(resp)) return resp as T[]
+  return resp.items ?? resp.data ?? resp.results ?? []
+}
+
+export default async function importAsColourFromApi({ container, args }: ExecArgs) {
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const query = container.resolve(ContainerRegistrationKeys.QUERY)
+  const ascolour = container.resolve(ASCOLOUR_MODULE) as AsColourService
+
+  const flags = new Set(args ?? [])
+  const limitArg = (args ?? []).find((a) => a.startsWith("--limit="))
+  const limit = limitArg ? Number.parseInt(limitArg.split("=")[1], 10) : undefined
+  const dryRun = flags.has("--dry-run")
+
+  const salesChannelService = container.resolve(Modules.SALES_CHANNEL) as any
+  const fulfillmentService = container.resolve(Modules.FULFILLMENT) as any
+  const stockLocationService = container.resolve(Modules.STOCK_LOCATION) as any
+  const inventoryService = container.resolve(Modules.INVENTORY) as any
+  const productService = container.resolve(Modules.PRODUCT) as any
+
+  // Resolve common dependencies
+  const salesChannels = await salesChannelService.listSalesChannels({
+    name: "Default Sales Channel",
+  })
+  if (!salesChannels.length) throw new Error("Default Sales Channel not found")
+  const defaultSalesChannelId = salesChannels[0].id
+
+  const shippingProfiles = await fulfillmentService.listShippingProfiles({ type: "default" })
+  if (!shippingProfiles.length) throw new Error("Default shipping profile not found")
+  const shippingProfileId = shippingProfiles[0].id
+
+  // Stock location for AS Colour-managed stock
+  let asColourLocationId: string | null = null
+  const existingLocations = await stockLocationService.listStockLocations({
+    name: AS_COLOUR_LOCATION_NAME,
+  })
+  if (existingLocations.length) {
+    asColourLocationId = existingLocations[0].id
+  } else if (!dryRun) {
+    const created = await stockLocationService.createStockLocations({
+      name: AS_COLOUR_LOCATION_NAME,
+    })
+    asColourLocationId = Array.isArray(created) ? created[0].id : created.id
+    logger.info(`Created stock location ${AS_COLOUR_LOCATION_NAME} (${asColourLocationId})`)
+  }
+
+  // 1. Fetch catalogue + price list
+  logger.info("Fetching AS Colour catalogue...")
+  let products = await ascolour.fetchAllProducts()
+  if (limit) products = products.slice(0, limit)
+  logger.info(`Got ${products.length} products from AS Colour.`)
+
+  logger.info("Fetching AS Colour price list (trade prices)...")
+  const priceList = await ascolour.fetchAllPriceList()
+  const costBySku = new Map<string, number>()
+  for (const entry of priceList) {
+    const price = Number(entry.price)
+    if (entry.sku && Number.isFinite(price)) {
+      costBySku.set(entry.sku, price)
+    }
+  }
+  logger.info(`Got ${costBySku.size} price-list entries.`)
+
+  // 2. Enrich each style with variants + images (sequential to be polite to the API)
+  const enriched: EnrichedStyle[] = []
+  for (const product of products) {
+    try {
+      const variants =
+        product.variants?.length
+          ? product.variants
+          : extractArray<AsColourVariant>(await ascolour.getClient().getProductVariants(product.styleCode))
+      const images =
+        product.images?.length
+          ? product.images
+          : extractArray<AsColourImage>(await ascolour.getClient().getProductImages(product.styleCode))
+      enriched.push({ product, variants, images })
+    } catch (err: any) {
+      logger.warn(`Failed to enrich style ${product.styleCode}: ${err?.message ?? err}`)
+    }
+  }
+
+  // 3. Determine which styles already exist (idempotency by handle)
+  const targetHandles = enriched.map(({ product }) => handleForStyle(product))
+  const { data: existing } = await query.graph({
+    entity: "product",
+    fields: ["id", "handle"],
+    filters: { handle: targetHandles },
+  })
+  const existingByHandle = new Map<string, string>(
+    (existing ?? []).map((p: any) => [p.handle, p.id])
+  )
+
+  // 4. Build product create payloads
+  const toCreate: any[] = []
+  const skuToInventory: { sku: string; styleCode: string }[] = []
+
+  for (const { product, variants, images } of enriched) {
+    const handle = handleForStyle(product)
+    if (existingByHandle.has(handle)) {
+      logger.info(`Skipping existing handle ${handle} (id ${existingByHandle.get(handle)})`)
+      continue
+    }
+
+    const sizes = new Set<string>()
+    const colours = new Set<string>()
+    for (const v of variants) {
+      if (v.size) sizes.add(v.size)
+      if (v.colour) colours.add(v.colour)
+    }
+    const hasSize = sizes.size > 1 || (sizes.size === 1 && !sizes.has("One Size"))
+    const hasColour = colours.size > 0
+
+    const options: { title: string; values: string[] }[] = []
+    if (hasColour) options.push({ title: "Colour", values: Array.from(colours) })
+    if (hasSize) options.push({ title: "Size", values: Array.from(sizes) })
+    if (!options.length) options.push({ title: "Default", values: ["Default"] })
+
+    const productImages: { url: string }[] = []
+    const seen = new Set<string>()
+    for (const img of images) {
+      if (img.url && !seen.has(img.url)) {
+        seen.add(img.url)
+        productImages.push({ url: img.url })
+      }
+    }
+    const thumbnail = productImages[0]?.url
+
+    const productVariants = variants.map((v) => {
+      const variantOptions: Record<string, string> = {}
+      if (hasColour && v.colour) variantOptions["Colour"] = v.colour
+      if (hasSize && v.size) variantOptions["Size"] = v.size
+      if (!hasColour && !hasSize) variantOptions["Default"] = "Default"
+
+      const cost = costBySku.get(v.sku)
+      const ladder = cost !== undefined ? buildPriceLadder(cost) : null
+      const amount = ladder ? toMinorAud(ladder.base) : 0
+
+      const titleParts = [v.colour, v.size].filter(Boolean)
+      const variantTitle = titleParts.join(" / ") || v.sku
+
+      const weight =
+        typeof v.weight === "number"
+          ? v.weight
+          : typeof product.weight === "number"
+          ? product.weight
+          : undefined
+
+      if (cost !== undefined) {
+        skuToInventory.push({ sku: v.sku, styleCode: product.styleCode })
+      }
+
+      return {
+        title: variantTitle,
+        sku: v.sku,
+        barcode: v.barcode,
+        weight,
+        manage_inventory: true,
+        allow_backorder: false,
+        options: variantOptions,
+        prices: [{ amount, currency_code: PRICE_CURRENCY_CODE }],
+        metadata: {
+          ascolour: {
+            styleCode: product.styleCode,
+            sku: v.sku,
+            colour: v.colour,
+            colourCode: v.colourCode,
+            size: v.size,
+          },
+          ...(ladder ? { bulk_pricing: buildBulkPricingMetadata(ladder) } : {}),
+        },
+      }
+    })
+
+    const title = product.productName
+      ? titleCase(product.productName)
+      : `AS Colour ${product.styleCode}`
+
+    toCreate.push({
+      title,
+      handle,
+      status: ProductStatus.PUBLISHED,
+      description: product.description ?? undefined,
+      thumbnail,
+      weight: typeof product.weight === "number" ? product.weight : undefined,
+      material: product.fabric ?? undefined,
+      origin_country: product.countryOfOrigin ?? undefined,
+      hs_code: product.hsCode ?? undefined,
+      images: productImages,
+      options,
+      variants: productVariants,
+      shipping_profile_id: shippingProfileId,
+      sales_channels: [{ id: defaultSalesChannelId }],
+      tags: [{ value: AS_COLOUR_TAG }],
+      metadata: {
+        source: "ascolour",
+        ascolour: {
+          styleCode: product.styleCode,
+          lastSync: new Date().toISOString(),
+        },
+      },
+    })
+  }
+
+  logger.info(`Prepared ${toCreate.length} products for creation.`)
+  if (dryRun) {
+    logger.info("Dry run — skipping createProductsWorkflow + inventory seed.")
+    return
+  }
+  if (!toCreate.length) {
+    logger.info("Nothing to create.")
+    return
+  }
+
+  // 5. Create products
+  const { result } = await createProductsWorkflow(container).run({
+    input: { products: toCreate },
+  })
+  logger.info(`Created ${(result as any[])?.length ?? 0} products.`)
+
+  // 6. Seed initial inventory at the AS Colour location
+  if (!asColourLocationId) {
+    logger.warn("AS Colour stock location not available; skipping inventory seed.")
+    return
+  }
+
+  logger.info("Seeding initial inventory levels...")
+  const allInventory = await ascolour.fetchInventoryDelta()
+  const stockBySku = new Map<string, number>()
+  for (const item of allInventory) {
+    const total = item.warehouses?.length
+      ? item.warehouses.reduce((a, w) => a + (w.available ?? 0), 0)
+      : (item.available ?? 0)
+    if (item.sku) stockBySku.set(item.sku, total)
+  }
+
+  // Look up the inventory items Medusa just created for our SKUs.
+  const targetSkus = skuToInventory.map((s) => s.sku)
+  const { data: inventoryItems } = await query.graph({
+    entity: "inventory_item",
+    fields: ["id", "sku"],
+    filters: { sku: targetSkus },
+  })
+
+  const updates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
+  const creates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
+
+  // Find which already have a level at this location
+  const inventoryIds = (inventoryItems ?? []).map((i: any) => i.id)
+  const { data: existingLevels } = await query.graph({
+    entity: "inventory_level",
+    fields: ["id", "inventory_item_id", "location_id"],
+    filters: {
+      inventory_item_id: inventoryIds,
+      location_id: asColourLocationId,
+    },
+  })
+  const existingLevelKey = new Set(
+    (existingLevels ?? []).map((l: any) => `${l.inventory_item_id}:${l.location_id}`)
+  )
+
+  for (const item of inventoryItems ?? []) {
+    const qty = stockBySku.get(item.sku) ?? 0
+    const key = `${item.id}:${asColourLocationId}`
+    if (existingLevelKey.has(key)) {
+      updates.push({
+        inventory_item_id: item.id,
+        location_id: asColourLocationId,
+        stocked_quantity: qty,
+      })
+    } else {
+      creates.push({
+        inventory_item_id: item.id,
+        location_id: asColourLocationId,
+        stocked_quantity: qty,
+      })
+    }
+  }
+
+  if (creates.length) {
+    await createInventoryLevelsWorkflow(container).run({
+      input: { inventory_levels: creates },
+    })
+    logger.info(`Created ${creates.length} inventory levels.`)
+  }
+  if (updates.length) {
+    await updateInventoryLevelsWorkflow(container).run({
+      input: { updates },
+    })
+    logger.info(`Updated ${updates.length} inventory levels.`)
+  }
+
+  logger.info("AS Colour API import complete.")
+}

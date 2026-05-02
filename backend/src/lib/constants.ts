@@ -139,6 +139,32 @@ export const MEILISEARCH_HOST = process.env.MEILISEARCH_HOST
 export const MEILISEARCH_ADMIN_KEY = process.env.MEILISEARCH_ADMIN_KEY
 
 /**
+ * AS Colour API credentials + workshop ship-to address. The workshop
+ * address is used as the shipping address on every dropship order placed
+ * with AS Colour (we decorate the garments before shipping to the customer).
+ */
+export const ASCOLOUR_SUBSCRIPTION_KEY = process.env.ASCOLOUR_SUBSCRIPTION_KEY
+export const ASCOLOUR_EMAIL = process.env.ASCOLOUR_EMAIL
+export const ASCOLOUR_PASSWORD = process.env.ASCOLOUR_PASSWORD
+export const ASCOLOUR_BASE_URL =
+  process.env.ASCOLOUR_BASE_URL || "https://api.ascolour.com.au/v1"
+export const ASCOLOUR_DEFAULT_SHIPPING_METHOD =
+  process.env.ASCOLOUR_DEFAULT_SHIPPING_METHOD
+
+export const ASCOLOUR_WORKSHOP_COMPANY = process.env.ASCOLOUR_WORKSHOP_COMPANY || "SC Prints"
+export const ASCOLOUR_WORKSHOP_FIRST_NAME = process.env.ASCOLOUR_WORKSHOP_FIRST_NAME
+export const ASCOLOUR_WORKSHOP_LAST_NAME = process.env.ASCOLOUR_WORKSHOP_LAST_NAME
+export const ASCOLOUR_WORKSHOP_ADDRESS_1 = process.env.ASCOLOUR_WORKSHOP_ADDRESS_1
+export const ASCOLOUR_WORKSHOP_ADDRESS_2 = process.env.ASCOLOUR_WORKSHOP_ADDRESS_2
+export const ASCOLOUR_WORKSHOP_CITY = process.env.ASCOLOUR_WORKSHOP_CITY
+export const ASCOLOUR_WORKSHOP_STATE = process.env.ASCOLOUR_WORKSHOP_STATE
+export const ASCOLOUR_WORKSHOP_ZIP = process.env.ASCOLOUR_WORKSHOP_ZIP
+export const ASCOLOUR_WORKSHOP_COUNTRY_CODE =
+  process.env.ASCOLOUR_WORKSHOP_COUNTRY_CODE || "AU"
+export const ASCOLOUR_WORKSHOP_EMAIL = process.env.ASCOLOUR_WORKSHOP_EMAIL
+export const ASCOLOUR_WORKSHOP_PHONE = process.env.ASCOLOUR_WORKSHOP_PHONE
+
+/**
  * 4. SYSTEM MODES
  */
 export const WORKER_MODE = (process.env.MEDUSA_WORKER_MODE) || 'shared'
