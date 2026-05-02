@@ -1,6 +1,6 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { Button, Container, Text } from "@medusajs/ui"
-import { useCallback, useState } from "react"
+import { Component, type ReactNode, useCallback, useState } from "react"
 
 import { buildCsv, downloadCsv, fetchAllPaginated } from "../lib/csv-export"
 import {
@@ -25,7 +25,37 @@ type ProductListQuery = {
   order: string
 }
 
-const ProductsImportTemplateExport = () => {
+/** Prevent a widget render failure from blanking the core Products table (Medusa mounts list widgets above the table). */
+class ProductsImportTemplateExportBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null }
+
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <Container className="mt-4 divide-y p-0">
+          <div className="px-6 py-4">
+            <Text size="small" weight="plus" className="text-ui-fg-error">
+              Export widget error
+            </Text>
+            <Text size="small" className="mt-1 text-ui-fg-muted">
+              {this.state.error.message}
+            </Text>
+          </div>
+        </Container>
+      )
+    }
+    return this.props.children
+  }
+}
+
+const ProductsImportTemplateExportInner = () => {
   const [exportLoading, setExportLoading] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
   const [exportSummary, setExportSummary] = useState<string | null>(null)
@@ -71,7 +101,7 @@ const ProductsImportTemplateExport = () => {
   }, [])
 
   return (
-    <Container className="mb-4 divide-y p-0">
+    <Container className="mt-4 divide-y p-0">
       <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Text size="small" weight="plus" className="text-ui-fg-base">
@@ -107,8 +137,18 @@ const ProductsImportTemplateExport = () => {
   )
 }
 
+/** Medusa passes `data` for detail widgets; product list has no row context (`data` is undefined). */
+const ProductsImportTemplateExport = (props: { data?: unknown }) => {
+  void props.data
+  return (
+    <ProductsImportTemplateExportBoundary>
+      <ProductsImportTemplateExportInner />
+    </ProductsImportTemplateExportBoundary>
+  )
+}
+
 export const config = defineWidgetConfig({
-  zone: "product.list.before",
+  zone: "product.list.after",
 })
 
 export default ProductsImportTemplateExport
