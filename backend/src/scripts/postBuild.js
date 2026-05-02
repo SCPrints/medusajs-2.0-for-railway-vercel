@@ -24,6 +24,13 @@ if (fs.existsSync(envPath)) {
   );
 }
 
+// Copy patches/ so pnpm patchedDependencies paths resolve during `pnpm i` in .medusa/server (Railway/Docker).
+const patchesSrc = path.join(process.cwd(), 'patches');
+const patchesDest = path.join(MEDUSA_SERVER_PATH, 'patches');
+if (fs.existsSync(patchesSrc)) {
+  fs.cpSync(patchesSrc, patchesDest, { recursive: true });
+}
+
 // Install dependencies
 console.log('Installing dependencies in .medusa/server...');
 execSync('pnpm i --prod --frozen-lockfile', { 
