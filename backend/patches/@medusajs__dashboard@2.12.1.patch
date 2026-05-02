@@ -1,0 +1,52 @@
+diff --git a/dist/chunk-PCFUZKDS.mjs b/dist/chunk-PCFUZKDS.mjs
+index 0def99505968fea5ec0b228dfab075e9a8b2ac0f..9b022372bf35ae9320d7ea92c370a28c6b4878d4 100644
+--- a/dist/chunk-PCFUZKDS.mjs
++++ b/dist/chunk-PCFUZKDS.mjs
+@@ -3,6 +3,14 @@ import {
+ } from "./chunk-C76H5USB.mjs";
+ 
+ // src/hooks/table/query/use-product-table-query.tsx
++var safeJsonParse = (raw) => {
++  if (!raw) return void 0;
++  try {
++    return JSON.parse(raw);
++  } catch {
++    return void 0;
++  }
++};
+ var DEFAULT_FIELDS = "id,title,handle,status,*collection,*sales_channels,variants.id,thumbnail";
+ var useProductTableQuery = ({
+   prefix,
+@@ -44,8 +52,8 @@ var useProductTableQuery = ({
+     limit: pageSize,
+     offset: offset ? Number(offset) : 0,
+     sales_channel_id: sales_channel_id?.split(","),
+-    created_at: created_at ? JSON.parse(created_at) : void 0,
+-    updated_at: updated_at ? JSON.parse(updated_at) : void 0,
++    created_at: safeJsonParse(created_at),
++    updated_at: safeJsonParse(updated_at),
+     category_id: category_id?.split(","),
+     collection_id: collection_id?.split(","),
+     is_giftcard: is_giftcard ? is_giftcard === "true" : void 0,
+diff --git a/dist/chunk-XLDQPLK4.mjs b/dist/chunk-XLDQPLK4.mjs
+index e4760559b694c9c9a1c831304cdf84ce4add2bee..8cadca04daf191280b71ee1c2eee7958bafd448b 100644
+--- a/dist/chunk-XLDQPLK4.mjs
++++ b/dist/chunk-XLDQPLK4.mjs
+@@ -24,12 +24,15 @@ import { useTranslation as useTranslation2 } from "react-i18next";
+ import { jsx as jsx2 } from "react/jsx-runtime";
+ var ProductStatusCell = ({ status }) => {
+   const { t } = useTranslation2();
+-  const [color, text] = {
++  const mapping = {
+     draft: ["grey", t("products.productStatus.draft")],
+     proposed: ["orange", t("products.productStatus.proposed")],
+     published: ["green", t("products.productStatus.published")],
+     rejected: ["red", t("products.productStatus.rejected")]
+-  }[status];
++  };
++  const entry = mapping[status];
++  const color = entry?.[0] ?? "grey";
++  const text = entry?.[1] ?? (status != null && status !== "" ? String(status) : "—");
+   return /* @__PURE__ */ jsx2(StatusCell, { color, children: text });
+ };
+ var ProductStatusHeader = () => {
