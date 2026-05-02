@@ -20,7 +20,7 @@ const LIST_FIELDS =
   "id,title,handle,thumbnail,status,+variants.id" as const
 const BATCH_DELETE_SIZE = 50
 
-const PAGE_SIZES = [25, 50] as const
+const PAGE_SIZES = [25, 50, 100, 200] as const
 
 type ProductRow = {
   id: string

@@ -110,8 +110,10 @@ def round2(n: float) -> str:
     return f"{n:.2f}"
 
 
-def load_id_map(path: Path, id_col: str, name_col: str) -> dict[str, str]:
+def load_id_map(path: Path, id_col: str, name_col: str) -> tuple[dict[str, str], list[tuple[str, str]]]:
+    """Return (lower→id map, ordered list of (display_name, id))."""
     out: dict[str, str] = {}
+    ordered: list[tuple[str, str]] = []
     with path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -120,9 +122,106 @@ def load_id_map(path: Path, id_col: str, name_col: str) -> dict[str, str]:
             if not name or not ident:
                 continue
             key = name.lower()
-            # First-write wins (types CSV has duplicates — singular vs plural; canonical plural appears first per file order)
-            out.setdefault(key, ident)
-    return out
+            if key not in out:
+                out[key] = ident
+                ordered.append((name, ident))
+    return out, ordered
+
+
+def _norm_tokens(s: str) -> list[str]:
+    return [t for t in re.split(r"[^a-z0-9]+", s.lower()) if t]
+
+
+def _depluralise(token: str) -> str:
+    if len(token) > 3 and token.endswith("ies"):
+        return token[:-3] + "y"
+    # Only strip trailing 'es' when the stem ends in a hissing consonant (boxes, matches, churches);
+    # otherwise the word is just `<stem-ending-in-e>` + plural-s (e.g. longsleeves → longsleeve).
+    if len(token) > 3 and token.endswith("es"):
+        stem = token[:-2]
+        if stem.endswith(("s", "x", "z", "ch", "sh")):
+            return stem
+        if len(token) > 2:
+            return token[:-1]
+    if len(token) > 2 and token.endswith("s"):
+        return token[:-1]
+    return token
+
+
+def _equivalent_token_sets(a: list[str], b: list[str]) -> bool:
+    sa = {_depluralise(t) for t in a}
+    sb = {_depluralise(t) for t in b}
+    return sa == sb and bool(sa)
+
+
+def smart_match(
+    needle: str,
+    lower_map: dict[str, str],
+    ordered: list[tuple[str, str]],
+) -> str | None:
+    """Find the closest matching id for `needle` in the candidate list.
+
+    Strategy (first hit wins):
+      1. case-insensitive exact match
+      2. singular↔plural normalisation (token-set equality after depluralising)
+      3. token-subset: every depluralised token of `needle` appears in the candidate
+         (so `Singlets / Tanks` matches `singlets`, `Longsleeves` matches `Long Sleeve`)
+    """
+    if not needle:
+        return None
+    nk = needle.lower().strip()
+    if nk in lower_map:
+        return lower_map[nk]
+
+    needle_tokens = _norm_tokens(needle)
+    if not needle_tokens:
+        return None
+
+    # 2. token-set equivalence (handles plural/singular)
+    for cand_name, cand_id in ordered:
+        if _equivalent_token_sets(needle_tokens, _norm_tokens(cand_name)):
+            return cand_id
+
+    # 2b. squashed form (handles `longsleeves` ↔ `long sleeve`)
+    needle_squash = _depluralise("".join(needle_tokens))
+    for cand_name, cand_id in ordered:
+        cand_tokens = _norm_tokens(cand_name)
+        if _depluralise("".join(cand_tokens)) == needle_squash and needle_squash:
+            return cand_id
+
+    # 3. token-subset in either direction (after depluralising)
+    #    a) needle ⊆ candidate (e.g. `Polo` matches `Polo Shirt`)
+    #    b) candidate ⊆ needle (e.g. `singlets` matches `Singlets / Tanks`)
+    #    Single-token candidates (e.g. `cap`) are restricted to direction (a) to avoid
+    #    accidentally matching unrelated multi-word needles.
+    needle_depl = {_depluralise(t) for t in needle_tokens}
+    best: tuple[int, int, str] | None = None  # (-priority, token_count, id) — lowest tuple wins
+    for cand_name, cand_id in ordered:
+        cand_depl = {_depluralise(t) for t in _norm_tokens(cand_name)}
+        if not cand_depl:
+            continue
+        if needle_depl.issubset(cand_depl):
+            # candidate covers all needle tokens — prefer the smallest such candidate
+            score = (1, len(cand_depl), cand_id)
+            if best is None or score < best:
+                best = score
+        elif len(cand_depl) >= 2 and cand_depl.issubset(needle_depl):
+            # candidate is a multi-token subset of needle — prefer the largest such
+            score = (2, -len(cand_depl), cand_id)
+            if best is None or score < best:
+                best = score
+        elif len(cand_depl) == 1 and cand_depl.issubset(needle_depl):
+            # single-token candidate must equal one of the needle tokens AND share
+            # the squashed form to avoid accidental matches (e.g. `cap` ≠ `caps`)
+            (only,) = cand_depl
+            if only in needle_depl and len(only) >= 4:
+                score = (3, 0, cand_id)
+                if best is None or score < best:
+                    best = score
+    if best is not None:
+        return best[2]
+
+    return None
 
 
 def parse_money(s: str) -> float | None:
@@ -143,6 +242,7 @@ def main() -> int:
     ap.add_argument("--gold", required=True)
     ap.add_argument("--types", required=True)
     ap.add_argument("--tags", required=True)
+    ap.add_argument("--images", required=False, help="ProductImage-V1.csv (per-style images with is_thumbnail flag)")
     ap.add_argument("--out", required=True)
     ap.add_argument(
         "--base-multiplier",
@@ -158,8 +258,44 @@ def main() -> int:
     tags_path = Path(args.tags)
     out_path = Path(args.out)
 
-    type_id_by_name = load_id_map(types_path, "type_id", "type_name")
-    tag_id_by_name = load_id_map(tags_path, "tag_id", "tag_name")
+    type_id_by_name, type_ordered = load_id_map(types_path, "type_id", "type_name")
+    tag_id_by_name, tag_ordered = load_id_map(tags_path, "tag_id", "tag_name")
+
+    # Per-style image overrides from ProductImage-V1.csv (one thumbnail + ordered gallery per style)
+    image_thumb_by_style: dict[str, str] = {}
+    image_secondary_by_style: dict[str, str] = {}
+    if args.images:
+        per_style: dict[str, list[dict[str, str]]] = defaultdict(list)
+        with Path(args.images).open(newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                sc = (row.get("styleCode") or "").strip().upper()
+                if sc:
+                    per_style[sc].append(row)
+        for sc, items in per_style.items():
+            def _sort_key(r: dict[str, str]) -> int:
+                try:
+                    return int((r.get("sort_order") or "0").strip())
+                except ValueError:
+                    return 0
+            items_sorted = sorted(items, key=_sort_key)
+            thumb = next(
+                (r for r in items_sorted if (r.get("is_thumbnail") or "").strip() == "1"),
+                None,
+            )
+            thumb_url = (thumb.get("url_standard") or "").strip() if thumb else ""
+            if not thumb_url:
+                # Fall back to the first sorted image when no row is flagged
+                thumb_url = (items_sorted[0].get("url_standard") or "").strip() if items_sorted else ""
+            secondary_url = ""
+            for r in items_sorted:
+                u = (r.get("url_standard") or "").strip()
+                if u and u != thumb_url:
+                    secondary_url = u
+                    break
+            if thumb_url:
+                image_thumb_by_style[sc] = thumb_url
+            if secondary_url:
+                image_secondary_by_style[sc] = secondary_url
 
     # Cost lookup: STYLECODE -> (price, category, product_name, composition, fabric, short_desc, box_qty)
     gold_by_style: dict[str, dict[str, str]] = {}
@@ -204,6 +340,7 @@ def main() -> int:
         cost = parse_money((gold or {}).get("PRICE", ""))
         if cost is None:
             missing_cost.append(style)
+            continue  # drop styles with no cost per user request
 
         # Defensive: warn if priceExTax differs across sizes within this style
         prices = {(r.get("priceExTax") or "").strip() for r in group}
@@ -215,38 +352,54 @@ def main() -> int:
         handle = slug_handle(style)
         description = (first.get("description") or "").strip()
         short_desc = (first.get("shortDescription") or "").strip()
+        # The inch mark in titles like `Active Shorts 18"` is the human-readable issue,
+        # so render it explicitly. Other quotes are sanitised in the final write step.
+        title = title.replace('"', " inch")
+        short_desc = short_desc.replace('"', " inch")
         if not description:
             description = short_desc
             short_desc = ""
         if short_desc and short_desc == description:
             short_desc = ""
 
-        # Type
+        # Type — smart match (exact → plural/singular → token-subset), then 'Other' as last resort
         product_type_raw = (first.get("productType") or "").strip()
-        product_type_label = product_type_raw or OTHER_TYPE_FALLBACK
-        type_id = type_id_by_name.get(product_type_label.lower())
-        if not type_id:
-            missing_type[product_type_label] += 1
-            type_id = type_id_by_name.get(OTHER_TYPE_FALLBACK.lower(), "")
-            type_value = OTHER_TYPE_FALLBACK if type_id else ""
+        type_id = smart_match(product_type_raw, type_id_by_name, type_ordered) if product_type_raw else None
+        if type_id:
+            # Recover the canonical display name from the live types file
+            type_value = next((n for n, i in type_ordered if i == type_id), product_type_raw)
         else:
-            type_value = product_type_label
+            missing_type[product_type_raw or "(blank)"] += 1
+            other_id = type_id_by_name.get(OTHER_TYPE_FALLBACK.lower(), "")
+            type_id = other_id
+            type_value = OTHER_TYPE_FALLBACK if other_id else ""
 
-        # Tag = type label (singular tag — Medusa template only has Tag 1)
-        tag_name = type_value
-        tag_id = tag_id_by_name.get(tag_name.lower(), "")
-        if tag_name and not tag_id:
-            missing_tag[tag_name] += 1
+        # Tag — same smart match, no 'Other' fallback. Search by the original stock label
+        # (not by the falled-back type) so an unmatched type doesn't suppress a real tag match.
+        tag_search = product_type_raw or type_value
+        tag_id = smart_match(tag_search, tag_id_by_name, tag_ordered) if tag_search else None
+        tag_name = ""
+        if tag_id:
+            tag_name = next((n for n, i in tag_ordered if i == tag_id), tag_search)
+        elif tag_search:
+            missing_tag[tag_search] += 1
 
-        # Image — prefer standard, fall back to zoom; secondary = back if present
-        img1 = (
-            (first.get("imageURL_standard") or "").strip()
-            or (first.get("imageURL_zoom") or "").strip()
-            or (first.get("imageFrontURL") or "").strip()
-        )
-        img2 = (first.get("imageBackURL") or "").strip() or (
-            first.get("imageSideURL") or ""
-        ).strip()
+        # Image — prefer the new ProductImage-V1.csv per-style data when supplied;
+        # fall back to StockItems-V1 image fields if no override exists for this style.
+        override_img1 = image_thumb_by_style.get(style)
+        override_img2 = image_secondary_by_style.get(style)
+        if override_img1:
+            img1 = override_img1
+            img2 = override_img2 or ""
+        else:
+            img1 = (
+                (first.get("imageURL_standard") or "").strip()
+                or (first.get("imageURL_zoom") or "").strip()
+                or (first.get("imageFrontURL") or "").strip()
+            )
+            img2 = (first.get("imageBackURL") or "").strip() or (
+                first.get("imageSideURL") or ""
+            ).strip()
         if img2 == img1:
             img2 = ""
 
@@ -337,6 +490,13 @@ def main() -> int:
 
             rows_out.append(row_out)
 
+    # Medusa importer's CSV parser mishandles escaped `""` inside quoted fields,
+    # so strip all literal double-quotes from cell values (HTML/CSS still valid with single quotes).
+    for r in rows_out:
+        for k, v in r.items():
+            if v and '"' in v:
+                r[k] = v.replace('"', "'")
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=OUTPUT_HEADERS)
@@ -344,10 +504,10 @@ def main() -> int:
         writer.writerows(rows_out)
 
     print(f"Wrote {out_path}", file=sys.stderr)
-    print(f"  styles:   {n_styles}", file=sys.stderr)
+    print(f"  styles:   {n_styles - len(missing_cost)} written, {len(missing_cost)} skipped (no cost)", file=sys.stderr)
     print(f"  variants: {n_variants}", file=sys.stderr)
     print(f"  duplicate stockCode rows skipped: {duplicate_sku_count}", file=sys.stderr)
-    print(f"  missing cost (styles not in gold): {len(missing_cost)}", file=sys.stderr)
+    print(f"  missing cost (styles not in gold) — DROPPED: {len(missing_cost)}", file=sys.stderr)
     if missing_cost:
         print("    " + ", ".join(missing_cost[:20]) + ("..." if len(missing_cost) > 20 else ""), file=sys.stderr)
     if missing_type:

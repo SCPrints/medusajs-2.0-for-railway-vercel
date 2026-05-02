@@ -237,15 +237,13 @@ const SpreadsheetSyncUpdatePage = () => {
               {preview.validationErrors.length > 0 ? (
                 <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
                   <Text size="small" weight="plus" className="text-ui-fg-error">
-                    Fix before syncing:
+                    Fix before syncing ({preview.validationErrors.length}{" "}
+                    {preview.validationErrors.length === 1 ? "issue" : "issues"}):
                   </Text>
-                  <ul className="mt-2 max-h-48 list-disc overflow-auto pl-5 text-sm text-ui-fg-error">
-                    {preview.validationErrors.slice(0, 40).map((err, i) => (
+                  <ul className="mt-2 max-h-[min(70vh,28rem)] list-disc overflow-y-auto overscroll-contain pl-5 text-sm text-ui-fg-error">
+                    {preview.validationErrors.map((err, i) => (
                       <li key={i}>{err}</li>
                     ))}
-                    {preview.validationErrors.length > 40 ? (
-                      <li>…and {preview.validationErrors.length - 40} more</li>
-                    ) : null}
                   </ul>
                 </div>
               ) : null}
