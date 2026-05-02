@@ -9,6 +9,23 @@ const bodySchema = z.object({
 })
 
 /**
+ * GET /admin/agent-products-debug
+ *
+ * Lightweight probe: logs one line so deploy/route registration can be verified without opening Admin.
+ */
+export async function GET(_req: MedusaRequest, res: MedusaResponse): Promise<void> {
+  console.info(
+    JSON.stringify({
+      tag: "ADMIN_AGENT_PRODUCTS_DEBUG",
+      hypothesisId: "GET",
+      message: "route reachable",
+      ts: new Date().toISOString(),
+    })
+  )
+  res.status(200).json({ ok: true })
+}
+
+/**
  * POST /admin/agent-products-debug
  *
  * Development / incident aid: logs one JSON line per request to process stdout (e.g. Railway logs).

@@ -1,0 +1,193 @@
+import "./chunk-IUCDCPJU.mjs";
+import {
+  KeyboundForm
+} from "./chunk-6HTZNHPT.mjs";
+import {
+  RouteDrawer,
+  useRouteModal
+} from "./chunk-AERWK3TJ.mjs";
+import {
+  Form
+} from "./chunk-OBQI23QM.mjs";
+import {
+  useShippingOptionType,
+  useUpdateShippingOptionType
+} from "./chunk-RLDK4LY5.mjs";
+import "./chunk-I4OBEAOJ.mjs";
+import "./chunk-HI6URQ7H.mjs";
+import "./chunk-6CLQKVAU.mjs";
+import "./chunk-HKIF5HVL.mjs";
+import "./chunk-M3CKVBZC.mjs";
+import "./chunk-KI7TOXBR.mjs";
+import "./chunk-WAXMT4IY.mjs";
+import "./chunk-DYDGGABK.mjs";
+import "./chunk-LGNTHZ5Y.mjs";
+import "./chunk-CN7JXSGW.mjs";
+import "./chunk-5BQQRHQS.mjs";
+import "./chunk-WPXYFJEP.mjs";
+import "./chunk-5AFMB7XQ.mjs";
+import "./chunk-O4RZ3Y65.mjs";
+import "./chunk-A63RZVX6.mjs";
+import "./chunk-HBXV7ENS.mjs";
+import "./chunk-CDORR33H.mjs";
+import "./chunk-DKIUGYWW.mjs";
+import "./chunk-KLNRCI3K.mjs";
+import "./chunk-56TDUOXV.mjs";
+import "./chunk-K5QWNI6V.mjs";
+import "./chunk-3BF5SC66.mjs";
+import "./chunk-VCSSQVPD.mjs";
+import "./chunk-HP2JH45P.mjs";
+import "./chunk-SQDIZZDW.mjs";
+import "./chunk-AENRV3N7.mjs";
+import "./chunk-FXYH54JP.mjs";
+import "./chunk-774WSTCC.mjs";
+import "./chunk-NFEK63OE.mjs";
+import "./chunk-QZ7TP4HQ.mjs";
+
+// src/routes/shipping-option-types/shipping-option-type-edit/shipping-option-type-edit.tsx
+import { Heading } from "@medusajs/ui";
+import { useTranslation as useTranslation2 } from "react-i18next";
+import { useParams } from "react-router-dom";
+
+// src/routes/shipping-option-types/shipping-option-type-edit/components/edit-shipping-option-type-form/edit-shipping-option-type-form.tsx
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button, Input, Text, toast } from "@medusajs/ui";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { z } from "zod";
+import { jsx, jsxs } from "react/jsx-runtime";
+var EditShippingOptionTypeSchema = z.object({
+  label: z.string().min(1),
+  code: z.string().min(1),
+  description: z.string().optional()
+});
+var EditShippingOptionTypeForm = ({
+  shippingOptionType
+}) => {
+  const { t } = useTranslation();
+  const { handleSuccess } = useRouteModal();
+  const form = useForm({
+    defaultValues: {
+      label: shippingOptionType.label,
+      code: shippingOptionType.code,
+      description: shippingOptionType.description
+    },
+    resolver: zodResolver(EditShippingOptionTypeSchema)
+  });
+  const { mutateAsync, isPending } = useUpdateShippingOptionType(
+    shippingOptionType.id
+  );
+  const handleSubmit = form.handleSubmit(async (data) => {
+    await mutateAsync(
+      {
+        label: data.label,
+        code: data.code,
+        description: data.description
+      },
+      {
+        onSuccess: ({ shipping_option_type }) => {
+          toast.success(
+            t("shippingOptionTypes.edit.successToast", {
+              label: shipping_option_type.label
+            })
+          );
+          handleSuccess();
+        },
+        onError: (error) => {
+          toast.error(error.message);
+        }
+      }
+    );
+  });
+  return /* @__PURE__ */ jsx(RouteDrawer.Form, { form, children: /* @__PURE__ */ jsxs(
+    KeyboundForm,
+    {
+      onSubmit: handleSubmit,
+      className: "flex flex-1 flex-col overflow-hidden",
+      children: [
+        /* @__PURE__ */ jsxs(RouteDrawer.Body, { className: "flex flex-1 flex-col gap-y-8 overflow-y-auto", children: [
+          /* @__PURE__ */ jsx(
+            Form.Field,
+            {
+              control: form.control,
+              name: "label",
+              render: ({ field }) => {
+                return /* @__PURE__ */ jsxs(Form.Item, { children: [
+                  /* @__PURE__ */ jsx(Form.Label, { children: t("shippingOptionTypes.fields.label") }),
+                  /* @__PURE__ */ jsx(Form.Control, { children: /* @__PURE__ */ jsx(Input, { ...field }) }),
+                  /* @__PURE__ */ jsx(Form.ErrorMessage, {})
+                ] });
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            Form.Field,
+            {
+              control: form.control,
+              name: "code",
+              render: ({ field }) => {
+                return /* @__PURE__ */ jsxs(Form.Item, { children: [
+                  /* @__PURE__ */ jsx(Form.Label, { children: t("shippingOptionTypes.fields.code") }),
+                  /* @__PURE__ */ jsx(Form.Control, { children: /* @__PURE__ */ jsx(Input, { ...field }) }),
+                  /* @__PURE__ */ jsx(Form.ErrorMessage, {})
+                ] });
+              }
+            }
+          ),
+          /* @__PURE__ */ jsx(
+            Form.Field,
+            {
+              control: form.control,
+              name: "description",
+              render: ({ field }) => {
+                return /* @__PURE__ */ jsxs(Form.Item, { children: [
+                  /* @__PURE__ */ jsxs(Form.Label, { children: [
+                    t("shippingOptionTypes.fields.description"),
+                    /* @__PURE__ */ jsxs(
+                      Text,
+                      {
+                        size: "small",
+                        leading: "compact",
+                        className: "text-ui-fg-muted ml-1 inline",
+                        children: [
+                          "(",
+                          t("fields.optional"),
+                          ")"
+                        ]
+                      }
+                    )
+                  ] }),
+                  /* @__PURE__ */ jsx(Form.Control, { children: /* @__PURE__ */ jsx(Input, { ...field }) }),
+                  /* @__PURE__ */ jsx(Form.ErrorMessage, {})
+                ] });
+              }
+            }
+          )
+        ] }),
+        /* @__PURE__ */ jsx(RouteDrawer.Footer, { children: /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-end gap-x-2", children: [
+          /* @__PURE__ */ jsx(RouteDrawer.Close, { asChild: true, children: /* @__PURE__ */ jsx(Button, { size: "small", variant: "secondary", children: t("actions.cancel") }) }),
+          /* @__PURE__ */ jsx(Button, { size: "small", type: "submit", isLoading: isPending, children: t("actions.save") })
+        ] }) })
+      ]
+    }
+  ) });
+};
+
+// src/routes/shipping-option-types/shipping-option-type-edit/shipping-option-type-edit.tsx
+import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
+var ShippingOptionTypeEdit = () => {
+  const { id } = useParams();
+  const { t } = useTranslation2();
+  const { shipping_option_type, isPending, isError, error } = useShippingOptionType(id);
+  const ready = !isPending && !!shipping_option_type;
+  if (isError) {
+    throw error;
+  }
+  return /* @__PURE__ */ jsxs2(RouteDrawer, { children: [
+    /* @__PURE__ */ jsx2(RouteDrawer.Header, { children: /* @__PURE__ */ jsx2(Heading, { children: t("shippingOptionTypes.edit.header") }) }),
+    ready && /* @__PURE__ */ jsx2(EditShippingOptionTypeForm, { shippingOptionType: shipping_option_type })
+  ] });
+};
+export {
+  ShippingOptionTypeEdit as Component
+};
