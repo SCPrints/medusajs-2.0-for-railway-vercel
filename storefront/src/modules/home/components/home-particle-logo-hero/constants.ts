@@ -66,14 +66,25 @@ export const FULLSCREEN_LOGO_NUDGE_Y_CSS = 68
  * On load (unless reduced motion): particles start near the top-left, fade in, and ease into
  * `(hx, hy)` over this duration. Screen bottom-right homes move first; top-left homes last.
  */
-export const PARTICLE_ENTRANCE_DURATION_MS = 2000
+export const PARTICLE_ENTRANCE_DURATION_MS = 2400
 /**
  * Latest start time within the timeline as a fraction of `PARTICLE_ENTRANCE_DURATION_MS`.
- * `0.75` ⇒ the most-delayed particles begin moving at 75% of the way into the entrance.
+ * `0.92` ⇒ the most-delayed particles begin moving at 92% of the way into the entrance.
  */
-export const PARTICLE_ENTRANCE_STAGGER_FRAC = 0.75
+export const PARTICLE_ENTRANCE_STAGGER_FRAC = 0.92
 /** Spawn cloud span as a fraction of `min(bitmap W, H)` (top-left cluster). */
-export const PARTICLE_ENTRANCE_SPAWN_SPREAD_FRAC = 0.085
+export const PARTICLE_ENTRANCE_SPAWN_SPREAD_FRAC = 0.55
+/** Per-particle entrance duration jitter (±this fraction). Higher = wider arrival window. */
+export const PARTICLE_ENTRANCE_DURATION_JITTER = 0.35
+/** Per-particle Bezier curve magnitude (bitmap px) on the entrance path. Each particle
+ * gets a unique sweep angle so trajectories fan out instead of all being straight lines. */
+export const PARTICLE_ENTRANCE_CURVE_BMP = 140
+/** Sine-noise wobble amplitude during entrance (bitmap px). Particles drift on their own
+ * irregular paths instead of clean straight-line lerps. */
+export const PARTICLE_ENTRANCE_DIFFUSION_BMP = 22
+/** Per-particle along-trajectory drift (bitmap px). Stretches the spawn cloud along its
+ * long axis so density falls off gradually rather than in a hard pocket. */
+export const PARTICLE_ENTRANCE_SPAWN_TAIL_BMP = 280
 
 export const PARALLAX_EASE = 0.06
 /** Visual + physics parallax strength (draw `ctx.translate`; mouse offset in tick). */

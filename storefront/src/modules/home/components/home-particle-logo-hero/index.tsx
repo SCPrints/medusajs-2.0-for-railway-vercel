@@ -28,6 +28,10 @@ import {
   PARTICLE_ENTRANCE_DURATION_MS,
   PARTICLE_ENTRANCE_SPAWN_SPREAD_FRAC,
   PARTICLE_ENTRANCE_STAGGER_FRAC,
+  PARTICLE_ENTRANCE_DURATION_JITTER,
+  PARTICLE_ENTRANCE_CURVE_BMP,
+  PARTICLE_ENTRANCE_DIFFUSION_BMP,
+  PARTICLE_ENTRANCE_SPAWN_TAIL_BMP,
   PARTICLE_RADIUS_MIN_CSS,
   PHYSICS_DIST_EPSILON,
   PUSH_FORCE,
@@ -228,6 +232,9 @@ type ParallaxParticle = {
   newmixHomeReturnFromY?: number
   /** Newmix: wall-clock when home return started (used for ease-out timing along the curved path). */
   newmixHomeReturnStartMs?: number
+  /** Newmix: swirl side at capture (-1 or +1). Locked through the wake so left-swirled
+   * particles trail the left side of the cursor path, right-swirled particles trail the right. */
+  newmixSwirlSide?: number
 }
 
 type LogoInteractBounds = {
@@ -508,8 +515,10 @@ function applyNewmixCaptureImpulse(
 
   const ccwX = -uy
   const ccwY = ux
-  /** Particle on right of motion (perp > 0) sweeps one way; left sweeps the other. */
+  /** Particle on right of motion (perp > 0) sweeps one way; left sweeps the other.
+   * Persist this sign on the particle so the wake can route it to the correct side. */
   const vSgn = perp >= 0 ? -1 : 1
+  p.newmixSwirlSide = vSgn
   const tvx = vSgn * ccwX
   const tvy = vSgn * ccwY
 
@@ -1456,21 +1465,39 @@ export default function HomeParticleLogoHero({
       }
       particleEntranceStartMsRef.current = -1
     } else {
+      /** Wide spawn cloud anchored at the upper-left, falling off gradually toward the
+       * wordmark (a long elongated tail) so the entrance reads as a diffuse drift rather
+       * than a tight pocket emerging. */
       const spread = Math.min(W, H) * PARTICLE_ENTRANCE_SPAWN_SPREAD_FRAC
-      const tlx = W * 0.02 - spread * 0.38
-      const tly = H * 0.0225
+      const tlx = -spread * 0.15
+      const tly = -spread * 0.05
       const invW = W > 1 ? 1 / (W - 1) : 0
       const invH = H > 1 ? 1 / (H - 1) : 0
+      const tailDir = Math.SQRT1_2 // 45° toward bottom-right
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i]!
         const nx = Math.max(0, Math.min(1, p.hx * invW))
         const ny = Math.max(0, Math.min(1, p.hy * invH))
         const u = (nx + ny) * 0.5
         p.entranceStagger = 1 - u
+        /** Three independent hashes per particle for spawn position + tail drift. */
         const rngU = ((i * 2654435761) >>> 0) / 4294967296
         const rngV = ((i * 2246822519) >>> 0) / 4294967296
-        p.spawnX = tlx + rngU * spread
-        p.spawnY = tly + rngV * spread
+        const rngT =
+          (((i * 374761393) >>> 0) ^ ((i * 668265263) >>> 0) >>> 0) /
+          4294967296
+        /** Square-root weighting biases toward larger spread values, producing more
+         * particles in the outer halo (long tail) than in the dense core. */
+        const baseU = Math.sqrt(rngU) - 0.5
+        const baseV = Math.sqrt(rngV) - 0.5
+        /** Tail offset along 45°-toward-wordmark direction, length scaled by rngT^2 so
+         * most particles cluster but a long-tail of stragglers extends toward the homes. */
+        const tail =
+          rngT * rngT * PARTICLE_ENTRANCE_SPAWN_TAIL_BMP
+        p.spawnX =
+          tlx + baseU * spread * 1.6 + tail * tailDir
+        p.spawnY =
+          tly + baseV * spread * 1.6 + tail * tailDir
         p.x = p.spawnX
         p.y = p.spawnY
         p.vx = 0
@@ -1707,12 +1734,16 @@ export default function HomeParticleLogoHero({
 
         const Tdur = PARTICLE_ENTRANCE_DURATION_MS
         const entranceT0 = particleEntranceStartMsRef.current
+        /** Max possible per-particle duration after jitter — used to keep the entrance
+         * active until even the slowest particle has finished its lerp. */
+        const entranceGlobalTdur =
+          Tdur * (1 + PARTICLE_ENTRANCE_DURATION_JITTER)
         let entranceActive =
           entranceT0 >= 0 && !reduceParallaxNow && Tdur > 0
 
         if (entranceActive) {
           const elapsed = performance.now() - entranceT0
-          if (elapsed >= Tdur) {
+          if (elapsed >= entranceGlobalTdur) {
             for (const p of particles) {
               p.x = p.hx
               p.y = p.hy
@@ -1724,20 +1755,80 @@ export default function HomeParticleLogoHero({
             entranceActive = false
           } else {
             const sFrac = PARTICLE_ENTRANCE_STAGGER_FRAC
-            for (const p of particles) {
+            const tSec = elapsed * 0.001
+            for (let pi = 0; pi < particles.length; pi++) {
+              const p = particles[pi]!
+              /** Per-particle hashes (distinct from wake hashes — keyed off index too). */
+              const eh =
+                ((p.hx | 0) * 374761393 +
+                  (p.hy | 0) * 3266489917 +
+                  pi * 2654435761) >>> 0
+              const er1 = (eh & 0xffffff) / 0xffffff
+              const er2 =
+                ((((eh >>> 8) * 2246822519) >>> 0) & 0xffffff) / 0xffffff
+              const er3 =
+                ((((eh >>> 16) * 1597334677) >>> 0) & 0xffffff) /
+                0xffffff
+              /** Per-particle duration jitter: ±DURATION_JITTER fraction. */
+              const durMul =
+                1 + (er1 * 2 - 1) * PARTICLE_ENTRANCE_DURATION_JITTER
+              const partTdur = Math.max(100, Tdur * durMul)
               const tStart = p.entranceStagger * sFrac * Tdur
-              const moveDur = Math.max(1e-6, Tdur - tStart)
+              const moveDur = Math.max(1e-6, partTdur - tStart)
               if (elapsed <= tStart) {
                 p.x = p.spawnX
                 p.y = p.spawnY
                 p.vx = 0
                 p.vy = 0
                 p.entranceOpacity = 0
+              } else if (elapsed >= tStart + moveDur) {
+                /** This particle has finished; snap to home with full opacity. */
+                p.x = p.hx
+                p.y = p.hy
+                p.vx = 0
+                p.vy = 0
+                p.entranceOpacity = 1
               } else {
                 const rawU = (elapsed - tStart) / moveDur
                 const pathU = easeOutCubic(rawU)
-                p.x = p.spawnX + (p.hx - p.spawnX) * pathU
-                p.y = p.spawnY + (p.hy - p.spawnY) * pathU
+                /** Bezier control point: midpoint of (spawn, home) plus a random angular
+                 * offset, magnitude unique per particle. Each entrance trajectory curves
+                 * differently so particles fan out instead of moving in straight lines. */
+                const sx = p.spawnX
+                const sy = p.spawnY
+                const ex = p.hx
+                const ey = p.hy
+                const sweepAngle = (er2 - 0.5) * Math.PI * 2
+                const curveAmp =
+                  PARTICLE_ENTRANCE_CURVE_BMP * (0.4 + er3 * 1.2)
+                const cdx = Math.cos(sweepAngle) * curveAmp
+                const cdy = Math.sin(sweepAngle) * curveAmp
+                const mx = (sx + ex) * 0.5 + cdx
+                const my = (sy + ey) * 0.5 + cdy
+                const oneMinus = 1 - pathU
+                const bx =
+                  oneMinus * oneMinus * sx +
+                  2 * oneMinus * pathU * mx +
+                  pathU * pathU * ex
+                const by =
+                  oneMinus * oneMinus * sy +
+                  2 * oneMinus * pathU * my +
+                  pathU * pathU * ey
+                /** Diffusion wobble: bell-shaped envelope (peaks mid-trip, zero at home)
+                 * so each particle drifts on its own irregular path during the lerp. */
+                const env = 4 * pathU * (1 - pathU)
+                const phase1 = er1 * Math.PI * 2
+                const phase2 = er2 * Math.PI * 2
+                const diffX =
+                  Math.sin(tSec * 1.7 + phase1) *
+                  PARTICLE_ENTRANCE_DIFFUSION_BMP *
+                  env
+                const diffY =
+                  Math.cos(tSec * 2.1 + phase2) *
+                  PARTICLE_ENTRANCE_DIFFUSION_BMP *
+                  env
+                p.x = bx + diffX
+                p.y = by + diffY
                 p.vx = 0
                 p.vy = 0
                 p.entranceOpacity = easeOutCubic(rawU)
@@ -2306,14 +2397,34 @@ export default function HomeParticleLogoHero({
                         perpY = tanX
                       }
                     }
-                    /** Constant per-particle band offset so the wake spreads into a band
-                     * along its entire length. */
-                    const bandSign = rand2 * 2 - 1
-                    const bandAmp = nm.wakeBandSpreadBmp * bandSign
-                    /** Bell-shaped extra spread peaking mid-wake. */
+                    /** Side-locked band offset: sign is determined by the swirl side
+                     * (left-swirled particles always offset to the left of the path,
+                     * right-swirled to the right). Two clean ribbons emerge instead of
+                     * one mixed clump. */
+                    const swirlSide =
+                      p.newmixSwirlSide != null
+                        ? p.newmixSwirlSide
+                        : rand2 * 2 - 1 < 0
+                          ? -1
+                          : 1
+                    /** Core vs diffuse split: ~30% of particles are "core" (small magnitude,
+                     * sit close to the path edge — define the clean inner spine) and the
+                     * remaining ~70% are "diffuse" (larger magnitude, break off the edge
+                     * into a fuzzy halo). */
+                    const isCore = rand2 < 0.3
+                    const magnitudeMul = isCore
+                      ? 0.15 + rand2 * 0.5
+                      : 0.7 + rand2 * 0.6
+                    const bandAmp =
+                      nm.wakeBandSpreadBmp * swirlSide * magnitudeMul
+                    /** Bell-shaped extra spread peaking mid-wake — also side-locked so
+                     * core ribbons stay clean and only the diffuse breakers fan out further. */
                     const env = 4 * u * (1 - u)
                     const dynLateralAmp =
-                      nm.wakeLateralSpreadBmp * bandSign * env
+                      nm.wakeLateralSpreadBmp *
+                      swirlSide *
+                      magnitudeMul *
+                      env
                     /** Per-particle along-tangent stretch: signed offset along cursor heading
                      * so particles spread along the trail axis, not just perpendicular. */
                     const stretchSign = rand01 * 2 - 1
@@ -2441,6 +2552,7 @@ export default function HomeParticleLogoHero({
                   p.newmixHomeReturnFromX = undefined
                   p.newmixHomeReturnFromY = undefined
                   p.newmixHomeReturnStartMs = undefined
+                  p.newmixSwirlSide = undefined
                 }
               } else {
                 /** Resting at home — no force, no velocity. */
