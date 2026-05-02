@@ -59,9 +59,14 @@ import {
   BLACK_HOLE_FRICTION,
   BLACK_HOLE_TRAIL_FOLLOW_MS,
   BLACK_HOLE_TRAIL_FOLLOW_ACCEL,
+  NEWMIX_RADIUS_BMP,
+  NEWMIX_TRAIL_MAX_POINTS,
+  NEWMIX_TRAIL_SAMPLE_DIST_BMP,
 } from "./constants"
 import type { ViscousCoffeeLiveTuning } from "./viscous-coffee-live-tuning"
 import { mergeViscousCoffeeLiveTuning } from "./viscous-coffee-live-tuning"
+import type { NewmixLiveTuning } from "./newmix-live-tuning"
+import { mergeNewmixLiveTuning } from "./newmix-live-tuning"
 
 const DEFAULT_LOGO_SRC = "/branding/sc-prints-logo-transparent.png"
 const FALLBACK_SRC = "/branding/sc-prints-logo-white.png"
@@ -438,6 +443,125 @@ function applyBlackHoleTrailFollow(
   }
   const inv = 1 / dist
   const a = BLACK_HOLE_TRAIL_FOLLOW_ACCEL
+  p.vx += dx * inv * a
+  p.vy += dy * inv * a
+}
+
+/**
+ * Newmix mode: direction-aware capture impulse. Counter-rotating side swirl based on which
+ * side of the smoothed motion vector the particle sits on. Mild front push and back inward
+ * pinch shape the wake. Stationary mouse (`gmag < 1e-5`) becomes a passive collector — no
+ * swirl until motion arrives, which arms the trail-follow on the next exit frame.
+ */
+function applyNewmixCaptureImpulse(
+  p: ParallaxParticle,
+  cx: number,
+  cy: number,
+  radius: number,
+  gx: number,
+  gy: number,
+  t: NewmixLiveTuning
+): void {
+  if (cx <= -9000 || radius <= 0) {
+    return
+  }
+  const dx = p.x - cx
+  const dy = p.y - cy
+  const dist = Math.hypot(dx, dy)
+  if (dist >= radius || dist < PHYSICS_DIST_EPSILON) {
+    return
+  }
+  const gmag = Math.hypot(gx, gy)
+  if (gmag < 1e-5) {
+    return
+  }
+  const ux = dx / dist
+  const uy = dy / dist
+  const edge = (radius - dist) / radius
+  const falloff = Math.pow(
+    Math.max(0, Math.min(1, edge)),
+    t.falloffPower
+  )
+  const fxf = gx / gmag
+  const fyf = gy / gmag
+  const rx = -fyf
+  const ry = fxf
+  const along = dx * fxf + dy * fyf
+  const perp = dx * rx + dy * ry
+  const alongN = along / radius
+
+  const ccwX = -uy
+  const ccwY = ux
+  /** Particle on right of motion (perp > 0) sweeps one way; left sweeps the other. */
+  const vSgn = perp >= 0 ? -1 : 1
+  const tvx = vSgn * ccwX
+  const tvy = vSgn * ccwY
+
+  let ax = 0
+  let ay = 0
+
+  /** Wider Gaussian than viscous (0.7 vs 0.52) so the swirl spans most of the disk. */
+  const sideGauss = Math.exp(-Math.pow(alongN / 0.7, 2))
+  const sideSw = t.sideSwirlForce * falloff * sideGauss
+  ax += tvx * sideSw
+  ay += tvy * sideSw
+
+  if (alongN > 0.07) {
+    const cap = Math.min(1, (alongN - 0.07) / 0.5)
+    const push = t.frontPush * falloff * cap
+    ax += ux * push
+    ay += uy * push
+  }
+
+  if (alongN < -0.04) {
+    const back = Math.min(1, -alongN / 0.62)
+    const inward = t.backInward * falloff * back
+    ax -= ux * inward
+    ay -= uy * inward
+  }
+
+  p.vx += ax
+  p.vy += ay
+}
+
+/**
+ * Newmix mode: hybrid wake follow. Just-released particles target the most recent trail
+ * sample (sit in the wake near the cursor's recent position); as the deadline approaches
+ * the target lerps toward the live cursor before the home spring re-engages.
+ */
+function applyNewmixTrailFollow(
+  p: ParallaxParticle,
+  cx: number,
+  cy: number,
+  trail: Array<{ x: number; y: number }>,
+  remainingMs: number,
+  t: NewmixLiveTuning
+): void {
+  if (cx <= -9000) {
+    return
+  }
+  const u = Math.max(
+    0,
+    Math.min(1, remainingMs / Math.max(1, t.trailFollowMs))
+  )
+  let tailX = cx
+  let tailY = cy
+  if (trail.length > 0) {
+    const tail = trail[trail.length - 1]!
+    tailX = tail.x
+    tailY = tail.y
+  }
+  const bias = u * t.trailFollowPathBias
+  const tx = tailX * bias + cx * (1 - bias)
+  const ty = tailY * bias + cy * (1 - bias)
+  const dx = tx - p.x
+  const dy = ty - p.y
+  const dist = Math.hypot(dx, dy)
+  if (dist < PHYSICS_DIST_EPSILON) {
+    return
+  }
+  const inv = 1 / dist
+  const a = t.trailFollowAccel
   p.vx += dx * inv * a
   p.vy += dy * inv * a
 }
@@ -906,8 +1030,14 @@ type Props = {
   /**
    * `"fluidWake"` — radial wake disks. `"blackHole"` — capture disk + trail follow.
    * `"viscousCoffee"` — polyline path memory (tangent + shear), viscous slow fill-in.
+   * `"newmix"` — direction-aware capture swirl + 3s wake follow (newmixcoffee.com style).
    */
-  interactionMode?: "default" | "fluidWake" | "blackHole" | "viscousCoffee"
+  interactionMode?:
+    | "default"
+    | "fluidWake"
+    | "blackHole"
+    | "viscousCoffee"
+    | "newmix"
   /** Overrides default `aria-label` on the outer `<section>` (embedded). */
   sectionAriaLabel?: string
   /**
@@ -915,6 +1045,11 @@ type Props = {
  * Omitted = built-in defaults from `viscous-coffee-live-tuning.ts`.
  */
   viscousCoffeeLiveTuning?: Partial<ViscousCoffeeLiveTuning> | null
+  /**
+   * When `interactionMode="newmix"`, merged into physics each frame (sliders / lab).
+   * Omitted = built-in defaults from `newmix-live-tuning.ts`.
+   */
+  newmixLiveTuning?: Partial<NewmixLiveTuning> | null
 }
 
 export default function HomeParticleLogoHero({
@@ -924,6 +1059,7 @@ export default function HomeParticleLogoHero({
   interactionMode = "default",
   sectionAriaLabel,
   viscousCoffeeLiveTuning = null,
+  newmixLiveTuning = null,
 }: Props) {
   const presentationRef = useRef(presentation)
   presentationRef.current = presentation
@@ -944,12 +1080,27 @@ export default function HomeParticleLogoHero({
   )
   const viscousWakeBuiltCountRef = useRef<number | undefined>(undefined)
 
+  const newmixTrailRef = useRef<Array<{ x: number; y: number }>>([])
+  const newmixSpoonVelRef = useRef({ vx: 1, vy: 0 })
+  const newmixSpoonPrimedRef = useRef(false)
+  const newmixPrevCursorRef = useRef({ x: 0, y: 0 })
+  const newmixLiveMergedRef = useRef<NewmixLiveTuning>(
+    mergeNewmixLiveTuning()
+  )
+
   useLayoutEffect(() => {
     Object.assign(
       viscousCoffeeLiveMergedRef.current,
       mergeViscousCoffeeLiveTuning(viscousCoffeeLiveTuning)
     )
   }, [viscousCoffeeLiveTuning])
+
+  useLayoutEffect(() => {
+    Object.assign(
+      newmixLiveMergedRef.current,
+      mergeNewmixLiveTuning(newmixLiveTuning)
+    )
+  }, [newmixLiveTuning])
   const reducedMotion = useReducedMotion()
   /** Layer parallax respects OS reduced-motion. */
   const reduceParallax = reducedMotion === true
@@ -1521,8 +1672,11 @@ export default function HomeParticleLogoHero({
         const blackHole = interactionModeRef.current === "blackHole"
         const viscousCoffee =
           interactionModeRef.current === "viscousCoffee"
+        const newmix = interactionModeRef.current === "newmix"
         const vc = viscousCoffee ? viscousCoffeeLiveMergedRef.current : null
+        const nm = newmix ? newmixLiveMergedRef.current : null
         const viscousDragR = vc != null ? vc.dragRadius : DRAG_RADIUS
+        const newmixRadius = nm != null ? nm.radius : NEWMIX_RADIUS_BMP
         const nowTick = performance.now()
         const bhBounds = logoInteractBoundsRef.current
         const inBlackHoleStipple =
@@ -1549,6 +1703,19 @@ export default function HomeParticleLogoHero({
             bhBounds,
             particles,
             viscousDragR
+          )
+
+        const inNewmixStipple =
+          newmix &&
+          !entranceActive &&
+          bhBounds != null &&
+          currentMouseX > -9000 &&
+          pointerInStippleInteractionRange(
+            currentMouseX,
+            currentMouseY,
+            bhBounds,
+            particles,
+            newmixRadius
           )
 
         if (fluidWake && !entranceActive) {
@@ -1628,20 +1795,45 @@ export default function HomeParticleLogoHero({
           }
         }
 
+        if (newmix && !entranceActive && nm != null) {
+          const trail = newmixTrailRef.current
+          if (inNewmixStipple) {
+            const last = trail[trail.length - 1]
+            if (
+              !last ||
+              Math.hypot(
+                currentMouseX - last.x,
+                currentMouseY - last.y
+              ) >= NEWMIX_TRAIL_SAMPLE_DIST_BMP
+            ) {
+              trail.push({ x: currentMouseX, y: currentMouseY })
+              while (trail.length > NEWMIX_TRAIL_MAX_POINTS) {
+                trail.shift()
+              }
+            }
+          } else if (trail.length > 0) {
+            trail.shift()
+          }
+        }
+
         const springKBase = fluidWake
           ? WAKE_SPRING_STIFFNESS
           : viscousCoffee && vc != null
             ? vc.springStiffness
-            : blackHole
-              ? SPRING_STIFFNESS * BLACK_HOLE_SPRING_STIFFNESS_MULT
-              : SPRING_STIFFNESS
+            : newmix && nm != null
+              ? SPRING_STIFFNESS * nm.springStiffnessMult
+              : blackHole
+                ? SPRING_STIFFNESS * BLACK_HOLE_SPRING_STIFFNESS_MULT
+                : SPRING_STIFFNESS
         const frictionK = fluidWake
           ? WAKE_FRICTION
           : viscousCoffee && vc != null
             ? vc.friction
-            : blackHole
-              ? BLACK_HOLE_FRICTION
-              : FRICTION
+            : newmix && nm != null
+              ? nm.friction
+              : blackHole
+                ? BLACK_HOLE_FRICTION
+                : FRICTION
         const trailSnap = wakeTrailRef.current
         const bhRadius = DRAG_RADIUS * BLACK_HOLE_RADIUS_MULT
         const cursorOk = currentMouseX > -9000
@@ -1692,6 +1884,53 @@ export default function HomeParticleLogoHero({
           (!inViscousStipple || !cursorOk)
         ) {
           viscousCoffeeSpoonPrimedRef.current = false
+        }
+
+        let newmixSpoonGx = 1
+        let newmixSpoonGy = 0
+        if (
+          newmix &&
+          !entranceActive &&
+          inNewmixStipple &&
+          cursorOk &&
+          nm != null
+        ) {
+          const nmTrail = newmixTrailRef.current
+          const pr = newmixPrevCursorRef.current
+          if (!newmixSpoonPrimedRef.current) {
+            pr.x = currentMouseX
+            pr.y = currentMouseY
+            newmixSpoonPrimedRef.current = true
+          } else {
+            let rx = 0
+            let ry = 0
+            if (nmTrail.length >= 2) {
+              const a = nmTrail[nmTrail.length - 2]!
+              const b = nmTrail[nmTrail.length - 1]!
+              rx = b.x - a.x
+              ry = b.y - a.y
+            }
+            if (rx * rx + ry * ry < 0.25) {
+              rx = currentMouseX - pr.x
+              ry = currentMouseY - pr.y
+            }
+            const sv = newmixSpoonVelRef.current
+            const sm = nm.velSmoothing
+            sv.vx += (rx - sv.vx) * sm
+            sv.vy += (ry - sv.vy) * sm
+            newmixSpoonGx = sv.vx
+            newmixSpoonGy = sv.vy
+          }
+          pr.x = currentMouseX
+          pr.y = currentMouseY
+        }
+
+        if (
+          newmix &&
+          !entranceActive &&
+          (!inNewmixStipple || !cursorOk)
+        ) {
+          newmixSpoonPrimedRef.current = false
         }
 
         if (!entranceActive) {
@@ -1748,6 +1987,86 @@ export default function HomeParticleLogoHero({
                 const u = Math.max(0, 1 - distM / (bhRadius * 1.05))
                 springMul =
                   1 - BLACK_HOLE_HOME_SPRING_SUPPRESS * u * u
+              }
+
+              const homeSpring = trailing ? 0 : 1
+
+              p.vx +=
+                (p.hx - p.x) * springKBase * springMul * homeSpring
+              p.vy +=
+                (p.hy - p.y) * springKBase * springMul * homeSpring
+              p.vx *= frictionK
+              p.vy *= frictionK
+              p.x += p.vx
+              p.y += p.vy
+
+              p.bhPrevInRadius = inCaptureDiskGeom
+            } else if (newmix && nm != null) {
+              if (
+                p.bhTrailUntilMs != null &&
+                nowTick >= p.bhTrailUntilMs
+              ) {
+                p.bhTrailUntilMs = null
+              }
+
+              const distM = cursorOk
+                ? Math.hypot(
+                    p.x - currentMouseX,
+                    p.y - currentMouseY
+                  )
+                : Infinity
+              const inCaptureDiskGeom =
+                cursorOk && distM < newmixRadius
+              const captured =
+                inNewmixStipple && inCaptureDiskGeom
+
+              if (captured) {
+                p.bhTrailUntilMs = null
+                applyNewmixCaptureImpulse(
+                  p,
+                  currentMouseX,
+                  currentMouseY,
+                  newmixRadius,
+                  newmixSpoonGx,
+                  newmixSpoonGy,
+                  nm
+                )
+              } else if (
+                p.bhPrevInRadius &&
+                !inCaptureDiskGeom
+              ) {
+                p.bhTrailUntilMs = nowTick + nm.trailFollowMs
+                /** Single-frame velocity boost so released particles leave with
+                 * residual swirl velocity that reads as a completed swirl. */
+                p.vx *= nm.releaseKickMult
+                p.vy *= nm.releaseKickMult
+              }
+
+              const trailing =
+                p.bhTrailUntilMs != null &&
+                nowTick < p.bhTrailUntilMs &&
+                !inCaptureDiskGeom
+
+              if (trailing && cursorOk) {
+                const remaining =
+                  (p.bhTrailUntilMs as number) - nowTick
+                applyNewmixTrailFollow(
+                  p,
+                  currentMouseX,
+                  currentMouseY,
+                  newmixTrailRef.current,
+                  remaining,
+                  nm
+                )
+              }
+
+              let springMul = 1
+              if (captured && distM < newmixRadius * 1.05) {
+                const u = Math.max(
+                  0,
+                  1 - distM / (newmixRadius * 1.05)
+                )
+                springMul = 1 - nm.homeSpringSuppress * u * u
               }
 
               const homeSpring = trailing ? 0 : 1
@@ -1955,7 +2274,9 @@ export default function HomeParticleLogoHero({
       const stippleR =
         interactionModeRef.current === "viscousCoffee"
           ? viscousCoffeeLiveMergedRef.current.dragRadius
-          : DRAG_RADIUS
+          : interactionModeRef.current === "newmix"
+            ? newmixLiveMergedRef.current.radius
+            : DRAG_RADIUS
       const nearStipple = pointerInStippleInteractionRange(
         mx,
         my,
@@ -2065,6 +2386,9 @@ export default function HomeParticleLogoHero({
       viscousCoffeeErodeAccRef.current = 0
       viscousCoffeeSpoonPrimedRef.current = false
       viscousCoffeeSpoonVelRef.current = { vx: 1, vy: 0 }
+      newmixTrailRef.current = []
+      newmixSpoonPrimedRef.current = false
+      newmixSpoonVelRef.current = { vx: 1, vy: 0 }
       const cw = viscousCoffeeWakeParticlesRef.current
       if (cw != null) {
         for (const p of cw) {

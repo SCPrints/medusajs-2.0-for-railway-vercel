@@ -203,3 +203,44 @@ export const VISCOUS_COFFEE_WAKE_FRICTION = 0.935
 export const VISCOUS_COFFEE_WAKE_ALONG_DRAG = 0.38
 /** Multiplier on `PARTICLE_BASE_ALPHA` when the trail has enough length to show. */
 export const VISCOUS_COFFEE_WAKE_ALPHA_MULT = 0.98
+
+/**
+ * `interactionMode: "newmix"` — direction-aware swirl capture + 3s wake follow.
+ * Inspired by https://www.newmixcoffee.com — particles in the disk sweep to opposite sides
+ * based on which side of the smoothed motion vector they sit on, transit the disk once, then
+ * trail the cursor for `NEWMIX_TRAIL_FOLLOW_MS` along the recent path before springing home.
+ * Reuses the `bhPrevInRadius` / `bhTrailUntilMs` particle fields for release-edge detection
+ * and the deadline timer (renamed conceptually but the storage is shared with `blackHole`).
+ */
+/** Capture disk radius (bitmap px) — comparable to `BLACK_HOLE_RADIUS_MULT * DRAG_RADIUS ≈ 91.5`. */
+export const NEWMIX_RADIUS_BMP = 92
+/** Polyline length used for trail-follow target lookup (not for force corridor). */
+export const NEWMIX_TRAIL_MAX_POINTS = 60
+/** Min bitmap px between stored trail samples. */
+export const NEWMIX_TRAIL_SAMPLE_DIST_BMP = 4
+/** Low-pass on inferred motion direction from pointer deltas (mirrors `VISCOUS_COFFEE_SPOON_VEL_SMOOTH`). */
+export const NEWMIX_VEL_SMOOTHING = 0.45
+/** Counter-rotating side vortex — much higher than viscous's `3.1` because particles transit
+ * the disk for only a handful of frames (impulse ≈ force × frames × falloff). */
+export const NEWMIX_SIDE_SWIRL_FORCE = 8.0
+/** Mild outward push in the direction of motion (clears the tip). */
+export const NEWMIX_FRONT_PUSH = 3.0
+/** Pinch behind the cursor pulls released particles into the wake. */
+export const NEWMIX_BACK_INWARD = 2.0
+/** `((R - dist) / R) ^ POWER` — sharper near center, softer at the edge. */
+export const NEWMIX_FALLOFF_POWER = 1.4
+/** Wake-follow window after release (matches `BLACK_HOLE_TRAIL_FOLLOW_MS`). */
+export const NEWMIX_TRAIL_FOLLOW_MS = 3000
+/** Per-frame steering acceleration toward the hybrid trail/cursor target. */
+export const NEWMIX_TRAIL_FOLLOW_ACCEL = 0.36
+/** Hybrid lerp: at release `u≈1` weights the most recent trail sample by this much, decays to 0. */
+export const NEWMIX_TRAIL_FOLLOW_PATH_BIAS = 0.7
+/** Per-frame velocity retention (slightly higher than `BLACK_HOLE_FRICTION = 0.902`). */
+export const NEWMIX_FRICTION = 0.92
+/** Global home-spring scale (weaker than default so captured dots can drift). */
+export const NEWMIX_SPRING_STIFFNESS_MULT = 0.65
+/** At cursor center reduce home-spring to `(1 - suppress)`. */
+export const NEWMIX_HOME_SPRING_SUPPRESS = 0.85
+/** Single-frame velocity multiplier on the edge-exit frame so released particles
+ * leave with enough tangential speed to read as having completed one swirl. */
+export const NEWMIX_RELEASE_KICK_MULT = 1.1
