@@ -537,6 +537,13 @@ function applyNewmixCaptureImpulse(
     const push = t.frontPush * falloff * cap
     ax += ux * push
     ay += uy * push
+    /** Leading-edge radial-inward pull: gather particles into the path before they get
+     * deflected. Active only on the front-facing side and stronger near the disk perimeter
+     * (where particles enter), so dots are reeled in toward the cursor as it approaches. */
+    const rim = Math.max(0, Math.min(1, dist / radius))
+    const pullStrength = t.leadingEdgePullForce * cap * rim
+    ax -= ux * pullStrength
+    ay -= uy * pullStrength
   }
 
   if (alongN < -0.04) {
@@ -2300,6 +2307,17 @@ export default function HomeParticleLogoHero({
                 /** Kill all residual velocity — the wake is purely kinematic from here. */
                 p.vx = 0
                 p.vy = 0
+                /** Exit-velocity boost: shoot the released particle along the cursor's heading
+                 * direction so it lands cleanly into the wake instead of orbiting / ringing
+                 * around where the cursor used to be. The position adjustment effectively
+                 * advances the particle one frame along the cursor heading. */
+                const gMag = Math.hypot(newmixSpoonGx, newmixSpoonGy)
+                if (gMag > 1e-5) {
+                  const gx = newmixSpoonGx / gMag
+                  const gy = newmixSpoonGy / gMag
+                  p.x += gx * nm.exitVelocityBoostBmp
+                  p.y += gy * nm.exitVelocityBoostBmp
+                }
               }
 
               const trailing =

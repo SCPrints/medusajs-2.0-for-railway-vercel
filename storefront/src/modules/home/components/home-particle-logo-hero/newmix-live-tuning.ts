@@ -43,6 +43,14 @@ export type NewmixLiveTuning = {
   wakeTimeOffsetMs: number
   /** Fraction of swirl velocity preserved on the release frame (lower = trail playback takes over immediately). */
   releaseVelocityKeep: number
+  /** Single-frame impulse magnitude applied along the cursor's heading direction when a
+   * particle exits the capture disk. Shoots particles cleanly into the wake instead of
+   * orbiting / ringing the cursor. */
+  exitVelocityBoostBmp: number
+  /** Radial-inward pull strength applied on the leading edge of the disk (front-facing
+   * relative to motion). Gathers particles into the path as the cursor approaches, so
+   * the wake is fed a denser stream of dots instead of just deflecting passively. */
+  leadingEdgePullForce: number
   friction: number
   springStiffnessMult: number
   homeSpringSuppress: number
@@ -85,7 +93,9 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
    * near the cursor with a thinner tail extending back. */
   wakeTimeOffsetMs: 600,
   releaseVelocityKeep: 0.0,
-  friction: 0.94,
+  exitVelocityBoostBmp: 6.0,
+  leadingEdgePullForce: 4.5,
+  friction: 0.86,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
   homeReturnMs: 400,
