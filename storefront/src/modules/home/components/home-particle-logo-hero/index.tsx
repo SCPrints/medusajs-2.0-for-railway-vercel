@@ -126,7 +126,7 @@ function gatherAlphaCandidates(
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4
       const a = data[i + 3]
-      if (a > 150) {
+      if (a > 128) {
         out.push({ x, y })
       }
     }
@@ -1054,6 +1054,51 @@ let particleSpriteCache: {
   canvas: HTMLCanvasElement
 } | null = null
 
+let particleSpriteBaseCache: {
+  diameter: number
+  canvas: HTMLCanvasElement
+} | null = null
+
+/** Wider, softer base sprite (3× diameter) used as the fill-layer in dual-pass rendering.
+ * Has a much wider falloff so adjacent particles' base layers overlap heavily, filling
+ * the gaps between centers with low-alpha ink to produce a solid stroke fill. */
+function getParticleSpriteBase(
+  diameter: number
+): HTMLCanvasElement | null {
+  const d = Math.max(1, Math.round(diameter))
+  if (
+    particleSpriteBaseCache != null &&
+    particleSpriteBaseCache.diameter === d
+  ) {
+    return particleSpriteBaseCache.canvas
+  }
+  const spriteSize = d * 3
+  const off = document.createElement("canvas")
+  off.width = spriteSize
+  off.height = spriteSize
+  const sctx = off.getContext("2d", { alpha: true })
+  if (!sctx) {
+    return null
+  }
+  const center = spriteSize * 0.5
+  const grad = sctx.createRadialGradient(
+    center,
+    center,
+    0,
+    center,
+    center,
+    center
+  )
+  /** Wider, softer falloff — nearly transparent at the core and zero at the edge. */
+  grad.addColorStop(0, "rgba(255,255,255,1)")
+  grad.addColorStop(0.5, "rgba(255,255,255,0.5)")
+  grad.addColorStop(1, "rgba(255,255,255,0)")
+  sctx.fillStyle = grad
+  sctx.fillRect(0, 0, spriteSize, spriteSize)
+  particleSpriteBaseCache = { diameter: d, canvas: off }
+  return off
+}
+
 function getParticleSprite(diameter: number): HTMLCanvasElement | null {
   const d = Math.max(1, Math.round(diameter))
   if (
@@ -1115,7 +1160,10 @@ function drawLayer(
   wakeAlphaMult = 1
 ) {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.imageSmoothingEnabled = false
+  /** Smoothing on so the soft sprite blits scale cleanly when the canvas is at a
+   * non-integer DPR ratio. */
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = "high"
   ctx.save()
   if (applyCanvasParallax) {
     ctx.translate(parallaxX * sx, parallaxY * sy)
@@ -1123,12 +1171,18 @@ function drawLayer(
   const d = drawSizeBmp
   const bitmapW = canvas.width
   const bitmapH = canvas.height
-  /** Pre-baked soft-edge sprite. Sprite size is 2×d so the bloomed falloff extends
-   * beyond the nominal "core" size, blending with neighboring particles to produce the
-   * "ink with grain" look. */
+  /** DUAL-PASS RENDERING:
+   * Pass 1 (base layer): a larger sprite at low alpha that overlaps with neighbors,
+   *   filling the black gaps between particle centers — produces solid "ink fill".
+   * Pass 2 (core layer): the normal sprite at full alpha, keeping each dot's center crisp
+   *   so individual grain is preserved at sparse regions.
+   * Each particle is drawn twice; combined visual = ink with grain. */
   const sprite = getParticleSprite(d)
+  const baseSprite = getParticleSpriteBase(d)
   const spriteSize = d * 2
   const halfSprite = spriteSize * 0.5
+  const baseSpriteSize = d * 3
+  const halfBaseSprite = baseSpriteSize * 0.5
   const drawOne = (p: ParallaxParticle) => {
     const ba = Number.isFinite(p.baseAlpha) ? p.baseAlpha : PARTICLE_BASE_ALPHA
     const op = Number.isFinite(p.entranceOpacity) ? p.entranceOpacity : 1
@@ -1155,8 +1209,15 @@ function drawLayer(
     if (!Number.isFinite(yBmp)) {
       yBmp = py
     }
-    if (sprite != null) {
-      /** Sprite-blit path: soft edges blend particles into solid ink at high density. */
+    if (sprite != null && baseSprite != null) {
+      /** Pass 1: low-alpha base layer fills gaps between centers. */
+      ctx.globalAlpha = alpha * 0.18
+      ctx.drawImage(
+        baseSprite,
+        xBmp - halfBaseSprite,
+        yBmp - halfBaseSprite
+      )
+      /** Pass 2: full-alpha core sprite preserves grain. */
       ctx.globalAlpha = alpha
       ctx.drawImage(sprite, xBmp - halfSprite, yBmp - halfSprite)
     } else {
