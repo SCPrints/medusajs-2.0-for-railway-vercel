@@ -59,8 +59,9 @@ export const FULLSCREEN_LOGO_PAD = 0.8
 /**
  * Embedded (lab page) logo scale multiplier. Used to enlarge the stipple area on the
  * particle-logo lab so density per square inch matches the newmix reference.
+ * Capped at 1.0 by the boundary clamp below to keep the wordmark inside the canvas.
  */
-export const EMBEDDED_LOGO_BOOST_SCALE = 1.3
+export const EMBEDDED_LOGO_BOOST_SCALE = 1.0
 
 /**
  * Shift stipple + mask downward (CSS px) so the mark clears the top of the frame / nav overlap.
