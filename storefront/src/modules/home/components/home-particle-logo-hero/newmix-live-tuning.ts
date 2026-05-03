@@ -51,6 +51,17 @@ export type NewmixLiveTuning = {
    * relative to motion). Gathers particles into the path as the cursor approaches, so
    * the wake is fed a denser stream of dots instead of just deflecting passively. */
   leadingEdgePullForce: number
+  /** Probability (0..1) that an exiting particle is granted wake-trailing state. The
+   * remainder skip the wake and spring directly home — keeps the wake thin instead of
+   * dragging the entire path of particles. */
+  trailingProbability: number
+  /** While a particle is captured inside the disk, it advects along with the cursor at
+   * this fraction of mouse velocity. Produces the "spoon scooping up coffee" feel where
+   * particles are carried briefly before being released. */
+  inDiskCarryFactor: number
+  /** Mouse-speed gate (bitmap px / frame) below which the disk's impulse fades to zero.
+   * Stops the persistent halo of orbiting particles when the cursor slows or stops. */
+  motionGateSpeed: number
   friction: number
   springStiffnessMult: number
   homeSpringSuppress: number
@@ -95,6 +106,9 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   releaseVelocityKeep: 0.0,
   exitVelocityBoostBmp: 6.0,
   leadingEdgePullForce: 4.5,
+  trailingProbability: 0.4,
+  inDiskCarryFactor: 0.6,
+  motionGateSpeed: 5.0,
   friction: 0.86,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
