@@ -484,6 +484,8 @@ function applyNewmixCaptureImpulse(
   radius: number,
   gx: number,
   gy: number,
+  /** Mouse speed (bitmap px / frame). Forces fade to zero below `motionGateSpeed`. */
+  mouseSpeed: number,
   t: NewmixLiveTuning
 ): void {
   if (cx <= -9000 || radius <= 0) {
@@ -553,8 +555,14 @@ function applyNewmixCaptureImpulse(
     ay -= uy * inward
   }
 
-  p.vx += ax
-  p.vy += ay
+  /** Motion gate: when the cursor is barely moving, scale all impulse to zero so particles
+   * don't accumulate orbital velocity into a persistent halo. */
+  const motionScale = Math.max(
+    0,
+    Math.min(1, mouseSpeed / Math.max(0.01, t.motionGateSpeed))
+  )
+  p.vx += ax * motionScale
+  p.vy += ay * motionScale
 }
 
 /**
@@ -2076,6 +2084,7 @@ export default function HomeParticleLogoHero({
 
         let newmixSpoonGx = 1
         let newmixSpoonGy = 0
+        let newmixSpoonSpeed = 0
         if (
           newmix &&
           !entranceActive &&
@@ -2108,6 +2117,7 @@ export default function HomeParticleLogoHero({
             sv.vy += (ry - sv.vy) * sm
             newmixSpoonGx = sv.vx
             newmixSpoonGy = sv.vy
+            newmixSpoonSpeed = Math.hypot(sv.vx, sv.vy)
           }
           pr.x = currentMouseX
           pr.y = currentMouseY
@@ -2298,42 +2308,64 @@ export default function HomeParticleLogoHero({
                   newmixRadius,
                   newmixSpoonGx,
                   newmixSpoonGy,
+                  newmixSpoonSpeed,
                   nm
                 )
+                /** In-disk carry-along: particle advects with the cursor at `inDiskCarryFactor`
+                 * of mouse velocity. Produces the "spoon scooping up coffee" feel — captured
+                 * particles get carried briefly with the cursor before being released. */
+                p.x +=
+                  newmixFrameMouseDeltaRef.current.dx *
+                  nm.inDiskCarryFactor
+                p.y +=
+                  newmixFrameMouseDeltaRef.current.dy *
+                  nm.inDiskCarryFactor
               } else if (
                 p.bhPrevInRadius &&
                 !inCaptureDiskGeom &&
                 !newmixIdle &&
                 cursorOk
               ) {
-                /** Release: store the wall-clock time. The wake playhead reads cursor history
-                 * at `releaseTime + (now - releaseTime) * pace`, so the particle traces the
-                 * EXACT path the cursor drew, falling further behind as time passes (pace<1). */
-                p.bhTrailUntilMs = nowTick + nm.trailFollowMs
-                /** `newmixCursorOriginX/Y` doubles as `releaseTime` — store nowTick in X. */
-                p.newmixCursorOriginX = nowTick
-                p.newmixCursorOriginY = 0
-                /** Offset from cursor-at-release (history at this exact time = current cursor)
-                 * so initial particle position = history[releaseTime] + offset = release pos. */
-                p.newmixTrailArc = p.x - currentMouseX
-                p.newmixLateral = p.y - currentMouseY
-                /** Snapshot home so the post-wake home lerp targets the logo home, not whatever
-                 * the home array happens to be. */
-                p.newmixHomeAtReleaseX = p.hx
-                p.newmixHomeAtReleaseY = p.hy
-                /** Kill all residual velocity — the wake is purely kinematic from here. */
-                p.vx = 0
-                p.vy = 0
-                /** Exit-velocity boost: shoot the released particle along the cursor's heading
-                 * direction so it lands cleanly into the wake instead of orbiting / ringing
-                 * around where the cursor used to be. The position adjustment effectively
-                 * advances the particle one frame along the cursor heading. */
-                const gMag = Math.hypot(newmixSpoonGx, newmixSpoonGy)
-                if (gMag > 1e-5) {
-                  const gx = newmixSpoonGx / gMag
-                  const gy = newmixSpoonGy / gMag
-                  p.x += gx * nm.exitVelocityBoostBmp
-                  p.y += gy * nm.exitVelocityBoostBmp
+                /** Probabilistic trailing: only a fraction of exiting particles get wake-trailing
+                 * state (per `trailingProbability`). The rest skip directly to home-return.
+                 * Keeps the wake thin instead of dragging every particle that passes through. */
+                const releaseHash =
+                  ((p.hx | 0) * 2654435761 +
+                    (p.hy | 0) * 1597334677 +
+                    Math.floor(nowTick * 0.013)) >>> 0
+                const releaseRoll = (releaseHash & 0xffffff) / 0xffffff
+                if (releaseRoll < nm.trailingProbability) {
+                  /** Release into wake: store the wall-clock time. The wake playhead reads
+                   * cursor history at `releaseTime + (now - releaseTime) * pace`, so the
+                   * particle traces the EXACT path the cursor drew. */
+                  p.bhTrailUntilMs = nowTick + nm.trailFollowMs
+                  p.newmixCursorOriginX = nowTick
+                  p.newmixCursorOriginY = 0
+                  p.newmixTrailArc = p.x - currentMouseX
+                  p.newmixLateral = p.y - currentMouseY
+                  p.newmixHomeAtReleaseX = p.hx
+                  p.newmixHomeAtReleaseY = p.hy
+                  p.vx = 0
+                  p.vy = 0
+                  /** Exit-velocity boost: shoot the released particle along the cursor's
+                   * heading direction so it lands cleanly into the wake. */
+                  const gMag = Math.hypot(newmixSpoonGx, newmixSpoonGy)
+                  if (gMag > 1e-5) {
+                    const gx = newmixSpoonGx / gMag
+                    const gy = newmixSpoonGy / gMag
+                    p.x += gx * nm.exitVelocityBoostBmp
+                    p.y += gy * nm.exitVelocityBoostBmp
+                  }
+                } else {
+                  /** Skip wake — start a direct home-return flight from current position. */
+                  p.bhTrailUntilMs = null
+                  p.newmixCursorOriginX = undefined
+                  p.newmixCursorOriginY = undefined
+                  p.newmixHomeReturnFromX = p.x
+                  p.newmixHomeReturnFromY = p.y
+                  p.newmixHomeReturnStartMs = nowTick
+                  p.vx = 0
+                  p.vy = 0
                 }
               }
 
