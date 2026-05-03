@@ -1,7 +1,7 @@
 /**
  * Single visible stipple: animated particles on canvasC only (see ANIMATED_PARTICLE_CAP).
  */
-export const ANIMATED_PARTICLE_CAP = 20000
+export const ANIMATED_PARTICLE_CAP = 30000
 
 /**
  * Fraction of particles whose home `(hx, hy)` is uniform across the full hero bitmap `W×H`.
@@ -30,7 +30,7 @@ export const PHYSICS_DIST_EPSILON = 1e-6
 
 /** Fixed stipple opacity (crisp logo; no per-dot random variance). */
 export const PARTICLE_BASE_ALPHA = 0.5
-export const ANIMATED_PARTICLE_ALPHA_MULT = 1.58
+export const ANIMATED_PARTICLE_ALPHA_MULT = 2.0
 export const PARTICLE_ALPHA_MIN = 0.12
 export const PARTICLE_ALPHA_CAP = 0.9
 
@@ -56,6 +56,11 @@ export const FULLSCREEN_PARTICLE_DRAW_SIZE_BMP = 5
  * Fullscreen logo scale cap inside the viewport (lower = smaller wordmark, more safe margin).
  */
 export const FULLSCREEN_LOGO_PAD = 0.8
+/**
+ * Embedded (lab page) logo scale multiplier. Used to enlarge the stipple area on the
+ * particle-logo lab so density per square inch matches the newmix reference.
+ */
+export const EMBEDDED_LOGO_BOOST_SCALE = 1.3
 
 /**
  * Shift stipple + mask downward (CSS px) so the mark clears the top of the frame / nav overlap.

@@ -32,6 +32,7 @@ import {
   PARTICLE_ENTRANCE_CURVE_BMP,
   PARTICLE_ENTRANCE_DIFFUSION_BMP,
   PARTICLE_ENTRANCE_SPAWN_TAIL_BMP,
+  EMBEDDED_LOGO_BOOST_SCALE,
   PARTICLE_RADIUS_MIN_CSS,
   PHYSICS_DIST_EPSILON,
   PUSH_FORCE,
@@ -125,7 +126,7 @@ function gatherAlphaCandidates(
     for (let x = 0; x < W; x++) {
       const i = (y * W + x) * 4
       const a = data[i + 3]
-      if (a > 200) {
+      if (a > 150) {
         out.push({ x, y })
       }
     }
@@ -1340,7 +1341,10 @@ export default function HomeParticleLogoHero({
     const nh = img.naturalHeight
     const isFsBuild = presentationRef.current === "fullscreen"
     const pad = isFsBuild ? FULLSCREEN_LOGO_PAD : 0.985
-    const logoScale = Math.min((W * pad) / nw, (H * pad) / nh)
+    const baseLogoScale = Math.min((W * pad) / nw, (H * pad) / nh)
+    const logoScale = isFsBuild
+      ? baseLogoScale
+      : baseLogoScale * EMBEDDED_LOGO_BOOST_SCALE
     const dw = nw * logoScale
     const dh = nh * logoScale
     /** Physics mask centered in bitmap W×H (`W`/`H` ≡ viewport × dpr). */
@@ -1359,9 +1363,9 @@ export default function HomeParticleLogoHero({
 
     let candidates: Array<{ x: number; y: number }>
     try {
-      candidates = gatherAlphaCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
+      candidates = gatherBrightInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
       if (candidates.length === 0) {
-        candidates = gatherBrightInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
+        candidates = gatherAlphaCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
       }
     } catch {
       setLoadFailed(true)
