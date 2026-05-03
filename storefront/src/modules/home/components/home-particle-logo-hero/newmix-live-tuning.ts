@@ -73,7 +73,7 @@ export type NewmixLiveTuning = {
 
 /** Must stay aligned with `constants.ts` exports for newmix. */
 export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
-  radius: 65,
+  radius: 45,
   velSmoothing: 0.45,
   sideSwirlForce: 14.0,
   frontPush: 5.0,
@@ -82,9 +82,9 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   trailFollowMs: 800,
   wakePace: 0.95,
   wakePaceJitter: 0.25,
-  wakeLateralSpreadBmp: 6,
+  wakeLateralSpreadBmp: 3,
   wakeReleaseStaggerMs: 200,
-  wakeBandSpreadBmp: 5,
+  wakeBandSpreadBmp: 3,
   wakeAlongStretchBmp: 5,
   wakeDiffusionBmp: 0,
   wakeDiffusionHz: 0.6,
@@ -98,10 +98,10 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   friction: 0.86,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
-  homeReturnMs: 400,
-  homeReturnCurveBmp: 0,
-  homeReturnDurationJitter: 0.85,
-  homeReturnDiffusionBmp: 0,
+  homeReturnMs: 1500,
+  homeReturnCurveBmp: 90,
+  homeReturnDurationJitter: 0.7,
+  homeReturnDiffusionBmp: 8,
   idleThresholdMs: 2000,
 })
 
