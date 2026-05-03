@@ -2361,10 +2361,12 @@ export default function HomeParticleLogoHero({
                     nm.wakePace * paceFactor
                   )
                   /** Per-particle time offset: shift this particle's playhead backward in
-                   * history by `rand2 * wakeTimeOffsetMs`. This spreads particles released
-                   * in a single swirl-pass across the entire recent path-history, producing
-                   * a continuous trail instead of discrete clumps at the cursor. */
-                  const timeOffset = rand4 * nm.wakeTimeOffsetMs
+                   * history. `rand4²` weighting biases most particles toward the front of
+                   * the wake (close to cursor) with a thinner tail extending further back —
+                   * produces a defined ribbon that fades with distance, rather than uniform
+                   * scatter across the entire history window. */
+                  const timeOffset =
+                    rand4 * rand4 * nm.wakeTimeOffsetMs
                   const playheadTime =
                     releaseTime +
                     stagger +

@@ -71,19 +71,19 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   frontPush: 3.0,
   backInward: 2.0,
   falloffPower: 1.4,
-  trailFollowMs: 8000,
+  trailFollowMs: 2500,
   wakePace: 0.55,
-  wakePaceJitter: 0.85,
+  wakePaceJitter: 0.25,
   wakeLateralSpreadBmp: 22,
-  wakeReleaseStaggerMs: 900,
-  wakeBandSpreadBmp: 28,
-  wakeAlongStretchBmp: 90,
-  wakeDiffusionBmp: 22,
+  wakeReleaseStaggerMs: 200,
+  wakeBandSpreadBmp: 14,
+  wakeAlongStretchBmp: 25,
+  wakeDiffusionBmp: 4,
   wakeDiffusionHz: 0.6,
   /** Each particle's effective release time is shifted backward in history by a per-particle
-   * fraction of this many ms, so a single swirl-pass spreads its particles across the full
-   * recent path instead of all starting at the cursor's current position. */
-  wakeTimeOffsetMs: 6000,
+   * fraction of this many ms. Distribution is rand² (front-loaded) — most particles cluster
+   * near the cursor with a thinner tail extending back. */
+  wakeTimeOffsetMs: 1500,
   releaseVelocityKeep: 0.0,
   friction: 0.94,
   springStiffnessMult: 0.55,
