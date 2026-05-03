@@ -1178,11 +1178,15 @@ export default function HomeParticleLogoHero({
   const newmixFrameMouseDeltaRef = useRef({ dx: 0, dy: 0 })
   /** Previous tick's cursor position (bitmap px) for delta computation. */
   const newmixTickPrevCursorRef = useRef({ x: -9999, y: -9999 })
-  /** Per-frame cursor history (bitmap px). Each tick pushes the live cursor position;
-   * trailing particles play back this buffer to trace the EXACT path the mouse drew. */
+  /** Per-frame cursor history (bitmap px). Each tick pushes the SMOOTHED cursor position
+   * (low-pass filtered from raw input); trailing particles play back this buffer so quick
+   * direction changes don't bend the wake into visible zigzags. */
   const newmixCursorHistoryRef = useRef<
     Array<{ x: number; y: number; t: number }>
   >([])
+  /** Smoothed cursor position used for the history buffer push. Updated each tick by
+   * lerping toward the raw cursor position with `WAKE_HISTORY_SMOOTHING` factor. */
+  const newmixSmoothedCursorRef = useRef({ x: -9999, y: -9999 })
   const newmixLiveMergedRef = useRef<NewmixLiveTuning>(
     mergeNewmixLiveTuning()
   )
@@ -2145,17 +2149,30 @@ export default function HomeParticleLogoHero({
           newmixIdle =
             nowTick - newmixLastMotionMsRef.current >= nm.idleThresholdMs
 
-          /** Push the live cursor position into the history buffer for trail playback.
-           * Keep enough history for the wake duration + the per-particle time offset so
-           * particles released "in the past" can read valid history samples. */
+          /** Push the SMOOTHED cursor position into the history buffer. Smoothing is a
+           * simple exponential lerp toward the raw cursor — direction reversals get
+           * blended out so the wake doesn't bend into zigzags. Keep enough history for
+           * the wake duration + per-particle time offset so particles released "in the
+           * past" can read valid history samples. */
           if (cursorOk) {
+            const sm = newmixSmoothedCursorRef.current
+            if (sm.x <= -9000 || sm.y <= -9000) {
+              sm.x = currentMouseX
+              sm.y = currentMouseY
+            } else {
+              const SMOOTH_K = 0.35
+              sm.x += (currentMouseX - sm.x) * SMOOTH_K
+              sm.y += (currentMouseY - sm.y) * SMOOTH_K
+            }
             const hist = newmixCursorHistoryRef.current
-            hist.push({ x: currentMouseX, y: currentMouseY, t: nowTick })
+            hist.push({ x: sm.x, y: sm.y, t: nowTick })
             const cutoff =
               nowTick - nm.trailFollowMs - nm.wakeTimeOffsetMs - 500
             while (hist.length > 0 && hist[0]!.t < cutoff) {
               hist.shift()
             }
+          } else {
+            newmixSmoothedCursorRef.current = { x: -9999, y: -9999 }
           }
         }
 
@@ -2866,6 +2883,7 @@ export default function HomeParticleLogoHero({
       newmixFrameMouseDeltaRef.current = { dx: 0, dy: 0 }
       newmixTickPrevCursorRef.current = { x: -9999, y: -9999 }
       newmixCursorHistoryRef.current = []
+      newmixSmoothedCursorRef.current = { x: -9999, y: -9999 }
       const cw = viscousCoffeeWakeParticlesRef.current
       if (cw != null) {
         for (const p of cw) {

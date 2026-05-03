@@ -6,7 +6,7 @@ import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-he
 import type { NewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 import { mergeNewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 
-const LS_KEY = "newmix-live-tuning-v12"
+const LS_KEY = "newmix-live-tuning-v13"
 
 const INT_KEYS = new Set<keyof NewmixLiveTuning>([
   "radius",

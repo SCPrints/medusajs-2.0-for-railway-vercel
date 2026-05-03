@@ -79,8 +79,8 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   frontPush: 5.0,
   backInward: 3.5,
   falloffPower: 1.4,
-  trailFollowMs: 1200,
-  wakePace: 0.85,
+  trailFollowMs: 800,
+  wakePace: 0.95,
   wakePaceJitter: 0.25,
   wakeLateralSpreadBmp: 6,
   wakeReleaseStaggerMs: 200,
@@ -91,7 +91,7 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   /** Each particle's effective release time is shifted backward in history by a per-particle
    * fraction of this many ms. Distribution is rand² (front-loaded) — most particles cluster
    * near the cursor with a thinner tail extending back. */
-  wakeTimeOffsetMs: 600,
+  wakeTimeOffsetMs: 300,
   releaseVelocityKeep: 0.0,
   exitVelocityBoostBmp: 6.0,
   leadingEdgePullForce: 4.5,
