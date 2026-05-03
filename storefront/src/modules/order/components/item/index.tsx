@@ -44,9 +44,22 @@ const Item = ({ item }: ItemProps) => {
           <LineItemOptions variant={item.variant} data-testid="product-variant" />
         )}
         {customizerMetadata && (
-          <Text className="txt-small text-ui-fg-subtle mt-1">
-            Custom design archived with print-ready assets.
-          </Text>
+          <>
+            <Text className="txt-small text-ui-fg-subtle mt-1">
+              Custom design archived with print-ready assets.
+            </Text>
+            {customizerMetadata.printNotes ? (
+              <Text
+                className="txt-small text-ui-fg-subtle mt-1 line-clamp-3"
+                title={customizerMetadata.printNotes}
+              >
+                Notes:{" "}
+                {customizerMetadata.printNotes.length > 120
+                  ? `${customizerMetadata.printNotes.slice(0, 120)}…`
+                  : customizerMetadata.printNotes}
+              </Text>
+            ) : null}
+          </>
         )}
       </Table.Cell>
 

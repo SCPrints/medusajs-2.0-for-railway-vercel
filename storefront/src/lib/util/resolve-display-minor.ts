@@ -88,11 +88,20 @@ export const resolveHeadlineMinorAmount = (
   return c ?? 0
 }
 
-const AS_COLOUR_HANDLE_PREFIX = "as-colour-"
+/**
+ * Handle prefixes for suppliers whose import pipeline is known to occasionally
+ * store retail dollars as raw integers (so 53 means $53, not $0.53).
+ *
+ * Add a prefix here only after confirming the bug exists for that supplier —
+ * applying the hundredfold scale-up to a legitimately cheap item ($0.50 sample,
+ * accessory, sticker) would 100× the displayed price. Suspect candidates worth
+ * spot-checking next: ramo-, syzmik-, dnc-.
+ */
+const HUNDREDFOLD_TYPO_HANDLE_PREFIXES = ["as-colour-"] as const
 
 /**
  * When Admin shows ~$53 but Store + `bulk_pricing` both carry **53** minor (100× under-scale),
- * `resolveHeadlineMinorAmount` cannot infer a fix. For **AUD** + `as-colour-*` handles only,
+ * `resolveHeadlineMinorAmount` cannot infer a fix. For **AUD** + a known-affected supplier handle,
  * if the resolver left the value equal to raw Medusa and it looks like "dollars stored as cents",
  * multiply by 100 into a plausible garment band ($5–$6000).
  */
@@ -108,7 +117,7 @@ export const finalizeAudAsColourMinorIfHundredfoldTypo = (
   }
 
   const h = String(productHandle ?? "").trim().toLowerCase()
-  if (!h.startsWith(AS_COLOUR_HANDLE_PREFIX)) {
+  if (!HUNDREDFOLD_TYPO_HANDLE_PREFIXES.some((prefix) => h.startsWith(prefix))) {
     return resolvedMinor
   }
 

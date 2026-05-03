@@ -28,13 +28,17 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
     gift_card_total,
   } = totals
 
+  const isAud = currency_code?.toLowerCase() === "aud"
+  const taxLabel = isAud ? "GST" : "Taxes"
+  const subtotalLabel = isAud
+    ? "Subtotal (excl. shipping and GST)"
+    : "Subtotal (excl. shipping and taxes)"
+
   return (
     <div>
       <div className="flex flex-col gap-y-2 txt-medium text-ui-fg-subtle ">
         <div className="flex items-center justify-between">
-          <span className="flex gap-x-1 items-center">
-            Subtotal (excl. shipping and taxes)
-          </span>
+          <span className="flex gap-x-1 items-center">{subtotalLabel}</span>
           <span data-testid="cart-subtotal" data-value={subtotal || 0}>
             {convertMinorToLocale({ amount: subtotal ?? 0, currency_code })}
           </span>
@@ -59,7 +63,7 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
           </span>
         </div>
         <div className="flex justify-between">
-          <span className="flex gap-x-1 items-center ">Taxes</span>
+          <span className="flex gap-x-1 items-center ">{taxLabel}</span>
           <span data-testid="cart-taxes" data-value={tax_total || 0}>
             {convertMinorToLocale({ amount: tax_total ?? 0, currency_code })}
           </span>

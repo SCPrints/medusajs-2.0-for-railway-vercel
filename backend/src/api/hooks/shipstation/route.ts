@@ -191,28 +191,58 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       return null
     })
   } else if (body.resource_url?.includes("/shipments/")) {
-    shipment = await client.getByUrl<Shipment>(body.resource_url).catch(() => null)
+    shipment = await client.getByUrl<Shipment>(body.resource_url).catch((e) => {
+      logger.error(
+        `ShipStation getByUrl(${body.resource_url}) failed: ${(e as Error).message}`
+      )
+      return null
+    })
   }
 
   if (shipment?.shipment_id) {
     const labelsResp = await client
       .listLabelsForShipment(shipment.shipment_id)
-      .catch(() => null)
+      .catch((e) => {
+        logger.error(
+          `ShipStation listLabelsForShipment(${shipment!.shipment_id}) failed: ${(e as Error).message}`
+        )
+        return null
+      })
     labels = labelsResp?.labels || []
   } else if (body.label_id) {
-    const label = await client.getLabel(body.label_id).catch(() => null)
+    const label = await client.getLabel(body.label_id).catch((e) => {
+      logger.error(
+        `ShipStation getLabel(${body.label_id}) failed: ${(e as Error).message}`
+      )
+      return null
+    })
     if (label) {
       labels = [label]
       if (!shipment && label.shipment_id) {
-        shipment = await client.getShipment(label.shipment_id).catch(() => null)
+        shipment = await client.getShipment(label.shipment_id).catch((e) => {
+          logger.error(
+            `ShipStation getShipment(${label.shipment_id}) failed: ${(e as Error).message}`
+          )
+          return null
+        })
       }
     }
   } else if (body.resource_url?.includes("/labels/")) {
-    const label = await client.getByUrl<Label>(body.resource_url).catch(() => null)
+    const label = await client.getByUrl<Label>(body.resource_url).catch((e) => {
+      logger.error(
+        `ShipStation getByUrl(${body.resource_url}) failed: ${(e as Error).message}`
+      )
+      return null
+    })
     if (label) {
       labels = [label]
       if (!shipment && label.shipment_id) {
-        shipment = await client.getShipment(label.shipment_id).catch(() => null)
+        shipment = await client.getShipment(label.shipment_id).catch((e) => {
+          logger.error(
+            `ShipStation getShipment(${label.shipment_id}) failed: ${(e as Error).message}`
+          )
+          return null
+        })
       }
     }
   }
@@ -358,6 +388,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   if (handledShippedEvent && newParcels.length) {
     // Emit `order.shipment_created` so the dispatch-email subscriber fires.
+    // Parcels are already persisted above, so a 5xx response here is safe:
+    // ShipStation will retry, idempotency dedupes the parcels, and the workflow re-fires.
     try {
       await createOrderShipmentWorkflow(req.scope).run({
         input: {
@@ -375,11 +407,43 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         },
       })
     } catch (err) {
+      const message = (err as Error).message
       logger.error(
-        `createOrderShipmentWorkflow failed for order ${orderId}: ${
-          (err as Error).message
-        }`
+        `createOrderShipmentWorkflow failed for order ${orderId}: ${message}`
       )
+      // Stamp the failure on the fulfillment so admins can see it without grepping logs.
+      await fulfillmentModule
+        .updateFulfillment(fulfillment.id, {
+          metadata: {
+            ...existingMetadata,
+            parcels: mergedParcels,
+            tracking_links: mergedParcels.map((p) => ({
+              tracking_number: p.tracking_number,
+              url: p.tracking_url,
+            })),
+            last_shipstation_event: {
+              event,
+              received_at: new Date().toISOString(),
+            },
+            last_shipment_workflow_error: {
+              message,
+              failed_at: new Date().toISOString(),
+            },
+          },
+        })
+        .catch((e) =>
+          logger.error(
+            `Failed to stamp workflow error on fulfillment ${fulfillment.id}: ${(e as Error).message}`
+          )
+        )
+      // Return 5xx so ShipStation retries the webhook (parcels are idempotent).
+      res.status(500).json({
+        ok: false,
+        event,
+        error: "shipment_workflow_failed",
+        message,
+      })
+      return
     }
   }
 

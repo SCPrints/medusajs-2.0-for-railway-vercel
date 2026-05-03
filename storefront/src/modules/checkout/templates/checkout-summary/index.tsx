@@ -24,7 +24,11 @@ const CheckoutSummary = ({ cart }: { cart: any }) => {
           In your cart
         </Heading>
         <p className="mt-1 text-sm text-ui-fg-subtle">
-          Order summary — prices in {cart?.currency_code?.toUpperCase() ?? "AUD"}.
+          Order summary — prices in {cart?.currency_code?.toUpperCase() ?? "AUD"}
+          {cart?.currency_code?.toLowerCase() === "aud"
+            ? ", excluding GST (calculated below)"
+            : ""}
+          .
         </p>
         <Divider className="my-5" />
         <CartTotals totals={cart} />

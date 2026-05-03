@@ -18,7 +18,15 @@ export async function retrieveCart() {
   }
 
   return await sdk.store.cart
-    .retrieve(cartId, {}, { next: { tags: ["cart"] }, ...(await getAuthHeaders()) })
+    .retrieve(
+      cartId,
+      {
+        // Pull inventory fields so the cart-line quantity selector can cap at real stock.
+        fields:
+          "*items.variant.inventory_quantity,*items.variant.manage_inventory,*items.variant.allow_backorder",
+      },
+      { next: { tags: ["cart"] }, ...(await getAuthHeaders()) }
+    )
     .then(({ cart }) => cart)
     .catch(() => {
       return null
