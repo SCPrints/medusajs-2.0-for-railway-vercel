@@ -1403,6 +1403,14 @@ type Props = {
    * Omitted = built-in defaults from `newmix-live-tuning.ts`.
    */
   newmixLiveTuning?: Partial<NewmixLiveTuning> | null
+  /**
+   * Forces which pixels become particle candidates, overriding auto-detect.
+   * - `"bright"`: keep light pixels (white logo on dark / transparent background)
+   * - `"dark"`: keep dark pixels (dark logo on light background, or photographic content
+   *   where the dark areas should form the particle silhouette)
+   * - `"auto"` (default): inspect the image and pick whichever is dominant
+   */
+  inkPolarity?: "auto" | "bright" | "dark"
 }
 
 export default function HomeParticleLogoHero({
@@ -1413,6 +1421,7 @@ export default function HomeParticleLogoHero({
   sectionAriaLabel,
   viscousCoffeeLiveTuning = null,
   newmixLiveTuning = null,
+  inkPolarity = "auto",
 }: Props) {
   const presentationRef = useRef(presentation)
   presentationRef.current = presentation
@@ -1639,21 +1648,23 @@ export default function HomeParticleLogoHero({
 
     let candidates: Array<{ x: number; y: number }>
     try {
-      /** Auto-detect image polarity. White-on-transparent / white-on-dark logos use the
-       * bright-ink pass; dark-on-white logos use the dark-ink pass. Lets any logo file
-       * work without requiring per-image preprocessing. */
-      const polarity = detectImagePolarity(
-        W,
-        H,
-        dpr,
-        img,
-        wCss,
-        hCss,
-        dxCss,
-        dyCss,
-        dwCss,
-        dhCss
-      )
+      /** Polarity selection. If the caller forced one via `inkPolarity`, use it. Otherwise
+       * auto-detect by inspecting the drawn image on a mid-grey background. */
+      const polarity =
+        inkPolarity !== "auto"
+          ? inkPolarity
+          : detectImagePolarity(
+              W,
+              H,
+              dpr,
+              img,
+              wCss,
+              hCss,
+              dxCss,
+              dyCss,
+              dwCss,
+              dhCss
+            )
       if (polarity === "dark") {
         candidates = gatherDarkInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
         if (candidates.length === 0) {

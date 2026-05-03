@@ -8,6 +8,7 @@ export default function DmcSplash() {
       presentation="embedded"
       interactionMode="newmix"
       logoSrc="/branding/dmc-logo.png"
+      inkPolarity="dark"
       sectionAriaLabel="DMC particle logo"
     />
   )
