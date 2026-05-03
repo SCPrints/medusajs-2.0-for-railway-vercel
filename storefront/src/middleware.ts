@@ -146,6 +146,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|favicon.ico|animation-lab/|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg|.*\\.riv).*)",
+    // Exclude `_next/` (not only `_next/static`) so `/_next/image` is not prefixed with /{countryCode}/ — otherwise next/image requests break.
+    "/((?!api|_next/|favicon.ico|animation-lab/|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg|.*\\.riv).*)",
   ],
 }

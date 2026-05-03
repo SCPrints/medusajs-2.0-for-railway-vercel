@@ -188,6 +188,122 @@ function gatherBrightInkCandidates(
   return out
 }
 
+/** Threshold for the dark-ink pass: pixels darker than this (`r+g+b` sum) become candidates.
+ * Mirror of `FALLBACK_BRIGHT_SUM` for inverted-polarity logos (dark ink on white background). */
+const FALLBACK_DARK_SUM = 380
+
+/**
+ * Third pass: white background + draw image; keep DARK pixels (dark logo on white). Used
+ * for source images where the visible content is dark on a light background — the inverse
+ * of `gatherBrightInkCandidates`.
+ */
+function gatherDarkInkCandidates(
+  W: number,
+  H: number,
+  dpr: number,
+  img: CanvasImageSource,
+  wCss: number,
+  hCss: number,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number
+): Array<{ x: number; y: number }> {
+  const off = document.createElement("canvas")
+  off.width = W
+  off.height = H
+  const octx = off.getContext("2d", { alpha: true })
+  if (!octx) {
+    return []
+  }
+  octx.setTransform(1, 0, 0, 1, 0, 0)
+  octx.scale(dpr, dpr)
+  octx.fillStyle = "#fff"
+  octx.fillRect(0, 0, wCss, hCss)
+  octx.drawImage(img, dx, dy, dw, dh)
+
+  let imageData: ImageData
+  try {
+    imageData = octx.getImageData(0, 0, W, H)
+  } catch (e) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[HomeParticleLogoHero] getImageData (dark pass) failed:", e)
+    }
+    return []
+  }
+
+  const out: Array<{ x: number; y: number }> = []
+  const data = imageData.data
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      if (r + g + b <= FALLBACK_DARK_SUM) {
+        out.push({ x, y })
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * Detect the polarity of a source image by sampling the average brightness across the
+ * drawn area on a NEUTRAL-grey background. Returns "bright" (white-on-dark logos like
+ * sc-prints) or "dark" (dark-on-white logos). Used to auto-route to the right candidate
+ * pass without requiring per-image preprocessing.
+ */
+function detectImagePolarity(
+  W: number,
+  H: number,
+  dpr: number,
+  img: CanvasImageSource,
+  wCss: number,
+  hCss: number,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number
+): "bright" | "dark" {
+  const off = document.createElement("canvas")
+  off.width = W
+  off.height = H
+  const octx = off.getContext("2d", { alpha: true })
+  if (!octx) {
+    return "bright"
+  }
+  octx.setTransform(1, 0, 0, 1, 0, 0)
+  octx.scale(dpr, dpr)
+  /** Mid-grey reference background. If the drawn image leaves more bright-than-grey
+   * pixels behind, it's "dark ink on light bg" → use dark pass. Otherwise → bright pass. */
+  octx.fillStyle = "#808080"
+  octx.fillRect(0, 0, wCss, hCss)
+  octx.drawImage(img, dx, dy, dw, dh)
+  let imageData: ImageData
+  try {
+    imageData = octx.getImageData(0, 0, W, H)
+  } catch {
+    return "bright"
+  }
+  const data = imageData.data
+  let bright = 0
+  let dark = 0
+  /** Stride-sample for speed — every 4th pixel in each direction is plenty. */
+  const stride = 4
+  for (let y = 0; y < H; y += stride) {
+    for (let x = 0; x < W; x += stride) {
+      const i = (y * W + x) * 4
+      const sum = data[i]! + data[i + 1]! + data[i + 2]!
+      if (sum > 480) bright++
+      else if (sum < 240) dark++
+    }
+  }
+  /** If the image has more dark-than-grey pixels after drawing on grey, the source's
+   * "ink" is dark — use the dark pass. Otherwise default to bright. */
+  return dark > bright ? "dark" : "bright"
+}
+
 /**
  * Bitmap-space particles; position integrated in the RAF loop (or kinematic entrance).
  */
@@ -1523,7 +1639,32 @@ export default function HomeParticleLogoHero({
 
     let candidates: Array<{ x: number; y: number }>
     try {
-      candidates = gatherBrightInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
+      /** Auto-detect image polarity. White-on-transparent / white-on-dark logos use the
+       * bright-ink pass; dark-on-white logos use the dark-ink pass. Lets any logo file
+       * work without requiring per-image preprocessing. */
+      const polarity = detectImagePolarity(
+        W,
+        H,
+        dpr,
+        img,
+        wCss,
+        hCss,
+        dxCss,
+        dyCss,
+        dwCss,
+        dhCss
+      )
+      if (polarity === "dark") {
+        candidates = gatherDarkInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
+        if (candidates.length === 0) {
+          candidates = gatherBrightInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
+        }
+      } else {
+        candidates = gatherBrightInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
+        if (candidates.length === 0) {
+          candidates = gatherDarkInkCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
+        }
+      }
       if (candidates.length === 0) {
         candidates = gatherAlphaCandidates(W, H, dpr, img, wCss, hCss, dxCss, dyCss, dwCss, dhCss)
       }
@@ -1535,7 +1676,7 @@ export default function HomeParticleLogoHero({
     if (process.env.NODE_ENV === "development") {
       if (candidates.length === 0) {
         console.warn(
-          "[HomeParticleLogoHero] No mask pixels — check asset and CORS; tried alpha + bright-ink fallback."
+          "[HomeParticleLogoHero] No mask pixels — check asset and CORS; tried bright-ink, dark-ink, alpha passes."
         )
       }
     }
