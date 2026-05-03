@@ -1,7 +1,7 @@
 /**
  * Single visible stipple: animated particles on canvasC only (see ANIMATED_PARTICLE_CAP).
  */
-export const ANIMATED_PARTICLE_CAP = 10500
+export const ANIMATED_PARTICLE_CAP = 30000
 
 /**
  * Fraction of particles whose home `(hx, hy)` is uniform across the full hero bitmap `W×H`.
@@ -47,7 +47,7 @@ export const PARTICLE_AMBIENT_G = 255
 export const PARTICLE_AMBIENT_B = 255
 
 /** Hot-path draw: rects instead of arcs (bitmap px); larger = thicker resting wordmark. */
-export const PARTICLE_DRAW_SIZE_BMP = 3
+export const PARTICLE_DRAW_SIZE_BMP = 1
 
 /** Fullscreen particle page: finer stipple (see `HomeParticleLogoHero` draw path). */
 export const FULLSCREEN_PARTICLE_DRAW_SIZE_BMP = 5
