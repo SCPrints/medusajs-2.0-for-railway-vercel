@@ -65,33 +65,33 @@ export type NewmixLiveTuning = {
 
 /** Must stay aligned with `constants.ts` exports for newmix. */
 export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
-  radius: 92,
+  radius: 65,
   velSmoothing: 0.45,
-  sideSwirlForce: 8.0,
-  frontPush: 3.0,
-  backInward: 2.0,
+  sideSwirlForce: 14.0,
+  frontPush: 5.0,
+  backInward: 3.5,
   falloffPower: 1.4,
-  trailFollowMs: 2500,
-  wakePace: 0.55,
+  trailFollowMs: 1200,
+  wakePace: 0.85,
   wakePaceJitter: 0.25,
-  wakeLateralSpreadBmp: 22,
+  wakeLateralSpreadBmp: 6,
   wakeReleaseStaggerMs: 200,
-  wakeBandSpreadBmp: 14,
-  wakeAlongStretchBmp: 25,
-  wakeDiffusionBmp: 4,
+  wakeBandSpreadBmp: 5,
+  wakeAlongStretchBmp: 5,
+  wakeDiffusionBmp: 0,
   wakeDiffusionHz: 0.6,
   /** Each particle's effective release time is shifted backward in history by a per-particle
    * fraction of this many ms. Distribution is rand² (front-loaded) — most particles cluster
    * near the cursor with a thinner tail extending back. */
-  wakeTimeOffsetMs: 1500,
+  wakeTimeOffsetMs: 600,
   releaseVelocityKeep: 0.0,
   friction: 0.94,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
-  homeReturnMs: 2000,
-  homeReturnCurveBmp: 220,
+  homeReturnMs: 400,
+  homeReturnCurveBmp: 0,
   homeReturnDurationJitter: 0.85,
-  homeReturnDiffusionBmp: 28,
+  homeReturnDiffusionBmp: 0,
   idleThresholdMs: 2000,
 })
 

@@ -2482,83 +2482,37 @@ export default function HomeParticleLogoHero({
                 p.newmixHomeReturnFromX != null &&
                 p.newmixHomeReturnFromY != null
               ) {
-                /** HOME RETURN along a per-particle curved path, eased over `homeReturnMs`.
-                 * Each particle's path bends via a perpendicular control offset chosen by
-                 * a per-particle hash, so paths fan out instead of all converging on a
-                 * straight line — matching the spread-out green-line look. Zero velocity. */
-                const hashSrc =
-                  ((p.hx | 0) * 2654435761 + (p.hy | 0) * 1597334677) >>> 0
-                const rand1 = (hashSrc & 0xffffff) / 0xffffff
-                const rand2 =
-                  ((((hashSrc >>> 8) * 2246822519) >>> 0) & 0xffffff) /
-                  0xffffff
-                const rand3 =
-                  ((((hashSrc >>> 16) * 374761393) >>> 0) & 0xffffff) /
-                  0xffffff
-                const durJitter =
-                  1 + (rand1 * 2 - 1) * nm.homeReturnDurationJitter
-                const dur = Math.max(
-                  100,
-                  nm.homeReturnMs * durJitter
-                )
-                const elapsed = nowTick - p.newmixHomeReturnStartMs
-                const t = Math.max(0, Math.min(1, elapsed / dur))
-                /** Cubic ease-out for graceful arrival at home. */
-                const e = 1 - (1 - t) * (1 - t) * (1 - t)
-                const sx = p.newmixHomeReturnFromX
-                const sy = p.newmixHomeReturnFromY
-                const ex = p.hx
-                const ey = p.hy
-                /** Quadratic Bezier control point: a fully randomized control direction
-                 * (any angle around the start, not just perpendicular to start→home), with
-                 * unique magnitude per particle. This produces home-return arcs that fan
-                 * out across the canvas in every direction rather than two symmetric sides. */
-                const dx = ex - sx
-                const dy = ey - sy
-                const dist = Math.hypot(dx, dy)
-                /** Unique sweep angle ∈ [-π, π) per particle. */
-                const sweepAngle = (rand2 - 0.5) * Math.PI * 2
-                /** Magnitude varies per particle (rand3) on top of the global setting. */
-                const curveAmp =
-                  nm.homeReturnCurveBmp *
-                  (0.4 + rand3 * 1.2) *
-                  Math.min(1, dist / 200 + 0.3)
-                const cdx = Math.cos(sweepAngle) * curveAmp
-                const cdy = Math.sin(sweepAngle) * curveAmp
-                const mx = (sx + ex) * 0.5 + cdx
-                const my = (sy + ey) * 0.5 + cdy
-                /** Quadratic Bezier(t) = (1-t)² * S + 2(1-t)t * M + t² * E (eased on e). */
-                const oneMinusE = 1 - e
-                const bx =
-                  oneMinusE * oneMinusE * sx +
-                  2 * oneMinusE * e * mx +
-                  e * e * ex
-                const by =
-                  oneMinusE * oneMinusE * sy +
-                  2 * oneMinusE * e * my +
-                  e * e * ey
-                /** Diffusion wobble during home return — bell-shaped envelope so paths spread
-                 * mid-flight and converge precisely on home. Per-particle phase so each dot
-                 * traces its own noisy curve. */
-                const homeEnv = 4 * t * (1 - t)
-                const homePhase1 = rand1 * Math.PI * 2
-                const homePhase2 = rand2 * Math.PI * 2
-                const homeTSec = nowTick * 0.001
-                const homeDiffX =
-                  Math.sin(homeTSec * 4.1 + homePhase1) *
-                  nm.homeReturnDiffusionBmp *
-                  homeEnv
-                const homeDiffY =
-                  Math.cos(homeTSec * 5.3 + homePhase2) *
-                  nm.homeReturnDiffusionBmp *
-                  homeEnv
-                p.x = bx + homeDiffX
-                p.y = by + homeDiffY
-                p.vx = 0
-                p.vy = 0
-                if (t >= 1) {
+                /** FADE-OUT-AND-RESPAWN home return (newmix-style). Particle stays at its
+                 * wake-end position while opacity decays to 0; then snaps to home and fades
+                 * opacity back in. No visible flight across the canvas. */
+                const fadeOutMs = nm.homeReturnMs * 0.35
+                const fadeInMs = nm.homeReturnMs * 0.4
+                const elapsedFade =
+                  nowTick - p.newmixHomeReturnStartMs
+                if (elapsedFade < fadeOutMs) {
+                  /** Phase 1: stay in place, fade opacity 1 → 0. */
+                  const u = elapsedFade / Math.max(1, fadeOutMs)
+                  p.x = p.newmixHomeReturnFromX
+                  p.y = p.newmixHomeReturnFromY
+                  p.entranceOpacity = Math.max(0, 1 - u)
+                  p.vx = 0
+                  p.vy = 0
+                } else if (elapsedFade < fadeOutMs + fadeInMs) {
+                  /** Phase 2: at home, opacity 0 → 1. */
+                  const u =
+                    (elapsedFade - fadeOutMs) / Math.max(1, fadeInMs)
                   p.x = p.hx
                   p.y = p.hy
+                  p.entranceOpacity = Math.max(0, Math.min(1, u))
+                  p.vx = 0
+                  p.vy = 0
+                } else {
+                  /** Phase 3: fully home, opacity 1, clear state. */
+                  p.x = p.hx
+                  p.y = p.hy
+                  p.entranceOpacity = 1
+                  p.vx = 0
+                  p.vy = 0
                   p.newmixHomeReturnFromX = undefined
                   p.newmixHomeReturnFromY = undefined
                   p.newmixHomeReturnStartMs = undefined
@@ -2569,8 +2523,11 @@ export default function HomeParticleLogoHero({
                 p.vx = 0
                 p.vy = 0
                 /** Snap any subpixel residual. */
-                if ((p.hx - p.x) * (p.hx - p.x) +
-                    (p.hy - p.y) * (p.hy - p.y) < 0.25) {
+                if (
+                  (p.hx - p.x) * (p.hx - p.x) +
+                    (p.hy - p.y) * (p.hy - p.y) <
+                  0.25
+                ) {
                   p.x = p.hx
                   p.y = p.hy
                 }
