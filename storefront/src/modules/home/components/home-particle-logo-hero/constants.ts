@@ -61,7 +61,7 @@ export const FULLSCREEN_LOGO_PAD = 0.8
  * particle-logo lab so density per square inch matches the newmix reference.
  * Capped at 1.0 by the boundary clamp below to keep the wordmark inside the canvas.
  */
-export const EMBEDDED_LOGO_BOOST_SCALE = 1.1
+export const EMBEDDED_LOGO_BOOST_SCALE = 0.8
 
 /**
  * Shift stipple + mask downward (CSS px) so the mark clears the top of the frame / nav overlap.
