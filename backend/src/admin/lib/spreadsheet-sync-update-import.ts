@@ -21,12 +21,25 @@ export type ProductUpdateColumnCandidate = ProductPatchColumnDef & {
   affectedProductCount: number
 }
 
+/** Virtual patch column key — combines `product image 1 url` + `product image 2 url` into the `images` field. */
+export const PRODUCT_GALLERY_IMAGES_CSV_KEY = "product gallery images"
+
+/** CSV columns whose data feeds the virtual gallery patch column (replaced by a single `images` field on update). */
+export const PRODUCT_GALLERY_IMAGES_SOURCE_KEYS = [
+  "product image 1 url",
+  "product image 2 url",
+] as const
+
 export const PRODUCT_PATCH_COLUMN_DEFS: readonly ProductPatchColumnDef[] = [
   { csvKey: "product title", label: "Product title" },
   { csvKey: "product subtitle", label: "Product subtitle" },
   { csvKey: "product description", label: "Product description" },
   { csvKey: "product handle", label: "Product handle" },
   { csvKey: "product thumbnail", label: "Product thumbnail" },
+  {
+    csvKey: PRODUCT_GALLERY_IMAGES_CSV_KEY,
+    label: "Product gallery images (Image 1 + Image 2 URLs)",
+  },
   { csvKey: "product status", label: "Product status" },
   { csvKey: "product discountable", label: "Product discountable" },
   { csvKey: "product external id", label: "Product external id" },
@@ -43,6 +56,8 @@ export const PRODUCT_PATCH_COLUMN_DEFS: readonly ProductPatchColumnDef[] = [
 ] as const
 
 const PATCH_CSV_KEYS = new Set(PRODUCT_PATCH_COLUMN_DEFS.map((d) => d.csvKey))
+
+const GALLERY_SOURCE_KEY_SET = new Set<string>(PRODUCT_GALLERY_IMAGES_SOURCE_KEYS)
 
 export type ProductUpdatePreview = {
   productCount: number
@@ -78,6 +93,11 @@ function firstRowFeedsPatch(first: Record<string, string>, csvKey: string): bool
       return !!(first["product handle"] ?? "").trim()
     case "product thumbnail":
       return !!(first["product thumbnail"] ?? "").trim()
+    case PRODUCT_GALLERY_IMAGES_CSV_KEY:
+      return (
+        !!(first["product image 1 url"] ?? "").trim() ||
+        !!(first["product image 2 url"] ?? "").trim()
+      )
     case "product status":
       return (first["product status"] ?? "").trim() !== ""
     case "product discountable":
@@ -124,7 +144,7 @@ export function spreadsheetHeadersIgnoringPatchable(parsed: ParsedCsv): string[]
   const extras: string[] = []
   const seen = new Set<string>()
   for (const h of parsed.headers) {
-    if (REQUIRED_HEADER_SET.has(h) || PATCH_CSV_KEYS.has(h)) {
+    if (REQUIRED_HEADER_SET.has(h) || PATCH_CSV_KEYS.has(h) || GALLERY_SOURCE_KEY_SET.has(h)) {
       continue
     }
     if (!seen.has(h)) {
@@ -138,7 +158,14 @@ export function spreadsheetHeadersIgnoringPatchable(parsed: ParsedCsv): string[]
 /** Per-patchable-column counts across first row of each distinct Product Id. */
 export function computeProductUpdateColumnCandidates(parsed: ParsedCsv): ProductUpdateColumnCandidate[] {
   const grouped = groupRowsByProductId(parsed.rows)
-  const defs = PRODUCT_PATCH_COLUMN_DEFS.filter((d) => parsed.headers.includes(d.csvKey))
+  const headerSet = new Set(parsed.headers)
+  const galleryHeaderPresent = PRODUCT_GALLERY_IMAGES_SOURCE_KEYS.some((k) => headerSet.has(k))
+  const defs = PRODUCT_PATCH_COLUMN_DEFS.filter((d) => {
+    if (d.csvKey === PRODUCT_GALLERY_IMAGES_CSV_KEY) {
+      return galleryHeaderPresent
+    }
+    return headerSet.has(d.csvKey)
+  })
 
   const out: ProductUpdateColumnCandidate[] = []
   for (const def of defs) {
@@ -261,6 +288,15 @@ function applyProductPatchColumns(
     const thumbnail = (first["product thumbnail"] ?? "").trim()
     if (thumbnail) {
       patch.thumbnail = thumbnail
+    }
+  }
+
+  if (allow(PRODUCT_GALLERY_IMAGES_CSV_KEY)) {
+    const u1 = (first["product image 1 url"] ?? "").trim()
+    const u2 = (first["product image 2 url"] ?? "").trim()
+    const images = [u1, u2].filter(Boolean).map((url) => ({ url }))
+    if (images.length) {
+      patch.images = images
     }
   }
 

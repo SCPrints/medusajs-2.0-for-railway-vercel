@@ -153,7 +153,7 @@ export function applySpreadsheetHeaderAliases(parsed: ParsedCsv): ParsedCsv {
     return out
   })
 
-  return { headers: newHeaders, rows }
+  return { headers: newHeaders, rows, emptyHeaderColumns: parsed.emptyHeaderColumns }
 }
 
 /** True if the column exists and at least one row has a non-empty value (handles BOM/spacing case variants). */
@@ -478,7 +478,7 @@ export function expandFashionBizCatalogToTemplate(parsed: ParsedCsv, shippingPro
     }
   }
 
-  return { headers, rows: rowsOut }
+  return { headers, rows: rowsOut, emptyHeaderColumns: [] }
 }
 
 function emptyTemplateRow(): Record<string, string> {
@@ -558,7 +558,7 @@ export function expandGoldCatalogToTemplate(parsed: ParsedCsv, shippingProfileId
     rowsOut.push(base)
   }
 
-  return { headers, rows: rowsOut }
+  return { headers, rows: rowsOut, emptyHeaderColumns: [] }
 }
 
 function slugDncHandle(styleCodeRaw: string): string {
@@ -688,7 +688,7 @@ export function expandDncWorkwearCatalogToTemplate(
     rowsOut.push(base)
   }
 
-  return { headers, rows: rowsOut }
+  return { headers, rows: rowsOut, emptyHeaderColumns: [] }
 }
 
 export type SpreadsheetImportOptions = {

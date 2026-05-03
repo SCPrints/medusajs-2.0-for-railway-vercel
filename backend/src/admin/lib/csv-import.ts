@@ -72,18 +72,26 @@ const splitCsvRecords = (raw: string): string[] => {
 export type ParsedCsv = {
   headers: string[]
   rows: Record<string, string>[]
+  /** 1-based column numbers whose header text is blank (for UX warnings). */
+  emptyHeaderColumns: number[]
 }
 
 /** First row = headers (normalized to lowercase trimmed keys). */
 export const parseCsv = (text: string): ParsedCsv => {
   const lines = splitCsvRecords(text.trim().length ? text : "")
   if (!lines.length) {
-    return { headers: [], rows: [] }
+    return { headers: [], rows: [], emptyHeaderColumns: [] }
   }
   const headerParts = parseCsvLine(lines[0].replace(/^\ufeff/, ""))
-  const headers = headerParts
-    .map((h) => h.trim().replace(/^\ufeff/, "").toLowerCase())
-    .filter(Boolean)
+  const headers = headerParts.map((h) =>
+    h.trim().replace(/^\ufeff/, "").toLowerCase()
+  )
+  const emptyHeaderColumns: number[] = []
+  headers.forEach((h, idx) => {
+    if (h === "") {
+      emptyHeaderColumns.push(idx + 1)
+    }
+  })
   const rows = lines.slice(1).map((line) => {
     const parts = parseCsvLine(line)
     const row: Record<string, string> = {}
@@ -92,7 +100,7 @@ export const parseCsv = (text: string): ParsedCsv => {
     })
     return row
   })
-  return { headers, rows }
+  return { headers, rows, emptyHeaderColumns }
 }
 
 /**
