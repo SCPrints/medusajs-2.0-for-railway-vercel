@@ -4,6 +4,8 @@ import {
   buildBatchUpdatesFromParsedCsv,
   computeProductUpdateColumnCandidates,
   computeProductUpdatePreview,
+  PRODUCT_GALLERY_IMAGES_CSV_KEY,
+  spreadsheetHeadersIgnoringPatchable,
   validateProductUpdateHeaders,
 } from "../spreadsheet-sync-update-import"
 
@@ -120,5 +122,92 @@ describe("spreadsheet-sync-update-import", () => {
     const sub = cand.find((c) => c.csvKey === "product subtitle")
     expect(title?.affectedProductCount).toBe(2)
     expect(sub?.affectedProductCount).toBe(1)
+  })
+
+  describe("product gallery images (virtual patch column)", () => {
+    it("emits a 2-image array when both Image Urls are filled and the column is enabled", () => {
+      const r = emptyRow()
+      r["product id"] = "prod_g1"
+      r["product image 1 url"] = "https://cdn.example.com/a.jpg"
+      r["product image 2 url"] = "https://cdn.example.com/b.jpg"
+      r["variant sku"] = "SKU"
+      const parsed = parseCsv(buildCsv([r]))
+      const { updates, errors } = buildBatchUpdatesFromParsedCsv(parsed, {
+        enabledCsvKeys: new Set([PRODUCT_GALLERY_IMAGES_CSV_KEY]),
+      })
+      expect(errors.length).toBe(0)
+      expect(updates).toEqual([
+        {
+          id: "prod_g1",
+          images: [
+            { url: "https://cdn.example.com/a.jpg" },
+            { url: "https://cdn.example.com/b.jpg" },
+          ],
+        },
+      ])
+    })
+
+    it("emits a 1-image array when only one Image Url is filled", () => {
+      const r = emptyRow()
+      r["product id"] = "prod_g2"
+      r["product image 1 url"] = "https://cdn.example.com/only.jpg"
+      r["variant sku"] = "SKU"
+      const parsed = parseCsv(buildCsv([r]))
+      const { updates, errors } = buildBatchUpdatesFromParsedCsv(parsed, {
+        enabledCsvKeys: new Set([PRODUCT_GALLERY_IMAGES_CSV_KEY]),
+      })
+      expect(errors.length).toBe(0)
+      expect(updates[0]?.images).toEqual([{ url: "https://cdn.example.com/only.jpg" }])
+    })
+
+    it("does not emit an images key when both cells are empty (no accidental gallery wipe)", () => {
+      const r = emptyRow()
+      r["product id"] = "prod_g3"
+      r["product title"] = "Has Title"
+      r["variant sku"] = "SKU"
+      const parsed = parseCsv(buildCsv([r]))
+      const { updates } = buildBatchUpdatesFromParsedCsv(parsed, {
+        enabledCsvKeys: new Set([PRODUCT_GALLERY_IMAGES_CSV_KEY, "product title"]),
+      })
+      expect(updates[0]).toEqual({ id: "prod_g3", title: "Has Title" })
+      expect((updates[0] as Record<string, unknown>).images).toBeUndefined()
+    })
+
+    it("does not change images when the column is not enabled", () => {
+      const r = emptyRow()
+      r["product id"] = "prod_g4"
+      r["product image 1 url"] = "https://cdn.example.com/a.jpg"
+      r["product title"] = "T"
+      r["variant sku"] = "SKU"
+      const parsed = parseCsv(buildCsv([r]))
+      const { updates } = buildBatchUpdatesFromParsedCsv(parsed, {
+        enabledCsvKeys: new Set(["product title"]),
+      })
+      expect(updates[0]).toEqual({ id: "prod_g4", title: "T" })
+    })
+
+    it("computeProductUpdateColumnCandidates surfaces the gallery virtual column when source headers exist", () => {
+      const r = emptyRow()
+      r["product id"] = "prod_g5"
+      r["product image 1 url"] = "https://cdn.example.com/a.jpg"
+      r["variant sku"] = "SKU"
+      const parsed = parseCsv(buildCsv([r]))
+      const cand = computeProductUpdateColumnCandidates(parsed)
+      const gallery = cand.find((c) => c.csvKey === PRODUCT_GALLERY_IMAGES_CSV_KEY)
+      expect(gallery).toBeTruthy()
+      expect(gallery?.affectedProductCount).toBe(1)
+    })
+
+    it("spreadsheetHeadersIgnoringPatchable consumes the two image source headers (not listed as ignored extras)", () => {
+      const r = emptyRow()
+      r["product id"] = "prod_g6"
+      r["product image 1 url"] = "https://cdn.example.com/a.jpg"
+      r["product image 2 url"] = "https://cdn.example.com/b.jpg"
+      r["variant sku"] = "SKU"
+      const parsed = parseCsv(buildCsv([r]))
+      const extras = spreadsheetHeadersIgnoringPatchable(parsed)
+      expect(extras).not.toContain("product image 1 url")
+      expect(extras).not.toContain("product image 2 url")
+    })
   })
 })

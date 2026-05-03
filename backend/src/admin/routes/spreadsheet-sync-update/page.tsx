@@ -234,6 +234,20 @@ const SpreadsheetSyncUpdatePage = () => {
                 Rows with the same Product Id should agree on product-level columns; the first row per id wins.
               </Text>
 
+              {fileAnalysis && fileAnalysis.parsed.emptyHeaderColumns.length > 0 ? (
+                <div className="rounded-md border border-ui-border-base bg-ui-bg-base-pressed p-3">
+                  <Text size="small" weight="plus">
+                    Header text missing on {fileAnalysis.parsed.emptyHeaderColumns.length === 1 ? "column" : "columns"}{" "}
+                    {fileAnalysis.parsed.emptyHeaderColumns.join(", ")}
+                  </Text>
+                  <Text size="small" className="text-ui-fg-muted mt-1">
+                    The importer reads columns by header name, so this column&apos;s data won&apos;t feed any field. If
+                    column 26 is barcodes, add the header <code className="text-xs">Variant Barcode</code> to your
+                    spreadsheet and re-upload.
+                  </Text>
+                </div>
+              ) : null}
+
               {preview.validationErrors.length > 0 ? (
                 <div className="rounded-md border border-ui-border-error bg-ui-bg-error p-3">
                   <Text size="small" weight="plus" className="text-ui-fg-error">
