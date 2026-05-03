@@ -190,6 +190,14 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
     /** Medusa fulfillment id — surfaced as `external_shipment_id`. */
     external_shipment_id?: string
   }): Promise<GetShippingRatesResponse> {
+    if (!carrier_id?.trim() || !carrier_service_code?.trim()) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "ShipStation shipping option is missing carrier_id or carrier_service_code. " +
+          "In Medusa Admin, open Settings → Locations & shipping → Shipping profiles → the calculated option, and set the ShipStation carrier_id and carrier_service_code in the option's data."
+      )
+    }
+
     const ship_from = this.buildShipFrom(from_address)
 
     if (!to_address) {
@@ -218,15 +226,29 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
     }
 
     // Σ(item weight × quantity) in grams, then add packaging overhead, then convert to kg.
+    const itemsWithoutWeight = items.filter(
+      (item) => lineItemWeightGrams(item) <= 0
+    )
     const itemsWeightGrams = items.reduce((sum, item) => {
       const qty = (item as any)?.quantity ?? 1
       return sum + lineItemWeightGrams(item) * (typeof qty === "number" && qty > 0 ? qty : 1)
     }, 0)
     const totalWeightGrams = itemsWeightGrams + (SHIPPING_PACKAGING_OVERHEAD_GRAMS || 0)
-    // ShipStation expects a positive weight. Fall back to 100g if every item is
-    // missing a weight so the rate call doesn't 400 — the storefront and admin
-    // widgets will surface the missing-weight warning separately.
+    if (itemsWithoutWeight.length) {
+      this.logger_.warn(
+        `ShipStation rate request: ${itemsWithoutWeight.length} of ${items.length} item(s) have no weight set. ` +
+          "Falling back to packaging overhead only — quoted rate will be wrong if these items have real mass. " +
+          "Set the variant.weight or item.metadata.weight_grams to fix."
+      )
+    }
+    // ShipStation expects a positive weight. Fall back to 100g only if there is
+    // truly nothing to weigh (e.g. a digital item) so the rate call doesn't 400.
     const safeWeightGrams = totalWeightGrams > 0 ? totalWeightGrams : 100
+    if (totalWeightGrams <= 0) {
+      this.logger_.warn(
+        "ShipStation rate request: no weight on any item and no packaging overhead — defaulting to 100g. Configure SHIPPING_PACKAGING_OVERHEAD_GRAMS or per-variant weights to silence this."
+      )
+    }
     const packageWeightKg = Number((safeWeightGrams / 1000).toFixed(3))
 
     return await this.client.getShippingRates({

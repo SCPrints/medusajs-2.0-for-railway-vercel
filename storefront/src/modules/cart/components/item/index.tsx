@@ -50,9 +50,16 @@ const Item = ({ item, type = "full" }: ItemProps) => {
       })
   }
 
-  // TODO: Update this to grab the actual max inventory
-  const maxQtyFromInventory = 10
-  const maxQuantity = item.variant?.manage_inventory ? 10 : maxQtyFromInventory
+  // Cap the dropdown size for UX — splitting into multiple line items above
+  // this is rare. Inventory quantity still applies as the hard cap.
+  const SELECT_MAX_OPTIONS = 100
+  const variant = item.variant
+  const isUnlimited = !variant?.manage_inventory || variant?.allow_backorder
+  const inventoryCap = isUnlimited
+    ? SELECT_MAX_OPTIONS
+    : Math.min((variant as any)?.inventory_quantity ?? 0, SELECT_MAX_OPTIONS)
+  // Never render fewer options than the line is currently set to.
+  const maxQuantity = Math.max(inventoryCap, item.quantity, 1)
 
   return (
     <Table.Row className="w-full" data-testid="product-row">
@@ -110,21 +117,11 @@ const Item = ({ item, type = "full" }: ItemProps) => {
               className="w-14 h-10 p-4"
               data-testid="product-select-button"
             >
-              {/* TODO: Update this with the v2 way of managing inventory */}
-              {Array.from(
-                {
-                  length: Math.min(maxQuantity, 10),
-                },
-                (_, i) => (
-                  <option value={i + 1} key={i}>
-                    {i + 1}
-                  </option>
-                )
-              )}
-
-              <option value={1} key={1}>
-                1
-              </option>
+              {Array.from({ length: maxQuantity }, (_, i) => (
+                <option value={i + 1} key={i}>
+                  {i + 1}
+                </option>
+              ))}
             </CartItemSelect>
             {updating && <Spinner />}
           </div>

@@ -60,9 +60,7 @@ const ShippingDetails = ({ order }: ShippingDetailsProps) => {
             {convertMinorToLocale({
               amount: order.shipping_methods?.[0].total ?? 0,
               currency_code: order.currency_code,
-            })
-              .replace(/,/g, "")
-              .replace(/\./g, ",")}
+            })}
             )
           </Text>
         </div>
