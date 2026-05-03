@@ -1044,6 +1044,55 @@ function rainbowRgbForHome(
   return hslToRgb(hue, 0.9, 0.52)
 }
 
+/**
+ * Pre-baked soft-edge particle sprite. A single offscreen canvas with a radial gradient
+ * (white center → transparent edge) cached once and blitted per particle for the bloomed
+ * "ink with grain" look. Cache is keyed on diameter so resizes regenerate it.
+ */
+let particleSpriteCache: {
+  diameter: number
+  canvas: HTMLCanvasElement
+} | null = null
+
+function getParticleSprite(diameter: number): HTMLCanvasElement | null {
+  const d = Math.max(1, Math.round(diameter))
+  if (
+    particleSpriteCache != null &&
+    particleSpriteCache.diameter === d
+  ) {
+    return particleSpriteCache.canvas
+  }
+  /** Sprite is 2× the requested diameter to leave room for the soft gradient falloff
+   * to extend beyond the nominal "core" size. */
+  const spriteSize = d * 2
+  const off = document.createElement("canvas")
+  off.width = spriteSize
+  off.height = spriteSize
+  const sctx = off.getContext("2d", { alpha: true })
+  if (!sctx) {
+    return null
+  }
+  const center = spriteSize * 0.5
+  /** Inner stop: solid white core (~30% of sprite radius). Outer stop: transparent.
+   * The mid-stop produces a smooth bloom without a hard inner edge. */
+  const grad = sctx.createRadialGradient(
+    center,
+    center,
+    0,
+    center,
+    center,
+    center
+  )
+  grad.addColorStop(0, "rgba(255,255,255,1)")
+  grad.addColorStop(0.35, "rgba(255,255,255,0.95)")
+  grad.addColorStop(0.65, "rgba(255,255,255,0.4)")
+  grad.addColorStop(1, "rgba(255,255,255,0)")
+  sctx.fillStyle = grad
+  sctx.fillRect(0, 0, spriteSize, spriteSize)
+  particleSpriteCache = { diameter: d, canvas: off }
+  return off
+}
+
 function drawLayer(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
@@ -1074,6 +1123,12 @@ function drawLayer(
   const d = drawSizeBmp
   const bitmapW = canvas.width
   const bitmapH = canvas.height
+  /** Pre-baked soft-edge sprite. Sprite size is 2×d so the bloomed falloff extends
+   * beyond the nominal "core" size, blending with neighboring particles to produce the
+   * "ink with grain" look. */
+  const sprite = getParticleSprite(d)
+  const spriteSize = d * 2
+  const halfSprite = spriteSize * 0.5
   const drawOne = (p: ParallaxParticle) => {
     const ba = Number.isFinite(p.baseAlpha) ? p.baseAlpha : PARTICLE_BASE_ALPHA
     const op = Number.isFinite(p.entranceOpacity) ? p.entranceOpacity : 1
@@ -1090,7 +1145,6 @@ function drawLayer(
     void bitmapH
     void hx
     void hy
-    ctx.fillStyle = `rgba(255,255,255,${alpha})`
     const px = Number.isFinite(p.x) ? p.x : hx
     const py = Number.isFinite(p.y) ? p.y : hy
     let xBmp = px
@@ -1101,7 +1155,14 @@ function drawLayer(
     if (!Number.isFinite(yBmp)) {
       yBmp = py
     }
-    ctx.fillRect(xBmp, yBmp, d, d)
+    if (sprite != null) {
+      /** Sprite-blit path: soft edges blend particles into solid ink at high density. */
+      ctx.globalAlpha = alpha
+      ctx.drawImage(sprite, xBmp - halfSprite, yBmp - halfSprite)
+    } else {
+      ctx.fillStyle = `rgba(255,255,255,${alpha})`
+      ctx.fillRect(xBmp, yBmp, d, d)
+    }
   }
   for (const p of particles) {
     drawOne(p)
@@ -1111,6 +1172,9 @@ function drawLayer(
       drawOne(p)
     }
   }
+  /** Reset globalAlpha so subsequent draws (debug marker, parallax overlays) aren't
+   * dimmed by the last sprite-blit alpha. */
+  ctx.globalAlpha = 1
 
   const m = mouseRef.current
   if (
