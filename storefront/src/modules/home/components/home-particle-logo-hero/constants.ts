@@ -1,7 +1,7 @@
 /**
  * Single visible stipple: animated particles on canvasC only (see ANIMATED_PARTICLE_CAP).
  */
-export const ANIMATED_PARTICLE_CAP = 45000
+export const ANIMATED_PARTICLE_CAP = 30000
 
 /**
  * Fraction of particles whose home `(hx, hy)` is uniform across the full hero bitmap `W×H`.
