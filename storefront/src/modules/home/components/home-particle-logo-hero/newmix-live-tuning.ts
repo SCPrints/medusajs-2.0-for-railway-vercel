@@ -62,6 +62,19 @@ export type NewmixLiveTuning = {
   /** Mouse-speed gate (bitmap px / frame) below which the disk's impulse fades to zero.
    * Stops the persistent halo of orbiting particles when the cursor slows or stops. */
   motionGateSpeed: number
+  /** Wake band taper power. Lateral offset is multiplied by `(1 - u)^power` where `u` is
+   * the wake age (0 at release / front, 1 at end / tail). Higher = sharper taper toward
+   * the tail = more teardrop / leaf shape. */
+  wakeBandTaperPower: number
+  /** Aggressive radial outward repulsion in the inner core of the disk. Active when
+   * `dist < radius * coreEjectionRadiusFrac`, this strong outward push keeps the very
+   * center of the cursor disk visibly empty (the "void" Newmix shows). */
+  coreEjectionForce: number
+  /** Fraction of the disk radius treated as "core" for ejection (e.g. 0.3 = inner 30%). */
+  coreEjectionRadiusFrac: number
+  /** Alpha multiplier applied to particles in trailing state. Lower = wake reads more
+   * ghostly / translucent so the wordmark dominates visually. */
+  wakeAlphaMult: number
   friction: number
   springStiffnessMult: number
   homeSpringSuppress: number
@@ -109,6 +122,10 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   trailingProbability: 0.4,
   inDiskCarryFactor: 0.6,
   motionGateSpeed: 5.0,
+  wakeBandTaperPower: 2.0,
+  coreEjectionForce: 8.0,
+  coreEjectionRadiusFrac: 0.3,
+  wakeAlphaMult: 0.55,
   friction: 0.86,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,

@@ -555,6 +555,17 @@ function applyNewmixCaptureImpulse(
     ay -= uy * inward
   }
 
+  /** Core ejection: in the inner fraction of the disk, apply strong radial-outward push
+   * so the very center stays visibly empty. Strength ramps from 0 at the boundary to
+   * full at the cursor center. */
+  const coreR = radius * t.coreEjectionRadiusFrac
+  if (dist < coreR && coreR > 1e-5) {
+    const coreU = 1 - dist / coreR
+    const eject = t.coreEjectionForce * coreU * coreU
+    ax += ux * eject
+    ay += uy * eject
+  }
+
   /** Motion gate: when the cursor is barely moving, scale all impulse to zero so particles
    * don't accumulate orbital velocity into a persistent halo. */
   const motionScale = Math.max(
@@ -1049,7 +1060,10 @@ function drawLayer(
   applyCanvasParallax: boolean,
   drawSizeBmp = PARTICLE_DRAW_SIZE_BMP,
   /** e.g. viscous-coffee stroke followers (drawn on top of logo stipple). */
-  extraParticles?: ParallaxParticle[] | null
+  extraParticles?: ParallaxParticle[] | null,
+  /** Alpha multiplier applied when a particle is in trailing state. <1 produces a
+   * translucent ghostly wake so the wordmark remains visually dominant. */
+  wakeAlphaMult = 1
 ) {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   ctx.imageSmoothingEnabled = false
@@ -1063,9 +1077,11 @@ function drawLayer(
   const drawOne = (p: ParallaxParticle) => {
     const ba = Number.isFinite(p.baseAlpha) ? p.baseAlpha : PARTICLE_BASE_ALPHA
     const op = Number.isFinite(p.entranceOpacity) ? p.entranceOpacity : 1
+    /** Trailing particles render at a lower alpha so the wake reads as ghostly. */
+    const wakeMul = p.bhTrailUntilMs != null ? wakeAlphaMult : 1
     const alpha = Math.min(
       PARTICLE_ALPHA_CAP,
-      Math.max(0, ba * ANIMATED_PARTICLE_ALPHA_MULT * op)
+      Math.max(0, ba * ANIMATED_PARTICLE_ALPHA_MULT * op * wakeMul)
     )
     const hx = Number.isFinite(p.hx) ? p.hx : 0
     const hy = Number.isFinite(p.hy) ? p.hy : 0
@@ -1578,7 +1594,10 @@ export default function HomeParticleLogoHero({
       0,
       !reduceParallax && !fs,
       particleDrawSizeBmpRef.current,
-      viscousCoffeeWakeParticlesRef.current
+      viscousCoffeeWakeParticlesRef.current,
+      interactionModeRef.current === "newmix"
+        ? newmixLiveMergedRef.current.wakeAlphaMult
+        : 1
     )
 
     setLogoRasterReady(particles.length > 0)
@@ -2492,16 +2511,27 @@ export default function HomeParticleLogoHero({
                     const magnitudeMul = isCore
                       ? 0.15 + rand2 * 0.5
                       : 0.7 + rand2 * 0.6
+                    /** Wake band taper: lateral offset shrinks toward the tail. `u=0` near
+                     * the cursor (front) keeps the full band width; `u=1` at the trail end
+                     * collapses to zero — produces the teardrop / leaf shape. */
+                    const taper = Math.pow(
+                      Math.max(0, 1 - u),
+                      nm.wakeBandTaperPower
+                    )
                     const bandAmp =
-                      nm.wakeBandSpreadBmp * swirlSide * magnitudeMul
-                    /** Bell-shaped extra spread peaking mid-wake — also side-locked so
-                     * core ribbons stay clean and only the diffuse breakers fan out further. */
+                      nm.wakeBandSpreadBmp *
+                      swirlSide *
+                      magnitudeMul *
+                      taper
+                    /** Bell-shaped extra spread peaking mid-wake — also tapered so the
+                     * mid-wake bulge sits just behind the cursor, not at the back. */
                     const env = 4 * u * (1 - u)
                     const dynLateralAmp =
                       nm.wakeLateralSpreadBmp *
                       swirlSide *
                       magnitudeMul *
-                      env
+                      env *
+                      taper
                     /** Per-particle along-tangent stretch: signed offset along cursor heading
                      * so particles spread along the trail axis, not just perpendicular. */
                     const stretchSign = rand01 * 2 - 1
@@ -2758,7 +2788,8 @@ export default function HomeParticleLogoHero({
           parallaxY,
           applyCanvasParallax,
           particleDrawSizeBmpRef.current,
-          viscousCoffee ? viscousCoffeeWakeParticlesRef.current : null
+          viscousCoffee ? viscousCoffeeWakeParticlesRef.current : null,
+          newmix && nm != null ? nm.wakeAlphaMult : 1
         )
 
         const tiltEl = logoTiltLayerRef.current
