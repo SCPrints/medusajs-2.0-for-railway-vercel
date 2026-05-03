@@ -2399,11 +2399,14 @@ export default function HomeParticleLogoHero({
 
               p.bhPrevInRadius = inCaptureDiskGeom
             } else if (newmix && nm != null) {
-              /** Expire the wake timer if the deadline has passed — start home return. */
-              if (
+              /** Expire the wake timer if the deadline has passed — start home return.
+               * Also force-expire ALL trailing particles when the cursor is idle, so the
+               * wordmark fills back in promptly when the user stops moving the mouse rather
+               * than leaving a permanent hole at the cursor's last position. */
+              const wakeExpired =
                 p.bhTrailUntilMs != null &&
-                nowTick >= p.bhTrailUntilMs
-              ) {
+                (nowTick >= p.bhTrailUntilMs || newmixIdle)
+              if (wakeExpired) {
                 p.bhTrailUntilMs = null
                 p.newmixCursorOriginX = undefined
                 p.newmixCursorOriginY = undefined
@@ -2720,7 +2723,14 @@ export default function HomeParticleLogoHero({
                   0xffffff
                 const durJitter =
                   1 + (rand1 * 2 - 1) * nm.homeReturnDurationJitter
-                const dur = Math.max(100, nm.homeReturnMs * durJitter)
+                /** While idle, halve the home-return duration so the wordmark visibly
+                 * snaps back into place within ~1 sec of the cursor stopping rather than
+                 * lingering. */
+                const idleScale = newmixIdle ? 0.5 : 1
+                const dur = Math.max(
+                  100,
+                  nm.homeReturnMs * durJitter * idleScale
+                )
                 const elapsed = nowTick - p.newmixHomeReturnStartMs
                 const t = Math.max(0, Math.min(1, elapsed / dur))
                 /** Cubic ease-out for graceful arrival at home. */
