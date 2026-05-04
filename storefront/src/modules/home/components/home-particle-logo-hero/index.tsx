@@ -72,6 +72,8 @@ import type { ViscousCoffeeLiveTuning } from "./viscous-coffee-live-tuning"
 import { mergeViscousCoffeeLiveTuning } from "./viscous-coffee-live-tuning"
 import type { NewmixLiveTuning } from "./newmix-live-tuning"
 import { mergeNewmixLiveTuning } from "./newmix-live-tuning"
+import type { FlowLiveTuning } from "./flow-live-tuning"
+import { mergeFlowLiveTuning } from "./flow-live-tuning"
 
 const DEFAULT_LOGO_SRC = "/branding/sc-prints-logo-transparent.png"
 const FALLBACK_SRC = "/branding/sc-prints-logo-white.png"
@@ -1398,6 +1400,7 @@ type Props = {
     | "blackHole"
     | "viscousCoffee"
     | "newmix"
+    | "flow"
   /** Overrides default `aria-label` on the outer `<section>` (embedded). */
   sectionAriaLabel?: string
   /**
@@ -1410,6 +1413,11 @@ type Props = {
    * Omitted = built-in defaults from `newmix-live-tuning.ts`.
    */
   newmixLiveTuning?: Partial<NewmixLiveTuning> | null
+  /**
+   * When `interactionMode="flow"`, merged into physics each frame.
+   * Omitted = built-in defaults from `flow-live-tuning.ts`.
+   */
+  flowLiveTuning?: Partial<FlowLiveTuning> | null
   /**
    * Forces which pixels become particle candidates, overriding auto-detect.
    * - `"bright"`: keep light pixels (white logo on dark / transparent background)
@@ -1428,6 +1436,7 @@ export default function HomeParticleLogoHero({
   sectionAriaLabel,
   viscousCoffeeLiveTuning = null,
   newmixLiveTuning = null,
+  flowLiveTuning = null,
   inkPolarity = "auto",
 }: Props) {
   const presentationRef = useRef(presentation)
@@ -1471,6 +1480,12 @@ export default function HomeParticleLogoHero({
   const newmixLiveMergedRef = useRef<NewmixLiveTuning>(
     mergeNewmixLiveTuning()
   )
+  /** Flow mode: low-pass-smoothed cursor velocity used for the carry-along velocity handoff. */
+  const flowSpoonVelRef = useRef({ vx: 0, vy: 0 })
+  const flowPrevCursorRef = useRef({ x: -9999, y: -9999 })
+  const flowLiveMergedRef = useRef<FlowLiveTuning>(
+    mergeFlowLiveTuning()
+  )
 
   useLayoutEffect(() => {
     Object.assign(
@@ -1485,6 +1500,13 @@ export default function HomeParticleLogoHero({
       mergeNewmixLiveTuning(newmixLiveTuning)
     )
   }, [newmixLiveTuning])
+
+  useLayoutEffect(() => {
+    Object.assign(
+      flowLiveMergedRef.current,
+      mergeFlowLiveTuning(flowLiveTuning)
+    )
+  }, [flowLiveTuning])
   const reducedMotion = useReducedMotion()
   /** Layer parallax respects OS reduced-motion. */
   const reduceParallax = reducedMotion === true
@@ -2174,10 +2196,13 @@ export default function HomeParticleLogoHero({
         const viscousCoffee =
           interactionModeRef.current === "viscousCoffee"
         const newmix = interactionModeRef.current === "newmix"
+        const flow = interactionModeRef.current === "flow"
         const vc = viscousCoffee ? viscousCoffeeLiveMergedRef.current : null
         const nm = newmix ? newmixLiveMergedRef.current : null
+        const fl = flow ? flowLiveMergedRef.current : null
         const viscousDragR = vc != null ? vc.dragRadius : DRAG_RADIUS
         const newmixRadius = nm != null ? nm.radius : NEWMIX_RADIUS_BMP
+        const flowRadius = fl != null ? fl.radius : 50
         const nowTick = performance.now()
         const bhBounds = logoInteractBoundsRef.current
         const inBlackHoleStipple =
@@ -2218,6 +2243,45 @@ export default function HomeParticleLogoHero({
             particles,
             newmixRadius
           )
+
+        const inFlowStipple =
+          flow &&
+          !entranceActive &&
+          bhBounds != null &&
+          currentMouseX > -9000 &&
+          pointerInStippleInteractionRange(
+            currentMouseX,
+            currentMouseY,
+            bhBounds,
+            particles,
+            flowRadius
+          )
+
+        /** Flow mode: per-tick smoothed cursor velocity. Each tick lerps the prior smoothed
+         * velocity toward the current per-frame delta. Used for the velocity handoff to
+         * displaced particles. */
+        const flowCursorOk = currentMouseX > -9000
+        if (flow && !entranceActive && fl != null && flowCursorOk) {
+          const prev = flowPrevCursorRef.current
+          if (prev.x <= -9000 || prev.y <= -9000) {
+            prev.x = currentMouseX
+            prev.y = currentMouseY
+            flowSpoonVelRef.current.vx = 0
+            flowSpoonVelRef.current.vy = 0
+          } else {
+            const dx = currentMouseX - prev.x
+            const dy = currentMouseY - prev.y
+            const sv = flowSpoonVelRef.current
+            const k = fl.velSmoothing
+            sv.vx += (dx - sv.vx) * k
+            sv.vy += (dy - sv.vy) * k
+            prev.x = currentMouseX
+            prev.y = currentMouseY
+          }
+        } else if (flow && !flowCursorOk) {
+          flowPrevCursorRef.current = { x: -9999, y: -9999 }
+          flowSpoonVelRef.current = { vx: 0, vy: 0 }
+        }
 
         if (fluidWake && !entranceActive) {
           const bWake = logoInteractBoundsRef.current
@@ -2930,6 +2994,86 @@ export default function HomeParticleLogoHero({
               /** Track in-radius status so the next exit triggers a release. Trailing particles
                * inside the disk are re-captured (handled above) and will re-enter the swirl cycle. */
               p.bhPrevInRadius = inCaptureDiskGeom
+            } else if (flow && fl != null) {
+              /** FLUID FLOW MODEL — cursor is a solid obstacle that displaces particles.
+               * No capture state, no impulse stacking, no history-buffer playback. Two
+               * branches: inside-radius does displacement + velocity handoff; outside-radius
+               * is free physics (spring home + friction + gravity). Pure fluid behavior. */
+              p.bhPrevInRadius = false
+              p.bhTrailUntilMs = null
+              const dxc = p.x - currentMouseX
+              const dyc = p.y - currentMouseY
+              const dist = cursorOk ? Math.hypot(dxc, dyc) : Infinity
+              if (
+                cursorOk &&
+                inFlowStipple &&
+                dist < flowRadius &&
+                dist > 1e-6
+              ) {
+                /** DISPLACEMENT: smoothly slide the particle to the radius rim along the
+                 * radial direction. Tangential bias makes it slide AROUND the cursor
+                 * (sidestepping like fluid flowing around a stone) rather than straight
+                 * out. The sign of the tangential component is determined by the cursor's
+                 * motion direction so flow is consistent. */
+                const inv = 1 / dist
+                const ux = dxc * inv
+                const uy = dyc * inv
+                const tangX = -uy
+                const tangY = ux
+                const sv = flowSpoonVelRef.current
+                const dot = tangX * sv.vx + tangY * sv.vy
+                const sgn = dot >= 0 ? 1 : -1
+                const tangAmp = flowRadius * fl.tangentialBias * sgn
+                const targetX =
+                  currentMouseX + ux * flowRadius + tangX * tangAmp
+                const targetY =
+                  currentMouseY + uy * flowRadius + tangY * tangAmp
+                /** Lerp toward the displacement target — at strength=1 it's instantaneous,
+                 * lower values produce a smoother slide outward. */
+                const lerp = Math.max(
+                  0,
+                  Math.min(1, fl.displacementStrength)
+                )
+                p.x = p.x + (targetX - p.x) * lerp
+                p.y = p.y + (targetY - p.y) * lerp
+                /** Velocity handoff. Cursor's smoothed velocity is partially transferred
+                 * to the particle so it gets carried along with the cursor's motion.
+                 * Motion-gated so a stationary cursor still displaces but doesn't fling. */
+                const speed = Math.hypot(sv.vx, sv.vy)
+                const motionScale = Math.min(
+                  1,
+                  speed / Math.max(0.01, fl.motionGateSpeed)
+                )
+                const handoffWeight =
+                  Math.max(0, Math.min(1, fl.velocityHandoff)) *
+                  motionScale
+                const newVx = sv.vx * fl.carryFactor
+                const newVy = sv.vy * fl.carryFactor
+                p.vx = p.vx * (1 - handoffWeight) + newVx * handoffWeight
+                p.vy = p.vy * (1 - handoffWeight) + newVy * handoffWeight
+              } else {
+                /** FREE PHYSICS: spring toward home + friction + downward gravity.
+                 * Critical damping at friction ≈ 1 - 2·sqrt(spring) gives no rebound. */
+                p.vx += (p.hx - p.x) * fl.springStiffness
+                p.vy += (p.hy - p.y) * fl.springStiffness
+                p.vy += fl.gravity
+                p.vx *= fl.friction
+                p.vy *= fl.friction
+                p.x += p.vx
+                p.y += p.vy
+                /** Snap to home when close + slow to prevent perpetual sub-pixel jitter. */
+                const dxh = p.hx - p.x
+                const dyh = p.hy - p.y
+                if (
+                  dxh * dxh + dyh * dyh < 0.5 &&
+                  p.vx * p.vx + p.vy * p.vy < 0.05
+                ) {
+                  p.x = p.hx
+                  p.y = p.hy
+                  p.vx = 0
+                  p.vy = 0
+                }
+              }
             } else if (viscousCoffee && vc != null) {
               p.bhPrevInRadius = false
               p.bhTrailUntilMs = null
@@ -3128,7 +3272,9 @@ export default function HomeParticleLogoHero({
           ? viscousCoffeeLiveMergedRef.current.dragRadius
           : interactionModeRef.current === "newmix"
             ? newmixLiveMergedRef.current.radius
-            : DRAG_RADIUS
+            : interactionModeRef.current === "flow"
+              ? flowLiveMergedRef.current.radius
+              : DRAG_RADIUS
       const nearStipple = pointerInStippleInteractionRange(
         mx,
         my,
@@ -3246,6 +3392,8 @@ export default function HomeParticleLogoHero({
       newmixTickPrevCursorRef.current = { x: -9999, y: -9999 }
       newmixCursorHistoryRef.current = []
       newmixSmoothedCursorRef.current = { x: -9999, y: -9999 }
+      flowSpoonVelRef.current = { vx: 0, vy: 0 }
+      flowPrevCursorRef.current = { x: -9999, y: -9999 }
       const cw = viscousCoffeeWakeParticlesRef.current
       if (cw != null) {
         for (const p of cw) {
