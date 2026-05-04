@@ -2,7 +2,7 @@ import { Metadata } from "next"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import DisplacedSplash from "./displaced-splash"
+import { ScPrintsFlowTuningSection } from "./sc-prints-flow-tuning-section"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/particle-flow`
   const description =
-    "Particle flow lab: cursor-as-obstacle set-position model with held-displaced trail."
+    "Particle flow lab: deposit-and-hold cursor wake on the SC Prints wordmark."
 
   return {
     title: "Particle flow",
@@ -33,7 +33,7 @@ export async function generateMetadata({
 
 export default function ParticleFlowPage() {
   return (
-    <div className="relative min-h-screen bg-ui-fg-base text-white">
+    <div className="relative min-h-screen bg-black text-white">
       <div className="pointer-events-none fixed left-0 top-0 z-[40] w-full px-4 py-4 sm:px-6">
         <div className="pointer-events-auto inline-flex">
           <LocalizedClientLink
@@ -45,7 +45,7 @@ export default function ParticleFlowPage() {
         </div>
       </div>
       <div className="pt-14">
-        <DisplacedSplash />
+        <ScPrintsFlowTuningSection />
       </div>
     </div>
   )
