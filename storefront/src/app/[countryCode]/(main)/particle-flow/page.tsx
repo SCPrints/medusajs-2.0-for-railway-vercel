@@ -2,7 +2,7 @@ import { Metadata } from "next"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import NewmixFlow from "./newmix-flow"
+import DisplacedSplash from "./displaced-splash"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/particle-flow`
   const description =
-    "Particle flow lab: tune cursor-as-obstacle fluid-flow displacement model."
+    "Particle flow lab: cursor-as-obstacle set-position model with held-displaced trail."
 
   return {
     title: "Particle flow",
@@ -45,7 +45,7 @@ export default function ParticleFlowPage() {
         </div>
       </div>
       <div className="pt-14">
-        <NewmixFlow />
+        <DisplacedSplash />
       </div>
     </div>
   )

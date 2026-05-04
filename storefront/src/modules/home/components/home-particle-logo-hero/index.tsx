@@ -74,6 +74,8 @@ import type { NewmixLiveTuning } from "./newmix-live-tuning"
 import { mergeNewmixLiveTuning } from "./newmix-live-tuning"
 import type { FlowLiveTuning } from "./flow-live-tuning"
 import { mergeFlowLiveTuning } from "./flow-live-tuning"
+import type { DisplacedLiveTuning } from "./displaced-live-tuning"
+import { mergeDisplacedLiveTuning } from "./displaced-live-tuning"
 
 const DEFAULT_LOGO_SRC = "/branding/sc-prints-logo-transparent.png"
 const FALLBACK_SRC = "/branding/sc-prints-logo-white.png"
@@ -1401,6 +1403,7 @@ type Props = {
     | "viscousCoffee"
     | "newmix"
     | "flow"
+    | "displaced"
   /** Overrides default `aria-label` on the outer `<section>` (embedded). */
   sectionAriaLabel?: string
   /**
@@ -1418,6 +1421,11 @@ type Props = {
    * Omitted = built-in defaults from `flow-live-tuning.ts`.
    */
   flowLiveTuning?: Partial<FlowLiveTuning> | null
+  /**
+   * When `interactionMode="displaced"`, merged into physics each frame.
+   * Omitted = built-in defaults from `displaced-live-tuning.ts`.
+   */
+  displacedLiveTuning?: Partial<DisplacedLiveTuning> | null
   /**
    * Forces which pixels become particle candidates, overriding auto-detect.
    * - `"bright"`: keep light pixels (white logo on dark / transparent background)
@@ -1437,6 +1445,7 @@ export default function HomeParticleLogoHero({
   viscousCoffeeLiveTuning = null,
   newmixLiveTuning = null,
   flowLiveTuning = null,
+  displacedLiveTuning = null,
   inkPolarity = "auto",
 }: Props) {
   const presentationRef = useRef(presentation)
@@ -1486,6 +1495,9 @@ export default function HomeParticleLogoHero({
   const flowLiveMergedRef = useRef<FlowLiveTuning>(
     mergeFlowLiveTuning()
   )
+  const displacedLiveMergedRef = useRef<DisplacedLiveTuning>(
+    mergeDisplacedLiveTuning()
+  )
 
   useLayoutEffect(() => {
     Object.assign(
@@ -1507,6 +1519,13 @@ export default function HomeParticleLogoHero({
       mergeFlowLiveTuning(flowLiveTuning)
     )
   }, [flowLiveTuning])
+
+  useLayoutEffect(() => {
+    Object.assign(
+      displacedLiveMergedRef.current,
+      mergeDisplacedLiveTuning(displacedLiveTuning)
+    )
+  }, [displacedLiveTuning])
   const reducedMotion = useReducedMotion()
   /** Layer parallax respects OS reduced-motion. */
   const reduceParallax = reducedMotion === true
@@ -2197,12 +2216,15 @@ export default function HomeParticleLogoHero({
           interactionModeRef.current === "viscousCoffee"
         const newmix = interactionModeRef.current === "newmix"
         const flow = interactionModeRef.current === "flow"
+        const displaced = interactionModeRef.current === "displaced"
         const vc = viscousCoffee ? viscousCoffeeLiveMergedRef.current : null
         const nm = newmix ? newmixLiveMergedRef.current : null
         const fl = flow ? flowLiveMergedRef.current : null
+        const dp = displaced ? displacedLiveMergedRef.current : null
         const viscousDragR = vc != null ? vc.dragRadius : DRAG_RADIUS
         const newmixRadius = nm != null ? nm.radius : NEWMIX_RADIUS_BMP
         const flowRadius = fl != null ? fl.radius : 50
+        const displacedRadius = dp != null ? dp.radius : 60
         const nowTick = performance.now()
         const bhBounds = logoInteractBoundsRef.current
         const inBlackHoleStipple =
@@ -2257,11 +2279,29 @@ export default function HomeParticleLogoHero({
             flowRadius
           )
 
-        /** Flow mode: per-tick smoothed cursor velocity. Each tick lerps the prior smoothed
-         * velocity toward the current per-frame delta. Used for the velocity handoff to
-         * displaced particles. */
+        const inDisplacedStipple =
+          displaced &&
+          !entranceActive &&
+          bhBounds != null &&
+          currentMouseX > -9000 &&
+          pointerInStippleInteractionRange(
+            currentMouseX,
+            currentMouseY,
+            bhBounds,
+            particles,
+            displacedRadius
+          )
+
+        /** Flow / displaced modes: per-tick smoothed cursor velocity. Each tick lerps the
+         * prior smoothed velocity toward the current per-frame delta. Used to determine
+         * the cursor's heading direction for direction-aware displacement. */
         const flowCursorOk = currentMouseX > -9000
-        if (flow && !entranceActive && fl != null && flowCursorOk) {
+        if (
+          (flow || displaced) &&
+          !entranceActive &&
+          (fl != null || dp != null) &&
+          flowCursorOk
+        ) {
           const prev = flowPrevCursorRef.current
           if (prev.x <= -9000 || prev.y <= -9000) {
             prev.x = currentMouseX
@@ -2272,13 +2312,14 @@ export default function HomeParticleLogoHero({
             const dx = currentMouseX - prev.x
             const dy = currentMouseY - prev.y
             const sv = flowSpoonVelRef.current
-            const k = fl.velSmoothing
+            /** Use flow tuning when in flow mode; sane default for displaced mode. */
+            const k = fl != null ? fl.velSmoothing : 0.45
             sv.vx += (dx - sv.vx) * k
             sv.vy += (dy - sv.vy) * k
             prev.x = currentMouseX
             prev.y = currentMouseY
           }
-        } else if (flow && !flowCursorOk) {
+        } else if ((flow || displaced) && !flowCursorOk) {
           flowPrevCursorRef.current = { x: -9999, y: -9999 }
           flowSpoonVelRef.current = { vx: 0, vy: 0 }
         }
@@ -3110,6 +3151,104 @@ export default function HomeParticleLogoHero({
                   p.vy = 0
                 }
               }
+            } else if (displaced && dp != null) {
+              /** SET-POSITION DISPLACED MODEL.
+               * When the cursor moves through a particle (within radius), SET its position
+               * to the cursor's perpendicular rim on the side of the cursor's motion that
+               * the particle was on. The particle then HOLDS that displaced position with
+               * a very weak home spring + high friction for `displaceTimeMs`. After the
+               * timer expires, normal physics drift it home with gravity (sand-fall).
+               *
+               * The wake is the cumulative pattern of held-position particles along the
+               * cursor's path — they don't move forward, they stay put and slowly fade. */
+              p.bhPrevInRadius = false
+
+              const distM = cursorOk
+                ? Math.hypot(
+                    p.x - currentMouseX,
+                    p.y - currentMouseY
+                  )
+                : Infinity
+              const inRadius =
+                cursorOk &&
+                distM < displacedRadius &&
+                distM > 1e-6
+
+              const sv = flowSpoonVelRef.current
+              const cursorSpeed = Math.hypot(sv.vx, sv.vy)
+              const cursorMoving = cursorSpeed > dp.motionThreshold
+
+              if (
+                inRadius &&
+                cursorMoving &&
+                inDisplacedStipple
+              ) {
+                /** Compute cursor heading direction (unit vector) and perpendicular. */
+                const ux = sv.vx / cursorSpeed
+                const uy = sv.vy / cursorSpeed
+                const perpX = -uy
+                const perpY = ux
+                /** Determine which side of the cursor's motion direction the particle is on. */
+                const dx = p.x - currentMouseX
+                const dy = p.y - currentMouseY
+                const sideDot = dx * perpX + dy * perpY
+                const sideSign = sideDot >= 0 ? 1 : -1
+                /** SET position to the rim on that side, perpendicular to cursor motion. */
+                p.x =
+                  currentMouseX + perpX * sideSign * displacedRadius
+                p.y =
+                  currentMouseY + perpY * sideSign * displacedRadius
+                p.vx = 0
+                p.vy = 0
+                /** Mark as displaced with timer; record swirl side. */
+                p.bhTrailUntilMs = nowTick + dp.displaceTimeMs
+                p.newmixSwirlSide = sideSign
+              }
+
+              const stillDisplaced =
+                p.bhTrailUntilMs != null &&
+                nowTick < p.bhTrailUntilMs
+
+              if (
+                p.bhTrailUntilMs != null &&
+                nowTick >= p.bhTrailUntilMs
+              ) {
+                /** Timer just expired — clear state, drop into free physics next branch. */
+                p.bhTrailUntilMs = null
+                p.newmixSwirlSide = undefined
+              }
+
+              if (stillDisplaced && !inRadius) {
+                /** HOLD displaced position. Very weak home spring + high friction so the
+                 * particle barely drifts — it "stays in place" until the timer expires. */
+                p.vx += (p.hx - p.x) * dp.holdSpring
+                p.vy += (p.hy - p.y) * dp.holdSpring
+                p.vx *= dp.holdFriction
+                p.vy *= dp.holdFriction
+                p.x += p.vx
+                p.y += p.vy
+              } else if (!inRadius) {
+                /** FREE PHYSICS — drift home with gravity (sand-fall). */
+                p.vx += (p.hx - p.x) * dp.returnSpring
+                p.vy += (p.hy - p.y) * dp.returnSpring
+                p.vy += dp.returnGravity
+                p.vx *= dp.returnFriction
+                p.vy *= dp.returnFriction
+                p.x += p.vx
+                p.y += p.vy
+                /** Snap to home when close + slow. */
+                const dxh = p.hx - p.x
+                const dyh = p.hy - p.y
+                if (
+                  dxh * dxh + dyh * dyh < 0.5 &&
+                  p.vx * p.vx + p.vy * p.vy < 0.05
+                ) {
+                  p.x = p.hx
+                  p.y = p.hy
+                  p.vx = 0
+                  p.vy = 0
+                }
+              }
             } else if (viscousCoffee && vc != null) {
               p.bhPrevInRadius = false
               p.bhTrailUntilMs = null
@@ -3310,7 +3449,9 @@ export default function HomeParticleLogoHero({
             ? newmixLiveMergedRef.current.radius
             : interactionModeRef.current === "flow"
               ? flowLiveMergedRef.current.radius
-              : DRAG_RADIUS
+              : interactionModeRef.current === "displaced"
+                ? displacedLiveMergedRef.current.radius
+                : DRAG_RADIUS
       const nearStipple = pointerInStippleInteractionRange(
         mx,
         my,
