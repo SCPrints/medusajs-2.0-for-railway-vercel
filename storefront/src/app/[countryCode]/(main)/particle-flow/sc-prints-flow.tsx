@@ -82,6 +82,8 @@ export default function ScPrintsFlow({ tuning, className }: Props) {
       const W = sizeState.W
       const H = sizeState.H
       if (W < 2 || H < 2) return
+      const img = imgRef.current
+      if (!img || !img.complete || img.naturalWidth === 0) return
       const t = tuningRef.current
 
       const off = document.createElement("canvas")
@@ -91,9 +93,6 @@ export default function ScPrintsFlow({ tuning, className }: Props) {
       if (!octx) return
       octx.fillStyle = "#000"
       octx.fillRect(0, 0, W, H)
-
-      const img = imgRef.current
-      if (!img || !img.complete || img.naturalWidth === 0) return
 
       const padFrac = 0.08
       const availW = W * (1 - padFrac * 2)
@@ -154,16 +153,19 @@ export default function ScPrintsFlow({ tuning, className }: Props) {
         holdJitter,
         count,
       }
+      // eslint-disable-next-line no-console
+      console.log(
+        `[ScPrintsFlow] sampled ${count} particles at ${W}×${H} (stride ${stride})`
+      )
     }
 
     const imgRef = { current: null as HTMLImageElement | null }
     const img = new Image()
-    img.crossOrigin = "anonymous"
     img.src = LOGO_SRC
     img.onload = () => {
       if (cancelled) return
       imgRef.current = img
-      resize()
+      sampleParticles()
     }
     img.onerror = () => {
       console.error("[ScPrintsFlow] failed to load", LOGO_SRC)
@@ -171,6 +173,7 @@ export default function ScPrintsFlow({ tuning, className }: Props) {
 
     const ro = new ResizeObserver(() => resize())
     ro.observe(wrap)
+    resize()
 
     const updateMouseFromClient = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect()
