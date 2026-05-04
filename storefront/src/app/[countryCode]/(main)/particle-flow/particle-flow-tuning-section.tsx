@@ -3,34 +3,44 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react"
 
 import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
-import type { FlowLiveTuning } from "@modules/home/components/home-particle-logo-hero/flow-live-tuning"
-import { mergeFlowLiveTuning } from "@modules/home/components/home-particle-logo-hero/flow-live-tuning"
+import type { NewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
+import { mergeNewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 
-const LS_KEY = "flow-live-tuning-v2"
+const LS_KEY = "sc-prints-newmix-tuning-v1"
 
-const INT_KEYS = new Set<keyof FlowLiveTuning>([
+const INT_KEYS = new Set<keyof NewmixLiveTuning>([
   "radius",
-  "carryDurationMs",
+  "trailFollowMs",
+  "idleThresholdMs",
+  "wakeLateralSpreadBmp",
+  "wakeReleaseStaggerMs",
+  "wakeBandSpreadBmp",
+  "wakeAlongStretchBmp",
+  "wakeDiffusionBmp",
+  "wakeTimeOffsetMs",
+  "homeReturnMs",
+  "homeReturnCurveBmp",
+  "homeReturnDiffusionBmp",
 ])
 
-function loadTuning(): FlowLiveTuning {
+function loadTuning(): NewmixLiveTuning {
   if (typeof window === "undefined") {
-    return mergeFlowLiveTuning()
+    return mergeNewmixLiveTuning()
   }
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) {
-      return mergeFlowLiveTuning()
+      return mergeNewmixLiveTuning()
     }
-    const parsed = JSON.parse(raw) as Partial<FlowLiveTuning>
-    return mergeFlowLiveTuning(parsed)
+    const parsed = JSON.parse(raw) as Partial<NewmixLiveTuning>
+    return mergeNewmixLiveTuning(parsed)
   } catch {
-    return mergeFlowLiveTuning()
+    return mergeNewmixLiveTuning()
   }
 }
 
 type SliderSpec = {
-  key: keyof FlowLiveTuning
+  key: keyof NewmixLiveTuning
   label: string
   description: string
   min: number
@@ -41,147 +51,253 @@ type SliderSpec = {
 const SLIDERS: SliderSpec[] = [
   {
     key: "radius",
-    label: "Cursor radius (px)",
+    label: "Capture radius (px)",
     description:
-      "Solid-obstacle radius. Particles inside are displaced to the rim. Larger = bigger displacement zone.",
-    min: 20,
+      "Bitmap-px disk around the cursor that captures particles. Larger = more dots swept per pass.",
+    min: 30,
+    max: 220,
+    step: 1,
+  },
+  {
+    key: "velSmoothing",
+    label: "Motion vector smoothing",
+    description:
+      "Low-pass on inferred mouse motion direction. Higher = snappier heading, lower = laggy heading (smoother swirls on direction changes).",
+    min: 0.05,
+    max: 0.95,
+    step: 0.02,
+  },
+  {
+    key: "sideSwirlForce",
+    label: "Side swirl force",
+    description:
+      "Counter-rotating tangential impulse on each side of the motion direction (left vs right of travel curl opposite ways). Drives the dual-swirl look.",
+    min: 0,
+    max: 24,
+    step: 0.1,
+  },
+  {
+    key: "frontPush",
+    label: "Front push",
+    description:
+      "Outward radial shove ahead of the motion direction. Clears the leading tip of the disk so particles roll around the sides.",
+    min: 0,
+    max: 16,
+    step: 0.05,
+  },
+  {
+    key: "backInward",
+    label: "Back inward pinch",
+    description:
+      "Pull behind the motion direction so released particles converge into the wake instead of fanning outward.",
+    min: 0,
+    max: 12,
+    step: 0.05,
+  },
+  {
+    key: "falloffPower",
+    label: "Falloff power",
+    description:
+      "Shape of force vs distance from cursor inside the disk. Higher = sharper falloff near the rim; lower = more uniform.",
+    min: 0,
+    max: 4,
+    step: 0.05,
+  },
+  {
+    key: "trailFollowMs",
+    label: "Wake follow duration (ms)",
+    description:
+      "How long a released particle trails the cursor before springing home. Re-capturing the particle resets this timer.",
+    min: 200,
+    max: 8000,
+    step: 50,
+  },
+  {
+    key: "wakePace",
+    label: "Wake pace (path replay speed)",
+    description:
+      "Speed at which a released particle replays the cursor's recorded path. 1.0 = stays at the cursor (no trail). 0.5 = traces the cursor's path at half real-time speed, so it falls behind as a wake. Lower = longer/slower trail.",
+    min: 0.1,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    key: "wakePaceJitter",
+    label: "Wake pace jitter (per-particle)",
+    description:
+      "Random variation in pace per particle (±this fraction of wake pace). Higher = particles spread along the trail at different speeds; 0 = all particles move in perfect lockstep clumps.",
+    min: 0,
+    max: 0.8,
+    step: 0.01,
+  },
+  {
+    key: "wakeLateralSpreadBmp",
+    label: "Wake lateral spread (px, mid-peak)",
+    description:
+      "Bell-shaped perpendicular drift that peaks mid-wake (zero at release and at the end). Adds extra spread to the band in the middle of the trail.",
+    min: 0,
+    max: 80,
+    step: 1,
+  },
+  {
+    key: "wakeBandSpreadBmp",
+    label: "Wake band spread (px, constant)",
+    description:
+      "Constant per-particle perpendicular offset along the entire trail. Each particle gets a unique sign + amount — particles fan out into a band along the whole wake, breaking up clumping.",
+    min: 0,
+    max: 80,
+    step: 1,
+  },
+  {
+    key: "wakeReleaseStaggerMs",
+    label: "Wake release stagger (ms, per-particle)",
+    description:
+      "Each particle's wake playback start is delayed by up to this much. Particles released in the same frame don't move in lockstep — the wake trickles out over time.",
+    min: 0,
+    max: 2000,
+    step: 25,
+  },
+  {
+    key: "wakeAlongStretchBmp",
+    label: "Wake along-tangent stretch (px)",
+    description:
+      "Per-particle signed offset along the cursor heading. Stretches particles out along the trail axis rather than clumping at one path point — produces a long elongated trail.",
+    min: 0,
     max: 200,
     step: 1,
   },
   {
-    key: "displacementStrength",
-    label: "Displacement strength",
+    key: "wakeDiffusionBmp",
+    label: "Wake diffusion noise (px)",
     description:
-      "How instantly particles snap to the rim. 1.0 = teleport to edge; lower = smoother slide outward.",
+      "Continuous sine-noise wobble per particle during the wake. Each particle drifts on its own slow wandering path so they don't move in lockstep — breaks up clumping.",
+    min: 0,
+    max: 60,
+    step: 1,
+  },
+  {
+    key: "wakeDiffusionHz",
+    label: "Wake diffusion frequency (Hz)",
+    description:
+      "Speed of the diffusion wobble. Lower = slow drift, higher = jittery wiggle.",
     min: 0.1,
-    max: 1,
-    step: 0.02,
+    max: 4,
+    step: 0.05,
   },
   {
-    key: "tangentialBias",
-    label: "Tangential flow bias",
+    key: "wakeTimeOffsetMs",
+    label: "Wake time offset (ms, per-particle)",
     description:
-      "Sideways component of the displacement. Higher = particles slide AROUND the cursor like fluid flowing around an obstacle. 0 = pure radial push.",
+      "Each particle's playhead is shifted backward in cursor history by up to this many ms. Spreads particles released in the same swirl-pass across the entire recent path-history, so the wake reads as a single continuous trail rather than discrete clumps. Set to ≥ wake duration for max spread.",
+    min: 0,
+    max: 12000,
+    step: 100,
+  },
+  {
+    key: "releaseVelocityKeep",
+    label: "Release velocity keep",
+    description:
+      "Fraction of the swirl velocity preserved on the release frame. 0 = trail-lock takes over instantly with no fly-off.",
     min: 0,
     max: 1,
     step: 0.02,
   },
   {
-    key: "carryFactor",
-    label: "Carry-along factor",
+    key: "homeReturnMs",
+    label: "Home return duration (ms)",
     description:
-      "Fraction of cursor's smoothed velocity transferred to displaced particles. Higher = particles get flung along the cursor's path; longer trails. Lower = brief nudge.",
-    min: 0,
-    max: 2,
-    step: 0.02,
-  },
-  {
-    key: "velSmoothing",
-    label: "Velocity smoothing",
-    description:
-      "Low-pass on cursor velocity. Higher = snappy tracking; lower = smoothed slow-changing direction.",
-    min: 0.05,
-    max: 1,
-    step: 0.02,
-  },
-  {
-    key: "springStiffness",
-    label: "Home spring stiffness",
-    description:
-      "Strength of the pull back to home each frame. Lower = slower, more drifting return; higher = quick snap.",
-    min: 0.001,
-    max: 0.1,
-    step: 0.001,
-  },
-  {
-    key: "friction",
-    label: "Friction",
-    description:
-      "Per-frame velocity decay. Critically damped at friction ≈ 1 - 2·sqrt(spring) for no rebound. Higher = faster damping.",
-    min: 0.7,
-    max: 0.99,
-    step: 0.005,
-  },
-  {
-    key: "gravity",
-    label: "Gravity (downward)",
-    description:
-      "Downward acceleration each frame. Produces the sand-through-hourglass fall as particles return home.",
-    min: 0,
-    max: 0.5,
-    step: 0.01,
-  },
-  {
-    key: "motionGateSpeed",
-    label: "Motion gate (px/frame)",
-    description:
-      "Below this cursor speed, the carry-along velocity transfer fades to 0 — stationary cursor still displaces but doesn't fling.",
-    min: 0.1,
-    max: 10,
-    step: 0.1,
-  },
-  {
-    key: "velocityHandoff",
-    label: "Velocity handoff weight",
-    description:
-      "How much of the new cursor-derived velocity replaces the particle's existing velocity per frame. 1.0 = full replace; lower = smoother momentum continuity.",
-    min: 0,
-    max: 1,
-    step: 0.02,
-  },
-  {
-    key: "carryDurationMs",
-    label: "Carry duration (ms)",
-    description:
-      "How long a particle stays in the carry state after being displaced. While carried, it continues receiving cursor velocity each frame so it travels far along the cursor's path. Longer = longer visible trail.",
+      "Total time from wake-end to home along a curved Bezier path. Cubic ease-out so particles glide in smoothly. Zero velocity throughout — no bounce.",
     min: 200,
-    max: 6000,
+    max: 4000,
     step: 50,
   },
   {
-    key: "carryStrength",
-    label: "Carry acceleration",
+    key: "homeReturnCurveBmp",
+    label: "Home return curve (px)",
     description:
-      "Per-frame acceleration toward the cursor's velocity vector while carried. Higher = particles match cursor speed more aggressively, sharper trail.",
+      "Bend magnitude in the home-return Bezier path. Each particle's curve has a unique sweep angle (any direction, not just two sides) and individually-jittered magnitude, so return paths fan out radially across the canvas.",
     min: 0,
-    max: 1,
+    max: 500,
+    step: 2,
+  },
+  {
+    key: "homeReturnDurationJitter",
+    label: "Home return duration jitter",
+    description:
+      "Per-particle variation (±this fraction) of the home-return duration. Higher = particles arrive home over a wider time window, less synchronized.",
+    min: 0,
+    max: 0.95,
     step: 0.02,
   },
   {
-    key: "carryFriction",
-    label: "Carry friction",
+    key: "homeReturnDiffusionBmp",
+    label: "Home return diffusion (px)",
     description:
-      "Velocity multiplier per frame while carried. High (~0.96+) preserves velocity through the carry window; lower = trail dies faster.",
-    min: 0.85,
-    max: 0.999,
+      "Sine-noise wobble during the home-return Bezier. Bell-shaped envelope (peaks mid-flight, zero at home), so paths spread on the way back without sacrificing precise final landing.",
+    min: 0,
+    max: 100,
+    step: 1,
+  },
+  {
+    key: "idleThresholdMs",
+    label: "Idle threshold (ms)",
+    description:
+      "After this many ms of no mouse motion, the capture/swirl effect freezes. Trailing particles still complete their wake and return home.",
+    min: 200,
+    max: 8000,
+    step: 50,
+  },
+  {
+    key: "friction",
+    label: "In-disk friction",
+    description:
+      "Per-frame velocity multiplier while particles are inside the capture disk. Higher = more glide.",
+    min: 0.78,
+    max: 0.995,
     step: 0.002,
   },
   {
-    key: "carryHomeSpringSuppress",
-    label: "Carry home-spring suppress",
+    key: "springStiffnessMult",
+    label: "Home spring multiplier (in disk)",
     description:
-      "How much the home spring is muted while carried. 1.0 = home spring fully off (longest trail); lower = partial pull home (shorter trail).",
-    min: 0,
-    max: 1,
+      "Scales the home spring while inside the capture disk (relative to the default 0.075 stiffness).",
+    min: 0.1,
+    max: 1.5,
     step: 0.02,
+  },
+  {
+    key: "homeSpringSuppress",
+    label: "Home spring suppress (in disk)",
+    description:
+      "Inside the capture disk, reduce the home spring by this factor so captured dots drift around the cursor before release.",
+    min: 0,
+    max: 0.99,
+    step: 0.01,
   },
 ]
 
-function formatValue(key: keyof FlowLiveTuning, v: number): string {
+function formatValue(key: keyof NewmixLiveTuning, v: number): string {
   if (INT_KEYS.has(key)) {
     return String(Math.round(v))
   }
-  if (key === "springStiffness") {
-    return v.toFixed(3)
+  if (
+    key === "homeSpringSuppress" ||
+    key === "wakePace" ||
+    key === "wakePaceJitter" ||
+    key === "releaseVelocityKeep" ||
+    key === "homeReturnDurationJitter" ||
+    key === "wakeDiffusionHz"
+  ) {
+    return v.toFixed(2)
   }
   if (key === "friction") {
     return v.toFixed(3)
   }
-  return v.toFixed(2)
+  return Number.isInteger(v) ? String(v) : v.toFixed(2)
 }
 
-function clampTuningToSliders(t: FlowLiveTuning): FlowLiveTuning {
-  let next = mergeFlowLiveTuning(t)
+function clampTuningToSliders(t: NewmixLiveTuning): NewmixLiveTuning {
+  let next = mergeNewmixLiveTuning(t)
   for (const spec of SLIDERS) {
     const v = next[spec.key]
     const clamped = Math.min(spec.max, Math.max(spec.min, v))
@@ -191,11 +307,11 @@ function clampTuningToSliders(t: FlowLiveTuning): FlowLiveTuning {
 }
 
 export function ParticleFlowTuningSection() {
-  const [tuning, setTuning] = useState<FlowLiveTuning>(() => loadTuning())
-  const restorePointRef = useRef<FlowLiveTuning | null>(null)
+  const [tuning, setTuning] = useState<NewmixLiveTuning>(() => loadTuning())
+  const restorePointRef = useRef<NewmixLiveTuning | null>(null)
 
   useLayoutEffect(() => {
-    restorePointRef.current = mergeFlowLiveTuning(tuning)
+    restorePointRef.current = mergeNewmixLiveTuning(tuning)
   }, [])
 
   const saveSettings = useCallback(() => {
@@ -207,7 +323,7 @@ export function ParticleFlowTuningSection() {
   }, [tuning])
 
   const updateRestorePoint = useCallback(() => {
-    restorePointRef.current = mergeFlowLiveTuning(tuning)
+    restorePointRef.current = mergeNewmixLiveTuning(tuning)
   }, [tuning])
 
   const restoreToRestorePoint = useCallback(() => {
@@ -216,7 +332,7 @@ export function ParticleFlowTuningSection() {
       return
     }
     const ok = window.confirm(
-      "Restore all sliders to your saved restore point?"
+      "Restore all sliders to your saved restore point? The animation will match those values."
     )
     if (!ok) {
       return
@@ -225,7 +341,7 @@ export function ParticleFlowTuningSection() {
   }, [])
 
   const resetFactory = useCallback(() => {
-    setTuning(mergeFlowLiveTuning())
+    setTuning(mergeNewmixLiveTuning())
     try {
       localStorage.removeItem(LS_KEY)
     } catch {
@@ -236,16 +352,17 @@ export function ParticleFlowTuningSection() {
   return (
     <div className="border-b border-white/15">
       <p className="border-b border-white/15 px-4 py-3 text-center text-sm text-white/70 sm:px-6">
-        Flow mode (cursor as solid obstacle, particles displace + carry along) —{" "}
+        Newmix-style capture & wake (direction-aware swirl + 3s trail follow) —{" "}
         <code className="rounded bg-white/10 px-1 text-xs">HomeParticleLogoHero</code>{" "}
         lab mode (sliders only apply on this page)
       </p>
       <HomeParticleLogoHero
-        presentation="fullscreen"
-        interactionMode="flow"
-        sectionAriaLabel="SC Prints — flow particle logo"
-        flowLiveTuning={tuning}
-        animatedParticleCap={80000}
+        presentation="embedded"
+        interactionMode="newmix"
+        logoSrc="/branding/sc-prints-logo-transparent.png"
+        inkPolarity="dark"
+        sectionAriaLabel="SC Prints — newmix particle logo"
+        newmixLiveTuning={tuning}
       />
       <div className="max-h-[min(70vh,520px)] overflow-y-auto px-4 py-4 sm:px-6">
         <div className="mx-auto max-w-3xl space-y-3">
@@ -254,7 +371,11 @@ export function ParticleFlowTuningSection() {
             <strong className="font-medium text-white/70">Save settings</strong>{" "}
             to write the current sliders to{" "}
             <code className="rounded bg-white/10 px-1">localStorage</code>{" "}
-            (reload keeps them).
+            (reload keeps them). Saving does not reset the animation.{" "}
+            <strong className="font-medium text-white/70">Update restore point</strong>{" "}
+            remembers the current values;{" "}
+            <strong className="font-medium text-white/70">Restore to restore point</strong>{" "}
+            asks for confirmation before applying that snapshot.
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -283,7 +404,7 @@ export function ParticleFlowTuningSection() {
               className="rounded border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-white/55 hover:bg-white/10 hover:text-white/75"
               onClick={resetFactory}
             >
-              Reset to factory defaults
+              Reset to factory defaults (clear saved file)
             </button>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
