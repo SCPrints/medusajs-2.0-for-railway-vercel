@@ -2875,10 +2875,10 @@ export default function HomeParticleLogoHero({
                   0xffffff
                 const durJitter =
                   1 + (rand1 * 2 - 1) * nm.homeReturnDurationJitter
-                /** While idle, halve the home-return duration so the wordmark visibly
-                 * snaps back into place within ~1 sec of the cursor stopping rather than
-                 * lingering. */
-                const idleScale = newmixIdle ? 0.5 : 1
+                /** While idle, shorten the home-return duration to ~30% so the wordmark
+                 * visibly snaps back into place within ~600 ms of the cursor stopping
+                 * rather than lingering. */
+                const idleScale = newmixIdle ? 0.3 : 1
                 const dur = Math.max(
                   100,
                   nm.homeReturnMs * durJitter * idleScale
