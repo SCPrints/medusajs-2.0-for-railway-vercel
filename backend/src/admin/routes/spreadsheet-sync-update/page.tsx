@@ -11,6 +11,7 @@ import {
   computeProductUpdateColumnCandidates,
   computeProductUpdatePreview,
   PRODUCT_UPDATE_BATCH_CHUNK_SIZE,
+  productUpdateBatchChunkSize,
   spreadsheetHeadersIgnoringPatchable,
 } from "../../lib/spreadsheet-sync-update-import"
 import { parseCsv } from "../../lib/csv-import"
@@ -137,19 +138,65 @@ const SpreadsheetSyncUpdatePage = () => {
 
     const log: string[] = []
 
+    const formatBatchFailure = (e: unknown): string => {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg === "Failed to fetch" || msg === "Load failed") {
+        return (
+          `${msg} — usually the browser lost the HTTP response (offline blip, wrong API base URL, or ` +
+          `the server/proxy stopped the request while importing remote images). Image/thumbnail sync uses smaller batches; ` +
+          `if this persists, increase Railway/nginx timeouts or sync fewer products at once.`
+        )
+      }
+      return msg
+    }
+
+    const isRetryableBatchError = (e: unknown): boolean => {
+      const msg = e instanceof Error ? e.message : String(e)
+      return msg === "Failed to fetch" || msg === "Load failed" || msg.includes("NetworkError")
+    }
+
     try {
-      const batches = chunkCreates(toUpdate, PRODUCT_UPDATE_BATCH_CHUNK_SIZE)
+      const chunkSize = productUpdateBatchChunkSize(enabledList)
+      const batches = chunkCreates(toUpdate, chunkSize)
+      log.push(
+        `Batch size: ${chunkSize} product(s) per request` +
+          (chunkSize < PRODUCT_UPDATE_BATCH_CHUNK_SIZE
+            ? " (reduced for thumbnail / gallery image columns)."
+            : ".")
+      )
+
+      type BatchProductResp = {
+        updated?: Array<{ id?: string; handle?: string; title?: string }>
+        products?: Array<{ id?: string; handle?: string; title?: string }>
+      }
+
       let batchIdx = 0
       for (const chunk of batches) {
         batchIdx++
         log.push(`Batch ${batchIdx}/${batches.length}: updating ${chunk.length} product(s)...`)
 
-        const resp = (await sdk.admin.product.batch(
-          { update: chunk as never },
-          { fields: "id,handle,title" }
-        )) as {
-          updated?: Array<{ id?: string; handle?: string; title?: string }>
-          products?: Array<{ id?: string; handle?: string; title?: string }>
+        const maxAttempts = 3
+        let resp: BatchProductResp | undefined
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            resp = (await sdk.admin.product.batch(
+              { update: chunk as never },
+              { fields: "id,handle,title" }
+            )) as BatchProductResp
+            break
+          } catch (e) {
+            if (!isRetryableBatchError(e) || attempt === maxAttempts) {
+              throw e
+            }
+            const msg = e instanceof Error ? e.message : String(e)
+            log.push(`  Request failed (${msg}). Retrying (${attempt}/${maxAttempts}) in 2s…`)
+            setSyncLog([...log])
+            await new Promise((r) => setTimeout(r, 2000))
+          }
+        }
+
+        if (!resp) {
+          throw new Error("Product batch returned no response after retries.")
         }
 
         const updated = resp.updated ?? resp.products ?? []
@@ -167,7 +214,7 @@ const SpreadsheetSyncUpdatePage = () => {
       log.push("Done.")
       setSyncLog(log)
     } catch (e) {
-      log.push(`Sync failed: ${e instanceof Error ? e.message : String(e)}`)
+      log.push(`Sync failed: ${formatBatchFailure(e)}`)
       setSyncLog(log)
     } finally {
       setSyncing(false)

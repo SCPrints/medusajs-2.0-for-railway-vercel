@@ -3,6 +3,7 @@ import type { ParsedCsv } from "./csv-import"
 /** Payload accepted by `sdk.admin.product.batch({ update })`. */
 export type SpreadsheetProductUpdate = Record<string, unknown>
 
+/** Default batch size for non-media field updates. */
 export const PRODUCT_UPDATE_BATCH_CHUNK_SIZE = 15
 
 export const PRODUCT_UPDATE_REQUIRED_HEADERS = ["product id"] as const
@@ -23,6 +24,27 @@ export type ProductUpdateColumnCandidate = ProductPatchColumnDef & {
 
 /** Virtual patch column key — combines `product image 1 url` + `product image 2 url` into the `images` field. */
 export const PRODUCT_GALLERY_IMAGES_CSV_KEY = "product gallery images"
+
+/**
+ * Smaller batches when updating remote image URLs (thumbnail / gallery). Each product can trigger
+ * server-side fetches and file handling; large batches often hit proxy timeouts → browser "Failed to fetch".
+ */
+export const PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA = 5
+
+const PRODUCT_UPDATE_MEDIA_CSV_KEYS = new Set<string>([
+  PRODUCT_GALLERY_IMAGES_CSV_KEY,
+  "product thumbnail",
+])
+
+/** Use smaller chunks when the user selected columns that pull remote images into Medusa. */
+export function productUpdateBatchChunkSize(enabledCsvKeys: ReadonlyArray<string>): number {
+  for (const k of enabledCsvKeys) {
+    if (PRODUCT_UPDATE_MEDIA_CSV_KEYS.has(k)) {
+      return PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA
+    }
+  }
+  return PRODUCT_UPDATE_BATCH_CHUNK_SIZE
+}
 
 /** CSV columns whose data feeds the virtual gallery patch column (replaced by a single `images` field on update). */
 export const PRODUCT_GALLERY_IMAGES_SOURCE_KEYS = [

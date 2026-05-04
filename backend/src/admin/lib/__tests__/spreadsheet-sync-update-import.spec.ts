@@ -5,6 +5,9 @@ import {
   computeProductUpdateColumnCandidates,
   computeProductUpdatePreview,
   PRODUCT_GALLERY_IMAGES_CSV_KEY,
+  PRODUCT_UPDATE_BATCH_CHUNK_SIZE,
+  PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA,
+  productUpdateBatchChunkSize,
   spreadsheetHeadersIgnoringPatchable,
   validateProductUpdateHeaders,
 } from "../spreadsheet-sync-update-import"
@@ -26,6 +29,14 @@ const buildCsv = (rows: Record<string, string>[]): string => {
 }
 
 describe("spreadsheet-sync-update-import", () => {
+  it("productUpdateBatchChunkSize uses smaller batches for thumbnail or gallery columns", () => {
+    expect(productUpdateBatchChunkSize(["product title"])).toBe(PRODUCT_UPDATE_BATCH_CHUNK_SIZE)
+    expect(productUpdateBatchChunkSize([PRODUCT_GALLERY_IMAGES_CSV_KEY])).toBe(
+      PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA
+    )
+    expect(productUpdateBatchChunkSize(["product thumbnail"])).toBe(PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA)
+  })
+
   it("validateProductUpdateHeaders requires product id column", () => {
     const parsed = parseCsv("Product Handle,Variant SKU\nfoo,bar")
     expect(validateProductUpdateHeaders(parsed)).toContain("product id")
