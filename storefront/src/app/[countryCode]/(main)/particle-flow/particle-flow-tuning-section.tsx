@@ -241,10 +241,11 @@ export function ParticleFlowTuningSection() {
         lab mode (sliders only apply on this page)
       </p>
       <HomeParticleLogoHero
-        presentation="embedded"
+        presentation="fullscreen"
         interactionMode="flow"
         sectionAriaLabel="SC Prints — flow particle logo"
         flowLiveTuning={tuning}
+        animatedParticleCap={80000}
       />
       <div className="max-h-[min(70vh,520px)] overflow-y-auto px-4 py-4 sm:px-6">
         <div className="mx-auto max-w-3xl space-y-3">
