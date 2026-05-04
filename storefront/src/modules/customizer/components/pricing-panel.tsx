@@ -105,8 +105,8 @@ export default function PricingPanel({
     [activePrintArea, resolvedDtfTierIndex]
   )
   const dtfTotalPriceCents = dtfUnitPriceCents * safeEstimatorQuantity
-  const checkoutTotalCents = quantity > 0 ? pricing.totalPriceCents : 0
-  const checkoutUnitCents = quantity > 0 ? pricing.discountedUnitPriceCents : 0
+  const checkoutTotalCents = pricing.totalPriceCents
+  const checkoutUnitCents = pricing.discountedUnitPriceCents
 
   return (
     <div className="space-y-4 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
@@ -151,7 +151,9 @@ export default function PricingPanel({
           <span className="font-medium text-ui-fg-base">{formatMoney(checkoutUnitCents, currencyCode)}</span>
         </p>
         <p className="mt-1.5 flex justify-between text-sm font-semibold">
-          <span className="text-ui-fg-base">Checkout total ({quantity})</span>
+          <span className="text-ui-fg-base">
+            {quantity > 0 ? `Checkout total (${quantity})` : "Estimated total (qty 1)"}
+          </span>
           <span className="text-ui-fg-base">{formatMoney(checkoutTotalCents, currencyCode)}</span>
         </p>
       </div>
