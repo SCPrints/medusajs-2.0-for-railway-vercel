@@ -97,7 +97,7 @@ export type NewmixLiveTuning = {
 
 /** Must stay aligned with `constants.ts` exports for newmix. */
 export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
-  radius: 55,
+  radius: 40,
   velSmoothing: 0.45,
   sideSwirlForce: 14.0,
   frontPush: 5.0,
@@ -117,15 +117,15 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
    * near the cursor with a thinner tail extending back. */
   wakeTimeOffsetMs: 300,
   releaseVelocityKeep: 0.0,
-  exitVelocityBoostBmp: 1.5,
-  leadingEdgePullForce: 0.5,
+  exitVelocityBoostBmp: 0.0,
+  leadingEdgePullForce: 0.0,
   trailingProbability: 0.35,
-  inDiskCarryFactor: 0.4,
+  inDiskCarryFactor: 0.25,
   motionGateSpeed: 8.0,
   wakeBandTaperPower: 1.4,
   coreEjectionForce: 0.0,
   coreEjectionRadiusFrac: 0.15,
-  wakeAlphaMult: 0.95,
+  wakeAlphaMult: 0.6,
   friction: 0.86,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,

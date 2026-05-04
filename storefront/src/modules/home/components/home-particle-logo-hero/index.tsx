@@ -1273,7 +1273,10 @@ function drawLayer(
   extraParticles?: ParallaxParticle[] | null,
   /** Alpha multiplier applied when a particle is in trailing state. <1 produces a
    * translucent ghostly wake so the wordmark remains visually dominant. */
-  wakeAlphaMult = 1
+  wakeAlphaMult = 1,
+  /** When false, skip the soft base-sprite layer and draw only the core sprite. Produces
+   * a sharper, less bloomed look — matches Newmix's crisp individual particles. */
+  useDualPass = true
 ) {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   /** Smoothing on so the soft sprite blits scale cleanly when the canvas is at a
@@ -1325,7 +1328,7 @@ function drawLayer(
     if (!Number.isFinite(yBmp)) {
       yBmp = py
     }
-    if (sprite != null && baseSprite != null) {
+    if (sprite != null && baseSprite != null && useDualPass) {
       /** Pass 1: low-alpha base layer fills gaps between centers. */
       ctx.globalAlpha = alpha * 0.18
       ctx.drawImage(
@@ -1334,6 +1337,10 @@ function drawLayer(
         yBmp - halfBaseSprite
       )
       /** Pass 2: full-alpha core sprite preserves grain. */
+      ctx.globalAlpha = alpha
+      ctx.drawImage(sprite, xBmp - halfSprite, yBmp - halfSprite)
+    } else if (sprite != null) {
+      /** Single-pass crisp render — only the core sprite, no base bloom. */
       ctx.globalAlpha = alpha
       ctx.drawImage(sprite, xBmp - halfSprite, yBmp - halfSprite)
     } else {
@@ -1874,7 +1881,9 @@ export default function HomeParticleLogoHero({
       viscousCoffeeWakeParticlesRef.current,
       interactionModeRef.current === "newmix"
         ? newmixLiveMergedRef.current.wakeAlphaMult
-        : 1
+        : 1,
+      /** Newmix mode uses crisp single-pass rendering; other modes keep the dual-pass bloom. */
+      interactionModeRef.current !== "newmix"
     )
 
     setLogoRasterReady(particles.length > 0)
@@ -2555,31 +2564,13 @@ export default function HomeParticleLogoHero({
                * Also force-expire ALL trailing particles when the cursor is idle, so the
                * wordmark fills back in promptly when the user stops moving the mouse rather
                * than leaving a permanent hole at the cursor's last position. */
-              const wakeExpiredNatural =
+              /** Wake expiry — both natural deadline and idle-triggered routes start a
+               * visible Bezier home-return flight from the particle's current position.
+               * Particles always travel back to home visibly; they never teleport. */
+              const wakeExpired =
                 p.bhTrailUntilMs != null &&
-                nowTick >= p.bhTrailUntilMs
-              const wakeExpiredIdle =
-                p.bhTrailUntilMs != null && newmixIdle
-              if (wakeExpiredIdle) {
-                /** IDLE-EXPIRE: cursor has stopped moving. Snap the particle home immediately
-                 * at full opacity — no Bezier flight, no fade. Matches Newmix's "binary"
-                 * behavior where the cursor's effect is invisible the moment motion stops. */
-                p.bhTrailUntilMs = null
-                p.newmixCursorOriginX = undefined
-                p.newmixCursorOriginY = undefined
-                p.newmixHomeAtReleaseX = undefined
-                p.newmixHomeAtReleaseY = undefined
-                p.newmixHomeReturnFromX = undefined
-                p.newmixHomeReturnFromY = undefined
-                p.newmixHomeReturnStartMs = undefined
-                p.newmixSwirlSide = undefined
-                p.x = p.hx
-                p.y = p.hy
-                p.vx = 0
-                p.vy = 0
-                p.entranceOpacity = 1
-              } else if (wakeExpiredNatural) {
-                /** Natural expiry: start a Bezier home-return flight from current position. */
+                (nowTick >= p.bhTrailUntilMs || newmixIdle)
+              if (wakeExpired) {
                 p.bhTrailUntilMs = null
                 p.newmixCursorOriginX = undefined
                 p.newmixCursorOriginY = undefined
@@ -2589,22 +2580,6 @@ export default function HomeParticleLogoHero({
                 p.newmixHomeReturnFromX = p.x
                 p.newmixHomeReturnFromY = p.y
                 p.newmixHomeReturnStartMs = nowTick
-              }
-              /** While idle, also force-snap any in-flight home-returning particles to
-               * complete instantly so the resting state has zero visible transit. */
-              if (
-                newmixIdle &&
-                p.newmixHomeReturnStartMs != null
-              ) {
-                p.x = p.hx
-                p.y = p.hy
-                p.vx = 0
-                p.vy = 0
-                p.entranceOpacity = 1
-                p.newmixHomeReturnFromX = undefined
-                p.newmixHomeReturnFromY = undefined
-                p.newmixHomeReturnStartMs = undefined
-                p.newmixSwirlSide = undefined
               }
 
               const distM = cursorOk
@@ -3113,7 +3088,9 @@ export default function HomeParticleLogoHero({
           applyCanvasParallax,
           particleDrawSizeBmpRef.current,
           viscousCoffee ? viscousCoffeeWakeParticlesRef.current : null,
-          newmix && nm != null ? nm.wakeAlphaMult : 1
+          newmix && nm != null ? nm.wakeAlphaMult : 1,
+          /** Newmix mode uses crisp single-pass rendering; other modes keep the dual-pass bloom. */
+          !newmix
         )
 
         const tiltEl = logoTiltLayerRef.current
