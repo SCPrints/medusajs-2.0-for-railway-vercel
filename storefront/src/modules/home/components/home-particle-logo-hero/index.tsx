@@ -2681,17 +2681,12 @@ export default function HomeParticleLogoHero({
                 p.newmixCursorOriginY = undefined
                 p.newmixHomeAtReleaseX = undefined
                 p.newmixHomeAtReleaseY = undefined
-                /** Snapshot wake-end position as the home-return start. */
+                /** Snapshot wake-end position as the home-return start. The Bezier flight
+                 * is parametric — no velocity handoff needed; particles travel the curve
+                 * deterministically and stop at home with no rebound. */
                 p.newmixHomeReturnFromX = p.x
                 p.newmixHomeReturnFromY = p.y
                 p.newmixHomeReturnStartMs = nowTick
-                /** Hand off momentum to the sand-fall drift. Carry a fraction of the
-                 * cursor's recent motion + a small downward bias so particles initially
-                 * "fall out" of the cursor area before the spring pulls them home. */
-                const initSpeed = 0.6
-                const sv = newmixSpoonVelRef.current
-                p.vx = sv.vx * initSpeed * 0.3
-                p.vy = sv.vy * initSpeed * 0.3 + 0.5
               }
 
               const distM = cursorOk
@@ -2983,35 +2978,74 @@ export default function HomeParticleLogoHero({
                 p.newmixHomeReturnFromX != null &&
                 p.newmixHomeReturnFromY != null
               ) {
-                /** SAND-THROUGH-HOURGLASS HOME RETURN. Continuous physical drift toward
-                 * home using a soft spring + gravity bias + friction. No fixed duration,
-                 * no Bezier teleport — particles fall toward home with momentum like sand
-                 * through an hourglass. The previous wake's velocity carries forward into
-                 * this drift so motion is continuous rather than restarting. */
-                const dxh = p.hx - p.x
-                const dyh = p.hy - p.y
-                /** Soft spring acceleration toward home. */
-                p.vx += dxh * nm.homeReturnSpring
-                p.vy += dyh * nm.homeReturnSpring
-                /** Downward gravity bias produces the falling-sand visual. */
-                p.vy += nm.homeReturnGravity
-                /** Friction soaks momentum so particles slow as they approach home. */
-                p.vx *= nm.homeReturnFriction
-                p.vy *= nm.homeReturnFriction
-                /** Integrate position from velocity. */
-                p.x += p.vx
-                p.y += p.vy
-                /** Full opacity throughout — particles stay visible the entire way. */
+                /** V3-ERA VISIBLE HOME-RETURN FLIGHT. Particles travel back to home along
+                 * a per-particle curved Bezier path at full opacity. Parametric (no spring
+                 * physics) so there's no rebound at home — particles arrive cleanly on
+                 * the cubic-ease-out curve and stop. */
+                const hashSrc =
+                  ((p.hx | 0) * 2654435761 +
+                    (p.hy | 0) * 1597334677) >>> 0
+                const rand1 = (hashSrc & 0xffffff) / 0xffffff
+                const rand2 =
+                  ((((hashSrc >>> 8) * 2246822519) >>> 0) & 0xffffff) /
+                  0xffffff
+                const rand3 =
+                  ((((hashSrc >>> 16) * 374761393) >>> 0) & 0xffffff) /
+                  0xffffff
+                const durJitter =
+                  1 + (rand1 * 2 - 1) * nm.homeReturnDurationJitter
+                const dur = Math.max(100, nm.homeReturnMs * durJitter)
+                const elapsed = nowTick - p.newmixHomeReturnStartMs
+                const t = Math.max(0, Math.min(1, elapsed / dur))
+                /** Cubic ease-out for graceful arrival at home. */
+                const e = 1 - (1 - t) * (1 - t) * (1 - t)
+                const sx = p.newmixHomeReturnFromX
+                const sy = p.newmixHomeReturnFromY
+                const ex = p.hx
+                const ey = p.hy
+                const dx = ex - sx
+                const dy = ey - sy
+                const dist = Math.hypot(dx, dy)
+                /** Per-particle Bezier control point with unique sweep angle + magnitude. */
+                const sweepAngle = (rand2 - 0.5) * Math.PI * 2
+                const curveAmp =
+                  nm.homeReturnCurveBmp *
+                  (0.4 + rand3 * 1.2) *
+                  Math.min(1, dist / 200 + 0.3)
+                const cdx = Math.cos(sweepAngle) * curveAmp
+                const cdy = Math.sin(sweepAngle) * curveAmp
+                const mx = (sx + ex) * 0.5 + cdx
+                const my = (sy + ey) * 0.5 + cdy
+                const oneMinusE = 1 - e
+                const bx =
+                  oneMinusE * oneMinusE * sx +
+                  2 * oneMinusE * e * mx +
+                  e * e * ex
+                const by =
+                  oneMinusE * oneMinusE * sy +
+                  2 * oneMinusE * e * my +
+                  e * e * ey
+                /** Optional bell-shape diffusion wobble for organic flight. */
+                const homeEnv = 4 * t * (1 - t)
+                const homePhase1 = rand1 * Math.PI * 2
+                const homePhase2 = rand2 * Math.PI * 2
+                const homeTSec = nowTick * 0.001
+                const homeDiffX =
+                  Math.sin(homeTSec * 4.1 + homePhase1) *
+                  nm.homeReturnDiffusionBmp *
+                  homeEnv
+                const homeDiffY =
+                  Math.cos(homeTSec * 5.3 + homePhase2) *
+                  nm.homeReturnDiffusionBmp *
+                  homeEnv
+                p.x = bx + homeDiffX
+                p.y = by + homeDiffY
                 p.entranceOpacity = 1
-                /** Snap to home and clear state once the particle is close enough and
-                 * moving slowly. Threshold prevents perpetual jitter near home. */
-                const distSq = dxh * dxh + dyh * dyh
-                const speedSq = p.vx * p.vx + p.vy * p.vy
-                if (distSq < 0.5 && speedSq < 0.05) {
+                p.vx = 0
+                p.vy = 0
+                if (t >= 1) {
                   p.x = p.hx
                   p.y = p.hy
-                  p.vx = 0
-                  p.vy = 0
                   p.newmixHomeReturnFromX = undefined
                   p.newmixHomeReturnFromY = undefined
                   p.newmixHomeReturnStartMs = undefined
