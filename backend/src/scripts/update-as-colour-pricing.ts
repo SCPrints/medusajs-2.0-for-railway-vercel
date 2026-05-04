@@ -55,6 +55,13 @@ const DEFAULT_IMPORT_CSV_CANDIDATES = [
 const BATCH_SIZE = 250
 const PRICE_CURRENCY_CODE = "aud"
 
+/** Minor units → Medusa major units (decimal). Boundary conversion. */
+const minorToMajor = (minor: number): number => minor / 100
+const tierMinorToMajor = <T extends { amount: number }>(tier: T): T => ({
+  ...tier,
+  amount: minorToMajor(tier.amount),
+})
+
 const parseCsvLine = (line: string): string[] => {
   const out: string[] = []
   let value = ""
@@ -478,7 +485,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
       bulk_pricing: {
         source: path.basename(priceCsvPath),
         currency_code: PRICE_CURRENCY_CODE,
-        tiers: stylePricing.tiers,
+        tiers: stylePricing.tiers.map(tierMinorToMajor),
       },
       as_colour_style_code: stylePricing.styleCode,
     }
@@ -488,7 +495,7 @@ export default async function updateAsColourPricing({ container, args }: ExecArg
     }
 
     const pricesForPriceSet: Array<Record<string, unknown>> = stylePricing.tiers.map((tier) => ({
-      amount: tier.amount,
+      amount: minorToMajor(tier.amount),
       currency_code: PRICE_CURRENCY_CODE,
       min_quantity: tier.min_quantity,
       ...(typeof tier.max_quantity === "number" ? { max_quantity: tier.max_quantity } : {}),

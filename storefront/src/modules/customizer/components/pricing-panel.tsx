@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 
+import { convertToLocale } from "@lib/util/money"
 import FlyToCartAddButton from "@modules/common/components/fly-to-cart-add-button"
 import { PricingBreakdown, SizeQuantity } from "@modules/customizer/lib/types"
 
@@ -44,17 +45,15 @@ const DTF_QUANTITY_TIERS: DtfQuantityTier[] = [
   { label: "Qty 100+", minQuantity: 100 },
 ]
 
+// DTF reference prices in major units (AUD dollars), to match `price.amount` scale.
 const DTF_PRINT_AREA_OPTIONS: DtfPrintAreaOption[] = [
-  { id: "left_chest", label: "Left Chest (Up to A6)", pricesByTierCents: [850, 650, 550, 500] },
-  { id: "standard", label: "Standard Print (Up to A3)", pricesByTierCents: [1250, 950, 850, 800] },
-  { id: "oversize", label: "Oversize Print", pricesByTierCents: [1500, 1250, 1150, 1100] },
+  { id: "left_chest", label: "Left Chest (Up to A6)", pricesByTierCents: [8.5, 6.5, 5.5, 5] },
+  { id: "standard", label: "Standard Print (Up to A3)", pricesByTierCents: [12.5, 9.5, 8.5, 8] },
+  { id: "oversize", label: "Oversize Print", pricesByTierCents: [15, 12.5, 11.5, 11] },
 ]
 
-const formatMoney = (amountCents: number, currencyCode: string) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode.toUpperCase(),
-  }).format(amountCents / 100)
+const formatMoney = (amount: number, currencyCode: string) =>
+  convertToLocale({ amount, currency_code: currencyCode })
 
 const formatTierRange = (minQuantity: number, maxQuantity?: number) =>
   typeof maxQuantity === "number" ? `${minQuantity}-${maxQuantity}` : `${minQuantity}+`

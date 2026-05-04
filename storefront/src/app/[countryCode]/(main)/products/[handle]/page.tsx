@@ -5,7 +5,6 @@ import ProductTemplate from "@modules/products/templates"
 import { getRegion, listRegions } from "@lib/data/regions"
 import { getProductByHandle, getProductsList } from "@lib/data/products"
 import { getProductPrice } from "@lib/util/get-product-price"
-import { minorToMajor } from "@lib/util/money"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 
 type Props = {
@@ -110,7 +109,7 @@ export default async function ProductPage({ params }: Props) {
           "@type": "Offer",
           url: buildAbsoluteUrl(`/${normalizedCountryCode}/products/${pricedProduct.handle}`),
           priceCurrency: cheapestPrice.currency_code.toUpperCase(),
-          price: minorToMajor(cheapestPrice.calculated_price_number),
+          price: cheapestPrice.calculated_price_number,
           availability: "https://schema.org/InStock",
           itemCondition: "https://schema.org/NewCondition",
         }

@@ -137,7 +137,7 @@ export default function ProductPrice({
     activeUnitAmount === rawBulkTierAmount
 
   const activeUnitPrice = convertToLocale({
-    amount: activeUnitAmount / 100,
+    amount: activeUnitAmount,
     currency_code: currencyCode,
   })
 
@@ -219,7 +219,7 @@ export default function ProductPrice({
                   <span>{formatTierRange(tier)} pcs</span>
                   <span className="text-ui-fg-base">
                     {convertToLocale({
-                      amount: tierMinor / 100,
+                      amount: tierMinor,
                       currency_code: currencyCode,
                     })}
                     {savingsPct > 0 ? ` (${savingsPct}% off)` : ""}

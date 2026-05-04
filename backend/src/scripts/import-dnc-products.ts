@@ -63,11 +63,14 @@ const deriveTiersFromT100Minor = (t100M: number, m: ReturnType<typeof getDeriveM
   return { base: baseM, t10: t10M, t50: t50M, t100: t100M }
 }
 
+/** Minor units → Medusa major units (decimal). Boundary conversion. */
+const minorToMajor = (minor: number): number => minor / 100
+
 const buildPricesForPriceSet = (m: TierMoneyMinor): Array<Record<string, unknown>> => [
-  { amount: m.base, currency_code: PRICE_CURRENCY_CODE, min_quantity: 1, max_quantity: 9 },
-  { amount: m.t10, currency_code: PRICE_CURRENCY_CODE, min_quantity: 10, max_quantity: 49 },
-  { amount: m.t50, currency_code: PRICE_CURRENCY_CODE, min_quantity: 50, max_quantity: 99 },
-  { amount: m.t100, currency_code: PRICE_CURRENCY_CODE, min_quantity: 100 },
+  { amount: minorToMajor(m.base), currency_code: PRICE_CURRENCY_CODE, min_quantity: 1, max_quantity: 9 },
+  { amount: minorToMajor(m.t10), currency_code: PRICE_CURRENCY_CODE, min_quantity: 10, max_quantity: 49 },
+  { amount: minorToMajor(m.t50), currency_code: PRICE_CURRENCY_CODE, min_quantity: 50, max_quantity: 99 },
+  { amount: minorToMajor(m.t100), currency_code: PRICE_CURRENCY_CODE, min_quantity: 100 },
 ]
 
 const parseCsvLine = (line: string): string[] => {
@@ -415,10 +418,10 @@ const buildTierMetadata = (tiers: TierMoneyMinor) => ({
   source: BULK_PRICING_SOURCE,
   currency_code: PRICE_CURRENCY_CODE,
   tiers: [
-    { min_quantity: 1, max_quantity: 9, amount: tiers.base },
-    { min_quantity: 10, max_quantity: 49, amount: tiers.t10 },
-    { min_quantity: 50, max_quantity: 99, amount: tiers.t50 },
-    { min_quantity: 100, amount: tiers.t100 },
+    { min_quantity: 1, max_quantity: 9, amount: minorToMajor(tiers.base) },
+    { min_quantity: 10, max_quantity: 49, amount: minorToMajor(tiers.t10) },
+    { min_quantity: 50, max_quantity: 99, amount: minorToMajor(tiers.t50) },
+    { min_quantity: 100, amount: minorToMajor(tiers.t100) },
   ],
 })
 
@@ -611,7 +614,7 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
         barcode: v.barcode,
         weight: v.weightGrams,
         options: optionsMap,
-        prices: [{ amount: tiers.base, currency_code: PRICE_CURRENCY_CODE }],
+        prices: [{ amount: minorToMajor(tiers.base), currency_code: PRICE_CURRENCY_CODE }],
         metadata: meta,
         ...withNonTrackedInventoryDefaults({}),
       })

@@ -195,7 +195,7 @@ export function getProductListingCardPriceLines(
   }
 
   const hundredFormatted = convertToLocale({
-    amount: tierMinor / 100,
+    amount: tierMinor,
     currency_code: currencyCode,
   })
 

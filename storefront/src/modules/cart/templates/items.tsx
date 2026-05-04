@@ -1,6 +1,7 @@
 "use client"
 
 import repeat from "@lib/util/repeat"
+import { convertToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import { Heading, Table, Text } from "@medusajs/ui"
 
@@ -43,15 +44,7 @@ const formatCurrency = (
   if (typeof amount !== "number" || !Number.isFinite(amount)) {
     return null
   }
-  const code = (currencyCode || "AUD").toUpperCase()
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: code,
-    }).format(amount)
-  } catch {
-    return `${code} ${amount.toFixed(2)}`
-  }
+  return convertToLocale({ amount, currency_code: currencyCode || "aud" })
 }
 
 const ItemsTemplate = ({ items }: ItemsTemplateProps) => {

@@ -251,11 +251,11 @@ export default async function seedDemoData({ container }: ExecArgs) {
       prices: [
         {
           currency_code: "aud",
-          amount: 1000,
+          amount: 10,
         },
         {
           region_id: auRegion.id,
-          amount: 1000,
+          amount: 10,
         },
       ],
       rules: [
@@ -285,11 +285,11 @@ export default async function seedDemoData({ container }: ExecArgs) {
       prices: [
         {
           currency_code: "aud",
-          amount: 1500,
+          amount: 15,
         },
         {
           region_id: auRegion.id,
-          amount: 1500,
+          amount: 15,
         },
       ],
       rules: [
@@ -502,7 +502,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -517,7 +517,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -532,7 +532,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -547,7 +547,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -562,7 +562,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -577,7 +577,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -592,7 +592,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -607,7 +607,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -654,7 +654,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -668,7 +668,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -682,7 +682,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -696,7 +696,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -743,7 +743,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -757,7 +757,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -771,7 +771,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -785,7 +785,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -832,7 +832,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -846,7 +846,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -860,7 +860,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -874,7 +874,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
               },
               prices: [
                 {
-                  amount: 1500,
+                  amount: 15,
                   currency_code: "aud",
                 },
               ],
@@ -929,7 +929,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
                 "Gang sheet size": "58cm × 100cm",
               },
               prices: [
-                { amount: 2400, currency_code: "aud" },
+                { amount: 24, currency_code: "aud" },
               ],
             },
             {
@@ -940,7 +940,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
                 "Gang sheet size": "58cm × 200cm",
               },
               prices: [
-                { amount: 4800, currency_code: "aud" },
+                { amount: 48, currency_code: "aud" },
               ],
             },
             {
@@ -951,7 +951,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
                 "Gang sheet size": "58cm × 300cm",
               },
               prices: [
-                { amount: 7200, currency_code: "aud" },
+                { amount: 72, currency_code: "aud" },
               ],
             },
             {
@@ -962,7 +962,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
                 "Gang sheet size": "58cm × 400cm",
               },
               prices: [
-                { amount: 9600, currency_code: "aud" },
+                { amount: 96, currency_code: "aud" },
               ],
             },
             {
@@ -973,7 +973,7 @@ export default async function seedDemoData({ container }: ExecArgs) {
                 "Gang sheet size": "58cm × 500cm",
               },
               prices: [
-                { amount: 12000, currency_code: "aud" },
+                { amount: 120, currency_code: "aud" },
               ],
             },
           ],

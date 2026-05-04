@@ -21,7 +21,6 @@ import {
 import {
   buildBulkPricingMetadata,
   buildPriceLadder,
-  toMinorAud,
 } from "../modules/ascolour/pricing"
 
 const PRICE_CURRENCY_CODE = "aud"
@@ -192,7 +191,7 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
 
       const cost = costBySku.get(v.sku)
       const ladder = cost !== undefined ? buildPriceLadder(cost) : null
-      const amount = ladder ? toMinorAud(ladder.base) : 0
+      const amount = ladder ? ladder.base : 0
 
       const titleParts = [v.colour, v.size].filter(Boolean)
       const variantTitle = titleParts.join(" / ") || v.sku

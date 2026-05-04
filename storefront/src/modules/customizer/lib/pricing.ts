@@ -1,6 +1,16 @@
+import { convertToLocale } from "@lib/util/money"
+
 import { BulkPricingTier, PricingBreakdown, PricingInput } from "./types"
 
-const SIDE_SURCHARGE_CENTS = 250
+/**
+ * NOTE: input/output field names retain the `Cents` suffix for compatibility, but values are now
+ * **major units** (decimal dollars) — same scale as Medusa 2.x `price.amount` and the rest of the
+ * storefront. Internal math rounds to 2dp to preserve cent precision.
+ */
+
+const SIDE_SURCHARGE = 2.5
+
+const round2 = (n: number) => Math.round(n * 100) / 100
 
 const getQuantityDiscountRate = (quantity: number) => {
   if (quantity >= 100) {
@@ -31,7 +41,7 @@ const normalizeTiers = (tiers?: BulkPricingTier[]) =>
         typeof tier.maxQuantity === "number" && Number.isFinite(tier.maxQuantity)
           ? Math.max(1, Math.floor(tier.maxQuantity))
           : undefined,
-      amountCents: Math.max(0, Math.floor(tier.amountCents)),
+      amountCents: Math.max(0, round2(tier.amountCents)),
     }))
     .sort((a, b) => a.minQuantity - b.minQuantity)
 
@@ -46,11 +56,8 @@ const resolveBulkTierForQuantity = (tiers: BulkPricingTier[], quantity: number) 
     return true
   }) ?? tiers[tiers.length - 1]
 
-export const formatCurrency = (amountCents: number, currencyCode = "USD") =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode.toUpperCase(),
-  }).format(amountCents / 100)
+export const formatCurrency = (amount: number, currencyCode = "aud") =>
+  convertToLocale({ amount, currency_code: currencyCode })
 
 export const calculatePricing = ({
   basePriceCents,
@@ -60,14 +67,14 @@ export const calculatePricing = ({
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
   const decoratedSides = Math.max(0, Math.floor(decoratedSidesCount || 0))
-  const sideSurchargePerUnitCents = decoratedSides * SIDE_SURCHARGE_CENTS
+  const sideSurchargePerUnit = round2(decoratedSides * SIDE_SURCHARGE)
   const normalizedTiers = normalizeTiers(bulkPricingTiers)
   const activeBulkTier = normalizedTiers.length
     ? resolveBulkTierForQuantity(normalizedTiers, safeQuantity)
     : undefined
-  const fallbackBaseUnit = Math.max(0, Math.floor(basePriceCents))
+  const fallbackBaseUnit = Math.max(0, round2(basePriceCents))
   const baseUnit = activeBulkTier?.amountCents ?? fallbackBaseUnit
-  const beforeDiscountUnit = baseUnit + sideSurchargePerUnitCents
+  const beforeDiscountUnit = round2(baseUnit + sideSurchargePerUnit)
   const firstTierBase = normalizedTiers[0]?.amountCents ?? baseUnit
   const quantityDiscountRate = normalizedTiers.length
     ? firstTierBase > baseUnit
@@ -76,13 +83,13 @@ export const calculatePricing = ({
     : getQuantityDiscountRate(safeQuantity)
   const discountedUnitPriceCents = normalizedTiers.length
     ? beforeDiscountUnit
-    : Math.round(beforeDiscountUnit * (1 - quantityDiscountRate))
-  const sideSurchargeTotalCents = sideSurchargePerUnitCents * safeQuantity
-  const totalPriceCents = discountedUnitPriceCents * safeQuantity
+    : round2(beforeDiscountUnit * (1 - quantityDiscountRate))
+  const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
+  const totalPriceCents = round2(discountedUnitPriceCents * safeQuantity)
 
   return {
     baseUnitPriceCents: baseUnit,
-    sideSurchargePerUnitCents,
+    sideSurchargePerUnitCents: sideSurchargePerUnit,
     sideSurchargeTotalCents,
     quantityDiscountRate,
     hasBulkPricing: normalizedTiers.length > 0,

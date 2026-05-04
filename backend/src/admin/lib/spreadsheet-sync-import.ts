@@ -857,10 +857,11 @@ const variantPricesFromRow = (
   const prices: VariantPrice[] = []
   const audFlat = parseMoneyToMinor(row["variant price aud"])
 
+  // Medusa expects `amount` in major units (e.g. dollars); pipeline keeps minor (cents) internally for precision.
   if (tierHint) {
-    prices.push({ amount: tierHint.t1_9, currency_code: "aud" })
+    prices.push({ amount: tierHint.t1_9 / 100, currency_code: "aud" })
   } else if (audFlat !== null) {
-    prices.push({ amount: audFlat, currency_code: "aud" })
+    prices.push({ amount: audFlat / 100, currency_code: "aud" })
   }
 
   return prices

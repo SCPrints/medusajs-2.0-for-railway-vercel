@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react"
 
-import { minorToMajor } from "@lib/util/money"
+import { convertToLocale } from "@lib/util/money"
 
 import type { GraphNode } from "../../../types/graph"
 
@@ -13,15 +13,10 @@ type Props = {
 
 function formatPrice(price: GraphNode["price"]): string | null {
   if (!price) return null
-  const major = minorToMajor(price.amount)
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: price.currency_code.toUpperCase(),
-    }).format(major)
-  } catch {
-    return `${major} ${price.currency_code.toUpperCase()}`
-  }
+  return convertToLocale({
+    amount: price.amount,
+    currency_code: price.currency_code,
+  })
 }
 
 /**

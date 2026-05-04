@@ -276,7 +276,8 @@ const parseProductsFromCsv = (rows: CsvRow[]) => {
         }
       }
 
-      const amount = parseMoneyToMinor(row["Variant Price AUD"]) ?? 0
+      const amountMinor = parseMoneyToMinor(row["Variant Price AUD"]) ?? 0
+      const amount = amountMinor / 100
       const frontImage = row["Product Image 1"] || row["Product Thumbnail"] || undefined
       const backImage = row["Product Image 2"] || undefined
 

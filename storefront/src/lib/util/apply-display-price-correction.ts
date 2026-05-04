@@ -63,19 +63,21 @@ export function applyDisplayPriceCorrection(subject: TotalsMutableForDisplay) {
   }
 
   const ratio = displaySubtotal / oldSub
-  mutable.subtotal = displaySubtotal
+  // Totals are major units (decimals) — round to 2dp to preserve cent precision.
+  const round2 = (n: number) => Math.round(n * 100) / 100
+  mutable.subtotal = round2(displaySubtotal)
   if (typeof mutable.tax_total === "number" && Number.isFinite(mutable.tax_total)) {
-    mutable.tax_total = Math.round(mutable.tax_total * ratio)
+    mutable.tax_total = round2(mutable.tax_total * ratio)
   }
   if (
     typeof mutable.discount_total === "number" &&
     Number.isFinite(mutable.discount_total) &&
     mutable.discount_total !== 0
   ) {
-    mutable.discount_total = Math.round(mutable.discount_total * ratio)
+    mutable.discount_total = round2(mutable.discount_total * ratio)
   }
   if (typeof mutable.total === "number" && Number.isFinite(mutable.total)) {
-    mutable.total = Math.round(mutable.total * ratio)
+    mutable.total = round2(mutable.total * ratio)
   }
 }
 
