@@ -1,5 +1,10 @@
 import type { ParsedCsv } from "./csv-import"
-import { PRODUCT_IMPORT_CSV_HEADERS } from "./product-import-template-csv"
+import {
+  PRODUCT_CATEGORY_PATH_COLUMN_COUNT,
+  PRODUCT_IMAGE_URL_COLUMN_COUNT,
+  PRODUCT_IMPORT_CSV_HEADERS,
+  PRODUCT_TAG_COLUMN_COUNT,
+} from "./product-import-template-csv"
 import {
   deriveTierMinorFromSpreadsheet100PlusAnchor,
   parseMoneyToMinor,
@@ -1020,12 +1025,100 @@ function buildProductViewImageMetadataFromRow(
 /** Max duplicate-barcode detail lines returned (rest summarized). */
 const BARCODE_DEDUPE_WARNING_CAP = 40
 
+/** Read `Product Tag 1` … `Product Tag N` cells; case-insensitive dedupe, original casing preserved. */
+export function collectProductTagsFromRow(row: Record<string, string>): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (let i = 1; i <= PRODUCT_TAG_COLUMN_COUNT; i++) {
+    const raw = (row[`product tag ${i}`] ?? "").trim()
+    if (!raw) {
+      continue
+    }
+    const k = raw.toLowerCase()
+    if (seen.has(k)) {
+      continue
+    }
+    seen.add(k)
+    out.push(raw)
+  }
+  return out
+}
+
+/** Read `Product Image 1 Url` … `Product Image N Url` cells; preserves order, drops duplicates. */
+export function collectProductImageUrlsFromRow(row: Record<string, string>): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (let i = 1; i <= PRODUCT_IMAGE_URL_COLUMN_COUNT; i++) {
+    const u = (row[`product image ${i} url`] ?? "").trim()
+    if (!u || seen.has(u)) {
+      continue
+    }
+    seen.add(u)
+    out.push(u)
+  }
+  return out
+}
+
+/** Parse the optional `Product Metadata JSON` cell. Returns undefined for empty/invalid JSON or non-object values. */
+export function parseProductMetadataJsonFromRow(
+  row: Record<string, string>
+): Record<string, unknown> | undefined {
+  const raw = (row["product metadata json"] ?? "").trim()
+  if (!raw) {
+    return undefined
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>
+    }
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+/**
+ * Read `Product Category 1 Path` … `Product Category N Path` cells. Each value is a `>`/`/`-delimited path
+ * (e.g. "Hospitality > Chefs & Waiters Jackets"). Returns an array of segment-arrays in declaration order,
+ * deduped by joined-key (case-insensitive). Empty/whitespace cells are skipped.
+ */
+export function collectProductCategoryPathsFromRow(row: Record<string, string>): string[][] {
+  const out: string[][] = []
+  const seenKeys = new Set<string>()
+  for (let i = 1; i <= PRODUCT_CATEGORY_PATH_COLUMN_COUNT; i++) {
+    const raw = (row[`product category ${i} path`] ?? "").trim()
+    if (!raw) {
+      continue
+    }
+    const segments = raw
+      .split(/[>/]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+    if (!segments.length) {
+      continue
+    }
+    const key = segments.map((s) => s.toLowerCase()).join(" > ")
+    if (seenKeys.has(key)) {
+      continue
+    }
+    seenKeys.add(key)
+    out.push(segments)
+  }
+  return out
+}
+
 export type BuildCreatesResult = {
   creates: SpreadsheetProductCreate[]
   tierBySku: Map<string, TierMoneyMinor>
   errors: string[]
   /** Human-readable warnings (e.g. duplicate barcodes stripped so sync can proceed). */
   warnings: string[]
+  /**
+   * Category paths discovered in the CSV, keyed by product handle. The page resolves these into Medusa
+   * category IDs (auto-creating missing levels) before sending the create batch.
+   */
+  categoryPathsByHandle: Map<string, string[][]>
 }
 
 export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesResult => {
@@ -1033,18 +1126,19 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
   const barcodeDedupeDetails: string[] = []
   const tierBySku = new Map<string, TierMoneyMinor>()
   const seenBarcodes = new Set<string>()
+  const categoryPathsByHandle = new Map<string, string[][]>()
   let barcodeDedupeCount = 0
 
   const headerErr = validateHeaders(parsed)
   if (headerErr) {
     errors.push(headerErr)
-    return { creates: [], tierBySku, errors, warnings: [] }
+    return { creates: [], tierBySku, errors, warnings: [], categoryPathsByHandle }
   }
 
   const previewRun = computeSpreadsheetPreview(parsed)
   previewRun.validationErrors.forEach((e) => errors.push(e))
   if (previewRun.validationErrors.length > 0) {
-    return { creates: [], tierBySku, errors, warnings: [] }
+    return { creates: [], tierBySku, errors, warnings: [], categoryPathsByHandle }
   }
 
   const grouped = groupRowsByHandle(parsed.rows)
@@ -1092,14 +1186,20 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
       options.push({ title: opt2TitleRaw, values: vals2 })
     }
 
-    const images: Array<{ url: string }> = []
-    const u1 = (first["product image 1 url"] ?? "").trim()
-    const u2 = (first["product image 2 url"] ?? "").trim()
-    if (u1) {
-      images.push({ url: u1 })
-    }
-    if (u2) {
-      images.push({ url: u2 })
+    const images: Array<{ url: string }> = collectProductImageUrlsFromRow(first).map((url) => ({
+      url,
+    }))
+
+    const productTagValues = collectProductTagsFromRow(first)
+    const productTags = productTagValues.length
+      ? productTagValues.map((value) => ({ value }))
+      : undefined
+
+    const productMetadataExtra = parseProductMetadataJsonFromRow(first)
+
+    const productCategoryPaths = collectProductCategoryPathsFromRow(first)
+    if (productCategoryPaths.length) {
+      categoryPathsByHandle.set(handle, productCategoryPaths)
     }
 
     const variants: Record<string, unknown>[] = []
@@ -1178,6 +1278,12 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
     }
 
     const viewImageMetadata = buildProductViewImageMetadataFromRow(first)
+    const mergedMetadata: Record<string, unknown> | undefined = (() => {
+      if (!viewImageMetadata && !productMetadataExtra) {
+        return undefined
+      }
+      return { ...(productMetadataExtra ?? {}), ...(viewImageMetadata ?? {}) }
+    })()
 
     creates.push({
       title: (first["product title"] ?? "").trim() || handle,
@@ -1210,7 +1316,8 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
       images: images.length ? images : undefined,
       options,
       variants,
-      ...(viewImageMetadata ? { metadata: viewImageMetadata } : {}),
+      ...(productTags ? { tags: productTags } : {}),
+      ...(mergedMetadata ? { metadata: mergedMetadata } : {}),
     })
   }
 
@@ -1227,7 +1334,7 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
     }
   }
 
-  return { creates, tierBySku, errors, warnings }
+  return { creates, tierBySku, errors, warnings, categoryPathsByHandle }
 }
 
 export const PRODUCT_BATCH_CHUNK_SIZE = 10

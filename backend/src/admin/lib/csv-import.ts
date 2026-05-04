@@ -33,8 +33,13 @@ const splitCsvRecords = (raw: string): string[] => {
   for (let i = 0; i < raw.length; i++) {
     const ch = raw[i]
     if (ch === '"') {
+      /**
+       * Preserve quotes verbatim — record-splitting only needs to know whether we're inside a quoted
+       * cell so newlines don't end the record. Quote-escape translation is parseCsvLine's job. If we
+       * also unescape here, the second pass mis-reads JSON cells like `"{""k"":1}"` as `{k:1}`.
+       */
       if (inQuotes && raw[i + 1] === '"') {
-        current += '"'
+        current += '""'
         i++
       } else {
         inQuotes = !inQuotes

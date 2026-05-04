@@ -49,6 +49,26 @@ export const PRODUCT_IMPORT_TEMPLATE_COLUMNS = [
   "Product Image 2 Url",
 ] as const
 
+/** Maximum number of `Product Tag N` columns the template emits and the importer reads. */
+export const PRODUCT_TAG_COLUMN_COUNT = 10
+/** Maximum number of `Product Category N Path` columns the template emits and the importer reads. */
+export const PRODUCT_CATEGORY_PATH_COLUMN_COUNT = 5
+/** Maximum number of `Product Image N Url` columns the template emits and the importer reads. */
+export const PRODUCT_IMAGE_URL_COLUMN_COUNT = 5
+
+const PRODUCT_TAG_EXTRA_COLUMNS = Array.from(
+  { length: PRODUCT_TAG_COLUMN_COUNT - 1 },
+  (_, i) => `Product Tag ${i + 2}`
+)
+const PRODUCT_CATEGORY_PATH_COLUMNS = Array.from(
+  { length: PRODUCT_CATEGORY_PATH_COLUMN_COUNT },
+  (_, i) => `Product Category ${i + 1} Path`
+)
+const PRODUCT_IMAGE_URL_EXTRA_COLUMNS = Array.from(
+  { length: PRODUCT_IMAGE_URL_COLUMN_COUNT - 2 },
+  (_, i) => `Product Image ${i + 3} Url`
+)
+
 /** Appended after the template for id + human-readable pairs (ignored by strict import parsers). */
 export const PRODUCT_IMPORT_SUPPLEMENTAL_COLUMNS = [
   "Product Collection Title",
@@ -68,6 +88,14 @@ export const PRODUCT_IMPORT_SUPPLEMENTAL_COLUMNS = [
   "Image Front Url",
   "Image Back Url",
   "Image Side Url",
+  /** Variant Option 2 (recognized by the importer). */
+  "Variant Option 2 Name",
+  "Variant Option 2 Value",
+  /** Multi-tag, multi-category, extra metadata, extra gallery images. */
+  ...PRODUCT_TAG_EXTRA_COLUMNS,
+  ...PRODUCT_CATEGORY_PATH_COLUMNS,
+  "Product Metadata JSON",
+  ...PRODUCT_IMAGE_URL_EXTRA_COLUMNS,
 ] as const
 
 export const PRODUCT_IMPORT_CSV_HEADERS: string[] = [
@@ -595,6 +623,17 @@ export function buildProductImportTemplateRows(products: unknown[]): string[][] 
         formatCell((product.metadata as Record<string, unknown> | undefined)?.image_front_url ?? ""),
         formatCell((product.metadata as Record<string, unknown> | undefined)?.image_back_url ?? ""),
         formatCell((product.metadata as Record<string, unknown> | undefined)?.image_side_url ?? ""),
+        /** Variant Option 2 Name/Value — emitted by import flow but not yet populated on round-trip export. */
+        "",
+        "",
+        /** Product Tag 2..10 — placeholder; export round-trip for multi-tag is a future enhancement. */
+        ...Array.from({ length: PRODUCT_TAG_COLUMN_COUNT - 1 }, () => ""),
+        /** Product Category 1..N Path — placeholder; export from existing categories is a future enhancement. */
+        ...Array.from({ length: PRODUCT_CATEGORY_PATH_COLUMN_COUNT }, () => ""),
+        /** Product Metadata JSON — placeholder; export round-trip is a future enhancement. */
+        "",
+        /** Product Image 3..N Url — placeholder; existing 1/2 already covered above. */
+        ...Array.from({ length: PRODUCT_IMAGE_URL_COLUMN_COUNT - 2 }, () => ""),
       ])
     }
   }

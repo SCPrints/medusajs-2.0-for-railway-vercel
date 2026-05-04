@@ -17,6 +17,11 @@ import {
   PRODUCT_BATCH_CHUNK_SIZE,
   slugifyCollectionHandle,
 } from "../../lib/spreadsheet-sync-import"
+import {
+  applyCategoryIdsToCreates,
+  resolveCategoryPaths,
+  type CategoryClient,
+} from "../../lib/spreadsheet-sync-categories"
 import type { TierMoneyMinor } from "../../lib/spreadsheet-money"
 import { parseCsv } from "../../lib/csv-import"
 import { sdk } from "../../lib/sdk"
@@ -193,7 +198,8 @@ const SpreadsheetSyncPage = () => {
       return
     }
 
-    const { creates, tierBySku, errors, warnings } = buildBatchCreatesFromParsedCsv(workingParsed)
+    const { creates, tierBySku, errors, warnings, categoryPathsByHandle } =
+      buildBatchCreatesFromParsedCsv(workingParsed)
 
     if (errors.length) {
       errors.forEach((e) => log.push(`Validation: ${e}`))
@@ -209,6 +215,36 @@ const SpreadsheetSyncPage = () => {
       setSyncLog(log)
       setSyncing(false)
       return
+    }
+
+    if (categoryPathsByHandle.size) {
+      const allPaths: string[][] = []
+      const pathSeen = new Set<string>()
+      for (const paths of categoryPathsByHandle.values()) {
+        for (const p of paths) {
+          const key = p.map((s) => s.toLowerCase()).join(" > ")
+          if (!pathSeen.has(key)) {
+            pathSeen.add(key)
+            allPaths.push(p)
+          }
+        }
+      }
+      log.push(`Resolving ${allPaths.length} category path(s)…`)
+      try {
+        const categoryClient: CategoryClient = sdk.admin.productCategory as unknown as CategoryClient
+        const { idByPathKey, createdLog } = await resolveCategoryPaths(categoryClient, allPaths)
+        log.push(...createdLog)
+        applyCategoryIdsToCreates(
+          creates as Array<Record<string, unknown> & { handle?: string }>,
+          categoryPathsByHandle,
+          idByPathKey
+        )
+        log.push(`Categories resolved (${idByPathKey.size}/${allPaths.length} paths matched).`)
+      } catch (e) {
+        log.push(
+          `Category resolution failed: ${e instanceof Error ? e.message : String(e)} — products will be created without categories.`
+        )
+      }
     }
 
     const tierPayload: Array<{ variant_id: string; tiers_minor: TierMoneyMinor }> = []

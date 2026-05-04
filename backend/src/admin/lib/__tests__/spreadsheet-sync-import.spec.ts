@@ -3,6 +3,9 @@ import { parseCsv } from "../csv-import"
 import {
   applyDefaultCollectionIdToParsedCsv,
   buildBatchCreatesFromParsedCsv,
+  collectProductCategoryPathsFromRow,
+  collectProductImageUrlsFromRow,
+  collectProductTagsFromRow,
   computeSpreadsheetPreview,
   detectDncWorkwearCatalog,
   detectFashionBizVariantCatalog,
@@ -11,6 +14,7 @@ import {
   expandFashionBizCatalogToTemplate,
   expandGoldCatalogToTemplate,
   normalizeSpreadsheetForImport,
+  parseProductMetadataJsonFromRow,
   slugifyCollectionHandle,
 } from "../spreadsheet-sync-import"
 
@@ -367,5 +371,168 @@ SKUB,Child Blue M,Blue,M,931111,https://cdn.dncworkwear.com.au/y.jpg,,,$22.50,,`
     expect(
       normalizeSpreadsheetForImport(parsed, { defaultShippingProfileId: "sp_z" }).readyParsed?.rows.length
     ).toBe(1)
+  })
+
+  describe("multi-tag / multi-category / metadata / extra-image columns", () => {
+    it("collectProductTagsFromRow reads up to 10 numbered columns and dedupes case-insensitively", () => {
+      const row: Record<string, string> = {
+        "product tag 1": "audience:unisex",
+        "product tag 2": "material:cotton-poly",
+        "product tag 3": "Audience:Unisex", // duplicate of tag 1 (case-insensitive)
+        "product tag 4": "  ",
+        "product tag 5": "weight:mid",
+        "product tag 10": "cert:oeko-tex",
+      }
+      expect(collectProductTagsFromRow(row)).toEqual([
+        "audience:unisex",
+        "material:cotton-poly",
+        "weight:mid",
+        "cert:oeko-tex",
+      ])
+    })
+
+    it("collectProductImageUrlsFromRow gathers up to 5 image URLs in order, drops empties + duplicates", () => {
+      const row: Record<string, string> = {
+        "product image 1 url": "https://example.com/a.jpg",
+        "product image 2 url": "",
+        "product image 3 url": "https://example.com/b.jpg",
+        "product image 4 url": "https://example.com/a.jpg", // duplicate of img 1
+        "product image 5 url": "https://example.com/c.jpg",
+      }
+      expect(collectProductImageUrlsFromRow(row)).toEqual([
+        "https://example.com/a.jpg",
+        "https://example.com/b.jpg",
+        "https://example.com/c.jpg",
+      ])
+    })
+
+    it("parseProductMetadataJsonFromRow returns parsed object or undefined for invalid/non-object cells", () => {
+      expect(parseProductMetadataJsonFromRow({})).toBeUndefined()
+      expect(parseProductMetadataJsonFromRow({ "product metadata json": "" })).toBeUndefined()
+      expect(parseProductMetadataJsonFromRow({ "product metadata json": "not json" })).toBeUndefined()
+      expect(parseProductMetadataJsonFromRow({ "product metadata json": "[1,2]" })).toBeUndefined()
+      expect(
+        parseProductMetadataJsonFromRow({ "product metadata json": '{"gsm":200,"composition":{"cotton":35}}' })
+      ).toEqual({ gsm: 200, composition: { cotton: 35 } })
+    })
+
+    it("collectProductCategoryPathsFromRow splits on > or /, dedupes, ignores empties", () => {
+      const row: Record<string, string> = {
+        "product category 1 path": "Hospitality > Chefs & Waiters Jackets",
+        "product category 2 path": "Apparel/Tops/T-Shirts",
+        "product category 3 path": " hospitality > chefs & waiters jackets ", // duplicate (case-insensitive)
+        "product category 4 path": "",
+        "product category 5 path": "Workwear > Hi-Vis Tops",
+      }
+      expect(collectProductCategoryPathsFromRow(row)).toEqual([
+        ["Hospitality", "Chefs & Waiters Jackets"],
+        ["Apparel", "Tops", "T-Shirts"],
+        ["Workwear", "Hi-Vis Tops"],
+      ])
+    })
+
+    it("buildBatchCreatesFromParsedCsv attaches tags, extra images, merged metadata and category paths", () => {
+      const r = emptyRow()
+      r["product handle"] = "dnc-1101"
+      r["product title"] = "Traditional Chef Jacket - Short Sleeve"
+      r["product status"] = "draft"
+      r["shipping profile id"] = "sp_x"
+      r["product discountable"] = "TRUE"
+      r["variant sku"] = "110110061"
+      r["variant price aud"] = "40.60"
+      r["variant option 1 name"] = "Size"
+      r["variant option 1 value"] = "XXS"
+      r["product image 1 url"] = "https://x/a.jpg"
+      r["product image 2 url"] = "https://x/b.jpg"
+      // Headers below aren't in PRODUCT_IMPORT_CSV_HEADERS but the importer reads them by name.
+      // Add them via a direct CSV with extra columns:
+      const extraHeaders = [
+        "Product Tag 1",
+        "Product Tag 2",
+        "Product Tag 3",
+        "Product Image 3 Url",
+        "Product Image 4 Url",
+        "Product Metadata JSON",
+        "Product Category 1 Path",
+        "Product Category 2 Path",
+      ]
+      const extraValues = [
+        "audience:unisex",
+        "material:cotton-poly",
+        "weight:mid",
+        "https://x/c.jpg",
+        "https://x/d.jpg",
+        '{"gsm":200,"composition":{"cotton":35,"polyester":65}}',
+        "Hospitality > Chefs & Waiters Jackets",
+        "Workwear > Hi-Vis Tops",
+      ]
+      const headers = [...PRODUCT_IMPORT_CSV_HEADERS, ...extraHeaders]
+      const headerRow = headers.join(",")
+      const dataRow = headers
+        .map((h, i) => {
+          if (i < PRODUCT_IMPORT_CSV_HEADERS.length) {
+            return r[PRODUCT_IMPORT_CSV_HEADERS[i]!.toLowerCase()] ?? ""
+          }
+          const v = extraValues[i - PRODUCT_IMPORT_CSV_HEADERS.length] ?? ""
+          return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
+        })
+        .join(",")
+      const csv = `${headerRow}\n${dataRow}`
+
+      const parsed = parseCsv(csv)
+      const { creates, categoryPathsByHandle, errors } = buildBatchCreatesFromParsedCsv(parsed)
+      expect(errors).toEqual([])
+      expect(creates.length).toBe(1)
+      const c = creates[0] as Record<string, unknown>
+      expect(c.tags).toEqual([
+        { value: "audience:unisex" },
+        { value: "material:cotton-poly" },
+        { value: "weight:mid" },
+      ])
+      expect(c.images).toEqual([
+        { url: "https://x/a.jpg" },
+        { url: "https://x/b.jpg" },
+        { url: "https://x/c.jpg" },
+        { url: "https://x/d.jpg" },
+      ])
+      const meta = c.metadata as Record<string, unknown>
+      expect(meta.gsm).toBe(200)
+      expect(meta.composition).toEqual({ cotton: 35, polyester: 65 })
+      expect(categoryPathsByHandle.get("dnc-1101")).toEqual([
+        ["Hospitality", "Chefs & Waiters Jackets"],
+        ["Workwear", "Hi-Vis Tops"],
+      ])
+    })
+
+    it("buildBatchCreatesFromParsedCsv preserves existing view-image metadata when merging Product Metadata JSON", () => {
+      const headers = [
+        ...PRODUCT_IMPORT_CSV_HEADERS,
+        "Image Standard Url",
+        "Product Metadata JSON",
+      ]
+      const r = emptyRow()
+      r["product handle"] = "p1"
+      r["product title"] = "Title"
+      r["shipping profile id"] = "sp_x"
+      r["variant sku"] = "SKU"
+      r["variant price aud"] = "10"
+      const dataRow = headers
+        .map((h, i) => {
+          if (i < PRODUCT_IMPORT_CSV_HEADERS.length) {
+            return r[PRODUCT_IMPORT_CSV_HEADERS[i]!.toLowerCase()] ?? ""
+          }
+          const extras = ["https://x/std.jpg", '{"gsm":180}']
+          const v = extras[i - PRODUCT_IMPORT_CSV_HEADERS.length] ?? ""
+          return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
+        })
+        .join(",")
+      const csv = `${headers.join(",")}\n${dataRow}`
+      const parsed = parseCsv(csv)
+      const { creates, errors } = buildBatchCreatesFromParsedCsv(parsed)
+      expect(errors).toEqual([])
+      const meta = (creates[0] as Record<string, unknown>).metadata as Record<string, unknown>
+      expect(meta.image_standard_url).toBe("https://x/std.jpg")
+      expect(meta.gsm).toBe(180)
+    })
   })
 })
