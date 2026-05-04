@@ -2555,10 +2555,31 @@ export default function HomeParticleLogoHero({
                * Also force-expire ALL trailing particles when the cursor is idle, so the
                * wordmark fills back in promptly when the user stops moving the mouse rather
                * than leaving a permanent hole at the cursor's last position. */
-              const wakeExpired =
+              const wakeExpiredNatural =
                 p.bhTrailUntilMs != null &&
-                (nowTick >= p.bhTrailUntilMs || newmixIdle)
-              if (wakeExpired) {
+                nowTick >= p.bhTrailUntilMs
+              const wakeExpiredIdle =
+                p.bhTrailUntilMs != null && newmixIdle
+              if (wakeExpiredIdle) {
+                /** IDLE-EXPIRE: cursor has stopped moving. Snap the particle home immediately
+                 * at full opacity — no Bezier flight, no fade. Matches Newmix's "binary"
+                 * behavior where the cursor's effect is invisible the moment motion stops. */
+                p.bhTrailUntilMs = null
+                p.newmixCursorOriginX = undefined
+                p.newmixCursorOriginY = undefined
+                p.newmixHomeAtReleaseX = undefined
+                p.newmixHomeAtReleaseY = undefined
+                p.newmixHomeReturnFromX = undefined
+                p.newmixHomeReturnFromY = undefined
+                p.newmixHomeReturnStartMs = undefined
+                p.newmixSwirlSide = undefined
+                p.x = p.hx
+                p.y = p.hy
+                p.vx = 0
+                p.vy = 0
+                p.entranceOpacity = 1
+              } else if (wakeExpiredNatural) {
+                /** Natural expiry: start a Bezier home-return flight from current position. */
                 p.bhTrailUntilMs = null
                 p.newmixCursorOriginX = undefined
                 p.newmixCursorOriginY = undefined
@@ -2568,6 +2589,22 @@ export default function HomeParticleLogoHero({
                 p.newmixHomeReturnFromX = p.x
                 p.newmixHomeReturnFromY = p.y
                 p.newmixHomeReturnStartMs = nowTick
+              }
+              /** While idle, also force-snap any in-flight home-returning particles to
+               * complete instantly so the resting state has zero visible transit. */
+              if (
+                newmixIdle &&
+                p.newmixHomeReturnStartMs != null
+              ) {
+                p.x = p.hx
+                p.y = p.hy
+                p.vx = 0
+                p.vy = 0
+                p.entranceOpacity = 1
+                p.newmixHomeReturnFromX = undefined
+                p.newmixHomeReturnFromY = undefined
+                p.newmixHomeReturnStartMs = undefined
+                p.newmixSwirlSide = undefined
               }
 
               const distM = cursorOk

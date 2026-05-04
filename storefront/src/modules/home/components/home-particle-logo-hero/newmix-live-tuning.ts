@@ -103,7 +103,7 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   frontPush: 5.0,
   backInward: 3.5,
   falloffPower: 1.4,
-  trailFollowMs: 1200,
+  trailFollowMs: 600,
   wakePace: 0.92,
   wakePaceJitter: 0.25,
   wakeLateralSpreadBmp: 6,
@@ -133,7 +133,7 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   homeReturnCurveBmp: 90,
   homeReturnDurationJitter: 0.7,
   homeReturnDiffusionBmp: 8,
-  idleThresholdMs: 600,
+  idleThresholdMs: 250,
 })
 
 export function mergeNewmixLiveTuning(
