@@ -6,9 +6,12 @@ import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-he
 import type { FlowLiveTuning } from "@modules/home/components/home-particle-logo-hero/flow-live-tuning"
 import { mergeFlowLiveTuning } from "@modules/home/components/home-particle-logo-hero/flow-live-tuning"
 
-const LS_KEY = "flow-live-tuning-v1"
+const LS_KEY = "flow-live-tuning-v2"
 
-const INT_KEYS = new Set<keyof FlowLiveTuning>(["radius"])
+const INT_KEYS = new Set<keyof FlowLiveTuning>([
+  "radius",
+  "carryDurationMs",
+])
 
 function loadTuning(): FlowLiveTuning {
   if (typeof window === "undefined") {
@@ -122,6 +125,42 @@ const SLIDERS: SliderSpec[] = [
     label: "Velocity handoff weight",
     description:
       "How much of the new cursor-derived velocity replaces the particle's existing velocity per frame. 1.0 = full replace; lower = smoother momentum continuity.",
+    min: 0,
+    max: 1,
+    step: 0.02,
+  },
+  {
+    key: "carryDurationMs",
+    label: "Carry duration (ms)",
+    description:
+      "How long a particle stays in the carry state after being displaced. While carried, it continues receiving cursor velocity each frame so it travels far along the cursor's path. Longer = longer visible trail.",
+    min: 200,
+    max: 6000,
+    step: 50,
+  },
+  {
+    key: "carryStrength",
+    label: "Carry acceleration",
+    description:
+      "Per-frame acceleration toward the cursor's velocity vector while carried. Higher = particles match cursor speed more aggressively, sharper trail.",
+    min: 0,
+    max: 1,
+    step: 0.02,
+  },
+  {
+    key: "carryFriction",
+    label: "Carry friction",
+    description:
+      "Velocity multiplier per frame while carried. High (~0.96+) preserves velocity through the carry window; lower = trail dies faster.",
+    min: 0.85,
+    max: 0.999,
+    step: 0.002,
+  },
+  {
+    key: "carryHomeSpringSuppress",
+    label: "Carry home-spring suppress",
+    description:
+      "How much the home spring is muted while carried. 1.0 = home spring fully off (longest trail); lower = partial pull home (shorter trail).",
     min: 0,
     max: 1,
     step: 0.02,

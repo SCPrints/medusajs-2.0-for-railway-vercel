@@ -2995,32 +2995,36 @@ export default function HomeParticleLogoHero({
                * inside the disk are re-captured (handled above) and will re-enter the swirl cycle. */
               p.bhPrevInRadius = inCaptureDiskGeom
             } else if (flow && fl != null) {
-              /** FLUID FLOW MODEL — cursor is a solid obstacle that displaces particles.
-               * No capture state, no impulse stacking, no history-buffer playback. Two
-               * branches: inside-radius does displacement + velocity handoff; outside-radius
-               * is free physics (spring home + friction + gravity). Pure fluid behavior. */
+              /** FLUID FLOW with CARRY-STATE TRAIL. Three modes per particle:
+               *  1. INSIDE RADIUS: displace to rim + start/refresh carry timer.
+               *  2. CARRIED (timer not expired): receive cursor velocity each frame, very
+               *     low home-spring; particles travel along cursor's path producing the
+               *     long visible trail.
+               *  3. FREE: spring + friction + gravity drift home.
+               */
               p.bhPrevInRadius = false
-              p.bhTrailUntilMs = null
               const dxc = p.x - currentMouseX
               const dyc = p.y - currentMouseY
               const dist = cursorOk ? Math.hypot(dxc, dyc) : Infinity
-              if (
+              const inRadius =
                 cursorOk &&
                 inFlowStipple &&
                 dist < flowRadius &&
                 dist > 1e-6
-              ) {
-                /** DISPLACEMENT: smoothly slide the particle to the radius rim along the
-                 * radial direction. Tangential bias makes it slide AROUND the cursor
-                 * (sidestepping like fluid flowing around a stone) rather than straight
-                 * out. The sign of the tangential component is determined by the cursor's
-                 * motion direction so flow is consistent. */
+              const sv = flowSpoonVelRef.current
+              const cursorSpeed = Math.hypot(sv.vx, sv.vy)
+              const motionScale = Math.min(
+                1,
+                cursorSpeed / Math.max(0.01, fl.motionGateSpeed)
+              )
+
+              if (inRadius) {
+                /** DISPLACEMENT to rim with tangential slide-around bias. */
                 const inv = 1 / dist
                 const ux = dxc * inv
                 const uy = dyc * inv
                 const tangX = -uy
                 const tangY = ux
-                const sv = flowSpoonVelRef.current
                 const dot = tangX * sv.vx + tangY * sv.vy
                 const sgn = dot >= 0 ? 1 : -1
                 const tangAmp = flowRadius * fl.tangentialBias * sgn
@@ -3028,22 +3032,13 @@ export default function HomeParticleLogoHero({
                   currentMouseX + ux * flowRadius + tangX * tangAmp
                 const targetY =
                   currentMouseY + uy * flowRadius + tangY * tangAmp
-                /** Lerp toward the displacement target — at strength=1 it's instantaneous,
-                 * lower values produce a smoother slide outward. */
                 const lerp = Math.max(
                   0,
                   Math.min(1, fl.displacementStrength)
                 )
                 p.x = p.x + (targetX - p.x) * lerp
                 p.y = p.y + (targetY - p.y) * lerp
-                /** Velocity handoff. Cursor's smoothed velocity is partially transferred
-                 * to the particle so it gets carried along with the cursor's motion.
-                 * Motion-gated so a stationary cursor still displaces but doesn't fling. */
-                const speed = Math.hypot(sv.vx, sv.vy)
-                const motionScale = Math.min(
-                  1,
-                  speed / Math.max(0.01, fl.motionGateSpeed)
-                )
+                /** Initial velocity handoff (motion-gated). */
                 const handoffWeight =
                   Math.max(0, Math.min(1, fl.velocityHandoff)) *
                   motionScale
@@ -3051,9 +3046,50 @@ export default function HomeParticleLogoHero({
                 const newVy = sv.vy * fl.carryFactor
                 p.vx = p.vx * (1 - handoffWeight) + newVx * handoffWeight
                 p.vy = p.vy * (1 - handoffWeight) + newVy * handoffWeight
-              } else {
-                /** FREE PHYSICS: spring toward home + friction + downward gravity.
-                 * Critical damping at friction ≈ 1 - 2·sqrt(spring) gives no rebound. */
+                /** Mark as carried and refresh the carry deadline. Each pass through the
+                 * cursor refreshes the timer so particles inside the disk don't expire. */
+                p.bhTrailUntilMs = nowTick + fl.carryDurationMs
+              }
+
+              const carried =
+                p.bhTrailUntilMs != null &&
+                nowTick < p.bhTrailUntilMs
+              if (
+                p.bhTrailUntilMs != null &&
+                nowTick >= p.bhTrailUntilMs
+              ) {
+                /** Carry expired — drop into free physics. */
+                p.bhTrailUntilMs = null
+              }
+
+              if (carried && !inRadius) {
+                /** CARRIED PARTICLE — outside the radius but still in the carry window.
+                 * Continuously accelerate toward the cursor's smoothed velocity vector so
+                 * the particle is dragged along the cursor's path. Home spring is
+                 * suppressed so the trail can extend far from home. Carry friction is
+                 * high so velocity persists through the carry window. */
+                const targetVx = sv.vx * fl.carryFactor
+                const targetVy = sv.vy * fl.carryFactor
+                /** Acceleration toward target velocity (motion-gated so stationary cursor
+                 * doesn't keep re-accelerating particles). */
+                p.vx +=
+                  (targetVx - p.vx) * fl.carryStrength * motionScale
+                p.vy +=
+                  (targetVy - p.vy) * fl.carryStrength * motionScale
+                /** Suppressed home spring — typically ~0 contribution while carried. */
+                const homeFactor = 1 - fl.carryHomeSpringSuppress
+                p.vx += (p.hx - p.x) * fl.springStiffness * homeFactor
+                p.vy += (p.hy - p.y) * fl.springStiffness * homeFactor
+                /** Slight gravity even while carried — adds the "particles slowly fall"
+                 * character to the trail. */
+                p.vy += fl.gravity * 0.3
+                /** High friction — preserves velocity along the trail. */
+                p.vx *= fl.carryFriction
+                p.vy *= fl.carryFriction
+                p.x += p.vx
+                p.y += p.vy
+              } else if (!inRadius) {
+                /** FREE PHYSICS: spring + friction + gravity drift home. */
                 p.vx += (p.hx - p.x) * fl.springStiffness
                 p.vy += (p.hy - p.y) * fl.springStiffness
                 p.vy += fl.gravity
@@ -3061,7 +3097,7 @@ export default function HomeParticleLogoHero({
                 p.vy *= fl.friction
                 p.x += p.vx
                 p.y += p.vy
-                /** Snap to home when close + slow to prevent perpetual sub-pixel jitter. */
+                /** Snap to home when close + slow. */
                 const dxh = p.hx - p.x
                 const dyh = p.hy - p.y
                 if (
