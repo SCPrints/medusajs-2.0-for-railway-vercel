@@ -16,7 +16,7 @@ const V3_TUNING: Partial<NewmixLiveTuning> = {
   frontPush: 5.0,
   backInward: 3.5,
   falloffPower: 1.4,
-  trailFollowMs: 800,
+  trailFollowMs: 2500,
   wakePace: 0.95,
   wakePaceJitter: 0.25,
   wakeLateralSpreadBmp: 3,
