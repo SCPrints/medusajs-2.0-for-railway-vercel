@@ -93,39 +93,50 @@ export type NewmixLiveTuning = {
   homeReturnDiffusionBmp: number
   /** Idle-gate threshold (ms). If no mouse motion for this long, capture/swirl freezes. */
   idleThresholdMs: number
+  /** Spring stiffness pulling home-returning particles toward their home position each
+   * frame. Lower = slower, more drifting return. Newmix-style is very weak (~0.008) so
+   * particles take 2-4 sec to drift home like sand falling. */
+  homeReturnSpring: number
+  /** Friction multiplier applied each frame during home-return drift. High friction
+   * (~0.94) gives soft slow motion; low friction allows momentum to overshoot. */
+  homeReturnFriction: number
+  /** Downward gravity acceleration applied during home-return drift (bitmap px/frame²).
+   * Produces the "sand through hourglass" effect — particles fall toward home with a
+   * downward bias, not a straight line. */
+  homeReturnGravity: number
 }
 
 /** Must stay aligned with `constants.ts` exports for newmix. */
 export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
-  radius: 40,
+  radius: 65,
   velSmoothing: 0.45,
   sideSwirlForce: 14.0,
   frontPush: 5.0,
   backInward: 3.5,
   falloffPower: 1.4,
-  trailFollowMs: 600,
+  trailFollowMs: 4000,
   wakePace: 0.92,
   wakePaceJitter: 0.25,
-  wakeLateralSpreadBmp: 6,
+  wakeLateralSpreadBmp: 18,
   wakeReleaseStaggerMs: 200,
-  wakeBandSpreadBmp: 5,
+  wakeBandSpreadBmp: 15,
   wakeAlongStretchBmp: 5,
   wakeDiffusionBmp: 0,
   wakeDiffusionHz: 0.6,
   /** Each particle's effective release time is shifted backward in history by a per-particle
    * fraction of this many ms. Distribution is rand² (front-loaded) — most particles cluster
    * near the cursor with a thinner tail extending back. */
-  wakeTimeOffsetMs: 300,
+  wakeTimeOffsetMs: 3000,
   releaseVelocityKeep: 0.0,
   exitVelocityBoostBmp: 0.0,
   leadingEdgePullForce: 0.0,
-  trailingProbability: 0.35,
-  inDiskCarryFactor: 0.25,
+  trailingProbability: 0.8,
+  inDiskCarryFactor: 0.7,
   motionGateSpeed: 8.0,
-  wakeBandTaperPower: 1.4,
+  wakeBandTaperPower: 0.5,
   coreEjectionForce: 0.0,
   coreEjectionRadiusFrac: 0.15,
-  wakeAlphaMult: 0.6,
+  wakeAlphaMult: 0.85,
   friction: 0.86,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
@@ -133,7 +144,10 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   homeReturnCurveBmp: 90,
   homeReturnDurationJitter: 0.7,
   homeReturnDiffusionBmp: 8,
-  idleThresholdMs: 250,
+  idleThresholdMs: 8000,
+  homeReturnSpring: 0.008,
+  homeReturnFriction: 0.94,
+  homeReturnGravity: 0.05,
 })
 
 export function mergeNewmixLiveTuning(
