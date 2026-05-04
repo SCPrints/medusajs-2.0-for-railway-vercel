@@ -106,7 +106,9 @@ export type NewmixLiveTuning = {
   homeReturnGravity: number
 }
 
-/** Must stay aligned with `constants.ts` exports for newmix. */
+/** SC PRints v2-era settings (commit 2f8436e, May 3 11:20). User indicated these
+ * produced the best result so far. Newer knobs (added after v2) are set to
+ * neutral / disabled values so they don't perturb the v2-era behavior. */
 export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   radius: 65,
   velSmoothing: 0.45,
@@ -114,37 +116,37 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   frontPush: 5.0,
   backInward: 3.5,
   falloffPower: 1.4,
-  trailFollowMs: 4000,
-  wakePace: 0.92,
+  trailFollowMs: 1200,
+  wakePace: 0.85,
   wakePaceJitter: 0.25,
-  wakeLateralSpreadBmp: 18,
+  wakeLateralSpreadBmp: 6,
   wakeReleaseStaggerMs: 200,
-  wakeBandSpreadBmp: 15,
+  wakeBandSpreadBmp: 5,
   wakeAlongStretchBmp: 5,
   wakeDiffusionBmp: 0,
   wakeDiffusionHz: 0.6,
-  /** Each particle's effective release time is shifted backward in history by a per-particle
-   * fraction of this many ms. Distribution is rand² (front-loaded) — most particles cluster
-   * near the cursor with a thinner tail extending back. */
-  wakeTimeOffsetMs: 3000,
+  wakeTimeOffsetMs: 600,
   releaseVelocityKeep: 0.0,
+  /** Knobs added after v2 — neutral / disabled. */
   exitVelocityBoostBmp: 0.0,
   leadingEdgePullForce: 0.0,
-  trailingProbability: 0.8,
-  inDiskCarryFactor: 0.7,
-  motionGateSpeed: 8.0,
-  wakeBandTaperPower: 0.5,
+  trailingProbability: 1.0,
+  inDiskCarryFactor: 0.0,
+  motionGateSpeed: 0.0,
+  wakeBandTaperPower: 0.0,
   coreEjectionForce: 0.0,
   coreEjectionRadiusFrac: 0.15,
-  wakeAlphaMult: 0.85,
-  friction: 0.86,
+  wakeAlphaMult: 1.0,
+  /** Resume v2-era values. */
+  friction: 0.94,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
-  homeReturnMs: 2200,
-  homeReturnCurveBmp: 90,
-  homeReturnDurationJitter: 0.7,
-  homeReturnDiffusionBmp: 8,
-  idleThresholdMs: 8000,
+  homeReturnMs: 400,
+  homeReturnCurveBmp: 0,
+  homeReturnDurationJitter: 0.85,
+  homeReturnDiffusionBmp: 0,
+  idleThresholdMs: 2000,
+  /** Sand-fall drift constants (added after v2; neutral if unused). */
   homeReturnSpring: 0.008,
   homeReturnFriction: 0.94,
   homeReturnGravity: 0.05,
