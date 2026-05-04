@@ -2,38 +2,35 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react"
 
-import ScPrintsFlow from "./sc-prints-flow"
-import type { ScPrintsFlowTuning } from "./sc-prints-flow-tuning"
-import { mergeScPrintsFlowTuning } from "./sc-prints-flow-tuning"
+import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
+import type { FlowLiveTuning } from "@modules/home/components/home-particle-logo-hero/flow-live-tuning"
+import { mergeFlowLiveTuning } from "@modules/home/components/home-particle-logo-hero/flow-live-tuning"
 
-const LS_KEY = "sc-prints-flow-tuning-v1"
+const LS_KEY = "flow-live-tuning-v2"
 
-const INT_KEYS = new Set<keyof ScPrintsFlowTuning>([
+const INT_KEYS = new Set<keyof FlowLiveTuning>([
   "radius",
-  "spread",
-  "holdMs",
-  "holdJitterMs",
-  "particleStride",
+  "carryDurationMs",
 ])
 
-function loadTuning(): ScPrintsFlowTuning {
+function loadTuning(): FlowLiveTuning {
   if (typeof window === "undefined") {
-    return mergeScPrintsFlowTuning()
+    return mergeFlowLiveTuning()
   }
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) {
-      return mergeScPrintsFlowTuning()
+      return mergeFlowLiveTuning()
     }
-    const parsed = JSON.parse(raw) as Partial<ScPrintsFlowTuning>
-    return mergeScPrintsFlowTuning(parsed)
+    const parsed = JSON.parse(raw) as Partial<FlowLiveTuning>
+    return mergeFlowLiveTuning(parsed)
   } catch {
-    return mergeScPrintsFlowTuning()
+    return mergeFlowLiveTuning()
   }
 }
 
 type SliderSpec = {
-  key: keyof ScPrintsFlowTuning
+  key: keyof FlowLiveTuning
   label: string
   description: string
   min: number
@@ -46,118 +43,145 @@ const SLIDERS: SliderSpec[] = [
     key: "radius",
     label: "Cursor radius (px)",
     description:
-      "Distance from cursor at which particles start being captured. Larger = wider cleared channel.",
+      "Solid-obstacle radius. Particles inside are displaced to the rim. Larger = bigger displacement zone.",
     min: 20,
     max: 200,
     step: 1,
   },
   {
-    key: "spread",
-    label: "Lateral spread (px)",
+    key: "displacementStrength",
+    label: "Displacement strength",
     description:
-      "How far past the radius particles are pushed before being abandoned. Higher = thicker side ribbons; 0 = thin rim.",
-    min: 0,
-    max: 80,
-    step: 1,
-  },
-  {
-    key: "motionThreshold",
-    label: "Motion threshold (px/frame)",
-    description:
-      "Minimum cursor speed before displacement engages. Stationary cursor doesn't disturb particles.",
-    min: 0,
-    max: 5,
-    step: 0.1,
-  },
-  {
-    key: "velSmoothing",
-    label: "Velocity smoothing",
-    description:
-      "Low-pass on cursor direction. Higher = snappier direction tracking; lower = smoother through curves.",
+      "How instantly particles snap to the rim. 1.0 = teleport to edge; lower = smoother slide outward.",
     min: 0.1,
     max: 1,
     step: 0.02,
   },
   {
-    key: "holdMs",
-    label: "Hold time (ms)",
+    key: "tangentialBias",
+    label: "Tangential flow bias",
     description:
-      "How long a displaced particle stays visibly stationary in the wake before drifting home.",
+      "Sideways component of the displacement. Higher = particles slide AROUND the cursor like fluid flowing around an obstacle. 0 = pure radial push.",
     min: 0,
-    max: 6000,
-    step: 50,
+    max: 1,
+    step: 0.02,
   },
   {
-    key: "holdJitterMs",
-    label: "Hold jitter (ms)",
+    key: "carryFactor",
+    label: "Carry-along factor",
     description:
-      "Per-particle randomness added to hold time, so the wake doesn't release as a uniform front.",
+      "Fraction of cursor's smoothed velocity transferred to displaced particles. Higher = particles get flung along the cursor's path; longer trails. Lower = brief nudge.",
     min: 0,
-    max: 2000,
-    step: 25,
+    max: 2,
+    step: 0.02,
   },
   {
-    key: "returnSpring",
-    label: "Return spring",
+    key: "velSmoothing",
+    label: "Velocity smoothing",
     description:
-      "Pull-toward-home strength during the drift phase. Lower = slower drift; higher = quicker snap back.",
+      "Low-pass on cursor velocity. Higher = snappy tracking; lower = smoothed slow-changing direction.",
+    min: 0.05,
+    max: 1,
+    step: 0.02,
+  },
+  {
+    key: "springStiffness",
+    label: "Home spring stiffness",
+    description:
+      "Strength of the pull back to home each frame. Lower = slower, more drifting return; higher = quick snap.",
     min: 0.001,
-    max: 0.05,
+    max: 0.1,
     step: 0.001,
   },
   {
-    key: "returnFriction",
-    label: "Return friction",
+    key: "friction",
+    label: "Friction",
     description:
-      "Per-frame velocity decay during drift. High (~0.94) = critically damped sand-fall; lower = more bounce.",
+      "Per-frame velocity decay. Critically damped at friction ≈ 1 - 2·sqrt(spring) for no rebound. Higher = faster damping.",
     min: 0.7,
     max: 0.99,
     step: 0.005,
   },
   {
-    key: "returnGravity",
-    label: "Return gravity",
+    key: "gravity",
+    label: "Gravity (downward)",
     description:
-      "Downward bias during drift. Produces the sand-through-hourglass visual as particles fall back to home.",
+      "Downward acceleration each frame. Produces the sand-through-hourglass fall as particles return home.",
     min: 0,
     max: 0.5,
     step: 0.01,
   },
   {
-    key: "particleStride",
-    label: "Particle sample stride (px)",
+    key: "motionGateSpeed",
+    label: "Motion gate (px/frame)",
     description:
-      "Pixel step when sampling the wordmark. 1 = densest (slowest); 3-4 = sparse but fast. Resamples on resize.",
-    min: 1,
-    max: 6,
-    step: 1,
+      "Below this cursor speed, the carry-along velocity transfer fades to 0 — stationary cursor still displaces but doesn't fling.",
+    min: 0.1,
+    max: 10,
+    step: 0.1,
   },
   {
-    key: "particleSize",
-    label: "Particle size (px)",
+    key: "velocityHandoff",
+    label: "Velocity handoff weight",
     description:
-      "Drawn size of each particle. 1 = single pixel; 1.5-2 = bolder, brighter wordmark.",
-    min: 0.5,
-    max: 3,
-    step: 0.1,
+      "How much of the new cursor-derived velocity replaces the particle's existing velocity per frame. 1.0 = full replace; lower = smoother momentum continuity.",
+    min: 0,
+    max: 1,
+    step: 0.02,
+  },
+  {
+    key: "carryDurationMs",
+    label: "Carry duration (ms)",
+    description:
+      "How long a particle stays in the carry state after being displaced. While carried, it continues receiving cursor velocity each frame so it travels far along the cursor's path. Longer = longer visible trail.",
+    min: 200,
+    max: 6000,
+    step: 50,
+  },
+  {
+    key: "carryStrength",
+    label: "Carry acceleration",
+    description:
+      "Per-frame acceleration toward the cursor's velocity vector while carried. Higher = particles match cursor speed more aggressively, sharper trail.",
+    min: 0,
+    max: 1,
+    step: 0.02,
+  },
+  {
+    key: "carryFriction",
+    label: "Carry friction",
+    description:
+      "Velocity multiplier per frame while carried. High (~0.96+) preserves velocity through the carry window; lower = trail dies faster.",
+    min: 0.85,
+    max: 0.999,
+    step: 0.002,
+  },
+  {
+    key: "carryHomeSpringSuppress",
+    label: "Carry home-spring suppress",
+    description:
+      "How much the home spring is muted while carried. 1.0 = home spring fully off (longest trail); lower = partial pull home (shorter trail).",
+    min: 0,
+    max: 1,
+    step: 0.02,
   },
 ]
 
-function formatValue(key: keyof ScPrintsFlowTuning, v: number): string {
+function formatValue(key: keyof FlowLiveTuning, v: number): string {
   if (INT_KEYS.has(key)) {
     return String(Math.round(v))
   }
-  if (key === "returnSpring") {
+  if (key === "springStiffness") {
     return v.toFixed(3)
   }
-  if (key === "returnFriction") {
+  if (key === "friction") {
     return v.toFixed(3)
   }
   return v.toFixed(2)
 }
 
-function clampTuningToSliders(t: ScPrintsFlowTuning): ScPrintsFlowTuning {
-  let next = mergeScPrintsFlowTuning(t)
+function clampTuningToSliders(t: FlowLiveTuning): FlowLiveTuning {
+  let next = mergeFlowLiveTuning(t)
   for (const spec of SLIDERS) {
     const v = next[spec.key]
     const clamped = Math.min(spec.max, Math.max(spec.min, v))
@@ -166,12 +190,12 @@ function clampTuningToSliders(t: ScPrintsFlowTuning): ScPrintsFlowTuning {
   return next
 }
 
-export function ScPrintsFlowTuningSection() {
-  const [tuning, setTuning] = useState<ScPrintsFlowTuning>(() => loadTuning())
-  const restorePointRef = useRef<ScPrintsFlowTuning | null>(null)
+export function ParticleFlowTuningSection() {
+  const [tuning, setTuning] = useState<FlowLiveTuning>(() => loadTuning())
+  const restorePointRef = useRef<FlowLiveTuning | null>(null)
 
   useLayoutEffect(() => {
-    restorePointRef.current = mergeScPrintsFlowTuning(tuning)
+    restorePointRef.current = mergeFlowLiveTuning(tuning)
   }, [])
 
   const saveSettings = useCallback(() => {
@@ -183,7 +207,7 @@ export function ScPrintsFlowTuningSection() {
   }, [tuning])
 
   const updateRestorePoint = useCallback(() => {
-    restorePointRef.current = mergeScPrintsFlowTuning(tuning)
+    restorePointRef.current = mergeFlowLiveTuning(tuning)
   }, [tuning])
 
   const restoreToRestorePoint = useCallback(() => {
@@ -201,7 +225,7 @@ export function ScPrintsFlowTuningSection() {
   }, [])
 
   const resetFactory = useCallback(() => {
-    setTuning(mergeScPrintsFlowTuning())
+    setTuning(mergeFlowLiveTuning())
     try {
       localStorage.removeItem(LS_KEY)
     } catch {
@@ -212,9 +236,16 @@ export function ScPrintsFlowTuningSection() {
   return (
     <div className="border-b border-white/15">
       <p className="border-b border-white/15 px-4 py-3 text-center text-sm text-white/70 sm:px-6">
-        SC Prints — newmix-style deposit-and-hold particle wake (lab; sliders only apply on this page)
+        Flow mode (cursor as solid obstacle, particles displace + carry along) —{" "}
+        <code className="rounded bg-white/10 px-1 text-xs">HomeParticleLogoHero</code>{" "}
+        lab mode (sliders only apply on this page)
       </p>
-      <ScPrintsFlow tuning={tuning} />
+      <HomeParticleLogoHero
+        presentation="embedded"
+        interactionMode="flow"
+        sectionAriaLabel="SC Prints — flow particle logo"
+        flowLiveTuning={tuning}
+      />
       <div className="max-h-[min(70vh,520px)] overflow-y-auto px-4 py-4 sm:px-6">
         <div className="mx-auto max-w-3xl space-y-3">
           <p className="text-xs text-white/55">
