@@ -55,6 +55,7 @@ export default function V3Splash() {
     <HomeParticleLogoHero
       presentation="embedded"
       interactionMode="newmix"
+      animatedParticleCap={77000}
       sectionAriaLabel="SC Prints — particle flow (v3 settings)"
       newmixLiveTuning={V3_TUNING}
     />
