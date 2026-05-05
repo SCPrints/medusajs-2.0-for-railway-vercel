@@ -8,13 +8,12 @@ export type HowOrderSvgAnimationVariant =
   | "slide"
   | "float"
 
+/** Reduced to a clean three-step flow. The icon manifest still ships the legacy
+ * IDs; only the ones listed here render in the UI. */
 export const HOW_ORDER_ICON_IDS = [
   "select_product",
-  "choose_colours_sizes",
   "upload_design",
-  "print_embroider_prove",
   "order_delivered",
-  "pickup_lansvale",
 ] as const
 
 export type HowOrderCustomIconId = (typeof HOW_ORDER_ICON_IDS)[number]
@@ -24,11 +23,8 @@ export const HOW_ORDER_ANIMATION_BY_ID: Record<
   HowOrderSvgAnimationVariant
 > = {
   select_product: "pulse",
-  choose_colours_sizes: "rotate",
   upload_design: "bob",
-  print_embroider_prove: "pulse-soft",
   order_delivered: "slide",
-  pickup_lansvale: "float",
 }
 
 const iconById = Object.fromEntries(

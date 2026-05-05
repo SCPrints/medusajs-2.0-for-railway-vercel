@@ -123,6 +123,7 @@ export default async function Home({
           bgClassName="bg-ui-fg-base"
           wordmarkGradient={WORDMARK_GRADIENT}
         />
+        <HowOrderWorksSection />
         <section className="content-container py-12 small:py-16">
           <MarketingHero
             eyebrow="Australian custom decoration"
@@ -186,8 +187,6 @@ export default async function Home({
             })}
           </ul>
         </section>
-
-        <HowOrderWorksSection />
 
         <section className="overflow-hidden border-y border-ui-border-base bg-ui-bg-subtle py-4">
           <div className="value-marquee-track flex min-w-max gap-6 whitespace-nowrap px-6 text-sm font-semibold uppercase tracking-[0.12em] text-ui-fg-base">

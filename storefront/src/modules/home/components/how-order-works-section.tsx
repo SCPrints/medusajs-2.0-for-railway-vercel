@@ -9,12 +9,9 @@ import {
 } from "@modules/home/lib/how-order-custom-icons"
 
 const STEP_LABEL_BY_ID: Record<HowOrderCustomIconId, string> = {
-  select_product: "Select your product",
-  choose_colours_sizes: "Choose colours & sizes",
-  upload_design: "Upload your design",
-  print_embroider_prove: "We print, embroider & prove it",
-  order_delivered: "Your order is delivered",
-  pickup_lansvale: "Or pick up from Lansvale",
+  select_product: "Select your garment",
+  upload_design: "Upload your artwork",
+  order_delivered: "Delivery or in-store pickup",
 }
 
 type Props = {
@@ -36,7 +33,7 @@ export default function HowOrderWorksSection({
         >
           {title}
         </h2>
-        <ol className="mt-10 list-none space-y-8 p-0 small:grid small:grid-cols-2 small:gap-x-4 small:gap-y-10 small:space-y-0 large:grid-cols-3 xl:grid-cols-6">
+        <ol className="mt-10 list-none space-y-8 p-0 small:grid small:grid-cols-3 small:gap-x-6 small:gap-y-10 small:space-y-0">
           {HOW_ORDER_ICON_IDS.map((id) => {
             const icon = getHowOrderCustomIcon(id)
             const label = STEP_LABEL_BY_ID[id]
