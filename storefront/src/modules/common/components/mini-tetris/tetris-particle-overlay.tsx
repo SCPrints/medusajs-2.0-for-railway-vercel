@@ -362,7 +362,7 @@ export default function TetrisParticleOverlay({
               const startIdx = (bx + ry * BOARD_W) * AMBIENT_PER_CELL
               const endIdx = startIdx + AMBIENT_PER_CELL
               for (let i = startIdx; i < endIdx; i++) {
-                amb.vy[i]! += LINE_CLEAR_FALL_IMPULSE
+                amb.vy[i] = (amb.vy[i] ?? 0) + LINE_CLEAR_FALL_IMPULSE
                 amb.excitement[i] = 1
               }
             }
