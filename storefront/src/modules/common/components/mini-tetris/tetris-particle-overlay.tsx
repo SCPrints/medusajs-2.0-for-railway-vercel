@@ -34,10 +34,11 @@ const OBSTACLE_FORCE = 4.2
 /** Burst initial speed (CSS px / frame). */
 const LOCK_BURST_SPEED = 7
 const CLEAR_BURST_SPEED = 10
-/** Active-piece movement transition (ms). Lerps the obstacle position smoothly
- * between integer cell positions so the block doesn't snap chunky-style each drop.
- * Tuned just under the default drop interval (700ms) so motion is fluid edge-to-edge. */
-const PIECE_TRANSITION_MS = 650
+/** Active-piece movement transition (ms). Short enough that key-press response
+ * feels instant (block snaps most of the way in ~100ms with ease-out), long
+ * enough that the tail settles smoothly. Player input feels responsive; natural
+ * drops still appear smooth across the 700ms drop interval. */
+const PIECE_TRANSITION_MS = 320
 /** Cap on visual lag distance (in cells). Hard drops would otherwise leave a
  * 20-cell trail; we clamp so it caps out at ~1 cell of smoothing slack at rest.
  * Velocity-coupled clamp scales this up during fast moves (see pieceMotion logic). */
@@ -716,11 +717,11 @@ export default function TetrisParticleOverlay({
           pieceMotion.transitionStartedAt = -1
         } else {
           const u = elapsed / PIECE_TRANSITION_MS
-          /** Ease-in (accelerating) curve: piece lingers near old position
-           * briefly, then accelerates toward new — mimics gravity-driven fall.
-           * `remaining = 1 - u^2.5` keeps offset near 1.0 at start, drops fast
-           * as u grows. */
-          const remaining = 1 - Math.pow(u, 2.5)
+          /** Ease-out: block snaps quickly to the new position then settles
+           * with a soft tail. Removes the "delay after keypress" feel of
+           * ease-in curves. `(1-u)^3` is responsive without being harsh. */
+          const oneMinusU = 1 - u
+          const remaining = oneMinusU * oneMinusU * oneMinusU
           smoothOffsetX = pieceMotion.offsetX * remaining
           smoothOffsetY = pieceMotion.offsetY * remaining
         }
@@ -1088,76 +1089,19 @@ export default function TetrisParticleOverlay({
         }
       }
 
-      /** Locked cells: each blob breathes via a tiny per-cell sinusoidal offset
-       * so the static stack feels alive instead of frozen. Phase varies per
-       * cell (seeded by bx, by) so they shimmer in different directions. */
-      const breathePhase = now * 0.0009
-      for (let by = 0; by < BOARD_H; by++) {
-        for (let bx = 0; bx < BOARD_W; bx++) {
-          const v = brdNow[by]?.[bx] ?? 0
-          if (v === 0) continue
-          const colour = PIECE_RGB[v - 1] ?? [255, 255, 255]
-          const c = cellCentre(bx, by)
-          const seed = bx * 1009 + by * 17 + 1
-          /** Tiny breathing wobble — different phase per cell for organic shimmer. */
-          const breatheX =
-            Math.sin(breathePhase + bx * 0.4 + by * 0.7) * LOCKED_BREATHE_PX
-          const breatheY =
-            Math.cos(breathePhase * 1.13 + bx * 0.6 + by * 0.3) *
-            LOCKED_BREATHE_PX
-          renderBlockBlob(
-            c.x + breatheX,
-            c.y + breatheY,
-            colour[0]!,
-            colour[1]!,
-            colour[2]!,
-            seed
-          )
-        }
-      }
-      /** Active piece: stable jitter seeded by within-piece cell index so the blob
-       * pattern stays the same as the piece moves/rotates. Position uses the
-       * smoothly-interpolated offset for fluid motion. Rotation pulse briefly
-       * scales the piece up to punctuate rotation events. */
-      let activeScale = 1
-      if (rotationPulse.startedAt >= 0) {
-        const elapsed = now - rotationPulse.startedAt
-        if (elapsed >= ROTATION_PULSE_MS) {
-          rotationPulse.startedAt = -1
-        } else {
-          const u = elapsed / ROTATION_PULSE_MS
-          /** Bell curve: 0→1→0 over the pulse duration. */
-          const bell = Math.sin(u * Math.PI)
-          activeScale = 1 + ROTATION_PULSE_SCALE * bell
-        }
-      }
-      if (actNow != null) {
-        const colour = PIECE_RGB[actNow.t] ?? [255, 255, 255]
-        for (let aci = 0; aci < activeCellsForMotion.length; aci++) {
-          const ac = activeCellsForMotion[aci]!
-          const c = cellCentre(ac.bx, ac.by)
-          renderBlockBlob(
-            c.x + smoothOffsetX,
-            c.y + smoothOffsetY,
-            colour[0]!,
-            colour[1]!,
-            colour[2]!,
-            900000 + aci * 31,
-            activeScale
-          )
-        }
-      }
+      /** Block rendering moved to AFTER particles+bursts so blocks always sit
+       * cleanly on top of the field — no filled-mask alignment artefacts. */
 
-      /** (Gradient axis `gdx, gdy, mn, mx, span, lutMaxIdx` already computed
-       * before block render.) */
-
-      /** Build filled-cell mask for the render pass: any particle whose current
-       * position falls inside a filled cell is hidden so it can't appear ON TOP
-       * of the locked block (the block is opaque — particles belong outside it). */
+      /** Filled-cell mask for the render pass: particles whose current position
+       * falls inside a LOCKED cell are skipped (block renders on top of them
+       * later anyway, so rendering them is wasted work). The ACTIVE piece is
+       * NOT included — its actual board cell may differ from where the block
+       * visually sits during smoothed motion, and masking the actual cell
+       * leaves a visible particle-void square ahead of the falling block. */
       const filledMask = new Uint8Array(BOARD_W * BOARD_H)
       for (let by = 0; by < BOARD_H; by++) {
         for (let bx = 0; bx < BOARD_W; bx++) {
-          if (dispNow[by]?.[bx] !== 0) {
+          if (brdNow[by]?.[bx] !== 0) {
             filledMask[bx + by * BOARD_W] = 1
           }
         }
@@ -1313,6 +1257,68 @@ export default function TetrisParticleOverlay({
             const cur = pixBuf[off + 3]!
             if (a > cur) pixBuf[off + 3] = a
           }
+        }
+      }
+
+      /** =========== Block render (over particles + bursts) ===========
+       * Blocks render LAST among the field-level passes so they sit cleanly on
+       * top of any particles around them — no need to mask particles by active-
+       * piece position; they're simply covered by the block's own pixels. */
+
+      /** Locked cells: each blob breathes via a tiny per-cell sinusoidal offset
+       * so the static stack feels alive instead of frozen. */
+      const breathePhase = now * 0.0009
+      for (let by = 0; by < BOARD_H; by++) {
+        for (let bx = 0; bx < BOARD_W; bx++) {
+          const v = brdNow[by]?.[bx] ?? 0
+          if (v === 0) continue
+          const colour = PIECE_RGB[v - 1] ?? [255, 255, 255]
+          const c = cellCentre(bx, by)
+          const seed = bx * 1009 + by * 17 + 1
+          const breatheX =
+            Math.sin(breathePhase + bx * 0.4 + by * 0.7) * LOCKED_BREATHE_PX
+          const breatheY =
+            Math.cos(breathePhase * 1.13 + bx * 0.6 + by * 0.3) *
+            LOCKED_BREATHE_PX
+          renderBlockBlob(
+            c.x + breatheX,
+            c.y + breatheY,
+            colour[0]!,
+            colour[1]!,
+            colour[2]!,
+            seed
+          )
+        }
+      }
+
+      /** Active piece: rendered AFTER locked so it visually sits on top during
+       * lock transitions. Position uses the smoothly-interpolated offset.
+       * Rotation pulse scales briefly to punctuate rotation events. */
+      let activeScale = 1
+      if (rotationPulse.startedAt >= 0) {
+        const elapsed = now - rotationPulse.startedAt
+        if (elapsed >= ROTATION_PULSE_MS) {
+          rotationPulse.startedAt = -1
+        } else {
+          const u = elapsed / ROTATION_PULSE_MS
+          const bell = Math.sin(u * Math.PI)
+          activeScale = 1 + ROTATION_PULSE_SCALE * bell
+        }
+      }
+      if (actNow != null) {
+        const colour = PIECE_RGB[actNow.t] ?? [255, 255, 255]
+        for (let aci = 0; aci < activeCellsForMotion.length; aci++) {
+          const ac = activeCellsForMotion[aci]!
+          const c = cellCentre(ac.bx, ac.by)
+          renderBlockBlob(
+            c.x + smoothOffsetX,
+            c.y + smoothOffsetY,
+            colour[0]!,
+            colour[1]!,
+            colour[2]!,
+            900000 + aci * 31,
+            activeScale
+          )
         }
       }
 
