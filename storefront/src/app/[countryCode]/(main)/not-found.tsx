@@ -10,15 +10,23 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <div className="-mx-[calc(50vw-50%)] flex w-screen flex-col gap-4 items-center justify-center min-h-[calc(100vh-64px)] bg-ui-fg-base px-4 pb-10 pt-10 text-white">
-      <h1 className="text-2xl-semi text-white text-center max-w-lg">
-        Page not found&hellip; But maybe you&rsquo;ve found something else
-      </h1>
-      <p className="text-small-regular text-white/80 text-center">
-        The page you tried to access does not exist.
-      </p>
-      <InteractiveLink href="/">Go to frontpage</InteractiveLink>
-      <NotFoundTetrisSection />
-    </div>
+    <>
+      {/** Fixed full-viewport dark backdrop — covers the page body's default
+       * light background so there's no white anywhere on the 404 page. */}
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-10 bg-ui-fg-base pointer-events-none"
+      />
+      <div className="-mx-[calc(50vw-50%)] flex w-screen flex-col gap-4 items-center justify-center min-h-[calc(100vh-64px)] bg-ui-fg-base px-4 pb-10 pt-10 text-white">
+        <h1 className="text-2xl-semi text-white text-center max-w-lg">
+          Page not found&hellip; But maybe you&rsquo;ve found something else
+        </h1>
+        <p className="text-small-regular text-white/80 text-center">
+          The page you tried to access does not exist.
+        </p>
+        <InteractiveLink href="/">Go to frontpage</InteractiveLink>
+        <NotFoundTetrisSection />
+      </div>
+    </>
   )
 }

@@ -1,29 +1,20 @@
 "use client"
 
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
 
 import Divider from "@modules/common/components/divider"
 import FlyToCartAddButton, {
   resolvePdpFlyImageSrc,
 } from "@modules/common/components/fly-to-cart-add-button"
-import {
-  extractRenderArtifactUrl,
-  normalizePersistedArtifactUrl,
-} from "@modules/customizer/lib/artifact-url"
-import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/lib/garment-url-for-render"
 import ProductOptionFields from "@modules/products/components/product-actions/product-option-fields"
 import {
   buildPlacementForSideAndSize,
-  type PrintPlacement,
   type PrintPlacementSide,
   usePrintPlacement,
 } from "@modules/products/context/print-placement-context"
 import { useProductOptions } from "@modules/products/context/product-options-context"
-import {
-  getPrimaryGarmentImageUrl,
-  resolveVariantFromOptions,
-} from "@modules/products/lib/variant-options"
+import { resolveVariantFromOptions } from "@modules/products/lib/variant-options"
 
 import ProductPrice from "../product-price"
 import { addScpLineItemToCartSafe, addToCartSafe } from "@lib/data/cart"
@@ -40,11 +31,6 @@ type ProductActionsProps = {
   region: HttpTypes.StoreRegion
   disabled?: boolean
   hideInlinePurchaseControls?: boolean
-}
-
-const DEFAULT_RENDER_SURFACE = {
-  width: 1200,
-  height: 1500,
 }
 
 const PDP_LOCATION_OPTIONS: Array<{ side: PrintPlacementSide; label: string }> = [
@@ -70,60 +56,6 @@ const variantHasConfiguredPrice = (variant?: HttpTypes.StoreProductVariant) => {
     : false
 }
 
-const resolveImageDimensions = (url: string) =>
-  new Promise<{ width: number; height: number } | null>((resolve) => {
-    if (typeof window === "undefined") {
-      resolve(null)
-      return
-    }
-
-    const image = new window.Image()
-    image.onload = () => {
-      resolve({
-        width: image.naturalWidth || DEFAULT_RENDER_SURFACE.width,
-        height: image.naturalHeight || DEFAULT_RENDER_SURFACE.height,
-      })
-    }
-    image.onerror = () => resolve(null)
-    image.src = url
-  })
-
-const escapeXmlAttribute = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-
-const buildArtworkSvg = (artworkUrl: string, width: number, height: number) => {
-  const safeWidth = Math.max(1, Math.round(width))
-  const safeHeight = Math.max(1, Math.round(height))
-  const safeUrl = escapeXmlAttribute(artworkUrl)
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}"><image href="${safeUrl}" x="0" y="0" width="${safeWidth}" height="${safeHeight}" preserveAspectRatio="xMidYMid meet" /></svg>`
-}
-
-const clampPlacementToSize = (
-  side: PrintPlacementSide,
-  sizeId: ScpPrintSizeId,
-  current: PrintPlacement
-): PrintPlacement => {
-  const sizeForSide = resolveScpPrintSizeForSide(side, sizeId)
-  const preset = buildPlacementForSideAndSize(side, sizeForSide)
-  const widthPct = Math.min(current.widthPct, preset.widthPct)
-  const heightPct = Math.min(current.heightPct, preset.heightPct)
-  const xPct = Math.min(Math.max(0, current.xPct), 100 - widthPct)
-  const yPct = Math.min(Math.max(0, current.yPct), 100 - heightPct)
-  return {
-    ...current,
-    side,
-    xPct,
-    yPct,
-    widthPct,
-    heightPct,
-  }
-}
-
 export default function ProductActions({
   product,
   region,
@@ -135,6 +67,7 @@ export default function ProductActions({
   const [pdpGuideExpanded, setPdpGuideExpanded] = useState(true)
   const [addToCartError, setAddToCartError] = useState<string | null>(null)
   const countryCode = useParams().countryCode as string
+  const router = useRouter()
   const {
     overlayUrl,
     overlayFileName,
@@ -164,95 +97,6 @@ export default function ProductActions({
     }
     return opts.some((o) => !(o.title ?? "").toLowerCase().includes("size"))
   }, [product.variants?.length, product.options, hideInlinePurchaseControls])
-
-  const renderPlacementArtifacts = async (
-    artworkUrl: string,
-    selection: {
-      side: PrintPlacementSide
-      printSizeId: ScpPrintSizeId
-      placement: PrintPlacement
-    }
-  ) => {
-    const overlayDimensions = await resolveImageDimensions(artworkUrl)
-    const garmentCandidateUrl = getPrimaryGarmentImageUrl(product, selectedVariant)
-    const garmentImageUrl = resolveGarmentImageUrlForCustomizerRender(
-      garmentCandidateUrl,
-      product.thumbnail ?? null
-    )
-    const garmentDimensions = garmentImageUrl
-      ? await resolveImageDimensions(garmentImageUrl)
-      : null
-    const renderSurface = garmentDimensions ?? DEFAULT_RENDER_SURFACE
-
-    const clampedPlacement = clampPlacementToSize(
-      selection.side,
-      selection.printSizeId,
-      selection.placement
-    )
-    const placementWidth = Math.max(
-      1,
-      Math.round((renderSurface.width * clampedPlacement.widthPct) / 100)
-    )
-    const placementHeight = Math.max(
-      1,
-      Math.round((renderSurface.height * clampedPlacement.heightPct) / 100)
-    )
-    const payload = {
-      side: selection.side,
-      artworkSvg: buildArtworkSvg(
-        artworkUrl,
-        overlayDimensions?.width ?? placementWidth,
-        overlayDimensions?.height ?? placementHeight
-      ),
-      garmentImageUrl,
-      placement: {
-        x: Math.max(0, Math.round((renderSurface.width * clampedPlacement.xPct) / 100)),
-        y: Math.max(0, Math.round((renderSurface.height * clampedPlacement.yPct) / 100)),
-        width: placementWidth,
-        height: placementHeight,
-      },
-    }
-
-    const [printResponse, mockupResponse] = await Promise.all([
-      fetch("/api/customizer/render-print", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }),
-      fetch("/api/customizer/render-mockup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      }),
-    ])
-
-    const printBody = await printResponse.json().catch(() => ({}))
-    const mockupBody = await mockupResponse.json().catch(() => ({}))
-
-    if (!printResponse.ok || !mockupResponse.ok) {
-      const detail = [printBody?.message, mockupBody?.message]
-        .filter((part) => typeof part === "string" && part.length > 0)
-        .join(" - ")
-      throw new Error(
-        detail || `Render failed (print ${printResponse.status}, mockup ${mockupResponse.status})`
-      )
-    }
-
-    const printUrl =
-      extractRenderArtifactUrl(printBody) ??
-      extractRenderArtifactUrl((printBody as { data?: unknown }).data)
-    const mockupUrl =
-      extractRenderArtifactUrl(mockupBody) ??
-      extractRenderArtifactUrl((mockupBody as { data?: unknown }).data)
-
-    return {
-      side: selection.side,
-      printSizeId: resolveScpPrintSizeForSide(selection.side, selection.printSizeId),
-      placement: clampedPlacement,
-      printUrl: normalizePersistedArtifactUrl(printUrl),
-      mockupUrl: normalizePersistedArtifactUrl(mockupUrl),
-    }
-  }
 
   // check if the selected variant is in stock
   const inStock = useMemo(() => {
@@ -307,41 +151,29 @@ export default function ProductActions({
       ? {
           printPlacement: {
             version: 2,
+            side: selectedLocations[0]?.side,
             placement: selectedLocations[0]?.placement,
             sourceFileName: overlayFileName,
           },
-        }
-      : undefined
-
-    if (overlayUrl && printPlacementMetadata) {
-      try {
-        const artifacts = await Promise.all(
-          selectedLocations.map((selection) => renderPlacementArtifacts(overlayUrl, selection))
-        )
-        if (artifacts.some((artifact) => artifact.mockupUrl || artifact.printUrl)) {
-          const existingDesign =
-            (printPlacementMetadata?.customizerDesign as Record<string, unknown> | undefined) ?? {}
-          printPlacementMetadata.customizerDesign = {
-            ...existingDesign,
+          // SCP pricing reads `customizerDesign.artifacts` per location — no hosted URLs required.
+          // Avoid awaiting render-print/mockup here (often 10–20s); cart/nav refresh stays instant.
+          customizerDesign: {
             version: 1,
             type: "pdp_print_placement",
-            artifacts: artifacts.map((artifact) => ({
-              side: artifact.side,
-              print_size_id: artifact.printSizeId,
-              placement: artifact.placement,
-              printUrl: artifact.printUrl,
-              mockupUrl: artifact.mockupUrl,
+            artifacts: selectedLocations.map((selection) => ({
+              side: selection.side,
+              print_size_id: resolveScpPrintSizeForSide(selection.side, selection.printSizeId),
+              placement: selection.placement,
+              printUrl: null as string | null,
+              mockupUrl: null as string | null,
             })),
             pdpSelections: selectedLocations.map((selection) => ({
               side: selection.side,
               print_size_id: resolveScpPrintSizeForSide(selection.side, selection.printSizeId),
             })),
-          }
+          },
         }
-      } catch (error) {
-        console.warn("Could not render print-placement artifacts for cart preview", error)
-      }
-    }
+      : undefined
 
     const shouldUseScpCart =
       productMetadataUsesScpCartPricing(product) && Boolean(overlayUrl && printPlacementMetadata)
@@ -368,6 +200,8 @@ export default function ProductActions({
         })
     if (!addResult.ok) {
       setAddToCartError(addResult.error)
+    } else {
+      router.refresh()
     }
     setIsAdding(false)
   }

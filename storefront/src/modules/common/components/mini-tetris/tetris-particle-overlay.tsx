@@ -34,11 +34,10 @@ const OBSTACLE_FORCE = 4.2
 /** Burst initial speed (CSS px / frame). */
 const LOCK_BURST_SPEED = 7
 const CLEAR_BURST_SPEED = 10
-/** Active-piece movement transition (ms). Short enough that key-press response
- * feels instant (block snaps most of the way in ~100ms with ease-out), long
- * enough that the tail settles smoothly. Player input feels responsive; natural
- * drops still appear smooth across the 700ms drop interval. */
-const PIECE_TRANSITION_MS = 320
+/** Active-piece movement transition (ms). 480 splits the difference: ease-out
+ * means the block snaps most of the way in ~120ms (player input feels
+ * responsive), and the long settle keeps natural drops fluid edge-to-edge. */
+const PIECE_TRANSITION_MS = 480
 /** Cap on visual lag distance (in cells). Hard drops would otherwise leave a
  * 20-cell trail; we clamp so it caps out at ~1 cell of smoothing slack at rest.
  * Velocity-coupled clamp scales this up during fast moves (see pieceMotion logic). */
@@ -74,7 +73,10 @@ const EXCITEMENT_DECAY = 0.985
  * full white when pushed (via excitement). */
 const AMBIENT_BASE_ALPHA = 0.72
 /** Vignette darkness at canvas corners (0 = no vignette, 1 = corners fully dark). */
-const VIGNETTE_STRENGTH = 0.32
+const VIGNETTE_STRENGTH = 0.5
+/** Extra vignette bias toward the top of the board (where the playfield is
+ * usually empty) so the eye is drawn toward the action. */
+const VIGNETTE_TOP_BIAS = 0.25
 /** Locked-block "breathing": tiny time-based jitter so locked blobs feel alive
  * instead of frozen. Amplitude in CSS px. */
 const LOCKED_BREATHE_PX = 0.8
@@ -251,6 +253,10 @@ export default function TetrisParticleOverlay({
     /** Rotation pulse: triggered when the active piece's rotation index changes.
      * Scales the active piece's render briefly for visual punctuation. */
     const rotationPulse = { startedAt: -1 }
+    /** Time-delayed actions queue. Used to stagger line-clear effects so they
+     * read as a sequence (anticipation → climax → aftermath) instead of all
+     * firing simultaneously. Entries fire when `now >= runAt`. */
+    const pendingActions: Array<{ runAt: number; fn: () => void }> = []
     const allocateBurst = (): Burst | null => {
       for (let i = 0; i < bursts.length; i++) {
         const p = bursts[i]!
@@ -459,6 +465,15 @@ export default function TetrisParticleOverlay({
         propsRef.current
       const prev = prevRef.current
 
+      /** Drain any time-delayed actions whose `runAt` has passed. Used by the
+       * staggered line-clear sequence below. */
+      for (let i = pendingActions.length - 1; i >= 0; i--) {
+        if (now >= pendingActions[i]!.runAt) {
+          pendingActions[i]!.fn()
+          pendingActions.splice(i, 1)
+        }
+      }
+
       /** =========== Lock + line clear event detection =========== */
 
       if (linesNow > prev.lines) {
@@ -468,70 +483,118 @@ export default function TetrisParticleOverlay({
             prev.board[by]!.every((c) => c !== 0)
           if (!wasFull) continue
           const rowMidY = sizeState.padY + (by + 0.5) * sizeState.cellH
-          /** Per-cell big burst at every cell of the cleared row, doubled for drama. */
+          const rowColors = (prev.board[by] ?? []).slice()
+          const byCaptured = by
+
+          /** Sequence (timeline relative to clear detection):
+           *
+           *  T=0      pop (the row's blocks puff up brightly), small downward impulse
+           *           on the row's particles — anticipation of the row falling out
+           *  T=60ms   per-cell burst + flash band + pre-vanish ends → row "explodes"
+           *  T=120ms  upward wave starts pushing field upward
+           *  T=200ms  vertical column blasts (up + down) from row
+           *  T=320ms  horizontal sweep ribbons across the full row
+           *
+           *  Reads as: row freezes briefly → climax → ripples outward → tail. */
+
+          /** T=0 — pop + soft downward impulse. */
+          clearPops.push({ y: rowMidY, bornAt: now, colors: rowColors })
           for (let bx = 0; bx < BOARD_W; bx++) {
-            const c = cellCentre(bx, by)
-            spawnBurst(
-              c.x,
-              c.y,
-              CLEAR_BURST_PER_CELL * 2,
-              CLEAR_BURST_SPEED * 1.3,
-              BURST_LIFE_MS * 1.6
-            )
+            const startIdx = (bx + byCaptured * BOARD_W) * AMBIENT_PER_CELL
+            const endIdx = startIdx + AMBIENT_PER_CELL
+            for (let i = startIdx; i < endIdx; i++) {
+              amb.vy[i] = (amb.vy[i] ?? 0) + LINE_CLEAR_FALL_IMPULSE * 0.6
+              amb.excitement[i] = 0.8
+            }
           }
-          /** Bright horizontal sweep ribbons in BOTH directions across the full row. */
-          const rowSweepCount = 160
-          for (let i = 0; i < rowSweepCount; i++) {
-            const p = allocateBurst()
-            if (!p) break
-            p.alive = true
-            const fromLeft = i % 2 === 0
-            const startX = fromLeft ? sizeState.padX : sizeState.padX + W
-            p.x = startX
-            p.y = rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.8
-            const dir = fromLeft ? 1 : -1
-            p.vx = dir * (10 + Math.random() * 9)
-            p.vy = (Math.random() - 0.5) * 3
-            p.bornAt = now
-            p.lifeMs = 700 + Math.random() * 500
-          }
-          /** Vertical column blasts: shoot particles up AND down from the cleared
-           * row at every column (the row "exploding" along the vertical axis). */
-          for (let bx = 0; bx < BOARD_W; bx++) {
-            const cellCx = sizeState.padX + (bx + 0.5) * sizeState.cellW
-            for (let dirSign = -1; dirSign <= 1; dirSign += 2) {
-              for (let i = 0; i < 14; i++) {
+
+          /** T=60 — climax: per-cell bursts + flash band. */
+          pendingActions.push({
+            runAt: now + 60,
+            fn: () => {
+              for (let bx = 0; bx < BOARD_W; bx++) {
+                const c = cellCentre(bx, byCaptured)
+                spawnBurst(
+                  c.x,
+                  c.y,
+                  CLEAR_BURST_PER_CELL * 2,
+                  CLEAR_BURST_SPEED * 1.3,
+                  BURST_LIFE_MS * 1.6
+                )
+              }
+              flashes.push({ y: rowMidY, bornAt: performance.now() })
+              /** Strong downward kick following the climax. */
+              for (let bx = 0; bx < BOARD_W; bx++) {
+                const ry = Math.min(BOARD_H - 1, byCaptured + 1)
+                const startIdx = (bx + ry * BOARD_W) * AMBIENT_PER_CELL
+                const endIdx = startIdx + AMBIENT_PER_CELL
+                for (let i = startIdx; i < endIdx; i++) {
+                  amb.vy[i] = (amb.vy[i] ?? 0) + LINE_CLEAR_FALL_IMPULSE * 1.4
+                  amb.excitement[i] = 1
+                }
+              }
+            },
+          })
+
+          /** T=120 — upward wave begins. */
+          pendingActions.push({
+            runAt: now + 120,
+            fn: () => {
+              waves.push({ y: rowMidY, strength: WAVE_STRENGTH * 1.6 })
+            },
+          })
+
+          /** T=200 — vertical column blasts (up + down). */
+          pendingActions.push({
+            runAt: now + 200,
+            fn: () => {
+              for (let bx = 0; bx < BOARD_W; bx++) {
+                const cellCx =
+                  sizeState.padX + (bx + 0.5) * sizeState.cellW
+                for (let dirSign = -1; dirSign <= 1; dirSign += 2) {
+                  for (let i = 0; i < 14; i++) {
+                    const p = allocateBurst()
+                    if (!p) break
+                    p.alive = true
+                    p.x =
+                      cellCx + (Math.random() - 0.5) * sizeState.cellW * 0.7
+                    p.y =
+                      rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.4
+                    p.vx = (Math.random() - 0.5) * 4
+                    p.vy = dirSign * (6 + Math.random() * 6)
+                    p.bornAt = performance.now()
+                    p.lifeMs = 800 + Math.random() * 400
+                  }
+                }
+              }
+            },
+          })
+
+          /** T=320 — horizontal sweep ribbons (the aftermath / tail). */
+          pendingActions.push({
+            runAt: now + 320,
+            fn: () => {
+              const rowSweepCount = 160
+              const sweepNow = performance.now()
+              for (let i = 0; i < rowSweepCount; i++) {
                 const p = allocateBurst()
                 if (!p) break
                 p.alive = true
-                p.x = cellCx + (Math.random() - 0.5) * sizeState.cellW * 0.7
-                p.y = rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.4
-                p.vx = (Math.random() - 0.5) * 4
-                p.vy = dirSign * (6 + Math.random() * 6)
-                p.bornAt = now
-                p.lifeMs = 800 + Math.random() * 400
+                const fromLeft = i % 2 === 0
+                const startX = fromLeft
+                  ? sizeState.padX
+                  : sizeState.padX + W
+                p.x = startX
+                p.y =
+                  rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.8
+                const dir = fromLeft ? 1 : -1
+                p.vx = dir * (10 + Math.random() * 9)
+                p.vy = (Math.random() - 0.5) * 3
+                p.bornAt = sweepNow
+                p.lifeMs = 700 + Math.random() * 500
               }
-            }
-          }
-          /** Initial downward impulse on the cleared row + the row below. */
-          const rowsToHit = [by, Math.min(BOARD_H - 1, by + 1)]
-          for (const ry of rowsToHit) {
-            for (let bx = 0; bx < BOARD_W; bx++) {
-              const startIdx = (bx + ry * BOARD_W) * AMBIENT_PER_CELL
-              const endIdx = startIdx + AMBIENT_PER_CELL
-              for (let i = startIdx; i < endIdx; i++) {
-                amb.vy[i] = (amb.vy[i] ?? 0) + LINE_CLEAR_FALL_IMPULSE * 1.4
-                amb.excitement[i] = 1
-              }
-            }
-          }
-          /** Upward wave + flash band + pre-vanish pop over the cleared row.
-           * Capture the row's actual block colours so the pop renders in those
-           * tones rather than generic white. */
-          const rowColors = (prev.board[by] ?? []).slice()
-          waves.push({ y: rowMidY, strength: WAVE_STRENGTH * 1.6 })
-          flashes.push({ y: rowMidY, bornAt: now })
-          clearPops.push({ y: rowMidY, bornAt: now, colors: rowColors })
+            },
+          })
         }
       }
 
@@ -993,8 +1056,9 @@ export default function TetrisParticleOverlay({
         seedA: number,
         scale = 1
       ) => {
-        /** Blend piece colour with gradient at this position so pieces feel
-         * cohesive with the rainbow palette around them. */
+        /** Light gradient tint of the piece colour (25% gradient / 75% piece) —
+         * the piece keeps its identity while taking on a hint of the local
+         * rainbow palette. Avoids the pastel "muddied" look from heavier blends. */
         const proj = cssX * gdx + cssY * gdy
         let tg = (proj - mn) / span
         if (tg < 0) tg = 0
@@ -1003,10 +1067,9 @@ export default function TetrisParticleOverlay({
         const grR = gradLutR[lutIdx]!
         const grG = gradLutG[lutIdx]!
         const grB = gradLutB[lutIdx]!
-        /** 55% gradient + 45% piece colour, slight brightness boost. */
-        const baseR = Math.min(255, ((pr * 0.45 + grR * 0.55) * 1.05) | 0)
-        const baseG = Math.min(255, ((pg * 0.45 + grG * 0.55) * 1.05) | 0)
-        const baseB = Math.min(255, ((pb * 0.45 + grB * 0.55) * 1.05) | 0)
+        const baseR = Math.min(255, (pr * 0.75 + grR * 0.25) | 0)
+        const baseG = Math.min(255, (pg * 0.75 + grG * 0.25) | 0)
+        const baseB = Math.min(255, (pb * 0.75 + grB * 0.25) | 0)
         /** Pixel-space bounding box with margin for the soft edge. Scale lets
          * callers apply a rotation-pulse expansion. */
         const cxPx = cssX * dpr
@@ -1029,28 +1092,29 @@ export default function TetrisParticleOverlay({
             const dx = (px + 0.5 - cxPx) * invHalfW
             const r2 = dx * dx + dy2
             if (r2 > 1.4) continue
-            /** Luminance falloff: bright core (r<0.4) at full + boost; falls off
-             * smoothly through the piece colour to dim edges. */
+            /** Luminance: gentle dome — bright at centre (no overdrive), softly
+             * falling to ~70% at the rim. Less "white jellyfish core" look. */
             let lum: number
-            if (r2 < 0.18) {
-              lum = 1.18 - r2 * 0.4 // overdriven core
-            } else if (r2 < 1) {
-              lum = 1.05 - (r2 - 0.18) * 0.55
+            if (r2 < 0.5) {
+              lum = 1.0 - r2 * 0.1
+            } else if (r2 < 0.95) {
+              lum = 0.95 - (r2 - 0.5) * 0.55
             } else {
-              lum = 0.5 - (r2 - 1) * 0.8
+              lum = 0.7 - (r2 - 0.95) * 5
             }
-            if (lum <= 0) continue
-            /** Soft alpha edge: full opacity inside r=1, smooth fall to 0 at r=1.4. */
+            if (lum <= 0.05) continue
+            /** Crisp alpha edge: full opacity inside r²=0.92, fast cliff to 0 by
+             * r²=1.05. Block reads as deliberate fluid drop, not a fuzzy halo. */
             let edgeA: number
-            if (r2 < 0.85) {
+            if (r2 < 0.92) {
               edgeA = 255
-            } else if (r2 < 1.4) {
-              edgeA = (255 * (1 - (r2 - 0.85) / 0.55)) | 0
+            } else if (r2 < 1.05) {
+              edgeA = (255 * (1 - (r2 - 0.92) / 0.13)) | 0
             } else {
               continue
             }
-            /** Bright core pushes toward white so pieces glow at centre. */
-            const whiteK = r2 < 0.18 ? (0.18 - r2) * 1.5 : 0
+            /** Subtle white-ish core highlight — much milder than before. */
+            const whiteK = r2 < 0.1 ? (0.1 - r2) * 0.7 : 0
             let r = baseR * lum
             let g = baseG * lum
             let b = baseB * lum
@@ -1162,7 +1226,11 @@ export default function TetrisParticleOverlay({
         const dvX = px - vignCx
         const dvY = py - vignCy
         const dV = Math.sqrt(dvX * dvX + dvY * dvY) / vignMaxD
-        const vignMul = 1 - dV * VIGNETTE_STRENGTH
+        /** Top half gets extra darkening — biases the eye toward the lower
+         * portion of the playfield where the locked stack sits. */
+        const topBias =
+          py < vignCy ? (1 - py / vignCy) * VIGNETTE_TOP_BIAS : 0
+        const vignMul = Math.max(0.2, 1 - dV * VIGNETTE_STRENGTH - topBias)
         const finalMul = restMul * densMul * vignMul
         const off = (py * PW + px) * 4
         pixBuf[off] = (r * finalMul) | 0
@@ -1240,22 +1308,46 @@ export default function TetrisParticleOverlay({
             const d = Math.sqrt(d2)
             const distFromRing = Math.abs(d - radiusP)
             if (distFromRing > ringRP) continue
-            /** Smooth bell across the band thickness. */
+            /** Wave shape: bright crest at the leading edge of the band, dark
+             * trough just behind, smaller bright tail. Reads as a real wave
+             * with surface tension instead of a uniform glowing band. */
             const u = distFromRing / ringRP
-            const fall = 1 - u * u
-            const a = (peakA * fall) | 0
-            if (a < 6) continue
-            const off = rowOff + px * 4
-            /** Additive blend toward white over the existing pixel. */
-            const k = a / 255
-            pixBuf[off] =
-              (pixBuf[off]! + (255 - pixBuf[off]!) * k) | 0
-            pixBuf[off + 1] =
-              (pixBuf[off + 1]! + (255 - pixBuf[off + 1]!) * k) | 0
-            pixBuf[off + 2] =
-              (pixBuf[off + 2]! + (255 - pixBuf[off + 2]!) * k) | 0
-            const cur = pixBuf[off + 3]!
-            if (a > cur) pixBuf[off + 3] = a
+            const inner = d < radiusP
+            let intensity: number
+            if (inner) {
+              /** Inside the ring radius (toward impact centre): dark trough
+               * peaks at u≈0.55 then softens at edges. */
+              const t = u
+              intensity = -Math.sin(t * Math.PI) * 0.55
+            } else {
+              /** Outside (leading edge): bright crest peaks at u≈0.4. */
+              const t = u
+              intensity = (1 - t) * (1 - t * 0.5)
+            }
+            if (intensity > 0) {
+              /** Bright crest — additive toward white. */
+              const a = (peakA * intensity) | 0
+              if (a < 6) continue
+              const off = rowOff + px * 4
+              const k = a / 255
+              pixBuf[off] =
+                (pixBuf[off]! + (255 - pixBuf[off]!) * k) | 0
+              pixBuf[off + 1] =
+                (pixBuf[off + 1]! + (255 - pixBuf[off + 1]!) * k) | 0
+              pixBuf[off + 2] =
+                (pixBuf[off + 2]! + (255 - pixBuf[off + 2]!) * k) | 0
+              const cur = pixBuf[off + 3]!
+              if (a > cur) pixBuf[off + 3] = a
+            } else if (intensity < 0) {
+              /** Dark trough — multiplicative darkening toward black. */
+              const k = -intensity * (peakA / 255)
+              if (k < 0.025) continue
+              const off = rowOff + px * 4
+              const dim = 1 - k * 0.6
+              pixBuf[off] = (pixBuf[off]! * dim) | 0
+              pixBuf[off + 1] = (pixBuf[off + 1]! * dim) | 0
+              pixBuf[off + 2] = (pixBuf[off + 2]! * dim) | 0
+            }
           }
         }
       }

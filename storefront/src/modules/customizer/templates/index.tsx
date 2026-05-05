@@ -32,7 +32,7 @@ import { useProductOptionsOptional } from "@modules/products/context/product-opt
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
 import { getGarmentImageUrlForPrintSide } from "@modules/products/lib/variant-options"
 import { HttpTypes } from "@medusajs/types"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import * as fabric from "fabric"
 import { FabricImage } from "fabric"
@@ -370,6 +370,7 @@ export default function CustomizerTemplate({
   integratedPdpSlots,
 }: CustomizerTemplateProps) {
   const params = useParams()
+  const router = useRouter()
   const countryCode = String(params?.countryCode ?? "")
   const fabricCanvasRef = useRef<any>(null)
   /** Host div only — canvas is created imperatively so Fabric can replace/wrap it without breaking React siblings (garment img). */
@@ -1493,6 +1494,8 @@ export default function CustomizerTemplate({
           throw new Error(addResult.error)
         }
       }
+
+      router.refresh()
 
       if (!cartHasHostedArtifactUrls) {
         if (renderHadPrintAndMockupStrings) {
