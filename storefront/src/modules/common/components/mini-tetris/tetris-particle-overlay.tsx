@@ -54,11 +54,14 @@ const BLOCK_FRINGE_PARTICLES_PER_CELL = 32
 const BLOCK_FRINGE_HALF_FRAC = 0.55
 /** Water-drop ripple: radial wave expanding outward from the impact point on lock.
  * Pushes particles radially outward with amplitude that decays with distance. */
-const RIPPLE_SPEED = 11
+const RIPPLE_SPEED = 6
 const RIPPLE_BAND_HALF = 24
-const RIPPLE_AMPLITUDE = 9
-const RIPPLE_AMPLITUDE_DECAY = 0.985
+const RIPPLE_AMPLITUDE = 11
+const RIPPLE_AMPLITUDE_DECAY = 0.99
 const RIPPLE_MIN_AMPLITUDE = 0.2
+/** CSS-px half-width of the visible glowing wave-front drawn into pixBuf. Higher
+ * = thicker, softer ring. */
+const RIPPLE_RING_HALF_PX = 5
 /** Upward bias for ripple — water drops mostly affect the surface above impact. */
 const RIPPLE_UPWARD_BIAS = 1.4
 /** Line-clear flash: horizontal stripe over the cleared row that fades over time. */
@@ -68,7 +71,9 @@ const FLASH_LIFE_MS = 480
 const EXCITEMENT_DECAY = 0.985
 /** Ambient particle base alpha at rest (0-1). Quiet field at rest, brightens to
  * full white when pushed (via excitement). */
-const AMBIENT_BASE_ALPHA = 0.55
+const AMBIENT_BASE_ALPHA = 0.72
+/** Vignette darkness at canvas corners (0 = no vignette, 1 = corners fully dark). */
+const VIGNETTE_STRENGTH = 0.32
 /** Velocity-coupled effects: piece velocity (cells/frame, smoothed) is captured
  * at lock time and used to scale ripple amplitude + the lock burst. Faster
  * impacts produce stronger ripples. */
@@ -192,12 +197,15 @@ export default function TetrisParticleOverlay({
      * if several lines clear in quick succession. */
     const waves: Array<{ y: number; strength: number }> = []
     /** Water-drop ripples: radial bands expanding outward from a lock impact point.
-     * Multiple ripples can coexist (one per locked piece) — they layer naturally. */
+     * Multiple ripples can coexist (one per locked piece) — they layer naturally.
+     * `startAt` enables concentric secondary ripples spawned at the same impact
+     * with a small delay, mimicking real water-drop physics. */
     const ripples: Array<{
       cx: number
       cy: number
       radius: number
       amplitude: number
+      startAt: number
     }> = []
     /** Line-clear flash bands: bright horizontal stripes drawn over the cleared row,
      * fading over FLASH_LIFE_MS. Drawn directly to pixBuf each frame. */
@@ -512,11 +520,23 @@ export default function TetrisParticleOverlay({
           1,
           Math.min(2.5, 1 + pieceMotion.recentVelocityCells * RIPPLE_VELOCITY_SCALE)
         )
+        /** Concentric ripples: primary + 2 smaller secondaries staggered in time
+         * mimic real water-drop physics where the impact produces multiple rings. */
+        const baseAmp = RIPPLE_AMPLITUDE * velFactor
+        ripples.push({ cx, cy, radius: 0, amplitude: baseAmp, startAt: now })
         ripples.push({
           cx,
           cy,
           radius: 0,
-          amplitude: RIPPLE_AMPLITUDE * velFactor,
+          amplitude: baseAmp * 0.55,
+          startAt: now + 130,
+        })
+        ripples.push({
+          cx,
+          cy,
+          radius: 0,
+          amplitude: baseAmp * 0.28,
+          startAt: now + 270,
         })
         /** Splatter droplets — irregular impact spray rather than a uniform ring.
          * Random angles in upper hemisphere, varied speeds (most slow, some fast)
@@ -736,6 +756,7 @@ export default function TetrisParticleOverlay({
        * apply a radial-outward impulse. Decays with distance from impact + over time. */
       for (let ri = ripples.length - 1; ri >= 0; ri--) {
         const r = ripples[ri]!
+        if (now < r.startAt) continue
         const innerR = r.radius - RIPPLE_BAND_HALF
         const outerR = r.radius + RIPPLE_BAND_HALF
         /** Bounding box of cells the band could touch — iterate only those buckets. */
@@ -846,18 +867,43 @@ export default function TetrisParticleOverlay({
       const PW = canvas.width
       const PH = canvas.height
 
-      /** Draw all filled cells as a SOLID CORE RECT + fizzy FRINGE of coloured
-       * particles. Core gives readable shape; fringe gives organic fluid edges
-       * that smoothly track the active piece's sub-pixel motion.
-       *
-       * For active piece: position uses smoothOffsetXY for fluid motion; the
-       * particle field around it reads as the block displacing and pushing
-       * through the field. */
-      const blockCoreHalfW = sizeState.cellW * BLOCK_CORE_HALF_FRAC
-      const blockCoreHalfH = sizeState.cellH * BLOCK_CORE_HALF_FRAC
-      const blockFringeHalfW = sizeState.cellW * BLOCK_FRINGE_HALF_FRAC
-      const blockFringeHalfH = sizeState.cellH * BLOCK_FRINGE_HALF_FRAC
+      /** Gradient axis for projecting positions to gradient-colour lookups. Computed
+       * here (before block render) because the block render uses it to blend piece
+       * colours with the local gradient colour. */
+      const angleRadG = (WORDMARK_GRADIENT.angleDeg * Math.PI) / 180
+      const gdx = Math.sin(angleRadG)
+      const gdy = -Math.cos(angleRadG)
+      let mn = Infinity
+      let mx = -Infinity
+      {
+        const cornersG: ReadonlyArray<readonly [number, number]> = [
+          [0, 0],
+          [W, 0],
+          [0, H],
+          [W, H],
+        ]
+        for (const c of cornersG) {
+          const tt = c[0]! * gdx + c[1]! * gdy
+          if (tt < mn) mn = tt
+          if (tt > mx) mx = tt
+        }
+      }
+      const span = Math.max(1e-3, mx - mn)
+      const lutMaxIdx = GRAD_LUT_SIZE - 1
 
+      /** Draw filled cells as GLOWING RADIAL BLOBS of luminous fluid. Bright core
+       * (overdriven toward white) falls off through the piece colour to a soft
+       * alpha-blended edge that bleeds into the surrounding particle field. The
+       * piece colour is blended 50/50 with the gradient colour at the cell's
+       * canvas position — pieces feel part of the rainbow palette rather than
+       * arbitrary saturated rectangles.
+       *
+       * Per-pixel evaluation enables:
+       *  • smooth subpixel edges — block doesn't pixel-snap as it moves
+       *  • luminance gradient — bright core glows like a fluid ink drop in water
+       *  • alpha falloff — block bleeds into the field, no hard rectangle */
+      const blockHalfW = sizeState.cellW * 0.48
+      const blockHalfH = sizeState.cellH * 0.48
       const renderBlockBlob = (
         cssX: number,
         cssY: number,
@@ -866,50 +912,98 @@ export default function TetrisParticleOverlay({
         pb: number,
         seedA: number
       ) => {
-        /** Solid core: filled rect at ~80% cell size for clean readable shape. */
+        /** Blend piece colour with gradient at this position so pieces feel
+         * cohesive with the rainbow palette around them. */
+        const proj = cssX * gdx + cssY * gdy
+        let tg = (proj - mn) / span
+        if (tg < 0) tg = 0
+        else if (tg > 1) tg = 1
+        const lutIdx = (tg * lutMaxIdx) | 0
+        const grR = gradLutR[lutIdx]!
+        const grG = gradLutG[lutIdx]!
+        const grB = gradLutB[lutIdx]!
+        /** 55% gradient + 45% piece colour, slight brightness boost. */
+        const baseR = Math.min(255, ((pr * 0.45 + grR * 0.55) * 1.05) | 0)
+        const baseG = Math.min(255, ((pg * 0.45 + grG * 0.55) * 1.05) | 0)
+        const baseB = Math.min(255, ((pb * 0.45 + grB * 0.55) * 1.05) | 0)
+        /** Pixel-space bounding box with margin for the soft edge. */
         const cxPx = cssX * dpr
         const cyPx = cssY * dpr
-        const coreHalfWPx = blockCoreHalfW * dpr
-        const coreHalfHPx = blockCoreHalfH * dpr
-        const x0 = Math.max(0, Math.floor(cxPx - coreHalfWPx))
-        const y0 = Math.max(0, Math.floor(cyPx - coreHalfHPx))
-        const x1 = Math.min(PW, Math.ceil(cxPx + coreHalfWPx))
-        const y1 = Math.min(PH, Math.ceil(cyPx + coreHalfHPx))
+        const halfWPx = blockHalfW * dpr
+        const halfHPx = blockHalfH * dpr
+        const margin = 3
+        const x0 = Math.max(0, ((cxPx - halfWPx - margin) | 0))
+        const y0 = Math.max(0, ((cyPx - halfHPx - margin) | 0))
+        const x1 = Math.min(PW, ((cxPx + halfWPx + margin) | 0) + 1)
+        const y1 = Math.min(PH, ((cyPx + halfHPx + margin) | 0) + 1)
+        const invHalfW = 1 / halfWPx
+        const invHalfH = 1 / halfHPx
         for (let py = y0; py < y1; py++) {
+          const dy = (py + 0.5 - cyPx) * invHalfH
+          const dy2 = dy * dy
+          if (dy2 > 1.6) continue
           const rowOff = py * PW * 4
           for (let px = x0; px < x1; px++) {
+            const dx = (px + 0.5 - cxPx) * invHalfW
+            const r2 = dx * dx + dy2
+            if (r2 > 1.4) continue
+            /** Luminance falloff: bright core (r<0.4) at full + boost; falls off
+             * smoothly through the piece colour to dim edges. */
+            let lum: number
+            if (r2 < 0.18) {
+              lum = 1.18 - r2 * 0.4 // overdriven core
+            } else if (r2 < 1) {
+              lum = 1.05 - (r2 - 0.18) * 0.55
+            } else {
+              lum = 0.5 - (r2 - 1) * 0.8
+            }
+            if (lum <= 0) continue
+            /** Soft alpha edge: full opacity inside r=1, smooth fall to 0 at r=1.4. */
+            let edgeA: number
+            if (r2 < 0.85) {
+              edgeA = 255
+            } else if (r2 < 1.4) {
+              edgeA = (255 * (1 - (r2 - 0.85) / 0.55)) | 0
+            } else {
+              continue
+            }
+            /** Bright core pushes toward white so pieces glow at centre. */
+            const whiteK = r2 < 0.18 ? (0.18 - r2) * 1.5 : 0
+            let r = baseR * lum
+            let g = baseG * lum
+            let b = baseB * lum
+            if (whiteK > 0) {
+              r = r + (255 - r) * whiteK
+              g = g + (255 - g) * whiteK
+              b = b + (255 - b) * whiteK
+            }
             const off = rowOff + px * 4
-            pixBuf[off] = pr
-            pixBuf[off + 1] = pg
-            pixBuf[off + 2] = pb
-            pixBuf[off + 3] = 255
+            const ri = r | 0
+            const gi = g | 0
+            const bi = b | 0
+            /** Replace pixel — block colour wins over field underneath. */
+            pixBuf[off] = ri > 255 ? 255 : ri
+            pixBuf[off + 1] = gi > 255 ? 255 : gi
+            pixBuf[off + 2] = bi > 255 ? 255 : bi
+            pixBuf[off + 3] = edgeA
           }
         }
-        /** Fizzy fringe: jittered particles around the cell rim, biased outside
-         * the core so they form a halo of fuzz around the solid block. */
-        for (let s = 0; s < BLOCK_FRINGE_PARTICLES_PER_CELL; s++) {
-          const u = hash01(seedA, s * 13 + 1) * 2 - 1
-          const v = hash01(seedA, s * 13 + 2) * 2 - 1
-          /** Push fringe particles toward the rim — exclude the inner 60%. */
-          const sgnU = u < 0 ? -1 : 1
-          const sgnV = v < 0 ? -1 : 1
-          const rimU = sgnU * (0.6 + Math.abs(u) * 0.4)
-          const rimV = sgnV * (0.6 + Math.abs(v) * 0.4)
-          const x = cssX + rimU * blockFringeHalfW
-          const y = cssY + rimV * blockFringeHalfH
-          const px = (x * dpr) | 0
-          const py = (y * dpr) | 0
-          if (px < 0 || px + 1 >= PW || py < 0 || py + 1 >= PH) continue
-          for (let dy = 0; dy < 2; dy++) {
-            const rowOff = (py + dy) * PW * 4
-            for (let dx = 0; dx < 2; dx++) {
-              const off = rowOff + (px + dx) * 4
-              pixBuf[off] = pr
-              pixBuf[off + 1] = pg
-              pixBuf[off + 2] = pb
-              pixBuf[off + 3] = 255
-            }
-          }
+        /** Sparse internal sparkles — 5-6 brighter pixels inside the core for
+         * crystalline/granular texture, keyed on stable seed so they don't
+         * shimmer between frames. */
+        for (let s = 0; s < 6; s++) {
+          const u = hash01(seedA, s * 11 + 5) * 1.2 - 0.6
+          const v = hash01(seedA, s * 11 + 6) * 1.2 - 0.6
+          const sx = (cssX + u * blockHalfW * 0.7) * dpr
+          const sy = (cssY + v * blockHalfH * 0.7) * dpr
+          const sxi = sx | 0
+          const syi = sy | 0
+          if (sxi < 0 || sxi + 1 >= PW || syi < 0 || syi + 1 >= PH) continue
+          const off = (syi * PW + sxi) * 4
+          pixBuf[off] = 255
+          pixBuf[off + 1] = 255
+          pixBuf[off + 2] = 255
+          pixBuf[off + 3] = 255
         }
       }
 
@@ -950,26 +1044,8 @@ export default function TetrisParticleOverlay({
         }
       }
 
-      /** Gradient axis vector. */
-      const angleRad = (WORDMARK_GRADIENT.angleDeg * Math.PI) / 180
-      const gdx = Math.sin(angleRad)
-      const gdy = -Math.cos(angleRad)
-      /** Project canvas corners (CSS px) onto axis to compute extents. */
-      let mn = Infinity
-      let mx = -Infinity
-      const corners = [
-        [0, 0],
-        [W, 0],
-        [0, H],
-        [W, H],
-      ]
-      for (const c of corners) {
-        const t = c[0]! * gdx + c[1]! * gdy
-        if (t < mn) mn = t
-        if (t > mx) mx = t
-      }
-      const span = Math.max(1e-3, mx - mn)
-      const lutMaxIdx = GRAD_LUT_SIZE - 1
+      /** (Gradient axis `gdx, gdy, mn, mx, span, lutMaxIdx` already computed
+       * before block render.) */
 
       /** Build filled-cell mask for the render pass: any particle whose current
        * position falls inside a filled cell is hidden so it can't appear ON TOP
@@ -986,6 +1062,12 @@ export default function TetrisParticleOverlay({
       const padYL = sizeState.padY
       const cellWL = sizeState.cellW
       const cellHL = sizeState.cellH
+
+      /** Vignette: subtle radial darkening toward canvas corners. Adds depth
+       * without reducing the central action area's brightness. */
+      const vignCx = W * 0.5
+      const vignCy = H * 0.5
+      const vignMaxD = Math.hypot(vignCx, vignCy)
 
       /** Ambient pass — write 1 pixel per particle. */
       for (let i = 0; i < TOTAL_AMBIENT; i++) {
@@ -1024,11 +1106,16 @@ export default function TetrisParticleOverlay({
         }
         /** Brightness modulation: density (noise texture, baked at build) gives
          * the field visible streaks/clusters; AMBIENT_BASE_ALPHA dims resting
-         * particles so excited (bright white-blended) ones stand out. */
+         * particles so excited (bright white-blended) ones stand out; vignette
+         * darkens corners. */
         const dens = amb.density[i]!
-        const densMul = 0.55 + dens * 0.55
+        const densMul = 0.78 + dens * 0.42
         const restMul = AMBIENT_BASE_ALPHA + (1 - AMBIENT_BASE_ALPHA) * exc
-        const finalMul = restMul * densMul
+        const dvX = px - vignCx
+        const dvY = py - vignCy
+        const dV = Math.sqrt(dvX * dvX + dvY * dvY) / vignMaxD
+        const vignMul = 1 - dV * VIGNETTE_STRENGTH
+        const finalMul = restMul * densMul * vignMul
         const off = (py * PW + px) * 4
         pixBuf[off] = (r * finalMul) | 0
         pixBuf[off + 1] = (g * finalMul) | 0
@@ -1069,6 +1156,58 @@ export default function TetrisParticleOverlay({
             pixBuf[off + 1] = g
             pixBuf[off + 2] = b
             pixBuf[off + 3] = al
+          }
+        }
+      }
+
+      /** Visible water-drop wave-front: draw a soft glowing arc into the pixel
+       * buffer at each ripple's current radius. The ring physically appears as
+       * a curve of light expanding outward, layered on top of the displaced
+       * particles. Decays with the ripple's amplitude. */
+      for (const rip of ripples) {
+        if (now < rip.startAt) continue
+        if (rip.radius < 4) continue
+        const ringRP = RIPPLE_RING_HALF_PX * dpr
+        const radiusP = rip.radius * dpr
+        const cxP = rip.cx * dpr
+        const cyP = rip.cy * dpr
+        const outerRP = radiusP + ringRP
+        const x0 = Math.max(0, ((cxP - outerRP) | 0))
+        const y0 = Math.max(0, ((cyP - outerRP) | 0))
+        const x1 = Math.min(PW, ((cxP + outerRP) | 0) + 1)
+        const y1 = Math.min(PH, ((cyP + outerRP) | 0) + 1)
+        const ampNorm = Math.min(1, rip.amplitude / RIPPLE_AMPLITUDE)
+        /** Peak alpha in the band, scales with amplitude. */
+        const peakA = ampNorm * 220
+        if (peakA < 6) continue
+        const innerRP = Math.max(0, radiusP - ringRP)
+        for (let py = y0; py < y1; py++) {
+          const dy = py + 0.5 - cyP
+          if (dy * dy > outerRP * outerRP) continue
+          const rowOff = py * PW * 4
+          for (let px = x0; px < x1; px++) {
+            const dx = px + 0.5 - cxP
+            const d2 = dx * dx + dy * dy
+            if (d2 > outerRP * outerRP || d2 < innerRP * innerRP) continue
+            const d = Math.sqrt(d2)
+            const distFromRing = Math.abs(d - radiusP)
+            if (distFromRing > ringRP) continue
+            /** Smooth bell across the band thickness. */
+            const u = distFromRing / ringRP
+            const fall = 1 - u * u
+            const a = (peakA * fall) | 0
+            if (a < 6) continue
+            const off = rowOff + px * 4
+            /** Additive blend toward white over the existing pixel. */
+            const k = a / 255
+            pixBuf[off] =
+              (pixBuf[off]! + (255 - pixBuf[off]!) * k) | 0
+            pixBuf[off + 1] =
+              (pixBuf[off + 1]! + (255 - pixBuf[off + 1]!) * k) | 0
+            pixBuf[off + 2] =
+              (pixBuf[off + 2]! + (255 - pixBuf[off + 2]!) * k) | 0
+            const cur = pixBuf[off + 3]!
+            if (a > cur) pixBuf[off + 3] = a
           }
         }
       }

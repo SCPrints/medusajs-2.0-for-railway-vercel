@@ -408,29 +408,24 @@ function gameReducer(state: GameState, action: Action): GameState {
 }
 
 /** Default vs 1.5× (lg) vs 2.25× (xl, not-found) cell dimensions.
- * Empty cells use a transparent fill so the dark grid background (and the particle
- * overlay) shows through. Borders are subtle white-on-dark grid lines. */
+ * Empty cells are entirely transparent — the playfield is rendered on the
+ * particle-overlay canvas, no DOM grid lines. The next-piece preview keeps
+ * subtle rim lines so its layout reads. */
 const TETRIS_SIZES = {
   default: {
-    cellEmpty:
-      "w-3.5 h-3.5 small:w-4 small:h-4 border border-white/10",
-    cellFilled:
-      "w-3.5 h-3.5 small:w-4 small:h-4 border border-white/20 box-border",
-    next: "w-3 h-3 border border-white/15",
+    cellEmpty: "w-3.5 h-3.5 small:w-4 small:h-4",
+    cellFilled: "w-3.5 h-3.5 small:w-4 small:h-4 box-border",
+    next: "w-3 h-3",
   },
   lg: {
-    cellEmpty:
-      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-white/10",
-    cellFilled:
-      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-white/20 box-border",
-    next: "w-[1.125rem] h-[1.125rem] border border-white/15",
+    cellEmpty: "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6",
+    cellFilled: "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 box-border",
+    next: "w-[1.125rem] h-[1.125rem]",
   },
   xl: {
-    cellEmpty:
-      "w-5 h-5 small:w-7 small:h-7 border border-white/10",
-    cellFilled:
-      "w-5 h-5 small:w-7 small:h-7 border border-white/20 box-border",
-    next: "w-4 h-4 small:w-5 small:h-5 border border-white/15",
+    cellEmpty: "w-5 h-5 small:w-7 small:h-7",
+    cellFilled: "w-5 h-5 small:w-7 small:h-7 box-border",
+    next: "w-4 h-4 small:w-5 small:h-5",
   },
 } as const
 
@@ -585,34 +580,27 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
               ? "Reduced motion: gravity is slower."
               : null}
           </p>
-          <div className="relative inline-block">
+          <div
+            className="relative inline-block rounded-md"
+            style={{
+              boxShadow:
+                "0 0 0 1px rgba(255,255,255,0.06), 0 0 32px 4px rgba(120,180,255,0.10), 0 0 80px 12px rgba(120,180,255,0.06)",
+            }}
+          >
             <div
               ref={gridContainerRef}
-              className="grid gap-px p-1 rounded-md border border-white/15 bg-black inline-grid"
-              style={{ gridTemplateColumns: `repeat(${BOARD_W}, minmax(0, 1fr))` }}
+              className="grid gap-0 rounded-md bg-black inline-grid overflow-hidden"
+              style={{
+                gridTemplateColumns: `repeat(${BOARD_W}, minmax(0, 1fr))`,
+              }}
               aria-hidden
             >
+              {/** All cells render as transparent placeholders — filled cells are
+               * drawn on the canvas overlay as glowing radial blobs. */}
               {display.map((row, ri) =>
-                row.map((cell, ci) => {
-                  if (cell === 0) {
-                    return (
-                      <div
-                        className={s.cellEmpty}
-                        key={`${ri}-${ci}`}
-                      />
-                    )
-                  }
-                  const v = (cell - 1) as number
-                  return (
-                    <div
-                      className={s.cellFilled}
-                      key={`${ri}-${ci}`}
-                      style={{
-                        background: PIECE_FILL[v] ?? "var(--brand-primary)",
-                      }}
-                    />
-                  )
-                })
+                row.map((_cell, ci) => (
+                  <div className={s.cellEmpty} key={`${ri}-${ci}`} />
+                ))
               )}
             </div>
             <TetrisParticleOverlay

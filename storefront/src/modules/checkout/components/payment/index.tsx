@@ -46,6 +46,8 @@ const Payment = ({
   /** Use the *selected* provider for UI/validation, not the pending session (selection can differ until submit). */
   const stripeSelected = isStripeFunc(selectedPaymentMethod)
   const stripeReady = useContext(StripeContext)
+  const stripeSessionReady =
+    stripeSelected && stripeReady && activeSession?.provider_id === selectedPaymentMethod
 
   const paidByGiftcard =
     cart?.gift_cards && cart?.gift_cards?.length > 0 && cart?.total === 0
@@ -225,13 +227,13 @@ const Payment = ({
             onClick={handleSubmit}
             isLoading={isLoading}
             disabled={
-              (stripeSelected && !cardComplete) ||
+              (stripeSelected && stripeSessionReady && !cardComplete) ||
               (!selectedPaymentMethod && !paidByGiftcard)
             }
             data-testid="submit-payment-button"
           >
-            {!activeSession && isStripeFunc(selectedPaymentMethod)
-              ? " Enter card details"
+            {stripeSelected && !stripeSessionReady
+              ? "Enter card details"
               : "Continue to review"}
           </Button>
         </div>
