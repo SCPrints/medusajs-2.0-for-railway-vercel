@@ -34,8 +34,16 @@ const OBSTACLE_FORCE = 4.2
 const LOCK_BURST_SPEED = 7
 const CLEAR_BURST_SPEED = 10
 /** Active-piece movement transition (ms). Lerps the obstacle position smoothly
- * between integer cell positions so the block doesn't snap chunky-style each drop. */
-const PIECE_TRANSITION_MS = 180
+ * between integer cell positions so the block doesn't snap chunky-style each drop.
+ * Tuned close to the default drop interval (700ms) so motion is fluid edge-to-edge. */
+const PIECE_TRANSITION_MS = 520
+/** Cap on visual lag distance (in cells). Hard drops would otherwise leave a
+ * 20-cell trail; we clamp so it caps out at ~1 cell of smoothing slack. */
+const PIECE_MAX_LAG_CELLS = 1.2
+/** Lock-impact: upward force applied to particles in each locked cell's column,
+ * with distance falloff. Squashes the field upward when the block hits bottom. */
+const LOCK_UPWARD_FORCE = 6
+const LOCK_UPWARD_FALLOFF_PER_ROW = 0.25
 /** Excitement decay per frame (multiplicative). */
 const EXCITEMENT_DECAY = 0.96
 /** Line-clear shockwave: initial downward impulse on cleared row, then an upward
@@ -410,6 +418,23 @@ export default function TetrisParticleOverlay({
           p.bornAt = now
           p.lifeMs = 700 + Math.random() * 300
         }
+        /** Squash-upward impulse: every particle in a column above each locked cell
+         * gets an upward velocity kick, with falloff by row-distance. The field
+         * visibly gets compressed upward when the piece hits the bottom. */
+        for (const cell of lockedCells) {
+          for (let by = 0; by < cell.by; by++) {
+            const rowsAbove = cell.by - by
+            const strength =
+              LOCK_UPWARD_FORCE /
+              (1 + rowsAbove * LOCK_UPWARD_FALLOFF_PER_ROW)
+            const startIdx = (cell.bx + by * BOARD_W) * AMBIENT_PER_CELL
+            const endIdx = startIdx + AMBIENT_PER_CELL
+            for (let i = startIdx; i < endIdx; i++) {
+              amb.vy[i] = amb.vy[i]! - strength
+              if (amb.excitement[i]! < 0.7) amb.excitement[i] = 0.7
+            }
+          }
+        }
       }
 
       /** =========== Smooth active-piece motion =========== */
@@ -432,9 +457,23 @@ export default function TetrisParticleOverlay({
           (activeCentroidX !== pieceMotion.lastCentroidX ||
             activeCentroidY !== pieceMotion.lastCentroidY)
         ) {
-          pieceMotion.offsetX += pieceMotion.lastCentroidX - activeCentroidX
-          pieceMotion.offsetY += pieceMotion.lastCentroidY - activeCentroidY
-          pieceMotion.transitionStartedAt = now
+          /** Big-jump detection: if centroid moved more than 4 cells in one
+           * frame this isn't a normal step — most likely a hard drop or a new
+           * piece sharing the previous type. Skip the transition so the block
+           * doesn't streak across the board. */
+          const dxJump = activeCentroidX - pieceMotion.lastCentroidX
+          const dyJump = activeCentroidY - pieceMotion.lastCentroidY
+          const jumpDist = Math.hypot(dxJump, dyJump)
+          const cellDiag = Math.hypot(sizeState.cellW, sizeState.cellH)
+          if (jumpDist > cellDiag * 4) {
+            pieceMotion.offsetX = 0
+            pieceMotion.offsetY = 0
+            pieceMotion.transitionStartedAt = -1
+          } else {
+            pieceMotion.offsetX += pieceMotion.lastCentroidX - activeCentroidX
+            pieceMotion.offsetY += pieceMotion.lastCentroidY - activeCentroidY
+            pieceMotion.transitionStartedAt = now
+          }
         } else if (!sameType) {
           pieceMotion.offsetX = 0
           pieceMotion.offsetY = 0
@@ -445,6 +484,19 @@ export default function TetrisParticleOverlay({
         pieceMotion.lastCentroidY = activeCentroidY
       } else {
         pieceMotion.lastPieceType = -1
+      }
+
+      /** Clamp accumulated offset so hard drops (10+ cell jumps) don't cause the
+       * block to slide a huge distance. Cap the visual lag at ~1.2 cells. */
+      {
+        const maxLag =
+          Math.max(sizeState.cellW, sizeState.cellH) * PIECE_MAX_LAG_CELLS
+        const offLen = Math.hypot(pieceMotion.offsetX, pieceMotion.offsetY)
+        if (offLen > maxLag) {
+          const scale = maxLag / offLen
+          pieceMotion.offsetX *= scale
+          pieceMotion.offsetY *= scale
+        }
       }
 
       let smoothOffsetX = 0
@@ -652,10 +704,39 @@ export default function TetrisParticleOverlay({
       const span = Math.max(1e-3, mx - mn)
       const lutMaxIdx = GRAD_LUT_SIZE - 1
 
+      /** Build filled-cell mask for the render pass: any particle whose current
+       * position falls inside a filled cell is hidden so it can't appear ON TOP
+       * of the locked block (the block is opaque — particles belong outside it). */
+      const filledMask = new Uint8Array(BOARD_W * BOARD_H)
+      for (let by = 0; by < BOARD_H; by++) {
+        for (let bx = 0; bx < BOARD_W; bx++) {
+          if (dispNow[by]?.[bx] !== 0) {
+            filledMask[bx + by * BOARD_W] = 1
+          }
+        }
+      }
+      const padXL = sizeState.padX
+      const padYL = sizeState.padY
+      const cellWL = sizeState.cellW
+      const cellHL = sizeState.cellH
+
       /** Ambient pass — write 1 pixel per particle. */
       for (let i = 0; i < TOTAL_AMBIENT; i++) {
         const x = amb.x[i]!
         const y = amb.y[i]!
+        /** Skip if this particle is currently inside a filled cell (locked or
+         * active). Without this, particles render on top of the opaque block. */
+        const cbx = ((x - padXL) / cellWL) | 0
+        const cby = ((y - padYL) / cellHL) | 0
+        if (
+          cbx >= 0 &&
+          cbx < BOARD_W &&
+          cby >= 0 &&
+          cby < BOARD_H &&
+          filledMask[cbx + cby * BOARD_W] === 1
+        ) {
+          continue
+        }
         const px = (x * dpr) | 0
         const py = (y * dpr) | 0
         if (px < 0 || px >= PW || py < 0 || py >= PH) continue

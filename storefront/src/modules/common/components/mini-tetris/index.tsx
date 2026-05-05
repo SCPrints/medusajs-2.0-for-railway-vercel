@@ -427,10 +427,10 @@ const TETRIS_SIZES = {
   },
   xl: {
     cellEmpty:
-      "w-7 h-7 small:w-9 small:h-9 border border-white/10",
+      "w-5 h-5 small:w-7 small:h-7 border border-white/10",
     cellFilled:
-      "w-7 h-7 small:w-9 small:h-9 border border-white/20 box-border",
-    next: "w-5 h-5 small:w-6 small:h-6 border border-white/15",
+      "w-5 h-5 small:w-7 small:h-7 border border-white/20 box-border",
+    next: "w-4 h-4 small:w-5 small:h-5 border border-white/15",
   },
 } as const
 
