@@ -21,20 +21,33 @@ export async function retrieveCart() {
     return null
   }
 
-  return await sdk.store.cart
-    .retrieve(
-      cartId,
-      {
-        // Pull inventory fields so the cart-line quantity selector can cap at real stock.
-        fields:
-          "*items.variant.inventory_quantity,*items.variant.manage_inventory,*items.variant.allow_backorder",
-      },
-      { next: { tags: ["cart"] }, ...(await getAuthHeaders()) }
-    )
-    .then(({ cart }) => cart)
-    .catch(() => {
-      return null
+  const retrieveConfig = {
+    // Pull inventory fields so the cart-line quantity selector can cap at real stock.
+    fields:
+      "*items.variant.inventory_quantity,*items.variant.manage_inventory,*items.variant.allow_backorder",
+  }
+  const authHeaders = await getAuthHeaders()
+
+  try {
+    const { cart } = await sdk.store.cart.retrieve(cartId, retrieveConfig, {
+      next: { tags: ["cart"] },
+      ...authHeaders,
     })
+    return cart
+  } catch {
+    // Recover from stale/invalid auth cookie by retrying cart retrieval as guest.
+    if ("authorization" in authHeaders) {
+      try {
+        const { cart } = await sdk.store.cart.retrieve(cartId, retrieveConfig, {
+          next: { tags: ["cart"] },
+        })
+        return cart
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
 }
 
 export async function getOrSetCart(countryCode: string) {
@@ -100,21 +113,23 @@ export async function addToCart({
     throw new Error("Error retrieving or creating cart")
   }
 
-  await sdk.store.cart
-    .createLineItem(
-      cart.id,
-      {
-        variant_id: variantId,
-        quantity,
-        metadata,
-      },
-      {},
-      await getAuthHeaders()
-    )
-    .then(() => {
-      revalidateTag("cart")
-    })
-    .catch(medusaError)
+  const payload = {
+    variant_id: variantId,
+    quantity,
+    metadata,
+  }
+  const authHeaders = await getAuthHeaders()
+
+  try {
+    await sdk.store.cart.createLineItem(cart.id, payload, {}, authHeaders)
+  } catch (error) {
+    if ("authorization" in authHeaders) {
+      await sdk.store.cart.createLineItem(cart.id, payload, {}, {}).catch(medusaError)
+    } else {
+      medusaError(error)
+    }
+  }
+  revalidateTag("cart")
 }
 
 type AddToCartResult =
@@ -220,25 +235,34 @@ export async function addScpLineItemToCart(input: {
     })
   } catch (error) {
     // Keep checkout usable if the custom SCP endpoint or key config is unavailable.
-    await sdk.store.cart
-      .createLineItem(
-        cart.id,
-        {
-          variant_id: variantId,
-          quantity,
-          metadata: {
-            ...(metadata ?? {}),
-            scp_pricing_fallback: true,
-            scp_print: {
-              version: SCP_PRINT_PRICING_VERSION,
-              print_size_id: printSizeId,
-            },
-          },
+    const fallbackPayload = {
+      variant_id: variantId,
+      quantity,
+      metadata: {
+        ...(metadata ?? {}),
+        scp_pricing_fallback: true,
+        scp_print: {
+          version: SCP_PRINT_PRICING_VERSION,
+          print_size_id: printSizeId,
         },
-        {},
-        await getAuthHeaders()
-      )
-      .catch((fallbackError) => {
+      },
+    }
+    const authHeaders = await getAuthHeaders()
+
+    try {
+      await sdk.store.cart.createLineItem(cart.id, fallbackPayload, {}, authHeaders)
+    } catch (fallbackError) {
+      if ("authorization" in authHeaders) {
+        await sdk.store.cart.createLineItem(cart.id, fallbackPayload, {}, {}).catch(() => {
+          const primaryMessage =
+            error instanceof Error ? error.message : "SCP pricing route failed."
+          const fallbackMessage =
+            fallbackError instanceof Error
+              ? fallbackError.message
+              : "Standard add-to-cart fallback failed."
+          throw new Error(`${primaryMessage} ${fallbackMessage}`.trim())
+        })
+      } else {
         const primaryMessage =
           error instanceof Error ? error.message : "SCP pricing route failed."
         const fallbackMessage =
@@ -246,7 +270,8 @@ export async function addScpLineItemToCart(input: {
             ? fallbackError.message
             : "Standard add-to-cart fallback failed."
         throw new Error(`${primaryMessage} ${fallbackMessage}`.trim())
-      })
+      }
+    }
   }
 
   revalidateTag("cart")
