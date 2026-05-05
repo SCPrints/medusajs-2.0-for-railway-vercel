@@ -11,9 +11,9 @@ const BOARD_W = 10
 const BOARD_H = 20
 
 /** Ambient particles per cell — fixed homes covering the entire board. Filled cells
- * act as obstacles pushing them outward; empty cells let them rest. 1000 × 200 cells
- * = 200 000 ambient particles. Stored in typed arrays + rendered via putImageData. */
-const AMBIENT_PER_CELL = 1000
+ * act as obstacles pushing them outward; empty cells let them rest. 400 × 200 cells
+ * = 80 000 ambient particles. Stored in typed arrays + rendered via putImageData. */
+const AMBIENT_PER_CELL = 400
 /** Burst pool capacity (transient one-shot particles for lock/clear effects). */
 const MAX_BURST_PARTICLES = 6000
 /** Particles spawned per cell when the active piece locks. */
@@ -283,6 +283,9 @@ export default function TetrisParticleOverlay({
 
     const layoutCanvas = () => {
       const rect = container.getBoundingClientRect()
+      /** Defensive: skip layout while the container hasn't been measured yet. The
+       * ResizeObserver will fire again when valid dimensions arrive. */
+      if (rect.width < 4 || rect.height < 4) return
       sizeState.cssW = rect.width
       sizeState.cssH = rect.height
       const gap = 1
@@ -542,7 +545,7 @@ export default function TetrisParticleOverlay({
               const fall = 1 - Math.abs(dy) / WAVE_BAND_HALF
               const fallSq = fall * fall
               /** Push upward (negative Y in canvas coords). */
-              amb.vy[i]! += -w.strength * fallSq
+              amb.vy[i] = amb.vy[i]! + -w.strength * fallSq
               if (fallSq > amb.excitement[i]!) amb.excitement[i] = fallSq
             }
           }
@@ -559,11 +562,11 @@ export default function TetrisParticleOverlay({
       /** =========== Spring + integration (all ambient particles) =========== */
 
       for (let i = 0; i < TOTAL_AMBIENT; i++) {
-        amb.excitement[i]! *= EXCITEMENT_DECAY
+        amb.excitement[i] = amb.excitement[i]! * EXCITEMENT_DECAY
         const sx = (amb.hx[i]! - amb.x[i]!) * HOME_SPRING
         const sy = (amb.hy[i]! - amb.y[i]!) * HOME_SPRING
-        let nvx = (amb.vx[i]! + sx) * HOME_FRICTION
-        let nvy = (amb.vy[i]! + sy) * HOME_FRICTION
+        const nvx = (amb.vx[i]! + sx) * HOME_FRICTION
+        const nvy = (amb.vy[i]! + sy) * HOME_FRICTION
         amb.vx[i] = nvx
         amb.vy[i] = nvy
         amb.x[i] = amb.x[i]! + nvx
