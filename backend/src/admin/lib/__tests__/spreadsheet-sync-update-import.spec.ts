@@ -2,6 +2,7 @@ import { PRODUCT_IMPORT_CSV_HEADERS } from "../product-import-template-csv"
 import { parseCsv } from "../csv-import"
 import {
   buildBatchUpdatesFromParsedCsv,
+  buildVariantGarmentDataByProductId,
   computeProductUpdateColumnCandidates,
   computeProductUpdatePreview,
   PRODUCT_GALLERY_IMAGES_CSV_KEY,
@@ -10,6 +11,7 @@ import {
   productUpdateBatchChunkSize,
   spreadsheetHeadersIgnoringPatchable,
   validateProductUpdateHeaders,
+  VARIANT_GARMENT_METADATA_CSV_KEY,
 } from "../spreadsheet-sync-update-import"
 
 const emptyRow = (): Record<string, string> => {
@@ -32,6 +34,9 @@ describe("spreadsheet-sync-update-import", () => {
   it("productUpdateBatchChunkSize uses smaller batches for thumbnail or gallery columns", () => {
     expect(productUpdateBatchChunkSize(["product title"])).toBe(PRODUCT_UPDATE_BATCH_CHUNK_SIZE)
     expect(productUpdateBatchChunkSize([PRODUCT_GALLERY_IMAGES_CSV_KEY])).toBe(
+      PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA
+    )
+    expect(productUpdateBatchChunkSize([VARIANT_GARMENT_METADATA_CSV_KEY])).toBe(
       PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA
     )
     expect(productUpdateBatchChunkSize(["product thumbnail"])).toBe(PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA)
@@ -219,6 +224,71 @@ describe("spreadsheet-sync-update-import", () => {
       const extras = spreadsheetHeadersIgnoringPatchable(parsed)
       expect(extras).not.toContain("product image 1 url")
       expect(extras).not.toContain("product image 2 url")
+    })
+  })
+
+  describe("variant garment metadata (per-row, PDP)", () => {
+    it("buildBatchUpdatesFromParsedCsv yields no product patches when only variant garment column is selected", () => {
+      const r1 = emptyRow()
+      r1["product id"] = "prod_v1"
+      r1["variant sku"] = "SKU-A"
+      r1["product image 1 url"] = "https://cdn.example.com/a.jpg"
+      r1["variant option 1 name"] = "Size"
+      r1["variant option 1 value"] = "M"
+      r1["variant title"] = "M / Navy"
+
+      const r2 = emptyRow()
+      r2["product id"] = "prod_v1"
+      r2["variant sku"] = "SKU-B"
+      r2["product image 1 url"] = "https://cdn.example.com/b.jpg"
+      r2["variant option 1 value"] = "L"
+      r2["variant title"] = "L / Navy"
+
+      const parsed = parseCsv(buildCsv([r1, r2]))
+      const { updates, errors } = buildBatchUpdatesFromParsedCsv(parsed, {
+        enabledCsvKeys: new Set([VARIANT_GARMENT_METADATA_CSV_KEY]),
+      })
+      expect(errors.length).toBe(0)
+      expect(updates.length).toBe(0)
+    })
+
+    it("buildVariantGarmentDataByProductId collects last row per SKU and merges colour", () => {
+      const r1 = emptyRow()
+      r1["product id"] = "prod_v2"
+      r1["variant sku"] = "SKU-X"
+      r1["product image 1 url"] = "https://cdn.example.com/first.jpg"
+      r1["variant option 2 name"] = "Colour"
+      r1["variant option 2 value"] = "Red"
+
+      const r2 = emptyRow()
+      r2["product id"] = "prod_v2"
+      r2["variant sku"] = "SKU-X"
+      r2["product image 1 url"] = "https://cdn.example.com/second.jpg"
+      r2["product image 2 url"] = "https://cdn.example.com/back.jpg"
+      r2["variant option 2 value"] = "Red"
+
+      const parsed = parseCsv(buildCsv([r1, r2]))
+      const { byProduct, errors } = buildVariantGarmentDataByProductId(parsed, new Set([VARIANT_GARMENT_METADATA_CSV_KEY]))
+      expect(errors.length).toBe(0)
+      const m = byProduct.get("prod_v2")
+      expect(m?.size).toBe(1)
+      expect(m?.get("SKU-X")).toMatchObject({
+        front: "https://cdn.example.com/second.jpg",
+        back: "https://cdn.example.com/back.jpg",
+        color: "Red",
+      })
+    })
+
+    it("computeProductUpdateColumnCandidates includes variant garment when gallery + variant sku headers exist", () => {
+      const r = emptyRow()
+      r["product id"] = "prod_v3"
+      r["variant sku"] = "S"
+      r["product image 1 url"] = "https://cdn.example.com/a.jpg"
+      const parsed = parseCsv(buildCsv([r]))
+      const cand = computeProductUpdateColumnCandidates(parsed)
+      const vg = cand.find((c) => c.csvKey === VARIANT_GARMENT_METADATA_CSV_KEY)
+      expect(vg).toBeTruthy()
+      expect(vg?.affectedProductCount).toBe(1)
     })
   })
 })

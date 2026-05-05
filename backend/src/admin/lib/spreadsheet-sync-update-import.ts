@@ -1,3 +1,4 @@
+import { resolveVariantColourFromCsvRow } from "./as-colour-csv-variant-colour"
 import type { ParsedCsv } from "./csv-import"
 
 /** Payload accepted by `sdk.admin.product.batch({ update })`. */
@@ -26,6 +27,14 @@ export type ProductUpdateColumnCandidate = ProductPatchColumnDef & {
 export const PRODUCT_GALLERY_IMAGES_CSV_KEY = "product gallery images"
 
 /**
+ * Virtual column: per CSV row, writes `variant.metadata.garment_images` (+ optional `garment_color`)
+ * from Product Image 1/2 URLs and variant colour — what the storefront PDP uses for per-variant photos.
+ * Does not replace product-level gallery (`product.batch`); use alongside or instead of
+ * {@link PRODUCT_GALLERY_IMAGES_CSV_KEY} depending on whether you need PDP variant imagery vs shared gallery.
+ */
+export const VARIANT_GARMENT_METADATA_CSV_KEY = "variant garment images (PDP metadata)"
+
+/**
  * Smaller batches when updating remote image URLs (thumbnail / gallery). Each product can trigger
  * server-side fetches and file handling; large batches often hit proxy timeouts → browser "Failed to fetch".
  */
@@ -33,6 +42,7 @@ export const PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA = 5
 
 const PRODUCT_UPDATE_MEDIA_CSV_KEYS = new Set<string>([
   PRODUCT_GALLERY_IMAGES_CSV_KEY,
+  VARIANT_GARMENT_METADATA_CSV_KEY,
   "product thumbnail",
 ])
 
@@ -61,6 +71,10 @@ export const PRODUCT_PATCH_COLUMN_DEFS: readonly ProductPatchColumnDef[] = [
   {
     csvKey: PRODUCT_GALLERY_IMAGES_CSV_KEY,
     label: "Product gallery images (Image 1 + Image 2 URLs)",
+  },
+  {
+    csvKey: VARIANT_GARMENT_METADATA_CSV_KEY,
+    label: "Variant garment images — PDP metadata (Image 1 / 2 → variant.metadata.garment_images)",
   },
   { csvKey: "product status", label: "Product status" },
   { csvKey: "product discountable", label: "Product discountable" },
@@ -186,16 +200,27 @@ export function computeProductUpdateColumnCandidates(parsed: ParsedCsv): Product
     if (d.csvKey === PRODUCT_GALLERY_IMAGES_CSV_KEY) {
       return galleryHeaderPresent
     }
+    if (d.csvKey === VARIANT_GARMENT_METADATA_CSV_KEY) {
+      return galleryHeaderPresent && headerSet.has("variant sku")
+    }
     return headerSet.has(d.csvKey)
   })
 
   const out: ProductUpdateColumnCandidate[] = []
   for (const def of defs) {
     let n = 0
-    for (const rows of grouped.values()) {
-      const first = rows[0]!
-      if (firstRowFeedsPatch(first, def.csvKey)) {
-        n++
+    if (def.csvKey === VARIANT_GARMENT_METADATA_CSV_KEY) {
+      for (const rows of grouped.values()) {
+        if (rows.some(csvRowFeedsVariantGarmentMetadata)) {
+          n++
+        }
+      }
+    } else {
+      for (const rows of grouped.values()) {
+        const first = rows[0]!
+        if (firstRowFeedsPatch(first, def.csvKey)) {
+          n++
+        }
       }
     }
     if (n > 0) {
@@ -243,6 +268,21 @@ export function computeProductUpdatePreview(parsed: ParsedCsv): ProductUpdatePre
     variantRowCount: parsed.rows.length,
     validationErrors,
   }
+}
+
+/** True when this row contributes to variant-level garment metadata (SKU + at least one image URL). */
+export function csvRowFeedsVariantGarmentMetadata(row: Record<string, string>): boolean {
+  const sku = (row["variant sku"] ?? "").trim()
+  if (!sku) {
+    return false
+  }
+  const u1 = (row["product image 1 url"] ?? "").trim()
+  const u2 = (row["product image 2 url"] ?? "").trim()
+  return !!(u1 || u2)
+}
+
+function productGroupHasVariantGarmentMetadata(rows: Record<string, string>[]): boolean {
+  return rows.some(csvRowFeedsVariantGarmentMetadata)
 }
 
 const groupRowsByProductId = (rows: Record<string, string>[]): Map<string, Record<string, string>[]> => {
@@ -457,14 +497,27 @@ export function buildBatchUpdatesFromParsedCsv(
       id: productId,
     }
 
-    applyProductPatchColumns(first, patch, enabledCsvKeys)
+    const variantGarmentSelected = enabledCsvKeys?.has(VARIANT_GARMENT_METADATA_CSV_KEY) ?? false
+    const productOnlyKeys =
+      enabledCsvKeys === undefined
+        ? undefined
+        : new Set([...enabledCsvKeys].filter((k) => k !== VARIANT_GARMENT_METADATA_CSV_KEY))
+
+    applyProductPatchColumns(first, patch, productOnlyKeys)
 
     /** Only `id` means nothing to change — skip or warn */
     const keysToSend = Object.keys(patch).filter((k) => k !== "id")
     if (keysToSend.length === 0) {
+      if (variantGarmentSelected && productGroupHasVariantGarmentMetadata(rows)) {
+        continue
+      }
+      if (variantGarmentSelected && !productGroupHasVariantGarmentMetadata(rows)) {
+        /* Variant-only selection: products without image rows are skipped; global validation uses buildVariantGarmentDataByProductId. */
+        continue
+      }
       errors.push(
         `Product "${productId}": no non-empty columns to update among your selection ` +
-          `(first row only; widen selection or fill cells for those columns).`
+          `(first row only for product fields; widen selection or fill cells for those columns).`
       )
       continue
     }
@@ -473,4 +526,89 @@ export function buildBatchUpdatesFromParsedCsv(
   }
 
   return { updates, errors }
+}
+
+export type VariantGarmentCsvRow = {
+  sku: string
+  front?: string
+  back?: string
+  color?: string
+}
+
+/**
+ * Collect per-variant garment image payload from **every** CSV row (last row per SKU wins within a product).
+ * Used with {@link VARIANT_GARMENT_METADATA_CSV_KEY}; mirrors `apply-garment-images-from-template-csv.ts`.
+ */
+export function buildVariantGarmentDataByProductId(
+  parsed: ParsedCsv,
+  enabledCsvKeys: ReadonlySet<string> | undefined
+): { byProduct: Map<string, Map<string, VariantGarmentCsvRow>>; errors: string[] } {
+  const errors: string[] = []
+
+  if (!enabledCsvKeys?.has(VARIANT_GARMENT_METADATA_CSV_KEY)) {
+    return { byProduct: new Map(), errors }
+  }
+
+  const headerErr = validateProductUpdateHeaders(parsed)
+  if (headerErr) {
+    errors.push(headerErr)
+    return { byProduct: new Map(), errors }
+  }
+
+  if (!parsed.headers.includes("variant sku")) {
+    errors.push(
+      `Missing "variant sku" column — required when updating variant garment metadata from the spreadsheet.`
+    )
+    return { byProduct: new Map(), errors }
+  }
+
+  const preview = computeProductUpdatePreview(parsed)
+  preview.validationErrors.forEach((e) => errors.push(e))
+  if (preview.validationErrors.length > 0) {
+    return { byProduct: new Map(), errors }
+  }
+
+  const byProduct = new Map<string, Map<string, VariantGarmentCsvRow>>()
+
+  parsed.rows.forEach((row, idx) => {
+    const rowLabel = `Row ${idx + 2}`
+    const pid = (row["product id"] ?? "").trim()
+    if (!pid) {
+      return
+    }
+    const sku = (row["variant sku"] ?? "").trim()
+    const img1 = (row["product image 1 url"] ?? "").trim()
+    const img2 = (row["product image 2 url"] ?? "").trim()
+
+    if (!sku) {
+      if (img1 || img2) {
+        errors.push(`${rowLabel}: image URL(s) set but Variant SKU is empty — row skipped.`)
+      }
+      return
+    }
+    if (!img1 && !img2) {
+      return
+    }
+
+    const color = resolveVariantColourFromCsvRow(row)
+    let perSku = byProduct.get(pid)
+    if (!perSku) {
+      perSku = new Map()
+      byProduct.set(pid, perSku)
+    }
+    perSku.set(sku, {
+      sku,
+      front: img1 || undefined,
+      back: img2 || undefined,
+      color,
+    })
+  })
+
+  if (byProduct.size === 0) {
+    errors.push(
+      "Variant garment images: no applicable rows (each row needs Variant SKU and at least one of Product Image 1 Url / Product Image 2 Url)."
+    )
+  }
+
+  return { byProduct, errors }
 }

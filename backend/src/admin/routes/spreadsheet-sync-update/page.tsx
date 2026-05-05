@@ -8,14 +8,32 @@ import {
 } from "../../lib/spreadsheet-sync-import"
 import {
   buildBatchUpdatesFromParsedCsv,
+  buildVariantGarmentDataByProductId,
   computeProductUpdateColumnCandidates,
   computeProductUpdatePreview,
   PRODUCT_UPDATE_BATCH_CHUNK_SIZE,
   productUpdateBatchChunkSize,
   spreadsheetHeadersIgnoringPatchable,
+  type VariantGarmentCsvRow,
 } from "../../lib/spreadsheet-sync-update-import"
 import { parseCsv } from "../../lib/csv-import"
 import { sdk } from "../../lib/sdk"
+
+const mergeVariantGarmentMetadata = (
+  existing: Record<string, unknown> | undefined,
+  csv: VariantGarmentCsvRow
+): Record<string, unknown> => {
+  const garment_images = {
+    front: csv.front,
+    back: csv.back,
+    all: [csv.front, csv.back].filter(Boolean),
+  }
+  return {
+    ...(existing ?? {}),
+    ...(csv.color ? { garment_color: csv.color } : {}),
+    garment_images,
+  }
+}
 
 const SpreadsheetSyncUpdatePage = () => {
   const [fileName, setFileName] = useState<string | null>(null)
@@ -58,10 +76,22 @@ const SpreadsheetSyncUpdatePage = () => {
 
   const buildOutcome = useMemo(() => {
     if (!fileAnalysis || fileAnalysis.preview.validationErrors.length > 0) {
-      return { updates: [] as Record<string, unknown>[], buildErrors: [] as string[] }
+      return {
+        updates: [] as Record<string, unknown>[],
+        buildErrors: [] as string[],
+        variantGarmentByProduct: new Map<
+          string,
+          Map<string, VariantGarmentCsvRow>
+        >(),
+      }
     }
     const { updates, errors } = buildBatchUpdatesFromParsedCsv(fileAnalysis.parsed, { enabledCsvKeys })
-    return { updates, buildErrors: errors }
+    const vg = buildVariantGarmentDataByProductId(fileAnalysis.parsed, enabledCsvKeys)
+    return {
+      updates,
+      buildErrors: [...errors, ...vg.errors],
+      variantGarmentByProduct: vg.byProduct,
+    }
   }, [fileAnalysis, enabledCsvKeys])
 
   const toggleColumn = useCallback((csvKey: string, next: boolean) => {
@@ -99,6 +129,7 @@ const SpreadsheetSyncUpdatePage = () => {
   const preview = fileAnalysis?.preview ?? null
   const buildErrors = buildOutcome.buildErrors
   const updates = buildOutcome.updates
+  const variantGarmentByProduct = buildOutcome.variantGarmentByProduct
   const candidates = fileAnalysis?.candidates ?? []
   const extraHeaders = fileAnalysis?.extraHeaders ?? []
 
@@ -106,12 +137,14 @@ const SpreadsheetSyncUpdatePage = () => {
     candidates.length > 0 && candidates.every((c) => enabledList.includes(c.csvKey))
   const noneChecked = enabledList.length === 0
 
+  const hasVariantGarmentWork = variantGarmentByProduct.size > 0
+
   const canSync =
     !!fileAnalysis &&
     preview &&
     preview.validationErrors.length === 0 &&
     buildErrors.length === 0 &&
-    updates.length > 0 &&
+    (updates.length > 0 || hasVariantGarmentWork) &&
     enabledList.length > 0 &&
     !syncing
 
@@ -126,10 +159,12 @@ const SpreadsheetSyncUpdatePage = () => {
     if (pre.validationErrors.length > 0) {
       return
     }
+    const enabled = new Set(enabledList)
     const { updates: toUpdate, errors } = buildBatchUpdatesFromParsedCsv(parsed, {
-      enabledCsvKeys: new Set(enabledList),
+      enabledCsvKeys: enabled,
     })
-    if (errors.length > 0 || toUpdate.length === 0) {
+    const vg = buildVariantGarmentDataByProductId(parsed, enabled)
+    if (errors.length > 0 || vg.errors.length > 0 || (toUpdate.length === 0 && vg.byProduct.size === 0)) {
       return
     }
 
@@ -157,57 +192,142 @@ const SpreadsheetSyncUpdatePage = () => {
 
     try {
       const chunkSize = productUpdateBatchChunkSize(enabledList)
-      const batches = chunkCreates(toUpdate, chunkSize)
-      log.push(
-        `Batch size: ${chunkSize} product(s) per request` +
-          (chunkSize < PRODUCT_UPDATE_BATCH_CHUNK_SIZE
-            ? " (reduced for thumbnail / gallery image columns)."
-            : ".")
-      )
+      if (toUpdate.length > 0) {
+        const batches = chunkCreates(toUpdate, chunkSize)
+        log.push(
+          `Product batch size: ${chunkSize} product(s) per request` +
+            (chunkSize < PRODUCT_UPDATE_BATCH_CHUNK_SIZE
+              ? " (reduced for thumbnail / gallery / variant image columns)."
+              : ".")
+        )
 
-      type BatchProductResp = {
-        updated?: Array<{ id?: string; handle?: string; title?: string }>
-        products?: Array<{ id?: string; handle?: string; title?: string }>
-      }
+        type BatchProductResp = {
+          updated?: Array<{ id?: string; handle?: string; title?: string }>
+          products?: Array<{ id?: string; handle?: string; title?: string }>
+        }
 
-      let batchIdx = 0
-      for (const chunk of batches) {
-        batchIdx++
-        log.push(`Batch ${batchIdx}/${batches.length}: updating ${chunk.length} product(s)...`)
+        let batchIdx = 0
+        for (const chunk of batches) {
+          batchIdx++
+          log.push(`Batch ${batchIdx}/${batches.length}: updating ${chunk.length} product(s)...`)
 
-        const maxAttempts = 3
-        let resp: BatchProductResp | undefined
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            resp = (await sdk.admin.product.batch(
-              { update: chunk as never },
-              { fields: "id,handle,title" }
-            )) as BatchProductResp
-            break
-          } catch (e) {
-            if (!isRetryableBatchError(e) || attempt === maxAttempts) {
-              throw e
+          const maxAttempts = 3
+          let resp: BatchProductResp | undefined
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              resp = (await sdk.admin.product.batch(
+                { update: chunk as never },
+                { fields: "id,handle,title" }
+              )) as BatchProductResp
+              break
+            } catch (e) {
+              if (!isRetryableBatchError(e) || attempt === maxAttempts) {
+                throw e
+              }
+              const msg = e instanceof Error ? e.message : String(e)
+              log.push(`  Request failed (${msg}). Retrying (${attempt}/${maxAttempts}) in 2s…`)
+              setSyncLog([...log])
+              await new Promise((r) => setTimeout(r, 2000))
             }
-            const msg = e instanceof Error ? e.message : String(e)
-            log.push(`  Request failed (${msg}). Retrying (${attempt}/${maxAttempts}) in 2s…`)
-            setSyncLog([...log])
-            await new Promise((r) => setTimeout(r, 2000))
+          }
+
+          if (!resp) {
+            throw new Error("Product batch returned no response after retries.")
+          }
+
+          const updated = resp.updated ?? resp.products ?? []
+          for (const p of updated) {
+            const id = p.id ?? "(unknown id)"
+            const handle = p.handle ?? ""
+            log.push(`  Updated ${id}${handle ? ` (${handle})` : ""}.`)
+          }
+
+          if (!updated.length) {
+            log.push(`  (No products returned in batch response — check Admin API logs.)`)
           }
         }
+      } else {
+        log.push("Skipping product batch — no product-level field updates selected.")
+      }
 
-        if (!resp) {
-          throw new Error("Product batch returned no response after retries.")
-        }
+      const variantEntries = [...vg.byProduct.entries()]
+      if (variantEntries.length > 0) {
+        log.push(
+          `Variant garment metadata (PDP): ${variantEntries.length} product(s), merging metadata from CSV Image 1/2 per Variant SKU…`
+        )
+        let vIdx = 0
+        for (const [productId, skuMap] of variantEntries) {
+          vIdx++
+          log.push(`  Variants ${vIdx}/${variantEntries.length}: product ${productId} (${skuMap.size} SKU row(s) in file)…`)
 
-        const updated = resp.updated ?? resp.products ?? []
-        for (const p of updated) {
-          const id = p.id ?? "(unknown id)"
-          const handle = p.handle ?? ""
-          log.push(`  Updated ${id}${handle ? ` (${handle})` : ""}.`)
-        }
+          const maxAttempts = 3
+          type RetrieveResp = { product?: { variants?: Array<{ id: string; sku?: string | null; metadata?: Record<string, unknown> }> } }
+          let retrieved: RetrieveResp | undefined
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              retrieved = (await sdk.admin.product.retrieve(productId, {
+                fields: "id,variants.id,variants.sku,variants.metadata",
+              })) as RetrieveResp
+              break
+            } catch (e) {
+              if (!isRetryableBatchError(e) || attempt === maxAttempts) {
+                throw e
+              }
+              const msg = e instanceof Error ? e.message : String(e)
+              log.push(`    Retrieve failed (${msg}). Retrying (${attempt}/${maxAttempts}) in 2s…`)
+              setSyncLog([...log])
+              await new Promise((r) => setTimeout(r, 2000))
+            }
+          }
 
-        if (!updated.length) {
-          log.push(`  (No products returned in batch response — check Admin API logs.)`)
+          const variants = retrieved?.product?.variants ?? []
+          const batchUpdates: Array<{ id: string; metadata: Record<string, unknown> }> = []
+          const missingSkus: string[] = []
+
+          for (const [sku, csvRow] of skuMap) {
+            const v = variants.find((x) => (x.sku ?? "").trim() === sku)
+            if (!v) {
+              missingSkus.push(sku)
+              continue
+            }
+            batchUpdates.push({
+              id: v.id,
+              metadata: mergeVariantGarmentMetadata(v.metadata, csvRow),
+            })
+          }
+
+          if (missingSkus.length > 0) {
+            log.push(
+              `    Warning: ${missingSkus.length} SKU(s) from CSV not found on product — skipped: ${missingSkus.slice(0, 8).join(", ")}${missingSkus.length > 8 ? " …" : ""}`
+            )
+          }
+
+          if (batchUpdates.length === 0) {
+            log.push(`    No matching variants to update for this product.`)
+            continue
+          }
+
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+              await sdk.admin.product.batchVariants(
+                productId,
+                { update: batchUpdates as never },
+                { fields: "id,sku" }
+              )
+              break
+            } catch (e) {
+              if (!isRetryableBatchError(e) || attempt === maxAttempts) {
+                throw e
+              }
+              const msg = e instanceof Error ? e.message : String(e)
+              log.push(`    batchVariants failed (${msg}). Retrying (${attempt}/${maxAttempts}) in 2s…`)
+              setSyncLog([...log])
+              await new Promise((r) => setTimeout(r, 2000))
+            }
+          }
+
+          log.push(`    Updated garment metadata on ${batchUpdates.length} variant(s).`)
+          setSyncLog([...log])
         }
       }
 
@@ -226,11 +346,13 @@ const SpreadsheetSyncUpdatePage = () => {
       <div>
         <Heading level="h1">Spreadsheet sync (updates)</Heading>
         <Text size="small" className="text-ui-fg-muted mt-1">
-          <strong>Updates existing products only</strong> via <code className="text-xs">sdk.admin.product.batch</code>{" "}
-          (<code className="text-xs">update</code>). Each row must include <code className="text-xs">Product Id</code>{" "}
-          (<code className="text-xs">prod_…</code>). Choose which spreadsheet columns apply; values come from the first
-          row per Product Id (same shape as Medusa&apos;s import template export). Variant-level columns not listed here are
-          ignored. To create new products, use{" "}
+          <strong>Updates existing products only</strong>: product fields use{" "}
+          <code className="text-xs">sdk.admin.product.batch</code> (<code className="text-xs">update</code>); per-variant
+          PDP photos use <code className="text-xs">variant garment images (PDP metadata)</code> →{" "}
+          <code className="text-xs">sdk.admin.product.batchVariants</code> (merges{" "}
+          <code className="text-xs">metadata.garment_images</code> from every row, matched by Variant SKU). Each row must
+          include <code className="text-xs">Product Id</code> (<code className="text-xs">prod_…</code>). For product-level
+          columns, values come from the <strong>first row</strong> per Product Id. To create new products, use{" "}
           <a href="/app/spreadsheet-sync" className="text-ui-fg-interactive hover:underline">
             Spreadsheet sync (new)
           </a>
@@ -337,9 +459,9 @@ const SpreadsheetSyncUpdatePage = () => {
                     </div>
                   </div>
                   <Text size="small" className="text-ui-fg-muted">
-                    Only columns with at least one non-empty cell on the <strong>first row</strong> of a Product Id are
-                    listed. Sync sends only checked fields — every product row must contribute at least one of those cells
-                    or validation fails that product.
+                    Most columns list only when the <strong>first row</strong> per Product Id has data.{" "}
+                    <strong>Variant garment images (PDP metadata)</strong> uses <strong>every row</strong> (Variant SKU +
+                    Image 1/2 URLs). Sync sends only checked fields.
                   </Text>
                   {candidates.length === 0 ? (
                     <Text size="small" className="text-ui-fg-muted">
@@ -393,15 +515,17 @@ const SpreadsheetSyncUpdatePage = () => {
                 </div>
               ) : null}
 
-              {preview.validationErrors.length === 0 && buildErrors.length === 0 && updates.length > 0 ? (
+              {preview.validationErrors.length === 0 && buildErrors.length === 0 &&
+              (updates.length > 0 || hasVariantGarmentWork) ? (
                 <Text size="small" className="text-ui-fg-success">
-                  Ready — {updates.length} product update(s); {enabledList.length} column
-                  {enabledList.length === 1 ? "" : "s"} selected
+                  Ready — {updates.length} product-level update(s), {variantGarmentByProduct.size} product(s) with variant
+                  garment rows; {enabledList.length} column{enabledList.length === 1 ? "" : "s"} selected
                   {!allChecked ? " (subset)" : ""}.
                 </Text>
               ) : null}
 
-              {preview.validationErrors.length === 0 && buildErrors.length === 0 && updates.length === 0 ? (
+              {preview.validationErrors.length === 0 && buildErrors.length === 0 && updates.length === 0 &&
+              !hasVariantGarmentWork ? (
                 <Text size="small" className="text-ui-fg-muted">
                   {noneChecked || candidates.length === 0
                     ? "Select patch columns above and ensure rows have matching values."
