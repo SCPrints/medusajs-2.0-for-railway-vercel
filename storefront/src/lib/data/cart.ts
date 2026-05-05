@@ -208,15 +208,46 @@ export async function addScpLineItemToCart(input: {
     throw new Error("Error retrieving or creating cart")
   }
 
-  await postJsonMedusa(`/store/carts/${cart.id}/scp-line-items`, {
-    variant_id: variantId,
-    quantity,
-    metadata: metadata ?? {},
-    scp_print: {
-      version: SCP_PRINT_PRICING_VERSION,
-      print_size_id: printSizeId,
-    },
-  })
+  try {
+    await postJsonMedusa(`/store/carts/${cart.id}/scp-line-items`, {
+      variant_id: variantId,
+      quantity,
+      metadata: metadata ?? {},
+      scp_print: {
+        version: SCP_PRINT_PRICING_VERSION,
+        print_size_id: printSizeId,
+      },
+    })
+  } catch (error) {
+    // Keep checkout usable if the custom SCP endpoint or key config is unavailable.
+    await sdk.store.cart
+      .createLineItem(
+        cart.id,
+        {
+          variant_id: variantId,
+          quantity,
+          metadata: {
+            ...(metadata ?? {}),
+            scp_pricing_fallback: true,
+            scp_print: {
+              version: SCP_PRINT_PRICING_VERSION,
+              print_size_id: printSizeId,
+            },
+          },
+        },
+        {},
+        await getAuthHeaders()
+      )
+      .catch((fallbackError) => {
+        const primaryMessage =
+          error instanceof Error ? error.message : "SCP pricing route failed."
+        const fallbackMessage =
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : "Standard add-to-cart fallback failed."
+        throw new Error(`${primaryMessage} ${fallbackMessage}`.trim())
+      })
+  }
 
   revalidateTag("cart")
 }
