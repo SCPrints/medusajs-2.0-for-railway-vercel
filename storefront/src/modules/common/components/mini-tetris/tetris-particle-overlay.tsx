@@ -74,6 +74,21 @@ const EXCITEMENT_DECAY = 0.985
 const AMBIENT_BASE_ALPHA = 0.72
 /** Vignette darkness at canvas corners (0 = no vignette, 1 = corners fully dark). */
 const VIGNETTE_STRENGTH = 0.32
+/** Locked-block "breathing": tiny time-based jitter so locked blobs feel alive
+ * instead of frozen. Amplitude in CSS px. */
+const LOCKED_BREATHE_PX = 0.8
+/** Lock-impact white anticipation flash drawn over the lock cells for a brief
+ * window before the ripple starts. */
+const LOCK_FLASH_LIFE_MS = 110
+/** Field directional drift: each ambient particle's home oscillates in a small
+ * circular orbit defined by its noise-derived drift angle. Reads as gentle
+ * flowing texture on top of the spring physics. */
+const FIELD_DRIFT_PX = 1.6
+const FIELD_DRIFT_RATE = 0.0008
+/** Rotation animation: when the player rotates the piece, briefly scale-pulse
+ * it. Reads as a deliberate punctuation, not an instant teleport. */
+const ROTATION_PULSE_MS = 220
+const ROTATION_PULSE_SCALE = 0.18
 /** Velocity-coupled effects: piece velocity (cells/frame, smoothed) is captured
  * at lock time and used to scale ripple amplitude + the lock burst. Faster
  * impacts produce stronger ripples. */
@@ -188,6 +203,10 @@ export default function TetrisParticleOverlay({
        * at home position. Used at render time to modulate alpha so the field has
        * visible streaks/clusters/voids instead of being uniform noise. */
       density: new Float32Array(TOTAL_AMBIENT),
+      /** Per-particle drift angle (0..2π) baked from a separate noise sample.
+       * Determines each particle's individual circular drift direction so the
+       * field appears to flow gently rather than sit still. */
+      drift: new Float32Array(TOTAL_AMBIENT),
     }
 
     /** Burst particles: object-array, size-capped pool with linear scan for free slots. */
@@ -210,10 +229,27 @@ export default function TetrisParticleOverlay({
     /** Line-clear flash bands: bright horizontal stripes drawn over the cleared row,
      * fading over FLASH_LIFE_MS. Drawn directly to pixBuf each frame. */
     const flashes: Array<{ y: number; bornAt: number }> = []
-    /** Pre-vanish "pop" of the cleared row's blocks: oversized white expansion at
-     * each cell of the cleared row, fading over ~120ms before the row truly
-     * disappears. Reads as the row "popping" before the bursts/flash kick in. */
-    const clearPops: Array<{ y: number; bornAt: number }> = []
+    /** Pre-vanish "pop" of the cleared row's blocks: oversized expansion at
+     * each cell of the cleared row, fading over ~140ms before the row truly
+     * disappears. Tinted by the row's actual block colours (captured from
+     * prev.board at clear detection) so it reads as the row's blocks dispersing
+     * rather than a generic white flash. */
+    const clearPops: Array<{
+      y: number
+      bornAt: number
+      colors: number[]
+    }> = []
+    /** Lock-impact anticipation flash: brief white/colour glow drawn at each
+     * locked cell for ~110ms before the ripple starts. Visual punctuation that
+     * the impact has happened. */
+    const lockFlashes: Array<{
+      cells: Array<{ bx: number; by: number }>
+      bornAt: number
+      colour: readonly [number, number, number]
+    }> = []
+    /** Rotation pulse: triggered when the active piece's rotation index changes.
+     * Scales the active piece's render briefly for visual punctuation. */
+    const rotationPulse = { startedAt: -1 }
     const allocateBurst = (): Burst | null => {
       for (let i = 0; i < bursts.length; i++) {
         const p = bursts[i]!
@@ -267,6 +303,8 @@ export default function TetrisParticleOverlay({
       /** Smoothed move distance per frame (in cells) — used for velocity-coupled
        * ripple amplitude on lock and for scaling the dynamic offset clamp. */
       recentVelocityCells: 0,
+      /** Last seen rotation index so we can detect changes (rotation events). */
+      lastPieceRotation: -1,
     }
 
     /** Pixel buffer for direct-write rendering. Reallocated on resize. */
@@ -322,6 +360,10 @@ export default function TetrisParticleOverlay({
             const n1 = valueNoise2D(hx * noiseScale, hy * noiseScale)
             const n2 = valueNoise2D(hx * noiseScale * 2.7, hy * noiseScale * 2.7)
             const dens = Math.max(0, Math.min(1, n1 * 0.7 + n2 * 0.3))
+            /** Drift angle: sample a different noise frequency for spatial
+             * correlation — neighbouring particles drift in similar directions,
+             * so the whole field reads as gentle directional flow. */
+            const driftN = valueNoise2D(hx * noiseScale * 1.7 + 31.7, hy * noiseScale * 1.7 + 17.3)
             amb.hx[idx] = hx
             amb.hy[idx] = hy
             amb.x[idx] = hx
@@ -330,6 +372,7 @@ export default function TetrisParticleOverlay({
             amb.vy[idx] = 0
             amb.excitement[idx] = 0
             amb.density[idx] = dens
+            amb.drift[idx] = driftN * Math.PI * 2
             idx++
           }
         }
@@ -481,10 +524,13 @@ export default function TetrisParticleOverlay({
               }
             }
           }
-          /** Upward wave + flash band + pre-vanish pop over the cleared row. */
+          /** Upward wave + flash band + pre-vanish pop over the cleared row.
+           * Capture the row's actual block colours so the pop renders in those
+           * tones rather than generic white. */
+          const rowColors = (prev.board[by] ?? []).slice()
           waves.push({ y: rowMidY, strength: WAVE_STRENGTH * 1.6 })
           flashes.push({ y: rowMidY, bornAt: now })
-          clearPops.push({ y: rowMidY, bornAt: now })
+          clearPops.push({ y: rowMidY, bornAt: now, colors: rowColors })
         }
       }
 
@@ -498,6 +544,17 @@ export default function TetrisParticleOverlay({
           const c = cellCentre(cell.bx, cell.by)
           spawnBurst(c.x, c.y, LOCK_BURST_PER_CELL, LOCK_BURST_SPEED)
         }
+      }
+      /** Anticipation flash on lock: bright glow over the lock cells in the
+       * piece's colour for ~110ms before the ripple radiates. Visual punctuation
+       * that says "impact landed here". */
+      if (lockedCells.length > 0 && prev.active != null) {
+        const colour = PIECE_RGB[prev.active.t] ?? [255, 255, 255]
+        lockFlashes.push({
+          cells: lockedCells.slice(),
+          bornAt: now,
+          colour: colour as readonly [number, number, number],
+        })
       }
       if (lockedCells.length > 0) {
         /** Impact centroid sits at the BOTTOM of the locked block (bottom-most row's
@@ -611,11 +668,22 @@ export default function TetrisParticleOverlay({
           pieceMotion.transitionStartedAt = -1
           pieceMotion.recentVelocityCells = 0
         }
+        /** Detect rotation: same piece type, .r changed → trigger pulse. */
+        if (
+          actNow != null &&
+          actNow.t === pieceMotion.lastPieceType &&
+          actNow.r !== pieceMotion.lastPieceRotation &&
+          pieceMotion.lastPieceRotation !== -1
+        ) {
+          rotationPulse.startedAt = now
+        }
         pieceMotion.lastPieceType = actNow != null ? actNow.t : -1
+        pieceMotion.lastPieceRotation = actNow != null ? actNow.r : -1
         pieceMotion.lastCentroidX = activeCentroidX
         pieceMotion.lastCentroidY = activeCentroidY
       } else {
         pieceMotion.lastPieceType = -1
+        pieceMotion.lastPieceRotation = -1
       }
 
       /** Velocity-coupled offset clamp: at rest, cap at PIECE_MAX_LAG_CELLS. During
@@ -648,7 +716,11 @@ export default function TetrisParticleOverlay({
           pieceMotion.transitionStartedAt = -1
         } else {
           const u = elapsed / PIECE_TRANSITION_MS
-          const remaining = (1 - u) * (1 - u) * (1 - u)
+          /** Ease-in (accelerating) curve: piece lingers near old position
+           * briefly, then accelerates toward new — mimics gravity-driven fall.
+           * `remaining = 1 - u^2.5` keeps offset near 1.0 at start, drops fast
+           * as u grows. */
+          const remaining = 1 - Math.pow(u, 2.5)
           smoothOffsetX = pieceMotion.offsetX * remaining
           smoothOffsetY = pieceMotion.offsetY * remaining
         }
@@ -831,10 +903,17 @@ export default function TetrisParticleOverlay({
 
       /** =========== Spring + integration (all ambient particles) =========== */
 
+      const driftPhase = now * FIELD_DRIFT_RATE
       for (let i = 0; i < TOTAL_AMBIENT; i++) {
         amb.excitement[i] = amb.excitement[i]! * EXCITEMENT_DECAY
-        const sx = (amb.hx[i]! - amb.x[i]!) * HOME_SPRING
-        const sy = (amb.hy[i]! - amb.y[i]!) * HOME_SPRING
+        /** Per-particle drift: each particle's effective home oscillates in a
+         * small circular orbit. Phase offset varies per particle (noise-derived)
+         * so neighbours flow in correlated but not identical directions. */
+        const ang = amb.drift[i]! + driftPhase
+        const driftHx = amb.hx[i]! + Math.cos(ang) * FIELD_DRIFT_PX
+        const driftHy = amb.hy[i]! + Math.sin(ang) * FIELD_DRIFT_PX
+        const sx = (driftHx - amb.x[i]!) * HOME_SPRING
+        const sy = (driftHy - amb.y[i]!) * HOME_SPRING
         const nvx = (amb.vx[i]! + sx) * HOME_FRICTION
         const nvy = (amb.vy[i]! + sy) * HOME_FRICTION
         amb.vx[i] = nvx
@@ -910,7 +989,8 @@ export default function TetrisParticleOverlay({
         pr: number,
         pg: number,
         pb: number,
-        seedA: number
+        seedA: number,
+        scale = 1
       ) => {
         /** Blend piece colour with gradient at this position so pieces feel
          * cohesive with the rainbow palette around them. */
@@ -926,11 +1006,12 @@ export default function TetrisParticleOverlay({
         const baseR = Math.min(255, ((pr * 0.45 + grR * 0.55) * 1.05) | 0)
         const baseG = Math.min(255, ((pg * 0.45 + grG * 0.55) * 1.05) | 0)
         const baseB = Math.min(255, ((pb * 0.45 + grB * 0.55) * 1.05) | 0)
-        /** Pixel-space bounding box with margin for the soft edge. */
+        /** Pixel-space bounding box with margin for the soft edge. Scale lets
+         * callers apply a rotation-pulse expansion. */
         const cxPx = cssX * dpr
         const cyPx = cssY * dpr
-        const halfWPx = blockHalfW * dpr
-        const halfHPx = blockHalfH * dpr
+        const halfWPx = blockHalfW * dpr * scale
+        const halfHPx = blockHalfH * dpr * scale
         const margin = 3
         const x0 = Math.max(0, ((cxPx - halfWPx - margin) | 0))
         const y0 = Math.max(0, ((cyPx - halfHPx - margin) | 0))
@@ -1007,27 +1088,49 @@ export default function TetrisParticleOverlay({
         }
       }
 
-      /** Locked cells: stable jitter seeded by board coords so the blob doesn't
-       * shimmer between frames. */
+      /** Locked cells: each blob breathes via a tiny per-cell sinusoidal offset
+       * so the static stack feels alive instead of frozen. Phase varies per
+       * cell (seeded by bx, by) so they shimmer in different directions. */
+      const breathePhase = now * 0.0009
       for (let by = 0; by < BOARD_H; by++) {
         for (let bx = 0; bx < BOARD_W; bx++) {
           const v = brdNow[by]?.[bx] ?? 0
           if (v === 0) continue
           const colour = PIECE_RGB[v - 1] ?? [255, 255, 255]
           const c = cellCentre(bx, by)
+          const seed = bx * 1009 + by * 17 + 1
+          /** Tiny breathing wobble — different phase per cell for organic shimmer. */
+          const breatheX =
+            Math.sin(breathePhase + bx * 0.4 + by * 0.7) * LOCKED_BREATHE_PX
+          const breatheY =
+            Math.cos(breathePhase * 1.13 + bx * 0.6 + by * 0.3) *
+            LOCKED_BREATHE_PX
           renderBlockBlob(
-            c.x,
-            c.y,
+            c.x + breatheX,
+            c.y + breatheY,
             colour[0]!,
             colour[1]!,
             colour[2]!,
-            bx * 1009 + by * 17 + 1
+            seed
           )
         }
       }
       /** Active piece: stable jitter seeded by within-piece cell index so the blob
        * pattern stays the same as the piece moves/rotates. Position uses the
-       * smoothly-interpolated offset for fluid motion. */
+       * smoothly-interpolated offset for fluid motion. Rotation pulse briefly
+       * scales the piece up to punctuate rotation events. */
+      let activeScale = 1
+      if (rotationPulse.startedAt >= 0) {
+        const elapsed = now - rotationPulse.startedAt
+        if (elapsed >= ROTATION_PULSE_MS) {
+          rotationPulse.startedAt = -1
+        } else {
+          const u = elapsed / ROTATION_PULSE_MS
+          /** Bell curve: 0→1→0 over the pulse duration. */
+          const bell = Math.sin(u * Math.PI)
+          activeScale = 1 + ROTATION_PULSE_SCALE * bell
+        }
+      }
       if (actNow != null) {
         const colour = PIECE_RGB[actNow.t] ?? [255, 255, 255]
         for (let aci = 0; aci < activeCellsForMotion.length; aci++) {
@@ -1039,7 +1142,8 @@ export default function TetrisParticleOverlay({
             colour[0]!,
             colour[1]!,
             colour[2]!,
-            900000 + aci * 31
+            900000 + aci * 31,
+            activeScale
           )
         }
       }
@@ -1212,10 +1316,57 @@ export default function TetrisParticleOverlay({
         }
       }
 
-      /** Pre-vanish pop: at line clear, draw oversized white blocks at the cleared
-       * row's positions for ~140ms — reads as the row's blocks "popping" outward
-       * before they vanish. Combined with the flash band below, gives a juicy
-       * visual punch to line clears. */
+      /** Lock anticipation flash: brief bright glow over each just-locked cell,
+       * tinted by the piece's colour. Drawn over locked blocks before ripples
+       * radiate. ~110ms. */
+      for (let li = lockFlashes.length - 1; li >= 0; li--) {
+        const lf = lockFlashes[li]!
+        const age = now - lf.bornAt
+        if (age >= LOCK_FLASH_LIFE_MS) {
+          lockFlashes.splice(li, 1)
+          continue
+        }
+        const u = age / LOCK_FLASH_LIFE_MS
+        /** Bell curve so flash rises and falls in the window. */
+        const bell = Math.sin(u * Math.PI)
+        const a = (bell * 200) | 0
+        if (a < 8) continue
+        const lr = lf.colour[0]
+        const lg = lf.colour[1]
+        const lb = lf.colour[2]
+        const halfWPx = sizeState.cellW * 0.55 * (1 + bell * 0.25) * dpr
+        const halfHPx = sizeState.cellH * 0.55 * (1 + bell * 0.25) * dpr
+        for (const cc of lf.cells) {
+          const c = cellCentre(cc.bx, cc.by)
+          const cxPx = c.x * dpr
+          const cyPx = c.y * dpr
+          const x0 = Math.max(0, ((cxPx - halfWPx) | 0))
+          const y0 = Math.max(0, ((cyPx - halfHPx) | 0))
+          const x1 = Math.min(PW, ((cxPx + halfWPx) | 0))
+          const y1 = Math.min(PH, ((cyPx + halfHPx) | 0))
+          for (let py = y0; py < y1; py++) {
+            const rowOff = py * PW * 4
+            for (let px = x0; px < x1; px++) {
+              const off = rowOff + px * 4
+              const k = a / 255
+              /** Additive blend toward the piece's tinted-white. */
+              const tr = (lr + 255) >> 1
+              const tg = (lg + 255) >> 1
+              const tb = (lb + 255) >> 1
+              pixBuf[off] = (pixBuf[off]! + (tr - pixBuf[off]!) * k) | 0
+              pixBuf[off + 1] =
+                (pixBuf[off + 1]! + (tg - pixBuf[off + 1]!) * k) | 0
+              pixBuf[off + 2] =
+                (pixBuf[off + 2]! + (tb - pixBuf[off + 2]!) * k) | 0
+              if (a > pixBuf[off + 3]!) pixBuf[off + 3] = a
+            }
+          }
+        }
+      }
+
+      /** Pre-vanish pop: at line clear, draw oversized blocks tinted by the
+       * row's actual block colours for ~140ms — reads as the row's blocks
+       * dispersing rather than a generic white flash. */
       const POP_LIFE_MS = 140
       for (let pi = clearPops.length - 1; pi >= 0; pi--) {
         const pop = clearPops[pi]!
@@ -1227,7 +1378,7 @@ export default function TetrisParticleOverlay({
         const u = age / POP_LIFE_MS
         /** Expand from 1.0 to 1.5 over the pop's life. */
         const scale = 1 + u * 0.5
-        const a = (1 - u) * 255
+        const a = ((1 - u) * 255) | 0
         const halfWPx = sizeState.cellW * 0.5 * scale * dpr
         const halfHPx = sizeState.cellH * 0.5 * scale * dpr
         const cyPx = (pop.y * dpr) | 0
@@ -1239,14 +1390,29 @@ export default function TetrisParticleOverlay({
           const y0 = Math.max(0, (cyPx - halfHPx) | 0)
           const x1 = Math.min(PW, (cxPx + halfWPx) | 0)
           const y1 = Math.min(PH, (cyPx + halfHPx) | 0)
+          /** Tint by the actual block colour at this column (captured from the
+           * row before it cleared), brightened toward white as the pop fades. */
+          const cellVal = pop.colors[bx] ?? 0
+          const cellColour =
+            cellVal > 0 ? PIECE_RGB[cellVal - 1] : null
+          if (cellColour == null) continue
+          /** Brighter at the centre of the pop's life (bell), fades outward. */
+          const bell = Math.sin(u * Math.PI)
+          const whiteK = 0.5 + bell * 0.5
+          const cr =
+            (cellColour[0] + (255 - cellColour[0]) * whiteK) | 0
+          const cg =
+            (cellColour[1] + (255 - cellColour[1]) * whiteK) | 0
+          const cb =
+            (cellColour[2] + (255 - cellColour[2]) * whiteK) | 0
           for (let py = y0; py < y1; py++) {
             const rowOff = py * PW * 4
             for (let px = x0; px < x1; px++) {
               const off = rowOff + px * 4
-              pixBuf[off] = 255
-              pixBuf[off + 1] = 255
-              pixBuf[off + 2] = 255
-              pixBuf[off + 3] = a | 0
+              pixBuf[off] = cr
+              pixBuf[off + 1] = cg
+              pixBuf[off + 2] = cb
+              pixBuf[off + 3] = a
             }
           }
         }

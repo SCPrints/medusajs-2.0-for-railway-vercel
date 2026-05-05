@@ -561,7 +561,7 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
 
   return (
     <div
-      className={`rounded-lg border border-white/10 bg-ui-fg-base text-white ${wrapPad}`}
+      className={`text-white ${wrapPad}`}
     >
       <div
         className={`flex flex-col small:flex-row ${colGap} small:items-start`}
@@ -573,12 +573,9 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
           aria-label="Mini Tetris. Focus this area to use the keyboard."
           tabIndex={0}
         >
-          <p className="text-xs text-white/60 mb-2">
-            Click the board, then: arrows move / soft drop, up or X = rotate, Space
-            or Enter = hard drop.{" "}
-            {reduceMotion
-              ? "Reduced motion: gravity is slower."
-              : null}
+          <p className="text-[11px] text-white/40 mb-3 tracking-wide">
+            Click the board · arrows move / soft drop · ↑ or X = rotate · space = hard drop
+            {reduceMotion ? " · reduced motion" : ""}
           </p>
           <div
             className="relative inline-block rounded-md"
@@ -614,43 +611,61 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
         </div>
 
         <div
-          className={`flex flex-col gap-3 ${sideMinW} text-sm text-white`}
+          className={`flex flex-col gap-5 ${sideMinW} text-sm text-white`}
         >
           <div>
-            <p className="text-xs font-medium text-white/60 uppercase tracking-wide">
+            <p className="text-[10px] font-semibold text-white/40 uppercase tracking-[0.2em]">
               Score
             </p>
             <p
-              className={
-                size === "lg"
-                  ? "text-2xl font-semibold tabular-nums"
-                  : "text-xl font-semibold tabular-nums"
-              }
+              className="font-bold tabular-nums tracking-tight"
+              style={{
+                fontSize:
+                  size === "xl"
+                    ? "2.75rem"
+                    : size === "lg"
+                    ? "2.25rem"
+                    : "1.625rem",
+                lineHeight: 1.05,
+                textShadow:
+                  "0 0 12px rgba(120,180,255,0.45), 0 0 30px rgba(120,180,255,0.25)",
+              }}
             >
               {state.score}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-white/60 uppercase tracking-wide">
+            <p className="text-[10px] font-semibold text-white/40 uppercase tracking-[0.2em]">
               Lines
             </p>
             <p
-              className={
-                size === "lg"
-                  ? "text-2xl font-semibold tabular-nums"
-                  : "text-lg font-semibold tabular-nums"
-              }
+              className="font-bold tabular-nums tracking-tight"
+              style={{
+                fontSize:
+                  size === "xl"
+                    ? "2.25rem"
+                    : size === "lg"
+                    ? "1.75rem"
+                    : "1.25rem",
+                lineHeight: 1.05,
+                textShadow:
+                  "0 0 10px rgba(120,180,255,0.35), 0 0 24px rgba(120,180,255,0.18)",
+              }}
             >
               {state.lines}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-white/60 mb-1 uppercase tracking-wide">
+            <p className="text-[10px] font-semibold text-white/40 mb-2 uppercase tracking-[0.2em]">
               Next
             </p>
             <div
-              className="grid gap-px p-1 rounded border border-white/15 bg-black inline-block"
-              style={{ gridTemplateColumns: "repeat(4, 1fr)" }}
+              className="grid gap-px p-2 rounded-md bg-black/60 inline-block"
+              style={{
+                gridTemplateColumns: "repeat(4, 1fr)",
+                boxShadow:
+                  "0 0 0 1px rgba(255,255,255,0.04), 0 0 16px 2px rgba(120,180,255,0.08)",
+              }}
             >
               {nextMat.map((row, ri) =>
                 row.map((cell, ci) => (
