@@ -8,11 +8,12 @@ import {
   SCP_BLANK_ALIGNED_QUANTITY_TIERS,
   SCP_PRINT_SIZE_OPTIONS,
   resolveScpTierIndexForQuantity,
-  scpPrintTotalMajorPerGarment,
+  scpPrintTotalMajorPerGarmentForSides,
+  resolveScpPrintSizeForSide,
   scpPrintUnitMajorForTier,
   type ScpPrintSizeId,
 } from "@modules/customizer/lib/scp-dtf-print-pricing"
-import { PricingBreakdown, SizeQuantity } from "@modules/customizer/lib/types"
+import { GarmentSide, PricingBreakdown, SizeQuantity } from "@modules/customizer/lib/types"
 
 type PricingPanelProps = {
   currencyCode: string
@@ -35,7 +36,7 @@ type PricingPanelProps = {
   scpPrintSizeId: ScpPrintSizeId
   onScpPrintSizeIdChange: (id: ScpPrintSizeId) => void
   /** Decorated sides used for SCP totals (matches customizer canvas). */
-  decoratedSidesCount: number
+  decoratedSides: GarmentSide[]
   /** When true, breakdown labels reflect SCP tiered print dollars instead of the legacy flat surcharge. */
   scpPricingEnabled?: boolean
 }
@@ -66,13 +67,13 @@ export default function PricingPanel({
   embedPdpQuantityStepNumber = 3,
   scpPrintSizeId,
   onScpPrintSizeIdChange,
-  decoratedSidesCount,
+  decoratedSides,
   scpPricingEnabled = true,
 }: PricingPanelProps) {
   const quantity = sizes.reduce((total, entry) => total + entry.quantity, 0)
   const safeEstimatorQuantity = Math.max(1, quantity)
 
-  const safeSides = Math.max(0, Math.floor(decoratedSidesCount || 0))
+  const safeSides = Array.isArray(decoratedSides) ? decoratedSides.length : 0
 
   const scpTierIndex = resolveScpTierIndexForQuantity(safeEstimatorQuantity)
 
@@ -80,17 +81,19 @@ export default function PricingPanel({
     if (safeSides <= 0) {
       return 0
     }
-    return scpPrintUnitMajorForTier(scpPrintSizeId, scpTierIndex)
-  }, [scpPrintSizeId, scpTierIndex, safeSides])
+    const firstSide = decoratedSides[0] ?? "front"
+    const sizeForFirstSide = resolveScpPrintSizeForSide(firstSide, scpPrintSizeId)
+    return scpPrintUnitMajorForTier(sizeForFirstSide, scpTierIndex)
+  }, [decoratedSides, scpPrintSizeId, scpTierIndex, safeSides])
 
   const printPerGarmentMajor = useMemo(
     () =>
-      scpPrintTotalMajorPerGarment({
-        printSizeId: scpPrintSizeId,
+      scpPrintTotalMajorPerGarmentForSides({
+        selectedPrintSizeId: scpPrintSizeId,
         tierIndex: scpTierIndex,
-        decoratedSidesCount: safeSides,
+        decoratedSides,
       }),
-    [scpPrintSizeId, scpTierIndex, safeSides]
+    [decoratedSides, scpPrintSizeId, scpTierIndex]
   )
 
   const estimatedPrintJobMajor = printPerGarmentMajor * safeEstimatorQuantity

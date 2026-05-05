@@ -7,6 +7,7 @@ const SIDE_OPTIONS: { value: GarmentSide; label: string; short: string }[] = [
   { value: "back", label: "Back", short: "Back" },
   { value: "left_sleeve", label: "Left Sleeve", short: "Left" },
   { value: "right_sleeve", label: "Right Sleeve", short: "Right" },
+  { value: "printed_tag", label: "Printed Tag", short: "Tag" },
 ]
 
 type SideSelectorProps = {

@@ -1,6 +1,10 @@
 import {
+  decoratedLocationsFromLineMetadata,
+  decoratedSidesFromLineMetadata,
   decoratedSidesCountFromLineMetadata,
   resolveScpTierIndexForQuantity,
+  scpPrintTotalMajorFromLocations,
+  scpPrintTotalMajorPerGarmentForSides,
   scpPrintTotalMajorPerGarment,
   scpPrintUnitMajorForTier,
 } from "../scp-dtf-print-pricing"
@@ -34,6 +38,16 @@ describe("scp-dtf-print-pricing", () => {
     ).toBe(11)
   })
 
+  it("forces sleeves + printed tag to A6 pricing", () => {
+    expect(
+      scpPrintTotalMajorPerGarmentForSides({
+        selectedPrintSizeId: "oversize",
+        tierIndex: 0,
+        decoratedSides: ["front", "left_sleeve", "printed_tag"],
+      })
+    ).toBe(29.5)
+  })
+
   it("counts decorated sides from customizerDesign artifacts", () => {
     expect(
       decoratedSidesCountFromLineMetadata({
@@ -42,6 +56,46 @@ describe("scp-dtf-print-pricing", () => {
         },
       })
     ).toBe(2)
+  })
+
+  it("returns decorated side keys from metadata artifacts", () => {
+    expect(
+      decoratedSidesFromLineMetadata({
+        customizerDesign: {
+          artifacts: [{ side: "front" }, { side: "printed_tag" }],
+        },
+      })
+    ).toEqual(["front", "printed_tag"])
+  })
+
+  it("returns decorated locations with optional print_size_id", () => {
+    expect(
+      decoratedLocationsFromLineMetadata({
+        customizerDesign: {
+          artifacts: [
+            { side: "front", print_size_id: "up_to_a3" },
+            { side: "left_sleeve" },
+          ],
+        },
+      })
+    ).toEqual([
+      { side: "front", printSizeId: "up_to_a3" },
+      { side: "left_sleeve", printSizeId: undefined },
+    ])
+  })
+
+  it("uses per-location print size ids with sleeve/tag forced to A6", () => {
+    expect(
+      scpPrintTotalMajorFromLocations({
+        selectedPrintSizeId: "oversize",
+        tierIndex: 0,
+        locations: [
+          { side: "front", printSizeId: "up_to_a3" },
+          { side: "left_sleeve", printSizeId: "oversize" },
+          { side: "printed_tag", printSizeId: "oversize" },
+        ],
+      })
+    ).toBe(32)
   })
 
   it("falls back to one side when printPlacement is present without artifacts", () => {

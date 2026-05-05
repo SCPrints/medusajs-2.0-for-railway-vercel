@@ -37,7 +37,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import * as fabric from "fabric"
 import { FabricImage } from "fabric"
 
-const DESIGN_SIDES: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve"]
+const DESIGN_SIDES: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
 const MAX_UPLOAD_SIZE = 8 * 1024 * 1024
 const PRINT_AREA_INCHES = { width: 12, height: 16 }
 const SESSION_UPLOADS_KEY = "customizer_uploads_v1"
@@ -396,6 +396,7 @@ export default function CustomizerTemplate({
     back: [],
     left_sleeve: [],
     right_sleeve: [],
+    printed_tag: [],
   })
 
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
@@ -499,15 +500,16 @@ export default function CustomizerTemplate({
 
   const garmentDisplayTitle = selectedProduct?.title ?? defaultGarmentTitle
 
-  const decoratedSidesCount = useMemo(
-    () =>
-      DESIGN_SIDES.filter((side) => (sideLayoutsRef.current[side] ?? []).length > 0).length,
+  const decoratedSides = useMemo(
+    () => DESIGN_SIDES.filter((side) => (sideLayoutsRef.current[side] ?? []).length > 0),
     [layoutVersion]
   )
+  const decoratedSidesCount = decoratedSides.length
   const totalQty = sizeMatrix.reduce((total, entry) => total + entry.quantity, 0)
   const pricing = calculatePricing({
     basePriceCents,
     decoratedSidesCount,
+    decoratedSides,
     totalQuantity: totalQty,
     bulkPricingTiers,
     scpPrint: { printSizeId: scpPrintSizeId },
@@ -1640,7 +1642,7 @@ export default function CustomizerTemplate({
               embedPdpQuantityStepNumber={embedPdpQuantityStepNumber}
               scpPrintSizeId={scpPrintSizeId}
               onScpPrintSizeIdChange={setScpPrintSizeId}
-              decoratedSidesCount={decoratedSidesCount}
+              decoratedSides={decoratedSides}
             />
 
             <details className="group rounded-xl border border-ui-border-base bg-ui-bg-base p-4">

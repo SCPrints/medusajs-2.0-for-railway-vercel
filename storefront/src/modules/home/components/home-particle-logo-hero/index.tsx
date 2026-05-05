@@ -1280,7 +1280,10 @@ function drawLayer(
   wakeAlphaMult = 1,
   /** When false, skip the soft base-sprite layer and draw only the core sprite. Produces
    * a sharper, less bloomed look — matches Newmix's crisp individual particles. */
-  useDualPass = true
+  useDualPass = true,
+  /** Optional linear gradient overlay applied to the rendered particle pixels via
+   * `globalCompositeOperation = 'source-in'`. `angleDeg` follows CSS convention. */
+  wordmarkGradient: { angleDeg: number; stops: string[] } | null = null
 ) {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   /** Smoothing on so the soft sprite blits scale cleanly when the canvas is at a
@@ -1364,6 +1367,35 @@ function drawLayer(
    * dimmed by the last sprite-blit alpha. */
   ctx.globalAlpha = 1
 
+  if (wordmarkGradient != null && wordmarkGradient.stops.length >= 2) {
+    /** Recolour the rendered particles with a multi-stop linear gradient.
+     * `source-in` keeps only existing pixels and replaces their colour with the
+     * gradient at the particle's position. */
+    const angleRad = (wordmarkGradient.angleDeg * Math.PI) / 180
+    /** CSS convention: 0deg points up, increasing clockwise. Canvas y is downward,
+     * so the direction vector is (sin(a), -cos(a)). */
+    const dx = Math.sin(angleRad)
+    const dy = -Math.cos(angleRad)
+    const cx = canvas.width / 2
+    const cy = canvas.height / 2
+    const len = Math.hypot(canvas.width, canvas.height)
+    const x0 = cx - (dx * len) / 2
+    const y0 = cy - (dy * len) / 2
+    const x1 = cx + (dx * len) / 2
+    const y1 = cy + (dy * len) / 2
+    const grad = ctx.createLinearGradient(x0, y0, x1, y1)
+    const stops = wordmarkGradient.stops
+    const denom = Math.max(1, stops.length - 1)
+    for (let i = 0; i < stops.length; i++) {
+      grad.addColorStop(i / denom, stops[i]!)
+    }
+    ctx.save()
+    ctx.globalCompositeOperation = "source-in"
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.restore()
+  }
+
   const m = mouseRef.current
   if (
     SHOW_MOUSE_CURSOR_DEBUG_MARKER &&
@@ -1434,6 +1466,18 @@ type Props = {
    * - `"auto"` (default): inspect the image and pick whichever is dominant
    */
   inkPolarity?: "auto" | "bright" | "dark"
+  /**
+   * Tailwind class for the embedded section background. Default `bg-black`.
+   * Set to e.g. `"bg-ui-fg-base"` to seamlessly blend with the site header.
+   */
+  bgClassName?: string
+  /**
+   * Optional linear-gradient overlay applied to the rendered particle stipple via
+   * `globalCompositeOperation = 'source-in'`. Recolours the wordmark with a multi-stop
+   * gradient. `angleDeg` follows CSS convention (0° = upward, increasing clockwise).
+   * Set `stops` to a list of CSS colour strings (any length).
+   */
+  wordmarkGradient?: { angleDeg: number; stops: string[] } | null
 }
 
 export default function HomeParticleLogoHero({
@@ -1447,11 +1491,15 @@ export default function HomeParticleLogoHero({
   flowLiveTuning = null,
   displacedLiveTuning = null,
   inkPolarity = "auto",
+  bgClassName = "bg-black",
+  wordmarkGradient = null,
 }: Props) {
   const presentationRef = useRef(presentation)
   presentationRef.current = presentation
   const interactionModeRef = useRef(interactionMode)
   interactionModeRef.current = interactionMode
+  const wordmarkGradientRef = useRef(wordmarkGradient)
+  wordmarkGradientRef.current = wordmarkGradient
   const wakeTrailRef = useRef<Array<{ x: number; y: number }>>([])
   const viscousCoffeeTrailRef = useRef<Array<{ x: number; y: number }>>([])
   const viscousCoffeeErodeAccRef = useRef(0)
@@ -1924,7 +1972,8 @@ export default function HomeParticleLogoHero({
         ? newmixLiveMergedRef.current.wakeAlphaMult
         : 1,
       /** Newmix mode uses crisp single-pass rendering; other modes keep the dual-pass bloom. */
-      interactionModeRef.current !== "newmix"
+      interactionModeRef.current !== "newmix",
+      wordmarkGradientRef.current
     )
 
     setLogoRasterReady(particles.length > 0)
@@ -3401,7 +3450,8 @@ export default function HomeParticleLogoHero({
           viscousCoffee ? viscousCoffeeWakeParticlesRef.current : null,
           newmix && nm != null ? nm.wakeAlphaMult : 1,
           /** Newmix mode uses crisp single-pass rendering; other modes keep the dual-pass bloom. */
-          !newmix
+          !newmix,
+          wordmarkGradientRef.current
         )
 
         const tiltEl = logoTiltLayerRef.current
@@ -3786,7 +3836,7 @@ export default function HomeParticleLogoHero({
       aria-label={
         sectionAriaLabel ?? "SC Prints — interactive particle logo"
       }
-      className="relative flex min-h-[min(72vh,680px)] w-full flex-col overflow-hidden bg-black text-white"
+      className={`relative flex min-h-[min(72vh,680px)] w-full flex-col overflow-hidden ${bgClassName} text-white`}
     >
       <div
         ref={(node) => {

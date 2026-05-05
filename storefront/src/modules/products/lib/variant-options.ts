@@ -4,7 +4,7 @@ import { isEqual } from "lodash"
 import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
 
 /** Same values as customizer `GarmentSide`; kept local to avoid importing customizer from product lib. */
-type PrintGarmentSide = "front" | "back" | "left_sleeve" | "right_sleeve"
+type PrintGarmentSide = "front" | "back" | "left_sleeve" | "right_sleeve" | "printed_tag"
 
 /** Short-sleeve side-view mockups (`public/placeholders/customizer/`). */
 const SLEEVE_PLACEHOLDER_LEFT_SHORT = "/placeholders/customizer/left-sleeve-placeholder.png"
@@ -759,6 +759,10 @@ export function getGarmentImageUrlForPrintSide(
   }
 
   const primaryFallback = getPrimaryGarmentImageUrl(product, variant) ?? defaultGarmentImage
+
+  if (side === "printed_tag") {
+    return primaryFallback
+  }
 
   if (!product) {
     return primaryFallback

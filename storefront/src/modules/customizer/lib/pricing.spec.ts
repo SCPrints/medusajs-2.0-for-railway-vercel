@@ -37,6 +37,19 @@ describe("calculatePricing", () => {
     expect(pricing.sideSurchargePerUnitCents).toBe(11)
   })
 
+  it("forces sleeve + printed_tag locations to A6 tier price", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 3,
+      decoratedSides: ["front", "left_sleeve", "printed_tag"],
+      totalQuantity: 10,
+      scpPrint: { printSizeId: "up_to_a3" },
+    })
+
+    // Qty 10 => tier 1: A3 front $13.5 + A6 sleeve $7.5 + A6 printed tag $7.5 = $28.5
+    expect(pricing.sideSurchargePerUnitCents).toBe(28.5)
+  })
+
   it("uses bulk tiers as base unit pricing when provided", () => {
     const pricing = calculatePricing({
       basePriceCents: 30,

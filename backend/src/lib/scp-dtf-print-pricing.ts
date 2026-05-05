@@ -56,6 +56,7 @@ export const SCP_PRINT_UNIT_MATRIX: Record<ScpPrintSizeId, readonly [number, num
   }
 
 export const DEFAULT_SCP_PRINT_SIZE_ID: ScpPrintSizeId = "up_to_a6"
+export const SCP_A6_ONLY_SIDES = new Set(["left_sleeve", "right_sleeve", "printed_tag"])
 
 export const isScpPrintSizeId = (value: unknown): value is ScpPrintSizeId =>
   value === "up_to_a6" || value === "up_to_a4" || value === "up_to_a3" || value === "oversize"
@@ -80,6 +81,10 @@ export function scpPrintUnitMajorForTier(printSizeId: ScpPrintSizeId, tierIndex:
   return row[idx] ?? 0
 }
 
+export function resolveScpPrintSizeForSide(side: string, selectedPrintSizeId: ScpPrintSizeId): ScpPrintSizeId {
+  return SCP_A6_ONLY_SIDES.has(side) ? "up_to_a6" : selectedPrintSizeId
+}
+
 /**
  * Total SCP print dollars per garment (all decorated sides share one print size in v1).
  */
@@ -93,22 +98,93 @@ export function scpPrintTotalMajorPerGarment(args: {
   return Math.round(unit * sides * 100) / 100
 }
 
+/**
+ * Per-side pricing with forced A6 for sleeves + printed_tag.
+ */
+export function scpPrintTotalMajorPerGarmentForSides(args: {
+  selectedPrintSizeId: ScpPrintSizeId
+  tierIndex: number
+  decoratedSides: string[]
+}): number {
+  const sides = args.decoratedSides.filter((s) => typeof s === "string" && s.trim().length > 0)
+  if (!sides.length) {
+    return 0
+  }
+  const total = sides.reduce((sum, side) => {
+    const sizeId = resolveScpPrintSizeForSide(side, args.selectedPrintSizeId)
+    return sum + scpPrintUnitMajorForTier(sizeId, args.tierIndex)
+  }, 0)
+  return Math.round(total * 100) / 100
+}
+
 export type CustomizerDesignLike = {
   artifacts?: unknown
   type?: unknown
 }
 
-export function decoratedSidesCountFromLineMetadata(metadata: Record<string, unknown> | null | undefined): number {
+export type DecoratedLocation = {
+  side: string
+  printSizeId?: ScpPrintSizeId
+}
+
+const maybePrintSizeId = (value: unknown): ScpPrintSizeId | undefined =>
+  isScpPrintSizeId(value) ? value : undefined
+
+export function decoratedLocationsFromLineMetadata(
+  metadata: Record<string, unknown> | null | undefined
+): DecoratedLocation[] {
   if (!metadata || typeof metadata !== "object") {
-    return 0
+    return []
   }
   const customizerDesign = metadata.customizerDesign as CustomizerDesignLike | undefined
   if (customizerDesign && Array.isArray(customizerDesign.artifacts)) {
-    return customizerDesign.artifacts.filter((a) => a != null && typeof a === "object").length
+    return customizerDesign.artifacts
+      .map((a) => {
+        const side = (a as { side?: unknown })?.side
+        if (typeof side !== "string" || !side.trim().length) {
+          return null
+        }
+        const artifactSize = maybePrintSizeId((a as { print_size_id?: unknown })?.print_size_id)
+        return {
+          side: side.trim(),
+          printSizeId: artifactSize,
+        } satisfies DecoratedLocation
+      })
+      .filter((location) => location !== null) as DecoratedLocation[]
   }
   const placement = metadata.printPlacement as Record<string, unknown> | undefined
-  if (placement && typeof placement === "object") {
-    return 1
+  const side = placement?.side
+  if (placement && typeof placement === "object" && typeof side === "string" && side.trim()) {
+    return [{ side: side.trim() }]
   }
-  return 0
+  if (placement && typeof placement === "object") {
+    return [{ side: "front" }]
+  }
+  return []
+}
+
+export function decoratedSidesFromLineMetadata(
+  metadata: Record<string, unknown> | null | undefined
+): string[] {
+  return decoratedLocationsFromLineMetadata(metadata).map((l) => l.side)
+}
+
+export function decoratedSidesCountFromLineMetadata(metadata: Record<string, unknown> | null | undefined): number {
+  return decoratedSidesFromLineMetadata(metadata).length
+}
+
+export function scpPrintTotalMajorFromLocations(args: {
+  selectedPrintSizeId: ScpPrintSizeId
+  tierIndex: number
+  locations: DecoratedLocation[]
+}): number {
+  if (!args.locations.length) {
+    return 0
+  }
+  const total = args.locations.reduce((sum, location) => {
+    const requested = location.printSizeId ?? args.selectedPrintSizeId
+    const sizeId = resolveScpPrintSizeForSide(location.side, requested)
+    return sum + scpPrintUnitMajorForTier(sizeId, args.tierIndex)
+  }, 0)
+  return Math.round(total * 100) / 100
 }

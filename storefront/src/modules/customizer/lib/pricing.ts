@@ -3,6 +3,7 @@ import { convertToLocale } from "@lib/util/money"
 import {
   resolveScpTierIndexForQuantity,
   scpPrintTotalMajorPerGarment,
+  scpPrintTotalMajorPerGarmentForSides,
 } from "./scp-dtf-print-pricing"
 import { BulkPricingTier, PricingBreakdown, PricingInput } from "./types"
 
@@ -66,6 +67,7 @@ export const formatCurrency = (amount: number, currencyCode = "aud") =>
 export const calculatePricing = ({
   basePriceCents,
   decoratedSidesCount,
+  decoratedSides,
   totalQuantity,
   bulkPricingTiers,
   scpPrint,
@@ -77,11 +79,17 @@ export const calculatePricing = ({
 
   if (scpPrint && decoratedSides > 0) {
     const tierIndex = resolveScpTierIndexForQuantity(safeQuantity)
-    sideSurchargePerUnit = scpPrintTotalMajorPerGarment({
-      printSizeId: scpPrint.printSizeId,
-      tierIndex,
-      decoratedSidesCount: decoratedSides,
-    })
+    sideSurchargePerUnit = Array.isArray(decoratedSides) && decoratedSides.length
+      ? scpPrintTotalMajorPerGarmentForSides({
+          selectedPrintSizeId: scpPrint.printSizeId,
+          tierIndex,
+          decoratedSides,
+        })
+      : scpPrintTotalMajorPerGarment({
+          printSizeId: scpPrint.printSizeId,
+          tierIndex,
+          decoratedSidesCount: decoratedSides,
+        })
   }
   const normalizedTiers = normalizeTiers(bulkPricingTiers)
   const activeBulkTier = normalizedTiers.length

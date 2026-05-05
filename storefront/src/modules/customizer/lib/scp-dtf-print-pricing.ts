@@ -41,6 +41,7 @@ export const SCP_PRINT_UNIT_MATRIX: Record<ScpPrintSizeId, readonly [number, num
   }
 
 export const DEFAULT_SCP_PRINT_SIZE_ID: ScpPrintSizeId = "up_to_a6"
+export const SCP_A6_ONLY_SIDES = new Set(["left_sleeve", "right_sleeve", "printed_tag"])
 
 export const isScpPrintSizeId = (value: unknown): value is ScpPrintSizeId =>
   value === "up_to_a6" || value === "up_to_a4" || value === "up_to_a3" || value === "oversize"
@@ -65,6 +66,10 @@ export function scpPrintUnitMajorForTier(printSizeId: ScpPrintSizeId, tierIndex:
   return row[idx] ?? 0
 }
 
+export function resolveScpPrintSizeForSide(side: string, selectedPrintSizeId: ScpPrintSizeId): ScpPrintSizeId {
+  return SCP_A6_ONLY_SIDES.has(side) ? "up_to_a6" : selectedPrintSizeId
+}
+
 export function scpPrintTotalMajorPerGarment(args: {
   printSizeId: ScpPrintSizeId
   tierIndex: number
@@ -73,4 +78,20 @@ export function scpPrintTotalMajorPerGarment(args: {
   const sides = Math.max(0, Math.floor(args.decoratedSidesCount || 0))
   const unit = scpPrintUnitMajorForTier(args.printSizeId, args.tierIndex)
   return Math.round(unit * sides * 100) / 100
+}
+
+export function scpPrintTotalMajorPerGarmentForSides(args: {
+  selectedPrintSizeId: ScpPrintSizeId
+  tierIndex: number
+  decoratedSides: string[]
+}): number {
+  const sides = args.decoratedSides.filter((s) => typeof s === "string" && s.trim().length > 0)
+  if (!sides.length) {
+    return 0
+  }
+  const total = sides.reduce((sum, side) => {
+    const sizeId = resolveScpPrintSizeForSide(side, args.selectedPrintSizeId)
+    return sum + scpPrintUnitMajorForTier(sizeId, args.tierIndex)
+  }, 0)
+  return Math.round(total * 100) / 100
 }

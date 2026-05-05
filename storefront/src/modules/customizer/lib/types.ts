@@ -1,4 +1,4 @@
-export type GarmentSide = "front" | "back" | "left_sleeve" | "right_sleeve"
+export type GarmentSide = "front" | "back" | "left_sleeve" | "right_sleeve" | "printed_tag"
 
 export type CustomizerElementType = "image" | "text" | "shape"
 
@@ -17,6 +17,7 @@ import type { ScpPrintSizeId } from "@modules/customizer/lib/scp-dtf-print-prici
 export type PricingInput = {
   basePriceCents: number
   decoratedSidesCount: number
+  decoratedSides?: GarmentSide[]
   totalQuantity: number
   bulkPricingTiers?: BulkPricingTier[]
   /** When set, garment-side pricing adds SCP tiered print dollars instead of the flat per-side surcharge. */

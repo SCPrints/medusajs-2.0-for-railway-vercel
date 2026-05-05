@@ -13,7 +13,12 @@ import {
 } from "@modules/customizer/lib/artifact-url"
 import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/lib/garment-url-for-render"
 import ProductOptionFields from "@modules/products/components/product-actions/product-option-fields"
-import { usePrintPlacement } from "@modules/products/context/print-placement-context"
+import {
+  buildPlacementForSideAndSize,
+  type PrintPlacement,
+  type PrintPlacementSide,
+  usePrintPlacement,
+} from "@modules/products/context/print-placement-context"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import {
   getPrimaryGarmentImageUrl,
@@ -25,6 +30,7 @@ import { addScpLineItemToCartSafe, addToCartSafe } from "@lib/data/cart"
 import {
   DEFAULT_SCP_PRINT_SIZE_ID,
   SCP_PRINT_SIZE_OPTIONS,
+  resolveScpPrintSizeForSide,
   type ScpPrintSizeId,
 } from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { HttpTypes } from "@medusajs/types"
@@ -40,6 +46,14 @@ const DEFAULT_RENDER_SURFACE = {
   width: 1200,
   height: 1500,
 }
+
+const PDP_LOCATION_OPTIONS: Array<{ side: PrintPlacementSide; label: string }> = [
+  { side: "front", label: "Front" },
+  { side: "back", label: "Back" },
+  { side: "left_sleeve", label: "Left sleeve" },
+  { side: "right_sleeve", label: "Right sleeve" },
+  { side: "printed_tag", label: "Printed tag" },
+]
 
 const productMetadataUsesScpCartPricing = (p: HttpTypes.StoreProduct) => {
   const m = p.metadata as Record<string, unknown> | undefined
@@ -89,6 +103,27 @@ const buildArtworkSvg = (artworkUrl: string, width: number, height: number) => {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}"><image href="${safeUrl}" x="0" y="0" width="${safeWidth}" height="${safeHeight}" preserveAspectRatio="xMidYMid meet" /></svg>`
 }
 
+const clampPlacementToSize = (
+  side: PrintPlacementSide,
+  sizeId: ScpPrintSizeId,
+  current: PrintPlacement
+): PrintPlacement => {
+  const sizeForSide = resolveScpPrintSizeForSide(side, sizeId)
+  const preset = buildPlacementForSideAndSize(side, sizeForSide)
+  const widthPct = Math.min(current.widthPct, preset.widthPct)
+  const heightPct = Math.min(current.heightPct, preset.heightPct)
+  const xPct = Math.min(Math.max(0, current.xPct), 100 - widthPct)
+  const yPct = Math.min(Math.max(0, current.yPct), 100 - heightPct)
+  return {
+    ...current,
+    side,
+    xPct,
+    yPct,
+    widthPct,
+    heightPct,
+  }
+}
+
 export default function ProductActions({
   product,
   region,
@@ -97,11 +132,22 @@ export default function ProductActions({
 }: ProductActionsProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [quantity, setQuantity] = useState(1)
-  const [scpPrintSizeId, setScpPrintSizeId] = useState<ScpPrintSizeId>(DEFAULT_SCP_PRINT_SIZE_ID)
+  const [pdpGuideExpanded, setPdpGuideExpanded] = useState(true)
   const [addToCartError, setAddToCartError] = useState<string | null>(null)
   const countryCode = useParams().countryCode as string
-  const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
+  const {
+    overlayUrl,
+    overlayFileName,
+    selections,
+    activeSelectionId,
+    activeSelection,
+    setActiveSelectionId,
+    upsertSelectionForSide,
+    removeSelectionsForSide,
+    setSelectionPrintSize,
+  } = usePrintPlacement()
   const { options, setOptionValue } = useProductOptions()
+  const scpPrintSizeId = activeSelection?.printSizeId ?? DEFAULT_SCP_PRINT_SIZE_ID
 
   const selectedVariant = useMemo(
     () => resolveVariantFromOptions(product, options),
@@ -119,7 +165,14 @@ export default function ProductActions({
     return opts.some((o) => !(o.title ?? "").toLowerCase().includes("size"))
   }, [product.variants?.length, product.options, hideInlinePurchaseControls])
 
-  const renderPlacementArtifacts = async (artworkUrl: string) => {
+  const renderPlacementArtifacts = async (
+    artworkUrl: string,
+    selection: {
+      side: PrintPlacementSide
+      printSizeId: ScpPrintSizeId
+      placement: PrintPlacement
+    }
+  ) => {
     const overlayDimensions = await resolveImageDimensions(artworkUrl)
     const garmentCandidateUrl = getPrimaryGarmentImageUrl(product, selectedVariant)
     const garmentImageUrl = resolveGarmentImageUrlForCustomizerRender(
@@ -131,16 +184,21 @@ export default function ProductActions({
       : null
     const renderSurface = garmentDimensions ?? DEFAULT_RENDER_SURFACE
 
+    const clampedPlacement = clampPlacementToSize(
+      selection.side,
+      selection.printSizeId,
+      selection.placement
+    )
     const placementWidth = Math.max(
       1,
-      Math.round((renderSurface.width * placement.widthPct) / 100)
+      Math.round((renderSurface.width * clampedPlacement.widthPct) / 100)
     )
     const placementHeight = Math.max(
       1,
-      Math.round((renderSurface.height * placement.heightPct) / 100)
+      Math.round((renderSurface.height * clampedPlacement.heightPct) / 100)
     )
     const payload = {
-      side: placement.side,
+      side: selection.side,
       artworkSvg: buildArtworkSvg(
         artworkUrl,
         overlayDimensions?.width ?? placementWidth,
@@ -148,8 +206,8 @@ export default function ProductActions({
       ),
       garmentImageUrl,
       placement: {
-        x: Math.max(0, Math.round((renderSurface.width * placement.xPct) / 100)),
-        y: Math.max(0, Math.round((renderSurface.height * placement.yPct) / 100)),
+        x: Math.max(0, Math.round((renderSurface.width * clampedPlacement.xPct) / 100)),
+        y: Math.max(0, Math.round((renderSurface.height * clampedPlacement.yPct) / 100)),
         width: placementWidth,
         height: placementHeight,
       },
@@ -188,6 +246,9 @@ export default function ProductActions({
       extractRenderArtifactUrl((mockupBody as { data?: unknown }).data)
 
     return {
+      side: selection.side,
+      printSizeId: resolveScpPrintSizeForSide(selection.side, selection.printSizeId),
+      placement: clampedPlacement,
       printUrl: normalizePersistedArtifactUrl(printUrl),
       mockupUrl: normalizePersistedArtifactUrl(mockupUrl),
     }
@@ -230,11 +291,23 @@ export default function ProductActions({
       return
     }
 
+    const hasPdpSelections = selections.length > 0
+    const selectedLocations = hasPdpSelections
+      ? selections
+      : [
+          {
+            id: "fallback_front",
+            side: "front" as PrintPlacementSide,
+            printSizeId: scpPrintSizeId,
+            placement: buildPlacementForSideAndSize("front", scpPrintSizeId),
+          },
+        ]
+
     const printPlacementMetadata: Record<string, unknown> | undefined = overlayUrl
       ? {
           printPlacement: {
-            version: 1,
-            placement,
+            version: 2,
+            placement: selectedLocations[0]?.placement,
             sourceFileName: overlayFileName,
           },
         }
@@ -242,21 +315,27 @@ export default function ProductActions({
 
     if (overlayUrl && printPlacementMetadata) {
       try {
-        const artifacts = await renderPlacementArtifacts(overlayUrl)
-        if (artifacts.mockupUrl || artifacts.printUrl) {
+        const artifacts = await Promise.all(
+          selectedLocations.map((selection) => renderPlacementArtifacts(overlayUrl, selection))
+        )
+        if (artifacts.some((artifact) => artifact.mockupUrl || artifact.printUrl)) {
           const existingDesign =
             (printPlacementMetadata?.customizerDesign as Record<string, unknown> | undefined) ?? {}
           printPlacementMetadata.customizerDesign = {
             ...existingDesign,
             version: 1,
             type: "pdp_print_placement",
-            artifacts: [
-              {
-                side: placement.side,
-                printUrl: artifacts.printUrl,
-                mockupUrl: artifacts.mockupUrl,
-              },
-            ],
+            artifacts: artifacts.map((artifact) => ({
+              side: artifact.side,
+              print_size_id: artifact.printSizeId,
+              placement: artifact.placement,
+              printUrl: artifact.printUrl,
+              mockupUrl: artifact.mockupUrl,
+            })),
+            pdpSelections: selectedLocations.map((selection) => ({
+              side: selection.side,
+              print_size_id: resolveScpPrintSizeForSide(selection.side, selection.printSizeId),
+            })),
           }
         }
       } catch (error) {
@@ -267,12 +346,18 @@ export default function ProductActions({
     const shouldUseScpCart =
       productMetadataUsesScpCartPricing(product) && Boolean(overlayUrl && printPlacementMetadata)
 
+    if (shouldUseScpCart && !selectedLocations.length) {
+      setAddToCartError("Please select at least one print location.")
+      setIsAdding(false)
+      return
+    }
+
     const addResult = shouldUseScpCart
       ? await addScpLineItemToCartSafe({
           variantId: selectedVariant.id,
           quantity,
           countryCode,
-          printSizeId: scpPrintSizeId,
+          printSizeId: selectedLocations[0]?.printSizeId ?? scpPrintSizeId,
           metadata: printPlacementMetadata,
         })
       : await addToCartSafe({
@@ -357,23 +442,98 @@ export default function ProductActions({
         {!hideInlinePurchaseControls &&
         overlayUrl &&
         productMetadataUsesScpCartPricing(product) ? (
-          <div className="flex flex-col gap-y-1">
-            <label htmlFor="pdp-scp-print-size" className="text-sm font-medium text-ui-fg-base">
-              Print size (SCP digital)
-            </label>
-            <select
-              id="pdp-scp-print-size"
-              value={scpPrintSizeId}
-              onChange={(event) => setScpPrintSizeId(event.target.value as ScpPrintSizeId)}
-              disabled={isAdding || !!disabled}
-              className="w-full rounded-rounded border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base outline-none focus:border-ui-border-interactive"
+          <div className="rounded-md border border-ui-border-base bg-ui-bg-subtle/40 p-3 space-y-3">
+            <button
+              type="button"
+              className="text-xs font-medium text-ui-fg-subtle underline underline-offset-2"
+              onClick={() => setPdpGuideExpanded((prev) => !prev)}
             >
-              {SCP_PRINT_SIZE_OPTIONS.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label} ({opt.dimensionsLabel})
-                </option>
-              ))}
-            </select>
+              {pdpGuideExpanded ? "Hide guide" : "Show guide"}
+            </button>
+            {pdpGuideExpanded ? (
+              <ol className="list-decimal pl-4 text-xs text-ui-fg-subtle space-y-1">
+                <li>Select one or more print locations.</li>
+                <li>Choose a print size for the active location.</li>
+                <li>Upload artwork and add to cart.</li>
+                <li>Sleeves + printed tag are always priced at A6.</li>
+              </ol>
+            ) : null}
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-ui-fg-base">Print locations</p>
+              <div className="grid grid-cols-2 gap-2">
+                {PDP_LOCATION_OPTIONS.map((entry) => {
+                  const exists = selections.some((selection) => selection.side === entry.side)
+                  return (
+                    <button
+                      key={entry.side}
+                      type="button"
+                      onClick={() => {
+                        if (exists) {
+                          removeSelectionsForSide(entry.side)
+                        } else {
+                          upsertSelectionForSide(entry.side, scpPrintSizeId)
+                        }
+                      }}
+                      className={`rounded-md border px-2 py-1.5 text-xs font-medium text-left ${
+                        exists
+                          ? "border-ui-border-interactive bg-ui-bg-base text-ui-fg-base"
+                          : "border-ui-border-base text-ui-fg-subtle"
+                      }`}
+                    >
+                      {entry.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="pdp-scp-print-size" className="text-sm font-medium text-ui-fg-base">
+                Print size for active location
+              </label>
+              <select
+                id="pdp-scp-print-size"
+                value={scpPrintSizeId}
+                onChange={(event) => {
+                  if (!activeSelectionId) return
+                  setSelectionPrintSize(activeSelectionId, event.target.value as ScpPrintSizeId)
+                }}
+                disabled={isAdding || !!disabled || !activeSelectionId}
+                className="w-full rounded-rounded border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base outline-none focus:border-ui-border-interactive"
+              >
+                {SCP_PRINT_SIZE_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label} ({opt.dimensionsLabel})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selections.length ? (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-ui-fg-subtle">Selected locations</p>
+                <div className="flex flex-wrap gap-2">
+                  {selections.map((selection) => (
+                    <button
+                      key={selection.id}
+                      type="button"
+                      onClick={() => setActiveSelectionId(selection.id)}
+                      className={`rounded-full border px-2 py-1 text-xs ${
+                        activeSelectionId === selection.id
+                          ? "border-ui-border-interactive text-ui-fg-base"
+                          : "border-ui-border-base text-ui-fg-subtle"
+                      }`}
+                    >
+                      {selection.side.replace(/_/g, " ")} •{" "}
+                      {resolveScpPrintSizeForSide(selection.side, selection.printSizeId)
+                        .replace("up_to_", "")
+                        .toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

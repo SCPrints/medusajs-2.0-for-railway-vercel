@@ -9,10 +9,12 @@ import { z } from "zod"
 import {
   SCP_PRINT_PRICING_VERSION,
   SCP_BLANK_ALIGNED_QUANTITY_TIERS,
-  decoratedSidesCountFromLineMetadata,
+  decoratedLocationsFromLineMetadata,
+  decoratedSidesFromLineMetadata,
   isScpPrintSizeId,
   resolveScpTierIndexForQuantity,
-  scpPrintTotalMajorPerGarment,
+  scpPrintTotalMajorFromLocations,
+  scpPrintTotalMajorPerGarmentForSides,
   type ScpPrintSizeId,
 } from "../../../../../lib/scp-dtf-print-pricing"
 import {
@@ -108,8 +110,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     ...(incomingMetadata ?? {}),
   }
 
-  const decoratedSides = decoratedSidesCountFromLineMetadata(mergedMetadata)
-  if (decoratedSides < 1) {
+  const decoratedSides = decoratedSidesFromLineMetadata(mergedMetadata)
+  if (decoratedSides.length < 1) {
     throw new MedusaError(
       MedusaError.Types.INVALID_DATA,
       "SCP cart pricing requires at least one decorated print location (customizerDesign.artifacts or printPlacement)."
@@ -117,11 +119,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const tierIndex = resolveScpTierIndexForQuantity(quantity)
-  const printTotalMajor = scpPrintTotalMajorPerGarment({
-    printSizeId,
-    tierIndex,
-    decoratedSidesCount: decoratedSides,
-  })
+  const decoratedLocations = decoratedLocationsFromLineMetadata(mergedMetadata)
+  const printTotalMajor =
+    decoratedLocations.length > 0
+      ? scpPrintTotalMajorFromLocations({
+          selectedPrintSizeId: printSizeId,
+          tierIndex,
+          locations: decoratedLocations,
+        })
+      : scpPrintTotalMajorPerGarmentForSides({
+          selectedPrintSizeId: printSizeId,
+          tierIndex,
+          decoratedSides,
+        })
 
   const garmentMajor = await resolveGarmentUnitAmountMajor({
     query,
@@ -159,7 +169,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         print_size_id: printSizeId,
         tier_index: tierIndex,
         quantity_tier_label: SCP_BLANK_ALIGNED_QUANTITY_TIERS[tierIndex]?.label ?? null,
-        decorated_sides: decoratedSides,
+        decorated_sides: decoratedSides.length,
+        decorated_side_keys: decoratedSides,
+        decorated_locations: decoratedLocations,
         garment_unit_major: garmentMajor,
         print_total_major_per_garment: printTotalMajor,
         unit_price_major: unitPriceMajor,

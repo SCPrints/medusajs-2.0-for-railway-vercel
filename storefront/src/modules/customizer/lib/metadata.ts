@@ -22,6 +22,8 @@ const sideLabel = (side: string) => {
       return "Left sleeve"
     case "right_sleeve":
       return "Right sleeve"
+    case "printed_tag":
+      return "Printed tag"
     default:
       return side.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
   }
