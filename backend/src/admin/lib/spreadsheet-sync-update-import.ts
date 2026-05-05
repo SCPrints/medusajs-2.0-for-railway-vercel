@@ -270,6 +270,11 @@ export function computeProductUpdatePreview(parsed: ParsedCsv): ProductUpdatePre
   }
 }
 
+/** True when the file has rows that could populate PDP garment metadata (SKU + ≥1 image URL). */
+export function parsedCsvHasVariantGarmentSourceRows(parsed: ParsedCsv): boolean {
+  return parsed.rows.some(csvRowFeedsVariantGarmentMetadata)
+}
+
 /** True when this row contributes to variant-level garment metadata (SKU + at least one image URL). */
 export function csvRowFeedsVariantGarmentMetadata(row: Record<string, string>): boolean {
   const sku = (row["variant sku"] ?? "").trim()
@@ -533,6 +538,25 @@ export type VariantGarmentCsvRow = {
   front?: string
   back?: string
   color?: string
+}
+
+/**
+ * Match Medusa variant rows to a CSV SKU — exact trim match first, then case-insensitive (supplier exports vary).
+ */
+export function findVariantRowForCsvSku<T extends { sku?: string | null }>(
+  variants: T[],
+  csvSku: string
+): T | undefined {
+  const want = csvSku.trim()
+  if (!want) {
+    return undefined
+  }
+  const exact = variants.find((v) => (v.sku ?? "").trim() === want)
+  if (exact) {
+    return exact
+  }
+  const wl = want.toLowerCase()
+  return variants.find((v) => (v.sku ?? "").trim().toLowerCase() === wl)
 }
 
 /**

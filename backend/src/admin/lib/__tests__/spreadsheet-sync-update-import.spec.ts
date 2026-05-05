@@ -5,6 +5,8 @@ import {
   buildVariantGarmentDataByProductId,
   computeProductUpdateColumnCandidates,
   computeProductUpdatePreview,
+  findVariantRowForCsvSku,
+  parsedCsvHasVariantGarmentSourceRows,
   PRODUCT_GALLERY_IMAGES_CSV_KEY,
   PRODUCT_UPDATE_BATCH_CHUNK_SIZE,
   PRODUCT_UPDATE_BATCH_CHUNK_SIZE_MEDIA,
@@ -289,6 +291,21 @@ describe("spreadsheet-sync-update-import", () => {
       const vg = cand.find((c) => c.csvKey === VARIANT_GARMENT_METADATA_CSV_KEY)
       expect(vg).toBeTruthy()
       expect(vg?.affectedProductCount).toBe(1)
+    })
+
+    it("parsedCsvHasVariantGarmentSourceRows is true when any row has sku + image url", () => {
+      const r = emptyRow()
+      r["product id"] = "p"
+      r["variant sku"] = "ABC"
+      r["product image 1 url"] = "https://x.com/a.jpg"
+      const parsed = parseCsv(buildCsv([r]))
+      expect(parsedCsvHasVariantGarmentSourceRows(parsed)).toBe(true)
+    })
+
+    it("findVariantRowForCsvSku matches case-insensitively", () => {
+      const variants = [{ id: "v1", sku: "5001-LGREY-F-XS" }]
+      expect(findVariantRowForCsvSku(variants, "5001-lgrey-f-xs")?.id).toBe("v1")
+      expect(findVariantRowForCsvSku(variants, "5001-LGREY-F-XS")?.id).toBe("v1")
     })
   })
 })

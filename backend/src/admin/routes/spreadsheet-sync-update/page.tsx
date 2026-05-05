@@ -11,9 +11,12 @@ import {
   buildVariantGarmentDataByProductId,
   computeProductUpdateColumnCandidates,
   computeProductUpdatePreview,
+  findVariantRowForCsvSku,
+  parsedCsvHasVariantGarmentSourceRows,
   PRODUCT_UPDATE_BATCH_CHUNK_SIZE,
   productUpdateBatchChunkSize,
   spreadsheetHeadersIgnoringPatchable,
+  VARIANT_GARMENT_METADATA_CSV_KEY,
   type VariantGarmentCsvRow,
 } from "../../lib/spreadsheet-sync-update-import"
 import { parseCsv } from "../../lib/csv-import"
@@ -138,6 +141,12 @@ const SpreadsheetSyncUpdatePage = () => {
   const noneChecked = enabledList.length === 0
 
   const hasVariantGarmentWork = variantGarmentByProduct.size > 0
+
+  const variantGarmentUncheckedWarning =
+    !!fileAnalysis &&
+    fileAnalysis.preview.validationErrors.length === 0 &&
+    parsedCsvHasVariantGarmentSourceRows(fileAnalysis.parsed) &&
+    !enabledList.includes(VARIANT_GARMENT_METADATA_CSV_KEY)
 
   const canSync =
     !!fileAnalysis &&
@@ -285,7 +294,7 @@ const SpreadsheetSyncUpdatePage = () => {
           const missingSkus: string[] = []
 
           for (const [sku, csvRow] of skuMap) {
-            const v = variants.find((x) => (x.sku ?? "").trim() === sku)
+            const v = findVariantRowForCsvSku(variants, sku)
             if (!v) {
               missingSkus.push(sku)
               continue
@@ -352,7 +361,9 @@ const SpreadsheetSyncUpdatePage = () => {
           <code className="text-xs">sdk.admin.product.batchVariants</code> (merges{" "}
           <code className="text-xs">metadata.garment_images</code> from every row, matched by Variant SKU). Each row must
           include <code className="text-xs">Product Id</code> (<code className="text-xs">prod_…</code>). For product-level
-          columns, values come from the <strong>first row</strong> per Product Id. To create new products, use{" "}
+          columns, values come from the <strong>first row</strong> per Product Id. The Admin variant{" "}
+          <strong>Media</strong> panel only shows files uploaded into Medusa; garment URLs from your CSV live under variant{" "}
+          <strong>Metadata</strong> (and drive the storefront gallery). To create new products, use{" "}
           <a href="/app/spreadsheet-sync" className="text-ui-fg-interactive hover:underline">
             Spreadsheet sync (new)
           </a>
@@ -402,6 +413,22 @@ const SpreadsheetSyncUpdatePage = () => {
               <Text size="small" className="text-ui-fg-muted">
                 Rows with the same Product Id should agree on product-level columns; the first row per id wins.
               </Text>
+
+              {variantGarmentUncheckedWarning ? (
+                <div className="rounded-md border border-ui-border-strong bg-ui-bg-subtle p-3">
+                  <Text size="small" weight="plus">
+                    Per-variant PDP images are not selected
+                  </Text>
+                  <Text size="small" className="text-ui-fg-muted mt-1">
+                    Your CSV has Variant SKU + Product Image URLs on rows, but{" "}
+                    <strong>Variant garment images — PDP metadata</strong> is unchecked. Only checking{" "}
+                    <em>Product gallery images</em> updates the shared product gallery from the first row per product — it
+                    does <strong>not</strong> write each colour&apos;s URLs onto variants for the storefront. Enable the PDP
+                    metadata column (and sync again) so each SKU gets <code className="text-xs">metadata.garment_images</code>
+                    .
+                  </Text>
+                </div>
+              ) : null}
 
               {fileAnalysis && fileAnalysis.parsed.emptyHeaderColumns.length > 0 ? (
                 <div className="rounded-md border border-ui-border-base bg-ui-bg-base-pressed p-3">
