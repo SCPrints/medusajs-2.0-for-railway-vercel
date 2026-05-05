@@ -79,6 +79,7 @@ export default function V3Splash() {
       animatedParticleCap={55000}
       sectionAriaLabel="SC Prints — particle flow (v3 settings)"
       newmixLiveTuning={V3_TUNING}
+      wordmarkGradient={WORDMARK_GRADIENT}
     />
   )
 }
