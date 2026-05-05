@@ -2,32 +2,18 @@ import type { HttpTypes } from "@medusajs/types"
 
 import { convertMinorToLocale } from "./money"
 
-function normalizeDisplayAmount(
-  rawAmount: number,
-  option: HttpTypes.StoreCartShippingOption
-): number {
+function normalizeShippingAmountForDisplay(rawAmount: number): number {
   if (!Number.isFinite(rawAmount)) {
     return rawAmount
   }
 
-  // Some Medusa setups return shipping option amounts in minor units (e.g. 1500 cents)
-  // while storefront money formatting here expects major units (e.g. 15 dollars).
-  // Convert only clearly "cent-like" values to avoid touching normal major amounts.
+  // Shipping option payloads can surface in minor units (cents). Storefront display
+  // formatters in this repo expect major units, so normalize obvious cent values.
+  // Examples:
+  //   1500 -> 15.00
+  //   1000 -> 10.00
   if (rawAmount >= 1000 && rawAmount % 100 === 0) {
     return rawAmount / 100
-  }
-
-  const cc = option.currency_code?.toLowerCase()
-  const matchingPrice = option.prices?.find(
-    (price) => price?.currency_code?.toLowerCase() === cc
-  )
-  const matchingAmount = matchingPrice?.amount
-  if (
-    typeof matchingAmount === "number" &&
-    Number.isFinite(matchingAmount) &&
-    rawAmount === matchingAmount * 100
-  ) {
-    return matchingAmount
   }
 
   return rawAmount
@@ -47,23 +33,12 @@ export function getStoreCartShippingOptionMinorAmount(
 
   const top = option.amount
   if (typeof top === "number" && Number.isFinite(top)) {
-    const calculated = option.calculated_price?.calculated_amount
-    // Some carts surface `calculated_amount` as 100x the flat `amount`.
-    // Prefer explicit flat amount when both exist and diverge by 100x.
-    if (
-      typeof calculated === "number" &&
-      Number.isFinite(calculated) &&
-      calculated >= top * 100 &&
-      calculated % 100 === 0
-    ) {
-      return normalizeDisplayAmount(top, option)
-    }
-    return normalizeDisplayAmount(top, option)
+    return normalizeShippingAmountForDisplay(top)
   }
 
   const calculated = option.calculated_price?.calculated_amount
   if (typeof calculated === "number" && Number.isFinite(calculated)) {
-    return normalizeDisplayAmount(calculated, option)
+    return normalizeShippingAmountForDisplay(calculated)
   }
 
   const prices = option.prices
@@ -78,13 +53,13 @@ export function getStoreCartShippingOptionMinorAmount(
     )
     const a = match?.amount
     if (typeof a === "number" && Number.isFinite(a)) {
-      return normalizeDisplayAmount(a, option)
+      return normalizeShippingAmountForDisplay(a)
     }
   }
 
   const first = prices[0]?.amount
   if (typeof first === "number" && Number.isFinite(first)) {
-    return normalizeDisplayAmount(first, option)
+    return normalizeShippingAmountForDisplay(first)
   }
 
   return null

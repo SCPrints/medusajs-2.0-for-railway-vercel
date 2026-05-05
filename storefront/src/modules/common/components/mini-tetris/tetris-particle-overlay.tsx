@@ -22,10 +22,11 @@ const LOCK_BURST_PER_CELL = 36
 const CLEAR_BURST_PER_CELL = 60
 /** Burst lifetime (ms). */
 const BURST_LIFE_MS = 1100
-/** Spring stiffness pulling ambient particles back to home each frame. */
-const HOME_SPRING = 0.04
+/** Spring stiffness pulling ambient particles back to home each frame. Low spring +
+ * high friction = particles linger after being pushed, leaving glowing wakes. */
+const HOME_SPRING = 0.028
 /** Friction multiplier for ambient particles. */
-const HOME_FRICTION = 0.9
+const HOME_FRICTION = 0.94
 /** Radius (in cell units) of the obstacle force around each filled cell. */
 const OBSTACLE_RADIUS_CELLS = 0.65
 /** Force magnitude pushing particles out of filled cells. */
@@ -38,13 +39,19 @@ const CLEAR_BURST_SPEED = 10
  * Tuned just under the default drop interval (700ms) so motion is fluid edge-to-edge. */
 const PIECE_TRANSITION_MS = 650
 /** Cap on visual lag distance (in cells). Hard drops would otherwise leave a
- * 20-cell trail; we clamp so it caps out at ~1 cell of smoothing slack. */
+ * 20-cell trail; we clamp so it caps out at ~1 cell of smoothing slack at rest.
+ * Velocity-coupled clamp scales this up during fast moves (see pieceMotion logic). */
 const PIECE_MAX_LAG_CELLS = 1.2
-/** Block "blob": render each filled cell as a dense cluster of coloured particles
- * instead of a solid rect. Higher = denser/more solid blob. */
-const BLOCK_PARTICLES_PER_CELL = 110
-/** Block particles' jitter spread inside a cell (fraction of cell size). */
-const BLOCK_JITTER_FRAC = 0.46
+/** Max bonus lag (cells) added on top of the base clamp during rapid movement. */
+const PIECE_VELOCITY_LAG_BONUS = 1.5
+/** Block "blob": each filled cell renders as a SOLID core rect + fizzy fringe of
+ * coloured particles on the rim. Core gives readable shape; fringe gives organic
+ * fluid edges that smoothly track sub-pixel motion of the active piece. */
+const BLOCK_CORE_HALF_FRAC = 0.4
+/** Number of fringe particles per cell — light dusting on the cell perimeter. */
+const BLOCK_FRINGE_PARTICLES_PER_CELL = 32
+/** Fringe particles' jitter spread inside a cell (fraction of cell halfsize). */
+const BLOCK_FRINGE_HALF_FRAC = 0.55
 /** Water-drop ripple: radial wave expanding outward from the impact point on lock.
  * Pushes particles radially outward with amplitude that decays with distance. */
 const RIPPLE_SPEED = 11
@@ -56,8 +63,16 @@ const RIPPLE_MIN_AMPLITUDE = 0.2
 const RIPPLE_UPWARD_BIAS = 1.4
 /** Line-clear flash: horizontal stripe over the cleared row that fades over time. */
 const FLASH_LIFE_MS = 480
-/** Excitement decay per frame (multiplicative). */
-const EXCITEMENT_DECAY = 0.96
+/** Excitement decay per frame (multiplicative). Lower = longer-lingering glow
+ * trails behind moving blocks. 0.985 gives ~3-second visible afterglow. */
+const EXCITEMENT_DECAY = 0.985
+/** Ambient particle base alpha at rest (0-1). Quiet field at rest, brightens to
+ * full white when pushed (via excitement). */
+const AMBIENT_BASE_ALPHA = 0.55
+/** Velocity-coupled effects: piece velocity (cells/frame, smoothed) is captured
+ * at lock time and used to scale ripple amplitude + the lock burst. Faster
+ * impacts produce stronger ripples. */
+const RIPPLE_VELOCITY_SCALE = 0.6
 /** Line-clear shockwave: initial downward impulse on cleared row, then an upward
  * travelling band that pushes particles upward as it rises through the board. */
 const LINE_CLEAR_FALL_IMPULSE = 5
@@ -164,6 +179,10 @@ export default function TetrisParticleOverlay({
       vx: new Float32Array(TOTAL_AMBIENT),
       vy: new Float32Array(TOTAL_AMBIENT),
       excitement: new Float32Array(TOTAL_AMBIENT),
+      /** Per-particle density factor (0..1) baked from a smooth value-noise field
+       * at home position. Used at render time to modulate alpha so the field has
+       * visible streaks/clusters/voids instead of being uniform noise. */
+      density: new Float32Array(TOTAL_AMBIENT),
     }
 
     /** Burst particles: object-array, size-capped pool with linear scan for free slots. */
@@ -183,6 +202,10 @@ export default function TetrisParticleOverlay({
     /** Line-clear flash bands: bright horizontal stripes drawn over the cleared row,
      * fading over FLASH_LIFE_MS. Drawn directly to pixBuf each frame. */
     const flashes: Array<{ y: number; bornAt: number }> = []
+    /** Pre-vanish "pop" of the cleared row's blocks: oversized white expansion at
+     * each cell of the cleared row, fading over ~120ms before the row truly
+     * disappears. Reads as the row "popping" before the bursts/flash kick in. */
+    const clearPops: Array<{ y: number; bornAt: number }> = []
     const allocateBurst = (): Burst | null => {
       for (let i = 0; i < bursts.length; i++) {
         const p = bursts[i]!
@@ -233,6 +256,9 @@ export default function TetrisParticleOverlay({
       lastPieceType: -1,
       lastCentroidX: 0,
       lastCentroidY: 0,
+      /** Smoothed move distance per frame (in cells) — used for velocity-coupled
+       * ripple amplitude on lock and for scaling the dynamic offset clamp. */
+      recentVelocityCells: 0,
     }
 
     /** Pixel buffer for direct-write rendering. Reallocated on resize. */
@@ -244,10 +270,33 @@ export default function TetrisParticleOverlay({
       y: sizeState.padY + (by + 0.5) * sizeState.cellH,
     })
 
+    /** Smooth 2D value noise (bilinear over a hash01 grid). Used to give the ambient
+     * field visible texture — clusters, lanes, voids — instead of uniform noise. */
+    const valueNoise2D = (x: number, y: number): number => {
+      const x0 = Math.floor(x)
+      const y0 = Math.floor(y)
+      const tx = x - x0
+      const ty = y - y0
+      const a = hash01(x0 + 1, y0 + 1)
+      const b = hash01(x0 + 2, y0 + 1)
+      const c = hash01(x0 + 1, y0 + 2)
+      const d = hash01(x0 + 2, y0 + 2)
+      const sx = tx * tx * (3 - 2 * tx)
+      const sy = ty * ty * (3 - 2 * ty)
+      return (
+        a * (1 - sx) * (1 - sy) +
+        b * sx * (1 - sy) +
+        c * (1 - sx) * sy +
+        d * sx * sy
+      )
+    }
+
     /** Allocate ambient particles in cell-bucketed order. Each cell owns AMBIENT_PER_CELL
      * consecutive indices, enabling fast obstacle-neighbourhood iteration. */
     const buildAmbient = () => {
       let idx = 0
+      /** Noise scale: ~3 cells per noise feature gives visible streaks at typical zooms. */
+      const noiseScale = 1 / Math.max(1, Math.max(sizeState.cellW, sizeState.cellH) * 2.2)
       for (let by = 0; by < BOARD_H; by++) {
         for (let bx = 0; bx < BOARD_W; bx++) {
           const cellOriginX = sizeState.padX + bx * sizeState.cellW
@@ -260,6 +309,11 @@ export default function TetrisParticleOverlay({
             const v = hash01(bx * 31 + by, s * 7 + 2)
             const hx = cellOriginX + u * w
             const hy = cellOriginY + v * h
+            /** Density from low-frequency value noise — combined with octaves for
+             * texture variety. Result in 0..1, biased so most of field is mid-bright. */
+            const n1 = valueNoise2D(hx * noiseScale, hy * noiseScale)
+            const n2 = valueNoise2D(hx * noiseScale * 2.7, hy * noiseScale * 2.7)
+            const dens = Math.max(0, Math.min(1, n1 * 0.7 + n2 * 0.3))
             amb.hx[idx] = hx
             amb.hy[idx] = hy
             amb.x[idx] = hx
@@ -267,6 +321,7 @@ export default function TetrisParticleOverlay({
             amb.vx[idx] = 0
             amb.vy[idx] = 0
             amb.excitement[idx] = 0
+            amb.density[idx] = dens
             idx++
           }
         }
@@ -418,9 +473,10 @@ export default function TetrisParticleOverlay({
               }
             }
           }
-          /** Upward wave + flash band over the cleared row. */
+          /** Upward wave + flash band + pre-vanish pop over the cleared row. */
           waves.push({ y: rowMidY, strength: WAVE_STRENGTH * 1.6 })
           flashes.push({ y: rowMidY, bornAt: now })
+          clearPops.push({ y: rowMidY, bornAt: now })
         }
       }
 
@@ -449,27 +505,39 @@ export default function TetrisParticleOverlay({
         /** Water-drop ripple: radial wave expanding outward from impact. Particles
          * encountered by the wave's band get a radial impulse outward (with upward
          * bias since the surface is below). */
+        /** Scale ripple amplitude by recent piece velocity — faster impacts
+         * produce more dramatic ripples. Floor at 1.0 so even a soft lock has
+         * a visible ring; cap at ~2.5 for tetris-velocity hard drops. */
+        const velFactor = Math.max(
+          1,
+          Math.min(2.5, 1 + pieceMotion.recentVelocityCells * RIPPLE_VELOCITY_SCALE)
+        )
         ripples.push({
           cx,
           cy,
           radius: 0,
-          amplitude: RIPPLE_AMPLITUDE,
+          amplitude: RIPPLE_AMPLITUDE * velFactor,
         })
-        /** Plus a quick directional ring burst right at impact for visual punch. */
-        const ringCount = 48
-        for (let i = 0; i < ringCount; i++) {
+        /** Splatter droplets — irregular impact spray rather than a uniform ring.
+         * Random angles in upper hemisphere, varied speeds (most slow, some fast)
+         * and varied lifetimes. Reads as organic spray, not a sterile ring. */
+        const splatterCount = 36
+        for (let i = 0; i < splatterCount; i++) {
           const p = allocateBurst()
           if (!p) break
           p.alive = true
-          /** Bias the ring upward (angles from -π to 0 sweep the upper hemisphere). */
-          const angle = -Math.PI + (i / ringCount) * Math.PI
-          const speed = 10 + Math.random() * 4
-          p.x = cx
-          p.y = cy
-          p.vx = Math.cos(angle) * speed
-          p.vy = Math.sin(angle) * speed
+          /** Random angle biased toward upward: 60% of full circle in upper
+           * hemisphere, with some side spray. */
+          const ang = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.4
+          /** Power-curve speed: most droplets slow, a few fly fast. */
+          const r01 = Math.random()
+          const speed = 3 + r01 * r01 * 13 * velFactor
+          p.x = cx + (Math.random() - 0.5) * sizeState.cellW * 0.3
+          p.y = cy + (Math.random() - 0.5) * sizeState.cellH * 0.2
+          p.vx = Math.cos(ang) * speed
+          p.vy = Math.sin(ang) * speed
           p.bornAt = now
-          p.lifeMs = 700 + Math.random() * 300
+          p.lifeMs = 400 + Math.random() * 700
         }
       }
 
@@ -505,15 +573,23 @@ export default function TetrisParticleOverlay({
             pieceMotion.offsetX = 0
             pieceMotion.offsetY = 0
             pieceMotion.transitionStartedAt = -1
+            /** Big jumps don't count toward velocity — that's a piece spawn / hard
+             * drop, not a continuous motion the player is maintaining. */
           } else {
             pieceMotion.offsetX += pieceMotion.lastCentroidX - activeCentroidX
             pieceMotion.offsetY += pieceMotion.lastCentroidY - activeCentroidY
             pieceMotion.transitionStartedAt = now
+            /** Smoothed velocity in cells/frame. Spikes when player holds down
+             * arrow, decays back to 0 when piece holds still. */
+            const moveCells = jumpDist / cellDiag
+            pieceMotion.recentVelocityCells =
+              pieceMotion.recentVelocityCells * 0.85 + moveCells * 0.15
           }
         } else if (!sameType) {
           pieceMotion.offsetX = 0
           pieceMotion.offsetY = 0
           pieceMotion.transitionStartedAt = -1
+          pieceMotion.recentVelocityCells = 0
         }
         pieceMotion.lastPieceType = actNow != null ? actNow.t : -1
         pieceMotion.lastCentroidX = activeCentroidX
@@ -522,11 +598,16 @@ export default function TetrisParticleOverlay({
         pieceMotion.lastPieceType = -1
       }
 
-      /** Clamp accumulated offset so hard drops (10+ cell jumps) don't cause the
-       * block to slide a huge distance. Cap the visual lag at ~1.2 cells. */
+      /** Velocity-coupled offset clamp: at rest, cap at PIECE_MAX_LAG_CELLS. During
+       * fast moves, allow more lag proportional to current velocity so the trail
+       * gracefully extends instead of pop-snapping back when the player stops. */
       {
-        const maxLag =
-          Math.max(sizeState.cellW, sizeState.cellH) * PIECE_MAX_LAG_CELLS
+        const cellL = Math.max(sizeState.cellW, sizeState.cellH)
+        const velBonus = Math.min(
+          PIECE_VELOCITY_LAG_BONUS,
+          pieceMotion.recentVelocityCells * 1.4
+        )
+        const maxLag = cellL * (PIECE_MAX_LAG_CELLS + velBonus)
         const offLen = Math.hypot(pieceMotion.offsetX, pieceMotion.offsetY)
         if (offLen > maxLag) {
           const scale = maxLag / offLen
@@ -534,6 +615,8 @@ export default function TetrisParticleOverlay({
           pieceMotion.offsetY *= scale
         }
       }
+      /** Decay velocity when no motion this frame so the clamp shrinks gracefully. */
+      pieceMotion.recentVelocityCells *= 0.92
 
       let smoothOffsetX = 0
       let smoothOffsetY = 0
@@ -707,8 +790,11 @@ export default function TetrisParticleOverlay({
                   amb.vy[i]! +
                   ny * force -
                   Math.max(0, RIPPLE_UPWARD_BIAS * bandFall)
-                if (bandFall > amb.excitement[i]!)
-                  amb.excitement[i] = bandFall
+                /** Force excitement near max so the ripple band reads as a bright
+                 * expanding ring of light passing through the field. */
+                const rippleExc = 0.85 + bandFall * 0.15
+                if (rippleExc > amb.excitement[i]!)
+                  amb.excitement[i] = rippleExc
               }
             }
           }
@@ -760,13 +846,18 @@ export default function TetrisParticleOverlay({
       const PW = canvas.width
       const PH = canvas.height
 
-      /** Draw all filled cells (active + locked) as DENSE PARTICLE BLOBS instead of
-       * solid rectangles. Each cell renders BLOCK_PARTICLES_PER_CELL coloured
-       * pixels at deterministic jitter positions inside the cell — reads as a
-       * "blob of colour" flowing through the field, with subpixel-fuzzy edges
-       * that move smoothly with the active piece's interpolated position. */
-      const blockJitterW = sizeState.cellW * BLOCK_JITTER_FRAC
-      const blockJitterH = sizeState.cellH * BLOCK_JITTER_FRAC
+      /** Draw all filled cells as a SOLID CORE RECT + fizzy FRINGE of coloured
+       * particles. Core gives readable shape; fringe gives organic fluid edges
+       * that smoothly track the active piece's sub-pixel motion.
+       *
+       * For active piece: position uses smoothOffsetXY for fluid motion; the
+       * particle field around it reads as the block displacing and pushing
+       * through the field. */
+      const blockCoreHalfW = sizeState.cellW * BLOCK_CORE_HALF_FRAC
+      const blockCoreHalfH = sizeState.cellH * BLOCK_CORE_HALF_FRAC
+      const blockFringeHalfW = sizeState.cellW * BLOCK_FRINGE_HALF_FRAC
+      const blockFringeHalfH = sizeState.cellH * BLOCK_FRINGE_HALF_FRAC
+
       const renderBlockBlob = (
         cssX: number,
         cssY: number,
@@ -775,15 +866,40 @@ export default function TetrisParticleOverlay({
         pb: number,
         seedA: number
       ) => {
-        for (let s = 0; s < BLOCK_PARTICLES_PER_CELL; s++) {
+        /** Solid core: filled rect at ~80% cell size for clean readable shape. */
+        const cxPx = cssX * dpr
+        const cyPx = cssY * dpr
+        const coreHalfWPx = blockCoreHalfW * dpr
+        const coreHalfHPx = blockCoreHalfH * dpr
+        const x0 = Math.max(0, Math.floor(cxPx - coreHalfWPx))
+        const y0 = Math.max(0, Math.floor(cyPx - coreHalfHPx))
+        const x1 = Math.min(PW, Math.ceil(cxPx + coreHalfWPx))
+        const y1 = Math.min(PH, Math.ceil(cyPx + coreHalfHPx))
+        for (let py = y0; py < y1; py++) {
+          const rowOff = py * PW * 4
+          for (let px = x0; px < x1; px++) {
+            const off = rowOff + px * 4
+            pixBuf[off] = pr
+            pixBuf[off + 1] = pg
+            pixBuf[off + 2] = pb
+            pixBuf[off + 3] = 255
+          }
+        }
+        /** Fizzy fringe: jittered particles around the cell rim, biased outside
+         * the core so they form a halo of fuzz around the solid block. */
+        for (let s = 0; s < BLOCK_FRINGE_PARTICLES_PER_CELL; s++) {
           const u = hash01(seedA, s * 13 + 1) * 2 - 1
           const v = hash01(seedA, s * 13 + 2) * 2 - 1
-          const x = cssX + u * blockJitterW
-          const y = cssY + v * blockJitterH
+          /** Push fringe particles toward the rim — exclude the inner 60%. */
+          const sgnU = u < 0 ? -1 : 1
+          const sgnV = v < 0 ? -1 : 1
+          const rimU = sgnU * (0.6 + Math.abs(u) * 0.4)
+          const rimV = sgnV * (0.6 + Math.abs(v) * 0.4)
+          const x = cssX + rimU * blockFringeHalfW
+          const y = cssY + rimV * blockFringeHalfH
           const px = (x * dpr) | 0
           const py = (y * dpr) | 0
           if (px < 0 || px + 1 >= PW || py < 0 || py + 1 >= PH) continue
-          /** 2×2 splat per particle so the blob reads dense at typical DPR. */
           for (let dy = 0; dy < 2; dy++) {
             const rowOff = (py + dy) * PW * 4
             for (let dx = 0; dx < 2; dx++) {
@@ -902,14 +1018,21 @@ export default function TetrisParticleOverlay({
         const exc = amb.excitement[i]!
         if (exc > 0) {
           const k = exc < 0.85 ? exc : 0.85
-          r = (r + (255 - r) * k) | 0
-          g = (g + (255 - g) * k) | 0
-          b = (b + (255 - b) * k) | 0
+          r = r + (255 - r) * k
+          g = g + (255 - g) * k
+          b = b + (255 - b) * k
         }
+        /** Brightness modulation: density (noise texture, baked at build) gives
+         * the field visible streaks/clusters; AMBIENT_BASE_ALPHA dims resting
+         * particles so excited (bright white-blended) ones stand out. */
+        const dens = amb.density[i]!
+        const densMul = 0.55 + dens * 0.55
+        const restMul = AMBIENT_BASE_ALPHA + (1 - AMBIENT_BASE_ALPHA) * exc
+        const finalMul = restMul * densMul
         const off = (py * PW + px) * 4
-        pixBuf[off] = r
-        pixBuf[off + 1] = g
-        pixBuf[off + 2] = b
+        pixBuf[off] = (r * finalMul) | 0
+        pixBuf[off + 1] = (g * finalMul) | 0
+        pixBuf[off + 2] = (b * finalMul) | 0
         pixBuf[off + 3] = 255
       }
 
@@ -946,6 +1069,46 @@ export default function TetrisParticleOverlay({
             pixBuf[off + 1] = g
             pixBuf[off + 2] = b
             pixBuf[off + 3] = al
+          }
+        }
+      }
+
+      /** Pre-vanish pop: at line clear, draw oversized white blocks at the cleared
+       * row's positions for ~140ms — reads as the row's blocks "popping" outward
+       * before they vanish. Combined with the flash band below, gives a juicy
+       * visual punch to line clears. */
+      const POP_LIFE_MS = 140
+      for (let pi = clearPops.length - 1; pi >= 0; pi--) {
+        const pop = clearPops[pi]!
+        const age = now - pop.bornAt
+        if (age >= POP_LIFE_MS) {
+          clearPops.splice(pi, 1)
+          continue
+        }
+        const u = age / POP_LIFE_MS
+        /** Expand from 1.0 to 1.5 over the pop's life. */
+        const scale = 1 + u * 0.5
+        const a = (1 - u) * 255
+        const halfWPx = sizeState.cellW * 0.5 * scale * dpr
+        const halfHPx = sizeState.cellH * 0.5 * scale * dpr
+        const cyPx = (pop.y * dpr) | 0
+        for (let bx = 0; bx < BOARD_W; bx++) {
+          const cellCx =
+            sizeState.padX + (bx + 0.5) * sizeState.cellW
+          const cxPx = (cellCx * dpr) | 0
+          const x0 = Math.max(0, (cxPx - halfWPx) | 0)
+          const y0 = Math.max(0, (cyPx - halfHPx) | 0)
+          const x1 = Math.min(PW, (cxPx + halfWPx) | 0)
+          const y1 = Math.min(PH, (cyPx + halfHPx) | 0)
+          for (let py = y0; py < y1; py++) {
+            const rowOff = py * PW * 4
+            for (let px = x0; px < x1; px++) {
+              const off = rowOff + px * 4
+              pixBuf[off] = 255
+              pixBuf[off + 1] = 255
+              pixBuf[off + 2] = 255
+              pixBuf[off + 3] = a | 0
+            }
           }
         }
       }
