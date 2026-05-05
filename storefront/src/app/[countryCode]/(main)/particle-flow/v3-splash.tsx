@@ -2,27 +2,11 @@
 
 import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
 import type { NewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
+import { WORDMARK_GRADIENT } from "@modules/common/lib/wordmark-gradient"
 
-/**
- * 9-stop spectrum gradient applied to the wordmark via the hero's `wordmarkGradient`
- * prop. Each particle's colour is fixed by its HOME position projected onto a 78°
- * axis (CSS convention: 0° = up, increasing clockwise — so 78° is mostly horizontal).
- * Shared between the home page and DMC page so they read as the same brand mark.
- */
-export const WORDMARK_GRADIENT = {
-  angleDeg: 78,
-  stops: [
-    "#ff2e63",
-    "#ff6b35",
-    "#ffc145",
-    "#c1ff45",
-    "#3dcfc2",
-    "#45a4ff",
-    "#6c5cff",
-    "#b556ff",
-    "#ff56e0",
-  ],
-}
+/** Re-export shared gradient so existing imports of WORDMARK_GRADIENT from this
+ * file keep working. Single source lives in modules/common/lib/wordmark-gradient.ts. */
+export { WORDMARK_GRADIENT }
 
 /**
  * SC PRints v3-era settings (commit a6abea2, May 3 11:52). User indicated these

@@ -14,10 +14,21 @@ import { getAuthHeaders, getCartId, removeCartId, setCartId } from "./cookies"
 import { getProductsById } from "./products"
 import { getRegion } from "./regions"
 
+const CART_DEBUG_TAG = "[DEBUG-CART-a91f]"
+const cartDebug = (message: string, extra?: Record<string, unknown>) => {
+  if (extra) {
+    console.info(CART_DEBUG_TAG, message, extra)
+    return
+  }
+  console.info(CART_DEBUG_TAG, message)
+}
+
 export async function retrieveCart() {
   const cartId = await getCartId()
+  cartDebug("retrieveCart:start", { cartId: cartId ?? null })
 
   if (!cartId) {
+    cartDebug("retrieveCart:no-cart-cookie")
     return null
   }
 
@@ -33,16 +44,33 @@ export async function retrieveCart() {
       next: { tags: ["cart"] },
       ...authHeaders,
     })
+    cartDebug("retrieveCart:success", {
+      cartId: cart.id,
+      itemCount: Array.isArray(cart.items) ? cart.items.length : null,
+      authMode: "auth",
+    })
     return cart
-  } catch {
+  } catch (error) {
+    cartDebug("retrieveCart:auth-failed", {
+      cartId,
+      message: error instanceof Error ? error.message : "unknown",
+    })
     // Recover from stale/invalid auth cookie by retrying cart retrieval as guest.
     if ("authorization" in authHeaders) {
       try {
         const { cart } = await sdk.store.cart.retrieve(cartId, retrieveConfig, {
           next: { tags: ["cart"] },
         })
+        cartDebug("retrieveCart:guest-retry-success", {
+          cartId: cart.id,
+          itemCount: Array.isArray(cart.items) ? cart.items.length : null,
+        })
         return cart
-      } catch {
+      } catch (retryError) {
+        cartDebug("retrieveCart:guest-retry-failed", {
+          cartId,
+          message: retryError instanceof Error ? retryError.message : "unknown",
+        })
         return null
       }
     }
@@ -53,6 +81,11 @@ export async function retrieveCart() {
 export async function getOrSetCart(countryCode: string) {
   let cart = await retrieveCart()
   const region = await getRegion(countryCode)
+  cartDebug("getOrSetCart:region", {
+    countryCode,
+    regionId: region?.id ?? null,
+    existingCartId: cart?.id ?? null,
+  })
 
   if (!region) {
     throw new Error(`Region not found for country code: ${countryCode}`)
@@ -62,6 +95,7 @@ export async function getOrSetCart(countryCode: string) {
     const cartResp = await sdk.store.cart.create({ region_id: region.id })
     cart = cartResp.cart
     await setCartId(cart.id)
+    cartDebug("getOrSetCart:created", { cartId: cart.id, regionId: region.id })
     revalidateTag("cart")
   }
 
@@ -72,9 +106,15 @@ export async function getOrSetCart(countryCode: string) {
       {},
       await getAuthHeaders()
     )
+    cartDebug("getOrSetCart:region-updated", {
+      cartId: cart.id,
+      fromRegionId: cart.region_id,
+      toRegionId: region.id,
+    })
     revalidateTag("cart")
   }
 
+  cartDebug("getOrSetCart:return", { cartId: cart?.id ?? null })
   return cart
 }
 
@@ -112,6 +152,12 @@ export async function addToCart({
   if (!cart) {
     throw new Error("Error retrieving or creating cart")
   }
+  cartDebug("addToCart:start", {
+    cartId: cart.id,
+    variantId,
+    quantity,
+    hasMetadata: !!metadata,
+  })
 
   const payload = {
     variant_id: variantId,
@@ -122,14 +168,21 @@ export async function addToCart({
 
   try {
     await sdk.store.cart.createLineItem(cart.id, payload, {}, authHeaders)
+    cartDebug("addToCart:createLineItem-success", { cartId: cart.id, authMode: "auth" })
   } catch (error) {
+    cartDebug("addToCart:createLineItem-auth-failed", {
+      cartId: cart.id,
+      message: error instanceof Error ? error.message : "unknown",
+    })
     if ("authorization" in authHeaders) {
       await sdk.store.cart.createLineItem(cart.id, payload, {}, {}).catch(medusaError)
+      cartDebug("addToCart:createLineItem-guest-retry-success", { cartId: cart.id })
     } else {
       medusaError(error)
     }
   }
   revalidateTag("cart")
+  cartDebug("addToCart:done", { cartId: cart.id })
 }
 
 type AddToCartResult =
@@ -222,6 +275,12 @@ export async function addScpLineItemToCart(input: {
   if (!cart?.id) {
     throw new Error("Error retrieving or creating cart")
   }
+  cartDebug("addScpLineItemToCart:start", {
+    cartId: cart.id,
+    variantId,
+    quantity,
+    printSizeId,
+  })
 
   try {
     await postJsonMedusa(`/store/carts/${cart.id}/scp-line-items`, {
@@ -233,7 +292,12 @@ export async function addScpLineItemToCart(input: {
         print_size_id: printSizeId,
       },
     })
+    cartDebug("addScpLineItemToCart:scp-route-success", { cartId: cart.id })
   } catch (error) {
+    cartDebug("addScpLineItemToCart:scp-route-failed", {
+      cartId: cart.id,
+      message: error instanceof Error ? error.message : "unknown",
+    })
     // Keep checkout usable if the custom SCP endpoint or key config is unavailable.
     const fallbackPayload = {
       variant_id: variantId,
@@ -251,7 +315,12 @@ export async function addScpLineItemToCart(input: {
 
     try {
       await sdk.store.cart.createLineItem(cart.id, fallbackPayload, {}, authHeaders)
+      cartDebug("addScpLineItemToCart:fallback-success", { cartId: cart.id, authMode: "auth" })
     } catch (fallbackError) {
+      cartDebug("addScpLineItemToCart:fallback-auth-failed", {
+        cartId: cart.id,
+        message: fallbackError instanceof Error ? fallbackError.message : "unknown",
+      })
       if ("authorization" in authHeaders) {
         await sdk.store.cart.createLineItem(cart.id, fallbackPayload, {}, {}).catch(() => {
           const primaryMessage =
@@ -262,6 +331,7 @@ export async function addScpLineItemToCart(input: {
               : "Standard add-to-cart fallback failed."
           throw new Error(`${primaryMessage} ${fallbackMessage}`.trim())
         })
+        cartDebug("addScpLineItemToCart:fallback-guest-retry-success", { cartId: cart.id })
       } else {
         const primaryMessage =
           error instanceof Error ? error.message : "SCP pricing route failed."
@@ -275,6 +345,7 @@ export async function addScpLineItemToCart(input: {
   }
 
   revalidateTag("cart")
+  cartDebug("addScpLineItemToCart:done", { cartId: cart.id })
 }
 
 export async function addScpLineItemToCartSafe(input: {

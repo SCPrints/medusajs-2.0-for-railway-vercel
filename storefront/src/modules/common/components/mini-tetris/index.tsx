@@ -1,6 +1,15 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react"
+
+import TetrisParticleOverlay from "./tetris-particle-overlay"
 
 const BOARD_W = 10
 const BOARD_H = 20
@@ -398,7 +407,7 @@ function gameReducer(state: GameState, action: Action): GameState {
   return state
 }
 
-/** Default vs 1.5× (not-found) cell dimensions */
+/** Default vs 1.5× (lg) vs 2.25× (xl, not-found) cell dimensions. */
 const TETRIS_SIZES = {
   default: {
     cellEmpty:
@@ -414,15 +423,23 @@ const TETRIS_SIZES = {
       "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-ui-border-base box-border",
     next: "w-[1.125rem] h-[1.125rem] border border-ui-border-base/50",
   },
+  xl: {
+    cellEmpty:
+      "w-7 h-7 small:w-9 small:h-9 border border-ui-border-base/50 bg-ui-bg-subtle",
+    cellFilled:
+      "w-7 h-7 small:w-9 small:h-9 border border-ui-border-base box-border",
+    next: "w-5 h-5 small:w-6 small:h-6 border border-ui-border-base/50",
+  },
 } as const
 
 export type MiniTetrisProps = {
-  /** `"lg"` = 1.5× playfield and preview cells (e.g. 404). */
-  size?: "default" | "lg"
+  /** `"lg"` = 1.5× cells; `"xl"` = ~2.25× cells (enlarged 404 layout). */
+  size?: "default" | "lg" | "xl"
 }
 
 export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
   const s = TETRIS_SIZES[size]
+  const gridContainerRef = useRef<HTMLDivElement | null>(null)
   const [state, dispatch] = useReducer(
     gameReducer,
     undefined,
@@ -522,9 +539,19 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
   const nextMat = getShapeM(state.next, 0)
 
   const wrapPad =
-    size === "lg" ? "p-6 small:p-8 max-w-5xl" : "p-4 small:p-5 max-w-2xl"
-  const colGap = size === "lg" ? "gap-9" : "gap-6"
-  const sideMinW = size === "lg" ? "min-w-[15rem]" : "min-w-[10rem]"
+    size === "xl"
+      ? "p-8 small:p-10 max-w-6xl"
+      : size === "lg"
+      ? "p-6 small:p-8 max-w-5xl"
+      : "p-4 small:p-5 max-w-2xl"
+  const colGap =
+    size === "xl" ? "gap-12" : size === "lg" ? "gap-9" : "gap-6"
+  const sideMinW =
+    size === "xl"
+      ? "min-w-[18rem]"
+      : size === "lg"
+      ? "min-w-[15rem]"
+      : "min-w-[10rem]"
 
   return (
     <div
@@ -547,33 +574,43 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
               ? "Reduced motion: gravity is slower."
               : null}
           </p>
-          <div
-            className="grid gap-px p-1 rounded-md border border-ui-border-base bg-ui-bg-base inline-grid"
-            style={{ gridTemplateColumns: `repeat(${BOARD_W}, minmax(0, 1fr))` }}
-            aria-hidden
-          >
-            {display.map((row, ri) =>
-              row.map((cell, ci) => {
-                if (cell === 0) {
+          <div className="relative inline-block">
+            <div
+              ref={gridContainerRef}
+              className="grid gap-px p-1 rounded-md border border-ui-border-base bg-ui-bg-base inline-grid"
+              style={{ gridTemplateColumns: `repeat(${BOARD_W}, minmax(0, 1fr))` }}
+              aria-hidden
+            >
+              {display.map((row, ri) =>
+                row.map((cell, ci) => {
+                  if (cell === 0) {
+                    return (
+                      <div
+                        className={s.cellEmpty}
+                        key={`${ri}-${ci}`}
+                      />
+                    )
+                  }
+                  const v = (cell - 1) as number
                   return (
                     <div
-                      className={s.cellEmpty}
+                      className={s.cellFilled}
                       key={`${ri}-${ci}`}
+                      style={{
+                        background: PIECE_FILL[v] ?? "var(--brand-primary)",
+                      }}
                     />
                   )
-                }
-                const v = (cell - 1) as number
-                return (
-                  <div
-                    className={s.cellFilled}
-                    key={`${ri}-${ci}`}
-                    style={{
-                      background: PIECE_FILL[v] ?? "var(--brand-primary)",
-                    }}
-                  />
-                )
-              })
-            )}
+                })
+              )}
+            </div>
+            <TetrisParticleOverlay
+              containerRef={gridContainerRef}
+              display={display}
+              board={state.board}
+              active={state.active}
+              lines={state.lines}
+            />
           </div>
         </div>
 
