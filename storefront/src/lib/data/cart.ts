@@ -216,9 +216,28 @@ export async function addToCartSafe(input: {
 }
 
 async function postJsonMedusa(path: string, body: Record<string, unknown>) {
-  const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY?.trim()
+  const envKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY?.trim()
+  let publishableKey = envKey
   if (!publishableKey) {
-    throw new Error("Missing NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY for SCP cart pricing.")
+    try {
+      const keyRes = await fetch(`${MEDUSA_BACKEND_URL}/key-exchange`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      })
+      if (keyRes.ok) {
+        const parsed = (await keyRes.json()) as {
+          publishableApiKey?: string
+          publishable_api_key?: string
+        }
+        publishableKey =
+          parsed.publishableApiKey?.trim() || parsed.publishable_api_key?.trim() || ""
+      }
+    } catch {
+      publishableKey = ""
+    }
+  }
+  if (!publishableKey) {
+    throw new Error("Missing publishable key for SCP cart pricing.")
   }
 
   const headers: Record<string, string> = {

@@ -2,8 +2,39 @@ import type { HttpTypes } from "@medusajs/types"
 
 import { convertMinorToLocale } from "./money"
 
+function normalizeDisplayAmount(
+  rawAmount: number,
+  option: HttpTypes.StoreCartShippingOption
+): number {
+  if (!Number.isFinite(rawAmount)) {
+    return rawAmount
+  }
+
+  // Some Medusa setups return shipping option amounts in minor units (e.g. 1500 cents)
+  // while storefront money formatting here expects major units (e.g. 15 dollars).
+  // Convert only clearly "cent-like" values to avoid touching normal major amounts.
+  if (rawAmount >= 1000 && rawAmount % 100 === 0) {
+    return rawAmount / 100
+  }
+
+  const cc = option.currency_code?.toLowerCase()
+  const matchingPrice = option.prices?.find(
+    (price) => price?.currency_code?.toLowerCase() === cc
+  )
+  const matchingAmount = matchingPrice?.amount
+  if (
+    typeof matchingAmount === "number" &&
+    Number.isFinite(matchingAmount) &&
+    rawAmount === matchingAmount * 100
+  ) {
+    return matchingAmount
+  }
+
+  return rawAmount
+}
+
 /**
- * Resolves a shipping option's amount in minor units (cents) for display.
+ * Resolves a shipping option amount and normalizes for storefront display.
  * List endpoints may omit `amount` but still set `calculated_price` or `prices`.
  */
 export function getStoreCartShippingOptionMinorAmount(
@@ -25,14 +56,14 @@ export function getStoreCartShippingOptionMinorAmount(
       calculated >= top * 100 &&
       calculated % 100 === 0
     ) {
-      return top
+      return normalizeDisplayAmount(top, option)
     }
-    return top
+    return normalizeDisplayAmount(top, option)
   }
 
   const calculated = option.calculated_price?.calculated_amount
   if (typeof calculated === "number" && Number.isFinite(calculated)) {
-    return calculated
+    return normalizeDisplayAmount(calculated, option)
   }
 
   const prices = option.prices
@@ -47,13 +78,13 @@ export function getStoreCartShippingOptionMinorAmount(
     )
     const a = match?.amount
     if (typeof a === "number" && Number.isFinite(a)) {
-      return a
+      return normalizeDisplayAmount(a, option)
     }
   }
 
   const first = prices[0]?.amount
   if (typeof first === "number" && Number.isFinite(first)) {
-    return first
+    return normalizeDisplayAmount(first, option)
   }
 
   return null

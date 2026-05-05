@@ -35,15 +35,27 @@ const LOCK_BURST_SPEED = 7
 const CLEAR_BURST_SPEED = 10
 /** Active-piece movement transition (ms). Lerps the obstacle position smoothly
  * between integer cell positions so the block doesn't snap chunky-style each drop.
- * Tuned close to the default drop interval (700ms) so motion is fluid edge-to-edge. */
-const PIECE_TRANSITION_MS = 520
+ * Tuned just under the default drop interval (700ms) so motion is fluid edge-to-edge. */
+const PIECE_TRANSITION_MS = 650
 /** Cap on visual lag distance (in cells). Hard drops would otherwise leave a
  * 20-cell trail; we clamp so it caps out at ~1 cell of smoothing slack. */
 const PIECE_MAX_LAG_CELLS = 1.2
-/** Lock-impact: upward force applied to particles in each locked cell's column,
- * with distance falloff. Squashes the field upward when the block hits bottom. */
-const LOCK_UPWARD_FORCE = 6
-const LOCK_UPWARD_FALLOFF_PER_ROW = 0.25
+/** Block "blob": render each filled cell as a dense cluster of coloured particles
+ * instead of a solid rect. Higher = denser/more solid blob. */
+const BLOCK_PARTICLES_PER_CELL = 110
+/** Block particles' jitter spread inside a cell (fraction of cell size). */
+const BLOCK_JITTER_FRAC = 0.46
+/** Water-drop ripple: radial wave expanding outward from the impact point on lock.
+ * Pushes particles radially outward with amplitude that decays with distance. */
+const RIPPLE_SPEED = 11
+const RIPPLE_BAND_HALF = 24
+const RIPPLE_AMPLITUDE = 9
+const RIPPLE_AMPLITUDE_DECAY = 0.985
+const RIPPLE_MIN_AMPLITUDE = 0.2
+/** Upward bias for ripple — water drops mostly affect the surface above impact. */
+const RIPPLE_UPWARD_BIAS = 1.4
+/** Line-clear flash: horizontal stripe over the cleared row that fades over time. */
+const FLASH_LIFE_MS = 480
 /** Excitement decay per frame (multiplicative). */
 const EXCITEMENT_DECAY = 0.96
 /** Line-clear shockwave: initial downward impulse on cleared row, then an upward
@@ -160,6 +172,17 @@ export default function TetrisParticleOverlay({
      * a row is cleared, displacing particles as it passes. Multiple waves can coexist
      * if several lines clear in quick succession. */
     const waves: Array<{ y: number; strength: number }> = []
+    /** Water-drop ripples: radial bands expanding outward from a lock impact point.
+     * Multiple ripples can coexist (one per locked piece) — they layer naturally. */
+    const ripples: Array<{
+      cx: number
+      cy: number
+      radius: number
+      amplitude: number
+    }> = []
+    /** Line-clear flash bands: bright horizontal stripes drawn over the cleared row,
+     * fading over FLASH_LIFE_MS. Drawn directly to pixBuf each frame. */
+    const flashes: Array<{ y: number; bornAt: number }> = []
     const allocateBurst = (): Burst | null => {
       for (let i = 0; i < bursts.length; i++) {
         const p = bursts[i]!
@@ -338,19 +361,19 @@ export default function TetrisParticleOverlay({
             prev.board[by]!.every((c) => c !== 0)
           if (!wasFull) continue
           const rowMidY = sizeState.padY + (by + 0.5) * sizeState.cellH
-          /** Per-cell big burst at every cell of the cleared row. */
+          /** Per-cell big burst at every cell of the cleared row, doubled for drama. */
           for (let bx = 0; bx < BOARD_W; bx++) {
             const c = cellCentre(bx, by)
             spawnBurst(
               c.x,
               c.y,
-              CLEAR_BURST_PER_CELL,
-              CLEAR_BURST_SPEED,
-              BURST_LIFE_MS * 1.4
+              CLEAR_BURST_PER_CELL * 2,
+              CLEAR_BURST_SPEED * 1.3,
+              BURST_LIFE_MS * 1.6
             )
           }
-          /** Horizontal sweep ribbon along the row. */
-          const rowSweepCount = 80
+          /** Bright horizontal sweep ribbons in BOTH directions across the full row. */
+          const rowSweepCount = 160
           for (let i = 0; i < rowSweepCount; i++) {
             const p = allocateBurst()
             if (!p) break
@@ -358,28 +381,46 @@ export default function TetrisParticleOverlay({
             const fromLeft = i % 2 === 0
             const startX = fromLeft ? sizeState.padX : sizeState.padX + W
             p.x = startX
-            p.y = rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.6
+            p.y = rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.8
             const dir = fromLeft ? 1 : -1
-            p.vx = dir * (8 + Math.random() * 6)
-            p.vy = (Math.random() - 0.5) * 2
+            p.vx = dir * (10 + Math.random() * 9)
+            p.vy = (Math.random() - 0.5) * 3
             p.bornAt = now
-            p.lifeMs = 600 + Math.random() * 400
+            p.lifeMs = 700 + Math.random() * 500
           }
-          /** Initial downward impulse: every ambient particle in this row + the row
-           * just below gets a hard kick downward (the "fall" before the wave starts). */
+          /** Vertical column blasts: shoot particles up AND down from the cleared
+           * row at every column (the row "exploding" along the vertical axis). */
+          for (let bx = 0; bx < BOARD_W; bx++) {
+            const cellCx = sizeState.padX + (bx + 0.5) * sizeState.cellW
+            for (let dirSign = -1; dirSign <= 1; dirSign += 2) {
+              for (let i = 0; i < 14; i++) {
+                const p = allocateBurst()
+                if (!p) break
+                p.alive = true
+                p.x = cellCx + (Math.random() - 0.5) * sizeState.cellW * 0.7
+                p.y = rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.4
+                p.vx = (Math.random() - 0.5) * 4
+                p.vy = dirSign * (6 + Math.random() * 6)
+                p.bornAt = now
+                p.lifeMs = 800 + Math.random() * 400
+              }
+            }
+          }
+          /** Initial downward impulse on the cleared row + the row below. */
           const rowsToHit = [by, Math.min(BOARD_H - 1, by + 1)]
           for (const ry of rowsToHit) {
             for (let bx = 0; bx < BOARD_W; bx++) {
               const startIdx = (bx + ry * BOARD_W) * AMBIENT_PER_CELL
               const endIdx = startIdx + AMBIENT_PER_CELL
               for (let i = startIdx; i < endIdx; i++) {
-                amb.vy[i] = (amb.vy[i] ?? 0) + LINE_CLEAR_FALL_IMPULSE
+                amb.vy[i] = (amb.vy[i] ?? 0) + LINE_CLEAR_FALL_IMPULSE * 1.4
                 amb.excitement[i] = 1
               }
             }
           }
-          /** Spawn an upward wave starting at this row. */
-          waves.push({ y: rowMidY, strength: WAVE_STRENGTH })
+          /** Upward wave + flash band over the cleared row. */
+          waves.push({ y: rowMidY, strength: WAVE_STRENGTH * 1.6 })
+          flashes.push({ y: rowMidY, bornAt: now })
         }
       }
 
@@ -395,45 +436,40 @@ export default function TetrisParticleOverlay({
         }
       }
       if (lockedCells.length > 0) {
+        /** Impact centroid sits at the BOTTOM of the locked block (bottom-most row's
+         * lower edge) — that's where a water drop "lands" before the ripple radiates. */
         let cx = 0
-        let cy = 0
+        let maxBy = -1
         for (const c of lockedCells) {
-          const cc = cellCentre(c.bx, c.by)
-          cx += cc.x
-          cy += cc.y
+          cx += sizeState.padX + (c.bx + 0.5) * sizeState.cellW
+          if (c.by > maxBy) maxBy = c.by
         }
         cx /= lockedCells.length
-        cy /= lockedCells.length
-        const ringCount = 36
+        const cy = sizeState.padY + (maxBy + 1) * sizeState.cellH
+        /** Water-drop ripple: radial wave expanding outward from impact. Particles
+         * encountered by the wave's band get a radial impulse outward (with upward
+         * bias since the surface is below). */
+        ripples.push({
+          cx,
+          cy,
+          radius: 0,
+          amplitude: RIPPLE_AMPLITUDE,
+        })
+        /** Plus a quick directional ring burst right at impact for visual punch. */
+        const ringCount = 48
         for (let i = 0; i < ringCount; i++) {
           const p = allocateBurst()
           if (!p) break
           p.alive = true
-          const angle = (i / ringCount) * Math.PI * 2
-          const speed = 9 + Math.random() * 3
+          /** Bias the ring upward (angles from -π to 0 sweep the upper hemisphere). */
+          const angle = -Math.PI + (i / ringCount) * Math.PI
+          const speed = 10 + Math.random() * 4
           p.x = cx
           p.y = cy
           p.vx = Math.cos(angle) * speed
           p.vy = Math.sin(angle) * speed
           p.bornAt = now
           p.lifeMs = 700 + Math.random() * 300
-        }
-        /** Squash-upward impulse: every particle in a column above each locked cell
-         * gets an upward velocity kick, with falloff by row-distance. The field
-         * visibly gets compressed upward when the piece hits the bottom. */
-        for (const cell of lockedCells) {
-          for (let by = 0; by < cell.by; by++) {
-            const rowsAbove = cell.by - by
-            const strength =
-              LOCK_UPWARD_FORCE /
-              (1 + rowsAbove * LOCK_UPWARD_FALLOFF_PER_ROW)
-            const startIdx = (cell.bx + by * BOARD_W) * AMBIENT_PER_CELL
-            const endIdx = startIdx + AMBIENT_PER_CELL
-            for (let i = startIdx; i < endIdx; i++) {
-              amb.vy[i] = amb.vy[i]! - strength
-              if (amb.excitement[i]! < 0.7) amb.excitement[i] = 0.7
-            }
-          }
         }
       }
 
@@ -611,6 +647,81 @@ export default function TetrisParticleOverlay({
         }
       }
 
+      /** =========== Water-drop ripples (radial wave from lock impact) =========== */
+
+      /** For each ripple, find ambient particles in the (radius ± band) annulus and
+       * apply a radial-outward impulse. Decays with distance from impact + over time. */
+      for (let ri = ripples.length - 1; ri >= 0; ri--) {
+        const r = ripples[ri]!
+        const innerR = r.radius - RIPPLE_BAND_HALF
+        const outerR = r.radius + RIPPLE_BAND_HALF
+        /** Bounding box of cells the band could touch — iterate only those buckets. */
+        const minBx = Math.max(
+          0,
+          Math.floor(
+            (r.cx - outerR - sizeState.padX) / sizeState.cellW
+          )
+        )
+        const maxBx = Math.min(
+          BOARD_W - 1,
+          Math.ceil(
+            (r.cx + outerR - sizeState.padX) / sizeState.cellW
+          )
+        )
+        const minBy = Math.max(
+          0,
+          Math.floor(
+            (r.cy - outerR - sizeState.padY) / sizeState.cellH
+          )
+        )
+        const maxBy = Math.min(
+          BOARD_H - 1,
+          Math.ceil(
+            (r.cy + outerR - sizeState.padY) / sizeState.cellH
+          )
+        )
+        if (minBx <= maxBx && minBy <= maxBy) {
+          for (let by = minBy; by <= maxBy; by++) {
+            for (let bx = minBx; bx <= maxBx; bx++) {
+              const startIdx = (bx + by * BOARD_W) * AMBIENT_PER_CELL
+              const endIdx = startIdx + AMBIENT_PER_CELL
+              for (let i = startIdx; i < endIdx; i++) {
+                const dx = amb.x[i]! - r.cx
+                const dy = amb.y[i]! - r.cy
+                const d2 = dx * dx + dy * dy
+                if (d2 < innerR * innerR || d2 > outerR * outerR) continue
+                const d = Math.sqrt(d2)
+                if (d < 1e-3) continue
+                /** Falloff: Gaussian-ish across the band centre + radial decay. */
+                const bandPos = (d - r.radius) / RIPPLE_BAND_HALF
+                const bandFall = 1 - bandPos * bandPos
+                /** Distance decay: 1/sqrt(r) for 2D wave. */
+                const distDecay = 1 / Math.sqrt(1 + d / 30)
+                const force = r.amplitude * bandFall * distDecay
+                /** Radial outward unit vector + upward bias because we're a ripple
+                 * on a surface (impact was at bottom — most field is above). */
+                const nx = dx / d
+                const ny = dy / d
+                amb.vx[i] = amb.vx[i]! + nx * force
+                amb.vy[i] =
+                  amb.vy[i]! +
+                  ny * force -
+                  Math.max(0, RIPPLE_UPWARD_BIAS * bandFall)
+                if (bandFall > amb.excitement[i]!)
+                  amb.excitement[i] = bandFall
+              }
+            }
+          }
+        }
+        /** Advance ripple: expand radius, decay amplitude. Retire when faded. */
+        r.radius += RIPPLE_SPEED
+        r.amplitude *= RIPPLE_AMPLITUDE_DECAY
+        const maxR = Math.hypot(W, H)
+        if (r.amplitude < RIPPLE_MIN_AMPLITUDE || r.radius > maxR) {
+          ripples.splice(ri, 1)
+        }
+      }
+
       /** =========== Spring + integration (all ambient particles) =========== */
 
       for (let i = 0; i < TOTAL_AMBIENT; i++) {
@@ -649,37 +760,77 @@ export default function TetrisParticleOverlay({
       const PW = canvas.width
       const PH = canvas.height
 
-      /** Draw active piece cells as solid filled rectangles at the smoothly-
-       * interpolated position. Done BEFORE particles so particles read as a fizzing
-       * fringe around the moving block rather than being hidden under it. */
-      if (actNow != null) {
-        const colour =
-          PIECE_RGB[actNow.t] ?? ([255, 255, 255] as const)
-        const pr = colour[0]
-        const pg = colour[1]
-        const pb = colour[2]
-        const cellWPx = sizeState.cellW * dpr
-        const cellHPx = sizeState.cellH * dpr
-        const offXPx = smoothOffsetX * dpr
-        const offYPx = smoothOffsetY * dpr
-        for (const ac of activeCellsForMotion) {
-          const c = cellCentre(ac.bx, ac.by)
-          const cxPx = c.x * dpr + offXPx
-          const cyPx = c.y * dpr + offYPx
-          const x0 = Math.max(0, Math.floor(cxPx - cellWPx * 0.5))
-          const y0 = Math.max(0, Math.floor(cyPx - cellHPx * 0.5))
-          const x1 = Math.min(PW, Math.ceil(cxPx + cellWPx * 0.5))
-          const y1 = Math.min(PH, Math.ceil(cyPx + cellHPx * 0.5))
-          for (let py = y0; py < y1; py++) {
-            const rowOff = py * PW * 4
-            for (let px = x0; px < x1; px++) {
-              const off = rowOff + px * 4
+      /** Draw all filled cells (active + locked) as DENSE PARTICLE BLOBS instead of
+       * solid rectangles. Each cell renders BLOCK_PARTICLES_PER_CELL coloured
+       * pixels at deterministic jitter positions inside the cell — reads as a
+       * "blob of colour" flowing through the field, with subpixel-fuzzy edges
+       * that move smoothly with the active piece's interpolated position. */
+      const blockJitterW = sizeState.cellW * BLOCK_JITTER_FRAC
+      const blockJitterH = sizeState.cellH * BLOCK_JITTER_FRAC
+      const renderBlockBlob = (
+        cssX: number,
+        cssY: number,
+        pr: number,
+        pg: number,
+        pb: number,
+        seedA: number
+      ) => {
+        for (let s = 0; s < BLOCK_PARTICLES_PER_CELL; s++) {
+          const u = hash01(seedA, s * 13 + 1) * 2 - 1
+          const v = hash01(seedA, s * 13 + 2) * 2 - 1
+          const x = cssX + u * blockJitterW
+          const y = cssY + v * blockJitterH
+          const px = (x * dpr) | 0
+          const py = (y * dpr) | 0
+          if (px < 0 || px + 1 >= PW || py < 0 || py + 1 >= PH) continue
+          /** 2×2 splat per particle so the blob reads dense at typical DPR. */
+          for (let dy = 0; dy < 2; dy++) {
+            const rowOff = (py + dy) * PW * 4
+            for (let dx = 0; dx < 2; dx++) {
+              const off = rowOff + (px + dx) * 4
               pixBuf[off] = pr
               pixBuf[off + 1] = pg
               pixBuf[off + 2] = pb
               pixBuf[off + 3] = 255
             }
           }
+        }
+      }
+
+      /** Locked cells: stable jitter seeded by board coords so the blob doesn't
+       * shimmer between frames. */
+      for (let by = 0; by < BOARD_H; by++) {
+        for (let bx = 0; bx < BOARD_W; bx++) {
+          const v = brdNow[by]?.[bx] ?? 0
+          if (v === 0) continue
+          const colour = PIECE_RGB[v - 1] ?? [255, 255, 255]
+          const c = cellCentre(bx, by)
+          renderBlockBlob(
+            c.x,
+            c.y,
+            colour[0]!,
+            colour[1]!,
+            colour[2]!,
+            bx * 1009 + by * 17 + 1
+          )
+        }
+      }
+      /** Active piece: stable jitter seeded by within-piece cell index so the blob
+       * pattern stays the same as the piece moves/rotates. Position uses the
+       * smoothly-interpolated offset for fluid motion. */
+      if (actNow != null) {
+        const colour = PIECE_RGB[actNow.t] ?? [255, 255, 255]
+        for (let aci = 0; aci < activeCellsForMotion.length; aci++) {
+          const ac = activeCellsForMotion[aci]!
+          const c = cellCentre(ac.bx, ac.by)
+          renderBlockBlob(
+            c.x + smoothOffsetX,
+            c.y + smoothOffsetY,
+            colour[0]!,
+            colour[1]!,
+            colour[2]!,
+            900000 + aci * 31
+          )
         }
       }
 
@@ -795,6 +946,46 @@ export default function TetrisParticleOverlay({
             pixBuf[off + 1] = g
             pixBuf[off + 2] = b
             pixBuf[off + 3] = al
+          }
+        }
+      }
+
+      /** Line-clear flash: bright horizontal stripe over the cleared row that fades
+       * with cubic ease-out. Drawn additively so the row reads as a quick burst of
+       * brilliance before fading to dark. */
+      for (let fi = flashes.length - 1; fi >= 0; fi--) {
+        const fl = flashes[fi]!
+        const age = now - fl.bornAt
+        if (age >= FLASH_LIFE_MS) {
+          flashes.splice(fi, 1)
+          continue
+        }
+        const u = age / FLASH_LIFE_MS
+        const a = (1 - u) * (1 - u) * (1 - u)
+        const halfBandPx = (sizeState.cellH * 0.6) * dpr
+        const cyPx = (fl.y * dpr) | 0
+        const y0 = Math.max(0, cyPx - (halfBandPx | 0))
+        const y1 = Math.min(PH, cyPx + (halfBandPx | 0))
+        for (let py = y0; py < y1; py++) {
+          /** Fade vertically away from the band centre too. */
+          const vDist = Math.abs(py - cyPx) / halfBandPx
+          const vFall = 1 - vDist * vDist
+          const aa = a * vFall * 240
+          if (aa < 8) continue
+          const rowOff = py * PW * 4
+          for (let px = 0; px < PW; px++) {
+            const off = rowOff + px * 4
+            /** Additive blend toward white over the existing pixel. */
+            const cur = pixBuf[off + 3]!
+            if (cur < aa) {
+              const k = aa / 255
+              pixBuf[off] = (pixBuf[off]! + (255 - pixBuf[off]!) * k) | 0
+              pixBuf[off + 1] =
+                (pixBuf[off + 1]! + (255 - pixBuf[off + 1]!) * k) | 0
+              pixBuf[off + 2] =
+                (pixBuf[off + 2]! + (255 - pixBuf[off + 2]!) * k) | 0
+              pixBuf[off + 3] = aa | 0
+            }
           }
         }
       }
