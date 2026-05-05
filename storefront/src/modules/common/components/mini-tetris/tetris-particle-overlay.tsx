@@ -10,66 +10,74 @@ import {
 const BOARD_W = 10
 const BOARD_H = 20
 
-/** Ambient particles per cell — these have fixed home positions covering the entire
- * board. Filled cells act as obstacles pushing them outward; empty cells let them rest.
- * Higher = denser field. 36 × 200 cells = 7200 ambient particles. */
-const AMBIENT_PER_CELL = 36
-/** Hard cap for safety. */
-const MAX_PARTICLES = 22000
+/** Ambient particles per cell — fixed homes covering the entire board. Filled cells
+ * act as obstacles pushing them outward; empty cells let them rest. 1000 × 200 cells
+ * = 200 000 ambient particles. Stored in typed arrays + rendered via putImageData. */
+const AMBIENT_PER_CELL = 1000
+/** Burst pool capacity (transient one-shot particles for lock/clear effects). */
+const MAX_BURST_PARTICLES = 6000
 /** Particles spawned per cell when the active piece locks. */
 const LOCK_BURST_PER_CELL = 36
 /** Particles spawned per cell when a line is cleared. */
 const CLEAR_BURST_PER_CELL = 60
 /** Burst lifetime (ms). */
 const BURST_LIFE_MS = 1100
-/** Spring stiffness pulling ambient particles back to home each frame. Lower = particles
- * linger after being pushed, leaving visible wakes/trails behind moving blocks. */
+/** Spring stiffness pulling ambient particles back to home each frame. */
 const HOME_SPRING = 0.04
-/** Friction multiplier for ambient particles. Higher = momentum persists, wakes are
- * longer. */
+/** Friction multiplier for ambient particles. */
 const HOME_FRICTION = 0.9
-/** Cursor disturbance radius (CSS px). */
-const CURSOR_RADIUS = 60
-/** Peak repel force at cursor centre (CSS px / frame²). */
-const CURSOR_FORCE = 4.5
-/** Tangential side-swirl force around cursor. */
-const CURSOR_SWIRL = 1.2
-/** Particle drawn size (CSS px). Kept small — density is controlled by particle
- * count, not pixel size. */
-const PARTICLE_SIZE = 1.4
-/** Burst initial speed (CSS px / frame). */
-const LOCK_BURST_SPEED = 7
-const CLEAR_BURST_SPEED = 10
-/** Radius (in cell units) of the obstacle force around each filled cell. ≥0.5 covers
- * the cell; >0.5 spills slightly into neighbouring cells, making the push feel softer. */
+/** Radius (in cell units) of the obstacle force around each filled cell. */
 const OBSTACLE_RADIUS_CELLS = 0.65
 /** Force magnitude pushing particles out of filled cells. */
 const OBSTACLE_FORCE = 4.2
+/** Burst initial speed (CSS px / frame). */
+const LOCK_BURST_SPEED = 7
+const CLEAR_BURST_SPEED = 10
 /** Active-piece movement transition (ms). Lerps the obstacle position smoothly
  * between integer cell positions so the block doesn't snap chunky-style each drop. */
 const PIECE_TRANSITION_MS = 180
+/** Excitement decay per frame (multiplicative). */
+const EXCITEMENT_DECAY = 0.96
+/** Line-clear shockwave: initial downward impulse on cleared row, then an upward
+ * travelling band that pushes particles upward as it rises through the board. */
+const LINE_CLEAR_FALL_IMPULSE = 5
+/** Wave upward speed (CSS px / frame) — negative because canvas Y is downward. */
+const WAVE_SPEED = -9
+/** Wave amplitude (impulse strength at band centre). */
+const WAVE_STRENGTH = 4
+/** Decay of wave strength per frame. Wave dies before reaching the top edge if
+ * board is short — and amplitude tapers naturally. */
+const WAVE_DECAY = 0.985
+/** Half-height of the wave's effect band (CSS px). Wider band = larger ripple. */
+const WAVE_BAND_HALF = 22
+
+/** Per-piece-type RGB palette used to render the active piece on canvas (where it
+ * can be smoothly interpolated between drop ticks). Roughly matches the DOM palette
+ * but uses concrete RGB so we can write directly to the pixel buffer. */
+const PIECE_RGB: ReadonlyArray<readonly [number, number, number]> = [
+  [61, 207, 194], // I — teal (brand-accent)
+  [255, 46, 99], // O — magenta (brand-secondary)
+  [181, 86, 255], // T — violet
+  [69, 164, 255], // S — blue
+  [255, 193, 69], // Z — yellow
+  [193, 255, 69], // J — lime
+  [255, 107, 53], // L — orange
+]
+/** Pre-built gradient lookup table size. */
+const GRAD_LUT_SIZE = 512
 
 type Active = { t: number; r: number; x: number; y: number }
 type Display = number[][]
 type Board = number[][]
 
-type Particle = {
+type Burst = {
   alive: boolean
-  type: "ambient" | "burst"
-  /** Sub-jitter index (0..AMBIENT_PER_CELL-1) within the home cell. */
-  subIdx: number
-  hx: number
-  hy: number
   x: number
   y: number
   vx: number
   vy: number
   bornAt: number
   lifeMs: number
-  /** 0..1 — bumped when a block obstacle pushes the particle, decays each frame.
-   * Renderer blends the particle's gradient colour toward white by this amount,
-   * so newly-displaced particles glow bright and fade as they trail/return home. */
-  excitement: number
 }
 
 type Props = {
@@ -122,25 +130,71 @@ export default function TetrisParticleOverlay({
       padY: 0,
     }
 
-    const cursor = {
-      x: -1e6,
-      y: -1e6,
-      prevX: -1e6,
-      prevY: -1e6,
-      vx: 0,
-      vy: 0,
-      inside: false,
+    /** ============ Ambient particle state (struct of arrays) ============
+     * Particles are stored in cell-indexed buckets implicit in the array order:
+     * cell (bx, by) owns indices [(bx + by*BOARD_W) * AMBIENT_PER_CELL,
+     * +AMBIENT_PER_CELL). Obstacle force only iterates the 9 cells in the obstacle's
+     * neighbourhood instead of all 200k particles. */
+    const TOTAL_AMBIENT = BOARD_W * BOARD_H * AMBIENT_PER_CELL
+    const amb = {
+      hx: new Float32Array(TOTAL_AMBIENT),
+      hy: new Float32Array(TOTAL_AMBIENT),
+      x: new Float32Array(TOTAL_AMBIENT),
+      y: new Float32Array(TOTAL_AMBIENT),
+      vx: new Float32Array(TOTAL_AMBIENT),
+      vy: new Float32Array(TOTAL_AMBIENT),
+      excitement: new Float32Array(TOTAL_AMBIENT),
     }
 
-    /** Ambient particles array — fixed allocation covering the full board grid. */
-    const ambient: Particle[] = []
-    /** Burst particles — one-shot, recycled when dead. */
-    const bursts: Particle[] = []
+    /** Burst particles: object-array, size-capped pool with linear scan for free slots. */
+    const bursts: Burst[] = []
+    /** Active line-clear waves: each travels upward through the particle field after
+     * a row is cleared, displacing particles as it passes. Multiple waves can coexist
+     * if several lines clear in quick succession. */
+    const waves: Array<{ y: number; strength: number }> = []
+    const allocateBurst = (): Burst | null => {
+      for (let i = 0; i < bursts.length; i++) {
+        const p = bursts[i]!
+        if (!p.alive) return p
+      }
+      if (bursts.length >= MAX_BURST_PARTICLES) return null
+      const fresh: Burst = {
+        alive: false,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        bornAt: 0,
+        lifeMs: 0,
+      }
+      bursts.push(fresh)
+      return fresh
+    }
 
-    /** Smooth-motion state for the active piece. Tracks the offset (in screen px)
-     * from the *current* active-piece position to where it visually was a moment
-     * ago, so we can interpolate during the PIECE_TRANSITION_MS window after each
-     * discrete tetris move/drop tick. */
+    /** ============ Pre-computed gradient lookup table ============
+     * 512-entry table of [r,g,b] for fast colour lookup per pixel during render.
+     * Built once from WORDMARK_GRADIENT.stops; indexed by t∈[0,1] floor(t * 511). */
+    const gradStops = WORDMARK_GRADIENT.stops.map(parseHexColor)
+    const gradLutR = new Uint8ClampedArray(GRAD_LUT_SIZE)
+    const gradLutG = new Uint8ClampedArray(GRAD_LUT_SIZE)
+    const gradLutB = new Uint8ClampedArray(GRAD_LUT_SIZE)
+    {
+      const segCount = gradStops.length - 1
+      for (let i = 0; i < GRAD_LUT_SIZE; i++) {
+        const t = i / (GRAD_LUT_SIZE - 1)
+        const segPos = t * segCount
+        let segIdx = Math.floor(segPos)
+        if (segIdx >= segCount) segIdx = segCount - 1
+        const localT = segPos - segIdx
+        const c1 = gradStops[segIdx]!
+        const c2 = gradStops[segIdx + 1]!
+        gradLutR[i] = Math.round(c1[0]! + (c2[0]! - c1[0]!) * localT)
+        gradLutG[i] = Math.round(c1[1]! + (c2[1]! - c1[1]!) * localT)
+        gradLutB[i] = Math.round(c1[2]! + (c2[2]! - c1[2]!) * localT)
+      }
+    }
+
+    /** Smooth-motion state for the active piece. */
     const pieceMotion = {
       offsetX: 0,
       offsetY: 0,
@@ -150,63 +204,42 @@ export default function TetrisParticleOverlay({
       lastCentroidY: 0,
     }
 
-    const gradStops = WORDMARK_GRADIENT.stops.map(parseHexColor)
+    /** Pixel buffer for direct-write rendering. Reallocated on resize. */
+    let imageData: ImageData | null = null
+    let pixBuf: Uint8ClampedArray | null = null
 
-    /** Compute cell centre in canvas-CSS coords. */
     const cellCentre = (bx: number, by: number): { x: number; y: number } => ({
       x: sizeState.padX + (bx + 0.5) * sizeState.cellW,
       y: sizeState.padY + (by + 0.5) * sizeState.cellH,
     })
 
-    /** Allocate ambient field — 200 cells × AMBIENT_PER_CELL particles, fixed homes. */
+    /** Allocate ambient particles in cell-bucketed order. Each cell owns AMBIENT_PER_CELL
+     * consecutive indices, enabling fast obstacle-neighbourhood iteration. */
     const buildAmbient = () => {
-      ambient.length = 0
+      let idx = 0
       for (let by = 0; by < BOARD_H; by++) {
         for (let bx = 0; bx < BOARD_W; bx++) {
-          const c = cellCentre(bx, by)
+          const cellOriginX = sizeState.padX + bx * sizeState.cellW
+          const cellOriginY = sizeState.padY + by * sizeState.cellH
+          const w = sizeState.cellW
+          const h = sizeState.cellH
           for (let s = 0; s < AMBIENT_PER_CELL; s++) {
-            const ox = (hash01(bx * 31 + by, s * 7 + 1) - 0.5) * sizeState.cellW * 0.85
-            const oy = (hash01(bx * 31 + by, s * 7 + 2) - 0.5) * sizeState.cellH * 0.85
-            ambient.push({
-              alive: true,
-              type: "ambient",
-              subIdx: s,
-              hx: c.x + ox,
-              hy: c.y + oy,
-              x: c.x + ox,
-              y: c.y + oy,
-              vx: 0,
-              vy: 0,
-              bornAt: 0,
-              lifeMs: 0,
-              excitement: 0,
-            })
+            /** Random homes within the cell (fully fill the cell, slight margin). */
+            const u = hash01(bx * 31 + by, s * 7 + 1)
+            const v = hash01(bx * 31 + by, s * 7 + 2)
+            const hx = cellOriginX + u * w
+            const hy = cellOriginY + v * h
+            amb.hx[idx] = hx
+            amb.hy[idx] = hy
+            amb.x[idx] = hx
+            amb.y[idx] = hy
+            amb.vx[idx] = 0
+            amb.vy[idx] = 0
+            amb.excitement[idx] = 0
+            idx++
           }
         }
       }
-    }
-
-    const allocateBurst = (): Particle => {
-      for (let i = 0; i < bursts.length; i++) {
-        const p = bursts[i]!
-        if (!p.alive) return p
-      }
-      const fresh: Particle = {
-        alive: false,
-        type: "burst",
-        subIdx: 0,
-        hx: 0,
-        hy: 0,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        bornAt: 0,
-        lifeMs: 0,
-        excitement: 0,
-      }
-      bursts.push(fresh)
-      return fresh
     }
 
     const spawnBurst = (
@@ -217,19 +250,14 @@ export default function TetrisParticleOverlay({
       lifeMs: number = BURST_LIFE_MS
     ) => {
       const now = performance.now()
-      const total = ambient.length + bursts.length
-      const budget = Math.max(0, MAX_PARTICLES - total)
-      const actual = Math.min(count, budget)
-      for (let i = 0; i < actual; i++) {
+      for (let i = 0; i < count; i++) {
         const p = allocateBurst()
+        if (!p) return
         p.alive = true
-        p.type = "burst"
         const angle = Math.random() * Math.PI * 2
         const speed = speedMax * (0.35 + 0.65 * Math.random())
         p.x = cx + (Math.random() - 0.5) * sizeState.cellW * 0.5
         p.y = cy + (Math.random() - 0.5) * sizeState.cellH * 0.5
-        p.hx = p.x
-        p.hy = p.y
         p.vx = Math.cos(angle) * speed
         p.vy = Math.sin(angle) * speed
         p.bornAt = now
@@ -237,7 +265,6 @@ export default function TetrisParticleOverlay({
       }
     }
 
-    /** Active-piece cells derived from display − board. */
     const computeActiveCells = (
       disp: Display,
       brd: Board
@@ -264,11 +291,14 @@ export default function TetrisParticleOverlay({
       sizeState.padY = pad
       sizeState.cellW = (rect.width - pad * 2 - gap * (BOARD_W - 1)) / BOARD_W + gap
       sizeState.cellH = (rect.height - pad * 2 - gap * (BOARD_H - 1)) / BOARD_H + gap
-      canvas.width = Math.max(1, Math.round(rect.width * dpr))
-      canvas.height = Math.max(1, Math.round(rect.height * dpr))
+      const W = Math.max(1, Math.round(rect.width * dpr))
+      const H = Math.max(1, Math.round(rect.height * dpr))
+      canvas.width = W
+      canvas.height = H
       canvas.style.width = `${rect.width}px`
       canvas.style.height = `${rect.height}px`
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      imageData = ctx.createImageData(W, H)
+      pixBuf = imageData.data
       buildAmbient()
     }
 
@@ -276,57 +306,28 @@ export default function TetrisParticleOverlay({
     const ro = new ResizeObserver(() => layoutCanvas())
     ro.observe(container)
 
-    const onPointerMove = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
-      cursor.x = x
-      cursor.y = y
-      cursor.inside =
-        x >= -CURSOR_RADIUS &&
-        x <= rect.width + CURSOR_RADIUS &&
-        y >= -CURSOR_RADIUS &&
-        y <= rect.height + CURSOR_RADIUS
-    }
-    const onPointerLeave = () => {
-      cursor.inside = false
-      cursor.x = -1e6
-      cursor.y = -1e6
-    }
-    window.addEventListener("pointermove", onPointerMove, { passive: true })
-    window.addEventListener("pointerleave", onPointerLeave)
-
     let raf = 0
     const tick = () => {
       raf = requestAnimationFrame(tick)
       const W = sizeState.cssW
       const H = sizeState.cssH
-      if (W < 2 || H < 2) return
+      if (W < 2 || H < 2 || pixBuf == null || imageData == null) return
       const now = performance.now()
-
-      if (cursor.prevX > -1e5) {
-        cursor.vx = cursor.x - cursor.prevX
-        cursor.vy = cursor.y - cursor.prevY
-      }
-      cursor.prevX = cursor.x
-      cursor.prevY = cursor.y
 
       const { display: dispNow, board: brdNow, active: actNow, lines: linesNow } =
         propsRef.current
       const prev = prevRef.current
 
-      /** =========== Event detection (lock + line clear) =========== */
+      /** =========== Lock + line clear event detection =========== */
 
-      /** Line clears: spawn dramatic horizontal sweep bursts at every cell of the
-       * just-cleared rows. Detected by lines counter increase + finding rows of
-       * prev.board that were full. */
       if (linesNow > prev.lines) {
         for (let by = 0; by < BOARD_H; by++) {
           const wasFull =
             prev.board[by] != null &&
             prev.board[by]!.every((c) => c !== 0)
           if (!wasFull) continue
-          /** Per-cell big burst. */
+          const rowMidY = sizeState.padY + (by + 0.5) * sizeState.cellH
+          /** Per-cell big burst at every cell of the cleared row. */
           for (let bx = 0; bx < BOARD_W; bx++) {
             const c = cellCentre(bx, by)
             spawnBurst(
@@ -337,33 +338,40 @@ export default function TetrisParticleOverlay({
               BURST_LIFE_MS * 1.4
             )
           }
-          /** Plus a horizontal sweep ribbon — a row of fast particles flying
-           * outward across the row centre line. */
-          const rowMidY = sizeState.padY + (by + 0.5) * sizeState.cellH
+          /** Horizontal sweep ribbon along the row. */
           const rowSweepCount = 80
-          const total = ambient.length + bursts.length
-          const budget = Math.max(0, MAX_PARTICLES - total)
-          for (let i = 0; i < Math.min(rowSweepCount, budget); i++) {
+          for (let i = 0; i < rowSweepCount; i++) {
             const p = allocateBurst()
+            if (!p) break
             p.alive = true
-            p.type = "burst"
             const fromLeft = i % 2 === 0
             const startX = fromLeft ? sizeState.padX : sizeState.padX + W
             p.x = startX
             p.y = rowMidY + (Math.random() - 0.5) * sizeState.cellH * 0.6
-            p.hx = p.x
-            p.hy = p.y
             const dir = fromLeft ? 1 : -1
             p.vx = dir * (8 + Math.random() * 6)
             p.vy = (Math.random() - 0.5) * 2
             p.bornAt = now
             p.lifeMs = 600 + Math.random() * 400
           }
+          /** Initial downward impulse: every ambient particle in this row + the row
+           * just below gets a hard kick downward (the "fall" before the wave starts). */
+          const rowsToHit = [by, Math.min(BOARD_H - 1, by + 1)]
+          for (const ry of rowsToHit) {
+            for (let bx = 0; bx < BOARD_W; bx++) {
+              const startIdx = (bx + ry * BOARD_W) * AMBIENT_PER_CELL
+              const endIdx = startIdx + AMBIENT_PER_CELL
+              for (let i = startIdx; i < endIdx; i++) {
+                amb.vy[i]! += LINE_CLEAR_FALL_IMPULSE
+                amb.excitement[i] = 1
+              }
+            }
+          }
+          /** Spawn an upward wave starting at this row. */
+          waves.push({ y: rowMidY, strength: WAVE_STRENGTH })
         }
       }
 
-      /** Lock: prev active-piece cells now in current locked board. Each transition
-       * spawns a per-cell burst plus a stronger central pulse at the lock centre. */
       const prevActive = computeActiveCells(prev.display, prev.board)
       const lockedCells: Array<{ bx: number; by: number }> = []
       for (const cell of prevActive) {
@@ -376,8 +384,6 @@ export default function TetrisParticleOverlay({
         }
       }
       if (lockedCells.length > 0) {
-        /** Pulse wave: a ring of fast particles at the centroid of the locked
-         * cells, expanding outward — feels like an impact shockwave. */
         let cx = 0
         let cy = 0
         for (const c of lockedCells) {
@@ -388,18 +394,14 @@ export default function TetrisParticleOverlay({
         cx /= lockedCells.length
         cy /= lockedCells.length
         const ringCount = 36
-        const total = ambient.length + bursts.length
-        const budget = Math.max(0, MAX_PARTICLES - total)
-        for (let i = 0; i < Math.min(ringCount, budget); i++) {
+        for (let i = 0; i < ringCount; i++) {
           const p = allocateBurst()
+          if (!p) break
           p.alive = true
-          p.type = "burst"
           const angle = (i / ringCount) * Math.PI * 2
           const speed = 9 + Math.random() * 3
           p.x = cx
           p.y = cy
-          p.hx = cx
-          p.hy = cy
           p.vx = Math.cos(angle) * speed
           p.vy = Math.sin(angle) * speed
           p.bornAt = now
@@ -409,11 +411,6 @@ export default function TetrisParticleOverlay({
 
       /** =========== Smooth active-piece motion =========== */
 
-      /** Compute current active-piece centroid in screen coords. When the active
-       * piece's centroid jumps (a discrete tetris move or drop tick), capture the
-       * delta as pieceMotion.offsetXY and start a transition timer. The offset then
-       * decays to zero over PIECE_TRANSITION_MS, smoothly interpolating the visible
-       * obstacle position. Resets cleanly when the piece TYPE changes (new spawn). */
       const activeCellsForMotion = computeActiveCells(dispNow, brdNow)
       let activeCentroidX = 0
       let activeCentroidY = 0
@@ -432,13 +429,10 @@ export default function TetrisParticleOverlay({
           (activeCentroidX !== pieceMotion.lastCentroidX ||
             activeCentroidY !== pieceMotion.lastCentroidY)
         ) {
-          /** Piece moved/rotated/dropped one step. Stash the old position relative
-           * to the new one as the starting offset; transition decays it to zero. */
           pieceMotion.offsetX += pieceMotion.lastCentroidX - activeCentroidX
           pieceMotion.offsetY += pieceMotion.lastCentroidY - activeCentroidY
           pieceMotion.transitionStartedAt = now
         } else if (!sameType) {
-          /** New piece spawned — no transition. */
           pieceMotion.offsetX = 0
           pieceMotion.offsetY = 0
           pieceMotion.transitionStartedAt = -1
@@ -450,7 +444,6 @@ export default function TetrisParticleOverlay({
         pieceMotion.lastPieceType = -1
       }
 
-      /** Decay offset toward zero as transition progresses (cubic ease-out). */
       let smoothOffsetX = 0
       let smoothOffsetY = 0
       if (pieceMotion.transitionStartedAt >= 0) {
@@ -461,94 +454,120 @@ export default function TetrisParticleOverlay({
           pieceMotion.transitionStartedAt = -1
         } else {
           const u = elapsed / PIECE_TRANSITION_MS
-          /** Ease-out cubic: starts at offset, decays to 0. */
           const remaining = (1 - u) * (1 - u) * (1 - u)
           smoothOffsetX = pieceMotion.offsetX * remaining
           smoothOffsetY = pieceMotion.offsetY * remaining
         }
       }
 
-      /** =========== Build filled-cell obstacle list =========== */
+      /** =========== Build obstacle list =========== */
 
-      type Obstacle = { cx: number; cy: number; r: number }
+      type Obstacle = { cx: number; cy: number; bx: number; by: number }
       const obstacles: Obstacle[] = []
-      const obstacleR =
-        Math.max(sizeState.cellW, sizeState.cellH) * OBSTACLE_RADIUS_CELLS
-      /** Locked cells: anchored to grid. */
       for (let by = 0; by < BOARD_H; by++) {
         for (let bx = 0; bx < BOARD_W; bx++) {
           if (brdNow[by]?.[bx] !== 0) {
             const c = cellCentre(bx, by)
-            obstacles.push({ cx: c.x, cy: c.y, r: obstacleR })
+            obstacles.push({ cx: c.x, cy: c.y, bx, by })
           }
         }
       }
-      /** Active piece cells: shift each by the smoothed offset so the piece appears
-       * to glide between drop ticks instead of snapping. */
       for (const ac of activeCellsForMotion) {
         const c = cellCentre(ac.bx, ac.by)
         obstacles.push({
           cx: c.x + smoothOffsetX,
           cy: c.y + smoothOffsetY,
-          r: obstacleR,
+          bx: ac.bx,
+          by: ac.by,
         })
       }
+      const obstacleR =
+        Math.max(sizeState.cellW, sizeState.cellH) * OBSTACLE_RADIUS_CELLS
+      const obstacleR2 = obstacleR * obstacleR
 
-      /** =========== Ambient physics =========== */
+      /** =========== Apply obstacle forces (cell-neighbourhood only) =========== */
 
-      const cursorX = cursor.x
-      const cursorY = cursor.y
-      const cursorActive = cursor.inside
-      const CR = CURSOR_RADIUS
-      const CR2 = CR * CR
-
-      for (let i = 0; i < ambient.length; i++) {
-        const p = ambient[i]!
-        /** Decay excitement toward zero each frame. Multiplicative fade ⇒
-         * exponential decay, ~270ms half-life at 60fps. */
-        p.excitement *= 0.96
-        /** Filled-cell obstacle push: particles inside any filled cell get pushed
-         * radially outward from that cell's centre AND brighten. */
-        for (let oi = 0; oi < obstacles.length; oi++) {
-          const o = obstacles[oi]!
-          const dx = p.x - o.cx
-          const dy = p.y - o.cy
-          if (Math.abs(dx) > o.r || Math.abs(dy) > o.r) continue
-          const d2 = dx * dx + dy * dy
-          if (d2 >= o.r * o.r || d2 < 0.5) continue
-          const d = Math.sqrt(d2)
-          const fall = (o.r - d) / o.r
-          const f = OBSTACLE_FORCE * fall * fall
-          p.vx += (dx / d) * f
-          p.vy += (dy / d) * f
-          /** Brightness peaks near the obstacle centre; max-not-add so multiple
-           * obstacles overlapping don't run away past 1. */
-          if (fall > p.excitement) p.excitement = fall
-        }
-        /** Cursor disturbance — same radial repel + tangential swirl as SC Prints. */
-        if (cursorActive) {
-          const dx = p.x - cursorX
-          const dy = p.y - cursorY
-          const d2 = dx * dx + dy * dy
-          if (d2 < CR2 && d2 > 0.5) {
-            const d = Math.sqrt(d2)
-            const fall = (CR - d) / CR
-            const fallSq = fall * fall
-            const nx = dx / d
-            const ny = dy / d
-            p.vx += nx * CURSOR_FORCE * fallSq
-            p.vy += ny * CURSOR_FORCE * fallSq
-            p.vx += -ny * CURSOR_SWIRL * fallSq
-            p.vy += nx * CURSOR_SWIRL * fallSq
+      for (let oi = 0; oi < obstacles.length; oi++) {
+        const o = obstacles[oi]!
+        for (let dy = -1; dy <= 1; dy++) {
+          const ny = o.by + dy
+          if (ny < 0 || ny >= BOARD_H) continue
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = o.bx + dx
+            if (nx < 0 || nx >= BOARD_W) continue
+            const startIdx = (nx + ny * BOARD_W) * AMBIENT_PER_CELL
+            const endIdx = startIdx + AMBIENT_PER_CELL
+            for (let i = startIdx; i < endIdx; i++) {
+              const ddx = amb.x[i]! - o.cx
+              const ddy = amb.y[i]! - o.cy
+              if (ddx > obstacleR || ddx < -obstacleR) continue
+              if (ddy > obstacleR || ddy < -obstacleR) continue
+              const dd2 = ddx * ddx + ddy * ddy
+              if (dd2 >= obstacleR2 || dd2 < 0.5) continue
+              const dd = Math.sqrt(dd2)
+              const fall = (obstacleR - dd) / obstacleR
+              const f = OBSTACLE_FORCE * fall * fall
+              amb.vx[i]! += (ddx / dd) * f
+              amb.vy[i]! += (ddy / dd) * f
+              if (fall > amb.excitement[i]!) amb.excitement[i] = fall
+            }
           }
         }
-        /** Spring back to home + friction. */
-        p.vx += (p.hx - p.x) * HOME_SPRING
-        p.vy += (p.hy - p.y) * HOME_SPRING
-        p.vx *= HOME_FRICTION
-        p.vy *= HOME_FRICTION
-        p.x += p.vx
-        p.y += p.vy
+      }
+
+      /** =========== Wave forces (line-clear shockwaves travelling upward) =========== */
+
+      /** Update each wave's position, decay strength, and apply impulse to particles
+       * in its band. Iterate only the row buckets within the band — not all 200k. */
+      for (let wi = waves.length - 1; wi >= 0; wi--) {
+        const w = waves[wi]!
+        /** Determine which board rows fall within the wave's band. */
+        const minY = w.y - WAVE_BAND_HALF
+        const maxY = w.y + WAVE_BAND_HALF
+        const minBy = Math.max(
+          0,
+          Math.floor((minY - sizeState.padY) / sizeState.cellH)
+        )
+        const maxBy = Math.min(
+          BOARD_H - 1,
+          Math.ceil((maxY - sizeState.padY) / sizeState.cellH)
+        )
+        if (minBy <= maxBy) {
+          for (let by = minBy; by <= maxBy; by++) {
+            const rowStart = (by * BOARD_W) * AMBIENT_PER_CELL
+            const rowEnd = rowStart + BOARD_W * AMBIENT_PER_CELL
+            for (let i = rowStart; i < rowEnd; i++) {
+              const dy = amb.y[i]! - w.y
+              if (dy > WAVE_BAND_HALF || dy < -WAVE_BAND_HALF) continue
+              const fall = 1 - Math.abs(dy) / WAVE_BAND_HALF
+              const fallSq = fall * fall
+              /** Push upward (negative Y in canvas coords). */
+              amb.vy[i]! += -w.strength * fallSq
+              if (fallSq > amb.excitement[i]!) amb.excitement[i] = fallSq
+            }
+          }
+        }
+        /** Move wave upward and decay. */
+        w.y += WAVE_SPEED
+        w.strength *= WAVE_DECAY
+        /** Retire when off the top of the board or strength is negligible. */
+        if (w.y < -WAVE_BAND_HALF || w.strength < 0.15) {
+          waves.splice(wi, 1)
+        }
+      }
+
+      /** =========== Spring + integration (all ambient particles) =========== */
+
+      for (let i = 0; i < TOTAL_AMBIENT; i++) {
+        amb.excitement[i]! *= EXCITEMENT_DECAY
+        const sx = (amb.hx[i]! - amb.x[i]!) * HOME_SPRING
+        const sy = (amb.hy[i]! - amb.y[i]!) * HOME_SPRING
+        let nvx = (amb.vx[i]! + sx) * HOME_FRICTION
+        let nvy = (amb.vy[i]! + sy) * HOME_FRICTION
+        amb.vx[i] = nvx
+        amb.vy[i] = nvy
+        amb.x[i] = amb.x[i]! + nvx
+        amb.y[i] = amb.y[i]! + nvy
       }
 
       /** =========== Burst physics =========== */
@@ -568,80 +587,135 @@ export default function TetrisParticleOverlay({
         p.y += p.vy
       }
 
-      /** =========== Render =========== */
+      /** =========== Render via direct pixel buffer =========== */
 
-      ctx.clearRect(0, 0, W, H)
+      /** Clear buffer (zero alpha = transparent → tetris cell bg shows through). */
+      pixBuf.fill(0)
+      const PW = canvas.width
+      const PH = canvas.height
 
+      /** Draw active piece cells as solid filled rectangles at the smoothly-
+       * interpolated position. Done BEFORE particles so particles read as a fizzing
+       * fringe around the moving block rather than being hidden under it. */
+      if (actNow != null) {
+        const colour =
+          PIECE_RGB[actNow.t] ?? ([255, 255, 255] as const)
+        const pr = colour[0]
+        const pg = colour[1]
+        const pb = colour[2]
+        const cellWPx = sizeState.cellW * dpr
+        const cellHPx = sizeState.cellH * dpr
+        const offXPx = smoothOffsetX * dpr
+        const offYPx = smoothOffsetY * dpr
+        for (const ac of activeCellsForMotion) {
+          const c = cellCentre(ac.bx, ac.by)
+          const cxPx = c.x * dpr + offXPx
+          const cyPx = c.y * dpr + offYPx
+          const x0 = Math.max(0, Math.floor(cxPx - cellWPx * 0.5))
+          const y0 = Math.max(0, Math.floor(cyPx - cellHPx * 0.5))
+          const x1 = Math.min(PW, Math.ceil(cxPx + cellWPx * 0.5))
+          const y1 = Math.min(PH, Math.ceil(cyPx + cellHPx * 0.5))
+          for (let py = y0; py < y1; py++) {
+            const rowOff = py * PW * 4
+            for (let px = x0; px < x1; px++) {
+              const off = rowOff + px * 4
+              pixBuf[off] = pr
+              pixBuf[off + 1] = pg
+              pixBuf[off + 2] = pb
+              pixBuf[off + 3] = 255
+            }
+          }
+        }
+      }
+
+      /** Gradient axis vector. */
       const angleRad = (WORDMARK_GRADIENT.angleDeg * Math.PI) / 180
       const gdx = Math.sin(angleRad)
       const gdy = -Math.cos(angleRad)
-      const corners = [
-        { x: 0, y: 0 },
-        { x: W, y: 0 },
-        { x: 0, y: H },
-        { x: W, y: H },
-      ]
+      /** Project canvas corners (CSS px) onto axis to compute extents. */
       let mn = Infinity
       let mx = -Infinity
+      const corners = [
+        [0, 0],
+        [W, 0],
+        [0, H],
+        [W, H],
+      ]
       for (const c of corners) {
-        const t = c.x * gdx + c.y * gdy
+        const t = c[0]! * gdx + c[1]! * gdy
         if (t < mn) mn = t
         if (t > mx) mx = t
       }
       const span = Math.max(1e-3, mx - mn)
-      const segCount = gradStops.length - 1
+      const lutMaxIdx = GRAD_LUT_SIZE - 1
 
-      const drawParticle = (
-        x: number,
-        y: number,
-        size: number,
-        alpha: number,
-        excitement: number
-      ) => {
+      /** Ambient pass — write 1 pixel per particle. */
+      for (let i = 0; i < TOTAL_AMBIENT; i++) {
+        const x = amb.x[i]!
+        const y = amb.y[i]!
+        const px = (x * dpr) | 0
+        const py = (y * dpr) | 0
+        if (px < 0 || px >= PW || py < 0 || py >= PH) continue
         const proj = x * gdx + y * gdy
         let t = (proj - mn) / span
         if (t < 0) t = 0
         else if (t > 1) t = 1
-        const segPos = t * segCount
-        let segIdx = Math.floor(segPos)
-        if (segIdx >= segCount) segIdx = segCount - 1
-        const localT = segPos - segIdx
-        const c1 = gradStops[segIdx]!
-        const c2 = gradStops[segIdx + 1]!
-        let r = c1[0]! + (c2[0]! - c1[0]!) * localT
-        let g = c1[1]! + (c2[1]! - c1[1]!) * localT
-        let b = c1[2]! + (c2[2]! - c1[2]!) * localT
-        /** Brighten toward white based on excitement. 0 = pure gradient, 1 = white.
-         * Strength capped at 0.85 so a tiny hue tint of the gradient survives. */
-        if (excitement > 0) {
-          const k = Math.min(0.85, excitement)
-          r += (255 - r) * k
-          g += (255 - g) * k
-          b += (255 - b) * k
+        const lutIdx = (t * lutMaxIdx) | 0
+        let r = gradLutR[lutIdx]!
+        let g = gradLutG[lutIdx]!
+        let b = gradLutB[lutIdx]!
+        const exc = amb.excitement[i]!
+        if (exc > 0) {
+          const k = exc < 0.85 ? exc : 0.85
+          r = (r + (255 - r) * k) | 0
+          g = (g + (255 - g) * k) | 0
+          b = (b + (255 - b) * k) | 0
         }
-        const ri = Math.round(r)
-        const gi = Math.round(g)
-        const bi = Math.round(b)
-        ctx.fillStyle =
-          alpha < 1
-            ? `rgba(${ri},${gi},${bi},${alpha})`
-            : `rgb(${ri},${gi},${bi})`
-        ctx.fillRect(x - size * 0.5, y - size * 0.5, size, size)
+        const off = (py * PW + px) * 4
+        pixBuf[off] = r
+        pixBuf[off + 1] = g
+        pixBuf[off + 2] = b
+        pixBuf[off + 3] = 255
       }
 
-      for (let i = 0; i < ambient.length; i++) {
-        const p = ambient[i]!
-        drawParticle(p.x, p.y, PARTICLE_SIZE, 1, p.excitement)
-      }
+      /** Burst pass — 2×2 splat per particle so they read brighter than ambient. */
       for (let i = 0; i < bursts.length; i++) {
         const p = bursts[i]!
         if (!p.alive) continue
         const age = now - p.bornAt
         const a = Math.max(0, 1 - age / p.lifeMs)
-        const sz = PARTICLE_SIZE * (1.2 + a * 0.8)
-        /** Bursts ride at high excitement initially, fading with their alpha. */
-        drawParticle(p.x, p.y, sz, a, a * 0.8)
+        if (a <= 0.05) continue
+        const proj = p.x * gdx + p.y * gdy
+        let t = (proj - mn) / span
+        if (t < 0) t = 0
+        else if (t > 1) t = 1
+        const lutIdx = (t * lutMaxIdx) | 0
+        let r = gradLutR[lutIdx]!
+        let g = gradLutG[lutIdx]!
+        let b = gradLutB[lutIdx]!
+        /** Bursts ride at high excitement initially, fading. */
+        const k = a * 0.85
+        r = (r + (255 - r) * k) | 0
+        g = (g + (255 - g) * k) | 0
+        b = (b + (255 - b) * k) | 0
+        const al = (a * 255) | 0
+        const px0 = (p.x * dpr) | 0
+        const py0 = (p.y * dpr) | 0
+        for (let dy = 0; dy < 2; dy++) {
+          for (let dx = 0; dx < 2; dx++) {
+            const px = px0 + dx
+            const py = py0 + dy
+            if (px < 0 || px >= PW || py < 0 || py >= PH) continue
+            const off = (py * PW + px) * 4
+            pixBuf[off] = r
+            pixBuf[off + 1] = g
+            pixBuf[off + 2] = b
+            pixBuf[off + 3] = al
+          }
+        }
       }
+
+      ctx.putImageData(imageData, 0, 0)
 
       prevRef.current = {
         display: dispNow,
@@ -656,8 +730,6 @@ export default function TetrisParticleOverlay({
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
-      window.removeEventListener("pointermove", onPointerMove)
-      window.removeEventListener("pointerleave", onPointerLeave)
     }
   }, [containerRef])
 

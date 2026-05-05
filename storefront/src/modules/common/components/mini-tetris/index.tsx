@@ -407,28 +407,30 @@ function gameReducer(state: GameState, action: Action): GameState {
   return state
 }
 
-/** Default vs 1.5× (lg) vs 2.25× (xl, not-found) cell dimensions. */
+/** Default vs 1.5× (lg) vs 2.25× (xl, not-found) cell dimensions.
+ * Empty cells use a transparent fill so the dark grid background (and the particle
+ * overlay) shows through. Borders are subtle white-on-dark grid lines. */
 const TETRIS_SIZES = {
   default: {
     cellEmpty:
-      "w-3.5 h-3.5 small:w-4 small:h-4 border border-ui-border-base/50 bg-ui-bg-subtle",
+      "w-3.5 h-3.5 small:w-4 small:h-4 border border-white/10",
     cellFilled:
-      "w-3.5 h-3.5 small:w-4 small:h-4 border border-ui-border-base box-border",
-    next: "w-3 h-3 border border-ui-border-base/50",
+      "w-3.5 h-3.5 small:w-4 small:h-4 border border-white/20 box-border",
+    next: "w-3 h-3 border border-white/15",
   },
   lg: {
     cellEmpty:
-      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-ui-border-base/50 bg-ui-bg-subtle",
+      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-white/10",
     cellFilled:
-      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-ui-border-base box-border",
-    next: "w-[1.125rem] h-[1.125rem] border border-ui-border-base/50",
+      "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 border border-white/20 box-border",
+    next: "w-[1.125rem] h-[1.125rem] border border-white/15",
   },
   xl: {
     cellEmpty:
-      "w-7 h-7 small:w-9 small:h-9 border border-ui-border-base/50 bg-ui-bg-subtle",
+      "w-7 h-7 small:w-9 small:h-9 border border-white/10",
     cellFilled:
-      "w-7 h-7 small:w-9 small:h-9 border border-ui-border-base box-border",
-    next: "w-5 h-5 small:w-6 small:h-6 border border-ui-border-base/50",
+      "w-7 h-7 small:w-9 small:h-9 border border-white/20 box-border",
+    next: "w-5 h-5 small:w-6 small:h-6 border border-white/15",
   },
 } as const
 
@@ -515,7 +517,16 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
     [hardDrop, tryMove, tryRotate]
   )
 
+  /** DOM display: locked board only. The active piece is rendered on the particle
+   * overlay canvas instead, where its position is smoothly interpolated between
+   * drop ticks instead of snapping to integer cells each frame. */
   const display = useMemo((): (0 | 1 | 2 | 3 | 4 | 5 | 6 | 7)[][] => {
+    return state.board.map((row) => [...row]) as (0 | 1 | 2 | 3 | 4 | 5 | 6 | 7)[][]
+  }, [state.board])
+
+  /** Display *with* active piece — used only by the overlay for active-cell detection
+   * (it computes activeCells = displayWithActive − board). */
+  const displayWithActive = useMemo((): (0 | 1 | 2 | 3 | 4 | 5 | 6 | 7)[][] => {
     const out = state.board.map((row) => [...row]) as (0 | 1 | 2 | 3 | 4 | 5 | 6 | 7)[][]
     if (state.active && !state.gameOver) {
       const m = getShapeM(state.active.t, state.active.r)
@@ -555,7 +566,7 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
 
   return (
     <div
-      className={`rounded-lg border border-ui-border-base bg-ui-bg-subtle ${wrapPad}`}
+      className={`rounded-lg border border-white/10 bg-ui-fg-base text-white ${wrapPad}`}
     >
       <div
         className={`flex flex-col small:flex-row ${colGap} small:items-start`}
@@ -567,7 +578,7 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
           aria-label="Mini Tetris. Focus this area to use the keyboard."
           tabIndex={0}
         >
-          <p className="text-xs text-ui-fg-muted mb-2">
+          <p className="text-xs text-white/60 mb-2">
             Click the board, then: arrows move / soft drop, up or X = rotate, Space
             or Enter = hard drop.{" "}
             {reduceMotion
@@ -577,7 +588,7 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
           <div className="relative inline-block">
             <div
               ref={gridContainerRef}
-              className="grid gap-px p-1 rounded-md border border-ui-border-base bg-ui-bg-base inline-grid"
+              className="grid gap-px p-1 rounded-md border border-white/15 bg-black inline-grid"
               style={{ gridTemplateColumns: `repeat(${BOARD_W}, minmax(0, 1fr))` }}
               aria-hidden
             >
@@ -606,7 +617,7 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
             </div>
             <TetrisParticleOverlay
               containerRef={gridContainerRef}
-              display={display}
+              display={displayWithActive}
               board={state.board}
               active={state.active}
               lines={state.lines}
@@ -615,10 +626,10 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
         </div>
 
         <div
-          className={`flex flex-col gap-3 ${sideMinW} text-sm text-ui-fg-base`}
+          className={`flex flex-col gap-3 ${sideMinW} text-sm text-white`}
         >
           <div>
-            <p className="text-xs font-medium text-ui-fg-muted uppercase tracking-wide">
+            <p className="text-xs font-medium text-white/60 uppercase tracking-wide">
               Score
             </p>
             <p
@@ -632,7 +643,7 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-ui-fg-muted uppercase tracking-wide">
+            <p className="text-xs font-medium text-white/60 uppercase tracking-wide">
               Lines
             </p>
             <p
@@ -646,11 +657,11 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-ui-fg-muted mb-1 uppercase tracking-wide">
+            <p className="text-xs font-medium text-white/60 mb-1 uppercase tracking-wide">
               Next
             </p>
             <div
-              className="grid gap-px p-1 rounded border border-ui-border-base bg-ui-bg-base inline-block"
+              className="grid gap-px p-1 rounded border border-white/15 bg-black inline-block"
               style={{ gridTemplateColumns: "repeat(4, 1fr)" }}
             >
               {nextMat.map((row, ri) =>
@@ -663,7 +674,7 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
                         ? {
                             background: PIECE_FILL[state.next] ?? "var(--brand-primary)",
                           }
-                        : { background: "var(--brand-background)" }
+                        : undefined
                     }
                   />
                 ))
@@ -671,14 +682,14 @@ export default function MiniTetris({ size = "default" }: MiniTetrisProps) {
             </div>
           </div>
           {state.gameOver ? (
-            <p className="text-sm text-ui-fg-base font-medium" role="status">
+            <p className="text-sm text-white font-medium" role="status">
               Game over
             </p>
           ) : null}
           <button
             type="button"
             onClick={restart}
-            className="w-fit mt-1 rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm font-medium text-ui-fg-base hover:bg-ui-bg-subtle focus:outline-none focus:ring-2 focus:ring-ui-fg-base focus:ring-offset-1 focus:ring-offset-ui-bg-subtle"
+            className="w-fit mt-1 rounded-md border border-white/25 bg-white/5 px-3 py-2 text-sm font-medium text-white hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-1 focus:ring-offset-ui-fg-base"
           >
             {state.gameOver ? "Play again" : "Restart"}
           </button>
