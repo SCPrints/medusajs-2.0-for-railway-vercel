@@ -5,10 +5,7 @@ import { Heading } from "@medusajs/ui"
 import type { HttpTypes } from "@medusajs/types"
 
 import VerticalStepTimeline from "@modules/checkout/components/vertical-step-timeline"
-import {
-  buildCheckoutProgressSteps,
-  FULFILLMENT_PREVIEW_STEPS,
-} from "@lib/util/checkout-progress"
+import { buildCheckoutProgressSteps } from "@lib/util/checkout-progress"
 
 export default function CheckoutTimelines({
   cart,
@@ -40,24 +37,6 @@ export default function CheckoutTimelines({
             listAriaLabel="Checkout steps"
           />
         </div>
-      </section>
-
-      <section
-        aria-labelledby="checkout-fulfillment-preview-title"
-        className="border-t border-[rgba(26,26,46,0.08)] pt-6"
-      >
-        <Heading
-          id="checkout-fulfillment-preview-title"
-          level="h3"
-          className="text-base font-semibold tracking-tight text-[var(--brand-primary)]"
-        >
-          After your order ships
-        </Heading>
-        <VerticalStepTimeline
-          steps={FULFILLMENT_PREVIEW_STEPS}
-          listAriaLabel="Illustrative order journey after dispatch"
-          caption="Typical timeline once your package is on the way — not live tracking."
-        />
       </section>
     </div>
   )
