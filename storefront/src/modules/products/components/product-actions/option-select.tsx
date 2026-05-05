@@ -93,7 +93,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
                 data-testid="option-button"
                 aria-label={`Select ${title} ${v}`}
               />
-              <span className="pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-0 z-20 origin-bottom-left whitespace-nowrap rounded-md bg-ui-fg-base px-2 py-1 text-[11px] font-medium text-ui-bg-base opacity-0 shadow-sm transition-all duration-150 ease-out translate-y-1 scale-95 group-hover/swatch:opacity-100 group-hover/swatch:translate-y-0 group-hover/swatch:scale-100 group-focus-within/swatch:opacity-100 group-focus-within/swatch:translate-y-0 group-focus-within/swatch:scale-100">
+              <span className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-0 z-20 origin-bottom-left whitespace-nowrap rounded-full bg-ui-fg-base px-2.5 py-1 text-[11px] font-semibold text-ui-bg-base opacity-0 shadow-md transition-all duration-200 ease-out -translate-y-0.5 scale-75 group-hover/swatch:opacity-100 group-hover/swatch:-translate-y-1 group-hover/swatch:scale-100 group-focus-within/swatch:opacity-100 group-focus-within/swatch:-translate-y-1 group-focus-within/swatch:scale-100">
                 {v}
               </span>
             </div>

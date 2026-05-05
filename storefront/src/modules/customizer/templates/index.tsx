@@ -1533,7 +1533,7 @@ export default function CustomizerTemplate({
               </div>
 
               <div className="flex flex-col lg:flex-row lg:items-stretch">
-                <div className="order-2 max-h-[min(70vh,720px)] overflow-y-auto border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base">
+                <div className="order-2 border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base">
                   <InputPanel
                     onUploadFile={handleUploadFile}
                     uploads={sessionUploads.map((entry) => ({
@@ -1551,8 +1551,8 @@ export default function CustomizerTemplate({
                   />
                 </div>
 
-                <div className="order-1 min-h-[min(70vh,720px)] flex-1 p-4 small:p-5 lg:order-2">
-                  <div className="sticky top-16 z-[1] lg:static">
+                <div className="order-1 min-h-[min(58vh,680px)] flex-1 p-4 small:p-5 lg:order-2">
+                  <div className="z-[1]">
                     <CanvasStage
                       garmentImage={garmentImageUrl}
                       garmentTitle={garmentDisplayTitle}
@@ -1772,7 +1772,7 @@ export default function CustomizerTemplate({
   )
 
   const defaultSidebarColumn = (
-          <div className="space-y-5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
+          <div className="space-y-5 lg:sticky lg:top-24 lg:pr-1">
             {sidebarInner}
           </div>
   )
@@ -1793,7 +1793,7 @@ export default function CustomizerTemplate({
           {integratedPdpSlots.gallery}
           {editorColumn}
         </div>
-        <div className="flex min-w-0 flex-col gap-5 self-start lg:col-span-3 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:pr-1">
+        <div className="flex min-w-0 flex-col gap-5 self-start lg:col-span-3 lg:sticky lg:top-24 lg:pr-1">
           {showPdpLabeledOptionsStep ? (
             <div className="space-y-2 border-b border-ui-border-base pb-5">
               <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
