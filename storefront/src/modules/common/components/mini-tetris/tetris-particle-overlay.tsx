@@ -507,8 +507,8 @@ export default function TetrisParticleOverlay({
               const dd = Math.sqrt(dd2)
               const fall = (obstacleR - dd) / obstacleR
               const f = OBSTACLE_FORCE * fall * fall
-              amb.vx[i]! += (ddx / dd) * f
-              amb.vy[i]! += (ddy / dd) * f
+              amb.vx[i] = amb.vx[i]! + (ddx / dd) * f
+              amb.vy[i] = amb.vy[i]! + (ddy / dd) * f
               if (fall > amb.excitement[i]!) amb.excitement[i] = fall
             }
           }
