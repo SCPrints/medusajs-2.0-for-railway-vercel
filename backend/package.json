@@ -32,6 +32,7 @@
     "ib": "init-backend",
     "start": "init-backend && cd .medusa/server && npx medusa start --verbose",
     "dev": "npx medusa develop",
+    "apply-garment-images-from-csv": "npx medusa exec ./src/scripts/apply-garment-images-from-template-csv.ts",
     "test": "jest --config jest.config.cjs",
     "email:dev": "email dev --dir=./src/modules/email-notifications/templates --port=3002"
   },

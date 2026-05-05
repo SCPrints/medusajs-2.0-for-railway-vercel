@@ -1,6 +1,6 @@
 export type NameColumn = "tag_name" | "type_name"
 
-const parseCsvLine = (line: string): string[] => {
+export const parseCsvLine = (line: string): string[] => {
   const out: string[] = []
   let value = ""
   let inQuotes = false
@@ -26,7 +26,7 @@ const parseCsvLine = (line: string): string[] => {
   return out
 }
 
-const splitCsvRecords = (raw: string): string[] => {
+export const splitCsvRecords = (raw: string): string[] => {
   const records: string[] = []
   let current = ""
   let inQuotes = false
