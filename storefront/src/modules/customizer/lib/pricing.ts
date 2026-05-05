@@ -73,11 +73,11 @@ export const calculatePricing = ({
   scpPrint,
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
-  const decoratedSides = Math.max(0, Math.floor(decoratedSidesCount || 0))
+  const decoratedSidesResolved = Math.max(0, Math.floor(decoratedSidesCount || 0))
   let sideSurchargePerUnit =
-    decoratedSides > 0 ? round2(decoratedSides * SIDE_SURCHARGE) : 0
+    decoratedSidesResolved > 0 ? round2(decoratedSidesResolved * SIDE_SURCHARGE) : 0
 
-  if (scpPrint && decoratedSides > 0) {
+  if (scpPrint && decoratedSidesResolved > 0) {
     const tierIndex = resolveScpTierIndexForQuantity(safeQuantity)
     sideSurchargePerUnit = Array.isArray(decoratedSides) && decoratedSides.length
       ? scpPrintTotalMajorPerGarmentForSides({
@@ -88,7 +88,7 @@ export const calculatePricing = ({
       : scpPrintTotalMajorPerGarment({
           printSizeId: scpPrint.printSizeId,
           tierIndex,
-          decoratedSidesCount: decoratedSides,
+          decoratedSidesCount: decoratedSidesResolved,
         })
   }
   const normalizedTiers = normalizeTiers(bulkPricingTiers)
