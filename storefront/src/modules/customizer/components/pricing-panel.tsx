@@ -1,9 +1,17 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 
 import { convertToLocale } from "@lib/util/money"
 import FlyToCartAddButton from "@modules/common/components/fly-to-cart-add-button"
+import {
+  SCP_BLANK_ALIGNED_QUANTITY_TIERS,
+  SCP_PRINT_SIZE_OPTIONS,
+  resolveScpTierIndexForQuantity,
+  scpPrintTotalMajorPerGarment,
+  scpPrintUnitMajorForTier,
+  type ScpPrintSizeId,
+} from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { PricingBreakdown, SizeQuantity } from "@modules/customizer/lib/types"
 
 type PricingPanelProps = {
@@ -18,56 +26,25 @@ type PricingPanelProps = {
   /** When set, Add to cart uses the PDP fly + squish interaction (see fly-to-cart-add-button). */
   flyImageSrc?: string
   /**
-   * DTF reference estimator (separate from checkout math). Set via product metadata
-   * `show_dtf_tier_estimator: true` in Admin when you want this block visible.
+   * SCP / DTF tier reference block. Set via product metadata `show_dtf_tier_estimator: true`.
    */
   showDtfTierEstimator?: boolean
   /** Shown with `embeddedOnPdp` as the step index before "Quantity & checkout" (2 or 3). */
   embedPdpQuantityStepNumber?: number
+  /** Selected SCP print size (must align with cart pricing). */
+  scpPrintSizeId: ScpPrintSizeId
+  onScpPrintSizeIdChange: (id: ScpPrintSizeId) => void
+  /** Decorated sides used for SCP totals (matches customizer canvas). */
+  decoratedSidesCount: number
+  /** When true, breakdown labels reflect SCP tiered print dollars instead of the legacy flat surcharge. */
+  scpPricingEnabled?: boolean
 }
-
-type DtfQuantityTier = {
-  label: string
-  minQuantity: number
-  maxQuantity?: number
-}
-
-type DtfPrintAreaOption = {
-  id: string
-  label: string
-  pricesByTierCents: number[]
-}
-
-const DTF_QUANTITY_TIERS: DtfQuantityTier[] = [
-  { label: "Qty 1-9", minQuantity: 1, maxQuantity: 9 },
-  { label: "Qty 10-49", minQuantity: 10, maxQuantity: 49 },
-  { label: "Qty 50-99", minQuantity: 50, maxQuantity: 99 },
-  { label: "Qty 100+", minQuantity: 100 },
-]
-
-// DTF reference prices in major units (AUD dollars), to match `price.amount` scale.
-const DTF_PRINT_AREA_OPTIONS: DtfPrintAreaOption[] = [
-  { id: "left_chest", label: "Left Chest (Up to A6)", pricesByTierCents: [8.5, 6.5, 5.5, 5] },
-  { id: "standard", label: "Standard Print (Up to A3)", pricesByTierCents: [12.5, 9.5, 8.5, 8] },
-  { id: "oversize", label: "Oversize Print", pricesByTierCents: [15, 12.5, 11.5, 11] },
-]
 
 const formatMoney = (amount: number, currencyCode: string) =>
   convertToLocale({ amount, currency_code: currencyCode })
 
 const formatTierRange = (minQuantity: number, maxQuantity?: number) =>
   typeof maxQuantity === "number" ? `${minQuantity}-${maxQuantity}` : `${minQuantity}+`
-
-const resolveDtfQuantityTierIndex = (quantity: number) =>
-  DTF_QUANTITY_TIERS.findIndex((tier) => {
-    if (quantity < tier.minQuantity) {
-      return false
-    }
-    if (typeof tier.maxQuantity === "number" && quantity > tier.maxQuantity) {
-      return false
-    }
-    return true
-  })
 
 const ExpandCollapsePlus = () => (
   <span className="relative h-5 w-5">
@@ -87,26 +64,56 @@ export default function PricingPanel({
   flyImageSrc,
   showDtfTierEstimator = false,
   embedPdpQuantityStepNumber = 3,
+  scpPrintSizeId,
+  onScpPrintSizeIdChange,
+  decoratedSidesCount,
+  scpPricingEnabled = true,
 }: PricingPanelProps) {
   const quantity = sizes.reduce((total, entry) => total + entry.quantity, 0)
-  const [selectedPrintAreaId, setSelectedPrintAreaId] = useState(DTF_PRINT_AREA_OPTIONS[0].id)
   const safeEstimatorQuantity = Math.max(1, quantity)
-  const activeDtfTierIndex = resolveDtfQuantityTierIndex(safeEstimatorQuantity)
-  const resolvedDtfTierIndex =
-    activeDtfTierIndex >= 0 ? activeDtfTierIndex : DTF_QUANTITY_TIERS.length - 1
-  const activePrintArea =
-    DTF_PRINT_AREA_OPTIONS.find((option) => option.id === selectedPrintAreaId) ??
-    DTF_PRINT_AREA_OPTIONS[0]
-  const dtfUnitPriceCents = useMemo(
+
+  const safeSides = Math.max(0, Math.floor(decoratedSidesCount || 0))
+
+  const scpTierIndex = resolveScpTierIndexForQuantity(safeEstimatorQuantity)
+
+  const printUnitMajorPerLocation = useMemo(() => {
+    if (safeSides <= 0) {
+      return 0
+    }
+    return scpPrintUnitMajorForTier(scpPrintSizeId, scpTierIndex)
+  }, [scpPrintSizeId, scpTierIndex, safeSides])
+
+  const printPerGarmentMajor = useMemo(
     () =>
-      activePrintArea.pricesByTierCents[resolvedDtfTierIndex] ??
-      activePrintArea.pricesByTierCents[0] ??
-      0,
-    [activePrintArea, resolvedDtfTierIndex]
+      scpPrintTotalMajorPerGarment({
+        printSizeId: scpPrintSizeId,
+        tierIndex: scpTierIndex,
+        decoratedSidesCount: safeSides,
+      }),
+    [scpPrintSizeId, scpTierIndex, safeSides]
   )
-  const dtfTotalPriceCents = dtfUnitPriceCents * safeEstimatorQuantity
+
+  const estimatedPrintJobMajor = printPerGarmentMajor * safeEstimatorQuantity
+
   const checkoutTotalCents = pricing.totalPriceCents
   const checkoutUnitCents = pricing.discountedUnitPriceCents
+
+  const printSizeSelect = (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-ui-fg-subtle">Print size (SCP digital)</label>
+      <select
+        className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm"
+        value={scpPrintSizeId}
+        onChange={(event) => onScpPrintSizeIdChange(event.target.value as ScpPrintSizeId)}
+      >
+        {SCP_PRINT_SIZE_OPTIONS.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label} ({option.dimensionsLabel})
+          </option>
+        ))}
+      </select>
+    </div>
+  )
 
   return (
     <div className="space-y-4 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
@@ -117,9 +124,11 @@ export default function PricingPanel({
             : "Size & quantity"}
         </h3>
         <p className="mt-1 text-xs text-ui-fg-subtle">
-          Set quantities per size. Totals update with print locations and volume.
+          Set quantities per size. Totals update with print locations and blank volume tiers.
         </p>
       </div>
+
+      {printSizeSelect}
 
       <div className="space-y-2">
         <label className="text-xs font-medium text-ui-fg-subtle">Sizes</label>
@@ -162,47 +171,39 @@ export default function PricingPanel({
         <details className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
           <summary className="cursor-pointer list-none text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
             <span className="flex items-center justify-between gap-2">
-              DTF tier estimator
+              SCP print tier reference
               <ExpandCollapsePlus />
             </span>
           </summary>
           <div className="mt-3 space-y-3 border-t border-ui-border-base pt-3">
             <div>
               <p className="mt-1 text-xs text-ui-fg-subtle">
-                Per garment, per print location. Uses your selected quantity to apply the right tier.
+                Per garment, per print location. Quantity tiers match blank bulk bands (1–9, 10–19,
+                20–49, 50–99, 100+).
               </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-ui-fg-subtle">Print area</label>
-              <select
-                className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm"
-                value={activePrintArea.id}
-                onChange={(event) => setSelectedPrintAreaId(event.target.value)}
-              >
-                {DTF_PRINT_AREA_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <p className="flex justify-between text-xs">
               <span className="text-ui-fg-subtle">Applied tier</span>
               <span className="font-medium text-ui-fg-base">
-                {DTF_QUANTITY_TIERS[resolvedDtfTierIndex]?.label ?? "Qty 1-9"}
+                {SCP_BLANK_ALIGNED_QUANTITY_TIERS[scpTierIndex]?.label ?? "Qty 1–9"}
               </span>
             </p>
             <p className="flex justify-between text-xs">
-              <span className="text-ui-fg-subtle">Unit price</span>
+              <span className="text-ui-fg-subtle">Print / location (this tier)</span>
               <span className="font-medium text-ui-fg-base">
-                {formatMoney(dtfUnitPriceCents, currencyCode)}
+                {formatMoney(printUnitMajorPerLocation, currencyCode)}
+              </span>
+            </p>
+            <p className="flex justify-between text-xs">
+              <span className="text-ui-fg-subtle">Print total / garment ({safeSides} loc.)</span>
+              <span className="font-medium text-ui-fg-base">
+                {formatMoney(printPerGarmentMajor, currencyCode)}
               </span>
             </p>
             <p className="flex justify-between text-sm font-semibold">
-              <span className="text-ui-fg-base">Estimated total ({safeEstimatorQuantity})</span>
-              <span className="text-ui-fg-base">{formatMoney(dtfTotalPriceCents, currencyCode)}</span>
+              <span className="text-ui-fg-base">Est. print fees ({safeEstimatorQuantity} pcs)</span>
+              <span className="text-ui-fg-base">{formatMoney(estimatedPrintJobMajor, currencyCode)}</span>
             </p>
           </div>
         </details>
@@ -216,37 +217,37 @@ export default function PricingPanel({
           </span>
         </summary>
         <div className="space-y-1 border-t border-ui-border-base px-3 pb-3 pt-2 text-xs">
-        <p className="flex justify-between">
-          <span>Base unit</span>
-          <span>{formatMoney(pricing.baseUnitPriceCents, currencyCode)}</span>
-        </p>
-        <p className="flex justify-between">
-          <span>Print location surcharge / unit</span>
-          <span>{formatMoney(pricing.sideSurchargePerUnitCents, currencyCode)}</span>
-        </p>
-        <p className="flex justify-between">
-          <span>Discount</span>
-          <span>{Math.round(pricing.quantityDiscountRate * 100)}%</span>
-        </p>
-        {pricing.hasBulkPricing && pricing.bulkPricingTiers?.length ? (
-          <div className="space-y-1 pt-1">
-            <p className="font-medium text-ui-fg-base">Bulk pricing tiers</p>
-            {pricing.bulkPricingTiers.map((tier) => (
-              <p key={formatTierRange(tier.minQuantity, tier.maxQuantity)} className="flex justify-between">
-                <span>{formatTierRange(tier.minQuantity, tier.maxQuantity)} pcs</span>
-                <span>{formatMoney(tier.amountCents, currencyCode)}</span>
-              </p>
-            ))}
-          </div>
-        ) : null}
-        <p className="flex justify-between font-medium">
-          <span>Unit after discount</span>
-          <span>{formatMoney(pricing.discountedUnitPriceCents, currencyCode)}</span>
-        </p>
-        <p className="flex justify-between font-semibold text-sm">
-          <span>Total ({quantity})</span>
-          <span>{formatMoney(pricing.totalPriceCents, currencyCode)}</span>
-        </p>
+          <p className="flex justify-between">
+            <span>Base unit</span>
+            <span>{formatMoney(pricing.baseUnitPriceCents, currencyCode)}</span>
+          </p>
+          <p className="flex justify-between">
+            <span>{scpPricingEnabled ? "SCP print (all locations) / garment" : "Print location surcharge / unit"}</span>
+            <span>{formatMoney(pricing.sideSurchargePerUnitCents, currencyCode)}</span>
+          </p>
+          <p className="flex justify-between">
+            <span>Discount</span>
+            <span>{Math.round(pricing.quantityDiscountRate * 100)}%</span>
+          </p>
+          {pricing.hasBulkPricing && pricing.bulkPricingTiers?.length ? (
+            <div className="space-y-1 pt-1">
+              <p className="font-medium text-ui-fg-base">Bulk pricing tiers</p>
+              {pricing.bulkPricingTiers.map((tier) => (
+                <p key={formatTierRange(tier.minQuantity, tier.maxQuantity)} className="flex justify-between">
+                  <span>{formatTierRange(tier.minQuantity, tier.maxQuantity)} pcs</span>
+                  <span>{formatMoney(tier.amountCents, currencyCode)}</span>
+                </p>
+              ))}
+            </div>
+          ) : null}
+          <p className="flex justify-between font-medium">
+            <span>Unit after discount</span>
+            <span>{formatMoney(pricing.discountedUnitPriceCents, currencyCode)}</span>
+          </p>
+          <p className="flex justify-between font-semibold text-sm">
+            <span>Total ({quantity})</span>
+            <span>{formatMoney(pricing.totalPriceCents, currencyCode)}</span>
+          </p>
         </div>
       </details>
 

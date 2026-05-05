@@ -1,7 +1,11 @@
 "use server"
 
-import { sdk } from "@lib/config"
+import { MEDUSA_BACKEND_URL, sdk } from "@lib/config"
 import medusaError from "@lib/util/medusa-error"
+import {
+  SCP_PRINT_PRICING_VERSION,
+  type ScpPrintSizeId,
+} from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { HttpTypes } from "@medusajs/types"
 import { omit } from "lodash"
 import { revalidateTag } from "next/cache"
@@ -132,6 +136,100 @@ export async function addToCartSafe(input: {
 }): Promise<AddToCartResult> {
   try {
     await addToCart(input)
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not add this item to your cart right now.",
+    }
+  }
+}
+
+async function postJsonMedusa(path: string, body: Record<string, unknown>) {
+  const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY?.trim()
+  if (!publishableKey) {
+    throw new Error("Missing NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY for SCP cart pricing.")
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-publishable-api-key": publishableKey,
+  }
+  Object.assign(headers, await getAuthHeaders())
+
+  const res = await fetch(`${MEDUSA_BACKEND_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  })
+
+  const rawText = await res.text()
+  let parsed: Record<string, unknown> | null = null
+  try {
+    parsed = rawText ? (JSON.parse(rawText) as Record<string, unknown>) : null
+  } catch {
+    parsed = null
+  }
+
+  if (!res.ok) {
+    const message =
+      (parsed?.message as string | undefined) ||
+      (parsed?.type as string | undefined) ||
+      rawText ||
+      `Request failed (${res.status})`
+    throw new Error(typeof message === "string" ? message : `Request failed (${res.status})`)
+  }
+
+  return parsed
+}
+
+/**
+ * Server-priced customizable line (garment bulk tier + SCP print matrix). Prefer over `addToCart`
+ * for fabric customizer / PDP placements that carry print artifacts.
+ */
+export async function addScpLineItemToCart(input: {
+  variantId: string
+  quantity: number
+  countryCode: string
+  metadata?: Record<string, unknown>
+  printSizeId: ScpPrintSizeId
+}) {
+  const { variantId, quantity, countryCode, metadata, printSizeId } = input
+
+  if (!variantId) {
+    throw new Error("Missing variant ID when adding to cart")
+  }
+
+  const cart = await getOrSetCart(countryCode)
+  if (!cart?.id) {
+    throw new Error("Error retrieving or creating cart")
+  }
+
+  await postJsonMedusa(`/store/carts/${cart.id}/scp-line-items`, {
+    variant_id: variantId,
+    quantity,
+    metadata: metadata ?? {},
+    scp_print: {
+      version: SCP_PRINT_PRICING_VERSION,
+      print_size_id: printSizeId,
+    },
+  })
+
+  revalidateTag("cart")
+}
+
+export async function addScpLineItemToCartSafe(input: {
+  variantId: string
+  quantity: number
+  countryCode: string
+  metadata?: Record<string, unknown>
+  printSizeId: ScpPrintSizeId
+}): Promise<AddToCartResult> {
+  try {
+    await addScpLineItemToCart(input)
     return { ok: true }
   } catch (error) {
     return {

@@ -1,7 +1,12 @@
 import { clx } from "@medusajs/ui"
 
 import { getPercentageDiff } from "@lib/util/get-precentage-diff"
-import { getPricesForVariant } from "@lib/util/get-product-price"
+import {
+  cartLineUsesExplicitUnitPrice,
+  getPricesForCartLineVariant,
+  resolveCartLineDisplayUnitMinor,
+  variantWithInferredHandleForLineItem,
+} from "@lib/util/cart-line-display-unit"
 import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 
@@ -11,48 +16,38 @@ type LineItemPriceProps = {
 }
 
 const LineItemPrice = ({ item, style = "default" }: LineItemPriceProps) => {
-  // Medusa cart variant may have a partial `.product` without handle, which would
-  // defeat the AS Colour AUD hundredfold fix. Pull handle from common fallbacks.
-  const itemRecord = item as unknown as {
-    variant?: Record<string, unknown> & {
-      product?: { handle?: string }
-      metadata?: Record<string, unknown>
-    }
-    product_handle?: string
-    metadata?: Record<string, unknown>
-  }
-  const inferredHandle =
-    (typeof itemRecord.variant?.product?.handle === "string" &&
-      itemRecord.variant.product.handle) ||
-    (typeof itemRecord.product_handle === "string" && itemRecord.product_handle) ||
-    (typeof itemRecord.metadata?.product_handle === "string" &&
-      (itemRecord.metadata.product_handle as string)) ||
-    undefined
-  const variantForPricing = inferredHandle
-    ? {
-        ...(item.variant as unknown as Record<string, unknown>),
-        product: {
-          ...(itemRecord.variant?.product ?? {}),
-          handle: inferredHandle,
-        },
-      }
-    : item.variant
-  const { currency_code, original_price_number, display_unit_minor, calculated_price_number } =
-    getPricesForVariant(variantForPricing) ?? {}
+  const variantForPricing = variantWithInferredHandleForLineItem(item)
+  const prices = getPricesForCartLineVariant(variantForPricing)
 
   const adjustmentsSum = (item.adjustments || []).reduce(
     (acc, adjustment) => adjustment.amount + acc,
     0
   )
 
-  const unitMinor =
-    typeof display_unit_minor === "number" && Number.isFinite(display_unit_minor)
-      ? display_unit_minor
-      : (calculated_price_number ?? 0)
+  const unitMinor = resolveCartLineDisplayUnitMinor(item, variantForPricing)
+  const currency_code = prices?.currency_code ?? "usd"
 
-  const originalPrice = original_price_number * item.quantity
-  const currentPrice = unitMinor * item.quantity - adjustmentsSum
-  const hasReducedPrice = currentPrice < originalPrice
+  const itemRecord = item as { compare_at_unit_price?: number | null }
+
+  let originalPrice: number
+  let currentPrice: number
+  let hasReducedPrice: boolean
+
+  if (cartLineUsesExplicitUnitPrice(item)) {
+    const compareAtMinor =
+      typeof itemRecord.compare_at_unit_price === "number" &&
+      Number.isFinite(itemRecord.compare_at_unit_price)
+        ? Math.round(itemRecord.compare_at_unit_price)
+        : null
+    originalPrice = (compareAtMinor ?? unitMinor) * item.quantity
+    currentPrice = unitMinor * item.quantity - adjustmentsSum
+    hasReducedPrice = compareAtMinor != null && compareAtMinor > unitMinor
+  } else {
+    const original_price_number = prices?.original_price_number ?? 0
+    originalPrice = original_price_number * item.quantity
+    currentPrice = unitMinor * item.quantity - adjustmentsSum
+    hasReducedPrice = currentPrice < originalPrice
+  }
 
   return (
     <div className="flex flex-col gap-x-2 text-ui-fg-subtle items-end">

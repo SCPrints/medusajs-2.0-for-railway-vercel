@@ -1,5 +1,9 @@
 import { HttpTypes } from "@medusajs/types"
-import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
+import {
+  cartLineUsesExplicitUnitPrice,
+  resolveCartLineDisplayUnitMinor,
+  variantWithInferredHandleForLineItem,
+} from "@lib/util/cart-line-display-unit"
 
 export type TotalsMutableForDisplay = {
   items?: unknown[] | null
@@ -30,19 +34,16 @@ export function applyDisplayPriceCorrection(subject: TotalsMutableForDisplay) {
 
   let displaySubtotal = 0
   for (const item of items) {
-    const v = item.variant as {
-      calculated_price?: { calculated_amount?: number }
-      metadata?: Record<string, unknown>
-    }
-    if (!v?.calculated_price?.calculated_amount) {
-      continue
-    }
-    const unit = getDisplayUnitMinorForVariant(v)
     const adjustmentsSum = (item.adjustments || []).reduce(
       (acc: number, adj: { amount?: number }) =>
         acc + (typeof adj.amount === "number" && Number.isFinite(adj.amount) ? adj.amount : 0),
       0
     )
+    const variantForPricing = variantWithInferredHandleForLineItem(item)
+    const unit = resolveCartLineDisplayUnitMinor(item, variantForPricing)
+    if (!cartLineUsesExplicitUnitPrice(item) && !unit) {
+      continue
+    }
     displaySubtotal += unit * (item.quantity ?? 0) - adjustmentsSum
   }
 

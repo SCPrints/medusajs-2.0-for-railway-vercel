@@ -21,7 +21,12 @@ import {
 } from "@modules/products/lib/variant-options"
 
 import ProductPrice from "../product-price"
-import { addToCartSafe } from "@lib/data/cart"
+import { addScpLineItemToCartSafe, addToCartSafe } from "@lib/data/cart"
+import {
+  DEFAULT_SCP_PRINT_SIZE_ID,
+  SCP_PRINT_SIZE_OPTIONS,
+  type ScpPrintSizeId,
+} from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { HttpTypes } from "@medusajs/types"
 
 type ProductActionsProps = {
@@ -34,6 +39,11 @@ type ProductActionsProps = {
 const DEFAULT_RENDER_SURFACE = {
   width: 1200,
   height: 1500,
+}
+
+const productMetadataUsesScpCartPricing = (p: HttpTypes.StoreProduct) => {
+  const m = p.metadata as Record<string, unknown> | undefined
+  return m?.use_scp_dtf_cart_pricing === true
 }
 
 const variantHasConfiguredPrice = (variant?: HttpTypes.StoreProductVariant) => {
@@ -87,6 +97,7 @@ export default function ProductActions({
 }: ProductActionsProps) {
   const [isAdding, setIsAdding] = useState(false)
   const [quantity, setQuantity] = useState(1)
+  const [scpPrintSizeId, setScpPrintSizeId] = useState<ScpPrintSizeId>(DEFAULT_SCP_PRINT_SIZE_ID)
   const [addToCartError, setAddToCartError] = useState<string | null>(null)
   const countryCode = useParams().countryCode as string
   const { overlayUrl, overlayFileName, placement } = usePrintPlacement()
@@ -253,12 +264,23 @@ export default function ProductActions({
       }
     }
 
-    const addResult = await addToCartSafe({
-        variantId: selectedVariant.id,
-        quantity,
-        countryCode,
-        metadata: printPlacementMetadata,
-    })
+    const shouldUseScpCart =
+      productMetadataUsesScpCartPricing(product) && Boolean(overlayUrl && printPlacementMetadata)
+
+    const addResult = shouldUseScpCart
+      ? await addScpLineItemToCartSafe({
+          variantId: selectedVariant.id,
+          quantity,
+          countryCode,
+          printSizeId: scpPrintSizeId,
+          metadata: printPlacementMetadata,
+        })
+      : await addToCartSafe({
+          variantId: selectedVariant.id,
+          quantity,
+          countryCode,
+          metadata: printPlacementMetadata,
+        })
     if (!addResult.ok) {
       setAddToCartError(addResult.error)
     }
@@ -329,6 +351,29 @@ export default function ProductActions({
                 +
               </button>
             </div>
+          </div>
+        ) : null}
+
+        {!hideInlinePurchaseControls &&
+        overlayUrl &&
+        productMetadataUsesScpCartPricing(product) ? (
+          <div className="flex flex-col gap-y-1">
+            <label htmlFor="pdp-scp-print-size" className="text-sm font-medium text-ui-fg-base">
+              Print size (SCP digital)
+            </label>
+            <select
+              id="pdp-scp-print-size"
+              value={scpPrintSizeId}
+              onChange={(event) => setScpPrintSizeId(event.target.value as ScpPrintSizeId)}
+              disabled={isAdding || !!disabled}
+              className="w-full rounded-rounded border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base outline-none focus:border-ui-border-interactive"
+            >
+              {SCP_PRINT_SIZE_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label} ({opt.dimensionsLabel})
+                </option>
+              ))}
+            </select>
           </div>
         ) : null}
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { addToCartSafe } from "@lib/data/cart"
+import { addScpLineItemToCartSafe } from "@lib/data/cart"
 import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-add-button"
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import InputPanel from "@modules/customizer/components/input-panel"
@@ -13,6 +13,10 @@ import {
 } from "@modules/customizer/lib/artifact-url"
 import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/lib/garment-url-for-render"
 import { calculatePricing } from "@modules/customizer/lib/pricing"
+import {
+  DEFAULT_SCP_PRINT_SIZE_ID,
+  type ScpPrintSizeId,
+} from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
@@ -417,6 +421,7 @@ export default function CustomizerTemplate({
   const [sizeMatrix, setSizeMatrix] = useState<SizeQuantity[]>([])
   const [sessionUploads, setSessionUploads] = useState<SessionUploadAsset[]>([])
   const [layoutVersion, setLayoutVersion] = useState(0)
+  const [scpPrintSizeId, setScpPrintSizeId] = useState<ScpPrintSizeId>(DEFAULT_SCP_PRINT_SIZE_ID)
   const [showPrintAreaGuides, setShowPrintAreaGuides] = useState(false)
   const lastCustomizerProductIdRef = useRef<string | null>(null)
   const sideLoadVersionRef = useRef(0)
@@ -505,6 +510,7 @@ export default function CustomizerTemplate({
     decoratedSidesCount,
     totalQuantity: totalQty,
     bulkPricingTiers,
+    scpPrint: { printSizeId: scpPrintSizeId },
   })
 
   const updateLayers = () => {
@@ -1471,10 +1477,11 @@ export default function CustomizerTemplate({
           sideLayouts: DESIGN_SIDES.map((side) => ({ side, objects: [] })),
         }
 
-        const addResult = await addToCartSafe({
+        const addResult = await addScpLineItemToCartSafe({
           variantId: quantityEntry.variant.id,
           quantity: quantityEntry.quantity,
           countryCode,
+          printSizeId: scpPrintSizeId,
           metadata: {
             customizerDesign: sanitizeCustomizerDesignForCart(lineItemMetadata),
           },
@@ -1631,6 +1638,9 @@ export default function CustomizerTemplate({
               flyImageSrc={flyImageSrcForAddToCart}
               showDtfTierEstimator={productMetadataShowsDtfTierEstimator(selectedProduct)}
               embedPdpQuantityStepNumber={embedPdpQuantityStepNumber}
+              scpPrintSizeId={scpPrintSizeId}
+              onScpPrintSizeIdChange={setScpPrintSizeId}
+              decoratedSidesCount={decoratedSidesCount}
             />
 
             <details className="group rounded-xl border border-ui-border-base bg-ui-bg-base p-4">

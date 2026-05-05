@@ -12,11 +12,17 @@ export type SizeQuantity = {
   quantity: number
 }
 
+import type { ScpPrintSizeId } from "@modules/customizer/lib/scp-dtf-print-pricing"
+
 export type PricingInput = {
   basePriceCents: number
   decoratedSidesCount: number
   totalQuantity: number
   bulkPricingTiers?: BulkPricingTier[]
+  /** When set, garment-side pricing adds SCP tiered print dollars instead of the flat per-side surcharge. */
+  scpPrint?: {
+    printSizeId: ScpPrintSizeId
+  }
 }
 
 export type BulkPricingTier = {

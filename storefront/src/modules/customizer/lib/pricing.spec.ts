@@ -25,6 +25,18 @@ describe("calculatePricing", () => {
     expect(pricing.totalPriceCents).toBeCloseTo(17.5, 2)
   })
 
+  it("uses SCP tiered print dollars when scpPrint is set", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 2,
+      totalQuantity: 50,
+      scpPrint: { printSizeId: "up_to_a6" },
+    })
+
+    // Qty 50 → tier index 3 → $5.5 per location × 2 sides = $11/garment
+    expect(pricing.sideSurchargePerUnitCents).toBe(11)
+  })
+
   it("uses bulk tiers as base unit pricing when provided", () => {
     const pricing = calculatePricing({
       basePriceCents: 30,
