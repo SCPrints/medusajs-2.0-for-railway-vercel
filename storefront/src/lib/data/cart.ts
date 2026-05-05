@@ -33,9 +33,8 @@ export async function retrieveCart() {
   }
 
   const retrieveConfig = {
-    // Pull inventory fields so the cart-line quantity selector can cap at real stock.
-    fields:
-      "*items.variant.inventory_quantity,*items.variant.manage_inventory,*items.variant.allow_backorder",
+    // Keep to fields supported across Medusa deployments.
+    fields: "*items.variant.manage_inventory,*items.variant.allow_backorder",
   }
   const authHeaders = await getAuthHeaders()
 

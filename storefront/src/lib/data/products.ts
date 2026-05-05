@@ -28,7 +28,7 @@ function productBrandMatchesClientFilter(
 
 /** Include product + variant metadata (e.g. brand, garment_images), weight and tags for the storefront. */
 const STORE_PRODUCT_FIELDS =
-  "+metadata,+type,+weight,*variants.calculated_price,*variants.options,+variants.inventory_quantity,+variants.metadata,+variants.sku,+variants.weight,+tags"
+  "+metadata,+type,+weight,*variants.calculated_price,*variants.options,+variants.metadata,+variants.sku,+variants.weight,+tags"
 
 /**
  * Next.js Data Cache: tag for on-demand `revalidateTag("products")`, plus a max age so catalog
