@@ -1258,6 +1258,27 @@ function getParticleSprite(diameter: number): HTMLCanvasElement | null {
   return off
 }
 
+/** Parse a CSS hex colour ("#rrggbb" or "#rgb") into an RGB tuple. Returns white on parse failure. */
+function parseHexColor(s: string): [number, number, number] {
+  const v = s.trim()
+  if (v.startsWith("#")) {
+    const hex = v.slice(1)
+    if (hex.length === 3) {
+      const r = parseInt(hex[0]! + hex[0]!, 16)
+      const g = parseInt(hex[1]! + hex[1]!, 16)
+      const b = parseInt(hex[2]! + hex[2]!, 16)
+      return [r, g, b]
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.slice(0, 2), 16)
+      const g = parseInt(hex.slice(2, 4), 16)
+      const b = parseInt(hex.slice(4, 6), 16)
+      return [r, g, b]
+    }
+  }
+  return [255, 255, 255]
+}
+
 function drawLayer(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
@@ -1309,6 +1330,39 @@ function drawLayer(
   const halfSprite = spriteSize * 0.5
   const baseSpriteSize = d * 3
   const halfBaseSprite = baseSpriteSize * 0.5
+
+  /** Per-particle gradient colouring: each particle's RGB is fixed by its HOME position
+   * projected onto the gradient axis. Colour travels with the particle when it's
+   * displaced, instead of acting like a screen-space mask. */
+  let gradStops: [number, number, number][] | null = null
+  let gradDx = 0
+  let gradDy = 0
+  let gradMin = 0
+  let gradSpan = 1
+  if (wordmarkGradient != null && wordmarkGradient.stops.length >= 2) {
+    gradStops = wordmarkGradient.stops.map(parseHexColor)
+    /** CSS angle: 0° = up, increasing clockwise. Canvas y is downward, so direction
+     * is (sin a, -cos a). */
+    const angleRad = (wordmarkGradient.angleDeg * Math.PI) / 180
+    gradDx = Math.sin(angleRad)
+    gradDy = -Math.cos(angleRad)
+    /** Project all particle homes onto the axis and take the actual extents so the
+     * full gradient spans the wordmark — not the empty space around it. */
+    let mn = Infinity
+    let mx = -Infinity
+    for (const p of particles) {
+      const t = p.hx * gradDx + p.hy * gradDy
+      if (t < mn) mn = t
+      if (t > mx) mx = t
+    }
+    if (mx > mn) {
+      gradMin = mn
+      gradSpan = mx - mn
+    } else {
+      gradStops = null
+    }
+  }
+
   const drawOne = (p: ParallaxParticle) => {
     const ba = Number.isFinite(p.baseAlpha) ? p.baseAlpha : PARTICLE_BASE_ALPHA
     const op = Number.isFinite(p.entranceOpacity) ? p.entranceOpacity : 1
@@ -1335,7 +1389,28 @@ function drawLayer(
     if (!Number.isFinite(yBmp)) {
       yBmp = py
     }
-    if (sprite != null && baseSprite != null && useDualPass) {
+    if (gradStops != null) {
+      /** Per-particle gradient colour. Project particle's HOME onto axis so the
+       * colour is fixed to the wordmark and travels with the particle when displaced. */
+      const proj = p.hx * gradDx + p.hy * gradDy
+      let t = (proj - gradMin) / gradSpan
+      if (t < 0) t = 0
+      else if (t > 1) t = 1
+      const segCount = gradStops.length - 1
+      const segPos = t * segCount
+      let segIdx = Math.floor(segPos)
+      if (segIdx >= segCount) segIdx = segCount - 1
+      const localT = segPos - segIdx
+      const c1 = gradStops[segIdx]!
+      const c2 = gradStops[segIdx + 1]!
+      const r = Math.round(c1[0]! + (c2[0]! - c1[0]!) * localT)
+      const g = Math.round(c1[1]! + (c2[1]! - c1[1]!) * localT)
+      const b = Math.round(c1[2]! + (c2[2]! - c1[2]!) * localT)
+      ctx.globalAlpha = alpha
+      ctx.fillStyle = `rgb(${r},${g},${b})`
+      const half = d * 0.5
+      ctx.fillRect(xBmp - half, yBmp - half, d, d)
+    } else if (sprite != null && baseSprite != null && useDualPass) {
       /** Pass 1: low-alpha base layer fills gaps between centers. */
       ctx.globalAlpha = alpha * 0.18
       ctx.drawImage(
@@ -1366,35 +1441,6 @@ function drawLayer(
   /** Reset globalAlpha so subsequent draws (debug marker, parallax overlays) aren't
    * dimmed by the last sprite-blit alpha. */
   ctx.globalAlpha = 1
-
-  if (wordmarkGradient != null && wordmarkGradient.stops.length >= 2) {
-    /** Recolour the rendered particles with a multi-stop linear gradient.
-     * `source-in` keeps only existing pixels and replaces their colour with the
-     * gradient at the particle's position. */
-    const angleRad = (wordmarkGradient.angleDeg * Math.PI) / 180
-    /** CSS convention: 0deg points up, increasing clockwise. Canvas y is downward,
-     * so the direction vector is (sin(a), -cos(a)). */
-    const dx = Math.sin(angleRad)
-    const dy = -Math.cos(angleRad)
-    const cx = canvas.width / 2
-    const cy = canvas.height / 2
-    const len = Math.hypot(canvas.width, canvas.height)
-    const x0 = cx - (dx * len) / 2
-    const y0 = cy - (dy * len) / 2
-    const x1 = cx + (dx * len) / 2
-    const y1 = cy + (dy * len) / 2
-    const grad = ctx.createLinearGradient(x0, y0, x1, y1)
-    const stops = wordmarkGradient.stops
-    const denom = Math.max(1, stops.length - 1)
-    for (let i = 0; i < stops.length; i++) {
-      grad.addColorStop(i / denom, stops[i]!)
-    }
-    ctx.save()
-    ctx.globalCompositeOperation = "source-in"
-    ctx.fillStyle = grad
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.restore()
-  }
 
   const m = mouseRef.current
   if (

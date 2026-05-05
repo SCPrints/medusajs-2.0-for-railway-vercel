@@ -2,7 +2,10 @@
 
 import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
 
-import { V3_TUNING } from "../(main)/particle-flow/v3-splash"
+import {
+  V3_TUNING,
+  WORDMARK_GRADIENT,
+} from "../(main)/particle-flow/v3-splash"
 
 export default function DmcSplash() {
   return (
@@ -14,6 +17,7 @@ export default function DmcSplash() {
       inkPolarity="bright"
       sectionAriaLabel="DMC particle logo"
       newmixLiveTuning={V3_TUNING}
+      wordmarkGradient={WORDMARK_GRADIENT}
     />
   )
 }
