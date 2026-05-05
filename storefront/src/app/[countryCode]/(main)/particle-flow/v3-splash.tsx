@@ -9,13 +9,13 @@ import type { NewmixLiveTuning } from "@modules/home/components/home-particle-lo
  * (added after v3) are set to neutral / disabled values so they don't perturb
  * the v3-era behavior.
  */
-const V3_TUNING: Partial<NewmixLiveTuning> = {
+export const V3_TUNING: Partial<NewmixLiveTuning> = {
   radius: 45,
   velSmoothing: 0.45,
   sideSwirlForce: 20.0,
   frontPush: 5.0,
-  backInward: 7,
-  falloffPower: 1.4,
+  backInward: 3.5,
+  falloffPower: 1.9,
   trailFollowMs: 4000,
   wakePace: 0.75,
   wakePaceJitter: 0.18,
@@ -27,8 +27,8 @@ const V3_TUNING: Partial<NewmixLiveTuning> = {
   wakeDiffusionHz: 0.6,
   wakeTimeOffsetMs: 0,
   releaseVelocityKeep: 0.0,
-  exitVelocityBoostBmp: 12,
-  leadingEdgePullForce: 7,
+  exitVelocityBoostBmp: 18,
+  leadingEdgePullForce: 3.5,
   friction: 0.92,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
@@ -43,10 +43,10 @@ const V3_TUNING: Partial<NewmixLiveTuning> = {
   motionGateSpeed: 0.0,
   wakeBandTaperPower: 0.4,
   coreEjectionForce: 5,
-  coreEjectionRadiusFrac: 0.30,
+  coreEjectionRadiusFrac: 0.50,
   wakeAlphaMult: 1.0,
   homeReturnSpring: 0.008,
-  homeReturnFriction: 0.94,
+  homeReturnFriction: 0.93,
   homeReturnGravity: 0.05,
 }
 
