@@ -697,6 +697,81 @@ function applyNewmixCaptureImpulse(
 }
 
 /**
+ * Dual counter-rotating vortex emitters. Two virtual rotation centres are placed
+ * perpendicular to the cursor's motion direction (one on each side, optionally
+ * offset along/behind the cursor). Each vortex applies a tangential impulse to
+ * particles within its radius — around its OWN centre, not the cursor's. The two
+ * centres counter-rotate, producing the Kármán-style vortex pair you see trailing
+ * a moving spoon. The emitters travel with the cursor and decay with motion gate.
+ */
+function applyDualVortexImpulse(
+  p: ParallaxParticle,
+  cx: number,
+  cy: number,
+  /** Cursor unit-velocity direction (gx, gy already normalised). Caller passes zero
+   * vector when cursor isn't moving — function early-exits in that case. */
+  velUx: number,
+  velUy: number,
+  /** Mouse speed (bitmap px / frame). Forces scale with motion gate. */
+  mouseSpeed: number,
+  t: NewmixLiveTuning
+): void {
+  if (t.vortexStrength <= 0 || t.vortexRadiusBmp <= 0) {
+    return
+  }
+  if (cx <= -9000) {
+    return
+  }
+  const speedMag = Math.hypot(velUx, velUy)
+  if (speedMag < 1e-5) {
+    return
+  }
+  /** Re-normalise just in case caller didn't. */
+  const ux = velUx / speedMag
+  const uy = velUy / speedMag
+  /** Perpendicular unit vector (90° CCW from velocity in canvas-y-down coords). */
+  const perpX = -uy
+  const perpY = ux
+  /** Compute both vortex centre positions: offset perpendicular ± and along velocity by `vortexLagBmp`. */
+  const lag = t.vortexLagBmp
+  const off = t.vortexOffsetBmp
+  const lvx = cx + perpX * off + ux * lag
+  const lvy = cy + perpY * off + uy * lag
+  const rvx = cx - perpX * off + ux * lag
+  const rvy = cy - perpY * off + uy * lag
+  const R = t.vortexRadiusBmp
+  const motionScale = Math.max(
+    0,
+    Math.min(1, mouseSpeed / Math.max(0.01, t.motionGateSpeed))
+  )
+  /** Apply a tangential impulse around one vortex centre. `rotSign = +1` rotates
+   * counter-clockwise around the centre (in canvas-y-down coords), -1 = clockwise. */
+  const applyAt = (vx: number, vy: number, rotSign: number) => {
+    const dxv = p.x - vx
+    const dyv = p.y - vy
+    const distV = Math.hypot(dxv, dyv)
+    if (distV >= R || distV < PHYSICS_DIST_EPSILON) {
+      return
+    }
+    const edge = (R - distV) / R
+    const fall = Math.pow(
+      Math.max(0, Math.min(1, edge)),
+      t.vortexFalloffPower
+    )
+    /** Tangential unit vector around vortex centre (CCW). */
+    const tvx = -dyv / distV
+    const tvy = dxv / distV
+    const force = t.vortexStrength * fall * motionScale
+    p.vx += tvx * rotSign * force
+    p.vy += tvy * rotSign * force
+  }
+  /** Counter-rotation: left vortex CW (-1), right vortex CCW (+1). With cursor moving
+   * rightward this produces the canonical Kármán pair pattern. */
+  applyAt(lvx, lvy, -1)
+  applyAt(rvx, rvy, 1)
+}
+
+/**
  * Look up the cursor's recorded position at a given wall-clock timestamp by linear
  * interpolation between the two surrounding history samples. Returns null if the buffer
  * is empty or the timestamp is past the newest sample (caller should treat as "caught up").
@@ -2811,6 +2886,22 @@ export default function HomeParticleLogoHero({
                 p.newmixHomeReturnFromY = undefined
                 p.newmixHomeReturnStartMs = undefined
               }
+
+              /** Dual vortex emitters — two counter-rotating curls flanking the cursor's
+               * path. Each vortex centre is offset to the side of the cursor disk, so
+               * particles JUST outside the cursor disk can also be affected. Applied
+               * unconditionally (outside `captured`) so the curls extend beyond the
+               * cursor's own influence radius. The helper internally early-exits if
+               * the particle isn't inside either vortex's radius. */
+              applyDualVortexImpulse(
+                p,
+                currentMouseX,
+                currentMouseY,
+                newmixSpoonGx,
+                newmixSpoonGy,
+                newmixSpoonSpeed,
+                nm
+              )
 
               if (captured) {
                 /** Apply the swirl impulse — particle is being curled around the cursor. */

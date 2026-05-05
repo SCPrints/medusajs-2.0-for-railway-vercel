@@ -104,6 +104,26 @@ export type NewmixLiveTuning = {
    * Produces the "sand through hourglass" effect — particles fall toward home with a
    * downward bias, not a straight line. */
   homeReturnGravity: number
+  /** Dual vortex emitters — two virtual rotation centres travelling with the cursor on
+   * each side of its motion direction. Particles within each vortex's radius receive a
+   * tangential impulse around that vortex (not around the cursor), producing visible
+   * counter-rotating curls on each side of the cursor — the Kármán vortex pair you see
+   * trailing a moving spoon in coffee.
+   *
+   * Set `vortexStrength` to 0 to disable.
+   */
+  vortexStrength: number
+  /** Each vortex's perpendicular offset from the cursor's path (bitmap px). */
+  vortexOffsetBmp: number
+  /** Along-velocity offset of the vortex centre relative to the cursor (bitmap px).
+   * Negative = behind cursor (in the wake), 0 = level with cursor, positive = ahead. */
+  vortexLagBmp: number
+  /** Each vortex's influence radius (bitmap px). Smaller than cursor radius keeps the
+   * curls localised; larger makes them blend into the surrounding flow. */
+  vortexRadiusBmp: number
+  /** Force falloff with distance from vortex centre. `((R - d)/R)^P`. Higher = sharper
+   * concentration of force near the vortex centre = tighter visible curl. */
+  vortexFalloffPower: number
 }
 
 /** SC PRints v2-era settings (commit 2f8436e, May 3 11:20). User indicated these
@@ -150,6 +170,12 @@ export const NEWMIX_LIVE_TUNING_DEFAULTS = Object.freeze<NewmixLiveTuning>({
   homeReturnSpring: 0.008,
   homeReturnFriction: 0.94,
   homeReturnGravity: 0.05,
+  /** Dual vortex emitters — disabled by default. */
+  vortexStrength: 0.0,
+  vortexOffsetBmp: 25,
+  vortexLagBmp: -8,
+  vortexRadiusBmp: 35,
+  vortexFalloffPower: 1.6,
 })
 
 export function mergeNewmixLiveTuning(

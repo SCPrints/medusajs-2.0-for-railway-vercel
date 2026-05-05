@@ -69,6 +69,14 @@ export const V3_TUNING: Partial<NewmixLiveTuning> = {
   homeReturnSpring: 0.008,
   homeReturnFriction: 0.93,
   homeReturnGravity: 0.05,
+  /** Dual vortex emitters: two counter-rotating curls flanking the cursor's path.
+   * The single-disk swirl above can't produce two distinct rotation centres; this
+   * supplies them as virtual points perpendicular-offset from the cursor. */
+  vortexStrength: 6.0,
+  vortexOffsetBmp: 28,
+  vortexLagBmp: -6,
+  vortexRadiusBmp: 38,
+  vortexFalloffPower: 1.6,
 }
 
 export default function V3Splash() {
