@@ -12,38 +12,38 @@ import type { NewmixLiveTuning } from "@modules/home/components/home-particle-lo
 const V3_TUNING: Partial<NewmixLiveTuning> = {
   radius: 45,
   velSmoothing: 0.45,
-  sideSwirlForce: 14.0,
+  sideSwirlForce: 20.0,
   frontPush: 5.0,
-  backInward: 3.5,
+  backInward: 7,
   falloffPower: 1.4,
   trailFollowMs: 4000,
   wakePace: 0.75,
-  wakePaceJitter: 0.4,
+  wakePaceJitter: 0.18,
   wakeLateralSpreadBmp: 3,
   wakeReleaseStaggerMs: 200,
   wakeBandSpreadBmp: 10,
   wakeAlongStretchBmp: 20,
   wakeDiffusionBmp: 0,
   wakeDiffusionHz: 0.6,
-  wakeTimeOffsetMs: 3000,
+  wakeTimeOffsetMs: 0,
   releaseVelocityKeep: 0.0,
-  exitVelocityBoostBmp: 6.0,
-  leadingEdgePullForce: 4.5,
+  exitVelocityBoostBmp: 12,
+  leadingEdgePullForce: 7,
   friction: 0.92,
   springStiffnessMult: 0.55,
   homeSpringSuppress: 0.85,
   homeReturnMs: 1500,
   homeReturnCurveBmp: 90,
   homeReturnDurationJitter: 0.7,
-  homeReturnDiffusionBmp: 8,
+  homeReturnDiffusionBmp: 0,
   idleThresholdMs: 500,
   /** Knobs added after v3 — neutral / disabled so they don't perturb the v3-era behavior. */
   trailingProbability: 1.0,
-  inDiskCarryFactor: 0.0,
+  inDiskCarryFactor: 0.7,
   motionGateSpeed: 0.0,
-  wakeBandTaperPower: 0.0,
-  coreEjectionForce: 0.0,
-  coreEjectionRadiusFrac: 0.15,
+  wakeBandTaperPower: 0.4,
+  coreEjectionForce: 5,
+  coreEjectionRadiusFrac: 0.30,
   wakeAlphaMult: 1.0,
   homeReturnSpring: 0.008,
   homeReturnFriction: 0.94,
@@ -55,7 +55,7 @@ export default function V3Splash() {
     <HomeParticleLogoHero
       presentation="embedded"
       interactionMode="newmix"
-      animatedParticleCap={77000}
+      animatedParticleCap={55000}
       sectionAriaLabel="SC Prints — particle flow (v3 settings)"
       newmixLiveTuning={V3_TUNING}
     />

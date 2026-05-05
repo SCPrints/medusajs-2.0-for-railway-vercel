@@ -47,7 +47,7 @@ export const PARTICLE_AMBIENT_G = 255
 export const PARTICLE_AMBIENT_B = 255
 
 /** Hot-path draw: rects instead of arcs (bitmap px); larger = thicker resting wordmark. */
-export const PARTICLE_DRAW_SIZE_BMP = 1
+export const PARTICLE_DRAW_SIZE_BMP = 2
 
 /** Fullscreen particle page: finer stipple (see `HomeParticleLogoHero` draw path). */
 export const FULLSCREEN_PARTICLE_DRAW_SIZE_BMP = 5
