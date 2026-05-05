@@ -14,14 +14,25 @@ export function getStoreCartShippingOptionMinorAmount(
     return null
   }
 
+  const top = option.amount
+  if (typeof top === "number" && Number.isFinite(top)) {
+    const calculated = option.calculated_price?.calculated_amount
+    // Some carts surface `calculated_amount` as 100x the flat `amount`.
+    // Prefer explicit flat amount when both exist and diverge by 100x.
+    if (
+      typeof calculated === "number" &&
+      Number.isFinite(calculated) &&
+      calculated >= top * 100 &&
+      calculated % 100 === 0
+    ) {
+      return top
+    }
+    return top
+  }
+
   const calculated = option.calculated_price?.calculated_amount
   if (typeof calculated === "number" && Number.isFinite(calculated)) {
     return calculated
-  }
-
-  const top = option.amount
-  if (typeof top === "number" && Number.isFinite(top)) {
-    return top
   }
 
   const prices = option.prices
