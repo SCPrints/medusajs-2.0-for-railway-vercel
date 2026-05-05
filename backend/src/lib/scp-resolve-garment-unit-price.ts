@@ -51,7 +51,7 @@ export function normalizeBulkPricingTiersFromVariantMetadata(
     return []
   }
 
-  const tiers = bulkPricing.tiers
+  const tiers = (bulkPricing.tiers
     .map((tier) => {
       const minQuantity = toFiniteInt(tier.min_quantity)
       const maxQuantity = toFiniteInt(tier.max_quantity)
@@ -65,7 +65,7 @@ export function normalizeBulkPricingTiersFromVariantMetadata(
         amountMajor,
       }
     })
-    .filter((tier) => tier !== null) as BulkTier[]
+    .filter((tier) => tier !== null) as BulkTier[])
     .sort((a, b) => a.minQuantity - b.minQuantity)
 
   return tiers
