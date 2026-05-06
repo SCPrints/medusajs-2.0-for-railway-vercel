@@ -35,7 +35,7 @@ import { useProductOptionsOptional } from "@modules/products/context/product-opt
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
 import { getGarmentImageUrlForPrintSide } from "@modules/products/lib/variant-options"
 import { HttpTypes } from "@medusajs/types"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import * as fabric from "fabric"
 import { FabricImage } from "fabric"
@@ -420,9 +420,16 @@ export default function CustomizerTemplate({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [printNotes, setPrintNotes] = useState("")
-  const [activeVariantId, setActiveVariantId] = useState<string>(
-    product.variants?.[0]?.id ?? ""
-  )
+  // Seed from `?variant=` (e.g. when returning from cart) so the previously
+  // chosen colour/size is reselected; falls back to the first variant.
+  const initialVariantSearchParams = useSearchParams()
+  const initialVariantIdFromUrl = initialVariantSearchParams?.get("variant") ?? null
+  const [activeVariantId, setActiveVariantId] = useState<string>(() => {
+    if (initialVariantIdFromUrl && product.variants?.some((v) => v.id === initialVariantIdFromUrl)) {
+      return initialVariantIdFromUrl
+    }
+    return product.variants?.[0]?.id ?? ""
+  })
   const [sizeMatrix, setSizeMatrix] = useState<SizeQuantity[]>([])
   const [sessionUploads, setSessionUploads] = useState<SessionUploadAsset[]>([])
   const [layoutVersion, setLayoutVersion] = useState(0)

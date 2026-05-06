@@ -2,7 +2,32 @@
 
 import type { HttpTypes } from "@medusajs/types"
 import { getDefaultProductOptions } from "@modules/products/lib/variant-options"
+import { useSearchParams } from "next/navigation"
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+
+/** Build the option-key map for a specific variant id, falling back to product defaults. */
+const buildOptionsForVariantId = (
+  product: HttpTypes.StoreProduct,
+  variantId: string | null | undefined
+): Record<string, string | undefined> => {
+  const defaults = getDefaultProductOptions(product)
+  if (!variantId) {
+    return defaults
+  }
+  const variant = product.variants?.find((v) => v.id === variantId)
+  if (!variant) {
+    return defaults
+  }
+  const next: Record<string, string | undefined> = { ...defaults }
+  for (const opt of variant.options ?? []) {
+    const title = (opt as any)?.option?.title as string | undefined
+    const value = (opt as any)?.value as string | undefined
+    if (title && typeof value === "string") {
+      next[title] = value
+    }
+  }
+  return next
+}
 
 const buildEmptySizeQuantities = (product: HttpTypes.StoreProduct): Record<string, number> => {
   const sizeOpt = product.options?.find((o) => (o.title ?? "").toLowerCase().includes("size"))
@@ -36,8 +61,12 @@ export const ProductOptionsProvider = ({
   children: React.ReactNode
   product: HttpTypes.StoreProduct
 }) => {
+  // Seed from `?variant=<id>` (e.g. when returning to the PDP from the cart)
+  // so the colour/size pickers reflect the previously chosen variant.
+  const initialSearchParams = useSearchParams()
+  const initialVariantIdFromUrl = initialSearchParams?.get("variant") ?? null
   const [options, setOptions] = useState<Record<string, string | undefined>>(() =>
-    getDefaultProductOptions(product)
+    buildOptionsForVariantId(product, initialVariantIdFromUrl)
   )
   const [sizeQuantities, setSizeQuantities] = useState<Record<string, number>>(() =>
     buildEmptySizeQuantities(product)
