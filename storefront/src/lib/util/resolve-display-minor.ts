@@ -1,7 +1,11 @@
 /**
- * NOTE: file/function names retain `Minor` for stability of imports, but amounts are now in
- * **major units** (dollars) — Medusa 2.x stores `price.amount` as a decimal and our spreadsheet
- * sync writes `bulk_pricing.tiers[].amount` on the same scale.
+ * Single source of truth for display unit price = Medusa's `calculated_price.calculated_amount`.
+ * The previous bulk-vs-calculated reconciler picked tier metadata over Medusa, which let storefront
+ * undercount vs admin/Stripe. If a quantity-band price looks wrong, fix the price set in admin —
+ * never override here.
+ *
+ * File/function names retain the `Minor` suffix so existing imports keep compiling, but values are
+ * major units (decimal dollars), matching Medusa 2.x `price.amount`.
  */
 
 const toNumber = (value: unknown) => {
@@ -45,46 +49,16 @@ export const getFirstBulkTierMinor = (
   return first && Number.isFinite(first.amount) ? first.amount : undefined
 }
 
-/**
- * When bulk tier and Medusa `calculated_price` disagree by more than this ratio, pick the larger
- * (treats the smaller as a stale / wrong-scale residue). Set conservatively to avoid clobbering
- * real "100+ qty discount vs base price" gaps, which are typically <2× apart.
- */
-const BULK_VS_CALCULATED_MISMATCH_RATIO = 2
-
-/**
- * Choose an amount for display when `bulk_pricing` metadata may disagree with Medusa
- * `calculated_price`. Both inputs are in major units (dollars).
- */
+/** Pass-through stub. Returns Medusa's calculated amount; bulk metadata is no longer consulted. */
 export const resolveHeadlineMinorAmount = (
-  bulkTierAmount: number | undefined,
+  _bulkTierAmount: number | undefined,
   calculatedAmount: number | undefined
 ): number => {
-  const b = typeof bulkTierAmount === "number" && Number.isFinite(bulkTierAmount) ? bulkTierAmount : null
   const c = typeof calculatedAmount === "number" && Number.isFinite(calculatedAmount) ? calculatedAmount : null
-
-  if (b !== null && b > 0 && c !== null && c > 0) {
-    if (c >= b * BULK_VS_CALCULATED_MISMATCH_RATIO) {
-      return c
-    }
-    if (b >= c * BULK_VS_CALCULATED_MISMATCH_RATIO) {
-      return c
-    }
-    return b
-  }
-
-  if (b !== null && b > 0) {
-    return b
-  }
-
   return c ?? 0
 }
 
-/**
- * Identity stub kept so existing call sites keep compiling. The hundredfold-typo workaround
- * existed only to compensate for cents-stored-as-dollars rows; that bug is fixed at the
- * importer boundary now (see `backend/src/utils/bulk-tier-prices.ts` and the import scripts).
- */
+/** Identity stub. Hundredfold-typo workaround removed — data is fixed at the importer boundary. */
 export const finalizeAudAsColourMinorIfHundredfoldTypo = (
   resolved: number,
   _apiCalculated: number,
@@ -98,13 +72,8 @@ type VariantForDisplayMinor = {
   product?: { handle?: string }
 }
 
-/** Bulk-vs-Medusa reconciler entry point. Returns major-unit amount. */
+/** Returns Medusa's `calculated_amount` directly (major units). */
 export const resolveDisplayMinorForVariant = (variant: VariantForDisplayMinor): number => {
   const c = variant?.calculated_price?.calculated_amount
-  if (typeof c !== "number" || !Number.isFinite(c)) {
-    return 0
-  }
-
-  const bulk = getFirstBulkTierMinor(variant as { metadata?: Record<string, unknown> })
-  return resolveHeadlineMinorAmount(bulk, c)
+  return typeof c === "number" && Number.isFinite(c) ? c : 0
 }

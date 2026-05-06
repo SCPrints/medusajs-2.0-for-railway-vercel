@@ -8,30 +8,10 @@ import { getAuthHeaders } from "./cookies"
 const ORDER_FIELDS =
   "*payment_collections.payments,*fulfillments,+fulfillments.metadata,+fulfillments.labels,*shipping_methods,+shipping_methods.detail"
 
-const toMajor = (n: unknown) =>
-  typeof n === "number" && Number.isFinite(n) ? n / 100 : n
-
-const normalizeOrderUnits = <T extends Record<string, any>>(order: T): T => {
-  if (!order) return order
-  if (typeof order.shipping_total === "number") {
-    order.shipping_total = toMajor(order.shipping_total) as any
-  }
-  if (Array.isArray(order.shipping_methods)) {
-    for (const sm of order.shipping_methods) {
-      if (sm && typeof sm.total === "number") sm.total = toMajor(sm.total)
-    }
-  }
-  if (Array.isArray(order.payment_collections)) {
-    for (const pc of order.payment_collections) {
-      if (pc && Array.isArray(pc.payments)) {
-        for (const p of pc.payments) {
-          if (p && typeof p.amount === "number") p.amount = toMajor(p.amount)
-        }
-      }
-    }
-  }
-  return order
-}
+// No-op: Medusa now returns shipping/payment amounts in major units (decimals), same scale as
+// `price.amount`. The previous ÷100 normaliser was double-dividing and turning $16.50 shipping into
+// $0.17 on the order confirmation page.
+const normalizeOrderUnits = <T extends Record<string, any>>(order: T): T => order
 
 export const retrieveOrder = cache(async function (id: string) {
   return sdk.store.order
