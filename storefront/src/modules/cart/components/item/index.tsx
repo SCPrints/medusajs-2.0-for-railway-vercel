@@ -65,7 +65,12 @@ const Item = ({ item, type = "full" }: ItemProps) => {
     <Table.Row className="w-full" data-testid="product-row">
       <Table.Cell className="!pl-0 p-4 w-24">
         <LocalizedClientLink
-          href={`/products/${handle}${item.variant?.id ? `?variant=${item.variant.id}` : ""}`}
+          href={`/products/${handle}?${[
+            item.variant?.id ? `variant=${item.variant.id}` : null,
+            `edit=${item.id}`,
+          ]
+            .filter(Boolean)
+            .join("&")}`}
           className={clx("flex", {
             "w-16": type === "preview",
             "small:w-24 w-12": type === "full",

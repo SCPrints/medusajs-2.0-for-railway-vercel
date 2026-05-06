@@ -1,6 +1,6 @@
 "use client"
 
-import { addScpLineItemToCartSafe } from "@lib/data/cart"
+import { addScpLineItemToCartSafe, deleteLineItem, retrieveCart } from "@lib/data/cart"
 import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-add-button"
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import InputPanel from "@modules/customizer/components/input-panel"
@@ -441,6 +441,14 @@ export default function CustomizerTemplate({
   const [pdpStep1Done, setPdpStep1Done] = useState(false)
   const [pdpStep2Done, setPdpStep2Done] = useState(false)
   const [pdpStep3Done, setPdpStep3Done] = useState(false)
+  // "Edit existing cart line" mode: when present, the customizer pre-fills from
+  // the line metadata and "Add to cart" replaces (add new + delete old).
+  const editLineItemIdFromUrl = initialVariantSearchParams?.get("edit") ?? null
+  const [editLineItemId, setEditLineItemId] = useState<string | null>(editLineItemIdFromUrl)
+  const [editingHydrated, setEditingHydrated] = useState(false)
+  const [editingProductTitle, setEditingProductTitle] = useState<string | null>(null)
+  const [editingPreviousSides, setEditingPreviousSides] = useState<GarmentSide[]>([])
+  const [editingPreviousQty, setEditingPreviousQty] = useState<number>(0)
   const lastCustomizerProductIdRef = useRef<string | null>(null)
   const sideLoadVersionRef = useRef(0)
   const productOptionsFromPdp = useProductOptionsOptional()
@@ -682,6 +690,66 @@ export default function CustomizerTemplate({
 
     setDpiWarning(null)
   }
+
+  // Edit-from-cart hydration: when `?edit=<lineItemId>` is present, fetch the
+  // cart and pre-populate sizes / notes / print size / variant from the line's
+  // saved metadata. Artwork itself is not persisted on the cart line (Medusa
+  // size limits) so the customer re-uploads — we surface which sides previously
+  // had artwork so it's clear what to recreate.
+  useEffect(() => {
+    if (!editLineItemId || editingHydrated) {
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const cart = await retrieveCart()
+        if (cancelled || !cart?.items) return
+        const line = cart.items.find((i) => i.id === editLineItemId)
+        if (!line) {
+          setEditLineItemId(null)
+          return
+        }
+        const meta = (line.metadata ?? {}) as { customizerDesign?: CustomizerMetadata }
+        const design = meta.customizerDesign
+        if (design && Array.isArray(design.sizes) && design.sizes.length > 0) {
+          setSizeMatrix(design.sizes)
+        }
+        if (design?.printNotes) {
+          setPrintNotes(design.printNotes)
+        }
+        if (design?.scpPrintSizeId) {
+          const sid = design.scpPrintSizeId
+          if (
+            sid === "up_to_a6" ||
+            sid === "up_to_a4" ||
+            sid === "up_to_a3" ||
+            sid === "oversize"
+          ) {
+            setScpPrintSizeId(sid as ScpPrintSizeId)
+          }
+        }
+        const previousSides = (design?.artifacts ?? [])
+          .map((a) => a.side)
+          .filter((s, i, arr) => arr.indexOf(s) === i)
+        setEditingPreviousSides(previousSides as GarmentSide[])
+        setEditingPreviousQty(line.quantity ?? 0)
+        setEditingProductTitle(line.product_title ?? line.title ?? null)
+        // Drop user straight onto the final step so they can update qty / re-upload.
+        setPdpStep1Done(true)
+        setPdpStep2Done(true)
+        setPdpStep3Done(true)
+        setPdpStep(4)
+        setEditingHydrated(true)
+      } catch {
+        // Cart unreachable; degrade silently — user can still create a fresh line.
+        setEditLineItemId(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [editLineItemId, editingHydrated])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1418,6 +1486,7 @@ export default function CustomizerTemplate({
         sizes: sizeMatrix,
         pricing,
         artifacts,
+        scpPrintSizeId,
         ...(normalizedPrintNotes ? { printNotes: normalizedPrintNotes } : {}),
         ...(originalFilesPayload.length > 0 ? { customerOriginalFiles: originalFilesPayload } : {}),
       }
@@ -1509,6 +1578,23 @@ export default function CustomizerTemplate({
         if (!addResult.ok) {
           throw new Error(addResult.error)
         }
+      }
+
+      // Edit-from-cart: replace the original line by deleting it after the new
+      // line has been added successfully. Then send the user back to /cart so
+      // they see the updated state immediately.
+      if (editLineItemId) {
+        try {
+          await deleteLineItem(editLineItemId)
+        } catch {
+          // The new line is already added; surface a hint but keep the cart consistent
+          // by still navigating so the user can manually remove the old one.
+          setStatusMessage(
+            "Updated cart added, but couldn't remove the original line — please delete it from the cart."
+          )
+        }
+        router.push(`/${countryCode}/cart`)
+        return
       }
 
       router.refresh()
@@ -1891,6 +1977,55 @@ export default function CustomizerTemplate({
             </p>
           </div>
 
+          {editLineItemId ? (
+            <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-900">
+              <p className="text-sm font-semibold">
+                Editing {editingProductTitle ?? "your cart item"}
+                {editingPreviousQty ? ` × ${editingPreviousQty}` : ""}
+              </p>
+              <p className="text-xs">
+                Quantities, notes and print size are pre-filled. Update them, then tap{" "}
+                <span className="font-semibold">Update cart</span> — the original cart line will
+                be replaced.
+              </p>
+              {editingPreviousSides.length > 0 ? (
+                <p className="text-xs">
+                  <span className="font-semibold">Previous artwork:</span>{" "}
+                  {editingPreviousSides
+                    .map((s) =>
+                      s === "left_sleeve"
+                        ? "Left Sleeve"
+                        : s === "right_sleeve"
+                        ? "Right Sleeve"
+                        : s === "printed_tag"
+                        ? "Printed Tag"
+                        : s.charAt(0).toUpperCase() + s.slice(1)
+                    )
+                    .join(", ")}
+                  {" — "}re-upload via the design preview to keep these prints.
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditLineItemId(null)
+                  setEditingHydrated(false)
+                  setEditingProductTitle(null)
+                  setEditingPreviousSides([])
+                  setEditingPreviousQty(0)
+                  if (typeof window !== "undefined") {
+                    const url = new URL(window.location.href)
+                    url.searchParams.delete("edit")
+                    window.history.replaceState({}, "", url.toString())
+                  }
+                }}
+                className="text-xs font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700"
+              >
+                Cancel edit (keep original line)
+              </button>
+            </div>
+          ) : null}
+
           {/* Step 1 — Product options (color/etc.) */}
           {hasStep1 ? (
             <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
@@ -1905,13 +2040,17 @@ export default function CustomizerTemplate({
                   {integratedPdpSlots.variantPickers}
                   <button
                     type="button"
-                    className="w-full rounded-lg bg-ui-bg-base-pressed py-2 text-sm font-semibold text-ui-fg-base ring-1 ring-ui-border-interactive hover:bg-ui-bg-subtle-pressed"
+                    className="w-full rounded-lg bg-ui-button-inverted py-2.5 text-sm font-semibold text-ui-fg-on-inverted hover:bg-ui-button-inverted-hover"
                     onClick={() => {
                       setPdpStep1Done(true)
                       setPdpStep((s) => (s > 1 ? s : 2))
+                      if (typeof window !== "undefined") {
+                        const target = document.getElementById("product-customizer")
+                        target?.scrollIntoView({ behavior: "smooth", block: "start" })
+                      }
                     }}
                   >
-                    Continue to print location
+                    Customize this product
                   </button>
                 </>
               ) : (
@@ -1922,34 +2061,71 @@ export default function CustomizerTemplate({
 
           {/* Step 2 — Print location */}
           {pdpStep >= 2 || !hasStep1 ? (
-            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <StepHeader
-                num={stepNum(2)}
-                title="Print location"
-                done={pdpStep2Done && pdpStep > 2}
-                onChange={() => setPdpStep(2)}
-              />
-              {pdpStep === 2 || (!hasStep1 && pdpStep < 2) ? (
-                <>
-                  <SideSelector
-                    currentSide={currentSide}
-                    allowedSides={allowedPrintSides}
-                    onSelectSide={(side) => {
-                      switchSide(side)
-                      setPdpStep2Done(true)
-                      setPdpStep((s) => (s > 2 ? s : 3))
-                    }}
+            (() => {
+              const sideLabelMap: Record<GarmentSide, string> = {
+                front: "Front",
+                back: "Back",
+                left_sleeve: "Left Sleeve",
+                right_sleeve: "Right Sleeve",
+                printed_tag: "Printed Tag",
+              }
+              const decoratedAllowed = decoratedSides.filter((s) => allowedPrintSides.includes(s))
+              const decoratedCount = decoratedAllowed.length
+              const totalAllowed = allowedPrintSides.length
+              return (
+                <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+                  <StepHeader
+                    num={stepNum(2)}
+                    title="Print location"
+                    done={pdpStep2Done && pdpStep > 2}
+                    onChange={() => setPdpStep(2)}
                   />
-                  <p className="text-xs text-ui-fg-subtle">
-                    Pick where the print goes. You can add more locations later.
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-ui-fg-subtle">
-                  <span className="font-medium text-ui-fg-base">{sideLabel}</span>
-                </p>
-              )}
-            </div>
+
+                  {decoratedCount > 0 ? (
+                    <div className="space-y-1.5 rounded-lg bg-emerald-50/70 px-2.5 py-2 ring-1 ring-emerald-200">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+                        Artwork added on {decoratedCount} of {totalAllowed} location
+                        {totalAllowed === 1 ? "" : "s"}
+                      </p>
+                      <ul className="flex flex-wrap gap-1">
+                        {decoratedAllowed.map((s) => (
+                          <li
+                            key={s}
+                            className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-emerald-900 ring-1 ring-emerald-200"
+                          >
+                            <span aria-hidden>✓</span>
+                            {sideLabelMap[s]}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {pdpStep === 2 || (!hasStep1 && pdpStep < 2) ? (
+                    <>
+                      <SideSelector
+                        currentSide={currentSide}
+                        allowedSides={allowedPrintSides}
+                        onSelectSide={(side) => {
+                          switchSide(side)
+                          setPdpStep2Done(true)
+                          setPdpStep((s) => (s > 2 ? s : 3))
+                        }}
+                      />
+                      <p className="text-xs text-ui-fg-subtle">
+                        Pick a location, then add artwork in the design preview. Repeat to print on
+                        more spots — each location is priced separately.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-ui-fg-subtle">
+                      Currently editing:{" "}
+                      <span className="font-medium text-ui-fg-base">{sideLabel}</span>
+                    </p>
+                  )}
+                </div>
+              )
+            })()
           ) : null}
 
           {/* Step 3 — Print size */}
@@ -2042,6 +2218,30 @@ export default function CustomizerTemplate({
             <>
               <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
                 <StepHeader num={stepNum(4)} title="Quantity & checkout" done={false} />
+                {(() => {
+                  const sideShortMap: Record<GarmentSide, string> = {
+                    front: "Front",
+                    back: "Back",
+                    left_sleeve: "Left Sleeve",
+                    right_sleeve: "Right Sleeve",
+                    printed_tag: "Printed Tag",
+                  }
+                  const sidesForSummary = decoratedSides.filter((s) => allowedPrintSides.includes(s))
+                  if (sidesForSummary.length === 0) {
+                    return (
+                      <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 ring-1 ring-amber-200">
+                        No artwork added yet — go back to step {stepNum(2)} to place a print.
+                      </p>
+                    )
+                  }
+                  return (
+                    <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-base">
+                      <span className="font-semibold">Printing on </span>
+                      {sidesForSummary.map((s) => sideShortMap[s]).join(" + ")}
+                      <span className="text-ui-fg-subtle"> · {printSizeLabel} each</span>
+                    </p>
+                  )
+                })()}
                 <p className="text-xs text-ui-fg-subtle">
                   Set quantities per size, then add to cart.
                 </p>
@@ -2062,6 +2262,8 @@ export default function CustomizerTemplate({
                 decoratedSides={decoratedSides}
                 hidePrintSizeSelector
                 hideHeader
+                primaryCtaLabel={editLineItemId ? "Update cart" : undefined}
+                primaryCtaLoadingLabel={editLineItemId ? "Updating..." : undefined}
               />
               <div className="space-y-2 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
                 <label
