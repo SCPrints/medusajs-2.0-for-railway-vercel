@@ -36,7 +36,8 @@ import {
 import OptionSelect from "@modules/products/components/product-actions/option-select"
 import { useProductOptionsOptional } from "@modules/products/context/product-options-context"
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
-import { getGarmentImageUrlForPrintSide } from "@modules/products/lib/variant-options"
+import { getGarmentImageUrlForPrintSide, getPrimaryGarmentImageUrl } from "@modules/products/lib/variant-options"
+import { sampleImageDominantColor } from "@modules/customizer/lib/sample-image-color"
 import { HttpTypes } from "@medusajs/types"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
@@ -585,6 +586,26 @@ export default function CustomizerTemplate({
     () => resolvePdpFlyImageSrc(selectedProduct, selectedVariant),
     [selectedProduct, selectedVariant]
   )
+
+  // Sample the variant's front photo to get the dominant garment colour, used
+  // to tint the sleeve placeholder line drawings via CSS mix-blend-mode. Falls
+  // back silently to no tint if the image can't be read (e.g. CORS).
+  const variantPrimaryImageUrl = useMemo(
+    () => getPrimaryGarmentImageUrl(selectedProduct, selectedVariant) ?? defaultGarmentImage,
+    [selectedProduct, selectedVariant, defaultGarmentImage]
+  )
+  const [variantTintHex, setVariantTintHex] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    setVariantTintHex(null)
+    if (!variantPrimaryImageUrl) return
+    sampleImageDominantColor(variantPrimaryImageUrl).then((hex) => {
+      if (!cancelled) setVariantTintHex(hex)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [variantPrimaryImageUrl])
 
   const nonSizeOptions = useMemo(
     () => (selectedProduct ? getNonSizeOptions(selectedProduct) : []),
@@ -1833,6 +1854,7 @@ export default function CustomizerTemplate({
                 <div className="order-1 min-h-[min(58vh,680px)] flex-1 p-4 small:p-5 lg:order-2">
                   <div className="z-[1]">
                     <CanvasStage
+                      tintColor={variantTintHex}
                       garmentImage={garmentImageUrl}
                       garmentTitle={garmentDisplayTitle}
                       printSideKey={currentSide}

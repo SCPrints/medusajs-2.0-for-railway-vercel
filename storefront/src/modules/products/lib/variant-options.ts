@@ -7,12 +7,12 @@ import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-ima
 type PrintGarmentSide = "front" | "back" | "left_sleeve" | "right_sleeve" | "printed_tag"
 
 /** Short-sleeve side-view mockups (`public/placeholders/customizer/`). */
-const SLEEVE_PLACEHOLDER_LEFT_SHORT = "/placeholders/customizer/left-sleeve-placeholder.png"
-const SLEEVE_PLACEHOLDER_RIGHT_SHORT = "/placeholders/customizer/right-sleeve-placeholder.png"
+const SLEEVE_PLACEHOLDER_LEFT_SHORT = "/placeholders/customizer/left-sleeve-placeholder.svg"
+const SLEEVE_PLACEHOLDER_RIGHT_SHORT = "/placeholders/customizer/left-sleeve-placeholder.svg"
 
 /** Long-sleeve side-view mockups. */
-const SLEEVE_PLACEHOLDER_LEFT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.png"
-const SLEEVE_PLACEHOLDER_RIGHT_LONG = "/placeholders/customizer/right-sleeve-long-placeholder.png"
+const SLEEVE_PLACEHOLDER_LEFT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.svg"
+const SLEEVE_PLACEHOLDER_RIGHT_LONG = "/placeholders/customizer/left-sleeve-long-placeholder.svg"
 
 /**
  * Whether sleeve print areas should use long-sleeve placeholder art.
@@ -131,11 +131,14 @@ function getSleevePlaceholderUrl(
   side: "left_sleeve" | "right_sleeve",
   product: HttpTypes.StoreProduct | undefined
 ): string {
+  // Both sleeve sides resolve to the same source file — the right sleeve view
+  // is rendered by mirroring (CSS scaleX(-1)) in the canvas stage. This keeps
+  // a single source of truth so future placeholder updates only happen once.
   const long = isLongSleeveGarmentProduct(product)
-  if (side === "left_sleeve") {
-    return long ? SLEEVE_PLACEHOLDER_LEFT_LONG : SLEEVE_PLACEHOLDER_LEFT_SHORT
-  }
-  return long ? SLEEVE_PLACEHOLDER_RIGHT_LONG : SLEEVE_PLACEHOLDER_RIGHT_SHORT
+  // `side` retained in the signature for callers that may key by side (e.g.
+  // analytics, mockup naming) even though both branches return the left URL.
+  void side
+  return long ? SLEEVE_PLACEHOLDER_LEFT_LONG : SLEEVE_PLACEHOLDER_LEFT_SHORT
 }
 
 /** Normalizes option titles and colour labels for stable matching across UI and API. */
