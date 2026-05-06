@@ -19,6 +19,7 @@ import {
   SCP_A6_ONLY_SIDES,
   SCP_PRINT_SIZE_OPTIONS,
   SCP_PRINT_UNIT_MATRIX,
+  resolveScpPrintSizeForSide,
   type ScpPrintSizeId,
 } from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
@@ -52,6 +53,27 @@ const MIN_PRINT_AREA_PX = 8
 
 /** Initial on-canvas width for uploads when the print area is not sized yet (avoids Fabric Image width/scale bugs). */
 const getTargetArtworkWidth = (printAreaWidth: number) => Math.max(120, printAreaWidth * 0.35)
+
+/**
+ * Place freshly added artwork to fit within the current print area at the
+ * largest representative size — so picking A6 vs A4 vs A3 actually shows the
+ * customer what their print will look like at that scale on the garment.
+ */
+const fitObjectToPrintArea = (
+  obj: { scaleToWidth?: (w: number) => void; scaleToHeight?: (h: number) => void; width?: number; height?: number; scaleX?: number; scaleY?: number },
+  area: { width: number; height: number }
+) => {
+  const margin = 0.96 // small breathing room inside the print rectangle
+  const targetW = area.width * margin
+  const targetH = area.height * margin
+  obj.scaleToWidth?.(targetW)
+  // Fabric's scaleToWidth uses width only — if the result is taller than the
+  // print area, downscale further by height so the image fits inside both.
+  const scaledH = (obj.height ?? 0) * (obj.scaleY ?? 1)
+  if (scaledH > targetH && obj.scaleToHeight) {
+    obj.scaleToHeight(targetH)
+  }
+}
 
 const getFabricImageSourceWidthPx = (obj: any): number => {
   const direct = Number(obj?.sourceWidthPx ?? 0)
@@ -100,12 +122,38 @@ type CustomizerTemplateProps = {
   }
 }
 
-const getPrintArea = (width: number, height: number) => ({
-  x: width * 0.16,
-  y: height * 0.13,
-  width: width * 0.68,
-  height: height * 0.72,
-})
+// Real-world print dimensions per SCP size (cm). "Oversize" is the largest,
+// matching the full 68% × 72% canvas footprint; smaller sizes are scaled
+// proportionally so the dashed guide reflects what will actually be printed.
+const SCP_PRINT_SIZE_CM: Record<ScpPrintSizeId, { w: number; h: number }> = {
+  up_to_a6: { w: 10, h: 15 },
+  up_to_a4: { w: 21, h: 30 },
+  up_to_a3: { w: 29, h: 42 },
+  oversize: { w: 38, h: 48 },
+}
+const SCP_BASE_REF = SCP_PRINT_SIZE_CM.oversize
+
+const getPrintArea = (
+  width: number,
+  height: number,
+  printSizeId: ScpPrintSizeId = "oversize"
+) => {
+  const baseW = width * 0.68
+  const baseH = height * 0.72
+  const refSize = SCP_PRINT_SIZE_CM[printSizeId] ?? SCP_BASE_REF
+  const scaleW = refSize.w / SCP_BASE_REF.w
+  const scaleH = refSize.h / SCP_BASE_REF.h
+  const areaW = baseW * scaleW
+  const areaH = baseH * scaleH
+  // Centre horizontally; anchor near the top of the original print area so
+  // prints stay around the chest line as the box shrinks.
+  return {
+    x: (width - areaW) / 2,
+    y: height * 0.13,
+    width: areaW,
+    height: areaH,
+  }
+}
 
 const productMetadataShowsDtfTierEstimator = (product: HttpTypes.StoreProduct) => {
   const m = product.metadata as Record<string, unknown> | undefined
@@ -454,10 +502,27 @@ export default function CustomizerTemplate({
   const sideLoadVersionRef = useRef(0)
   const productOptionsFromPdp = useProductOptionsOptional()
 
+  // Per-side effective print size (sleeves & printed tag are forced to A6 in
+  // pricing, so the visible print area mirrors that constraint too).
+  const effectivePrintSizeIdForArea = resolveScpPrintSizeForSide(
+    currentSide,
+    scpPrintSizeId
+  ) as ScpPrintSizeId
   const printArea = useMemo(
-    () => getPrintArea(canvasSize.width, canvasSize.height),
-    [canvasSize.height, canvasSize.width]
+    () =>
+      getPrintArea(canvasSize.width, canvasSize.height, effectivePrintSizeIdForArea),
+    [canvasSize.height, canvasSize.width, effectivePrintSizeIdForArea]
   )
+  // Refs so the (one-time-bound) Fabric event handlers always read the current
+  // print area + effective size when clamping.
+  const printAreaRef = useRef(printArea)
+  const effectivePrintSizeIdRef = useRef<ScpPrintSizeId>(effectivePrintSizeIdForArea)
+  useEffect(() => {
+    printAreaRef.current = printArea
+  }, [printArea])
+  useEffect(() => {
+    effectivePrintSizeIdRef.current = effectivePrintSizeIdForArea
+  }, [effectivePrintSizeIdForArea])
   const selectedProduct = product
   const pdpHasVariantOptions = (selectedProduct.variants?.length ?? 0) > 1
   const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
@@ -942,6 +1007,38 @@ export default function CustomizerTemplate({
     })
     canvas.on("object:scaling", (event: any) => {
       setShowPrintAreaGuides(true)
+      // Cap the artwork size at the current print area (per-side, per-size).
+      // Skipped when the effective print size is "oversize" (no max).
+      const obj = event.target
+      const pr = printAreaRef.current
+      if (
+        obj &&
+        pr &&
+        effectivePrintSizeIdRef.current !== "oversize" &&
+        pr.width >= MIN_PRINT_AREA_PX &&
+        pr.height >= MIN_PRINT_AREA_PX
+      ) {
+        // Use the object's intrinsic width/height (constant during scaling) so
+        // we compute a stable max-scale rather than relying on the live
+        // bounding rect (which Fabric may not have committed yet mid-drag).
+        const baseW = Math.max(1, obj.width ?? 0)
+        const baseH = Math.max(1, obj.height ?? 0)
+        const maxScaleX = pr.width / baseW
+        const maxScaleY = pr.height / baseH
+        const maxScale = Math.min(maxScaleX, maxScaleY)
+        const sx = Math.abs(obj.scaleX ?? 1)
+        const sy = Math.abs(obj.scaleY ?? 1)
+        const overshoot = Math.max(sx, sy) > maxScale
+        if (overshoot && Number.isFinite(maxScale) && maxScale > 0) {
+          const sign = (v: number) => (v < 0 ? -1 : 1)
+          obj.set({
+            scaleX: maxScale * sign(obj.scaleX ?? 1),
+            scaleY: maxScale * sign(obj.scaleY ?? 1),
+          })
+          obj.setCoords?.()
+          canvas.requestRenderAll?.()
+        }
+      }
       clampObjectToBounds(event.target)
     })
     canvas.on("object:rotating", (event: any) => {
@@ -1020,8 +1117,10 @@ export default function CustomizerTemplate({
         customizerLabel: asset.name || "SVG",
         sourceWidthPx: Number(svgObject.width ?? 0),
       })
-      if (svgObject.scaleToWidth) {
-        svgObject.scaleToWidth(getTargetArtworkWidth(printArea.width))
+      if (effectivePrintSizeIdForArea === "oversize") {
+        svgObject.scaleToWidth?.(getTargetArtworkWidth(printArea.width))
+      } else {
+        fitObjectToPrintArea(svgObject as any, printArea)
       }
       addCanvasObject(svgObject)
       return
@@ -1041,7 +1140,11 @@ export default function CustomizerTemplate({
       sourceWidthPx: getFabricImageSourceWidthPx(imageObject),
       sourceHeightPx: getFabricImageSourceHeightPx(imageObject),
     })
-    imageObject.scaleToWidth?.(getTargetArtworkWidth(printArea.width))
+    if (effectivePrintSizeIdForArea === "oversize") {
+      imageObject.scaleToWidth?.(getTargetArtworkWidth(printArea.width))
+    } else {
+      fitObjectToPrintArea(imageObject as any, printArea)
+    }
     addCanvasObject(imageObject)
   }
 
@@ -1315,7 +1418,11 @@ export default function CustomizerTemplate({
      * Using the outer `printArea` hook value can desync when effective canvas fallbacks differ from
      * `canvasSize`, which misaligns mockups and leaves the print PNG with empty margins on the wrong side.
      */
-    const pa = getPrintArea(Math.round(canvasDims.width), Math.round(canvasDims.height))
+    const pa = getPrintArea(
+      Math.round(canvasDims.width),
+      Math.round(canvasDims.height),
+      resolveScpPrintSizeForSide(side, scpPrintSizeId) as ScpPrintSizeId
+    )
     const pw = Math.max(1, Math.round(pa.width))
     const ph = Math.max(1, Math.round(pa.height))
 
@@ -1667,7 +1774,7 @@ export default function CustomizerTemplate({
                       garmentTitle={garmentDisplayTitle}
                       printSideKey={currentSide}
                       printArea={printArea}
-                      showPrintAreaGuides={showPrintAreaGuides}
+                      showPrintAreaGuides={showPrintAreaGuides && currentSide !== "printed_tag"}
                       outOfBoundsWarning={outOfBoundsWarning}
                       dpiWarning={dpiWarning}
                       fabricContainerRef={fabricContainerRef}
@@ -1900,12 +2007,18 @@ export default function CustomizerTemplate({
     // chip with a "Change" link once completed. Mirrors the reference
     // /Customizer.mov flow.
     const hasStep1 = showPdpLabeledOptionsStep
-    // Bottom-half garments (pants/shorts) only print front/back — no sleeves or tag.
+    // Some product types only have front/back surfaces — no sleeves or tag.
+    // Covers bottom-half garments (pants/shorts) and bags/totes/accessories.
     const productTags = getStoreProductTagValues(selectedProduct).map((t) => t.toLowerCase())
-    const isBottomHalfGarment = productTags.some((t) =>
-      /\b(pants?|shorts?|trousers?|jeans?|leggings?|skirts?)\b/.test(t)
-    )
-    const allowedPrintSides: GarmentSide[] = isBottomHalfGarment
+    const productTitleLower = (selectedProduct.title ?? "").toLowerCase()
+    const isFrontBackOnlyProduct =
+      productTags.some((t) =>
+        /\b(pants?|shorts?|trousers?|jeans?|leggings?|skirts?|tote|totes|bags?|backpacks?|pouch|pouches|cap|caps|hat|hats|beanie|beanies|apron|aprons|towel|towels)\b/.test(
+          t
+        )
+      ) ||
+      /\b(tote|bag|backpack|pouch|cap|hat|beanie|apron|towel)\b/.test(productTitleLower)
+    const allowedPrintSides: GarmentSide[] = isFrontBackOnlyProduct
       ? ["front", "back"]
       : ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
     if (!allowedPrintSides.includes(currentSide)) {
