@@ -69,15 +69,19 @@ const composeMockup = async (
     }
 
     if (sideObjects && sideObjects.length > 0) {
-      // Enliven the saved Fabric objects on top of the bg image.
-      const enlivened = await new Promise<any[]>((resolve) => {
-        ;(fabric as any).util.enlivenObjects(
-          sideObjects,
-          (objs: any[]) => resolve(objs ?? []),
-          ""
-        )
-      })
-      for (const o of enlivened) {
+      // Fabric v7 returns a Promise; v5/v6 used a callback. Support both so we
+      // don't deadlock on "Rendering…" if the runtime API differs.
+      const result = (fabric as any).util.enlivenObjects(sideObjects)
+      const enlivened: any[] = await (result && typeof result.then === "function"
+        ? result
+        : new Promise<any[]>((resolve) => {
+            ;(fabric as any).util.enlivenObjects(
+              sideObjects,
+              (objs: any[]) => resolve(objs ?? []),
+              ""
+            )
+          }))
+      for (const o of enlivened ?? []) {
         sc.add(o)
       }
     }

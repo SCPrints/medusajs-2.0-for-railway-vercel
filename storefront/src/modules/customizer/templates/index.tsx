@@ -146,11 +146,16 @@ const getPrintArea = (
   const scaleH = refSize.h / SCP_BASE_REF.h
   const areaW = baseW * scaleW
   const areaH = baseH * scaleH
-  // Centre horizontally; anchor near the top of the original print area so
-  // prints stay around the chest line as the box shrinks.
+  // Shift smaller print areas down toward the chest line. Oversize keeps the
+  // legacy top-anchor at 13%; smaller sizes blend toward 30% so they don't end
+  // up sitting on the hood/collar of hoodies and similar garments.
+  const sizeRatio = areaH / baseH // 1.0 for oversize, ~0.31 for A6
+  const topRatioMin = 0.13
+  const topRatioMax = 0.30
+  const topRatio = topRatioMin + (topRatioMax - topRatioMin) * (1 - sizeRatio)
   return {
     x: (width - areaW) / 2,
-    y: height * 0.13,
+    y: height * topRatio,
     width: areaW,
     height: areaH,
   }
@@ -524,6 +529,46 @@ export default function CustomizerTemplate({
   useEffect(() => {
     effectivePrintSizeIdRef.current = effectivePrintSizeIdForArea
   }, [effectivePrintSizeIdForArea])
+
+  // When the effective print size shrinks (or the customer picks a smaller
+  // size after placing artwork), enforce the new max scale on every existing
+  // object so artwork can't stay larger than the print area allows.
+  useEffect(() => {
+    if (effectivePrintSizeIdForArea === "oversize") {
+      return
+    }
+    const canvas = fabricCanvasRef.current
+    const pr = printArea
+    if (!canvas || pr.width < MIN_PRINT_AREA_PX || pr.height < MIN_PRINT_AREA_PX) {
+      return
+    }
+    const objects = canvas.getObjects?.() ?? []
+    let mutated = false
+    for (const obj of objects) {
+      const baseW = Math.max(1, (obj as any).width ?? 0)
+      const baseH = Math.max(1, (obj as any).height ?? 0)
+      const maxScaleX = pr.width / baseW
+      const maxScaleY = pr.height / baseH
+      const maxScale = Math.min(maxScaleX, maxScaleY)
+      const sx = Math.abs((obj as any).scaleX ?? 1)
+      const sy = Math.abs((obj as any).scaleY ?? 1)
+      if (Math.max(sx, sy) > maxScale && Number.isFinite(maxScale) && maxScale > 0) {
+        const sign = (v: number) => (v < 0 ? -1 : 1)
+        ;(obj as any).set({
+          scaleX: maxScale * sign((obj as any).scaleX ?? 1),
+          scaleY: maxScale * sign((obj as any).scaleY ?? 1),
+        })
+        ;(obj as any).setCoords?.()
+        mutated = true
+      }
+      // Also nudge back inside the new (potentially shifted) print rectangle.
+      clampObjectToBounds(obj)
+    }
+    if (mutated) {
+      canvas.requestRenderAll?.()
+      saveCurrentSide?.()
+    }
+  }, [effectivePrintSizeIdForArea, printArea.width, printArea.height])
   const selectedProduct = product
   const pdpHasVariantOptions = (selectedProduct.variants?.length ?? 0) > 1
   const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
@@ -1743,7 +1788,7 @@ export default function CustomizerTemplate({
                 </div>
                 <div className="mt-2 flex items-center gap-3 small:mt-0">
                   <p className="hidden text-xs text-ui-fg-subtle small:block">
-                    Drag artwork inside the dashed print area.
+                    Drag, resize and position your artwork.
                   </p>
                   <DesignPreviewPopover
                     decoratedSides={decoratedSides}
@@ -1792,7 +1837,12 @@ export default function CustomizerTemplate({
                       garmentTitle={garmentDisplayTitle}
                       printSideKey={currentSide}
                       printArea={printArea}
-                      showPrintAreaGuides={showPrintAreaGuides && currentSide !== "printed_tag"}
+                      // The dashed print rectangle is no longer rendered — image
+                      // sizing/positioning is enforced invisibly via fit-to-area
+                      // on placement, scale clamping during resize, and position
+                      // clamping on drag, so the guide became redundant noise on
+                      // garment photos that don't crop neatly to a rectangle.
+                      showPrintAreaGuides={false}
                       outOfBoundsWarning={outOfBoundsWarning}
                       dpiWarning={dpiWarning}
                       fabricContainerRef={fabricContainerRef}
