@@ -15,6 +15,8 @@ import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/l
 import { calculatePricing } from "@modules/customizer/lib/pricing"
 import {
   DEFAULT_SCP_PRINT_SIZE_ID,
+  SCP_PRINT_SIZE_OPTIONS,
+  SCP_PRINT_UNIT_MATRIX,
   type ScpPrintSizeId,
 } from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
@@ -425,6 +427,12 @@ export default function CustomizerTemplate({
   const [layoutVersion, setLayoutVersion] = useState(0)
   const [scpPrintSizeId, setScpPrintSizeId] = useState<ScpPrintSizeId>(DEFAULT_SCP_PRINT_SIZE_ID)
   const [showPrintAreaGuides, setShowPrintAreaGuides] = useState(false)
+  // Guided PDP wizard: tracks the highest step the user has reached (1..4).
+  // Steps below `pdpStep` collapse to summary chips with a "Change" link.
+  const [pdpStep, setPdpStep] = useState<1 | 2 | 3 | 4>(1)
+  const [pdpStep1Done, setPdpStep1Done] = useState(false)
+  const [pdpStep2Done, setPdpStep2Done] = useState(false)
+  const [pdpStep3Done, setPdpStep3Done] = useState(false)
   const lastCustomizerProductIdRef = useRef<string | null>(null)
   const sideLoadVersionRef = useRef(0)
   const productOptionsFromPdp = useProductOptionsOptional()
@@ -1790,32 +1798,240 @@ export default function CustomizerTemplate({
   )
 
   if (embedded && integratedPdpSlots) {
+    // Guided wizard: steps reveal one at a time and collapse to a summary
+    // chip with a "Change" link once completed. Mirrors the reference
+    // /Customizer.mov flow.
+    const hasStep1 = showPdpLabeledOptionsStep
+    const stepOffset = hasStep1 ? 0 : 1 // when no variant options, renumber 1->location
+    const stepNum = (n: number) => n - stepOffset
+    const sideLabel =
+      currentSide === "left_sleeve"
+        ? "Left Sleeve"
+        : currentSide === "right_sleeve"
+        ? "Right Sleeve"
+        : currentSide === "printed_tag"
+        ? "Printed Tag"
+        : currentSide.charAt(0).toUpperCase() + currentSide.slice(1)
+    const printSizeLabel =
+      SCP_PRINT_SIZE_OPTIONS.find((opt) => opt.id === scpPrintSizeId)?.label ?? "Size"
+
+    const StepHeader = ({
+      num,
+      title,
+      done,
+      onChange,
+    }: {
+      num: number
+      title: string
+      done: boolean
+      onChange?: () => void
+    }) => (
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+              done
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-ui-bg-base text-ui-fg-base ring-1 ring-ui-border-base"
+            }`}
+            aria-hidden
+          >
+            {done ? "✓" : num}
+          </span>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base truncate">
+            {num}. {title}
+          </h3>
+        </div>
+        {done && onChange ? (
+          <button
+            type="button"
+            className="text-xs font-medium text-ui-fg-interactive hover:underline"
+            onClick={onChange}
+          >
+            Change
+          </button>
+        ) : null}
+      </div>
+    )
+
     return (
       <div id="customize" className="contents">
         <div className="lg:col-span-6 flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
           {integratedPdpSlots.gallery}
           {editorColumn}
         </div>
-        <div className="flex min-w-0 flex-col gap-6 self-start lg:col-span-3 lg:sticky lg:top-24 lg:pr-1">
-          {showPdpLabeledOptionsStep ? (
-            <div className="space-y-2 border-b border-ui-border-base pb-5">
-              <p className="text-xl font-semibold text-ui-fg-base">Customize and checkout</p>
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-                1. Product options
-              </h3>
-              {integratedPdpSlots.variantPickers}
+        <div className="flex min-w-0 flex-col gap-3 self-start lg:col-span-3 lg:sticky lg:top-24 lg:pr-1">
+          <div className="space-y-1 border-b border-ui-border-base pb-4">
+            <p className="text-xl font-semibold text-ui-fg-base">Customize and checkout</p>
+            <p className="text-xs text-ui-fg-subtle">
+              We'll guide you through each step.
+            </p>
+          </div>
+
+          {/* Step 1 — Product options (color/etc.) */}
+          {hasStep1 ? (
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <StepHeader
+                num={1}
+                title="Product options"
+                done={pdpStep1Done && pdpStep > 1}
+                onChange={() => setPdpStep(1)}
+              />
+              {pdpStep === 1 ? (
+                <>
+                  {integratedPdpSlots.variantPickers}
+                  <button
+                    type="button"
+                    className="w-full rounded-lg bg-ui-bg-base-pressed py-2 text-sm font-semibold text-ui-fg-base ring-1 ring-ui-border-interactive hover:bg-ui-bg-subtle-pressed"
+                    onClick={() => {
+                      setPdpStep1Done(true)
+                      setPdpStep((s) => (s > 1 ? s : 2))
+                    }}
+                  >
+                    Continue to print location
+                  </button>
+                </>
+              ) : (
+                <p className="text-xs text-ui-fg-subtle">Selected. Click Change to edit.</p>
+              )}
             </div>
-          ) : (
-            <div className="space-y-2 border-b border-ui-border-base pb-5">
-              <p className="text-xl font-semibold text-ui-fg-base">Customize and checkout</p>
-              <p className="text-xs text-ui-fg-subtle">
-                Add artwork in the design preview, then set print side and per-size quantities
-                (steps {embedPdpPrintStepNumber} and {embedPdpQuantityStepNumber}) below.
-              </p>
-              {integratedPdpSlots.variantPickers}
+          ) : null}
+
+          {/* Step 2 — Print location */}
+          {pdpStep >= 2 || !hasStep1 ? (
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <StepHeader
+                num={stepNum(2)}
+                title="Print location"
+                done={pdpStep2Done && pdpStep > 2}
+                onChange={() => setPdpStep(2)}
+              />
+              {pdpStep === 2 || (!hasStep1 && pdpStep < 2) ? (
+                <>
+                  <SideSelector
+                    currentSide={currentSide}
+                    onSelectSide={(side) => {
+                      switchSide(side)
+                      setPdpStep2Done(true)
+                      setPdpStep((s) => (s > 2 ? s : 3))
+                    }}
+                  />
+                  <p className="text-xs text-ui-fg-subtle">
+                    Pick where the print goes. You can add more locations later.
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-ui-fg-subtle">
+                  <span className="font-medium text-ui-fg-base">{sideLabel}</span>
+                </p>
+              )}
             </div>
-          )}
-          <div className="space-y-5">{customizeRailPrintQtyAdvanced}</div>
+          ) : null}
+
+          {/* Step 3 — Print size */}
+          {pdpStep >= 3 ? (
+            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+              <StepHeader
+                num={stepNum(3)}
+                title="Print size"
+                done={pdpStep3Done && pdpStep > 3}
+                onChange={() => setPdpStep(3)}
+              />
+              {pdpStep === 3 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {SCP_PRINT_SIZE_OPTIONS.map((opt) => {
+                    const fromPrice = SCP_PRINT_UNIT_MATRIX[opt.id][SCP_PRINT_UNIT_MATRIX[opt.id].length - 1]
+                    const selected = scpPrintSizeId === opt.id
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setScpPrintSizeId(opt.id)
+                          setPdpStep3Done(true)
+                          setPdpStep((s) => (s > 3 ? s : 4))
+                        }}
+                        className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
+                          selected
+                            ? "border-ui-border-interactive bg-ui-bg-base-pressed"
+                            : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle"
+                        }`}
+                      >
+                        <span className="text-sm font-semibold text-ui-fg-base">
+                          {opt.label}
+                        </span>
+                        <span className="text-[11px] text-ui-fg-subtle">
+                          {opt.dimensionsLabel}
+                        </span>
+                        <span className="text-[11px] text-ui-fg-muted">
+                          from ${fromPrice.toFixed(2)} ea
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-ui-fg-subtle">
+                  <span className="font-medium text-ui-fg-base">{printSizeLabel}</span>{" "}
+                  <span className="text-ui-fg-muted">
+                    ({SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === scpPrintSizeId)?.dimensionsLabel})
+                  </span>
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {/* Step 4 — Quantities, notes & checkout */}
+          {pdpStep >= 4 ? (
+            <>
+              <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+                <StepHeader num={stepNum(4)} title="Quantity & checkout" done={false} />
+                <p className="text-xs text-ui-fg-subtle">
+                  Set quantities per size, then add to cart.
+                </p>
+              </div>
+              <PricingPanel
+                currencyCode={currencyCode}
+                pricing={pricing}
+                sizes={sizeMatrix}
+                onChangeSizeQty={changeSizeQuantity}
+                onAddToCart={addCustomizedToCart}
+                isSubmitting={isSubmitting}
+                embeddedOnPdp={embedded}
+                flyImageSrc={flyImageSrcForAddToCart}
+                showDtfTierEstimator={productMetadataShowsDtfTierEstimator(selectedProduct)}
+                embedPdpQuantityStepNumber={embedPdpQuantityStepNumber}
+                scpPrintSizeId={scpPrintSizeId}
+                onScpPrintSizeIdChange={setScpPrintSizeId}
+                decoratedSides={decoratedSides}
+                hidePrintSizeSelector
+                hideHeader
+              />
+              <div className="space-y-2 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
+                <label
+                  htmlFor="customizer-print-notes"
+                  className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle"
+                >
+                  Notes for production (optional)
+                </label>
+                <textarea
+                  id="customizer-print-notes"
+                  value={printNotes}
+                  onChange={(e) =>
+                    setPrintNotes(e.target.value.slice(0, CUSTOMIZER_PRINT_NOTES_MAX_LENGTH))
+                  }
+                  rows={3}
+                  maxLength={CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
+                  placeholder="e.g. Match logo PMS 185 C, keep 3 cm from collar seam…"
+                  className="w-full resize-y rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted outline-none focus:border-ui-border-interactive focus:ring-2 focus:ring-ui-border-interactive/20"
+                  disabled={isSubmitting}
+                />
+                <p className="text-xs text-ui-fg-muted tabular-nums">
+                  {printNotes.length}/{CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
+                </p>
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
     )

@@ -39,6 +39,10 @@ type PricingPanelProps = {
   decoratedSides: GarmentSide[]
   /** When true, breakdown labels reflect SCP tiered print dollars instead of the legacy flat surcharge. */
   scpPricingEnabled?: boolean
+  /** Hide the built-in print-size dropdown (when an external picker controls scpPrintSizeId). */
+  hidePrintSizeSelector?: boolean
+  /** Hide the panel header (when caller renders its own step heading). */
+  hideHeader?: boolean
 }
 
 const formatMoney = (amount: number, currencyCode: string) =>
@@ -69,6 +73,8 @@ export default function PricingPanel({
   onScpPrintSizeIdChange,
   decoratedSides,
   scpPricingEnabled = true,
+  hidePrintSizeSelector = false,
+  hideHeader = false,
 }: PricingPanelProps) {
   const quantity = sizes.reduce((total, entry) => total + entry.quantity, 0)
   const safeEstimatorQuantity = Math.max(1, quantity)
@@ -120,18 +126,20 @@ export default function PricingPanel({
 
   return (
     <div className="space-y-4 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-      <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-          {embeddedOnPdp
-            ? `${embedPdpQuantityStepNumber}. Quantity & checkout`
-            : "Size & quantity"}
-        </h3>
-        <p className="mt-1 text-xs text-ui-fg-subtle">
-          Set quantities per size. Totals update with print locations and blank volume tiers.
-        </p>
-      </div>
+      {hideHeader ? null : (
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+            {embeddedOnPdp
+              ? `${embedPdpQuantityStepNumber}. Quantity & checkout`
+              : "Size & quantity"}
+          </h3>
+          <p className="mt-1 text-xs text-ui-fg-subtle">
+            Set quantities per size. Totals update with print locations and blank volume tiers.
+          </p>
+        </div>
+      )}
 
-      {printSizeSelect}
+      {hidePrintSizeSelector ? null : printSizeSelect}
 
       <div className="space-y-2">
         <label className="text-xs font-medium text-ui-fg-subtle">Sizes</label>
