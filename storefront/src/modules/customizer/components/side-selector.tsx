@@ -13,16 +13,21 @@ const SIDE_OPTIONS: { value: GarmentSide; label: string; short: string }[] = [
 type SideSelectorProps = {
   currentSide: GarmentSide
   onSelectSide: (side: GarmentSide) => void
+  /** Optional whitelist; when provided, only these sides render. */
+  allowedSides?: GarmentSide[]
 }
 
-export default function SideSelector({ currentSide, onSelectSide }: SideSelectorProps) {
+export default function SideSelector({ currentSide, onSelectSide, allowedSides }: SideSelectorProps) {
+  const visibleOptions = allowedSides
+    ? SIDE_OPTIONS.filter((o) => allowedSides.includes(o.value))
+    : SIDE_OPTIONS
   return (
     <div
       className="flex flex-wrap gap-1 rounded-xl border border-ui-border-base bg-ui-bg-subtle/80 p-1"
       role="tablist"
       aria-label="Print location"
     >
-      {SIDE_OPTIONS.map((option) => {
+      {visibleOptions.map((option) => {
         const selected = currentSide === option.value
         return (
           <button

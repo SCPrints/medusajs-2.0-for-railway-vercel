@@ -7,6 +7,7 @@ import InputPanel from "@modules/customizer/components/input-panel"
 import ManagementPanel from "@modules/customizer/components/management-panel"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
 import SideSelector from "@modules/customizer/components/side-selector"
+import { getStoreProductTagValues } from "@lib/util/product-tags"
 import {
   extractRenderArtifactUrl,
   normalizePersistedArtifactUrl,
@@ -1802,6 +1803,18 @@ export default function CustomizerTemplate({
     // chip with a "Change" link once completed. Mirrors the reference
     // /Customizer.mov flow.
     const hasStep1 = showPdpLabeledOptionsStep
+    // Bottom-half garments (pants/shorts) only print front/back — no sleeves or tag.
+    const productTags = getStoreProductTagValues(selectedProduct).map((t) => t.toLowerCase())
+    const isBottomHalfGarment = productTags.some((t) =>
+      /\b(pants?|shorts?|trousers?|jeans?|leggings?|skirts?)\b/.test(t)
+    )
+    const allowedPrintSides: GarmentSide[] = isBottomHalfGarment
+      ? ["front", "back"]
+      : ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
+    if (!allowedPrintSides.includes(currentSide)) {
+      // Snap back to a valid side without blocking render.
+      Promise.resolve().then(() => switchSide("front"))
+    }
     const stepOffset = hasStep1 ? 0 : 1 // when no variant options, renumber 1->location
     const stepNum = (n: number) => n - stepOffset
     const sideLabel =
@@ -1910,6 +1923,7 @@ export default function CustomizerTemplate({
                 <>
                   <SideSelector
                     currentSide={currentSide}
+                    allowedSides={allowedPrintSides}
                     onSelectSide={(side) => {
                       switchSide(side)
                       setPdpStep2Done(true)

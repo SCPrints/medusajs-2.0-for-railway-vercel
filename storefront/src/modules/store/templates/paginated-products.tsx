@@ -2,6 +2,7 @@ import { HttpTypes } from "@medusajs/types"
 
 import { getProductsListWithSort } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
+import { listStoreProductTags } from "@lib/data/catalog-facets"
 import ProductPreview from "@modules/products/components/product-preview"
 import { Pagination } from "@modules/store/components/pagination"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -58,9 +59,20 @@ export default async function PaginatedProducts({
     queryParams.id = productsIds
   }
 
-  const resolvedTagId = tagId?.trim() || tag?.trim()
+  // Prefer explicit tagId; otherwise resolve the legacy `?tag=<value>` (e.g. "pants")
+  // to a real Medusa tag ID by looking it up in the cached tag list.
+  let resolvedTagId = tagId?.trim() || undefined
+  const legacyTagValue = tag?.trim()
+  if (!resolvedTagId && legacyTagValue) {
+    const lookup = legacyTagValue.toLowerCase()
+    const tags = await listStoreProductTags()
+    resolvedTagId = tags.find((t) => (t.value ?? "").toLowerCase() === lookup)?.id
+  }
   if (resolvedTagId) {
     queryParams.tag_id = [resolvedTagId]
+  } else if (legacyTagValue) {
+    // Unknown tag value → return zero results rather than the full catalog.
+    queryParams.id = ["__no_match__"]
   }
 
   const trimmedTypeId = typeId?.trim()

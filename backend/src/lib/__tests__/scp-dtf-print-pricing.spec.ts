@@ -45,7 +45,7 @@ describe("scp-dtf-print-pricing", () => {
         tierIndex: 0,
         decoratedSides: ["front", "left_sleeve", "printed_tag"],
       })
-    ).toBe(29.5)
+    ).toBe(32)
   })
 
   it("counts decorated sides from customizerDesign artifacts", () => {
@@ -95,7 +95,7 @@ describe("scp-dtf-print-pricing", () => {
           { side: "printed_tag", printSizeId: "oversize" },
         ],
       })
-    ).toBe(32)
+    ).toBe(29.5)
   })
 
   it("falls back to one side when printPlacement is present without artifacts", () => {

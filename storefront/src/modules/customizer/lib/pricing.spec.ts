@@ -46,8 +46,8 @@ describe("calculatePricing", () => {
       scpPrint: { printSizeId: "up_to_a3" },
     })
 
-    // Qty 10 => tier 1: A3 front $13.5 + A6 sleeve $7.5 + A6 printed tag $7.5 = $28.5
-    expect(pricing.sideSurchargePerUnitCents).toBe(28.5)
+    // Qty 10 => tier 1: A3 front $10.5 + A6 sleeve $7.5 + A6 printed tag $7.5 = $25.5
+    expect(pricing.sideSurchargePerUnitCents).toBe(25.5)
   })
 
   it("uses bulk tiers as base unit pricing when provided", () => {

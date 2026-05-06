@@ -36,8 +36,8 @@ export const SCP_PRINT_UNIT_MATRIX: Record<ScpPrintSizeId, readonly [number, num
   {
     up_to_a6: [8.5, 7.5, 6.5, 5.5, 5],
     up_to_a4: [11, 9.5, 8.5, 7.5, 7],
-    up_to_a3: [15, 13.5, 12.5, 11.5, 11],
-    oversize: [12.5, 10.5, 9.5, 8.5, 8],
+    up_to_a3: [12.5, 10.5, 9.5, 8.5, 8],
+    oversize: [15, 13.5, 12.5, 11.5, 11],
   }
 
 export const DEFAULT_SCP_PRINT_SIZE_ID: ScpPrintSizeId = "up_to_a6"
