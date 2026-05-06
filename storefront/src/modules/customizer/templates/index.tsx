@@ -1952,45 +1952,68 @@ export default function CustomizerTemplate({
                 onChange={() => setPdpStep(3)}
               />
               {pdpStep === 3 ? (
-                <div className="grid grid-cols-2 gap-2">
-                  {SCP_PRINT_SIZE_OPTIONS.map((opt) => {
-                    const fromPrice = SCP_PRINT_UNIT_MATRIX[opt.id][SCP_PRINT_UNIT_MATRIX[opt.id].length - 1]
-                    const selected = scpPrintSizeId === opt.id
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          setScpPrintSizeId(opt.id)
-                          setPdpStep3Done(true)
-                          setPdpStep((s) => (s > 3 ? s : 4))
-                        }}
-                        className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
-                          selected
-                            ? "border-ui-border-interactive bg-ui-bg-base-pressed"
-                            : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle"
-                        }`}
-                      >
-                        <span className="text-sm font-semibold text-ui-fg-base">
-                          {opt.label}
-                        </span>
-                        <span className="text-[11px] text-ui-fg-subtle">
-                          {opt.dimensionsLabel}
-                        </span>
-                        <span className="text-[11px] text-ui-fg-muted">
-                          from ${fromPrice.toFixed(2)} ea
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SCP_PRINT_SIZE_OPTIONS.map((opt) => {
+                      const fromPrice = SCP_PRINT_UNIT_MATRIX[opt.id][SCP_PRINT_UNIT_MATRIX[opt.id].length - 1]
+                      const selected = scpPrintSizeId === opt.id
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            setScpPrintSizeId(opt.id)
+                            setPdpStep3Done(true)
+                            setPdpStep((s) => (s > 3 ? s : 4))
+                          }}
+                          className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
+                            selected
+                              ? "border-ui-border-interactive bg-ui-bg-base-pressed"
+                              : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle"
+                          }`}
+                        >
+                          <span className="text-sm font-semibold text-ui-fg-base">
+                            {opt.label}
+                          </span>
+                          <span className="text-[11px] text-ui-fg-subtle">
+                            {opt.dimensionsLabel}
+                          </span>
+                          <span className="text-[11px] text-ui-fg-muted">
+                            from ${fromPrice.toFixed(2)} ea
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-xs text-ui-fg-subtle">
+                    Want prints in more than one spot? Pick a size for this location, then tap{" "}
+                    <span className="font-medium text-ui-fg-base">Change</span> on{" "}
+                    <span className="font-medium text-ui-fg-base">Print location</span> above to
+                    add another.
+                  </p>
+                </>
               ) : (
-                <p className="text-xs text-ui-fg-subtle">
-                  <span className="font-medium text-ui-fg-base">{printSizeLabel}</span>{" "}
-                  <span className="text-ui-fg-muted">
-                    ({SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === scpPrintSizeId)?.dimensionsLabel})
-                  </span>
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-ui-fg-subtle">
+                    <span className="font-medium text-ui-fg-base">{printSizeLabel}</span>{" "}
+                    <span className="text-ui-fg-muted">
+                      ({SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === scpPrintSizeId)?.dimensionsLabel})
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPdpStep(2)}
+                    className="flex w-full items-center justify-between gap-2 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle/40 px-3 py-2 text-left text-xs text-ui-fg-subtle transition-colors hover:border-ui-fg-base hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+                  >
+                    <span>
+                      <span className="font-semibold text-ui-fg-base">+ Add another print location</span>
+                      <span className="block text-[11px] text-ui-fg-muted">
+                        Go back to step {stepNum(2)} to print on a different spot too.
+                      </span>
+                    </span>
+                    <span aria-hidden className="text-ui-fg-muted">›</span>
+                  </button>
+                </div>
               )}
             </div>
           ) : null}
