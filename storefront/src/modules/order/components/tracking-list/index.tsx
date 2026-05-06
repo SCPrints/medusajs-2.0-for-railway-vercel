@@ -1,7 +1,5 @@
 import { HttpTypes } from "@medusajs/types"
-import { Heading, Text } from "@medusajs/ui"
-
-import Divider from "@modules/common/components/divider"
+import { Text } from "@medusajs/ui"
 
 type Parcel = {
   tracking_number: string
@@ -74,15 +72,17 @@ const TrackingList = ({ order, variant = "default" }: TrackingListProps) => {
   return (
     <div data-testid="tracking-list">
       {!isCompact && (
-        <Heading level="h2" className="flex flex-row text-3xl-regular my-6">
+        <h2 className="text-2xl font-semibold text-[var(--brand-primary)] border-l-4 border-[var(--brand-secondary)] pl-4 mb-5">
           Tracking
-        </Heading>
+        </h2>
       )}
 
       {parcels.length === 0 ? (
-        <Text className="txt-medium text-ui-fg-subtle">
-          Tracking will appear here once your order ships.
-        </Text>
+        <div className="bg-ui-bg-subtle rounded-lg p-4">
+          <Text className="text-sm text-ui-fg-subtle">
+            Tracking will appear here once your order ships.
+          </Text>
+        </div>
       ) : (
         <ul className="flex flex-col gap-y-3">
           {parcels.map((parcel, idx) => (
@@ -113,7 +113,6 @@ const TrackingList = ({ order, variant = "default" }: TrackingListProps) => {
         </ul>
       )}
 
-      {!isCompact && <Divider className="mt-8" />}
     </div>
   )
 }
