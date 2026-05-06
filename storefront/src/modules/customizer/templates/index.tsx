@@ -2258,7 +2258,7 @@ export default function CustomizerTemplate({
                 <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
                   <StepHeader
                     num={stepNum(2)}
-                    title="Print location"
+                    title={decoratedCount > 0 ? "Add / change print positions" : "Print location"}
                     done={pdpStep2Done && pdpStep > 2}
                     onChange={() => setPdpStep(2)}
                   />
