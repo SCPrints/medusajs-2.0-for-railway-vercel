@@ -16,6 +16,7 @@ import { resolveGarmentImageUrlForCustomizerRender } from "@modules/customizer/l
 import { calculatePricing } from "@modules/customizer/lib/pricing"
 import {
   DEFAULT_SCP_PRINT_SIZE_ID,
+  SCP_A6_ONLY_SIDES,
   SCP_PRINT_SIZE_OPTIONS,
   SCP_PRINT_UNIT_MATRIX,
   type ScpPrintSizeId,
@@ -2139,8 +2140,16 @@ export default function CustomizerTemplate({
               />
               {pdpStep === 3 ? (
                 <>
+                  {SCP_A6_ONLY_SIDES.has(currentSide) ? (
+                    <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
+                      <span className="font-semibold text-ui-fg-base">{sideLabel}</span> prints
+                      are limited to A6 (10×15 cm) — only one size is available for this location.
+                    </p>
+                  ) : null}
                   <div className="grid grid-cols-2 gap-2">
-                    {SCP_PRINT_SIZE_OPTIONS.map((opt) => {
+                    {SCP_PRINT_SIZE_OPTIONS.filter((opt) =>
+                      SCP_A6_ONLY_SIDES.has(currentSide) ? opt.id === "up_to_a6" : true
+                    ).map((opt) => {
                       const fromPrice = SCP_PRINT_UNIT_MATRIX[opt.id][SCP_PRINT_UNIT_MATRIX[opt.id].length - 1]
                       const selected = scpPrintSizeId === opt.id
                       return (
@@ -2230,7 +2239,9 @@ export default function CustomizerTemplate({
                   if (sidesForSummary.length === 0) {
                     return (
                       <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 ring-1 ring-amber-200">
-                        No artwork added yet — go back to step {stepNum(2)} to place a print.
+                        No artwork added yet — use the{" "}
+                        <span className="font-semibold">Add to design</span> section in the design
+                        preview to upload art or add text.
                       </p>
                     )
                   }

@@ -30,6 +30,16 @@ export default function CanvasStage({
   fabricContainerRef,
 }: CanvasStageProps) {
   const showPhoto = !omitBackgroundImage && garmentImage
+  // Tag prints sit at the inner-back of the collar. We don't have separate tag
+  // photography per colour, so zoom into the neck area of the variant's
+  // primary photo. transform-origin is the focal point (top-centre of the tee).
+  const isTagView = printSideKey === "printed_tag"
+  const tagZoomStyle = isTagView
+    ? {
+        transform: "scale(3.2)",
+        transformOrigin: "50% 14%",
+      }
+    : undefined
 
   return (
     <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
@@ -40,8 +50,9 @@ export default function CanvasStage({
           key={`${printSideKey}-${garmentImage}`}
           src={garmentImage!}
           alt={garmentTitle ?? "Garment"}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out"
           draggable={false}
+          style={tagZoomStyle}
         />
       ) : omitBackgroundImage ? (
         <div
