@@ -165,6 +165,64 @@ export default function PricingPanel({
         </div>
       </div>
 
+      {pricing.hasBulkPricing && pricing.bulkPricingTiers?.length ? (
+        (() => {
+          const tiers = pricing.bulkPricingTiers
+          const currentTierIdx = (() => {
+            const safeQty = Math.max(1, quantity)
+            const idx = tiers.findIndex(
+              (t) =>
+                safeQty >= t.minQuantity &&
+                (typeof t.maxQuantity !== "number" || safeQty <= t.maxQuantity)
+            )
+            return idx >= 0 ? idx : 0
+          })()
+          const currentTier = tiers[currentTierIdx]
+          const nextTier = tiers[currentTierIdx + 1]
+          const unitsToNext = nextTier ? Math.max(0, nextTier.minQuantity - quantity) : 0
+          const savings =
+            nextTier && currentTier
+              ? Math.max(0, currentTier.amountCents - nextTier.amountCents)
+              : 0
+          return (
+            <div className="space-y-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+              <div className="flex items-baseline justify-between">
+                <p className="text-xs font-semibold uppercase tracking-wide text-ui-fg-base">
+                  Bulk discounts
+                </p>
+                {nextTier && unitsToNext > 0 && quantity > 0 ? (
+                  <p className="text-[11px] text-emerald-700">
+                    Add {unitsToNext} more to save {formatMoney(savings, currencyCode)}/ea
+                  </p>
+                ) : null}
+              </div>
+              <ul className="grid grid-cols-1 gap-1 text-xs">
+                {tiers.map((tier, idx) => {
+                  const isCurrent = idx === currentTierIdx && quantity > 0
+                  return (
+                    <li
+                      key={`${tier.minQuantity}-${tier.maxQuantity ?? "max"}`}
+                      className={`flex items-center justify-between rounded px-2 py-1 transition-colors ${
+                        isCurrent
+                          ? "bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200"
+                          : "text-ui-fg-subtle"
+                      }`}
+                    >
+                      <span className={isCurrent ? "font-semibold" : ""}>
+                        {formatTierRange(tier.minQuantity, tier.maxQuantity)} pcs
+                      </span>
+                      <span className={isCurrent ? "font-semibold" : ""}>
+                        {formatMoney(tier.amountCents, currencyCode)} / ea
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )
+        })()
+      ) : null}
+
       <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle/60 px-3 py-2.5">
         <p className="flex justify-between text-xs">
           <span className="text-ui-fg-subtle">Unit</span>
@@ -240,17 +298,6 @@ export default function PricingPanel({
             <span>Discount</span>
             <span>{Math.round(pricing.quantityDiscountRate * 100)}%</span>
           </p>
-          {pricing.hasBulkPricing && pricing.bulkPricingTiers?.length ? (
-            <div className="space-y-1 pt-1">
-              <p className="font-medium text-ui-fg-base">Bulk pricing tiers</p>
-              {pricing.bulkPricingTiers.map((tier) => (
-                <p key={formatTierRange(tier.minQuantity, tier.maxQuantity)} className="flex justify-between">
-                  <span>{formatTierRange(tier.minQuantity, tier.maxQuantity)} pcs</span>
-                  <span>{formatMoney(tier.amountCents, currencyCode)}</span>
-                </p>
-              ))}
-            </div>
-          ) : null}
           <p className="flex justify-between font-medium">
             <span>Unit after discount</span>
             <span>{formatMoney(pricing.discountedUnitPriceCents, currencyCode)}</span>

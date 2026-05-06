@@ -10,6 +10,8 @@ type InputPanelProps = {
   onAddCurvedText: (input: { text: string; color: string; radius: number }) => void
   onRemoveSelectedImage: () => void
   canRemoveImage: boolean
+  /** When provided, each upload tile shows a bin icon that removes it from "My uploads" after confirmation. */
+  onDeleteUpload?: (uploadId: string) => void
   className?: string
 }
 
@@ -21,6 +23,7 @@ export default function InputPanel({
   onAddCurvedText,
   onRemoveSelectedImage,
   canRemoveImage,
+  onDeleteUpload,
   className,
 }: InputPanelProps) {
   const [text, setText] = useState("Your Brand")
@@ -28,6 +31,7 @@ export default function InputPanel({
   const [color, setColor] = useState("#111827")
   const [letterSpacing, setLetterSpacing] = useState(0)
   const [arcRadius, setArcRadius] = useState(120)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const onFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -60,22 +64,85 @@ export default function InputPanel({
             <span className="text-[11px] text-ui-fg-subtle">Reusable across views</span>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            {uploads.map((upload) => (
-              <button
-                key={upload.id}
-                type="button"
-                onClick={() => onReuseUpload(upload.id)}
-                className="group overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-subtle text-left hover:border-ui-fg-subtle"
-                title={`Add ${upload.name} to this view`}
-              >
-                <div className="aspect-square w-full overflow-hidden bg-ui-bg-base/40">
-                  <img src={upload.previewUrl} alt={upload.name} className="h-full w-full object-cover" />
+            {uploads.map((upload) => {
+              const isPendingDelete = pendingDeleteId === upload.id
+              return (
+                <div
+                  key={upload.id}
+                  className="group relative overflow-hidden rounded-md border border-ui-border-base bg-ui-bg-subtle hover:border-ui-fg-subtle"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onReuseUpload(upload.id)}
+                    className="block w-full text-left"
+                    title={`Add ${upload.name} to this view`}
+                  >
+                    <div className="aspect-square w-full overflow-hidden bg-ui-bg-base/40">
+                      <img src={upload.previewUrl} alt={upload.name} className="h-full w-full object-cover" />
+                    </div>
+                    <p className="truncate px-1.5 py-1 text-[11px] text-ui-fg-subtle group-hover:text-ui-fg-base">
+                      {upload.name}
+                    </p>
+                  </button>
+
+                  {onDeleteUpload ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPendingDeleteId(upload.id)
+                      }}
+                      aria-label={`Delete ${upload.name} from My uploads`}
+                      title="Delete from My uploads"
+                      className="absolute bottom-7 right-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-ui-bg-base/90 text-ui-fg-subtle opacity-0 shadow-sm ring-1 ring-ui-border-base transition-opacity hover:bg-rose-50 hover:text-rose-700 focus:opacity-100 group-hover:opacity-100"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden
+                      >
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                      </svg>
+                    </button>
+                  ) : null}
+
+                  {isPendingDelete && onDeleteUpload ? (
+                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-1.5 bg-ui-bg-base/95 p-1.5 text-center">
+                      <p className="text-[11px] font-medium text-ui-fg-base">Delete this upload?</p>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDeleteUpload(upload.id)
+                            setPendingDeleteId(null)
+                          }}
+                          className="rounded bg-rose-600 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-rose-700"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteId(null)}
+                          className="rounded border border-ui-border-base bg-ui-bg-base px-2 py-0.5 text-[11px] text-ui-fg-base hover:bg-ui-bg-subtle"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-                <p className="truncate px-1.5 py-1 text-[11px] text-ui-fg-subtle group-hover:text-ui-fg-base">
-                  {upload.name}
-                </p>
-              </button>
-            ))}
+              )
+            })}
           </div>
         </div>
       ) : null}

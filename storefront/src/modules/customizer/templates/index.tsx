@@ -1559,6 +1559,9 @@ export default function CustomizerTemplate({
                     onAddCurvedText={handleAddCurvedText}
                     onRemoveSelectedImage={removeSelectedImage}
                     canRemoveImage={canRemoveImage}
+                    onDeleteUpload={(uploadId) =>
+                      setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
+                    }
                     className="border-0 bg-transparent p-0"
                   />
                 </div>
@@ -1852,7 +1855,7 @@ export default function CustomizerTemplate({
             {done ? "✓" : num}
           </span>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base truncate">
-            {num}. {title}
+            {title}
           </h3>
         </div>
         {done && onChange ? (
@@ -1994,12 +1997,21 @@ export default function CustomizerTemplate({
                 </>
               ) : (
                 <div className="space-y-2">
-                  <p className="text-xs text-ui-fg-subtle">
-                    <span className="font-medium text-ui-fg-base">{printSizeLabel}</span>{" "}
-                    <span className="text-ui-fg-muted">
-                      ({SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === scpPrintSizeId)?.dimensionsLabel})
-                    </span>
-                  </p>
+                  <div className="flex items-baseline justify-between gap-2 rounded-lg bg-ui-bg-subtle/60 px-2.5 py-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ui-fg-base">{printSizeLabel}</p>
+                      <p className="text-[11px] text-ui-fg-muted">
+                        {SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === scpPrintSizeId)?.dimensionsLabel}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold text-ui-fg-base">
+                      from $
+                      {SCP_PRINT_UNIT_MATRIX[scpPrintSizeId][
+                        SCP_PRINT_UNIT_MATRIX[scpPrintSizeId].length - 1
+                      ].toFixed(2)}{" "}
+                      <span className="text-[11px] font-normal text-ui-fg-subtle">ea / location</span>
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setPdpStep(2)}
