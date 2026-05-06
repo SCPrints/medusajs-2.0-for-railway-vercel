@@ -3,6 +3,7 @@
 import { addScpLineItemToCartSafe, deleteLineItem, retrieveCart } from "@lib/data/cart"
 import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-add-button"
 import CanvasStage from "@modules/customizer/components/canvas-stage"
+import DesignPreviewPopover from "@modules/customizer/components/design-preview-popover"
 import InputPanel from "@modules/customizer/components/input-panel"
 import ManagementPanel from "@modules/customizer/components/management-panel"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
@@ -1740,9 +1741,26 @@ export default function CustomizerTemplate({
                     {selectedProduct?.title ? `Design your ${selectedProduct.title}` : "Design your product"}
                   </p>
                 </div>
-                <p className="mt-2 text-xs text-ui-fg-subtle small:mt-0">
-                  Drag artwork inside the dashed print area.
-                </p>
+                <div className="mt-2 flex items-center gap-3 small:mt-0">
+                  <p className="hidden text-xs text-ui-fg-subtle small:block">
+                    Drag artwork inside the dashed print area.
+                  </p>
+                  <DesignPreviewPopover
+                    decoratedSides={decoratedSides}
+                    canvasSize={canvasSize}
+                    sideLayouts={sideLayoutsRef.current}
+                    getGarmentUrlForSide={(side) =>
+                      getGarmentImageUrlForPrintSide(
+                        selectedProduct,
+                        selectedVariant,
+                        side,
+                        defaultGarmentImage
+                      )
+                    }
+                    layoutVersion={layoutVersion}
+                    variantId={activeVariantId}
+                  />
+                </div>
               </div>
 
               <div className="flex flex-col lg:flex-row lg:items-stretch">
@@ -2092,7 +2110,7 @@ export default function CustomizerTemplate({
           </div>
 
           {editLineItemId ? (
-            <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-amber-900">
+            <div className="space-y-2 rounded-xl border-2 border-fuchsia-500 bg-amber-50 p-3 text-amber-900 shadow-[0_0_0_3px_rgba(217,70,239,0.18)]">
               <p className="text-sm font-semibold">
                 Editing {editingProductTitle ?? "your cart item"}
                 {editingPreviousQty ? ` × ${editingPreviousQty}` : ""}

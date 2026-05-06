@@ -157,59 +157,13 @@ export default function InputPanel({
         Remove image
       </button>
 
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-ui-fg-subtle">Text</label>
-        <input
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          className="w-full rounded-md border border-ui-border-base px-3 py-2 text-sm"
-        />
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            value={fontFamily}
-            onChange={(event) => setFontFamily(event.target.value)}
-            className="rounded-md border border-ui-border-base px-3 py-2 text-sm"
-            placeholder="Font family"
-          />
-          <input type="color" value={color} onChange={(event) => setColor(event.target.value)} className="h-10 w-full rounded-md border border-ui-border-base" />
-        </div>
-        <label className="text-xs text-ui-fg-subtle">Letter spacing: {letterSpacing}</label>
-        <input
-          type="range"
-          min={-100}
-          max={500}
-          step={5}
-          value={letterSpacing}
-          onChange={(event) => setLetterSpacing(Number(event.target.value))}
-          className="w-full"
-        />
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            className="rounded-md border border-ui-border-base px-3 py-2 text-sm hover:bg-ui-bg-subtle"
-            onClick={() => onAddText({ text, color, fontFamily, letterSpacing })}
-          >
-            Add Text
-          </button>
-          <button
-            type="button"
-            className="rounded-md border border-ui-border-base px-3 py-2 text-sm hover:bg-ui-bg-subtle"
-            onClick={() => onAddCurvedText({ text, color, radius: arcRadius })}
-          >
-            Add Curved Text
-          </button>
-        </div>
-        <label className="text-xs text-ui-fg-subtle">Curve radius: {arcRadius}</label>
-        <input
-          type="range"
-          min={50}
-          max={220}
-          step={5}
-          value={arcRadius}
-          onChange={(event) => setArcRadius(Number(event.target.value))}
-          className="w-full"
-        />
-      </div>
+      {/*
+       * Text / curved text input was removed pending a redesign — the freeform
+       * font family input + curve radius slider produced inconsistent output
+       * across browsers. Customers can ask for typeset wording in the
+       * production notes for now. Re-enable by restoring this block alongside
+       * `text`/`fontFamily`/`color`/`letterSpacing`/`arcRadius` state.
+       */}
     </div>
   )
 }
