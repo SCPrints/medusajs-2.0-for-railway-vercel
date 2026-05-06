@@ -1796,23 +1796,18 @@ export default function CustomizerTemplate({
           {integratedPdpSlots.gallery}
           {editorColumn}
         </div>
-        <div className="flex min-w-0 flex-col gap-5 self-start lg:col-span-3 lg:sticky lg:top-24 lg:pr-1">
+        <div className="flex min-w-0 flex-col gap-6 self-start lg:col-span-3 lg:sticky lg:top-24 lg:pr-1">
           {showPdpLabeledOptionsStep ? (
             <div className="space-y-2 border-b border-ui-border-base pb-5">
-              <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
+              <p className="text-xl font-semibold text-ui-fg-base">Customize and checkout</p>
               <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
                 1. Product options
               </h3>
-              <p className="text-xs text-ui-fg-subtle">
-                Choose color and other options where shown. Set per-size quantities in step 3. The
-                gallery and design preview follow your color. Add artwork in the design preview to
-                the left, then use print location (step 2) and checkout (step 3) below.
-              </p>
               {integratedPdpSlots.variantPickers}
             </div>
           ) : (
             <div className="space-y-2 border-b border-ui-border-base pb-5">
-              <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
+              <p className="text-xl font-semibold text-ui-fg-base">Customize and checkout</p>
               <p className="text-xs text-ui-fg-subtle">
                 Add artwork in the design preview, then set print side and per-size quantities
                 (steps {embedPdpPrintStepNumber} and {embedPdpQuantityStepNumber}) below.

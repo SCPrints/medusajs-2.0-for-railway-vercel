@@ -170,9 +170,9 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
 
   return (
     <div className="flex items-start relative">
-      <div className="flex flex-col flex-1 small:mx-16 gap-y-4">
+      <div className="grid grid-cols-2 gap-3 small:gap-4 flex-1">
         {!hasProductImages && (
-          <Container className="relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle p-6 flex items-center justify-center">
+          <Container className="col-span-2 relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle p-6 flex items-center justify-center">
             <p className="text-sm text-ui-fg-subtle text-center">
               No garment image is available for this product yet.
             </p>
@@ -182,10 +182,10 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
         {displayImages.map((image, index) => (
           <div
             key={`${image.id}-${index}-${normalizeImageUrl(image.url).slice(-48)}`}
-            className="w-full scroll-mt-28"
+            className={`w-full scroll-mt-28 ${displayImages.length === 1 ? "col-span-2" : ""}`}
           >
           <Container
-            className="relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle"
+            className="relative aspect-square w-full overflow-hidden bg-ui-bg-subtle"
             id={image.id}
           >
             <Image
@@ -194,7 +194,7 @@ const ImageGallery = ({ product, images, thumbnail }: ImageGalleryProps) => {
               className="absolute inset-0 rounded-rounded"
               alt={`Product image ${index + 1}`}
               fill
-              sizes="(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"
+              sizes="(max-width: 576px) 50vw, (max-width: 992px) 25vw, 400px"
               style={{
                 objectFit: "cover",
               }}
