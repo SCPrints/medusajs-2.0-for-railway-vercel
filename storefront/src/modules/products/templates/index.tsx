@@ -12,8 +12,8 @@ import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-b
 import DtfAutoBuilderTemplate, {
   isDtfAutoBuilderProduct,
 } from "@modules/products/templates/dtf-auto-builder-template"
-import { EmbroideryPanel } from "@modules/embroidery/components"
-import { isEmbroideryProduct } from "@modules/embroidery/lib/is-embroidery-product"
+import { DecorationEstimator } from "@modules/decoration/components"
+import { getEnabledDecorationMethods } from "@modules/decoration/lib/product"
 import { HttpTypes } from "@medusajs/types"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
 import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
@@ -80,7 +80,12 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
             <div className="grid grid-cols-1 gap-y-10 lg:grid-cols-12 lg:items-start lg:gap-x-8 lg:gap-y-8">
               <aside className="flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:col-span-3 lg:max-w-none lg:py-0">
                 <ProductInfo product={product} />
-                {isEmbroideryProduct(product) && <EmbroideryPanel />}
+                {(() => {
+                  const methods = getEnabledDecorationMethods(product)
+                  return methods.length > 0 ? (
+                    <DecorationEstimator methods={methods} />
+                  ) : null
+                })()}
                 <ProductTabs product={product} />
               </aside>
 
