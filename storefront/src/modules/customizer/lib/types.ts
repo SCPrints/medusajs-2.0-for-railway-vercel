@@ -88,4 +88,6 @@ export type CustomizerMetadata = {
   printNotes?: string
   /** Hosted copies of uploaded source files (PNG/JPEG/SVG); omitted when storage unavailable. */
   customerOriginalFiles?: CustomerOriginalFileRef[]
+  /** SCP digital print size for this line; persisted so an "edit from cart" flow can restore it. */
+  scpPrintSizeId?: string
 }

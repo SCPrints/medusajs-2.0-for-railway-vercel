@@ -43,6 +43,10 @@ type PricingPanelProps = {
   hidePrintSizeSelector?: boolean
   /** Hide the panel header (when caller renders its own step heading). */
   hideHeader?: boolean
+  /** Override the primary CTA label (e.g. "Update cart" in edit-from-cart mode). */
+  primaryCtaLabel?: string
+  /** Override the busy/loading CTA label. */
+  primaryCtaLoadingLabel?: string
 }
 
 const formatMoney = (amount: number, currencyCode: string) =>
@@ -75,7 +79,11 @@ export default function PricingPanel({
   scpPricingEnabled = true,
   hidePrintSizeSelector = false,
   hideHeader = false,
+  primaryCtaLabel,
+  primaryCtaLoadingLabel,
 }: PricingPanelProps) {
+  const ctaLabel = primaryCtaLabel ?? "Add to cart"
+  const ctaLoadingLabel = primaryCtaLoadingLabel ?? "Adding..."
   const quantity = sizes.reduce((total, entry) => total + entry.quantity, 0)
   const safeEstimatorQuantity = Math.max(1, quantity)
 
@@ -155,6 +163,7 @@ export default function PricingPanel({
                 min={0}
                 max={999}
                 value={sizeEntry.quantity}
+                onFocus={(event) => event.currentTarget.select()}
                 onChange={(event) =>
                   onChangeSizeQty(sizeEntry.size, Number(event.target.value))
                 }
@@ -319,7 +328,7 @@ export default function PricingPanel({
           className="w-full rounded-xl px-4 py-3.5 text-base font-semibold shadow-sm transition hover:opacity-95 disabled:opacity-50"
           flyImageSrc={flyImageSrc}
         >
-          {isSubmitting ? "Adding..." : "Add to cart"}
+          {isSubmitting ? ctaLoadingLabel : ctaLabel}
         </FlyToCartAddButton>
       ) : (
         <button
@@ -330,7 +339,7 @@ export default function PricingPanel({
           disabled={isSubmitting || quantity <= 0}
           className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:opacity-50"
         >
-          {isSubmitting ? "Adding..." : "Add to cart"}
+          {isSubmitting ? ctaLoadingLabel : ctaLabel}
         </button>
       )}
     </div>
