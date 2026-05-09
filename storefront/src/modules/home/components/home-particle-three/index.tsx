@@ -331,6 +331,22 @@ function ParticleField({
     const vortexRad = t.vortexRadius
     const vortexHalf = t.vortexSpeedHalfLife
     const vortexRadSq = vortexRad * vortexRad
+    /** Mouse motion direction unit vector + perpendicular. Used for the
+     * orbital swirl force: particles on opposite sides of the motion line
+     * get opposite-signed tangential force, producing curl. Hoisted above
+     * the Karman-vortex block so its `mfx/mfy/mrx/mry` and `haveMotion`
+     * are in scope before that block reads them. */
+    const haveMotion = mouseSpeed > 0.001
+    let mfx = 0
+    let mfy = 0
+    let mrx = 0
+    let mry = 0
+    if (haveMotion) {
+      mfx = mvxRaw / mouseSpeed
+      mfy = mvyRaw / mouseSpeed
+      mrx = -mfy
+      mry = mfx
+    }
     /** Karman vortex pair: two counter-rotating centers BEHIND cursor.
      * Only meaningful when cursor is moving. Strength fades smoothly with
      * cursor speed (1 / (1 + speed/halfLife)) so vortices read clearly
@@ -381,20 +397,6 @@ function ParticleField({
         }
       }
       return null
-    }
-    /** Mouse motion direction unit vector + perpendicular. Used for the
-     * orbital swirl force: particles on opposite sides of the motion line
-     * get opposite-signed tangential force, producing curl. */
-    const haveMotion = mouseSpeed > 0.001
-    let mfx = 0
-    let mfy = 0
-    let mrx = 0
-    let mry = 0
-    if (haveMotion) {
-      mfx = mvxRaw / mouseSpeed
-      mfy = mvyRaw / mouseSpeed
-      mrx = -mfy
-      mry = mfx
     }
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
