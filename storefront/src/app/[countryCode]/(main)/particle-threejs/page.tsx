@@ -1,16 +1,9 @@
 import { Metadata } from "next"
-import dynamic from "next/dynamic"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-/** Three.js scene must run on the client only — Canvas + WebGL aren't
- * available on the server. Dynamic import with ssr: false keeps the bundle
- * out of the server-side render. */
-const HomeParticleThree = dynamic(
-  () => import("@modules/home/components/home-particle-three"),
-  { ssr: false }
-)
+import ParticleThreejsClient from "./particle-threejs-client"
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
@@ -53,7 +46,7 @@ export default function ParticleThreePage() {
         </div>
       </div>
       <div className="pt-14">
-        <HomeParticleThree particleCount={140000} />
+        <ParticleThreejsClient particleCount={140000} />
       </div>
     </div>
   )
