@@ -38,6 +38,12 @@ const SPEED_INSIGHTS_URL =
     ? (process as any).env.VERCEL_SPEED_INSIGHTS_URL
     : null
 
+const POSTHOG_PROJECT_URL =
+  typeof process !== "undefined" &&
+  typeof (process as any).env?.POSTHOG_PROJECT_URL === "string"
+    ? (process as any).env.POSTHOG_PROJECT_URL
+    : null
+
 export const OperationalTiles = () => {
   const [storage, setStorage] = useState<StorageResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -153,10 +159,35 @@ export const OperationalTiles = () => {
           <Text size="xsmall" className="text-ui-fg-subtle">
             Session replays + funnel insights (PostHog)
           </Text>
-          <Text size="small" className="text-ui-fg-muted">
-            Open posthog.com → SC Prints project → Replays / Insights for
-            session-level analysis. Wired to fire pageviews + identifies
-            already.
+          {POSTHOG_PROJECT_URL ? (
+            <div className="flex flex-col gap-y-1 mt-0.5">
+              <a
+                href={`${POSTHOG_PROJECT_URL}/replay/recent`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: PALETTE.teal700 }}
+                className="text-base font-medium underline"
+              >
+                Open Session Replays →
+              </a>
+              <a
+                href={`${POSTHOG_PROJECT_URL}/insights`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: PALETTE.teal700 }}
+                className="text-sm underline"
+              >
+                Open Insights →
+              </a>
+            </div>
+          ) : (
+            <Text size="small" className="text-ui-fg-muted">
+              Set POSTHOG_PROJECT_URL to your PostHog project URL to deep-link
+              from here.
+            </Text>
+          )}
+          <Text size="xsmall" className="text-ui-fg-muted mt-1">
+            Pageviews + identifies already wired up.
           </Text>
         </div>
       </div>
