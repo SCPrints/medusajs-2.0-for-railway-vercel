@@ -1,11 +1,12 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import type { AdminOrder, DetailWidgetProps } from "@medusajs/framework/types"
-import { Badge, Button, Container, Heading, Input, Text, Textarea } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Input, Switch, Text, Textarea } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import {
   PRODUCTION_STAGES,
   PRODUCTION_STAGE_LABEL,
+  STAGE_SLA_DAYS,
   STAGES_THAT_EMAIL,
   customerMilestoneForStage,
   isProductionStage,
@@ -15,6 +16,7 @@ import {
 
 const adminPath = (orderId: string) => `/admin/orders/${orderId}/production-stage`
 const dueDatePath = (orderId: string) => `/admin/orders/${orderId}/production-due-date`
+const rushFlagPath = (orderId: string) => `/admin/orders/${orderId}/rush-flag`
 
 type StatusPayload = {
   production_stage: ProductionStage | null
@@ -30,6 +32,13 @@ const formatDate = (iso: string | null | undefined): string => {
   return new Date(ts).toLocaleString()
 }
 
+const formatShortDate = (ms: number): string =>
+  new Date(ms).toLocaleDateString("en-AU", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })
+
 const stageBadgeColor = (stage: ProductionStage | null): "grey" | "blue" | "orange" | "green" => {
   if (!stage) return "grey"
   if (stage === "delivered") return "green"
@@ -40,11 +49,12 @@ const stageBadgeColor = (stage: ProductionStage | null): "grey" | "blue" | "oran
 
 const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
   const orderId = data?.id
+  const meta = (data?.metadata ?? {}) as Record<string, unknown>
 
   const initialStage = useMemo<ProductionStage | null>(() => {
-    const raw = (data?.metadata as Record<string, unknown> | undefined)?.production_stage
+    const raw = meta.production_stage
     return isProductionStage(raw) ? raw : null
-  }, [data?.metadata])
+  }, [meta])
 
   const [status, setStatus] = useState<StatusPayload | null>(null)
   const [pendingStage, setPendingStage] = useState<ProductionStage>(initialStage ?? "received")
@@ -57,6 +67,10 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
   const [dueDate, setDueDate] = useState<string>("")
   const [savingDue, setSavingDue] = useState(false)
   const [dueError, setDueError] = useState<string | null>(null)
+
+  // Rush flag
+  const [isRush, setIsRush] = useState<boolean>(Boolean(meta.is_rush))
+  const [savingRush, setSavingRush] = useState(false)
 
   const load = useCallback(async () => {
     if (!orderId) return
@@ -86,9 +100,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
     }
   }, [orderId])
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  useEffect(() => { void load() }, [load])
 
   const save = useCallback(async () => {
     if (!orderId) return
@@ -141,26 +153,111 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
     }
   }, [orderId, dueDate])
 
+  const toggleRush = useCallback(async (next: boolean) => {
+    if (!orderId) return
+    setIsRush(next)
+    setSavingRush(true)
+    try {
+      await fetch(rushFlagPath(orderId), {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_rush: next }),
+      })
+    } catch {
+      setIsRush(!next) // rollback
+    } finally {
+      setSavingRush(false)
+    }
+  }, [orderId])
+
   const currentStage = status?.production_stage ?? initialStage
   const willEmail = STAGES_THAT_EMAIL.has(pendingStage) && pendingStage !== currentStage
   const noChange = currentStage === pendingStage
+
+  // #10 — days at current stage + SLA status
+  const stageChangedAt = status?.production_stage_changed_at
+  const daysAtStage = useMemo(() => {
+    if (!stageChangedAt) return null
+    const t = Date.parse(stageChangedAt)
+    if (!Number.isFinite(t)) return null
+    return Math.floor((Date.now() - t) / 86_400_000)
+  }, [stageChangedAt])
+
+  const slaStatus = useMemo(() => {
+    if (daysAtStage === null || !currentStage) return null
+    const sla = STAGE_SLA_DAYS[currentStage]
+    if (!sla) return null
+    const overdue = daysAtStage > sla
+    const approaching = !overdue && daysAtStage >= sla * 0.8
+    return { sla, overdue, approaching, daysLeft: sla - daysAtStage }
+  }, [daysAtStage, currentStage])
+
+  // #11 — estimated completion date
+  const estimatedCompletion = useMemo(() => {
+    if (!stageChangedAt || !currentStage) return null
+    const sla = STAGE_SLA_DAYS[currentStage]
+    if (!sla) return null
+    const t = Date.parse(stageChangedAt)
+    if (!Number.isFinite(t)) return null
+    return t + sla * 86_400_000
+  }, [stageChangedAt, currentStage])
 
   if (!orderId) return null
 
   return (
     <Container className="divide-y p-0">
+      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4">
-        <div>
-          <Heading level="h2">Production stage</Heading>
+        <div className="flex flex-col gap-y-0.5">
+          <div className="flex items-center gap-x-2">
+            <Heading level="h2">Production stage</Heading>
+            {isRush ? (
+              <Badge color="red" className="text-[10px] font-bold tracking-wide">
+                RUSH
+              </Badge>
+            ) : null}
+          </div>
           <Text size="small" className="text-ui-fg-subtle mt-1">
             Updates the customer-facing tracker and triggers an email on milestone transitions.
           </Text>
         </div>
-        <Badge color={stageBadgeColor(currentStage)}>
-          {currentStage ? PRODUCTION_STAGE_LABEL[currentStage] : "Not set"}
-        </Badge>
+        <div className="flex flex-col items-end gap-y-1">
+          <Badge color={stageBadgeColor(currentStage)}>
+            {currentStage ? PRODUCTION_STAGE_LABEL[currentStage] : "Not set"}
+          </Badge>
+          {/* #10 — days at stage */}
+          {daysAtStage !== null && slaStatus ? (
+            <Text
+              size="xsmall"
+              className={
+                slaStatus.overdue
+                  ? "text-ui-tag-red-icon font-medium"
+                  : slaStatus.approaching
+                    ? "text-ui-tag-orange-icon"
+                    : "text-ui-fg-subtle"
+              }
+            >
+              {daysAtStage}d at stage
+              {slaStatus.overdue
+                ? ` — ${Math.abs(slaStatus.daysLeft)}d overdue`
+                : ` of ${slaStatus.sla}d SLA`}
+            </Text>
+          ) : daysAtStage !== null ? (
+            <Text size="xsmall" className="text-ui-fg-subtle">
+              {daysAtStage}d at stage
+            </Text>
+          ) : null}
+          {/* #11 — estimated completion */}
+          {estimatedCompletion !== null ? (
+            <Text size="xsmall" className="text-ui-fg-subtle">
+              Est. complete: {formatShortDate(estimatedCompletion)}
+            </Text>
+          ) : null}
+        </div>
       </div>
 
+      {/* Stage update form */}
       <div className="px-6 py-4 flex flex-col gap-y-4">
         {error ? (
           <Text size="small" className="text-ui-fg-error">
@@ -218,6 +315,24 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
             {saving ? "Saving…" : "Update stage"}
           </Button>
         </div>
+      </div>
+
+      {/* Rush flag toggle */}
+      <div className="px-6 py-4 flex items-center justify-between">
+        <div className="flex flex-col gap-y-0.5">
+          <Text size="small" weight="plus">
+            Rush order
+          </Text>
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            Shows a red RUSH badge on the production board. Internal only.
+          </Text>
+        </div>
+        <Switch
+          checked={isRush}
+          onCheckedChange={toggleRush}
+          disabled={savingRush}
+          id="rush-toggle"
+        />
       </div>
 
       {/* Production due date */}
@@ -278,6 +393,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         </Text>
       </div>
 
+      {/* History */}
       <div className="px-6 py-4">
         <Text size="small" weight="plus" className="mb-2">
           History

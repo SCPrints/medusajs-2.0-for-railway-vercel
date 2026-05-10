@@ -52,6 +52,7 @@ type SnapshotOrder = {
   is_stuck: boolean
   stage_changed_at: string | null
   sent_to_ascolour: boolean
+  is_rush: boolean
   production_due_date: string | null
 }
 
@@ -184,9 +185,16 @@ const CalendarCard = ({
     >
       <div className="flex flex-col gap-y-0.5 px-2 py-1.5">
         <div className="flex items-center justify-between gap-x-1">
-          <Text size="small" className="font-mono font-medium">
-            #{order.display_id ?? order.id.slice(-6)}
-          </Text>
+          <div className="flex items-center gap-x-1">
+            <Text size="small" className="font-mono font-medium">
+              #{order.display_id ?? order.id.slice(-6)}
+            </Text>
+            {order.is_rush ? (
+              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-red-600 text-white leading-none">
+                RUSH
+              </span>
+            ) : null}
+          </div>
           <Text
             size="xsmall"
             className="tabular-nums shrink-0"

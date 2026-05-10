@@ -53,6 +53,7 @@ type SnapshotOrder = {
   stage_changed_at: string | null
   sent_to_ascolour: boolean
   production_due_date: string | null
+  is_rush: boolean
 }
 
 type SnapshotStage = {
@@ -210,7 +211,11 @@ const ProductionPage = () => {
     initial.supplier
   )
   const [stuckOnly, setStuckOnly] = useState(initial.stuckOnly)
+  const [rushOnly, setRushOnly] = useState(false)
   const [search, setSearch] = useState("")
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkStage, setBulkStage] = useState<string>("")
+  const [bulkMoving, setBulkMoving] = useState(false)
 
   // Drill-down drawer
   const [drillStage, setDrillStage] = useState<string | null>(
@@ -231,6 +236,7 @@ const ProductionPage = () => {
       }
       if (supplier !== "all") params.set("supplier", supplier)
       if (stuckOnly) params.set("stuck", "1")
+      if (rushOnly) params.set("rush", "1")
       const qs = params.toString()
       const res = await fetch(
         `/admin/reports/production-snapshot${qs ? `?${qs}` : ""}`,
@@ -239,12 +245,13 @@ const ProductionPage = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = (await res.json()) as Snapshot
       setSnapshot(data)
+      setSelectedIds(new Set()) // clear selection on refresh
     } catch (e: any) {
       setError(e?.message ?? String(e))
     } finally {
       setLoading(false)
     }
-  }, [methods, supplier, stuckOnly])
+  }, [methods, supplier, stuckOnly, rushOnly])
 
   useEffect(() => {
     void fetchSnapshot()
@@ -293,6 +300,72 @@ const ProductionPage = () => {
     () => filteredStages.find((s) => s.stage === drillStage) ?? null,
     [filteredStages, drillStage]
   )
+
+  // Bulk move handler
+  const bulkMove = useCallback(async () => {
+    if (!bulkStage || selectedIds.size === 0 || bulkMoving) return
+    setBulkMoving(true)
+    try {
+      await fetch("/admin/orders/bulk/production-stage", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_ids: Array.from(selectedIds),
+          stage: bulkStage,
+        }),
+      })
+      setRefreshNonce((n) => n + 1)
+    } catch {
+      // non-fatal — snapshot will refresh anyway
+    } finally {
+      setBulkMoving(false)
+    }
+  }, [bulkStage, selectedIds, bulkMoving])
+
+  // At-risk banner: orders breaching SLA within 24h
+  const atRiskCount = useMemo(() => {
+    if (!snapshot) return 0
+    const horizon = Date.now() + 86_400_000
+    let count = 0
+    for (const stage of snapshot.stages) {
+      const sla = stage.sla_days
+      if (!sla) continue
+      for (const order of stage.orders) {
+        const changedAt = order.stage_changed_at
+        if (!changedAt) continue
+        const t = Date.parse(changedAt)
+        if (!Number.isFinite(t)) continue
+        const breachAt = t + sla * 86_400_000
+        if (breachAt > Date.now() && breachAt <= horizon) count++
+      }
+    }
+    return count
+  }, [snapshot])
+
+  // Tomorrow panel: orders expected to complete their stage tomorrow
+  const tomorrowOrders = useMemo(() => {
+    if (!snapshot) return []
+    const todayEnd = new Date()
+    todayEnd.setUTCHours(23, 59, 59, 999)
+    const tomorrowEnd = new Date(todayEnd.getTime() + 86_400_000)
+    const rows: Array<{ order: SnapshotOrder; stage: string }> = []
+    for (const stage of snapshot.stages) {
+      const sla = stage.sla_days
+      if (!sla) continue
+      for (const order of stage.orders) {
+        const changedAt = order.stage_changed_at
+        if (!changedAt) continue
+        const t = Date.parse(changedAt)
+        if (!Number.isFinite(t)) continue
+        const breachAt = t + sla * 86_400_000
+        if (breachAt > todayEnd.getTime() && breachAt <= tomorrowEnd.getTime()) {
+          rows.push({ order, stage: stage.stage })
+        }
+      }
+    }
+    return rows.sort((a, b) => a.order.days_at_stage - b.order.days_at_stage)
+  }, [snapshot])
 
   /* bookmark serialization */
   const currentBookmarkQuery = useMemo(() => {
@@ -438,14 +511,24 @@ const ProductionPage = () => {
             />
           </div>
 
-          {/* Stuck */}
-          <div className="lg:col-span-2 flex items-center gap-x-2 pb-2">
-            <Switch
-              checked={stuckOnly}
-              onCheckedChange={setStuckOnly}
-              id="stuck-only"
-            />
-            <Label htmlFor="stuck-only">Stuck only</Label>
+          {/* Stuck + Rush */}
+          <div className="lg:col-span-2 flex flex-col gap-y-1.5 pb-2">
+            <div className="flex items-center gap-x-2">
+              <Switch
+                checked={stuckOnly}
+                onCheckedChange={setStuckOnly}
+                id="stuck-only"
+              />
+              <Label htmlFor="stuck-only">Stuck only</Label>
+            </div>
+            <div className="flex items-center gap-x-2">
+              <Switch
+                checked={rushOnly}
+                onCheckedChange={setRushOnly}
+                id="rush-only"
+              />
+              <Label htmlFor="rush-only" className="text-ui-tag-red-icon font-medium">Rush only</Label>
+            </div>
           </div>
         </div>
 
@@ -483,6 +566,66 @@ const ProductionPage = () => {
         onApply={applyBookmark}
       />
 
+      {/* At-risk banner (#3) */}
+      {atRiskCount > 0 ? (
+        <div
+          className="flex items-center justify-between gap-x-3 px-4 py-2 rounded-lg text-sm font-medium"
+          style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}
+        >
+          <span>
+            ⚠ {atRiskCount} {atRiskCount === 1 ? "order" : "orders"} will breach SLA in the next 24 hours
+          </span>
+          <button
+            type="button"
+            onClick={() => setStuckOnly(true)}
+            className="underline text-xs hover:no-underline"
+          >
+            Show stuck orders →
+          </button>
+        </div>
+      ) : null}
+
+      {/* Tomorrow panel (#4) */}
+      <TomorrowPanel orders={tomorrowOrders} />
+
+      {/* Bulk action bar (#2) */}
+      {selectedIds.size > 0 ? (
+        <div
+          className="flex items-center gap-x-3 px-4 py-2 rounded-lg text-sm"
+          style={{ background: "#f0f9ff", border: "1px solid #bae6fd" }}
+        >
+          <Text size="small" className="font-medium">
+            {selectedIds.size} selected
+          </Text>
+          <select
+            value={bulkStage}
+            onChange={(e) => setBulkStage(e.target.value)}
+            className="bg-ui-bg-base border border-ui-border-base rounded-md px-2 py-1 text-sm focus:outline-none"
+          >
+            <option value="">Move to stage…</option>
+            {PRODUCTION_STAGES.map((s) => (
+              <option key={s} value={s}>
+                {PRODUCTION_STAGE_LABEL[s]}
+              </option>
+            ))}
+          </select>
+          <Button
+            size="small"
+            onClick={bulkMove}
+            disabled={!bulkStage || bulkMoving}
+          >
+            {bulkMoving ? "Moving…" : "Apply"}
+          </Button>
+          <Button
+            size="small"
+            variant="transparent"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Clear selection
+          </Button>
+        </div>
+      ) : null}
+
       {/* Body — error / loading / content */}
       {error ? (
         <Container>
@@ -505,6 +648,15 @@ const ProductionPage = () => {
           stages={filteredStages}
           onStageClick={(stage) => setDrillStage(stage)}
           onAdvanced={() => setRefreshNonce((n) => n + 1)}
+          selectedIds={selectedIds}
+          onToggleSelect={(id) =>
+            setSelectedIds((prev) => {
+              const next = new Set(prev)
+              if (next.has(id)) next.delete(id)
+              else next.add(id)
+              return next
+            })
+          }
         />
       ) : null}
 
@@ -541,7 +693,7 @@ const ProductionPage = () => {
             {drillStageData ? (
               <div className="flex flex-col gap-y-2">
                 {drillStageData.orders.map((o) => (
-                  <OrderRow key={o.id} order={o} stage={drillStageData.stage} onAdvanced={() => setRefreshNonce((n) => n + 1)} />
+                  <OrderRow key={o.id} order={o} stage={drillStageData.stage} onAdvanced={() => setRefreshNonce((n) => n + 1)} selected={selectedIds.has(o.id)} onToggleSelect={(id) => setSelectedIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next })} />
                 ))}
                 {drillStageData.truncated ? (
                   <Text size="xsmall" className="text-ui-fg-muted pt-2">
@@ -564,15 +716,26 @@ const StageListView = ({
   stages,
   onStageClick,
   onAdvanced,
+  selectedIds,
+  onToggleSelect,
 }: {
   stages: SnapshotStage[]
   onStageClick: (stage: string) => void
   onAdvanced: () => void
+  selectedIds: Set<string>
+  onToggleSelect: (id: string) => void
 }) => {
   return (
     <div className="flex flex-col gap-y-3">
       {stages.map((s) => (
-        <StageSection key={s.stage} stage={s} onHeaderClick={onStageClick} onAdvanced={onAdvanced} />
+        <StageSection
+          key={s.stage}
+          stage={s}
+          onHeaderClick={onStageClick}
+          onAdvanced={onAdvanced}
+          selectedIds={selectedIds}
+          onToggleSelect={onToggleSelect}
+        />
       ))}
     </div>
   )
@@ -582,10 +745,14 @@ const StageSection = ({
   stage,
   onHeaderClick,
   onAdvanced,
+  selectedIds,
+  onToggleSelect,
 }: {
   stage: SnapshotStage
   onHeaderClick: (stage: string) => void
   onAdvanced: () => void
+  selectedIds: Set<string>
+  onToggleSelect: (id: string) => void
 }) => {
   const [expanded, setExpanded] = useState<boolean>(stage.stuck_count > 0)
   const empty = stage.count === 0
@@ -644,7 +811,14 @@ const StageSection = ({
       {expanded && stage.count > 0 ? (
         <div className="flex flex-col gap-y-1 px-4 pb-4">
           {stage.orders.slice(0, 5).map((o) => (
-            <OrderRow key={o.id} order={o} stage={stage.stage} onAdvanced={onAdvanced} />
+            <OrderRow
+              key={o.id}
+              order={o}
+              stage={stage.stage}
+              onAdvanced={onAdvanced}
+              selected={selectedIds.has(o.id)}
+              onToggleSelect={onToggleSelect}
+            />
           ))}
           {stage.count > 5 ? (
             <Button
@@ -727,10 +901,14 @@ const OrderRow = ({
   order,
   stage,
   onAdvanced,
+  selected = false,
+  onToggleSelect,
 }: {
   order: SnapshotOrder
   stage: string
   onAdvanced?: () => void
+  selected?: boolean
+  onToggleSelect?: (id: string) => void
 }) => {
   const band = stageHealthBand(stage, order.days_at_stage)
   const bandColor = STAGE_HEALTH_COLORS[band]
@@ -755,83 +933,123 @@ const OrderRow = ({
       })
       onAdvanced?.()
     } catch {
-      // non-fatal — let the user retry
+      // non-fatal
     } finally {
       setAdvancing(false)
     }
   }
 
   return (
-    <a
-      href={`/app/orders/${order.id}`}
-      className="flex items-center gap-x-3 px-3 py-2 rounded-md border border-ui-border-base hover:bg-ui-bg-subtle transition"
-    >
-      <div className="flex flex-col w-24 shrink-0">
-        <Text size="small" className="font-mono">
-          #{order.display_id ?? order.id.slice(-6)}
-        </Text>
-        <Text size="xsmall" className="text-ui-fg-muted">
-          {order.items_count} items
-        </Text>
-      </div>
-      <div className="flex flex-col flex-1 min-w-0">
-        <Text size="small" className="font-medium truncate">
-          {order.customer}
-        </Text>
-        <Text size="xsmall" className="text-ui-fg-muted truncate">
-          {order.garments.slice(0, 2).join(", ")}
-          {order.garments.length > 2
-            ? ` +${order.garments.length - 2} more`
-            : ""}
-        </Text>
-      </div>
-      <div className="flex flex-wrap gap-1 max-w-[140px]">
-        {order.methods.slice(0, 3).map((m) => (
-          <span
-            key={m}
-            className="text-[10px] px-1.5 py-0.5 rounded"
-            style={{
-              background: DECORATION_METHOD_COLORS[m],
-              color: "white",
-            }}
-          >
-            {DECORATION_METHOD_LABELS[m]}
-          </span>
-        ))}
-      </div>
-      <div className="flex flex-col items-end shrink-0 w-24">
-        <Tooltip content={`SLA band: ${band}`}>
-          <Text
-            size="small"
-            className="font-medium tabular-nums"
-            style={{ color: bandColor }}
-          >
-            <Clock className="inline-block mr-1" />
-            {order.days_at_stage}d
+    <div className="flex items-center gap-x-2">
+      {onToggleSelect ? (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => { e.stopPropagation(); onToggleSelect(order.id) }}
+          className="shrink-0 w-4 h-4 rounded border-ui-border-base cursor-pointer"
+          aria-label={`Select order #${order.display_id}`}
+        />
+      ) : null}
+      <a
+        href={`/app/orders/${order.id}`}
+        className="flex flex-1 items-center gap-x-3 px-3 py-2 rounded-md border border-ui-border-base hover:bg-ui-bg-subtle transition"
+        style={selected ? { background: "#f0f9ff", borderColor: "#7dd3fc" } : undefined}
+      >
+        <div className="flex flex-col w-24 shrink-0">
+          <div className="flex items-center gap-x-1">
+            <Text size="small" className="font-mono">
+              #{order.display_id ?? order.id.slice(-6)}
+            </Text>
+            {order.is_rush ? (
+              <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-600 text-white leading-none">
+                RUSH
+              </span>
+            ) : null}
+          </div>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            {order.items_count} items
           </Text>
-        </Tooltip>
-        <Text size="xsmall" className="text-ui-fg-muted tabular-nums">
-          {formatCurrency(order.total, order.currency_code)}
-        </Text>
-      </div>
-      {order.sent_to_ascolour ? (
-        <Tooltip content="Sent to AS Colour">
-          <StatusBadge color="blue">AC</StatusBadge>
-        </Tooltip>
+        </div>
+        <div className="flex flex-col flex-1 min-w-0">
+          <Text size="small" className="font-medium truncate">
+            {order.customer}
+          </Text>
+          <Text size="xsmall" className="text-ui-fg-muted truncate">
+            {order.garments.slice(0, 2).join(", ")}
+            {order.garments.length > 2 ? ` +${order.garments.length - 2} more` : ""}
+          </Text>
+        </div>
+        <div className="flex flex-wrap gap-1 max-w-[140px]">
+          {order.methods.slice(0, 3).map((m) => (
+            <span
+              key={m}
+              className="text-[10px] px-1.5 py-0.5 rounded"
+              style={{ background: DECORATION_METHOD_COLORS[m], color: "white" }}
+            >
+              {DECORATION_METHOD_LABELS[m]}
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-col items-end shrink-0 w-24">
+          <Tooltip content={`SLA band: ${band}`}>
+            <Text size="small" className="font-medium tabular-nums" style={{ color: bandColor }}>
+              <Clock className="inline-block mr-1" />
+              {order.days_at_stage}d
+            </Text>
+          </Tooltip>
+          <Text size="xsmall" className="text-ui-fg-muted tabular-nums">
+            {formatCurrency(order.total, order.currency_code)}
+          </Text>
+        </div>
+        {order.sent_to_ascolour ? (
+          <Tooltip content="Sent to AS Colour">
+            <StatusBadge color="blue">AC</StatusBadge>
+          </Tooltip>
+        ) : null}
+        {nextStage ? (
+          <Tooltip content={`Advance to: ${PRODUCTION_STAGE_LABEL[nextStage]}`}>
+            <button
+              type="button"
+              onClick={advance}
+              disabled={advancing}
+              className="shrink-0 inline-flex items-center px-2 py-1 rounded text-xs border border-ui-border-base hover:bg-ui-bg-base-pressed transition disabled:opacity-40"
+            >
+              {advancing ? "…" : "→"}
+            </button>
+          </Tooltip>
+        ) : null}
+      </a>
+    </div>
+  )
+}
+
+const TomorrowPanel = ({ orders }: { orders: Array<{ order: SnapshotOrder; stage: string }> }) => {
+  const [open, setOpen] = useState(true)
+  if (orders.length === 0) return null
+  return (
+    <Container className="p-0 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between gap-x-3 w-full px-4 py-3 hover:bg-ui-bg-subtle text-left"
+      >
+        <div className="flex items-center gap-x-2">
+          <span className="text-sm font-semibold">📅 Due tomorrow</span>
+          <Badge size="2xsmall">{orders.length}</Badge>
+        </div>
+        <Text size="xsmall" className="text-ui-fg-muted">{open ? "Hide" : "Show"}</Text>
+      </button>
+      {open ? (
+        <div className="flex flex-col gap-y-1 px-4 pb-3">
+          <Text size="xsmall" className="text-ui-fg-subtle mb-1">
+            Orders expected to complete their current stage tomorrow — plan ahead for QC and shipping.
+          </Text>
+          {orders.map(({ order, stage }) => (
+            <OrderRow key={order.id} order={order} stage={stage} />
+          ))}
+        </div>
       ) : null}
-      {nextStage ? (
-        <Tooltip content={`Advance to: ${PRODUCTION_STAGE_LABEL[nextStage]}`}>
-          <button
-            type="button"
-            onClick={advance}
-            disabled={advancing}
-            className="shrink-0 inline-flex items-center px-2 py-1 rounded text-xs border border-ui-border-base hover:bg-ui-bg-base-pressed transition disabled:opacity-40"
-          >
-            {advancing ? "…" : "→"}
-          </button>
-        </Tooltip>
-      ) : null}
-    </a>
+    </Container>
   )
 }
 
@@ -879,9 +1097,16 @@ const KanbanCard = ({
       className="flex flex-col gap-y-1 p-2 rounded-md bg-ui-bg-base border border-ui-border-base hover:border-ui-border-strong"
     >
       <div className="flex items-center justify-between">
-        <Text size="small" className="font-mono">
-          #{order.display_id ?? order.id.slice(-6)}
-        </Text>
+        <div className="flex items-center gap-x-1">
+          <Text size="small" className="font-mono">
+            #{order.display_id ?? order.id.slice(-6)}
+          </Text>
+          {order.is_rush ? (
+            <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-red-600 text-white leading-none">
+              RUSH
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center gap-x-1">
           <Text
             size="xsmall"

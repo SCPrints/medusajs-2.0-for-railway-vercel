@@ -88,6 +88,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const supplierFilter = (req.query.supplier as string | undefined)?.trim()
   const regionFilter = (req.query.region_id as string | undefined)?.trim() || null
   const stuckOnly = req.query.stuck === "1"
+  const rushOnly = req.query.rush === "1"
   const includeDone = req.query.include_done === "1"
 
   // Pull all orders we may need; filter in-memory because production_stage
@@ -172,6 +173,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     stage_changed_at: string | null
     sent_to_ascolour: boolean
     production_due_date: string | null
+    is_rush: boolean
   }
 
   const stageBuckets: Record<ProductionStage, OrderSummary[]> = Object.fromEntries(
@@ -213,6 +215,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     if (stuckOnly && !isStuck) continue
 
+    const isRush = Boolean(meta.is_rush)
+    if (rushOnly && !isRush) continue
+
     const customerName =
       (order.customer_id ? customerNameMap.get(order.customer_id) : "") ||
       order.email ||
@@ -246,6 +251,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         typeof meta.production_due_date === "string"
           ? (meta.production_due_date as string)
           : null,
+      is_rush: isRush,
     })
   }
 
@@ -322,6 +328,7 @@ export type ProductionSnapshotResponse = {
       stage_changed_at: string | null
       sent_to_ascolour: boolean
       production_due_date: string | null
+      is_rush: boolean
     }>
   }>
 }
