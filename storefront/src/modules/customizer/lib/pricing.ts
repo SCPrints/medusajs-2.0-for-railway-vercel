@@ -1,7 +1,6 @@
 import { convertToLocale } from "@lib/util/money"
 import {
   isWholesaleGroup,
-  resolveWholesalePrintTierIndex,
   wholesalePrintUnitMajorForTier,
 } from "@lib/wholesale-dtf-print-pricing"
 
@@ -89,9 +88,8 @@ export const calculatePricing = ({
     decoratedSidesResolved > 0 ? round2(decoratedSidesResolved * SIDE_SURCHARGE) : 0
 
   if (wholesale) {
-    // Wholesale print pricing: use the cheaper wholesale matrix with its own
-    // quantity bands (1–5, 6–24, 25–49, 50–99, 100+).
-    const tierIndex = resolveWholesalePrintTierIndex(safeQuantity)
+    // Wholesale print pricing uses the same quantity bands as retail.
+    const tierIndex = resolveScpTierIndexForQuantity(safeQuantity)
     if (Array.isArray(prints) && prints.length > 0) {
       sideSurchargePerUnit = round2(
         prints.reduce((sum, print) => {

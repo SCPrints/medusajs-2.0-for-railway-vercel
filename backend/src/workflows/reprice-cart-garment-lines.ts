@@ -15,7 +15,6 @@ import {
 } from "../lib/scp-resolve-garment-unit-price"
 import {
   isWholesaleGroup,
-  resolveWholesalePrintTierIndex,
   wholesalePrintUnitMajorForTier,
 } from "../lib/wholesale-dtf-print-pricing"
 
@@ -92,9 +91,8 @@ const computeRepricingStep = createStep(
     const isWholesale = wholesaleGroupName !== null
     const track = isWholesale ? ("wholesale" as const) : ("retail" as const)
 
-    // Determine tier indices.
+    // Wholesale print uses the same quantity bands as retail.
     const retailTierIndex = resolveScpTierIndexForQuantity(totalQty)
-    const wholesalePrintTierIndex = resolveWholesalePrintTierIndex(totalQty)
 
     const changes: LineReprice[] = []
 
@@ -152,7 +150,7 @@ const computeRepricingStep = createStep(
           printMajor = round2(
             decoratedLocations.reduce((sum, loc) => {
               const sizeId = isScpPrintSizeId(loc.printSizeId) ? loc.printSizeId : fallbackSizeId
-              return sum + wholesalePrintUnitMajorForTier(sizeId, wholesalePrintTierIndex)
+              return sum + wholesalePrintUnitMajorForTier(sizeId, retailTierIndex)
             }, 0)
           )
         } else {
