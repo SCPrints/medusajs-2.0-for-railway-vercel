@@ -22,6 +22,10 @@ import {
   resolveGarmentUnitAmountMajor,
 } from "../../../../../lib/scp-resolve-garment-unit-price"
 import { getPostHog } from "../../../../../lib/posthog"
+import {
+  applyCartGarmentReprice,
+  repriceCartGarmentLinesWorkflow,
+} from "../../../../../workflows/reprice-cart-garment-lines"
 
 const cartParamsSchema = z.object({
   id: z.string().min(1),
@@ -282,6 +286,23 @@ async function scpLineItemsPostHandler(req: MedusaRequest, res: MedusaResponse) 
   // assertion above (line appended for `variantId`, count went up) is enough
   // to rule out a silent no-op; storefront-side display issues are caught by
   // the `assertLineItemsLookHealthy` guard in `storefront/src/lib/data/cart.ts`.
+
+  // Reprice all garment lines in the cart so the new total-quantity pool is
+  // reflected immediately (before the async cart.updated subscriber fires).
+  try {
+    const repriceResult = await repriceCartGarmentLinesWorkflow(req.scope).run({
+      input: { cart_id: cartId },
+    })
+    const changes = repriceResult.result.changes
+    if (changes.length) {
+      await applyCartGarmentReprice(req.scope, cartId, changes)
+    }
+  } catch (repriceErr) {
+    // Repricing is best-effort — a failure here must not block the cart-add
+    // response. The subscriber will retry on the next cart.updated event.
+    // eslint-disable-next-line no-console
+    console.error("scp-line-items: post-add reprice failed (non-fatal)", repriceErr)
+  }
 
   const distinctId = (req as any).auth_context?.actor_id ?? `cart_${cartId}`
   getPostHog()?.capture({

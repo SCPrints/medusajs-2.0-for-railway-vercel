@@ -163,6 +163,12 @@ type CustomizerTemplateProps = {
    * their product up front and never show the picker.
    */
   pickerProducts?: CustomizerPickerProduct[]
+  /**
+   * Wholesale customer group name (e.g. "wholesale_bronze"). When set, the UI
+   * uses the wholesale print matrix for the price preview. The backend always
+   * recomputes the authoritative price regardless of this value.
+   */
+  customerGroup?: string | null
 }
 
 // Visual-only dimensions used to scale the dashed print-area guide on the
@@ -515,6 +521,7 @@ export default function CustomizerTemplate({
   pdpSyncedVariantId = null,
   integratedPdpSlots,
   pickerProducts,
+  customerGroup = null,
 }: CustomizerTemplateProps) {
   const params = useParams()
   const router = useRouter()
@@ -988,9 +995,12 @@ export default function CustomizerTemplate({
     decoratedSidesCount,
     decoratedSides,
     totalQuantity: totalQty,
-    bulkPricingTiers,
+    // Wholesale customers have a flat garment price (no bulk-tier ladder) —
+    // suppress the tiers so calculatePricing uses basePriceCents directly.
+    bulkPricingTiers: customerGroup ? undefined : bulkPricingTiers,
     scpPrint: { printSizeId: scpPrintSizeId },
     prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
+    customerGroup,
   })
 
   const updateLayers = () => {

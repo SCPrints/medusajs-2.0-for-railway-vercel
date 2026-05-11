@@ -33,6 +33,13 @@ export type PricingInput = {
    * legacy path because they don't carry `prints`.
    */
   prints?: PrintPricingSpec[]
+  /**
+   * Wholesale customer group name (e.g. "wholesale_bronze"). When set, the
+   * wholesale print matrix and tier bands are used, and the garment bulk-tier
+   * ladder is suppressed (garment price is already at the flat wholesale rate
+   * via the Medusa Price List and comes in as basePriceCents).
+   */
+  customerGroup?: string | null
 }
 
 /** Pricing-only view of a single logical print (one heat-press transfer). */

@@ -4,8 +4,10 @@ import { notFound } from "next/navigation"
 import ProductTemplate from "@modules/products/templates"
 import { getRegion, listRegions } from "@lib/data/regions"
 import { getProductByHandle, getProductsList } from "@lib/data/products"
+import { getCustomer } from "@lib/data/customer"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import { isWholesaleGroup } from "@lib/wholesale-dtf-print-pricing"
 
 type Props = {
   params: Promise<{ countryCode: string; handle: string }>
@@ -126,6 +128,10 @@ export default async function ProductPage({ params }: Props) {
         product={pricedProduct}
         region={region}
         countryCode={normalizedCountryCode}
+        customerGroup={await getCustomer().then((c) => {
+          const groups = (c as { groups?: Array<{ name?: string }> } | null)?.groups ?? []
+          return groups.find((g) => isWholesaleGroup(g.name ?? ""))?.name ?? null
+        }).catch(() => null)}
       />
     </>
   )

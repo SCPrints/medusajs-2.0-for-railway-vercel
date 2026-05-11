@@ -4,8 +4,10 @@ import { HttpTypes } from "@medusajs/types"
 import { getMyDesign } from "@lib/data/designs"
 import { retrieveOrder } from "@lib/data/orders"
 import { getProductsList } from "@lib/data/products"
+import { getCustomer } from "@lib/data/customer"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { extractDefaultGarmentFromProduct } from "@modules/customizer/lib/default-garment"
+import { isWholesaleGroup } from "@lib/wholesale-dtf-print-pricing"
 import CustomizerTemplate from "@modules/customizer/templates"
 import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
 
@@ -231,6 +233,11 @@ export default async function CustomizerPage({ params, searchParams }: Customize
 
   const defaultGarment = extractDefaultGarmentFromProduct(customizerProduct)
 
+  const customer = await getCustomer().catch(() => null)
+  const customerGroups = (customer as { groups?: Array<{ name?: string }> } | null)?.groups ?? []
+  const wholesaleGroup = customerGroups.find((g) => isWholesaleGroup(g.name ?? ""))
+  const customerGroup = wholesaleGroup?.name ?? null
+
   return (
     <ProductOptionsProvider product={customizerProduct}>
       <CustomizerTemplate
@@ -238,6 +245,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
         defaultGarmentTitle={defaultGarment?.title ?? null}
         product={customizerProduct}
         pickerProducts={pickerProducts}
+        customerGroup={customerGroup}
       />
     </ProductOptionsProvider>
   )

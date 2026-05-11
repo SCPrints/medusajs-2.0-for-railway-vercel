@@ -15,13 +15,15 @@ type Props = {
     gallery: ReactNode
     variantPickers: ReactNode
   }
+  /** Wholesale group name for the logged-in customer, passed from the server parent. */
+  customerGroup?: string | null
 }
 
 /**
  * Logo customizer on the PDP: variant selection can live in `integratedPdpSlots.variantPickers`
  * so it aligns with ProductActions; canvas shows the garment mockup for the synced variant.
  */
-export default function EmbeddedProductCustomizer({ product, integratedPdpSlots }: Props) {
+export default function EmbeddedProductCustomizer({ product, integratedPdpSlots, customerGroup = null }: Props) {
   const productOptions = useProductOptionsOptional()
 
   const syncVariantId = useMemo(() => {
@@ -47,6 +49,7 @@ export default function EmbeddedProductCustomizer({ product, integratedPdpSlots 
       defaultGarmentImage={defaultGarment?.url ?? null}
       defaultGarmentTitle={defaultGarment?.title ?? null}
       product={product}
+      customerGroup={customerGroup}
     />
   )
 }

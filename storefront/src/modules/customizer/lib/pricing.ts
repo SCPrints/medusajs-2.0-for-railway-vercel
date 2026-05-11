@@ -1,4 +1,9 @@
 import { convertToLocale } from "@lib/util/money"
+import {
+  isWholesaleGroup,
+  resolveWholesalePrintTierIndex,
+  wholesalePrintUnitMajorForTier,
+} from "@lib/wholesale-dtf-print-pricing"
 
 import {
   resolveScpPrintSizeForSide,
@@ -74,11 +79,54 @@ export const calculatePricing = ({
   bulkPricingTiers,
   scpPrint,
   prints,
+  customerGroup,
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
   const decoratedSidesResolved = Math.max(0, Math.floor(decoratedSidesCount || 0))
+  const wholesale = isWholesaleGroup(customerGroup ?? null)
+
   let sideSurchargePerUnit =
     decoratedSidesResolved > 0 ? round2(decoratedSidesResolved * SIDE_SURCHARGE) : 0
+
+  if (wholesale) {
+    // Wholesale print pricing: use the cheaper wholesale matrix with its own
+    // quantity bands (1–5, 6–24, 25–49, 50–99, 100+).
+    const tierIndex = resolveWholesalePrintTierIndex(safeQuantity)
+    if (Array.isArray(prints) && prints.length > 0) {
+      sideSurchargePerUnit = round2(
+        prints.reduce((sum, print) => {
+          const sizeId = resolveScpPrintSizeForSide(print.side, print.sizeId)
+          return sum + wholesalePrintUnitMajorForTier(sizeId, tierIndex)
+        }, 0)
+      )
+    } else if (scpPrint && decoratedSidesResolved > 0) {
+      sideSurchargePerUnit = Array.isArray(decoratedSides) && decoratedSides.length
+        ? round2(
+            decoratedSides.reduce((sum, side) => {
+              const sizeId = resolveScpPrintSizeForSide(side, scpPrint.printSizeId)
+              return sum + wholesalePrintUnitMajorForTier(sizeId, tierIndex)
+            }, 0)
+          )
+        : round2(
+            decoratedSidesResolved *
+              wholesalePrintUnitMajorForTier(scpPrint.printSizeId, tierIndex)
+          )
+    }
+    // Wholesale garment price is flat (no bulk ladder) — basePriceCents is
+    // the Price List price returned by Medusa's calculated_price.
+    const baseUnit = Math.max(0, round2(basePriceCents))
+    const discountedUnitPriceCents = round2(baseUnit + sideSurchargePerUnit)
+    const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
+    return {
+      baseUnitPriceCents: baseUnit,
+      sideSurchargePerUnitCents: sideSurchargePerUnit,
+      sideSurchargeTotalCents,
+      quantityDiscountRate: 0,
+      hasBulkPricing: false,
+      discountedUnitPriceCents,
+      totalPriceCents: round2(discountedUnitPriceCents * safeQuantity),
+    }
+  }
 
   if (scpPrint && decoratedSidesResolved > 0) {
     const tierIndex = resolveScpTierIndexForQuantity(safeQuantity)
@@ -125,7 +173,11 @@ export const calculatePricing = ({
     ? beforeDiscountUnit
     : round2(beforeDiscountUnit * (1 - quantityDiscountRate))
   const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
-  const totalPriceCents = round2(discountedUnitPriceCents * safeQuantity)
+  // Compute total from unrounded intermediate to avoid per-unit rounding error
+  // accumulating over quantity (e.g. round2(23.375) × 50 = 1169, not 1168.75).
+  const totalPriceCents = normalizedTiers.length
+    ? round2(beforeDiscountUnit * safeQuantity)
+    : round2(beforeDiscountUnit * (1 - quantityDiscountRate) * safeQuantity)
 
   return {
     baseUnitPriceCents: baseUnit,

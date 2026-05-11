@@ -25,12 +25,14 @@ type ProductTemplateProps = {
   product: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   countryCode: string
+  customerGroup?: string | null
 }
 
 const ProductTemplate: React.FC<ProductTemplateProps> = ({
   product,
   region,
   countryCode,
+  customerGroup = null,
 }) => {
   if (!product || !product.id) {
     return null
@@ -146,6 +148,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
                       gallery: gallerySlot,
                       variantPickers: variantPickersSlot,
                     }}
+                    customerGroup={customerGroup}
                   />
                 </PdpCustomizerBoundary>
               </div>

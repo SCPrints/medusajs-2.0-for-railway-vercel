@@ -13,7 +13,7 @@ import { authedNextHeaders, awaitedAuthHeaders } from "./sdk-helpers"
 export const getCustomer = cache(async function () {
   const headers = await authedNextHeaders({ tags: ["customer"] })
   return await sdk.store.customer
-    .retrieve({}, headers)
+    .retrieve({ fields: "+groups.id,+groups.name" }, headers)
     .then(({ customer }) => customer)
     .catch(() => null)
 })
