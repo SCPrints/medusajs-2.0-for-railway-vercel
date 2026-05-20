@@ -7,6 +7,11 @@ import {
 import { z } from "zod"
 
 import { BRAND_MODULE } from "../../../../../modules/brand"
+import {
+  revalidateStorefrontTags,
+  tagsForBrand,
+  tagsForProduct,
+} from "../../../../../lib/storefront-revalidate"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -93,6 +98,35 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       [Modules.PRODUCT]: { product_id: id },
       [BRAND_MODULE]: { brand_id },
     })
+  }
+
+  // Purge the affected product PDP + both brand landings (old + new). Hand
+  // off the handles via one graph call so we don't issue two retrieves.
+  try {
+    const { data } = await query.graph({
+      entity: "product",
+      fields: ["handle"],
+      filters: { id: [id] },
+    })
+    const productHandle = (data?.[0] as any)?.handle ?? null
+    const brandIds = [current, brand_id].filter((b): b is string => !!b)
+    let brandHandles: string[] = []
+    if (brandIds.length) {
+      const brands = await query.graph({
+        entity: "brand",
+        fields: ["handle"],
+        filters: { id: brandIds },
+      })
+      brandHandles = (brands.data ?? [])
+        .map((b: any) => b?.handle)
+        .filter((h: unknown): h is string => typeof h === "string" && h.length > 0)
+    }
+    const tags = new Set<string>(tagsForProduct(productHandle))
+    for (const h of brandHandles) for (const t of tagsForBrand(h)) tags.add(t)
+    void revalidateStorefrontTags([...tags])
+  } catch {
+    // Best-effort cache purge — never block the link mutation on it.
+    void revalidateStorefrontTags(["products", "brands"])
   }
 
   res.json({ brand_id, changed: true })

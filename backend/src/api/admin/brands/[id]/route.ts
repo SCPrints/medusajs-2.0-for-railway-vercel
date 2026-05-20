@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { BRAND_MODULE } from "../../../../modules/brand"
 import type BrandModuleService from "../../../../modules/brand/service"
+import { revalidateStorefrontTags, tagsForBrand } from "../../../../lib/storefront-revalidate"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -83,6 +84,16 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   await brandService.updateBrands({ id, ...patch })
   const updated = await brandService.retrieveBrand(id)
+
+  // Purge BOTH the new handle and the old handle: a handle rename would leave
+  // the old `brand-{oldHandle}` cache entry behind otherwise.
+  const handles = new Set<string>()
+  if (existing?.handle) handles.add(existing.handle)
+  if (updated?.handle) handles.add(updated.handle)
+  const tags = new Set<string>(["brands"])
+  for (const h of handles) for (const t of tagsForBrand(h)) tags.add(t)
+  void revalidateStorefrontTags([...tags])
+
   res.json({ brand: updated })
 }
 
@@ -101,6 +112,11 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
     )
   }
 
+  // Capture the handle BEFORE the delete so we can purge `brand-{handle}`.
+  const target = await brandService.retrieveBrand(id).catch(() => null)
   await brandService.deleteBrands(id)
+
+  void revalidateStorefrontTags(tagsForBrand(target?.handle))
+
   res.json({ id, object: "brand", deleted: true })
 }

@@ -5,6 +5,7 @@ import { z } from "zod"
 import { BRAND_MODULE } from "../../../modules/brand"
 import type BrandModuleService from "../../../modules/brand/service"
 import { slugifyBrandHandle } from "../../../lib/brand-handle"
+import { revalidateStorefrontTags, tagsForBrand } from "../../../lib/storefront-revalidate"
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
@@ -92,6 +93,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       metadata: body.metadata ?? null,
     },
   ])
+
+  // Fire-and-forget storefront cache purge — the helper swallows errors and
+  // logs internally, so a slow/missing storefront never blocks the admin POST.
+  void revalidateStorefrontTags(tagsForBrand(created?.handle))
 
   res.status(201).json({ brand: created })
 }
