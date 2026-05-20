@@ -39,8 +39,7 @@ const fetchCart = async () => {
   }
 }
 
-export default async function Cart() {
-  const cart = await fetchCart()
+export default async function Cart(){const cart = await fetchCart()
   const customer = await getCustomer()
 
   return <CartTemplate cart={cart} customer={customer} />

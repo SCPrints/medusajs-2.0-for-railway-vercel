@@ -19,6 +19,11 @@ import { ProductOptionsProvider } from "@modules/products/context/product-option
 import ProductActionsWrapper from "@modules/products/templates/product-actions-wrapper"
 import ProductInfo from "@modules/products/templates/product-info"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

@@ -6,6 +6,11 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import SectionHeader from "@modules/common/components/section-header"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type Props = {
   params: Promise<{ countryCode: string }>
 }

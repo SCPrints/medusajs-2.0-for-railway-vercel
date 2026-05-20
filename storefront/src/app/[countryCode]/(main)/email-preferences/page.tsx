@@ -2,6 +2,11 @@ import { Metadata } from "next"
 
 import EmailPreferencesForm from "@modules/account/components/email-preferences-form"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 export const metadata: Metadata = {
   title: "Email preferences",
   description: "Manage which SC PRINTS emails you receive.",

@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-
 import AcceptForm from "@modules/quote-accept/components/accept-form"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { getQuoteForAccept } from "@lib/data/quote-accept"
@@ -69,8 +68,7 @@ export default async function QuoteAcceptPage({
 }: {
   params: Promise<RouteParams>
   searchParams: Promise<SearchParams>
-}) {
-  const { id } = await params
+}){const { id } = await params
   const { sig } = await searchParams
 
   if (!sig) {

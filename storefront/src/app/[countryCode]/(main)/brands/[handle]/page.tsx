@@ -53,8 +53,7 @@ const parsePositiveNumber = (value?: string) => {
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined
 }
 
-export default async function BrandLandingPage({ params, searchParams }: Params) {
-  const { countryCode, handle } = await params
+export default async function BrandLandingPage({ params, searchParams }: Params){const { countryCode, handle } = await params
   const sp = await searchParams
   const { brand, children } = await retrieveBrandByHandle(handle)
   if (!brand) notFound()

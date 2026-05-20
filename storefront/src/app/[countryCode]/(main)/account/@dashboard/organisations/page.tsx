@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-
 import { listMyOrganisations } from "@lib/data/organisations"
 
 export const metadata: Metadata = {
@@ -8,8 +7,7 @@ export const metadata: Metadata = {
     "Schools, clubs, and businesses you're connected to at SC PRINTS.",
 }
 
-export default async function OrganisationsPage() {
-  const memberships = await listMyOrganisations()
+export default async function OrganisationsPage(){const memberships = await listMyOrganisations()
 
   return (
     <div className="w-full">

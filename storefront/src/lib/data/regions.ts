@@ -1,27 +1,27 @@
 import { sdk } from "@lib/config"
 import medusaError from "@lib/util/medusa-error"
-import { cache } from "react"
+import { cacheLife, cacheTag } from "next/cache"
 import { HttpTypes } from "@medusajs/types"
-import { nextHeaders } from "./sdk-helpers"
 
-const REGIONS_FETCH_INIT = nextHeaders({
-  tags: ["regions"],
-  revalidate: 3600,
-})
-
-export const listRegions = cache(async function () {
+export async function listRegions() {
+  "use cache"
+  cacheTag("regions")
+  cacheLife({ revalidate: 3600, stale: 3600, expire: 86400 })
   return sdk.store.region
-    .list({}, REGIONS_FETCH_INIT)
+    .list()
     .then(({ regions }) => regions)
     .catch(medusaError)
-})
+}
 
-export const retrieveRegion = cache(async function (id: string) {
+export async function retrieveRegion(id: string) {
+  "use cache"
+  cacheTag("regions", `region-${id}`)
+  cacheLife({ revalidate: 3600, stale: 3600, expire: 86400 })
   return sdk.store.region
-    .retrieve(id, {}, REGIONS_FETCH_INIT)
+    .retrieve(id)
     .then(({ region }) => region)
     .catch(medusaError)
-})
+}
 
 const regionMap = new Map<string, HttpTypes.StoreRegion>()
 

@@ -1,6 +1,11 @@
 import { Metadata } from "next"
 import SpaceHero from "@modules/home/components/space-hero"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 export const metadata: Metadata = {
   title: "Space Hero — Lab",
   robots: { index: false, follow: false },

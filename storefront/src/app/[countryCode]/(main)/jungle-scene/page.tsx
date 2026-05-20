@@ -1,6 +1,11 @@
 import { Metadata } from "next"
 import JungleScene from "@modules/home/components/jungle-scene"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 // Pixel-art asset attribution (CC-BY 4.0 / free-commercial licenses). Surfaced via
 // page metadata as the user requested; if the lab page ever ships to the public
 // catalog these credits should be moved to a visible footer line.

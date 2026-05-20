@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-
 import JoinForm from "@modules/group-order/components/join-form"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { getGroupOrderByToken } from "@lib/data/group-order"
@@ -33,8 +32,7 @@ export default async function GroupOrderJoinPage({
   params,
 }: {
   params: Promise<RouteParams>
-}) {
-  const { token } = await params
+}){const { token } = await params
   const data = await getGroupOrderByToken(token)
 
   if (!data) {

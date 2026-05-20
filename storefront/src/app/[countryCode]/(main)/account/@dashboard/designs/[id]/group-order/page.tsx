@@ -15,8 +15,7 @@ type Props = {
   params: Promise<{ id: string; countryCode: string }>
 }
 
-export default async function StartGroupOrderPage({ params }: Props) {
-  const { id, countryCode } = await params
+export default async function StartGroupOrderPage({ params }: Props){const { id, countryCode } = await params
 
   const [design, customer] = await Promise.all([
     getMyDesign(id),

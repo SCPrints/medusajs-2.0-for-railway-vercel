@@ -33,8 +33,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 }
 
-export default async function BundlePage({ params }: Params) {
-  const { handle } = await params
+export default async function BundlePage({ params }: Params){const { handle } = await params
   const bundle = await getBundleByHandle(handle)
   if (!bundle) notFound()
 

@@ -3,6 +3,11 @@ import { Metadata } from "next"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import CmykDtfGuide from "@modules/guides/cmyk-dtf/components/cmyk-dtf-guide"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

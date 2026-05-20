@@ -10,6 +10,11 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import SectionHeader from "@modules/common/components/section-header"
 import type { GraphPayload } from "../../../../types/graph"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

@@ -5,6 +5,11 @@ import ContactMap from "@modules/contact/components/contact-map"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import SessionIntro from "@modules/home/components/home-session-intro"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

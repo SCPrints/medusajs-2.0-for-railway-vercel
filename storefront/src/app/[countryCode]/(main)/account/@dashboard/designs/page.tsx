@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-
 import DesignsGrid from "@modules/account/components/designs-grid"
 import { listMyDesigns } from "@lib/data/designs"
 
@@ -8,8 +7,7 @@ export const metadata: Metadata = {
   description: "Saved designs you can re-edit and re-order anytime.",
 }
 
-export default async function DesignsPage() {
-  const { designs } = await listMyDesigns()
+export default async function DesignsPage(){const { designs } = await listMyDesigns()
 
   return (
     <div className="w-full" data-testid="designs-page-wrapper">

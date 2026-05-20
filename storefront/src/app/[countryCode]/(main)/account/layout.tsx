@@ -1,8 +1,9 @@
+import { Suspense } from "react"
 import { getCustomer } from "@lib/data/customer"
 import AccountLayout from "@modules/account/templates/account-layout"
 import { PostHogIdentify } from "@modules/common/components/posthog-identify"
 
-export default async function AccountPageLayout({
+async function AccountShell({
   dashboard,
   login,
 }: {
@@ -10,7 +11,6 @@ export default async function AccountPageLayout({
   login?: React.ReactNode
 }) {
   const customer = await getCustomer().catch(() => null)
-
   return (
     <>
       <PostHogIdentify customer={customer} />
@@ -18,5 +18,19 @@ export default async function AccountPageLayout({
         {customer ? dashboard : login}
       </AccountLayout>
     </>
+  )
+}
+
+export default function AccountPageLayout({
+  dashboard,
+  login,
+}: {
+  dashboard?: React.ReactNode
+  login?: React.ReactNode
+}) {
+  return (
+    <Suspense fallback={null}>
+      <AccountShell dashboard={dashboard} login={login} />
+    </Suspense>
   )
 }

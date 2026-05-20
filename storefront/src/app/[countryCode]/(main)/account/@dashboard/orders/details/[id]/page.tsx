@@ -44,8 +44,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function OrderDetailPage({ params }: Props) {
-  const { id } = await params
+export default async function OrderDetailPage({ params }: Props){const { id } = await params
   const order = await getOrder(id).catch(() => null)
 
   if (!order) {

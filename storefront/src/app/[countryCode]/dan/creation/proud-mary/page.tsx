@@ -2,6 +2,11 @@ import { Metadata } from "next"
 
 import ProudMaryPage from "./proud-mary-page"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type Params = { params: Promise<{ countryCode: string }> }
 
 export const metadata: Metadata = {

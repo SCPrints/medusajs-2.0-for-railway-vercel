@@ -3,6 +3,11 @@ import { Metadata } from "next"
 import { getLookbookItems } from "@lib/data/lookbook"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 export const metadata: Metadata = {
   title: "Lookbook",
   description: "Real SC PRINTS jobs in the wild — see what we make.",

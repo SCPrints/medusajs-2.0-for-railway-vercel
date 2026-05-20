@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { Suspense } from "react"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ChevronDown from "@modules/common/icons/chevron-down"
@@ -53,7 +54,7 @@ export default function CheckoutLayout({
         className="relative flex-1"
         data-testid="checkout-container"
       >
-        {children}
+        <Suspense fallback={null}>{children}</Suspense>
       </div>
     </div>
   )

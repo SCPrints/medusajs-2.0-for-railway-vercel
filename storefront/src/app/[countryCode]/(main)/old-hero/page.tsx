@@ -6,6 +6,11 @@ import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-he
 import type { NewmixLiveTuning } from "@modules/home/components/home-particle-logo-hero/newmix-live-tuning"
 import { WORDMARK_GRADIENT } from "@modules/common/lib/wordmark-gradient"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

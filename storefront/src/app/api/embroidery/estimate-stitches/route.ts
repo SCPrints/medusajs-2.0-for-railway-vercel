@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 
-export const runtime = "nodejs"
-
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 // Match the chat route's model — that one is verified working in production,
 // and stitch estimation with a well-constrained system prompt is well within

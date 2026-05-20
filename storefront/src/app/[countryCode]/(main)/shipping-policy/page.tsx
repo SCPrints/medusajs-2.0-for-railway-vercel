@@ -1,5 +1,10 @@
 import { buildPolicyMetadata } from "@modules/policies/metadata"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

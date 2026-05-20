@@ -152,8 +152,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function ServiceDetailPage({ params }: Props) {
-  const { service: serviceSlug } = await params
+export default async function ServiceDetailPage({ params }: Props){const { service: serviceSlug } = await params
   const service = getServiceBySlug(serviceSlug)
 
   if (!service) {

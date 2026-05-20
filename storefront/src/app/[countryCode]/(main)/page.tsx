@@ -20,6 +20,11 @@ import SectionHeader from "@modules/common/components/section-header"
 import ProductListingCard from "@modules/products/components/product-listing-card"
 import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

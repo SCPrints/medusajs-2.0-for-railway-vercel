@@ -3,6 +3,11 @@ import { listBundles } from "@lib/data/bundles"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import BundleIndex from "@modules/bundles/templates/bundle-index"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }
