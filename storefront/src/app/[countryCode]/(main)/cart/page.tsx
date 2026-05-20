@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-import { connection } from "next/server"
 import CartTemplate from "@modules/cart/templates"
 
 import { enrichLineItems, retrieveCart } from "@lib/data/cart"
@@ -40,9 +39,7 @@ const fetchCart = async () => {
   }
 }
 
-export default async function Cart(){
-  await connection()
-  const cart = await fetchCart()
+export default async function Cart(){const cart = await fetchCart()
   const customer = await getCustomer()
 
   return <CartTemplate cart={cart} customer={customer} />

@@ -1,6 +1,4 @@
 import { Metadata } from "next"
-import { connection } from "next/server"
-
 import OwnerRoster from "@modules/group-order/components/owner-roster"
 import { listMyGroupOrders } from "@lib/data/group-order"
 
@@ -9,9 +7,7 @@ export const metadata: Metadata = {
   description: "Manage group orders you've organised for clubs, teams, or businesses.",
 }
 
-export default async function GroupOrdersPage(){
-  await connection()
-  const orders = await listMyGroupOrders()
+export default async function GroupOrdersPage(){const orders = await listMyGroupOrders()
 
   return (
     <div className="w-full" data-testid="group-orders-wrapper">

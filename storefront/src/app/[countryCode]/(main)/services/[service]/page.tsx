@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import Image from "next/image"
 import type { SVGProps } from "react"
@@ -153,9 +152,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function ServiceDetailPage({ params }: Props){
-  await connection()
-  const { service: serviceSlug } = await params
+export default async function ServiceDetailPage({ params }: Props){const { service: serviceSlug } = await params
   const service = getServiceBySlug(serviceSlug)
 
   if (!service) {

@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import { getBundleByHandle } from "@lib/data/bundles"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
@@ -34,9 +33,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   }
 }
 
-export default async function BundlePage({ params }: Params){
-  await connection()
-  const { handle } = await params
+export default async function BundlePage({ params }: Params){const { handle } = await params
   const bundle = await getBundleByHandle(handle)
   if (!bundle) notFound()
 

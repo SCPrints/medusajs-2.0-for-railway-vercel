@@ -1,6 +1,7 @@
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans } from "next/font/google"
+import { Suspense } from "react"
 import "styles/globals.css"
 import { ViewTransitions } from "next-view-transitions"
 import ConditionalCursorDot from "@modules/layout/components/conditional-cursor-dot"
@@ -115,35 +116,39 @@ const localBusinessStructuredData = {
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
-    <ViewTransitions>
-      <html lang="en" data-mode="light" className="scroll-smooth">
-        <head>
-          <link
-            rel="preconnect"
-            href="https://aussiepacific-images.s3.ap-southeast-2.amazonaws.com"
-            crossOrigin="anonymous"
-          />
-        </head>
-        <body
-          className={`${plusJakartaSans.className} antialiased selection:bg-[#FF2E63] selection:text-[#EEEEEE]`}
-        >
-          <Ga4Script />
-          <ChatWidget />
-          <PostHogProvider>
-          <ConditionalCursorDot />
+    <html lang="en" data-mode="light" className="scroll-smooth">
+      <head>
+        <link
+          rel="preconnect"
+          href="https://aussiepacific-images.s3.ap-southeast-2.amazonaws.com"
+          crossOrigin="anonymous"
+        />
+      </head>
+      <body
+        className={`${plusJakartaSans.className} antialiased selection:bg-[#FF2E63] selection:text-[#EEEEEE]`}
+      >
+        <Ga4Script />
+        <ChatWidget />
+        <PostHogProvider>
+          <Suspense fallback={null}>
+            <ConditionalCursorDot />
+          </Suspense>
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
               __html: JSON.stringify([organizationStructuredData, localBusinessStructuredData]),
             }}
           />
-          <main className="relative min-h-dvh bg-[var(--brand-background)] text-[var(--brand-primary)]">
-            {props.children}
-          </main>
+          <Suspense fallback={null}>
+            <ViewTransitions>
+              <main className="relative min-h-dvh bg-[var(--brand-background)] text-[var(--brand-primary)]">
+                {props.children}
+              </main>
+            </ViewTransitions>
+          </Suspense>
           <AddToHomeBanner />
-          </PostHogProvider>
-        </body>
-      </html>
-    </ViewTransitions>
+        </PostHogProvider>
+      </body>
+    </html>
   )
 }

@@ -1,6 +1,4 @@
 import { Metadata } from "next"
-import { connection } from "next/server"
-
 import SearchResultsTemplate from "@modules/search/templates/search-results-template"
 
 import { search } from "@modules/search/actions"
@@ -19,9 +17,7 @@ type Params = {
   }>
 }
 
-export default async function SearchResults({ params, searchParams }: Params){
-  await connection()
-  const { query, countryCode } = await params
+export default async function SearchResults({ params, searchParams }: Params){const { query, countryCode } = await params
   const { sortBy, page } = await searchParams
 
   const hits = await search(query).then((data) => data)

@@ -1,6 +1,4 @@
 import { Metadata } from "next"
-import { connection } from "next/server"
-
 import JoinForm from "@modules/group-order/components/join-form"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { getGroupOrderByToken } from "@lib/data/group-order"
@@ -34,9 +32,7 @@ export default async function GroupOrderJoinPage({
   params,
 }: {
   params: Promise<RouteParams>
-}){
-  await connection()
-  const { token } = await params
+}){const { token } = await params
   const data = await getGroupOrderByToken(token)
 
   if (!data) {
