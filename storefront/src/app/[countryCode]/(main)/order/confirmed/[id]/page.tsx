@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import OrderCompletedTemplate from "@modules/order/templates/order-completed-template"
 import { PurchaseTracker } from "@modules/order/components/purchase-tracker"
@@ -36,7 +37,8 @@ export const metadata: Metadata = {
   description: "You purchase was successful",
 }
 
-export default async function OrderConfirmedPage({ params }: Props) {
+export default async function OrderConfirmedPage({ params }: Props){
+  await connection()
   const { id } = await params
   const order = await getOrder(id)
   if (!order) {

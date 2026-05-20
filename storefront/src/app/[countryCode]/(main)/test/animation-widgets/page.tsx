@@ -4,6 +4,11 @@ import { Suspense } from "react"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import AnimationWidgetsDemo from "@modules/test/components/animation-widgets-demo"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

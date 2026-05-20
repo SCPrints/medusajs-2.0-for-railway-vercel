@@ -1,5 +1,6 @@
 import "server-only"
 
+import { cacheLife, cacheTag } from "next/cache"
 import type { InstagramMediaItem } from "@lib/types/instagram"
 
 type GraphMediaNode = {
@@ -21,6 +22,9 @@ type GraphMediaNode = {
  * @see https://developers.facebook.com/docs/instagram-api/guides/content-publishing
  */
 export async function getInstagramFeedMedia(): Promise<InstagramMediaItem[]> {
+  "use cache"
+  cacheTag("instagram")
+  cacheLife({ revalidate: 3600, stale: 3600, expire: 86400 })
   const token = process.env.INSTAGRAM_ACCESS_TOKEN
   if (!token) {
     return []
@@ -38,9 +42,7 @@ export async function getInstagramFeedMedia(): Promise<InstagramMediaItem[]> {
   url.searchParams.set("access_token", token)
 
   try {
-    const res = await fetch(url.toString(), {
-      next: { revalidate: 3600 },
-    })
+    const res = await fetch(url.toString())
 
     if (!res.ok) {
       return []

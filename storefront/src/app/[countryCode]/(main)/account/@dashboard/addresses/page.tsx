@@ -1,9 +1,9 @@
 import { Metadata } from "next"
+import { Suspense } from "react"
 import { notFound } from "next/navigation"
 
 import AddressBook from "@modules/account/components/address-book"
 
-import { headers } from "next/headers"
 import { getRegion } from "@lib/data/regions"
 import { getCustomer } from "@lib/data/customer"
 
@@ -12,11 +12,7 @@ export const metadata: Metadata = {
   description: "View your addresses",
 }
 
-export default async function Addresses({
-  params,
-}: {
-  params: Promise<{ countryCode: string }>
-}) {
+async function AddressesContent({ params }: { params: Promise<{ countryCode: string }> }) {
   const { countryCode } = await params
   const customer = await getCustomer()
   const region = await getRegion(countryCode)
@@ -25,6 +21,14 @@ export default async function Addresses({
     notFound()
   }
 
+  return <AddressBook customer={customer} region={region} />
+}
+
+export default function Addresses({
+  params,
+}: {
+  params: Promise<{ countryCode: string }>
+}) {
   return (
     <div className="w-full" data-testid="addresses-page-wrapper">
       <header className="mb-8 border-l-4 border-[var(--brand-secondary)] pl-4">
@@ -39,7 +43,9 @@ export default async function Addresses({
           like. Saved addresses appear during checkout for quick selection.
         </p>
       </header>
-      <AddressBook customer={customer} region={region} />
+      <Suspense fallback={null}>
+        <AddressesContent params={params} />
+      </Suspense>
     </div>
   )
 }

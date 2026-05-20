@@ -6,6 +6,10 @@ import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import NewsletterSignup from "./newsletter-signup"
 
+// Captured at build time so Cache Components can prerender the static shell.
+// New build per year refreshes this; acceptable drift for a copyright string.
+const COPYRIGHT_YEAR = new Date().getFullYear()
+
 export default async function Footer() {
   const { collections } = await getCollectionsList(0, 6).catch(() => ({
     collections: [],
@@ -179,7 +183,7 @@ export default async function Footer() {
 
         <div className="flex w-full border-t border-ui-border-base pt-8 text-ui-fg-muted">
           <Text className="txt-compact-small" as="p">
-            © {new Date().getFullYear()} SC PRINTS. All rights reserved.
+            © {COPYRIGHT_YEAR} SC PRINTS. All rights reserved.
           </Text>
         </div>
       </div>

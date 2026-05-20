@@ -2,6 +2,11 @@ import { Metadata } from "next"
 
 import NpsThanks from "@modules/feedback/components/nps-thanks"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 export const metadata: Metadata = {
   title: "Thanks for your feedback",
   description:

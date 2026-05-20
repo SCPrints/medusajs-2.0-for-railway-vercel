@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import AcceptForm from "@modules/quote-accept/components/accept-form"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -69,7 +70,8 @@ export default async function QuoteAcceptPage({
 }: {
   params: Promise<RouteParams>
   searchParams: Promise<SearchParams>
-}) {
+}){
+  await connection()
   const { id } = await params
   const { sig } = await searchParams
 

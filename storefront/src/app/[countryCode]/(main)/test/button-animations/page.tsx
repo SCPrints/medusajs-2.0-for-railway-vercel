@@ -2,6 +2,11 @@ import { redirect } from "next/navigation"
 
 import { animationLabFirstButtonPage } from "@modules/test/animation-lab-constants"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type PageProps = {
   params: Promise<{ countryCode: string }>
 }

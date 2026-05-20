@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import ApprovalForm from "@modules/artwork-approval/components/approval-form"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -36,7 +37,8 @@ export default async function ArtworkApprovalPage({
 }: {
   params: Promise<RouteParams>
   searchParams: Promise<SearchParams>
-}) {
+}){
+  await connection()
   const { orderId } = await params
   const { sig } = await searchParams
 

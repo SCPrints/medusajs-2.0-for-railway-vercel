@@ -1,5 +1,10 @@
 import { permanentRedirect } from "next/navigation"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type PageProps = {
   params: Promise<{ countryCode: string }>
 }

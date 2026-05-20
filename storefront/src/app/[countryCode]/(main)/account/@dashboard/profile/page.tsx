@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import ProfilePhone from "@modules/account//components/profile-phone"
 import ProfileBillingAddress from "@modules/account/components/profile-billing-address"
@@ -17,7 +18,8 @@ export const metadata: Metadata = {
   description: "View and edit your SC PRINTS profile.",
 }
 
-export default async function Profile() {
+export default async function Profile(){
+  await connection()
   const customer = await getCustomer()
   const regions = await listRegions()
   const consent = await getConsent()

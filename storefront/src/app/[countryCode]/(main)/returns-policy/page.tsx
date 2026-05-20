@@ -1,6 +1,11 @@
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { buildPolicyMetadata } from "@modules/policies/metadata"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

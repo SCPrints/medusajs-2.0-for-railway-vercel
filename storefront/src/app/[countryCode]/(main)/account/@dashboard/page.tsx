@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import Overview from "@modules/account/components/overview"
 import { notFound } from "next/navigation"
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
   description: "Overview of your account activity.",
 }
 
-export default async function OverviewTemplate() {
+export default async function OverviewTemplate(){
+  await connection()
   const customer = await getCustomer().catch(() => null)
   const orders = (await listOrders().catch(() => null)) || null
 

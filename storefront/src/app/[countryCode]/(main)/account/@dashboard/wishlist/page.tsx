@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import WishlistGrid from "@modules/account/components/wishlist-grid"
 import { listMyWishlist } from "@lib/data/wishlist"
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
   description: "Products you've bookmarked to come back to.",
 }
 
-export default async function WishlistPage() {
+export default async function WishlistPage(){
+  await connection()
   const { items } = await listMyWishlist()
 
   return (

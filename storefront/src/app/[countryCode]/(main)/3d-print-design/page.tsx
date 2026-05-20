@@ -7,6 +7,11 @@ import MarketingHero from "@modules/common/components/marketing-hero"
 import SectionHeader from "@modules/common/components/section-header"
 import { iconBase } from "@modules/common/icons/icon-base"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 const TITLE = "3D Print Design Service"
 const DESCRIPTION =
   "We design custom 3D print files in Fusion 360 and deliver production-ready STL and 3MF files — ready to send straight to any FDM or resin printer."

@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import OrderOverview from "@modules/account/components/order-overview"
 import { listOrders } from "@lib/data/orders"
@@ -8,7 +9,8 @@ export const metadata: Metadata = {
   description: "Overview of your previous orders.",
 }
 
-export default async function Orders() {
+export default async function Orders(){
+  await connection()
   const orders = (await listOrders()) ?? []
 
   return (

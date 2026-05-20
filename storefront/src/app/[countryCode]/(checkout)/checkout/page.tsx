@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 import { notFound } from "next/navigation"
 
 import Wrapper from "@modules/checkout/components/payment-wrapper"
@@ -36,7 +37,8 @@ const fetchCart = async () => {
   return cart
 }
 
-export default async function Checkout() {
+export default async function Checkout(){
+  await connection()
   const cart = await fetchCart()
   const customer = await getCustomer()
   const perks = await getCustomerPerks()

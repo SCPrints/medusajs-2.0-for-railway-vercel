@@ -8,6 +8,11 @@ import SectionHeader from "@modules/common/components/section-header"
 import { iconBase } from "@modules/common/icons/icon-base"
 import { services } from "@modules/services/data"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

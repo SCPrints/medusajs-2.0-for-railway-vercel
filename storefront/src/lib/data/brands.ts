@@ -1,6 +1,6 @@
 import { MEDUSA_BACKEND_URL } from "@lib/config"
 import type { HttpTypes } from "@medusajs/types"
-import { cache } from "react"
+import { cacheLife, cacheTag } from "next/cache"
 
 export type StorefrontBrand = {
   id: string
@@ -37,11 +37,13 @@ function brandHeaders(): HeadersInit {
   return h
 }
 
-export const listBrands = cache(async function (): Promise<StorefrontBrand[]> {
+export async function listBrands(): Promise<StorefrontBrand[]> {
+  "use cache"
+  cacheTag("brands")
+  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   try {
     const res = await fetch(`${MEDUSA_BACKEND_URL}/store/brands?limit=500`, {
       headers: brandHeaders(),
-      next: { tags: ["brands"], revalidate: 600 },
     })
     if (!res.ok) return []
     const data = (await res.json()) as BrandsListResponse
@@ -49,16 +51,18 @@ export const listBrands = cache(async function (): Promise<StorefrontBrand[]> {
   } catch {
     return []
   }
-})
+}
 
 export async function retrieveBrandByHandle(handle: string): Promise<{
   brand: StorefrontBrand | null
   children: StorefrontBrand[]
 }> {
+  "use cache"
+  cacheTag("brands", `brand-${handle}`)
+  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
   try {
     const res = await fetch(`${MEDUSA_BACKEND_URL}/store/brands/${encodeURIComponent(handle)}`, {
       headers: brandHeaders(),
-      next: { tags: ["brands", `brand-${handle}`], revalidate: 120 },
     })
     if (!res.ok) return { brand: null, children: [] }
     const data = (await res.json()) as BrandRetrieveResponse
@@ -87,10 +91,13 @@ export type BrandProductsParams = {
  * This calls the dedicated backend route that performs the link-table → product join +
  * pagination + sales-channel scoping server-side and returns the paginated page directly.
  */
-export const getBrandProducts = cache(async function (
+export async function getBrandProducts(
   handle: string,
   params: BrandProductsParams
 ): Promise<{ products: HttpTypes.StoreProduct[]; count: number }> {
+  "use cache"
+  cacheTag("brands", `brand-${handle}`, "products")
+  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
   const search = new URLSearchParams()
   if (typeof params.limit === "number") search.set("limit", String(params.limit))
   if (typeof params.offset === "number") search.set("offset", String(params.offset))
@@ -112,7 +119,6 @@ export const getBrandProducts = cache(async function (
   try {
     const res = await fetch(url, {
       headers: brandHeaders(),
-      next: { tags: ["brands", `brand-${handle}`, "products"], revalidate: 120 },
     })
     if (!res.ok) return { products: [], count: 0 }
     const data = (await res.json()) as BrandProductsResponse
@@ -120,4 +126,4 @@ export const getBrandProducts = cache(async function (
   } catch {
     return { products: [], count: 0 }
   }
-})
+}

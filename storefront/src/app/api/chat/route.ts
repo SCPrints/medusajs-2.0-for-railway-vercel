@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { CHATBOT_SYSTEM_PROMPT } from "@lib/chatbot/system-prompt"
 
-export const runtime = "nodejs"
-
 type ChatMessage = { role: "user" | "assistant"; content: string }
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"

@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   description: "Curation, Creation, Criticism",
 }
 
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 export default async function DanPage({ params }: Params) {
   const { countryCode } = await params
   return <DanHome countryCode={countryCode} />

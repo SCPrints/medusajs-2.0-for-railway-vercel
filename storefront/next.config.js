@@ -32,6 +32,13 @@ const catalogImagesUnoptimized =
 const nextConfig = {
   reactStrictMode: true,
   devIndicators: false,
+  // Next 16 Cache Components / PPR. Replaces the older `experimental.ppr` flag.
+  // Without this, any RSC reading cookies()/headers() (CartButton in the nav)
+  // forces every descendant page dynamic; pages render fresh on every request
+  // and Vercel responds with `cache-control: no-store`. With it, static shell
+  // + cached data is served from the edge and Suspense boundaries (CartButton)
+  // stream as dynamic holes.
+  cacheComponents: true,
   // Next 16 removed the `eslint` config block — lint no longer runs as part
   // of `next build`. Use `pnpm lint` (standalone) to check. The repo has
   // ~24 pre-existing lint errors (mostly missing react/jsx-key in animation

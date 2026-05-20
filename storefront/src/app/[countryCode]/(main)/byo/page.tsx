@@ -8,6 +8,11 @@ import SectionHeader from "@modules/common/components/section-header"
 import { iconBase } from "@modules/common/icons/icon-base"
 import ByoInquiryForm from "@modules/home/components/byo-inquiry-form"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 const lora = Lora({
   subsets: ["latin"],
   display: "swap",

@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 import { notFound } from "next/navigation"
 
 import CreateFromDesignForm from "@modules/group-order/components/create-from-design-form"
@@ -15,7 +16,8 @@ type Props = {
   params: Promise<{ id: string; countryCode: string }>
 }
 
-export default async function StartGroupOrderPage({ params }: Props) {
+export default async function StartGroupOrderPage({ params }: Props){
+  await connection()
   const { id, countryCode } = await params
 
   const [design, customer] = await Promise.all([

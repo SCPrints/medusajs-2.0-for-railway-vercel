@@ -1,9 +1,8 @@
 import { sdk } from "@lib/config"
 import { HttpTypes } from "@medusajs/types"
-import { cache } from "react"
+import { cacheLife, cacheTag } from "next/cache"
 import { getRegion } from "./regions"
 import { getBrandProducts } from "./brands"
-import { nextHeaders } from "./sdk-helpers"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
@@ -38,35 +37,32 @@ function productBrandMatchesClientFilter(
 const STORE_PRODUCT_FIELDS =
   "+metadata,+type,+weight,*variants.calculated_price,*variants.options,+variants.metadata,+variants.sku,+variants.weight,+variants.manage_inventory,+variants.allow_backorder,+variants.inventory_quantity,+tags,*brand"
 
-/**
- * Next.js Data Cache: tag for on-demand `revalidateTag("products", "max")`, plus a max age so catalog
- * changes (e.g. Draft after trim script) are not served forever without a redeploy.
- */
-const PRODUCT_LIST_FETCH_INIT = nextHeaders({ tags: ["products"], revalidate: 120 })
-
-export const getProductsById = cache(async function ({
+export async function getProductsById({
   ids,
   regionId,
 }: {
   ids: string[]
   regionId: string
 }) {
+  "use cache"
+  cacheTag("products")
+  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
   return sdk.store.product
-    .list(
-      {
-        id: ids,
-        region_id: regionId,
-        fields: STORE_PRODUCT_FIELDS,
-      },
-      PRODUCT_LIST_FETCH_INIT
-    )
+    .list({
+      id: ids,
+      region_id: regionId,
+      fields: STORE_PRODUCT_FIELDS,
+    })
     .then(({ products }) => products)
-})
+}
 
 export async function getProductByHandle(
   handle: string,
   regionId?: string | null
 ) {
+  "use cache"
+  cacheTag("products", `product-${String(handle ?? "").trim().toLowerCase()}`)
+  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
   const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
   if (!normalizedHandle) {
     return null
@@ -83,13 +79,10 @@ export async function getProductByHandle(
   }
 
   try {
-    const { products } = await sdk.store.product.list(
-      {
-        ...baseParams,
-        region_id: regionId,
-      },
-      PRODUCT_LIST_FETCH_INIT
-    )
+    const { products } = await sdk.store.product.list({
+      ...baseParams,
+      region_id: regionId,
+    })
 
     return products[0] ?? null
   } catch {
@@ -102,7 +95,7 @@ export async function getProductByHandle(
  * on `sdk.store.product.list`). Large `page` values increase database work proportional to OFFSET.
  * Complement storefront caching with Postgres indexes — see `backend/scripts/sql/catalog-product-list-index.sql`.
  */
-export const getProductsList = cache(async function ({
+export async function getProductsList({
   pageParam = 1,
   queryParams,
   countryCode,
@@ -122,6 +115,9 @@ export const getProductsList = cache(async function ({
   nextPage: number | null
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
 }> {
+  "use cache"
+  cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
+  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
   const limit = queryParams?.limit || 12
   const validPageParam = Math.max(pageParam, 1);
   const offset = (validPageParam - 1) * limit
@@ -155,16 +151,13 @@ export const getProductsList = cache(async function ({
   }
 
   return sdk.store.product
-    .list(
-      {
-        limit,
-        offset,
-        region_id: region.id,
-        fields: STORE_PRODUCT_FIELDS,
-        ...queryParams,
-      },
-      PRODUCT_LIST_FETCH_INIT
-    )
+    .list({
+      limit,
+      offset,
+      region_id: region.id,
+      fields: STORE_PRODUCT_FIELDS,
+      ...queryParams,
+    })
     .then(({ products, count }) => {
       const nextPage = count > offset + limit ? pageParam + 1 : null
 
@@ -177,7 +170,7 @@ export const getProductsList = cache(async function ({
         queryParams,
       }
     })
-})
+}
 
 const HOME_FEATURED_LIMIT = 12
 const HOME_FEATURED_SEARCH_FETCH = 48
@@ -188,13 +181,16 @@ const HOME_FEATURED_MAX_CATALOG_PAGES = 40
  * Home “Featured range”: load hoodies via store search (`q`) plus a catalog scan.
  * Newest products alone are often bags/accessories, so a plain `limit` slice misses apparel.
  */
-export const getHomeFeaturedRangeProducts = cache(async function ({
+export async function getHomeFeaturedRangeProducts({
   countryCode,
   limit = HOME_FEATURED_LIMIT,
 }: {
   countryCode: string
   limit?: number
 }): Promise<HttpTypes.StoreProduct[]> {
+  "use cache"
+  cacheTag("products", "home-featured")
+  cacheLife({ revalidate: 300, stale: 300, expire: 86400 })
   const region = await getRegion(countryCode)
   if (!region) {
     return []
@@ -255,7 +251,7 @@ export const getHomeFeaturedRangeProducts = cache(async function ({
     queryParams: { limit },
   })
   return response.products
-})
+}
 
 const CLIENT_FILTER_PAGE_BATCH = 100
 /** Avoid unbounded API loops if `count` is wrong or the catalog is huge */
@@ -268,7 +264,7 @@ const CLIENT_FILTER_MAX_PAGES = 80
  * - Price/title sort or brand-fabric-price-stock filters: loads catalog in batches (up to a cap),
  *   then filters/sorts/slices in memory.
  */
-export const getProductsListWithSort = cache(async function ({
+export async function getProductsListWithSort({
   page = 1,
   queryParams,
   sortBy = "created_at",
@@ -287,6 +283,9 @@ export const getProductsListWithSort = cache(async function ({
   nextPage: number | null
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
 }> {
+  "use cache"
+  cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
+  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
   const limit = queryParams?.limit || 12
   const resolvedPage = !page || page < 1 ? 1 : page
 
@@ -423,4 +422,4 @@ export const getProductsListWithSort = cache(async function ({
     nextPage,
     queryParams,
   }
-})
+}

@@ -7,8 +7,10 @@ import { DTF_AUTO_BUILDER_HANDLE } from "@modules/dtf-builder/constants"
 import { DtfBuilderInvalidRegion, DtfBuilderMissingProduct } from "@modules/dtf-builder/dtf-builder-states"
 import GangsheetBuilder from "@modules/dtf-builder/gangsheet-builder"
 
-/** Avoid Data Cache serving a long-lived “product missing” after you add/seed `dtf-auto-builder`. */
-export const dynamic = "force-dynamic"
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
 
 type Props = {
   params: Promise<{ countryCode: string }>

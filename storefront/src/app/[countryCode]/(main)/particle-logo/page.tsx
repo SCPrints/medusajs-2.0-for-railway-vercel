@@ -5,6 +5,11 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import NewmixTunerExperience from "@modules/common/components/newmix-tuner-experience"
 import { NEWMIX_PRESET } from "./newmix-preset"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }

@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 import { notFound } from "next/navigation"
 
 import OrderDetailsTemplate from "@modules/order/templates/order-details-template"
@@ -44,7 +45,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function OrderDetailPage({ params }: Props) {
+export default async function OrderDetailPage({ params }: Props){
+  await connection()
   const { id } = await params
   const order = await getOrder(id).catch(() => null)
 

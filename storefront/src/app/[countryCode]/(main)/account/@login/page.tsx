@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { connection } from "next/server"
 
 import LoginTemplate from "@modules/account/templates/login-template"
 
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
   description: "Sign in to your SC PRINTS account.",
 }
 
-export default function Login() {
+export default async function Login(){
+  await connection()
   return <LoginTemplate />
 }

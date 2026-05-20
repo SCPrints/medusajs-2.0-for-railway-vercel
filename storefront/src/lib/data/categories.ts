@@ -1,33 +1,32 @@
 import { sdk } from "@lib/config"
-import { cache } from "react"
-import { nextHeaders } from "./sdk-helpers"
+import { cacheLife, cacheTag } from "next/cache"
 
-const CATEGORIES_FETCH_INIT = nextHeaders({
-  tags: ["categories"],
-  revalidate: 600,
-})
-
-export const listCategories = cache(async function () {
+export async function listCategories() {
+  "use cache"
+  cacheTag("categories")
+  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.category
-    .list({ fields: "+category_children" }, CATEGORIES_FETCH_INIT)
+    .list({ fields: "+category_children" })
     .then(({ product_categories }) => product_categories)
-})
+}
 
-export const getCategoriesList = cache(async function (
+export async function getCategoriesList(
   offset: number = 0,
   limit: number = 100
 ) {
+  "use cache"
+  cacheTag("categories")
+  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.category.list(
-    // TODO: Look into fixing the type
-    // @ts-ignore
-    { limit, offset },
-    CATEGORIES_FETCH_INIT
+    // @ts-ignore — SDK preview types
+    { limit, offset }
   )
-})
+}
 
-export const getCategoryByHandle = cache(async function (
-  categoryHandle: string[]
-) {
+export async function getCategoryByHandle(categoryHandle: string[]) {
+  "use cache"
+  cacheTag("categories", `category-${categoryHandle.join("/")}`)
+  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   // `+category_children` includes the immediate sub-category list so the
   // landing page can render its drill-down without a second round trip.
   return sdk.store.category.list(
@@ -35,7 +34,6 @@ export const getCategoryByHandle = cache(async function (
     {
       handle: categoryHandle,
       fields: "+category_children,+parent_category",
-    },
-    CATEGORIES_FETCH_INIT
+    }
   )
-})
+}

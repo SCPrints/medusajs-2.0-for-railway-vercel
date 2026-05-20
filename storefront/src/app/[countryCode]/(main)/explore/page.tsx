@@ -7,6 +7,11 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { ExploreTemplate } from "@modules/graph/templates/explore-template"
 import type { GraphPayload } from "../../../../types/graph"
 
+
+export async function generateStaticParams() {
+  return [{ countryCode: "au" }]
+}
+
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }
