@@ -101,6 +101,13 @@ type PricingPanelProps = {
    * tier price baked into Medusa's calculated_price for this customer.
    */
   tier?: Tier | null
+  /**
+   * Selected variant's garment colour (hex or hsl, resolved from the swatch
+   * table). When provided, size rows with a quantity > 0 fill with this colour
+   * so the customer sees at a glance which sizes they're ordering and in what
+   * colour — mirrors AS Colour's selected-size highlight.
+   */
+  variantTintHex?: string | null
 }
 
 const formatMoney = (amount: number, currencyCode: string) =>
@@ -108,6 +115,25 @@ const formatMoney = (amount: number, currencyCode: string) =>
 
 const formatTierRange = (minQuantity: number, maxQuantity?: number) =>
   typeof maxQuantity === "number" ? `${minQuantity}-${maxQuantity}` : `${minQuantity}+`
+
+// Picks black or white text for legibility on a given garment swatch colour.
+// Accepts either `#RRGGBB` or `hsl(h, s%, l%)` (the two shapes
+// `resolveGarmentSwatchColor` can return).
+const getContrastTextColor = (color: string): string => {
+  const hex = color.match(/^#([0-9a-fA-F]{6})$/)
+  if (hex) {
+    const r = parseInt(hex[1].slice(0, 2), 16)
+    const g = parseInt(hex[1].slice(2, 4), 16)
+    const b = parseInt(hex[1].slice(4, 6), 16)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return luminance > 0.6 ? "#0f172a" : "#ffffff"
+  }
+  const hsl = color.match(/hsl\(\s*\d+(?:\.\d+)?\s*,\s*\d+(?:\.\d+)?%\s*,\s*(\d+(?:\.\d+)?)%/)
+  if (hsl) {
+    return Number(hsl[1]) > 60 ? "#0f172a" : "#ffffff"
+  }
+  return "#0f172a"
+}
 
 const ExpandCollapsePlus = () => (
   <span className="relative h-5 w-5">
@@ -143,6 +169,7 @@ export default function PricingPanel({
   aggregatedCartQuantity,
   stockBySize,
   tier = null,
+  variantTintHex = null,
 }: PricingPanelProps) {
   const ctaLabel = primaryCtaLabel ?? "Add to cart"
   const ctaLoadingLabel = primaryCtaLoadingLabel ?? "Adding..."
@@ -242,11 +269,28 @@ export default function PricingPanel({
           {sizes.map((sizeEntry) => {
             const stockState = stockBySize?.[sizeEntry.size]
             const warning = stockState ? stockWarningMessage(stockState) : null
+            const isTinted = sizeEntry.quantity > 0 && !!variantTintHex
+            const contrastColor = isTinted ? getContrastTextColor(variantTintHex!) : null
+            const labelStyle: React.CSSProperties = isTinted
+              ? {
+                  backgroundColor: variantTintHex!,
+                  borderColor: variantTintHex!,
+                  color: contrastColor!,
+                }
+              : {}
+            const inputStyle: React.CSSProperties = isTinted
+              ? {
+                  backgroundColor: "transparent",
+                  borderColor: `${contrastColor!}33`,
+                  color: contrastColor!,
+                }
+              : {}
             return (
               <label
                 key={sizeEntry.size}
-                className="flex items-center gap-1.5 rounded-md border border-ui-border-base px-2 py-1"
+                className="flex items-center gap-1.5 rounded-md border border-ui-border-base px-2 py-1 transition-colors duration-200"
                 title={sizeEntry.size}
+                style={labelStyle}
               >
                 <span className="flex-1 min-w-0 truncate text-xs font-medium" aria-label={sizeEntry.size}>
                   {sizeEntry.size}
@@ -263,7 +307,8 @@ export default function PricingPanel({
                   onChange={(event) =>
                     onChangeSizeQty(sizeEntry.size, Number(event.target.value))
                   }
-                  className="w-12 shrink-0 rounded-md border border-ui-border-base px-1.5 py-0.5 text-sm"
+                  className="w-12 shrink-0 rounded-md border border-ui-border-base px-1.5 py-0.5 text-sm transition-colors duration-200"
+                  style={inputStyle}
                 />
               </label>
             )

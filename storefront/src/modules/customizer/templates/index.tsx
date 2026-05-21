@@ -3705,6 +3705,7 @@ export default function CustomizerTemplate({
               aggregatedCartQuantity={aggregatedCartQuantity}
               stockBySize={stockBySize}
               tier={tier}
+              variantTintHex={variantTintHex}
             />
             </div>
 
@@ -4637,6 +4638,7 @@ export default function CustomizerTemplate({
                 aggregatedCartQuantity={aggregatedCartQuantity}
                 stockBySize={stockBySize}
                 tier={tier}
+                variantTintHex={variantTintHex}
               />
               <div className="space-y-2 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
                 <label
