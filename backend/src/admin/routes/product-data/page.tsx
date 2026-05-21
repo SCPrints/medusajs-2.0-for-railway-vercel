@@ -10,6 +10,7 @@ import ProductBulkDeletePage from "../product-bulk-delete/page"
 import ProductTypeTagManagePage from "../product-type-tag-manage/page"
 import SpreadsheetSyncPage from "../spreadsheet-sync/page"
 import SpreadsheetSyncUpdatePage from "../spreadsheet-sync-update/page"
+import TaxonomyAuditPanel from "./components/taxonomy-audit-panel"
 
 /**
  * Consolidated entry point for SC Prints' product-data tooling.
@@ -41,6 +42,7 @@ const ProductDataPage = () => {
                 "Update existing: patches columns on already-imported products. Matches by SKU; only patches the columns you tick.",
                 "Bulk delete: permanently removes products in batches. No undo. Use only for trimming retired ranges.",
                 "Types & tags: delete unused or duplicate product types and tags from the store.",
+                "Taxonomy audit: live count of products missing the type, demographic tag, or Shop category the storefront needs to group them by.",
                 "Result logs are scoped to your last action — they clear when you start a new sync or pick a new file.",
               ],
             }}
@@ -60,6 +62,7 @@ const ProductDataPage = () => {
             <Tabs.Trigger value="update-existing">Update existing</Tabs.Trigger>
             <Tabs.Trigger value="bulk-delete">Bulk delete</Tabs.Trigger>
             <Tabs.Trigger value="types-tags">Types &amp; tags</Tabs.Trigger>
+            <Tabs.Trigger value="taxonomy-audit">Taxonomy audit</Tabs.Trigger>
             <Tabs.Trigger value="ascolour-import">AS Colour Import</Tabs.Trigger>
             <Tabs.Trigger value="fashionbiz-import">FashionBiz Import</Tabs.Trigger>
             <Tabs.Trigger value="aussie-pacific-import">Aussie Pacific Import</Tabs.Trigger>
@@ -114,6 +117,21 @@ const ProductDataPage = () => {
             </Text>
           </Container>
           <ProductTypeTagManagePage />
+        </Tabs.Content>
+
+        <Tabs.Content value="taxonomy-audit" className="flex flex-col gap-y-3">
+          <Container>
+            <Text size="small" className="text-ui-fg-subtle">
+              Live audit of products missing the three taxonomy signals the
+              storefront groups products by: <strong>product type</strong>,{" "}
+              <strong>demographic tag</strong> (Mens / Womens / Kids /
+              Unisex), and <strong>Shop category</strong>. Run after every
+              supplier import to confirm nothing fell through. Bulk-fix
+              via the backfill script — see the note at the bottom of the
+              panel.
+            </Text>
+          </Container>
+          <TaxonomyAuditPanel />
         </Tabs.Content>
 
         <Tabs.Content value="ascolour-import" className="flex flex-col gap-y-3">

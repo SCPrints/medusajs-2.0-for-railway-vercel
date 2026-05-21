@@ -480,6 +480,15 @@ const SpreadsheetSyncPage = () => {
     const tierPayload: Array<{ variant_id: string; tiers_minor: TierMoneyMinor }> = []
     /** Map of product id (from batch create response) → resolved brand id, applied via link after create. */
     const brandLinkPayload: Array<{ product_id: string; brand_id: string }> = []
+    /**
+     * IDs of every product created in this run. Fed to
+     * `/admin/taxonomy-audit/backfill` once the batches finish so the
+     * shared title-fallback inference (same one the API importers run)
+     * fills any missing product_type and demographic tag. Same gap-filling
+     * convention as the AS Colour / FashionBiz / Aussie Pacific importers
+     * — see CLAUDE.md "Types & tags convention".
+     */
+    const createdProductIds: string[] = []
 
     try {
       const batches = chunkCreates(creates, PRODUCT_BATCH_CHUNK_SIZE)
@@ -502,6 +511,8 @@ const SpreadsheetSyncPage = () => {
           const variants = product.variants ?? []
           log.push(`  Created "${handle}" (${variants.length} variant(s)).`)
 
+          if (product.id) createdProductIds.push(product.id)
+
           for (const v of variants) {
             const sku = (v.sku ?? "").trim()
             const tiers = sku ? tierBySku.get(sku) : undefined
@@ -517,6 +528,40 @@ const SpreadsheetSyncPage = () => {
               brandLinkPayload.push({ product_id: product.id, brand_id: brandId })
             }
           }
+        }
+      }
+
+      // Taxonomy backfill — fills product_type and demographic tag (Men/
+      // Women/Kids) from the title for products whose CSV cells were
+      // blank, then re-runs Shop-category assignment so the mega-menu
+      // drill-down picks them up. Same code path as the standalone
+      // `backfill-product-taxonomy.ts` script.
+      if (createdProductIds.length) {
+        log.push(`Running taxonomy backfill on ${createdProductIds.length} new product(s)…`)
+        try {
+          const r = await fetch(adminFetchPath("/admin/taxonomy-audit/backfill"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_ids: createdProductIds }),
+          })
+          if (r.ok) {
+            const body = (await r.json()) as {
+              type_filled?: number
+              tag_filled?: number
+              categories_updated?: number
+              failures?: number
+            }
+            log.push(
+              `Taxonomy backfill: ${body.type_filled ?? 0} type(s) filled, ${body.tag_filled ?? 0} demographic tag(s) added, ${body.categories_updated ?? 0} Shop categor(ies) assigned${body.failures ? `, ${body.failures} failed` : ""}.`
+            )
+          } else {
+            log.push(`Taxonomy backfill returned HTTP ${r.status} — products created without it; run the audit panel to fix manually.`)
+          }
+        } catch (e) {
+          log.push(
+            `Taxonomy backfill failed: ${e instanceof Error ? e.message : String(e)} — products created without it; run the audit panel to fix manually.`
+          )
         }
       }
 

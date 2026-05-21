@@ -57,7 +57,10 @@ import {
   titleCase,
 } from "../modules/fashionbiz/mapping"
 import { BRAND_MODULE } from "../modules/brand"
-import { classifyFashionBizProduct } from "../lib/product-taxonomy"
+import {
+  applyTitleFallbacks,
+  classifyFashionBizProduct,
+} from "../lib/product-taxonomy"
 import {
   fetchAllProductTypes,
   fetchAllProductTags,
@@ -502,7 +505,17 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
     for (const p of createdProducts) {
       const fbProduct = fbByHandle.get((p as any).handle)
       if (!fbProduct) continue
-      const { productType, tags } = classifyFashionBizProduct(fbProduct, unknownTaxonomy)
+      const classified = classifyFashionBizProduct(fbProduct, unknownTaxonomy)
+      // Title-based fallback for FashionBiz products whose API `tags[]`
+      // is empty — common across many styles. Catches the garment-type
+      // word at the end of the title (e.g. "Womens Venture Short Sleeve
+      // Polo" → Polos) and the demographic from "Womens"/"Mens"/"Kids"
+      // prefixes.
+      const { productType, tags } = applyTitleFallbacks(
+        classified,
+        (p as any).title ?? "",
+        unknownTaxonomy
+      )
       if (!productType && !tags.length) continue
       try {
         await applyTypeAndTagsToProduct({

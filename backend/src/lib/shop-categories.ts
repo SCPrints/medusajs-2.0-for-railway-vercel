@@ -41,12 +41,15 @@ const APPAREL_SUBS: SubCategoryDef[] = [
   { name: "Activewear", handle: "activewear" },
 ]
 
-const KIDS_SUBS: SubCategoryDef[] = [
-  { name: "T-Shirts", handle: "t-shirts" },
-  { name: "Hoodies & Sweatshirts", handle: "hoodies" },
-  { name: "Long Sleeves", handle: "long-sleeves" },
-  { name: "Tanks & Singlets", handle: "tanks-singlets" },
-]
+// Kids mirrors the adult apparel taxonomy. The original list trimmed to
+// 4 categories ("kids only wear t-shirts / hoodies / long-sleeves /
+// tanks") but real catalogs include kids polos (school uniforms / team
+// kits), kids jackets, kids workwear (hi-vis vests for parents taking
+// kids on site), and kids activewear. Trimming the list silently
+// blocked products from landing in the menu drill-down (e.g. AP's
+// "Botany Kids Polos" had type=Polos + audience=kids → wanted
+// `kids-polos` handle which didn't exist).
+const KIDS_SUBS: SubCategoryDef[] = APPAREL_SUBS
 
 const ACCESSORY_SUBS: SubCategoryDef[] = [
   { name: "Headwear", handle: "headwear" },

@@ -24,7 +24,10 @@ import {
   type TierMoneyMinor,
 } from "../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../modules/brand"
-import { classifyAsColourProduct } from "../lib/product-taxonomy"
+import {
+  applyTitleFallbacks,
+  classifyAsColourProduct,
+} from "../lib/product-taxonomy"
 import {
   fetchAllProductTypes,
   fetchAllProductTags,
@@ -460,7 +463,16 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
     for (const p of createdProducts) {
       const asColourProduct = handleToAsColourProduct.get((p as any).handle)
       if (!asColourProduct) continue
-      const { productType, tags } = classifyAsColourProduct(asColourProduct, unknownTaxonomy)
+      const classified = classifyAsColourProduct(asColourProduct, unknownTaxonomy)
+      // Title-based fallback for the AS Colour API's frequently-null
+      // productType / gender / fit fields (e.g. accessories like "Parcel
+      // Tote" return all three as empty). Same fallback runs in every
+      // supplier importer — see CLAUDE.md "Types & Tags convention".
+      const { productType, tags } = applyTitleFallbacks(
+        classified,
+        (p as any).title ?? "",
+        unknownTaxonomy
+      )
       if (!productType && !tags.length) continue
       try {
         await applyTypeAndTagsToProduct({

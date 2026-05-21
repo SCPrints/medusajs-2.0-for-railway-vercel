@@ -113,6 +113,23 @@ One `Brand` entity owns every product's brand identity. Storefront filtering, br
 
 **Deprecated**: legacy `metadata.brand` / `metadata.supplier` / `metadata.manufacturer` / `metadata.label` reads are kept only as fallbacks in the catalog graph route. Schedule a follow-up to delete those after a couple of weeks of clean writes.
 
+## Types & tags convention (mandatory for every supplier importer)
+
+Brands aren't enough — the storefront also groups products by **product_type** (Polos, T-Shirts, Bags, …) and by **demographic tag** (Men / Women / Kids / Unisex). Without those two signals a product is invisible to the mega-menu drill-down, the chatbot's recommendations, and most reports. With ~20 suppliers in the pipeline, getting this consistent is mission-critical.
+
+**The contract for every supplier importer:**
+
+1. **Classifier per supplier** — `classify<Supplier>Product(product, unknownLog)` in [backend/src/lib/product-taxonomy.ts](backend/src/lib/product-taxonomy.ts). Reads supplier-specific API fields (gender, fit, category, tags…) and produces canonical type + tags via `normalizeProductType` + `normalizeTags`. Existing classifiers: `classifyAsColourProduct`, `classifyFashionBizProduct`, `classifyAussiePacificProduct`.
+2. **Title fallback after the classifier** — every importer **MUST** wrap the classifier result in `applyTitleFallbacks(result, productTitle, unknownLog)` ([product-taxonomy.ts](backend/src/lib/product-taxonomy.ts)). This fills missing type by right-to-left scanning the title against `PRODUCT_TYPE_ALIASES` and adds a demographic tag if the title contains a "Mens"/"Womens"/"Kids" cue. Defends against APIs that return null/empty source fields (common for accessories on AS Colour, large stretches of FashionBiz's catalog).
+3. **Shop categories** — call `ensureCategoryTree(container)` + `assignCategoriesToProducts(container, byHandle, { productIds })` from [shop-categories.ts](backend/src/lib/shop-categories.ts). Idempotent; reads `product.type.value` + title-based audience inference to assign `<audience>-<sub>` category handles (e.g. `mens-polos`).
+4. **No silent failures** — if a product exits the importer with no type, the audit panel at `/app/product-data` → "Taxonomy audit" will surface it. Run after every supplier import.
+
+**Bulk-fix script**: [backend/src/scripts/backfill-product-taxonomy.ts](backend/src/scripts/backfill-product-taxonomy.ts) re-runs `applyTitleFallbacks` on every existing product, then re-assigns Shop categories. Run after expanding alias maps or fixing the title-inference algorithm. `DRY_RUN=1` previews.
+
+**Alias maps live in one place**: `PRODUCT_TYPE_ALIASES` and `TAG_ALIASES` in `product-taxonomy.ts`. Extending these is the right way to handle a supplier that uses unfamiliar vocabulary — never branch in the classifier. Unknown values flow into `unknownLog` (visible in import logs) so the alias map can be grown over time.
+
+**Shop category TREE** in [shop-categories.ts](backend/src/lib/shop-categories.ts): audience (Mens / Womens / Kids / Accessories / Spirits) × garment-type subs. `KIDS_SUBS` mirrors `APPAREL_SUBS` — kids polos, kids jackets, kids workwear all exist. Trimming the kids list silently blocks AP / FB products from landing in the menu.
+
 ## Customer-portal feature stack (Phases 1-4)
 
 These four phases compose into the SC Prints customer portal. Each is independently deployable; they layer in build order.
@@ -778,8 +795,15 @@ All other env vars (Medusa core, AS Colour, Stripe, etc.) are documented in [bac
 
 | Variable | Purpose |
 | --- | --- |
+| `NEXT_PUBLIC_MEDUSA_BACKEND_URL` | Required. Public origin of the Medusa backend, e.g. `https://sc-prints-backend.fly.dev`. Both server-side fetchers and the InstantSearch modal read this. |
+| `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` | Required. Medusa store API publishable key (`pk_…`); scopes responses to the storefront's sales channel. |
+| `NEXT_PUBLIC_DEFAULT_REGION` | Optional. Country code (e.g. `au`) used as fallback when the URL has no country prefix and the `x-vercel-ip-country` header is missing. Defaults to `us`. |
+| `NEXT_PUBLIC_SEARCH_ENDPOINT` | Required. Origin of the Meilisearch instance. Production: `https://sc-prints-search.fly.dev` (the self-hosted Fly Meili). Used by both the server `search()` action and the client `<InstantSearch>` modal — must be the SAME Meili the backend writes to, otherwise the storefront returns IDs that no longer exist in Medusa. |
+| `NEXT_PUBLIC_SEARCH_API_KEY` | Required. Meilisearch **search-scoped** API key (the "Default Search API Key" Meili generates — `actions: ["search"]`, all indexes). Safe to expose client-side. Distinct from the admin/master key used by the backend. |
+| `REVALIDATE_SECRET` | Required for backend → storefront cache invalidation. Must match `REVALIDATE_SECRET` set on the Medusa backend so signed POSTs to `/api/revalidate-products` are accepted. If empty/missing, the route returns 503 and every backend cache-tag purge silently fails. |
 | `NEXT_PUBLIC_VECTORIZATION_VARIANT_ID` | Variant ID of the vectorization service product. Without it, the modal still works but the service line isn't auto-added — your team adds it via Order Edit. |
 | `NEXT_PUBLIC_VECTORIZATION_DISPLAY_PRICE` | Optional. Free-form string (e.g. `$15`) shown in the modal CTA copy. |
+| `ANTHROPIC_API_KEY` | Required for the storefront chatbot (`/api/chat`). Returns 503 when unset. |
 
 ## First-time setup checklist
 

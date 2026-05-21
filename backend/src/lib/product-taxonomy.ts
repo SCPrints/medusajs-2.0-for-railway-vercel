@@ -55,7 +55,12 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   // Healthcare scrub tops typically classify as Shirts; hi-vis is NOT a
   // garment type (it's a feature — see TAG_ALIASES) so it doesn't go here.
   "scrubs": "Shirts",
-  // Longsleeves
+  // Longsleeves — both hyphenated and space-form variants needed.
+  // `inferTypeFromTitle` strips hyphens during tokenisation, so a title
+  // like "Womens Long Sleeve T-Shirt" becomes tokens [..., "t", "shirt"]
+  // and only matches the space-form alias. Direct alias lookups (FB
+  // classifier scanning `product.tags[]`, spreadsheet sync reading the
+  // Type column verbatim) still match the hyphenated forms.
   "longsleeve": "Longsleeves",
   "longsleeves": "Longsleeves",
   "long sleeve": "Longsleeves",
@@ -63,8 +68,16 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "long sleeve shirt": "Longsleeves",
   "long sleeve t-shirt": "Longsleeves",
   "long sleeve t-shirts": "Longsleeves",
+  "long sleeve t shirt": "Longsleeves",
+  "long sleeve t shirts": "Longsleeves",
+  "long sleeve tee": "Longsleeves",
+  "long sleeve tees": "Longsleeves",
   "longsleeve t-shirt": "Longsleeves",
   "longsleeve t-shirts": "Longsleeves",
+  "longsleeve t shirt": "Longsleeves",
+  "longsleeve t shirts": "Longsleeves",
+  "longsleeve tee": "Longsleeves",
+  "longsleeve tees": "Longsleeves",
   "ls shirt": "Longsleeves",
   "ls tee": "Longsleeves",
   // Singlets / Tanks
@@ -354,6 +367,103 @@ function internalTitleCase(s: string): string {
     .split(/\s+/)
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
     .join(" ")
+}
+
+/**
+ * Demographic detection in product titles. Shared with `shop-categories.ts`
+ * (audience inference) so a single regex source-of-truth backs both the
+ * tag pipeline and the menu drill-down.
+ */
+export const TITLE_KW_WOMENS = /\b(women|womens|woman|women's|ladies|ladie's|lady|female)s?\b/i
+export const TITLE_KW_MENS = /\b(mens|men's|gents|gentlemen)\b/i
+export const TITLE_KW_KIDS = /\b(kid|kids|youth|child|children|infant|baby|babies|toddler|boys|boy|girls|girl)s?\b/i
+
+/**
+ * Walk a product title right-to-left and return the first match against
+ * `PRODUCT_TYPE_ALIASES`. Right-to-left because garment-type words tend
+ * to sit at the END of the title (e.g. "Parcel TOTE", "Womens Venture
+ * Short Sleeve POLO", "Mens Classic Crew TEE"). Left-to-right would let
+ * descriptive prefixes like "Crew" win over the real garment type at
+ * the end.
+ *
+ * At each position, the longest multi-word match (up to 4 tokens) wins,
+ * so "Long Sleeve Shirt" → "Longsleeves" not "Shirts". Returns null
+ * when nothing matches; pushes a log line so the alias map can be
+ * extended when a real product falls through.
+ */
+export function inferTypeFromTitle(
+  title: string | null | undefined,
+  unknownLog?: string[]
+): string | null {
+  if (!title?.trim()) return null
+  const tokens = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s\-/]/g, " ")
+    .split(/[\s\-/]+/)
+    .filter(Boolean)
+  if (!tokens.length) return null
+
+  for (let end = tokens.length - 1; end >= 0; end--) {
+    const maxLen = Math.min(4, end + 1)
+    for (let len = maxLen; len >= 1; len--) {
+      const start = end - len + 1
+      const phrase = tokens.slice(start, end + 1).join(" ")
+      const canonical = PRODUCT_TYPE_ALIASES[phrase]
+      if (canonical) return canonical
+    }
+  }
+  unknownLog?.push(
+    `[title-fallback] No garment-type alias matched any phrase in title "${title}" — leaving product_type unset.`
+  )
+  return null
+}
+
+/**
+ * Return a canonical demographic tag ("Men" / "Women" / "Kids") inferred
+ * from a product title, or null if no demographic cue is present. Kids
+ * cues win over womens/mens cues (a "Kids Womens Polo" doesn't exist in
+ * practice; the rare clash is safer biased toward kids). Order matches
+ * `shop-categories.ts:inferAudience`.
+ */
+export function inferDemographicTagFromTitle(
+  title: string | null | undefined
+): "Men" | "Women" | "Kids" | null {
+  if (!title) return null
+  if (TITLE_KW_KIDS.test(title)) return "Kids"
+  if (TITLE_KW_WOMENS.test(title)) return "Women"
+  if (TITLE_KW_MENS.test(title)) return "Men"
+  return null
+}
+
+/**
+ * Convenience wrapper for per-supplier importers. Takes the result of
+ * a supplier classifier and a product title, and fills the gaps:
+ *
+ *  - If `productType` is null, attempt `inferTypeFromTitle`.
+ *  - If a demographic tag (Men/Women/Kids) isn't already in `tags`,
+ *    attempt `inferDemographicTagFromTitle` and append it.
+ *
+ * Returns a new object (does not mutate input). Use this in every
+ * supplier importer after the classifier so empty type/tag fields from
+ * sparse API data don't ship to production.
+ */
+export function applyTitleFallbacks(
+  result: { productType: string | null; tags: string[] },
+  title: string | null | undefined,
+  unknownLog?: string[]
+): { productType: string | null; tags: string[] } {
+  const out = {
+    productType: result.productType,
+    tags: [...result.tags],
+  }
+  if (!out.productType) {
+    out.productType = inferTypeFromTitle(title, unknownLog)
+  }
+  const demographic = inferDemographicTagFromTitle(title)
+  if (demographic && !out.tags.includes(demographic)) {
+    out.tags.push(demographic)
+  }
+  return out
 }
 
 /**

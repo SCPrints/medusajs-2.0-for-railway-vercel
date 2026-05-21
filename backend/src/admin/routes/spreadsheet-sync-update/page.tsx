@@ -287,6 +287,16 @@ const SpreadsheetSyncUpdatePage = () => {
       return msg === "Failed to fetch" || msg === "Load failed" || msg.includes("NetworkError")
     }
 
+    /**
+     * IDs of every product the batch update touched. Fed to
+     * `/admin/taxonomy-audit/backfill` at the end of the run so the shared
+     * title-fallback inference fills any missing product_type or
+     * demographic tag (Men/Women/Kids) on products whose CSV cells were
+     * blank. Mirrors the post-create call in the spreadsheet-sync (new
+     * products) flow. See CLAUDE.md "Types & tags convention".
+     */
+    const updatedProductIds = new Set<string>()
+
     try {
       const chunkSize = productUpdateBatchChunkSize(enabledList)
       if (toUpdate.length > 0) {
@@ -337,6 +347,7 @@ const SpreadsheetSyncUpdatePage = () => {
             const id = p.id ?? "(unknown id)"
             const handle = p.handle ?? ""
             log.push(`  Updated ${id}${handle ? ` (${handle})` : ""}.`)
+            if (p.id) updatedProductIds.add(p.id)
           }
 
           if (!updated.length) {
@@ -484,6 +495,40 @@ const SpreadsheetSyncUpdatePage = () => {
         } catch (e) {
           log.push(
             `Brand resolution failed: ${e instanceof Error ? e.message : String(e)} — brand links not applied.`
+          )
+        }
+      }
+
+      // Taxonomy backfill — same call as the spreadsheet-sync (new
+      // products) flow. Safe on updates because the route only fills
+      // null fields, never overwrites. Skipped silently when no
+      // products were touched (e.g. CSV only had variant edits).
+      if (updatedProductIds.size > 0) {
+        const ids = Array.from(updatedProductIds)
+        log.push(`Running taxonomy backfill on ${ids.length} updated product(s)…`)
+        try {
+          const r = await fetch(adminFetchPath("/admin/taxonomy-audit/backfill"), {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_ids: ids }),
+          })
+          if (r.ok) {
+            const body = (await r.json()) as {
+              type_filled?: number
+              tag_filled?: number
+              categories_updated?: number
+              failures?: number
+            }
+            log.push(
+              `Taxonomy backfill: ${body.type_filled ?? 0} type(s) filled, ${body.tag_filled ?? 0} demographic tag(s) added, ${body.categories_updated ?? 0} Shop categor(ies) assigned${body.failures ? `, ${body.failures} failed` : ""}.`
+            )
+          } else {
+            log.push(`Taxonomy backfill returned HTTP ${r.status} — run the audit panel to fix manually.`)
+          }
+        } catch (e) {
+          log.push(
+            `Taxonomy backfill failed: ${e instanceof Error ? e.message : String(e)} — run the audit panel to fix manually.`
           )
         }
       }

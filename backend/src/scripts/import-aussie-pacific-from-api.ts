@@ -62,7 +62,10 @@ import {
   toArray,
 } from "../modules/aussiepacific/mapping"
 import { BRAND_MODULE } from "../modules/brand"
-import { classifyAussiePacificProduct } from "../lib/product-taxonomy"
+import {
+  applyTitleFallbacks,
+  classifyAussiePacificProduct,
+} from "../lib/product-taxonomy"
 import {
   fetchAllProductTypes,
   fetchAllProductTags,
@@ -487,8 +490,17 @@ export default async function importAussiePacificFromApi({
     for (const p of createdProducts) {
       const apProduct = apByHandle.get((p as any).handle)
       if (!apProduct) continue
-      const { productType, tags } = classifyAussiePacificProduct(
+      const classified = classifyAussiePacificProduct(
         apProduct,
+        unknownTaxonomy
+      )
+      // Title-based fallback. AP's main_category/sub_category usually
+      // resolve cleanly so this is mostly defense-in-depth — kicks in
+      // for edge cases where the API leaves both fields blank or the
+      // sub_category resolves to nothing in the alias map.
+      const { productType, tags } = applyTitleFallbacks(
+        classified,
+        (p as any).title ?? "",
         unknownTaxonomy
       )
       if (!productType && !tags.length) continue
