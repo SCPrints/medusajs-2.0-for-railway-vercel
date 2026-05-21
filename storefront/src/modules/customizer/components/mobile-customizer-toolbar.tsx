@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react"
 
-type ActionId = "sides" | "add-art" | "add-text" | "pricing"
+export type ToolbarActionId = "sides" | "add-art" | "add-text" | "pricing"
 
 type Action = {
-  id: ActionId
+  id: ToolbarActionId
   label: string
   anchorId: string
   icon: React.ReactNode
@@ -121,26 +121,30 @@ function scrollToAnchor(anchorId: string) {
   }, 350)
 }
 
+type Props = {
+  /**
+   * Optional handler. When provided, each toolbar button calls
+   * `onAction(id)` and the toolbar's job is done — the caller manages
+   * whatever sheet/dialog opens next. When omitted, the toolbar falls back
+   * to the legacy anchor-scroll behaviour so it stays useful in places
+   * that haven't migrated to bottom sheets yet.
+   */
+  onAction?: (id: ToolbarActionId) => void
+}
+
 /**
  * Phone-only sticky toolbar pinned to the bottom of the customizer page.
- * Each button scrolls to the matching panel anchor — the panels themselves
- * still render inline (no bottom-sheet state machine to maintain), so the
- * customer can always tap a button to land on the section they need.
- *
  * Hidden on `tablet:` (768px+) where the side-by-side desktop layout makes
- * scroll navigation unnecessary. Renders nothing on initial mount until
- * scrolled past the canvas so the toolbar doesn't fight the canvas surface
- * for tap area during initial design placement.
+ * mobile navigation unnecessary. Renders nothing until the user has
+ * scrolled past ~40% of the viewport so the toolbar doesn't fight the
+ * canvas surface for tap area during initial design placement.
  */
-export default function MobileCustomizerToolbar() {
+export default function MobileCustomizerToolbar({ onAction }: Props = {}) {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
     const onScroll = () => {
-      // Show only after the user has scrolled at least one viewport — that's
-      // the point at which the canvas + InputPanel are both above the fold
-      // and the wizard starts being the natural focus.
       setVisible(window.scrollY > window.innerHeight * 0.4)
     }
     onScroll()
@@ -149,6 +153,14 @@ export default function MobileCustomizerToolbar() {
   }, [])
 
   if (!visible) return null
+
+  const handleClick = (action: Action) => {
+    if (onAction) {
+      onAction(action.id)
+      return
+    }
+    scrollToAnchor(action.anchorId)
+  }
 
   return (
     <div
@@ -166,9 +178,9 @@ export default function MobileCustomizerToolbar() {
             <button
               key={action.id}
               type="button"
-              onClick={() => scrollToAnchor(action.anchorId)}
+              onClick={() => handleClick(action)}
               className="inline-flex min-h-14 flex-1 flex-col items-center justify-center gap-1 px-2 py-2 text-[11px] font-medium text-ui-fg-subtle transition hover:text-ui-fg-base active:scale-95"
-              aria-label={`Jump to ${action.label}`}
+              aria-label={`Open ${action.label}`}
             >
               <span className="text-ui-fg-base">{action.icon}</span>
               {action.label}

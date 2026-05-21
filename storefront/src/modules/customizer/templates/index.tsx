@@ -19,7 +19,10 @@ import CanvasStage from "@modules/customizer/components/canvas-stage"
 import DesignPreviewPopover from "@modules/customizer/components/design-preview-popover"
 import InputPanel from "@modules/customizer/components/input-panel"
 import ManagementPanel from "@modules/customizer/components/management-panel"
-import MobileCustomizerToolbar from "@modules/customizer/components/mobile-customizer-toolbar"
+import MobileCustomizerToolbar, {
+  type ToolbarActionId,
+} from "@modules/customizer/components/mobile-customizer-toolbar"
+import BottomSheet from "@modules/common/components/bottom-sheet"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
 import SideSelector from "@modules/customizer/components/side-selector"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -723,6 +726,10 @@ export default function CustomizerTemplate({
     Array<{ id: string; label: string; visible: boolean; locked: boolean; type?: string }>
   >([])
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
+  // Mobile bottom-sheet state. `null` = closed; otherwise the toolbar action
+  // whose sheet is currently open. Only used on the standalone customizer
+  // return path (embedded PDP wizard has its own step UI).
+  const [mobileSheet, setMobileSheet] = useState<ToolbarActionId | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [outOfBoundsWarning, setOutOfBoundsWarning] = useState<string | null>(null)
   const [dpiWarning, setDpiWarning] = useState<string | null>(null)
@@ -4695,7 +4702,89 @@ export default function CustomizerTemplate({
   return (
     <div className="content-container py-8 small:py-12">
       {main}
-      <MobileCustomizerToolbar />
+      <MobileCustomizerToolbar
+        onAction={(id) => {
+          // Pricing panel is huge — sheet UX would re-render the size matrix
+          // + Add to cart inside a constrained scroller. Keep the existing
+          // anchor scroll for that one button; sheets handle the rest.
+          if (id === "pricing") {
+            if (typeof document !== "undefined") {
+              const el = document.getElementById("customizer-pricing-panel")
+              el?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            return
+          }
+          setMobileSheet(id)
+        }}
+      />
+      <BottomSheet
+        open={mobileSheet === "add-art"}
+        onClose={() => setMobileSheet(null)}
+        title="Add to design"
+      >
+        <InputPanel
+          onUploadFile={handleUploadFile}
+          uploads={sessionUploads.map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            previewUrl: entry.dataUrl,
+            type: entry.type,
+          }))}
+          onReuseUpload={handleReuseUpload}
+          cartDesigns={cartArtworkDesigns}
+          onAddCartDesign={handleAddCartDesignFromCart}
+          onAddText={handleAddText}
+          onAddCurvedText={handleAddCurvedText}
+          onRemoveSelectedImage={removeSelectedImage}
+          canRemoveImage={canRemoveImage}
+          onDeleteUpload={(uploadId) =>
+            setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
+          }
+          enabled
+          className="border-0 bg-transparent p-0"
+        />
+      </BottomSheet>
+      <BottomSheet
+        open={mobileSheet === "add-text"}
+        onClose={() => setMobileSheet(null)}
+        title="Add text"
+      >
+        <InputPanel
+          onUploadFile={handleUploadFile}
+          uploads={sessionUploads.map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            previewUrl: entry.dataUrl,
+            type: entry.type,
+          }))}
+          onReuseUpload={handleReuseUpload}
+          cartDesigns={cartArtworkDesigns}
+          onAddCartDesign={handleAddCartDesignFromCart}
+          onAddText={handleAddText}
+          onAddCurvedText={handleAddCurvedText}
+          onRemoveSelectedImage={removeSelectedImage}
+          canRemoveImage={canRemoveImage}
+          onDeleteUpload={(uploadId) =>
+            setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
+          }
+          enabled
+          className="border-0 bg-transparent p-0"
+        />
+      </BottomSheet>
+      <BottomSheet
+        open={mobileSheet === "sides"}
+        onClose={() => setMobileSheet(null)}
+        title="Print location"
+      >
+        <SideSelector
+          currentSide={currentSide}
+          onSelectSide={(side) => {
+            switchSide(side)
+            setMobileSheet(null)
+          }}
+          allowedSides={allowedPrintSides}
+        />
+      </BottomSheet>
     </div>
   )
 }

@@ -37,7 +37,14 @@ export default function PdpLayoutGrid({ asideSlot, customizerSlot }: Props) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:col-span-3 lg:max-w-none lg:py-0"
+            /**
+             * Mobile: aside content (description, decoration estimator,
+             * spec/shipping tabs) renders BELOW the customizer so the
+             * gallery + variant picker + Customize CTA hit the fold first.
+             * Desktop (lg+): aside is the left column, customizer the
+             * right — `lg:order-none` restores natural source order.
+             */
+            className="order-2 flex flex-col gap-y-6 py-8 small:sticky small:top-48 lg:order-none lg:col-span-3 lg:max-w-none lg:py-0"
           >
             {asideSlot}
           </motion.aside>
@@ -47,7 +54,7 @@ export default function PdpLayoutGrid({ asideSlot, customizerSlot }: Props) {
         layout
         transition={{ duration: 0.4, ease: [0.22, 0.61, 0.36, 1] }}
         id="product-customizer"
-        className={`grid gap-8 lg:items-start ${
+        className={`order-1 grid gap-8 lg:order-none lg:items-start ${
           isCustomizing
             ? "lg:col-span-12 lg:grid-cols-12"
             : "lg:col-span-9 lg:grid-cols-9"

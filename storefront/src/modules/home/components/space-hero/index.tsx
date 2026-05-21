@@ -743,6 +743,21 @@ export default function SpaceHero({ className, style }: { className?: string; st
     shipDefsRef.current = buildShipDefs()
 
     stateRef.current = initScene()
+
+    // Respect prefers-reduced-motion. initScene() already painted the
+    // initial frame above, so skipping runLoop leaves the customer with a
+    // single static snapshot of the scene instead of the animation. Saves
+    // battery on phone + accessibility win.
+    let reducedMotion = false
+    try {
+      reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    } catch {
+      reducedMotion = false
+    }
+    if (reducedMotion) {
+      return
+    }
+
     const observer = new IntersectionObserver(([entry]) => { pausedRef.current = !entry.isIntersecting }, { threshold: 0 })
     observer.observe(starsCanvas)
     runLoop()

@@ -9,6 +9,7 @@ import { ChatWidget } from "@modules/common/components/chat-widget"
 import { Ga4Script } from "@modules/common/components/ga4-script"
 import { PostHogProvider } from "@modules/common/components/posthog-provider"
 import AddToHomeBanner from "@modules/common/components/add-to-home-banner"
+import ServiceWorkerRegister from "@modules/common/components/service-worker-register"
 
 const plusJakartaSans = Plus_Jakarta_Sans({ 
   subsets: ["latin"],
@@ -118,10 +119,29 @@ export default function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="en" data-mode="light" className="scroll-smooth">
       <head>
+        {/*
+          Preconnect to origins we hit on every page. Saves ~100-300ms TLS +
+          DNS round-trip per origin on the first request to each — meaningful
+          on phone networks. Cross-origin since these aren't same-origin.
+        */}
+        <link
+          rel="preconnect"
+          href="https://sc-prints-backend.fly.dev"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preconnect"
+          href="https://pub-4b98c1b8d55d4d9597ff5cfac6aa611a.r2.dev"
+          crossOrigin="anonymous"
+        />
         <link
           rel="preconnect"
           href="https://aussiepacific-images.s3.ap-southeast-2.amazonaws.com"
           crossOrigin="anonymous"
+        />
+        <link
+          rel="dns-prefetch"
+          href="https://www.googletagmanager.com"
         />
       </head>
       <body
@@ -147,6 +167,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
             </ViewTransitions>
           </Suspense>
           <AddToHomeBanner />
+          <ServiceWorkerRegister />
         </PostHogProvider>
       </body>
     </html>

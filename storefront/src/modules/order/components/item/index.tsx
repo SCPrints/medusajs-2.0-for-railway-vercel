@@ -114,23 +114,24 @@ const Item = ({ item, currencyCode }: ItemProps) => {
                 <Text className="txt-small-plus font-semibold mb-2">
                   Download your files
                 </Text>
-                <div className="space-y-2">
+                <div className="flex flex-col gap-1">
                   {customizerMetadata.customerOriginalFiles.map((file) => (
                     <a
                       key={file.url}
                       href={file.url}
                       download={file.fileName}
-                      className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
+                      className="inline-flex min-h-11 items-center gap-2 rounded-md px-2 py-2 text-base text-blue-600 hover:bg-blue-50 hover:underline tablet:min-h-0 tablet:py-1 tablet:text-sm"
                     >
                       <svg
-                        className="w-4 h-4"
+                        className="w-4 h-4 shrink-0"
                         fill="currentColor"
                         viewBox="0 0 20 20"
+                        aria-hidden
                       >
                         <path d="M12 2a1 1 0 011 1v6h2.586a1 1 0 01.707 1.707l-5 5a1 1 0 01-1.414 0l-5-5A1 1 0 015.414 9H8V3a1 1 0 011-1h3z" />
                         <path d="M3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" />
                       </svg>
-                      {file.fileName}
+                      <span className="truncate">{file.fileName}</span>
                     </a>
                   ))}
                 </div>

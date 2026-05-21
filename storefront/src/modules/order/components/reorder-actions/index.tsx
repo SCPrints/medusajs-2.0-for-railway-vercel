@@ -179,11 +179,11 @@ const ReorderActions = ({ order }: Props) => {
                 </div>
               </div>
 
-              <div className="border-t border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 flex flex-col sm:flex-row sm:justify-end gap-2">
+              <div className="border-t border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 flex flex-col gap-2 tablet:flex-row tablet:justify-end">
                 {productHref ? (
                   <LocalizedClientLink
                     href={productHref}
-                    className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2 text-sm font-medium text-ui-fg-base hover:bg-ui-bg-subtle"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2.5 text-base font-medium text-ui-fg-base hover:bg-ui-bg-subtle tablet:w-auto tablet:py-2 tablet:text-sm"
                     data-testid="reorder-garment-link"
                     onClick={() => phCapture("reorder_garment_clicked", {
                       order_id: order.id,
@@ -195,7 +195,7 @@ const ReorderActions = ({ order }: Props) => {
                 ) : null}
                 <LocalizedClientLink
                   href={reorderHref}
-                  className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-4 py-2.5 text-base font-medium text-white hover:opacity-90 tablet:w-auto tablet:py-2 tablet:text-sm"
                   data-testid="reorder-design-link"
                   onClick={() => phCapture("reorder_design_clicked", {
                     order_id: order.id,
