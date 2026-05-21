@@ -12,7 +12,17 @@ const endpoint =
 
 const apiKey = process.env.NEXT_PUBLIC_SEARCH_API_KEY || "test_key"
 
-export const searchClient = instantMeiliSearch(endpoint, apiKey)
+/**
+ * Factory — creates a fresh InstantMeiliSearch client. Use this from client
+ * components inside `useMemo` so each mount gets its own client. The underlying
+ * instantsearch.js machinery in `react-instantsearch-hooks-web@6` (deprecated)
+ * holds stale state across mount/unmount cycles under React 19, which manifests
+ * as the search box failing to render on the second visit to `/search`.
+ */
+export const createSearchClient = () => instantMeiliSearch(endpoint, apiKey)
+
+/** Singleton — safe from server actions (each request is a fresh process). */
+export const searchClient = createSearchClient()
 
 export const SEARCH_INDEX_NAME =
   process.env.NEXT_PUBLIC_INDEX_NAME || "products"

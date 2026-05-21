@@ -46,7 +46,7 @@ export async function getProductsById({
 }) {
   "use cache"
   cacheTag("products")
-  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
+  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
   return sdk.store.product
     .list({
       id: ids,
@@ -62,7 +62,7 @@ export async function getProductByHandle(
 ) {
   "use cache"
   cacheTag("products", `product-${String(handle ?? "").trim().toLowerCase()}`)
-  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
+  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
   const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
   if (!normalizedHandle) {
     return null
@@ -117,7 +117,7 @@ export async function getProductsList({
 }> {
   "use cache"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
-  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
+  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
   const limit = queryParams?.limit || 12
   const validPageParam = Math.max(pageParam, 1);
   const offset = (validPageParam - 1) * limit
@@ -190,7 +190,7 @@ export async function getHomeFeaturedRangeProducts({
 }): Promise<HttpTypes.StoreProduct[]> {
   "use cache"
   cacheTag("products", "home-featured")
-  cacheLife({ revalidate: 300, stale: 300, expire: 86400 })
+  cacheLife({ revalidate: 300, stale: 300, expire: 600 })
   const region = await getRegion(countryCode)
   if (!region) {
     return []
@@ -285,7 +285,7 @@ export async function getProductsListWithSort({
 }> {
   "use cache"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
-  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
+  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
   const limit = queryParams?.limit || 12
   const resolvedPage = !page || page < 1 ? 1 : page
 

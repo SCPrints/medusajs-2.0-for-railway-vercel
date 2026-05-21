@@ -4,15 +4,16 @@ import { InstantSearch } from "react-instantsearch-hooks-web"
 import { useRouter } from "next/navigation"
 import { MagnifyingGlassMini } from "@medusajs/icons"
 
-import { SEARCH_INDEX_NAME, searchClient } from "@lib/search-client"
+import { SEARCH_INDEX_NAME, createSearchClient } from "@lib/search-client"
 import Hit from "@modules/search/components/hit"
 import Hits from "@modules/search/components/hits"
 import SearchBox from "@modules/search/components/search-box"
-import { useEffect, useRef } from "react"
+import { useEffect, useMemo, useRef } from "react"
 
 export default function SearchModal() {
   const router = useRouter()
   const searchRef = useRef(null)
+  const searchClient = useMemo(() => createSearchClient(), [])
 
   // close modal on outside click
   const handleOutsideClick = (event: MouseEvent) => {
