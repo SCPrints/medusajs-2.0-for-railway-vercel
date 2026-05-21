@@ -7,6 +7,7 @@ import {
   MINIO_ACCESS_KEY,
   MINIO_BUCKET,
   MINIO_ENDPOINT,
+  MINIO_PUBLIC_URL,
   MINIO_SECRET_KEY,
 } from "../../lib/constants"
 import { RenderRequestPayload } from "./types"
@@ -125,6 +126,7 @@ const getMinioConfig = () => {
     accessKey: MINIO_ACCESS_KEY,
     secretKey: MINIO_SECRET_KEY,
     bucket: MINIO_BUCKET || "medusa-media",
+    publicUrl: MINIO_PUBLIC_URL?.replace(/\/$/, "") || null,
   }
 }
 
@@ -154,6 +156,12 @@ const uploadToMinio = async (buffer: Buffer, fileName: string, mimeType: string)
     return null
   }
 
+  // Prefer the public CDN/R2 host when configured. The S3 API endpoint
+  // (MINIO_ENDPOINT) on Cloudflare R2 requires auth and returns 401/403 to
+  // anonymous browser fetches — only `MINIO_PUBLIC_URL` is publicly readable.
+  if (config.publicUrl) {
+    return `${config.publicUrl}/${key}`
+  }
   const protocol = config.useSSL ? "https" : "http"
   return `${protocol}://${config.endPoint}/${config.bucket}/${key}`
 }
