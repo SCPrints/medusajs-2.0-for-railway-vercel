@@ -129,7 +129,7 @@ Brands aren't enough — the storefront also groups products by **product_type**
 
 **Alias maps live in one place**: `PRODUCT_TYPE_ALIASES` and `TAG_ALIASES` in `product-taxonomy.ts`. Extending these is the right way to handle a supplier that uses unfamiliar vocabulary — never branch in the classifier. Unknown values flow into `unknownLog` (visible in import logs) so the alias map can be grown over time.
 
-**Shop category TREE** in [shop-categories.ts](backend/src/lib/shop-categories.ts): 7 top-level audiences — **Mens, Womens, Kids, Workwear, Corporates, Accessories, Spirits**. Mens/Womens share a 28-sub APPAREL_SUBS list (T-Shirts, Pocket Tees, V-Necks, Active Tees, Polos, Active Polos, Business Shirts, Drill Shirts, Hoodies, Quarter Zips, Active Hoods, Softshell/Rain/Puffer/Active Jackets, Puffer/Softshell Vests, Active Shorts, Casual Shorts, Track Pants, Casual Pants, Tanks, Singlets, Active Singlets, Long Sleeves, Casual Shirts, Crewneck Sweatshirts, Zip Up Hoodies). Workwear has 32 subs including Hi-Viz variants per garment (`hi-viz-t-shirts`, `hi-viz-polos`, etc.). Corporates has 9 subs for office uniforms (Business Shirts, Polos, Knitwear, Blazers, Vests, Pants, Skirts, Dresses).
+**Shop category TREE** in [shop-categories.ts](backend/src/lib/shop-categories.ts): 8 top-level audiences — **Mens, Womens, Kids, Workwear, Corporates, Healthcare, Accessories, Spirits**. Mens/Womens share a 28-sub APPAREL_SUBS list (T-Shirts, Pocket Tees, V-Necks, Active Tees, Polos, Active Polos, Business Shirts, Drill Shirts, Hoodies, Quarter Zips, Active Hoods, Softshell/Rain/Puffer/Active Jackets, Puffer/Softshell Vests, Active Shorts, Casual Shorts, Track Pants, Casual Pants, Tanks, Singlets, Active Singlets, Long Sleeves, Casual Shirts, Crewneck Sweatshirts, Zip Up Hoodies). Workwear has 32 subs including Hi-Viz variants per garment (`hi-viz-t-shirts`, `hi-viz-polos`, etc.) — tradies / Industrial / Construction / Hi-Vis. Corporates has 9 subs for office uniforms (Business Shirts, Polos, Knitwear, Blazers, Vests, Pants, Skirts, Dresses). Healthcare has 10 subs for medical/clinical uniforms (Scrub Tops, Scrub Pants, Tunics, Polos, Cardigans, Lab Coats, Jackets, Vests, Pants, Dresses) — distinct from Workwear because "workwear" in Aussie English implies tradies.
 
 **Multi-audience inference** — products cross-list into ALL matching audiences:
 - Hi-Viz Womens Polo from Syzmik → `womens-polos` + `workwear-polos` + `workwear-hi-viz-polos`
@@ -137,9 +137,9 @@ Brands aren't enough — the storefront also groups products by **product_type**
 - Mens Pocket Tee → `mens-t-shirts` + `mens-pocket-tees`
 
 **Audience routing signals** (priority order in `inferAudiences`):
-1. **Brand-based**: `WORKWEAR_BRAND_HANDLES` (Syzmik, Biz Care, DNC, JB's Wear, Bisley, Hard Yakka, King Gee, Ritemate) and `CORPORATES_BRAND_HANDLES` (Biz Corporates, Gloweave) — when adding a new brand, decide if it's workwear/corporates and add to these sets in [shop-categories.ts](backend/src/lib/shop-categories.ts).
-2. **Tag-based**: `Hi-Vis` / `Industrial` / `Construction` / `Healthcare` tags → workwear.
-3. **Title-based**: "Hi-Vis" / "Workwear" / "Tradie" / "Industrial" / "Safety" keywords → workwear.
+1. **Brand-based**: `WORKWEAR_BRAND_HANDLES` (Syzmik, DNC, JB's Wear, Bisley, Hard Yakka, King Gee, Ritemate), `CORPORATES_BRAND_HANDLES` (Biz Corporates, Gloweave), and `HEALTHCARE_BRAND_HANDLES` (Biz Care) — when adding a new brand, decide which of the three "uniform context" audiences it belongs to and add to the right set in [shop-categories.ts](backend/src/lib/shop-categories.ts).
+2. **Tag-based**: `Hi-Vis` / `Industrial` / `Construction` tags → workwear. `Healthcare` / `Pharmacy` / `Dentistry` / `Veterinary` / `Medical` / `Aged Care` tags → healthcare.
+3. **Title-based**: "Hi-Vis" / "Workwear" / "Tradie" / "Industrial" / "Safety" / "Drill" keywords → workwear. "Scrub" / "Tunic" / "Lab Coat" / "Medical" / "Clinical" / "Nursing" keywords → healthcare.
 4. **Demographic**: title keywords for mens/womens/kids; unisex defaults to BOTH mens + womens.
 
 **Sub-variant inference** — same product can land in multiple subs within an audience:

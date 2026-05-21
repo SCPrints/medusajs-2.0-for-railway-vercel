@@ -30,6 +30,7 @@ export type AudienceKey =
   | "kids"
   | "workwear"
   | "corporates"
+  | "healthcare"
   | "accessories"
   | "spirits"
 
@@ -170,6 +171,23 @@ const CORPORATES_SUBS: SubCategoryDef[] = [
   { name: "Dresses", handle: "dresses" },
 ]
 
+// Healthcare: medical/clinical uniforms — Biz Care territory. Scrubs, lab
+// coats, medical polos. Distinct from Workwear (tradies/Hi-Vis/Industrial)
+// because "Workwear" in Aussie English carries a tradie connotation that
+// doesn't fit medical/clinical settings.
+const HEALTHCARE_SUBS: SubCategoryDef[] = [
+  { name: "Scrub Tops", handle: "scrub-tops" },
+  { name: "Scrub Pants", handle: "scrub-pants" },
+  { name: "Tunics", handle: "tunics" },
+  { name: "Polos", handle: "polos" },
+  { name: "Cardigans", handle: "cardigans" },
+  { name: "Lab Coats", handle: "lab-coats" },
+  { name: "Jackets", handle: "jackets" },
+  { name: "Vests", handle: "vests" },
+  { name: "Pants", handle: "pants" },
+  { name: "Dresses", handle: "dresses" },
+]
+
 const ACCESSORY_SUBS: SubCategoryDef[] = [
   { name: "Headwear", handle: "headwear" },
   { name: "Bags", handle: "bags" },
@@ -198,6 +216,7 @@ export const TREE: AudienceDef[] = [
   { name: "Kids", handle: "kids", children: KIDS_SUBS },
   { name: "Workwear", handle: "workwear", children: WORKWEAR_SUBS },
   { name: "Corporates", handle: "corporates", children: CORPORATES_SUBS },
+  { name: "Healthcare", handle: "healthcare", children: HEALTHCARE_SUBS },
   { name: "Accessories", handle: "accessories", children: ACCESSORY_SUBS },
   { name: "Spirits", handle: "spirits", children: SPIRIT_SUBS },
 ]
@@ -206,16 +225,15 @@ export const TREE: AudienceDef[] = [
 // BRAND-BASED AUDIENCE ROUTING
 // ============================================================
 
-// Brand handles whose products are ALWAYS workwear — regardless of any
-// demographic cue in the title. Hi-Viz Womens Polo from Syzmik still
-// lands under Workwear (cross-listed with womens via the gender path).
+// Brand handles whose products are ALWAYS workwear — tradies / Hi-Viz /
+// Industrial / Construction. Hi-Viz Womens Polo from Syzmik lands in
+// Workwear (cross-listed with womens via the gender path).
 //
 // TODO: migrate to brand.metadata.audience_type so this isn't hardcoded.
 // Hardcoded list works for the first ~20 brands we'll onboard; promote to
 // data-driven once the list grows or staff need to flip the flag in admin.
 const WORKWEAR_BRAND_HANDLES = new Set([
   "syzmik",
-  "biz-care",
   "dnc-workwear",
   "dnc",
   "jbs-wear",
@@ -226,10 +244,19 @@ const WORKWEAR_BRAND_HANDLES = new Set([
   "ritemate",
 ])
 
-// Brand handles whose products are ALWAYS corporates — office uniforms.
+// Brand handles whose products are ALWAYS corporates — office uniforms
+// (business shirts, polos, blazers, knitwear, skirts, dresses).
 const CORPORATES_BRAND_HANDLES = new Set([
   "biz-corporates",
   "gloweave",
+])
+
+// Brand handles whose products are ALWAYS healthcare — medical/clinical
+// uniforms (scrubs, lab coats, medical polos). Distinct from Workwear
+// because "workwear" in Aussie English implies tradies, not medical staff.
+const HEALTHCARE_BRAND_HANDLES = new Set([
+  "biz-care",
+  // Future medical-uniform brands: greys-anatomy, cherokee, dickies-medical
 ])
 
 // ============================================================
@@ -333,6 +360,15 @@ const KW_KNIT = /\bknit\b|\bcardigan\b|\bjumper\b|\bsweater\b/i
 const KW_DRESS = /\bdress\b/i
 const KW_SKIRT = /\bskirt\b/i
 
+// Healthcare subtypes
+const KW_SCRUB_TOP = /\bscrub\s+top\b|\bscrub\s+shirt\b/i
+const KW_SCRUB_PANT = /\bscrub\s+pant\b|\bscrub\s+trouser\b/i
+const KW_SCRUB_GENERIC = /\bscrub(s)?\b/i
+const KW_TUNIC = /\btunic\b/i
+const KW_LAB_COAT = /\blab\s+coat\b|\blaboratory\s+coat\b/i
+const KW_CARDIGAN = /\bcardigan\b|\bcardi\b/i
+const KW_HEALTHCARE_GENERIC = /\b(medical|clinical|nursing|nurse|veterinary|pharmacy|dental|dentistry|healthcare|aged\s+care)\b/i
+
 // ============================================================
 // SIGNAL HELPERS
 // ============================================================
@@ -347,6 +383,11 @@ function isCorporatesBrand(brandHandle: string | null | undefined): boolean {
   return CORPORATES_BRAND_HANDLES.has(brandHandle.toLowerCase())
 }
 
+function isHealthcareBrand(brandHandle: string | null | undefined): boolean {
+  if (!brandHandle) return false
+  return HEALTHCARE_BRAND_HANDLES.has(brandHandle.toLowerCase())
+}
+
 function hasHiViz(title: string, tags: string[]): boolean {
   if (tags.some((t) => /\bhi[-\s]?vi[zs]\b/i.test(t))) return true
   return KW_HIVIZ.test(title)
@@ -357,10 +398,29 @@ function isWorkwearByContext(title: string, tags: string[]): boolean {
   if (KW_WORKWEAR_GENERIC.test(title)) return true
   for (const t of tags) {
     const lower = t.trim().toLowerCase()
+    // Healthcare is NOT a workwear signal — it routes to its own audience.
+    // Hospitality is ambiguous (chef aprons vs. waitstaff polos) — skip.
+    if (lower === "industrial" || lower === "construction") {
+      return true
+    }
+  }
+  return false
+}
+
+function isHealthcareByContext(title: string, tags: string[]): boolean {
+  if (KW_HEALTHCARE_GENERIC.test(title)) return true
+  if (KW_SCRUB_GENERIC.test(title)) return true
+  if (KW_LAB_COAT.test(title)) return true
+  for (const t of tags) {
+    const lower = t.trim().toLowerCase()
     if (
-      lower === "industrial" ||
-      lower === "construction" ||
-      lower === "healthcare"
+      lower === "healthcare" ||
+      lower === "pharmacy" ||
+      lower === "dentistry" ||
+      lower === "veterinary" ||
+      lower === "aged care" ||
+      lower === "medical" ||
+      lower === "clinical"
     ) {
       return true
     }
@@ -412,7 +472,17 @@ export function inferAudiences(ctx: InferenceContext): AudienceKey[] {
     return ["accessories"]
   }
 
-  // Workwear via brand OR detected context.
+  // Healthcare via brand OR detected context. Checked BEFORE workwear so
+  // a "Healthcare Polo" doesn't accidentally trip the workwear context
+  // checker (it won't — different keywords — but defensive ordering).
+  if (
+    isHealthcareBrand(ctx.brandHandle) ||
+    isHealthcareByContext(title, tags)
+  ) {
+    audiences.add("healthcare")
+  }
+
+  // Workwear via brand OR detected context (tradies/Hi-Viz/Industrial only).
   if (isWorkwearBrand(ctx.brandHandle) || isWorkwearByContext(title, tags)) {
     audiences.add("workwear")
   }
@@ -487,6 +557,42 @@ function inferSubsForAudience(
       if (KW_BUSINESS.test(title)) subs.add("business-shirts")
       else subs.add("casual-shirts")
     }
+
+    return Array.from(subs)
+  }
+
+  // Healthcare — keyword + type-driven routing (Biz Care's clinical line).
+  // Title takes priority over type because Biz Care often categorises their
+  // scrubs as generic "Shirts" / "Pants" at the API level, and the title
+  // (e.g. "Womens Comfort Scrub Top") is the most reliable signal.
+  if (audience === "healthcare") {
+    // Title-driven medical-specific subs first.
+    if (KW_SCRUB_TOP.test(title)) subs.add("scrub-tops")
+    else if (KW_SCRUB_PANT.test(title)) subs.add("scrub-pants")
+    else if (KW_SCRUB_GENERIC.test(title)) subs.add("scrub-tops")
+    if (KW_TUNIC.test(title)) subs.add("tunics")
+    if (KW_LAB_COAT.test(title)) subs.add("lab-coats")
+    if (KW_CARDIGAN.test(title)) subs.add("cardigans")
+
+    // Type-driven medical-specific subs.
+    if (normalizedType === "scrub tops") subs.add("scrub-tops")
+    if (normalizedType === "scrub pants") subs.add("scrub-pants")
+    if (normalizedType === "tunics") subs.add("tunics")
+    if (normalizedType === "lab coats") subs.add("lab-coats")
+    if (normalizedType === "cardigans") subs.add("cardigans")
+
+    // General types that also exist in HEALTHCARE_SUBS — these cross-list
+    // with the gender audience too (a Biz Care medical polo also appears
+    // in womens-polos so it's discoverable without a healthcare browse).
+    if (normalizedType === "polos") subs.add("polos")
+    if (normalizedType === "pants" && !KW_SCRUB_PANT.test(title)) {
+      subs.add("pants")
+    }
+    if (normalizedType === "jackets" || /\bjacket\b/i.test(title)) {
+      subs.add("jackets")
+    }
+    if (/\bvest\b/i.test(title)) subs.add("vests")
+    if (KW_DRESS.test(title)) subs.add("dresses")
 
     return Array.from(subs)
   }

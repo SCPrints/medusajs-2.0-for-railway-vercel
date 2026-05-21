@@ -313,12 +313,128 @@ describe("resolveCategoryHandles — multi-audience cross-listing", () => {
   })
 })
 
+describe("Healthcare audience (Biz Care)", () => {
+  it("biz-care brand routes products to healthcare, NOT workwear", () => {
+    const audiences = inferAudiences(
+      ctx({
+        title: "Womens Comfort Scrub Top",
+        typeValue: "Scrub Tops",
+        brandHandle: "biz-care",
+      })
+    )
+    expect(audiences).toContain("healthcare")
+    expect(audiences).not.toContain("workwear")
+    expect(audiences).toContain("womens")
+  })
+
+  it("Womens Scrub Top → healthcare-scrub-tops only (no womens cross-list)", () => {
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Womens Comfort Scrub Top",
+        typeValue: "Scrub Tops",
+        brandHandle: "biz-care",
+      })
+    )
+    expect(handles).toContain("healthcare-scrub-tops")
+    // Scrub tops don't have a natural home in APPAREL_SUBS — exclusive
+    // to healthcare per the design discussion.
+    expect(handles).not.toContain("womens-scrub-tops")
+    expect(handles).not.toContain("womens-t-shirts")
+    expect(handles).not.toContain("womens-shirts")
+  })
+
+  it("Womens Biz Care Polo cross-lists into healthcare-polos AND womens-polos", () => {
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Womens Medical Polo",
+        typeValue: "Polos",
+        brandHandle: "biz-care",
+      })
+    )
+    expect(handles).toContain("healthcare-polos")
+    expect(handles).toContain("womens-polos")
+  })
+
+  it("Biz Care Cardigan → healthcare-cardigans (no womens cross-list)", () => {
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Womens Comfy Cardigan",
+        typeValue: "Cardigans",
+        brandHandle: "biz-care",
+      })
+    )
+    expect(handles).toContain("healthcare-cardigans")
+    // Cardigans aren't in APPAREL_SUBS yet — exclusive to healthcare.
+    expect(handles).not.toContain("womens-cardigans")
+  })
+
+  it("Lab Coat title → healthcare-lab-coats", () => {
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Unisex Lab Coat",
+        typeValue: "Lab Coats",
+        brandHandle: "biz-care",
+      })
+    )
+    expect(handles).toContain("healthcare-lab-coats")
+  })
+
+  it("Healthcare detected via title keyword without brand", () => {
+    // A workwear brand with a clinical line (hypothetical).
+    const audiences = inferAudiences(
+      ctx({
+        title: "Mens Veterinary Scrub Top",
+        typeValue: "Scrub Tops",
+        brandHandle: null,
+      })
+    )
+    expect(audiences).toContain("healthcare")
+  })
+
+  it("Healthcare tag routes to healthcare audience (not workwear)", () => {
+    const audiences = inferAudiences(
+      ctx({
+        title: "Mens Polo",
+        typeValue: "Polos",
+        tags: ["Healthcare"],
+      })
+    )
+    expect(audiences).toContain("healthcare")
+    expect(audiences).not.toContain("workwear")
+  })
+
+  it("Hi-Viz tag still routes to workwear, NOT healthcare", () => {
+    // Sanity check — the healthcare split didn't accidentally absorb Hi-Viz.
+    const audiences = inferAudiences(
+      ctx({
+        title: "Mens Hi-Vis Polo",
+        typeValue: "Polos",
+      })
+    )
+    expect(audiences).toContain("workwear")
+    expect(audiences).not.toContain("healthcare")
+  })
+
+  it("Scrub Pant title → healthcare-scrub-pants (not -pants)", () => {
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Mens Cargo Scrub Pant",
+        typeValue: "Scrub Pants",
+        brandHandle: "biz-care",
+      })
+    )
+    expect(handles).toContain("healthcare-scrub-pants")
+    expect(handles).not.toContain("healthcare-pants")
+  })
+})
+
 describe("TREE structure invariants", () => {
-  it("contains all 7 audiences", () => {
+  it("contains all 8 audiences", () => {
     const audienceHandles = TREE.map((t) => t.handle).sort()
     expect(audienceHandles).toEqual([
       "accessories",
       "corporates",
+      "healthcare",
       "kids",
       "mens",
       "spirits",

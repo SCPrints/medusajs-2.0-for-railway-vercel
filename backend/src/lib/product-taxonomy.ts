@@ -52,9 +52,27 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "short sleeve shirt": "Shirts",
   "ss shirt": "Shirts",
   "shirting and tops": "Shirts",
-  // Healthcare scrub tops typically classify as Shirts; hi-vis is NOT a
-  // garment type (it's a feature — see TAG_ALIASES) so it doesn't go here.
-  "scrubs": "Shirts",
+  // Healthcare uniforms — Biz Care territory. These canonical types
+  // route to the `healthcare-*` audience subs (scrub-tops / scrub-pants /
+  // tunics / lab-coats / cardigans). Generic "scrubs" defaults to tops.
+  "scrubs": "Scrub Tops",
+  "scrub": "Scrub Tops",
+  "scrub top": "Scrub Tops",
+  "scrub tops": "Scrub Tops",
+  "scrub shirt": "Scrub Tops",
+  "scrub shirts": "Scrub Tops",
+  "scrub pant": "Scrub Pants",
+  "scrub pants": "Scrub Pants",
+  "scrub trouser": "Scrub Pants",
+  "scrub trousers": "Scrub Pants",
+  "tunic": "Tunics",
+  "tunics": "Tunics",
+  "lab coat": "Lab Coats",
+  "lab coats": "Lab Coats",
+  "laboratory coat": "Lab Coats",
+  "cardigan": "Cardigans",
+  "cardigans": "Cardigans",
+  "cardi": "Cardigans",
   // Longsleeves — both hyphenated and space-form variants needed.
   // `inferTypeFromTitle` strips hyphens during tokenisation, so a title
   // like "Womens Long Sleeve T-Shirt" becomes tokens [..., "t", "shirt"]
