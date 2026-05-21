@@ -135,8 +135,15 @@ const medusaConfig = {
           {
             key: Modules.WORKFLOW_ENGINE,
             resolve: '@medusajs/workflow-engine-redis',
+            // workflow-engine-redis@2.14.2 destructures from `options.redis`
+            // (see dist/loaders/redis.js:9). event-bus-redis uses flat
+            // `options.redisUrl` — the two modules have inconsistent shapes.
+            // Commit b8e0b613 unified them to flat, which silently broke this
+            // module (destructuring undefined). Keep nested here.
             options: {
-              redisUrl: REDIS_URL,
+              redis: {
+                redisUrl: REDIS_URL,
+              },
             },
           },
         ]
