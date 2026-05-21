@@ -23,8 +23,9 @@ pnpm email:dev            # preview Resend email templates at localhost:3002
 ### Storefront (`cd storefront`)
 
 ```bash
-pnpm dev                  # start Next.js dev server (waits for backend to be healthy first)
-pnpm build:next           # Next.js build only, skipping the backend health-check wrapper
+pnpm dev                  # start Next.js dev server (run the backend separately — `pnpm --filter backend dev`)
+pnpm build                # production build (`next build`)
+pnpm build:next           # alias for `next build`
 pnpm lint                 # ESLint via next lint
 pnpm test                 # run all Jest tests
 pnpm test -- --testPathPattern=src/modules/customizer/lib/dpi  # single test file
@@ -1431,11 +1432,11 @@ All audit items from the original review have been resolved. See "Fixed" below f
 - **MinIO retention is load-bearing for re-order.** If lifecycle policies GC `customer_original_files` URLs, re-order will display fine but **add-to-cart will fail to re-render print PNGs**. Set retention to indefinite for these objects, or move them to a permanent bucket on order placement.
 - **Customizer template size** ([storefront/src/modules/customizer/templates/index.tsx](storefront/src/modules/customizer/templates/index.tsx)) is ~3700 lines. New canvas-related work should consider whether it can live in a separate component before adding to this file.
 - **Hand-written migration**: the Phase 2 migration ([Migration20260507000000.ts](backend/src/modules/designs/migrations/Migration20260507000000.ts)) was hand-written to match what `npx medusa db:generate designs` produces. If you'd rather have the auto-generated one, delete it and run the generator before `db:migrate`.
-- **Production boot auto-migrates.** The backend `start` script in [backend/package.json](backend/package.json) is `init-backend && cd .medusa/server && npx medusa db:migrate && npx medusa db:sync-links && npx medusa start --verbose`. Both DB ops are idempotent and safe to run from every replica (workers included) — Mikro-ORM holds an advisory lock during migrate, so concurrent boots serialise. **Do not remove the `db:migrate` / `db:sync-links` calls** — without them, any Medusa minor that ships schema changes will silently break prod.
+- **Migrations run as a Fly release command, not on boot.** [backend/fly.toml](backend/fly.toml) `[deploy] release_command` runs `cd .medusa/server && npx medusa db:migrate && npx medusa db:sync-links` once per deploy — out of the hot path of the booting machines. The container's `start` script ([backend/package.json](backend/package.json)) is just `cd .medusa/server && npx medusa start --verbose`. Mikro-ORM holds an advisory lock during migrate, so the release command is safe to re-run. **Do not move migrations back into the per-machine start script** — that's a 2-4 min penalty on every machine boot (including Fly suspend/resume), and pre-migration code can race against post-migration schema while replicas restart.
 
 ## Upgrading Medusa — runbook
 
-The original `init-backend` script (from `medusajs-launch-utils`) only seeds + migrates on the **first** deploy (it gates on the `user` table existing). On every subsequent boot it logs "Database is already seeded. Skipping seeding." and never runs migrations. That's why the start script above runs `db:migrate` explicitly. If you change the boot sequence, preserve that.
+The `medusajs-launch-utils` Railway helpers (`init-backend`, `await-backend`, `launch-storefront`) were removed during the Fly migration. Backend migrations now run via `fly.toml`'s `[deploy] release_command`; storefront builds run `next build` directly on Vercel. If you change the boot sequence, preserve that — moving `db:migrate` into the per-machine start script re-introduces the 2-4 min boot penalty.
 
 **Before bumping Medusa:**
 

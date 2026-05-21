@@ -13,16 +13,18 @@ const endpoint =
 const apiKey = process.env.NEXT_PUBLIC_SEARCH_API_KEY || "test_key"
 
 /**
- * Factory — creates a fresh InstantMeiliSearch client. Use this from client
- * components inside `useMemo` so each mount gets its own client. The underlying
+ * Factory — creates a fresh InstantMeiliSearch client. The underlying
  * instantsearch.js machinery in `react-instantsearch-hooks-web@6` (deprecated)
- * holds stale state across mount/unmount cycles under React 19, which manifests
- * as the search box failing to render on the second visit to `/search`.
+ * holds stale state across mount/unmount cycles under React 19 AND across
+ * reused Vercel Fluid Compute function invocations. Always construct a new
+ * client per call site:
+ *   - Client components: inside `useMemo` so each mount gets its own client.
+ *   - Server actions: at the top of each action so each request gets its own.
+ * Sharing a module-level singleton caused the search box to fail to render on
+ * the second visit to `/search` (client-side) and `/results/<query>` to hang
+ * until Vercel returned 504 (server-side).
  */
 export const createSearchClient = () => instantMeiliSearch(endpoint, apiKey)
-
-/** Singleton — safe from server actions (each request is a fresh process). */
-export const searchClient = createSearchClient()
 
 export const SEARCH_INDEX_NAME =
   process.env.NEXT_PUBLIC_INDEX_NAME || "products"

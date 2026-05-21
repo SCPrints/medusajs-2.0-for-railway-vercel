@@ -10,7 +10,8 @@ Railway was retired after the May 2026 outage. Production now runs on the stack 
 | Next.js storefront | Vercel | Custom domain `sc-prints.com.au` |
 | PostgreSQL | DigitalOcean Managed Database | Connection string in Fly secret `DATABASE_URL` |
 | Media / uploads | Cloudflare R2 | Via MinIO-compatible `MINIO_*` env vars |
-| Redis | Upstash, DO Managed Redis, or similar | **Required** for production sessions, event bus, workflows |
+| Redis | Self-hosted on Fly.io | App `sc-prints-redis`, region `syd`, `redis/fly.toml`. Private 6PN at `sc-prints-redis.internal:6379` — never publicly exposed. Sessions, event bus, workflow engine, locks. Retired Upstash (`super-fawn-131470.upstash.io`) after the free tier was exhausted by BullMQ poll volume on 2026-05-21. |
+| Meilisearch | Self-hosted on Fly.io | App `sc-prints-search`, region `syd`, `meilisearch/fly.toml`. Public at `https://sc-prints-search.fly.dev`. Backend writes; storefront reads with a search-scoped key. |
 
 ## URLs
 
@@ -78,7 +79,7 @@ Fly sets `FLY_APP_NAME=sc-prints-backend` automatically; `BACKEND_URL` in code f
 | `NEXT_PUBLIC_MEDUSA_BACKEND_URL` | `https://sc-prints-backend.fly.dev` |
 | `NEXT_PUBLIC_BASE_URL` | `https://sc-prints.com.au` |
 
-## Webhooks (update from Railway)
+## Webhooks
 
 - Stripe cart: `https://sc-prints-backend.fly.dev/hooks/payment/stripe_stripe`
 - Stripe payment links: `https://sc-prints-backend.fly.dev/hooks/stripe-payment-link`

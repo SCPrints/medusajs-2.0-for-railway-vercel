@@ -1,6 +1,6 @@
 "use server"
 
-import { SEARCH_INDEX_NAME, searchClient } from "@lib/search-client"
+import { SEARCH_INDEX_NAME, createSearchClient } from "@lib/search-client"
 
 interface Hits {
   readonly objectID?: string
@@ -8,28 +8,46 @@ interface Hits {
   [x: string | number | symbol]: unknown
 }
 
+/** Hard upper bound on the Meilisearch round-trip — keeps Vercel from
+ * gateway-timing-out (504) and lets `/results/[query]` degrade to a clean
+ * "No results" page if the search index is unreachable. */
+const SEARCH_TIMEOUT_MS = 8000
+
 /**
  * Uses MeiliSearch or Algolia to search for a query
  * @param {string} query - search query
  */
-export async function search(query: string) {
-  // MeiliSearch
+export async function search(query: string): Promise<Hits[]> {
+  // Fresh client per request. The previous module-level singleton survived
+  // across reused Fluid Compute invocations and could get wedged into a stuck
+  // state — symptom was /results/<q> hanging until Vercel returned 504. The
+  // client-side modal already moved to per-mount construction (commit
+  // fd6fdf42); the server action was missed.
+  const client = createSearchClient()
   const queries = [{ params: { query }, indexName: SEARCH_INDEX_NAME }]
-  const { results } = (await searchClient.search(queries)) as Record<
-    string,
-    any
-  >
-  const { hits } = results[0] as { hits: Hits[] }
 
-  // In case you want to use Algolia instead of MeiliSearch, uncomment the following lines and delete the above lines.
-
-  // const index = searchClient.initIndex(SEARCH_INDEX_NAME)
-  // const { hits } = (await index.search(query)) as { hits: Hits[] }
+  let hits: Hits[] = []
+  try {
+    const { results } = (await Promise.race([
+      client.search(queries),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`search timeout after ${SEARCH_TIMEOUT_MS}ms`)),
+          SEARCH_TIMEOUT_MS
+        )
+      ),
+    ])) as Record<string, any>
+    hits = (results?.[0]?.hits ?? []) as Hits[]
+  } catch (error) {
+    console.warn("[search] meilisearch query failed:", (error as Error).message)
+    // Fall through with empty hits so the page renders "No results" instead
+    // of throwing a 500 / hitting the 504 gateway timeout.
+  }
 
   // Fire-and-forget log of the search to the backend so the admin
   // Reports → Catalog & supply tab can surface top + zero-result
   // queries. Failures are swallowed — never break search UX.
-  void logSearchEvent(query.trim(), Array.isArray(hits) ? hits.length : 0)
+  void logSearchEvent(query.trim(), hits.length)
 
   return hits
 }
