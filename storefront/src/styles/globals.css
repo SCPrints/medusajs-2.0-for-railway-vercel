@@ -61,6 +61,31 @@ main {
   }
 }
 
+/* Slow magenta ↔ teal pulse used for the customizer "Printing on" location
+   chips at Step 4. Two-tone identity moment that reinforces "this is the
+   stuff that's going on your garment". Honours reduced-motion. */
+@keyframes scpBrandPulse {
+  0%,
+  100% {
+    color: var(--brand-secondary);
+  }
+  50% {
+    color: var(--brand-accent);
+  }
+}
+
+.animate-brand-pulse {
+  animation: scpBrandPulse 3.6s ease-in-out infinite;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-brand-pulse {
+    animation: none;
+    color: var(--brand-secondary);
+  }
+}
+
 /* Lean default text links toward brand secondary, keep button links unaffected */
 a:not(.bg-ui-fg-base):not(.text-white) {
   color: var(--brand-secondary);

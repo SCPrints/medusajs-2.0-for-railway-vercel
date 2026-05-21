@@ -1,10 +1,9 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
-import { getCategoryByHandle, listCategories } from "@lib/data/categories"
-import { listRegions } from "@lib/data/regions"
+import { getCategoryByHandle } from "@lib/data/categories"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
-import { StoreProductCategory, StoreRegion } from "@medusajs/types"
+import { StoreProductCategory } from "@medusajs/types"
 import CategoryTemplate from "@modules/categories/templates"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 
@@ -34,32 +33,18 @@ const parsePositiveNumber = (value?: string) => {
   return Math.floor(parsed)
 }
 
-export async function generateStaticParams() {
-  const product_categories = await listCategories()
-
-  if (!product_categories) {
-    return []
-  }
-
-  const countryCodes = await listRegions().then((regions: StoreRegion[]) =>
-    regions?.map((r) => r.countries?.map((c) => c.iso_2)).flat()
-  )
-
-  const categoryHandles = product_categories.map(
-    (category: any) => category.handle
-  )
-
-  const staticParams = countryCodes
-    ?.map((countryCode: string | undefined) =>
-      categoryHandles.map((handle: any) => ({
-        countryCode,
-        category: [handle],
-      }))
-    )
-    .flat()
-
-  return staticParams
-}
+// No `generateStaticParams` here.
+//
+// Like `/products/[handle]`, this route previously fanned out one
+// `listCategories()` + `listRegions()` call at build time per (country ×
+// category) pair. When the backend stalled (Sydney Fly machine + heavy field
+// expansion), the build failed at "Collecting page data for /[countryCode]/
+// categories/[...category]" — exactly the symptom we saw in the May 2026
+// Vercel deploy log.
+//
+// Cache Components + `getCategoryByHandle` (which is itself cached) handle
+// on-demand rendering after first hit, so the route is fully dynamic and
+// safe to render at request time.
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {

@@ -1,7 +1,35 @@
 "use client"
 
-import { ChangeEvent, useState } from "react"
+import { ChangeEvent, useEffect, useState } from "react"
 import { createPortal } from "react-dom"
+
+// Free Google Fonts curated for apparel/print work. Each entry pairs the
+// CSS family name (used by Fabric IText) with a Google Fonts URL family
+// id. "Arial" is the safe fallback that needs no remote load.
+const TEXT_FONT_OPTIONS: Array<{ label: string; family: string }> = [
+  { label: "Arial (system)", family: "Arial" },
+  { label: "Inter", family: "Inter" },
+  { label: "Oswald", family: "Oswald" },
+  { label: "Bebas Neue", family: "Bebas Neue" },
+  { label: "Anton", family: "Anton" },
+  { label: "Playfair Display", family: "Playfair Display" },
+  { label: "Pacifico", family: "Pacifico" },
+]
+
+const TEXT_COLOR_SWATCHES = [
+  "#111827", // ink black
+  "#ffffff", // white
+  "#FF2E63", // SC Prints brand pink
+  "#e11d48", // red
+  "#1d4ed8", // royal blue
+  "#0f766e", // teal
+  "#f59e0b", // amber
+  "#22c55e", // green
+]
+
+const GOOGLE_FONTS_HREF =
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Oswald:wght@400;700&family=Bebas+Neue&family=Anton&family=Playfair+Display:wght@400;700&family=Pacifico&display=swap"
+const GOOGLE_FONTS_LINK_ID = "scp-customizer-text-fonts"
 
 type InputPanelProps = {
   onUploadFile: (file: File) => Promise<void>
@@ -50,13 +78,49 @@ export default function InputPanel({
   disabledMessage,
   className,
 }: InputPanelProps) {
-  const [text, setText] = useState("Your Brand")
-  const [fontFamily, setFontFamily] = useState("Arial")
+  const [text, setText] = useState("Your text")
+  const [fontFamily, setFontFamily] = useState("Inter")
   const [color, setColor] = useState("#111827")
-  const [letterSpacing, setLetterSpacing] = useState(0)
-  const [arcRadius, setArcRadius] = useState(120)
+  const [addingText, setAddingText] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [addingCartDesignId, setAddingCartDesignId] = useState<string | null>(null)
+
+  // Load the curated Google Fonts once per page lifetime so the canvas can
+  // actually render the chosen family. Idempotent — re-mounting InputPanel
+  // doesn't duplicate the <link>.
+  useEffect(() => {
+    if (typeof document === "undefined") return
+    if (document.getElementById(GOOGLE_FONTS_LINK_ID)) return
+    const link = document.createElement("link")
+    link.id = GOOGLE_FONTS_LINK_ID
+    link.rel = "stylesheet"
+    link.href = GOOGLE_FONTS_HREF
+    document.head.appendChild(link)
+  }, [])
+
+  const handleAddTextClick = async () => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setAddingText(true)
+    try {
+      // Wait for the chosen webfont to be ready before handing the text to
+      // Fabric — IText draws once to the canvas, so a missing font at draw
+      // time would lock in the fallback and the customer's selection is
+      // silently ignored. `document.fonts.load` returns immediately for
+      // system fonts (Arial) and for already-loaded webfonts.
+      if (typeof document !== "undefined" && (document as any).fonts?.load) {
+        try {
+          await (document as any).fonts.load(`16px "${fontFamily}"`)
+        } catch {
+          // Non-fatal — fall through and let Fabric draw with whatever's
+          // available rather than blocking the customer entirely.
+        }
+      }
+      onAddText({ text: trimmed, color, fontFamily, letterSpacing: 0 })
+    } finally {
+      setAddingText(false)
+    }
+  }
 
   const handleCartDesignClick = async (design: { id: string; name: string; url: string }) => {
     if (!onAddCartDesign) return
@@ -291,13 +355,107 @@ export default function InputPanel({
         </button>
       ) : null}
 
-      {/*
-       * Text / curved text input was removed pending a redesign — the freeform
-       * font family input + curve radius slider produced inconsistent output
-       * across browsers. Customers can ask for typeset wording in the
-       * production notes for now. Re-enable by restoring this block alongside
-       * `text`/`fontFamily`/`color`/`letterSpacing`/`arcRadius` state.
-       */}
+      {enabled ? (
+        <div className="space-y-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium text-ui-fg-subtle">Add text</p>
+            <span className="text-[11px] text-ui-fg-subtle">Type, style, drop on artwork</span>
+          </div>
+
+          <label className="block">
+            <span className="sr-only">Text to add</span>
+            <input
+              type="text"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Your text"
+              maxLength={120}
+              className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base"
+              style={{ fontFamily: `"${fontFamily}", sans-serif` }}
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ui-fg-subtle">
+                Font
+              </span>
+              <select
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+                className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-2 py-1.5 text-sm text-ui-fg-base focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base"
+                style={{ fontFamily: `"${fontFamily}", sans-serif` }}
+              >
+                {TEXT_FONT_OPTIONS.map((font) => (
+                  <option
+                    key={font.family}
+                    value={font.family}
+                    style={{ fontFamily: `"${font.family}", sans-serif` }}
+                  >
+                    {font.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-ui-fg-subtle">
+                Colour
+              </span>
+              <div className="flex items-center gap-2 rounded-md border border-ui-border-base bg-ui-bg-base px-2 py-1.5">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  aria-label="Pick a custom text colour"
+                  className="h-6 w-8 cursor-pointer rounded border border-ui-border-base bg-transparent p-0"
+                />
+                <span className="font-mono text-xs uppercase text-ui-fg-subtle">{color}</span>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {TEXT_COLOR_SWATCHES.map((swatch) => {
+              const isActive = swatch.toLowerCase() === color.toLowerCase()
+              return (
+                <button
+                  key={swatch}
+                  type="button"
+                  onClick={() => setColor(swatch)}
+                  aria-label={`Use ${swatch}`}
+                  title={swatch}
+                  className={`h-6 w-6 rounded-full border transition-transform hover:scale-110 ${
+                    isActive
+                      ? "border-ui-fg-base ring-2 ring-ui-fg-base ring-offset-1"
+                      : "border-ui-border-base"
+                  }`}
+                  style={{ backgroundColor: swatch }}
+                />
+              )
+            })}
+          </div>
+
+          <div className="rounded-md border border-dashed border-ui-border-base bg-ui-bg-base px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-ui-fg-muted">Preview</p>
+            <p
+              className="mt-0.5 truncate text-lg leading-tight"
+              style={{ fontFamily: `"${fontFamily}", sans-serif`, color }}
+            >
+              {text.trim() || "Your text"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddTextClick}
+            disabled={!text.trim() || addingText}
+            className="w-full rounded-md bg-ui-fg-base px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-ui-fg-base-hover disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {addingText ? "Adding…" : "Add text to design"}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

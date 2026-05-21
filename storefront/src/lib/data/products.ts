@@ -31,11 +31,41 @@ function productBrandMatchesClientFilter(
 }
 
 /**
- * Field expansion for storefront product queries. `*brand` pulls in the linked Brand row
- * (id, name, handle, parent_id) so the storefront filter and PDP can read it directly.
+ * Field expansion for storefront product queries.
+ *
+ * Every field here costs a JOIN or per-row computation on the backend. The
+ * `*variants.calculated_price` materialisation is the single biggest cost
+ * (price-list rules per variant per region) and is non-negotiable for any
+ * surface that shows a price. Beyond that, only add fields the call site
+ * actually consumes — Postgres time grows roughly linearly with this list.
+ *
+ * Why each field is here:
+ *  - +metadata, +type, +tags    — PLP tile + filter chip rendering
+ *  - *variants.calculated_price — price line on every tile
+ *  - *variants.options          — colour swatch resolution
+ *  - +variants.metadata         — bulk_pricing tiers shown as "100+ A$x" line on tiles
+ *  - +variants.sku              — SKU-prefix image matching for colour swatches
+ *  - +variants.{manage_inventory, allow_backorder, inventory_quantity}
+ *                                 — purchasable-variant picker (skips OOS swatches)
+ *                                 + the "in stock only" PLP filter
+ *  - *brand                     — brand badge + ?brand= filter (PLP) and brand landing
+ *
+ * Intentionally NOT here:
+ *  - +weight, +variants.weight  — only PDP tabs and cart shipping use these.
+ *    The PDP fetch is a single-product fetch so it's hand-listed in
+ *    PDP_PRODUCT_FIELDS below.
+ *  - +images                    — Medusa includes images by default; explicit
+ *                                 expansion would re-join the images table.
  */
 const STORE_PRODUCT_FIELDS =
-  "+metadata,+type,+weight,*variants.calculated_price,*variants.options,+variants.metadata,+variants.sku,+variants.weight,+variants.manage_inventory,+variants.allow_backorder,+variants.inventory_quantity,+tags,*brand"
+  "+metadata,+type,*variants.calculated_price,*variants.options,+variants.metadata,+variants.sku,+variants.manage_inventory,+variants.allow_backorder,+variants.inventory_quantity,+tags,*brand"
+
+/**
+ * Single-product fetch (PDP) needs everything the list query needs PLUS the
+ * shipping/weight fields used by the spec tab and cart line-item display.
+ * Cost is amortised across one row, not 100, so the extra fields are fine.
+ */
+const PDP_PRODUCT_FIELDS = `${STORE_PRODUCT_FIELDS},+weight,+variants.weight`
 
 export async function getProductsById({
   ids,
@@ -47,13 +77,24 @@ export async function getProductsById({
   "use cache"
   cacheTag("products")
   cacheLife({ revalidate: 120, stale: 120, expire: 600 })
-  return sdk.store.product
-    .list({
+  // Build-time prerender resilience: if the backend hiccups (503 under
+  // concurrent build load), return [] instead of throwing so the entire
+  // build doesn't fail over a single transient request. At runtime the
+  // page renders "no products" briefly until the next cache refresh.
+  try {
+    const { products } = await sdk.store.product.list({
       id: ids,
       region_id: regionId,
       fields: STORE_PRODUCT_FIELDS,
     })
-    .then(({ products }) => products)
+    return products
+  } catch (error) {
+    console.warn(
+      "[getProductsById] backend fetch failed; returning empty array",
+      (error as Error).message
+    )
+    return []
+  }
 }
 
 export async function getProductByHandle(
@@ -71,7 +112,7 @@ export async function getProductByHandle(
   // `handle` is accepted at runtime; cast widens the SDK preview type.
   const baseParams = {
     handle: normalizedHandle,
-    fields: STORE_PRODUCT_FIELDS,
+    fields: PDP_PRODUCT_FIELDS,
   } as HttpTypes.FindParams & HttpTypes.StoreProductParams
 
   if (!regionId) {
@@ -150,26 +191,34 @@ export async function getProductsList({
     }
   }
 
-  return sdk.store.product
-    .list({
+  // Build-time prerender resilience: backend can 503 under concurrent build
+  // load. Degrade to an empty page instead of failing the entire build over
+  // a single transient request.
+  try {
+    const { products, count } = await sdk.store.product.list({
       limit,
       offset,
       region_id: region.id,
       fields: STORE_PRODUCT_FIELDS,
       ...queryParams,
     })
-    .then(({ products, count }) => {
-      const nextPage = count > offset + limit ? pageParam + 1 : null
-
-      return {
-        response: {
-          products,
-          count,
-        },
-        nextPage: nextPage,
-        queryParams,
-      }
-    })
+    const nextPage = count > offset + limit ? pageParam + 1 : null
+    return {
+      response: { products, count },
+      nextPage,
+      queryParams,
+    }
+  } catch (error) {
+    console.warn(
+      "[getProductsList] backend fetch failed; returning empty page",
+      (error as Error).message
+    )
+    return {
+      response: { products: [], count: 0 },
+      nextPage: null,
+      queryParams,
+    }
+  }
 }
 
 const HOME_FEATURED_LIMIT = 12

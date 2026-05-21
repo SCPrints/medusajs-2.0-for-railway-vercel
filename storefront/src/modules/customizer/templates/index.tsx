@@ -4066,7 +4066,7 @@ export default function CustomizerTemplate({
 
           {/* Above-canvas "Add print to another location" — visible whenever
               there are unused sides. Disabled (greyed) until the customer has
-              both placed artwork on the canvas and selected a print size. */}
+              placed artwork on the canvas; size can be picked later. */}
           {isCustomizing && allowedPrintSides.length > 1 && (() => {
             const undecoratedAllowed = allowedPrintSides.filter(
               (s) => !decoratedSides.includes(s)
@@ -4079,7 +4079,6 @@ export default function CustomizerTemplate({
               : nextUndecoratedSide === "printed_tag" ? "Printed Tag"
               : nextUndecoratedSide.charAt(0).toUpperCase() + nextUndecoratedSide.slice(1)
             const canAddLocation =
-              pdpStep3Done &&
               decoratedSides.filter((s) => allowedPrintSides.includes(s)).length > 0
             return (
               <button
@@ -4087,7 +4086,7 @@ export default function CustomizerTemplate({
                 disabled={!canAddLocation}
                 title={
                   !canAddLocation
-                    ? "Add artwork and select a print size first"
+                    ? "Add artwork to the current location first"
                     : undefined
                 }
                 onClick={() => {
@@ -4269,7 +4268,7 @@ export default function CustomizerTemplate({
                     active={pdpStep === 2}
                     badge={pdpStep2Done && pdpStep > 2 ? sideLabel : undefined}
                     help="Choose which part of the garment to print on — front, back, sleeves, or inside neck tag. Select a location, add your artwork, then use the button below the canvas to add prints to more locations. Each location is priced separately."
-                    // Tabs are always visible — no "Change" button needed.
+                    onChange={() => setPdpStep(2)}
                   />
 
                   {/* At Step 4 collapse to just the header — saves vertical space.
@@ -4348,10 +4347,12 @@ export default function CustomizerTemplate({
           )}
 
           {/* Add print to another location — magenta dashed CTA between
-              Step 2 (Print location) and Step 3 (Print size). Same gate as
-              before: only show once at least one location has been sized
-              and there is an unused side left. */}
-          {embedded && pdpStep3Done && pdpStep < 4 && allowedPrintSides.length > 1 && (() => {
+              Step 2 (Print location) and Step 3 (Print size). Always
+              visible (once past Step 1) when the product has multiple
+              sides and at least one is still unused; greys out until
+              the customer has placed artwork on the current side so
+              they don't strand an empty location behind. */}
+          {embedded && pdpStep >= 2 && allowedPrintSides.length > 1 && (() => {
             const undecoratedAllowed = allowedPrintSides.filter(
               (s) => !decoratedSides.includes(s)
             )
@@ -4362,13 +4363,22 @@ export default function CustomizerTemplate({
               : nextSide === "right_sleeve" ? "Right Sleeve"
               : nextSide === "printed_tag" ? "Printed Tag"
               : nextSide.charAt(0).toUpperCase() + nextSide.slice(1)
+            const canAddLocation =
+              decoratedSides.filter((s) => allowedPrintSides.includes(s)).length > 0
             return (
               <motion.button
                 type="button"
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+                disabled={!canAddLocation}
+                title={
+                  !canAddLocation
+                    ? "Add artwork to the current location first"
+                    : undefined
+                }
                 onClick={() => {
+                  if (!canAddLocation) return
                   switchSide(nextSide)
                   setPdpStep2Done(true)
                   setPdpStep(3)
@@ -4378,9 +4388,20 @@ export default function CustomizerTemplate({
                   // and the customer has no visual cue to pick fresh.
                   setScpPrintSizeChosen(false)
                 }}
-                className="w-full rounded-xl border-2 border-dashed border-fuchsia-500 bg-transparent px-4 py-3 text-left text-sm font-medium text-ui-fg-base transition-colors hover:border-fuchsia-600 hover:bg-fuchsia-50"
+                className={`w-full rounded-xl border-2 border-dashed px-4 py-3 text-left text-sm font-medium transition-colors ${
+                  canAddLocation
+                    ? "border-fuchsia-500 bg-transparent text-ui-fg-base hover:border-fuchsia-600 hover:bg-fuchsia-50"
+                    : "cursor-not-allowed border-ui-border-base bg-transparent text-ui-fg-muted opacity-50"
+                }`}
               >
-                <span className="text-base leading-none mr-2 text-fuchsia-600" aria-hidden>+</span>
+                <span
+                  className={`text-base leading-none mr-2 ${
+                    canAddLocation ? "text-fuchsia-600" : "text-ui-fg-muted"
+                  }`}
+                  aria-hidden
+                >
+                  +
+                </span>
                 Add print to another location
                 <span className="ml-1.5 text-xs font-normal text-ui-fg-subtle">
                   (e.g. {nextSideLabel})
@@ -4605,7 +4626,21 @@ export default function CustomizerTemplate({
                   return (
                     <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-base">
                       <span className="font-semibold">Printing on </span>
-                      {sidesForSummary.map((s) => sideShortMap[s]).join(" + ")}
+                      {sidesForSummary.map((s, i) => (
+                        <span key={s}>
+                          {i > 0 ? <span aria-hidden> + </span> : null}
+                          <span
+                            className="animate-brand-pulse"
+                            // Offset each label by half the animation cycle
+                            // (3.6s / 2 = 1.8s) so adjacent locations sit on
+                            // opposite phases — Front goes magenta while Back
+                            // goes teal, and vice versa.
+                            style={{ animationDelay: `${(i % 2) * -1.8}s` }}
+                          >
+                            {sideShortMap[s]}
+                          </span>
+                        </span>
+                      ))}
                       <span className="text-ui-fg-subtle"> · {printSizeLabel} each</span>
                     </p>
                   )

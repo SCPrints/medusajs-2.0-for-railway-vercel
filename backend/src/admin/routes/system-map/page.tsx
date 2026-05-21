@@ -446,6 +446,97 @@ const SECTIONS: Section[] = [
     ),
   },
 
+  // ── 1b. Hosting topology ─────────────────────────────────────────────────────
+  {
+    id: "hosting-topology",
+    title: "Hosting topology (where everything runs)",
+    diagram: `flowchart TB
+    subgraph BROWSERS["Customer & staff browsers"]
+        CUST_BROWSER[Customer]
+        STAFF_BROWSER[Staff]
+    end
+
+    subgraph VERCEL["Vercel · global edge (Sydney POP)"]
+        STOREFRONT["Next.js 15 storefront"]
+    end
+
+    subgraph FLY["Fly.io · Sydney (syd) — ~$11/mo"]
+        BACKEND["sc-prints-backend<br/>Medusa server + admin SPA<br/>shared-cpu-1x · 2 GB · min 1 machine"]
+        REDIS["sc-prints-redis<br/>Redis 7 · event bus + workflow + locks<br/>private 6PN only"]
+        MEILI["sc-prints-search<br/>Meilisearch v1.10 · catalog index"]
+    end
+
+    subgraph DO["DigitalOcean Managed · SYD1 — ~$15/mo"]
+        PG[("Postgres 16<br/>self-signed cert · port 25060")]
+    end
+
+    subgraph CF["Cloudflare R2 · Oceania — free tier"]
+        BUCKET[("sc-prints-media bucket<br/>S3-compatible · public dev URL")]
+    end
+
+    subgraph SAAS["External SaaS"]
+        RESEND[Resend · email]
+        STRIPE[Stripe · payments + Payment Links]
+        POSTHOG[PostHog Cloud US]
+        GOOGLE[Google GSC + GA4]
+        SHIPSTATION[ShipStation]
+        SUPPLIERS[AS Colour / FashionBiz / Aussie Pacific APIs]
+        ANTHROPIC[Anthropic · chatbot + AI copy]
+    end
+
+    CUST_BROWSER --> STOREFRONT
+    STAFF_BROWSER --> BACKEND
+
+    STOREFRONT -->|"store API · HTTPS"| BACKEND
+    STOREFRONT -->|"search-scoped key"| MEILI
+
+    BACKEND -->|"TLS · NODE_TLS_REJECT_UNAUTHORIZED=0"| PG
+    BACKEND -->|"6PN private"| REDIS
+    BACKEND -->|"S3 API"| BUCKET
+    BACKEND -->|"admin key"| MEILI
+
+    BACKEND --> RESEND
+    BACKEND --> STRIPE
+    BACKEND --> POSTHOG
+    BACKEND --> GOOGLE
+    BACKEND --> SHIPSTATION
+    BACKEND --> SUPPLIERS
+    BACKEND --> ANTHROPIC
+
+    classDef ext fill:#fef3c7,stroke:#92400e;
+    classDef host fill:#f5f3ff,stroke:#8b5cf6;
+    classDef store fill:#dcfce7,stroke:#166534;
+    class RESEND,STRIPE,POSTHOG,GOOGLE,SHIPSTATION,SUPPLIERS,ANTHROPIC ext;
+    class STOREFRONT,BACKEND,REDIS,MEILI host;
+    class PG,BUCKET store;`,
+    body: (
+      <>
+        <Text size="small" className="text-ui-fg-subtle mt-2">
+          Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack is multi-provider, Australian-resident where the data lives, and split into single-purpose services so an outage at one provider doesn&apos;t take everything down. Total infra spend ~$26/mo: Fly backend $5 + DO Postgres $15 + self-hosted Redis $3 + self-hosted Meilisearch $3 + Vercel Hobby + R2 free tier.
+        </Text>
+
+        <Text className="mt-3 font-semibold text-sm">Deploy pipeline</Text>
+        <ul className="text-sm list-disc pl-5 space-y-1 text-ui-fg-subtle">
+          <li><strong>Backend</strong> — <code>cd backend &amp;&amp; fly deploy --app sc-prints-backend</code> from a clean master. The Dockerfile bakes <code>BACKEND_PUBLIC_URL</code> into the admin SPA so it hits the right backend from the browser.</li>
+          <li><strong>Migrations</strong> — fly.toml&apos;s <code>release_command</code> runs <code>db:migrate</code> + <code>db:sync-links</code> once per deploy (not on every boot), so machines start cold in ~5s.</li>
+          <li><strong>Storefront</strong> — <code>git push origin master</code>; Vercel auto-deploys. PR previews build per branch.</li>
+          <li><strong>Meilisearch</strong> — <code>cd meilisearch &amp;&amp; fly deploy --app sc-prints-search</code>. Image-only deploy that pulls <code>getmeili/meilisearch:v1.10</code>.</li>
+          <li><strong>Secrets</strong> — <code>fly secrets set --app &lt;app&gt; KEY=value</code>. Any secret change triggers a rolling redeploy automatically.</li>
+        </ul>
+
+        <Text className="mt-3 font-semibold text-sm">Why self-hosted Redis and Meilisearch instead of managed providers?</Text>
+        <Text size="small" className="text-ui-fg-subtle">
+          Medusa uses Redis as <em>infrastructure</em> (BullMQ queues + workflow engine + distributed locks), not a cache — even an idle backend burns ~50-100k commands/day on BullMQ worker polling alone. Add the importers and a managed free tier (e.g. Upstash&apos;s 500k cmd/day) gets blown in under 24h. Self-hosted on Fly is a flat ~$3/mo, no command quota, sub-ms latency over the private 6PN network, and the same applies to Meilisearch — paid Meilisearch Cloud starts at $30/mo for capacity we don&apos;t need.
+        </Text>
+
+        <Text className="mt-3 font-semibold text-sm">Constants resolution</Text>
+        <Text size="small" className="text-ui-fg-subtle">
+          <code>BACKEND_URL</code> resolves from <code>process.env.BACKEND_PUBLIC_URL</code> → <code>https://${'{FLY_APP_NAME}'}.fly.dev</code> (auto-detected on Fly) → <code>http://localhost:9000</code>. <code>NODE_TLS_REJECT_UNAUTHORIZED=0</code> is set as a Fly secret because DigitalOcean Postgres uses a self-signed cert — kept tightly scoped to the backend app only.
+        </Text>
+      </>
+    ),
+  },
+
   // ── 2. Order lifecycle ───────────────────────────────────────────────────────
   {
     id: "order-lifecycle",
@@ -565,7 +656,7 @@ const SECTIONS: Section[] = [
         SIGNUP[Storefront signup]
         NEWSLETTER[Newsletter footer form]
         QUOTE_REQ[Quote request]
-        CHAT[Crisp / Tidio chat]
+        CHAT[Storefront chatbot · Claude Haiku]
     end
 
     subgraph CONSENT["Consent layer"]
@@ -631,7 +722,7 @@ const SECTIONS: Section[] = [
     C->>BYO: Submit inquiry + mood board
     BYO->>BE: POST /store/quotes
     BE->>BE: Create quote (status=new)
-    BE->>BE: Upload mood board to MinIO
+    BE->>BE: Upload mood board to R2 (S3 storage)
     BE->>EM: Notify merchant team
 
     ST->>BE: Open quote in /app/quotes
@@ -888,21 +979,25 @@ const SECTIONS: Section[] = [
           </thead>
           <tbody className="text-ui-fg-subtle">
             {[
-              ["Resend", "All outbound email", "RESEND_API_KEY"],
-              ["MinIO", "File storage — photos, mood boards, lookbook, customer originals", "MINIO_*"],
-              ["PostHog", "Analytics + cohort sync + LLM tracking", "POSTHOG_*"],
-              ["GA4", "E-commerce funnel tracking", "NEXT_PUBLIC_GA_MEASUREMENT_ID"],
-              ["Stripe", "Card payments", "STRIPE_API_KEY + webhook secret"],
-              ["PayPal", "Card alternative", "PAYPAL_*"],
-              ["ShipStation", "Shipping label rates + tracking", "SHIPSTATION_*"],
-              ["AS Colour API", "Supplier garment catalog + inventory", "ASCOLOUR_*"],
-              ["FashionBiz API", "Supplier garment catalog + inventory", "FASHIONBIZ_*"],
-              ["Google GSC + GA4 admin", "SEO reporting", "GOOGLE_SERVICE_ACCOUNT_JSON"],
-              ["Crisp / Tidio", "Live chat", "NEXT_PUBLIC_CRISP_WEBSITE_ID"],
-              ["OpenAI / Anthropic (optional)", "AI product description generator", "AI_PROVIDER + API key"],
+              ["Vercel", "Storefront hosting (Next.js 15) — global edge, Sydney POP", "—"],
+              ["Fly.io (Sydney)", "Backend + self-hosted Redis + self-hosted Meilisearch", "FLY_API_TOKEN (CI only)"],
+              ["DigitalOcean Managed Postgres (SYD1)", "Primary database — Postgres 16, self-signed cert", "DATABASE_URL"],
+              ["Cloudflare R2 (Oceania)", "File storage — photos, mood boards, lookbook, customer originals. S3-compatible, accessed via the legacy 'MinIO' module name in the codebase", "MINIO_* (endpoint + access/secret + bucket + public URL)"],
+              ["Redis 7 (self-hosted on Fly)", "Event bus + workflow engine + distributed locking. Private 6PN, no public exposure", "REDIS_URL"],
+              ["Meilisearch v1.10 (self-hosted on Fly)", "Catalog search — separate Fly app sc-prints-search", "MEILISEARCH_HOST + MEILISEARCH_ADMIN_KEY"],
+              ["Resend", "All outbound email — sender domain scprints.com.au", "RESEND_API_KEY"],
+              ["Stripe", "Card payments — Medusa checkout + admin-created Payment Links (two webhook endpoints)", "STRIPE_API_KEY + STRIPE_WEBHOOK_SECRET + STRIPE_PAYMENT_LINK_WEBHOOK_SECRET"],
+              ["PostHog Cloud (US)", "Product analytics + cohort sync + LLM tracking", "POSTHOG_API_KEY + POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID + POSTHOG_HOST"],
+              ["GA4", "E-commerce funnel tracking (storefront-side)", "NEXT_PUBLIC_GA_MEASUREMENT_ID"],
+              ["Google GSC + GA4 (admin reporting)", "Read via service account that impersonates info@scprints.com.au (DWD)", "GOOGLE_SERVICE_ACCOUNT_JSON + GSC_SITE_URL + GA4_PROPERTY_ID"],
+              ["ShipStation", "Shipping label rates + tracking", "SHIPSTATION_API_KEY + SHIPSTATION_WEBHOOK_SECRET + SHIPSTATION_WAREHOUSE_*"],
+              ["AS Colour API", "Supplier catalog + hourly inventory + dropship orders", "ASCOLOUR_SUBSCRIPTION_KEY + ASCOLOUR_PRICELIST_*"],
+              ["FashionBiz API", "Supplier catalog + daily inventory (no dropship endpoint)", "FASHIONBIZ_API_TOKEN + FASHIONBIZ_BRANCH + FASHIONBIZ_COST_ADJUSTMENT"],
+              ["Aussie Pacific API", "Supplier catalog + daily inventory + dropship orders (submit-only, no status endpoint)", "AUSSIE_PACIFIC_API_TOKEN + AUSSIE_PACIFIC_COST_ADJUSTMENT"],
+              ["Anthropic", "Storefront chatbot (Claude Haiku) + admin AI description generator (when AI_PROVIDER=anthropic)", "ANTHROPIC_API_KEY + ANTHROPIC_MODEL"],
+              ["OpenAI (optional)", "AI description generator (when AI_PROVIDER=openai)", "OPENAI_API_KEY + OPENAI_MODEL"],
               ["Slack (optional)", "Production-floor stale-order alerts", "SLACK_PRODUCTION_WEBHOOK_URL"],
               ["Inbound email (optional)", "Customer email replies → order comments", "ORDER_INBOX_DOMAIN + INBOUND_EMAIL_SECRET"],
-              ["Meilisearch", "Catalog search", "MEILISEARCH_HOST"],
             ].map(([svc, purpose, auth]) => (
               <tr key={svc} className="border-b border-ui-border-base last:border-0">
                 <td className="py-2 pr-4 font-medium text-ui-fg-base whitespace-nowrap">{svc}</td>
@@ -930,21 +1025,31 @@ const SECTIONS: Section[] = [
     Cross-sell refresh             :02:00, 30m
     PostHog cohort sync            :03:30, 30m
     FashionBiz inventory           :04:00, 30m
+    Aussie Pacific inventory       :05:00, 30m
     SEO analytics                  :05:00, 30m
+    Tier price regeneration        :06:00, 30m
 
     section Production
     Stale-order scan               :08:00, 15m
+    Tasks overdue notification     :09:00, 15m
 
     section Marketing
     NPS request                    :22:00, 30m
     Abandoned-cart reminder        :23:15, 30m
     Reorder reminder               :23:30, 30m
-    Report alerts                  :23:45, 15m`,
+    Report alerts                  :23:45, 15m
+    Quote expiry                   :23:45, 15m`,
     body: (
-      <Text size="small" className="text-ui-fg-subtle mt-2">
-        Weekly: win-back fires Mondays 00:00 UTC. Monthly: report digest fires the 2nd at 22:00 UTC.
-        Every cron is gated by an <code>*_ENABLED=true</code> env var — dev / staging stays quiet by default.
-      </Text>
+      <>
+        <Text size="small" className="text-ui-fg-subtle mt-2">
+          Every cron is gated by an <code>*_ENABLED=true</code> env var — dev / staging stays quiet by default.
+          Continuous schedules that don&apos;t fit on the daily Gantt: AS Colour <strong>order status sync</strong> every 15 minutes;
+          POS <strong>session expiry</strong> hourly at <code>:30</code>.
+        </Text>
+        <Text size="small" className="text-ui-fg-subtle mt-2">
+          Weekly / monthly: <strong>win-back</strong> fires Mondays 00:00 UTC; <strong>monthly digest</strong> fires the 2nd at 22:00 UTC.
+        </Text>
+      </>
     ),
   },
 
@@ -1043,7 +1148,7 @@ const SystemMapPage = () => {
             How every service, module, event, and cron connects. Source of truth: <code>Docs/BACKEND_FLOW.md</code>
           </Text>
         </div>
-        <Badge color="blue">10 diagrams</Badge>
+        <Badge color="blue">11 diagrams</Badge>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr]">

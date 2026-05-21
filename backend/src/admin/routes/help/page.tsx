@@ -373,7 +373,7 @@ const SECTIONS: Section[] = [
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
           <li><strong>Customer flow</strong> — /account/designs → "Use for a group order" → fill title/deadline → share the link with their team. Teammates submit name + size at the public page. Owner converts to cart when ready.</li>
-          <li><strong>Public page is safe</strong> — shows design thumbnail + product preview only. Source files, MinIO URLs, and full customizer metadata are stripped before responding.</li>
+          <li><strong>Public page is safe</strong> — shows design thumbnail + product preview only. Source files, R2 URLs, and full customizer metadata are stripped before responding.</li>
           <li><strong>Convert to cart</strong> — owner clicks Convert; backend matches each participant&apos;s size_label to a real variant on the base product, builds one cart with one line per match, attaches <code>customizerDesign</code> metadata so production sees the artwork. Unmatched sizes are reported as <em>skipped</em> for the owner to resolve.</li>
           <li><strong>Idempotent</strong> — clicking Convert twice returns the same cart, doesn&apos;t create a second one.</li>
           <li><strong>If the design&apos;s base product was deleted</strong> — the owner gets a clear "pick a new base product" error rather than a half-built cart.</li>
@@ -568,6 +568,67 @@ const SECTIONS: Section[] = [
 
         <Text size="xsmall" className="text-ui-fg-muted mt-3">
           Deeper detail — endpoint payloads, module file paths, env-var defaults — lives in <code>CLAUDE.md</code> at the repo root and the supplier folders under <code>backend/src/modules/</code> (<code>ascolour</code>, <code>fashionbiz</code>, <code>aussiepacific</code>).
+        </Text>
+      </>
+    ),
+  },
+  {
+    id: "hosting",
+    title: "Where everything runs (hosting)",
+    body: (
+      <>
+        <Text>
+          The studio's site is split across several providers so we can pick the right tool for each piece without being locked into one platform. Day to day none of this matters — orders flow, emails send, the admin loads. The only time you need to know any of this is when something is down and you're trying to work out which provider to check.
+        </Text>
+
+        <Text className="mt-3 font-semibold">The four pieces</Text>
+        <div className="mt-2 overflow-hidden rounded-md border border-ui-border-base">
+          <table className="w-full text-sm">
+            <thead className="bg-ui-bg-subtle text-ui-fg-subtle">
+              <tr>
+                <th className="px-3 py-1.5 text-left font-medium">Piece</th>
+                <th className="px-3 py-1.5 text-left font-medium">What it does</th>
+                <th className="px-3 py-1.5 text-left font-medium">Provider</th>
+                <th className="px-3 py-1.5 text-left font-medium">Region</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ui-border-base">
+              <tr><td className="px-3 py-1">Customer storefront</td><td className="px-3 py-1">scprints.com.au — what customers see</td><td className="px-3 py-1">Vercel</td><td className="px-3 py-1">Global (Sydney edge)</td></tr>
+              <tr><td className="px-3 py-1">Backend + this admin</td><td className="px-3 py-1">Medusa server, REST APIs, cron jobs, dashboard SPA</td><td className="px-3 py-1">Fly.io</td><td className="px-3 py-1">Sydney</td></tr>
+              <tr><td className="px-3 py-1">Database</td><td className="px-3 py-1">Orders, customers, products — the source of truth</td><td className="px-3 py-1">DigitalOcean Managed Postgres</td><td className="px-3 py-1">Sydney (SYD1)</td></tr>
+              <tr><td className="px-3 py-1">File storage</td><td className="px-3 py-1">Customer artwork, mockups, lookbook photos, mood boards</td><td className="px-3 py-1">Cloudflare R2</td><td className="px-3 py-1">Oceania</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <Text className="mt-3 font-semibold">Plus the supporting services</Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Search</strong> — Meilisearch v1.10 self-hosted on Fly alongside the backend (Sydney). Powers the storefront search bar and admin product search.</li>
+          <li><strong>Background jobs &amp; locking</strong> — Redis 7 self-hosted on Fly (Sydney, private 6PN). Drives every cron, automation rule, and the customizer's stateful flows. Not exposed to the public internet.</li>
+          <li><strong>Emails</strong> — Resend. Verified sender domain <code>scprints.com.au</code>, default From <code>orders@scprints.com.au</code>.</li>
+          <li><strong>Payments</strong> — Stripe (test mode + Payment Links). Two webhook endpoints on the backend: <code>/hooks/payment/stripe_stripe</code> for cart checkout and <code>/hooks/stripe-payment-link</code> for admin-created links.</li>
+          <li><strong>Analytics &amp; SEO</strong> — PostHog Cloud (US), GA4, Google Search Console. Read via a service account that impersonates <code>info@scprints.com.au</code>.</li>
+        </ul>
+
+        <Text className="mt-3 font-semibold">When something looks wrong</Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Customer site won't load</strong> — check Vercel status (<a href="https://www.vercel-status.com/" className="underline" target="_blank" rel="noreferrer">vercel-status.com</a>), then confirm the backend is healthy via <code>fly status --app sc-prints-backend</code>.</li>
+          <li><strong>Admin dashboard down or 502s</strong> — Fly status (<a href="https://status.flyio.net/" className="underline" target="_blank" rel="noreferrer">status.flyio.net</a>) or <code>fly logs --app sc-prints-backend</code>.</li>
+          <li><strong>Images or uploads broken</strong> — Cloudflare status (<a href="https://www.cloudflarestatus.com/" className="underline" target="_blank" rel="noreferrer">cloudflarestatus.com</a>) and check the R2 bucket isn&apos;t over quota.</li>
+          <li><strong>Emails not arriving</strong> — Resend dashboard for delivery status. If it&apos;s one address only, check the email-suppressions list first (see <a href="#marketing-compliance" className="underline">Marketing email opt-out &amp; suppression</a>).</li>
+          <li><strong>Search bar returns nothing</strong> — the Meili index may have drifted from Postgres. Open any product in admin and save (no changes needed) to retrigger an index push, or restart the backend to force a full reindex on boot.</li>
+          <li><strong>"Database connection refused" in logs</strong> — DigitalOcean Postgres maintenance window. Status at <a href="https://status.digitalocean.com/" className="underline" target="_blank" rel="noreferrer">status.digitalocean.com</a>.</li>
+        </ul>
+
+        <Text className="mt-3 font-semibold">Deploying changes</Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Backend</strong> — engineering runs <code>fly deploy --app sc-prints-backend</code> from a clean master. Database migrations run as a Fly release command (once per deploy), not on every machine boot, so deploys don&apos;t stall.</li>
+          <li><strong>Storefront</strong> — pushing to <code>master</code> on GitHub triggers Vercel automatically. Preview URLs build per pull request.</li>
+          <li><strong>Secret rotation</strong> — <code>fly secrets set --app &lt;app&gt; KEY=value</code>; a secret change auto-triggers a rolling redeploy.</li>
+        </ul>
+
+        <Text size="xsmall" className="text-ui-fg-muted mt-3">
+          Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack is cheaper (~$26/mo total), Australian-resident where the data lives, and split into single-purpose services so an outage at one provider doesn&apos;t take everything down. Full migration runbook lives in <code>Docs/HOSTING.md</code>.
         </Text>
       </>
     ),
