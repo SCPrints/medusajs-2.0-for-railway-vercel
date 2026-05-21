@@ -36,7 +36,14 @@ export default function CategoryTemplate({
   const category = categories[categories.length - 1]
   const parents = categories.slice(0, categories.length - 1)
   const children = (category?.category_children ?? []).filter(
-    (c) => c?.handle && c?.name
+    // Filter inactive children defensively. The Medusa Store API may surface
+    // them via the embedded category_children array even when the parent
+    // request scoped to active. Inactive = orphan from a TREE refactor (see
+    // backend cleanup-orphan-shop-categories.ts) and shouldn't render.
+    (c) =>
+      c?.handle &&
+      c?.name &&
+      (c as { is_active?: boolean | null })?.is_active !== false
   )
 
   // Related-categories navigation: when landing on a parent (e.g. /categories/mens)
@@ -50,7 +57,11 @@ export default function CategoryTemplate({
         (parentLeaf.category_children ??
           []) as HttpTypes.StoreProductCategory[]
       ).filter(
-        (c) => c?.handle && c?.name && c.id !== category?.id
+        (c) =>
+          c?.handle &&
+          c?.name &&
+          c.id !== category?.id &&
+          (c as { is_active?: boolean | null })?.is_active !== false
       )
     : []
   const relatedItems = children.length > 0 ? children : siblings

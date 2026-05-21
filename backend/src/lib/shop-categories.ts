@@ -597,68 +597,82 @@ function inferSubsForAudience(
     return Array.from(subs)
   }
 
-  // Workwear — type→sub plus Hi-Viz cross-listing.
+  // Workwear — type→sub plus Hi-Viz cross-listing. Title takes priority
+  // over type when the title is more specific (e.g. "Long Sleeve Tee" with
+  // type=T-Shirts should land in long-sleeves, not just t-shirts).
   if (audience === "workwear") {
     const isHiViz = hasHiViz(title, tags)
-    let baseSub: string | undefined
+    const baseSubs = new Set<string>()
+    const isLongSleeveTitle = /\blong\s+sleeve\b/i.test(title)
+    const isQuarterZipTitle = KW_QUARTER_ZIP.test(title)
 
     // Type-based mapping (matches WORKWEAR_SUBS handles).
+    let typeSub: string | undefined
     switch (normalizedType) {
       case "t-shirts":
-        baseSub = "t-shirts"
+        // Long Sleeve Tee with type=T-Shirts → long-sleeves takes priority
+        typeSub = isLongSleeveTitle ? "long-sleeves" : "t-shirts"
         break
       case "longsleeves":
       case "long sleeves":
-        baseSub = "long-sleeves"
+        typeSub = "long-sleeves"
         break
       case "polos":
-        baseSub = "polos"
+        // "Long Sleeve Polo" still classified as polo (no long-sleeve-polos sub)
+        typeSub = "polos"
         break
       case "shirts":
-        if (KW_DRILL.test(title)) baseSub = "drill-shirts"
-        else if (KW_BUSINESS.test(title)) baseSub = "business-shirts"
-        else baseSub = "work-shirts"
+        if (KW_DRILL.test(title)) typeSub = "drill-shirts"
+        else if (KW_BUSINESS.test(title)) typeSub = "business-shirts"
+        else typeSub = "work-shirts"
         break
       case "hoodies":
-        baseSub = "hoodies"
+        typeSub = isQuarterZipTitle ? "quarter-zips" : "hoodies"
         break
       case "sweatshirts":
-        baseSub = "crewnecks"
+        typeSub = isQuarterZipTitle ? "quarter-zips" : "crewnecks"
         break
       case "tanks":
-        baseSub = "tanks"
+        typeSub = "tanks"
         break
       case "singlets":
       case "singlets / tanks":
       case "tanks / singlets":
-        baseSub = "singlets"
+        typeSub = "singlets"
         break
       case "jackets":
-        if (KW_RAIN.test(title)) baseSub = "rain-jackets"
-        else if (KW_INSULATED.test(title)) baseSub = "insulated-jackets"
-        else baseSub = "softshell-jackets"
+        if (KW_RAIN.test(title)) typeSub = "rain-jackets"
+        else if (KW_INSULATED.test(title)) typeSub = "insulated-jackets"
+        else typeSub = "softshell-jackets"
         break
       case "pants":
-        baseSub = "work-pants"
+        typeSub = "work-pants"
         break
       case "shorts":
-        baseSub = "work-shorts"
+        typeSub = "work-shorts"
         break
       case "trackpants":
-        baseSub = "track-pants"
+        typeSub = "track-pants"
         break
     }
+    if (typeSub) baseSubs.add(typeSub)
 
     // Vest detection — no specific type, title-driven.
-    if (!baseSub && /\bvest\b/i.test(title)) {
-      if (KW_SOFTSHELL.test(title)) baseSub = "softshell-vests"
-      else baseSub = "puffer-vests"
+    if (baseSubs.size === 0 && /\bvest\b/i.test(title)) {
+      if (KW_SOFTSHELL.test(title)) baseSubs.add("softshell-vests")
+      else baseSubs.add("puffer-vests")
     }
 
-    // Quarter-zip override (any hoodie/crew with "quarter zip" in title).
-    if (KW_QUARTER_ZIP.test(title)) baseSub = "quarter-zips"
+    // Quarter-zip override for any title (in case type isn't hoodies/sweatshirts)
+    if (isQuarterZipTitle) baseSubs.add("quarter-zips")
 
-    if (baseSub) {
+    // Long-sleeve always-add for cross-listing (e.g. a Long Sleeve Polo gets
+    // both polos AND long-sleeves so customers browsing long-sleeves see it)
+    if (isLongSleeveTitle && WORKWEAR_SUBS.some((s) => s.handle === "long-sleeves")) {
+      baseSubs.add("long-sleeves")
+    }
+
+    for (const baseSub of baseSubs) {
       subs.add(baseSub)
       // Cross-list to the hi-viz-X variant if applicable + the variant exists.
       if (isHiViz) {

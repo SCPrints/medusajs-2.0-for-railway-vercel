@@ -101,6 +101,7 @@ type RawCategory = {
   parent_category?: { id?: string } | null
   category_children?: RawCategory[] | null
   rank?: number | null
+  is_active?: boolean | null
 }
 
 const sortByRankThenName = (a: RawCategory, b: RawCategory) => {
@@ -118,7 +119,7 @@ const buildCategoryBrowseGroups = (
   const topLevel = categories
     .filter((c) => {
       const parentId = c.parent_category_id ?? c.parent_category?.id ?? null
-      return !parentId && c.handle && c.name
+      return !parentId && c.handle && c.name && c.is_active !== false
     })
     .sort(sortByRankThenName)
 
@@ -127,7 +128,7 @@ const buildCategoryBrowseGroups = (
 
   for (const parent of topLevel) {
     const children = (parent.category_children ?? [])
-      .filter((c) => c.handle && c.name)
+      .filter((c) => c.handle && c.name && c.is_active !== false)
       .sort(sortByRankThenName)
 
     if (children.length > 0) {

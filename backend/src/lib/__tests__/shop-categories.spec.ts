@@ -257,6 +257,51 @@ describe("resolveCategoryHandles — multi-audience cross-listing", () => {
     expect(handles).toContain("workwear-hi-viz-long-sleeves")
   })
 
+  it("Syzmik Hi-Vis Long Sleeve Tee (type=T-Shirts) → workwear-long-sleeves NOT t-shirts", () => {
+    // FashionBiz API often tags Syzmik long-sleeve products as `t-shirts`.
+    // Title says "Long Sleeve" so we should route to long-sleeves not t-shirts.
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Mens Hi Vis Long Sleeve Tee",
+        typeValue: "T-Shirts",
+        brandHandle: "syzmik",
+      })
+    )
+    expect(handles).toContain("workwear-long-sleeves")
+    expect(handles).toContain("workwear-hi-viz-long-sleeves")
+    // The t-shirts variants should NOT be added when the title clearly says
+    // it's a long-sleeve garment.
+    expect(handles).not.toContain("workwear-t-shirts")
+    expect(handles).not.toContain("workwear-hi-viz-t-shirts")
+  })
+
+  it("Long Sleeve Polo cross-lists into long-sleeves AND polos in workwear", () => {
+    // A polo is still a polo; long sleeve is an additional axis. So a Long
+    // Sleeve Polo should appear in both browse paths.
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Mens Long Sleeve Polo",
+        typeValue: "Polos",
+        brandHandle: "syzmik",
+      })
+    )
+    expect(handles).toContain("workwear-polos")
+    expect(handles).toContain("workwear-long-sleeves")
+  })
+
+  it("Quarter Zip Hoodie in workwear → quarter-zips not hoodies", () => {
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Mens Hi-Vis Quarter Zip Hoodie",
+        typeValue: "Hoodies",
+        brandHandle: "syzmik",
+      })
+    )
+    expect(handles).toContain("workwear-quarter-zips")
+    expect(handles).toContain("workwear-hi-viz-quarter-zips")
+    expect(handles).not.toContain("workwear-hoodies")
+  })
+
   it("apron stays in accessories only (never picks up gender)", () => {
     const handles = resolveCategoryHandles(
       ctx({
