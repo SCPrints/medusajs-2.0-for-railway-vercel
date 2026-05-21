@@ -31,8 +31,9 @@ export type AudienceDef = {
 
 const APPAREL_SUBS: SubCategoryDef[] = [
   { name: "T-Shirts", handle: "t-shirts" },
-  { name: "Hoodies & Sweatshirts", handle: "hoodies" },
   { name: "Polos", handle: "polos" },
+  { name: "Shirts", handle: "shirts" },
+  { name: "Hoodies & Sweatshirts", handle: "hoodies" },
   { name: "Long Sleeves", handle: "long-sleeves" },
   { name: "Tanks & Singlets", handle: "tanks-singlets" },
   { name: "Jackets", handle: "jackets" },
@@ -54,6 +55,8 @@ const KIDS_SUBS: SubCategoryDef[] = APPAREL_SUBS
 const ACCESSORY_SUBS: SubCategoryDef[] = [
   { name: "Headwear", handle: "headwear" },
   { name: "Bags", handle: "bags" },
+  { name: "Aprons", handle: "aprons" },
+  { name: "Socks", handle: "socks" },
   { name: "Drinkware", handle: "drinkware" },
   { name: "Stickers", handle: "stickers" },
   { name: "Other Accessories", handle: "other" },
@@ -88,6 +91,7 @@ const TYPE_TO_SUB_HANDLE: Record<string, CategoryHandle> = {
   hoodies: "hoodies",
   sweatshirts: "hoodies",
   polos: "polos",
+  shirts: "shirts",
   longsleeves: "long-sleeves",
   "long sleeves": "long-sleeves",
   "singlets / tanks": "tanks-singlets",
@@ -101,8 +105,15 @@ const TYPE_TO_SUB_HANDLE: Record<string, CategoryHandle> = {
   overalls: "pants-shorts",
   headwear: "headwear",
   bags: "bags",
+  aprons: "aprons",
+  socks: "socks",
   drinkware: "drinkware",
   stickers: "stickers",
+  // Catch-alls: types that are clearly accessories but don't map to a
+  // specific subcategory land in "Other Accessories" so they're at least
+  // discoverable in the mega-menu drill-down rather than orphaned.
+  accessories: "other",
+  underwear: "other",
 }
 
 /** Spirit-type → sub-category handle under the `spirits` audience. */
@@ -121,7 +132,20 @@ const SPIRIT_TYPE_TO_SUB_HANDLE: Record<string, CategoryHandle> = {
   mezcal: "mezcal",
 }
 
-const ACCESSORY_TYPES = new Set(["headwear", "bags", "drinkware", "stickers"])
+// Types that always route to the `accessories` audience regardless of any
+// demographic cue in the title. "Mens Apron" still lands under Accessories,
+// not under Mens. Add new accessory-shaped types here so they don't
+// accidentally get filed under mens/womens.
+const ACCESSORY_TYPES = new Set([
+  "headwear",
+  "bags",
+  "aprons",
+  "socks",
+  "drinkware",
+  "stickers",
+  "accessories",
+  "underwear",
+])
 
 const KW_WOMENS = /\b(women|womens|woman|women's|ladies|ladie's|lady|female)s?\b/i
 const KW_MENS = /\b(mens|men's|gents)\b/i
