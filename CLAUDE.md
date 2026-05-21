@@ -129,7 +129,26 @@ Brands aren't enough — the storefront also groups products by **product_type**
 
 **Alias maps live in one place**: `PRODUCT_TYPE_ALIASES` and `TAG_ALIASES` in `product-taxonomy.ts`. Extending these is the right way to handle a supplier that uses unfamiliar vocabulary — never branch in the classifier. Unknown values flow into `unknownLog` (visible in import logs) so the alias map can be grown over time.
 
-**Shop category TREE** in [shop-categories.ts](backend/src/lib/shop-categories.ts): audience (Mens / Womens / Kids / Accessories / Spirits) × garment-type subs. `KIDS_SUBS` mirrors `APPAREL_SUBS` — kids polos, kids jackets, kids workwear all exist. Trimming the kids list silently blocks AP / FB products from landing in the menu.
+**Shop category TREE** in [shop-categories.ts](backend/src/lib/shop-categories.ts): 7 top-level audiences — **Mens, Womens, Kids, Workwear, Corporates, Accessories, Spirits**. Mens/Womens share a 28-sub APPAREL_SUBS list (T-Shirts, Pocket Tees, V-Necks, Active Tees, Polos, Active Polos, Business Shirts, Drill Shirts, Hoodies, Quarter Zips, Active Hoods, Softshell/Rain/Puffer/Active Jackets, Puffer/Softshell Vests, Active Shorts, Casual Shorts, Track Pants, Casual Pants, Tanks, Singlets, Active Singlets, Long Sleeves, Casual Shirts, Crewneck Sweatshirts, Zip Up Hoodies). Workwear has 32 subs including Hi-Viz variants per garment (`hi-viz-t-shirts`, `hi-viz-polos`, etc.). Corporates has 9 subs for office uniforms (Business Shirts, Polos, Knitwear, Blazers, Vests, Pants, Skirts, Dresses).
+
+**Multi-audience inference** — products cross-list into ALL matching audiences:
+- Hi-Viz Womens Polo from Syzmik → `womens-polos` + `workwear-polos` + `workwear-hi-viz-polos`
+- Biz Corporates Mens Business Shirt → `corporates-business-shirts` + `mens-business-shirts`
+- Mens Pocket Tee → `mens-t-shirts` + `mens-pocket-tees`
+
+**Audience routing signals** (priority order in `inferAudiences`):
+1. **Brand-based**: `WORKWEAR_BRAND_HANDLES` (Syzmik, Biz Care, DNC, JB's Wear, Bisley, Hard Yakka, King Gee, Ritemate) and `CORPORATES_BRAND_HANDLES` (Biz Corporates, Gloweave) — when adding a new brand, decide if it's workwear/corporates and add to these sets in [shop-categories.ts](backend/src/lib/shop-categories.ts).
+2. **Tag-based**: `Hi-Vis` / `Industrial` / `Construction` / `Healthcare` tags → workwear.
+3. **Title-based**: "Hi-Vis" / "Workwear" / "Tradie" / "Industrial" / "Safety" keywords → workwear.
+4. **Demographic**: title keywords for mens/womens/kids; unisex defaults to BOTH mens + womens.
+
+**Sub-variant inference** — same product can land in multiple subs within an audience:
+- `fit=Active` tag OR "Active" in title → `active-tees` / `active-polos` / `active-hoods` etc.
+- "Pocket" in title → `pocket-tees`
+- "V-Neck" in title → `v-necks`
+- "Quarter Zip" / "1/4 Zip" in title → `quarter-zips`
+- "Drill" in title → `drill-shirts` (workwear) or `business-shirts` (corporates)
+- "Softshell" / "Rain" / "Puffer" / "Insulated" → corresponding jacket/vest sub
 
 ## Customer-portal feature stack (Phases 1-4)
 

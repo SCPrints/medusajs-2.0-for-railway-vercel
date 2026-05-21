@@ -2,21 +2,36 @@
  * Shared category-inference logic for the Shop mega-menu.
  *
  * Owns:
- *  - the audience × garment-type category tree definition
- *  - title/type-based inference of which categories a product belongs to
- *  - the idempotent tree-creation + product-assignment helpers used by both the
- *    one-shot bootstrap script and by the per-supplier importers
+ *  - the audience × garment-type category tree definition (with cross-listing)
+ *  - title/type/tag/brand-based inference of which categories a product belongs to
+ *  - the idempotent tree-creation + product-assignment helpers
  *
- * Importers should call `ensureCategoryTree` + `assignCategoriesToProducts` at the
- * end of their flow, passing the IDs of newly-created products so we only re-walk
- * the rows that need a category set.
+ * Audience model:
+ *  - 7 top-level audiences: mens, womens, kids, workwear, corporates, accessories, spirits
+ *  - Products can live in MULTIPLE audiences (denormalised cross-listing):
+ *      Hi-Viz Womens Polo from Syzmik → womens-polos + workwear-polos + workwear-hi-viz-polos
+ *      Mens Pocket Tee from AS Colour → mens-t-shirts + mens-pocket-tees
+ *      Biz Corporates Mens Business Shirt → corporates-business-shirts + mens-business-shirts
+ *
+ * Detection signals (priority order):
+ *  1. Brand-based: brand handle is in WORKWEAR_BRAND_HANDLES or CORPORATES_BRAND_HANDLES
+ *  2. Tag-based: Hi-Vis tag → workwear + auto Hi-Viz subcategory
+ *  3. Title-based: "Hi-Vis" / "Pocket" / "V-Neck" / "Quarter Zip" etc. keywords
+ *  4. Fit-based: tag values "Active" / "Active Fit" → active-tees / active-polos etc.
  */
 
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { createProductCategoriesWorkflow } from "@medusajs/medusa/core-flows"
 
 export type CategoryHandle = string
-export type AudienceKey = "mens" | "womens" | "kids" | "accessories" | "spirits"
+export type AudienceKey =
+  | "mens"
+  | "womens"
+  | "kids"
+  | "workwear"
+  | "corporates"
+  | "accessories"
+  | "spirits"
 
 export type SubCategoryDef = {
   name: string
@@ -29,28 +44,131 @@ export type AudienceDef = {
   children: SubCategoryDef[]
 }
 
+// ============================================================
+// SUBCATEGORY LISTS PER AUDIENCE
+// ============================================================
+
+// Mens + Womens share the same sub list — same garment vocabulary, just
+// different demographic-audience hierarchy. 28 subs covering the full TCC
+// mega-menu structure.
 const APPAREL_SUBS: SubCategoryDef[] = [
+  // T-Shirts cluster
   { name: "T-Shirts", handle: "t-shirts" },
-  { name: "Polos", handle: "polos" },
-  { name: "Shirts", handle: "shirts" },
-  { name: "Hoodies & Sweatshirts", handle: "hoodies" },
   { name: "Long Sleeves", handle: "long-sleeves" },
-  { name: "Tanks & Singlets", handle: "tanks-singlets" },
-  { name: "Jackets", handle: "jackets" },
-  { name: "Pants & Shorts", handle: "pants-shorts" },
-  { name: "Workwear", handle: "workwear" },
-  { name: "Activewear", handle: "activewear" },
+  { name: "Pocket Tees", handle: "pocket-tees" },
+  { name: "Active Tees", handle: "active-tees" },
+  { name: "V-Necks", handle: "v-necks" },
+  // Jackets / Vests cluster
+  { name: "Softshell Jackets", handle: "softshell-jackets" },
+  { name: "Rain Jackets", handle: "rain-jackets" },
+  { name: "Puffer Jackets", handle: "puffer-jackets" },
+  { name: "Active Jackets", handle: "active-jackets" },
+  { name: "Puffer Vests", handle: "puffer-vests" },
+  { name: "Softshell Vests", handle: "softshell-vests" },
+  // Sweatshirts cluster
+  { name: "Hoodies", handle: "hoodies" },
+  { name: "Crewneck Sweatshirts", handle: "crewnecks" },
+  { name: "Quarter Zips", handle: "quarter-zips" },
+  { name: "Zip Up Hoodies", handle: "zip-hoodies" },
+  { name: "Active Hoodies", handle: "active-hoods" },
+  // Pants / Shorts cluster
+  { name: "Active Shorts", handle: "active-shorts" },
+  { name: "Casual Shorts", handle: "casual-shorts" },
+  { name: "Track Pants", handle: "track-pants" },
+  { name: "Casual Pants", handle: "casual-pants" },
+  // Tanks / Singlets cluster
+  { name: "Tanks", handle: "tanks" },
+  { name: "Singlets", handle: "singlets" },
+  { name: "Active Singlets", handle: "active-singlets" },
+  // Polos / Shirts cluster
+  { name: "Polos", handle: "polos" },
+  { name: "Active Polos", handle: "active-polos" },
+  { name: "Business Shirts", handle: "business-shirts" },
+  { name: "Casual Shirts", handle: "casual-shirts" },
+  { name: "Drill Shirts", handle: "drill-shirts" },
 ]
 
-// Kids mirrors the adult apparel taxonomy. The original list trimmed to
-// 4 categories ("kids only wear t-shirts / hoodies / long-sleeves /
-// tanks") but real catalogs include kids polos (school uniforms / team
-// kits), kids jackets, kids workwear (hi-vis vests for parents taking
-// kids on site), and kids activewear. Trimming the list silently
-// blocked products from landing in the menu drill-down (e.g. AP's
-// "Botany Kids Polos" had type=Polos + audience=kids → wanted
-// `kids-polos` handle which didn't exist).
-const KIDS_SUBS: SubCategoryDef[] = APPAREL_SUBS
+// Kids has the same fundamental vocabulary as adults but narrower — no
+// business shirts / drill shirts / quarter zips / active variants.
+const KIDS_SUBS: SubCategoryDef[] = [
+  { name: "T-Shirts", handle: "t-shirts" },
+  { name: "Long Sleeves", handle: "long-sleeves" },
+  { name: "Pocket Tees", handle: "pocket-tees" },
+  { name: "V-Necks", handle: "v-necks" },
+  { name: "Hoodies", handle: "hoodies" },
+  { name: "Crewneck Sweatshirts", handle: "crewnecks" },
+  { name: "Zip Up Hoodies", handle: "zip-hoodies" },
+  { name: "Polos", handle: "polos" },
+  { name: "Tanks", handle: "tanks" },
+  { name: "Singlets", handle: "singlets" },
+  { name: "Track Pants", handle: "track-pants" },
+  { name: "Casual Shorts", handle: "casual-shorts" },
+  { name: "Casual Pants", handle: "casual-pants" },
+  { name: "Puffer Jackets", handle: "puffer-jackets" },
+  { name: "Softshell Jackets", handle: "softshell-jackets" },
+  { name: "Puffer Vests", handle: "puffer-vests" },
+]
+
+// Workwear: each garment type has both a regular AND Hi-Viz variant.
+// Hi-Viz products land in BOTH the regular sub AND the hi-viz-X sub
+// (denormalised) so they're discoverable from either menu path.
+const WORKWEAR_SUBS: SubCategoryDef[] = [
+  // T-Shirts
+  { name: "T-Shirts", handle: "t-shirts" },
+  { name: "Long Sleeves", handle: "long-sleeves" },
+  { name: "Hi-Viz T-Shirts", handle: "hi-viz-t-shirts" },
+  { name: "Hi-Viz Long Sleeves", handle: "hi-viz-long-sleeves" },
+  // Sweatshirts
+  { name: "Hoodies", handle: "hoodies" },
+  { name: "Crewneck Sweatshirts", handle: "crewnecks" },
+  { name: "Quarter Zips", handle: "quarter-zips" },
+  { name: "Hi-Viz Hoodies", handle: "hi-viz-hoodies" },
+  { name: "Hi-Viz Crewnecks", handle: "hi-viz-crewnecks" },
+  { name: "Hi-Viz Quarter Zips", handle: "hi-viz-quarter-zips" },
+  // Tanks / Singlets
+  { name: "Tanks", handle: "tanks" },
+  { name: "Singlets", handle: "singlets" },
+  { name: "Hi-Viz Tanks", handle: "hi-viz-tanks" },
+  { name: "Hi-Viz Singlets", handle: "hi-viz-singlets" },
+  // Polos / Shirts
+  { name: "Polos", handle: "polos" },
+  { name: "Drill Shirts", handle: "drill-shirts" },
+  { name: "Business Shirts", handle: "business-shirts" },
+  { name: "Work Shirts", handle: "work-shirts" },
+  { name: "Hi-Viz Polos", handle: "hi-viz-polos" },
+  { name: "Hi-Viz Drill Shirts", handle: "hi-viz-drill-shirts" },
+  // Jackets / Vests
+  { name: "Softshell Jackets", handle: "softshell-jackets" },
+  { name: "Rain Jackets", handle: "rain-jackets" },
+  { name: "Insulated Jackets", handle: "insulated-jackets" },
+  { name: "Puffer Vests", handle: "puffer-vests" },
+  { name: "Softshell Vests", handle: "softshell-vests" },
+  { name: "Hi-Viz Softshell Jackets", handle: "hi-viz-softshell-jackets" },
+  { name: "Hi-Viz Rain Jackets", handle: "hi-viz-rain-jackets" },
+  { name: "Hi-Viz Insulated Jackets", handle: "hi-viz-insulated-jackets" },
+  { name: "Hi-Viz Puffer Vests", handle: "hi-viz-puffer-vests" },
+  { name: "Hi-Viz Softshell Vests", handle: "hi-viz-softshell-vests" },
+  // Pants / Shorts
+  { name: "Work Pants", handle: "work-pants" },
+  { name: "Work Shorts", handle: "work-shorts" },
+  { name: "Track Pants", handle: "track-pants" },
+  { name: "Rain Pants", handle: "rain-pants" },
+  { name: "Hi-Viz Pants", handle: "hi-viz-pants" },
+]
+
+// Corporates: office uniforms — Biz Corporates territory. No Hi-Viz here
+// (that's Workwear's domain).
+const CORPORATES_SUBS: SubCategoryDef[] = [
+  { name: "Business Shirts", handle: "business-shirts" },
+  { name: "Casual Shirts", handle: "casual-shirts" },
+  { name: "Polos", handle: "polos" },
+  { name: "Knitwear", handle: "knitwear" },
+  { name: "Blazers", handle: "blazers" },
+  { name: "Vests", handle: "vests" },
+  { name: "Pants", handle: "pants" },
+  { name: "Skirts", handle: "skirts" },
+  { name: "Dresses", handle: "dresses" },
+]
 
 const ACCESSORY_SUBS: SubCategoryDef[] = [
   { name: "Headwear", handle: "headwear" },
@@ -78,45 +196,77 @@ export const TREE: AudienceDef[] = [
   { name: "Mens", handle: "mens", children: APPAREL_SUBS },
   { name: "Womens", handle: "womens", children: APPAREL_SUBS },
   { name: "Kids", handle: "kids", children: KIDS_SUBS },
+  { name: "Workwear", handle: "workwear", children: WORKWEAR_SUBS },
+  { name: "Corporates", handle: "corporates", children: CORPORATES_SUBS },
   { name: "Accessories", handle: "accessories", children: ACCESSORY_SUBS },
   { name: "Spirits", handle: "spirits", children: SPIRIT_SUBS },
 ]
 
-/**
- * product_type.value → sub-category handle (under an audience parent).
- * Unmapped types yield `null` and the product is left without a Shop category.
- */
+// ============================================================
+// BRAND-BASED AUDIENCE ROUTING
+// ============================================================
+
+// Brand handles whose products are ALWAYS workwear — regardless of any
+// demographic cue in the title. Hi-Viz Womens Polo from Syzmik still
+// lands under Workwear (cross-listed with womens via the gender path).
+//
+// TODO: migrate to brand.metadata.audience_type so this isn't hardcoded.
+// Hardcoded list works for the first ~20 brands we'll onboard; promote to
+// data-driven once the list grows or staff need to flip the flag in admin.
+const WORKWEAR_BRAND_HANDLES = new Set([
+  "syzmik",
+  "biz-care",
+  "dnc-workwear",
+  "dnc",
+  "jbs-wear",
+  "jb's-wear",
+  "bisley",
+  "hard-yakka",
+  "king-gee",
+  "ritemate",
+])
+
+// Brand handles whose products are ALWAYS corporates — office uniforms.
+const CORPORATES_BRAND_HANDLES = new Set([
+  "biz-corporates",
+  "gloweave",
+])
+
+// ============================================================
+// PRODUCT TYPE → PRIMARY SUB-HANDLE MAPPING
+// ============================================================
+
+// Maps the canonical product_type to the primary subcategory handle in
+// the apparel audiences (mens/womens/kids). Audience-specific inference
+// in `inferSubsForAudience` may add additional fit/style-variant subs.
 const TYPE_TO_SUB_HANDLE: Record<string, CategoryHandle> = {
   "t-shirts": "t-shirts",
   hoodies: "hoodies",
-  sweatshirts: "hoodies",
+  sweatshirts: "crewnecks",
   polos: "polos",
-  shirts: "shirts",
+  shirts: "casual-shirts",
   longsleeves: "long-sleeves",
   "long sleeves": "long-sleeves",
-  "singlets / tanks": "tanks-singlets",
-  "tanks / singlets": "tanks-singlets",
-  singlets: "tanks-singlets",
-  tanks: "tanks-singlets",
-  jackets: "jackets",
-  pants: "pants-shorts",
-  shorts: "pants-shorts",
-  trackpants: "pants-shorts",
-  overalls: "pants-shorts",
+  "singlets / tanks": "tanks",
+  "tanks / singlets": "tanks",
+  singlets: "singlets",
+  tanks: "tanks",
+  jackets: "softshell-jackets",
+  pants: "casual-pants",
+  shorts: "casual-shorts",
+  trackpants: "track-pants",
+  overalls: "casual-pants",
   headwear: "headwear",
   bags: "bags",
   aprons: "aprons",
   socks: "socks",
   drinkware: "drinkware",
   stickers: "stickers",
-  // Catch-alls: types that are clearly accessories but don't map to a
-  // specific subcategory land in "Other Accessories" so they're at least
-  // discoverable in the mega-menu drill-down rather than orphaned.
+  // Catch-alls for orphan-prone types.
   accessories: "other",
   underwear: "other",
 }
 
-/** Spirit-type → sub-category handle under the `spirits` audience. */
 const SPIRIT_TYPE_TO_SUB_HANDLE: Record<string, CategoryHandle> = {
   vodka: "vodka",
   gin: "gin",
@@ -132,10 +282,8 @@ const SPIRIT_TYPE_TO_SUB_HANDLE: Record<string, CategoryHandle> = {
   mezcal: "mezcal",
 }
 
-// Types that always route to the `accessories` audience regardless of any
-// demographic cue in the title. "Mens Apron" still lands under Accessories,
-// not under Mens. Add new accessory-shaped types here so they don't
-// accidentally get filed under mens/womens.
+// Types that always route to the accessories audience regardless of any
+// demographic cue.
 const ACCESSORY_TYPES = new Set([
   "headwear",
   "bags",
@@ -147,66 +295,426 @@ const ACCESSORY_TYPES = new Set([
   "underwear",
 ])
 
+// ============================================================
+// DETECTION REGEXES
+// ============================================================
+
 const KW_WOMENS = /\b(women|womens|woman|women's|ladies|ladie's|lady|female)s?\b/i
 const KW_MENS = /\b(mens|men's|gents)\b/i
 const KW_KIDS = /\b(kid|kids|youth|child|children|infant|baby|babies|toddler)s?\b/i
 
+// Workwear / Hi-Vis signals
+const KW_HIVIZ = /\bhi[-\s]?vi[zs]\b|\bhigh[-\s]vis(ibility)?\b|\bhivis\b/i
+const KW_WORKWEAR_GENERIC = /\bworkwear\b|\btradies?\b|\bindustrial\b|\bsafety\b/i
+
+// Fit / style variants
+const KW_POCKET = /\bpocket\b/i
+const KW_VNECK = /\bv-?neck\b/i
+const KW_QUARTER_ZIP = /\b(quarter|1\/4)[-\s]+zip\b/i
+const KW_ZIPUP_HOOD = /\bzip[-\s]*(up)?[-\s]*hood/i
+const KW_ACTIVE = /\bactive\b/i
+
+// Jacket / vest subtypes
+const KW_SOFTSHELL = /\bsoftshell\b|\bsoft[-\s]+shell\b/i
+const KW_RAIN = /\brain\b|\bwaterproof\b/i
+const KW_PUFFER = /\bpuffer\b|\bpadded\b/i
+const KW_INSULATED = /\binsulat(ed|ion|ing)\b/i
+
+// Shorts / pants subtypes
+const KW_TRACK = /\btrack\b|\bjogger\b/i
+
+// Polos / Shirts subtypes
+const KW_DRILL = /\bdrill\b/i
+const KW_BUSINESS = /\bbusiness\b|\bexecutive\b|\bcorporate\b/i
+
+// Corporates subtypes
+const KW_BLAZER = /\bblazer\b|\bsuit\s*jacket\b/i
+const KW_KNIT = /\bknit\b|\bcardigan\b|\bjumper\b|\bsweater\b/i
+const KW_DRESS = /\bdress\b/i
+const KW_SKIRT = /\bskirt\b/i
+
+// ============================================================
+// SIGNAL HELPERS
+// ============================================================
+
+function isWorkwearBrand(brandHandle: string | null | undefined): boolean {
+  if (!brandHandle) return false
+  return WORKWEAR_BRAND_HANDLES.has(brandHandle.toLowerCase())
+}
+
+function isCorporatesBrand(brandHandle: string | null | undefined): boolean {
+  if (!brandHandle) return false
+  return CORPORATES_BRAND_HANDLES.has(brandHandle.toLowerCase())
+}
+
+function hasHiViz(title: string, tags: string[]): boolean {
+  if (tags.some((t) => /\bhi[-\s]?vi[zs]\b/i.test(t))) return true
+  return KW_HIVIZ.test(title)
+}
+
+function isWorkwearByContext(title: string, tags: string[]): boolean {
+  if (hasHiViz(title, tags)) return true
+  if (KW_WORKWEAR_GENERIC.test(title)) return true
+  for (const t of tags) {
+    const lower = t.trim().toLowerCase()
+    if (
+      lower === "industrial" ||
+      lower === "construction" ||
+      lower === "healthcare"
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+function hasActiveFit(title: string, tags: string[]): boolean {
+  if (tags.some((t) => /^active(\s+fit)?$/i.test(t.trim()))) return true
+  return KW_ACTIVE.test(title)
+}
+
+// ============================================================
+// CORE INFERENCE
+// ============================================================
+
+export type InferenceContext = {
+  title: string
+  typeValue: string | null
+  tags?: string[]
+  brandHandle?: string | null
+  metadata?: Record<string, unknown> | null
+}
+
 /**
- * Map a product to its audience cohort(s). Bottle products (where
- * `metadata.product_class === "bottle"`) always land under `spirits`.
- * Accessory-typed products always land under `accessories`; explicit kids /
- * womens / mens cues route to a single audience; everything else is treated as
- * unisex apparel and assigned to BOTH mens and womens so it surfaces in either
- * drill-down.
+ * Determine the audience cohorts a product belongs to. A product can belong
+ * to MULTIPLE audiences (cross-listing).
+ *
+ * Examples:
+ *  - Hi-Viz Womens Polo from Syzmik → ["workwear", "womens"]
+ *  - Biz Corporates Mens Business Shirt → ["corporates", "mens"]
+ *  - AS Colour Mens Pocket Tee → ["mens"]
+ *  - Unisex t-shirt with no demographic cue → ["mens", "womens"]
+ *  - Apron → ["accessories"] only (accessories override demographic)
  */
+export function inferAudiences(ctx: InferenceContext): AudienceKey[] {
+  // Bottles → spirits exclusively.
+  if (ctx.metadata && ctx.metadata.product_class === "bottle") {
+    return ["spirits"]
+  }
+
+  const audiences = new Set<AudienceKey>()
+  const title = ctx.title ?? ""
+  const tags = ctx.tags ?? []
+  const normalizedType = (ctx.typeValue ?? "").trim().toLowerCase()
+
+  // Accessory-typed products short-circuit to the accessories audience.
+  if (normalizedType && ACCESSORY_TYPES.has(normalizedType)) {
+    return ["accessories"]
+  }
+
+  // Workwear via brand OR detected context.
+  if (isWorkwearBrand(ctx.brandHandle) || isWorkwearByContext(title, tags)) {
+    audiences.add("workwear")
+  }
+
+  // Corporates via brand.
+  if (isCorporatesBrand(ctx.brandHandle)) {
+    audiences.add("corporates")
+  }
+
+  // Demographic-based audience (cross-listed with workwear/corporates if applicable).
+  if (KW_KIDS.test(title)) {
+    audiences.add("kids")
+  } else if (KW_WOMENS.test(title)) {
+    audiences.add("womens")
+  } else if (KW_MENS.test(title)) {
+    audiences.add("mens")
+  } else {
+    // Unisex fallback — assign to both mens AND womens.
+    audiences.add("mens")
+    audiences.add("womens")
+  }
+
+  return Array.from(audiences)
+}
+
+/**
+ * For a given audience, determine all subcategory handles the product
+ * belongs to. Multi-sub when fit/style variants apply.
+ */
+function inferSubsForAudience(
+  audience: AudienceKey,
+  ctx: InferenceContext
+): CategoryHandle[] {
+  const title = ctx.title ?? ""
+  const tags = ctx.tags ?? []
+  const normalizedType = (ctx.typeValue ?? "").trim().toLowerCase()
+  const subs = new Set<CategoryHandle>()
+
+  // Spirits — bottle metadata only.
+  if (audience === "spirits") {
+    if (ctx.metadata && ctx.metadata.product_class === "bottle") {
+      const spirit = (ctx.metadata.spirit_type as string | undefined)
+        ?.trim()
+        .toLowerCase()
+      if (spirit && SPIRIT_TYPE_TO_SUB_HANDLE[spirit]) {
+        subs.add(SPIRIT_TYPE_TO_SUB_HANDLE[spirit])
+      }
+    }
+    return Array.from(subs)
+  }
+
+  // Accessories — straight type→sub lookup.
+  if (audience === "accessories") {
+    const sub = TYPE_TO_SUB_HANDLE[normalizedType]
+    if (sub && ACCESSORY_SUBS.some((s) => s.handle === sub)) {
+      subs.add(sub)
+    }
+    return Array.from(subs)
+  }
+
+  // Corporates — keyword-driven routing (Biz Corporates' product line).
+  if (audience === "corporates") {
+    if (KW_DRESS.test(title) && !KW_DRILL.test(title)) subs.add("dresses")
+    if (KW_SKIRT.test(title)) subs.add("skirts")
+    if (KW_BLAZER.test(title)) subs.add("blazers")
+    if (KW_KNIT.test(title)) subs.add("knitwear")
+    if (/\bvest\b/i.test(title)) subs.add("vests")
+
+    if (normalizedType === "polos") subs.add("polos")
+    if (normalizedType === "pants") subs.add("pants")
+    if (normalizedType === "shirts") {
+      if (KW_BUSINESS.test(title)) subs.add("business-shirts")
+      else subs.add("casual-shirts")
+    }
+
+    return Array.from(subs)
+  }
+
+  // Workwear — type→sub plus Hi-Viz cross-listing.
+  if (audience === "workwear") {
+    const isHiViz = hasHiViz(title, tags)
+    let baseSub: string | undefined
+
+    // Type-based mapping (matches WORKWEAR_SUBS handles).
+    switch (normalizedType) {
+      case "t-shirts":
+        baseSub = "t-shirts"
+        break
+      case "longsleeves":
+      case "long sleeves":
+        baseSub = "long-sleeves"
+        break
+      case "polos":
+        baseSub = "polos"
+        break
+      case "shirts":
+        if (KW_DRILL.test(title)) baseSub = "drill-shirts"
+        else if (KW_BUSINESS.test(title)) baseSub = "business-shirts"
+        else baseSub = "work-shirts"
+        break
+      case "hoodies":
+        baseSub = "hoodies"
+        break
+      case "sweatshirts":
+        baseSub = "crewnecks"
+        break
+      case "tanks":
+        baseSub = "tanks"
+        break
+      case "singlets":
+      case "singlets / tanks":
+      case "tanks / singlets":
+        baseSub = "singlets"
+        break
+      case "jackets":
+        if (KW_RAIN.test(title)) baseSub = "rain-jackets"
+        else if (KW_INSULATED.test(title)) baseSub = "insulated-jackets"
+        else baseSub = "softshell-jackets"
+        break
+      case "pants":
+        baseSub = "work-pants"
+        break
+      case "shorts":
+        baseSub = "work-shorts"
+        break
+      case "trackpants":
+        baseSub = "track-pants"
+        break
+    }
+
+    // Vest detection — no specific type, title-driven.
+    if (!baseSub && /\bvest\b/i.test(title)) {
+      if (KW_SOFTSHELL.test(title)) baseSub = "softshell-vests"
+      else baseSub = "puffer-vests"
+    }
+
+    // Quarter-zip override (any hoodie/crew with "quarter zip" in title).
+    if (KW_QUARTER_ZIP.test(title)) baseSub = "quarter-zips"
+
+    if (baseSub) {
+      subs.add(baseSub)
+      // Cross-list to the hi-viz-X variant if applicable + the variant exists.
+      if (isHiViz) {
+        const hiVizHandle = `hi-viz-${baseSub}`
+        if (WORKWEAR_SUBS.some((s) => s.handle === hiVizHandle)) {
+          subs.add(hiVizHandle)
+        }
+      }
+    }
+
+    return Array.from(subs)
+  }
+
+  // Apparel audiences (mens / womens / kids) — type→sub plus fit/style variants.
+  const audienceSubs = audience === "kids" ? KIDS_SUBS : APPAREL_SUBS
+  const has = (handle: string) =>
+    audienceSubs.some((s) => s.handle === handle)
+
+  // Base type→sub from the generic map.
+  const baseSub = TYPE_TO_SUB_HANDLE[normalizedType]
+  if (baseSub && has(baseSub)) subs.add(baseSub)
+
+  // T-Shirts variants
+  if (
+    normalizedType === "t-shirts" ||
+    /\btee\b|\bt-shirt\b/i.test(title)
+  ) {
+    if (KW_POCKET.test(title) && has("pocket-tees")) subs.add("pocket-tees")
+    if (KW_VNECK.test(title) && has("v-necks")) subs.add("v-necks")
+    if (hasActiveFit(title, tags) && has("active-tees")) subs.add("active-tees")
+  }
+
+  // Long sleeves — also handle "Long Sleeve T-Shirt" → long-sleeves
+  if (/\blong\s+sleeve\b/i.test(title) && has("long-sleeves")) {
+    subs.add("long-sleeves")
+  }
+
+  // Sweatshirts / Hoodies variants
+  if (
+    normalizedType === "hoodies" ||
+    normalizedType === "sweatshirts" ||
+    /\bhood\b|\bsweat\b|\bcrew\b/i.test(title)
+  ) {
+    if (KW_QUARTER_ZIP.test(title) && has("quarter-zips")) subs.add("quarter-zips")
+    if (KW_ZIPUP_HOOD.test(title) && has("zip-hoodies")) subs.add("zip-hoodies")
+    if (hasActiveFit(title, tags) && has("active-hoods")) subs.add("active-hoods")
+    if (/\bcrew\b/i.test(title) && has("crewnecks")) subs.add("crewnecks")
+  }
+
+  // Polos variants
+  if (normalizedType === "polos") {
+    if (hasActiveFit(title, tags) && has("active-polos")) subs.add("active-polos")
+  }
+
+  // Singlets variants
+  if (/\bsinglet\b/i.test(title) || normalizedType === "singlets") {
+    if (hasActiveFit(title, tags) && has("active-singlets")) {
+      subs.add("active-singlets")
+    }
+  }
+
+  // Shirts subtypes — split business vs casual vs drill.
+  if (normalizedType === "shirts") {
+    // Remove the default "casual-shirts" from baseSub if a more specific
+    // signal matches.
+    if (KW_DRILL.test(title) && has("drill-shirts")) {
+      subs.delete("casual-shirts")
+      subs.add("drill-shirts")
+    } else if (KW_BUSINESS.test(title) && has("business-shirts")) {
+      subs.delete("casual-shirts")
+      subs.add("business-shirts")
+    }
+  }
+
+  // Jackets subtypes
+  if (normalizedType === "jackets" || /\bjacket\b/i.test(title)) {
+    if (KW_SOFTSHELL.test(title) && has("softshell-jackets")) {
+      subs.add("softshell-jackets")
+    } else if (KW_RAIN.test(title) && has("rain-jackets")) {
+      subs.delete("softshell-jackets")
+      subs.add("rain-jackets")
+    } else if (KW_PUFFER.test(title) && has("puffer-jackets")) {
+      subs.delete("softshell-jackets")
+      subs.add("puffer-jackets")
+    } else if (hasActiveFit(title, tags) && has("active-jackets")) {
+      subs.delete("softshell-jackets")
+      subs.add("active-jackets")
+    }
+  }
+
+  // Vests
+  if (/\bvest\b/i.test(title)) {
+    if (KW_SOFTSHELL.test(title) && has("softshell-vests")) {
+      subs.add("softshell-vests")
+    } else if (has("puffer-vests")) {
+      subs.add("puffer-vests")
+    }
+  }
+
+  // Pants subtypes
+  if (normalizedType === "pants" || /\bpant\b/i.test(title)) {
+    if (KW_TRACK.test(title) && has("track-pants")) {
+      subs.delete("casual-pants")
+      subs.add("track-pants")
+    }
+  }
+  if (normalizedType === "shorts" || /\bshort\b/i.test(title)) {
+    if (hasActiveFit(title, tags) && has("active-shorts")) {
+      subs.delete("casual-shorts")
+      subs.add("active-shorts")
+    }
+  }
+  if (normalizedType === "trackpants" && has("track-pants")) {
+    subs.add("track-pants")
+  }
+
+  return Array.from(subs)
+}
+
+/**
+ * Resolve every category handle a product should be assigned to. Combines
+ * `inferAudiences` × `inferSubsForAudience` and returns the full list of
+ * fully-qualified `<audience>-<sub>` handles.
+ */
+export function resolveCategoryHandles(
+  ctx: InferenceContext
+): CategoryHandle[] {
+  const audiences = inferAudiences(ctx)
+  const handles = new Set<CategoryHandle>()
+  for (const audience of audiences) {
+    const subs = inferSubsForAudience(audience, ctx)
+    for (const sub of subs) {
+      handles.add(`${audience}-${sub}`)
+    }
+  }
+  return Array.from(handles)
+}
+
+// Backwards-compat thin wrappers — old callers used the 3-arg signature.
 export function inferAudience(
   title: string,
   typeValue: string | null,
   metadata?: Record<string, unknown> | null
 ): AudienceKey[] {
-  if (metadata && metadata.product_class === "bottle") {
-    return ["spirits"]
-  }
-  const normalizedType = (typeValue ?? "").trim().toLowerCase()
-  if (normalizedType && ACCESSORY_TYPES.has(normalizedType)) {
-    return ["accessories"]
-  }
-  if (KW_KIDS.test(title)) return ["kids"]
-  if (KW_WOMENS.test(title)) return ["womens"]
-  if (KW_MENS.test(title)) return ["mens"]
-  return ["mens", "womens"]
+  return inferAudiences({ title, typeValue, metadata })
 }
 
 export function inferSubHandle(
   typeValue: string | null,
   metadata?: Record<string, unknown> | null
 ): CategoryHandle | null {
-  if (metadata && metadata.product_class === "bottle") {
-    const spirit = (metadata.spirit_type as string | undefined)?.trim().toLowerCase()
-    if (spirit && SPIRIT_TYPE_TO_SUB_HANDLE[spirit]) {
-      return SPIRIT_TYPE_TO_SUB_HANDLE[spirit]
-    }
-    return null
-  }
-  if (!typeValue) return null
-  const key = typeValue.trim().toLowerCase()
-  return TYPE_TO_SUB_HANDLE[key] ?? null
+  const subs = inferSubsForAudience("mens", {
+    title: "",
+    typeValue,
+    metadata,
+  })
+  return subs[0] ?? null
 }
 
-/**
- * Resolve the full handle list (`mens-t-shirts`, `womens-t-shirts`, …) for a
- * product. Empty array means the product has no Shop-category match.
- */
-export function resolveCategoryHandles(
-  title: string,
-  typeValue: string | null,
-  metadata?: Record<string, unknown> | null
-): CategoryHandle[] {
-  const sub = inferSubHandle(typeValue, metadata)
-  if (!sub) return []
-  const audiences = inferAudience(title, typeValue, metadata)
-  return audiences.map((a) => `${a}-${sub}`)
-}
+// ============================================================
+// CATEGORY TREE PERSISTENCE
+// ============================================================
 
 type CategoryRow = {
   id: string
@@ -225,7 +733,6 @@ type ContainerLike = {
   resolve: <T = unknown>(key: unknown) => T
 }
 
-/** Build a handle → id map for every existing category (including non-Shop ones). */
 export async function loadCategoryIdsByHandle(
   container: ContainerLike
 ): Promise<Map<string, string>> {
@@ -241,19 +748,12 @@ export async function loadCategoryIdsByHandle(
   return map
 }
 
-/**
- * Idempotent — creates any missing audience or sub-category rows and returns
- * the full handle → id map. Safe to call from every importer; only missing
- * rows are inserted.
- */
 export async function ensureCategoryTree(
   container: ContainerLike,
   options: { dryRun?: boolean; logger?: LoggerLike } = {}
 ): Promise<Map<string, string>> {
   const dryRun = !!options.dryRun
-  const logger = options.logger ?? {
-    info: () => {},
-  }
+  const logger = options.logger ?? { info: () => {} }
 
   const byHandle = await loadCategoryIdsByHandle(container)
 
@@ -306,7 +806,9 @@ export async function ensureCategoryTree(
   }
   if (subToCreate.length) {
     if (dryRun) {
-      logger.info?.(`[dry-run] would create ${subToCreate.length} sub-categories`)
+      logger.info?.(
+        `[dry-run] would create ${subToCreate.length} sub-categories`
+      )
     } else {
       const { result } = await createProductCategoriesWorkflow(
         container as any
@@ -321,6 +823,10 @@ export async function ensureCategoryTree(
   return byHandle
 }
 
+// ============================================================
+// PRODUCT → CATEGORY ASSIGNMENT
+// ============================================================
+
 export type AssignmentSummary = {
   updated: number
   skipped: number
@@ -333,18 +839,12 @@ type ProductRow = {
   id: string
   title: string
   type: { value: string | null } | null
+  tags: Array<{ value: string }> | null
   categories: Array<{ id: string; handle: string }> | null
   metadata: Record<string, unknown> | null
+  brand: Array<{ handle: string }> | { handle: string } | null
 }
 
-/**
- * Walk every product (or just `options.productIds`) and align its Shop-category
- * assignments with what `resolveCategoryHandles` says it should belong to.
- *
- * - Preserves non-Shop categories (collections, brand sub-categories, etc.)
- * - Skips products whose Shop-category set already matches
- * - Leaves untyped / unmapped products alone (no destructive cleanup)
- */
 export async function assignCategoriesToProducts(
   container: ContainerLike,
   byHandle: Map<string, string>,
@@ -355,9 +855,7 @@ export async function assignCategoriesToProducts(
   } = {}
 ): Promise<AssignmentSummary> {
   const dryRun = !!options.dryRun
-  const logger = options.logger ?? {
-    info: () => {},
-  }
+  const logger = options.logger ?? { info: () => {} }
   const query = container.resolve<any>(ContainerRegistrationKeys.QUERY)
   const productModule = container.resolve<any>(Modules.PRODUCT) as {
     updateProducts: (
@@ -366,18 +864,18 @@ export async function assignCategoriesToProducts(
     ) => Promise<unknown>
   }
 
-  const filters = options.productIds
-    ? { id: options.productIds }
-    : undefined
+  const filters = options.productIds ? { id: options.productIds } : undefined
   const { data } = await query.graph({
     entity: "product",
     fields: [
       "id",
       "title",
       "type.value",
+      "tags.value",
       "categories.id",
       "categories.handle",
       "metadata",
+      "brand.handle",
     ],
     filters,
   })
@@ -394,11 +892,21 @@ export async function assignCategoriesToProducts(
 
   for (const product of rows) {
     const typeValue = product.type?.value ?? null
-    const targetHandles = resolveCategoryHandles(
-      product.title ?? "",
+    const tags = (product.tags ?? []).map((t) => t.value)
+    // Brand link uses isList:true on the product side — comes back as
+    // either an array or a single object depending on Medusa version.
+    const brandLink = Array.isArray(product.brand)
+      ? product.brand[0]
+      : product.brand
+    const brandHandle = brandLink?.handle ?? null
+
+    const targetHandles = resolveCategoryHandles({
+      title: product.title ?? "",
       typeValue,
-      product.metadata ?? null
-    )
+      tags,
+      brandHandle,
+      metadata: product.metadata ?? null,
+    })
     if (targetHandles.length === 0) {
       summary.untyped++
       continue
@@ -433,9 +941,9 @@ export async function assignCategoriesToProducts(
       .filter((id) => !existingShopIds.has(id))
     const finalIds = Array.from(new Set([...preservedIds, ...targetIds]))
 
-    if (summary.sample.length < 5) {
+    if (summary.sample.length < 10) {
       summary.sample.push(
-        `  ${product.title} → ${targetHandles.join(", ")} (type=${typeValue ?? "—"})`
+        `  ${product.title} → ${targetHandles.join(", ")} (type=${typeValue ?? "—"}, brand=${brandHandle ?? "—"})`
       )
     }
 
