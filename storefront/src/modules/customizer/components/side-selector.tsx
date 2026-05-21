@@ -40,13 +40,18 @@ export default function SideSelector({ currentSide, onSelectSide, allowedSides, 
             aria-selected={selected}
             className={`min-w-[4.5rem] flex-1 rounded-lg px-2 py-2 text-center text-xs font-semibold transition-colors small:min-w-0 small:px-3 small:text-sm ${
               selected
-                ? "bg-ui-bg-base text-ui-fg-base shadow-sm ring-1 ring-ui-border-base"
+                ? "bg-[var(--brand-secondary)] text-white shadow-md ring-2 ring-[var(--brand-secondary)] ring-offset-2 ring-offset-ui-bg-subtle"
                 : "text-ui-fg-subtle hover:bg-ui-bg-base/60 hover:text-ui-fg-base"
             }`}
             onClick={() => onSelectSide(option.value)}
           >
             {decorated && (
-              <span className="mr-0.5 text-[10px] text-emerald-600" aria-hidden>✓</span>
+              <span
+                className={`mr-0.5 text-[10px] ${selected ? "text-white" : "text-emerald-600"}`}
+                aria-hidden
+              >
+                ✓
+              </span>
             )}
             <span className="small:hidden">{option.short}</span>
             <span className="hidden small:inline">{option.label}</span>
