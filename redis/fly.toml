@@ -1,0 +1,29 @@
+app = 'sc-prints-redis'
+primary_region = 'syd'
+
+[build]
+  image = 'redis:7-alpine'
+
+[experimental]
+  cmd = ["sh", "-c", "exec redis-server --appendonly yes --dir /data --requirepass \"$REDIS_PASSWORD\" --maxmemory 400mb --maxmemory-policy noeviction"]
+
+[[mounts]]
+  source = 'redis_data'
+  destination = '/data'
+
+[[services]]
+  internal_port = 6379
+  protocol = "tcp"
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.tcp_checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '15s'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1

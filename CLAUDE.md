@@ -59,7 +59,7 @@ Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack
 | Postgres 16 | DigitalOcean Managed Postgres | SYD1 | `sc-prints-db-do-user-37546044-0.i.db.ondigitalocean.com:25060` | ~$15/mo |
 | File storage (S3-compatible) | Cloudflare R2 | Oceania | bucket `sc-prints-media`, public dev URL `https://pub-4b98c1b8d55d4d9597ff5cfac6aa611a.r2.dev` | free tier |
 | Search index | self-hosted Meilisearch v1.10 | Fly.io Sydney | `sc-prints-search.fly.dev` (separate Fly app, see [meilisearch/fly.toml](meilisearch/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
-| Event bus + workflow engine + locking | Upstash Redis | Sydney (`ap-southeast-2`) | `super-fawn-131470.upstash.io` (`rediss://`, TLS-required) | free tier (10k cmd/day) |
+| Event bus + workflow engine + locking | self-hosted Redis 7 on Fly.io | Sydney (`syd`) | `sc-prints-redis.internal:6379` (private 6PN, no public exposure, see [redis/fly.toml](redis/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
 | Transactional email | Resend | — | sender domain `scprints.com.au` (verified), default From `orders@scprints.com.au` | free tier |
 | Payments | Stripe (test mode + Payment Links) | — | two webhook endpoints: `/hooks/payment/stripe_stripe` and `/hooks/stripe-payment-link` | per-transaction |
 | Analytics | PostHog Cloud US, GA4, Google Search Console | — | reads via service account (DWD impersonates `info@scprints.com.au`) | free / per-event |
@@ -766,9 +766,11 @@ The plugin (`@rokmohar/medusa-plugin-meilisearch` in [backend/medusa-config.js](
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `REDIS_URL` | Redis connection URL. **Must use `rediss://` (TLS) for Upstash and other managed providers.** Production: Upstash Sydney. | unset — Medusa falls back to in-process event bus + in-memory workflow engine + in-memory locking (only works on one machine, loses events on restart, prints warning on every boot) |
+| `REDIS_URL` | Redis connection URL. Production: `redis://default:<password>@sc-prints-redis.internal:6379` (self-hosted Redis 7 on Fly, private 6PN). Use `rediss://` only if you swap in a managed provider with TLS. | unset — Medusa falls back to in-process event bus + in-memory workflow engine + in-memory locking (only works on one machine, loses events on restart, prints warning on every boot) |
 
-The first connection from a cold Fly machine to Upstash can `ETIMEDOUT` a few times before succeeding (Upstash free-tier cold start). ioredis recovers and the warnings disappear after ~30s. The system-health check (`/admin/reports/system-health`) uses `tls.connect()` for `rediss://` URLs — raw TCP would be silently rejected.
+The system-health check (`/admin/reports/system-health`) auto-detects scheme: `tls.connect()` for `rediss://`, raw `net` TCP for `redis://`. Both branches verify with `AUTH` + `PING`.
+
+**Why self-hosted instead of a managed Redis provider**: Medusa uses Redis as infrastructure (BullMQ queues + workflow engine + locks), not as a cache — even an idle backend burns ~50-100k commands/day on BullMQ worker polling alone. Add the hourly importers + cache-invalidation fan-out and a managed free tier (e.g. Upstash's 500k cmd/day) gets blown in under 24h. Self-hosted on Fly is a flat ~$3/mo with no command quota and sub-ms latency over the private 6PN network. The original Upstash database `super-fawn-131470.upstash.io` was retired on 2026-05-21 after burning its daily quota in the first 18h of production traffic.
 
 All other env vars (Medusa core, AS Colour, Stripe, etc.) are documented in [backend/src/lib/constants.ts](backend/src/lib/constants.ts).
 
