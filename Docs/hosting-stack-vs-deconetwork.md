@@ -1,12 +1,59 @@
 # Hosting stack — current state vs competition (measured May 2026)
 
-**Date**: 2026-05-19 (v3 — full measurements from a Sydney-area machine)
+**Date**: 2026-05-21 (v4 — post-migration measurements)
 
-> This is the **third revision** of this doc. v1 misread DecoNetwork's location and overstated their latency disadvantage. v2 corrected that. v3 (this revision) measures our **actual current production setup** and compares to **measured** competitor latency, including the surprising findings that (a) The Print Bar already runs on Fly.io Sydney — the same stack we're migrating to, and (b) Shopify-powered AU competitors (Cartel, T-Shirt Co) are served from **GCP Australia Southeast 2 (Melbourne)**, not US/EU as I'd previously claimed.
+> Fourth revision. v3 (2 days ago) measured us at ~800ms TTFB / 4-5s total — the slowest of every measured AU competitor. Since then the migration listed in v3's recommendations has shipped: Vercel functions pinned to `syd1`, Cache Components / Partial Prerendering enabled, backend → storefront cache invalidation wired, Redis self-hosted on Fly. **The gap closed.** We now measure tied with The Print Bar on TTFB and faster than every competitor on total page time. Full new numbers in §1a; v3 text retained below for the diff.
 
 ---
 
-## 1. Headline (measured)
+## 1a. Headline — post-migration (measured 2026-05-21)
+
+**Result: we are now in the same performance tier as Shopify-AU and The Print Bar, and we beat DecoNetwork tenants by 4-5x.**
+
+| Site | Warm TTFB (median, 5 runs) | Warm Total (median) | Page size |
+|---|---|---|---|
+| The T-Shirt Co (Shopify GCP-AU) | **110ms** | 565ms | 447 KB |
+| The Colour Cartel (Shopify GCP-AU) | **124ms** | 847ms | 1,955 KB |
+| **SC Prints /au (Vercel syd1 + Cache Components)** | **155ms** | **429ms** | **194 KB** |
+| The Print Bar (Fly syd + Cloudflare) | 156ms | 622ms | 1,137 KB |
+| Tee Junction (DecoNetwork LA) | 683ms | 1,219ms | 240 KB |
+
+Reading the table:
+
+- **TTFB**: Shopify-AU leads (≈115ms), we tie The Print Bar (≈155ms) and trail Shopify by ≈30-45ms. DecoNetwork is 4-5× slower (≈683ms).
+- **Total page time**: we are the **fastest** in the comparison (429ms median) because our home page is the lightest payload (194 KB). Shopify and Print Bar pay for richer hero imagery; DecoNetwork pays for the LA round-trip.
+- **Page size**: 194 KB vs the field is partly because PPR ships only what the route renders — there's headroom to add more content without losing the lead.
+
+**What actually changed since v3** (commit log on `master`):
+1. `vercel.json` → `regions: ["syd1"]` — function exec now in Sydney. Every response: `x-vercel-id: syd1::syd1::*`.
+2. Next 16.2.6 Cache Components / PPR rollout. Every measured path returns `x-vercel-cache: HIT` or `PRERENDER`:
+   - `/au` → HIT (age 7s when measured)
+   - `/au/store` → HIT (age 40s)
+   - `/au/categories/mens` → HIT (age 1s)
+   - `/au/industries` → PRERENDER (statically generated at build via `generateStaticParams`)
+3. Cache-busted requests (`?nocache=<rand>`) still warm at **142-175ms TTFB** — the function is fast in Sydney even when the edge is bypassed.
+4. Backend `fly.toml`: `auto_stop_machines = 'suspend'` (was `'stop'`) — wake from suspended RAM in ≈250ms instead of cold-boot in 10+ seconds.
+5. `release_command` on Fly runs `db:migrate && db:sync-links` once per deploy instead of on every machine boot, removing 2-4 minutes from the hot path.
+6. Redis self-hosted on Fly (Upstash retired) — Redis traffic stays inside the Sydney region.
+
+**Where the v3 recommendations stand:**
+
+| v3 recommendation | Status |
+|---|---|
+| 🔥 Move Vercel function region to `syd1` | ✅ Shipped (`storefront/vercel.json`) |
+| Add edge caching for the most-visited pages | ✅ Shipped (Cache Components + `cacheTag`/`cacheLife` on data loaders) |
+| Decide the customer-facing domain | ⚠️ Still open — production traffic still hits the `.vercel.app` URL, `scprints.com.au` is still the Webflow marketing site |
+| Measure after each change | ✅ This document |
+| Test image-fetch latency from Sydney to R2 | ⚠️ Not re-measured this round |
+| Document manual-failover runbook | ⚠️ Open |
+| Set up shared monitoring | ⚠️ Open |
+| Don't try to out-feature DecoNetwork on day 1 | Still the strategy |
+
+**Bottom line**: the latency complaint is no longer real. The remaining strategic work is the domain split (shop on `.vercel.app`, marketing on `scprints.com.au`) and content/SEO, not infrastructure. v3's text below describes the pre-fix world and is kept for context.
+
+---
+
+## 1. Headline (measured) — superseded by §1a, kept for the diff
 
 **Bad news first**: our current Medusa Vercel storefront is the **slowest** of all the competitors we've measured. ~800ms TTFB and **4-5 seconds total page time** to render `/au`. Our Vercel functions are running in **`iad1` (US East / Virginia)** — not Sydney — so every customer request crosses the Pacific twice. Specifically, the request flow is:
 
@@ -31,7 +78,9 @@ That's an **extra ~360ms round-trip** the customer never needed to pay. Add Next
 
 ---
 
-## 2. Our current setup — measured
+## 2. Our setup as of v3 (2026-05-19) — measured
+
+> Snapshot below describes the pre-fix state. Current v4 numbers are in §1a; the v3 narrative in §§2-4 is preserved as the diff that motivated the work.
 
 | Component | URL | Hosting | Measured RTT | Measured TTFB warm | Total page time |
 |---|---|---|---|---|---|
@@ -122,7 +171,9 @@ Shopify routes them through **GCP Australia Southeast 2 (Melbourne)** primary, w
 
 ## 4. The gap — what's actually broken and what to fix
 
-### Problem 1: Vercel function region is iad1 instead of syd1
+> **v4 status**: Problems 1, 2 and 4 are fixed (✅ shipped to master). Problem 3 (domain split) is still open. The original problem text is kept below so the diff is auditable.
+
+### Problem 1: Vercel function region is iad1 instead of syd1 ✅ FIXED
 
 **Impact**: 360ms extra round-trip per uncached request. Real, measurable, and the dominant cause of our slow page loads.
 
@@ -142,19 +193,19 @@ export const preferredRegion = ['syd1']
 
 Vercel Pro+ allows specifying execution region. Free tier defaults to `iad1`. If we're not on Pro, this is the ROI moment to upgrade.
 
-### Problem 2: No edge caching (x-vercel-cache: MISS on every request)
+### Problem 2: No edge caching (x-vercel-cache: MISS on every request) ✅ FIXED
 
 **Impact**: Every request hits the function. No static-generation or ISR.
 
 **Fix**: Use Next.js `revalidate` or `unstable_cache` on PDP / category / store pages. Even 60-second revalidation would mean most requests hit the edge cache instead of executing the function.
 
-### Problem 3: Marketing site and storefront are on different domains
+### Problem 3: Marketing site and storefront are on different domains ⚠️ STILL OPEN
 
 **Impact**: scprints.com.au (Webflow) and medusajs-...vercel.app are disconnected. Customers can't shop from the marketing site, and the eventual shop URL doesn't carry domain trust.
 
 **Fix**: Point a subdomain like `shop.scprints.com.au` or migrate scprints.com.au itself to the Medusa Next.js storefront (would replace Webflow). Either way, **all customer journey should be on one domain** before any major marketing push.
 
-### Problem 4: Migration not fully complete
+### Problem 4: Migration not fully complete ✅ INFRA COMPLETE (domain still split)
 
 The env template shows the migration is mid-flight:
 - ✅ `sc-prints-backend.fly.dev` configured for Fly Sydney
@@ -184,20 +235,23 @@ The proposed stack is **already deployed**. The remaining work is:
 
 ---
 
-## 6. Side-by-side (corrected)
+## 6. Side-by-side (corrected, v4)
 
-| Axis | DecoNetwork tenants | Shopify-AU (Cartel/T-Shirt Co) | The Print Bar | SC Prints CURRENT | SC Prints TARGET (after fix) |
+| Axis | DecoNetwork tenants | Shopify-AU (Cartel/T-Shirt Co) | The Print Bar | SC Prints v3 (pre-fix) | **SC Prints v4 (now)** |
 |---|---|---|---|---|---|
-| **Cloud platform** | Aptum (PEER1) LA colo | Google Cloud Platform AU Southeast 2 (Melbourne) + AS Singapore | Fly.io Sydney + Cloudflare | Vercel iad1 + Fly Sydney + DO Sydney + R2 | Vercel syd1 + Fly Sydney + DO Sydney + R2 |
-| **Compute location for AU customers** | Los Angeles | Melbourne | Sydney | Virginia (iad1) ⚠️ | Sydney (syd1) |
-| **CDN** | None at DNS | Shopify edge + Fastly Sydney | Cloudflare Sydney | Vercel edge Sydney (but MISS) | Vercel edge Sydney + Cloudflare R2 |
+| **Cloud platform** | Aptum (PEER1) LA colo | Google Cloud Platform AU Southeast 2 (Melbourne) + AS Singapore | Fly.io Sydney + Cloudflare | Vercel iad1 + Fly Sydney + DO Sydney + R2 | **Vercel syd1 + Fly Sydney + DO Sydney + R2 + Fly Redis** |
+| **Compute location for AU customers** | Los Angeles | Melbourne | Sydney | Virginia (iad1) ⚠️ | **Sydney (syd1)** ✅ |
+| **CDN** | None at DNS | Shopify edge + Fastly Sydney | Cloudflare Sydney | Vercel edge Sydney (but MISS) | **Vercel edge Sydney (HIT / PRERENDER)** ✅ |
+| **Static prerender** | n/a (Rails app) | per-route ISR via Shopify edge | per-route via Cloudflare cache | none (every request hit the function) | **Cache Components / PPR — every measured route HIT or PRERENDER** ✅ |
+| **Backend cold-start** | n/a (always-on bare-metal) | n/a (always-on) | n/a (Fly suspend) | Railway always-on (we'd just moved off) | **Fly `suspend` — ≈250ms wake from RAM, `min_machines_running = 1`** |
+| **DB migrations on boot** | n/a | n/a | n/a | ran on every boot (2-4 min hot-path) | **moved to `release_command` (once per deploy)** |
 | **RTT from Sydney** | ~170ms | ~14-19ms | ~16ms | partial (edge Sydney, function Virginia) | <30ms |
-| **TTFB warm (measured)** | ~600ms | 70-160ms | 140-180ms | **~800ms** ⚠️ | target <150ms |
-| **Total page time** | ~600ms | 391-824ms | 590-656ms | **4-5s** ⚠️ | target <2s |
-| **AU competitor adoption** | 4 of 8 surveyed | 2 of 8 surveyed | n/a (they're a competitor) | n/a (we are us) | n/a |
-| **Same as our proposed stack?** | No (different generation entirely) | Different (GCP vs lightweight managed) | **Yes — almost identical** | n/a | n/a |
+| **TTFB warm (measured 2026-05-21)** | ~683ms | 110-124ms | 156ms | ~800ms ⚠️ | **155ms** ✅ |
+| **Total page time (median)** | ~1,219ms | 565-847ms | 622ms | 4-5s ⚠️ | **429ms** ✅ (lowest in the comparison) |
+| **Page size measured** | 240 KB | 447 KB / 1,955 KB | 1,137 KB | n/a | 194 KB |
+| **AU competitor adoption** | 4 of 8 surveyed | 2 of 8 surveyed | n/a (they're a competitor) | n/a | n/a |
 
-The Print Bar row is the most useful comparison: **they're running the exact stack we're migrating to**, and they get ~150ms warm TTFB and ~600ms total. That's what we should expect to hit once Vercel functions are in `syd1`.
+The Print Bar row was the benchmark v3 set: ~150ms TTFB on Fly Sydney + Cloudflare. We are now there. Shopify-AU is still 30-45ms ahead on TTFB — that gap is GCP AU + Fastly + their own caching infrastructure, and is hard to close further without either moving to their stack or front-fronting our origin with Cloudflare (which would duplicate what Vercel's edge already does).
 
 ---
 
@@ -230,18 +284,19 @@ A side observation that sharpens the strategic picture:
 
 ## 9. Strategic implications
 
-### Current state vs all competitors
+### Current state vs all competitors (v4)
 
-We're currently **the slowest measured** in the AU market. Until we fix the Vercel region issue, no "designed for Australia" marketing claim is honest. **Fix first, market later.**
+We are no longer the slowest. Measured 2026-05-21:
+- **Tied with The Print Bar** on TTFB (155 vs 156ms median, 5 runs each)
+- **30-45ms behind Shopify-AU** on TTFB (155 vs 110-124ms) — explained by GCP AU + Fastly + Shopify's caching layer, not by anything broken on our side
+- **4.4× faster than DecoNetwork tenants** on TTFB (155 vs 683ms)
+- **Fastest total page time** in the comparison (429ms median) — partly TTFB, partly that PPR keeps the payload small
 
-### After we fix the region
+The "designed for Australia" marketing claim is now honest. The remaining performance work is page-weight optimisation on PDP / customizer routes, not infrastructure.
 
-Once Vercel functions run in `syd1` and we add edge caching, our performance should land in The Print Bar's range (~150ms TTFB warm). That's:
-- **Faster than DecoNetwork tenants** by ~450ms TTFB
-- **Roughly parity with Shopify-AU** (Cartel, T-Shirt Co)
-- **Roughly parity with The Print Bar** (also on Fly Sydney + Cloudflare)
+### After we fixed the region (retained for context)
 
-The latency story isn't "we crush everyone." It's "we match the AU-aware players and beat the DecoNetwork-hosted ones." That's a real but measured edge.
+The v3 prediction held: once Vercel functions ran in `syd1` and edge caching was on, performance landed in The Print Bar's range. The Cache Components migration went further than v3 anticipated — `x-vercel-cache: HIT` on the home page and PRERENDER on routes with `generateStaticParams` (e.g. `/au/industries`) means most requests never touch the function at all.
 
 ### Where the actual differentiation lives
 
@@ -263,7 +318,8 @@ So the strategic positioning is:
 
 - **v1** (initial): claimed DecoNetwork hosts in Toronto with 200-250ms RTT. Wrong. Server is in LA, RTT is ~170ms.
 - **v2**: corrected geography and added Shopify comparison. Claimed Shopify runs in US/EU GCP for AU customers. Wrong. Modern Shopify uses GCP AU Southeast 2 (Melbourne) for AU merchants.
-- **v3 (this revision)**: measured our actual current setup. Discovered that our Vercel functions are running in iad1 (US East), making us currently the slowest of all measured competitors. Discovered The Print Bar runs on Fly.io Sydney + Cloudflare — same stack we're migrating to.
+- **v3**: measured our actual current setup. Discovered that our Vercel functions were running in iad1 (US East), making us the slowest of all measured competitors. Discovered The Print Bar runs on Fly.io Sydney + Cloudflare — same stack we were migrating to.
+- **v4 (this revision)**: re-measured post-migration on 2026-05-21. Vercel functions now in `syd1`, Cache Components / PPR enabled, Fly `auto_stop_machines='suspend'`, Redis self-hosted on Fly, migrations moved to `release_command`. SC Prints `/au` TTFB dropped from ~800ms to 155ms (median, 5 runs). Total page time dropped from 4-5s to 429ms — now the lowest of all measured AU competitors. Tied with The Print Bar on TTFB; 30-45ms behind Shopify-AU; 4.4× faster than DecoNetwork tenants.
 
 ### Caveats
 
