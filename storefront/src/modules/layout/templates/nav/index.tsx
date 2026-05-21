@@ -1,6 +1,5 @@
 import { Suspense } from "react"
 import Image from "next/image"
-import { MagnifyingGlassMini } from "@medusajs/icons"
 
 import { MEDUSA_BACKEND_URL } from "@lib/config"
 import { listBrands } from "@lib/data/brands"
@@ -17,6 +16,7 @@ import SideMenu, {
   type SideMenuBrandLink,
   type SideMenuBrowseGroup,
 } from "@modules/layout/components/side-menu"
+import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
 
 const MENU_BRAND_CAP = 8
 const MENU_BEST_SELLER_CAP = 3
@@ -273,19 +273,7 @@ export default function Nav() {
           </div>
 
           <div className="flex h-full flex-1 basis-0 items-center justify-end gap-x-2 leading-none phone:gap-x-3 tablet:gap-x-4 small:gap-x-6">
-            <LocalizedClientLink
-              className="flex h-full min-h-10 min-w-10 items-center justify-center hover:text-[var(--brand-accent)]"
-              href="/search"
-              prefetch={false}
-              scroll={false}
-              data-testid="nav-search-link"
-              aria-label="Search site"
-            >
-              <MagnifyingGlassMini
-                className="block size-6 shrink-0 translate-y-1.5 text-[currentColor]"
-                aria-hidden
-              />
-            </LocalizedClientLink>
+            <NavSearchTrigger />
             <div className="hidden small:flex items-center gap-x-6 h-full">
               <LocalizedClientLink
                 className="flex h-full items-center hover:text-[var(--brand-accent)]"
