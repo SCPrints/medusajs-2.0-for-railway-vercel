@@ -726,6 +726,13 @@ export default function CustomizerTemplate({
     Array<{ id: string; label: string; visible: boolean; locked: boolean; type?: string }>
   >([])
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
+  // Snapshot of the active text layer's editable attributes, so the
+  // InputPanel can swap into edit mode when the customer selects an
+  // existing text on the canvas. Null when the active object isn't a
+  // text layer (or nothing is selected).
+  const [selectedTextSnapshot, setSelectedTextSnapshot] = useState<
+    { id: string; text: string; color: string; fontFamily: string; letterSpacing: number } | null
+  >(null)
   // Mobile bottom-sheet state. `null` = closed; otherwise the toolbar action
   // whose sheet is currently open. Only used on the standalone customizer
   // return path (embedded PDP wizard has its own step UI).
@@ -1345,6 +1352,57 @@ export default function CustomizerTemplate({
 
     const active = canvas.getActiveObject()
     setSelectedLayerId(active ? getObjectId(active) : null)
+
+    const activeType = typeof active?.type === "string" ? active.type : null
+    if (active && (activeType === "i-text" || activeType === "text")) {
+      const fill = typeof active.fill === "string" ? active.fill : "#111827"
+      setSelectedTextSnapshot({
+        id: getObjectId(active),
+        text: typeof active.text === "string" ? active.text : "",
+        color: fill,
+        fontFamily: typeof active.fontFamily === "string" ? active.fontFamily : "Arial",
+        letterSpacing: typeof active.charSpacing === "number" ? active.charSpacing : 0,
+      })
+    } else {
+      setSelectedTextSnapshot(null)
+    }
+  }
+
+  const updateActiveText = (
+    patch: Partial<{ text: string; color: string; fontFamily: string; letterSpacing: number }>
+  ) => {
+    const canvas = fabricCanvasRef.current
+    const active = canvas?.getActiveObject?.()
+    const activeType = typeof active?.type === "string" ? active.type : null
+    if (!active || (activeType !== "i-text" && activeType !== "text")) {
+      return
+    }
+    if (patch.text !== undefined) active.set({ text: patch.text })
+    if (patch.color !== undefined) active.set({ fill: patch.color })
+    if (patch.fontFamily !== undefined) active.set({ fontFamily: patch.fontFamily })
+    if (patch.letterSpacing !== undefined) active.set({ charSpacing: patch.letterSpacing })
+    active.setCoords?.()
+    canvas.requestRenderAll()
+    saveCurrentSide()
+    setSelectedTextSnapshot((prev) =>
+      prev && prev.id === getObjectId(active)
+        ? {
+            ...prev,
+            ...(patch.text !== undefined ? { text: patch.text } : {}),
+            ...(patch.color !== undefined ? { color: patch.color } : {}),
+            ...(patch.fontFamily !== undefined ? { fontFamily: patch.fontFamily } : {}),
+            ...(patch.letterSpacing !== undefined ? { letterSpacing: patch.letterSpacing } : {}),
+          }
+        : prev
+    )
+  }
+
+  const deselectActiveText = () => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas) return
+    canvas.discardActiveObject()
+    canvas.requestRenderAll()
+    updateLayers()
   }
 
   const bumpLayoutVersion = () => {
@@ -3501,6 +3559,9 @@ export default function CustomizerTemplate({
                           }
                         : undefined
                     }
+                    selectedText={selectedTextSnapshot}
+                    onUpdateSelectedText={updateActiveText}
+                    onDeselectText={deselectActiveText}
                     className="border-0 bg-transparent p-0"
                   />
                 </div>
@@ -4778,6 +4839,9 @@ export default function CustomizerTemplate({
             setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
           }
           enabled
+          selectedText={selectedTextSnapshot}
+          onUpdateSelectedText={updateActiveText}
+          onDeselectText={deselectActiveText}
           className="border-0 bg-transparent p-0"
         />
       </BottomSheet>
@@ -4805,6 +4869,9 @@ export default function CustomizerTemplate({
             setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
           }
           enabled
+          selectedText={selectedTextSnapshot}
+          onUpdateSelectedText={updateActiveText}
+          onDeselectText={deselectActiveText}
           className="border-0 bg-transparent p-0"
         />
       </BottomSheet>

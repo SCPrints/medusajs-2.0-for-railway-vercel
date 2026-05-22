@@ -1,6 +1,6 @@
 "use client"
 
-import { ChangeEvent, useEffect, useState } from "react"
+import { ChangeEvent, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
 // Free Google Fonts curated for apparel/print work. Each entry pairs the
@@ -60,6 +60,24 @@ type InputPanelProps = {
   enabled?: boolean
   /** Optional copy shown in the placeholder when `enabled` is false. */
   disabledMessage?: { title: string; body: string }
+  /**
+   * When the canvas selection is a text layer, the parent passes a snapshot
+   * here so the panel swaps into "edit" mode — the text input, font, colour
+   * and swatches mutate the live object via `onUpdateSelectedText` instead
+   * of staging a new layer. Clearing the canvas selection (or selecting a
+   * non-text layer) sets this back to null and the panel returns to the
+   * add-text flow.
+   */
+  selectedText?: {
+    id: string
+    text: string
+    color: string
+    fontFamily: string
+    letterSpacing: number
+  } | null
+  onUpdateSelectedText?: (patch: Partial<{ text: string; color: string; fontFamily: string; letterSpacing: number }>) => void
+  /** Drops the canvas selection so the panel returns to add-text mode. */
+  onDeselectText?: () => void
   className?: string
 }
 
@@ -76,6 +94,9 @@ export default function InputPanel({
   onAddCartDesign,
   enabled = true,
   disabledMessage,
+  selectedText,
+  onUpdateSelectedText,
+  onDeselectText,
   className,
 }: InputPanelProps) {
   const [text, setText] = useState("Your text")
@@ -84,6 +105,47 @@ export default function InputPanel({
   const [addingText, setAddingText] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [addingCartDesignId, setAddingCartDesignId] = useState<string | null>(null)
+
+  const isEditingText = !!selectedText
+  const lastSyncedTextId = useRef<string | null>(null)
+
+  // When the canvas selection changes to a different text layer, mirror its
+  // current attributes into the panel inputs so the controls show what the
+  // customer is actually editing. We key off the layer id so live edits
+  // dispatched from this panel don't stomp the typed-in value mid-stroke.
+  useEffect(() => {
+    if (selectedText && selectedText.id !== lastSyncedTextId.current) {
+      setText(selectedText.text)
+      setFontFamily(selectedText.fontFamily || "Inter")
+      setColor(selectedText.color || "#111827")
+      lastSyncedTextId.current = selectedText.id
+    } else if (!selectedText) {
+      lastSyncedTextId.current = null
+    }
+  }, [selectedText])
+
+  const applyColor = (next: string) => {
+    setColor(next)
+    if (isEditingText) onUpdateSelectedText?.({ color: next })
+  }
+
+  const applyFontFamily = async (next: string) => {
+    setFontFamily(next)
+    if (!isEditingText) return
+    if (typeof document !== "undefined" && (document as any).fonts?.load) {
+      try {
+        await (document as any).fonts.load(`16px "${next}"`)
+      } catch {
+        // Non-fatal — fall through and let Fabric repaint with the fallback.
+      }
+    }
+    onUpdateSelectedText?.({ fontFamily: next })
+  }
+
+  const applyText = (next: string) => {
+    setText(next)
+    if (isEditingText) onUpdateSelectedText?.({ text: next })
+  }
 
   // Load the curated Google Fonts once per page lifetime so the canvas can
   // actually render the chosen family. Idempotent — re-mounting InputPanel
@@ -356,18 +418,28 @@ export default function InputPanel({
       ) : null}
 
       {enabled ? (
-        <div className="space-y-2 rounded-lg border border-ui-border-base bg-ui-bg-subtle/40 p-3">
+        <div
+          className={`space-y-2 rounded-lg border p-3 ${
+            isEditingText
+              ? "border-rose-300 bg-rose-50/40"
+              : "border-ui-border-base bg-ui-bg-subtle/40"
+          }`}
+        >
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-medium text-ui-fg-subtle">Add text</p>
-            <span className="text-[11px] text-ui-fg-subtle">Type, style, drop on artwork</span>
+            <p className="text-xs font-medium text-ui-fg-subtle">
+              {isEditingText ? "Edit text" : "Add text"}
+            </p>
+            <span className="text-[11px] text-ui-fg-subtle">
+              {isEditingText ? "Changes apply live" : "Type, style, drop on artwork"}
+            </span>
           </div>
 
           <label className="block">
-            <span className="sr-only">Text to add</span>
+            <span className="sr-only">{isEditingText ? "Text to edit" : "Text to add"}</span>
             <input
               type="text"
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => applyText(e.target.value)}
               placeholder="Your text"
               maxLength={120}
               className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base"
@@ -382,7 +454,7 @@ export default function InputPanel({
               </span>
               <select
                 value={fontFamily}
-                onChange={(e) => setFontFamily(e.target.value)}
+                onChange={(e) => applyFontFamily(e.target.value)}
                 className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-2 py-1.5 text-sm text-ui-fg-base focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base"
                 style={{ fontFamily: `"${fontFamily}", sans-serif` }}
               >
@@ -406,7 +478,7 @@ export default function InputPanel({
                 <input
                   type="color"
                   value={color}
-                  onChange={(e) => setColor(e.target.value)}
+                  onChange={(e) => applyColor(e.target.value)}
                   aria-label="Pick a custom text colour"
                   className="h-6 w-8 cursor-pointer rounded border border-ui-border-base bg-transparent p-0"
                 />
@@ -422,7 +494,7 @@ export default function InputPanel({
                 <button
                   key={swatch}
                   type="button"
-                  onClick={() => setColor(swatch)}
+                  onClick={() => applyColor(swatch)}
                   aria-label={`Use ${swatch}`}
                   title={swatch}
                   className={`h-6 w-6 rounded-full border transition-transform hover:scale-110 ${
@@ -446,14 +518,24 @@ export default function InputPanel({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleAddTextClick}
-            disabled={!text.trim() || addingText}
-            className="w-full rounded-md bg-ui-fg-base px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-ui-fg-base-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {addingText ? "Adding…" : "Add text to design"}
-          </button>
+          {isEditingText ? (
+            <button
+              type="button"
+              onClick={() => onDeselectText?.()}
+              className="w-full rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm font-semibold text-ui-fg-base transition-colors hover:bg-ui-bg-subtle"
+            >
+              Done editing
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAddTextClick}
+              disabled={!text.trim() || addingText}
+              className="w-full rounded-md bg-ui-fg-base px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-ui-fg-base-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {addingText ? "Adding…" : "Add text to design"}
+            </button>
+          )}
         </div>
       ) : null}
     </div>
