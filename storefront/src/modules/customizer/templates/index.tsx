@@ -915,6 +915,28 @@ export default function CustomizerTemplate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Auto-advance Step 1 → Step 2 when the customer reached the Customise
+  // tab by clicking the rose "Customise this garment" CTA on the Photos
+  // panel. Without this, the wizard's own Step 1 surface re-renders the
+  // same colour pickers + rose CTA the customer just clicked — they'd
+  // have to press it a second time to actually open Print Location. The
+  // PdpSplitTabs CTA sets a one-shot sessionStorage flag; we consume it
+  // here on mount and clear it. Tab-click navigation does NOT set the
+  // flag, so jumping to the Customise tab directly still shows Step 1.
+  useEffect(() => {
+    if (!embedded) return
+    if (typeof window === "undefined") return
+    try {
+      if (window.sessionStorage.getItem("sc:pdp-photos-cta-fired") !== "1") return
+      window.sessionStorage.removeItem("sc:pdp-photos-cta-fired")
+    } catch {
+      return
+    }
+    setPdpStep1Done(true)
+    setPdpStep((s) => (s > 1 ? s : 2))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Load any artwork the customer has already attached to other cart items
   // (e.g. via the bundle wizard) so the InputPanel can offer a one-click
   // "reuse this design here too" option. Runs once on mount; we don't

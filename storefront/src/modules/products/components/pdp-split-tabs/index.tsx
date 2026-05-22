@@ -41,7 +41,20 @@ export default function PdpSplitTabs({
     ? { duration: 0 }
     : { type: "spring" as const, stiffness: 380, damping: 34 }
 
-  const goDesign = () => {
+  // `fromCta=true` signals that the customer just committed Step 1
+  // (i.e. clicked the rose "Customise this garment" CTA on the Photos
+  // panel). The embedded customizer reads this flag on mount and
+  // auto-advances its wizard to Step 2 so the customer doesn't have to
+  // click the same CTA a second time inside the wizard. Tab clicks
+  // pass `fromCta=false` — just a navigation, not a commit.
+  const goDesign = (fromCta = false) => {
+    if (fromCta && typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem("sc:pdp-photos-cta-fired", "1")
+      } catch {
+        // sessionStorage may throw in private mode — non-fatal.
+      }
+    }
     setDesignMounted(true)
     setActive(1)
   }
@@ -67,7 +80,7 @@ export default function PdpSplitTabs({
               data-active={active === i}
               onClick={() => {
                 if (i === 1) {
-                  goDesign()
+                  goDesign(false)
                 } else {
                   setActive(0)
                 }
@@ -112,7 +125,7 @@ export default function PdpSplitTabs({
               {variantPickers}
               <button
                 type="button"
-                onClick={goDesign}
+                onClick={() => goDesign(true)}
                 className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:scale-[1.01] hover:bg-[var(--brand-primary-hover,#be123c)] active:scale-[0.99]"
               >
                 <svg
