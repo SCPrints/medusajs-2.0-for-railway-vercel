@@ -339,7 +339,10 @@ const KW_WORKWEAR_GENERIC = /\bworkwear\b|\btradies?\b|\bindustrial\b|\bsafety\b
 // Fit / style variants
 const KW_POCKET = /\bpocket\b/i
 const KW_VNECK = /\bv-?neck\b/i
-const KW_QUARTER_ZIP = /\b(quarter|1\/4)[-\s]+zip\b/i
+// "Half zip" pullovers are functionally the same sub as quarter-zips for
+// our customers (chest-zip sweat, no full opening) — AS Colour uses both
+// terms across their catalog.
+const KW_QUARTER_ZIP = /\b(quarter|1\/4|half)[-\s]+zip\b/i
 const KW_ZIPUP_HOOD = /\bzip[-\s]*(up)?[-\s]*hood/i
 const KW_ACTIVE = /\bactive\b/i
 

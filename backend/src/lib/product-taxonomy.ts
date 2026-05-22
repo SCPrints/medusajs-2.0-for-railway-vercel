@@ -18,6 +18,20 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "ss tee": "T-Shirts",
   "short sleeve t-shirts": "T-Shirts",
   "short sleeve t-shirt": "T-Shirts",
+  // Athletic / casual variants treated as T-Shirts in the canonical type
+  // list — "Jersey" (rugby/baseball), "One-piece" (infant bodysuit) are
+  // shirt-shaped enough to live here; the sub-router decides the fine
+  // grain.
+  "jersey": "T-Shirts",
+  "jerseys": "T-Shirts",
+  "baseball jersey": "T-Shirts",
+  "rugby jersey": "T-Shirts",
+  "one piece": "T-Shirts",
+  "onepiece": "T-Shirts",
+  "onesie": "T-Shirts",
+  "onesies": "T-Shirts",
+  "bodysuit": "T-Shirts",
+  "romper": "T-Shirts",
   // Polos
   "polo": "Polos",
   "polos": "Polos",
@@ -25,18 +39,28 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "polo shirts": "Polos",
   // Hoodies — including AS Colour's "Hooded Sweatshirts" / "Zip Sweatshirts"
   // (most AS Colour zip styles are zip hoodies; the few non-hooded zip crews
-  // can be re-categorised manually in admin)
+  // can be re-categorised manually in admin). "Hood" is AS Colour's shorthand
+  // for hoodie — they title products "Heavy Hood", "Stencil Hood", "Wo's
+  // Relax Hood" etc. Without the alias these fall through title-inference.
   "hoodie": "Hoodies",
   "hoodies": "Hoodies",
+  "hood": "Hoodies",
+  "hoods": "Hoodies",
+  "hooded": "Hoodies",
   "pullover hoodie": "Hoodies",
   "zip hoodie": "Hoodies",
   "zip up hoodie": "Hoodies",
   "zip-up hoodie": "Hoodies",
+  "zip hood": "Hoodies",
+  "zip up hood": "Hoodies",
+  "half zip hood": "Hoodies",
   "hooded sweatshirt": "Hoodies",
   "hooded sweatshirts": "Hoodies",
   "zip sweatshirt": "Hoodies",
   "zip sweatshirts": "Hoodies",
-  // Sweatshirts / Crews (non-hooded)
+  // Sweatshirts / Crews (non-hooded). "Half Zip" is AS Colour shorthand for
+  // a quarter-zip pullover sweat (no hood); shop-categories.ts further
+  // routes it to the quarter-zips sub via KW_QUARTER_ZIP.
   "sweatshirt": "Sweatshirts",
   "sweatshirts": "Sweatshirts",
   "crew": "Sweatshirts",
@@ -44,6 +68,11 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "crewneck": "Sweatshirts",
   "crew sweatshirt": "Sweatshirts",
   "crew sweatshirts": "Sweatshirts",
+  "half zip": "Sweatshirts",
+  "half-zip": "Sweatshirts",
+  "quarter zip": "Sweatshirts",
+  "quarter-zip": "Sweatshirts",
+  "1/4 zip": "Sweatshirts",
   // Shirts (woven / work / dress)
   "shirt": "Shirts",
   "shirts": "Shirts",
@@ -106,6 +135,8 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "tanks": "Singlets / Tanks",
   "tank top": "Singlets / Tanks",
   "sleeveless": "Singlets / Tanks",
+  "racerback": "Singlets / Tanks",
+  "racer back": "Singlets / Tanks",
   // Shorts
   "shorts": "Shorts",
   "short": "Shorts",
@@ -415,7 +446,10 @@ function internalTitleCase(s: string): string {
  * (audience inference) so a single regex source-of-truth backs both the
  * tag pipeline and the menu drill-down.
  */
-export const TITLE_KW_WOMENS = /\b(women|womens|woman|women's|ladies|ladie's|lady|female)s?\b/i
+// "wo's" is AS Colour's shorthand for "women's" — appears in titles like
+// "Wo's Mali Racerback", "Wo's Heavy Hood". Match it so the demographic
+// tag and audience routing fire.
+export const TITLE_KW_WOMENS = /\b(women|womens|woman|women's|ladies|ladie's|lady|female|wo's)s?\b/i
 export const TITLE_KW_MENS = /\b(mens|men's|gents|gentlemen)\b/i
 export const TITLE_KW_KIDS = /\b(kid|kids|youth|child|children|infant|baby|babies|toddler|boys|boy|girls|girl)s?\b/i
 
