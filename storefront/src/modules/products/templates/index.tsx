@@ -14,6 +14,7 @@ import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-p
 import { getCustomerTier } from "@lib/data/customer-tier"
 import MobileCustomizeCta from "@modules/products/components/mobile-customize-cta"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
+import PdpSplitTabs from "@modules/products/components/pdp-split-tabs"
 import DtfAutoBuilderTemplate, {
   isDtfAutoBuilderProduct,
 } from "@modules/products/templates/dtf-auto-builder-template"
@@ -81,6 +82,10 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
       images={product?.images || []}
       thumbnail={product?.thumbnail || null}
       heroLayout
+      // Cap the hero so the thumbnail strip sits above the fold on
+      // standard laptop viewports. The aspect ratio still drives the
+      // hero's width proportionally.
+      heroClassName="max-h-[55vh]"
     />
   )
   const variantPickersSlot = (
@@ -123,21 +128,36 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                 {product.title}
               </h1>
 
-              {/* Customizer is the first interactive block — the canvas
-                  appears immediately on the left, the wizard on the right,
-                  no scrolling past a hero image or product blurb. */}
-              <PdpLayoutGrid
-                customizerSlot={
-                  <PdpCustomizerBoundary>
-                    <EmbeddedProductCustomizer
-                      product={product}
-                      integratedPdpSlots={{
-                        gallery: gallerySlot,
-                        variantPickers: variantPickersSlot,
-                      }}
-                      tier={tier}
-                    />
-                  </PdpCustomizerBoundary>
+              {/* Two top-level tabs: Photos (gallery + colour picker)
+                  and Customise this garment (full canvas + wizard).
+                  Photos is the default so customers see the product
+                  immediately; the rose CTA on the right flips to the
+                  design surface in the same slot. The colour pick
+                  survives the swap because both panels share the
+                  ProductOptionsContext. The customizer's own gallery
+                  slot is nulled out — the gallery lives on the Photos
+                  tab instead, so we don't show it twice. */}
+              <PdpSplitTabs
+                gallery={gallerySlot}
+                variantPickers={variantPickersSlot}
+                designContent={
+                  // PdpLayoutGrid provides the 12-col grid parent that
+                  // EmbeddedProductCustomizer's inner col-span-7/5
+                  // children span against.
+                  <PdpLayoutGrid
+                    customizerSlot={
+                      <PdpCustomizerBoundary>
+                        <EmbeddedProductCustomizer
+                          product={product}
+                          integratedPdpSlots={{
+                            gallery: null,
+                            variantPickers: variantPickersSlot,
+                          }}
+                          tier={tier}
+                        />
+                      </PdpCustomizerBoundary>
+                    }
+                  />
                 }
               />
 

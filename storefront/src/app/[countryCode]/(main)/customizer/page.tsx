@@ -12,6 +12,7 @@ import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-p
 import ImageGallery from "@modules/products/components/image-gallery"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
 import PdpLayoutGrid from "@modules/products/components/pdp-layout-grid"
+import PdpSplitTabs from "@modules/products/components/pdp-split-tabs"
 import ProductActions from "@modules/products/components/product-actions"
 import { CustomizeModeProvider } from "@modules/products/context/customize-mode-context"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
@@ -253,6 +254,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
       images={customizerProduct?.images || []}
       thumbnail={customizerProduct?.thumbnail || null}
       heroLayout
+      heroClassName="max-h-[55vh]"
     />
   )
 
@@ -290,22 +292,27 @@ export default async function CustomizerPage({ params, searchParams }: Customize
               {customizerProduct.title}
             </h1>
 
-            {/* Customizer first — canvas occupies the left column from
-                page load. ProductInfo lives below so it's visible without
-                pushing the design surface down. */}
-            <PdpLayoutGrid
-              customizerSlot={
-                <PdpCustomizerBoundary>
-                  <EmbeddedProductCustomizer
-                    product={customizerProduct}
-                    integratedPdpSlots={{
-                      gallery: gallerySlot,
-                      variantPickers: variantPickersSlot,
-                    }}
-                    pickerProducts={pickerProducts}
-                    tier={tier}
-                  />
-                </PdpCustomizerBoundary>
+            {/* Two top-level tabs: Photos (default) and Customise this
+                garment. Same split-tabs layout as the PDP. */}
+            <PdpSplitTabs
+              gallery={gallerySlot}
+              variantPickers={variantPickersSlot}
+              designContent={
+                <PdpLayoutGrid
+                  customizerSlot={
+                    <PdpCustomizerBoundary>
+                      <EmbeddedProductCustomizer
+                        product={customizerProduct}
+                        integratedPdpSlots={{
+                          gallery: null,
+                          variantPickers: variantPickersSlot,
+                        }}
+                        pickerProducts={pickerProducts}
+                        tier={tier}
+                      />
+                    </PdpCustomizerBoundary>
+                  }
+                />
               }
             />
             <div className="mt-12">

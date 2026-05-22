@@ -25,9 +25,23 @@ type ImageGalleryProps = {
   images: HttpTypes.StoreProductImage[]
   thumbnail?: string | null
   heroLayout?: boolean
+  /**
+   * Extra Tailwind classes appended to the hero wrapper (heroLayout
+   * mode only). Use to cap the hero height so the thumbnail strip
+   * sits above the fold — e.g. "max-h-[55vh]". The wrapper keeps
+   * its aspect-[3/4] ratio, so a max-h constraint also shrinks the
+   * width proportionally.
+   */
+  heroClassName?: string
 }
 
-const ImageGallery = ({ product, images, thumbnail, heroLayout = false }: ImageGalleryProps) => {
+const ImageGallery = ({
+  product,
+  images,
+  thumbnail,
+  heroLayout = false,
+  heroClassName = "",
+}: ImageGalleryProps) => {
   const { options, colorHoverPreview } = useProductOptions()
 
   const effectiveOptions = useMemo(() => {
@@ -179,7 +193,9 @@ const ImageGallery = ({ product, images, thumbnail, heroLayout = false }: ImageG
     const heroImage = displayImages[activeIndex] ?? displayImages[0]
     return (
       <div className="flex flex-col gap-3">
-        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-ui-bg-subtle">
+        <div
+          className={`relative mx-auto aspect-[3/4] w-full overflow-hidden rounded-xl bg-ui-bg-subtle ${heroClassName}`}
+        >
           {heroImage ? (
             <Image
               key={heroImage.url}

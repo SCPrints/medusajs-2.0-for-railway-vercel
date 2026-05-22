@@ -4,26 +4,30 @@ import { LayoutGroup, motion, useReducedMotion } from "framer-motion"
 import { useId, useState, type ReactNode } from "react"
 
 type Props = {
-  /** Hero + thumbnails gallery (the same ImageGallery used elsewhere). */
+  /** Hero + thumbnails gallery (ImageGallery in heroLayout mode). */
   gallery: ReactNode
   /** ProductActions colour/size pickers shared with the customizer wizard. */
   variantPickers: ReactNode
-  /** The full customizer (PdpLayoutGrid + EmbeddedProductCustomizer). Lazily
-   *  mounted on first switch to the Customiser tab so Fabric.js's canvas
-   *  initialises with real dimensions instead of 0×0. Once mounted it stays
-   *  mounted (hidden via display:none) so design state survives tab swaps. */
+  /** The full customizer (PdpLayoutGrid + EmbeddedProductCustomizer).
+   *  Lazily mounted on first switch to the Customise tab so Fabric.js's
+   *  canvas initialises with real dimensions instead of 0×0. Once mounted
+   *  it stays mounted (hidden via display:none) so design state survives
+   *  subsequent tab swaps. */
   designContent: ReactNode
 }
 
 const TAB_LABELS = ["Photos", "Customise this garment"] as const
 
 /**
- * Variant E preview: the page is split into two top-level tabs — Photos and
- * Customiser. Photos is the default view, with the gallery on the left and a
- * colour picker + "Customise this garment" CTA on the right. Clicking the
- * CTA (or the Customiser tab) swaps to the design surface in the same slot.
+ * Top-level PDP tab strip: Photos | Customise this garment.
+ *
+ * Photos is the default view — gallery on the left, colour picker +
+ * "Customise this garment" CTA on the right. Clicking the CTA (or the
+ * Customise tab) flips the same slot to the design surface (canvas +
+ * wizard). The colour selection survives the swap because both panels
+ * read from the same ProductOptionsContext.
  */
-export default function GalleryFirstTabs({
+export default function PdpSplitTabs({
   gallery,
   variantPickers,
   designContent,
@@ -44,7 +48,7 @@ export default function GalleryFirstTabs({
 
   return (
     <div className="w-full">
-      <LayoutGroup id={`${baseId}-pdp-preview-split-tabs`}>
+      <LayoutGroup id={`${baseId}-pdp-split-tabs`}>
         <div
           className="relative mb-6 flex gap-1 border-b border-ui-border-base"
           role="tablist"
@@ -72,7 +76,7 @@ export default function GalleryFirstTabs({
               {label}
               {active === i ? (
                 <motion.span
-                  layoutId={`${baseId}-pdp-preview-split-tab-underline`}
+                  layoutId={`${baseId}-pdp-split-tab-underline`}
                   className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-ui-fg-base"
                   transition={underlineTransition}
                 />
@@ -138,7 +142,8 @@ export default function GalleryFirstTabs({
         </div>
       </div>
 
-      {/* Customiser tab — lazy mounted on first open. */}
+      {/* Customise tab — lazy mounted on first open so Fabric.js's
+          canvas initialises with real dimensions. */}
       <div
         role="tabpanel"
         id={`${baseId}-panel-1`}

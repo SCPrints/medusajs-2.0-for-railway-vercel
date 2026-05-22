@@ -18,7 +18,8 @@ import { ProductOptionsProvider } from "@modules/products/context/product-option
 import ProductActionsWrapper from "@modules/products/templates/product-actions-wrapper"
 import ProductInfo from "@modules/products/templates/product-info"
 
-import GalleryFirstTabs from "../_components/gallery-first-tabs"
+import PdpSplitTabs from "@modules/products/components/pdp-split-tabs"
+
 import GalleryTabs from "../_components/gallery-tabs"
 import PreviewSwitcher from "../_components/preview-switcher"
 
@@ -185,7 +186,7 @@ export default async function PdpPreviewPage({
                 Other variants render the customizer directly with the
                 gallery slot wired according to their flag. */}
             {splitTabs ? (
-              <GalleryFirstTabs
+              <PdpSplitTabs
                 gallery={gallerySlot}
                 variantPickers={variantPickersSlot}
                 designContent={customizerBlock}
