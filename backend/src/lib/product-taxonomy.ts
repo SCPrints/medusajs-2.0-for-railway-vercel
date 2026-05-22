@@ -300,6 +300,11 @@ export const TAG_ALIASES: Record<string, string> = {
   "veterinary": "Veterinary",
   "pharmacy": "Pharmacy",
   "health aged care": "Healthcare",
+  "aged care": "Aged Care",
+  "allied health": "Allied Health",
+  "nursing": "Nursing",
+  "carers": "Carers",
+  "clinical": "Clinical",
   // Use-case / vertical tags (FashionBiz)
   "retail uniforms": "Retail",
   "event promotional": "Promotional",
@@ -314,6 +319,9 @@ export const TAG_ALIASES: Record<string, string> = {
   "biz cool™": "Biz Cool",
   "biz cool": "Biz Cool",
   "fire armour": "Fire Armour",
+  "bio motion": "Bio Motion",
+  // Fit variations (FashionBiz Biz Corporates)
+  "executive fit": "Executive Fit",
   // Misc
   "clearance": "Clearance",
   "separates": "Separates",
@@ -351,16 +359,31 @@ const DROP_TAG_VALUES = new Set<string>([
   "collection retail",
   "collection automotive",
   "collection care",
-  // FashionBiz model/style range names
+  // FashionBiz model/style range names — typically already in the title
   "camden",
   "city",
   "memphis",
   "aston",
   "charlie",
   "focus",
+  "hudson",
+  "boulevard",
+  // FashionBiz internal flags / usage classifications (not useful as tags)
+  "best sellers",
+  "best seller",
+  "customer service",
+  "corporate hospitality",
+  "corporate education",
+  "mix and match",
   // FashionBiz internal garment-category labels (not in our canonical type list)
   "biz separates",
   "separates",
+  // Colour tags — colour is already a variant attribute, no need to
+  // duplicate as a product tag. Add new colour-name patterns here as
+  // they appear (FB API leaks colour names into the tag list, esp.
+  // for Biz Care's pink range).
+  "pink",
+  "pink products",
 ])
 
 /**
@@ -537,10 +560,20 @@ export function normalizeTags(
     if (GARBAGE_TAG_VALUES.has(key)) continue
     if (DROP_TAG_VALUES.has(key)) continue
     if (garmentTypeKeys.has(key)) continue
-    // Token-based filter: drop multi-word tags that contain a garment-type
-    // token. "Clearance" alone passes; "Clearance Tees" doesn't.
+    // Token-based filter: drop multi-word tags whose LAST token is a
+    // garment-type indicator (compounds where the head noun is the
+    // garment type, e.g. "Clearance Tees" / "Syzmik Shirts" / "Shirts
+    // and Polos"). Only the trailing token matters — modifier tokens at
+    // the front are fine ("Short Sleeve" has "short" → Shorts as a
+    // FRONT modifier, but the tag is sleeve length, not a shorts
+    // compound, so it must pass).
     const tokens = key.split(/[\s\-_]+/).filter(Boolean)
-    if (tokens.length > 1 && tokens.some((t) => garmentTypeKeys.has(t))) continue
+    if (
+      tokens.length > 1 &&
+      garmentTypeKeys.has(tokens[tokens.length - 1])
+    ) {
+      continue
+    }
     let canonical = TAG_ALIASES[key]
     if (!canonical) {
       canonical = internalTitleCase(trimmed)
