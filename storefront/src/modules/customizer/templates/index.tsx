@@ -18,6 +18,10 @@ import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-ad
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import DesignPreviewPopover from "@modules/customizer/components/design-preview-popover"
 import InputPanel from "@modules/customizer/components/input-panel"
+import BulkOrderGrid, {
+  type BulkCellEntry,
+  type BulkPricingEstimate,
+} from "@modules/customizer/components/bulk-order-grid"
 import ManagementPanel from "@modules/customizer/components/management-panel"
 import MobileCustomizerToolbar, {
   type ToolbarActionId,
@@ -768,6 +772,11 @@ export default function CustomizerTemplate({
     return product.variants?.[0]?.id ?? ""
   })
   const [sizeMatrix, setSizeMatrix] = useState<SizeQuantity[]>([])
+  // Bulk-order grid mode. When true, the wizard hides and a full-width
+  // colour × size matrix takes over. Add-to-cart from that surface routes
+  // through `addCustomizedToCart(bulkCells)` so the same rendering /
+  // metadata pipeline produces one line per (colour, size) cell.
+  const [bulkMode, setBulkMode] = useState(false)
   const [sessionUploads, setSessionUploads] = useState<SessionUploadAsset[]>([])
   // Designs the customer has already attached to other cart items (typically
   // via the bundle wizard). Loaded once on mount; populates the InputPanel's
@@ -2978,16 +2987,29 @@ export default function CustomizerTemplate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const addCustomizedToCart = async () => {
+  const addCustomizedToCart = async (
+    bulkCells?: Array<{
+      variant: HttpTypes.StoreProductVariant
+      size: string
+      quantity: number
+      mockupDataUrl?: string
+    }>
+  ) => {
     if (!selectedProduct || !selectedVariant || !countryCode) {
       setUploadError("Select a product and variant before adding to cart.")
       return
     }
 
     saveCurrentSide()
-    const totalQuantity = sizeMatrix.reduce((total, entry) => total + entry.quantity, 0)
+    const totalQuantity = bulkCells && bulkCells.length
+      ? bulkCells.reduce((total, cell) => total + cell.quantity, 0)
+      : sizeMatrix.reduce((total, entry) => total + entry.quantity, 0)
     if (!totalQuantity) {
-      setUploadError("Set at least one quantity in the size matrix.")
+      setUploadError(
+        bulkCells
+          ? "Enter at least one quantity in the bulk grid."
+          : "Set at least one quantity in the size matrix."
+      )
       return
     }
 
@@ -3151,8 +3173,14 @@ export default function CustomizerTemplate({
         sideEmbroideryConfigs,
       })
 
-      const resolvedQuantities =
-        sizeOption && selectedProduct.variants?.length
+      const resolvedQuantities: Array<{
+        variant: HttpTypes.StoreProductVariant
+        size: string
+        quantity: number
+        mockupDataUrl?: string
+      }> = bulkCells && bulkCells.length
+        ? bulkCells.filter((cell) => cell.quantity > 0)
+        : sizeOption && selectedProduct.variants?.length
           ? sizeMatrix
               .map((entry) => {
                 const variant = selectedProduct.variants?.find((candidate) => {
@@ -3303,9 +3331,23 @@ export default function CustomizerTemplate({
       }
 
       for (const quantityEntry of resolvedQuantities) {
+        // Per-cell mockup override: bulk-grid cells carry a colour-specific
+        // composited mockup so the cart preview shows the actual colour the
+        // customer ordered, not the design-reference colour. We replace the
+        // front-side artifact's mockupUrl and pass the data URL through the
+        // sanitizer override map so it's preserved as-is.
+        const overrideMockup = quantityEntry.mockupDataUrl
+        const perCellArtifacts = overrideMockup
+          ? (metadataBase.artifacts ?? []).map((artifact) =>
+              artifact.side === "front"
+                ? { ...artifact, mockupUrl: overrideMockup }
+                : artifact
+            )
+          : metadataBase.artifacts
         const lineItemMetadata: CustomizerMetadata = {
           ...metadataBase,
           variantId: quantityEntry.variant.id,
+          artifacts: perCellArtifacts,
           // Keep `sideLayouts` (with Fabric objects) on the line metadata so
           // `?reorder=<order_id>:<line_item_id>` can replay the design onto
           // the canvas. Previously this was overridden to empty arrays to
@@ -3315,6 +3357,9 @@ export default function CustomizerTemplate({
           // image URLs; what remains (positions, scales, rotations, fills,
           // hosted image URLs) is a few KB per side at most.
         }
+        const perCellOverrides = overrideMockup
+          ? { ...dataUrlToHostedUrl, [overrideMockup]: overrideMockup }
+          : dataUrlToHostedUrl
 
         const addResult = await addScpLineItemToCartSafe({
           variantId: quantityEntry.variant.id,
@@ -3324,7 +3369,7 @@ export default function CustomizerTemplate({
           metadata: {
             customizerDesign: sanitizeCustomizerDesignForCart(
               lineItemMetadata,
-              dataUrlToHostedUrl
+              perCellOverrides
             ),
             // When the customer entered the customizer via `?design=<id>`,
             // tag the resulting line so saved-design conversion reporting
@@ -4057,6 +4102,70 @@ export default function CustomizerTemplate({
       </button>
     )
 
+    // Bulk-order grid takes over the viewport when active — design stays
+    // intact in canvas state, so closing the grid drops the customer back
+    // exactly where they were. The grid produces one (variant × size) cell
+    // per filled qty; each becomes its own cart line via the existing
+    // `addCustomizedToCart` path with the `bulkCells` argument.
+    if (bulkMode && selectedProduct && selectedVariant) {
+      const printArtifactForThumb = (() => {
+        const front = prerenderedArtifactsRef.current.get("front")
+        if (front?.printUrl) return { side: "front" as GarmentSide, printUrl: front.printUrl }
+        for (const side of DESIGN_SIDES) {
+          const cached = prerenderedArtifactsRef.current.get(side)
+          if (cached?.printUrl) return { side, printUrl: cached.printUrl }
+        }
+        return null
+      })()
+      const estimatePricingForTotal = (qty: number): BulkPricingEstimate | null => {
+        if (!qty || !basePriceCents) return null
+        const breakdown = calculatePricing({
+          basePriceCents,
+          decoratedSidesCount,
+          decoratedSides,
+          totalQuantity: qty,
+          bulkPricingTiers,
+          scpPrint: { printSizeId: scpPrintSizeId },
+          prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
+        })
+        const activeTier = breakdown.activeBulkTier
+        return {
+          unitPriceMajor: breakdown.discountedUnitPriceCents / 100,
+          totalPriceMajor: breakdown.totalPriceCents / 100,
+          activeTierLabel: activeTier
+            ? `${activeTier.minQuantity}${activeTier.maxQuantity ? `–${activeTier.maxQuantity}` : "+"}`
+            : undefined,
+        }
+      }
+      const handleBulkSubmit = async (cells: BulkCellEntry[]) => {
+        phCapture("bulk_grid_added_to_cart", {
+          product_id: selectedProduct.id,
+          line_count: cells.length,
+          total_quantity: cells.reduce((sum, c) => sum + c.quantity, 0),
+          colour_count: new Set(cells.map((c) => c.variant.id.split(":")[0])).size,
+        })
+        await addCustomizedToCart(cells)
+        // Drop back to the wizard once cart-add succeeds; the success
+        // status message from addCustomizedToCart stays visible.
+        setBulkMode(false)
+      }
+      return (
+        <div className="fixed inset-0 z-40 overflow-hidden bg-white">
+          <BulkOrderGrid
+            product={selectedProduct}
+            baseVariant={selectedVariant}
+            defaultGarmentImage={defaultGarmentImage}
+            currencyCode={currencyCode}
+            isSubmitting={isSubmitting}
+            printThumbSource={printArtifactForThumb}
+            estimatePricingForTotal={estimatePricingForTotal}
+            onClose={() => setBulkMode(false)}
+            onSubmit={handleBulkSubmit}
+          />
+        </div>
+      )
+    }
+
     return (
       <div id="customize" className="contents">
         {/*
@@ -4706,12 +4815,43 @@ export default function CustomizerTemplate({
                   )
                 })()}
               </div>
+              {(() => {
+                const colourOption = selectedProduct.options?.find((option) =>
+                  isColorOptionTitle(option.title)
+                )
+                const hasMultipleColours = colourOption
+                  ? new Set(
+                      (selectedProduct.variants ?? [])
+                        .map((v) => v.options?.find((e) => e.option_id === colourOption.id)?.value)
+                        .filter(Boolean)
+                    ).size > 1
+                  : false
+                if (!hasMultipleColours) return null
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setBulkMode(true)}
+                    disabled={isSubmitting}
+                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-ui-fg-base bg-white px-4 py-3 text-left text-sm font-medium text-ui-fg-base shadow-sm transition-colors hover:bg-ui-bg-subtle disabled:opacity-60"
+                  >
+                    <span className="flex flex-col">
+                      <span>Order multiple colours →</span>
+                      <span className="text-xs font-normal text-ui-fg-subtle">
+                        Full-page grid · pick colours, fill sizes, add everything in one click.
+                      </span>
+                    </span>
+                    <span className="rounded-full bg-ui-fg-base px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      Bulk
+                    </span>
+                  </button>
+                )
+              })()}
               <PricingPanel
                 currencyCode={currencyCode}
                 pricing={pricing}
                 sizes={sizeMatrix}
                 onChangeSizeQty={changeSizeQuantity}
-                onAddToCart={addCustomizedToCart}
+                onAddToCart={() => addCustomizedToCart()}
                 isSubmitting={isSubmitting}
                 embeddedOnPdp={embedded}
                 flyImageSrc={flyImageSrcForAddToCart}
