@@ -91,7 +91,7 @@ import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-
 import { HttpTypes } from "@medusajs/types"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { motion } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import { trackCustomizerAction, trackCustomizerFunnel } from "@lib/analytics"
 import { phCapture } from "@lib/posthog"
 import CustomizerGuide from "@modules/customizer/components/customizer-guide"
@@ -4184,29 +4184,11 @@ export default function CustomizerTemplate({
         <div className={`order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
           isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
         }`}>
-          {/* Gallery curtain-wipes away when customizing begins (pattern lifted
-              from LabTierCCurtainWipeImage in the animation lab). The clipPath
-              sweeps right→left while max-height collapses the layout slot —
-              opacity fade overlaps so the canvas underneath fills the position
-              with a smooth, cinematic hand-off. Canvas must always stay mounted
-              for Fabric.js. */}
-          <motion.div
-            initial={false}
-            animate={{
-              clipPath: isCustomizing ? "inset(0% 100% 0% 0%)" : "inset(0% 0% 0% 0%)",
-              opacity: isCustomizing ? 0 : 1,
-              maxHeight: isCustomizing ? 0 : 3000,
-            }}
-            transition={{
-              clipPath: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
-              opacity: { duration: 0.3, ease: "easeOut" },
-              maxHeight: { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.08 },
-            }}
-            className={`overflow-hidden ${isCustomizing ? "pointer-events-none" : ""}`}
-            aria-hidden={isCustomizing}
-          >
-            {integratedPdpSlots.gallery}
-          </motion.div>
+          {/* Gallery used to live here, curtain-wiping away when the
+              customer hit "Customize this product". It now lives in the
+              right column where the dimmed step previews used to sit, so
+              the canvas owns the full left column from page load — see
+              the AnimatePresence block below Step 1 in the wizard. */}
 
           {showSideNudge && (
             <div className="flex items-center gap-2 rounded-lg bg-ui-bg-subtle/90 px-3 py-2 text-xs text-ui-fg-base ring-1 ring-ui-border-base">
@@ -4387,6 +4369,42 @@ export default function CustomizerTemplate({
               )}
             </div>
           ) : null}
+
+          {/* While the customer is still on Step 1, the gallery occupies
+              the space where Steps 2–4 normally sit so they can flip
+              through product photos before designing. Clicking
+              "Customize this product" advances pdpStep, which collapses
+              the gallery and reveals the design steps in the same slot
+              via AnimatePresence. For products without a Step 1
+              (no variant options) the steps are always visible. */}
+          <AnimatePresence mode="wait" initial={false}>
+            {hasStep1 && pdpStep === 1 ? (
+              <motion.div
+                key="gallery"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-2"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle">
+                  Product photos
+                </p>
+                {integratedPdpSlots.gallery}
+                <p className="text-[11px] text-ui-fg-muted">
+                  Tap "Customize this product" above to start designing — the
+                  print location, size and quantity steps appear here.
+                </p>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="steps"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                className="flex flex-col gap-2"
+              >
 
           {/* Step 2 — Print location */}
           {pdpStep >= 2 || !hasStep1 ? (
@@ -4894,6 +4912,9 @@ export default function CustomizerTemplate({
               />
             </div>
           )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     )
