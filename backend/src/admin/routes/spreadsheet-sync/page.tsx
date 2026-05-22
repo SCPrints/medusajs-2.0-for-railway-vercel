@@ -194,21 +194,32 @@ const SpreadsheetSyncPage = () => {
    * Computed lazily so the heavy `buildBatchCreatesFromParsedCsv` only runs when there's
    * something to show.
    */
-  const previewProducts = useMemo<PreviewProduct[]>(() => {
-    if (!readyParsed) return []
+  const buildPreview = useMemo(() => {
+    if (!readyParsed) {
+      return { products: [] as PreviewProduct[], errors: [] as string[] }
+    }
     try {
-      const { creates, warningsByHandle, brandValuesByHandle } =
+      const { creates, errors, warningsByHandle, brandValuesByHandle } =
         buildBatchCreatesFromParsedCsv(readyParsed)
       const rowsForGrouping = creates.map((c) => ({
         handle: (c as { handle?: string }).handle ?? "",
         title: (c as { title?: string }).title,
         brand: brandValuesByHandle.get((c as { handle?: string }).handle ?? "") ?? null,
       }))
-      return groupRowsByProduct(rowsForGrouping, { warningsByHandle })
-    } catch {
-      return []
+      return {
+        products: groupRowsByProduct(rowsForGrouping, { warningsByHandle }),
+        errors,
+      }
+    } catch (err) {
+      return {
+        products: [] as PreviewProduct[],
+        errors: [err instanceof Error ? err.message : String(err)],
+      }
     }
   }, [readyParsed])
+
+  const previewProducts = buildPreview.products
+  const buildPreviewErrors = buildPreview.errors
 
   /** Reset skipped state whenever the underlying preview changes (new file / format switch). */
   useEffect(() => {
@@ -911,6 +922,19 @@ const SpreadsheetSyncPage = () => {
                     <strong>{preview.tierRuleCount}</strong>
                   </Text>
 
+                  {buildPreviewErrors.length > 0 && preview.validationErrors.length === 0 ? (
+                    <div className="mt-3 rounded-md border border-ui-border-error bg-ui-bg-error p-3">
+                      <Text size="small" weight="plus" className="text-ui-fg-error">
+                        Cannot build import preview ({buildPreviewErrors.length}{" "}
+                        {buildPreviewErrors.length === 1 ? "issue" : "issues"}):
+                      </Text>
+                      <ul className="mt-2 max-h-[min(70vh,28rem)] list-disc overflow-y-auto overscroll-contain pl-5 text-sm text-ui-fg-error">
+                        {buildPreviewErrors.map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                   {previewProducts.length > 0 && preview.validationErrors.length === 0 ? (
                     <div className="mt-3 rounded-md border border-ui-border-base">
                       <div className="flex items-center justify-between gap-2 border-b border-ui-border-base bg-ui-bg-subtle px-3 py-2">
@@ -995,9 +1019,13 @@ const SpreadsheetSyncPage = () => {
                         ))}
                       </ul>
                     </div>
-                  ) : readyParsed ? (
+                  ) : readyParsed && previewProducts.length === 0 && buildPreviewErrors.length === 0 ? (
                     <Text size="small" className="text-ui-fg-success">
                       Looks valid — click Confirm sync to create new products in Medusa.
+                    </Text>
+                  ) : readyParsed && previewProducts.length > 0 ? (
+                    <Text size="small" className="text-ui-fg-success">
+                      Looks valid — choose products above, then click Confirm sync.
                     </Text>
                   ) : wholesaleNeedsShipping && preview.productCount > 0 ? (
                     <Text size="small" className="text-ui-fg-muted">
@@ -1024,6 +1052,17 @@ const SpreadsheetSyncPage = () => {
             readyParsed &&
             preview?.validationErrors.length === 0 &&
             preview.productCount > 0 &&
+            previewProducts.length === 0 &&
+            buildPreviewErrors.length > 0 ? (
+              <Text size="small" className="text-ui-fg-error">
+                Fix the build errors in the preview above before syncing.
+              </Text>
+            ) : null}
+            {!canSync &&
+            readyParsed &&
+            preview?.validationErrors.length === 0 &&
+            preview.productCount > 0 &&
+            previewProducts.length > 0 &&
             includedCount === 0 ? (
               <Text size="small" className="text-ui-fg-warning">
                 Every product is unchecked — select at least one product to enable sync.

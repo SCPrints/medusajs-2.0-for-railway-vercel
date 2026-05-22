@@ -1150,10 +1150,12 @@ export default function CustomizerTemplate({
   const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
   const embedPdpPrintStepNumber = showPdpLabeledOptionsStep ? 2 : 1
   const embedPdpQuantityStepNumber = showPdpLabeledOptionsStep ? 3 : 2
-  // True once the customer has advanced past step 1 (or immediately for
-  // products with no colour options). Shared with PdpLayoutGrid via the
-  // CustomizeMode context so the PDP aside hides + customizer expands.
-  const isCustomizing = embedded && (pdpStep > 1 || !showPdpLabeledOptionsStep)
+  // Canvas is the primary view from the moment the embedded customizer
+  // mounts — gallery hides immediately so the customer can start designing
+  // without scrolling past a hero image first (mirrors The Print Bar's
+  // PDP, where the canvas occupies the left column from page load).
+  // Shared with PdpLayoutGrid via the CustomizeMode context.
+  const isCustomizing = embedded
   const customizeModeCtx = useCustomizeModeOptional()
   useEffect(() => {
     customizeModeCtx?.setIsCustomizing(isCustomizing)
@@ -4205,31 +4207,6 @@ export default function CustomizerTemplate({
           >
             {integratedPdpSlots.gallery}
           </motion.div>
-
-          {isCustomizing && (
-            <button
-              type="button"
-              onClick={() => setPdpStep(1)}
-              className="group inline-flex items-center gap-2 self-start rounded-full border border-ui-border-strong bg-ui-bg-base px-4 py-2 text-sm font-semibold text-ui-fg-base shadow-sm transition-all hover:border-ui-fg-base hover:bg-ui-bg-subtle hover:shadow-md active:scale-[0.98]"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-                className="transition-transform group-hover:-translate-x-0.5"
-              >
-                <path d="M19 12H5" />
-                <path d="M12 19l-7-7 7-7" />
-              </svg>
-              Back to product images
-            </button>
-          )}
 
           {showSideNudge && (
             <div className="flex items-center gap-2 rounded-lg bg-ui-bg-subtle/90 px-3 py-2 text-xs text-ui-fg-base ring-1 ring-ui-border-base">

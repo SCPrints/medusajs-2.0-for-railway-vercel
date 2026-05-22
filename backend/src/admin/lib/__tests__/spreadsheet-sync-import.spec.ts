@@ -2,6 +2,7 @@ import { PRODUCT_IMPORT_CSV_HEADERS } from "../product-import-template-csv"
 import { parseCsv } from "../csv-import"
 import {
   applyDefaultCollectionIdToParsedCsv,
+  applyDefaultShippingProfileIdToParsedCsv,
   buildBatchCreatesFromParsedCsv,
   collectProductCategoryPathsFromRow,
   collectProductImageUrlsFromRow,
@@ -67,6 +68,37 @@ describe("spreadsheet-sync-import", () => {
 
     expect(stamped.rows[0]!["product collection id"]).toBe("pcol_new")
     expect(stamped.rows[1]!["product collection id"]).toBe("pcol_keep")
+  })
+
+  it("applyDefaultShippingProfileIdToParsedCsv fills empty Shipping Profile Id cells", () => {
+    const r = emptyRow()
+    r["product handle"] = "a"
+    r["product title"] = "A"
+    r["variant sku"] = "SKU1"
+    r["variant price aud"] = "10"
+    const parsed = parseCsv(buildCsv([r]))
+    const stamped = applyDefaultShippingProfileIdToParsedCsv(parsed, "sp_new")
+    expect(stamped.rows[0]?.["shipping profile id"]).toBe("sp_new")
+    const { creates, errors } = buildBatchCreatesFromParsedCsv(stamped)
+    expect(errors).toHaveLength(0)
+    expect(creates).toHaveLength(1)
+  })
+
+  it("normalizeSpreadsheetForImport stamps default shipping profile on template CSV", () => {
+    const r = emptyRow()
+    r["product handle"] = "staples-t2"
+    r["product title"] = "Staples T2"
+    r["variant sku"] = "SKU-1"
+    r["variant price aud"] = "12.50"
+    const parsed = parseCsv(buildCsv([r]))
+    const { readyParsed } = normalizeSpreadsheetForImport(parsed, {
+      defaultShippingProfileId: "sp_default",
+      format: "template",
+    })
+    expect(readyParsed?.rows[0]?.["shipping profile id"]).toBe("sp_default")
+    const { creates, errors } = buildBatchCreatesFromParsedCsv(readyParsed!)
+    expect(errors).toHaveLength(0)
+    expect(creates).toHaveLength(1)
   })
 
   it("computeSpreadsheetPreview flags rows missing variant pricing (matches sync validation)", () => {

@@ -890,13 +890,13 @@ If `GOOGLE_SERVICE_ACCOUNT_JSON` is unset the cron and routes no-op silently —
 
 ### AS Colour API importer + hourly inventory sync
 
-Pulls every AS Colour style + variant from their authenticated catalog API, creates Medusa products with bulk-pricing metadata, links each to the AS Colour `Brand`, and refreshes stock at the "AS Colour Warehouse" stock location every hour via a delta query.
+Pulls every AS Colour style + variant from their authenticated catalog API, creates Medusa products with bulk-pricing metadata, links each to the AS Colour `Brand`, and refreshes stock at the "AS Colour Warehouse" stock location daily at 03:00 UTC via a delta query.
 
 | Component | Path |
 | --- | --- |
 | Module (client + service + types + pricing wrapper) | [backend/src/modules/ascolour/](backend/src/modules/ascolour/) |
 | Initial import script | [backend/src/scripts/import-as-colour-from-api.ts](backend/src/scripts/import-as-colour-from-api.ts) |
-| Hourly stock sync job | [backend/src/jobs/sync-ascolour-inventory.ts](backend/src/jobs/sync-ascolour-inventory.ts) |
+| Daily stock sync job (`0 3 * * *`) | [backend/src/jobs/sync-ascolour-inventory.ts](backend/src/jobs/sync-ascolour-inventory.ts) |
 | Shared price ladder | [backend/src/utils/bulk-price-ladder.ts](backend/src/utils/bulk-price-ladder.ts) |
 
 Run the initial import with `pnpm --filter backend medusa exec import-as-colour-from-api` (env vars: `IMPORT_LIMIT`, `IMPORT_DRY_RUN`, `IMPORT_INCLUDE_DISCONTINUED`).
@@ -1052,9 +1052,9 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 
 | Schedule (UTC) | AEST | Job | What it does |
 | --- | --- | --- | --- |
-| `0 * * * *` | hourly | [sync-ascolour-inventory.ts](backend/src/jobs/sync-ascolour-inventory.ts) | Delta inventory pull from AS Colour |
 | `*/15 * * * *` | every 15 min | [sync-ascolour-order-status.ts](backend/src/jobs/sync-ascolour-order-status.ts) | Poll AP and AS Colour order status |
 | `0 2 * * *` | 12:00 | [refresh-cross-sell-recommendations.ts](backend/src/jobs/refresh-cross-sell-recommendations.ts) | Recompute top-K co-purchased products |
+| `0 3 * * *` | 13:00 | [sync-ascolour-inventory.ts](backend/src/jobs/sync-ascolour-inventory.ts) | Delta inventory pull from AS Colour |
 | `30 3 * * *` | 13:30 | [sync-posthog-cohorts.ts](backend/src/jobs/sync-posthog-cohorts.ts) | PostHog cohort → customer tag |
 | `0 4 * * *` | 14:00 | [sync-fashionbiz-inventory.ts](backend/src/jobs/sync-fashionbiz-inventory.ts) | Full sweep of FashionBiz stock |
 | `0 5 * * *` | 15:00 | [sync-aussie-pacific-inventory.ts](backend/src/jobs/sync-aussie-pacific-inventory.ts) | Full sweep of AP stock |

@@ -12,7 +12,7 @@ const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
 const CHECKPOINT_KEY = "ascolour:inventory:lastSync"
 
 /**
- * Hourly delta sync of AS Colour stock levels into the AS Colour Medusa stock location.
+ * Daily delta sync of AS Colour stock levels into the AS Colour Medusa stock location.
  * Uses /inventory/items?updatedAt:min=<lastSync> so payloads stay small.
  *
  * Falls back to a full sync the first time it runs (no checkpoint yet).
@@ -151,5 +151,5 @@ export default withJobContext(handler)
 
 export const config = {
   name: "sync-ascolour-inventory",
-  schedule: "0 * * * *", // hourly on the hour
+  schedule: "0 3 * * *", // daily at 03:00 UTC (13:00 AEST), ahead of FashionBiz + AP sweeps
 }

@@ -69,6 +69,32 @@ export function applyDefaultCollectionIdToParsedCsv(
   }
 }
 
+/**
+ * Stamp `shipping profile id` on each row so batch create can assign a profile.
+ * When `onlyIfEmpty` is true (default), rows that already have a profile id keep it.
+ */
+export function applyDefaultShippingProfileIdToParsedCsv(
+  parsed: ParsedCsv,
+  shippingProfileId: string,
+  opts?: { onlyIfEmpty?: boolean }
+): ParsedCsv {
+  const id = shippingProfileId.trim()
+  if (!id) {
+    return parsed
+  }
+  const onlyIfEmpty = opts?.onlyIfEmpty !== false
+  return {
+    ...parsed,
+    rows: parsed.rows.map((row) => {
+      const cur = (row["shipping profile id"] ?? "").trim()
+      if (onlyIfEmpty && cur) {
+        return row
+      }
+      return { ...row, "shipping profile id": id }
+    }),
+  }
+}
+
 export function normalizeSpreadsheetHeaderKey(key: string): string {
   return key
     .replace(/^\ufeff/g, "")
@@ -1269,7 +1295,12 @@ export function normalizeSpreadsheetForImport(
     return { readyParsed: null, rawParsed, hints }
   }
 
-  return { readyParsed: aliased, rawParsed, hints: [] }
+  const defaultShippingProfileId = opts.defaultShippingProfileId?.trim()
+  const readyParsed = defaultShippingProfileId
+    ? applyDefaultShippingProfileIdToParsedCsv(aliased, defaultShippingProfileId)
+    : aliased
+
+  return { readyParsed, rawParsed, hints: [] }
 }
 
 type ProductCreateStatus = "draft" | "published" | "proposed" | "rejected"
