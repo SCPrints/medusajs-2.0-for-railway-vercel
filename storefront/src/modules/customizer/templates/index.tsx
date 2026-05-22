@@ -4378,7 +4378,7 @@ export default function CustomizerTemplate({
               via AnimatePresence. For products without a Step 1
               (no variant options) the steps are always visible. */}
           <AnimatePresence mode="wait" initial={false}>
-            {hasStep1 && pdpStep === 1 ? (
+            {hasStep1 && pdpStep === 1 && integratedPdpSlots.gallery ? (
               <motion.div
                 key="gallery"
                 initial={{ opacity: 0, y: 8 }}

@@ -162,3 +162,7 @@ const ShippingInfoTab = ({ product }: ProductTabsProps) => {
 }
 
 export default ProductTabs
+// Re-export the per-tab content components so /pdp-preview layout
+// experiments can compose them into a different tab strip (e.g. with
+// a Photos tab prepended) without copy-pasting the content.
+export { ProductInfoTab, ShippingInfoTab }
