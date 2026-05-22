@@ -45,4 +45,4 @@ primary_region = 'syd'
   # If you want to change the spec, change it HERE first, commit, deploy.
   memory = '4gb'
   cpu_kind = 'shared'
-  cpus = 2
+  cpus = 4
