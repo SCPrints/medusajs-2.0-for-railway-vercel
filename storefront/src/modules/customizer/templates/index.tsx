@@ -4045,7 +4045,7 @@ export default function CustomizerTemplate({
           )}
           {help && <HelpTip text={help} />}
         </div>
-        {done && onChange ? (
+        {!active && onChange ? (
           <button
             type="button"
             className="text-xs font-medium text-ui-fg-interactive hover:underline"
