@@ -58,12 +58,6 @@ const ladderToTierMinor = (ladder: PriceLadder): TierMoneyMinor => ({
   t100_plus: Math.round(ladder.tier100Plus * 100),
 })
 
-const extractArray = <T,>(resp: any): T[] => {
-  if (!resp) return []
-  if (Array.isArray(resp)) return resp as T[]
-  return resp.items ?? resp.data ?? resp.results ?? []
-}
-
 type ExistingProduct = {
   id: string
   handle: string
@@ -183,16 +177,14 @@ export default async function backfillAsColourVariants({ container }: ExecArgs) 
       continue
     }
 
-    // ALWAYS hit the per-product variants endpoint. The catalog endpoint
-    // sometimes returns a truncated inline variant array (observed empirically
-    // on Staple Tee 5001 — catalog gave us the partial set our DB already
-    // had, so an earlier version of this script reported 0 drift even though
-    // 46 colours were missing).
+    // Walk EVERY page of /catalog/products/{styleCode}/variants. The endpoint
+    // paginates with a default page size of 250 — a single request silently
+    // truncates products with more variants (Staple Tee 5001 has 570+ across
+    // 76 colours). The catalog endpoint also returns truncated inline arrays,
+    // so don't trust those either.
     let apiVariants: AsColourVariant[]
     try {
-      apiVariants = extractArray<AsColourVariant>(
-        await ascolour.getClient().getProductVariants(String(styleCode))
-      )
+      apiVariants = await ascolour.fetchAllProductVariants(String(styleCode))
     } catch (err: any) {
       logger.warn(
         `[${dbProduct.handle}] failed to fetch variants for styleCode ${styleCode}: ${err?.message ?? err}`

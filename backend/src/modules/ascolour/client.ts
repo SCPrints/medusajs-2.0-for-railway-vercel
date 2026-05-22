@@ -146,9 +146,15 @@ export class AsColourClient {
     )
   }
 
-  async getProductVariants(styleCode: string) {
+  async getProductVariants(
+    styleCode: string,
+    params: AsColourPaginationParams = {}
+  ) {
     return this.sendRequest<AsColourVariant[] | PaginatedResponse<AsColourVariant>>(
-      `/catalog/products/${encodeURIComponent(styleCode)}/variants`
+      `/catalog/products/${encodeURIComponent(styleCode)}/variants${this.buildQuery({
+        pageNumber: params.pageNumber,
+        pageSize: params.pageSize,
+      })}`
     )
   }
 

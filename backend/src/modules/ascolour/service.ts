@@ -8,6 +8,7 @@ import {
   AsColourOrder,
   AsColourPriceListEntry,
   AsColourProduct,
+  AsColourVariant,
   PaginatedResponse,
 } from "./types"
 
@@ -91,6 +92,29 @@ export default class AsColourService {
         pageSize: PAGE_SIZE,
       })
       const batch = extractItems<AsColourPriceListEntry>(resp)
+      if (!batch.length) break
+      all.push(...batch)
+      if (batch.length < PAGE_SIZE) break
+      pageNumber += 1
+    }
+    return all
+  }
+
+  /**
+   * Walk every page of /catalog/products/{styleCode}/variants. The endpoint
+   * paginates with a default page size of 250 — products with more variants
+   * (e.g. Staple Tee 5001 = 570+ across 76 colours) get silently truncated if
+   * called as a single request.
+   */
+  async fetchAllProductVariants(styleCode: string): Promise<AsColourVariant[]> {
+    const all: AsColourVariant[] = []
+    let pageNumber = 1
+    while (true) {
+      const resp = await this.client_.getProductVariants(styleCode, {
+        pageNumber,
+        pageSize: PAGE_SIZE,
+      })
+      const batch = extractItems<AsColourVariant>(resp)
       if (!batch.length) break
       all.push(...batch)
       if (batch.length < PAGE_SIZE) break
