@@ -138,6 +138,8 @@ const WORKWEAR_SUBS: SubCategoryDef[] = [
   { name: "Work Shirts", handle: "work-shirts" },
   { name: "Hi-Viz Polos", handle: "hi-viz-polos" },
   { name: "Hi-Viz Drill Shirts", handle: "hi-viz-drill-shirts" },
+  { name: "Hi-Viz Work Shirts", handle: "hi-viz-work-shirts" },
+  { name: "Hi-Viz Business Shirts", handle: "hi-viz-business-shirts" },
   // Jackets / Vests
   { name: "Softshell Jackets", handle: "softshell-jackets" },
   { name: "Rain Jackets", handle: "rain-jackets" },
@@ -544,6 +546,9 @@ function inferSubsForAudience(
   }
 
   // Corporates — keyword-driven routing (Biz Corporates' product line).
+  // Default for shirt-like garments is business-shirts because Biz
+  // Corporates is the office/business-wear brand — explicit "casual" in
+  // the title overrides to casual-shirts.
   if (audience === "corporates") {
     if (KW_DRESS.test(title) && !KW_DRILL.test(title)) subs.add("dresses")
     if (KW_SKIRT.test(title)) subs.add("skirts")
@@ -553,9 +558,22 @@ function inferSubsForAudience(
 
     if (normalizedType === "polos") subs.add("polos")
     if (normalizedType === "pants") subs.add("pants")
-    if (normalizedType === "shirts") {
-      if (KW_BUSINESS.test(title)) subs.add("business-shirts")
-      else subs.add("casual-shirts")
+
+    // A button-up "shirt" — type=Shirts OR (type=Longsleeves with "shirt"
+    // in title — common pattern for Biz Corporates long-sleeve business
+    // shirts which the title-fallback routes to type=Longsleeves). Excludes
+    // T-shirts / Tees / Polos to avoid misclassification.
+    const isShirtTitle =
+      /\bshirt\b/i.test(title) &&
+      !/\bt[-\s]?shirt\b|\btee\b|\bpolo\b/i.test(title)
+    const isCorporateShirt =
+      normalizedType === "shirts" ||
+      (normalizedType === "longsleeves" && isShirtTitle) ||
+      isShirtTitle
+
+    if (isCorporateShirt) {
+      if (/\bcasual\b/i.test(title)) subs.add("casual-shirts")
+      else subs.add("business-shirts")
     }
 
     return Array.from(subs)
@@ -745,6 +763,20 @@ function inferSubsForAudience(
       subs.delete("casual-shirts")
       subs.add("business-shirts")
     }
+  }
+
+  // Long Sleeve Shirt (button-up) — title contains "shirt" but not "tee" /
+  // "polo" / "t-shirt", AND title contains "long sleeve". Cross-list into
+  // business-shirts so a customer browsing Mens > Business Shirts sees the
+  // Biz Corporates Hudson and similar long-sleeve formals.
+  const isLongSleeveButtonShirt =
+    /\blong\s+sleeve\s+shirt\b/i.test(title) &&
+    !/\bt[-\s]?shirt\b|\btee\b|\bpolo\b/i.test(title)
+  if (isLongSleeveButtonShirt) {
+    if (KW_DRILL.test(title) && has("drill-shirts")) subs.add("drill-shirts")
+    else if (/\bcasual\b/i.test(title) && has("casual-shirts")) {
+      subs.add("casual-shirts")
+    } else if (has("business-shirts")) subs.add("business-shirts")
   }
 
   // Jackets subtypes

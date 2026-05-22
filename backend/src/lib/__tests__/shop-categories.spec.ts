@@ -302,6 +302,68 @@ describe("resolveCategoryHandles — multi-audience cross-listing", () => {
     expect(handles).not.toContain("workwear-hoodies")
   })
 
+  it("Hi-Vis Work Shirt cross-lists into hi-viz-work-shirts", () => {
+    // Syzmik rail shirts ("NSW Rail Shirt - Segmented Tape") with Hi-Vis
+    // tag should land in BOTH workwear-work-shirts AND workwear-hi-viz-work-shirts.
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Mens X Back NSW Rail Shirt",
+        typeValue: "Shirts",
+        tags: ["Hi-Vis"],
+        brandHandle: "syzmik",
+      })
+    )
+    expect(handles).toContain("workwear-work-shirts")
+    expect(handles).toContain("workwear-hi-viz-work-shirts")
+  })
+
+  it("Biz Corporates Mens Hudson Long Sleeve Shirt → corporates + mens cross-listing", () => {
+    // Title-fallback resolves type=Longsleeves for this product (because
+    // "long sleeve" wins over "shirt" in the right-to-left scan). The
+    // corporates handler must still route to business-shirts even with
+    // type=Longsleeves when title indicates a button-up shirt.
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Mens Hudson Long Sleeve Shirt",
+        typeValue: "Longsleeves",
+        brandHandle: "biz-corporates",
+      })
+    )
+    // Corporates audience routes to business-shirts (the brand default).
+    expect(handles).toContain("corporates-business-shirts")
+    // Mens audience cross-lists the long-sleeve button-up to both
+    // long-sleeves and business-shirts so the customer finds it both ways.
+    expect(handles).toContain("mens-long-sleeves")
+    expect(handles).toContain("mens-business-shirts")
+  })
+
+  it("Biz Corporates Womens Hudson Long Sleeve Shirt → corporates + womens cross-listing", () => {
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Womens Hudson Long Sleeve Shirt",
+        typeValue: "Longsleeves",
+        brandHandle: "biz-corporates",
+      })
+    )
+    expect(handles).toContain("corporates-business-shirts")
+    expect(handles).toContain("womens-long-sleeves")
+    expect(handles).toContain("womens-business-shirts")
+  })
+
+  it("Long Sleeve T-Shirt is NOT misclassified as a business shirt", () => {
+    // Sanity check — the long-sleeve-shirt cross-listing must not fire for
+    // long-sleeve casual tees.
+    const handles = resolveCategoryHandles(
+      ctx({
+        title: "Mens Long Sleeve T-Shirt",
+        typeValue: "Longsleeves",
+      })
+    )
+    expect(handles).toContain("mens-long-sleeves")
+    expect(handles).not.toContain("mens-business-shirts")
+    expect(handles).not.toContain("mens-casual-shirts")
+  })
+
   it("apron stays in accessories only (never picks up gender)", () => {
     const handles = resolveCategoryHandles(
       ctx({
