@@ -31,6 +31,18 @@ primary_region = 'syd'
   type = 'http'
 
 [[vm]]
-  memory = '2gb'
+  # Sized for bulk supplier imports (AS Colour / FashionBiz / Aussie Pacific
+  # CSV + API). The original 2GB / 1 CPU OOMed during a 50-product AS Colour
+  # batch — Sharp image processing + the workflow engine + Medusa's product
+  # create workflow holds enough in-memory to push past 2GB on chunks of
+  # 50+. 4GB / 2 vCPUs gives headroom AND lets image processing run in
+  # parallel with HTTP without starving each other.
+  #
+  # IMPORTANT: `fly deploy` reads this block and resets the running machine
+  # to these values. CLI-only scaling (`fly scale memory 4096` /
+  # `fly scale vm shared-cpu-2x`) does NOT update fly.toml — so a CLI scale
+  # gets silently reverted on the next deploy unless this block matches.
+  # If you want to change the spec, change it HERE first, commit, deploy.
+  memory = '4gb'
   cpu_kind = 'shared'
-  cpus = 1
+  cpus = 2
