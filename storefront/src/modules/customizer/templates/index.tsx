@@ -2001,6 +2001,16 @@ export default function CustomizerTemplate({
     const syncSize = () => {
       const width = resizeTarget.clientWidth
       const height = resizeTarget.clientHeight
+      // Ignore transient 0×0 reports — happens when the wizard subtree
+      // is briefly hidden or unmounted (e.g. opening the bulk-order
+      // overlay, or the Photos/Customise tab swap). Propagating 0×0
+      // would (a) destroy Fabric's buffer via setDimensions and
+      // (b) blow away `printArea`, which the bulk submit reads to
+      // verify the design is ready — leading to a spurious "design
+      // preview is still loading" error on Add-to-cart.
+      if (width < MIN_PRINT_AREA_PX || height < MIN_PRINT_AREA_PX) {
+        return
+      }
       canvas.setDimensions({ width, height })
       setCanvasSize({ width, height })
     }
