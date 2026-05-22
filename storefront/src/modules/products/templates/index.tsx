@@ -111,32 +111,35 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
         <PrintPlacementProvider>
           <ProductOptionsProvider product={product}>
             <CustomizeModeProvider>
-              {/* Full-width header: garment name + description above the
-                  customizer so customers see what they're buying before
-                  diving into the design flow. */}
-              <ProductInfo product={product} />
+              {/* Customizer is the first block on the PDP — the canvas
+                  appears immediately on the left, the wizard on the right,
+                  no scrolling past a hero image or product blurb. The
+                  full ProductInfo block (title + tags + description) sits
+                  below; the canvas header already shows the garment name
+                  so the page never feels untitled. */}
+              <PdpLayoutGrid
+                customizerSlot={
+                  <PdpCustomizerBoundary>
+                    <EmbeddedProductCustomizer
+                      product={product}
+                      integratedPdpSlots={{
+                        gallery: gallerySlot,
+                        variantPickers: variantPickersSlot,
+                      }}
+                      tier={tier}
+                    />
+                  </PdpCustomizerBoundary>
+                }
+              />
 
-              {/* Customizer spans the full content width below the header.
-                  Gallery + wizard sit side by side inside the embedded
-                  customizer's own internal grid. */}
-              <div className="mt-6">
-                <PdpLayoutGrid
-                  customizerSlot={
-                    <PdpCustomizerBoundary>
-                      <EmbeddedProductCustomizer
-                        product={product}
-                        integratedPdpSlots={{
-                          gallery: gallerySlot,
-                          variantPickers: variantPickersSlot,
-                        }}
-                        tier={tier}
-                      />
-                    </PdpCustomizerBoundary>
-                  }
-                />
+              {/* Full ProductInfo — garment name, brand/audience tags,
+                  description, features. Lives below the customizer so the
+                  design flow gets the prime real estate. */}
+              <div className="mt-12">
+                <ProductInfo product={product} />
               </div>
 
-              {/* Details stack below the customizer in a 2-up grid on
+              {/* Details stack below the product info in a 2-up grid on
                   desktop: ETA + decoration estimator on the left,
                   spec/shipping tabs on the right. Collapses to a single
                   column on mobile. */}

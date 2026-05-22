@@ -280,23 +280,26 @@ export default async function CustomizerPage({ params, searchParams }: Customize
       <PrintPlacementProvider>
         <ProductOptionsProvider product={customizerProduct}>
           <CustomizeModeProvider>
-            <ProductInfo product={customizerProduct} />
-            <div className="mt-6">
-              <PdpLayoutGrid
-                customizerSlot={
-                  <PdpCustomizerBoundary>
-                    <EmbeddedProductCustomizer
-                      product={customizerProduct}
-                      integratedPdpSlots={{
-                        gallery: gallerySlot,
-                        variantPickers: variantPickersSlot,
-                      }}
-                      pickerProducts={pickerProducts}
-                      tier={tier}
-                    />
-                  </PdpCustomizerBoundary>
-                }
-              />
+            {/* Customizer first — canvas occupies the left column from
+                page load. ProductInfo lives below so it's visible without
+                pushing the design surface down. */}
+            <PdpLayoutGrid
+              customizerSlot={
+                <PdpCustomizerBoundary>
+                  <EmbeddedProductCustomizer
+                    product={customizerProduct}
+                    integratedPdpSlots={{
+                      gallery: gallerySlot,
+                      variantPickers: variantPickersSlot,
+                    }}
+                    pickerProducts={pickerProducts}
+                    tier={tier}
+                  />
+                </PdpCustomizerBoundary>
+              }
+            />
+            <div className="mt-12">
+              <ProductInfo product={customizerProduct} />
             </div>
           </CustomizeModeProvider>
         </ProductOptionsProvider>

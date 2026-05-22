@@ -4215,9 +4215,14 @@ export default function CustomizerTemplate({
             </div>
           )}
 
-          {/* Above-canvas "Add print to another location" — visible whenever
+          {editorColumn}
+
+          {/* Below-canvas "Add print to another location" — visible whenever
               there are unused sides. Disabled (greyed) until the customer has
-              placed artwork on the canvas; size can be picked later. */}
+              placed artwork on the canvas; size can be picked later. Lives
+              under the canvas so the design surface stays the focal point;
+              this prompt only matters once the customer's eye drops below
+              the artwork. */}
           {isCustomizing && allowedPrintSides.length > 1 && (() => {
             const undecoratedAllowed = allowedPrintSides.filter(
               (s) => !decoratedSides.includes(s)
@@ -4260,8 +4265,6 @@ export default function CustomizerTemplate({
               </button>
             )
           })()}
-
-          {editorColumn}
         </div>
         <div ref={sidebarScrollRef} className={`order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
           isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
