@@ -63,7 +63,7 @@ export default function PdpSplitTabs({
               aria-selected={active === i}
               aria-controls={`${baseId}-panel-${i}`}
               tabIndex={active === i ? 0 : -1}
-              className="relative z-[1] px-4 py-2 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-5"
+              className="relative z-[1] min-h-11 px-4 py-2.5 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-5"
               data-active={active === i}
               onClick={() => {
                 if (i === 1) {

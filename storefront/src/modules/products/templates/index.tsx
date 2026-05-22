@@ -12,7 +12,6 @@ import SkeletonProductionEtaStrip from "@modules/skeletons/components/skeleton-p
 import ProductActionsWrapper from "./product-actions-wrapper"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import { getCustomerTier } from "@lib/data/customer-tier"
-import MobileCustomizeCta from "@modules/products/components/mobile-customize-cta"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
 import PdpSplitTabs from "@modules/products/components/pdp-split-tabs"
 import DtfAutoBuilderTemplate, {
@@ -189,14 +188,6 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
           </ProductOptionsProvider>
         </PrintPlacementProvider>
       </div>
-
-      {/*
-        Mobile-only sticky CTA — pinned to the bottom of the viewport
-        until the customer scrolls the customizer mount-point into view.
-        Solves the "had to scroll past Specifications + Shipping tabs to
-        find the Customize this product button" problem on phone.
-      */}
-      <MobileCustomizeCta />
 
       <div
         className="content-container my-12 small:my-20"

@@ -3602,7 +3602,7 @@ export default function CustomizerTemplate({
                       pdpHasVariantOptions && !pdpStep1Done
                         ? {
                             title: "Customize first",
-                            body: 'Tap "Customize this product" above to start.',
+                            body: 'Tap "Customise this garment" above to start.',
                           }
                         : undefined
                     }
@@ -4330,7 +4330,7 @@ export default function CustomizerTemplate({
                 done={pdpStep1Done && pdpStep > 1}
                 active={pdpStep === 1}
                 onChange={() => setPdpStep(1)}
-                help="Pick your colour and any other options, then tap 'Customize this product' to open the design tool."
+                help="Pick your colour and any other options, then tap 'Customise this garment' to open the design tool."
               />
               {pdpStep === 1 ? (
                 <>
@@ -4357,7 +4357,7 @@ export default function CustomizerTemplate({
                       <path d="M12 20h9" />
                       <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                     </svg>
-                    Customize this product
+                    Customise this garment
                     <span aria-hidden className="text-lg leading-none">→</span>
                   </button>
                   <p className="mt-1 text-center text-[11px] text-ui-fg-subtle">
@@ -4392,7 +4392,7 @@ export default function CustomizerTemplate({
                 </p>
                 {integratedPdpSlots.gallery}
                 <p className="text-[11px] text-ui-fg-muted">
-                  Tap "Customize this product" above to start designing — the
+                  Tap "Customise this garment" above to start designing — the
                   print location, size and quantity steps appear here.
                 </p>
               </motion.div>

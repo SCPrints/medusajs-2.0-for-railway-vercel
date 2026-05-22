@@ -30,7 +30,7 @@ type StepConfig = {
 const STEP_CONFIGS: Record<1 | 2 | 3 | 4, StepConfig> = {
   1: {
     headline: "Pick your colour first",
-    body: "Choose the garment colour and any other options, then tap the red 'Customize this product' button to open the design tool.",
+    body: "Choose the garment colour and any other options, then tap the red 'Customise this garment' button to open the design tool.",
   },
   2: {
     headline: "Choose where to print",
