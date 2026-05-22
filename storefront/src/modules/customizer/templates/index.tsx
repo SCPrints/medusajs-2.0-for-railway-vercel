@@ -4180,7 +4180,7 @@ export default function CustomizerTemplate({
           layout (col-span sits on lg, where order-* is reset to none).
         */}
         <div className={`order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
-          isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-6"
+          isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
         }`}>
           {/* Gallery curtain-wipes away when customizing begins (pattern lifted
               from LabTierCCurtainWipeImage in the animation lab). The clipPath
@@ -4287,7 +4287,7 @@ export default function CustomizerTemplate({
           {editorColumn}
         </div>
         <div ref={sidebarScrollRef} className={`order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
-          isCustomizing ? "lg:col-span-5" : "lg:col-span-3"
+          isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
         }`}>
           <div className="space-y-1 border-b border-ui-border-base pb-3">
             <div className="flex items-start justify-between gap-2">

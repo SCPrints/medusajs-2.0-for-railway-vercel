@@ -24,7 +24,7 @@ const ProductTabs = ({ product }: ProductTabsProps) => {
     : { type: "spring" as const, stiffness: 380, damping: 34 }
 
   return (
-    <div className="w-full lg:max-w-[500px] lg:mx-auto">
+    <div className="w-full">
       <LayoutGroup id={`${baseId}-pdp-info-tabs`}>
         <div
           className="relative flex gap-1 border-b border-ui-border-base"

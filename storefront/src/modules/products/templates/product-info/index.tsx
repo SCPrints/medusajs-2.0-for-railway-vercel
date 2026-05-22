@@ -23,42 +23,42 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
   const tagLabels = getStoreProductTagValues(product)
 
   return (
-    <div id="product-info">
-      <div className="flex flex-col gap-y-4 lg:max-w-[500px] mx-auto">
-        {product.collection && (
-          <LocalizedClientLink
-            href={`/collections/${product.collection.handle}`}
-            className="text-medium text-ui-fg-muted hover:text-ui-fg-subtle"
-          >
-            {product.collection.title}
-          </LocalizedClientLink>
-        )}
-        <Heading
-          level="h2"
-          className="text-3xl leading-10 text-ui-fg-base"
-          data-testid="product-title"
+    <header id="product-info" className="flex flex-col gap-y-3">
+      {product.collection && (
+        <LocalizedClientLink
+          href={`/collections/${product.collection.handle}`}
+          className="text-medium text-ui-fg-muted hover:text-ui-fg-subtle"
         >
-          {product.title}
-        </Heading>
+          {product.collection.title}
+        </LocalizedClientLink>
+      )}
+      <Heading
+        level="h1"
+        className="text-3xl leading-tight text-ui-fg-base lg:text-4xl"
+        data-testid="product-title"
+      >
+        {product.title}
+      </Heading>
 
-        <ProductTags labels={tagLabels} />
+      <ProductTags labels={tagLabels} />
 
-        {hasHtml ? (
+      {description ? (
+        hasHtml ? (
           <div
-            className="text-medium text-ui-fg-subtle [&_p]:mb-3 [&_p:last-child]:mb-0 [&_span]:text-inherit"
+            className="text-medium max-w-3xl text-ui-fg-subtle [&_p]:mb-3 [&_p:last-child]:mb-0 [&_span]:text-inherit"
             data-testid="product-description"
             dangerouslySetInnerHTML={{ __html: sanitizeDescriptionHtml(description) }}
           />
         ) : (
           <Text
-            className="text-medium text-ui-fg-subtle whitespace-pre-line"
+            className="text-medium max-w-3xl text-ui-fg-subtle whitespace-pre-line"
             data-testid="product-description"
           >
             {description}
           </Text>
-        )}
-      </div>
-    </div>
+        )
+      ) : null}
+    </header>
   )
 }
 

@@ -280,22 +280,24 @@ export default async function CustomizerPage({ params, searchParams }: Customize
       <PrintPlacementProvider>
         <ProductOptionsProvider product={customizerProduct}>
           <CustomizeModeProvider>
-            <PdpLayoutGrid
-              asideSlot={<ProductInfo product={customizerProduct} />}
-              customizerSlot={
-                <PdpCustomizerBoundary>
-                  <EmbeddedProductCustomizer
-                    product={customizerProduct}
-                    integratedPdpSlots={{
-                      gallery: gallerySlot,
-                      variantPickers: variantPickersSlot,
-                    }}
-                    pickerProducts={pickerProducts}
-                    tier={tier}
-                  />
-                </PdpCustomizerBoundary>
-              }
-            />
+            <ProductInfo product={customizerProduct} />
+            <div className="mt-6">
+              <PdpLayoutGrid
+                customizerSlot={
+                  <PdpCustomizerBoundary>
+                    <EmbeddedProductCustomizer
+                      product={customizerProduct}
+                      integratedPdpSlots={{
+                        gallery: gallerySlot,
+                        variantPickers: variantPickersSlot,
+                      }}
+                      pickerProducts={pickerProducts}
+                      tier={tier}
+                    />
+                  </PdpCustomizerBoundary>
+                }
+              />
+            </div>
           </CustomizeModeProvider>
         </ProductOptionsProvider>
       </PrintPlacementProvider>

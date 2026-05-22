@@ -102,6 +102,8 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
     </Suspense>
   )
 
+  const decorationMethods = getEnabledDecorationMethods(product)
+
   return (
     <>
       <ViewItemTracker product={product} />
@@ -109,35 +111,48 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
         <PrintPlacementProvider>
           <ProductOptionsProvider product={product}>
             <CustomizeModeProvider>
-              <PdpLayoutGrid
-                asideSlot={
-                  <>
-                    <ProductInfo product={product} />
-                    <Suspense fallback={<SkeletonProductionEtaStrip />}>
-                      <ProductionEtaStrip />
-                    </Suspense>
-                    {(() => {
-                      const methods = getEnabledDecorationMethods(product)
-                      return methods.length > 0 ? (
-                        <DecorationEstimator methods={methods} />
-                      ) : null
-                    })()}
-                    <ProductTabs product={product} />
-                  </>
-                }
-                customizerSlot={
-                  <PdpCustomizerBoundary>
-                    <EmbeddedProductCustomizer
-                      product={product}
-                      integratedPdpSlots={{
-                        gallery: gallerySlot,
-                        variantPickers: variantPickersSlot,
-                      }}
-                      tier={tier}
-                    />
-                  </PdpCustomizerBoundary>
-                }
-              />
+              {/* Full-width header: garment name + description above the
+                  customizer so customers see what they're buying before
+                  diving into the design flow. */}
+              <ProductInfo product={product} />
+
+              {/* Customizer spans the full content width below the header.
+                  Gallery + wizard sit side by side inside the embedded
+                  customizer's own internal grid. */}
+              <div className="mt-6">
+                <PdpLayoutGrid
+                  customizerSlot={
+                    <PdpCustomizerBoundary>
+                      <EmbeddedProductCustomizer
+                        product={product}
+                        integratedPdpSlots={{
+                          gallery: gallerySlot,
+                          variantPickers: variantPickersSlot,
+                        }}
+                        tier={tier}
+                      />
+                    </PdpCustomizerBoundary>
+                  }
+                />
+              </div>
+
+              {/* Details stack below the customizer in a 2-up grid on
+                  desktop: ETA + decoration estimator on the left,
+                  spec/shipping tabs on the right. Collapses to a single
+                  column on mobile. */}
+              <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
+                <div className="flex flex-col gap-y-6">
+                  <Suspense fallback={<SkeletonProductionEtaStrip />}>
+                    <ProductionEtaStrip />
+                  </Suspense>
+                  {decorationMethods.length > 0 ? (
+                    <DecorationEstimator methods={decorationMethods} />
+                  ) : null}
+                </div>
+                <div>
+                  <ProductTabs product={product} />
+                </div>
+              </div>
             </CustomizeModeProvider>
           </ProductOptionsProvider>
         </PrintPlacementProvider>
