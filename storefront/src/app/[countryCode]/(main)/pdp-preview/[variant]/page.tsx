@@ -18,6 +18,7 @@ import { ProductOptionsProvider } from "@modules/products/context/product-option
 import ProductActionsWrapper from "@modules/products/templates/product-actions-wrapper"
 import ProductInfo from "@modules/products/templates/product-info"
 
+import GalleryFirstTabs from "../_components/gallery-first-tabs"
 import GalleryTabs from "../_components/gallery-tabs"
 import PreviewSwitcher from "../_components/preview-switcher"
 
@@ -28,7 +29,13 @@ import PreviewSwitcher from "../_components/preview-switcher"
  * Not linked from production navigation.
  */
 
-const VALID_VARIANTS = new Set(["current", "no-gallery", "below", "tabs"])
+const VALID_VARIANTS = new Set([
+  "current",
+  "no-gallery",
+  "below",
+  "tabs",
+  "split",
+])
 const DEFAULT_HANDLE = "as-colour-5001-5001"
 
 type RouteParams = { countryCode: string; variant: string }
@@ -137,6 +144,26 @@ export default async function PdpPreviewPage({
   const galleryInWizard = variant === "current"
   const galleryBelowCustomizer = variant === "below"
   const galleryInTabs = variant === "tabs"
+  const splitTabs = variant === "split"
+
+  // The customizer block is reused by both the normal variants and the
+  // "split" variant (where it becomes the content of the Customiser tab).
+  const customizerBlock = (
+    <PdpLayoutGrid
+      customizerSlot={
+        <PdpCustomizerBoundary>
+          <EmbeddedProductCustomizer
+            product={product}
+            integratedPdpSlots={{
+              gallery: galleryInWizard ? gallerySlot : null,
+              variantPickers: variantPickersSlot,
+            }}
+            tier={tier}
+          />
+        </PdpCustomizerBoundary>
+      }
+    />
+  )
 
   return (
     <div className="content-container py-6 relative">
@@ -153,24 +180,19 @@ export default async function PdpPreviewPage({
               {product.title}
             </h1>
 
-            {/* Always: customizer. The gallery slot is conditional —
-                only the "current" variant passes it through to the
-                wizard; the others render the gallery elsewhere (or
-                not at all). */}
-            <PdpLayoutGrid
-              customizerSlot={
-                <PdpCustomizerBoundary>
-                  <EmbeddedProductCustomizer
-                    product={product}
-                    integratedPdpSlots={{
-                      gallery: galleryInWizard ? gallerySlot : null,
-                      variantPickers: variantPickersSlot,
-                    }}
-                    tier={tier}
-                  />
-                </PdpCustomizerBoundary>
-              }
-            />
+            {/* Variant "split": gallery and customizer as 2 top-level
+                tabs (Photos default, Customiser swaps in on click).
+                Other variants render the customizer directly with the
+                gallery slot wired according to their flag. */}
+            {splitTabs ? (
+              <GalleryFirstTabs
+                gallery={gallerySlot}
+                variantPickers={variantPickersSlot}
+                designContent={customizerBlock}
+              />
+            ) : (
+              customizerBlock
+            )}
 
             {/* Variant "below": gallery as its own full-width section
                 directly under the customizer, with a clear heading. */}

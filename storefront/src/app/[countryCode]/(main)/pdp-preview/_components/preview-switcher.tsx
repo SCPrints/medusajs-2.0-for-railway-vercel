@@ -30,6 +30,12 @@ const VARIANTS: Variant[] = [
     label: "Gallery in tabs",
     blurb: "Gallery is the first tab alongside Specifications & Shipping.",
   },
+  {
+    slug: "split",
+    label: "Split tabs",
+    blurb:
+      "Photos and Customiser are two top-level tabs; Photos shows by default, the Customise CTA flips to the design surface.",
+  },
 ]
 
 type Props = {
