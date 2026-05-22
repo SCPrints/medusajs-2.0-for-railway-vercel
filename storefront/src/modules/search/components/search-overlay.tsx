@@ -7,7 +7,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Thumbnail from "@modules/products/components/thumbnail"
-import { MEDUSA_BACKEND_URL } from "@lib/config"
 
 /**
  * Standalone search dropdown overlay. Self-contained — body-scroll lock,
@@ -20,10 +19,12 @@ import { MEDUSA_BACKEND_URL } from "@lib/config"
  * which links don't respond to clicks. With state-toggled rendering the
  * underlying page never re-renders.
  *
- * Talks to Medusa's `/store/products?q=...` directly (Postgres ILIKE search,
- * same engine that powers `?q=` on the PLP). The full-results page at
- * `/<cc>/results/[query]` still uses Meilisearch via the server action for
- * better ranking + typo tolerance.
+ * Queries Meilisearch directly (same index the /results/[query] page reads).
+ * The previous implementation hit Medusa's `/store/products?q=…` (Postgres
+ * ILIKE) which has no relevance ranking — "staple" returned every product
+ * with "staple" anywhere in the description before any product with "Staple"
+ * in the title. Switching to Meili fixes ranking and typo tolerance, and
+ * keeps the overlay responsive when the backend is busy.
  */
 
 type SearchOverlayProps = {
@@ -41,7 +42,9 @@ type Hit = {
 const DEBOUNCE_MS = 200
 const HIT_LIMIT = 6
 
-const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY ?? ""
+const SEARCH_ENDPOINT = (process.env.NEXT_PUBLIC_SEARCH_ENDPOINT ?? "").replace(/\/$/, "")
+const SEARCH_API_KEY = process.env.NEXT_PUBLIC_SEARCH_API_KEY ?? ""
+const SEARCH_INDEX = process.env.NEXT_PUBLIC_INDEX_NAME || "products"
 
 export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
   const router = useRouter()
@@ -113,22 +116,33 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
       return
     }
 
+    if (!SEARCH_ENDPOINT || !SEARCH_API_KEY) {
+      setError("Search is temporarily unavailable.")
+      setHits([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     const controller = new AbortController()
     const timer = window.setTimeout(async () => {
       try {
-        const url = new URL("/store/products", MEDUSA_BACKEND_URL)
+        const url = new URL(
+          `/indexes/${SEARCH_INDEX}/search`,
+          SEARCH_ENDPOINT
+        )
         url.searchParams.set("q", trimmedQuery)
         url.searchParams.set("limit", String(HIT_LIMIT))
-        url.searchParams.set("fields", "id,handle,title,thumbnail")
+        url.searchParams.set(
+          "attributesToRetrieve",
+          "id,title,handle,thumbnail"
+        )
 
         const response = await fetch(url.toString(), {
           signal: controller.signal,
-          headers: PUBLISHABLE_KEY
-            ? { "x-publishable-api-key": PUBLISHABLE_KEY }
-            : undefined,
+          headers: { Authorization: `Bearer ${SEARCH_API_KEY}` },
         })
 
         if (!response.ok) {
@@ -136,7 +150,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
         }
 
         const data = (await response.json()) as {
-          products?: Array<{
+          hits?: Array<{
             id?: string
             handle?: string | null
             title?: string | null
@@ -144,7 +158,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
           }>
         }
 
-        const next: Hit[] = (data.products ?? [])
+        const next: Hit[] = (data.hits ?? [])
           .filter((p): p is { id: string; handle: string; title: string; thumbnail: string | null } =>
             typeof p.id === "string" && typeof p.handle === "string" && typeof p.title === "string"
           )
