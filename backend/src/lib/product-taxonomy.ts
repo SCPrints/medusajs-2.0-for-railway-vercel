@@ -657,8 +657,17 @@ export function classifyFashionBizProduct(
     )
   }
 
+  // FashionBiz's `tags[]` array is sometimes stale or wrong about
+  // sleeve length — e.g. Syzmik ZH390 has sleeve="Long" but tags
+  // include "short sleeve". The structured `sleeve` field is FB's
+  // source of truth, so we filter sleeve-length descriptors out of
+  // rawTags before normalising and let `product.sleeve` alone provide
+  // that signal.
+  const sleeveDescriptor = /^(short|long|3\/4)\s+sleeve(s)?$/i
+  const filteredRawTags = rawTags.filter((t) => !sleeveDescriptor.test(t ?? ""))
+
   const allRawTags: (string | null | undefined)[] = [
-    ...rawTags,
+    ...filteredRawTags,
     product.gender,
     product.fit,
     product.sleeve,

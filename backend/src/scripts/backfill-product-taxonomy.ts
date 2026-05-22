@@ -121,8 +121,21 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
   const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
   const productModule = container.resolve(Modules.PRODUCT) as any
   const dryRun = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true"
+  // REBUILD_TAGS=1: for products with metadata.source (i.e. supplier-
+  // imported), REPLACE the tag set with the classifier's canonical
+  // output instead of unioning. Removes stale/wrong tags from previous
+  // imports (e.g. "Short Sleeve" on a Long Sleeve product). Manual tags
+  // added in admin will be removed too — that's the trade-off. Default
+  // off (union mode) to preserve manual tags.
+  const rebuildTags =
+    process.env.REBUILD_TAGS === "1" || process.env.REBUILD_TAGS === "true"
 
   if (dryRun) logger.info("DRY_RUN=1 — no writes will be performed")
+  if (rebuildTags) {
+    logger.info(
+      "REBUILD_TAGS=1 — supplier products will have tag set REPLACED with classifier output (removes stale tags)"
+    )
+  }
 
   // Pre-warm type + tag caches once so per-product upserts are cheap.
   const typeCache = await fetchAllProductTypes(productModule)
@@ -132,6 +145,7 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
   let totalScanned = 0
   let typeFilled = 0
   let tagsAdded = 0
+  let tagsRemoved = 0
   let failures = 0
   const unknownLog: string[] = []
   const sampleChanges: string[] = []
@@ -185,42 +199,47 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
       const newType = !currentType && fallback.productType ? fallback.productType : null
       const needsType = !!newType
 
-      // Tags: UNION classifier output with current tags so manual tags are
-      // preserved. Only count as "new" what wasn't already present.
-      const tagsToAdd = fallback.tags.filter((t) => !currentTags.includes(t))
-      const needsTags = tagsToAdd.length > 0
+      // Tags: behaviour depends on the mode:
+      //  - REBUILD mode + supplier product → REPLACE with classifier output
+      //  - Otherwise → UNION (additive only, preserves manual tags)
+      const isSupplierProduct = !!supplierResult
+      const finalTagSet =
+        rebuildTags && isSupplierProduct
+          ? Array.from(new Set(fallback.tags))
+          : Array.from(new Set([...currentTags, ...fallback.tags]))
+      const tagsToAdd = finalTagSet.filter((t) => !currentTags.includes(t))
+      const tagsToRemove = currentTags.filter((t) => !finalTagSet.includes(t))
+      const needsTags = tagsToAdd.length > 0 || tagsToRemove.length > 0
 
       if (!needsType && !needsTags) continue
 
       if (sampleChanges.length < 15) {
         const changes: string[] = []
         if (needsType) changes.push(`type → ${newType}`)
-        if (needsTags) changes.push(`tag(s) +[${tagsToAdd.join(", ")}]`)
+        if (tagsToAdd.length) changes.push(`+[${tagsToAdd.join(", ")}]`)
+        if (tagsToRemove.length) changes.push(`-[${tagsToRemove.join(", ")}]`)
         sampleChanges.push(`  ${product.title} (${product.handle}) — ${changes.join(", ")}`)
       }
 
       if (dryRun) {
         if (needsType) typeFilled++
-        if (needsTags) tagsAdded += tagsToAdd.length
+        tagsAdded += tagsToAdd.length
+        tagsRemoved += tagsToRemove.length
         continue
       }
 
       try {
-        // applyTypeAndTagsToProduct REPLACES the full tag set — pass the
-        // union of current + new so nothing's lost.
-        const fullTagSet = Array.from(
-          new Set([...currentTags, ...tagsToAdd])
-        )
         await applyTypeAndTagsToProduct({
           productModule,
           productId: product.id,
           productType: needsType ? newType : null,
-          tags: needsTags ? fullTagSet : [],
+          tags: needsTags ? finalTagSet : [],
           typeCache,
           tagCache,
         })
         if (needsType) typeFilled++
-        if (needsTags) tagsAdded += tagsToAdd.length
+        tagsAdded += tagsToAdd.length
+        tagsRemoved += tagsToRemove.length
       } catch (err: any) {
         failures++
         logger.warn(
@@ -240,6 +259,9 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
   logger.info(`Scanned ${totalScanned} product(s).`)
   logger.info(`Type filled:        ${typeFilled}${dryRun ? " (dry-run)" : ""}`)
   logger.info(`Tag(s) added:       ${tagsAdded}${dryRun ? " (dry-run)" : ""}`)
+  if (tagsRemoved > 0 || rebuildTags) {
+    logger.info(`Tag(s) removed:     ${tagsRemoved}${dryRun ? " (dry-run)" : ""}`)
+  }
   if (failures > 0) logger.info(`Failures:           ${failures}`)
   if (unknownLog.length > 0) {
     logger.info(`Title-inference fell through on ${unknownLog.length} title(s).`)
