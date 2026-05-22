@@ -4187,7 +4187,6 @@ export default function CustomizerTemplate({
                   pdpStep={pdpStep}
                   hasStep1={hasStep1}
                   stepRefs={{ step1: step1Ref, step2: step2Ref, step3: step3Ref, step4: step4Ref }}
-                  sidebarScrollRef={sidebarScrollRef}
                   showTriggerPulse={showGuidePulse}
                 />
               ) : null}

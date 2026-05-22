@@ -3,9 +3,7 @@
 import { phCapture } from "@lib/posthog"
 import { useReducedMotion } from "framer-motion"
 import React, {
-  useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type RefObject,
@@ -21,7 +19,6 @@ type CustomizerGuideProps = {
     step3: RefObject<HTMLDivElement | null>
     step4: RefObject<HTMLDivElement | null>
   }
-  sidebarScrollRef: RefObject<HTMLDivElement | null>
   showTriggerPulse: boolean
 }
 
@@ -55,7 +52,6 @@ export default function CustomizerGuide({
   pdpStep,
   hasStep1,
   stepRefs,
-  sidebarScrollRef,
   showTriggerPulse,
 }: CustomizerGuideProps) {
   const prefersReducedMotion = useReducedMotion()
@@ -81,54 +77,54 @@ export default function CustomizerGuide({
           : stepRefs.step4
 
   // ------------------------------------------------------------------
-  // Rect tracking
+  // Rect tracking — continuous rAF loop while the guide is active.
+  //
+  // Earlier this tried scheduled timeouts (0/150/350/550 ms) + scroll
+  // listeners on window + the sticky sidebar container. That covers
+  // pdpStep-driven layout transitions but misses two real-world cases:
+  // (a) the customer scrolls a scroll container we don't have a ref for
+  // (the body, the page wrapper, or an iframe-ancestor on touch), and
+  // (b) framer-motion / canvas-resize layout shifts that don't line up
+  // with the hard-coded timeout schedule. A per-frame rAF poll is cheap
+  // (one getBoundingClientRect + an equality check) and bulletproof —
+  // setState only fires when the rect actually changes, so React doesn't
+  // re-render every frame.
   // ------------------------------------------------------------------
-  const updateRect = useCallback(() => {
-    const node = activeRef.current
-    if (!node) return
-    setSpotlightRect(node.getBoundingClientRect())
-    setViewport({ w: window.innerWidth, h: window.innerHeight })
-  }, [activeRef])
-
-  // After a step change, fire rect updates at several points to catch:
-  //   0ms   — immediate (handles simple cases)
-  //   150ms — after layout starts settling
-  //   350ms — after CSS grid column transition (300ms duration)
-  //   550ms — after Framer Motion entrance (400ms + 50ms delay)
-  // Without this, measuring immediately after pdpStep advances picks up
-  // stale coordinates from before the scroll + layout shift.
-  const scheduleRectUpdates = useCallback(() => {
-    const ids = [
-      setTimeout(updateRect, 0),
-      setTimeout(updateRect, 150),
-      setTimeout(updateRect, 350),
-      setTimeout(updateRect, 550),
-    ]
-    return () => ids.forEach(clearTimeout)
-  }, [updateRect])
-
-  useLayoutEffect(() => {
-    if (!active) return
-    return scheduleRectUpdates()
-  }, [active, guideStep, scheduleRectUpdates])
-
   useEffect(() => {
     if (!active) return
-    const ro = new ResizeObserver(updateRect)
-    if (activeRef.current) ro.observe(activeRef.current)
-    const sidebar = sidebarScrollRef.current
-    sidebar?.addEventListener("scroll", updateRect, { passive: true })
-    // Track window scroll too — "Customize this product" scrolls the whole
-    // page to the canvas, which invalidates every getBoundingClientRect value.
-    window.addEventListener("scroll", updateRect, { passive: true })
-    window.addEventListener("resize", updateRect, { passive: true })
-    return () => {
-      ro.disconnect()
-      sidebar?.removeEventListener("scroll", updateRect)
-      window.removeEventListener("scroll", updateRect)
-      window.removeEventListener("resize", updateRect)
+    let rafId = 0
+    let prev: DOMRect | null = null
+    let prevVw = 0
+    let prevVh = 0
+    const tick = () => {
+      const node = activeRef.current
+      if (node) {
+        const next = node.getBoundingClientRect()
+        if (
+          !prev ||
+          prev.left !== next.left ||
+          prev.top !== next.top ||
+          prev.width !== next.width ||
+          prev.height !== next.height
+        ) {
+          prev = next
+          setSpotlightRect(next)
+        }
+      }
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      if (vw !== prevVw || vh !== prevVh) {
+        prevVw = vw
+        prevVh = vh
+        setViewport({ w: vw, h: vh })
+      }
+      rafId = requestAnimationFrame(tick)
     }
-  }, [active, guideStep, updateRect, activeRef, sidebarScrollRef])
+    rafId = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(rafId)
+    }
+  }, [active, guideStep, activeRef])
 
   // ------------------------------------------------------------------
   // Auto-advance when pdpStep moves forward
