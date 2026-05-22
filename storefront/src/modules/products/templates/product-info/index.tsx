@@ -6,6 +6,13 @@ import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 type ProductInfoProps = {
   product: HttpTypes.StoreProduct
+  /**
+   * Skip rendering the H1 title. Set when ProductInfo is rendered
+   * below the customizer on the PDP — the page already shows the
+   * garment name in a dedicated header above the design surface, so
+   * including it again here would duplicate it.
+   */
+  hideTitle?: boolean
 }
 
 const sanitizeDescriptionHtml = (description: string) => {
@@ -17,7 +24,7 @@ const sanitizeDescriptionHtml = (description: string) => {
     .replace(/javascript:/gi, "")
 }
 
-const ProductInfo = ({ product }: ProductInfoProps) => {
+const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
   const description = product.description?.trim() ?? ""
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(description)
   const tagLabels = getStoreProductTagValues(product)
@@ -32,13 +39,15 @@ const ProductInfo = ({ product }: ProductInfoProps) => {
           {product.collection.title}
         </LocalizedClientLink>
       )}
-      <Heading
-        level="h1"
-        className="text-3xl leading-tight text-ui-fg-base lg:text-4xl"
-        data-testid="product-title"
-      >
-        {product.title}
-      </Heading>
+      {hideTitle ? null : (
+        <Heading
+          level="h1"
+          className="text-3xl leading-tight text-ui-fg-base lg:text-4xl"
+          data-testid="product-title"
+        >
+          {product.title}
+        </Heading>
+      )}
 
       <ProductTags labels={tagLabels} />
 

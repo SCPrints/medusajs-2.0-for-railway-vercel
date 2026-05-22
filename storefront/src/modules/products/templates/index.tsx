@@ -111,12 +111,21 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
         <PrintPlacementProvider>
           <ProductOptionsProvider product={product}>
             <CustomizeModeProvider>
-              {/* Customizer is the first block on the PDP — the canvas
+              {/* Just the garment name above the customizer so the
+                  customer always has a clear page title without the
+                  full tag/description block pushing the design surface
+                  down. Tags + description live in the ProductInfo
+                  block below. */}
+              <h1
+                className="mb-4 text-3xl font-semibold leading-tight text-ui-fg-base lg:text-4xl"
+                data-testid="product-title"
+              >
+                {product.title}
+              </h1>
+
+              {/* Customizer is the first interactive block — the canvas
                   appears immediately on the left, the wizard on the right,
-                  no scrolling past a hero image or product blurb. The
-                  full ProductInfo block (title + tags + description) sits
-                  below; the canvas header already shows the garment name
-                  so the page never feels untitled. */}
+                  no scrolling past a hero image or product blurb. */}
               <PdpLayoutGrid
                 customizerSlot={
                   <PdpCustomizerBoundary>
@@ -132,11 +141,11 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                 }
               />
 
-              {/* Full ProductInfo — garment name, brand/audience tags,
-                  description, features. Lives below the customizer so the
-                  design flow gets the prime real estate. */}
+              {/* ProductInfo below the customizer — brand/audience tags,
+                  description, features. Title is rendered above the
+                  customizer so we hide it here to avoid duplication. */}
               <div className="mt-12">
-                <ProductInfo product={product} />
+                <ProductInfo product={product} hideTitle />
               </div>
 
               {/* Details stack below the product info in a 2-up grid on

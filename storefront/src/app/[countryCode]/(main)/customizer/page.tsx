@@ -280,6 +280,16 @@ export default async function CustomizerPage({ params, searchParams }: Customize
       <PrintPlacementProvider>
         <ProductOptionsProvider product={customizerProduct}>
           <CustomizeModeProvider>
+            {/* Just the garment name above the customizer so the page
+                always has a visible title; full tags + description
+                live in ProductInfo below. */}
+            <h1
+              className="mb-4 text-3xl font-semibold leading-tight text-ui-fg-base lg:text-4xl"
+              data-testid="product-title"
+            >
+              {customizerProduct.title}
+            </h1>
+
             {/* Customizer first — canvas occupies the left column from
                 page load. ProductInfo lives below so it's visible without
                 pushing the design surface down. */}
@@ -299,7 +309,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
               }
             />
             <div className="mt-12">
-              <ProductInfo product={customizerProduct} />
+              <ProductInfo product={customizerProduct} hideTitle />
             </div>
           </CustomizeModeProvider>
         </ProductOptionsProvider>
