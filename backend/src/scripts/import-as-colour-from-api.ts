@@ -225,14 +225,15 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
   }
   logger.info(`Got ${costBySku.size} price-list entries.`)
 
-  // 2. Enrich each style with variants + images (sequential to be polite to the API)
+  // 2. Enrich each style with variants + images (sequential to be polite to
+  // the API). ALWAYS hit fetchAllProductVariants — the catalog endpoint can
+  // return a truncated inline `variants` array, and the per-product endpoint
+  // paginates at 250. Trusting either of those silently dropped 320 variants
+  // off Staple Tee 5001 in the original import (see backfill-ascolour-variants).
   const enriched: EnrichedStyle[] = []
   for (const product of products) {
     try {
-      const variants =
-        product.variants?.length
-          ? product.variants
-          : extractArray<AsColourVariant>(await ascolour.getClient().getProductVariants(product.styleCode))
+      const variants = await ascolour.fetchAllProductVariants(product.styleCode)
       const images =
         product.images?.length
           ? product.images
