@@ -50,7 +50,52 @@ export type BulkOrderGridProps = {
    */
   estimatePricingForTotal: (totalQty: number) => BulkPricingEstimate | null
   onClose: () => void
+  /** Exit the customizer entirely — drops the customer back at the PDP gallery. */
+  onBackToProduct?: () => void
   onSubmit: (cells: BulkCellEntry[]) => Promise<void>
+}
+
+// Canonical clothing-size rank. Anything that doesn't match a known label
+// falls back to numeric (kids age sizes, EU sizes) or alphabetic sort.
+// Covers AS Colour (XSM/SML/MED/LRG/XLG), Aussie Pacific (XS/S/M/L/XL/2XL+),
+// FashionBiz, and most workwear naming we'll see.
+const SIZE_RANK: Record<string, number> = {
+  XXXS: -3, "3XS": -3,
+  XXS: -2, "2XS": -2,
+  XS: -1, XSM: -1,
+  S: 0, SM: 0, SML: 0, SMALL: 0,
+  M: 1, MD: 1, MED: 1, MEDIUM: 1,
+  L: 2, LG: 2, LRG: 2, LARGE: 2,
+  XL: 3, XLG: 3,
+  XXL: 4, "2XL": 4,
+  XXXL: 5, "3XL": 5,
+  XXXXL: 6, "4XL": 6,
+  "5XL": 7,
+  "6XL": 8,
+  "7XL": 9,
+}
+
+const sizeRank = (size: string): number => {
+  const key = size.trim().toUpperCase()
+  if (key in SIZE_RANK) return SIZE_RANK[key]
+  // nXL / nXXL etc.
+  const upper = key.match(/^(\d+)X+L$/)
+  if (upper) return 3 + Number(upper[1])
+  // nXS / nXXS etc.
+  const lower = key.match(/^(\d+)X+S$/)
+  if (lower) return -Number(lower[1])
+  // Numeric sizes (kids' age, EU). Push past the XL range so they sort
+  // predictably amongst themselves.
+  const numeric = parseFloat(key)
+  if (Number.isFinite(numeric)) return 100 + numeric
+  return 1000
+}
+
+export const compareSizes = (a: string, b: string): number => {
+  const ra = sizeRank(a)
+  const rb = sizeRank(b)
+  if (ra !== rb) return ra - rb
+  return a.localeCompare(b, undefined, { numeric: true })
 }
 
 export default function BulkOrderGrid({
@@ -62,6 +107,7 @@ export default function BulkOrderGrid({
   printThumbSource,
   estimatePricingForTotal,
   onClose,
+  onBackToProduct,
   onSubmit,
 }: BulkOrderGridProps) {
   const sizeOption = useMemo<SizeOption | null>(() => {
@@ -93,9 +139,7 @@ export default function BulkOrderGrid({
       const value = variant.options?.find((entry) => entry.option_id === sizeOption.id)?.value
       if (value) set.add(value)
     }
-    return Array.from(set).sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true })
-    )
+    return Array.from(set).sort(compareSizes)
   }, [product, sizeOption])
 
   // Variant lookup: (colourValue, sizeValue) → variant. Used by both the grid
@@ -279,7 +323,7 @@ export default function BulkOrderGrid({
   return (
     <div className="flex h-full flex-col bg-ui-bg-subtle/30">
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-ui-border-base bg-white px-4 py-3 shadow-sm sm:px-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -288,7 +332,17 @@ export default function BulkOrderGrid({
           >
             <span aria-hidden>←</span> Back to design
           </button>
-          <div className="hidden sm:block">
+          {onBackToProduct ? (
+            <button
+              type="button"
+              onClick={onBackToProduct}
+              disabled={isSubmitting}
+              className="hidden text-xs font-medium text-ui-fg-subtle underline-offset-2 transition-colors hover:text-ui-fg-base hover:underline disabled:opacity-50 sm:inline"
+            >
+              Exit to product page
+            </button>
+          ) : null}
+          <div className="hidden lg:block">
             <p className="text-base font-semibold text-ui-fg-base">Bulk order grid</p>
             <p className="text-xs text-ui-fg-subtle">
               Same design applied across every colour and size you pick.

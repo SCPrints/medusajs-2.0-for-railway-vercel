@@ -4150,7 +4150,7 @@ export default function CustomizerTemplate({
         setBulkMode(false)
       }
       return (
-        <div className="fixed inset-0 z-40 overflow-hidden bg-white">
+        <div className="fixed inset-0 z-[60] overflow-hidden bg-white">
           <BulkOrderGrid
             product={selectedProduct}
             baseVariant={selectedVariant}
@@ -4160,6 +4160,10 @@ export default function CustomizerTemplate({
             printThumbSource={printArtifactForThumb}
             estimatePricingForTotal={estimatePricingForTotal}
             onClose={() => setBulkMode(false)}
+            onBackToProduct={() => {
+              setBulkMode(false)
+              setPdpStep(1)
+            }}
             onSubmit={handleBulkSubmit}
           />
         </div>
