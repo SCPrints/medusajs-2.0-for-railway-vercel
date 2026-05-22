@@ -183,20 +183,22 @@ export default async function backfillAsColourVariants({ container }: ExecArgs) 
       continue
     }
 
-    // Enrich the API product with full variant + image data when missing.
-    let apiVariants: AsColourVariant[] = apiProduct.variants ?? []
-    if (!apiVariants.length) {
-      try {
-        apiVariants = extractArray<AsColourVariant>(
-          await ascolour.getClient().getProductVariants(apiProduct.styleCode)
-        )
-      } catch (err: any) {
-        logger.warn(
-          `[${dbProduct.handle}] failed to fetch variants for styleCode ${styleCode}: ${err?.message ?? err}`
-        )
-        productsSkipped++
-        continue
-      }
+    // ALWAYS hit the per-product variants endpoint. The catalog endpoint
+    // sometimes returns a truncated inline variant array (observed empirically
+    // on Staple Tee 5001 — catalog gave us the partial set our DB already
+    // had, so an earlier version of this script reported 0 drift even though
+    // 46 colours were missing).
+    let apiVariants: AsColourVariant[]
+    try {
+      apiVariants = extractArray<AsColourVariant>(
+        await ascolour.getClient().getProductVariants(String(styleCode))
+      )
+    } catch (err: any) {
+      logger.warn(
+        `[${dbProduct.handle}] failed to fetch variants for styleCode ${styleCode}: ${err?.message ?? err}`
+      )
+      productsSkipped++
+      continue
     }
 
     const dbSkus = new Set(
@@ -208,16 +210,19 @@ export default async function backfillAsColourVariants({ container }: ExecArgs) 
       (v) => v.sku && !dbSkus.has(v.sku)
     )
 
+    // One-line diagnostic per product so the run output shows which products
+    // are in-sync vs which need backfill — without this you can't tell apart
+    // "nothing to do" from "comparison broken".
+    logger.info(
+      `[${dbProduct.handle}] db=${dbSkus.size} api=${apiVariants.length} missing=${missingVariants.length}`
+    )
+
     if (!missingVariants.length) {
       continue
     }
 
     totalMissing += missingVariants.length
     productsWithChanges++
-
-    logger.info(
-      `[${dbProduct.handle}] ${dbSkus.size} existing SKUs, ${apiVariants.length} in API, ${missingVariants.length} missing`
-    )
 
     // Detect colour/size option ids on the DB product
     const colourOption = dbProduct.options.find((o) =>
