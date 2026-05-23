@@ -14,31 +14,34 @@ describe("bulk-tier-prices", () => {
   }
 
   it("tierMinorToPriceSetRows matches five quantity bands", () => {
+    // `tierMinorToPriceSetRows` converts minor (input) → major (Medusa
+    // `amount` convention) at the boundary, so `t1_9: 1000` cents lands
+    // in the price-set row as `amount: 10` dollars.
     const rows = tierMinorToPriceSetRows(tiers)
     expect(rows).toHaveLength(5)
     expect(rows[0]).toMatchObject({
-      amount: 1000,
+      amount: 10,
       currency_code: "aud",
       min_quantity: 1,
       max_quantity: 9,
     })
     expect(rows[1]).toMatchObject({
-      amount: 950,
+      amount: 9.5,
       min_quantity: 10,
       max_quantity: 19,
     })
     expect(rows[2]).toMatchObject({
-      amount: 900,
+      amount: 9,
       min_quantity: 20,
       max_quantity: 49,
     })
     expect(rows[3]).toMatchObject({
-      amount: 850,
+      amount: 8.5,
       min_quantity: 50,
       max_quantity: 99,
     })
     expect(rows[4]).toMatchObject({
-      amount: 800,
+      amount: 8,
       min_quantity: 100,
     })
     expect(rows[4]).not.toHaveProperty("max_quantity")

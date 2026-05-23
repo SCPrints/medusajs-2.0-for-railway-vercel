@@ -43,15 +43,35 @@ describe("bulk-price-ladder", () => {
   })
 
   describe("buildBulkPricingMetadata", () => {
-    it("emits the keys the storefront expects", () => {
+    it("emits the flat keys the storefront expects", () => {
       const ladder = buildPriceLadder(6.95)
       const meta = buildBulkPricingMetadata(ladder)
-      expect(meta).toEqual({
+      // `toMatchObject` (not `toEqual`) — the function ALSO emits a
+      // `tiers` array consumed by getBulkPricingTiers(). The flat fields
+      // are the legacy contract; the tiers array is the modern one. Both
+      // ship together for backwards compat.
+      expect(meta).toMatchObject({
         base_sale_price: 15.29,
         tier_10_to_19_price: 13.76,
         tier_20_to_49_price: 13,
         tier_50_to_99_price: 12.23,
         tier_100_plus_price: 11.47,
+      })
+    })
+
+    it("also emits the tiers array consumed by getBulkPricingTiers", () => {
+      const ladder = buildPriceLadder(6.95)
+      const meta = buildBulkPricingMetadata(ladder) as { tiers: unknown[] }
+      expect(Array.isArray(meta.tiers)).toBe(true)
+      expect(meta.tiers).toHaveLength(5)
+      expect(meta.tiers[0]).toMatchObject({
+        min_quantity: 1,
+        max_quantity: 9,
+        amount: 15.29,
+      })
+      expect(meta.tiers[4]).toMatchObject({
+        min_quantity: 100,
+        amount: 11.47,
       })
     })
   })

@@ -1,6 +1,28 @@
 import { MedusaError } from "@medusajs/framework/utils"
 import { renderMockupAsset, rethrowIfMedusaError, validateGarmentImageUrl } from "../service"
 
+/**
+ * `validateGarmentImageUrl` gates private-host rejection behind
+ * `NODE_ENV === "production"` so local dev can use `http://localhost:9000`
+ * sleeve placeholders. Force the production code path for the security
+ * assertions; restore whatever the harness set afterwards.
+ */
+const ORIGINAL_NODE_ENV = process.env.NODE_ENV
+const ORIGINAL_ALLOW = process.env.CUSTOMIZER_ALLOW_PRIVATE_GARMENT_URLS
+
+beforeAll(() => {
+  process.env.NODE_ENV = "production"
+  delete process.env.CUSTOMIZER_ALLOW_PRIVATE_GARMENT_URLS
+})
+
+afterAll(() => {
+  if (ORIGINAL_NODE_ENV === undefined) delete process.env.NODE_ENV
+  else process.env.NODE_ENV = ORIGINAL_NODE_ENV
+  if (ORIGINAL_ALLOW === undefined)
+    delete process.env.CUSTOMIZER_ALLOW_PRIVATE_GARMENT_URLS
+  else process.env.CUSTOMIZER_ALLOW_PRIVATE_GARMENT_URLS = ORIGINAL_ALLOW
+})
+
 describe("validateGarmentImageUrl", () => {
   it("rejects private and local hosts", () => {
     expect(() => validateGarmentImageUrl("http://localhost:9000/image.png")).toThrow(
