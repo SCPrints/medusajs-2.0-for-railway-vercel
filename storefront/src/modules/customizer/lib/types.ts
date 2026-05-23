@@ -172,6 +172,25 @@ export type CustomizerMetadata = {
    * dimensions on each entry drive backend pricing for embroidery costs.
    */
   sideEmbroideryConfigs?: Partial<Record<GarmentSide, EmbroideryConfig>>
+  /**
+   * Stable identifier for a "design group" — the set of cart lines that
+   * share this same design across multiple (colour × size) variants.
+   * Generated once per addCustomizedToCart invocation and stamped on
+   * every line produced by the call. The cart UI groups by this id; the
+   * customizer fans out edits to all lines in the group. Single-line
+   * adds also receive their own group_id so two separate cart adds of
+   * the same product never collide visually.
+   */
+  group_id?: string
+  /**
+   * How many cart lines this design originally fanned out to (= bulk
+   * grid cell count, or 1 for a single-line add). Cart UI uses this to
+   * decide whether to render a group header. The "live" group size at
+   * any given moment may differ (customer removed a line, etc.); use
+   * this as the *original* count for analytics + UI hints, not as the
+   * source of truth.
+   */
+  group_size?: number
 }
 
 /**

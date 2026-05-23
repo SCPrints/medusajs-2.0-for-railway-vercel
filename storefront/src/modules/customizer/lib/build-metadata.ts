@@ -52,6 +52,17 @@ export type BuildCustomizerMetadataInput = {
    * Carry only sides whose method is "embroidery".
    */
   sideEmbroideryConfigs?: Partial<Record<GarmentSide, EmbroideryConfig>>
+  /**
+   * Stable identifier for the design-group this line belongs to. See
+   * `CustomizerMetadata.group_id`. Caller passes a single id for all
+   * lines produced by one addCustomizedToCart invocation.
+   */
+  groupId?: string
+  /**
+   * Originally-intended group size (cart line count). See
+   * `CustomizerMetadata.group_size`.
+   */
+  groupSize?: number
 }
 
 /**
@@ -114,6 +125,10 @@ export function buildCustomizerMetadataBase(
       : {}),
     ...(embroideryEntries.length > 0
       ? { sideEmbroideryConfigs: Object.fromEntries(embroideryEntries) as Partial<Record<GarmentSide, EmbroideryConfig>> }
+      : {}),
+    ...(input.groupId ? { group_id: input.groupId } : {}),
+    ...(typeof input.groupSize === "number" && input.groupSize > 0
+      ? { group_size: input.groupSize }
       : {}),
   }
 }

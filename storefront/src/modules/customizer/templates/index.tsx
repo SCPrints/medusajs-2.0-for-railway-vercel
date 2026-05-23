@@ -861,6 +861,12 @@ export default function CustomizerTemplate({
   const [editingProductTitle, setEditingProductTitle] = useState<string | null>(null)
   const [editingPreviousSides, setEditingPreviousSides] = useState<GarmentSide[]>([])
   const [editingPreviousQty, setEditingPreviousQty] = useState<number>(0)
+  // When the edited line is part of a design-group, this tracks the
+  // number of sibling lines that will be updated together by the
+  // fan-out logic in addCustomizedToCart. Surfaces in the edit banner
+  // so the customer isn't surprised.
+  const [editingGroupSiblingCount, setEditingGroupSiblingCount] = useState<number>(0)
+  const [editingGroupTotalQty, setEditingGroupTotalQty] = useState<number>(0)
   const lastCustomizerProductIdRef = useRef<string | null>(null)
   const sideLoadVersionRef = useRef(0)
   const productOptionsFromPdp = useProductOptionsOptional()
@@ -1616,6 +1622,24 @@ export default function CustomizerTemplate({
         setEditingPreviousSides(previousSides as GarmentSide[])
         setEditingPreviousQty(line.quantity ?? 0)
         setEditingProductTitle(line.product_title ?? line.title ?? null)
+        // Design-group sibling lookup — surface a hint in the banner
+        // when this edit will fan out across the whole group.
+        const groupId = (design as { group_id?: string } | undefined)?.group_id
+        if (groupId && Array.isArray(cart?.items)) {
+          const siblings = cart.items.filter((other: any) => {
+            const otherMeta = (other?.metadata ?? {}) as Record<string, unknown>
+            const otherDesign = otherMeta?.customizerDesign as
+              | { group_id?: string }
+              | undefined
+            return otherDesign?.group_id === groupId
+          })
+          if (siblings.length > 1) {
+            setEditingGroupSiblingCount(siblings.length)
+            setEditingGroupTotalQty(
+              siblings.reduce((sum: number, s: any) => sum + (s.quantity ?? 0), 0)
+            )
+          }
+        }
         // Drop user straight onto the final step so they can update qty / re-upload.
         setPdpStep1Done(true)
         setPdpStep2Done(true)
@@ -3190,6 +3214,101 @@ export default function CustomizerTemplate({
           mimeType: u.type,
         }))
 
+      // Design-group fan-out:
+      // - When the customer is editing a cart line that's part of a
+      //   group (e.g. bulk-added across 4 colours), apply the design
+      //   change to every sibling line in one go. Without this they'd
+      //   have to repeat the edit per cart line.
+      // - When this is a fresh add (bulk or single), mint a new
+      //   group_id so future edits of any one line can fan out across
+      //   siblings. Single adds still get a group_id (group_size=1)
+      //   so two separate adds of the same product don't accidentally
+      //   collapse into one cart group via the product_id fallback.
+      let groupIdForThisAdd: string | null = null
+      let groupSizeForThisAdd = bulkCells?.length ?? 1
+      const siblingLineIdsToReplace: string[] = []
+      let groupEditSyntheticCells:
+        | Array<{
+            variant: HttpTypes.StoreProductVariant
+            size: string
+            quantity: number
+            mockupDataUrl?: string
+          }>
+        | null = null
+      if (editLineItemId && !bulkCells?.length) {
+        try {
+          const editCart = await retrieveCart()
+          const editingLine = editCart?.items?.find(
+            (i: any) => i.id === editLineItemId
+          )
+          const editingMeta = (editingLine?.metadata ?? {}) as Record<
+            string,
+            unknown
+          >
+          const editingDesign = editingMeta?.customizerDesign as
+            | { group_id?: string }
+            | undefined
+          const existingGroupId = editingDesign?.group_id
+          if (existingGroupId && editCart?.items?.length) {
+            const siblings = editCart.items.filter((line: any) => {
+              const meta = (line?.metadata ?? {}) as Record<string, unknown>
+              const design = meta?.customizerDesign as
+                | { group_id?: string }
+                | undefined
+              return design?.group_id === existingGroupId
+            })
+            if (siblings.length > 1) {
+              groupIdForThisAdd = existingGroupId
+              groupSizeForThisAdd = siblings.length
+              const sizeOptForSiblings = selectedProduct.options?.find(
+                (option) =>
+                  (option.title ?? "").toLowerCase().includes("size")
+              )
+              const synthesised: typeof groupEditSyntheticCells = []
+              for (const line of siblings) {
+                const variantId = (line as any)?.variant?.id ?? line.variant_id
+                const variant = selectedProduct.variants?.find(
+                  (v) => v.id === variantId
+                )
+                if (!variant) {
+                  // Variant no longer exists (e.g. deleted on the
+                  // backend); skip — we'll lose this sibling but won't
+                  // crash the rest of the fan-out.
+                  continue
+                }
+                const sizeValue = sizeOptForSiblings
+                  ? variant.options?.find(
+                      (o) => o.option_id === sizeOptForSiblings.id
+                    )?.value ?? "Default"
+                  : "Default"
+                synthesised.push({
+                  variant,
+                  size: sizeValue,
+                  quantity: line.quantity ?? 0,
+                })
+                siblingLineIdsToReplace.push(line.id)
+              }
+              if (synthesised.length > 0) {
+                groupEditSyntheticCells = synthesised
+              }
+            }
+          }
+        } catch {
+          // Best-effort — if the cart fetch fails, fall through to the
+          // single-line edit path. Better to update one line than to
+          // bail entirely.
+        }
+      }
+      if (!groupIdForThisAdd) {
+        // Fresh add (bulk or single): mint a new group id.
+        groupIdForThisAdd =
+          typeof crypto !== "undefined" && "randomUUID" in crypto
+            ? crypto.randomUUID()
+            : `gid_${Date.now().toString(36)}_${Math.random()
+                .toString(36)
+                .slice(2, 10)}`
+      }
+
       const metadataBase = buildCustomizerMetadataBase({
         productId: selectedProduct.id,
         sideLayoutsBySide: sideLayoutsRef.current,
@@ -3205,6 +3324,8 @@ export default function CustomizerTemplate({
         prints: printSpecs,
         sideDecorationMethods,
         sideEmbroideryConfigs,
+        groupId: groupIdForThisAdd,
+        groupSize: groupSizeForThisAdd,
       })
 
       const resolvedQuantities: Array<{
@@ -3212,7 +3333,9 @@ export default function CustomizerTemplate({
         size: string
         quantity: number
         mockupDataUrl?: string
-      }> = bulkCells && bulkCells.length
+      }> = groupEditSyntheticCells
+        ? groupEditSyntheticCells.filter((cell) => cell.quantity > 0)
+        : bulkCells && bulkCells.length
         ? bulkCells.filter((cell) => cell.quantity > 0)
         : sizeOption && selectedProduct.variants?.length
           ? sizeMatrix
@@ -3482,17 +3605,32 @@ export default function CustomizerTemplate({
         }
       }
 
-      // Edit-from-cart: replace the original line by deleting it after the new
-      // line has been added successfully. Then send the user back to /cart so
+      // Edit-from-cart: replace the original line(s) by deleting after the
+      // new line(s) have been added successfully. When the edited line was
+      // part of a design-group, we replace EVERY sibling — that's the
+      // whole point of the fan-out. Then send the user back to /cart so
       // they see the updated state immediately.
       if (editLineItemId) {
-        try {
-          await deleteLineItem(editLineItemId)
-        } catch {
-          // The new line is already added; surface a hint but keep the cart consistent
-          // by still navigating so the user can manually remove the old one.
+        const idsToDelete =
+          siblingLineIdsToReplace.length > 0
+            ? siblingLineIdsToReplace
+            : [editLineItemId]
+        const failed: string[] = []
+        for (const id of idsToDelete) {
+          try {
+            await deleteLineItem(id)
+          } catch {
+            failed.push(id)
+          }
+        }
+        if (failed.length > 0) {
+          // The new lines are already added; surface a hint but keep the cart
+          // consistent by still navigating so the user can manually remove the
+          // stragglers from the cart.
           setStatusMessage(
-            "Updated cart added, but couldn't remove the original line — please delete it from the cart."
+            failed.length === idsToDelete.length
+              ? "Updated cart added, but couldn't remove the original line(s) — please delete them from the cart."
+              : `Updated cart added, but couldn't remove ${failed.length} of ${idsToDelete.length} original line(s) — please clean them up in the cart.`
           )
         }
         router.push(`/${countryCode}/cart`)
@@ -4306,6 +4444,14 @@ export default function CustomizerTemplate({
                 Editing {editingProductTitle ?? "your cart item"}
                 {editingPreviousQty ? ` × ${editingPreviousQty}` : ""}
               </p>
+              {editingGroupSiblingCount > 1 ? (
+                <p className="text-xs rounded-md bg-amber-100 px-2 py-1.5 ring-1 ring-amber-200">
+                  <span className="font-semibold">Group edit:</span> this design is
+                  shared across <span className="font-semibold">{editingGroupSiblingCount}</span>{" "}
+                  cart lines ({editingGroupTotalQty} garments total). Your changes here
+                  will apply to <span className="font-semibold">all</span> of them.
+                </p>
+              ) : null}
               <p className="text-xs">
                 Quantities, notes and print size are pre-filled. Update them, then tap{" "}
                 <span className="font-semibold">Update cart</span> — the original cart line will
@@ -4336,6 +4482,8 @@ export default function CustomizerTemplate({
                   setEditingProductTitle(null)
                   setEditingPreviousSides([])
                   setEditingPreviousQty(0)
+                  setEditingGroupSiblingCount(0)
+                  setEditingGroupTotalQty(0)
                   if (typeof window !== "undefined") {
                     const url = new URL(window.location.href)
                     url.searchParams.delete("edit")

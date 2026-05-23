@@ -17,6 +17,20 @@ type ItemMetadata = Record<string, unknown> | null | undefined
 
 const groupKeyFor = (item: HttpTypes.StoreCartLineItem): string => {
   const metadata = (item as any)?.metadata as ItemMetadata
+  // Customizer flow stamps `customizerDesign.group_id` on every line
+  // produced by one addCustomizedToCart call (bulk grid: all cells of
+  // one design; single add: itself). Prefer this — it's the most
+  // reliable signal that two lines "belong together" for editing.
+  const customizerDesign = metadata?.customizerDesign as
+    | { group_id?: string }
+    | undefined
+  const customizerGroupId =
+    typeof customizerDesign?.group_id === "string"
+      ? customizerDesign.group_id
+      : null
+  if (customizerGroupId) {
+    return `design:${customizerGroupId}`
+  }
   const designId =
     (metadata?.dtfGangsheetDesignId as string | undefined) ||
     (metadata?.designId as string | undefined) ||
