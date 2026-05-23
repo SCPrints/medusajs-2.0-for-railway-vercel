@@ -760,8 +760,30 @@ export default function SpaceHero({ className, style }: { className?: string; st
 
     const observer = new IntersectionObserver(([entry]) => { pausedRef.current = !entry.isIntersecting }, { threshold: 0 })
     observer.observe(starsCanvas)
-    runLoop()
-    return () => { cancelAnimationFrame(rafRef.current); observer.disconnect() }
+
+    // Defer the animation loop until the browser is idle so the rAF
+    // pixel churn doesn't fight the initial paint / hydration / Lighthouse
+    // Speed Index measurement. initScene() above has already painted a
+    // static first frame so the hero is visible immediately.
+    let idleHandle: number | null = null
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = null
+    type Ric = (cb: () => void, opts?: { timeout?: number }) => number
+    const ric = (window as unknown as { requestIdleCallback?: Ric }).requestIdleCallback
+    if (typeof ric === "function") {
+      idleHandle = ric(() => { runLoop() }, { timeout: 2000 })
+    } else {
+      timeoutHandle = setTimeout(() => { runLoop() }, 1500)
+    }
+
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      observer.disconnect()
+      if (idleHandle !== null) {
+        const cancelRic = (window as unknown as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback
+        if (typeof cancelRic === "function") cancelRic(idleHandle)
+      }
+      if (timeoutHandle !== null) clearTimeout(timeoutHandle)
+    }
   }, [initScene, runLoop])
 
   return (

@@ -207,7 +207,7 @@ export default async function Home({
         />
 
         {/* 1. Hero */}
-        <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden">
+        <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#0B0C10]">
           <SpaceHero style={{ position: "absolute", inset: 0, height: "100%" }} />
           <HeroOverlay />
         </section>
