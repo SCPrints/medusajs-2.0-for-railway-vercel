@@ -14,10 +14,10 @@ import AsColourService from "../../../../modules/ascolour/service"
 import { AsColourImage, AsColourVariant } from "../../../../modules/ascolour/types"
 import { buildPriceLadder } from "../../../../modules/ascolour/pricing"
 import {
+  ladderToTierMinor,
   tierMinorToPriceSetRows,
   tierMinorToBulkPricingMetadata,
 } from "../../../../utils/bulk-tier-prices"
-import type { PriceLadder } from "../../../../utils/bulk-price-ladder"
 import { BRAND_MODULE } from "../../../../modules/brand"
 
 const PRICE_CURRENCY_CODE = "aud"
@@ -46,14 +46,6 @@ const titleCase = (s: string | undefined) => {
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
     .join(" ")
 }
-
-const ladderToTierMinor = (ladder: PriceLadder) => ({
-  t1_9: Math.round(ladder.base * 100),
-  t10_19: Math.round(ladder.tier10to19 * 100),
-  t20_49: Math.round(ladder.tier20to49 * 100),
-  t50_99: Math.round(ladder.tier50to99 * 100),
-  t100_plus: Math.round(ladder.tier100Plus * 100),
-})
 
 const extractArray = <T,>(resp: any): T[] => {
   if (!resp) return []

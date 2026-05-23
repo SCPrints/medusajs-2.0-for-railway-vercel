@@ -27,6 +27,7 @@ import {
   toArray,
 } from "../../../../modules/aussiepacific/mapping"
 import {
+  ladderToTierMinor,
   tierMinorToPriceSetRows,
   tierMinorToBulkPricingMetadata,
 } from "../../../../utils/bulk-tier-prices"
@@ -42,14 +43,6 @@ import {
 const PRICE_CURRENCY_CODE = "aud"
 const AUSSIEPACIFIC_LOCATION_NAME = "Aussie Pacific Warehouse"
 const AUSSIEPACIFIC_BRAND_HANDLE = "aussie-pacific"
-
-const ladderToTierMinor = (ladder: PriceLadder) => ({
-  t1_9: Math.round(ladder.base * 100),
-  t10_19: Math.round(ladder.tier10to19 * 100),
-  t20_49: Math.round(ladder.tier20to49 * 100),
-  t50_99: Math.round(ladder.tier50to99 * 100),
-  t100_plus: Math.round(ladder.tier100Plus * 100),
-})
 
 type VariantLadderResult = {
   ladder: PriceLadder

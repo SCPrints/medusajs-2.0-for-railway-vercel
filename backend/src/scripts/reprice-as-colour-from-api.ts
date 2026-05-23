@@ -2,11 +2,11 @@ import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { ASCOLOUR_MODULE } from "../modules/ascolour"
 import AsColourService from "../modules/ascolour/service"
-import { buildPriceLadder, type PriceLadder } from "../modules/ascolour/pricing"
+import { buildPriceLadder } from "../modules/ascolour/pricing"
 import {
+  ladderToTierMinor,
   tierMinorToPriceSetRows,
   tierMinorToBulkPricingMetadata,
-  type TierMoneyMinor,
 } from "../utils/bulk-tier-prices"
 
 /**
@@ -31,14 +31,6 @@ import {
 
 const PRICE_CURRENCY_CODE = "aud"
 const BATCH_SIZE = 250
-
-const ladderToTierMinor = (ladder: PriceLadder): TierMoneyMinor => ({
-  t1_9: Math.round(ladder.base * 100),
-  t10_19: Math.round(ladder.tier10to19 * 100),
-  t20_49: Math.round(ladder.tier20to49 * 100),
-  t50_99: Math.round(ladder.tier50to99 * 100),
-  t100_plus: Math.round(ladder.tier100Plus * 100),
-})
 
 const chunk = <T,>(items: T[], size: number) => {
   const out: T[][] = []

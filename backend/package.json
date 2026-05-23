@@ -17,7 +17,6 @@
     "seed": "npx medusa exec ./src/scripts/seed.ts",
     "delete-all-products": "npx medusa exec ./src/scripts/delete-all-products.ts --",
     "delete-all-products:apply": "DELETE_PRODUCTS_APPLY=1 npx medusa exec ./src/scripts/delete-all-products.ts",
-    "backfill-product-brands": "npx medusa exec ./src/scripts/backfill-product-brand-metadata.ts",
     "update-as-colour-pricing": "npx medusa exec ./src/scripts/update-as-colour-pricing.ts --",
     "trim-as-colour-catalog": "npx medusa exec ./src/scripts/trim-as-colour-catalog-by-allowlist.ts --",
     "trim-syzmik-catalog": "npx medusa exec ./src/scripts/trim-syzmik-catalog-by-allowlist.ts --",

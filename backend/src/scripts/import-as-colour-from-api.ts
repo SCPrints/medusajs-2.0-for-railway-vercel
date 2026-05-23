@@ -17,11 +17,11 @@ import {
   AsColourProduct,
   AsColourVariant,
 } from "../modules/ascolour/types"
-import { buildPriceLadder, type PriceLadder } from "../modules/ascolour/pricing"
+import { buildPriceLadder } from "../modules/ascolour/pricing"
 import {
+  ladderToTierMinor,
   tierMinorToPriceSetRows,
   tierMinorToBulkPricingMetadata,
-  type TierMoneyMinor,
 } from "../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../modules/brand"
 import {
@@ -37,23 +37,6 @@ import {
   assignCategoriesToProducts,
   ensureCategoryTree,
 } from "../lib/shop-categories"
-
-/**
- * Convert the major-unit retail PriceLadder (built from the supplier cost via
- * buildPriceLadder()) into the minor-unit TierMoneyMinor shape that the
- * shared bulk-tier helpers (used by the spreadsheet importer + apply-variant-
- * tier-prices route) consume. Centralising the conversion here keeps the
- * spreadsheet path and the API importers writing IDENTICAL price-set rows
- * and IDENTICAL `metadata.bulk_pricing.tiers` so the storefront tier UI
- * works for products from either source.
- */
-const ladderToTierMinor = (ladder: PriceLadder): TierMoneyMinor => ({
-  t1_9: Math.round(ladder.base * 100),
-  t10_19: Math.round(ladder.tier10to19 * 100),
-  t20_49: Math.round(ladder.tier20to49 * 100),
-  t50_99: Math.round(ladder.tier50to99 * 100),
-  t100_plus: Math.round(ladder.tier100Plus * 100),
-})
 
 const PRICE_CURRENCY_CODE = "aud"
 // AS Colour brand identity — single source of truth via the Brand entity

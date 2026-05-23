@@ -21,10 +21,10 @@ import {
   titleCase,
 } from "../../../../modules/fashionbiz/mapping"
 import {
+  ladderToTierMinor,
   tierMinorToPriceSetRows,
   tierMinorToBulkPricingMetadata,
 } from "../../../../utils/bulk-tier-prices"
-import type { PriceLadder } from "../../../../utils/bulk-price-ladder"
 import { BRAND_MODULE } from "../../../../modules/brand"
 
 const PRICE_CURRENCY_CODE = "aud"
@@ -39,14 +39,6 @@ const BRAND_HANDLE_BY_SLUG: Record<FashionBizBrandSlug, string> = {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-const ladderToTierMinor = (ladder: PriceLadder) => ({
-  t1_9: Math.round(ladder.base * 100),
-  t10_19: Math.round(ladder.tier10to19 * 100),
-  t20_49: Math.round(ladder.tier20to49 * 100),
-  t50_99: Math.round(ladder.tier50to99 * 100),
-  t100_plus: Math.round(ladder.tier100Plus * 100),
-})
 
 /**
  * POST /admin/fashionbiz/import

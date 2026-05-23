@@ -17,9 +17,9 @@ import {
   AsColourVariant,
 } from "../modules/ascolour/types"
 import {
+  ladderToTierMinor,
   tierMinorToPriceSetRows,
   tierMinorToBulkPricingMetadata,
-  type TierMoneyMinor,
 } from "../utils/bulk-tier-prices"
 
 /**
@@ -49,14 +49,6 @@ import {
 
 const PRICE_CURRENCY_CODE = "aud"
 const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
-
-const ladderToTierMinor = (ladder: PriceLadder): TierMoneyMinor => ({
-  t1_9: Math.round(ladder.base * 100),
-  t10_19: Math.round(ladder.tier10to19 * 100),
-  t20_49: Math.round(ladder.tier20to49 * 100),
-  t50_99: Math.round(ladder.tier50to99 * 100),
-  t100_plus: Math.round(ladder.tier100Plus * 100),
-})
 
 type ExistingProduct = {
   id: string

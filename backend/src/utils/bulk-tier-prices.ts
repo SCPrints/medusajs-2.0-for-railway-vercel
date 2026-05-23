@@ -10,6 +10,8 @@
  * Medusa's major-unit `amount` happens in the boundary helpers below.
  */
 
+import type { PriceLadder } from "./bulk-price-ladder"
+
 /** AUD tier ladder amounts in minor currency units (e.g. cents). Five qty bands. */
 export type TierMoneyMinor = {
   /** qty 1–9 */
@@ -23,6 +25,22 @@ export type TierMoneyMinor = {
   /** qty 100+ */
   t100_plus: number
 }
+
+/**
+ * Convert a major-unit retail `PriceLadder` (from `buildPriceLadder()`) into the
+ * minor-unit `TierMoneyMinor` shape consumed by the shared bulk-tier helpers
+ * (`tierMinorToPriceSetRows` + `tierMinorToBulkPricingMetadata`). Centralising the
+ * conversion here keeps every catalog importer (AS Colour, FashionBiz, Aussie
+ * Pacific, spreadsheet-sync) writing IDENTICAL price-set rows and metadata so
+ * the storefront tier UI behaves the same regardless of source.
+ */
+export const ladderToTierMinor = (ladder: PriceLadder): TierMoneyMinor => ({
+  t1_9: Math.round(ladder.base * 100),
+  t10_19: Math.round(ladder.tier10to19 * 100),
+  t20_49: Math.round(ladder.tier20to49 * 100),
+  t50_99: Math.round(ladder.tier50to99 * 100),
+  t100_plus: Math.round(ladder.tier100Plus * 100),
+})
 
 /** Minor units → Medusa major units (decimal). Boundary conversion. */
 const minorToMajor = (minor: number): number => minor / 100

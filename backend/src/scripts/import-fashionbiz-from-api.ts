@@ -43,11 +43,10 @@ import {
   FashionBizProduct,
 } from "../modules/fashionbiz/types"
 import { priceLadderFromFashionBiz, resolveFashionBizCost } from "../modules/fashionbiz/pricing"
-import type { PriceLadder } from "../utils/bulk-price-ladder"
 import {
+  ladderToTierMinor,
   tierMinorToPriceSetRows,
   tierMinorToBulkPricingMetadata,
-  type TierMoneyMinor,
 } from "../utils/bulk-tier-prices"
 import {
   buildGarmentImagesForColour,
@@ -73,22 +72,6 @@ import {
 
 const PRICE_CURRENCY_CODE = "aud"
 const FASHIONBIZ_LOCATION_NAME = "FashionBiz Warehouse"
-
-/**
- * Convert the major-unit retail PriceLadder into the minor-unit
- * TierMoneyMinor shape that the shared bulk-tier helpers consume — the same
- * conversion the AS Colour importer does. Centralising it keeps the
- * FashionBiz, AS Colour, and spreadsheet-sync paths writing IDENTICAL
- * price-set rows and IDENTICAL `metadata.bulk_pricing.tiers` so the
- * storefront tier UI works for products from any source.
- */
-const ladderToTierMinor = (ladder: PriceLadder): TierMoneyMinor => ({
-  t1_9: Math.round(ladder.base * 100),
-  t10_19: Math.round(ladder.tier10to19 * 100),
-  t20_49: Math.round(ladder.tier20to49 * 100),
-  t50_99: Math.round(ladder.tier50to99 * 100),
-  t100_plus: Math.round(ladder.tier100Plus * 100),
-})
 
 /**
  * FashionBiz brand slug -> Brand entity handle. The Brand rows for these
