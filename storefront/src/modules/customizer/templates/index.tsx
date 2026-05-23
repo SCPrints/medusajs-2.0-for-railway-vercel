@@ -839,6 +839,25 @@ export default function CustomizerTemplate({
   // "Edit existing cart line" mode: when present, the customizer pre-fills from
   // the line metadata and "Add to cart" replaces (add new + delete old).
   const editLineItemIdFromUrl = initialVariantSearchParams?.get("edit") ?? null
+  // Phase 2 design-group edit: when the customer clicks "Edit design" on a
+  // grouped cart row, we land here with `?edit_group=<id>`. The customizer
+  // opens directly into the bulk grid pre-populated with the existing
+  // cells so the customer can edit the design AND add/remove colours/sizes
+  // in one place.
+  const editGroupIdFromUrl =
+    initialVariantSearchParams?.get("edit_group") ?? null
+  const [editGroupId, setEditGroupId] = useState<string | null>(
+    editGroupIdFromUrl
+  )
+  const [editGroupHydrated, setEditGroupHydrated] = useState(false)
+  const [editGroupInitialCells, setEditGroupInitialCells] = useState<
+    Array<{
+      variant: HttpTypes.StoreProductVariant
+      size: string
+      quantity: number
+    }>
+  >([])
+  const [editGroupLineIds, setEditGroupLineIds] = useState<string[]>([])
   const [editLineItemId, setEditLineItemId] = useState<string | null>(editLineItemIdFromUrl)
 
   // Rehydration mode: `?design=<id>` (saved-design re-edit) or
@@ -1657,6 +1676,126 @@ export default function CustomizerTemplate({
       cancelled = true
     }
   }, [editLineItemId, editingHydrated])
+
+  // Phase 2 design-group edit hydration. Runs once when ?edit_group=<id>
+  // is on the URL. Finds every cart line in the group, materialises:
+  //   - the shared design (any one sibling; they're identical)
+  //   - bulkCells pre-populated from the existing variant×qty selection
+  // and flips into bulkMode so the customer lands inside the bulk grid
+  // ready to tweak the design and/or grow/shrink the colour mix.
+  useEffect(() => {
+    if (!editGroupId || editGroupHydrated) return
+    let cancelled = false
+    const dropEditGroupParam = () => {
+      setEditGroupId(null)
+      setEditGroupHydrated(true)
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("edit_group")
+        window.history.replaceState({}, "", url.toString())
+      }
+    }
+    ;(async () => {
+      try {
+        const cart = await retrieveCart()
+        if (cancelled) return
+        if (!cart?.items?.length) {
+          // No cart or empty cart — nothing to edit. Clean the URL so
+          // refreshes don't keep trying.
+          dropEditGroupParam()
+          return
+        }
+        const siblings = cart.items.filter((line: any) => {
+          const meta = (line?.metadata ?? {}) as Record<string, unknown>
+          const design = meta?.customizerDesign as
+            | { group_id?: string }
+            | undefined
+          return design?.group_id === editGroupId
+        })
+        if (siblings.length === 0) {
+          // Group no longer exists (deleted, expired). Drop the param so
+          // we don't loop on it and let the customer fall back to fresh add.
+          dropEditGroupParam()
+          return
+        }
+        // Rehydrate the design from the first sibling. They share metadata,
+        // so any one will do.
+        const firstMeta = (siblings[0]?.metadata ?? {}) as {
+          customizerDesign?: CustomizerMetadata
+        }
+        const design = firstMeta.customizerDesign
+        if (design && Array.isArray(design.sizes) && design.sizes.length > 0) {
+          setSizeMatrix(design.sizes)
+        }
+        if (design?.printNotes) {
+          setPrintNotes(design.printNotes)
+        }
+        if (design?.scpPrintSizeId) {
+          const sid = design.scpPrintSizeId
+          if (
+            sid === "up_to_a6" ||
+            sid === "up_to_a4" ||
+            sid === "up_to_a3" ||
+            sid === "oversize"
+          ) {
+            setScpPrintSizeId(sid as ScpPrintSizeId)
+            setScpPrintSizeChosen(true)
+          }
+        }
+        const previousSides = (design?.artifacts ?? [])
+          .map((a) => a.side)
+          .filter((s, i, arr) => arr.indexOf(s) === i)
+        setEditingPreviousSides(previousSides as GarmentSide[])
+        setSizingDoneSides(
+          Object.fromEntries(
+            (previousSides as GarmentSide[]).map((s) => [s, true as const])
+          ) as Partial<Record<GarmentSide, true>>
+        )
+        setPdpStep1Done(true)
+        setPdpStep2Done(true)
+        setPdpStep(4)
+        // Build initial bulk cells from the existing siblings so the grid
+        // opens with the current colour×size selection pre-filled.
+        const sizeOptForCells = product.options?.find((option) =>
+          (option.title ?? "").toLowerCase().includes("size")
+        )
+        const cells: typeof editGroupInitialCells = []
+        const trackedLineIds: string[] = []
+        for (const line of siblings) {
+          const variantId =
+            (line as any)?.variant?.id ?? (line as any)?.variant_id
+          const variant = product.variants?.find((v) => v.id === variantId)
+          if (!variant) continue
+          const sizeValue = sizeOptForCells
+            ? variant.options?.find((o) => o.option_id === sizeOptForCells.id)
+                ?.value ?? "Default"
+            : "Default"
+          cells.push({
+            variant,
+            size: sizeValue,
+            quantity: (line as any).quantity ?? 0,
+          })
+          trackedLineIds.push((line as any).id)
+        }
+        if (cells.length === 0) {
+          // Variants were removed from the product after the group was
+          // added — nothing safe to rehydrate. Bail.
+          dropEditGroupParam()
+          return
+        }
+        setEditGroupInitialCells(cells)
+        setEditGroupLineIds(trackedLineIds)
+        setBulkMode(true)
+        setEditGroupHydrated(true)
+      } catch {
+        dropEditGroupParam()
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editGroupId, editGroupHydrated])
 
   // Stage 1 of rehydration: fetch the saved metadata from either source.
   useEffect(() => {
@@ -3300,13 +3439,21 @@ export default function CustomizerTemplate({
         }
       }
       if (!groupIdForThisAdd) {
-        // Fresh add (bulk or single): mint a new group id.
-        groupIdForThisAdd =
-          typeof crypto !== "undefined" && "randomUUID" in crypto
-            ? crypto.randomUUID()
-            : `gid_${Date.now().toString(36)}_${Math.random()
-                .toString(36)
-                .slice(2, 10)}`
+        // Group-edit mode (?edit_group=<id>): preserve the existing
+        // group id so the new lines remain part of the same logical
+        // group as their replaced predecessors.
+        if (editGroupId) {
+          groupIdForThisAdd = editGroupId
+          groupSizeForThisAdd = bulkCells?.length ?? groupSizeForThisAdd
+        } else {
+          // Fresh add (bulk or single): mint a new group id.
+          groupIdForThisAdd =
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `gid_${Date.now().toString(36)}_${Math.random()
+                  .toString(36)
+                  .slice(2, 10)}`
+        }
       }
 
       const metadataBase = buildCustomizerMetadataBase({
@@ -3606,15 +3753,24 @@ export default function CustomizerTemplate({
       }
 
       // Edit-from-cart: replace the original line(s) by deleting after the
-      // new line(s) have been added successfully. When the edited line was
-      // part of a design-group, we replace EVERY sibling — that's the
-      // whole point of the fan-out. Then send the user back to /cart so
-      // they see the updated state immediately.
-      if (editLineItemId) {
+      // new line(s) have been added successfully. Three paths:
+      // - Group-edit (?edit_group=<id>, bulk grid): delete every line
+      //   tracked in editGroupLineIds. The new lines from the bulk
+      //   submit have already taken over the group id, so deleting the
+      //   old siblings cleanly hands the group identity over.
+      // - Single-line edit on a grouped line: Phase 1 fan-out detected
+      //   siblings and synthesised bulk cells. Delete every sibling.
+      // - Plain single-line edit (no group siblings): delete just the
+      //   edited line.
+      if (editLineItemId || editGroupId) {
         const idsToDelete =
-          siblingLineIdsToReplace.length > 0
-            ? siblingLineIdsToReplace
-            : [editLineItemId]
+          editGroupId && editGroupLineIds.length > 0
+            ? editGroupLineIds
+            : siblingLineIdsToReplace.length > 0
+              ? siblingLineIdsToReplace
+              : editLineItemId
+                ? [editLineItemId]
+                : []
         const failed: string[] = []
         for (const id of idsToDelete) {
           try {
@@ -3624,9 +3780,6 @@ export default function CustomizerTemplate({
           }
         }
         if (failed.length > 0) {
-          // The new lines are already added; surface a hint but keep the cart
-          // consistent by still navigating so the user can manually remove the
-          // stragglers from the cart.
           setStatusMessage(
             failed.length === idsToDelete.length
               ? "Updated cart added, but couldn't remove the original line(s) — please delete them from the cart."
@@ -4310,16 +4463,26 @@ export default function CustomizerTemplate({
         }
       }
       const handleBulkSubmit = async (cells: BulkCellEntry[]) => {
-        phCapture("bulk_grid_added_to_cart", {
-          product_id: selectedProduct.id,
-          line_count: cells.length,
-          total_quantity: cells.reduce((sum, c) => sum + c.quantity, 0),
-          colour_count: new Set(cells.map((c) => c.variant.id.split(":")[0])).size,
-        })
+        phCapture(
+          editGroupId ? "bulk_grid_updated_cart" : "bulk_grid_added_to_cart",
+          {
+            product_id: selectedProduct.id,
+            line_count: cells.length,
+            total_quantity: cells.reduce((sum, c) => sum + c.quantity, 0),
+            colour_count: new Set(
+              cells.map((c) => c.variant.id.split(":")[0])
+            ).size,
+            edit_group: editGroupId ? true : false,
+          }
+        )
         await addCustomizedToCart(cells)
-        // Drop back to the wizard once cart-add succeeds; the success
-        // status message from addCustomizedToCart stays visible.
-        setBulkMode(false)
+        // Group-edit mode: addCustomizedToCart navigates to /cart on
+        // success itself (see the group-edit cleanup branch). For
+        // fresh bulk adds, drop back to the wizard so the customer can
+        // tweak more sides if they want.
+        if (!editGroupId) {
+          setBulkMode(false)
+        }
       }
       return (
         <div className="fixed inset-0 z-[60] overflow-hidden bg-white">
@@ -4331,12 +4494,25 @@ export default function CustomizerTemplate({
             isSubmitting={isSubmitting}
             printThumbSource={printArtifactForThumb}
             estimatePricingForTotal={estimatePricingForTotal}
-            onClose={() => setBulkMode(false)}
+            onClose={() => {
+              setBulkMode(false)
+              if (editGroupId && typeof window !== "undefined") {
+                // Bail out of group-edit: take the customer back to
+                // /cart with the original lines untouched.
+                router.push(`/${countryCode}/cart`)
+              }
+            }}
             onBackToProduct={() => {
               setBulkMode(false)
               setPdpStep(1)
             }}
             onSubmit={handleBulkSubmit}
+            initialCells={
+              editGroupInitialCells.length > 0
+                ? editGroupInitialCells
+                : undefined
+            }
+            submitCtaLabel={editGroupId ? "Update cart" : undefined}
           />
         </div>
       )

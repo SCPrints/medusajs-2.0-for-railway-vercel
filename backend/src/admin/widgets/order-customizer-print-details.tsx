@@ -77,6 +77,11 @@ type CustomizerDesign = {
   scpPrintSizeId?: string
   pricing?: PricingBreakdown
   sideLayouts?: Array<{ side: string; objects: unknown[] }>
+  /** Stamped by the storefront when bulk-adding a design across multiple
+   *  variants. All cart lines in one group share this id, which means
+   *  the print floor only needs to set up one screen / one machine
+   *  configuration to satisfy every line. */
+  group_id?: string
 }
 
 type AdminOrderItem = {
@@ -179,11 +184,18 @@ const OrderCustomizerPrintDetailsWidget = ({
     return null
   }
 
-  // Group by product_id — one design per product (matches the PDF grouping)
+  // Group by (product_id, design group_id) — keeps two different designs
+  // on the same product in different buckets, while collapsing all the
+  // colour/size variants of one design into a single bucket (one screen
+  // setup, one machine config). Falls back to product_id alone for
+  // legacy lines that pre-date the group_id stamp.
   const grouped = new Map<string, AdminOrderItem[]>()
   for (const item of items) {
-    if (!getDesign(item)) continue
-    const key = String(item.product_id ?? item.id)
+    const design = getDesign(item)
+    if (!design) continue
+    const productKey = String(item.product_id ?? item.id)
+    const groupKey = design.group_id ? `:g:${design.group_id}` : ""
+    const key = `${productKey}${groupKey}`
     if (!grouped.has(key)) grouped.set(key, [])
     grouped.get(key)!.push(item)
   }
@@ -238,15 +250,23 @@ const OrderCustomizerPrintDetailsWidget = ({
           const productTitle =
             canonical.product_title ?? canonical.title ?? "Product"
 
+          const variantCount = groupItems.length
           return (
             <div
               key={key}
               className="rounded-md border border-ui-border-base bg-ui-bg-subtle px-4 py-3"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <Text size="small" weight="plus">
-                  {productTitle}
-                </Text>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Text size="small" weight="plus">
+                    {productTitle}
+                  </Text>
+                  {design.group_id && variantCount > 1 ? (
+                    <Badge size="2xsmall" color="green">
+                      Shared design · {variantCount} variants · 1 setup
+                    </Badge>
+                  ) : null}
+                </div>
                 <Text size="xsmall" className="text-ui-fg-subtle">
                   Total qty {totalQty}
                 </Text>

@@ -6,6 +6,7 @@ import { HttpTypes } from "@medusajs/types"
 import { Heading, Table, Text } from "@medusajs/ui"
 
 import Item from "@modules/cart/components/item"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import SkeletonLineItem from "@modules/skeletons/components/skeleton-line-item"
 import { useMemo, useState } from "react"
 
@@ -88,6 +89,24 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
         (sum, l) => sum + ((l as any)?.subtotal ?? 0),
         0
       )
+      // Surface the customizer group_id (set by addCustomizedToCart) so
+      // the group header can deep-link to /products/<handle>?edit_group=
+      // which opens the customizer in group-edit mode (Phase 2). Falls
+      // back to null for legacy carts, in which case the header just
+      // skips the "Edit design (all colours)" link and the customer
+      // edits per-row as before.
+      const firstMeta = ((lines[0] as any)?.metadata ?? {}) as Record<
+        string,
+        unknown
+      >
+      const customizerGroupId =
+        ((firstMeta?.customizerDesign as { group_id?: string } | undefined)
+          ?.group_id) ?? null
+      const firstHandle =
+        ((lines[0] as any)?.variant?.product?.handle as string | undefined) ??
+        (typeof firstMeta?.product_handle === "string"
+          ? (firstMeta.product_handle as string)
+          : null)
       return {
         key,
         lines,
@@ -96,6 +115,8 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
         currencyCode: (lines[0] as any)?.currency_code,
         title: groupTitle(lines[0], key),
         isDesignGroup: key.startsWith("design:"),
+        editGroupId: customizerGroupId,
+        productHandle: firstHandle,
       }
     })
   }, [sortedItems])
@@ -142,6 +163,8 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
                     totalAmount={group.totalAmount}
                     currencyCode={group.currencyCode}
                     isDesignGroup={group.isDesignGroup}
+                    editGroupId={group.editGroupId}
+                    productHandle={group.productHandle}
                     defaultOpen={defaultGroupOpen}
                   >
                     {group.lines.map((item) => (
@@ -163,6 +186,16 @@ type CartItemGroupProps = {
   totalAmount: number
   currencyCode: string | undefined
   isDesignGroup: boolean
+  /**
+   * Stable design-group id (set by the customizer on bulk-add). When
+   * present alongside a product handle, the group header surfaces an
+   * "Edit design (all variants)" link that opens the customizer in
+   * group-edit mode pre-populated with the existing variant×qty grid.
+   * Null for legacy lines or non-customizer groups — those still edit
+   * per-row via the line's own "Edit" link.
+   */
+  editGroupId?: string | null
+  productHandle?: string | null
   /** Initial expanded state. Defaults to true for small carts; large carts pass
    *  false so groups render collapsed and individual <Item> rows only mount
    *  when the customer expands a group. */
@@ -177,37 +210,53 @@ const CartItemGroup = ({
   totalAmount,
   currencyCode,
   isDesignGroup,
+  editGroupId,
+  productHandle,
   defaultOpen = true,
   children,
 }: CartItemGroupProps) => {
   const [open, setOpen] = useState(defaultOpen)
   const formattedTotal = formatCurrency(totalAmount, currencyCode)
+  const showGroupEditLink =
+    isDesignGroup && lineCount > 1 && !!editGroupId && !!productHandle
 
   return (
     <>
       <Table.Row className="bg-ui-bg-subtle">
         {/* Medusa UI's Table.Cell prop type doesn't declare `colSpan`, but it forwards rest props to <td>. */}
         <Table.Cell {...({ colSpan: 5 } as any)} className="!py-2">
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="flex w-full items-center justify-between gap-2 text-left"
-            aria-expanded={open}
-            data-testid="cart-group-toggle"
-          >
-            <Text className="txt-medium-plus text-ui-fg-base">
-              {open ? "▾" : "▸"} {title}{" "}
-              {isDesignGroup ? (
-                <span className="ml-1 inline-block rounded-full bg-ui-bg-base px-2 py-0.5 text-xs text-ui-fg-subtle">
-                  custom design
-                </span>
-              ) : null}
-            </Text>
-            <Text className="txt-small text-ui-fg-subtle">
-              {lineCount} {lineCount === 1 ? "size" : "sizes"} · {totalQuantity}{" "}
-              units{formattedTotal ? ` · ${formattedTotal}` : ""}
-            </Text>
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              className="flex flex-1 items-center justify-between gap-2 text-left"
+              aria-expanded={open}
+              data-testid="cart-group-toggle"
+            >
+              <Text className="txt-medium-plus text-ui-fg-base">
+                {open ? "▾" : "▸"} {title}{" "}
+                {isDesignGroup ? (
+                  <span className="ml-1 inline-block rounded-full bg-ui-bg-base px-2 py-0.5 text-xs text-ui-fg-subtle">
+                    custom design
+                  </span>
+                ) : null}
+              </Text>
+              <Text className="txt-small text-ui-fg-subtle">
+                {lineCount} {lineCount === 1 ? "variant" : "variants"} ·{" "}
+                {totalQuantity} units
+                {formattedTotal ? ` · ${formattedTotal}` : ""}
+              </Text>
+            </button>
+            {showGroupEditLink ? (
+              <LocalizedClientLink
+                href={`/products/${productHandle}?edit_group=${editGroupId}`}
+                className="shrink-0 rounded-md border border-ui-border-base bg-ui-bg-base px-2.5 py-1 text-xs font-medium text-ui-fg-base shadow-sm transition-colors hover:bg-ui-bg-base-hover"
+                data-testid="cart-group-edit-design"
+              >
+                Edit design (all variants)
+              </LocalizedClientLink>
+            ) : null}
+          </div>
         </Table.Cell>
       </Table.Row>
       {open ? children : null}

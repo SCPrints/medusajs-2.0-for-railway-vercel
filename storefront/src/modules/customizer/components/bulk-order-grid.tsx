@@ -53,6 +53,19 @@ export type BulkOrderGridProps = {
   /** Exit the customizer entirely — drops the customer back at the PDP gallery. */
   onBackToProduct?: () => void
   onSubmit: (cells: BulkCellEntry[]) => Promise<void>
+  /**
+   * Phase 2 group-edit: pre-populate the picked colours + quantities from
+   * an existing cart group so the customer lands inside the grid with
+   * their current selection rather than the default single-row base
+   * variant. When set, the grid seeds state from these cells on mount.
+   */
+  initialCells?: Array<{
+    variant: HttpTypes.StoreProductVariant
+    size: string
+    quantity: number
+  }>
+  /** Override the primary submit-button label. Defaults to "Add N items to cart". */
+  submitCtaLabel?: string
 }
 
 // Canonical clothing-size rank. Anything that doesn't match a known label
@@ -109,6 +122,8 @@ export default function BulkOrderGrid({
   onClose,
   onBackToProduct,
   onSubmit,
+  initialCells,
+  submitCtaLabel,
 }: BulkOrderGridProps) {
   const sizeOption = useMemo<SizeOption | null>(() => {
     const option = product.options?.find((entry) =>
@@ -165,11 +180,44 @@ export default function BulkOrderGrid({
   }, [baseVariant, colourOption])
 
   // Picked colour list. The colour the customer just designed against is
-  // pre-added so they always have one row to start from.
+  // pre-added so they always have one row to start from. In group-edit
+  // mode (initialCells supplied) the picked colours and quantities are
+  // seeded from the existing cart group so the customer can edit those
+  // cells, add new colours, or remove rows without re-entering data.
+  const seedFromInitialCells = useMemo(() => {
+    if (!initialCells?.length || !colourOption) return null
+    const colours = new Set<string>()
+    const qty: Record<string, number> = {}
+    for (const cell of initialCells) {
+      const colour =
+        cell.variant.options?.find(
+          (entry) => entry.option_id === colourOption.id
+        )?.value ?? null
+      if (!colour) continue
+      colours.add(colour)
+      const key = `${colour}::${cell.size}`
+      qty[key] = (qty[key] ?? 0) + (cell.quantity ?? 0)
+    }
+    if (colours.size === 0) return null
+    return {
+      colours: Array.from(colours),
+      quantities: qty,
+    }
+    // initialCells is only read once on first render — subsequent edits
+    // come from user input. Re-seeding on prop changes would wipe their
+    // in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [pickedColours, setPickedColours] = useState<string[]>(() =>
-    baseVariantColour ? [baseVariantColour] : []
+    seedFromInitialCells?.colours.length
+      ? seedFromInitialCells.colours
+      : baseVariantColour
+        ? [baseVariantColour]
+        : []
   )
-  const [quantities, setQuantities] = useState<Record<string, number>>({})
+  const [quantities, setQuantities] = useState<Record<string, number>>(
+    () => seedFromInitialCells?.quantities ?? {}
+  )
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerSearch, setPickerSearch] = useState("")
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -371,10 +419,14 @@ export default function BulkOrderGrid({
             className="rounded-md bg-ui-fg-base px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isSubmitting
-              ? "Adding…"
-              : totalQuantity === 0
-                ? "Add to cart"
-                : `Add ${totalQuantity} ${totalQuantity === 1 ? "item" : "items"} to cart`}
+              ? submitCtaLabel
+                ? `${submitCtaLabel}…`
+                : "Adding…"
+              : submitCtaLabel
+                ? submitCtaLabel
+                : totalQuantity === 0
+                  ? "Add to cart"
+                  : `Add ${totalQuantity} ${totalQuantity === 1 ? "item" : "items"} to cart`}
           </button>
         </div>
       </header>
