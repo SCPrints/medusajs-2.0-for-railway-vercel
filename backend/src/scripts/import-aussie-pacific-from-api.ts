@@ -35,8 +35,6 @@ import {
 } from "@medusajs/framework/utils"
 import {
   createProductsWorkflow,
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
 } from "@medusajs/medusa/core-flows"
 import { AUSSIEPACIFIC_MODULE } from "../modules/aussiepacific"
@@ -63,19 +61,13 @@ import {
   toArray,
 } from "../modules/aussiepacific/mapping"
 import { BRAND_MODULE } from "../modules/brand"
+import { classifyAussiePacificProduct } from "../lib/product-taxonomy"
 import {
-  applyTitleFallbacks,
-  classifyAussiePacificProduct,
-} from "../lib/product-taxonomy"
-import {
-  fetchAllProductTypes,
-  fetchAllProductTags,
-  applyTypeAndTagsToProduct,
-} from "../lib/product-type-tag-sync"
-import {
-  assignCategoriesToProducts,
-  ensureCategoryTree,
-} from "../lib/shop-categories"
+  applyShopCategoriesToProducts,
+  applyTaxonomyToProducts,
+  linkProductsToBrand,
+  seedInventoryLevels,
+} from "../lib/supplier-import-pipeline"
 
 const PRICE_CURRENCY_CODE = "aud"
 const AUSSIEPACIFIC_LOCATION_NAME = "Aussie Pacific Warehouse"
@@ -466,102 +458,23 @@ export default async function importAussiePacificFromApi({
   const createdProducts = (result as any[]) ?? []
   logger.info(`Created ${createdProducts.length} product(s).`)
 
-  // 3b. Apply product_type + tags via taxonomy
-  {
-    const productModule = container.resolve(Modules.PRODUCT) as any
-    const typeCache = await fetchAllProductTypes(productModule)
-    const tagCache = await fetchAllProductTags(productModule)
-    const unknownTaxonomy: string[] = []
-
-    const apByHandle = new Map<string, AussiePacificProduct>()
-    for (const ctx of created) {
-      apByHandle.set(ctx.productPayload.handle, ctx.apProduct)
-    }
-
-    let typeTagOk = 0
-    let typeTagFail = 0
-    for (const p of createdProducts) {
-      const apProduct = apByHandle.get((p as any).handle)
-      if (!apProduct) continue
-      const classified = classifyAussiePacificProduct(
-        apProduct,
-        unknownTaxonomy
-      )
-      // Title-based fallback. AP's main_category/sub_category usually
-      // resolve cleanly so this is mostly defense-in-depth — kicks in
-      // for edge cases where the API leaves both fields blank or the
-      // sub_category resolves to nothing in the alias map.
-      const { productType, tags } = applyTitleFallbacks(
-        classified,
-        (p as any).title ?? "",
-        unknownTaxonomy
-      )
-      if (!productType && !tags.length) continue
-      try {
-        await applyTypeAndTagsToProduct({
-          productModule,
-          productId: (p as any).id,
-          productType,
-          tags,
-          typeCache,
-          tagCache,
-        })
-        typeTagOk++
-      } catch (err: any) {
-        typeTagFail++
-        logger.warn(
-          `Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`
-        )
-      }
-    }
-    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
-    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
+  // 3b. Taxonomy — classify + title fallbacks + persist product_type/tags.
+  const apByHandle = new Map<string, AussiePacificProduct>()
+  for (const ctx of created) {
+    apByHandle.set(ctx.productPayload.handle, ctx.apProduct)
   }
+  await applyTaxonomyToProducts(container, {
+    products: createdProducts,
+    sourceByHandle: apByHandle,
+    classify: classifyAussiePacificProduct,
+    logger,
+  })
 
-  // Shop categories — assign audience × garment-type so newly-imported
-  // products surface in the menu drill-down. Idempotent and safe — uses the
-  // shared lib that also powers `setup-shop-categories.ts`.
-  if (createdProducts.length) {
-    try {
-      const byHandle = await ensureCategoryTree(container, { logger })
-      const productIds = createdProducts
-        .map((p: any) => p?.id)
-        .filter((id: any): id is string => typeof id === "string")
-      const summary = await assignCategoriesToProducts(container, byHandle, {
-        productIds,
-        logger,
-      })
-      logger.info(
-        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
-      )
-    } catch (err: any) {
-      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
-    }
-  }
+  // 3c. Shop categories.
+  await applyShopCategoriesToProducts(container, createdProducts, logger)
 
-  // 3c. Link each created product to the Aussie Pacific brand
-  const link = container.resolve(ContainerRegistrationKeys.LINK) as any
-  let linkOk = 0
-  let linkFail = 0
-  for (const p of createdProducts) {
-    try {
-      await link.create({
-        [Modules.PRODUCT]: { product_id: p.id },
-        [BRAND_MODULE]: { brand_id: apBrand.id },
-      })
-      linkOk++
-    } catch (err: any) {
-      if (err?.message?.includes("Cannot create multiple links")) {
-        linkOk++
-      } else {
-        linkFail++
-        logger.warn(
-          `Failed to link product ${p.id} (${p.handle}) to brand: ${err?.message ?? err}`
-        )
-      }
-    }
-  }
-  logger.info(`Linked ${linkOk} product(s) to brand (${linkFail} failed).`)
+  // 3d. Link each created product to the Aussie Pacific brand.
+  await linkProductsToBrand(container, createdProducts, apBrand.id)
 
   // 3d. Force-patch garment_images on restored variants.
   // Mirrors the FashionBiz importer — if Medusa restores a soft-deleted
@@ -617,61 +530,17 @@ export default async function importAussiePacificFromApi({
     return
   }
 
-  const targetSkus = Array.from(stockBySkuFromCatalog.keys())
-  if (!targetSkus.length) {
+  if (stockBySkuFromCatalog.size === 0) {
     logger.info("No SKUs to seed inventory for.")
     logger.info("Aussie Pacific API import complete.")
     return
   }
 
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
-    filters: { sku: targetSkus },
+  await seedInventoryLevels(container, {
+    stockBySku: stockBySkuFromCatalog,
+    locationId,
+    logger,
   })
-  const inventoryIds = (inventoryItems ?? []).map((i: any) => i.id)
-  const { data: existingLevels } = await query.graph({
-    entity: "inventory_level",
-    fields: ["id", "inventory_item_id", "location_id"],
-    filters: { inventory_item_id: inventoryIds, location_id: locationId },
-  })
-  const haveLevel = new Set(
-    (existingLevels ?? []).map((l: any) => l.inventory_item_id)
-  )
-
-  const updates: {
-    inventory_item_id: string
-    location_id: string
-    stocked_quantity: number
-  }[] = []
-  const creates: {
-    inventory_item_id: string
-    location_id: string
-    stocked_quantity: number
-  }[] = []
-  for (const item of inventoryItems ?? []) {
-    const qty = stockBySkuFromCatalog.get(item.sku) ?? 0
-    const payload = {
-      inventory_item_id: item.id,
-      location_id: locationId,
-      stocked_quantity: qty,
-    }
-    if (haveLevel.has(item.id)) updates.push(payload)
-    else creates.push(payload)
-  }
-
-  if (creates.length) {
-    await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: creates },
-    })
-    logger.info(`Created ${creates.length} inventory levels.`)
-  }
-  if (updates.length) {
-    await updateInventoryLevelsWorkflow(container).run({
-      input: { updates },
-    })
-    logger.info(`Updated ${updates.length} inventory levels.`)
-  }
 
   logger.info("Aussie Pacific API import complete.")
 }

@@ -6,8 +6,6 @@ import {
 } from "@medusajs/framework/utils"
 import {
   createProductsWorkflow,
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
 } from "@medusajs/medusa/core-flows"
 import { ASCOLOUR_MODULE } from "../modules/ascolour"
@@ -24,19 +22,13 @@ import {
   tierMinorToBulkPricingMetadata,
 } from "../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../modules/brand"
+import { classifyAsColourProduct } from "../lib/product-taxonomy"
 import {
-  applyTitleFallbacks,
-  classifyAsColourProduct,
-} from "../lib/product-taxonomy"
-import {
-  fetchAllProductTypes,
-  fetchAllProductTags,
-  applyTypeAndTagsToProduct,
-} from "../lib/product-type-tag-sync"
-import {
-  assignCategoriesToProducts,
-  ensureCategoryTree,
-} from "../lib/shop-categories"
+  applyShopCategoriesToProducts,
+  applyTaxonomyToProducts,
+  linkProductsToBrand,
+  seedInventoryLevels,
+} from "../lib/supplier-import-pipeline"
 import { slugify, titleCase } from "../utils/string-case"
 
 const PRICE_CURRENCY_CODE = "aud"
@@ -420,106 +412,24 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
   const createdProducts = (result as any[]) ?? []
   logger.info(`Created ${createdProducts.length} products.`)
 
-  // 5b. Assign product_type and tags via taxonomy normalization.
-  {
-    const productModule = container.resolve(Modules.PRODUCT) as any
-    const typeCache = await fetchAllProductTypes(productModule)
-    const tagCache = await fetchAllProductTags(productModule)
-    const unknownTaxonomy: string[] = []
+  // 5b. Assign product_type + demographic tags via the shared taxonomy
+  // pipeline. CLAUDE.md "Types & tags convention" mandates this for every
+  // supplier importer; runs the AS Colour classifier and the title-fallback
+  // pass that covers the API's frequently-null productType/gender/fit fields.
+  await applyTaxonomyToProducts(container, {
+    products: createdProducts,
+    sourceByHandle: handleToAsColourProduct,
+    classify: classifyAsColourProduct,
+    logger,
+  })
 
-    let typeTagOk = 0
-    let typeTagFail = 0
-    for (const p of createdProducts) {
-      const asColourProduct = handleToAsColourProduct.get((p as any).handle)
-      if (!asColourProduct) continue
-      const classified = classifyAsColourProduct(asColourProduct, unknownTaxonomy)
-      // Title-based fallback for the AS Colour API's frequently-null
-      // productType / gender / fit fields (e.g. accessories like "Parcel
-      // Tote" return all three as empty). Same fallback runs in every
-      // supplier importer — see CLAUDE.md "Types & Tags convention".
-      const { productType, tags } = applyTitleFallbacks(
-        classified,
-        (p as any).title ?? "",
-        unknownTaxonomy
-      )
-      if (!productType && !tags.length) continue
-      try {
-        await applyTypeAndTagsToProduct({
-          productModule,
-          productId: (p as any).id,
-          productType,
-          tags,
-          typeCache,
-          tagCache,
-        })
-        typeTagOk++
-      } catch (err: any) {
-        typeTagFail++
-        logger.warn(`Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`)
-      }
-    }
-    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
-    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
-  }
+  // 5c. Shop categories — surface in the menu drill-down.
+  await applyShopCategoriesToProducts(container, createdProducts, logger)
 
-  // Shop categories — assign audience × garment-type so newly-imported
-  // products surface in the menu drill-down. Idempotent and safe — uses the
-  // shared lib that also powers `setup-shop-categories.ts`.
-  if (createdProducts.length) {
-    try {
-      const byHandle = await ensureCategoryTree(container, { logger })
-      const productIds = createdProducts
-        .map((p: any) => p?.id)
-        .filter((id: any): id is string => typeof id === "string")
-      const summary = await assignCategoriesToProducts(container, byHandle, {
-        productIds,
-        logger,
-      })
-      logger.info(
-        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
-      )
-    } catch (err: any) {
-      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
-    }
-  }
-
-  // 5c. Link each new product to the AS Colour Brand entity via the
-  // product↔brand Module Link (defined in src/links/product-brand.ts).
-  // The link is symmetric (no isList) — a brand can be linked to many
-  // products, but the (product_id, brand_id) tuple must be unique.
-  // Treat "already linked" as a no-op so re-runs of the script are
-  // idempotent.
+  // 5d. Link each new product to the AS Colour Brand entity. Idempotent —
+  // re-runs of the script silently skip already-linked products.
   if (asColourBrand && createdProducts.length) {
-    const link = container.resolve(ContainerRegistrationKeys.LINK) as any
-    const seenProductIds = new Set<string>()
-    const uniqueProducts = createdProducts.filter((p: any) => {
-      if (!p?.id || seenProductIds.has(p.id)) return false
-      seenProductIds.add(p.id)
-      return true
-    })
-    let linkOk = 0
-    let linkSkipped = 0
-    let linkFail = 0
-    for (const p of uniqueProducts) {
-      try {
-        await link.create({
-          [Modules.PRODUCT]: { product_id: p.id },
-          [BRAND_MODULE]: { brand_id: asColourBrand.id },
-        })
-        linkOk++
-      } catch (err: any) {
-        const msg = String(err?.message ?? err)
-        if (/already|multiple links|duplicate/i.test(msg)) {
-          linkSkipped++
-        } else {
-          linkFail++
-          logger.warn(`Failed to link product ${p.id} to brand: ${msg}`)
-        }
-      }
-    }
-    logger.info(
-      `Linked ${linkOk} product(s) to AS Colour brand (${linkSkipped} already linked, ${linkFail} failed).`
-    )
+    await linkProductsToBrand(container, createdProducts, asColourBrand.id)
   }
 
   // 6. Seed initial inventory at the AS Colour location
@@ -534,9 +444,10 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
   // with the qty in `quantity` (not `available`) and no `warehouses` array.
   // Sum across rows so multi-warehouse SKUs aggregate correctly. Fall back
   // to the legacy nested shape if the API ever returns it.
+  const importedSkus = new Set(skuToInventory.map((s) => s.sku))
   const stockBySku = new Map<string, number>()
   for (const item of allInventory as any[]) {
-    if (!item?.sku) continue
+    if (!item?.sku || !importedSkus.has(item.sku)) continue
     const qty =
       typeof item.quantity === "number"
         ? item.quantity
@@ -549,61 +460,11 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
     `Parsed stock for ${stockBySku.size} unique SKUs from ${allInventory.length} inventory rows.`
   )
 
-  // Look up the inventory items Medusa just created for our SKUs.
-  const targetSkus = skuToInventory.map((s) => s.sku)
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
-    filters: { sku: targetSkus },
+  await seedInventoryLevels(container, {
+    stockBySku,
+    locationId: asColourLocationId,
+    logger,
   })
-
-  const updates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-  const creates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-
-  // Find which already have a level at this location
-  const inventoryIds = (inventoryItems ?? []).map((i: any) => i.id)
-  const { data: existingLevels } = await query.graph({
-    entity: "inventory_level",
-    fields: ["id", "inventory_item_id", "location_id"],
-    filters: {
-      inventory_item_id: inventoryIds,
-      location_id: asColourLocationId,
-    },
-  })
-  const existingLevelKey = new Set(
-    (existingLevels ?? []).map((l: any) => `${l.inventory_item_id}:${l.location_id}`)
-  )
-
-  for (const item of inventoryItems ?? []) {
-    const qty = stockBySku.get(item.sku) ?? 0
-    const key = `${item.id}:${asColourLocationId}`
-    if (existingLevelKey.has(key)) {
-      updates.push({
-        inventory_item_id: item.id,
-        location_id: asColourLocationId,
-        stocked_quantity: qty,
-      })
-    } else {
-      creates.push({
-        inventory_item_id: item.id,
-        location_id: asColourLocationId,
-        stocked_quantity: qty,
-      })
-    }
-  }
-
-  if (creates.length) {
-    await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: creates },
-    })
-    logger.info(`Created ${creates.length} inventory levels.`)
-  }
-  if (updates.length) {
-    await updateInventoryLevelsWorkflow(container).run({
-      input: { updates },
-    })
-    logger.info(`Updated ${updates.length} inventory levels.`)
-  }
 
   logger.info("AS Colour API import complete.")
 }

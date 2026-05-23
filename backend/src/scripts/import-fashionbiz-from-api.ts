@@ -31,8 +31,6 @@ import {
 } from "@medusajs/framework/utils"
 import {
   createProductsWorkflow,
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
 } from "@medusajs/medusa/core-flows"
 import { FASHIONBIZ_MODULE } from "../modules/fashionbiz"
@@ -56,19 +54,13 @@ import {
   titleCase,
 } from "../modules/fashionbiz/mapping"
 import { BRAND_MODULE } from "../modules/brand"
+import { classifyFashionBizProduct } from "../lib/product-taxonomy"
 import {
-  applyTitleFallbacks,
-  classifyFashionBizProduct,
-} from "../lib/product-taxonomy"
-import {
-  fetchAllProductTypes,
-  fetchAllProductTags,
-  applyTypeAndTagsToProduct,
-} from "../lib/product-type-tag-sync"
-import {
-  assignCategoriesToProducts,
-  ensureCategoryTree,
-} from "../lib/shop-categories"
+  applyShopCategoriesToProducts,
+  applyTaxonomyToProducts,
+  linkProductsToBrand,
+  seedInventoryLevels,
+} from "../lib/supplier-import-pipeline"
 
 const PRICE_CURRENCY_CODE = "aud"
 const FASHIONBIZ_LOCATION_NAME = "FashionBiz Warehouse"
@@ -471,109 +463,41 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
   const createdProducts = (result as any[]) ?? []
   logger.info(`Created ${createdProducts.length} products.`)
 
-  // 5b. Assign product_type and tags via taxonomy normalization.
-  {
-    const productModule = container.resolve(Modules.PRODUCT) as any
-    const typeCache = await fetchAllProductTypes(productModule)
-    const tagCache = await fetchAllProductTags(productModule)
-    const unknownTaxonomy: string[] = []
-
-    const fbByHandle = new Map<string, FashionBizProduct>()
-    for (const ctx of created) {
-      fbByHandle.set(ctx.productPayload.handle, ctx.fashionBizProduct)
-    }
-
-    let typeTagOk = 0
-    let typeTagFail = 0
-    for (const p of createdProducts) {
-      const fbProduct = fbByHandle.get((p as any).handle)
-      if (!fbProduct) continue
-      const classified = classifyFashionBizProduct(fbProduct, unknownTaxonomy)
-      // Title-based fallback for FashionBiz products whose API `tags[]`
-      // is empty — common across many styles. Catches the garment-type
-      // word at the end of the title (e.g. "Womens Venture Short Sleeve
-      // Polo" → Polos) and the demographic from "Womens"/"Mens"/"Kids"
-      // prefixes.
-      const { productType, tags } = applyTitleFallbacks(
-        classified,
-        (p as any).title ?? "",
-        unknownTaxonomy
-      )
-      if (!productType && !tags.length) continue
-      try {
-        await applyTypeAndTagsToProduct({
-          productModule,
-          productId: (p as any).id,
-          productType,
-          tags,
-          typeCache,
-          tagCache,
-        })
-        typeTagOk++
-      } catch (err: any) {
-        typeTagFail++
-        logger.warn(`Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`)
-      }
-    }
-    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
-    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
+  // 5b. Taxonomy — classify + title fallbacks + persist product_type/tags.
+  const fbByHandle = new Map<string, FashionBizProduct>()
+  for (const ctx of created) {
+    fbByHandle.set(ctx.productPayload.handle, ctx.fashionBizProduct)
   }
+  await applyTaxonomyToProducts(container, {
+    products: createdProducts,
+    sourceByHandle: fbByHandle,
+    classify: classifyFashionBizProduct,
+    logger,
+  })
 
-  // Shop categories — assign audience × garment-type so newly-imported
-  // products surface in the menu drill-down. Idempotent and safe — uses the
-  // shared lib that also powers `setup-shop-categories.ts`.
-  if (createdProducts.length) {
-    try {
-      const byHandle = await ensureCategoryTree(container, { logger })
-      const productIds = createdProducts
-        .map((p: any) => p?.id)
-        .filter((id: any): id is string => typeof id === "string")
-      const summary = await assignCategoriesToProducts(container, byHandle, {
-        productIds,
-        logger,
-      })
-      logger.info(
-        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
-      )
-    } catch (err: any) {
-      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
-    }
-  }
+  // 5c. Shop categories.
+  await applyShopCategoriesToProducts(container, createdProducts, logger)
 
-  // 5c. Link each created product to the right Brand. We rebuild the
-  // brand-id-by-handle map keyed by Medusa product handle so we don't
-  // depend on creation order.
-  const link = container.resolve(ContainerRegistrationKeys.LINK) as any
-  const handleToBrandId = new Map<string, string>()
+  // 5d. Link each created product to its brand. We group by handle and
+  // batch-link per brand so a single `created` context can carry products
+  // from multiple FashionBiz brands (Biz Collection, Syzmik, etc.).
+  const productsByBrandId = new Map<
+    string,
+    Array<{ id: string; handle: string }>
+  >()
   for (const ctx of created) {
     const brandId = brandIdByFashionBizSlug[ctx.brand]
     if (!brandId) continue
-    handleToBrandId.set(ctx.productPayload.handle, brandId)
+    const created = createdProducts.find(
+      (p) => (p as any).handle === ctx.productPayload.handle
+    )
+    if (!created) continue
+    if (!productsByBrandId.has(brandId)) productsByBrandId.set(brandId, [])
+    productsByBrandId.get(brandId)!.push(created)
   }
-  let linkOk = 0
-  let linkFail = 0
-  for (const p of createdProducts) {
-    const brandId = handleToBrandId.get(p.handle)
-    if (!brandId) continue
-    try {
-      await link.create({
-        [Modules.PRODUCT]: { product_id: p.id },
-        [BRAND_MODULE]: { brand_id: brandId },
-      })
-      linkOk++
-    } catch (err: any) {
-      // Medusa restores soft-deleted products on same-handle create, so the
-      // brand link may already exist from a previous import run — that's fine.
-      if (err?.message?.includes("Cannot create multiple links")) {
-        linkOk++
-        logger.info(`Product ${p.handle} already linked to brand — skipping.`)
-      } else {
-        linkFail++
-        logger.warn(`Failed to link product ${p.id} (${p.handle}) to brand: ${err?.message ?? err}`)
-      }
-    }
+  for (const [brandId, ps] of productsByBrandId) {
+    await linkProductsToBrand(container, ps, brandId)
   }
-  logger.info(`Linked ${linkOk} product(s) to brand (${linkFail} failed).`)
 
   // 5d. Force-patch garment_images on created variants.
   // When Medusa restores a soft-deleted product (same handle), it keeps the
@@ -651,49 +575,13 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
     }
   }
 
-  const targetSkus = Array.from(stockBySku.keys())
-  if (!targetSkus.length) {
+  if (stockBySku.size === 0) {
     logger.info("No stock data returned — leaving inventory levels at zero.")
     logger.info("FashionBiz API import complete.")
     return
   }
 
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
-    filters: { sku: targetSkus },
-  })
-  const inventoryIds = (inventoryItems ?? []).map((i: any) => i.id)
-  const { data: existingLevels } = await query.graph({
-    entity: "inventory_level",
-    fields: ["id", "inventory_item_id", "location_id"],
-    filters: { inventory_item_id: inventoryIds, location_id: locationId },
-  })
-  const haveLevel = new Set(
-    (existingLevels ?? []).map((l: any) => l.inventory_item_id)
-  )
-
-  const updates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-  const creates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-  for (const item of inventoryItems ?? []) {
-    const qty = stockBySku.get(item.sku) ?? 0
-    const payload = { inventory_item_id: item.id, location_id: locationId, stocked_quantity: qty }
-    if (haveLevel.has(item.id)) updates.push(payload)
-    else creates.push(payload)
-  }
-
-  if (creates.length) {
-    await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: creates },
-    })
-    logger.info(`Created ${creates.length} inventory levels.`)
-  }
-  if (updates.length) {
-    await updateInventoryLevelsWorkflow(container).run({
-      input: { updates },
-    })
-    logger.info(`Updated ${updates.length} inventory levels.`)
-  }
+  await seedInventoryLevels(container, { stockBySku, locationId, logger })
 
   logger.info("FashionBiz API import complete.")
 }

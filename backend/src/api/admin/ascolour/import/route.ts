@@ -4,14 +4,14 @@ import {
   Modules,
   ProductStatus,
 } from "@medusajs/framework/utils"
-import {
-  createProductsWorkflow,
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
-} from "@medusajs/medusa/core-flows"
+import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
 import { ASCOLOUR_MODULE } from "../../../../modules/ascolour"
 import AsColourService from "../../../../modules/ascolour/service"
-import { AsColourImage, AsColourVariant } from "../../../../modules/ascolour/types"
+import {
+  AsColourImage,
+  AsColourProduct,
+  AsColourVariant,
+} from "../../../../modules/ascolour/types"
 import { buildPriceLadder } from "../../../../modules/ascolour/pricing"
 import {
   ladderToTierMinor,
@@ -19,19 +19,13 @@ import {
   tierMinorToBulkPricingMetadata,
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
+import { classifyAsColourProduct } from "../../../../lib/product-taxonomy"
 import {
-  applyTitleFallbacks,
-  classifyAsColourProduct,
-} from "../../../../lib/product-taxonomy"
-import {
-  applyTypeAndTagsToProduct,
-  fetchAllProductTags,
-  fetchAllProductTypes,
-} from "../../../../lib/product-type-tag-sync"
-import {
-  assignCategoriesToProducts,
-  ensureCategoryTree,
-} from "../../../../lib/shop-categories"
+  applyShopCategoriesToProducts,
+  applyTaxonomyToProducts,
+  linkProductsToBrand,
+  seedInventoryLevels,
+} from "../../../../lib/supplier-import-pipeline"
 import { slugify, titleCase } from "../../../../utils/string-case"
 
 const PRICE_CURRENCY_CODE = "aud"
@@ -81,7 +75,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const fulfillmentService = req.scope.resolve(Modules.FULFILLMENT) as any
   const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION) as any
   const brandService = req.scope.resolve(BRAND_MODULE) as any
-  const link = req.scope.resolve(ContainerRegistrationKeys.LINK) as any
   const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any
 
   const salesChannels = await salesChannelService.listSalesChannels({ name: "Default Sales Channel" })
@@ -268,94 +261,42 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   })
   const createdProducts = (result as any[]) ?? []
 
-  // Link to AS Colour Brand
   if (asColourBrand) {
-    for (const p of createdProducts) {
-      try {
-        await link.create({
-          [Modules.PRODUCT]: { product_id: p.id },
-          [BRAND_MODULE]: { brand_id: asColourBrand.id },
-        })
-      } catch (err: any) {
-        if (!/already|multiple links|duplicate/i.test(String(err?.message ?? ""))) {
-          // non-fatal link failure
-        }
-      }
-    }
+    await linkProductsToBrand(req.scope, createdProducts, asColourBrand.id)
   }
 
-  // Apply product_type + demographic tags. Mirrors the CLI script's post-create
-  // block (CLAUDE.md "Types & tags convention") so admin-UI imports land with
-  // the same taxonomy as the headless `import-as-colour-from-api` script.
-  if (createdProducts.length) {
-    const productModule = req.scope.resolve(Modules.PRODUCT) as any
-    const typeCache = await fetchAllProductTypes(productModule)
-    const tagCache = await fetchAllProductTags(productModule)
-    const unknownTaxonomy: string[] = []
-    let typeTagOk = 0
-    let typeTagFail = 0
-    for (const p of createdProducts) {
-      const styleCode = (p as any).metadata?.ascolour?.styleCode
-      const asColourProduct = styleCode ? productsByCode.get(styleCode) : undefined
-      if (!asColourProduct) continue
-      const classified = classifyAsColourProduct(asColourProduct, unknownTaxonomy)
-      const { productType, tags } = applyTitleFallbacks(
-        classified,
-        (p as any).title ?? "",
-        unknownTaxonomy
-      )
-      if (!productType && !tags.length) continue
-      try {
-        await applyTypeAndTagsToProduct({
-          productModule,
-          productId: (p as any).id,
-          productType,
-          tags,
-          typeCache,
-          tagCache,
-        })
-        typeTagOk++
-      } catch (err: any) {
-        typeTagFail++
-        logger.warn(
-          `Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`
-        )
-      }
-    }
-    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
-    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
+  // Build handle → source-product map for taxonomy classification. The
+  // styleCode round-trips through metadata.ascolour.styleCode so we can
+  // pair createProductsWorkflow's output back to the original API record.
+  const sourceByHandle = new Map<string, AsColourProduct>()
+  for (const p of createdProducts) {
+    const styleCode = (p as any).metadata?.ascolour?.styleCode
+    const asColourProduct = styleCode ? productsByCode.get(styleCode) : undefined
+    if (asColourProduct) sourceByHandle.set((p as any).handle, asColourProduct)
   }
 
-  // Shop categories — assign audience × garment-type so new products surface
-  // in the mega-menu drill-down. Idempotent.
-  if (createdProducts.length) {
-    try {
-      const byHandle = await ensureCategoryTree(req.scope, { logger })
-      const productIds = createdProducts
-        .map((p: any) => p?.id)
-        .filter((id: any): id is string => typeof id === "string")
-      const summary = await assignCategoriesToProducts(req.scope, byHandle, {
-        productIds,
-        logger,
-      })
-      logger.info(
-        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
-      )
-    } catch (err: any) {
-      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
-    }
-  }
+  await applyTaxonomyToProducts(req.scope, {
+    products: createdProducts,
+    sourceByHandle,
+    classify: classifyAsColourProduct,
+    logger,
+  })
+
+  await applyShopCategoriesToProducts(req.scope, createdProducts, logger)
 
   for (const ctx of contexts) {
     imported.push(ctx.styleCode)
   }
 
-  // Seed inventory
+  // Seed inventory at the AS Colour Warehouse. Restricted to the SKUs we
+  // just imported so we don't accidentally stamp 0 quantities on unrelated
+  // products that share the AS Colour inventory feed.
   if (locationId && skuToInventory.length > 0) {
     const allInventory = await ascolour.fetchInventoryDelta()
+    const importedSkus = new Set(skuToInventory.map((s) => s.sku))
     const stockBySku = new Map<string, number>()
     for (const item of allInventory as any[]) {
-      if (!item?.sku) continue
+      if (!item?.sku || !importedSkus.has(item.sku)) continue
       const qty =
         typeof item.quantity === "number"
           ? item.quantity
@@ -364,37 +305,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             : (item.available ?? 0)
       stockBySku.set(item.sku, (stockBySku.get(item.sku) ?? 0) + qty)
     }
-
-    const targetSkus = skuToInventory.map((s) => s.sku)
-    const { data: inventoryItems } = await query.graph({
-      entity: "inventory_item",
-      fields: ["id", "sku"],
-      filters: { sku: targetSkus },
-    })
-
-    const inventoryIds = (inventoryItems ?? []).map((i: any) => i.id)
-    const { data: existingLevels } = await query.graph({
-      entity: "inventory_level",
-      fields: ["id", "inventory_item_id"],
-      filters: { inventory_item_id: inventoryIds, location_id: locationId },
-    })
-    const haveLevel = new Set((existingLevels ?? []).map((l: any) => l.inventory_item_id))
-
-    const creates: any[] = []
-    const updates: any[] = []
-    for (const item of inventoryItems ?? []) {
-      const qty = stockBySku.get(item.sku) ?? 0
-      const payload = { inventory_item_id: item.id, location_id: locationId, stocked_quantity: qty }
-      if (haveLevel.has(item.id)) updates.push(payload)
-      else creates.push(payload)
-    }
-
-    if (creates.length) {
-      await createInventoryLevelsWorkflow(req.scope).run({ input: { inventory_levels: creates } })
-    }
-    if (updates.length) {
-      await updateInventoryLevelsWorkflow(req.scope).run({ input: { updates } })
-    }
+    await seedInventoryLevels(req.scope, { stockBySku, locationId, logger })
   }
 
   return res.json({ imported, skipped, errors })

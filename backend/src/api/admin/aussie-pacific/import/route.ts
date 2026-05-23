@@ -6,8 +6,6 @@ import {
 } from "@medusajs/framework/utils"
 import {
   createProductsWorkflow,
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
 } from "@medusajs/medusa/core-flows"
 import { AUSSIEPACIFIC_MODULE } from "../../../../modules/aussiepacific"
@@ -33,19 +31,13 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 import type { PriceLadder } from "../../../../utils/bulk-price-ladder"
 import { BRAND_MODULE } from "../../../../modules/brand"
+import { classifyAussiePacificProduct } from "../../../../lib/product-taxonomy"
 import {
-  applyTitleFallbacks,
-  classifyAussiePacificProduct,
-} from "../../../../lib/product-taxonomy"
-import {
-  fetchAllProductTypes,
-  fetchAllProductTags,
-  applyTypeAndTagsToProduct,
-} from "../../../../lib/product-type-tag-sync"
-import {
-  assignCategoriesToProducts,
-  ensureCategoryTree,
-} from "../../../../lib/shop-categories"
+  applyShopCategoriesToProducts,
+  applyTaxonomyToProducts,
+  linkProductsToBrand,
+  seedInventoryLevels,
+} from "../../../../lib/supplier-import-pipeline"
 
 const PRICE_CURRENCY_CODE = "aud"
 const AUSSIEPACIFIC_LOCATION_NAME = "Aussie Pacific Warehouse"
@@ -97,7 +89,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const fulfillmentService = req.scope.resolve(Modules.FULFILLMENT) as any
   const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION) as any
   const brandService = req.scope.resolve(BRAND_MODULE) as any
-  const link = req.scope.resolve(ContainerRegistrationKeys.LINK) as any
   const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any
 
   const salesChannels = await salesChannelService.listSalesChannels({
@@ -350,131 +341,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   })
   const createdProducts = (result as any[]) ?? []
 
-  // Apply product_type + demographic tags. Mirrors the CLI script's
-  // post-create block (CLAUDE.md "Types & tags convention") so admin-UI imports
-  // land with the same taxonomy as the headless `import-aussie-pacific-from-api`
-  // script. `applyTitleFallbacks` covers the AP API's frequently-empty
-  // sub_category / main_category fields.
-  if (createdProducts.length) {
-    const productModule = req.scope.resolve(Modules.PRODUCT) as any
-    const typeCache = await fetchAllProductTypes(productModule)
-    const tagCache = await fetchAllProductTags(productModule)
-    const ctxByHandle = new Map(
-      contexts.map((c) => [c.payload.handle, c.apProduct])
-    )
-    const unknownTaxonomy: string[] = []
-    let typeTagOk = 0
-    let typeTagFail = 0
-    for (const p of createdProducts) {
-      const apProduct = ctxByHandle.get((p as any).handle)
-      if (!apProduct) continue
-      const classified = classifyAussiePacificProduct(apProduct, unknownTaxonomy)
-      const { productType, tags } = applyTitleFallbacks(
-        classified,
-        (p as any).title ?? "",
-        unknownTaxonomy
-      )
-      if (!productType && !tags.length) continue
-      try {
-        await applyTypeAndTagsToProduct({
-          productModule,
-          productId: (p as any).id,
-          productType,
-          tags,
-          typeCache,
-          tagCache,
-        })
-        typeTagOk++
-      } catch (err: any) {
-        typeTagFail++
-        logger.warn(
-          `Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`
-        )
-      }
-    }
-    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
-    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
-  }
+  await linkProductsToBrand(req.scope, createdProducts, apBrand.id)
 
-  // Shop categories — assign audience × garment-type so new products surface
-  // in the mega-menu drill-down. Idempotent.
-  if (createdProducts.length) {
-    try {
-      const byHandle = await ensureCategoryTree(req.scope, { logger })
-      const productIds = createdProducts
-        .map((p: any) => p?.id)
-        .filter((id: any): id is string => typeof id === "string")
-      const summary = await assignCategoriesToProducts(req.scope, byHandle, {
-        productIds,
-        logger,
-      })
-      logger.info(
-        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
-      )
-    } catch (err: any) {
-      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
-    }
-  }
+  const apByHandle = new Map(
+    contexts.map((c) => [c.payload.handle, c.apProduct])
+  )
+  await applyTaxonomyToProducts(req.scope, {
+    products: createdProducts,
+    sourceByHandle: apByHandle,
+    classify: classifyAussiePacificProduct,
+    logger,
+  })
 
-  // Link to brand
-  for (const p of createdProducts) {
-    try {
-      await link.create({
-        [Modules.PRODUCT]: { product_id: p.id },
-        [BRAND_MODULE]: { brand_id: apBrand.id },
-      })
-    } catch (err: any) {
-      if (!err?.message?.includes("Cannot create multiple links")) {
-        // non-fatal
-      }
-    }
-  }
+  await applyShopCategoriesToProducts(req.scope, createdProducts, logger)
 
-  // Seed inventory at the AP warehouse
+  // Seed inventory at the AP warehouse. stockBySku was built per-context
+  // during the product loop (AP returns stock embedded in the API call we
+  // were already making), so we just need to flatten and upsert.
   if (locationId) {
     const stockBySku = new Map<string, number>()
     for (const ctx of contexts) {
       for (const [sku, qty] of ctx.stockBySku) stockBySku.set(sku, qty)
     }
-    if (stockBySku.size > 0) {
-      const { data: inventoryItems } = await query.graph({
-        entity: "inventory_item",
-        fields: ["id", "sku"],
-        filters: { sku: Array.from(stockBySku.keys()) },
-      })
-      const inventoryIds = (inventoryItems ?? []).map((i: any) => i.id)
-      const { data: existingLevels } = await query.graph({
-        entity: "inventory_level",
-        fields: ["id", "inventory_item_id"],
-        filters: { inventory_item_id: inventoryIds, location_id: locationId },
-      })
-      const haveLevel = new Set(
-        (existingLevels ?? []).map((l: any) => l.inventory_item_id)
-      )
-
-      const creates: any[] = []
-      const updates: any[] = []
-      for (const item of inventoryItems ?? []) {
-        const qty = stockBySku.get(item.sku) ?? 0
-        const payload = {
-          inventory_item_id: item.id,
-          location_id: locationId,
-          stocked_quantity: qty,
-        }
-        if (haveLevel.has(item.id)) updates.push(payload)
-        else creates.push(payload)
-      }
-      if (creates.length) {
-        await createInventoryLevelsWorkflow(req.scope).run({
-          input: { inventory_levels: creates },
-        })
-      }
-      if (updates.length) {
-        await updateInventoryLevelsWorkflow(req.scope).run({
-          input: { updates },
-        })
-      }
-    }
+    await seedInventoryLevels(req.scope, { stockBySku, locationId, logger })
   }
 
   for (const ctx of contexts) {
