@@ -97,6 +97,45 @@ export async function createMyDesign(input: {
   }
 }
 
+export async function updateMyDesign(
+  id: string,
+  input: {
+    name?: string
+    thumbnail_url?: string | null
+    customizer_metadata?: CustomizerMetadata
+  }
+): Promise<{ ok: true; design: SavedDesign } | { ok: false; error: string }> {
+  const headers = await getAuthHeaders()
+  if (!("authorization" in headers)) {
+    return { ok: false, error: "Sign in to update designs." }
+  }
+  try {
+    const res = (await sdk.client.fetch(
+      `/store/customers/me/designs/${encodeURIComponent(id)}`,
+      {
+        method: "POST",
+        headers,
+        body: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.thumbnail_url !== undefined
+            ? { thumbnail_url: input.thumbnail_url }
+            : {}),
+          ...(input.customizer_metadata !== undefined
+            ? { customizer_metadata: input.customizer_metadata }
+            : {}),
+        },
+      }
+    )) as { design: SavedDesign }
+    revalidateTag(DESIGNS_TAG, "max")
+    return { ok: true, design: res.design }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to update design.",
+    }
+  }
+}
+
 export async function renameMyDesign(
   id: string,
   name: string

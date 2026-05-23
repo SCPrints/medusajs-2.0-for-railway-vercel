@@ -1,7 +1,7 @@
 "use client"
 
 import { addScpLineItemToCartSafe, addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart } from "@lib/data/cart"
-import { createMyDesign, getMyDesign } from "@lib/data/designs"
+import { createMyDesign, getMyDesign, updateMyDesign } from "@lib/data/designs"
 import { getOrderLineCustomizerMetadata } from "@lib/data/orders"
 import CustomizerProductPicker, {
   type CustomizerPickerProduct,
@@ -3074,12 +3074,23 @@ export default function CustomizerTemplate({
       return
     }
 
-    const defaultName = `${selectedProduct.title ?? "Design"} · ${new Date().toLocaleDateString()}`
-    const proposedName = window.prompt("Name this design", defaultName)
-    if (proposedName === null) {
-      return
+    // Update path: customer entered the customizer via ?design=<id>, so
+    // "Save" should update the existing Design row (with a version
+    // snapshot — handled by the backend POST endpoint) rather than
+    // create a duplicate "Logo v1 · 5/23/2026" alongside the original.
+    // Create path: ask for a name and call createMyDesign.
+    const isUpdatingExisting = !!designIdFromUrl
+    let resolvedName: string | null = null
+    if (!isUpdatingExisting) {
+      const defaultName = `${
+        selectedProduct.title ?? "Design"
+      } · ${new Date().toLocaleDateString()}`
+      const proposedName = window.prompt("Name this design", defaultName)
+      if (proposedName === null) {
+        return
+      }
+      resolvedName = proposedName.trim() || defaultName
     }
-    const name = proposedName.trim() || defaultName
 
     setIsSavingDesign(true)
     setStatusMessage(null)
@@ -3134,27 +3145,45 @@ export default function CustomizerTemplate({
         variantId: selectedVariant.id,
       }
 
-      const result = await createMyDesign({
-        name,
-        thumbnail_url: thumbnailDataUrl ?? null,
-        base_product_id: selectedProduct.id,
-        base_variant_id: selectedVariant.id,
-        customizer_metadata: partialMetadata,
-      })
+      const result = isUpdatingExisting && designIdFromUrl
+        ? await updateMyDesign(designIdFromUrl, {
+            thumbnail_url: thumbnailDataUrl ?? null,
+            customizer_metadata: partialMetadata,
+          })
+        : await createMyDesign({
+            name: resolvedName ?? `${selectedProduct.title ?? "Design"}`,
+            thumbnail_url: thumbnailDataUrl ?? null,
+            base_product_id: selectedProduct.id,
+            base_variant_id: selectedVariant.id,
+            customizer_metadata: partialMetadata,
+          })
 
       if (!result.ok) {
         setUploadError(result.error)
         return
       }
 
-      setStatusMessage(`Saved "${name}" to your designs.`)
+      setStatusMessage(
+        isUpdatingExisting
+          ? `Updated "${result.design.name}" in your designs.`
+          : `Saved "${result.design.name}" to your designs.`
+      )
       const savedPayload = {
         product_id: selectedProduct.id,
         variant_id: selectedVariant.id,
         sides_with_decoration: decoratedSidesNow.length,
+        update: isUpdatingExisting,
       }
-      trackCustomizerFunnel("design_saved", savedPayload)
-      phCapture("customizer_design_saved", savedPayload)
+      trackCustomizerFunnel(
+        isUpdatingExisting ? "design_updated" : "design_saved",
+        savedPayload
+      )
+      phCapture(
+        isUpdatingExisting
+          ? "customizer_design_updated"
+          : "customizer_design_saved",
+        savedPayload
+      )
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Failed to save design.")
     } finally {
@@ -3712,6 +3741,63 @@ export default function CustomizerTemplate({
       }
       trackCustomizerFunnel("design_added_to_cart", cartedPayload)
       phCapture("customizer_design_added_to_cart", cartedPayload)
+
+      // Phase 3a — auto-save bulk groups as a Design for logged-in
+      // customers. The cart line still carries the full snapshot (so
+      // orders remain immutable at placement), but the same design is
+      // now also recoverable from /account/designs months later. Won't
+      // run for:
+      //   - single-line adds (low intent; would clutter saved designs)
+      //   - edit flows (would create duplicate Designs on each save)
+      //   - guests (createMyDesign returns "Sign in to save designs.")
+      //   - reorders from existing saved designs (designIdFromUrl set)
+      const shouldAutoSaveDesign =
+        !editLineItemId &&
+        !editGroupId &&
+        !designIdFromUrl &&
+        bulkCells &&
+        bulkCells.length > 1
+      if (shouldAutoSaveDesign) {
+        const autoSaveName = `${
+          selectedProduct.title ?? "Design"
+        } · ${new Date().toLocaleDateString()}`
+        // Use the front-side mockup if available (already rendered as
+        // part of the cart-add render pass). Falls back to null — the
+        // saved-designs UI degrades gracefully to a placeholder when no
+        // thumbnail is set.
+        const frontMockup =
+          artifacts.find((a) => a.side === "front")?.mockupUrl ?? null
+        const autoSaveMetadata: CustomizerMetadata = {
+          ...metadataBase,
+          variantId: selectedVariant.id,
+        }
+        // Fire-and-forget — never block the cart-add success path. The
+        // worst-case failure mode is "cart added, design wasn't saved",
+        // which the customer can fix later by saving manually.
+        void createMyDesign({
+          name: autoSaveName,
+          thumbnail_url: frontMockup,
+          base_product_id: selectedProduct.id,
+          base_variant_id: selectedVariant.id,
+          customizer_metadata: autoSaveMetadata,
+        })
+          .then((result) => {
+            if (!result.ok) return
+            const autoSavedPayload = {
+              product_id: selectedProduct.id,
+              variant_id: selectedVariant.id,
+              line_count: resolvedQuantities.length,
+              total_quantity: totalQuantity,
+              group_id: groupIdForThisAdd,
+              design_id: result.design.id,
+            }
+            trackCustomizerFunnel("design_auto_saved", autoSavedPayload)
+            phCapture("customizer_design_auto_saved", autoSavedPayload)
+          })
+          .catch(() => {
+            // Soft-fail — see comment above.
+          })
+      }
 
       // Vectorization service: when the customer accepted the upsell from the
       // low-resolution modal, add the matching service SKU once per cart —
