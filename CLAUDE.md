@@ -112,7 +112,7 @@ One `Brand` entity owns every product's brand identity. Storefront filtering, br
 
 **Preview UI**: both spreadsheet-sync flows (`/app/spreadsheet-sync` and `/app/spreadsheet-sync-update`) show a per-product checklist before submitting the batch. Products with validation warnings start unchecked. Unchecking skips the product entirely (no metadata writes, no link).
 
-**Deprecated**: legacy `metadata.brand` / `metadata.supplier` / `metadata.manufacturer` / `metadata.label` reads are kept only as fallbacks in the catalog graph route. Schedule a follow-up to delete those after a couple of weeks of clean writes.
+**Read-path single source of truth**: every brand read goes through the Product↔Brand Module Link. Legacy `metadata.brand` / `metadata.supplier` / `metadata.manufacturer` / `metadata.label` fallbacks were removed from the catalog graph route + `/store/brands/[handle]/products` route on 2026-05-23 after `verify-brand-links` confirmed zero orphans. Drift is now surfaced explicitly by `verify-brand-links` and repaired by `relink-supplier-brands` — never silently masked at read time. Old metadata values may still sit on product rows; they're harmless dead weight.
 
 ## Types & tags convention (mandatory for every supplier importer)
 
