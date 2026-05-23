@@ -2,6 +2,7 @@ import { Badge, Heading, IconButton, Input, Text } from "@medusajs/ui"
 import { Trash, Plus, Minus, ShoppingBag, PencilSquare } from "@medusajs/icons"
 import { useState } from "react"
 
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import type { POSDiscount, POSLineItem, POSRegion } from "../types"
 import { cartTotalCents, formatMoney, lineSubtotalCents } from "../utils"
 
@@ -29,7 +30,20 @@ export const CartPanel = ({
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 pt-4 pb-3 border-b border-ui-border-base flex items-center gap-2">
         <ShoppingBag />
-        <Heading level="h2">Cart</Heading>
+        <Heading level="h2" className="flex items-center">
+          Cart
+          <HelpTooltip
+            text={{
+              title: "Cart",
+              body: "Local-only — items don't hit the database until you click Pay. Use the +/− buttons to adjust quantity, the trash icon to remove a line.",
+              bullets: [
+                "Click any price (the dollar amount on the right of a line) to override it. Pencil icon = editable.",
+                "Standard products auto-merge if you add the same variant twice; custom designs always stay separate so multiple distinct designs don't collapse.",
+                "Subtotal / discount / total recalculates live as you tweak lines or discounts.",
+              ],
+            }}
+          />
+        </Heading>
         <Badge size="small" className="ml-auto">
           {items.length} {items.length === 1 ? "item" : "items"}
         </Badge>

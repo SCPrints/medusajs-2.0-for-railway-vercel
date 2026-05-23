@@ -2,6 +2,7 @@ import { Button, FocusModal, Heading, Input, Text, toast } from "@medusajs/ui"
 import { CheckCircle, ArrowPath } from "@medusajs/icons"
 import { useEffect, useState } from "react"
 
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import type { POSCheckoutResult, POSLineItem, POSRegion } from "../types"
 import { cartTotalCents, formatMoney, lineSubtotalCents } from "../utils"
 
@@ -230,8 +231,19 @@ export const ReceiptModal = ({
 
             <div className="border-t border-ui-border-base pt-4 space-y-3">
               <div>
-                <Text size="small" className="font-medium mb-1">
+                <Text size="small" className="font-medium mb-1 flex items-center">
                   Email receipt
+                  <HelpTooltip
+                    text={{
+                      title: "Email receipt",
+                      body: "Sends the standard order-placed email to whatever address you type. Reuses the same template the storefront uses for self-serve orders so the receipt looks the same to the customer.",
+                      bullets: [
+                        "Use this when the customer wanted email but you didn't capture it upfront, OR if you fat-fingered theirs.",
+                        "Safe to send multiple times — Resend dedupes identical bodies within a short window.",
+                        "Lands as an EMAIL_SENT entry on the order's audit log so it's traceable.",
+                      ],
+                    }}
+                  />
                 </Text>
                 <div className="flex gap-2">
                   <Input
@@ -255,6 +267,22 @@ export const ReceiptModal = ({
               </div>
 
               <div>
+                <div className="flex items-center gap-1 mb-1">
+                  <Text size="small" className="font-medium">
+                    Skip to delivered
+                  </Text>
+                  <HelpTooltip
+                    text={{
+                      title: "Mark delivered (fast-forward)",
+                      body: "Single-click shortcut for ‘the customer is walking out the door with the goods right now.’ Stamps all three production tracks (artwork → blanks → production) to terminal-for-delivered and fires the stage-changed events so existing subscribers (audit, automation, PostHog) react as if you'd advanced stage-by-stage.",
+                      bullets: [
+                        "Use only for stock-item walk-out pickups (e.g. customer bought a plain tee off the rack).",
+                        "Don't use for custom jobs — those should progress organically so the customer still gets the artwork-approval email and other touchpoints.",
+                        "Safe to click twice (idempotent at the metadata level); will just re-emit the events.",
+                      ],
+                    }}
+                  />
+                </div>
                 <Button
                   variant={fastForwarded ? "secondary" : "primary"}
                   size="small"

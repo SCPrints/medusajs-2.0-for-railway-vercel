@@ -1,6 +1,7 @@
 import { Button, Heading, Input, Text } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import type {
   POSLineItem,
   POSProduct,
@@ -87,8 +88,18 @@ export const ProductSearchPanel = ({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 pt-4 pb-3 border-b border-ui-border-base">
-        <Heading level="h2" className="mb-3">
+        <Heading level="h2" className="mb-3 flex items-center">
           Products
+          <HelpTooltip
+            text={{
+              title: "Adding products",
+              body: "Live search across the catalogue scoped to the selected region (so prices are accurate). Click a single-variant product to drop it straight in the cart; multi-variant products expand so you can pick the size/colour.",
+              bullets: [
+                "Same standard variant added twice auto-merges (quantity bumps).",
+                "Custom designs always stay as separate cart lines.",
+              ],
+            }}
+          />
         </Heading>
         <Input
           placeholder="Search by name, SKU, handle…"
@@ -96,14 +107,26 @@ export const ProductSearchPanel = ({
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
         />
-        <Button
-          variant="secondary"
-          size="small"
-          className="w-full mt-2"
-          onClick={onOpenCustomizer}
-        >
-          + Add custom design (open customizer)
-        </Button>
+        <div className="flex items-center gap-1 mt-2">
+          <Button
+            variant="secondary"
+            size="small"
+            className="flex-1"
+            onClick={onOpenCustomizer}
+          >
+            + Add custom design (open customizer)
+          </Button>
+          <HelpTooltip
+            text={{
+              title: "Custom designs",
+              body: "Opens the storefront customizer in a popup keyed to this sale. Design the artwork there, click Add to cart in the popup, and the line lands here tagged ‘Custom’ within ~2 seconds.",
+              bullets: [
+                "Allow popups for the admin domain if the window doesn't open.",
+                "Full Fabric.js metadata is preserved — the resulting order works with the mockup PDF generator, customizer downloads widget, and print-details widget exactly like a self-serve online order.",
+              ],
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4">

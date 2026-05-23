@@ -1,6 +1,7 @@
 import { Button, Heading, Input, Label, Select, Text, toast } from "@medusajs/ui"
 import { useState } from "react"
 
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import type {
   POSCheckoutResult,
   POSCustomer,
@@ -144,15 +145,40 @@ export const CheckoutPanel = ({
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-4 pt-4 pb-3 border-b border-ui-border-base flex items-center justify-between">
         <Heading level="h2">Checkout</Heading>
-        <Button variant="secondary" size="small" onClick={onParkSale}>
-          Park sale
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="secondary" size="small" onClick={onParkSale}>
+            Park sale
+          </Button>
+          <HelpTooltip
+            text={{
+              title: "Park sale",
+              body: "Saves the current cart against the active session and opens a fresh empty session for the next walk-in. The parked sale appears in the ‘Parked (N)’ dropdown at the top of the page until you resume it.",
+              bullets: [
+                "Useful when a customer asks to think about it, or another walk-in interrupts mid-sale.",
+                "Each staff member only sees their own parked sales.",
+                "Parked sales auto-expire after 4 hours and tidy hourly so the picker stays clean.",
+              ],
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
         <div>
           <div className="flex items-center justify-between mb-1">
-            <Label className="text-xs text-ui-fg-muted">Customer</Label>
+            <Label className="text-xs text-ui-fg-muted flex items-center">
+              Customer
+              <HelpTooltip
+                text={{
+                  title: "Customer or walk-in",
+                  body: "Pick or create a customer to attach the order to their profile. Toggle ‘Walk-in’ for a true scan-and-go cash sale that doesn't need an email upfront.",
+                  bullets: [
+                    "With a customer: order counts toward their LTV, fires the customer-facing emails (order-placed, production stages), and a ‘Repeat last order’ button appears.",
+                    "Walk-in: order lands against the configured walk-in inbox (default walkin@scprints.com.au). You can still email a receipt to the customer after payment from the receipt modal.",
+                  ],
+                }}
+              />
+            </Label>
             <button
               type="button"
               className="text-xs text-ui-fg-muted hover:underline"
@@ -174,14 +200,27 @@ export const CheckoutPanel = ({
             <>
               <CustomerLookup customer={customer} onSelect={onCustomerChange} />
               {customer && (
-                <Button
-                  variant="transparent"
-                  size="small"
-                  className="mt-1 text-xs"
-                  onClick={onLoadLastOrder}
-                >
-                  Repeat last order
-                </Button>
+                <div className="flex items-center gap-1 mt-1">
+                  <Button
+                    variant="transparent"
+                    size="small"
+                    className="text-xs"
+                    onClick={onLoadLastOrder}
+                  >
+                    Repeat last order
+                  </Button>
+                  <HelpTooltip
+                    text={{
+                      title: "Repeat last order",
+                      body: "Pulls the line items from this customer's most recent non-cancelled order and appends them to the cart. Useful for regulars who walk in with ‘the usual’.",
+                      bullets: [
+                        "Standard items repeat as-is.",
+                        "Custom designs are skipped (Fabric metadata can't be rebuilt server-side) — the success toast tells you how many were skipped.",
+                        "Quantities + unit prices from the original order are preserved; you can still edit them in the cart.",
+                      ],
+                    }}
+                  />
+                </div>
               )}
             </>
           )}
@@ -227,8 +266,19 @@ export const CheckoutPanel = ({
         )}
 
         <div className="border-t border-ui-border-base pt-3">
-          <Label className="text-xs text-ui-fg-muted mb-1 block">
+          <Label className="text-xs text-ui-fg-muted mb-1 flex items-center">
             Promo codes
+            <HelpTooltip
+              text={{
+                title: "Promo codes",
+                body: "Apply any saved Medusa promotion (set up under Promotions in the admin). Multiple codes can stack — the promotion engine resolves overlaps using your existing precedence rules.",
+                bullets: [
+                  "Codes are uppercased on input and applied during checkout, not while typing.",
+                  "Click a chip to remove a code before paying.",
+                  "Codes that don't exist or aren't applicable to the cart will surface a validation error from Medusa when you click Pay.",
+                ],
+              }}
+            />
           </Label>
           <div className="flex gap-1">
             <Input
@@ -260,8 +310,19 @@ export const CheckoutPanel = ({
         </div>
 
         <div>
-          <Label className="text-xs text-ui-fg-muted mb-1 block">
+          <Label className="text-xs text-ui-fg-muted mb-1 flex items-center">
             Manual discount ({currency})
+            <HelpTooltip
+              text={{
+                title: "Manual discount",
+                body: "An ad-hoc whole-of-sale markdown in dollars. Lands on the order as a transparent ‘Walk-in discount’ line with a negative price, so the original line prices stay intact for the bookkeeping audit.",
+                bullets: [
+                  "Different from a promo code — use this when there's no saved promotion that applies (e.g. ‘take $10 off because the print smudged’).",
+                  "Stacks with promo codes; promo + manual discount can both apply to the same sale.",
+                  "Total is clamped to never go below zero.",
+                ],
+              }}
+            />
           </Label>
           <Input
             type="number"
@@ -280,8 +341,19 @@ export const CheckoutPanel = ({
 
       <div className="px-4 py-4 border-t border-ui-border-base bg-ui-bg-subtle">
         <div className="flex items-center justify-between mb-3">
-          <Text size="base" className="font-semibold">
+          <Text size="base" className="font-semibold flex items-center">
             Total
+            <HelpTooltip
+              text={{
+                title: "Payment options",
+                body: "Both buttons create a real Medusa order with the studio's tax address attached so GST computes correctly. Pick the one matching what the customer is doing at the till.",
+                bullets: [
+                  "Pay cash — marks the order paid immediately. Receipt modal opens with the order number.",
+                  "Card (QR link) — mints a Stripe Payment Link; the receipt modal shows a QR code the customer scans on their phone (Apple Pay / Google Pay / banking app). The modal polls Stripe and auto-flips to ‘Payment received’ when the webhook fires.",
+                  "Cash payments are tagged ‘pos_cash’ in the payment-mix report so revenue buckets under Cash, not Stripe.",
+                ],
+              }}
+            />
           </Text>
           <Heading level="h2">{formatMoney(finalTotal, currency)}</Heading>
         </div>
