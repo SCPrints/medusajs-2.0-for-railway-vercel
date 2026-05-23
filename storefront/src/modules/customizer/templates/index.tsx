@@ -18,6 +18,7 @@ import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-ad
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import DesignPreviewPopover from "@modules/customizer/components/design-preview-popover"
 import InputPanel from "@modules/customizer/components/input-panel"
+import CartVariantInlineList from "@modules/customizer/components/cart-variant-inline-list"
 import BulkOrderGrid, {
   type BulkCellEntry,
   type BulkPricingEstimate,
@@ -850,6 +851,21 @@ export default function CustomizerTemplate({
     editGroupIdFromUrl
   )
   const [editGroupHydrated, setEditGroupHydrated] = useState(false)
+  // Cells the customer is currently editing in this group. Seeded from
+  // the cart siblings on rehydration; mutated by the inline variant
+  // list (qty stepper, +/- variants). On Save the customer's CURRENT
+  // working state is fanned out, every editGroupLineIds row is
+  // deleted, new rows are added per cell.
+  const [editGroupCells, setEditGroupCells] = useState<
+    Array<{
+      variant: HttpTypes.StoreProductVariant
+      size: string
+      quantity: number
+    }>
+  >([])
+  // Read-only snapshot of the cells as they were on rehydration. Used
+  // by the bulk grid pre-fill, kept in sync with editGroupCells so the
+  // grid stays consistent with the inline list.
   const [editGroupInitialCells, setEditGroupInitialCells] = useState<
     Array<{
       variant: HttpTypes.StoreProductVariant
@@ -858,6 +874,14 @@ export default function CustomizerTemplate({
     }>
   >([])
   const [editGroupLineIds, setEditGroupLineIds] = useState<string[]>([])
+  // Set by stage-2 hydration when a side's metadata contains a
+  // sanitized "[omitted-image-data]" placeholder — happens when the
+  // original upload wasn't archived to MinIO/R2. Surfaces a visible
+  // banner so the customer can re-upload instead of staring at a
+  // blank side wondering what happened.
+  const [hydrationPlaceholderSides, setHydrationPlaceholderSides] = useState<
+    string[]
+  >([])
   const [editLineItemId, setEditLineItemId] = useState<string | null>(editLineItemIdFromUrl)
 
   // Rehydration mode: `?design=<id>` (saved-design re-edit) or
@@ -1800,8 +1824,14 @@ export default function CustomizerTemplate({
           return
         }
         setEditGroupInitialCells(cells)
+        setEditGroupCells(cells)
         setEditGroupLineIds(trackedLineIds)
-        setBulkMode(true)
+        // Editing a cart design lands the customer in a focused design
+        // editor — NOT the bulk grid. The bulk grid is for adding cells
+        // to a fresh order; in edit mode the existing cart cells are
+        // managed inline next to the canvas. The bulk grid is still
+        // available as a secondary "fullscreen grid" link for power-
+        // users who want the table view.
         setEditGroupHydrated(true)
       } catch {
         dropEditGroupParam()
@@ -1849,10 +1879,45 @@ export default function CustomizerTemplate({
     if (!canvas || canvasSize.width <= 0 || canvasSize.height <= 0) return
 
     if (Array.isArray(pendingHydration.sideLayouts)) {
+      // Diagnostic — surfaces which sides got which object counts on
+      // rehydration. Caught one production bug where a side's Fabric
+      // image had a sanitized "[omitted-image-data]" src (the original
+      // upload wasn't archived to MinIO/R2), so loadFromJSON silently
+      // dropped the image and the side rendered blank. Logging the
+      // count + placeholder-detection makes that obvious in the console
+      // instead of customers reporting "the back is gone".
+      const placeholders: string[] = []
       for (const sl of pendingHydration.sideLayouts) {
         if (sl?.side && Array.isArray(sl.objects)) {
           sideLayoutsRef.current[sl.side] = sl.objects
+          const placeholderCount = sl.objects.reduce((acc, obj: any) => {
+            const src = obj?.src
+            if (
+              typeof src === "string" &&
+              (src === "[omitted-image-data]" || src.includes("[omitted-image-data]"))
+            ) {
+              return acc + 1
+            }
+            return acc
+          }, 0)
+          if (placeholderCount > 0) {
+            placeholders.push(`${sl.side}(${placeholderCount})`)
+          }
         }
+      }
+      if (typeof window !== "undefined") {
+        console.info(
+          "[customizer] rehydrated sideLayouts",
+          pendingHydration.sideLayouts
+            .map((sl) => `${sl.side}=${Array.isArray(sl.objects) ? sl.objects.length : 0}`)
+            .join(", "),
+          placeholders.length > 0
+            ? `· placeholders: ${placeholders.join(", ")}`
+            : ""
+        )
+      }
+      if (placeholders.length > 0) {
+        setHydrationPlaceholderSides(placeholders)
       }
     }
     if (Array.isArray(pendingHydration.sizes) && pendingHydration.sizes.length > 0) {
@@ -4643,9 +4708,7 @@ export default function CustomizerTemplate({
             }}
             onSubmit={handleBulkSubmit}
             initialCells={
-              editGroupInitialCells.length > 0
-                ? editGroupInitialCells
-                : undefined
+              editGroupCells.length > 0 ? editGroupCells : undefined
             }
             submitCtaLabel={
               editGroupId
@@ -4656,7 +4719,7 @@ export default function CustomizerTemplate({
             }
             editMode={!!editGroupId}
             editingLineCount={editGroupLineIds.length}
-            editingTotalQuantity={editGroupInitialCells.reduce(
+            editingTotalQuantity={editGroupCells.reduce(
               (sum, c) => sum + (c.quantity ?? 0),
               0
             )}
@@ -4772,11 +4835,11 @@ export default function CustomizerTemplate({
                   {editGroupLineIds.length} cart line
                   {editGroupLineIds.length === 1 ? "" : "s"}
                 </span>
-                {editGroupInitialCells.length > 0 ? (
+                {editGroupCells.length > 0 ? (
                   <>
                     {" "}
                     (
-                    {editGroupInitialCells.reduce(
+                    {editGroupCells.reduce(
                       (sum, c) => sum + (c.quantity ?? 0),
                       0
                     )}{" "}
@@ -4784,7 +4847,7 @@ export default function CustomizerTemplate({
                   </>
                 ) : null}
                 . Adjust artwork or text, then tap{" "}
-                <span className="font-semibold">Order multiple colours</span>{" "}
+                <span className="font-semibold">Save design changes</span>{" "}
                 below to update the cart. No new items will be added.
               </p>
               <button
@@ -4793,6 +4856,7 @@ export default function CustomizerTemplate({
                   setEditGroupId(null)
                   setEditGroupHydrated(false)
                   setEditGroupInitialCells([])
+                  setEditGroupCells([])
                   setEditGroupLineIds([])
                   setBulkMode(false)
                   if (typeof window !== "undefined") {
@@ -4867,8 +4931,11 @@ export default function CustomizerTemplate({
             </div>
           ) : null}
 
-          {/* Step 1 — Product options (color/etc.) */}
-          {hasStep1 ? (
+          {/* Step 1 — Product options (color/etc.). Hidden in edit-group
+              mode because the customer is editing a design across many
+              variants — picking "the" variant doesn't apply. The inline
+              variant list below Step 4 is where they manage the mix. */}
+          {hasStep1 && !editGroupId ? (
             <div ref={step1Ref} className={`space-y-3 rounded-xl border p-4 ${
               pdpStep === 1
                 ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
@@ -5313,8 +5380,102 @@ export default function CustomizerTemplate({
             </div>
           )}
 
-          {/* Step 4 — Quantities, notes & checkout */}
-          {pdpStep >= 4 ? (
+          {/* Edit-design mode: replace Step 4 (Quantity & Checkout) with
+              a focused edit panel — inline variant list + sticky "Save
+              design changes" button. Customer can adjust qty / add /
+              remove variants here without ever leaving the page. */}
+          {editGroupId && pdpStep >= 4 ? (
+            <motion.div
+              ref={step4Ref}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+              className="flex flex-col gap-3"
+            >
+              <div className="space-y-3 rounded-xl border-2 border-amber-500 bg-amber-50/50 p-3 shadow-sm">
+                <div>
+                  <p className="text-sm font-semibold text-amber-900">
+                    Save design changes
+                  </p>
+                  <p className="text-xs text-amber-800">
+                    Your edits apply to every variant below. No new
+                    items will be added.
+                  </p>
+                </div>
+                {hydrationPlaceholderSides.length > 0 ? (
+                  <div className="rounded-md border border-rose-300 bg-rose-50 px-2.5 py-2 text-xs text-rose-900">
+                    <p className="font-semibold">
+                      ⚠️ Some artwork didn't reload
+                    </p>
+                    <p className="mt-1">
+                      The original upload for{" "}
+                      <span className="font-semibold">
+                        {hydrationPlaceholderSides.join(", ")}
+                      </span>{" "}
+                      appears to be missing from storage. Switch to that
+                      side in the canvas and re-upload via{" "}
+                      <span className="font-semibold">Add to design</span>{" "}
+                      to keep the print.
+                    </p>
+                  </div>
+                ) : null}
+                <CartVariantInlineList
+                  product={selectedProduct}
+                  cells={editGroupCells}
+                  onChange={(next) => setEditGroupCells(next)}
+                  disabled={isSubmitting}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    void addCustomizedToCart(
+                      editGroupCells.map((c) => ({
+                        variant: c.variant,
+                        size: c.size,
+                        quantity: c.quantity,
+                      }))
+                    )
+                  }}
+                  disabled={
+                    isSubmitting ||
+                    editGroupCells.length === 0 ||
+                    editGroupCells.reduce(
+                      (sum, c) => sum + (c.quantity || 0),
+                      0
+                    ) === 0
+                  }
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:bg-[var(--brand-primary-hover,#be123c)] hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isSubmitting
+                    ? "Saving…"
+                    : `Save design changes (${editGroupLineIds.length} cart line${
+                        editGroupLineIds.length === 1 ? "" : "s"
+                      })`}
+                </button>
+                <div className="flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setBulkMode(true)}
+                    disabled={isSubmitting}
+                    className="font-medium text-ui-fg-interactive underline-offset-2 hover:underline disabled:opacity-40"
+                  >
+                    Open full grid editor →
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      router.push(`/${countryCode}/cart`)
+                    }}
+                    disabled={isSubmitting}
+                    className="font-medium text-ui-fg-subtle underline-offset-2 hover:text-ui-fg-base hover:underline disabled:opacity-40"
+                  >
+                    Cancel — back to cart
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          ) : pdpStep >= 4 ? (
+            /* Original Step 4 — Quantities, notes & checkout (fresh add flow). */
             <motion.div
               ref={step4Ref}
               initial={{ opacity: 0, y: 12 }}

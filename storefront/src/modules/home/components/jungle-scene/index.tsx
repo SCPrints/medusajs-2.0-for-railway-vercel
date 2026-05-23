@@ -8,8 +8,6 @@ const SKY_MID = "#8FB3CC"
 const SKY_HORIZON = "#E6CFAF"
 const MOUNTAIN_FAR = "#6E8294"
 const MOUNTAIN_NEAR = "#4A5867"
-const CANOPY_DARK = "#152418"
-const CANOPY_MID = "#1F3B25"
 const CLIFF_BASE = "#5A4F45"
 const CLIFF_HILITE = "#7A6E60"
 const CLIFF_SHADOW = "#3A312A"
@@ -33,11 +31,6 @@ const STONE_CARVE = "#3F362E"
 const STONE_CARVE_HILITE = "#BCB0A8"
 
 // ─── Asset URLs ──────────────────────────────────────────────────────────────
-// All files come from itch.io packs the user installed locally:
-//  - dino-characters/* — arks "Dino Characters" (CC-BY 4.0). Each PNG is a 576x24 sheet,
-//    24 frames of 24x24 each. Frames 0-3 are Idle, 4-9 are Move/Run, the rest aren't used.
-//  - forest/* — Anokolisa "Legacy Fantasy: High Forest" (free, commercial OK).
-//  - palms/* — ToffeeCraft "Forest Nature Pack" free tier (cacti, grasses, rocks — no palms in free tier).
 const ASSETS = {
   bg: "/jungle-scene/forest/background.png",
   trees: "/jungle-scene/forest/green-trees.png",
@@ -60,38 +53,32 @@ const DINO_WALK_FRAME_MS = 110
 const DINO_WALK_SPEED_PX_PER_MS = 0.045
 
 // ─── Source rectangles in environment sprite sheets ──────────────────────────
-// Hand-picked from inspecting each sheet. Each tuple is [x, y, w, h] in source pixels.
-// Trees — green-trees.png (1344x1200). 8 columns × 4 rows of variants. We pick a handful
-// at slightly varied source rects to give visual variety.
 const TREE_VARIANTS: Array<[number, number, number, number]> = [
-  [0, 0, 168, 400],     // top-left bushy tree
-  [168, 0, 168, 400],   // top-left bushy tree 2
-  [336, 0, 168, 400],   // dense dark tree
-  [840, 0, 168, 400],   // mid-row tree
-  [0, 400, 168, 400],   // mid-row bushy
+  [0, 0, 168, 400],
+  [168, 0, 168, 400],
+  [336, 0, 168, 400],
+  [840, 0, 168, 400],
+  [0, 400, 168, 400],
 ]
-// Bushes/foliage — tree-assets.png (336x400). Right column has bush silhouettes.
 const BUSH_VARIANTS: Array<[number, number, number, number]> = [
-  [200, 50, 130, 70],   // top bush
-  [200, 160, 130, 75],  // mid bush
-  [200, 240, 130, 80],  // larger bush
-  [200, 320, 130, 70],  // bottom bush
+  [200, 50, 130, 70],
+  [200, 160, 130, 75],
+  [200, 240, 130, 80],
+  [200, 320, 130, 70],
 ]
-// Rocks — rocks.png (288x336). Large rocks at top, smaller mid.
 const ROCK_VARIANTS: Array<[number, number, number, number]> = [
-  [0, 0, 100, 110],     // big boulder top-left
-  [110, 10, 80, 90],    // medium boulder
-  [195, 20, 50, 70],    // smaller rock
-  [0, 110, 90, 70],     // mossy boulder
-  [105, 110, 70, 60],   // mossy mid
+  [0, 0, 100, 110],
+  [110, 10, 80, 90],
+  [195, 20, 50, 70],
+  [0, 110, 90, 70],
+  [105, 110, 70, 60],
 ]
-// Plants — nature-pack.png (512x384). Cacti on left, grasses middle, smaller plants.
 const PLANT_VARIANTS: Array<[number, number, number, number]> = [
-  [10, 10, 70, 100],    // tall cactus
-  [85, 10, 65, 100],    // second cactus
-  [160, 30, 95, 90],    // grass cluster
-  [260, 30, 85, 90],    // wide grass
-  [350, 30, 70, 90],    // small flowering cactus
+  [10, 10, 70, 100],
+  [85, 10, 65, 100],
+  [160, 30, 95, 90],
+  [260, 30, 85, 90],
+  [350, 30, 70, 90],
 ]
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -99,31 +86,74 @@ interface MistParticle {
   x: number; y: number; vx: number; vy: number; life: number; maxLife: number; size: number
 }
 
+interface FoliageInstance {
+  kind: "bush" | "plant"
+  variant: [number, number, number, number]
+  x: number
+  baseY: number
+  targetH: number
+  flip: boolean
+  swayPhase: number
+  swayAmpl: number
+}
+
+interface RiverHighlight {
+  x: number
+  y: number
+  width: number
+  speed: number   // px/ms — always positive, drifts right
+  phase: number   // for opacity wobble
+}
+
 interface DinoState {
   spriteKey: "dinoGreen" | "dinoYellow"
-  x: number          // center x in canvas pixels
-  baseY: number      // foot anchor (ground line)
-  scale: number      // render multiplier on the 24x24 base sprite
-  dir: 1 | -1        // 1 = facing right (native), -1 = mirrored
+  x: number
+  baseY: number
+  scale: number
+  dir: 1 | -1
   mode: "idle" | "walk"
   modeMs: number
   frameMs: number
-  frame: number      // current sprite-sheet column (0..23)
+  frame: number
   patrolMinX: number
   patrolMaxX: number
   nextDecisionMs: number
+  attentionLock: boolean   // true while a scene-wide attention beat overrides this dino
+}
+
+interface AttentionBeat {
+  active: boolean
+  activeMs: number
+  durationMs: number
+  cooldownMs: number       // counts down while inactive
+}
+
+interface MonumentSweep {
+  active: boolean
+  positionPx: number       // x of sweep centre, relative to monumentTextScreenRect.x
+  cooldownMs: number
+}
+
+interface MonumentSprite {
+  canvas: HTMLCanvasElement
+  textRect: { x: number; y: number; w: number; h: number }   // monument-canvas coords
 }
 
 interface SceneState {
   dinos: DinoState[]
   mist: MistParticle[]
-  shimmerMs: number
-  shimmerFrame: number
+  foliage: FoliageInstance[]
+  riverHighlights: RiverHighlight[]
   waterfallMs: number
   riverY: number
   waterfallBaseX: number
   waterfallBaseY: number
   waterfallSlotW: number
+  monumentScreenX: number
+  monumentScreenY: number
+  monumentTextScreenRect: { x: number; y: number; w: number; h: number } | null
+  attention: AttentionBeat
+  sweep: MonumentSweep
 }
 
 // ─── Random / colour helpers ────────────────────────────────────────────────
@@ -149,6 +179,12 @@ function lerpRgb(a: [number, number, number], b: [number, number, number], t: nu
   const g = Math.round(a[1] + (b[1] - a[1]) * t)
   const bl = Math.round(a[2] + (b[2] - a[2]) * t)
   return `rgb(${r},${g},${bl})`
+}
+
+// Shared "wind" curve — a slow double-sine. Drives foliage sway AND mist lateral drift,
+// so every moving thing in the scene shares one breath.
+function computeWind(timeMs: number): number {
+  return Math.sin(timeMs * 0.00030) * 0.6 + Math.sin(timeMs * 0.00071) * 0.3
 }
 
 // ─── Image loader ────────────────────────────────────────────────────────────
@@ -182,50 +218,86 @@ function drawDino(ctx: CanvasRenderingContext2D, state: DinoState, sheet: HTMLIm
   }
 }
 
-function updateDino(state: DinoState, dt: number) {
-  state.modeMs += dt
-  state.frameMs += dt
-  if (state.mode === "walk") {
-    state.x += state.dir * DINO_WALK_SPEED_PX_PER_MS * dt
-    if (state.frameMs >= DINO_WALK_FRAME_MS) {
-      state.frameMs -= DINO_WALK_FRAME_MS
-      const idx = DINO_WALK_FRAMES.indexOf(state.frame)
-      state.frame = DINO_WALK_FRAMES[(idx >= 0 ? idx + 1 : 1) % DINO_WALK_FRAMES.length]
+function updateDino(scene: SceneState, dino: DinoState, dt: number) {
+  // Scene attention beat overrides individual behaviour: both dinos pause and face
+  // the waterfall together. This is the unified "the world is breathing" moment.
+  if (scene.attention.active && !dino.attentionLock) {
+    dino.attentionLock = true
+    dino.mode = "idle"
+    dino.modeMs = 0
+    dino.frameMs = 0
+    dino.frame = DINO_IDLE_FRAMES[0]
+    dino.dir = scene.waterfallBaseX > dino.x ? 1 : -1
+  } else if (!scene.attention.active && dino.attentionLock) {
+    dino.attentionLock = false
+    dino.nextDecisionMs = 1200 + Math.random() * 1800
+  }
+
+  dino.modeMs += dt
+  dino.frameMs += dt
+
+  if (dino.mode === "walk") {
+    if (!dino.attentionLock) {
+      dino.x += dino.dir * DINO_WALK_SPEED_PX_PER_MS * dt
     }
-    if (state.x >= state.patrolMaxX) {
-      state.x = state.patrolMaxX; state.dir = -1; transitionToIdle(state)
-    } else if (state.x <= state.patrolMinX) {
-      state.x = state.patrolMinX; state.dir = 1; transitionToIdle(state)
-    } else if (state.modeMs >= state.nextDecisionMs) {
-      transitionToIdle(state)
+    if (dino.frameMs >= DINO_WALK_FRAME_MS) {
+      dino.frameMs -= DINO_WALK_FRAME_MS
+      const idx = DINO_WALK_FRAMES.indexOf(dino.frame)
+      dino.frame = DINO_WALK_FRAMES[(idx >= 0 ? idx + 1 : 1) % DINO_WALK_FRAMES.length]
+    }
+    if (!dino.attentionLock) {
+      if (dino.x >= dino.patrolMaxX) {
+        dino.x = dino.patrolMaxX; dino.dir = -1; transitionToIdle(scene, dino)
+      } else if (dino.x <= dino.patrolMinX) {
+        dino.x = dino.patrolMinX; dino.dir = 1; transitionToIdle(scene, dino)
+      } else if (dino.modeMs >= dino.nextDecisionMs) {
+        transitionToIdle(scene, dino)
+      }
     }
   } else {
-    if (state.frameMs >= DINO_IDLE_FRAME_MS) {
-      state.frameMs -= DINO_IDLE_FRAME_MS
-      const idx = DINO_IDLE_FRAMES.indexOf(state.frame)
-      state.frame = DINO_IDLE_FRAMES[(idx >= 0 ? idx + 1 : 1) % DINO_IDLE_FRAMES.length]
+    if (dino.frameMs >= DINO_IDLE_FRAME_MS) {
+      dino.frameMs -= DINO_IDLE_FRAME_MS
+      const idx = DINO_IDLE_FRAMES.indexOf(dino.frame)
+      dino.frame = DINO_IDLE_FRAMES[(idx >= 0 ? idx + 1 : 1) % DINO_IDLE_FRAMES.length]
     }
-    if (state.modeMs >= state.nextDecisionMs) {
-      state.mode = "walk"
-      state.modeMs = 0
-      state.frameMs = 0
-      state.frame = DINO_WALK_FRAMES[0]
-      state.nextDecisionMs = 2500 + Math.random() * 3000
+    if (!dino.attentionLock && dino.modeMs >= dino.nextDecisionMs) {
+      dino.mode = "walk"
+      dino.modeMs = 0
+      dino.frameMs = 0
+      dino.frame = DINO_WALK_FRAMES[0]
+      dino.nextDecisionMs = 2500 + Math.random() * 3000
     }
   }
 }
 
-function transitionToIdle(state: DinoState) {
-  state.mode = "idle"
-  state.modeMs = 0
-  state.frameMs = 0
-  state.frame = DINO_IDLE_FRAMES[0]
-  state.nextDecisionMs = 1800 + Math.random() * 2500
+function transitionToIdle(scene: SceneState, dino: DinoState) {
+  dino.mode = "idle"
+  dino.modeMs = 0
+  dino.frameMs = 0
+  dino.frame = DINO_IDLE_FRAMES[0]
+  dino.nextDecisionMs = 1800 + Math.random() * 2500
+
+  // Half the time, glance at a focal point in the scene (waterfall / other dino /
+  // monument) instead of facing the patrol direction. Cheap way to make the dinos
+  // feel like creatures that live here rather than random-walking NPCs.
+  if (Math.random() < 0.55) {
+    const r = Math.random()
+    let targetX: number | null = null
+    if (r < 0.45) {
+      targetX = scene.waterfallBaseX
+    } else if (r < 0.75) {
+      const other = scene.dinos.find(d => d !== dino)
+      if (other) targetX = other.x
+    } else if (scene.monumentTextScreenRect) {
+      targetX = scene.monumentTextScreenRect.x + scene.monumentTextScreenRect.w / 2
+    }
+    if (targetX !== null && Math.abs(targetX - dino.x) > 4) {
+      dino.dir = targetX >= dino.x ? 1 : -1
+    }
+  }
 }
 
 // ─── Sprite stamping helpers ─────────────────────────────────────────────────
-// Stamp a source rect from a sprite sheet onto the destination, sized to a target height
-// and positioned at (cx, baseY) — the foot anchor.
 function stampSprite(
   ctx: CanvasRenderingContext2D, sheet: HTMLImageElement,
   src: [number, number, number, number], cx: number, baseY: number, targetH: number, flipH = false
@@ -249,7 +321,7 @@ function stampSprite(
 }
 
 // ─── Stone monument with carved "SC PRINTS" ──────────────────────────────────
-function makeMonument(scale: number): HTMLCanvasElement {
+function makeMonument(scale: number): MonumentSprite {
   const BW = 84, BH = 48
   const c = document.createElement("canvas")
   c.width = BW * scale; c.height = BH * scale
@@ -303,7 +375,7 @@ function makeMonument(scale: number): HTMLCanvasElement {
   ]
   for (const [mx, my, mw, mh] of mossPatches) px(mx, my, mw, mh, STONE_MOSS)
 
-  // Carved "SC PRINTS" — rasterize text + stamp each pixel into the monument.
+  // Carved "SC PRINTS"
   const TEXT = "SC PRINTS"
   const tcanvas = document.createElement("canvas")
   tcanvas.width = 200; tcanvas.height = 24
@@ -335,13 +407,23 @@ function makeMonument(scale: number): HTMLCanvasElement {
       }
     }
   }
-  return c
+  // Text bounds in monument-canvas coords — the sweep overlay clips to this rect so
+  // the highlight only passes over the carved letters.
+  const textRect = {
+    x: tx0 * scale,
+    y: (ty0 - 1) * scale,
+    w: textW * scale,
+    h: (textH + 1) * scale,
+  }
+  return { canvas: c, textRect }
 }
 
 // ─── Backdrop painter ────────────────────────────────────────────────────────
+// Bushes + plants are NOT painted here — they move with the wind, so they live on the
+// animated layer instead.
 function paintBackdrop(
   canvas: HTMLCanvasElement, w: number, h: number, dpr: number,
-  assets: AssetMap, monumentSprite: HTMLCanvasElement
+  assets: AssetMap, monument: MonumentSprite
 ) {
   canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr)
   canvas.style.width = `${w}px`; canvas.style.height = `${h}px`
@@ -351,7 +433,7 @@ function paintBackdrop(
 
   const riverY = Math.floor(h * 0.62)
 
-  // 1. Sky gradient + the cloudy Background.png stretched across the upper half.
+  // 1. Sky gradient + cloud band
   const skyTopRgb = hexToRgb(SKY_TOP)
   const skyMidRgb = hexToRgb(SKY_MID)
   const skyHorizonRgb = hexToRgb(SKY_HORIZON)
@@ -363,26 +445,22 @@ function paintBackdrop(
     ctx.fillStyle = color
     ctx.fillRect(0, y, w, 3)
   }
-  // Background.png drifts as a soft cloud band over the gradient (drawn at reduced alpha
-  // so the sky colour bleeds through).
   ctx.save()
   ctx.globalAlpha = 0.55
   ctx.imageSmoothingEnabled = false
   ctx.drawImage(assets.bg, 0, 0, w, Math.floor(h * 0.4))
   ctx.restore()
 
-  // 2. Distant mountains (code-based silhouettes for depth)
+  // 2. Distant mountains
   drawMountainLayer(ctx, w, riverY, riverY - Math.floor(h * 0.08), Math.floor(h * 0.18), MOUNTAIN_FAR, 1733)
   drawMountainLayer(ctx, w, riverY, riverY - Math.floor(h * 0.04), Math.floor(h * 0.13), MOUNTAIN_NEAR, 9421)
 
-  // 3. Trees from green-trees.png scattered in midground — these are the "jungle"
-  //    canopy now. We size them to ~70-110% of riverY so they tower above the water.
+  // 3. Trees
   const treeRng = mulberry32(31337)
   const treeTargetH = Math.floor(riverY * 0.95)
   const treeCount = 4 + Math.floor(w / 220)
   for (let i = 0; i < treeCount; i++) {
     const variant = TREE_VARIANTS[Math.floor(treeRng() * TREE_VARIANTS.length)]
-    // Spread trees across width but bias toward edges (more density at sides, less centred)
     const u = treeRng()
     const x = Math.floor(w * (u < 0.5 ? u * 0.4 : 0.6 + (u - 0.5) * 0.8))
     const flip = treeRng() < 0.5
@@ -390,7 +468,7 @@ function paintBackdrop(
     stampSprite(ctx, assets.trees, variant, x, riverY + 2, heightVar, flip)
   }
 
-  // 4. Cliff face + waterfall slot (code-based — no sprite for this)
+  // 4. Cliff face + waterfall slot
   drawCliff(ctx, w, h, riverY)
 
   // 5. River base
@@ -405,7 +483,7 @@ function paintBackdrop(
     ctx.fillRect(0, y, w, 2)
   }
 
-  // 6. Sandy riverbank — chunky 3px wet-sand strip at the river's top edge
+  // 6. Sandy riverbank
   for (let x = 0; x < w; x++) {
     const ripple = ((x * 7) % 11) / 11
     ctx.fillStyle = ripple < 0.5 ? SAND_BASE : SAND_LITE
@@ -419,7 +497,7 @@ function paintBackdrop(
     ctx.fillRect(x, riverY - dip, 2, 1)
   }
 
-  // 7. Foreground rocks scattered along the bottom
+  // 7. Foreground rocks
   const rockRng = mulberry32(7777)
   const rockCount = Math.max(3, Math.floor(w / 180))
   const rockTargetH = Math.max(28, Math.floor(h * 0.10))
@@ -431,40 +509,15 @@ function paintBackdrop(
     stampSprite(ctx, assets.rocks, variant, x, h - 2, heightVar, flip)
   }
 
-  // 8. Foreground bushes (left + right edges)
-  const bushRng = mulberry32(54321)
-  const bushTargetH = Math.max(36, Math.floor(h * 0.14))
-  const bushCount = Math.max(4, Math.floor(w / 140))
-  for (let i = 0; i < bushCount; i++) {
-    const variant = BUSH_VARIANTS[Math.floor(bushRng() * BUSH_VARIANTS.length)]
-    // Skip the centre 35% so bushes don't cover the monument area
-    let x = Math.floor(bushRng() * w)
-    if (x > w * 0.55 && x < w * 0.78) x = Math.floor(x - w * 0.25)
-    const flip = bushRng() < 0.5
-    const heightVar = bushTargetH * (0.7 + bushRng() * 0.5)
-    stampSprite(ctx, assets.bushes, variant, x, h - 4 + Math.floor(bushRng() * 6), heightVar, flip)
-  }
-
-  // 9. Plants/cacti/grass tufts from the nature pack — sparse decorative touches
-  const plantRng = mulberry32(88888)
-  const plantTargetH = Math.max(22, Math.floor(h * 0.10))
-  const plantCount = Math.max(3, Math.floor(w / 160))
-  for (let i = 0; i < plantCount; i++) {
-    const variant = PLANT_VARIANTS[Math.floor(plantRng() * PLANT_VARIANTS.length)]
-    const x = Math.floor(plantRng() * w * 0.95) + Math.floor(w * 0.025)
-    const heightVar = plantTargetH * (0.75 + plantRng() * 0.5)
-    stampSprite(ctx, assets.plants, variant, x, h - 2, heightVar, plantRng() < 0.5)
-  }
-
-  // 10. Monument — placed on the right riverbank in the foreground
-  const mw = monumentSprite.width
-  const mh = monumentSprite.height
+  // 8. Monument (anchor of the scene's right side)
+  const mw = monument.canvas.width
+  const mh = monument.canvas.height
   const targetCenter = w * 0.84
   const halfW = mw / 2
   const mxRaw = targetCenter - halfW
   const mx = Math.round(Math.min(Math.max(mxRaw, 4), w - mw - 4))
   const my = Math.round(h - mh - 4)
-  ctx.drawImage(monumentSprite, mx, my)
+  ctx.drawImage(monument.canvas, mx, my)
 }
 
 function drawMountainLayer(
@@ -559,6 +612,8 @@ function drawCliff(ctx: CanvasRenderingContext2D, w: number, h: number, riverY: 
 }
 
 // ─── Per-frame animated overlays ─────────────────────────────────────────────
+// Single fall rate for every stream — the chute reads as one cohesive cascade. Centre
+// streams stay whiter; edge streams thin out to deeper blues so the column has shape.
 function drawWaterfall(
   ctx: CanvasRenderingContext2D, w: number, h: number, riverY: number, scrollMs: number
 ) {
@@ -570,24 +625,28 @@ function drawWaterfall(
   const fallTop = cliffTopY + 2
   const fallBot = riverY + 2
 
-  const streamCount = Math.max(3, Math.floor(slotW / 3))
+  const FALL_RATE = 0.30           // px/ms — every stream shares this
   const scrollPeriod = 24
+  const yOff = (scrollMs * FALL_RATE) % scrollPeriod
+
+  const streamCount = Math.max(3, Math.floor(slotW / 3))
   for (let s = 0; s < streamCount; s++) {
     const t = s / Math.max(1, streamCount - 1)
+    const centreness = 1 - Math.abs(t - 0.5) * 2     // 0..1, peak at centre
     const streamX = slotX + 1 + Math.floor(t * (slotW - 2))
-    const rate = 0.18 + (s % 3) * 0.04
-    const yOff = (scrollMs * rate) % scrollPeriod
     for (let y = fallTop; y < fallBot; y++) {
       const phase = ((y + yOff) % scrollPeriod) / scrollPeriod
-      ctx.fillStyle =
-        phase < 0.20 ? WATERFALL_LIGHT
-        : phase < 0.45 ? WATERFALL_MID
-        : phase < 0.75 ? WATERFALL_DEEP
-        : WATERFALL_MID
+      let color: string
+      if (phase < 0.20)      color = centreness > 0.35 ? WATERFALL_LIGHT : WATERFALL_MID
+      else if (phase < 0.50) color = centreness > 0.60 ? WATERFALL_LIGHT : WATERFALL_MID
+      else if (phase < 0.78) color = centreness > 0.85 ? WATERFALL_MID   : WATERFALL_DEEP
+      else                   color = WATERFALL_MID
+      ctx.fillStyle = color
       ctx.fillRect(streamX, y, 1, 1)
     }
   }
-  // Foam pool at base
+  // Foam pool at base — sin wobble shares the waterfall's time axis so it feels caused
+  // by the falling water, not added on top.
   ctx.fillStyle = WATER_FOAM
   for (let x = slotX - 2; x < slotX + slotW + 2; x++) {
     const dy = ((scrollMs * 0.01) + x * 0.37) % 2
@@ -600,23 +659,54 @@ function drawWaterfall(
   }
 }
 
-function drawRiverShimmer(
-  ctx: CanvasRenderingContext2D, w: number, h: number, riverY: number, frame: number
+// Drifting highlight bands replace the old pre-seeded flicker — these actually MOVE,
+// so the river reads as flowing. Each band wobbles in opacity at its own phase so the
+// rhythm isn't visually monotonous, but every band moves the same direction at related
+// speeds so it feels like one current.
+function drawRiverFlow(
+  ctx: CanvasRenderingContext2D, state: SceneState, time: number
 ) {
-  const rng = mulberry32(20251115)
-  const count = Math.floor(w / 12)
-  for (let i = 0; i < count; i++) {
-    const sx = Math.floor(rng() * w)
-    const sy = Math.floor(riverY + 2 + rng() * (h - riverY - 4))
-    const f = Math.floor(rng() * 4)
-    const len = 1 + Math.floor(rng() * 3)
-    if (f === frame) {
-      ctx.fillStyle = WATER_SHIMMER
-      ctx.fillRect(sx, sy, len, 1)
-    } else if ((f + 1) % 4 === frame) {
-      ctx.fillStyle = WATER_MID
-      ctx.fillRect(sx, sy, len, 1)
-    }
+  ctx.imageSmoothingEnabled = false
+  const [sr, sg, sb] = hexToRgb(WATER_SHIMMER)
+  for (const r of state.riverHighlights) {
+    const wob = (Math.sin(time * 0.0017 + r.phase) + 1) / 2
+    const alpha = 0.28 + wob * 0.42
+    ctx.fillStyle = `rgba(${sr},${sg},${sb},${alpha.toFixed(3)})`
+    ctx.fillRect(Math.floor(r.x), Math.floor(r.y), r.width, 1)
+  }
+}
+
+// Bushes + plants re-stamped per frame with a wind-driven sway. They share the wind
+// curve with the mist, so a gust pushes both at once and the scene feels alive.
+function drawFoliage(
+  ctx: CanvasRenderingContext2D, foliage: FoliageInstance[], assets: AssetMap,
+  wind: number, time: number
+) {
+  for (const f of foliage) {
+    const sway = wind * f.swayAmpl + Math.sin(time * 0.0009 + f.swayPhase) * f.swayAmpl * 0.35
+    const sprite = f.kind === "bush" ? assets.bushes : assets.plants
+    stampSprite(ctx, sprite, f.variant, f.x + sway, f.baseY, f.targetH, f.flip)
+  }
+}
+
+// Slow sunlight-catch pass across the carved letters. Off most of the time; sweeps once
+// every ~12s. Subtle "branding moment" without being a banner.
+function drawMonumentSweep(
+  ctx: CanvasRenderingContext2D, state: SceneState
+) {
+  if (!state.sweep.active || !state.monumentTextScreenRect) return
+  const rect = state.monumentTextScreenRect
+  const cx = rect.x + state.sweep.positionPx
+  const halfW = 6
+  const [r, g, b] = hexToRgb(WATERFALL_LIGHT)
+  for (let i = -halfW; i <= halfW; i++) {
+    const dist = Math.abs(i) / halfW
+    const alpha = 0.30 * (1 - dist)
+    if (alpha <= 0.02) continue
+    const x = Math.floor(cx + i)
+    if (x < rect.x || x >= rect.x + rect.w) continue
+    ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`
+    ctx.fillRect(x, rect.y, 1, rect.h)
   }
 }
 
@@ -633,7 +723,7 @@ export default function JungleScene({
   const rafRef = useRef<number>(0)
   const stateRef = useRef<SceneState | null>(null)
   const assetsRef = useRef<AssetMap | null>(null)
-  const monumentRef = useRef<HTMLCanvasElement | null>(null)
+  const monumentRef = useRef<MonumentSprite | null>(null)
   const pausedRef = useRef(false)
   const reducedMotionRef = useRef(false)
   const lastSizeRef = useRef<{ w: number; h: number; dpr: number }>({ w: 0, h: 0, dpr: 1 })
@@ -641,16 +731,30 @@ export default function JungleScene({
   const initScene = useCallback((): SceneState => ({
     dinos: [],
     mist: [],
-    shimmerMs: 0,
-    shimmerFrame: 0,
+    foliage: [],
+    riverHighlights: [],
     waterfallMs: 0,
     riverY: 0,
     waterfallBaseX: 0,
     waterfallBaseY: 0,
     waterfallSlotW: 0,
+    monumentScreenX: 0,
+    monumentScreenY: 0,
+    monumentTextScreenRect: null,
+    attention: {
+      active: false,
+      activeMs: 0,
+      durationMs: 0,
+      cooldownMs: 4000 + Math.random() * 3000,
+    },
+    sweep: {
+      active: false,
+      positionPx: 0,
+      cooldownMs: 6000 + Math.random() * 4000,
+    },
   }), [])
 
-  const layoutScene = useCallback((state: SceneState, w: number, h: number) => {
+  const layoutScene = useCallback((state: SceneState, w: number, h: number, monument: MonumentSprite | null) => {
     const riverY = Math.floor(h * 0.62)
     const cliffWidth = Math.floor(w * 0.36)
     const cliffX = Math.floor(w * 0.55 - cliffWidth / 2)
@@ -661,8 +765,85 @@ export default function JungleScene({
     state.waterfallBaseY = riverY + 2
     state.waterfallSlotW = slotW
 
-    // Dino 1 — bigger green vita near the riverbank, between waterfall base and left edge
-    // Dino 2 — smaller yellow tard patrolling the foreground bottom, right of center
+    // Monument screen position (mirrors paintBackdrop's math)
+    if (monument) {
+      const mw = monument.canvas.width
+      const mh = monument.canvas.height
+      const targetCenter = w * 0.84
+      const halfW = mw / 2
+      const mxRaw = targetCenter - halfW
+      const mx = Math.round(Math.min(Math.max(mxRaw, 4), w - mw - 4))
+      const my = Math.round(h - mh - 4)
+      state.monumentScreenX = mx
+      state.monumentScreenY = my
+      state.monumentTextScreenRect = {
+        x: mx + monument.textRect.x,
+        y: my + monument.textRect.y,
+        w: monument.textRect.w,
+        h: monument.textRect.h,
+      }
+    }
+
+    // Foliage instances — generated once at layout time using stable seeds so the
+    // composition matches the backdrop's static elements (rocks, trees) consistently.
+    state.foliage = []
+    const bushRng = mulberry32(54321)
+    const bushTargetH = Math.max(36, Math.floor(h * 0.14))
+    const bushCount = Math.max(4, Math.floor(w / 140))
+    for (let i = 0; i < bushCount; i++) {
+      const variant = BUSH_VARIANTS[Math.floor(bushRng() * BUSH_VARIANTS.length)]
+      let x = Math.floor(bushRng() * w)
+      if (x > w * 0.55 && x < w * 0.78) x = Math.floor(x - w * 0.25)
+      const flip = bushRng() < 0.5
+      const heightVar = bushTargetH * (0.7 + bushRng() * 0.5)
+      const baseY = h - 4 + Math.floor(bushRng() * 6)
+      state.foliage.push({
+        kind: "bush",
+        variant,
+        x,
+        baseY,
+        targetH: heightVar,
+        flip,
+        swayPhase: bushRng() * Math.PI * 2,
+        swayAmpl: 1.6 + bushRng() * 1.0,    // 1.6–2.6 px
+      })
+    }
+    const plantRng = mulberry32(88888)
+    const plantTargetH = Math.max(22, Math.floor(h * 0.10))
+    const plantCount = Math.max(3, Math.floor(w / 160))
+    for (let i = 0; i < plantCount; i++) {
+      const variant = PLANT_VARIANTS[Math.floor(plantRng() * PLANT_VARIANTS.length)]
+      const x = Math.floor(plantRng() * w * 0.95) + Math.floor(w * 0.025)
+      const heightVar = plantTargetH * (0.75 + plantRng() * 0.5)
+      const flip = plantRng() < 0.5
+      state.foliage.push({
+        kind: "plant",
+        variant,
+        x,
+        baseY: h - 2,
+        targetH: heightVar,
+        flip,
+        swayPhase: plantRng() * Math.PI * 2,
+        swayAmpl: 0.9 + plantRng() * 0.7,   // 0.9–1.6 px — smaller plants sway less
+      })
+    }
+
+    // River highlight bands — placed across the river surface; drift right at varied
+    // (but related) speeds. ~1 band per 40px of width.
+    state.riverHighlights = []
+    const highlightRng = mulberry32(2222)
+    const highlightCount = Math.max(8, Math.floor(w / 45))
+    for (let i = 0; i < highlightCount; i++) {
+      state.riverHighlights.push({
+        x: highlightRng() * w,
+        y: riverY + 3 + Math.floor(highlightRng() * (h - riverY - 6)),
+        width: 14 + Math.floor(highlightRng() * 28),       // 14–42 px
+        speed: 0.020 + highlightRng() * 0.025,              // 0.02–0.045 px/ms
+        phase: highlightRng() * Math.PI * 2,
+      })
+    }
+
+    // Dinos
     const bigScale = Math.max(3, Math.round(h / 90))
     const smallScale = Math.max(2, Math.round(h / 110))
     if (state.dinos.length === 0) {
@@ -681,6 +862,7 @@ export default function JungleScene({
         patrolMinX: dinoBigPatrolMin,
         patrolMaxX: dinoBigPatrolMax,
         nextDecisionMs: 1800 + Math.random() * 2500,
+        attentionLock: false,
       })
       const dinoSmallPatrolMin = Math.floor(w * 0.42)
       const dinoSmallPatrolMax = Math.floor(w * 0.72)
@@ -697,9 +879,9 @@ export default function JungleScene({
         patrolMinX: dinoSmallPatrolMin,
         patrolMaxX: dinoSmallPatrolMax,
         nextDecisionMs: 2500 + Math.random() * 3000,
+        attentionLock: false,
       })
     } else {
-      // Resize-time update — re-clamp patrol ranges + baselines, keep modes
       state.dinos[0].scale = bigScale
       state.dinos[0].baseY = riverY + 2 * bigScale
       state.dinos[0].patrolMinX = Math.floor(w * 0.12)
@@ -736,9 +918,9 @@ export default function JungleScene({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       const state = stateRef.current
       if (state) {
-        layoutScene(state, w, h)
         const monumentScale = Math.max(1, Math.round(h / 110))
         monumentRef.current = makeMonument(monumentScale)
+        layoutScene(state, w, h, monumentRef.current)
         paintBackdrop(backdrop, w, h, dpr, assets, monumentRef.current)
       }
       return { w, h, dpr }
@@ -747,7 +929,8 @@ export default function JungleScene({
     let { w, h } = resizeIfNeeded()
 
     if (reducedMotionRef.current) {
-      drawAnimatedLayer(ctx, w, h, stateRef.current!, assets, true, 600, 0)
+      const state = stateRef.current!
+      drawAnimatedLayer(ctx, w, h, state, assets, true, 600, 0, 0)
       return
     }
 
@@ -763,25 +946,65 @@ export default function JungleScene({
       const state = stateRef.current
       if (!state) return
 
-      state.shimmerMs += delta
-      if (state.shimmerMs >= 130) {
-        state.shimmerMs = 0
-        state.shimmerFrame = (state.shimmerFrame + 1) % 4
-      }
+      const wind = computeWind(ts)
       state.waterfallMs += delta
 
-      // Dinos
-      for (const d of state.dinos) updateDino(d, delta)
+      // Advance river highlights along their drift
+      for (const rh of state.riverHighlights) {
+        rh.x += rh.speed * delta
+        if (rh.x > w + rh.width) {
+          rh.x = -rh.width
+          rh.y = state.riverY + 3 + Math.floor(Math.random() * (h - state.riverY - 6))
+        }
+      }
 
-      // Mist particles at the waterfall base
-      const spawnCount = Math.random() < 0.7 ? (Math.random() < 0.4 ? 2 : 1) : 0
+      // Scene-wide attention beat — keeps the dinos in sync with the rest of the
+      // scene's slow rhythm.
+      if (state.attention.active) {
+        state.attention.activeMs += delta
+        if (state.attention.activeMs >= state.attention.durationMs) {
+          state.attention.active = false
+          state.attention.cooldownMs = 9000 + Math.random() * 6000
+        }
+      } else {
+        state.attention.cooldownMs -= delta
+        if (state.attention.cooldownMs <= 0) {
+          state.attention.active = true
+          state.attention.activeMs = 0
+          state.attention.durationMs = 1800 + Math.random() * 1200
+        }
+      }
+
+      // Monument sweep — slow once-every-12s highlight pass
+      const SWEEP_SPEED = 0.045    // px/ms
+      if (state.sweep.active && state.monumentTextScreenRect) {
+        state.sweep.positionPx += SWEEP_SPEED * delta
+        if (state.sweep.positionPx > state.monumentTextScreenRect.w + 8) {
+          state.sweep.active = false
+          state.sweep.cooldownMs = 9000 + Math.random() * 6000
+        }
+      } else {
+        state.sweep.cooldownMs -= delta
+        if (state.sweep.cooldownMs <= 0 && state.monumentTextScreenRect) {
+          state.sweep.active = true
+          state.sweep.positionPx = -8
+        }
+      }
+
+      // Dinos
+      for (const d of state.dinos) updateDino(state, d, delta)
+
+      // Mist plume — denser at the base, scaled to slot width. Wind nudges every
+      // particle laterally on top of its individual drift.
+      const baseSpawnChance = 0.55 + Math.min(0.35, state.waterfallSlotW / 200)
+      const spawnCount = Math.random() < baseSpawnChance ? (Math.random() < 0.4 ? 2 : 1) : 0
       for (let i = 0; i < spawnCount; i++) {
-        if (state.mist.length >= 100) break
+        if (state.mist.length >= 160) break
         const spread = state.waterfallSlotW + 6
         state.mist.push({
           x: state.waterfallBaseX + rand(-spread / 2, spread / 2),
           y: state.waterfallBaseY + rand(-2, 4),
-          vx: rand(-0.012, 0.012),
+          vx: rand(-0.008, 0.008),
           vy: rand(-0.045, -0.022),
           life: rand(1500, 2400),
           maxLife: 2400,
@@ -790,13 +1013,13 @@ export default function JungleScene({
       }
       for (let i = state.mist.length - 1; i >= 0; i--) {
         const m = state.mist[i]
-        m.x += m.vx * delta
+        m.x += (m.vx + wind * 0.010) * delta
         m.y += m.vy * delta
         m.life -= delta
         if (m.life <= 0) state.mist.splice(i, 1)
       }
 
-      drawAnimatedLayer(ctx, w, h, state, assets, false, state.waterfallMs, state.shimmerFrame)
+      drawAnimatedLayer(ctx, w, h, state, assets, false, state.waterfallMs, wind, ts)
 
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -821,8 +1044,8 @@ export default function JungleScene({
       const parent = scene.parentElement
       const w = parent?.clientWidth ?? window.innerWidth
       const h = parent?.clientHeight ?? window.innerHeight
-      layoutScene(stateRef.current, w, h)
       monumentRef.current = makeMonument(Math.max(1, Math.round(h / 110)))
+      layoutScene(stateRef.current, w, h, monumentRef.current)
       runLoop()
     }).catch(err => {
       console.error("JungleScene: failed to load sprite assets", err)
@@ -862,22 +1085,28 @@ export default function JungleScene({
 
 function drawAnimatedLayer(
   ctx: CanvasRenderingContext2D, w: number, h: number, state: SceneState, assets: AssetMap,
-  motionless: boolean, waterfallMs: number, shimmerFrame: number
+  motionless: boolean, waterfallMs: number, wind: number, time: number
 ) {
   ctx.clearRect(0, 0, w, h)
   ctx.imageSmoothingEnabled = false
 
   drawWaterfall(ctx, w, h, state.riverY, motionless ? 600 : waterfallMs)
-  drawRiverShimmer(ctx, w, h, state.riverY, shimmerFrame)
+  drawRiverFlow(ctx, state, time)
 
-  // Dinos (drawn in front of waterfall + river, behind mist)
+  // Foliage (bushes + plants) sit between the static backdrop and the dinos so the
+  // creatures still walk in front of leaves they pass.
+  drawFoliage(ctx, state.foliage, assets, wind, time)
+
+  drawMonumentSweep(ctx, state)
+
+  // Dinos
   for (const dino of state.dinos) {
     const sheet = assets[dino.spriteKey]
     if (!sheet) continue
     drawDino(ctx, dino, sheet)
   }
 
-  // Mist particles last
+  // Mist on top — it's atmospheric, should be the closest thing to the camera
   for (const m of state.mist) {
     const lifeT = m.life / m.maxLife
     const alpha = Math.max(0, Math.min(1, lifeT)) * 0.7
