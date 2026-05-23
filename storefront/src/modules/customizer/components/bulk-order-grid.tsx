@@ -1027,7 +1027,7 @@ function ColourPicker({
 // hardware, runs in parallel via Promise.all.
 // ---------------------------------------------------------------------------
 
-const loadImage = (url: string) =>
+const loadImageDirect = (url: string) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image()
     img.crossOrigin = "anonymous"
@@ -1035,6 +1035,35 @@ const loadImage = (url: string) =>
     img.onerror = () => reject(new Error(`Failed to load ${url}`))
     img.src = url
   })
+
+/**
+ * Load an image into a CORS-safe `<img>`. Suppliers' image CDNs
+ * (FashionBiz, Aussie Pacific S3, etc) frequently DON'T return
+ * `Access-Control-Allow-Origin: *` — when that happens, an `<img>`
+ * loaded with `crossOrigin="anonymous"` rejects entirely, and the
+ * per-colour mockup compositor falls back to the base mockup for
+ * every cart line (all 8 colours render with the same Seafoam
+ * preview, which is what was reported in support).
+ *
+ * Two-step strategy:
+ *   1. Try direct CORS load. Works for hosts that send the right
+ *      headers (Cloudflare R2, our own backend, some suppliers).
+ *   2. On reject, retry via the `/api/proxy-image` route, which
+ *      re-streams the same bytes with permissive CORS so the canvas
+ *      stays clean and `toDataURL` succeeds.
+ *
+ * The proxy is the slow path (server round-trip) — only one call per
+ * unique URL per cart-add submit, since composeColourMockup runs per
+ * colour once.
+ */
+const loadImage = async (url: string): Promise<HTMLImageElement> => {
+  try {
+    return await loadImageDirect(url)
+  } catch {
+    const proxied = `/api/proxy-image?url=${encodeURIComponent(url)}`
+    return loadImageDirect(proxied)
+  }
+}
 
 async function composeColourMockup(input: {
   garmentImageUrl: string

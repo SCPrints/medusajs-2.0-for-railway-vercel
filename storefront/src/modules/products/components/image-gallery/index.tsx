@@ -204,8 +204,15 @@ const ImageGallery = ({
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
-              className="absolute inset-0 rounded-xl object-cover transition-opacity duration-300 ease-in-out"
-              style={{ objectFit: "cover" }}
+              // object-contain so the customer always sees the whole
+              // garment, not a centre-cropped slice. Supplier photos
+              // come in mixed aspect ratios (some 1:1, some 4:5, some
+              // 3:4 with a wide white margin) and object-cover was
+              // chopping the sleeves / hem off on the squarer ones.
+              // The bg-ui-bg-subtle fill above pads the letterbox
+              // gracefully.
+              className="absolute inset-0 rounded-xl object-contain transition-opacity duration-300 ease-in-out"
+              style={{ objectFit: "contain" }}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-ui-fg-subtle">

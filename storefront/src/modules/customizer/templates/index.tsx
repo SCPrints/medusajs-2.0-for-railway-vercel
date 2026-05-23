@@ -1641,6 +1641,26 @@ export default function CustomizerTemplate({
         setEditingPreviousSides(previousSides as GarmentSide[])
         setEditingPreviousQty(line.quantity ?? 0)
         setEditingProductTitle(line.product_title ?? line.title ?? null)
+        // Seed sideLayoutsRef from the metadata so `decoratedSides`
+        // (and downstream UI like the "Artwork added on N of 5
+        // locations" badge) reflect every side the customer designed
+        // on, not just the one Fabric happens to be showing on the
+        // canvas at this moment. Without this seed, the customer
+        // would see "1 OF 5 LOCATIONS" after rehydration even though
+        // the preview popover correctly shows both Front and Back.
+        if (Array.isArray(design?.sideLayouts)) {
+          for (const sl of design.sideLayouts) {
+            if (sl?.side && Array.isArray(sl.objects)) {
+              sideLayoutsRef.current[sl.side] = sl.objects as Record<
+                string,
+                unknown
+              >[]
+            }
+          }
+          // Recompute decoratedSides / printSpecs from the freshly
+          // populated ref.
+          bumpLayoutVersion()
+        }
         // Design-group sibling lookup — surface a hint in the banner
         // when this edit will fan out across the whole group.
         const groupId = (design as { group_id?: string } | undefined)?.group_id
@@ -1751,6 +1771,20 @@ export default function CustomizerTemplate({
             (previousSides as GarmentSide[]).map((s) => [s, true as const])
           ) as Partial<Record<GarmentSide, true>>
         )
+        // Seed sideLayoutsRef from the metadata so the wizard's
+        // location-count badge matches what the design preview shows.
+        // See the matching block in the single-line edit path above.
+        if (Array.isArray(design?.sideLayouts)) {
+          for (const sl of design.sideLayouts) {
+            if (sl?.side && Array.isArray(sl.objects)) {
+              sideLayoutsRef.current[sl.side] = sl.objects as Record<
+                string,
+                unknown
+              >[]
+            }
+          }
+          bumpLayoutVersion()
+        }
         setPdpStep1Done(true)
         setPdpStep2Done(true)
         setPdpStep(4)
