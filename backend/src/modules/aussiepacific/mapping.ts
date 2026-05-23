@@ -29,24 +29,15 @@ export const toArray = <T>(value: unknown): T[] => {
   return []
 }
 
-export const slugify = (s: string) =>
-  (s || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
+import { slugify, titleCase } from "../../utils/string-case"
+
+// Re-exported so existing consumers (import-aussie-pacific-from-api, admin
+// import route, inventory sync job) keep working without per-call-site import
+// changes. Single source of truth lives in `utils/string-case.ts`.
+export { slugify, titleCase }
 
 export const handleForProduct = (styleCode: string) =>
   `aussie-pacific-${slugify(styleCode)}`
-
-export const titleCase = (s: string | undefined) => {
-  if (!s) return ""
-  return s
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
-    .join(" ")
-}
 
 /**
  * Pull a usable URL out of an image entry. Verified against live AP

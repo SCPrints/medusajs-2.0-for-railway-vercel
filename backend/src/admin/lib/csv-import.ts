@@ -1,5 +1,34 @@
 export type NameColumn = "tag_name" | "type_name"
 
+/**
+ * Read a CSV file from a browser `File` (typically `e.target.files?.[0]` in an
+ * `<input type="file">` change handler) into raw text. Used by the spreadsheet
+ * sync admin pages so both the create and update flows share the same
+ * file-read + error-formatting path. Page-specific state resets stay in the
+ * caller — this helper is intentionally framework-agnostic.
+ */
+export type CsvReadResult =
+  | { ok: true; text: string; fileName: string }
+  | { ok: false; error: string; fileName: string | null }
+
+export async function readCsvFile(
+  file: File | null | undefined
+): Promise<CsvReadResult> {
+  if (!file) {
+    return { ok: false, error: "No file selected", fileName: null }
+  }
+  try {
+    const text = await file.text()
+    return { ok: true, text, fileName: file.name }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Failed to read file",
+      fileName: file.name,
+    }
+  }
+}
+
 export const parseCsvLine = (line: string): string[] => {
   const out: string[] = []
   let value = ""

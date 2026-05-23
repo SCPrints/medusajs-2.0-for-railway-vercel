@@ -25,7 +25,7 @@ import {
   resolveBrandIdForValue,
   type BrandClient,
 } from "../../lib/spreadsheet-sync-brands"
-import { parseCsv } from "../../lib/csv-import"
+import { parseCsv, readCsvFile } from "../../lib/csv-import"
 import { sdk } from "../../lib/sdk"
 
 const adminFetchPath = (path: string) => {
@@ -176,21 +176,18 @@ const SpreadsheetSyncUpdatePage = () => {
   }, [])
 
   const onPickFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
     setParseError(null)
     setSyncLog([])
     setRawCsvText(null)
-    setFileName(file?.name ?? null)
 
-    if (!file) {
-      return
-    }
-
-    try {
-      const text = await file.text()
-      setRawCsvText(text)
-    } catch (err) {
-      setParseError(err instanceof Error ? err.message : "Failed to read file")
+    const result = await readCsvFile(e.target.files?.[0])
+    setFileName(result.fileName)
+    if (result.ok) {
+      setRawCsvText(result.text)
+    } else if (result.fileName) {
+      // Only surface an error when a file was actually picked — the "no file"
+      // case (e.g. cleared input) just resets state silently.
+      setParseError(result.error)
     }
   }, [])
 

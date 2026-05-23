@@ -12,24 +12,15 @@ import {
   FashionBizProduct,
 } from "./types"
 
-export const slugify = (s: string) =>
-  (s || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
+import { slugify, titleCase } from "../../utils/string-case"
+
+// Re-exported so existing consumers (import-fashionbiz-from-api, admin import
+// route) keep working without per-call-site import changes. Single source
+// of truth lives in `utils/string-case.ts`.
+export { slugify, titleCase }
 
 export const handleForProduct = (brand: FashionBizBrandSlug, slug: string) =>
   `${brand}-${slugify(slug)}`
-
-export const titleCase = (s: string | undefined) => {
-  if (!s) return ""
-  return s
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
-    .join(" ")
-}
 
 /**
  * Coerce a FashionBiz description section into a string array. The API is

@@ -20,18 +20,11 @@
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { BRAND_MODULE } from "../modules/brand"
+import { SUPPLIER_HANDLE_PREFIX_TO_BRAND } from "../lib/brand-handle"
 
 const PAGE_SIZE = 200
 
-// Handle prefix → brand handle. Extend this map when new suppliers are added.
-const HANDLE_PREFIX_TO_BRAND: Array<{ prefix: string; brandHandle: string }> = [
-  { prefix: "as-colour-", brandHandle: "as-colour" },
-  { prefix: "syzmik-", brandHandle: "syzmik" },
-  { prefix: "biz-collection-", brandHandle: "biz-collection" },
-  { prefix: "biz-care-", brandHandle: "biz-care" },
-  { prefix: "biz-corporates-", brandHandle: "biz-corporates" },
-  { prefix: "aussie-pacific-", brandHandle: "aussie-pacific" },
-]
+const HANDLE_PREFIX_TO_BRAND = SUPPLIER_HANDLE_PREFIX_TO_BRAND
 
 export default async function relinkSupplierBrands({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)

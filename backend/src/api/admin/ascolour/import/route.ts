@@ -32,6 +32,7 @@ import {
   assignCategoriesToProducts,
   ensureCategoryTree,
 } from "../../../../lib/shop-categories"
+import { slugify, titleCase } from "../../../../utils/string-case"
 
 const PRICE_CURRENCY_CODE = "aud"
 const AS_COLOUR_BRAND_HANDLE = "as-colour"
@@ -39,25 +40,9 @@ const AS_COLOUR_BRAND_NAME = "AS Colour"
 const AS_COLOUR_BRAND_EXTERNAL_CODE = "ASCOLOUR"
 const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
 
-const slugify = (s: string) =>
-  (s || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-
 const handleForStyle = (styleCode: string, productName?: string) => {
   const name = productName ?? styleCode
   return `as-colour-${slugify(`${name}-${styleCode}`)}`
-}
-
-const titleCase = (s: string | undefined) => {
-  if (!s) return ""
-  return s
-    .toLowerCase()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : ""))
-    .join(" ")
 }
 
 const extractArray = <T,>(resp: any): T[] => {
