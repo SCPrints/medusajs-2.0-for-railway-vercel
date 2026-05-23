@@ -33,12 +33,19 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 import type { PriceLadder } from "../../../../utils/bulk-price-ladder"
 import { BRAND_MODULE } from "../../../../modules/brand"
-import { classifyAussiePacificProduct } from "../../../../lib/product-taxonomy"
+import {
+  applyTitleFallbacks,
+  classifyAussiePacificProduct,
+} from "../../../../lib/product-taxonomy"
 import {
   fetchAllProductTypes,
   fetchAllProductTags,
   applyTypeAndTagsToProduct,
 } from "../../../../lib/product-type-tag-sync"
+import {
+  assignCategoriesToProducts,
+  ensureCategoryTree,
+} from "../../../../lib/shop-categories"
 
 const PRICE_CURRENCY_CODE = "aud"
 const AUSSIEPACIFIC_LOCATION_NAME = "Aussie Pacific Warehouse"
@@ -91,6 +98,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION) as any
   const brandService = req.scope.resolve(BRAND_MODULE) as any
   const link = req.scope.resolve(ContainerRegistrationKeys.LINK) as any
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any
 
   const salesChannels = await salesChannelService.listSalesChannels({
     name: "Default Sales Channel",
@@ -342,18 +350,30 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   })
   const createdProducts = (result as any[]) ?? []
 
-  // Apply type + tags via taxonomy
-  {
+  // Apply product_type + demographic tags. Mirrors the CLI script's
+  // post-create block (CLAUDE.md "Types & tags convention") so admin-UI imports
+  // land with the same taxonomy as the headless `import-aussie-pacific-from-api`
+  // script. `applyTitleFallbacks` covers the AP API's frequently-empty
+  // sub_category / main_category fields.
+  if (createdProducts.length) {
     const productModule = req.scope.resolve(Modules.PRODUCT) as any
     const typeCache = await fetchAllProductTypes(productModule)
     const tagCache = await fetchAllProductTags(productModule)
     const ctxByHandle = new Map(
       contexts.map((c) => [c.payload.handle, c.apProduct])
     )
+    const unknownTaxonomy: string[] = []
+    let typeTagOk = 0
+    let typeTagFail = 0
     for (const p of createdProducts) {
       const apProduct = ctxByHandle.get((p as any).handle)
       if (!apProduct) continue
-      const { productType, tags } = classifyAussiePacificProduct(apProduct)
+      const classified = classifyAussiePacificProduct(apProduct, unknownTaxonomy)
+      const { productType, tags } = applyTitleFallbacks(
+        classified,
+        (p as any).title ?? "",
+        unknownTaxonomy
+      )
       if (!productType && !tags.length) continue
       try {
         await applyTypeAndTagsToProduct({
@@ -364,9 +384,35 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           typeCache,
           tagCache,
         })
-      } catch {
-        // non-fatal
+        typeTagOk++
+      } catch (err: any) {
+        typeTagFail++
+        logger.warn(
+          `Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`
+        )
       }
+    }
+    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
+    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
+  }
+
+  // Shop categories — assign audience × garment-type so new products surface
+  // in the mega-menu drill-down. Idempotent.
+  if (createdProducts.length) {
+    try {
+      const byHandle = await ensureCategoryTree(req.scope, { logger })
+      const productIds = createdProducts
+        .map((p: any) => p?.id)
+        .filter((id: any): id is string => typeof id === "string")
+      const summary = await assignCategoriesToProducts(req.scope, byHandle, {
+        productIds,
+        logger,
+      })
+      logger.info(
+        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
+      )
+    } catch (err: any) {
+      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
     }
   }
 

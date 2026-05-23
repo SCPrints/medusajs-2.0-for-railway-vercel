@@ -1,6 +1,8 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { isStorefrontOriginAllowed } from "../../../lib/storefront-origins"
+import { BRAND_MODULE } from "../../../modules/brand"
+import type BrandModuleService from "../../../modules/brand/service"
 
 /**
  * GET /store/graph
@@ -101,19 +103,6 @@ const DEFAULT_LIMIT = 200
 const HARD_MAX_LIMIT = 500
 
 /**
- * Longest handle prefix first so `biz-collection` wins over `biz`. Mirrors the
- * storefront `inferBrandFromHandle` helper so products without a metadata
- * brand still get grouped correctly.
- */
-const HANDLE_PREFIX_BRAND: Array<{ prefix: string; brand: string }> = [
-  { prefix: "biz-collection", brand: "Biz Collection" },
-  { prefix: "biz-care", brand: "Biz Care" },
-  { prefix: "biz-corporates", brand: "Biz Corporates" },
-  { prefix: "as-colour", brand: "AS Colour" },
-  { prefix: "syzmik", brand: "Syzmik" },
-].sort((a, b) => b.prefix.length - a.prefix.length)
-
-/**
  * Canonical brands always rendered in the summary graph, even when the
  * catalogue currently has zero products for them. Mirrors
  * `storefront/src/modules/brands/data/brands.ts` so the graph stays in sync
@@ -126,35 +115,17 @@ const CANONICAL_BRANDS: Array<{ name: string; logoSrc: string | null }> = [
   { name: "Biz Collection", logoSrc: "/images/brands/logos/biz-collection.svg" },
 ]
 
-function inferBrandFromHandle(handle: string | null | undefined): string | null {
-  if (!handle) return null
-  const h = handle.trim().toLowerCase()
-  for (const { prefix, brand } of HANDLE_PREFIX_BRAND) {
-    if (h === prefix || h.startsWith(`${prefix}-`)) {
-      return brand
-    }
-  }
-  return null
-}
-
 /**
- * Brand resolution priority for the catalog graph:
- *   1. Linked Brand entity (one source of truth, populated by the spreadsheet importer +
- *      `/admin/products/:id/brand` widget). Expansion happens via the product↔brand link in
- *      `query.graph(...)`.
- *   2. Legacy `metadata.brand` — left in place for the 2-week post-migration window so any
- *      product that escaped the link backfill still surfaces in the graph.
- *   3. Handle-prefix inference — last-resort fallback for products that were imported before
- *      either of the above existed.
+ * Brand resolution: read the linked Brand entity (populated by every supplier
+ * importer + the `/admin/products/:id/brand` widget). The link is expanded via
+ * `query.graph(...)` so this is a pure projection — no fallback needed once
+ * `verify-brand-links` reports zero orphans (last confirmed 2026-05-23).
  */
 function resolveProductBrand(row: ProductRow): string | null {
   const linked = (row as { brand?: { name?: string } | Array<{ name?: string }> | null }).brand
   const linkedName = Array.isArray(linked) ? linked[0]?.name : linked?.name
   if (typeof linkedName === "string" && linkedName.trim()) return linkedName.trim()
-  const metaBrand =
-    typeof row.metadata?.brand === "string" ? (row.metadata.brand as string).trim() : ""
-  if (metaBrand) return metaBrand
-  return inferBrandFromHandle(row.handle)
+  return null
 }
 
 function resolveProductType(row: ProductRow): { id: string; value: string } | null {
@@ -619,6 +590,8 @@ async function buildSummary(query: QueryGraph): Promise<GraphPayload> {
 
 async function buildBrand(
   query: QueryGraph,
+  brandService: BrandModuleService,
+  pgConnection: any,
   brand: string,
   limit: number,
   offset: number,
@@ -627,39 +600,55 @@ async function buildBrand(
   const nodes: GraphNode[] = []
   const links: GraphLink[] = []
 
+  // Look up the Brand entity by name (case-insensitive). Same shape as the
+  // store /brands/:handle route — the link table is the single source of truth.
   const brandLower = brand.toLowerCase()
+  const [allBrands] = await brandService.listAndCountBrands({ is_active: true })
+  const brandEntity = (allBrands as Array<{ id: string; name: string }>).find(
+    (b) => (b.name ?? "").toLowerCase() === brandLower
+  )
+
+  if (!brandEntity) {
+    nodes.push({
+      id: `brand:${brand}`,
+      kind: "brand",
+      label: brand,
+      productCount: 0,
+    })
+    return { nodes, links, mode: "brand", offset, total: 0 }
+  }
+
+  // Read product IDs from the Module Link table — exactly like
+  // /store/brands/:handle/products. No handle-prefix fallback in this route:
+  // any drift surfaces in `verify-brand-links` and is repaired by
+  // `relink-supplier-brands`, not by silently papering over it at read time.
+  const linkRows: Array<{ product_id: string }> = await pgConnection(
+    "product_product_brand_brand"
+  )
+    .where({ brand_id: brandEntity.id })
+    .whereNull("deleted_at")
+    .select("product_id")
+
+  const brandProductIds = linkRows
+    .map((r) => r?.product_id)
+    .filter((id): id is string => typeof id === "string" && id.length > 0)
+
+  if (brandProductIds.length === 0) {
+    nodes.push({
+      id: `brand:${brand}`,
+      kind: "brand",
+      label: brand,
+      productCount: 0,
+    })
+    return { nodes, links, mode: "brand", offset, total: 0 }
+  }
 
   const { rows, total } = await fetchProducts(
     query,
-    {
-      // The brand may live on metadata or only be inferrable from handle, so
-      // we OR both signals here rather than relying on a single filter.
-      $or: [
-        { metadata: { brand } },
-        { metadata: { brand: brandLower } },
-      ],
-    },
+    { id: brandProductIds },
     limit,
     offset
   )
-
-  const filtered = rows.filter((row) => resolveProductBrand(row) === brand)
-
-  /**
-   * Handle-inference fallback: if the metadata filter missed products we know
-   * belong to this brand (legacy rows without `metadata.brand`), top the
-   * results up by scanning published products. Capped at `limit - filtered.length`.
-   */
-  if (filtered.length < limit) {
-    const needed = limit - filtered.length
-    const { rows: scan } = await fetchProducts(query, {}, needed * 4, 0)
-    for (const row of scan) {
-      if (filtered.length >= limit) break
-      if (resolveProductBrand(row) === brand && !filtered.find((r) => r.id === row.id)) {
-        filtered.push(row)
-      }
-    }
-  }
 
   nodes.push({
     id: `brand:${brand}`,
@@ -669,7 +658,7 @@ async function buildBrand(
   })
 
   const seenCategories = new Set<string>()
-  for (const row of filtered) {
+  for (const row of rows) {
     const { node, links: rowLinks } = buildProductNodeAndLinks(
       row,
       preferredCurrency,
@@ -979,7 +968,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           error: "Missing `brand` query parameter for mode=brand",
         })
       }
-      payload = await buildBrand(query, brand, limit, offset, preferredCurrency)
+      const brandService = req.scope.resolve<BrandModuleService>(BRAND_MODULE)
+      const pgConnection = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION)
+      payload = await buildBrand(
+        query,
+        brandService,
+        pgConnection,
+        brand,
+        limit,
+        offset,
+        preferredCurrency
+      )
     } else if (mode === "category") {
       const categoryId =
         typeof req.query.category_id === "string" ? req.query.category_id.trim() : ""

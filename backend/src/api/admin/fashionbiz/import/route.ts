@@ -11,7 +11,11 @@ import {
 } from "@medusajs/medusa/core-flows"
 import { FASHIONBIZ_MODULE } from "../../../../modules/fashionbiz"
 import FashionBizService from "../../../../modules/fashionbiz/service"
-import { FashionBizBrandSlug, FashionBizColour } from "../../../../modules/fashionbiz/types"
+import {
+  FashionBizBrandSlug,
+  FashionBizColour,
+  FashionBizProduct,
+} from "../../../../modules/fashionbiz/types"
 import { priceLadderFromFashionBiz } from "../../../../modules/fashionbiz/pricing"
 import {
   buildGarmentImagesForColour,
@@ -26,6 +30,19 @@ import {
   tierMinorToBulkPricingMetadata,
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
+import {
+  applyTitleFallbacks,
+  classifyFashionBizProduct,
+} from "../../../../lib/product-taxonomy"
+import {
+  applyTypeAndTagsToProduct,
+  fetchAllProductTags,
+  fetchAllProductTypes,
+} from "../../../../lib/product-type-tag-sync"
+import {
+  assignCategoriesToProducts,
+  ensureCategoryTree,
+} from "../../../../lib/shop-categories"
 
 const PRICE_CURRENCY_CODE = "aud"
 const FASHIONBIZ_LOCATION_NAME = "FashionBiz Warehouse"
@@ -74,6 +91,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION) as any
   const brandService = req.scope.resolve(BRAND_MODULE) as any
   const link = req.scope.resolve(ContainerRegistrationKeys.LINK) as any
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any
 
   const salesChannels = await salesChannelService.listSalesChannels({ name: "Default Sales Channel" })
   if (!salesChannels.length) return res.status(500).json({ error: "Default Sales Channel not found" })
@@ -107,6 +125,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     slug: string
     payload: any
     colourNames: string[]
+    fbProduct: FashionBizProduct
   }
   const contexts: ProductContext[] = []
 
@@ -238,7 +257,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         },
       }
 
-      contexts.push({ slug, payload, colourNames: Array.from(colourNames) })
+      contexts.push({
+        slug,
+        payload,
+        colourNames: Array.from(colourNames),
+        fbProduct: product,
+      })
     } catch (err: any) {
       errors.push({ slug, error: err?.message ?? String(err) })
     }
@@ -267,6 +291,68 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           // non-fatal
         }
       }
+    }
+  }
+
+  // Apply product_type + demographic tags. Mirrors the CLI script's post-create
+  // block (CLAUDE.md "Types & tags convention") so admin-UI imports land with
+  // the same taxonomy as the headless `import-fashionbiz-from-api` script.
+  if (createdProducts.length) {
+    const productModule = req.scope.resolve(Modules.PRODUCT) as any
+    const typeCache = await fetchAllProductTypes(productModule)
+    const tagCache = await fetchAllProductTags(productModule)
+    const fbByHandle = new Map(contexts.map((c) => [c.payload.handle, c.fbProduct]))
+    const unknownTaxonomy: string[] = []
+    let typeTagOk = 0
+    let typeTagFail = 0
+    for (const p of createdProducts) {
+      const fbProduct = fbByHandle.get((p as any).handle)
+      if (!fbProduct) continue
+      const classified = classifyFashionBizProduct(fbProduct, unknownTaxonomy)
+      const { productType, tags } = applyTitleFallbacks(
+        classified,
+        (p as any).title ?? "",
+        unknownTaxonomy
+      )
+      if (!productType && !tags.length) continue
+      try {
+        await applyTypeAndTagsToProduct({
+          productModule,
+          productId: (p as any).id,
+          productType,
+          tags,
+          typeCache,
+          tagCache,
+        })
+        typeTagOk++
+      } catch (err: any) {
+        typeTagFail++
+        logger.warn(
+          `Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`
+        )
+      }
+    }
+    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
+    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
+  }
+
+  // Shop categories — assign audience × garment-type so new products surface
+  // in the mega-menu drill-down. Idempotent.
+  if (createdProducts.length) {
+    try {
+      const byHandle = await ensureCategoryTree(req.scope, { logger })
+      const productIds = createdProducts
+        .map((p: any) => p?.id)
+        .filter((id: any): id is string => typeof id === "string")
+      const summary = await assignCategoriesToProducts(req.scope, byHandle, {
+        productIds,
+        logger,
+      })
+      logger.info(
+        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
+      )
+    } catch (err: any) {
+      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
     }
   }
 

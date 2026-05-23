@@ -19,6 +19,19 @@ import {
   tierMinorToBulkPricingMetadata,
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
+import {
+  applyTitleFallbacks,
+  classifyAsColourProduct,
+} from "../../../../lib/product-taxonomy"
+import {
+  applyTypeAndTagsToProduct,
+  fetchAllProductTags,
+  fetchAllProductTypes,
+} from "../../../../lib/product-type-tag-sync"
+import {
+  assignCategoriesToProducts,
+  ensureCategoryTree,
+} from "../../../../lib/shop-categories"
 
 const PRICE_CURRENCY_CODE = "aud"
 const AS_COLOUR_BRAND_HANDLE = "as-colour"
@@ -84,6 +97,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION) as any
   const brandService = req.scope.resolve(BRAND_MODULE) as any
   const link = req.scope.resolve(ContainerRegistrationKeys.LINK) as any
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any
 
   const salesChannels = await salesChannelService.listSalesChannels({ name: "Default Sales Channel" })
   if (!salesChannels.length) return res.status(500).json({ error: "Default Sales Channel not found" })
@@ -282,6 +296,68 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           // non-fatal link failure
         }
       }
+    }
+  }
+
+  // Apply product_type + demographic tags. Mirrors the CLI script's post-create
+  // block (CLAUDE.md "Types & tags convention") so admin-UI imports land with
+  // the same taxonomy as the headless `import-as-colour-from-api` script.
+  if (createdProducts.length) {
+    const productModule = req.scope.resolve(Modules.PRODUCT) as any
+    const typeCache = await fetchAllProductTypes(productModule)
+    const tagCache = await fetchAllProductTags(productModule)
+    const unknownTaxonomy: string[] = []
+    let typeTagOk = 0
+    let typeTagFail = 0
+    for (const p of createdProducts) {
+      const styleCode = (p as any).metadata?.ascolour?.styleCode
+      const asColourProduct = styleCode ? productsByCode.get(styleCode) : undefined
+      if (!asColourProduct) continue
+      const classified = classifyAsColourProduct(asColourProduct, unknownTaxonomy)
+      const { productType, tags } = applyTitleFallbacks(
+        classified,
+        (p as any).title ?? "",
+        unknownTaxonomy
+      )
+      if (!productType && !tags.length) continue
+      try {
+        await applyTypeAndTagsToProduct({
+          productModule,
+          productId: (p as any).id,
+          productType,
+          tags,
+          typeCache,
+          tagCache,
+        })
+        typeTagOk++
+      } catch (err: any) {
+        typeTagFail++
+        logger.warn(
+          `Failed to set type/tags for ${(p as any).handle}: ${err?.message ?? err}`
+        )
+      }
+    }
+    for (const msg of unknownTaxonomy) logger.warn(`[taxonomy] ${msg}`)
+    logger.info(`Type/tag sync: ${typeTagOk} ok, ${typeTagFail} failed.`)
+  }
+
+  // Shop categories — assign audience × garment-type so new products surface
+  // in the mega-menu drill-down. Idempotent.
+  if (createdProducts.length) {
+    try {
+      const byHandle = await ensureCategoryTree(req.scope, { logger })
+      const productIds = createdProducts
+        .map((p: any) => p?.id)
+        .filter((id: any): id is string => typeof id === "string")
+      const summary = await assignCategoriesToProducts(req.scope, byHandle, {
+        productIds,
+        logger,
+      })
+      logger.info(
+        `Shop categories: ${summary.updated} categorized, ${summary.untyped} untyped, ${summary.failures} failed.`
+      )
+    } catch (err: any) {
+      logger.warn(`Shop category assignment failed: ${err?.message ?? err}`)
     }
   }
 
