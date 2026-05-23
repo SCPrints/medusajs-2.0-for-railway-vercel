@@ -1,12 +1,22 @@
 "use client"
 
 import repeat from "@lib/util/repeat"
-import { convertToLocale } from "@lib/util/money"
+import {
+  resolveCartLineDisplayUnitMinor,
+  variantWithInferredHandleForLineItem,
+} from "@lib/util/cart-line-display-unit"
+import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
 import { Heading, Table, Text } from "@medusajs/ui"
 
 import Item from "@modules/cart/components/item"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import LineItemMockupPreview from "@modules/customizer/components/line-item-mockup-preview"
+import {
+  getCustomizerMockupArtifacts,
+  getCustomizerMockupUrls,
+} from "@modules/customizer/lib/metadata"
+import { getPrimaryGarmentImageUrl } from "@modules/products/lib/variant-options"
 import SkeletonLineItem from "@modules/skeletons/components/skeleton-line-item"
 import { useMemo, useState } from "react"
 
@@ -52,14 +62,45 @@ const groupTitle = (
   return item.product_title ?? "Items"
 }
 
-const formatCurrency = (
-  amount: number | undefined,
+const formatCurrencyFromMinor = (
+  amountMinor: number | undefined,
   currencyCode: string | undefined
 ) => {
-  if (typeof amount !== "number" || !Number.isFinite(amount)) {
+  if (typeof amountMinor !== "number" || !Number.isFinite(amountMinor)) {
     return null
   }
-  return convertToLocale({ amount, currency_code: currencyCode || "aud" })
+  return convertMinorToLocale({
+    amount: amountMinor,
+    currency_code: currencyCode || "aud",
+  })
+}
+
+// Sum the displayed line totals across a cart group. Mirrors
+// LineItemPrice's per-line math exactly so the group header total
+// always agrees with the sum of the rows beneath it:
+//   unit_minor * quantity − adjustments
+// Reading `l.subtotal` directly is unreliable — Medusa doesn't always
+// hydrate it on cart-line responses (custom add-to-cart paths come
+// back with subtotal=0), which is what made the group header show
+// "$0" while every row underneath rendered the correct price.
+const sumGroupTotalMinor = (
+  lines: HttpTypes.StoreCartLineItem[]
+): number => {
+  let total = 0
+  for (const line of lines) {
+    const variantForPricing = variantWithInferredHandleForLineItem(line)
+    const unitMinor = resolveCartLineDisplayUnitMinor(line, variantForPricing)
+    const qty =
+      typeof line.quantity === "number" && Number.isFinite(line.quantity)
+        ? line.quantity
+        : 0
+    const adjustmentsSum = (line.adjustments || []).reduce(
+      (acc, adjustment) => acc + (adjustment.amount ?? 0),
+      0
+    )
+    total += unitMinor * qty - adjustmentsSum
+  }
+  return total
 }
 
 const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
@@ -85,10 +126,7 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
     return order.map((key) => {
       const lines = map.get(key) ?? []
       const totalQuantity = lines.reduce((sum, l) => sum + (l.quantity ?? 0), 0)
-      const totalAmount = lines.reduce(
-        (sum, l) => sum + ((l as any)?.subtotal ?? 0),
-        0
-      )
+      const totalAmountMinor = sumGroupTotalMinor(lines)
       // Surface the customizer group_id (set by addCustomizedToCart) so
       // the group header can deep-link to /products/<handle>?edit_group=
       // which opens the customizer in group-edit mode (Phase 2). Falls
@@ -111,7 +149,7 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
         key,
         lines,
         totalQuantity,
-        totalAmount,
+        totalAmountMinor,
         currencyCode: (lines[0] as any)?.currency_code,
         title: groupTitle(lines[0], key),
         isDesignGroup: key.startsWith("design:"),
@@ -158,9 +196,10 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
                   <CartItemGroup
                     key={group.key}
                     title={group.title}
+                    firstLine={group.lines[0]}
                     lineCount={group.lines.length}
                     totalQuantity={group.totalQuantity}
-                    totalAmount={group.totalAmount}
+                    totalAmountMinor={group.totalAmountMinor}
                     currencyCode={group.currencyCode}
                     isDesignGroup={group.isDesignGroup}
                     editGroupId={group.editGroupId}
@@ -181,9 +220,15 @@ const ItemsTemplate = ({ items }: ItemsTemplateProps) => {
 
 type CartItemGroupProps = {
   title: string
+  /** First line in the group — used to render the design-thumbnail preview
+   *  next to the group title so the customer immediately recognises which
+   *  design the row collapses on a large cart. */
+  firstLine?: HttpTypes.StoreCartLineItem
   lineCount: number
   totalQuantity: number
-  totalAmount: number
+  /** Sum of `unit_price * qty - adjustments` across every line in the
+   *  group, in minor currency units. */
+  totalAmountMinor: number
   currencyCode: string | undefined
   isDesignGroup: boolean
   /**
@@ -205,9 +250,10 @@ type CartItemGroupProps = {
 
 const CartItemGroup = ({
   title,
+  firstLine,
   lineCount,
   totalQuantity,
-  totalAmount,
+  totalAmountMinor,
   currencyCode,
   isDesignGroup,
   editGroupId,
@@ -216,32 +262,56 @@ const CartItemGroup = ({
   children,
 }: CartItemGroupProps) => {
   const [open, setOpen] = useState(defaultOpen)
-  const formattedTotal = formatCurrency(totalAmount, currencyCode)
+  const formattedTotal = formatCurrencyFromMinor(totalAmountMinor, currencyCode)
   const showGroupEditLink =
     isDesignGroup && lineCount > 1 && !!editGroupId && !!productHandle
+
+  const mockupArtifacts = firstLine ? getCustomizerMockupArtifacts(firstLine) : []
+  const mockupUrls = firstLine ? getCustomizerMockupUrls(firstLine) : []
+  const fallbackThumb = firstLine
+    ? getPrimaryGarmentImageUrl(
+        firstLine.variant?.product as HttpTypes.StoreProduct | undefined,
+        firstLine.variant as HttpTypes.StoreProductVariant | undefined
+      ) ??
+      firstLine.variant?.product?.thumbnail ??
+      firstLine.thumbnail
+    : undefined
+  const showThumbnail = isDesignGroup && !!firstLine
 
   return (
     <>
       <Table.Row className="bg-ui-bg-subtle">
         {/* Medusa UI's Table.Cell prop type doesn't declare `colSpan`, but it forwards rest props to <td>. */}
         <Table.Cell {...({ colSpan: 5 } as any)} className="!py-2">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex flex-1 items-center justify-between gap-2 text-left"
+              className="flex flex-1 items-center justify-between gap-3 text-left"
               aria-expanded={open}
               data-testid="cart-group-toggle"
             >
-              <Text className="txt-medium-plus text-ui-fg-base">
-                {open ? "▾" : "▸"} {title}{" "}
-                {isDesignGroup ? (
-                  <span className="ml-1 inline-block rounded-full bg-ui-bg-base px-2 py-0.5 text-xs text-ui-fg-subtle">
-                    custom design
-                  </span>
+              <div className="flex items-center gap-3 min-w-0">
+                {showThumbnail ? (
+                  <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-ui-bg-base ring-1 ring-ui-border-base">
+                    <LineItemMockupPreview
+                      mockups={mockupArtifacts}
+                      mockupUrls={mockupUrls}
+                      productThumbnail={fallbackThumb}
+                      size="square"
+                    />
+                  </div>
                 ) : null}
-              </Text>
-              <Text className="txt-small text-ui-fg-subtle">
+                <Text className="txt-medium-plus text-ui-fg-base truncate">
+                  {open ? "▾" : "▸"} {title}{" "}
+                  {isDesignGroup ? (
+                    <span className="ml-1 inline-block rounded-full bg-ui-bg-base px-2 py-0.5 text-xs text-ui-fg-subtle">
+                      custom design
+                    </span>
+                  ) : null}
+                </Text>
+              </div>
+              <Text className="txt-small text-ui-fg-subtle shrink-0">
                 {lineCount} {lineCount === 1 ? "variant" : "variants"} ·{" "}
                 {totalQuantity} units
                 {formattedTotal ? ` · ${formattedTotal}` : ""}
@@ -250,10 +320,10 @@ const CartItemGroup = ({
             {showGroupEditLink ? (
               <LocalizedClientLink
                 href={`/products/${productHandle}?edit_group=${editGroupId}`}
-                className="shrink-0 rounded-md border border-ui-border-base bg-ui-bg-base px-2.5 py-1 text-xs font-medium text-ui-fg-base shadow-sm transition-colors hover:bg-ui-bg-base-hover"
+                className="shrink-0 rounded-md bg-[var(--brand-primary,#e11d48)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-rose-400/40 transition-colors hover:bg-[var(--brand-primary-hover,#be123c)]"
                 data-testid="cart-group-edit-design"
               >
-                Edit design (all variants)
+                ✏️ Edit design
               </LocalizedClientLink>
             ) : null}
           </div>

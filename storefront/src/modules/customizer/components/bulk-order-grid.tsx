@@ -66,6 +66,18 @@ export type BulkOrderGridProps = {
   }>
   /** Override the primary submit-button label. Defaults to "Add N items to cart". */
   submitCtaLabel?: string
+  /**
+   * Group-edit mode — when true, the grid reframes its language and
+   * visuals to say "you're editing" rather than "you're adding". The
+   * customer sees an amber banner, the header reads "Edit design", the
+   * Back button reads "Back to cart", and the submit copy emphasises
+   * UPDATE not ADD.
+   */
+  editMode?: boolean
+  /** Count of cart lines being edited (display only). */
+  editingLineCount?: number
+  /** Total quantity of garments being edited (display only). */
+  editingTotalQuantity?: number
 }
 
 // Canonical clothing-size rank. Anything that doesn't match a known label
@@ -124,6 +136,9 @@ export default function BulkOrderGrid({
   onSubmit,
   initialCells,
   submitCtaLabel,
+  editMode = false,
+  editingLineCount = 0,
+  editingTotalQuantity = 0,
 }: BulkOrderGridProps) {
   const sizeOption = useMemo<SizeOption | null>(() => {
     const option = product.options?.find((entry) =>
@@ -369,7 +384,31 @@ export default function BulkOrderGrid({
   const isAddDisabled = totalQuantity === 0 || isSubmitting
 
   return (
-    <div className="flex h-full flex-col bg-ui-bg-subtle/30">
+    <div
+      className={`flex h-full flex-col ${
+        editMode ? "bg-amber-50/50" : "bg-ui-bg-subtle/30"
+      }`}
+    >
+      {editMode ? (
+        <div className="border-b-2 border-amber-400 bg-amber-100 px-4 py-2.5 sm:px-6">
+          <p className="text-sm font-semibold text-amber-900">
+            ✏️ Editing your cart design
+          </p>
+          <p className="text-xs text-amber-800">
+            You're updating the artwork + variant mix on{" "}
+            <span className="font-semibold">
+              {editingLineCount > 0
+                ? `${editingLineCount} cart line${editingLineCount === 1 ? "" : "s"}`
+                : "your existing cart"}
+            </span>
+            {editingTotalQuantity > 0
+              ? ` (${editingTotalQuantity} garments)`
+              : ""}
+            . No new items will be added — your existing cart will be
+            replaced when you save.
+          </p>
+        </div>
+      ) : null}
       <header className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-ui-border-base bg-white px-4 py-3 shadow-sm sm:px-6">
         <div className="flex items-center gap-2 sm:gap-3">
           <button
@@ -378,9 +417,10 @@ export default function BulkOrderGrid({
             disabled={isSubmitting}
             className="inline-flex items-center gap-1.5 rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-sm font-medium text-ui-fg-base transition-colors hover:bg-ui-bg-subtle disabled:opacity-50"
           >
-            <span aria-hidden>←</span> Back to design
+            <span aria-hidden>←</span>{" "}
+            {editMode ? "Cancel & back to cart" : "Back to design"}
           </button>
-          {onBackToProduct ? (
+          {onBackToProduct && !editMode ? (
             <button
               type="button"
               onClick={onBackToProduct}
@@ -391,9 +431,13 @@ export default function BulkOrderGrid({
             </button>
           ) : null}
           <div className="hidden lg:block">
-            <p className="text-base font-semibold text-ui-fg-base">Bulk order grid</p>
+            <p className="text-base font-semibold text-ui-fg-base">
+              {editMode ? "Edit design" : "Bulk order grid"}
+            </p>
             <p className="text-xs text-ui-fg-subtle">
-              Same design applied across every colour and size you pick.
+              {editMode
+                ? "Adjust artwork, add or remove colours, then save to update your cart."
+                : "Same design applied across every colour and size you pick."}
             </p>
           </div>
         </div>

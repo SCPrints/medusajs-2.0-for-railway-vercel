@@ -4581,12 +4581,15 @@ export default function CustomizerTemplate({
             printThumbSource={printArtifactForThumb}
             estimatePricingForTotal={estimatePricingForTotal}
             onClose={() => {
+              // Just close the grid — return to the wizard so the
+              // customer can tweak the design canvas (artwork, text,
+              // print sizes) and re-open the grid to adjust cells. In
+              // edit mode this preserves editGroupId so the next bulk
+              // submit still fans out across the existing cart group.
+              // To abandon the whole edit, the customer uses the
+              // "Cancel edit" button in the amber banner that the
+              // wizard sidebar renders while editGroupId is set.
               setBulkMode(false)
-              if (editGroupId && typeof window !== "undefined") {
-                // Bail out of group-edit: take the customer back to
-                // /cart with the original lines untouched.
-                router.push(`/${countryCode}/cart`)
-              }
             }}
             onBackToProduct={() => {
               setBulkMode(false)
@@ -4598,7 +4601,19 @@ export default function CustomizerTemplate({
                 ? editGroupInitialCells
                 : undefined
             }
-            submitCtaLabel={editGroupId ? "Update cart" : undefined}
+            submitCtaLabel={
+              editGroupId
+                ? `Save design (${editGroupLineIds.length} cart line${
+                    editGroupLineIds.length === 1 ? "" : "s"
+                  })`
+                : undefined
+            }
+            editMode={!!editGroupId}
+            editingLineCount={editGroupLineIds.length}
+            editingTotalQuantity={editGroupInitialCells.reduce(
+              (sum, c) => sum + (c.quantity ?? 0),
+              0
+            )}
           />
         </div>
       )
@@ -4700,6 +4715,53 @@ export default function CustomizerTemplate({
             </div>
           </div>
 
+          {editGroupId ? (
+            <div className="space-y-2 rounded-xl border-2 border-amber-500 bg-amber-50 p-3 text-amber-900 shadow-[0_0_0_3px_rgba(245,158,11,0.18)]">
+              <p className="text-sm font-semibold">
+                ✏️ Editing design across your cart
+              </p>
+              <p className="text-xs rounded-md bg-amber-100 px-2 py-1.5 ring-1 ring-amber-200">
+                You're updating the design on{" "}
+                <span className="font-semibold">
+                  {editGroupLineIds.length} cart line
+                  {editGroupLineIds.length === 1 ? "" : "s"}
+                </span>
+                {editGroupInitialCells.length > 0 ? (
+                  <>
+                    {" "}
+                    (
+                    {editGroupInitialCells.reduce(
+                      (sum, c) => sum + (c.quantity ?? 0),
+                      0
+                    )}{" "}
+                    garments)
+                  </>
+                ) : null}
+                . Adjust artwork or text, then tap{" "}
+                <span className="font-semibold">Order multiple colours</span>{" "}
+                below to update the cart. No new items will be added.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditGroupId(null)
+                  setEditGroupHydrated(false)
+                  setEditGroupInitialCells([])
+                  setEditGroupLineIds([])
+                  setBulkMode(false)
+                  if (typeof window !== "undefined") {
+                    const url = new URL(window.location.href)
+                    url.searchParams.delete("edit_group")
+                    window.history.replaceState({}, "", url.toString())
+                    router.push(`/${countryCode}/cart`)
+                  }
+                }}
+                className="text-xs font-medium text-amber-900 underline underline-offset-2 hover:text-amber-700"
+              >
+                Cancel — back to cart without changes
+              </button>
+            </div>
+          ) : null}
           {editLineItemId ? (
             <div className="space-y-2 rounded-xl border-2 border-fuchsia-500 bg-amber-50 p-3 text-amber-900 shadow-[0_0_0_3px_rgba(217,70,239,0.18)]">
               <p className="text-sm font-semibold">
