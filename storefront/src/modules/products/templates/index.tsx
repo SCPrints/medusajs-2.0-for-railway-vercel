@@ -12,6 +12,7 @@ import SkeletonProductionEtaStrip from "@modules/skeletons/components/skeleton-p
 import ProductActionsWrapper from "./product-actions-wrapper"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import { getCustomerTier } from "@lib/data/customer-tier"
+import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
 import PdpSplitTabs from "@modules/products/components/pdp-split-tabs"
 import DtfAutoBuilderTemplate, {
@@ -111,6 +112,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
   return (
     <>
       <ViewItemTracker product={product} />
+      <CartEditBanner />
       <div className="content-container py-6 relative" data-testid="product-container">
         <PrintPlacementProvider>
           <ProductOptionsProvider product={product}>

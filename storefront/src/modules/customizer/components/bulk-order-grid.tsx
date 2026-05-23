@@ -16,8 +16,14 @@ export type BulkCellEntry = {
   variant: HttpTypes.StoreProductVariant
   size: string
   quantity: number
-  /** Per-colour composited mockup data URL — front-side only, generated at submit time. */
+  /** Per-colour composited mockup data URL for the front side. Kept for
+   *  back-compat with paths that only swap the front mockup. */
   mockupDataUrl?: string
+  /** Per-colour composited mockup data URLs keyed by garment side. When
+   *  set, addCustomizedToCart swaps the cart line's mockupUrl for EVERY
+   *  listed side, not just the front — so all decorated views in the cart
+   *  preview reflect the variant colour the customer ordered. */
+  mockupDataUrlsBySide?: Partial<Record<GarmentSide, string>>
 }
 
 export type BulkPricingEstimate = {
@@ -36,12 +42,20 @@ export type BulkOrderGridProps = {
   currencyCode: string
   isSubmitting: boolean
   /**
-   * Print artifact for the side we use to build per-colour cart thumbnails.
-   * Typically the first decorated side (front, falling back to whichever the
-   * customer designed). Null when there's no print artifact yet — the grid
-   * still works, lines just don't get per-colour mockups.
+   * Print artifacts for the sides we use to build per-colour cart thumbnails.
+   * Caller passes one entry per decorated side (front, back, sleeves, tag)
+   * so every view in the cart preview reflects the variant colour the
+   * customer ordered — not just the front. Empty when there's no print
+   * artifact yet; the grid still works, lines just don't get per-colour
+   * mockups.
    */
-  printThumbSource: { side: GarmentSide; printUrl: string } | null
+  printThumbSources: Array<{ side: GarmentSide; printUrl: string }>
+  /**
+   * @deprecated Use printThumbSources. Retained as a fallback path so old
+   * callers passing a single-side artifact still produce a front-only
+   * per-cell mockup.
+   */
+  printThumbSource?: { side: GarmentSide; printUrl: string } | null
   /**
    * Given a total quantity across all picked cells, return the projected
    * per-garment + per-line totals the customer would see if they checked out
@@ -129,6 +143,7 @@ export default function BulkOrderGrid({
   defaultGarmentImage,
   currencyCode,
   isSubmitting,
+  printThumbSources,
   printThumbSource,
   estimatePricingForTotal,
   onClose,
@@ -305,42 +320,83 @@ export default function BulkOrderGrid({
     // Compose per-colour mockup thumbnails in parallel so cart line items
     // carry the colour the customer actually picked, not the design-reference
     // colour. Compositing failures are non-fatal — the line still goes in,
-    // just without an updated thumb.
-    if (printThumbSource) {
-      const colourToMockup = new Map<string, string>()
-      const distinctColours = Array.from(new Set(cellsToAdd.map((cell) => {
-        const value = cell.variant.options?.find((entry) => entry.option_id === colourOption?.id)?.value
-        return value ?? ""
-      })))
-      await Promise.all(
-        distinctColours.filter(Boolean).map(async (colour) => {
-          const variant = cellsToAdd.find((cell) => {
-            const value = cell.variant.options?.find((entry) => entry.option_id === colourOption?.id)?.value
-            return value === colour
-          })?.variant
-          if (!variant) return
-          const garmentUrl = getGarmentImageUrlForPrintSide(
-            product,
-            variant,
-            printThumbSource.side,
-            defaultGarmentImage
+    // just without an updated thumb. Iterates EVERY decorated side so the
+    // back/sleeve/tag thumbnails in the cart also reflect the variant colour.
+    const sourcesForCompositing =
+      printThumbSources && printThumbSources.length > 0
+        ? printThumbSources
+        : printThumbSource
+          ? [printThumbSource]
+          : []
+    if (sourcesForCompositing.length > 0) {
+      // (colour, side) → composited data URL
+      const colourSideToMockup = new Map<string, string>()
+      const distinctColours = Array.from(
+        new Set(
+          cellsToAdd.map((cell) => {
+            const value = cell.variant.options?.find(
+              (entry) => entry.option_id === colourOption?.id
+            )?.value
+            return value ?? ""
+          })
+        )
+      ).filter(Boolean)
+
+      const compositingJobs: Array<Promise<unknown>> = []
+      for (const colour of distinctColours) {
+        const variant = cellsToAdd.find((cell) => {
+          const value = cell.variant.options?.find(
+            (entry) => entry.option_id === colourOption?.id
+          )?.value
+          return value === colour
+        })?.variant
+        if (!variant) continue
+        for (const source of sourcesForCompositing) {
+          compositingJobs.push(
+            (async () => {
+              const garmentUrl = getGarmentImageUrlForPrintSide(
+                product,
+                variant,
+                source.side,
+                defaultGarmentImage
+              )
+              if (!garmentUrl) return
+              try {
+                const dataUrl = await composeColourMockup({
+                  garmentImageUrl: garmentUrl,
+                  printPngUrl: source.printUrl,
+                })
+                if (dataUrl) {
+                  colourSideToMockup.set(`${colour}::${source.side}`, dataUrl)
+                }
+              } catch {
+                // swallow — fall back to the base mockup the parent has
+              }
+            })()
           )
-          if (!garmentUrl) return
-          try {
-            const dataUrl = await composeColourMockup({
-              garmentImageUrl: garmentUrl,
-              printPngUrl: printThumbSource.printUrl,
-            })
-            if (dataUrl) colourToMockup.set(colour, dataUrl)
-          } catch {
-            // swallow — fall back to the base mockup the parent already has
-          }
-        })
-      )
+        }
+      }
+      await Promise.all(compositingJobs)
+
       for (const cell of cellsToAdd) {
-        const colour = cell.variant.options?.find((entry) => entry.option_id === colourOption?.id)?.value
-        if (colour && colourToMockup.has(colour)) {
-          cell.mockupDataUrl = colourToMockup.get(colour)
+        const colour = cell.variant.options?.find(
+          (entry) => entry.option_id === colourOption?.id
+        )?.value
+        if (!colour) continue
+        const bySide: Partial<Record<GarmentSide, string>> = {}
+        for (const source of sourcesForCompositing) {
+          const dataUrl = colourSideToMockup.get(`${colour}::${source.side}`)
+          if (dataUrl) {
+            bySide[source.side] = dataUrl
+            // Front-side stays on `mockupDataUrl` for back-compat with
+            // the existing addCustomizedToCart override path.
+            if (source.side === "front") {
+              cell.mockupDataUrl = dataUrl
+            }
+          }
+        }
+        if (Object.keys(bySide).length > 0) {
+          cell.mockupDataUrlsBySide = bySide
         }
       }
     }

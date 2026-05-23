@@ -8,6 +8,7 @@ import { retrieveOrder } from "@lib/data/orders"
 import { getProductsList } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import ImageGallery from "@modules/products/components/image-gallery"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
@@ -278,8 +279,10 @@ export default async function CustomizerPage({ params, searchParams }: Customize
   )
 
   return (
-    <div className="content-container py-6 relative" data-testid="customizer-container">
-      <PrintPlacementProvider>
+    <>
+      <CartEditBanner />
+      <div className="content-container py-6 relative" data-testid="customizer-container">
+        <PrintPlacementProvider>
         <ProductOptionsProvider product={customizerProduct}>
           <CustomizeModeProvider>
             {/* Just the garment name above the customizer so the page
@@ -320,7 +323,8 @@ export default async function CustomizerPage({ params, searchParams }: Customize
             </div>
           </CustomizeModeProvider>
         </ProductOptionsProvider>
-      </PrintPlacementProvider>
-    </div>
+        </PrintPlacementProvider>
+      </div>
+    </>
   )
 }

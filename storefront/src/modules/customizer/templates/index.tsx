@@ -1641,25 +1641,15 @@ export default function CustomizerTemplate({
         setEditingPreviousSides(previousSides as GarmentSide[])
         setEditingPreviousQty(line.quantity ?? 0)
         setEditingProductTitle(line.product_title ?? line.title ?? null)
-        // Seed sideLayoutsRef from the metadata so `decoratedSides`
-        // (and downstream UI like the "Artwork added on N of 5
-        // locations" badge) reflect every side the customer designed
-        // on, not just the one Fabric happens to be showing on the
-        // canvas at this moment. Without this seed, the customer
-        // would see "1 OF 5 LOCATIONS" after rehydration even though
-        // the preview popover correctly shows both Front and Back.
-        if (Array.isArray(design?.sideLayouts)) {
-          for (const sl of design.sideLayouts) {
-            if (sl?.side && Array.isArray(sl.objects)) {
-              sideLayoutsRef.current[sl.side] = sl.objects as Record<
-                string,
-                unknown
-              >[]
-            }
-          }
-          // Recompute decoratedSides / printSpecs from the freshly
-          // populated ref.
-          bumpLayoutVersion()
+        // Route the design through the shared stage-2 hydration pipeline.
+        // Stage 2 handles sideLayoutsRef + Fabric loadSide + restoring
+        // active side / variant / prints. Without this the canvas
+        // shows blank for any previously-decorated side the customer
+        // hasn't yet clicked into — the metadata is in the ref but
+        // Fabric isn't replaying it onto the live canvas until
+        // loadSide fires.
+        if (design && typeof design === "object") {
+          setPendingHydration(design as CustomizerMetadata)
         }
         // Design-group sibling lookup — surface a hint in the banner
         // when this edit will fan out across the whole group.
@@ -1771,19 +1761,11 @@ export default function CustomizerTemplate({
             (previousSides as GarmentSide[]).map((s) => [s, true as const])
           ) as Partial<Record<GarmentSide, true>>
         )
-        // Seed sideLayoutsRef from the metadata so the wizard's
-        // location-count badge matches what the design preview shows.
-        // See the matching block in the single-line edit path above.
-        if (Array.isArray(design?.sideLayouts)) {
-          for (const sl of design.sideLayouts) {
-            if (sl?.side && Array.isArray(sl.objects)) {
-              sideLayoutsRef.current[sl.side] = sl.objects as Record<
-                string,
-                unknown
-              >[]
-            }
-          }
-          bumpLayoutVersion()
+        // Route through stage-2 hydration (sideLayoutsRef + Fabric
+        // loadSide + restore active side, variant, prints). Same
+        // reasoning as the single-line edit path above.
+        if (design && typeof design === "object") {
+          setPendingHydration(design as CustomizerMetadata)
         }
         setPdpStep1Done(true)
         setPdpStep2Done(true)
@@ -3706,19 +3688,26 @@ export default function CustomizerTemplate({
       }
 
       for (const quantityEntry of resolvedQuantities) {
-        // Per-cell mockup override: bulk-grid cells carry a colour-specific
-        // composited mockup so the cart preview shows the actual colour the
-        // customer ordered, not the design-reference colour. We replace the
-        // front-side artifact's mockupUrl and pass the data URL through the
-        // sanitizer override map so it's preserved as-is.
-        const overrideMockup = quantityEntry.mockupDataUrl
-        const perCellArtifacts = overrideMockup
-          ? (metadataBase.artifacts ?? []).map((artifact) =>
-              artifact.side === "front"
-                ? { ...artifact, mockupUrl: overrideMockup }
-                : artifact
-            )
-          : metadataBase.artifacts
+        // Per-cell mockup overrides: bulk-grid cells carry colour-specific
+        // composited mockups for every decorated side so the cart preview
+        // shows the actual colour the customer ordered — not the design-
+        // reference colour — across front, back, sleeves, and tag. The
+        // override map is keyed by side; sides without an entry keep the
+        // base mockupUrl. Data URLs are preserved through the sanitizer
+        // via the per-cell override map below.
+        const perSideOverrides =
+          (quantityEntry as { mockupDataUrlsBySide?: Partial<Record<GarmentSide, string>> })
+            .mockupDataUrlsBySide ??
+          (quantityEntry.mockupDataUrl
+            ? ({ front: quantityEntry.mockupDataUrl } as Partial<Record<GarmentSide, string>>)
+            : null)
+        const perCellArtifacts =
+          perSideOverrides && Object.keys(perSideOverrides).length > 0
+            ? (metadataBase.artifacts ?? []).map((artifact) => {
+                const override = perSideOverrides[artifact.side as GarmentSide]
+                return override ? { ...artifact, mockupUrl: override } : artifact
+              })
+            : metadataBase.artifacts
         const lineItemMetadata: CustomizerMetadata = {
           ...metadataBase,
           variantId: quantityEntry.variant.id,
@@ -3732,9 +3721,16 @@ export default function CustomizerTemplate({
           // image URLs; what remains (positions, scales, rotations, fills,
           // hosted image URLs) is a few KB per side at most.
         }
-        const perCellOverrides = overrideMockup
-          ? { ...dataUrlToHostedUrl, [overrideMockup]: overrideMockup }
-          : dataUrlToHostedUrl
+        const perCellOverrides: Record<string, string> = { ...dataUrlToHostedUrl }
+        if (perSideOverrides) {
+          for (const value of Object.values(perSideOverrides)) {
+            if (typeof value === "string" && value.length > 0) {
+              // Identity entry — preserves the data URL through the
+              // sanitizer instead of replacing it with the placeholder.
+              perCellOverrides[value] = value
+            }
+          }
+        }
 
         const addResult = await addScpLineItemToCartSafe({
           variantId: quantityEntry.variant.id,
@@ -4561,15 +4557,22 @@ export default function CustomizerTemplate({
     // per filled qty; each becomes its own cart line via the existing
     // `addCustomizedToCart` path with the `bulkCells` argument.
     if (bulkMode && selectedProduct && selectedVariant) {
-      const printArtifactForThumb = (() => {
-        const front = prerenderedArtifactsRef.current.get("front")
-        if (front?.printUrl) return { side: "front" as GarmentSide, printUrl: front.printUrl }
-        for (const side of DESIGN_SIDES) {
-          const cached = prerenderedArtifactsRef.current.get(side)
-          if (cached?.printUrl) return { side, printUrl: cached.printUrl }
+      // Collect every decorated side's print PNG so the bulk grid can
+      // composite a per-colour mockup for each one (not just front).
+      // Without this, the back/sleeve/tag thumbnails in the cart show
+      // the base render — typically the design-reference colour, not
+      // the colour the customer actually picked.
+      const printThumbSources = DESIGN_SIDES.reduce<
+        Array<{ side: GarmentSide; printUrl: string }>
+      >((acc, side) => {
+        const cached = prerenderedArtifactsRef.current.get(side)
+        if (cached?.printUrl) {
+          acc.push({ side, printUrl: cached.printUrl })
         }
-        return null
-      })()
+        return acc
+      }, [])
+      // Back-compat with paths that still expect a single thumb source.
+      const printArtifactForThumb = printThumbSources[0] ?? null
       const estimatePricingForTotal = (qty: number): BulkPricingEstimate | null => {
         if (!qty || !basePriceCents) return null
         const breakdown = calculatePricing({
@@ -4621,6 +4624,7 @@ export default function CustomizerTemplate({
             currencyCode={currencyCode}
             isSubmitting={isSubmitting}
             printThumbSource={printArtifactForThumb}
+            printThumbSources={printThumbSources}
             estimatePricingForTotal={estimatePricingForTotal}
             onClose={() => {
               // Just close the grid — return to the wizard so the
