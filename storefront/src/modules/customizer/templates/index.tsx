@@ -3466,7 +3466,15 @@ export default function CustomizerTemplate({
                 (option) =>
                   (option.title ?? "").toLowerCase().includes("size")
               )
-              const synthesised: typeof groupEditSyntheticCells = []
+              // Explicit non-nullable array type — `typeof groupEditSyntheticCells`
+              // is a union with `null` (declared above), and `[]` isn't
+              // assignable to `null` under strict TS.
+              const synthesised: Array<{
+                variant: HttpTypes.StoreProductVariant
+                size: string
+                quantity: number
+                mockupDataUrl?: string
+              }> = []
               for (const line of siblings) {
                 const variantId = (line as any)?.variant?.id ?? line.variant_id
                 const variant = selectedProduct.variants?.find(

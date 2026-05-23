@@ -245,6 +245,8 @@ export const trackVectorizationFunnel = (
 export type CustomizerFunnelStep =
   | "design_started"
   | "design_saved"
+  | "design_updated"
+  | "design_auto_saved"
   | "design_added_to_cart"
 
 /**
