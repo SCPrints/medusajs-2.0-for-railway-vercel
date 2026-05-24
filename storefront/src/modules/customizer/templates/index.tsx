@@ -74,6 +74,26 @@ import {
   printSpecsToPricingSpecs,
   snapSizeForBoundingCm,
 } from "@modules/customizer/lib/print-spec"
+import {
+  getSourceWidthPx,
+  getSourceHeightPx,
+} from "@modules/customizer/lib/fabric-image-source"
+import {
+  readFileAsText,
+  readFileAsDataUrl,
+  normalizeRasterDataUrl,
+  loadSvgObject,
+} from "@modules/customizer/lib/file-upload-utils"
+import {
+  variantHasConfiguredPrice,
+  getSizeOption,
+  getNonSizeOptions,
+  variantMatchesNonSizeOptions,
+  uniqueSizesForVariant,
+  variantBySizeForReference,
+  uniqueOptionValues,
+  findVariantAfterOptionChange,
+} from "@modules/customizer/lib/variant-size-resolver"
 import OptionSelect from "@modules/products/components/product-actions/option-select"
 import { useProductOptionsOptional } from "@modules/products/context/product-options-context"
 import { useCustomizeModeOptional } from "@modules/products/context/customize-mode-context"
@@ -138,38 +158,6 @@ const fitObjectToPrintArea = (
   if (scaledH > targetH && obj.scaleToHeight) {
     obj.scaleToHeight(targetH)
   }
-}
-
-const getFabricImageSourceWidthPx = (obj: any): number => {
-  const direct = Number(obj?.sourceWidthPx ?? 0)
-  if (direct > 0) {
-    return direct
-  }
-  const w = obj?.width
-  if (typeof w === "number" && w > 0) {
-    return w
-  }
-  const el = obj?._element as HTMLImageElement | undefined
-  if (el?.naturalWidth) {
-    return el.naturalWidth
-  }
-  return 0
-}
-
-const getFabricImageSourceHeightPx = (obj: any): number => {
-  const direct = Number(obj?.sourceHeightPx ?? 0)
-  if (direct > 0) {
-    return direct
-  }
-  const h = obj?.height
-  if (typeof h === "number" && h > 0) {
-    return h
-  }
-  const el = obj?._element as HTMLImageElement | undefined
-  if (el?.naturalHeight) {
-    return el.naturalHeight
-  }
-  return 0
 }
 
 type CustomizerTemplateProps = {
@@ -280,16 +268,6 @@ const resolveVariantPrice = (
   return 0
 }
 
-const variantHasConfiguredPrice = (variant?: HttpTypes.StoreProductVariant) => {
-  const variantRecord = variant as any
-  if (typeof variantRecord?.calculated_price?.calculated_amount === "number") {
-    return true
-  }
-  return Array.isArray(variantRecord?.prices)
-    ? variantRecord.prices.some((price: any) => typeof price?.amount === "number")
-    : false
-}
-
 const toFiniteNumber = (value: unknown) => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value
@@ -335,227 +313,12 @@ const resolveVariantBulkPricingTiers = (
     .sort((a, b) => a.minQuantity - b.minQuantity)
 }
 
-const getSizeOption = (product: HttpTypes.StoreProduct) =>
-  product.options?.find((option) => (option.title ?? "").toLowerCase().includes("size"))
-
-const getNonSizeOptions = (product: HttpTypes.StoreProduct) =>
-  (product.options ?? []).filter((option) => !(option.title ?? "").toLowerCase().includes("size"))
-
-const variantMatchesNonSizeOptions = (
-  variant: HttpTypes.StoreProductVariant,
-  product: HttpTypes.StoreProduct,
-  reference: HttpTypes.StoreProductVariant
-) => {
-  const nonSize = getNonSizeOptions(product)
-  const refMap = new Map(
-    (reference.options ?? []).map((entry) => [entry.option_id, entry.value ?? ""])
-  )
-  return nonSize.every((opt) => {
-    const want = refMap.get(opt.id) ?? ""
-    const got = variant.options?.find((e) => e.option_id === opt.id)?.value ?? ""
-    return want === got
-  })
-}
-
-const uniqueSizesForVariant = (
-  product: HttpTypes.StoreProduct,
-  reference: HttpTypes.StoreProductVariant
-): SizeQuantity[] => {
-  const sizeOption = getSizeOption(product)
-  const basePool = (product.variants ?? []).filter((v) =>
-    variantMatchesNonSizeOptions(v, product, reference)
-  )
-  const pricedPool = basePool.filter((variant) => variantHasConfiguredPrice(variant))
-  const pool = pricedPool.length ? pricedPool : basePool
-  const seen = new Set<string>()
-  const sizes: string[] = []
-  for (const v of pool) {
-    const sizeValue = sizeOption
-      ? (v.options?.find((e) => e.option_id === sizeOption.id)?.value ?? "")
-      : (v.title ?? "Default")
-    if (!sizeValue || seen.has(sizeValue)) {
-      continue
-    }
-    seen.add(sizeValue)
-    sizes.push(sizeValue)
-  }
-  if (!sizes.length) {
-    return [{ size: "Default", quantity: 0 }]
-  }
-  return sortApparelSizeLabels(sizes).map((size) => ({ size, quantity: 0 }))
-}
-
-/**
- * Mirror of `uniqueSizesForVariant` that returns the actual variant per
- * size value, so callers can look up inventory state. Uses the same
- * non-size option matching so colour-locked size pickers resolve to the
- * variant that would actually be added to the cart.
- */
-const variantBySizeForReference = (
-  product: HttpTypes.StoreProduct,
-  reference: HttpTypes.StoreProductVariant
-): Map<string, HttpTypes.StoreProductVariant> => {
-  const sizeOption = getSizeOption(product)
-  const basePool = (product.variants ?? []).filter((v) =>
-    variantMatchesNonSizeOptions(v, product, reference)
-  )
-  const pricedPool = basePool.filter((variant) => variantHasConfiguredPrice(variant))
-  const pool = pricedPool.length ? pricedPool : basePool
-  const map = new Map<string, HttpTypes.StoreProductVariant>()
-  for (const v of pool) {
-    const sizeValue = sizeOption
-      ? (v.options?.find((e) => e.option_id === sizeOption.id)?.value ?? "")
-      : (v.title ?? "Default")
-    if (!sizeValue || map.has(sizeValue)) continue
-    map.set(sizeValue, v)
-  }
-  return map
-}
-
-const uniqueOptionValues = (product: HttpTypes.StoreProduct, optionId: string): string[] => {
-  const values = new Set<string>()
-  for (const v of product.variants ?? []) {
-    const val = v.options?.find((e) => e.option_id === optionId)?.value
-    if (val) {
-      values.add(val)
-    }
-  }
-  return Array.from(values).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-}
-
-const findVariantAfterOptionChange = (
-  product: HttpTypes.StoreProduct,
-  reference: HttpTypes.StoreProductVariant,
-  optionId: string,
-  newValue: string
-): HttpTypes.StoreProductVariant | undefined => {
-  const sizeOption = getSizeOption(product)
-  const currentSize = sizeOption
-    ? reference.options?.find((e) => e.option_id === sizeOption.id)?.value
-    : undefined
-  const refMap = new Map(
-    (reference.options ?? []).map((e) => [e.option_id, e.value ?? ""])
-  )
-  const nonSize = getNonSizeOptions(product)
-  const matches = (v: HttpTypes.StoreProductVariant, relaxSize: boolean) => {
-    if (v.options?.find((e) => e.option_id === optionId)?.value !== newValue) {
-      return false
-    }
-    if (sizeOption && currentSize && !relaxSize) {
-      const sv = v.options?.find((e) => e.option_id === sizeOption.id)?.value
-      if (sv !== currentSize) {
-        return false
-      }
-    }
-    return nonSize.every((opt) => {
-      if (opt.id === optionId) {
-        return true
-      }
-      const want = refMap.get(opt.id) ?? ""
-      const got = v.options?.find((e) => e.option_id === opt.id)?.value ?? ""
-      return want === got
-    })
-  }
-  const strictMatches = (product.variants ?? []).filter((v) => matches(v, false))
-  const relaxedMatches = (product.variants ?? []).filter((v) => matches(v, true))
-  return (
-    strictMatches.find((variant) => variantHasConfiguredPrice(variant)) ??
-    relaxedMatches.find((variant) => variantHasConfiguredPrice(variant)) ??
-    strictMatches[0] ??
-    relaxedMatches[0]
-  )
-}
-
 const getObjectId = (object: any) => {
   if (!object.customizerId) {
     object.customizerId = `obj_${Math.random().toString(36).slice(2, 10)}`
   }
 
   return object.customizerId as string
-}
-
-const readFileAsText = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result ?? ""))
-    reader.onerror = () => reject(new Error("Unable to read file"))
-    reader.readAsText(file)
-  })
-
-const readFileAsDataUrl = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result ?? ""))
-    reader.onerror = () => reject(new Error("Unable to read file"))
-    reader.readAsDataURL(file)
-  })
-
-/**
- * Normalise a raster image upload by baking EXIF orientation into the pixel
- * data. Phone photos (especially iOS) routinely carry orientation metadata
- * that the browser's HTML <img> rendering applies but Fabric's SVG export
- * does NOT — Fabric serialises the un-rotated raw bytes, and Sharp on the
- * backend then renders the un-rotated image into the print PNG / mockup,
- * producing output that looks mirrored or rotated relative to what the
- * customer saw on screen.
- *
- * This rewrites the upload through a canvas using
- * `createImageBitmap(blob, { imageOrientation: "from-image" })` which
- * decodes with EXIF applied, then re-encodes as PNG with no EXIF metadata.
- * Server-side renders now see exactly what the customer saw.
- *
- * Falls back to the original data URL on any failure (very old browsers,
- * decode errors) so a transient issue never blocks the upload entirely.
- * SVGs skip this path — they're text, not raster, and have no EXIF.
- */
-/**
- * Cap on the longest edge of the canvas-bound raster. 2000px is well above
- * the 300dpi requirement for our largest standard print (A4 ≈ 2480×3508 at
- * 300dpi, but we always downsample to the actual placement rect during
- * server-side render, so the canvas copy only needs to be sharp enough for
- * the editor preview).
- *
- * Why this matters: a 4032×3024 iPhone photo encoded as base64 PNG inside
- * the SVG inside the JSON payload to /api/customizer/render-* easily
- * exceeds Vercel's 4.5MB function-body cap → 413 on both endpoints. Capping
- * at 2000px + JPEG-85 brings a typical phone photo from ~5MB → ~400KB.
- */
-const CANVAS_RASTER_MAX_EDGE_PX = 2000
-const CANVAS_RASTER_JPEG_QUALITY = 0.85
-
-const normalizeRasterDataUrl = async (file: File, fallbackDataUrl: string): Promise<string> => {
-  if (typeof window === "undefined") return fallbackDataUrl
-  if (typeof createImageBitmap !== "function") return fallbackDataUrl
-  try {
-    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" })
-    try {
-      const longest = Math.max(bitmap.width, bitmap.height)
-      const scale = longest > CANVAS_RASTER_MAX_EDGE_PX
-        ? CANVAS_RASTER_MAX_EDGE_PX / longest
-        : 1
-      const targetW = Math.max(1, Math.round(bitmap.width * scale))
-      const targetH = Math.max(1, Math.round(bitmap.height * scale))
-
-      const canvas = document.createElement("canvas")
-      canvas.width = targetW
-      canvas.height = targetH
-      const ctx = canvas.getContext("2d")
-      if (!ctx) return fallbackDataUrl
-      ctx.drawImage(bitmap, 0, 0, targetW, targetH)
-
-      // JPEGs (typical iPhone camera output) re-encode as JPEG so the
-      // payload stays small. PNGs are preserved as PNG to keep any
-      // transparency intact — logo work depends on this.
-      const isPng = file.type === "image/png"
-      return isPng
-        ? canvas.toDataURL("image/png")
-        : canvas.toDataURL("image/jpeg", CANVAS_RASTER_JPEG_QUALITY)
-    } finally {
-      bitmap.close?.()
-    }
-  } catch {
-    return fallbackDataUrl
-  }
 }
 
 type SessionUploadAsset = {
@@ -565,29 +328,6 @@ type SessionUploadAsset = {
   dataUrl: string
   /** Hosted copy of the exact bytes the customer uploaded (MinIO/S3); optional if storage failed. */
   originalStorageUrl?: string
-}
-
-const loadSvgObject = async (svg: string) => {
-  const loader = (fabric as any).loadSVGFromString
-  if (!loader) {
-    throw new Error("SVG loader is unavailable")
-  }
-
-  const maybePromise = loader(svg)
-  if (maybePromise && typeof maybePromise.then === "function") {
-    const result = await maybePromise
-    return (fabric as any).util.groupSVGElements(result.objects, result.options)
-  }
-
-  return new Promise<any>((resolve, reject) => {
-    loader(svg, (objects: any[], options: Record<string, unknown>) => {
-      if (!objects?.length) {
-        reject(new Error("Could not parse SVG"))
-        return
-      }
-      resolve((fabric as any).util.groupSVGElements(objects, options))
-    })
-  })
 }
 
 const ExpandCollapsePlus = () => (
@@ -2437,8 +2177,8 @@ export default function CustomizerTemplate({
     }
     imageObject.set({
       customizerLabel: asset.name || "Image",
-      sourceWidthPx: getFabricImageSourceWidthPx(imageObject),
-      sourceHeightPx: getFabricImageSourceHeightPx(imageObject),
+      sourceWidthPx: getSourceWidthPx(imageObject),
+      sourceHeightPx: getSourceHeightPx(imageObject),
       ...(asset.uploadId ? { customizerUploadId: asset.uploadId } : {}),
     })
     if (effectivePrintSizeIdForArea === "oversize") {
