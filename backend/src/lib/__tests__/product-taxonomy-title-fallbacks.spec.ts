@@ -136,11 +136,63 @@ describe("applyTitleFallbacks", () => {
     expect(result.tags).toEqual(["Cotton", "Women"])
   })
 
-  it("handles the three screenshot cases from the audit", () => {
-    // AS Colour: Parcel Tote — API gave us nothing
+  it("auto-tags Unisex on genderless product types when no demographic was inferred", () => {
+    // Bags / Aprons / Headwear / Socks / Accessories titles rarely carry a
+    // Mens / Womens / Kids cue, so without this fallback they'd vanish from
+    // every audience browse on the storefront.
     expect(
       applyTitleFallbacks({ productType: null, tags: [] }, "Parcel Tote")
-    ).toEqual({ productType: "Bags", tags: [] })
+    ).toEqual({ productType: "Bags", tags: ["Unisex"] })
+    expect(
+      applyTitleFallbacks({ productType: null, tags: [] }, "Canvas Half Apron")
+    ).toEqual({ productType: "Aprons", tags: ["Unisex"] })
+    expect(
+      applyTitleFallbacks({ productType: "Headwear", tags: [] }, "Classic 6-Panel Cap")
+    ).toEqual({ productType: "Headwear", tags: ["Unisex"] })
+  })
+
+  it("does NOT add Unisex when a demographic tag (Men/Women/Kids) is already present", () => {
+    // E.g. a kid's apron — Kids was already set by the supplier classifier,
+    // so we must not over-tag.
+    const result = applyTitleFallbacks(
+      { productType: "Aprons", tags: ["Kids"] },
+      "Junior Cooking Apron"
+    )
+    expect(result.tags).toEqual(["Kids"])
+  })
+
+  it("does NOT add Unisex when the inferred demographic from the title fires", () => {
+    // "Mens Cooler Bag" — inference adds Men, so Unisex would be redundant.
+    const result = applyTitleFallbacks(
+      { productType: null, tags: [] },
+      "Mens Cooler Bag"
+    )
+    expect(result.productType).toBe("Bags")
+    expect(result.tags).toEqual(["Men"])
+  })
+
+  it("does NOT auto-tag Unisex on apparel product types — they need an explicit gender", () => {
+    // Polos / T-Shirts / Hoodies are gendered cuts. If the title gives no
+    // cue, we leave the tag blank rather than guess Unisex.
+    const polos = applyTitleFallbacks(
+      { productType: "Polos", tags: [] },
+      "Bayview Polo"
+    )
+    expect(polos.tags).toEqual([])
+
+    const hoodies = applyTitleFallbacks(
+      { productType: "Hoodies", tags: [] },
+      "Classic Pullover Hood"
+    )
+    expect(hoodies.tags).toEqual([])
+  })
+
+  it("handles the three screenshot cases from the audit", () => {
+    // AS Colour: Parcel Tote — API gave us nothing. Now defaults to Unisex
+    // so it actually shows up in the storefront audience browse.
+    expect(
+      applyTitleFallbacks({ productType: null, tags: [] }, "Parcel Tote")
+    ).toEqual({ productType: "Bags", tags: ["Unisex"] })
 
     // FashionBiz: Womens Venture Short Sleeve Polo — API gave us nothing
     expect(

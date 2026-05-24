@@ -511,12 +511,45 @@ export function inferDemographicTagFromTitle(
 }
 
 /**
+ * Demographic tag values the storefront's audience browse filters on.
+ * A product needs at least one of these or it disappears from every
+ * audience drill-down (mens/womens/kids menus, mega-menu, etc.).
+ */
+const DEMOGRAPHIC_TAG_VALUES = new Set(["Men", "Women", "Kids", "Unisex"])
+
+/**
+ * Product types where no garment cut implies a demographic and the title
+ * almost never carries a "Mens"/"Womens"/"Kids" cue (e.g. bags, aprons,
+ * caps, towels). For these we default the demographic tag to "Unisex" so
+ * the storefront audience filter still surfaces them.
+ *
+ * `inferAudiences()` in shop-categories.ts treats Unisex as "show in BOTH
+ * mens and womens browse" — so a Unisex tote ends up under both
+ * `/mens/bags` and `/womens/bags` automatically, on top of any workwear
+ * routing the brand context provides.
+ *
+ * Conservative on purpose: only types whose entire catalog is genderless.
+ * Apparel types (T-Shirts, Polos, Hoodies, …) stay strict — they need an
+ * explicit Mens/Womens/Kids tag because the cut is gendered.
+ */
+const GENDERLESS_PRODUCT_TYPES = new Set([
+  "Accessories",
+  "Aprons",
+  "Bags",
+  "Headwear",
+  "Socks",
+])
+
+/**
  * Convenience wrapper for per-supplier importers. Takes the result of
  * a supplier classifier and a product title, and fills the gaps:
  *
  *  - If `productType` is null, attempt `inferTypeFromTitle`.
  *  - If a demographic tag (Men/Women/Kids) isn't already in `tags`,
  *    attempt `inferDemographicTagFromTitle` and append it.
+ *  - If still no demographic tag AND the resolved product_type is in
+ *    `GENDERLESS_PRODUCT_TYPES`, append "Unisex" — covers accessory
+ *    catalogs whose titles never carry a Mens/Womens/Kids cue.
  *
  * Returns a new object (does not mutate input). Use this in every
  * supplier importer after the classifier so empty type/tag fields from
@@ -537,6 +570,14 @@ export function applyTitleFallbacks(
   const demographic = inferDemographicTagFromTitle(title)
   if (demographic && !out.tags.includes(demographic)) {
     out.tags.push(demographic)
+  }
+  const hasDemographic = out.tags.some((t) => DEMOGRAPHIC_TAG_VALUES.has(t))
+  if (
+    !hasDemographic &&
+    out.productType &&
+    GENDERLESS_PRODUCT_TYPES.has(out.productType)
+  ) {
+    out.tags.push("Unisex")
   }
   return out
 }
