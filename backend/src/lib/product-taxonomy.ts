@@ -364,10 +364,16 @@ export const TAG_ALIASES: Record<string, string> = {
   "alfresco": "Hospitality",
   "outerwears": "Outerwear", // plural typo in Syzmik API
   "made with cotton": "Cotton",
-  // Brand range names — pass through cleaned (drop ™ etc.)
+  // Brand range names — pass through cleaned (drop ™ etc.). These are
+  // genuine fabric / safety / sustainability tech labels customers may
+  // filter on. Aliased here so REBUILD_TAGS preserves them.
   "biz cool™": "Biz Cool",
   "biz cool": "Biz Cool",
+  "biz eco™": "Biz Eco",
+  "biz eco": "Biz Eco",
   "fire armour": "Fire Armour",
+  "fire-armour": "Fire Armour", // hyphenated raw input from Syzmik API
+  "fire armour™": "Fire Armour",
   "bio motion": "Bio Motion",
   // Fit variations (FashionBiz Biz Corporates)
   "executive fit": "Executive Fit",
@@ -446,12 +452,13 @@ const DROP_TAG_VALUES = new Set<string>([
   // Syzmik product line names
   "streetworx",
   "engineered-outerwear",
-  "fire-armour", // hyphenated form (the canonical "fire armour" is already aliased)
-  "rugged cooling",
+  "rugged cooling", // Syzmik cooling-fabric range — promote to TAG_ALIASES if we want a "Cooling" canonical later
   "antarctic",
   "meta",
   "sonar",
   "renegade",
+  // NB: "fire-armour" lives in TAG_ALIASES above — it's a safety-compliance
+  // signal, not noise. Don't drop it here.
   // BizCollection (Workwear / Sports) product line names
   "aero",
   "hype",
