@@ -3,7 +3,10 @@
     "generate-as-colour-website-pricing-import-csv": "pnpm --dir backend run generate-as-colour-website-pricing-import-csv --",
     "strip-product-import-supplemental": "pnpm --dir backend run strip-product-import-supplemental --",
     "check-production-stage-sync": "node scripts/check-production-stage-sync.mjs",
-    "check-customer-tiers-sync": "node scripts/check-customer-tiers-sync.mjs"
+    "check-customer-tiers-sync": "node scripts/check-customer-tiers-sync.mjs",
+    "check-dtf-pricing-sync": "node scripts/check-dtf-pricing-sync.mjs",
+    "check-embroidery-pricing-sync": "node scripts/check-embroidery-pricing-sync.mjs",
+    "check-sync": "node scripts/check-production-stage-sync.mjs && node scripts/check-customer-tiers-sync.mjs && node scripts/check-dtf-pricing-sync.mjs && node scripts/check-embroidery-pricing-sync.mjs"
   },
   "dependencies": {
     "d3-force": "^3.0.0",
