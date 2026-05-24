@@ -127,16 +127,23 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "longsleeve tees": "Longsleeves",
   "ls shirt": "Longsleeves",
   "ls tee": "Longsleeves",
-  // Singlets / Tanks
-  "singlet": "Singlets / Tanks",
-  "singlets": "Singlets / Tanks",
-  "singlets / tanks": "Singlets / Tanks",
-  "tank": "Singlets / Tanks",
-  "tanks": "Singlets / Tanks",
-  "tank top": "Singlets / Tanks",
-  "sleeveless": "Singlets / Tanks",
-  "racerback": "Singlets / Tanks",
-  "racer back": "Singlets / Tanks",
+  // Singlets — distinct canonical type from Tanks. The shop tree has
+  // mens-singlets, womens-singlets, kids-singlets as their own sub-handles
+  // (see TYPE_TO_SUB_HANDLE in shop-categories.ts), so collapsing singlets
+  // into "Singlets / Tanks" routes every singlet into mens-tanks instead
+  // of mens-singlets — making the singlets sub permanently empty.
+  "singlet": "Singlets",
+  "singlets": "Singlets",
+  // Tanks — distinct from singlets above. "Tank top" / "sleeveless" /
+  // "racerback" all describe tank-style garments rather than singlets
+  // (which in AU/NZ usage are the close-fit athletic vest cut), so they
+  // land here.
+  "tank": "Tanks",
+  "tanks": "Tanks",
+  "tank top": "Tanks",
+  "sleeveless": "Tanks",
+  "racerback": "Tanks",
+  "racer back": "Tanks",
   // Shorts
   "shorts": "Shorts",
   "short": "Shorts",

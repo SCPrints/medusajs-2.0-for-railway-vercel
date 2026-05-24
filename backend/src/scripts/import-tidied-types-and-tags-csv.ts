@@ -29,7 +29,7 @@ const CSV_TYPE_TO_MEDUSA: Record<string, string> = {
   Hoodie: "Hoodies",
   Shirt: "Shirts",
   Sweatshirt: "Sweatshirts",
-  Singlet: "Singlets / Tanks",
+  Singlet: "Singlets",
   "Longsleeve Shirt": "Longsleeves",
   "Shortsleeve Shirt": "Shirts",
   Other: "Other",

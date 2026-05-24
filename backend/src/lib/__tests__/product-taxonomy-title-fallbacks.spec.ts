@@ -32,7 +32,11 @@ describe("inferTypeFromTitle", () => {
 
   it("handles hyphens and slashes as token separators", () => {
     expect(inferTypeFromTitle("AS Colour T-Shirt")).toBe("T-Shirts")
-    expect(inferTypeFromTitle("Tank/Singlet")).toBe("Singlets / Tanks")
+    // Singlets and Tanks are now distinct canonical types (split from the
+    // old compound "Singlets / Tanks" — see PRODUCT_TYPE_ALIASES comment).
+    // Right-to-left scanning picks the rightmost head noun, so:
+    expect(inferTypeFromTitle("Tank/Singlet")).toBe("Singlets")
+    expect(inferTypeFromTitle("Singlet/Tank")).toBe("Tanks")
   })
 
   it("ignores punctuation and trailing style codes", () => {
