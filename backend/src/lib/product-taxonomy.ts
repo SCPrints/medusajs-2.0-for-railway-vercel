@@ -312,7 +312,9 @@ export const TAG_ALIASES: Record<string, string> = {
   "uv50+": "UV Protection",
   "upf50+": "UV Protection",
   "recycled": "Recycled",
+  "recycled polyester": "Recycled",
   "sustainable": "Recycled",
+  "outdoor": "Outdoor",
   "organic": "Organic",
   "anti-static": "Anti-Static",
   "antistatic": "Anti-Static",
@@ -347,12 +349,21 @@ export const TAG_ALIASES: Record<string, string> = {
   "retail uniforms": "Retail",
   "event promotional": "Promotional",
   "auto transport": "Automotive",
+  "auto & transport": "Automotive",
   "government and council": "Government",
   "corporate office": "Corporate",
   "banking and finance": "Finance",
   "school education": "Education",
   "sports teams": "Sports",
   "mix and match": "Mix & Match",
+  // Industry aliases — FashionBiz / Syzmik API stragglers that fell through
+  // the 2026-05 backfill audit. Normalise to existing canonical industries.
+  "health & aged care": "Healthcare",
+  "hospitalities": "Hospitality", // plural typo in FB API
+  "chef wear": "Hospitality",
+  "alfresco": "Hospitality",
+  "outerwears": "Outerwear", // plural typo in Syzmik API
+  "made with cotton": "Cotton",
   // Brand range names — pass through cleaned (drop ™ etc.)
   "biz cool™": "Biz Cool",
   "biz cool": "Biz Cool",
@@ -422,6 +433,94 @@ const DROP_TAG_VALUES = new Set<string>([
   // for Biz Care's pink range).
   "pink",
   "pink products",
+  // ──────────────────────────────────────────────────────────────────
+  // 2026-05-24 cleanup — values surfaced by DUMP_UNTYPED=1 backfill run.
+  // Most are supplier marketing line names (Syzmik / BizCollection /
+  // BizCare product ranges) or internal IDs that have no semantic value
+  // to a SC Prints customer browsing the storefront. They were silently
+  // title-cased and added as tags by the old fall-through behaviour,
+  // polluting both the tag table and the /store ?tag=… filter dropdown.
+  // ──────────────────────────────────────────────────────────────────
+  // Syzmik marketing range labels
+  "syzmik essentials",
+  // Syzmik product line names
+  "streetworx",
+  "engineered-outerwear",
+  "fire-armour", // hyphenated form (the canonical "fire armour" is already aliased)
+  "rugged cooling",
+  "antarctic",
+  "meta",
+  "sonar",
+  "renegade",
+  // BizCollection (Workwear / Sports) product line names
+  "aero",
+  "hype",
+  "triton",
+  "jet",
+  "cambridge",
+  "sprint",
+  "razor",
+  "elite",
+  "talon",
+  "charger",
+  "cyber",
+  "resort",
+  "splice",
+  "rival",
+  "oceana",
+  "shadow",
+  "viva",
+  "nitro",
+  "united",
+  "fusion",
+  "blade",
+  "edge",
+  "balance",
+  "byron",
+  "action",
+  "profile",
+  // Biz Care medical line names
+  "avery",
+  "riley",
+  "tokyo",
+  "beauty",
+  // Biz Collection internal pricing/sort flags (not customer-facing)
+  "bizlist18101",
+  "bizlist18103",
+  // Marketing labels — descriptive but not semantic enough to filter on
+  "basic",
+  "all",
+  "collections",
+  "new colors",
+  "ice",
+  "casualwear",
+  "teamwear",
+  "fitness for all",
+  "2017 power up",
+  "careers",
+  "early learning",
+  // Generic absence indicators — every product without a hi-vis classification
+  // would otherwise carry these. Tagging the absence of a feature is noise.
+  "non hi vis",
+  "hi vis non taped", // safety-coding variant; rolls up into "Hi-Vis" via the alias above
+  "non taped",
+  // Cultural / Biz Care medical sub-line names — drop unless we later want
+  // dedicated facets for them. "Hijab" is a real garment but the catalog has
+  // only ~1-2 SKUs and they're tagged as Healthcare already.
+  "underscrubs",
+  "t-tops",
+  "hijab",
+  "health", // ambiguous; "Healthcare" is the canonical, already aliased from "health aged care"
+  // Fabric texture / descriptor terms — too granular to be useful as filter
+  // tags. Real fabric composition (Cotton / Polyester / Bamboo) is captured
+  // separately via the existing fabric aliases above.
+  "cotton rich",
+  "micro waffle",
+  "viscose",
+  "blends",
+  // Misc style descriptors that are already captured elsewhere
+  "fitted",
+  "printed",
 ])
 
 /**
