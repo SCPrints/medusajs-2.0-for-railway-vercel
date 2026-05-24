@@ -32,6 +32,7 @@
     "node_modules",
     "build",
     ".cache",
-    "src/admin"
+    "src/admin",
+    "src/scripts.archive"
   ]
 }
