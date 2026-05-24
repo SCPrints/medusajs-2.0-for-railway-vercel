@@ -6,6 +6,10 @@ import {
   resolveHeadlineMinorAmount,
 } from "@lib/util/resolve-display-minor"
 import { convertToLocale } from "@lib/util/money"
+import {
+  calculateMaxTierSavingsPercent,
+  calculateTierSavingsPercents,
+} from "@lib/util/calculate-tier-savings"
 import { TIER_GROUP_NAME_PREFIX, type Tier } from "@lib/customer-tiers"
 import { HttpTypes } from "@medusajs/types"
 
@@ -216,33 +220,55 @@ export default function ProductPrice({
           </span>
         </>
       )}
-      {variant && bulkTiers.length > 1 ? (
-        <div className="mt-3 rounded-md border border-ui-border-base p-3">
-          <p className="mb-2 text-sm font-medium text-ui-fg-base">Bulk pricing</p>
-          <div className="space-y-1 text-sm text-ui-fg-subtle">
-            {bulkTiers.map((tier) => {
-              const tierMinor = scaledTierMinor(tier)
-              const savingsPct =
-                baseTierAmount > tierMinor
-                  ? Math.round(((baseTierAmount - tierMinor) / baseTierAmount) * 100)
-                  : 0
-
-              return (
-                <div key={formatTierRange(tier)} className="flex items-center justify-between gap-4">
-                  <span>{formatTierRange(tier)} pcs</span>
-                  <span className="text-ui-fg-base">
-                    {convertToLocale({
-                      amount: tierMinor,
-                      currency_code: currencyCode,
-                    })}
-                    {savingsPct > 0 ? ` (${savingsPct}% off)` : ""}
-                  </span>
-                </div>
-              )
-            })}
+      {variant && bulkTiers.length > 1 ? (() => {
+        // Pre-scale tiers to display minor amounts so the savings calc reflects
+        // what the customer sees on each row (raw bulk_pricing metadata can
+        // sit in different magnitudes — finalizeAud... already corrects that).
+        const scaledTiers = bulkTiers.map((tier) => ({
+          range: formatTierRange(tier),
+          amount: scaledTierMinor(tier),
+        }))
+        const savingsPercents = calculateTierSavingsPercents(scaledTiers)
+        const maxSavings = calculateMaxTierSavingsPercent(scaledTiers)
+        return (
+          <div className="mt-3 rounded-md border border-ui-border-base p-3">
+            <p className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-sm font-medium text-ui-fg-base">
+              <span>Bulk pricing</span>
+              {maxSavings > 0 ? (
+                <span className="text-xs font-semibold text-emerald-700">
+                  Save up to {maxSavings}% on bulk orders
+                </span>
+              ) : null}
+            </p>
+            <div className="space-y-1 text-sm text-ui-fg-subtle">
+              {scaledTiers.map((tier, idx) => {
+                const savingsPct = savingsPercents[idx] ?? 0
+                return (
+                  <div
+                    key={tier.range}
+                    className="flex items-center justify-between gap-4"
+                  >
+                    <span>{tier.range} pcs</span>
+                    <span className="flex items-baseline gap-2 text-ui-fg-base">
+                      <span>
+                        {convertToLocale({
+                          amount: tier.amount,
+                          currency_code: currencyCode,
+                        })}
+                      </span>
+                      {savingsPct > 0 ? (
+                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold leading-none text-emerald-700">
+                          Save {savingsPct}%
+                        </span>
+                      ) : null}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
-      ) : null}
+        )
+      })() : null}
     </div>
   )
 }

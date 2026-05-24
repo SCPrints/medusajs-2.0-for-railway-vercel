@@ -1,6 +1,8 @@
+"use client"
+
 import { HttpTypes } from "@medusajs/types"
 import { clx } from "@medusajs/ui"
-import React from "react"
+import React, { useState } from "react"
 
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import { sortGarmentColorLabels } from "@modules/products/lib/garment-color-order"
@@ -25,6 +27,12 @@ type OptionSelectProps = {
   "data-testid"?: string
 }
 
+// Long swatch lists (FashionBiz garments often carry 20+ colours) blow out the
+// PDP. Show the first N inline and collapse the rest behind a "+M" pill that
+// expands the row on click. Only colour swatches collapse — sizes always
+// render fully so customers don't miss the size they need.
+const MAX_VISIBLE_COLOUR_SWATCHES = 10
+
 const OptionSelect: React.FC<OptionSelectProps> = ({
   product,
   option,
@@ -35,6 +43,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
   disabled,
 }) => {
   const { setColorHoverPreview, options: selectedOptions } = useProductOptions()
+  const [colourExpanded, setColourExpanded] = useState(false)
   const rawOptionValues = option.values?.map((v) => v.value)
   const isColorOption = isColorOptionTitle(title)
   const isSizeOption = !isColorOption && /size/i.test(title)
@@ -48,6 +57,29 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
         ? sortGarmentColorLabels([...stringValues])
         : rawOptionValues
   const colorSwatchImageMap = isColorOption ? getColorSwatchImageMap(product, title) : null
+
+  // Collapse overflow only applies to colour swatches. If the currently
+  // selected swatch is hidden by the cap, force-expand so the active swatch
+  // stays visible (otherwise the chosen colour disappears off-screen).
+  const totalColourCount =
+    isColorOption && filteredOptions ? filteredOptions.length : 0
+  const currentIsHidden =
+    isColorOption &&
+    !!current &&
+    filteredOptions
+      ? filteredOptions.indexOf(current) >= MAX_VISIBLE_COLOUR_SWATCHES
+      : false
+  const shouldCollapseColours =
+    isColorOption &&
+    totalColourCount > MAX_VISIBLE_COLOUR_SWATCHES &&
+    !colourExpanded &&
+    !currentIsHidden
+  const visibleColourCount = shouldCollapseColours
+    ? MAX_VISIBLE_COLOUR_SWATCHES
+    : totalColourCount
+  const hiddenColourCount = shouldCollapseColours
+    ? totalColourCount - MAX_VISIBLE_COLOUR_SWATCHES
+    : 0
 
   /**
    * Find every variant that matches a given (this option = this value)
@@ -94,7 +126,10 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
           : undefined
     }
     >
-      {filteredOptions?.map((v) => {
+      {(isColorOption && shouldCollapseColours
+        ? filteredOptions?.slice(0, visibleColourCount)
+        : filteredOptions
+      )?.map((v) => {
         const isSelected = v === current
         const normalizedValue = toTitleSlug(v ?? "")
         const swatchImage = colorSwatchImageMap?.get(normalizedValue)
@@ -200,6 +235,30 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
           </button>
         )
       })}
+      {isColorOption && shouldCollapseColours ? (
+        <button
+          type="button"
+          onClick={() => setColourExpanded(true)}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle text-[11px] font-semibold text-ui-fg-base transition-all duration-150 ease-in-out hover:scale-105 hover:border-[var(--brand-secondary)] hover:ring-2 hover:ring-[var(--brand-secondary)] hover:ring-offset-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
+          aria-label={`Show ${hiddenColourCount} more ${title?.toLowerCase()} option${hiddenColourCount === 1 ? "" : "s"}`}
+          data-testid="option-swatch-show-more"
+        >
+          +{hiddenColourCount}
+        </button>
+      ) : null}
+      {isColorOption &&
+      colourExpanded &&
+      totalColourCount > MAX_VISIBLE_COLOUR_SWATCHES ? (
+        <button
+          type="button"
+          onClick={() => setColourExpanded(false)}
+          className="inline-flex h-8 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle px-3 text-[11px] font-semibold text-ui-fg-subtle transition-colors hover:text-ui-fg-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
+          aria-label="Show fewer colours"
+          data-testid="option-swatch-show-less"
+        >
+          Show less
+        </button>
+      ) : null}
     </div>
   )
 }

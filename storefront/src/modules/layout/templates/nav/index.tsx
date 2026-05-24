@@ -2,6 +2,10 @@ import { Suspense } from "react"
 import Image from "next/image"
 
 import { MEDUSA_BACKEND_URL } from "@lib/config"
+import {
+  SC_PRINTS_PHONE_DISPLAY,
+  SC_PRINTS_PHONE_HREF,
+} from "@lib/constants"
 import { listBrands } from "@lib/data/brands"
 import { listCategories } from "@lib/data/categories"
 import { getCollectionsList } from "@lib/data/collections"
@@ -274,8 +278,39 @@ export default function Nav() {
           </div>
 
           <div className="flex h-full flex-1 basis-0 items-center justify-end gap-x-2 leading-none phone:gap-x-3 tablet:gap-x-4 small:gap-x-6">
+            <a
+              href={SC_PRINTS_PHONE_HREF}
+              className="flex h-full min-h-10 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-white transition-colors hover:text-[var(--brand-accent)]"
+              aria-label={`Call SC Prints on ${SC_PRINTS_PHONE_DISPLAY}`}
+              data-testid="nav-phone-link"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M22 16.92v3a2 2 0 01-2.18 2A19.79 19.79 0 011.18 4.18 2 2 0 013.08 2H6a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L7.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
+              </svg>
+              <span className="hidden tablet:inline">
+                {SC_PRINTS_PHONE_DISPLAY}
+              </span>
+            </a>
             <NavSearchTrigger />
             <div className="hidden small:flex items-center gap-x-6 h-full">
+              <LocalizedClientLink
+                className="flex h-full items-center hover:text-[var(--brand-accent)]"
+                href="/best-sellers"
+                prefetch={false}
+                data-testid="nav-best-sellers-link"
+              >
+                Best Sellers
+              </LocalizedClientLink>
               <LocalizedClientLink
                 className="flex h-full items-center hover:text-[var(--brand-accent)]"
                 href="/account"

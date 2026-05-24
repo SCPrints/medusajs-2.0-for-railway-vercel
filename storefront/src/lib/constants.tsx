@@ -5,6 +5,17 @@ import Ideal from "@modules/common/icons/ideal"
 import Bancontact from "@modules/common/icons/bancontact"
 import PayPal from "@modules/common/icons/paypal"
 
+/**
+ * Public storefront phone number. Currently a placeholder — replace with the
+ * real SC Prints sales/support line when ready. Centralised here so the
+ * header, footer, and any future contact surfaces stay in sync.
+ *
+ * `*_DISPLAY` is the spaced human-readable form used in visible UI.
+ * `*_HREF` strips whitespace so `tel:` works on iOS/Android.
+ */
+export const SC_PRINTS_PHONE_DISPLAY = "1300 000 000"
+export const SC_PRINTS_PHONE_HREF = `tel:${SC_PRINTS_PHONE_DISPLAY.replace(/\s+/g, "")}`
+
 /* Map of payment provider_id to their title and icon. Add in any payment providers you want to use. */
 export const paymentInfoMap: Record<
   string,

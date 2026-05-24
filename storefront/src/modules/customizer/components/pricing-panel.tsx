@@ -3,6 +3,10 @@
 import { useMemo } from "react"
 
 import { convertToLocale } from "@lib/util/money"
+import {
+  calculateMaxTierSavingsPercent,
+  calculateTierSavingsPercents,
+} from "@lib/util/calculate-tier-savings"
 import FlyToCartAddButton from "@modules/common/components/fly-to-cart-add-button"
 import StockWarningIcon from "@modules/products/components/stock-warning-icon"
 import {
@@ -319,6 +323,11 @@ export default function PricingPanel({
       {pricing.hasBulkPricing && pricing.bulkPricingTiers?.length ? (
         (() => {
           const tiers = pricing.bulkPricingTiers
+          // Shared "Discount earned" framing — reuses the same util as the
+          // PDP variant ladder so phrasing stays consistent across surfaces.
+          const tiersForSavings = tiers.map((t) => ({ amount: t.amountCents }))
+          const tierSavingsPercents = calculateTierSavingsPercents(tiersForSavings)
+          const maxTierSavings = calculateMaxTierSavingsPercent(tiersForSavings)
           const currentTierIdx = (() => {
             const safeQty = Math.max(1, tierHighlightQty)
             const idx = tiers.findIndex(
@@ -350,8 +359,13 @@ export default function PricingPanel({
             <details className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/40">
               <summary className="block cursor-pointer list-none px-3 py-2 marker:hidden [&::-webkit-details-marker]:hidden">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-ui-fg-base">
-                    Bulk discounts
+                  <span className="flex items-baseline gap-2 text-xs font-semibold uppercase tracking-wide text-ui-fg-base">
+                    <span>Bulk discounts</span>
+                    {maxTierSavings > 0 ? (
+                      <span className="text-[10px] font-semibold normal-case tracking-normal text-emerald-700">
+                        Save up to {maxTierSavings}%
+                      </span>
+                    ) : null}
                   </span>
                   <span className="flex items-center gap-2">
                     {currentTier && tierHighlightQty > 0 ? (
@@ -392,10 +406,11 @@ export default function PricingPanel({
                 <ul className="grid grid-cols-1 gap-1 text-xs">
                   {tiers.map((tier, idx) => {
                     const isCurrent = idx === currentTierIdx && tierHighlightQty > 0
+                    const savingsPct = tierSavingsPercents[idx] ?? 0
                     return (
                       <li
                         key={`${tier.minQuantity}-${tier.maxQuantity ?? "max"}`}
-                        className={`flex items-center justify-between rounded px-2 py-1 transition-colors ${
+                        className={`flex items-center justify-between gap-2 rounded px-2 py-1 transition-colors ${
                           isCurrent
                             ? "bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200"
                             : "text-ui-fg-subtle"
@@ -404,8 +419,21 @@ export default function PricingPanel({
                         <span className={isCurrent ? "font-semibold" : ""}>
                           {formatTierRange(tier.minQuantity, tier.maxQuantity)} pcs
                         </span>
-                        <span className={isCurrent ? "font-semibold" : ""}>
-                          {formatMoney(tier.amountCents, currencyCode)} / ea
+                        <span className="flex items-baseline gap-1.5">
+                          <span className={isCurrent ? "font-semibold" : ""}>
+                            {formatMoney(tier.amountCents, currencyCode)} / ea
+                          </span>
+                          {savingsPct > 0 ? (
+                            <span
+                              className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                                isCurrent
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-emerald-50 text-emerald-700"
+                              }`}
+                            >
+                              Save {savingsPct}%
+                            </span>
+                          ) : null}
                         </span>
                       </li>
                     )
