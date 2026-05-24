@@ -13,58 +13,58 @@ import MobileMegaMenu from "@modules/layout/components/mega-menu/mobile-mega-men
 import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
 
 /**
- * Two-row sticky header.
+ * Single-row sticky header — everything in one bar.
  *
- * Row 1 (always visible)
- *   ┌────────────────────────────────────────────────────────────────┐
- *   │  [Mobile hamburger]      [Logo]      [Right utility nav]       │
- *   └────────────────────────────────────────────────────────────────┘
- *   - Mobile hamburger (<1024px) opens the MobileMegaMenu accordion overlay.
- *   - Logo centered; clicks home.
- *   - Right utility: phone, search, Brands, Services, Best Sellers, Account, Cart.
- *     Brands / Services / Best Sellers / Account are text links hidden below
- *     `small:` (1024px); on mobile they live inside the hamburger overlay instead.
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │  Mens · Womens · Kids · Workwear · Corporates · Healthcare         │
+ *   │                              [Logo]                                │
+ *   │              Brands · Services · Best Sellers · Account · 📞 🔍 🛒 │
+ *   └────────────────────────────────────────────────────────────────────┘
  *
- * Row 2 (desktop only, ≥1024px)
- *   ┌────────────────────────────────────────────────────────────────┐
- *   │  Mens · Womens · Kids · Workwear · Corporates · Healthcare     │
- *   └────────────────────────────────────────────────────────────────┘
- *   - Hover any audience → its dropdown panel reveals below the row.
- *   - Click navigates to /categories/<audience-handle> landing page.
- *   - DesktopMegaMenu orchestrates the open/close state across triggers.
+ * Layout uses absolute-positioned logo dead-center so the left audience
+ * nav and right utility nav can grow/shrink without nudging the logo. The
+ * audience-dropdown panel is rendered by DesktopMegaMenu as a sibling to
+ * the trigger row, positioned `absolute left-0 right-0 top-full` relative
+ * to the `<header>` element — that's why <header> carries `relative`.
  *
- * The previous single-panel "Menu" overlay (storefront/src/modules/layout/
- * components/side-menu/index.tsx) is no longer rendered but left in place
- * for reference / rollback. Safe to delete once the new menu is in
- * production for a release cycle.
+ * Below `small:` (1024px) the audience nav collapses to a hamburger
+ * (MobileMegaMenu) on the left that reveals the same audiences in a
+ * vertical accordion. Phone/search/cart stay visible on the right at all
+ * widths; Brands/Services/Best Sellers/Account text links hide below
+ * `small:` (they're inside the hamburger overlay instead).
+ *
+ * The previous separate second row + the old single-panel side-menu
+ * component (storefront/src/modules/layout/components/side-menu/) are
+ * left in place for reference but no longer rendered.
  */
 
 export default function Nav() {
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
-      {/* Row 1 — logo + utility */}
       <header className="relative h-20 mx-auto bg-ui-fg-base duration-200">
-        <nav className="content-container flex h-full w-full items-center justify-between gap-6 text-base font-medium text-white">
-          {/* Left: mobile hamburger. On desktop this slot is invisible —
-              the audience nav lives in Row 2. */}
-          <div className="flex-1 basis-0 h-full flex items-center">
-            <div className="h-full small:invisible">
-              <Suspense
-                fallback={
-                  <div aria-hidden className="h-full w-10" />
-                }
-              >
-                <Row1MobileHamburger />
-              </Suspense>
-            </div>
+        <nav className="content-container flex h-full w-full items-center text-base font-medium text-white">
+          {/* LEFT: audience nav (desktop) or hamburger (mobile). Both
+              fetch the same audiences list — Suspense isolates them so
+              the header logo never waits on the menu round trip. */}
+          <div className="flex flex-1 h-full items-center min-w-0">
+            <Suspense
+              fallback={<div aria-hidden className="h-full w-10" />}
+            >
+              <LeftSlot />
+            </Suspense>
           </div>
 
-          {/* Center: logo */}
-          <div className="flex items-center h-full">
+          {/* CENTER (absolute): logo. Sits dead-center regardless of how
+              much room the left/right slots take up. `pointer-events-none`
+              on the wrapper lets clicks pass through the empty side
+              regions; the link inside re-enables them on the logo itself. */}
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none"
+          >
             <LocalizedClientLink
               href="/"
               prefetch={false}
-              className="inline-flex items-center"
+              className="inline-flex items-center pointer-events-auto"
               data-testid="nav-store-link"
             >
               <Image
@@ -78,8 +78,8 @@ export default function Nav() {
             </LocalizedClientLink>
           </div>
 
-          {/* Right: utility */}
-          <div className="flex h-full flex-1 basis-0 items-center justify-end gap-x-2 leading-none phone:gap-x-3 tablet:gap-x-4 small:gap-x-5">
+          {/* RIGHT: utility (phone, search, text links, cart). */}
+          <div className="flex h-full flex-1 items-center justify-end gap-x-2 leading-none phone:gap-x-3 tablet:gap-x-4 small:gap-x-5">
             <a
               href={SC_PRINTS_PHONE_HREF}
               className="flex h-full min-h-10 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-white transition-colors hover:text-[var(--brand-accent)]"
@@ -176,44 +176,28 @@ export default function Nav() {
           </div>
         </nav>
       </header>
-
-      {/* Row 2 — audience nav (desktop only) */}
-      <div className="hidden small:block bg-ui-fg-base/95 border-t border-white/10 backdrop-blur-sm">
-        <Suspense
-          fallback={
-            <div className="h-12" aria-hidden />
-          }
-        >
-          <Row2DesktopNav />
-        </Suspense>
-      </div>
     </div>
   )
 }
 
 /**
- * Server component fetching the menu data once and slotting it into
- * Row 1 (hamburger only) and Row 2 (desktop nav).
- *
- * We split into two server components reading the same cached fetch so
- * each row can be Suspended independently — the header logo doesn't
- * wait on the menu network round trip.
+ * Single async server slot that switches between the desktop audience
+ * nav and the mobile hamburger via CSS — both branches always render so
+ * the SSR HTML is identical on both breakpoints, and the right one
+ * shows after the responsive media query kicks in.
  */
-async function Row1MobileHamburger() {
+async function LeftSlot() {
   const audiences = await listShopCategoriesMenu().catch(() => [])
-  return <MobileMegaMenu audiences={audiences} />
-}
-
-async function Row2DesktopNav() {
-  const audiences = await listShopCategoriesMenu().catch(() => [])
-  if (audiences.length === 0) {
-    // No populated audiences — render an empty row to preserve the
-    // header's stable height rather than a layout shift.
-    return <div className="h-12" aria-hidden />
-  }
   return (
-    <div className="h-12 flex items-center">
-      <DesktopMegaMenu audiences={audiences} />
-    </div>
+    <>
+      {/* Mobile: hamburger only. Visible below `small:`. */}
+      <div className="small:hidden h-full flex items-center">
+        <MobileMegaMenu audiences={audiences} />
+      </div>
+      {/* Desktop: audience nav. Visible at `small:` and up. */}
+      <div className="hidden small:flex h-full items-center">
+        <DesktopMegaMenu audiences={audiences} />
+      </div>
+    </>
   )
 }
