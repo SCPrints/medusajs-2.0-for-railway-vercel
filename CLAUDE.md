@@ -1209,7 +1209,6 @@ One admin page consolidating five spreadsheet/import workflows into tabs: import
 ### Misc admin widgets
 | Widget | Purpose |
 | --- | --- |
-| [agent-products-debug.tsx](backend/src/admin/widgets/agent-products-debug.tsx) | Internal debug surface for agent-driven product queries |
 | [product-brand.tsx](backend/src/admin/widgets/product-brand.tsx) | Brand picker on product detail (see "Brands" section) |
 | [product-ai-description.tsx](backend/src/admin/widgets/product-ai-description.tsx) | AI copy widget on product detail |
 
@@ -1228,8 +1227,8 @@ All under [storefront/src/app/[countryCode]/(main)/account/@dashboard/](storefro
 | `group-orders/` | Group-order module | custom |
 | `organisations/` | Organisation module | custom |
 
-### Experimental / dev pages (flag for cleanup before next release)
-These are clearly experimental and not linked from production navigation. Audit which are still useful and trim the rest.
+### Standalone routes outside primary nav
+These routes exist but aren't linked from the main nav. Some are intentional landing pages, some are animation/3D sandboxes kept on hand for reference. Audit before assuming any of them can be safely deleted — `particle-logo/` in particular is active work.
 
 | Path | Notes |
 | --- | --- |
@@ -1237,7 +1236,7 @@ These are clearly experimental and not linked from production navigation. Audit 
 | `[countryCode]/test/button-animations/` | Button interaction tests |
 | `[countryCode]/bleh/`, `bleh2/` | Three.js particle experiments with photo source |
 | `[countryCode]/dan/`, `dmc/` | Dev splash pages, not linked from nav |
-| `[countryCode]/(main)/particle-logo/`, `particle-threejs/`, `particle-flow/` | Tsparticles + Three.js sandboxes |
+| `[countryCode]/(main)/particle-logo/`, `particle-threejs/`, `particle-flow/` | Tsparticles + Three.js sandboxes (`particle-logo/` is active work) |
 | `[countryCode]/(main)/old-hero/` | Legacy hero — superseded by current home hero |
 | `[countryCode]/(main)/jungle-scene/`, `space-hero/` | Animation isolation tests |
 
@@ -1245,7 +1244,7 @@ These are clearly experimental and not linked from production navigation. Audit 
 
 - **Backend**: `cd backend && pnpm test` — Jest with `@swc/jest`. Existing tests in `src/services/customizer-render/__tests__/` and `src/lib/__tests__/`.
 - **Storefront**: `cd storefront && pnpm test` — Jest with `@swc/jest`. Test files colocated as `*.spec.ts` next to source.
-- **Sync check**: `pnpm check-production-stage-sync` from repo root.
+- **Sync checks**: `pnpm check-sync` runs all four — `check-production-stage-sync`, `check-customer-tiers-sync`, `check-dtf-pricing-sync`, `check-embroidery-pricing-sync`. Wire into CI to catch hand-mirror drift.
 - **E2E**: `cd storefront && pnpm test-e2e` — Playwright.
 
 Tests written for the four-phase work:
@@ -1449,7 +1448,7 @@ All audit items from the original review have been resolved. See "Fixed" below f
 ## Operational notes
 
 - **MinIO retention is load-bearing for re-order.** If lifecycle policies GC `customer_original_files` URLs, re-order will display fine but **add-to-cart will fail to re-render print PNGs**. Set retention to indefinite for these objects, or move them to a permanent bucket on order placement.
-- **Customizer template size** ([storefront/src/modules/customizer/templates/index.tsx](storefront/src/modules/customizer/templates/index.tsx)) is ~3700 lines. New canvas-related work should consider whether it can live in a separate component before adding to this file.
+- **Customizer template size** ([storefront/src/modules/customizer/templates/index.tsx](storefront/src/modules/customizer/templates/index.tsx)) is ~5500 lines. New canvas-related work should consider whether it can live in a separate component before adding to this file. Pure utilities (fabric helpers, file readers, variant resolvers) already live under `lib/` — keep that pattern.
 - **Hand-written migration**: the Phase 2 migration ([Migration20260507000000.ts](backend/src/modules/designs/migrations/Migration20260507000000.ts)) was hand-written to match what `npx medusa db:generate designs` produces. If you'd rather have the auto-generated one, delete it and run the generator before `db:migrate`.
 - **Migrations run as a Fly release command, not on boot.** [backend/fly.toml](backend/fly.toml) `[deploy] release_command` runs `cd .medusa/server && npx medusa db:migrate && npx medusa db:sync-links` once per deploy — out of the hot path of the booting machines. The container's `start` script ([backend/package.json](backend/package.json)) is just `cd .medusa/server && npx medusa start --verbose`. Mikro-ORM holds an advisory lock during migrate, so the release command is safe to re-run. **Do not move migrations back into the per-machine start script** — that's a 2-4 min penalty on every machine boot (including Fly suspend/resume), and pre-migration code can race against post-migration schema while replicas restart.
 
@@ -1523,7 +1522,7 @@ Sticky bottom bars (cart CTA, customizer toolbar, mobile nav) must respect the i
 
 ## Customizer wizard architecture
 
-The customizer lives in one large file: [storefront/src/modules/customizer/templates/index.tsx](storefront/src/modules/customizer/templates/index.tsx) (~3700 lines). Understanding the two rendering modes and the wizard state machine is essential before editing it.
+The customizer lives in one large file: [storefront/src/modules/customizer/templates/index.tsx](storefront/src/modules/customizer/templates/index.tsx) (~5500 lines). Understanding the two rendering modes and the wizard state machine is essential before editing it.
 
 ### Two rendering modes
 

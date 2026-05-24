@@ -4,63 +4,40 @@ import { Container, Heading, Text } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
 import { PALETTE } from "../lib/reports/palette"
+import {
+  RECENTLY_VIEWED_STORAGE_KEY,
+  readRecentlyViewed,
+  type RecentlyViewedEntry,
+} from "../lib/recently-viewed-storage"
 
 /**
- * Localstorage-backed recently-viewed list. Captures the last 8 records
- * the operator opened, persists across sessions. Two widgets:
- *   1. tracker (zero UI) — runs on every detail page, pushes to localStorage
- *   2. sidebar (visible) — renders the list on the orders list page
- *
- * Both listen to the same `sc:recently_viewed` key for cross-tab sync.
+ * Sidebar widget on the orders list page that surfaces the last few records
+ * the operator opened. Storage logic lives in `lib/recently-viewed-storage.ts`
+ * so the per-entity tracker widgets can share it without a widget→widget
+ * import. Cross-tab sync via the `storage` event.
  */
-const STORAGE_KEY = "sc:recently_viewed"
-const MAX_ENTRIES = 8
 
-type Entry = {
-  type: "order" | "customer" | "product"
-  id: string
-  title: string
-  href: string
-  viewed_at: string
-}
-
-const TYPE_LABEL: Record<Entry["type"], string> = {
+const TYPE_LABEL: Record<RecentlyViewedEntry["type"], string> = {
   order: "Order",
   customer: "Customer",
   product: "Product",
 }
 
-const TYPE_COLOR: Record<Entry["type"], string> = {
+const TYPE_COLOR: Record<RecentlyViewedEntry["type"], string> = {
   order: PALETTE.teal700,
   customer: PALETTE.amber600,
   product: PALETTE.slate700,
 }
 
 const RecentlyViewedSidebar = () => {
-  const [entries, setEntries] = useState<Entry[]>([])
-
-  const loadEntries = () => {
-    if (typeof window === "undefined") return
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (!raw) {
-        setEntries([])
-        return
-      }
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) {
-        setEntries(parsed.slice(0, MAX_ENTRIES))
-      }
-    } catch {
-      /* ignore */
-    }
-  }
+  const [entries, setEntries] = useState<RecentlyViewedEntry[]>([])
 
   useEffect(() => {
+    const loadEntries = () => setEntries(readRecentlyViewed())
     loadEntries()
     if (typeof window === "undefined") return
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) loadEntries()
+      if (e.key === RECENTLY_VIEWED_STORAGE_KEY) loadEntries()
     }
     window.addEventListener("storage", onStorage)
     return () => window.removeEventListener("storage", onStorage)
@@ -120,22 +97,3 @@ export const config = defineWidgetConfig({
 })
 
 export default withWidgetBoundary(RecentlyViewedSidebar, "recently-viewed")
-
-// Helper exposed for the per-page trackers to push entries.
-export const recordRecentlyViewed = (entry: Omit<Entry, "viewed_at">) => {
-  if (typeof window === "undefined") return
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const list: Entry[] = raw ? JSON.parse(raw) : []
-    const filtered = list.filter(
-      (e) => !(e.type === entry.type && e.id === entry.id)
-    )
-    const next: Entry[] = [
-      { ...entry, viewed_at: new Date().toISOString() },
-      ...filtered,
-    ].slice(0, MAX_ENTRIES)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  } catch {
-    /* ignore */
-  }
-}

@@ -2,7 +2,7 @@ import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
 import { useEffect } from "react"
 
-import { recordRecentlyViewed } from "./recently-viewed"
+import { recordRecentlyViewed } from "../lib/recently-viewed-storage"
 
 const RecentlyViewedTrackerCustomer = ({ data: customer }: { data: { id: string; email?: string; first_name?: string; last_name?: string } }) => {
   useEffect(() => {
