@@ -19,7 +19,20 @@
  * tags a staff member added in admin are preserved. Type is only filled
  * when currently null (existing types are never overwritten).
  *
- * Idempotent — re-run any time. Set `DRY_RUN=1` to log without writes.
+ * Flags:
+ *   DRY_RUN=1       — log the diff without writing anything.
+ *   REBUILD_TAGS=1  — REPLACE tag set on supplier-imported products with
+ *                     classifier output. Removes stale/wrong tags.
+ *                     Manual tags will be lost — opt in deliberately.
+ *   REBUILD_TYPES=1 — REWRITE product_type on supplier-imported products
+ *                     when the classifier produces a different value than
+ *                     what's currently set. Use after an alias-map fix
+ *                     (e.g. splitting a compound canonical type into two)
+ *                     to migrate existing products to the new vocabulary.
+ *                     Manual type overrides will be clobbered — opt in
+ *                     deliberately.
+ *
+ * Idempotent — re-run any time.
  *
  * Local:    cd backend && npx medusa exec src/scripts/backfill-product-taxonomy.ts
  * Fly.io:   fly ssh console --app sc-prints-backend
@@ -129,11 +142,18 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
   // off (union mode) to preserve manual tags.
   const rebuildTags =
     process.env.REBUILD_TAGS === "1" || process.env.REBUILD_TAGS === "true"
+  const rebuildTypes =
+    process.env.REBUILD_TYPES === "1" || process.env.REBUILD_TYPES === "true"
 
   if (dryRun) logger.info("DRY_RUN=1 — no writes will be performed")
   if (rebuildTags) {
     logger.info(
       "REBUILD_TAGS=1 — supplier products will have tag set REPLACED with classifier output (removes stale tags)"
+    )
+  }
+  if (rebuildTypes) {
+    logger.info(
+      "REBUILD_TYPES=1 — supplier products will have product_type REWRITTEN when classifier differs from current type (overrides manual edits)"
     )
   }
 
@@ -195,8 +215,27 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
       }
       const fallback = applyTitleFallbacks(baseline, title, unknownLog)
 
-      // Type: fill only when currently null. Never overwrite.
-      const newType = !currentType && fallback.productType ? fallback.productType : null
+      // Type resolution:
+      //  - Default: fill only when currently null (preserves manual edits).
+      //    Classifier output preferred; title-fallback second.
+      //  - REBUILD_TYPES=1 + supplier product + classifier produces something
+      //    other than the current type → OVERWRITE. Needed after an
+      //    alias-map change so existing products migrate to the new
+      //    canonical vocabulary (e.g. "Singlets / Tanks" → "Singlets" |
+      //    "Tanks" after the May 2026 split).
+      const classifierType = supplierResult?.productType ?? null
+      const fallbackType = fallback.productType ?? null
+      let newType: string | null = null
+      if (!currentType) {
+        newType = classifierType ?? fallbackType
+      } else if (
+        rebuildTypes &&
+        supplierResult &&
+        classifierType &&
+        classifierType !== currentType
+      ) {
+        newType = classifierType
+      }
       const needsType = !!newType
 
       // Tags: behaviour depends on the mode:
@@ -215,7 +254,14 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
 
       if (sampleChanges.length < 15) {
         const changes: string[] = []
-        if (needsType) changes.push(`type → ${newType}`)
+        if (needsType) {
+          // Show "old → new" when this is an overwrite, plain "→ new" when filling.
+          changes.push(
+            currentType
+              ? `type "${currentType}" → "${newType}"`
+              : `type → "${newType}"`
+          )
+        }
         if (tagsToAdd.length) changes.push(`+[${tagsToAdd.join(", ")}]`)
         if (tagsToRemove.length) changes.push(`-[${tagsToRemove.join(", ")}]`)
         sampleChanges.push(`  ${product.title} (${product.handle}) — ${changes.join(", ")}`)
