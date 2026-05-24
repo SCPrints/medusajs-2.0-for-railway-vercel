@@ -31,6 +31,12 @@
  *                     to migrate existing products to the new vocabulary.
  *                     Manual type overrides will be clobbered — opt in
  *                     deliberately.
+ *   DUMP_UNTYPED=1  — write a diagnostic file at /tmp/backfill-untyped.log
+ *                     listing every product whose title-fallback couldn't
+ *                     infer a type, plus every tag value that didn't
+ *                     normalize against TAG_ALIASES. Use to find alias-map
+ *                     gaps — the report groups misses so patterns ("we
+ *                     keep missing 'Coverall' in titles") jump out.
  *
  * Idempotent — re-run any time.
  *
@@ -38,6 +44,8 @@
  * Fly.io:   fly ssh console --app sc-prints-backend
  *           cd /app/.medusa/server && npx medusa exec src/scripts/backfill-product-taxonomy.js
  */
+
+import fs from "node:fs"
 
 import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
@@ -144,6 +152,8 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
     process.env.REBUILD_TAGS === "1" || process.env.REBUILD_TAGS === "true"
   const rebuildTypes =
     process.env.REBUILD_TYPES === "1" || process.env.REBUILD_TYPES === "true"
+  const dumpUntyped =
+    process.env.DUMP_UNTYPED === "1" || process.env.DUMP_UNTYPED === "true"
 
   if (dryRun) logger.info("DRY_RUN=1 — no writes will be performed")
   if (rebuildTags) {
@@ -154,6 +164,11 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
   if (rebuildTypes) {
     logger.info(
       "REBUILD_TYPES=1 — supplier products will have product_type REWRITTEN when classifier differs from current type (overrides manual edits)"
+    )
+  }
+  if (dumpUntyped) {
+    logger.info(
+      "DUMP_UNTYPED=1 — full alias-miss log will be written to /tmp/backfill-untyped.log at the end of the run"
     )
   }
 
@@ -315,6 +330,60 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
     for (const line of unknownLog.slice(0, 10)) logger.info(`  ${line}`)
     if (unknownLog.length > 10) {
       logger.info(`  …and ${unknownLog.length - 10} more.`)
+    }
+  }
+
+  // DUMP_UNTYPED=1: write the full unknownLog to /tmp so staff can grep it
+  // for patterns. unknownLog mixes two distinct miss kinds — title-fallback
+  // (product_type stayed null) and tag normalization (a tag value didn't
+  // match TAG_ALIASES). Split + write a structured report so each pattern
+  // can be inspected on its own.
+  if (dumpUntyped && unknownLog.length > 0) {
+    const titleMisses = unknownLog.filter((l) => l.startsWith("[title-fallback]"))
+    const tagMisses = unknownLog.filter((l) => l.startsWith("[tag]"))
+    const otherMisses = unknownLog.filter(
+      (l) => !l.startsWith("[title-fallback]") && !l.startsWith("[tag]")
+    )
+    const dumpPath = "/tmp/backfill-untyped.log"
+    const lines: string[] = [
+      `Backfill diagnostic — ${new Date().toISOString()}`,
+      `Total products scanned: ${totalScanned}`,
+      `Total unknownLog entries: ${unknownLog.length}`,
+      "",
+      "=== TITLE MISSES ===",
+      `(${titleMisses.length} products whose title-fallback couldn't infer a product_type.`,
+      ` These products are invisible to the storefront mega-menu, the chatbot,`,
+      ` and decoration pricing. Look for repeating words/phrases to extend`,
+      ` PRODUCT_TYPE_ALIASES in backend/src/lib/product-taxonomy.ts.)`,
+      "",
+      ...titleMisses,
+      "",
+      "=== TAG NORMALIZATION MISSES ===",
+      `(${tagMisses.length} tag values that didn't match TAG_ALIASES — fell`,
+      ` back to title-case. Not necessarily broken, but each repeating one`,
+      ` is a candidate for explicit aliasing.)`,
+      "",
+      ...tagMisses,
+    ]
+    if (otherMisses.length > 0) {
+      lines.push(
+        "",
+        "=== OTHER ===",
+        `(${otherMisses.length} entries not matching either prefix — shouldn't happen.)`,
+        "",
+        ...otherMisses
+      )
+    }
+    try {
+      fs.writeFileSync(dumpPath, lines.join("\n"))
+      logger.info(
+        `DUMP_UNTYPED=1 — wrote ${unknownLog.length} entries to ${dumpPath}`
+      )
+      logger.info(
+        `  Read it with: cat ${dumpPath}  (or scp from the container)`
+      )
+    } catch (err: any) {
+      logger.warn(`DUMP_UNTYPED=1 — failed to write ${dumpPath}: ${err?.message ?? err}`)
     }
   }
 
