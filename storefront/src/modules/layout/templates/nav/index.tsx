@@ -1,264 +1,65 @@
 import { Suspense } from "react"
 import Image from "next/image"
 
-import { MEDUSA_BACKEND_URL } from "@lib/config"
 import {
   SC_PRINTS_PHONE_DISPLAY,
   SC_PRINTS_PHONE_HREF,
 } from "@lib/constants"
-import { listBrands } from "@lib/data/brands"
-import { listCategories } from "@lib/data/categories"
-import { getCollectionsList } from "@lib/data/collections"
-import { getProductByHandle } from "@lib/data/products"
-import { listRegions } from "@lib/data/regions"
-import { HttpTypes, StoreRegion } from "@medusajs/types"
-import { convertMinorToLocale } from "@lib/util/money"
+import { listShopCategoriesMenu } from "@lib/data/shop-categories-menu"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import CartButton from "@modules/layout/components/cart-button"
-import SideMenu, {
-  type SideMenuBestSellerItem,
-  type SideMenuBrandLink,
-  type SideMenuBrowseGroup,
-} from "@modules/layout/components/side-menu"
+import DesktopMegaMenu from "@modules/layout/components/mega-menu/desktop-mega-menu"
+import MobileMegaMenu from "@modules/layout/components/mega-menu/mobile-mega-menu"
 import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
 
-const MENU_BRAND_CAP = 8
-const MENU_BEST_SELLER_CAP = 3
-const MENU_BEST_SELLER_WINDOW_DAYS = 30
-
-const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
-
-const parseBestSellerHandles = (raw: string | undefined): string[] => {
-  if (!raw) return []
-  return raw
-    .split(",")
-    .map((h) => h.trim())
-    .filter(Boolean)
-    .slice(0, MENU_BEST_SELLER_CAP)
-}
-
-const fetchTopSellingProducts = async (
-  regionId: string
-): Promise<HttpTypes.StoreProduct[]> => {
-  const params = new URLSearchParams({
-    days: String(MENU_BEST_SELLER_WINDOW_DAYS),
-    limit: String(MENU_BEST_SELLER_CAP),
-    region_id: regionId,
-  })
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  if (publishableKey) headers["x-publishable-api-key"] = publishableKey
-  try {
-    const res = await fetch(
-      `${MEDUSA_BACKEND_URL}/store/products/top-selling?${params.toString()}`,
-      {
-        headers,
-        next: { tags: ["top-selling-products"], revalidate: 1800 },
-      }
-    )
-    if (!res.ok) return []
-    const data = (await res.json()) as {
-      products?: HttpTypes.StoreProduct[]
-    }
-    return data.products ?? []
-  } catch {
-    return []
-  }
-}
-
-const buildBestSellerItem = (
-  product: HttpTypes.StoreProduct
-): SideMenuBestSellerItem => {
-  const variantPrices: number[] = (product.variants ?? [])
-    .map((v) => {
-      const amount = (v as { calculated_price?: { calculated_amount?: unknown } })
-        ?.calculated_price?.calculated_amount
-      return typeof amount === "number" && Number.isFinite(amount) ? amount : null
-    })
-    .filter((p): p is number => p !== null)
-
-  let fromPriceLabel: string | null = null
-  if (variantPrices.length > 0) {
-    const lowest = Math.min(...variantPrices)
-    const currency =
-      (product.variants?.[0] as { calculated_price?: { currency_code?: string } })
-        ?.calculated_price?.currency_code ?? "AUD"
-    fromPriceLabel = `From ${convertMinorToLocale({
-      amount: lowest,
-      currency_code: currency,
-    })}`
-  }
-
-  return {
-    handle: product.handle ?? "",
-    title: product.title ?? "Untitled",
-    thumbnail: product.thumbnail ?? null,
-    fromPriceLabel,
-    variantCount: product.variants?.length ?? 0,
-  }
-}
-
-type RawCategory = {
-  id?: string
-  handle?: string | null
-  name?: string | null
-  parent_category_id?: string | null
-  parent_category?: { id?: string } | null
-  category_children?: RawCategory[] | null
-  rank?: number | null
-  is_active?: boolean | null
-}
-
-const sortByRankThenName = (a: RawCategory, b: RawCategory) => {
-  const ra = typeof a.rank === "number" ? a.rank : Number.POSITIVE_INFINITY
-  const rb = typeof b.rank === "number" ? b.rank : Number.POSITIVE_INFINITY
-  if (ra !== rb) return ra - rb
-  return (a.name ?? "").localeCompare(b.name ?? "", undefined, {
-    sensitivity: "base",
-  })
-}
-
-const buildCategoryBrowseGroups = (
-  categories: RawCategory[]
-): SideMenuBrowseGroup[] => {
-  const topLevel = categories
-    .filter((c) => {
-      const parentId = c.parent_category_id ?? c.parent_category?.id ?? null
-      return !parentId && c.handle && c.name && c.is_active !== false
-    })
-    .sort(sortByRankThenName)
-
-  const groups: SideMenuBrowseGroup[] = []
-  const flatItems: SideMenuBrowseGroup["items"] = []
-
-  for (const parent of topLevel) {
-    const children = (parent.category_children ?? [])
-      .filter((c) => c.handle && c.name && c.is_active !== false)
-      .sort(sortByRankThenName)
-
-    if (children.length > 0) {
-      groups.push({
-        title: parent.name as string,
-        items: [
-          {
-            label: `All ${parent.name}`,
-            href: `/categories/${parent.handle}`,
-          },
-          ...children.map((c) => ({
-            label: c.name as string,
-            href: `/categories/${parent.handle}/${c.handle}`,
-          })),
-        ],
-      })
-    } else {
-      flatItems.push({
-        label: parent.name as string,
-        href: `/categories/${parent.handle}`,
-      })
-    }
-  }
-
-  if (flatItems.length > 0) {
-    groups.unshift({ title: "Shop categories", items: flatItems })
-  }
-
-  return groups
-}
-
-async function NavSideMenu() {
-  const bestSellerHandles = parseBestSellerHandles(
-    process.env.NEXT_PUBLIC_MENU_BEST_SELLER_PRODUCT_HANDLES
-  )
-
-  const [regions, { collections }, categories, brands] = await Promise.all([
-    listRegions().catch(() => [] as StoreRegion[]),
-    getCollectionsList(0, 100).catch(() => ({
-      collections: [] as HttpTypes.StoreCollection[],
-      count: 0,
-    })),
-    listCategories().catch(() => [] as RawCategory[]),
-    listBrands().catch(() => []),
-  ])
-
-  const menuRegion = regions?.[0]
-  let bestSellerItems: SideMenuBestSellerItem[] = []
-  if (menuRegion) {
-    // Operator override: env-var handles win when set so we can pin specific
-    // hero products. Otherwise pull live top-N by line-item count over the
-    // last MENU_BEST_SELLER_WINDOW_DAYS days.
-    if (bestSellerHandles.length > 0) {
-      const fetched = await Promise.all(
-        bestSellerHandles.map((handle) =>
-          getProductByHandle(handle, menuRegion.id).catch(() => null)
-        )
-      )
-      bestSellerItems = fetched
-        .filter((p): p is HttpTypes.StoreProduct => p != null)
-        .map(buildBestSellerItem)
-    } else {
-      const liveProducts = await fetchTopSellingProducts(menuRegion.id)
-      bestSellerItems = liveProducts.map(buildBestSellerItem)
-    }
-  }
-
-  const menuCollectionLinks = [...collections]
-    .filter((c) => c.handle && c.title)
-    .map((c) => ({ handle: c.handle as string, title: c.title as string }))
-    .sort((a, b) =>
-      a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
-    )
-
-  const categoryBrowseGroups = buildCategoryBrowseGroups(
-    (categories as RawCategory[]) ?? []
-  )
-
-  // Surface up to 8 brands in the menu. Prefer top-level brands (no parent_id) so the
-  // group level reads cleanly — FashionBiz children (Biz Collection / Biz Care / Syzmik /
-  // Biz Corporates) still show through if there aren't enough top-level rows.
-  const sortedBrands = [...brands].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-  )
-  const topLevel = sortedBrands.filter((b) => !b.parent_id)
-  const rest = sortedBrands.filter((b) => b.parent_id)
-  const brandLinks: SideMenuBrandLink[] = [...topLevel, ...rest]
-    .filter((b) => b.handle && b.name)
-    .slice(0, MENU_BRAND_CAP)
-    .map((b) => ({
-      handle: b.handle,
-      name: b.name,
-      logoUrl: b.logo_url,
-    }))
-
-  return (
-    <SideMenu
-      regions={regions}
-      collectionLinks={menuCollectionLinks}
-      categoryBrowseGroups={categoryBrowseGroups}
-      brandLinks={brandLinks}
-      bestSellerItems={bestSellerItems}
-    />
-  )
-}
+/**
+ * Two-row sticky header.
+ *
+ * Row 1 (always visible)
+ *   ┌────────────────────────────────────────────────────────────────┐
+ *   │  [Mobile hamburger]      [Logo]      [Right utility nav]       │
+ *   └────────────────────────────────────────────────────────────────┘
+ *   - Mobile hamburger (<1024px) opens the MobileMegaMenu accordion overlay.
+ *   - Logo centered; clicks home.
+ *   - Right utility: phone, search, Brands, Services, Best Sellers, Account, Cart.
+ *     Brands / Services / Best Sellers / Account are text links hidden below
+ *     `small:` (1024px); on mobile they live inside the hamburger overlay instead.
+ *
+ * Row 2 (desktop only, ≥1024px)
+ *   ┌────────────────────────────────────────────────────────────────┐
+ *   │  Mens · Womens · Kids · Workwear · Corporates · Healthcare     │
+ *   └────────────────────────────────────────────────────────────────┘
+ *   - Hover any audience → its dropdown panel reveals below the row.
+ *   - Click navigates to /categories/<audience-handle> landing page.
+ *   - DesktopMegaMenu orchestrates the open/close state across triggers.
+ *
+ * The previous single-panel "Menu" overlay (storefront/src/modules/layout/
+ * components/side-menu/index.tsx) is no longer rendered but left in place
+ * for reference / rollback. Safe to delete once the new menu is in
+ * production for a release cycle.
+ */
 
 export default function Nav() {
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
+      {/* Row 1 — logo + utility */}
       <header className="relative h-20 mx-auto bg-ui-fg-base duration-200">
         <nav className="content-container flex h-full w-full items-center justify-between gap-6 text-base font-medium text-white">
+          {/* Left: mobile hamburger. On desktop this slot is invisible —
+              the audience nav lives in Row 2. */}
           <div className="flex-1 basis-0 h-full flex items-center">
-            <div className="h-full">
+            <div className="h-full small:invisible">
               <Suspense
                 fallback={
-                  <div
-                    aria-hidden
-                    className="h-full w-10"
-                  />
+                  <div aria-hidden className="h-full w-10" />
                 }
               >
-                <NavSideMenu />
+                <Row1MobileHamburger />
               </Suspense>
             </div>
           </div>
 
+          {/* Center: logo */}
           <div className="flex items-center h-full">
             <LocalizedClientLink
               href="/"
@@ -277,7 +78,8 @@ export default function Nav() {
             </LocalizedClientLink>
           </div>
 
-          <div className="flex h-full flex-1 basis-0 items-center justify-end gap-x-2 leading-none phone:gap-x-3 tablet:gap-x-4 small:gap-x-6">
+          {/* Right: utility */}
+          <div className="flex h-full flex-1 basis-0 items-center justify-end gap-x-2 leading-none phone:gap-x-3 tablet:gap-x-4 small:gap-x-5">
             <a
               href={SC_PRINTS_PHONE_HREF}
               className="flex h-full min-h-10 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-white transition-colors hover:text-[var(--brand-accent)]"
@@ -301,10 +103,30 @@ export default function Nav() {
                 {SC_PRINTS_PHONE_DISPLAY}
               </span>
             </a>
+
             <NavSearchTrigger />
-            <div className="hidden small:flex items-center gap-x-6 h-full">
+
+            {/* Text-link cluster — hidden on phone/tablet (those users get
+                these links inside the hamburger overlay instead). */}
+            <div className="hidden small:flex items-center gap-x-5 h-full">
               <LocalizedClientLink
-                className="flex h-full items-center hover:text-[var(--brand-accent)]"
+                className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
+                href="/brands"
+                prefetch={false}
+                data-testid="nav-brands-link"
+              >
+                Brands
+              </LocalizedClientLink>
+              <LocalizedClientLink
+                className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
+                href="/services"
+                prefetch={false}
+                data-testid="nav-services-link"
+              >
+                Services
+              </LocalizedClientLink>
+              <LocalizedClientLink
+                className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
                 href="/best-sellers"
                 prefetch={false}
                 data-testid="nav-best-sellers-link"
@@ -312,7 +134,7 @@ export default function Nav() {
                 Best Sellers
               </LocalizedClientLink>
               <LocalizedClientLink
-                className="flex h-full items-center hover:text-[var(--brand-accent)]"
+                className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
                 href="/account"
                 prefetch={false}
                 data-testid="nav-account-link"
@@ -320,6 +142,7 @@ export default function Nav() {
                 Account
               </LocalizedClientLink>
             </div>
+
             <Suspense
               fallback={
                 <LocalizedClientLink
@@ -353,6 +176,44 @@ export default function Nav() {
           </div>
         </nav>
       </header>
+
+      {/* Row 2 — audience nav (desktop only) */}
+      <div className="hidden small:block bg-ui-fg-base/95 border-t border-white/10 backdrop-blur-sm">
+        <Suspense
+          fallback={
+            <div className="h-12" aria-hidden />
+          }
+        >
+          <Row2DesktopNav />
+        </Suspense>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Server component fetching the menu data once and slotting it into
+ * Row 1 (hamburger only) and Row 2 (desktop nav).
+ *
+ * We split into two server components reading the same cached fetch so
+ * each row can be Suspended independently — the header logo doesn't
+ * wait on the menu network round trip.
+ */
+async function Row1MobileHamburger() {
+  const audiences = await listShopCategoriesMenu().catch(() => [])
+  return <MobileMegaMenu audiences={audiences} />
+}
+
+async function Row2DesktopNav() {
+  const audiences = await listShopCategoriesMenu().catch(() => [])
+  if (audiences.length === 0) {
+    // No populated audiences — render an empty row to preserve the
+    // header's stable height rather than a layout shift.
+    return <div className="h-12" aria-hidden />
+  }
+  return (
+    <div className="h-12 flex items-center">
+      <DesktopMegaMenu audiences={audiences} />
     </div>
   )
 }
