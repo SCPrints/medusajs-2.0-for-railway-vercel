@@ -105,7 +105,7 @@ import {
   isColorOptionTitle,
   isHatGarmentProduct,
   isPufferJacketProduct,
-  isVestGarmentProduct,
+  isSleevelessGarmentProduct,
   isLongSleeveGarmentProduct,
 } from "@modules/products/lib/variant-options"
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
@@ -819,8 +819,8 @@ export default function CustomizerTemplate({
     () => isPufferJacketProduct(selectedProduct),
     [selectedProduct]
   )
-  const productIsVest = useMemo(
-    () => isVestGarmentProduct(selectedProduct),
+  const productIsSleeveless = useMemo(
+    () => isSleevelessGarmentProduct(selectedProduct),
     [selectedProduct]
   )
   /**
@@ -833,7 +833,7 @@ export default function CustomizerTemplate({
    */
   const allowedPrintSides = useMemo<GarmentSide[]>(() => {
     if (productIsHat) return ["front"]
-    if (productIsVest) return ["front", "back", "printed_tag"]
+    if (productIsSleeveless) return ["front", "back", "printed_tag"]
     const productTags = getStoreProductTagValues(selectedProduct).map((t) => t.toLowerCase())
     const productTitleLower = (selectedProduct.title ?? "").toLowerCase()
     const isFrontBackOnlyProduct =
@@ -846,7 +846,7 @@ export default function CustomizerTemplate({
     return isFrontBackOnlyProduct
       ? ["front", "back"]
       : ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
-  }, [productIsHat, productIsVest, selectedProduct])
+  }, [productIsHat, productIsSleeveless, selectedProduct])
   const allowedSizesForCurrentSide = useMemo(
     () =>
       getAllowedScpPrintSizesForSide(currentSide, {

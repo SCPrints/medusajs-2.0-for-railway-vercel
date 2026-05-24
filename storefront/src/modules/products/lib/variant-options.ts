@@ -256,13 +256,14 @@ export function isPufferJacketProduct(
 }
 
 /**
- * Vest / sleeveless garments — no sleeve sides should be offered for
- * decoration. Detection mirrors the puffer/beanie pattern: metadata first,
- * then a title/handle keyword fallback. The fallback uses a strict
- * `\bvest(s)?\b` boundary so words like "investment" or "vested" don't
- * misclassify.
+ * Sleeveless garments — vests, singlets, tank tops, camisoles. No sleeve
+ * sides should be offered for decoration on these. Detection mirrors the
+ * puffer/beanie pattern: metadata first, then a title/handle keyword
+ * fallback. Word boundaries (`\b…\b`) keep "investment" / "vested" /
+ * "stank" / "tankini" out of the match, and "tank top" is handled by the
+ * lone `\btank\b` already catching the first word.
  */
-export function isVestGarmentProduct(
+export function isSleevelessGarmentProduct(
   product: HttpTypes.StoreProduct | undefined | null
 ): boolean {
   if (!product) return false
@@ -271,13 +272,14 @@ export function isVestGarmentProduct(
     const v = meta[key]
     return typeof v === "string" && v.trim() ? v.trim().toLowerCase() : null
   }
+  const SLEEVELESS_PATTERN = /\b(?:vest|singlet|tank|camisole)s?\b/
   const metaBlob = PUFFER_META_KEYS.map(metaString).filter(Boolean).join(" ")
-  if (/\bvest(s)?\b/.test(metaBlob)) return true
+  if (SLEEVELESS_PATTERN.test(metaBlob)) return true
   const titleBlob = [product.title, product.handle, product.subtitle]
     .filter(Boolean)
     .join(" ")
     .toLowerCase()
-  return /\bvest(s)?\b/.test(titleBlob)
+  return SLEEVELESS_PATTERN.test(titleBlob)
 }
 
 function getSleevePlaceholderUrl(
