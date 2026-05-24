@@ -137,6 +137,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   for (const styleCode of styleCodes) {
     try {
+      // Refuse styleCodes ending in "S" even if a stale UI ticks them. AS
+      // Colour uses the trailing S to mark superseded/discontinued styles
+      // (verified empirically — 75 of 141 S-suffix styles have a paired
+      // non-S base still in the catalog, the characteristic "current ↔
+      // superseded" pattern). Server-side check so it can't be bypassed by
+      // direct API calls. Same regex as in the catalog filter — keep in sync.
+      if (/S$/.test(styleCode)) {
+        errors.push({
+          styleCode,
+          error: "Skipped: styleCode ends in 'S' (AS Colour's convention for superseded/discontinued styles)",
+        })
+        continue
+      }
+
       const product = productsByCode.get(styleCode)
       if (!product) {
         errors.push({ styleCode, error: "Product not found in AS Colour catalog" })

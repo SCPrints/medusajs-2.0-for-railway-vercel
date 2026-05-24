@@ -60,6 +60,31 @@ export default class FashionBizService {
     return resp.products ?? []
   }
 
+  /**
+   * Walks the paginated /products/{brand}/{branch}/ endpoint and returns the
+   * full set of FashionBizProduct rows. Each row carries `sales_status`,
+   * `prices`, `colors`, etc. — fields the /simple/ endpoint omits.
+   *
+   * Throttled to ~5 req/sec to stay below FashionBiz's (undocumented) rate
+   * limit. Caller is responsible for cache management — this method always
+   * hits the network.
+   */
+  async fetchAllProductsWithDetail(
+    brand: FashionBizBrandSlug
+  ): Promise<FashionBizProduct[]> {
+    const out: FashionBizProduct[] = []
+    let page = 1
+    // Hard cap defends against pagination loops on a malformed API response.
+    for (let safety = 0; safety < 500; safety++) {
+      const resp = await this.client_.getProductListPage(brand, page)
+      out.push(...(resp.products ?? []))
+      if (!resp.next || resp.products?.length === 0) break
+      page = resp.next
+      await new Promise((r) => setTimeout(r, 200))
+    }
+    return out
+  }
+
   async fetchProductDetail(
     brand: FashionBizBrandSlug,
     slug: string

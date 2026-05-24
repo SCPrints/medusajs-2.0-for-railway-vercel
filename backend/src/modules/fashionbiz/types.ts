@@ -130,6 +130,22 @@ export type FashionBizSimpleList = {
   products: FashionBizProductStub[]
 }
 
+/**
+ * Shape of `/products/{brand}/{branch}/` (paginated). Unlike `/simple/` it
+ * returns full product detail per item — including `sales_status` — but is
+ * page-limited at ~16 items per page, so walking it is slower than the
+ * unpaginated /simple/ endpoint. Use when you need fields the simple list
+ * omits (sales_status, prices, colors, etc.).
+ */
+export type FashionBizProductListPage = {
+  current: number
+  previous: number | null
+  next: number | null
+  total_count: number
+  links?: { next?: string | null; previous?: string | null }
+  products: FashionBizProduct[]
+}
+
 export type FashionBizStockEta = {
   eta?: string
   quantity?: number

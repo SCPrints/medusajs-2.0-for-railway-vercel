@@ -172,8 +172,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         errors.push({ style_code: styleCode, error: "Style not found in AP API" })
         continue
       }
+      // Refuse run-out items even if a stale UI ticks them. The catalog
+       // endpoint hides them by default; surfacing via include_discontinued
+       // is for visibility only, not for actually importing them.
       if (product.run_out === true) {
-        skipped.push(styleCode)
+        errors.push({
+          style_code: styleCode,
+          error: "Skipped: supplier has flagged this style as run-out stock",
+        })
         continue
       }
       const handle = handleForProduct(styleCode)

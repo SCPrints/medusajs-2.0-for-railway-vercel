@@ -36,6 +36,8 @@ type CatalogProduct = {
   brand: string
   handle: string
   already_imported: boolean
+  sales_status: string | null
+  is_discontinued: boolean
 }
 
 type ImportResult = {
@@ -67,6 +69,8 @@ const FashionBizImportPage = () => {
 
   const [searchDraft, setSearchDraft] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
+  const [includeDiscontinued, setIncludeDiscontinued] = useState(false)
+  const [discontinuedFilteredOut, setDiscontinuedFilteredOut] = useState(0)
 
   const [selectedSlugs, setSelectedSlugs] = useState(() => new Set<string>())
   const [importing, setImporting] = useState(false)
@@ -86,11 +90,11 @@ const FashionBizImportPage = () => {
     return () => window.clearTimeout(h)
   }, [searchDraft])
 
-  // Reset to page 0 on search change
-  useEffect(() => { setOffset(0) }, [searchQuery])
+  // Reset to page 0 on search or filter change
+  useEffect(() => { setOffset(0) }, [searchQuery, includeDiscontinued])
 
-  // Clear selection on page/search change
-  useEffect(() => { setSelectedSlugs(new Set()) }, [offset, pageSize, searchQuery, activeBrand])
+  // Clear selection on page/search/filter/brand change
+  useEffect(() => { setSelectedSlugs(new Set()) }, [offset, pageSize, searchQuery, activeBrand, includeDiscontinued])
 
   // Clear search + selection on brand change
   const switchBrand = useCallback((slug: string) => {
@@ -113,6 +117,7 @@ const FashionBizImportPage = () => {
           limit: String(pageSize),
           offset: String(offset),
           ...(searchQuery ? { search: searchQuery } : {}),
+          ...(includeDiscontinued ? { include_discontinued: "1" } : {}),
         })
         const res = await fetch(adminUrl(`/admin/fashionbiz/catalog?${params}`), {
           credentials: "include",
@@ -125,11 +130,14 @@ const FashionBizImportPage = () => {
         if (!cancelled) {
           setProducts(data.products ?? [])
           setTotal(data.total ?? 0)
-          // Auto-uncheck already-imported on fresh load
+          setDiscontinuedFilteredOut(data.discontinued_filtered_out ?? 0)
+          // Auto-uncheck already-imported AND discontinued on fresh load.
+          // Discontinued items will be rejected by the import endpoint anyway,
+          // so don't tempt the user into queueing a guaranteed failure.
           setSelectedSlugs((prev) => {
             const next = new Set(prev)
             for (const p of (data.products ?? []) as CatalogProduct[]) {
-              if (p.already_imported) next.delete(p.slug)
+              if (p.already_imported || p.is_discontinued) next.delete(p.slug)
             }
             return next
           })
@@ -146,14 +154,19 @@ const FashionBizImportPage = () => {
     }
     void load()
     return () => { cancelled = true }
-  }, [activeBrand, offset, pageSize, searchQuery, refreshNonce])
+  }, [activeBrand, offset, pageSize, searchQuery, refreshNonce, includeDiscontinued])
 
-  // Selection helpers
+  // Selection helpers — only consider selectable rows (not already-imported,
+  // not discontinued) so the "select all" header reflects the intended state
+  // after a bulk action that intentionally skips those.
   const headerChecked = useMemo((): boolean | "indeterminate" => {
-    if (!products.length) return false
-    const onPage = products.filter((p) => selectedSlugs.has(p.slug))
+    const selectable = products.filter(
+      (p) => !p.already_imported && !p.is_discontinued
+    )
+    if (!selectable.length) return false
+    const onPage = selectable.filter((p) => selectedSlugs.has(p.slug))
     if (!onPage.length) return false
-    if (onPage.length === products.length) return true
+    if (onPage.length === selectable.length) return true
     return "indeterminate"
   }, [products, selectedSlugs])
 
@@ -161,8 +174,13 @@ const FashionBizImportPage = () => {
     setSelectedSlugs((prev) => {
       const next = new Set(prev)
       for (const p of products) {
-        if (checked) next.add(p.slug)
-        else next.delete(p.slug)
+        // Header "select all" also skips discontinued/already-imported so a
+        // single click doesn't queue rows that the server will reject.
+        if (checked) {
+          if (!p.already_imported && !p.is_discontinued) next.add(p.slug)
+        } else {
+          next.delete(p.slug)
+        }
       }
       return next
     })
@@ -181,7 +199,9 @@ const FashionBizImportPage = () => {
     setSelectedSlugs((prev) => {
       const next = new Set(prev)
       for (const p of products) {
-        if (!p.already_imported) next.add(p.slug)
+        // Never bulk-select discontinued or already-imported items — they're
+        // either skipped server-side or no-ops.
+        if (!p.already_imported && !p.is_discontinued) next.add(p.slug)
       }
       return next
     })
@@ -251,6 +271,7 @@ const FashionBizImportPage = () => {
               body: "Pulls the live FashionBiz catalogue (Biz Collection, Biz Care, Biz Corporates, Syzmik) and imports selected styles into Medusa. Switch brand tabs to browse each range separately.",
               bullets: [
                 "New = not yet imported. Imported (greyed) = already exists — safe to leave unchecked.",
+                "Discontinued (sales_status = clearance) styles are hidden by default. Use the 'Show discontinued' toggle to surface them; they'll appear with an orange CLEARANCE badge and the import endpoint will refuse to import them either way.",
                 "Pricing uses the 1-99 wholesale tier × FASHIONBIZ_COST_ADJUSTMENT (set to 1.15 in production to match actual distributor billing).",
                 "Stock refreshes nightly at 04:00 UTC via the FashionBiz Warehouse stock location.",
                 "Idempotent: re-importing an existing handle is a no-op — use the spreadsheet update flow to patch existing products.",
@@ -295,12 +316,27 @@ const FashionBizImportPage = () => {
               onChange={(e) => setSearchDraft(e.target.value)}
             />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <Checkbox
+              checked={includeDiscontinued}
+              onCheckedChange={(c) => setIncludeDiscontinued(c === true)}
+              disabled={loading}
+            />
+            <Text size="small">Show discontinued</Text>
+          </label>
           {(searchDraft || searchQuery) ? (
             <Button variant="secondary" size="small" onClick={() => { setSearchDraft(""); setSearchQuery("") }}>
               Clear search
             </Button>
           ) : null}
         </div>
+        {!includeDiscontinued && discontinuedFilteredOut > 0 && (
+          <div className="px-6 py-2 bg-ui-bg-subtle">
+            <Text size="xsmall" className="text-ui-fg-muted">
+              {discontinuedFilteredOut} discontinued style{discontinuedFilteredOut === 1 ? "" : "s"} hidden — toggle 'Show discontinued' to surface them.
+            </Text>
+          </div>
+        )}
 
         {/* Toolbar */}
         <div className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -417,13 +453,17 @@ const FashionBizImportPage = () => {
                     products.map((p) => (
                       <Table.Row
                         key={p.slug}
-                        className={p.already_imported ? "opacity-50" : ""}
+                        className={
+                          p.already_imported || p.is_discontinued
+                            ? "opacity-50"
+                            : ""
+                        }
                       >
                         <Table.Cell className="align-middle">
                           <Checkbox
                             checked={selectedSlugs.has(p.slug)}
                             onCheckedChange={(c) => toggleOne(p.slug, c === true)}
-                            disabled={loading}
+                            disabled={loading || p.is_discontinued}
                           />
                         </Table.Cell>
                         <Table.Cell>
@@ -433,7 +473,9 @@ const FashionBizImportPage = () => {
                           <Text size="small" weight="plus">{p.name}</Text>
                         </Table.Cell>
                         <Table.Cell>
-                          {p.already_imported ? (
+                          {p.is_discontinued ? (
+                            <Badge color="orange" size="xsmall">Clearance</Badge>
+                          ) : p.already_imported ? (
                             <Badge color="green" size="xsmall">Imported</Badge>
                           ) : (
                             <Badge color="blue" size="xsmall">New</Badge>

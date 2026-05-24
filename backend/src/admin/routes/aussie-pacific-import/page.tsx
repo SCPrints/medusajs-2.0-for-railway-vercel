@@ -20,6 +20,7 @@ type CatalogProduct = {
   main_category: string | null
   sub_category: string | null
   run_out: boolean
+  is_discontinued: boolean
   handle: string
   already_imported: boolean
 }
@@ -49,6 +50,8 @@ const AussiePacificImportPage = () => {
 
   const [searchDraft, setSearchDraft] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
+  const [includeDiscontinued, setIncludeDiscontinued] = useState(false)
+  const [discontinuedFilteredOut, setDiscontinuedFilteredOut] = useState(0)
 
   const [selectedCodes, setSelectedCodes] = useState(() => new Set<string>())
   const [importing, setImporting] = useState(false)
@@ -69,15 +72,15 @@ const AussiePacificImportPage = () => {
     return () => window.clearTimeout(h)
   }, [searchDraft])
 
-  // Reset to page 0 on search change
+  // Reset to page 0 on search or filter change
   useEffect(() => {
     setOffset(0)
-  }, [searchQuery])
+  }, [searchQuery, includeDiscontinued])
 
-  // Clear selection on page/search change
+  // Clear selection on page/search/filter change
   useEffect(() => {
     setSelectedCodes(new Set())
-  }, [offset, pageSize, searchQuery])
+  }, [offset, pageSize, searchQuery, includeDiscontinued])
 
   // Load catalog
   useEffect(() => {
@@ -90,6 +93,7 @@ const AussiePacificImportPage = () => {
           limit: String(pageSize),
           offset: String(offset),
           ...(searchQuery ? { search: searchQuery } : {}),
+          ...(includeDiscontinued ? { include_discontinued: "1" } : {}),
         })
         const res = await fetch(
           adminUrl(`/admin/aussie-pacific/catalog?${params}`),
@@ -103,11 +107,13 @@ const AussiePacificImportPage = () => {
         if (!cancelled) {
           setProducts(data.products ?? [])
           setTotal(data.total ?? 0)
-          // Auto-uncheck already-imported on fresh load
+          setDiscontinuedFilteredOut(data.discontinued_filtered_out ?? 0)
+          // Auto-uncheck already-imported AND discontinued on fresh load.
           setSelectedCodes((prev) => {
             const next = new Set(prev)
             for (const p of (data.products ?? []) as CatalogProduct[]) {
-              if (p.already_imported) next.delete(p.style_code)
+              if (p.already_imported || p.is_discontinued)
+                next.delete(p.style_code)
             }
             return next
           })
@@ -126,14 +132,18 @@ const AussiePacificImportPage = () => {
     return () => {
       cancelled = true
     }
-  }, [offset, pageSize, searchQuery, refreshNonce])
+  }, [offset, pageSize, searchQuery, refreshNonce, includeDiscontinued])
 
-  // Selection helpers
+  // Selection helpers — only consider selectable rows (not already-imported,
+  // not discontinued) so the "select all" header reflects the intended state.
   const headerChecked = useMemo((): boolean | "indeterminate" => {
-    if (!products.length) return false
-    const onPage = products.filter((p) => selectedCodes.has(p.style_code))
+    const selectable = products.filter(
+      (p) => !p.already_imported && !p.is_discontinued
+    )
+    if (!selectable.length) return false
+    const onPage = selectable.filter((p) => selectedCodes.has(p.style_code))
     if (!onPage.length) return false
-    if (onPage.length === products.length) return true
+    if (onPage.length === selectable.length) return true
     return "indeterminate"
   }, [products, selectedCodes])
 
@@ -142,8 +152,13 @@ const AussiePacificImportPage = () => {
       setSelectedCodes((prev) => {
         const next = new Set(prev)
         for (const p of products) {
-          if (checked) next.add(p.style_code)
-          else next.delete(p.style_code)
+          if (checked) {
+            // Skip discontinued and already-imported when bulk-selecting.
+            if (!p.already_imported && !p.is_discontinued)
+              next.add(p.style_code)
+          } else {
+            next.delete(p.style_code)
+          }
         }
         return next
       })
@@ -164,7 +179,8 @@ const AussiePacificImportPage = () => {
     setSelectedCodes((prev) => {
       const next = new Set(prev)
       for (const p of products) {
-        if (!p.already_imported) next.add(p.style_code)
+        // Skip discontinued: they're rejected by the import endpoint anyway.
+        if (!p.already_imported && !p.is_discontinued) next.add(p.style_code)
       }
       return next
     })
@@ -237,7 +253,7 @@ const AussiePacificImportPage = () => {
               body: "Pulls the live Aussie Pacific catalogue and imports selected styles into Medusa.",
               bullets: [
                 "New = not yet imported. Imported (greyed) = already exists — safe to leave unchecked.",
-                "Discontinued (run_out=true) styles are hidden by default — they're filtered out before reaching this list.",
+                "Discontinued (run_out=true) styles are hidden by default. Use the 'Show discontinued' toggle to surface them; they'll appear with an orange RUN-OUT badge and the import endpoint will refuse to import them either way.",
                 "Pricing uses the AP wholesale price × AUSSIE_PACIFIC_COST_ADJUSTMENT (default 1.0, ex-GST).",
                 "Stock refreshes daily at 05:00 UTC via the Aussie Pacific Warehouse stock location.",
                 "Idempotent: re-importing an existing handle is a no-op — use the spreadsheet update flow to patch existing products.",
@@ -266,6 +282,14 @@ const AussiePacificImportPage = () => {
               onChange={(e) => setSearchDraft(e.target.value)}
             />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <Checkbox
+              checked={includeDiscontinued}
+              onCheckedChange={(c) => setIncludeDiscontinued(c === true)}
+              disabled={loading}
+            />
+            <Text size="small">Show discontinued</Text>
+          </label>
           {searchDraft || searchQuery ? (
             <Button
               variant="secondary"
@@ -279,6 +303,13 @@ const AussiePacificImportPage = () => {
             </Button>
           ) : null}
         </div>
+        {!includeDiscontinued && discontinuedFilteredOut > 0 && (
+          <div className="px-6 py-2 bg-ui-bg-subtle">
+            <Text size="xsmall" className="text-ui-fg-muted">
+              {discontinuedFilteredOut} run-out style{discontinuedFilteredOut === 1 ? "" : "s"} hidden — toggle 'Show discontinued' to surface them.
+            </Text>
+          </div>
+        )}
 
         {/* Toolbar */}
         <div className="flex flex-col gap-3 px-6 py-4 lg:flex-row lg:items-center lg:justify-between">
@@ -441,7 +472,11 @@ const AussiePacificImportPage = () => {
                     products.map((p) => (
                       <Table.Row
                         key={p.style_code}
-                        className={p.already_imported ? "opacity-50" : ""}
+                        className={
+                          p.already_imported || p.is_discontinued
+                            ? "opacity-50"
+                            : ""
+                        }
                       >
                         <Table.Cell className="align-middle">
                           <Checkbox
@@ -449,6 +484,7 @@ const AussiePacificImportPage = () => {
                             onCheckedChange={(c) =>
                               toggleOne(p.style_code, c === true)
                             }
+                            disabled={p.is_discontinued}
                           />
                         </Table.Cell>
                         <Table.Cell>
@@ -469,7 +505,11 @@ const AussiePacificImportPage = () => {
                           </Text>
                         </Table.Cell>
                         <Table.Cell>
-                          {p.already_imported ? (
+                          {p.is_discontinued ? (
+                            <Badge color="orange" size="xsmall">
+                              Run-out
+                            </Badge>
+                          ) : p.already_imported ? (
                             <Badge color="green" size="xsmall">
                               Imported
                             </Badge>

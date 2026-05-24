@@ -123,6 +123,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       const product = await fashionbiz.fetchProductDetail(brand, slug)
       await sleep(200)
 
+      // Refuse clearance items even if a stale UI ticks them — the supplier
+      // has flagged the SKU as end-of-life and these were the source of the
+      // 8 under-cost duplicates we cleaned up earlier. Server-side check so
+      // it can't be bypassed by direct API calls. The catalog endpoint hides
+      // them by default; surfacing via include_discontinued is for visibility
+      // only, not for actually importing them.
+      if ((product.sales_status ?? "").toString().trim().toLowerCase() === "clearance") {
+        errors.push({
+          slug,
+          error: "Skipped: supplier has flagged this style as clearance (run-out stock)",
+        })
+        continue
+      }
+
       const handle = handleForProduct(brand, slug)
 
       // Skip if already imported

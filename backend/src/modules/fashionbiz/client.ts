@@ -3,6 +3,7 @@ import {
   FashionBizBrandSlug,
   FashionBizOptions,
   FashionBizProduct,
+  FashionBizProductListPage,
   FashionBizSimpleList,
   FashionBizStockResponse,
 } from "./types"
@@ -92,6 +93,22 @@ export class FashionBizClient {
   ): Promise<FashionBizProduct> {
     return this.sendRequest<FashionBizProduct>(
       `/products/${brand}/${this.options.branch}/${encodeURIComponent(slug)}/`
+    )
+  }
+
+  /**
+   * Paginated full-detail product list. Unlike `getSimpleProductList`, each
+   * row carries `sales_status`, `prices`, `colors`, etc. Page size is set
+   * by the FashionBiz API (currently ~16). Use when you need bulk access to
+   * fields the simple list omits.
+   */
+  async getProductListPage(
+    brand: FashionBizBrandSlug,
+    page = 1
+  ): Promise<FashionBizProductListPage> {
+    const suffix = page > 1 ? `?page=${page}` : ""
+    return this.sendRequest<FashionBizProductListPage>(
+      `/products/${brand}/${this.options.branch}/${suffix}`
     )
   }
 

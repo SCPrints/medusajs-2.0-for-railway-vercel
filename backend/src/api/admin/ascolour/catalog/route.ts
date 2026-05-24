@@ -16,15 +16,33 @@ const handleForStyle = (styleCode: string, productName?: string) => {
 }
 
 /**
+ * AS Colour appends "S" to a styleCode to mark it as superseded/discontinued
+ * (verified empirically via probe-ascolour-product-shape.ts: 141/629 styles
+ * end in "S" and 75 of them have a paired non-S base still in the catalog —
+ * the characteristic "current ↔ superseded" pattern).
+ *
+ * Single source of truth used by both the catalog filter here and the import
+ * route's server-side skip — keep them in sync.
+ */
+const isDiscontinuedStyleCode = (styleCode: string | null | undefined) =>
+  /S$/.test(String(styleCode ?? ""))
+
+/**
  * GET /admin/ascolour/catalog
  *
  * Fetches the AS Colour product catalogue and annotates each product with
- * whether it already exists in Medusa.
+ * whether it already exists in Medusa and whether the styleCode marks it as
+ * superseded/discontinued (suffix "S").
+ *
+ * Discontinued styles are filtered out by default so the admin never
+ * accidentally imports run-out stock. Set `?include_discontinued=1` to
+ * surface them with a DISCONTINUED badge.
  *
  * Query params:
- *   search  — filter by productName or styleCode (case-insensitive)
- *   limit   — page size (default 50)
- *   offset  — pagination offset (default 0)
+ *   search               — filter by productName or styleCode (case-insensitive)
+ *   limit                — page size (default 50)
+ *   offset               — pagination offset (default 0)
+ *   include_discontinued — "1" to include styleCode-ending-in-S styles (default: filtered out)
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -39,9 +57,21 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const search = ((req.query.search as string | undefined) ?? "").trim().toLowerCase()
   const limit = Math.min(Math.max(Number(req.query.limit ?? 50), 1), 200)
   const offset = Math.max(Number(req.query.offset ?? 0), 0)
+  const includeDiscontinued =
+    req.query.include_discontinued === "1" ||
+    req.query.include_discontinued === "true"
 
   // Fetch full catalog (paginated API, returns all pages)
   let products = await ascolour.fetchAllProducts()
+
+  // Filter discontinued unless explicitly requested. Tracked separately so
+  // the response can tell the UI "we hid N discontinued items".
+  let discontinuedFilteredOut = 0
+  if (!includeDiscontinued) {
+    const before = products.length
+    products = products.filter((p) => !isDiscontinuedStyleCode(p.styleCode))
+    discontinuedFilteredOut = before - products.length
+  }
 
   // Filter by search
   if (search) {
@@ -75,8 +105,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       category: (p as any).category ?? (p as any).productType ?? null,
       handle,
       already_imported: existingHandles.has(handle),
+      is_discontinued: isDiscontinuedStyleCode(p.styleCode),
     }
   })
 
-  return res.json({ products: rows, total, offset, limit })
+  return res.json({
+    products: rows,
+    total,
+    offset,
+    limit,
+    discontinued_filtered_out: discontinuedFilteredOut,
+  })
 }

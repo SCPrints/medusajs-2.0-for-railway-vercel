@@ -101,9 +101,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
-  // Filter discontinued unless explicitly requested.
+  // Filter discontinued unless explicitly requested. Tracked separately so
+  // the response can tell the UI "we hid N run-out items".
+  let discontinuedFilteredOut = 0
   if (!includeDiscontinued) {
+    const before = stubs.length
     stubs = stubs.filter((p) => p.run_out !== true)
+    discontinuedFilteredOut = before - stubs.length
   }
 
   // Search filter.
@@ -139,9 +143,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     main_category: s.main_category,
     sub_category: s.sub_category,
     run_out: s.run_out === true,
+    is_discontinued: s.run_out === true,
     handle: handleForProduct(s.style_code),
     already_imported: existingHandles.has(handleForProduct(s.style_code)),
   }))
 
-  return res.json({ products, total, offset, limit })
+  return res.json({
+    products,
+    total,
+    offset,
+    limit,
+    discontinued_filtered_out: discontinuedFilteredOut,
+  })
 }
