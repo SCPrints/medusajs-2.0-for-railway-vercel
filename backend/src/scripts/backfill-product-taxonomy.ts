@@ -55,6 +55,7 @@ import {
   classifyAsColourProduct,
   classifyAussiePacificProduct,
   classifyFashionBizProduct,
+  normalizeTags,
 } from "../lib/product-taxonomy"
 import {
   applyTypeAndTagsToProduct,
@@ -255,11 +256,25 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
 
       // Tags: behaviour depends on the mode:
       //  - REBUILD mode + supplier product → REPLACE with classifier output
+      //    UNION any current tags that survive normalizeTags (i.e. ones
+      //    that resolve to a canonical via TAG_ALIASES or fall through to a
+      //    title-cased unknown). Noise tags in DROP_TAG_VALUES /
+      //    GARBAGE_TAG_VALUES get filtered out by normalizeTags, so we don't
+      //    accidentally clobber legitimate tags the classifier can't
+      //    re-derive from stored metadata.fashionbiz (e.g. Biz Cool / Biz
+      //    Eco — they're real fabric-tech labels that the FB API exposes
+      //    inconsistently, but we want to keep them once they're on a
+      //    product). Pass `undefined` as the log to avoid polluting
+      //    unknownLog with re-scans of tags we're just trying to preserve.
       //  - Otherwise → UNION (additive only, preserves manual tags)
       const isSupplierProduct = !!supplierResult
+      const cleanedCurrentTags =
+        rebuildTags && isSupplierProduct
+          ? normalizeTags(currentTags, undefined)
+          : currentTags
       const finalTagSet =
         rebuildTags && isSupplierProduct
-          ? Array.from(new Set(fallback.tags))
+          ? Array.from(new Set([...fallback.tags, ...cleanedCurrentTags]))
           : Array.from(new Set([...currentTags, ...fallback.tags]))
       const tagsToAdd = finalTagSet.filter((t) => !currentTags.includes(t))
       const tagsToRemove = currentTags.filter((t) => !finalTagSet.includes(t))
