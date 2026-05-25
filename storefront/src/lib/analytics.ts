@@ -248,6 +248,7 @@ export type CustomizerFunnelStep =
   | "design_updated"
   | "design_auto_saved"
   | "design_added_to_cart"
+  | "design_updated_in_cart"
 
 /**
  * Customizer flow steps. The fourth step — design_purchased — is

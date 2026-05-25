@@ -1,6 +1,6 @@
 "use client"
 
-import { addScpLineItemToCartSafe, addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart } from "@lib/data/cart"
+import { addScpLineItemToCartSafe, addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart, updateScpDesignInCart } from "@lib/data/cart"
 import { createMyDesign, getMyDesign, updateMyDesign } from "@lib/data/designs"
 import { getOrderLineCustomizerMetadata } from "@lib/data/orders"
 import CustomizerProductPicker, {
@@ -18,7 +18,6 @@ import { resolvePdpFlyImageSrc } from "@modules/common/components/fly-to-cart-ad
 import CanvasStage from "@modules/customizer/components/canvas-stage"
 import DesignPreviewPopover from "@modules/customizer/components/design-preview-popover"
 import InputPanel from "@modules/customizer/components/input-panel"
-import CartVariantInlineList from "@modules/customizer/components/cart-variant-inline-list"
 import BulkOrderGrid, {
   type BulkCellEntry,
   type BulkPricingEstimate,
@@ -614,6 +613,19 @@ export default function CustomizerTemplate({
     }>
   >([])
   const [editGroupLineIds, setEditGroupLineIds] = useState<string[]>([])
+  // Read-only line summary for the edit-mode panel. Built from the cart's
+  // own line data (variant_title, product_title, quantity) so the panel can
+  // render even if `product.variants` doesn't include the cart's variants
+  // (e.g. a variant was retired after the cart was created). Keeps the
+  // edit-design flow strictly about artwork — no variant lookup required.
+  const [editGroupLineSummary, setEditGroupLineSummary] = useState<
+    Array<{
+      lineId: string
+      productTitle: string | null
+      variantTitle: string | null
+      quantity: number
+    }>
+  >([])
   // Set by stage-2 hydration when a side's metadata contains a
   // sanitized "[omitted-image-data]" placeholder — happens when the
   // original upload wasn't archived to MinIO/R2. Surfaces a visible
@@ -1534,13 +1546,54 @@ export default function CustomizerTemplate({
         setPdpStep1Done(true)
         setPdpStep2Done(true)
         setPdpStep(4)
-        // Build initial bulk cells from the existing siblings so the grid
-        // opens with the current colour×size selection pre-filled.
+        // Track every sibling line by id + display fields from the cart
+        // (variant_title, product_title, quantity). This is what the
+        // read-only edit-mode summary renders; it doesn't need a product
+        // variant lookup, so the panel stays functional even when a
+        // variant has been retired between cart-add and edit time.
+        const trackedLineIds: string[] = []
+        const summary: Array<{
+          lineId: string
+          productTitle: string | null
+          variantTitle: string | null
+          quantity: number
+        }> = []
+        for (const line of siblings) {
+          const lineId = (line as any)?.id
+          if (typeof lineId !== "string" || !lineId) continue
+          trackedLineIds.push(lineId)
+          summary.push({
+            lineId,
+            productTitle:
+              ((line as any)?.product_title as string | undefined) ??
+              ((line as any)?.variant?.product?.title as string | undefined) ??
+              null,
+            variantTitle:
+              ((line as any)?.variant_title as string | undefined) ??
+              ((line as any)?.variant?.title as string | undefined) ??
+              null,
+            quantity:
+              typeof (line as any)?.quantity === "number"
+                ? (line as any).quantity
+                : 0,
+          })
+        }
+        if (trackedLineIds.length === 0) {
+          // Defensive: siblings.length was non-zero above but none of them
+          // exposed a usable id. Bail rather than wedge the edit flow.
+          dropEditGroupParam()
+          return
+        }
+        setEditGroupLineIds(trackedLineIds)
+        setEditGroupLineSummary(summary)
+
+        // Best-effort secondary fill: populate editGroupCells from
+        // product.variants for back-compat with the bulk-grid fallback.
+        // Empty cells is fine — the edit-mode panel doesn't use them.
         const sizeOptForCells = product.options?.find((option) =>
           (option.title ?? "").toLowerCase().includes("size")
         )
         const cells: typeof editGroupInitialCells = []
-        const trackedLineIds: string[] = []
         for (const line of siblings) {
           const variantId =
             (line as any)?.variant?.id ?? (line as any)?.variant_id
@@ -1555,17 +1608,9 @@ export default function CustomizerTemplate({
             size: sizeValue,
             quantity: (line as any).quantity ?? 0,
           })
-          trackedLineIds.push((line as any).id)
-        }
-        if (cells.length === 0) {
-          // Variants were removed from the product after the group was
-          // added — nothing safe to rehydrate. Bail.
-          dropEditGroupParam()
-          return
         }
         setEditGroupInitialCells(cells)
         setEditGroupCells(cells)
-        setEditGroupLineIds(trackedLineIds)
         // Editing a cart design lands the customer in a focused design
         // editor — NOT the bulk grid. The bulk grid is for adding cells
         // to a fresh order; in edit mode the existing cart cells are
@@ -1573,7 +1618,26 @@ export default function CustomizerTemplate({
         // available as a secondary "fullscreen grid" link for power-
         // users who want the table view.
         setEditGroupHydrated(true)
-      } catch {
+        if (typeof window !== "undefined") {
+          // Diagnostic — surfaces hydration outcome so a future "design
+          // didn't reload" bug shows up in the browser console instead of
+          // requiring a remote-debug session.
+          // eslint-disable-next-line no-console
+          console.info(
+            "[customizer] edit_group hydration",
+            `lines=${trackedLineIds.length}`,
+            `cells=${cells.length}`,
+            `design.sides=${
+              Array.isArray(design?.sideLayouts) ? design!.sideLayouts.length : "none"
+            }`,
+            `design.activeSide=${design?.activeSide ?? "—"}`
+          )
+        }
+      } catch (err) {
+        if (typeof window !== "undefined") {
+          // eslint-disable-next-line no-console
+          console.warn("[customizer] edit_group hydration failed", err)
+        }
         dropEditGroupParam()
       }
     })()
@@ -3048,10 +3112,23 @@ export default function CustomizerTemplate({
     }
 
     saveCurrentSide()
-    const totalQuantity = bulkCells && bulkCells.length
+    // In edit_group mode the quantities live on the existing cart lines —
+    // there's no size matrix or bulk grid to read. Use the summary list as
+    // the source of truth so the totals shown in the UI stay accurate when
+    // logging / telemetry references `totalQuantity`.
+    const totalQuantity = editGroupId
+      ? editGroupLineSummary.reduce((sum, l) => sum + (l.quantity || 0), 0)
+      : bulkCells && bulkCells.length
       ? bulkCells.reduce((total, cell) => total + cell.quantity, 0)
       : sizeMatrix.reduce((total, entry) => total + entry.quantity, 0)
-    if (!totalQuantity) {
+    if (editGroupId) {
+      if (editGroupLineIds.length === 0) {
+        setUploadError(
+          "Couldn't find the cart lines to update — refresh the cart and try again."
+        )
+        return
+      }
+    } else if (!totalQuantity) {
       setUploadError(
         bulkCells
           ? "Enter at least one quantity in the bulk grid."
@@ -3332,6 +3409,89 @@ export default function CustomizerTemplate({
         groupId: groupIdForThisAdd,
         groupSize: groupSizeForThisAdd,
       })
+
+      // Edit-design (group edit) in-place save path. Bypasses the
+      // delete-and-recreate flow entirely — we keep every existing cart
+      // line (its id, variant, quantity, created_at) and just rewrite
+      // `customizerDesign` metadata + per-line unit_price via the new
+      // /store/carts/:id/scp-update-design route. Same render output
+      // (artifacts) feeds the metadata so mockups stay current.
+      if (editGroupId && editGroupLineIds.length > 0) {
+        // Bridge between data URLs and hosted MinIO URLs so the metadata
+        // we write doesn't carry "[omitted-image-data]" placeholders for
+        // images we already archived to object storage.
+        const dataUrlToHostedUrlForEdit: Record<string, string> = {}
+        for (const upload of sessionUploads) {
+          if (upload.dataUrl && upload.originalStorageUrl) {
+            dataUrlToHostedUrlForEdit[upload.dataUrl] = upload.originalStorageUrl
+          }
+        }
+        // Build the same shape `addScpLineItemToCartSafe` writes — minus
+        // variantId (that stays on each line). The backend route validates
+        // and rebuilds the pricing.server block per line.
+        const sharedDesignMetadata: Omit<CustomizerMetadata, "variantId"> =
+          metadataBase
+        const sanitizedDesign = sanitizeCustomizerDesignForCart(
+          sharedDesignMetadata as CustomizerMetadata,
+          dataUrlToHostedUrlForEdit
+        )
+        const updateResult = await updateScpDesignInCart({
+          lineIds: editGroupLineIds,
+          customizerDesign:
+            sanitizedDesign as unknown as Record<string, unknown>,
+          printSizeId: scpPrintSizeId,
+          productHandle: selectedProduct.handle ?? undefined,
+          productTitle: selectedProduct.title ?? undefined,
+        })
+        if (!updateResult.ok) {
+          throw new Error(updateResult.error)
+        }
+
+        // Vectorization upsell: the design-edit may have flipped the
+        // requiresVectorization flag from false → true (e.g. customer
+        // uploaded a low-res raster). Same idempotency pattern as the
+        // fresh-add path — probe before stamping.
+        const vectorizationVariantIdForEdit =
+          process.env.NEXT_PUBLIC_VECTORIZATION_VARIANT_ID?.trim()
+        if (vectorizationRequested && vectorizationVariantIdForEdit) {
+          let cartAlreadyHasVectorization = true
+          try {
+            const existingCart = await retrieveCart()
+            cartAlreadyHasVectorization = (existingCart?.items ?? []).some(
+              (line: any) => {
+                const meta = (line?.metadata ?? {}) as Record<string, unknown>
+                return meta.vectorization_for_order === true
+              }
+            )
+          } catch {
+            // Defensive: treat as already present.
+          }
+          if (!cartAlreadyHasVectorization) {
+            await addToCartSafe({
+              variantId: vectorizationVariantIdForEdit,
+              quantity: 1,
+              countryCode,
+              metadata: { vectorization_for_order: true },
+            })
+          }
+        }
+
+        trackCustomizerFunnel("design_updated_in_cart", {
+          product_id: selectedProduct.id,
+          line_count: editGroupLineIds.length,
+          total_quantity: totalQuantity,
+          sides_with_decoration: decoratedSides.length,
+        })
+        phCapture("customizer_design_updated_in_cart", {
+          product_id: selectedProduct.id,
+          line_count: editGroupLineIds.length,
+          total_quantity: totalQuantity,
+          group_id: groupIdForThisAdd,
+        })
+
+        router.push(`/${countryCode}/cart`)
+        return
+      }
 
       const resolvedQuantities: Array<{
         variant: HttpTypes.StoreProductVariant
@@ -5121,9 +5281,11 @@ export default function CustomizerTemplate({
           )}
 
           {/* Edit-design mode: replace Step 4 (Quantity & Checkout) with
-              a focused edit panel — inline variant list + sticky "Save
-              design changes" button. Customer can adjust qty / add /
-              remove variants here without ever leaving the page. */}
+              a focused design-only save panel. The cart's existing
+              variants and quantities are preserved exactly — this flow
+              ONLY updates the artwork/text/positions/print-size on the
+              already-added lines. To change quantities or variants, the
+              customer goes back to the cart. */}
           {editGroupId && pdpStep >= 4 ? (
             <motion.div
               ref={step4Ref}
@@ -5138,8 +5300,9 @@ export default function CustomizerTemplate({
                     Save design changes
                   </p>
                   <p className="text-xs text-amber-800">
-                    Your edits apply to every variant below. No new
-                    items will be added.
+                    Your edits apply to the existing cart variants below.
+                    Quantities and sizes are preserved — to change those,
+                    go back to the cart.
                   </p>
                 </div>
                 {hydrationPlaceholderSides.length > 0 ? (
@@ -5159,31 +5322,57 @@ export default function CustomizerTemplate({
                     </p>
                   </div>
                 ) : null}
-                <CartVariantInlineList
-                  product={selectedProduct}
-                  cells={editGroupCells}
-                  onChange={(next) => setEditGroupCells(next)}
-                  disabled={isSubmitting}
-                />
+                {/* Read-only cart-variant summary. Pulled from the cart's
+                    own line data (variant_title + quantity) so it stays
+                    accurate even if the storefront's product.variants
+                    list excludes a retired variant. No editing controls
+                    by design — this is purely "what you're updating". */}
+                {editGroupLineSummary.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-900">
+                        Updating {editGroupLineSummary.length} cart line
+                        {editGroupLineSummary.length === 1 ? "" : "s"}
+                      </p>
+                      <p className="text-xs text-amber-800">
+                        {editGroupLineSummary.reduce(
+                          (sum, l) => sum + (l.quantity || 0),
+                          0
+                        )}{" "}
+                        garment
+                        {editGroupLineSummary.reduce(
+                          (sum, l) => sum + (l.quantity || 0),
+                          0
+                        ) === 1
+                          ? ""
+                          : "s"}
+                      </p>
+                    </div>
+                    <ul className="space-y-1">
+                      {editGroupLineSummary.map((line) => (
+                        <li
+                          key={line.lineId}
+                          className="flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-white/70 px-2.5 py-1.5 text-xs"
+                        >
+                          <span className="flex-1 truncate text-amber-900">
+                            {line.variantTitle ??
+                              line.productTitle ??
+                              "Variant"}
+                          </span>
+                          <span className="shrink-0 font-semibold tabular-nums text-amber-900">
+                            × {line.quantity}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
-                    void addCustomizedToCart(
-                      editGroupCells.map((c) => ({
-                        variant: c.variant,
-                        size: c.size,
-                        quantity: c.quantity,
-                      }))
-                    )
+                    void addCustomizedToCart()
                   }}
-                  disabled={
-                    isSubmitting ||
-                    editGroupCells.length === 0 ||
-                    editGroupCells.reduce(
-                      (sum, c) => sum + (c.quantity || 0),
-                      0
-                    ) === 0
-                  }
+                  disabled={isSubmitting || editGroupLineIds.length === 0}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:bg-[var(--brand-primary-hover,#be123c)] hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isSubmitting
@@ -5192,15 +5381,7 @@ export default function CustomizerTemplate({
                         editGroupLineIds.length === 1 ? "" : "s"
                       })`}
                 </button>
-                <div className="flex items-center justify-between text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setBulkMode(true)}
-                    disabled={isSubmitting}
-                    className="font-medium text-ui-fg-interactive underline-offset-2 hover:underline disabled:opacity-40"
-                  >
-                    Open full grid editor →
-                  </button>
+                <div className="flex items-center justify-end text-xs">
                   <button
                     type="button"
                     onClick={() => {

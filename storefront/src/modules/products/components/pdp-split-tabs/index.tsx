@@ -1,6 +1,7 @@
 "use client"
 
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion"
+import { useSearchParams } from "next/navigation"
 import { useId, useState, type ReactNode } from "react"
 
 type Props = {
@@ -26,14 +27,29 @@ const TAB_LABELS = ["Photos", "Customise this garment"] as const
  * Customise tab) flips the same slot to the design surface (canvas +
  * wizard). The colour selection survives the swap because both panels
  * read from the same ProductOptionsContext.
+ *
+ * Exception — edit-from-cart flow: landing on the PDP with
+ * `?edit_group=<id>`, `?edit=<line_id>`, `?design=<id>`, or
+ * `?reorder=<order_id:line_id>` means the customer's intent is to edit
+ * artwork, not browse photos. In that case the Customise tab is the
+ * default AND we eager-mount the design content so the customizer can
+ * hydrate from the cart/design/order metadata on first render. Without
+ * this the customer lands on Photos and the design hydration never
+ * fires until they manually click the tab.
  */
 export default function PdpSplitTabs({
   gallery,
   variantPickers,
   designContent,
 }: Props) {
-  const [active, setActive] = useState<0 | 1>(0)
-  const [designMounted, setDesignMounted] = useState(false)
+  const searchParams = useSearchParams()
+  const startsOnDesign =
+    !!searchParams?.get("edit_group") ||
+    !!searchParams?.get("edit") ||
+    !!searchParams?.get("design") ||
+    !!searchParams?.get("reorder")
+  const [active, setActive] = useState<0 | 1>(startsOnDesign ? 1 : 0)
+  const [designMounted, setDesignMounted] = useState(startsOnDesign)
   const reducedMotion = useReducedMotion()
   const baseId = useId()
 
