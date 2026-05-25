@@ -53,8 +53,16 @@ export async function listShopCategoriesMenu(): Promise<MenuAudience[]> {
   cacheTag("categories", "shop-categories-menu")
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   try {
+    // Belt-and-braces: pass `next.revalidate` on the fetch so Vercel's
+    // request-level fetch cache also holds the response. The outer
+    // `"use cache"` directive should be enough in steady state, but it's
+    // per-function-output and can stampede on cold start across multiple
+    // Vercel function instances. Adding the fetch-level cache means each
+    // instance does at most one backend call per 10-min window even before
+    // its "use cache" entry is populated.
     const res = await fetch(`${MEDUSA_BACKEND_URL}/store/shop-categories/menu`, {
       headers: menuHeaders(),
+      next: { revalidate: 600, tags: ["categories", "shop-categories-menu"] },
     })
     if (!res.ok) return []
     const data = (await res.json()) as MenuResponse

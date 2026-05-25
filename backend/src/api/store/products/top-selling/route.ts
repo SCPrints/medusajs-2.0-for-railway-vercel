@@ -111,14 +111,20 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   // Fetch full product data with region-aware pricing. Mirrors the pattern in
   // /store/brands/[handle]/products so storefront can render cards identically.
+  //
+  // Sales-channel scoping: the previous implementation passed
+  //   filters.sales_channels = { id: salesChannelIds }
+  // which Medusa 2.x rejects with "Trying to query by not existing property
+  // Product.sales_channels" because sales channels are a module link, not a
+  // direct product property. The failing query crashed the route and returned
+  // 500s on every page render (observed 2026-05-25 in the Fly logs). Until the
+  // correct module-link traversal is wired up, scope by the published-status
+  // filter only — the rail returns top sellers regardless of channel, which is
+  // acceptable for a single-storefront deployment (only one sales channel in
+  // play). TODO: route sales-channel scoping through the link table.
   const filters: Record<string, any> = {
     id: rankedProductIds,
     status: ProductStatus.PUBLISHED,
-  }
-  const salesChannelIds: string[] | undefined = (req as any)
-    .publishable_key_context?.sales_channel_ids
-  if (Array.isArray(salesChannelIds) && salesChannelIds.length) {
-    filters.sales_channels = { id: salesChannelIds }
   }
 
   const context: Record<string, any> = {}
@@ -140,19 +146,35 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  const { data: products } = await query.graph({
-    entity: "product",
-    fields: STORE_PRODUCT_FIELDS,
-    filters,
-    pagination: { take: q.limit, skip: 0 },
-    context,
-  })
+  // Defensive: per the route's design intent ("returns empty on any error so
+  // the rail doesn't break the page") the product fetch should never propagate
+  // a 500. The orders fetch above is already wrapped — extend the same shield
+  // to the product fetch so a future schema change (e.g. a renamed field in
+  // STORE_PRODUCT_FIELDS) degrades gracefully rather than breaking every page.
+  let products: unknown[] = []
+  try {
+    const result = await query.graph({
+      entity: "product",
+      fields: STORE_PRODUCT_FIELDS,
+      filters,
+      pagination: { take: q.limit, skip: 0 },
+      context,
+    })
+    products = result.data ?? []
+  } catch (err: any) {
+    logger.error?.(
+      `[products/top-selling] product fetch failed: ${err?.message ?? err}`
+    )
+    res.json({ products: [], count: 0 })
+    return
+  }
 
   // query.graph result order isn't guaranteed to match rankedProductIds — reorder
   // so the response respects the actual best-seller ranking.
   const productsById = new Map<string, any>()
-  for (const p of products ?? []) {
-    if (p?.id) productsById.set(p.id, p)
+  for (const p of products) {
+    const row = p as { id?: string } | null
+    if (row?.id) productsById.set(row.id, row)
   }
   const ordered = rankedProductIds
     .map((id) => productsById.get(id))

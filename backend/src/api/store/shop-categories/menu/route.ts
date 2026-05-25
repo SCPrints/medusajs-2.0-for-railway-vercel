@@ -40,9 +40,41 @@ type CategoryRow = {
 
 const MAX_PRODUCTS = 10000
 
-export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
+// ──────────────────────────────────────────────────────────────────────
+// In-process cache + request coalescing
+//
+// This route is hit on every storefront page render (it powers the
+// mega-menu). The build does two graph queries — including a 10k-row
+// product sweep — that take 1-2s warm and 10-20s cold. During a cold
+// burst, dozens of concurrent storefront RSC renders all fan out to
+// this endpoint and pile up worker threads, causing the Fly health
+// check to fail (observed 2026-05-25, machine e784595ea34d98 backed up
+// for ~32s with menu durations climbing to 21s before recovery).
+//
+// Two layers of mitigation:
+//   1. Module-level cache: serves the last-built payload for 5 min.
+//   2. Single in-flight promise: when the cache is cold and multiple
+//      requests arrive, only ONE runs the build; the others await the
+//      same promise. Without this, every concurrent cold request kicks
+//      off its own graph queries.
+//
+// Per-machine state — 4 Fly machines = 4 caches; the first request on
+// each machine is still cold. To centralise we'd need Redis, which is
+// available (sc-prints-redis.internal) but adds a network round-trip
+// to the hot path. In-memory + Cache-Control header to Vercel's fetch
+// cache covers the common case cleanly.
+//
+// Cache busting: 5 min is acceptable lag for menu changes (admin
+// renames, hide-toggle, new-product imports). Increase if menu edits
+// are rare; decrease if staff complain about visible lag.
+// ──────────────────────────────────────────────────────────────────────
+const MENU_CACHE_TTL_MS = 5 * 60 * 1000
 
+type MenuPayload = { audiences: unknown[] }
+let menuCache: { exp: number; payload: MenuPayload } | null = null
+let menuInFlight: Promise<MenuPayload> | null = null
+
+async function buildMenuPayload(query: any): Promise<MenuPayload> {
   // 1. Load every product_category row so we can look up by handle and
   //    pick up admin overrides (renames, hide-from-menu toggle).
   const { data: categoryRows } = await query.graph({
@@ -125,5 +157,41 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   }).filter((a): a is NonNullable<typeof a> => a !== null)
 
-  res.json({ audiences })
+  return { audiences }
+}
+
+function setMenuCacheHeaders(res: MedusaResponse) {
+  // Vercel's fetch cache + any intermediate CDN can hold for 5 min and
+  // serve stale for an additional 10 min while a background refresh runs.
+  res.setHeader(
+    "Cache-Control",
+    "public, s-maxage=300, stale-while-revalidate=600"
+  )
+}
+
+export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  const cached = menuCache && menuCache.exp > Date.now() ? menuCache.payload : null
+  if (cached) {
+    setMenuCacheHeaders(res)
+    res.json(cached)
+    return
+  }
+
+  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
+
+  if (!menuInFlight) {
+    menuInFlight = (async () => {
+      try {
+        const payload = await buildMenuPayload(query)
+        menuCache = { exp: Date.now() + MENU_CACHE_TTL_MS, payload }
+        return payload
+      } finally {
+        menuInFlight = null
+      }
+    })()
+  }
+
+  const payload = await menuInFlight
+  setMenuCacheHeaders(res)
+  res.json(payload)
 }
