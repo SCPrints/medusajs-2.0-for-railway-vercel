@@ -809,6 +809,10 @@ The system-health check (`/admin/reports/system-health`) auto-detects scheme: `t
 
 **Why self-hosted instead of a managed Redis provider**: Medusa uses Redis as infrastructure (BullMQ queues + workflow engine + locks), not as a cache — even an idle backend burns ~50-100k commands/day on BullMQ worker polling alone. Add the hourly importers + cache-invalidation fan-out and a managed free tier (e.g. Upstash's 500k cmd/day) gets blown in under 24h. Self-hosted on Fly is a flat ~$3/mo with no command quota and sub-ms latency over the private 6PN network. The original Upstash database `super-fawn-131470.upstash.io` was retired on 2026-05-21 after burning its daily quota in the first 18h of production traffic.
 
+**Three Redis-dependent modules in [backend/medusa-config.js](backend/medusa-config.js), all gated behind the same `REDIS_URL ? [...] : []` conditional**: `Modules.EVENT_BUS` → `@medusajs/event-bus-redis` (flat `options.redisUrl`), `Modules.WORKFLOW_ENGINE` → `@medusajs/workflow-engine-redis` (nested `options.redis.redisUrl` — the two packages have inconsistent option shapes, see the comment in the file), and `Modules.LOCKING` → the built-in locking module with `@medusajs/locking-redis` provider (added 2026-05-25; before that locks silently fell back to in-memory). Without all three, multi-machine deployments will see event-loss, workflow drift, and lock-coordination bugs.
+
+**pnpm strict-mode gotcha when adding new Medusa module providers**: provider strings in `medusa-config.js` (e.g. `resolve: '@medusajs/locking-redis'`) are resolved at runtime by Medusa's loader using `require()`. pnpm's default strict mode hides transitive deps from the consumer's `node_modules`, so even if a provider package is present via another route (e.g. as a peer of `@medusajs/locking`), the loader will throw `Cannot find module '@medusajs/X'` at boot. **Always declare provider packages as direct deps in [backend/package.json](backend/package.json)** — `pnpm add @medusajs/<provider>@<version>` — even if `node_modules` already has them. Same trap applies to notification providers, file providers, payment providers, fulfillment providers, and any future module the storefront or admin layer reaches via dynamic resolve.
+
 All other env vars (Medusa core, AS Colour, Stripe, etc.) are documented in [backend/src/lib/constants.ts](backend/src/lib/constants.ts).
 
 ### Storefront (`storefront/.env`)
@@ -1243,6 +1247,7 @@ These routes exist but aren't linked from the main nav. Some are intentional lan
 | `[countryCode]/(main)/particle-logo/`, `particle-threejs/`, `particle-flow/` | Tsparticles + Three.js sandboxes (`particle-logo/` is active work) |
 | `[countryCode]/(main)/old-hero/` | Legacy hero — superseded by current home hero |
 | `[countryCode]/(main)/jungle-scene/`, `space-hero/` | Animation isolation tests |
+| `[countryCode]/(main)/sandbox/` | Internal index page listing the six animation/dev routes above. `noindex,nofollow`. Linked from the footer Quick Links as "Sandbox" (added 2026-05-25 when the per-route footer links were consolidated). |
 
 ## Tests
 
