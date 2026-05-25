@@ -146,6 +146,26 @@ const medusaConfig = {
               },
             },
           },
+          {
+            // Distributed locks backed by Redis so they coordinate across
+            // every backend machine (and survive a single-machine restart
+            // mid-workflow). Without this, Medusa silently falls back to
+            // in-memory locking — fine on one machine, breaks the moment
+            // `min_machines_running` goes above 1 or a workflow holds a
+            // lock through a Fly suspend/resume.
+            key: Modules.LOCKING,
+            options: {
+              providers: [
+                {
+                  resolve: '@medusajs/locking-redis',
+                  id: 'locking-redis',
+                  options: {
+                    redisUrl: REDIS_URL,
+                  },
+                },
+              ],
+            },
+          },
         ]
       : []),
 
