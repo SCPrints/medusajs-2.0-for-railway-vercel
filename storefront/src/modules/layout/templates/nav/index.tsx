@@ -63,7 +63,6 @@ export default function Nav() {
           >
             <LocalizedClientLink
               href="/"
-              prefetch={false}
               className="inline-flex items-center pointer-events-auto"
               data-testid="nav-store-link"
             >
@@ -112,7 +111,6 @@ export default function Nav() {
               <LocalizedClientLink
                 className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
                 href="/brands"
-                prefetch={false}
                 data-testid="nav-brands-link"
               >
                 Brands
@@ -120,7 +118,6 @@ export default function Nav() {
               <LocalizedClientLink
                 className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
                 href="/services"
-                prefetch={false}
                 data-testid="nav-services-link"
               >
                 Services
@@ -128,7 +125,6 @@ export default function Nav() {
               <LocalizedClientLink
                 className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
                 href="/best-sellers"
-                prefetch={false}
                 data-testid="nav-best-sellers-link"
               >
                 Best Sellers
@@ -136,7 +132,6 @@ export default function Nav() {
               <LocalizedClientLink
                 className="flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
                 href="/account"
-                prefetch={false}
                 data-testid="nav-account-link"
               >
                 Account
@@ -148,7 +143,6 @@ export default function Nav() {
                 <LocalizedClientLink
                   className="flex h-full min-h-10 min-w-10 items-center justify-center whitespace-nowrap text-base font-medium hover:text-[var(--brand-accent)]"
                   href="/cart"
-                  prefetch={false}
                   data-testid="nav-cart-link"
                   aria-label="View cart"
                 >

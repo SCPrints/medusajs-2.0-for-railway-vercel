@@ -124,7 +124,7 @@ function ListingCardContent({
 }: ListingCardContentProps) {
   return (
     <>
-      <LocalizedClientLink href={href} className="block min-w-0" prefetch={false}>
+      <LocalizedClientLink href={href} className="block min-w-0">
         <CardImage imageUrl={previewUrl} title={title} />
         <h3
           className="mt-4 text-base font-semibold text-ui-fg-base"

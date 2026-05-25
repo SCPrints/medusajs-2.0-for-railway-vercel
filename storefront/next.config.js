@@ -21,10 +21,14 @@ function hostnameFromEnvUrl(value) {
   }
 }
 
+// Vercel Pro includes Image Optimization, so /_next/image is available and we
+// want it ON by default everywhere. The earlier Vercel-detection branch was a
+// workaround for Hobby-plan 402 responses — no longer needed. Override with
+// NEXT_PUBLIC_UNOPTIMIZED_IMAGES=true if you ever need to disable transforms
+// (e.g. if the monthly optimization quota gets hit and you need a quick fallback
+// to direct-CDN serving without redeploying).
 const catalogImagesUnoptimized =
-  process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === "true" ||
-  (process.env.VERCEL === "1" &&
-    process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES !== "false")
+  process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === "true"
 
 /**
  * @type {import('next').NextConfig}
@@ -72,10 +76,11 @@ const nextConfig = {
   },
   images: {
     /**
-     * Next 16 defaults qualities to [75] only; listing cards use quality={50}.
-     * On Vercel, `/_next/image` may return 402 when Image Optimization is unavailable —
-     * we default to unoptimized on Vercel (direct supplier CDN URLs). Override with
-     * NEXT_PUBLIC_UNOPTIMIZED_IMAGES=true|false.
+     * Image Optimization is ON by default. Vercel Pro includes the quota; cards
+     * use quality={50} (declared below in `qualities`) and `<Image fill sizes=...>`
+     * so the optimizer serves the right size + WebP/AVIF per viewport.
+     * Set NEXT_PUBLIC_UNOPTIMIZED_IMAGES=true to fall back to direct-CDN serving
+     * (e.g. if /_next/image quota is exhausted mid-month).
      */
     unoptimized: catalogImagesUnoptimized,
     qualities: [40, 50, 75],

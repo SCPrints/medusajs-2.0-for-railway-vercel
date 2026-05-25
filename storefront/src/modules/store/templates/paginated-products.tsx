@@ -98,28 +98,36 @@ export default async function PaginatedProducts({
     queryParams["order"] = "-created_at"
   }
 
-  const region = await getRegion(countryCode)
+  // Parallelise the region lookup and the products fetch — both are
+  // independent and were previously sequential awaits. `getProductsListWithSort`
+  // internally calls `getRegion(countryCode)` again, but that call is cached
+  // (`cacheLife: 3600` on the regions module) so the second invocation is free.
+  // Saves ~100-300ms per category-page render on cold cache.
+  const [region, productsResult] = await Promise.all([
+    getRegion(countryCode),
+    getProductsListWithSort({
+      page,
+      queryParams,
+      sortBy,
+      filters: {
+        minPrice,
+        maxPrice,
+        inStock,
+        brand,
+        fabric,
+      } as ProductFilters,
+      countryCode,
+      brandHandle,
+    }),
+  ])
 
   if (!region) {
     return null
   }
 
-  let {
+  const {
     response: { products, count },
-  } = await getProductsListWithSort({
-    page,
-    queryParams,
-    sortBy,
-    filters: {
-      minPrice,
-      maxPrice,
-      inStock,
-      brand,
-      fabric,
-    } as ProductFilters,
-    countryCode,
-    brandHandle,
-  })
+  } = productsResult
 
   const totalPages = Math.ceil(count / PRODUCT_LIMIT)
 
