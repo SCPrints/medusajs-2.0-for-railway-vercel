@@ -133,7 +133,7 @@ const DesktopMegaMenu = ({ audiences }: Props) => {
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]/60 focus-visible:rounded",
                     isOpen
                       ? "text-[var(--brand-accent)]"
-                      : "text-white hover:text-[var(--brand-accent)]",
+                      : "text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]",
                   ].join(" ")}
                 >
                   {audience.name}
