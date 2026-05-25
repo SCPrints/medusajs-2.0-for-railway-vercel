@@ -181,11 +181,68 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   if (body.q?.trim()) {
-    // Title ilike is the closest match to Medusa's product `q` semantics
-    // we get through query.graph. Acceptable trade-off for v1; we miss
-    // description/handle hits but get a fast indexed match on the most
-    // useful field.
-    filters.title = { $ilike: `%${body.q.trim().replace(/[%_]/g, "")}%` }
+    // Search across BOTH title and handle. Handle matters for SC Prints
+    // because supplier prefixes (e.g. `ramo-f303hzw`, `as-colour-5650`)
+    // only ever appear in the handle, never the title. Two parallel
+    // ilike queries unioned via product IDs — query.graph in this
+    // Medusa version doesn't reliably accept $or on Product. Bounded
+    // at 5000 IDs each so a degenerate search ("%a%") still returns in
+    // reasonable time.
+    const q = body.q.trim().replace(/[%_]/g, "")
+    try {
+      const [byTitle, byHandle] = await Promise.all([
+        query.graph({
+          entity: "product",
+          fields: ["id"],
+          filters: { title: { $ilike: `%${q}%` } },
+          pagination: { take: 5000, skip: 0 },
+        }),
+        query.graph({
+          entity: "product",
+          fields: ["id"],
+          filters: { handle: { $ilike: `%${q}%` } },
+          pagination: { take: 5000, skip: 0 },
+        }),
+      ])
+      const matchedIds = new Set<string>()
+      for (const p of (byTitle.data as any[]) ?? []) if (p?.id) matchedIds.add(p.id)
+      for (const p of (byHandle.data as any[]) ?? []) if (p?.id) matchedIds.add(p.id)
+      if (matchedIds.size === 0) {
+        res.json({
+          products: [],
+          count: 0,
+          limit: body.limit ?? 50,
+          offset: body.offset ?? 0,
+          truncated: false,
+        })
+        return
+      }
+      // Intersect with any id filter already set (e.g. by the brand
+      // pre-fetch above). When both are set, we want products that
+      // satisfy BOTH constraints.
+      if (Array.isArray(filters.id)) {
+        const existing = new Set(filters.id as string[])
+        const intersection = [...matchedIds].filter((id) => existing.has(id))
+        if (intersection.length === 0) {
+          res.json({
+            products: [],
+            count: 0,
+            limit: body.limit ?? 50,
+            offset: body.offset ?? 0,
+            truncated: false,
+          })
+          return
+        }
+        filters.id = intersection
+      } else {
+        filters.id = [...matchedIds]
+      }
+    } catch (err: any) {
+      res.status(500).json({
+        message: `search resolution failed: ${err?.message ?? err}`,
+      })
+      return
+    }
   }
   if (body.created_from || body.created_to) {
     const range: Record<string, string> = {}
