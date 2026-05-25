@@ -163,26 +163,53 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const field = orderRaw.replace(/^-/, "")
   const direction = orderRaw.startsWith("-") ? "DESC" : "ASC"
 
-  // Underlying fetch cap. For ids_only ("select all matching") we
-  // honour the requested cap; otherwise we pull up to 2000 and
-  // paginate in-memory after data-quality filtering.
+  // Fetch strategy depends on whether any data-quality flag is set:
+  // - No quality filter → DB-paginated. We only fetch the visible page
+  //   plus a separate lightweight count, keeping per-request CPU cost
+  //   bounded. This is the hot path 99% of the time.
+  // - Quality filter set → Must over-fetch and post-filter in memory,
+  //   because "missing brand / sales channel / tags / etc." can't be
+  //   expressed as a query.graph filter against null relations. We cap
+  //   at 600 instead of 2000 so the event loop stays responsive enough
+  //   for /health to answer within its 10s timeout. UI surfaces a
+  //   "truncated" warning when this cap was hit.
+  // - ids_only ("Select all matching") → honour the requested cap up
+  //   to 1000; still bounded by the same in-memory ceiling.
   const idsOnly = !!body.ids_only
   const idsLimit = body.ids_limit ?? 1000
-  const underlyingTake = idsOnly ? Math.min(idsLimit, 1000) : 2000
+  const hasQualityFilter = !!body.missing?.length
+  const limit = body.limit ?? 50
+  const offset = body.offset ?? 0
+
+  // How many we pull from the DB in this request.
+  let underlyingTake: number
+  let underlyingSkip: number
+  if (idsOnly) {
+    underlyingTake = Math.min(idsLimit, 1000)
+    underlyingSkip = 0
+  } else if (hasQualityFilter) {
+    underlyingTake = 600
+    underlyingSkip = 0
+  } else {
+    underlyingTake = limit
+    underlyingSkip = offset
+  }
 
   let raw: RawProduct[] = []
+  let dbCount: number | null = null
   try {
-    const { data } = await query.graph({
+    const { data, metadata } = (await query.graph({
       entity: "product",
       fields: FIELDS as unknown as string[],
       filters,
       pagination: {
         take: underlyingTake,
-        skip: 0,
+        skip: underlyingSkip,
         order: { [field]: direction },
       },
-    })
+    })) as { data?: any[]; metadata?: { count?: number } }
     raw = (data as RawProduct[]) ?? []
+    if (typeof metadata?.count === "number") dbCount = metadata.count
   } catch (err: any) {
     res.status(500).json({
       message: `products-manager list query failed: ${err?.message ?? err}`,
@@ -190,10 +217,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
+  // If we DB-paginated and Medusa didn't hand us metadata.count, run a
+  // cheap count query: same filters, id-only fields, no relations.
+  // Skip when quality filters are set (we'd discard the count anyway).
+  if (!idsOnly && !hasQualityFilter && dbCount === null) {
+    try {
+      const { data: countData } = await query.graph({
+        entity: "product",
+        fields: ["id"],
+        filters,
+        pagination: { take: 10000, skip: 0 },
+      })
+      dbCount = ((countData as any[]) ?? []).length
+    } catch {
+      dbCount = null
+    }
+  }
+
   // Apply data-quality post-filter (cheap walk).
   let filtered: RawProduct[] = raw
-  if (body.missing?.length) {
-    const flags = new Set(body.missing)
+  if (hasQualityFilter) {
+    const flags = new Set(body.missing!)
     filtered = raw.filter((p) => {
       const q = computeQuality(p)
       if (flags.has("image") && q.has_image) return false
@@ -207,8 +251,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
-  const totalCount = filtered.length
-  const truncated = raw.length >= underlyingTake
+  const totalCount = hasQualityFilter
+    ? filtered.length
+    : (dbCount ?? raw.length + underlyingSkip)
+  const truncated = hasQualityFilter && raw.length >= underlyingTake
 
   if (idsOnly) {
     res.json({
@@ -219,9 +265,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
-  const limit = body.limit ?? 50
-  const offset = body.offset ?? 0
-  const page = filtered.slice(offset, offset + limit)
+  // When DB-paginated (no quality filter) raw IS the visible page, so
+  // we hand it through. When quality-filtered we over-fetched and slice
+  // the post-filter list manually.
+  const page = hasQualityFilter
+    ? filtered.slice(offset, offset + limit)
+    : filtered
 
   const products = page.map((p) => {
     const brand = readBrand(p)
