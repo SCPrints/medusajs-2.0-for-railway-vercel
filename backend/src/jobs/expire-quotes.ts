@@ -89,5 +89,5 @@ export default async function expireQuotesJob(container: MedusaContainer) {
 
 export const config = {
   name: "expire-quotes",
-  schedule: "45 23 * * *",
+  schedule: "0 23 * * *",
 }

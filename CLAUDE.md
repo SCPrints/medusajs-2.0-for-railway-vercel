@@ -1053,6 +1053,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | Schedule (UTC) | AEST | Job | What it does |
 | --- | --- | --- | --- |
 | `*/15 * * * *` | every 15 min | [sync-ascolour-order-status.ts](backend/src/jobs/sync-ascolour-order-status.ts) | Poll AP and AS Colour order status |
+| `30 * * * *` | hourly :30 | [expire-pos-sessions.ts](backend/src/jobs/expire-pos-sessions.ts) | Auto-expire abandoned POS sessions (always-on housekeeping) |
 | `0 2 * * *` | 12:00 | [refresh-cross-sell-recommendations.ts](backend/src/jobs/refresh-cross-sell-recommendations.ts) | Recompute top-K co-purchased products |
 | `0 3 * * *` | 13:00 | [sync-ascolour-inventory.ts](backend/src/jobs/sync-ascolour-inventory.ts) | Delta inventory pull from AS Colour |
 | `30 3 * * *` | 13:30 | [sync-posthog-cohorts.ts](backend/src/jobs/sync-posthog-cohorts.ts) | PostHog cohort → customer tag |
@@ -1060,8 +1061,11 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | `0 5 * * *` | 15:00 | [sync-aussie-pacific-inventory.ts](backend/src/jobs/sync-aussie-pacific-inventory.ts) | Full sweep of AP stock |
 | `0 5 * * *` | 15:00 | [refresh-seo-analytics.ts](backend/src/jobs/refresh-seo-analytics.ts) | Pull 28-day GSC + GA4 metrics into cache |
 | `0 6 * * *` | 16:00 | [regenerate-tier-prices.ts](backend/src/jobs/regenerate-tier-prices.ts) | Rebuild B2B tier price-list overrides |
+| `30 6 * * *` | 16:30 | [backfill-ascolour-variants.ts](backend/src/jobs/backfill-ascolour-variants.ts) | Reconcile new AS Colour colours/sizes added since last import (no-ops without API token) |
 | `0 8 * * *` | 18:00 | [scan-stale-orders.ts](backend/src/jobs/scan-stale-orders.ts) | Flag orders not progressed in N days |
+| `0 9 * * *` | 19:00 | [notify-overdue-tasks.ts](backend/src/jobs/notify-overdue-tasks.ts) | Surface overdue tasks via audit + PostHog (gated by `TASKS_OVERDUE_CRON_ENABLED`) |
 | `0 22 * * *` | 08:00 next day | [send-nps-requests.ts](backend/src/jobs/send-nps-requests.ts) | Daily NPS prompt batch |
+| `0 23 * * *` | 09:00 next day | [expire-quotes.ts](backend/src/jobs/expire-quotes.ts) | Transition `quoted` quotes past their `expires_at` to `expired` (gated by `QUOTE_EXPIRY_CRON_ENABLED`) |
 | `15 23 * * *` | 09:15 next day | [send-abandoned-cart-reminders.ts](backend/src/jobs/send-abandoned-cart-reminders.ts) | Cart reminder batch |
 | `30 23 * * *` | 09:30 next day | [send-reorder-reminders.ts](backend/src/jobs/send-reorder-reminders.ts) | Repeat-customer nudge |
 | `45 23 * * *` | 09:45 next day | [run-report-alerts.ts](backend/src/jobs/run-report-alerts.ts) | Evaluate threshold alerts and email staff |

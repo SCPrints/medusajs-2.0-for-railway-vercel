@@ -1,4 +1,4 @@
-import type { ProductionStage } from "../production-stage"
+import type { ProductionStage, ProductionStageHistoryEntry } from "../production-stage"
 
 /**
  * Shared helpers for the report routes under /admin/reports/*. Pulled into
@@ -216,17 +216,6 @@ const startOfWeek = (d: Date): Date => {
   x.setUTCDate(x.getUTCDate() - diff)
   x.setUTCHours(0, 0, 0, 0)
   return x
-}
-
-/**
- * Production-stage history shape persisted on order metadata. Each entry
- * timestamps when the order entered that stage; combined with `created_at`
- * we can compute time-in-stage for any completed-stage transition.
- */
-export type ProductionStageHistoryEntry = {
-  stage: ProductionStage
-  changed_at: string
-  note?: string
 }
 
 /**
