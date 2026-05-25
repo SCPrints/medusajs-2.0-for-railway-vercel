@@ -83,35 +83,44 @@ export default function PdpSplitTabs({
           role="tablist"
           aria-label="Product view"
         >
-          {TAB_LABELS.map((label, i) => (
-            <button
-              key={label}
-              type="button"
-              role="tab"
-              id={`${baseId}-tab-${i}`}
-              aria-selected={active === i}
-              aria-controls={`${baseId}-panel-${i}`}
-              tabIndex={active === i ? 0 : -1}
-              className="relative z-[1] min-h-11 px-4 py-2.5 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-5"
-              data-active={active === i}
-              onClick={() => {
-                if (i === 1) {
-                  goDesign(false)
-                } else {
-                  setActive(0)
-                }
-              }}
-            >
-              {label}
-              {active === i ? (
-                <motion.span
-                  layoutId={`${baseId}-pdp-split-tab-underline`}
-                  className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-ui-fg-base"
-                  transition={underlineTransition}
-                />
-              ) : null}
-            </button>
-          ))}
+          {TAB_LABELS.map((label, i) => {
+            // Hide the Customise tab until the customer engages the
+            // rose CTA (or arrives via an edit/reorder URL). The tab
+            // duplicates the CTA otherwise and confuses customers who
+            // haven't picked a colour yet.
+            if (i === 1 && !designMounted) {
+              return null
+            }
+            return (
+              <button
+                key={label}
+                type="button"
+                role="tab"
+                id={`${baseId}-tab-${i}`}
+                aria-selected={active === i}
+                aria-controls={`${baseId}-panel-${i}`}
+                tabIndex={active === i ? 0 : -1}
+                className="relative z-[1] min-h-11 px-4 py-2.5 pb-3 text-left text-sm font-medium text-ui-fg-muted transition-colors data-[active=true]:text-ui-fg-base small:px-5"
+                data-active={active === i}
+                onClick={() => {
+                  if (i === 1) {
+                    goDesign(false)
+                  } else {
+                    setActive(0)
+                  }
+                }}
+              >
+                {label}
+                {active === i ? (
+                  <motion.span
+                    layoutId={`${baseId}-pdp-split-tab-underline`}
+                    className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full bg-ui-fg-base"
+                    transition={underlineTransition}
+                  />
+                ) : null}
+              </button>
+            )
+          })}
         </div>
       </LayoutGroup>
 

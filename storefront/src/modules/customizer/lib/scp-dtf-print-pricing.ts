@@ -41,6 +41,25 @@ export const SCP_PRINT_UNIT_MATRIX: Record<ScpPrintSizeId, readonly [number, num
   }
 
 export const DEFAULT_SCP_PRINT_SIZE_ID: ScpPrintSizeId = "up_to_a6"
+
+/**
+ * Per-side starting size. Front / sleeves / tag start at A6 (small chest /
+ * sleeve / inside-neck prints are the common ask); Back starts at A3
+ * (full-back prints). Falls back to the universal default when the
+ * preferred size isn't allowed on the given side.
+ */
+export function getDefaultScpPrintSizeForSide(
+  side: string,
+  allowedSizes: ScpPrintSizeId[]
+): ScpPrintSizeId {
+  if (side === "back" && allowedSizes.includes("up_to_a3")) {
+    return "up_to_a3"
+  }
+  if (allowedSizes.includes(DEFAULT_SCP_PRINT_SIZE_ID)) {
+    return DEFAULT_SCP_PRINT_SIZE_ID
+  }
+  return allowedSizes[0] ?? DEFAULT_SCP_PRINT_SIZE_ID
+}
 // Only the printed neck tag is hard-restricted to A6 by physical print area.
 // Sleeves are gated per garment type in the UI: short sleeves → A6 only,
 // long sleeves → up to A3.

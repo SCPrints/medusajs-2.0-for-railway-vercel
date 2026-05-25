@@ -43,6 +43,7 @@ import {
   SCP_PRINT_SIZE_OPTIONS,
   SCP_PRINT_UNIT_MATRIX,
   getAllowedScpPrintSizesForSide,
+  getDefaultScpPrintSizeForSide,
   resolveScpPrintSizeForSide,
   resolveScpTierIndexForQuantity,
   type ScpPrintSizeId,
@@ -4990,7 +4991,7 @@ export default function CustomizerTemplate({
                 }`}>
                   <StepHeader
                     num={stepNum(2)}
-                    title={decoratedCount > 0 ? "Add / change print positions" : "Print location"}
+                    title={decoratedCount > 0 ? "Add / change print positions" : "Select print location"}
                     done={pdpStep2Done && pdpStep > 2}
                     active={pdpStep === 2}
                     badge={pdpStep2Done && pdpStep > 2 ? sideLabel : undefined}
@@ -5027,6 +5028,7 @@ export default function CustomizerTemplate({
                         currentSide={currentSide}
                         allowedSides={allowedPrintSides}
                         decoratedSides={decoratedSides}
+                        hideSelection={pdpStep === 2 && !pdpStep2Done}
                         onSelectSide={(side) => {
                           switchSide(side)
                           setPdpStep2Done(true)
@@ -5037,11 +5039,17 @@ export default function CustomizerTemplate({
                             : pdpStep > 2 ? pdpStep
                             : 3
                           setPdpStep(newStep)
-                          // Clear the shared "size chosen" flag when moving to an
-                          // unsized location so the size picker doesn't pre-select
-                          // the previous side's choice.
+                          // Pre-select the per-side default size (Front → A6,
+                          // Back → A3) so the size picker has a sensible
+                          // starting point. Customer can still pick a different
+                          // tile; clicking commits + advances to Step 4.
                           if (!sizingDoneSides[side]) {
-                            setScpPrintSizeChosen(false)
+                            const allowed = getAllowedScpPrintSizesForSide(side, {
+                              isLongSleeve: productIsLongSleeve,
+                              isHat: productIsHat,
+                            })
+                            setScpPrintSizeId(getDefaultScpPrintSizeForSide(side, allowed))
+                            setScpPrintSizeChosen(true)
                           }
                         }}
                       />

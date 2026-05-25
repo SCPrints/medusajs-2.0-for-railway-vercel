@@ -14,6 +14,7 @@ type AccordionItemProps = AccordionPrimitive.AccordionItemProps & {
   complete?: boolean
   active?: boolean
   triggerable?: boolean
+  titleClassName?: string
   children: React.ReactNode
 }
 
@@ -42,6 +43,7 @@ const Item: React.FC<AccordionItemProps> = ({
   customTrigger = undefined,
   forceMountContent = undefined,
   triggerable,
+  titleClassName,
   ...props
 }) => {
   return (
@@ -59,7 +61,11 @@ const Item: React.FC<AccordionItemProps> = ({
         <div className="flex flex-col">
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-4">
-              <Text className="text-ui-fg-subtle text-sm">{title}</Text>
+              <Text
+                className={clx("text-ui-fg-subtle text-sm", titleClassName)}
+              >
+                {title}
+              </Text>
             </div>
             {/* x@ts-expect-error */}
             <AccordionPrimitive.Trigger>

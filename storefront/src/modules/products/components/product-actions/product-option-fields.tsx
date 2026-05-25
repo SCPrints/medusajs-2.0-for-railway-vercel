@@ -58,6 +58,7 @@ export default function ProductOptionFields({
               title={`Select ${title}`}
               subtitle={selected}
               headingSize="medium"
+              titleClassName="text-base font-semibold text-ui-fg-base"
             >
               <OptionSelect
                 product={product}

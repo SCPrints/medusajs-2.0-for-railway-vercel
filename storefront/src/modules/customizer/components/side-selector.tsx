@@ -17,9 +17,16 @@ type SideSelectorProps = {
   allowedSides?: GarmentSide[]
   /** Sides that already have artwork — show a ✓ indicator on their tab. */
   decoratedSides?: GarmentSide[]
+  /**
+   * Render every tab as unselected even when `currentSide` matches one.
+   * Used by Step 2 of the PDP wizard before the customer has explicitly
+   * picked a location — the canvas still renders the default side, but
+   * the UI should not look pre-decided.
+   */
+  hideSelection?: boolean
 }
 
-export default function SideSelector({ currentSide, onSelectSide, allowedSides, decoratedSides }: SideSelectorProps) {
+export default function SideSelector({ currentSide, onSelectSide, allowedSides, decoratedSides, hideSelection }: SideSelectorProps) {
   const visibleOptions = allowedSides
     ? SIDE_OPTIONS.filter((o) => allowedSides.includes(o.value))
     : SIDE_OPTIONS
@@ -30,7 +37,7 @@ export default function SideSelector({ currentSide, onSelectSide, allowedSides, 
       aria-label="Print location"
     >
       {visibleOptions.map((option) => {
-        const selected = currentSide === option.value
+        const selected = !hideSelection && currentSide === option.value
         const decorated = decoratedSides?.includes(option.value)
         return (
           <button
