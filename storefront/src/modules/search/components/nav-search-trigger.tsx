@@ -31,7 +31,7 @@ export default function NavSearchTrigger() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-full min-h-10 min-w-10 items-center justify-center hover:text-[var(--brand-accent)]"
+        className="flex h-full min-h-10 min-w-10 items-center justify-center text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
         data-testid="nav-search-link"
         aria-label="Search site"
       >

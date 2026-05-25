@@ -81,7 +81,7 @@ export default function Nav() {
           <div className="flex h-full flex-1 items-center justify-end gap-x-2 leading-none phone:gap-x-3 tablet:gap-x-4 small:gap-x-5">
             <a
               href={SC_PRINTS_PHONE_HREF}
-              className="flex h-full min-h-10 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-white transition-colors hover:text-[var(--brand-accent)]"
+              className="flex h-full min-h-10 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-[var(--brand-secondary)] transition-colors hover:text-[var(--brand-accent)]"
               aria-label={`Call SC Prints on ${SC_PRINTS_PHONE_DISPLAY}`}
               data-testid="nav-phone-link"
             >
