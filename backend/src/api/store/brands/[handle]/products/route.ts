@@ -116,11 +116,19 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     filters.tags = { id: q.tag_id }
   }
 
-  const salesChannelIds: string[] | undefined = (req as any)
-    .publishable_key_context?.sales_channel_ids
-  if (Array.isArray(salesChannelIds) && salesChannelIds.length) {
-    filters.sales_channels = { id: salesChannelIds }
-  }
+  // Sales-channel scoping: passing
+  //   filters.sales_channels = { id: salesChannelIds }
+  // makes Medusa 2.x throw "Trying to query by not existing property
+  // Product.sales_channels" because sales channels are a module link, not a
+  // direct product property. The failing query crashed the route with a 500
+  // on every brand-page render (observed 2026-05-25 in Fly logs — caught
+  // by the storefront's getBrandProducts try/catch, so the UI silently
+  // showed an empty product grid despite the brand-index page reporting
+  // hundreds of products). Drop the filter for now; SC Prints runs a single
+  // storefront / single sales channel so the brand-scoped product IDs are
+  // already correctly bounded.
+  // TODO: route sales-channel scoping through the link table once we run
+  // more than one sales channel (mirror the brand_id resolution above).
 
   const context: Record<string, any> = {}
   if (q.region_id) {
