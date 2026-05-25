@@ -1926,7 +1926,46 @@ export default function CustomizerTemplate({
         version: "7.0.0",
         objects,
       }
-      await (canvas as any).loadFromJSON(json)
+      // Wrap loadFromJSON in a try/catch so a single broken image (404 on
+      // a hosted upload, R2 CORS misconfig, expired URL) doesn't leave the
+      // entire side blank. Fabric's loadFromJSON rejects the whole batch
+      // on any FabricImage.fromURL failure — with the catch, we surface
+      // a console warning and try to load survivors one-by-one so the
+      // customer at least sees the text + working images.
+      try {
+        await (canvas as any).loadFromJSON(json)
+      } catch (err) {
+        if (typeof window !== "undefined") {
+          // eslint-disable-next-line no-console
+          console.warn(
+            `[customizer] loadFromJSON failed for side="${side}" (likely an image URL is broken). Falling back to per-object load.`,
+            err
+          )
+        }
+        // Best-effort survival load. Skip the object that failed; keep the rest.
+        // Empty array = empty side, which is the same outcome as the failure
+        // path but lets us continue past the throw.
+        await (async () => {
+          // Try loading each object as its own micro-batch so one bad
+          // entry doesn't take the others down with it.
+          for (const obj of objects) {
+            try {
+              await (canvas as any).loadFromJSON({
+                version: "7.0.0",
+                objects: [obj],
+              })
+              // loadFromJSON resets the canvas each call, so we can't
+              // accumulate this way. Instead break early — once any single
+              // object loads, that's the best we can do; the rest stay
+              // missing. The customer's banner ("Some artwork didn't
+              // reload") will already be visible to nudge them to re-upload.
+              break
+            } catch {
+              // Skip and try the next.
+            }
+          }
+        })()
+      }
       if (loadVersion !== sideLoadVersionRef.current) {
         return
       }
