@@ -327,43 +327,60 @@ export async function recomputeScpCartPricing(
   )
   const effectiveQty = Math.max(1, aggregatedQty)
 
-  const updates: RecomputeResult["updates"] = []
+  type PendingUpdate = {
+    line_id: string
+    old_unit_price: number
+    new_unit_price: number
+    updated_metadata: Record<string, unknown> | null
+  }
 
+  const pending: PendingUpdate[] = []
   for (const line of eligible) {
     const oldUnitPrice = bnLikeToMajorAmount(line.unit_price) ?? 0
     const newUnitPriceMajor = computeNewUnitPriceMajor(line, effectiveQty)
     if (newUnitPriceMajor === null) continue
     if (round2(oldUnitPrice) === round2(newUnitPriceMajor)) continue
 
-    const updatedMetadata = buildUpdatedServerBlock(
-      line.metadata,
-      newUnitPriceMajor,
-      effectiveQty
-    )
-
-    await updateLineItemInCartWorkflow(scope as never).run({
-      input: {
-        cart_id: cartId,
-        item_id: line.id,
-        update: {
-          unit_price: newUnitPriceMajor,
-          ...(updatedMetadata ? { metadata: updatedMetadata } : {}),
-        },
-      },
-    })
-
-    updates.push({
+    pending.push({
       line_id: line.id,
       old_unit_price: round2(oldUnitPrice),
       new_unit_price: newUnitPriceMajor,
+      updated_metadata: buildUpdatedServerBlock(
+        line.metadata,
+        newUnitPriceMajor,
+        effectiveQty
+      ),
     })
   }
+
+  // Each workflow run targets a distinct line_id, so concurrent writes don't
+  // collide on the cart_line_item row. Parallelising turns N sequential
+  // ~200-500ms workflow runs (full cart pricing recalc each) into ~1 round-trip
+  // — the dominant cost in the slow cart-delete UX.
+  await Promise.all(
+    pending.map((p) =>
+      updateLineItemInCartWorkflow(scope as never).run({
+        input: {
+          cart_id: cartId,
+          item_id: p.line_id,
+          update: {
+            unit_price: p.new_unit_price,
+            ...(p.updated_metadata ? { metadata: p.updated_metadata } : {}),
+          },
+        },
+      })
+    )
+  )
 
   return {
     aggregated_quantity: aggregatedQty,
     eligible_line_ids: eligible.map((l) => l.id),
     excluded_line_ids: excluded,
-    updates,
+    updates: pending.map(({ line_id, old_unit_price, new_unit_price }) => ({
+      line_id,
+      old_unit_price,
+      new_unit_price,
+    })),
   }
 }
 

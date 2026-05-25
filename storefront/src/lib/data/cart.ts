@@ -576,6 +576,74 @@ export async function addScpLineItemToCartSafe(input: {
 }
 
 /**
+ * In-place design update for a set of existing cart lines that share a
+ * customizer design-group. The artwork/text/positions change but the line
+ * ids, variants, and quantities are preserved — so created_at, manual
+ * adjustments, and downstream order references stay intact.
+ *
+ * Backed by POST /store/carts/:id/scp-update-design which rewrites
+ * `customizerDesign` + `customizerDesign.pricing.server` on each line and
+ * then triggers cross-cart bulk-tier aggregation. Use this from the
+ * "Edit design from cart" flow instead of the delete-and-recreate path.
+ */
+export async function updateScpDesignInCart(input: {
+  lineIds: string[]
+  /** Full new CustomizerMetadata payload (no variantId — that stays on the line). */
+  customizerDesign: Record<string, unknown>
+  printSizeId: ScpPrintSizeId
+  productHandle?: string
+  productTitle?: string
+}): Promise<{
+  ok: true
+  updated_line_ids: string[]
+  skipped_line_ids: string[]
+} | { ok: false; error: string }> {
+  const { lineIds, customizerDesign, printSizeId, productHandle, productTitle } =
+    input
+
+  if (!lineIds.length) {
+    return { ok: false, error: "No cart lines to update." }
+  }
+
+  const cartId = await getCartId()
+  if (!cartId) {
+    return { ok: false, error: "Missing cart — open the cart and try again." }
+  }
+
+  try {
+    const result = await postJsonMedusa(
+      `/store/carts/${cartId}/scp-update-design`,
+      {
+        line_ids: lineIds,
+        customizer_design: customizerDesign,
+        scp_print: {
+          version: SCP_PRINT_PRICING_VERSION,
+          print_size_id: printSizeId,
+        },
+        ...(productHandle ? { product_handle: productHandle } : {}),
+        ...(productTitle ? { product_title: productTitle } : {}),
+      }
+    )
+    revalidateTag("cart", "max")
+    return {
+      ok: true,
+      updated_line_ids: ((result as { updated_line_ids?: unknown })
+        ?.updated_line_ids as string[] | undefined) ?? [],
+      skipped_line_ids: ((result as { skipped_line_ids?: unknown })
+        ?.skipped_line_ids as string[] | undefined) ?? [],
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not update the design on these cart lines.",
+    }
+  }
+}
+
+/**
  * Server-priced embroidery line. Mirrors `addScpLineItemToCart` — pricing
  * comes from the rate card (single price level), unit_price is the per-
  * garment decoration cost plus an amortised slice of the per-design
@@ -706,13 +774,28 @@ export async function deleteLineItem(lineId: string) {
     throw new Error("Missing cart ID when deleting line item")
   }
 
-  await sdk.store.cart
+  const deleteResp = await sdk.store.cart
     .deleteLineItem(cartId, lineId, await getAuthHeaders())
     .catch(medusaError)
   // After removing a line the aggregated tier may drop (e.g. 101 → 41 units
   // moves the cart back to the 20-49 tier). Recompute synchronously so the
   // cart UI sees the updated unit prices on the next fetch.
-  await recomputeScpCart(cartId)
+  //
+  // Skip the recompute round-trip entirely when the delete emptied the cart.
+  // With zero remaining items there's nothing to aggregate or re-tier, so the
+  // backend recompute would do 2 graph queries and return an empty result.
+  // Saves ~1 round-trip + 2 graph queries on the common "remove the last item"
+  // path. Any non-empty remaining cart must still recompute because a single
+  // surviving line may need to drop tier (e.g. was priced at the 100+ tier
+  // when aggregated with the deleted line).
+  const remainingItems = Array.isArray(
+    (deleteResp as { parent?: { items?: unknown[] } } | undefined)?.parent?.items
+  )
+    ? (deleteResp as { parent: { items: unknown[] } }).parent.items.length
+    : null
+  if (remainingItems === null || remainingItems > 0) {
+    await recomputeScpCart(cartId)
+  }
   revalidateTag("cart", "max")
 }
 
