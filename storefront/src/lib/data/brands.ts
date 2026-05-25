@@ -10,6 +10,7 @@ export type StorefrontBrand = {
   logo_url: string | null
   external_code: string | null
   parent_id: string | null
+  product_count: number
 }
 
 type BrandsListResponse = {
@@ -47,7 +48,10 @@ export async function listBrands(): Promise<StorefrontBrand[]> {
     })
     if (!res.ok) return []
     const data = (await res.json()) as BrandsListResponse
-    return data.brands ?? []
+    return (data.brands ?? []).map((b) => ({
+      ...b,
+      product_count: typeof b.product_count === "number" ? b.product_count : 0,
+    }))
   } catch {
     return []
   }
@@ -66,7 +70,19 @@ export async function retrieveBrandByHandle(handle: string): Promise<{
     })
     if (!res.ok) return { brand: null, children: [] }
     const data = (await res.json()) as BrandRetrieveResponse
-    return { brand: data.brand ?? null, children: data.children ?? [] }
+    const withCount = (b: StorefrontBrand | null | undefined) =>
+      b
+        ? {
+            ...b,
+            product_count: typeof b.product_count === "number" ? b.product_count : 0,
+          }
+        : null
+    return {
+      brand: withCount(data.brand) as StorefrontBrand | null,
+      children: (data.children ?? []).map(
+        (c) => withCount(c) as StorefrontBrand
+      ),
+    }
   } catch {
     return { brand: null, children: [] }
   }
