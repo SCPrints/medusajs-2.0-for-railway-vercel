@@ -4,7 +4,10 @@ import {
   Modules,
   ProductStatus,
 } from "@medusajs/framework/utils"
-import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
+import {
+  createProductsWorkflow,
+  linkSalesChannelsToStockLocationWorkflow,
+} from "@medusajs/medusa/core-flows"
 import { FASHIONBIZ_MODULE } from "../../../../modules/fashionbiz"
 import FashionBizService from "../../../../modules/fashionbiz/service"
 import {
@@ -98,6 +101,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } else {
     const created = await stockLocationService.createStockLocations({ name: FASHIONBIZ_LOCATION_NAME })
     locationId = Array.isArray(created) ? created[0].id : created.id
+  }
+
+  // Link the stock location to every sales channel — without this the
+  // storefront returns variant.inventory_quantity = 0 for FashionBiz
+  // variants (stock exists at the location, but the channel can't see it).
+  // Idempotent; already-linked channels are fine.
+  if (locationId) {
+    const allChannels = (await salesChannelService.listSalesChannels(
+      {},
+      { take: 500 }
+    )) as Array<{ id: string }>
+    const channelIds = allChannels.map((c) => c.id)
+    if (channelIds.length > 0) {
+      try {
+        await linkSalesChannelsToStockLocationWorkflow(req.scope).run({
+          input: { id: locationId, add: channelIds },
+        })
+      } catch {
+        // Idempotent — already-linked channels are fine.
+      }
+    }
   }
 
   // Resolve brand entity
