@@ -112,9 +112,17 @@ export async function applyTaxonomyToProducts<TSourceProduct>(
     sourceByHandle: ReadonlyMap<string, TSourceProduct>
     classify: SupplierTaxonomyClassifier<TSourceProduct>
     logger: SupplierImportLogger
+    /**
+     * Brand handle for the supplier (e.g. `"as-colour"`). Passed through
+     * to `applyTitleFallbacks` so brand-conventions like AS Colour's
+     * unisex-by-default catalog can fire after all other inference.
+     * Optional — omit for suppliers whose products are always explicitly
+     * gendered (FashionBiz family, Aussie Pacific).
+     */
+    brandHandle?: string | null
   }
 ): Promise<SupplierTaxonomyResult> {
-  const { products, sourceByHandle, classify, logger } = opts
+  const { products, sourceByHandle, classify, logger, brandHandle } = opts
   if (!products.length) return { ok: 0, failed: 0, unknown: [] }
 
   const productModule = container.resolve(Modules.PRODUCT) as any
@@ -131,7 +139,8 @@ export async function applyTaxonomyToProducts<TSourceProduct>(
     const { productType, tags } = applyTitleFallbacks(
       classified,
       p.title ?? "",
-      unknownTaxonomy
+      unknownTaxonomy,
+      brandHandle
     )
     if (!productType && !tags.length) continue
     try {

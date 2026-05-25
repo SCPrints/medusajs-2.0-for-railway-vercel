@@ -191,6 +191,75 @@ describe("applyTitleFallbacks", () => {
     expect(hoodies.tags).toEqual([])
   })
 
+  it("auto-tags Unisex on AS Colour apparel when no demographic was found anywhere", () => {
+    // AS Colour designs the bulk of their catalog as unisex (Staple Tee,
+    // Heavy Tee, Premium Hood). Absent gender field in their API is
+    // intentional, so we default Unisex when the title doesn't gainsay it.
+    const tee = applyTitleFallbacks(
+      { productType: "T-Shirts", tags: [] },
+      "Staple Tee",
+      undefined,
+      "as-colour"
+    )
+    expect(tee.tags).toEqual(["Unisex"])
+
+    const hood = applyTitleFallbacks(
+      { productType: "Hoodies", tags: [] },
+      "Premium Hood",
+      undefined,
+      "as-colour"
+    )
+    expect(hood.tags).toEqual(["Unisex"])
+  })
+
+  it("AS Colour brand handle does NOT override explicit Mens / Womens / Kids cues", () => {
+    // "Womens Maple Tee" — title says Women, so we should tag Women not Unisex.
+    const womens = applyTitleFallbacks(
+      { productType: "T-Shirts", tags: [] },
+      "Womens Maple Tee",
+      undefined,
+      "as-colour"
+    )
+    expect(womens.tags).toEqual(["Women"])
+
+    // Classifier already returned a tag — brand handle must not overwrite.
+    const preTagged = applyTitleFallbacks(
+      { productType: "T-Shirts", tags: ["Men"] },
+      "Maple Tee",
+      undefined,
+      "as-colour"
+    )
+    expect(preTagged.tags).toEqual(["Men"])
+  })
+
+  it("does NOT auto-tag Unisex for non-AS-Colour brand handles", () => {
+    // FashionBiz / Aussie Pacific products carry explicit gender via the
+    // API — absence of a demographic there is a data gap, not a unisex
+    // default. We surface those untagged.
+    const fb = applyTitleFallbacks(
+      { productType: "Polos", tags: [] },
+      "Venture Polo",
+      undefined,
+      "syzmik"
+    )
+    expect(fb.tags).toEqual([])
+
+    const ap = applyTitleFallbacks(
+      { productType: "Shirts", tags: [] },
+      "Bayview Shirt",
+      undefined,
+      "aussie-pacific"
+    )
+    expect(ap.tags).toEqual([])
+
+    // No brand handle passed → same as before, no default Unisex.
+    const none = applyTitleFallbacks(
+      { productType: "T-Shirts", tags: [] },
+      "Maple Tee"
+    )
+    expect(none.tags).toEqual([])
+  })
+
   it("handles the three screenshot cases from the audit", () => {
     // AS Colour: Parcel Tote — API gave us nothing. Now defaults to Unisex
     // so it actually shows up in the storefront audience browse.

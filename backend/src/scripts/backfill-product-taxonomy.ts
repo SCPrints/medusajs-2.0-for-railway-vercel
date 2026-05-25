@@ -229,7 +229,17 @@ export default async function backfillProductTaxonomy({ container }: ExecArgs) {
         productType: currentType,
         tags: [],
       }
-      const fallback = applyTitleFallbacks(baseline, title, unknownLog)
+      // Derive a brand handle from supplier source so brand-convention
+      // fallbacks fire (AS Colour apparel defaults to Unisex when no
+      // demographic was found via classifier or title inference).
+      const source = (product.metadata ?? {})?.source as string | undefined
+      const brandHandle = source === "ascolour" ? "as-colour" : null
+      const fallback = applyTitleFallbacks(
+        baseline,
+        title,
+        unknownLog,
+        brandHandle
+      )
 
       // Type resolution:
       //  - Default: fill only when currently null (preserves manual edits).

@@ -421,6 +421,10 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
     sourceByHandle: handleToAsColourProduct,
     classify: classifyAsColourProduct,
     logger,
+    // AS Colour's catalog is unisex unless explicitly gendered. Hands this
+    // hint to applyTitleFallbacks so apparel without a gender field gets
+    // tagged Unisex after title inference fails (Polos, Tees, Hoodies, ...).
+    brandHandle: "as-colour",
   })
 
   // 5c. Shop categories — surface in the menu drill-down.

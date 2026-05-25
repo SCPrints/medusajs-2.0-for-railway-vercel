@@ -654,6 +654,22 @@ const GENDERLESS_PRODUCT_TYPES = new Set([
 ])
 
 /**
+ * Brand handles whose catalog convention is "unisex unless explicitly
+ * gendered". AS Colour designs the bulk of their apparel as unisex (the
+ * Staple Tee, Heavy Tee, Premium Hood, Stock Crew, …) and only ship a
+ * gender field on their handful of Womens-only / Mens-only items. The
+ * absence of a gender in their API is intentional — not a data gap — so
+ * we default these products to Unisex once title inference has had its
+ * chance to find a more specific cue.
+ *
+ * FashionBiz (Biz Collection / Biz Care / Biz Corporates / Syzmik) and
+ * Aussie Pacific are excluded on purpose: their products carry explicit
+ * gender via `gender` / `main_category`, so a missing demographic there
+ * is a data issue worth surfacing, not a unisex default.
+ */
+const UNISEX_BY_DEFAULT_BRAND_HANDLES = new Set(["as-colour", "ascolour"])
+
+/**
  * Convenience wrapper for per-supplier importers. Takes the result of
  * a supplier classifier and a product title, and fills the gaps:
  *
@@ -663,6 +679,11 @@ const GENDERLESS_PRODUCT_TYPES = new Set([
  *  - If still no demographic tag AND the resolved product_type is in
  *    `GENDERLESS_PRODUCT_TYPES`, append "Unisex" — covers accessory
  *    catalogs whose titles never carry a Mens/Womens/Kids cue.
+ *  - If still no demographic AND `brandHandle` is one whose catalog is
+ *    unisex by default (AS Colour), append "Unisex". Applies only when
+ *    every earlier signal has been exhausted, so an explicit Mens /
+ *    Womens / Kids cue in either the classifier output or the title
+ *    always wins.
  *
  * Returns a new object (does not mutate input). Use this in every
  * supplier importer after the classifier so empty type/tag fields from
@@ -671,7 +692,8 @@ const GENDERLESS_PRODUCT_TYPES = new Set([
 export function applyTitleFallbacks(
   result: { productType: string | null; tags: string[] },
   title: string | null | undefined,
-  unknownLog?: string[]
+  unknownLog?: string[],
+  brandHandle?: string | null
 ): { productType: string | null; tags: string[] } {
   const out = {
     productType: result.productType,
@@ -684,11 +706,22 @@ export function applyTitleFallbacks(
   if (demographic && !out.tags.includes(demographic)) {
     out.tags.push(demographic)
   }
-  const hasDemographic = out.tags.some((t) => DEMOGRAPHIC_TAG_VALUES.has(t))
+  // Genderless-type fallback: bags/aprons/headwear/socks/accessories.
   if (
-    !hasDemographic &&
+    !out.tags.some((t) => DEMOGRAPHIC_TAG_VALUES.has(t)) &&
     out.productType &&
     GENDERLESS_PRODUCT_TYPES.has(out.productType)
+  ) {
+    out.tags.push("Unisex")
+  }
+  // Brand-convention fallback: AS Colour's apparel is unisex unless
+  // explicitly gendered. Other suppliers tag explicitly so absence
+  // means data gap, not unisex default.
+  if (
+    !out.tags.some((t) => DEMOGRAPHIC_TAG_VALUES.has(t)) &&
+    out.productType &&
+    brandHandle &&
+    UNISEX_BY_DEFAULT_BRAND_HANDLES.has(brandHandle)
   ) {
     out.tags.push("Unisex")
   }
