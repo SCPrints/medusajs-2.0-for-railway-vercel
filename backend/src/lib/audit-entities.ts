@@ -14,6 +14,7 @@ export const AUDIT_ENTITY = {
   QUOTE: "quote",
   ORGANISATION: "organisation",
   TASK: "task",
+  PRODUCT: "product",
 } as const
 export type AuditEntity = (typeof AUDIT_ENTITY)[keyof typeof AUDIT_ENTITY]
 
@@ -52,5 +53,14 @@ export const AUDIT_ACTION = {
   EMAIL_BOUNCED: "email_bounced",
   EMAIL_SUPPRESSED: "email_suppressed",
   PAYMENT_LINK_CLICKED: "payment_link_clicked",
+  // Product bulk edits (Products Manager tab in /app/product-data)
+  BULK_STATUS_CHANGED: "bulk_status_changed",
+  BULK_DELETED: "bulk_deleted",
+  BULK_BRAND_CHANGED: "bulk_brand_changed",
+  BULK_TYPE_CHANGED: "bulk_type_changed",
+  BULK_TAGS_CHANGED: "bulk_tags_changed",
+  BULK_SALES_CHANNELS_CHANGED: "bulk_sales_channels_changed",
+  BULK_CATEGORIES_CHANGED: "bulk_categories_changed",
+  BULK_COLLECTION_CHANGED: "bulk_collection_changed",
 } as const
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION]

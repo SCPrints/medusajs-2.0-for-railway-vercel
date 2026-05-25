@@ -6,10 +6,10 @@ import { HelpTooltip } from "../../components/reports/help-tooltip"
 import AsColourImportPage from "../ascolour-import/page"
 import FashionBizImportPage from "../fashionbiz-import/page"
 import AussiePacificImportPage from "../aussie-pacific-import/page"
-import ProductBulkDeletePage from "../product-bulk-delete/page"
 import ProductTypeTagManagePage from "../product-type-tag-manage/page"
 import SpreadsheetSyncPage from "../spreadsheet-sync/page"
 import SpreadsheetSyncUpdatePage from "../spreadsheet-sync-update/page"
+import ProductsManagerTab from "./components/products-manager-tab"
 import TaxonomyAuditPanel from "./components/taxonomy-audit-panel"
 
 /**
@@ -40,7 +40,7 @@ const ProductDataPage = () => {
               bullets: [
                 "Import new products: from a supplier CSV (DNC, FashionBiz, AS Colour, etc.). Creates products that don't exist yet — never use to tweak existing ones.",
                 "Update existing: patches columns on already-imported products. Matches by SKU; only patches the columns you tick.",
-                "Bulk delete: permanently removes products in batches. No undo. Use only for trimming retired ranges.",
+                "Browse & manage: filter the catalog by brand, type, tag, category, sales channel, or data-quality gap, then bulk-edit selected products (status, brand, tags, sales channels, categories, collection, delete, export CSV).",
                 "Types & tags: delete unused or duplicate product types and tags from the store.",
                 "Taxonomy audit: live count of products missing the type, demographic tag, or Shop category the storefront needs to group them by.",
                 "Result logs are scoped to your last action — they clear when you start a new sync or pick a new file.",
@@ -50,17 +50,17 @@ const ProductDataPage = () => {
         </Heading>
         <Text size="small" className="text-ui-fg-subtle">
           Bulk operations on the product catalog. Each tab is a separate
-          workflow — read the description before running, especially the
-          delete tab which cannot be undone.
+          workflow — read the description before running. Browse &amp; manage
+          is the day-to-day surface; the other tabs are one-shot tools.
         </Text>
       </Container>
 
-      <Tabs defaultValue="import-new">
+      <Tabs defaultValue="browse-manage">
         <Container>
           <Tabs.List>
+            <Tabs.Trigger value="browse-manage">Browse &amp; manage</Tabs.Trigger>
             <Tabs.Trigger value="import-new">Import new products</Tabs.Trigger>
             <Tabs.Trigger value="update-existing">Update existing</Tabs.Trigger>
-            <Tabs.Trigger value="bulk-delete">Bulk delete</Tabs.Trigger>
             <Tabs.Trigger value="types-tags">Types &amp; tags</Tabs.Trigger>
             <Tabs.Trigger value="taxonomy-audit">Taxonomy audit</Tabs.Trigger>
             <Tabs.Trigger value="ascolour-import">AS Colour Import</Tabs.Trigger>
@@ -68,6 +68,20 @@ const ProductDataPage = () => {
             <Tabs.Trigger value="aussie-pacific-import">Aussie Pacific Import</Tabs.Trigger>
           </Tabs.List>
         </Container>
+
+        <Tabs.Content value="browse-manage" className="flex flex-col gap-y-3">
+          <Container>
+            <Text size="small" className="text-ui-fg-subtle">
+              Rich filter + bulk-edit surface. Use the data-quality
+              checkboxes to find products missing an image, description,
+              brand, type, tag, sales channel, or shop category — then
+              tick the rows and pick a bulk action (change status, set
+              brand, set tags, etc.). Bulk delete lives here too, behind
+              a typed confirmation.
+            </Text>
+          </Container>
+          <ProductsManagerTab />
+        </Tabs.Content>
 
         <Tabs.Content value="import-new" className="flex flex-col gap-y-3">
           <Container>
@@ -94,18 +108,6 @@ const ProductDataPage = () => {
             </Text>
           </Container>
           <SpreadsheetSyncUpdatePage />
-        </Tabs.Content>
-
-        <Tabs.Content value="bulk-delete" className="flex flex-col gap-y-3">
-          <Container>
-            <Text size="small" className="text-ui-tag-red-icon">
-              ⚠️ Permanently deletes products in batches of 50. There is no
-              undo. Use this for trimming retired ranges out of the
-              catalogue. Always verify the search filter before selecting
-              rows.
-            </Text>
-          </Container>
-          <ProductBulkDeletePage />
         </Tabs.Content>
 
         <Tabs.Content value="types-tags" className="flex flex-col gap-y-3">
