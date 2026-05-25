@@ -37,7 +37,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         .whereNull("deleted_at")
         .groupBy("brand_id")
         .select("brand_id")
-        .count<{ count: string }>("product_id as count")
+        .count("product_id as count")
     for (const r of rows) {
       counts[r.brand_id] = Number(r.count) || 0
     }
