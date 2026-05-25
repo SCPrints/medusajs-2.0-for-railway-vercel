@@ -88,7 +88,17 @@ function formatStyleCount(count: number): string | null {
 async function BrandsContent() {
   const brands = await listBrands()
   const brandsById = new Map(brands.map((b) => [b.id, b]))
-  const sortedBrands = [...brands].sort((a, b) => a.name.localeCompare(b.name))
+
+  // Hide parent-only brands (e.g. FashionBiz): they exist for hierarchy + reporting
+  // but products are linked to the child brands, so on the storefront index we want
+  // customers to see the child brands directly. Any brand that appears as another
+  // brand's `parent_id` is treated as parent-only and excluded from the grid.
+  const parentIds = new Set(
+    brands.map((b) => b.parent_id).filter((id): id is string => Boolean(id))
+  )
+  const sortedBrands = [...brands]
+    .filter((b) => !parentIds.has(b.id))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <>
