@@ -5,7 +5,6 @@ import { Suspense } from "react"
 import "styles/globals.css"
 import { ViewTransitions } from "next-view-transitions"
 import ConditionalCursorDot from "@modules/layout/components/conditional-cursor-dot"
-import { ChatWidget } from "@modules/common/components/chat-widget"
 import { Ga4Script } from "@modules/common/components/ga4-script"
 import { PostHogProvider } from "@modules/common/components/posthog-provider"
 import AddToHomeBanner from "@modules/common/components/add-to-home-banner"
@@ -148,7 +147,6 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         className={`${plusJakartaSans.className} antialiased selection:bg-[#FF2E63] selection:text-[#EEEEEE]`}
       >
         <Ga4Script />
-        <ChatWidget />
         <PostHogProvider>
           <Suspense fallback={null}>
             <ConditionalCursorDot />

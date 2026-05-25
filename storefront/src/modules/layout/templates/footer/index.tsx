@@ -100,33 +100,8 @@ export default async function Footer() {
                 </LocalizedClientLink>
               </li>
               <li>
-                <LocalizedClientLink href="/old-hero" className="hover:text-ui-fg-base">
-                  Old home page animation
-                </LocalizedClientLink>
-              </li>
-              <li>
-                <LocalizedClientLink href="/particle-logo" className="hover:text-ui-fg-base">
-                  Particle logo
-                </LocalizedClientLink>
-              </li>
-              <li>
-                <LocalizedClientLink href="/particle-flow" className="hover:text-ui-fg-base">
-                  Particle Flow
-                </LocalizedClientLink>
-              </li>
-              <li>
-                <LocalizedClientLink href="/particle-threejs" className="hover:text-ui-fg-base">
-                  Particle three.js
-                </LocalizedClientLink>
-              </li>
-              <li>
-                <LocalizedClientLink href="/jungle-scene" className="hover:text-ui-fg-base">
-                  Jungle scene
-                </LocalizedClientLink>
-              </li>
-              <li>
-                <LocalizedClientLink href="/test/animation-widgets" className="hover:text-ui-fg-base">
-                  Animation widgets lab
+                <LocalizedClientLink href="/sandbox" className="hover:text-ui-fg-base">
+                  Sandbox
                 </LocalizedClientLink>
               </li>
             </ul>
