@@ -347,7 +347,7 @@ function HelpTip({ text }: { text: string }) {
         onMouseLeave={() => setOpen(false)}
         onClick={() => setOpen((o) => !o)}
         onBlur={() => setOpen(false)}
-        className="flex h-4 w-4 items-center justify-center rounded-full bg-ui-bg-base-hover text-[9px] font-bold text-ui-fg-muted ring-1 ring-ui-border-base transition hover:bg-ui-bg-subtle hover:text-ui-fg-base focus:outline-none focus-visible:ring-2"
+        className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--brand-secondary,#0ea5b7)] text-sm font-bold text-white shadow-sm transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary,#0ea5b7)] focus-visible:ring-offset-2"
         aria-label="Help"
       >
         ?
@@ -4590,9 +4590,13 @@ export default function CustomizerTemplate({
           prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
         })
         const activeTier = breakdown.activeBulkTier
+        // calculatePricing's `*Cents` fields are misnamed — Medusa 2.x stores
+        // price.amount in major units (dollars), so `basePriceCents` is dollars
+        // and the breakdown returns dollars too. PricingPanel passes them
+        // straight to formatMoney without /100; the bulk grid must too.
         return {
-          unitPriceMajor: breakdown.discountedUnitPriceCents / 100,
-          totalPriceMajor: breakdown.totalPriceCents / 100,
+          unitPriceMajor: breakdown.discountedUnitPriceCents,
+          totalPriceMajor: breakdown.totalPriceCents,
           activeTierLabel: activeTier
             ? `${activeTier.minQuantity}${activeTier.maxQuantity ? `–${activeTier.maxQuantity}` : "+"}`
             : undefined,
