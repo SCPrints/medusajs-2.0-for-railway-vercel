@@ -658,6 +658,8 @@ const ProductsManagerTab = () => {
         disabled={loading}
       />
 
+      <QualityLegend />
+
       <ResultsTable
         products={products}
         loading={loading}
@@ -815,7 +817,19 @@ const FilterBar = (props: FilterBarProps) => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <Label size="xsmall">Brand</Label>
+            <Label size="xsmall" className="flex items-center">
+              Brand
+              <HelpTooltip
+                text={{
+                  title: "Brand filter",
+                  body: "Reads the Brand → Product module link (the single source of truth for brand identity across the storefront, reports, and supplier menus).",
+                  bullets: [
+                    "Pick one or more brands to see only products linked to them.",
+                    "Pair with 'Missing brand' below to spot products with no brand entity attached — these are usually freshly-imported supplier products that need their brand re-linked.",
+                  ],
+                }}
+              />
+            </Label>
             <MultiSelectPicker
               options={props.brandOptions}
               selected={props.filters.brand_ids}
@@ -1095,7 +1109,20 @@ const ResultsTable = (props: ResultsTableProps) => {
             </Table.HeaderCell>
             <Table.HeaderCell>Status</Table.HeaderCell>
             <Table.HeaderCell className="hidden lg:table-cell">
-              Data quality
+              <div className="flex items-center gap-1">
+                <span>Data quality</span>
+                <HelpTooltip
+                  text={{
+                    title: "Data quality dots",
+                    body: "Each row shows seven dots — one per signal the storefront needs to render the product correctly. Green = present, red = missing. Hover any dot for the label.",
+                    bullets: [
+                      "Order, left → right: Image · Description · Type · Tags · Brand · Sales channel · Shop category.",
+                      "Use the 'Data quality' filter checkboxes above to surface only products missing a given signal — then bulk-edit to fix them.",
+                      "A product with a red 'Sales channel' dot is invisible to the storefront. A red 'Type' or 'Shop category' dot breaks the mega-menu drill-down.",
+                    ],
+                  }}
+                />
+              </div>
             </Table.HeaderCell>
           </Table.Row>
         </Table.Header>
@@ -1235,6 +1262,41 @@ const QualityDots = ({ quality }: { quality: Quality }) => {
         )
       })}
     </div>
+  )
+}
+
+/* ─────────────── quality legend ─────────────── */
+
+/**
+ * Always-visible legend that documents the seven data-quality dots in
+ * the table column. Rendered between the bulk-action bar and the
+ * table so it sits right above the dots themselves. Without this,
+ * staff have to mouse-hover each dot to read the label — confusing on
+ * first encounter and bad on touchscreens.
+ */
+const QualityLegend = () => {
+  return (
+    <Container className="p-0">
+      <div className="flex flex-col gap-2 px-4 py-3">
+        <Text size="xsmall" weight="plus" className="text-ui-fg-subtle">
+          Data-quality column key
+        </Text>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {QUALITY_KEYS.map((k) => (
+            <div key={k} className="flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-ui-tag-green-icon" />
+              <span className="inline-block size-2 rounded-full bg-ui-tag-red-icon" />
+              <Text size="xsmall" className="text-ui-fg-muted">
+                {QUALITY_LABELS[k]}
+              </Text>
+            </div>
+          ))}
+          <Text size="xsmall" className="text-ui-fg-muted">
+            (green = present, red = missing — read each row's seven dots in this order)
+          </Text>
+        </div>
+      </div>
+    </Container>
   )
 }
 

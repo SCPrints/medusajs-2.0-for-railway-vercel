@@ -143,7 +143,43 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (body.category_ids?.length) filters.categories = { id: body.category_ids }
   if (body.sales_channel_ids?.length)
     filters.sales_channels = { id: body.sales_channel_ids }
-  if (body.brand_ids?.length) filters.brand = { id: body.brand_ids }
+
+  // Brand is a Module Link (not a core Product property), so
+  // `filters.brand` throws "Trying to query by not existing property
+  // Product.brand". Resolve the brand → products link first and turn
+  // the result into an explicit `id IN (...)` filter on the main query.
+  if (body.brand_ids?.length) {
+    try {
+      const { data: brandRows = [] } = await query.graph({
+        entity: "brand",
+        fields: ["id", "products.id"],
+        filters: { id: body.brand_ids },
+        pagination: { take: body.brand_ids.length, skip: 0 },
+      })
+      const ids = new Set<string>()
+      for (const b of brandRows as any[]) {
+        const products = Array.isArray(b?.products) ? b.products : []
+        for (const p of products) if (p?.id) ids.add(p.id)
+      }
+      if (ids.size === 0) {
+        res.json({
+          products: [],
+          count: 0,
+          limit: body.limit ?? 50,
+          offset: body.offset ?? 0,
+          truncated: false,
+        })
+        return
+      }
+      filters.id = [...ids]
+    } catch (err: any) {
+      res.status(500).json({
+        message: `brand filter resolution failed: ${err?.message ?? err}`,
+      })
+      return
+    }
+  }
+
   if (body.q?.trim()) {
     // Title ilike is the closest match to Medusa's product `q` semantics
     // we get through query.graph. Acceptable trade-off for v1; we miss
