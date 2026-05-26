@@ -38,8 +38,16 @@ primary_region = 'syd'
   # CSV + API). The original 2GB / 1 CPU OOMed during a 50-product AS Colour
   # batch — Sharp image processing + the workflow engine + Medusa's product
   # create workflow holds enough in-memory to push past 2GB on chunks of
-  # 50+. 4GB / 2 vCPUs gives headroom AND lets image processing run in
-  # parallel with HTTP without starving each other.
+  # 50+. 4GB gives headroom for image processing alongside HTTP serving.
+  #
+  # Moved from `shared-cpu-4x` to `performance-2x` 2026-05-26: Fly's CPU
+  # throttling metric (fly-metrics.net Instance CPU panel) showed persistent
+  # 6-16% throttling on shared-cpu even at idle, causing user-facing request
+  # stalls independent of actual CPU usage. Dedicated cores eliminate the
+  # throttle. 2 cores is enough — observed peak is ~1 full core during
+  # imports (27% of the old 4-vCPU shared box), and Node only effectively
+  # uses 2 cores anyway (event loop on one, Sharp/libuv pool + GC on the
+  # other). Bumping to performance-4x would just buy unused headroom.
   #
   # IMPORTANT: `fly deploy` reads this block and resets the running machine
   # to these values. CLI-only scaling (`fly scale memory 4096` /
@@ -47,5 +55,5 @@ primary_region = 'syd'
   # gets silently reverted on the next deploy unless this block matches.
   # If you want to change the spec, change it HERE first, commit, deploy.
   memory = '4gb'
-  cpu_kind = 'shared'
-  cpus = 4
+  cpu_kind = 'performance'
+  cpus = 2
