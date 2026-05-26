@@ -23,10 +23,6 @@ import BulkOrderGrid, {
   type BulkPricingEstimate,
 } from "@modules/customizer/components/bulk-order-grid"
 import ManagementPanel from "@modules/customizer/components/management-panel"
-import MobileCustomizerToolbar, {
-  type ToolbarActionId,
-} from "@modules/customizer/components/mobile-customizer-toolbar"
-import BottomSheet from "@modules/common/components/bottom-sheet"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
 import SideSelector from "@modules/customizer/components/side-selector"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -479,10 +475,6 @@ export default function CustomizerTemplate({
   const [selectedTextSnapshot, setSelectedTextSnapshot] = useState<
     { id: string; text: string; color: string; fontFamily: string; letterSpacing: number } | null
   >(null)
-  // Mobile bottom-sheet state. `null` = closed; otherwise the toolbar action
-  // whose sheet is currently open. Only used on the standalone customizer
-  // return path (embedded PDP wizard has its own step UI).
-  const [mobileSheet, setMobileSheet] = useState<ToolbarActionId | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [outOfBoundsWarning, setOutOfBoundsWarning] = useState<string | null>(null)
   const [dpiWarning, setDpiWarning] = useState<string | null>(null)
@@ -572,10 +564,6 @@ export default function CustomizerTemplate({
   const [sideEmbroideryConfigs, setSideEmbroideryConfigs] = useState<
     Partial<Record<GarmentSide, EmbroideryConfig>>
   >({})
-  /** True if any side currently uses embroidery — affects pricing + cart route choice. */
-  const hasEmbroiderySide = Object.values(sideDecorationMethods).some(
-    (m) => m === "embroidery"
-  )
   // showSideNudge: brief banner when switching to an empty side in embedded mode
   const [showSideNudge, setShowSideNudge] = useState(false)
   // "Edit existing cart line" mode: when present, the customizer pre-fills from
@@ -638,6 +626,31 @@ export default function CustomizerTemplate({
   >([])
   const [editLineItemId, setEditLineItemId] = useState<string | null>(editLineItemIdFromUrl)
 
+  // URL → state sync for `?edit_group=<id>`. `useState(initialValue)` runs
+  // its initialiser on the server during SSR/prerender, when `useSearchParams`
+  // can still return an empty params object. The Cache Components prerender
+  // for `[countryCode]/products/[handle]` hits exactly that path — so on a
+  // server-rendered page the customer can land with `?edit_group=<id>` on the
+  // URL while the customizer's local state captures `null` and never recovers,
+  // leaving the wizard stuck in fresh-add mode (no hydration, no gated UI,
+  // empty canvas). Reconcile after mount so the edit-from-cart flow
+  // recognises itself even when the initial state was captured pre-hydration.
+  //
+  // Gated on `editGroupHydrated`, NOT on the current `editGroupId` value.
+  // Reason: `dropEditGroupParam` and `Cancel` clear state with
+  // `setEditGroupId(null)` and also wipe the URL via
+  // `window.history.replaceState`. But `replaceState` does NOT update Next.js's
+  // `useSearchParams` — so after the drop, the URL bar is clean but
+  // `searchParams.get("edit_group")` still returns the old id. Without the
+  // hydrated gate, the sync would immediately re-set state from the stale
+  // snapshot, undoing the drop and pinning the wizard into edit mode forever.
+  // Hydrated → sync stops; explicit clear stays cleared.
+  useEffect(() => {
+    if (!editGroupHydrated && editGroupIdFromUrl && !editGroupId) {
+      setEditGroupId(editGroupIdFromUrl)
+    }
+  }, [editGroupIdFromUrl, editGroupId, editGroupHydrated])
+
   // Rehydration mode: `?design=<id>` (saved-design re-edit) or
   // `?reorder=<order_id>:<line_item_id>` (re-order from order history). Both
   // resolve to a CustomizerMetadata that we replay onto the canvas + state.
@@ -655,6 +668,18 @@ export default function CustomizerTemplate({
   const [pendingHydration, setPendingHydration] = useState<CustomizerMetadata | null>(null)
   const [hydrationApplied, setHydrationApplied] = useState(false)
   const [editingHydrated, setEditingHydrated] = useState(false)
+
+  // URL → state sync for `?edit=<lineItemId>`. Same SSR-prerender root cause
+  // as the edit-group sync above (`useSearchParams` returns null during static
+  // prerender, useState captures null forever). Same hydrated-gate reasoning:
+  // once the edit-line hydration runs (success or failure) we leave the
+  // explicit `setEditLineItemId(null)` calls alone.
+  useEffect(() => {
+    if (!editingHydrated && editLineItemIdFromUrl && !editLineItemId) {
+      setEditLineItemId(editLineItemIdFromUrl)
+    }
+  }, [editLineItemIdFromUrl, editLineItemId, editingHydrated])
+
   const [editingProductTitle, setEditingProductTitle] = useState<string | null>(null)
   const [editingPreviousSides, setEditingPreviousSides] = useState<GarmentSide[]>([])
   const [editingPreviousQty, setEditingPreviousQty] = useState<number>(0)
@@ -973,7 +998,6 @@ export default function CustomizerTemplate({
     setSizingDoneSides((prev) => ({ ...prev, [currentSide]: true }))
   }, [productIsBeanie, productIsPuffer, currentSide, sideDecorationMethods])
   const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
-  const embedPdpPrintStepNumber = showPdpLabeledOptionsStep ? 2 : 1
   const embedPdpQuantityStepNumber = showPdpLabeledOptionsStep ? 3 : 2
   // Canvas is the primary view from the moment the embedded customizer
   // mounts — gallery hides immediately so the customer can start designing
@@ -4183,323 +4207,6 @@ export default function CustomizerTemplate({
           </div>
   )
 
-  const embeddedPdpFlowBlurb =
-    "Choose product options, add artwork in the design preview, then set print side and per-size quantities using the steps below."
-
-  const customizeRailPrintQtyAdvanced = (
-    <>
-            {/* Admin proof mode: replace pricing/checkout with a Save Proof button */}
-            {isAdminProofMode ? (
-              <div className="space-y-3 rounded-xl border-2 border-blue-400 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-900">Admin proof mode</p>
-                <p className="text-xs text-blue-800">
-                  Adjust the artwork position and size, then click <strong>Save Proof</strong> to composite the mockup and send it back to the order.
-                </p>
-                {adminProofError ? (
-                  <p className="text-xs text-red-700 font-medium">{adminProofError}</p>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={adminProofSaving}
-                  onClick={handleSaveProof}
-                  className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 active:scale-[0.99] disabled:opacity-60"
-                >
-                  {adminProofSaving ? "Saving proof…" : "Save Proof"}
-                </button>
-              </div>
-            ) : null}
-
-            {isAdminProofMode ? null : (
-            <>
-            <div
-              id="customizer-side-selector"
-              className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4 scroll-mt-20"
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-                  {embedded ? `${embedPdpPrintStepNumber}. Print location` : "Print locations"}
-                </h2>
-                <span className="text-xs text-ui-fg-subtle capitalize">
-                  {currentSide.replace("_", " ")}
-                </span>
-              </div>
-              <SideSelector
-                currentSide={currentSide}
-                onSelectSide={switchSide}
-                allowedSides={allowedPrintSides}
-              />
-              <p className="text-xs text-ui-fg-subtle">
-                Switch sides to place art on the front, back, or sleeves. Each side is saved separately.
-              </p>
-              <DecorationMethodPicker
-                side={currentSide}
-                value={
-                  sideDecorationMethods[currentSide] ??
-                  (productIsBeanie || productIsPuffer ? "embroidery" : "print")
-                }
-                availableMethods={productIsBeanie || productIsPuffer ? ["embroidery"] : ["print", "embroidery"]}
-                onChange={(side, method) => {
-                  setSideDecorationMethods((prev) => ({ ...prev, [side]: method }))
-                  if (method === "embroidery") {
-                    setSizingDoneSides((prev) => ({ ...prev, [side]: true }))
-                  } else {
-                    setSideEmbroideryConfigs((prev) => {
-                      const next = { ...prev }
-                      delete next[side]
-                      return next
-                    })
-                    setSizingDoneSides((prev) => {
-                      const next = { ...prev }
-                      delete next[side]
-                      return next
-                    })
-                  }
-                }}
-              />
-              {sideDecorationMethods[currentSide] === "embroidery" ? (
-                <EmbroiderySideConfig
-                  side={currentSide}
-                  value={sideEmbroideryConfigs[currentSide]}
-                  onChange={(side, next) => {
-                    setSideEmbroideryConfigs((prev) => ({ ...prev, [side]: next }))
-                  }}
-                  getArtworkDataUrl={getCurrentSideArtworkDataUrl}
-                />
-              ) : null}
-            </div>
-
-            <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <div>
-                <label
-                  htmlFor="customizer-print-notes"
-                  className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base"
-                >
-                  Notes for production
-                </label>
-                <p className="mt-1 text-xs text-ui-fg-subtle">
-                  Optional. Special instructions for printing or placement (max{" "}
-                  {CUSTOMIZER_PRINT_NOTES_MAX_LENGTH} characters).
-                </p>
-              </div>
-              <textarea
-                id="customizer-print-notes"
-                value={printNotes}
-                onChange={(e) =>
-                  setPrintNotes(
-                    e.target.value.slice(0, CUSTOMIZER_PRINT_NOTES_MAX_LENGTH)
-                  )
-                }
-                rows={4}
-                maxLength={CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
-                placeholder="e.g. Match logo PMS 185 C, keep 3 cm from collar seam…"
-                className="w-full resize-y rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-2 text-sm text-ui-fg-base placeholder:text-ui-fg-muted outline-none focus:border-ui-border-interactive focus:ring-2 focus:ring-ui-border-interactive/20"
-                disabled={isSubmitting}
-              />
-              <p className="text-xs text-ui-fg-muted tabular-nums">
-                {printNotes.length}/{CUSTOMIZER_PRINT_NOTES_MAX_LENGTH}
-              </p>
-            </div>
-
-            <div id="customizer-pricing-panel" className="scroll-mt-20">
-            <PricingPanel
-              currencyCode={currencyCode}
-              pricing={pricing}
-              sizes={sizeMatrix}
-              onChangeSizeQty={changeSizeQuantity}
-              onAddToCart={addCustomizedToCart}
-              isSubmitting={isSubmitting}
-              embeddedOnPdp={embedded}
-              flyImageSrc={flyImageSrcForAddToCart}
-              showDtfTierEstimator={productMetadataShowsDtfTierEstimator(selectedProduct)}
-              embedPdpQuantityStepNumber={embedPdpQuantityStepNumber}
-              scpPrintSizeId={scpPrintSizeId}
-              onScpPrintSizeIdChange={(id) => {
-                setScpPrintSizeId(id)
-                setScpPrintSizeChosen(true)
-              }}
-              decoratedSides={decoratedSides}
-              prints={printSpecs}
-              onChangePrintSize={handleChangePrintSize}
-              allowedPrintSizesBySide={allowedSizesBySide}
-              onSaveDesign={embedded ? undefined : saveCurrentDesign}
-              isSavingDesign={isSavingDesign}
-              aggregatedCartQuantity={aggregatedCartQuantity}
-              stockBySize={stockBySize}
-              tier={tier}
-              variantTintHex={variantTintHex}
-            />
-            </div>
-
-            <details className="group rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-              <summary className="cursor-pointer list-none text-sm font-semibold uppercase tracking-wide text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
-                <span className="flex items-center justify-between">
-                  Advanced layer tools
-                  <ExpandCollapsePlus />
-                </span>
-              </summary>
-              <div className="mt-3 border-t border-ui-border-base pt-3">
-                <ManagementPanel
-                  layers={layers}
-                  selectedLayerId={selectedLayerId}
-                  onSelectLayer={selectLayer}
-                  onDeleteLayer={() => {
-                    const canvas = fabricCanvasRef.current
-                    const active = canvas?.getActiveObject()
-                    if (!active) {
-                      return
-                    }
-                    canvas.remove(active)
-                    updateLayers()
-                    saveCurrentSide()
-                  }}
-                  onBringForward={() => {
-                    const canvas = fabricCanvasRef.current
-                    const active = canvas?.getActiveObject()
-                    if (!active) {
-                      return
-                    }
-                    canvas.bringObjectForward(active)
-                    canvas.renderAll()
-                    saveCurrentSide()
-                  }}
-                  onSendBackward={() => {
-                    const canvas = fabricCanvasRef.current
-                    const active = canvas?.getActiveObject()
-                    if (!active) {
-                      return
-                    }
-                    canvas.sendObjectBackwards(active)
-                    canvas.renderAll()
-                    saveCurrentSide()
-                  }}
-                  onToggleLayerVisibility={toggleLayerVisibility}
-                  onToggleLayerLock={toggleLayerLock}
-                  onAlign={alignSelection}
-                  onReplaceSvgColor={recolorSelectedSvg}
-                />
-              </div>
-            </details>
-            </>
-            )}
-    </>
-  )
-
-  const sidebarInner = (
-            <>
-            <header className="space-y-2 border-b border-ui-border-base pb-5">
-              {embedded ? (
-                <div className="min-w-0">
-                  <p className="text-lg font-semibold text-ui-fg-base">Customize and checkout</p>
-                  <p className="mt-2 text-sm text-ui-fg-subtle">
-                    {embeddedPdpFlowBlurb}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {productBrand && (
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-subtle">
-                      {productBrand}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <h1 className="text-2xl font-semibold leading-tight text-ui-fg-base small:text-3xl">
-                        {selectedProduct?.title ?? "Customize"}
-                      </h1>
-                      <p className="mt-2 text-sm text-ui-fg-subtle">
-                        Front, back, and sleeve placements with live pricing.
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-            </header>
-
-            {nonSizeOptions.length > 0 && !embedded ? (
-              <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4">
-                {nonSizeOptions.map((option) => {
-                  const values = selectedProduct
-                    ? uniqueOptionValues(selectedProduct, option.id)
-                    : []
-                  const current =
-                    selectedVariant?.options?.find((entry) => entry.option_id === option.id)?.value ?? ""
-                  const optionForSelect =
-                    option.values && option.values.length > 0
-                      ? option
-                      : ({
-                          ...option,
-                          values: values.map((value) => ({ id: value, value })),
-                        } as HttpTypes.StoreProductOption)
-
-                  return (
-                    <div key={option.id} className="space-y-1.5">
-                      <label className="text-xs font-medium text-ui-fg-subtle">
-                        {(option.title ?? "Option").toUpperCase()}
-                      </label>
-                      {selectedProduct ? (
-                        <OptionSelect
-                          product={selectedProduct}
-                          option={optionForSelect}
-                          current={current || undefined}
-                          updateOption={(_title, value) =>
-                            handleNonSizeOptionChange(option.id, value)
-                          }
-                          title={option.title ?? "Option"}
-                          disabled={false}
-                        />
-                      ) : null}
-                    </div>
-                  )
-                })}
-              </div>
-            ) : null}
-
-            {customizeRailPrintQtyAdvanced}
-            </>
-  )
-
-  const defaultSidebarColumn = (
-          <div className="space-y-5 lg:sticky lg:top-24 lg:pr-1">
-            {sidebarInner}
-          </div>
-  )
-
-  const main = (
-    <div className="mx-auto max-w-[1320px] space-y-6">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,420px)] lg:items-start lg:gap-10">
-          {editorColumn}
-          {defaultSidebarColumn}
-        </div>
-        <LowResolutionModal
-          open={lowResModalOpen}
-          worstDpi={dpiAssessment.worstDpi}
-          imagesBelowCritical={dpiAssessment.imagesBelowCritical}
-          vectorizationDisplayPrice={
-            process.env.NEXT_PUBLIC_VECTORIZATION_DISPLAY_PRICE ?? null
-          }
-          onClose={() => {
-            setLowResModalOpen(false)
-            lowResModalDismissedRef.current = true
-          }}
-          onUploadHigherQuality={() => {
-            // Best-effort: scroll the upload area into view. The exact node ID
-            // doesn't exist, so fall back to gentle scroll-to-top of canvas col.
-            try {
-              fabricContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-            } catch {
-              /* noop */
-            }
-          }}
-          onAcceptVectorization={() => {
-            setVectorizationRequested(true)
-            setStatusMessage(
-              "Vectorization service will be added when you check out — our team will redraw your artwork sharp for print."
-            )
-          }}
-        />
-    </div>
-  )
-
   if (embedded && integratedPdpSlots) {
     // Guided wizard: steps reveal one at a time and collapse to a summary
     // chip with a "Change" link once completed. Mirrors the reference
@@ -4998,9 +4705,15 @@ export default function CustomizerTemplate({
               "Customize this product" advances pdpStep, which collapses
               the gallery and reveals the design steps in the same slot
               via AnimatePresence. For products without a Step 1
-              (no variant options) the steps are always visible. */}
+              (no variant options) the steps are always visible.
+              In edit-from-cart mode the customer's intent is to edit
+              existing artwork, not browse — bypass the gallery panel and
+              jump straight to the design steps so they see the same
+              wizard layout that will render once hydration sets pdpStep
+              to 4. Without this, the gallery briefly flashes between
+              mount and hydration completion. */}
           <AnimatePresence mode="wait" initial={false}>
-            {hasStep1 && pdpStep === 1 && integratedPdpSlots.gallery ? (
+            {hasStep1 && pdpStep === 1 && !editGroupId && integratedPdpSlots.gallery ? (
               <motion.div
                 key="gallery"
                 initial={{ opacity: 0, y: 8 }}
@@ -5660,123 +5373,34 @@ export default function CustomizerTemplate({
             )}
           </AnimatePresence>
         </div>
+        <LowResolutionModal
+          open={lowResModalOpen}
+          worstDpi={dpiAssessment.worstDpi}
+          imagesBelowCritical={dpiAssessment.imagesBelowCritical}
+          vectorizationDisplayPrice={
+            process.env.NEXT_PUBLIC_VECTORIZATION_DISPLAY_PRICE ?? null
+          }
+          onClose={() => {
+            setLowResModalOpen(false)
+            lowResModalDismissedRef.current = true
+          }}
+          onUploadHigherQuality={() => {
+            try {
+              fabricContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+            } catch {
+              /* noop */
+            }
+          }}
+          onAcceptVectorization={() => {
+            setVectorizationRequested(true)
+            setStatusMessage(
+              "Vectorization service will be added when you check out — our team will redraw your artwork sharp for print."
+            )
+          }}
+        />
       </div>
     )
   }
 
-  if (embedded && !integratedPdpSlots) {
-    return (
-      <section
-        id="customize"
-        aria-labelledby="customizer-section-title"
-        className="border-t border-ui-border-base scroll-mt-28"
-      >
-        <div className="content-container py-8 small:py-12">
-          <h2
-            id="customizer-section-title"
-            className="mb-6 text-2xl font-semibold text-ui-fg-base small:text-3xl"
-          >
-            Add your artwork
-          </h2>
-          {main}
-        </div>
-        <MobileCustomizerToolbar />
-      </section>
-    )
-  }
-
-  return (
-    <div className="content-container py-8 small:py-12">
-      {main}
-      <MobileCustomizerToolbar
-        onAction={(id) => {
-          // Pricing panel is huge — sheet UX would re-render the size matrix
-          // + Add to cart inside a constrained scroller. Keep the existing
-          // anchor scroll for that one button; sheets handle the rest.
-          if (id === "pricing") {
-            if (typeof document !== "undefined") {
-              const el = document.getElementById("customizer-pricing-panel")
-              el?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
-            return
-          }
-          setMobileSheet(id)
-        }}
-      />
-      <BottomSheet
-        open={mobileSheet === "add-art"}
-        onClose={() => setMobileSheet(null)}
-        title="Add to design"
-      >
-        <InputPanel
-          onUploadFile={handleUploadFile}
-          uploads={sessionUploads.map((entry) => ({
-            id: entry.id,
-            name: entry.name,
-            previewUrl: entry.dataUrl,
-            type: entry.type,
-          }))}
-          onReuseUpload={handleReuseUpload}
-          cartDesigns={cartArtworkDesigns}
-          onAddCartDesign={handleAddCartDesignFromCart}
-          onAddText={handleAddText}
-          onAddCurvedText={handleAddCurvedText}
-          onRemoveSelectedImage={removeSelectedImage}
-          canRemoveImage={canRemoveImage}
-          onDeleteUpload={(uploadId) =>
-            setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
-          }
-          enabled
-          selectedText={selectedTextSnapshot}
-          onUpdateSelectedText={updateActiveText}
-          onDeselectText={deselectActiveText}
-          className="border-0 bg-transparent p-0"
-        />
-      </BottomSheet>
-      <BottomSheet
-        open={mobileSheet === "add-text"}
-        onClose={() => setMobileSheet(null)}
-        title="Add text"
-      >
-        <InputPanel
-          onUploadFile={handleUploadFile}
-          uploads={sessionUploads.map((entry) => ({
-            id: entry.id,
-            name: entry.name,
-            previewUrl: entry.dataUrl,
-            type: entry.type,
-          }))}
-          onReuseUpload={handleReuseUpload}
-          cartDesigns={cartArtworkDesigns}
-          onAddCartDesign={handleAddCartDesignFromCart}
-          onAddText={handleAddText}
-          onAddCurvedText={handleAddCurvedText}
-          onRemoveSelectedImage={removeSelectedImage}
-          canRemoveImage={canRemoveImage}
-          onDeleteUpload={(uploadId) =>
-            setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
-          }
-          enabled
-          selectedText={selectedTextSnapshot}
-          onUpdateSelectedText={updateActiveText}
-          onDeselectText={deselectActiveText}
-          className="border-0 bg-transparent p-0"
-        />
-      </BottomSheet>
-      <BottomSheet
-        open={mobileSheet === "sides"}
-        onClose={() => setMobileSheet(null)}
-        title="Print location"
-      >
-        <SideSelector
-          currentSide={currentSide}
-          onSelectSide={(side) => {
-            switchSide(side)
-            setMobileSheet(null)
-          }}
-          allowedSides={allowedPrintSides}
-        />
-      </BottomSheet>
-    </div>
-  )
+  return null
 }
