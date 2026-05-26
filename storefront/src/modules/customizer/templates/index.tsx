@@ -4003,6 +4003,7 @@ export default function CustomizerTemplate({
               </div>
 
               <div className="flex flex-col lg:flex-row lg:items-stretch">
+                {!isAdminProofMode && (
                 <div
                   id="customizer-input-panel"
                   className="order-2 border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 scroll-mt-20 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base"
@@ -4040,6 +4041,7 @@ export default function CustomizerTemplate({
                     className="border-0 bg-transparent p-0"
                   />
                 </div>
+                )}
 
                 <div className="order-1 min-h-[min(58vh,680px)] flex-1 p-4 small:p-5 lg:order-2">
                   <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
@@ -4404,6 +4406,7 @@ export default function CustomizerTemplate({
         <div className={`order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
           isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
         }`}>
+          {!isAdminProofMode && (
           <div className="space-y-1 border-b border-ui-border-base pb-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -4420,6 +4423,27 @@ export default function CustomizerTemplate({
               ) : null}
             </div>
           </div>
+          )}
+
+          {isAdminProofMode ? (
+            <div className="space-y-3 rounded-xl border-2 border-blue-400 bg-blue-50 p-4">
+              <p className="text-sm font-semibold text-blue-900">Admin proof mode</p>
+              <p className="text-xs text-blue-800">
+                Adjust the artwork position and size, then click <strong>Save Proof</strong> to composite the mockup and send it back to the order.
+              </p>
+              {adminProofError ? (
+                <p className="text-xs text-red-700 font-medium">{adminProofError}</p>
+              ) : null}
+              <button
+                type="button"
+                disabled={adminProofSaving}
+                onClick={handleSaveProof}
+                className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 active:scale-[0.99] disabled:opacity-60"
+              >
+                {adminProofSaving ? "Saving proof…" : "Save Proof"}
+              </button>
+            </div>
+          ) : null}
 
           {editGroupId ? (
             <div className="space-y-2 rounded-xl border-2 border-amber-500 bg-amber-50 p-3 text-amber-900 shadow-[0_0_0_3px_rgba(245,158,11,0.18)]">
@@ -4531,8 +4555,10 @@ export default function CustomizerTemplate({
           {/* Step 1 — Product options (color/etc.). Hidden in edit-group
               mode because the customer is editing a design across many
               variants — picking "the" variant doesn't apply. The inline
-              variant list below Step 4 is where they manage the mix. */}
-          {hasStep1 && !editGroupId ? (
+              variant list below Step 4 is where they manage the mix.
+              Also hidden in admin proof mode — admin already has the
+              variant from URL params and only needs to save the proof. */}
+          {hasStep1 && !editGroupId && !isAdminProofMode ? (
             <div ref={step1Ref} className={`space-y-3 rounded-xl border p-4 ${
               pdpStep === 1
                 ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
@@ -4596,7 +4622,10 @@ export default function CustomizerTemplate({
               jump straight to the design steps so they see the same
               wizard layout that will render once hydration sets pdpStep
               to 4. Without this, the gallery briefly flashes between
-              mount and hydration completion. */}
+              mount and hydration completion. Admin proof mode replaces
+              the wizard with a Save Proof panel above, so the steps
+              never render in that mode. */}
+          {!isAdminProofMode && (
           <AnimatePresence mode="wait" initial={false}>
             {hasStep1 && pdpStep === 1 && !editGroupId && integratedPdpSlots.gallery ? (
               <motion.div
@@ -5257,6 +5286,7 @@ export default function CustomizerTemplate({
               </motion.div>
             )}
           </AnimatePresence>
+          )}
         </div>
         <LowResolutionModal
           open={lowResModalOpen}
