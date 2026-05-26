@@ -65,17 +65,9 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
     )
   }
 
-  // All products (including beanies) route through the unified customizer.
-  // The customizer surfaces a per-side decoration method picker
-  // (print | embroidery) — see customizer/components/decoration-method-picker
-  // and embroidery-side-config. Beanies are still restricted by the
-  // `allowedPrintSides` logic in customizer/templates/index.tsx (treated as
-  // hats, front-only) so the experience is appropriate for the garment.
-
-  // The customizer flow is the only purchase path — blank garments cannot be
-  // ordered directly. ProductActions renders a "Customize this product" CTA
-  // (via `hideInlinePurchaseControls`) that scrolls to the embedded
-  // customizer.
+  // Blank garments cannot be ordered directly — `hideInlinePurchaseControls`
+  // swaps the size/qty/add-to-cart row inside ProductActions for a "Customize
+  // this product" CTA that scrolls to the embedded customizer below.
   const gallerySlot = (
     <ImageGallery
       product={product}
