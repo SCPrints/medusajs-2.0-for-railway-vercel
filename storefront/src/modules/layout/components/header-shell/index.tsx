@@ -43,6 +43,13 @@ import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
 const COLLAPSE_THRESHOLD = 80
 const SCROLL_DEADZONE = 4
 const HAMBURGER_GRACE_MS = 500
+// Must exceed the Framer height animation duration (220ms). When row 2's
+// height animates, the sticky header's footprint in the document changes
+// every frame and the browser fires scroll events to follow the reflow.
+// Those events arrive with reversed deltas relative to the user's actual
+// scroll direction; without this lock the state flips back, the animation
+// reverses, and the row bounces 6-7× before settling.
+const STATE_LOCK_MS = 280
 
 type Props = {
   audiences: MenuAudience[]
@@ -54,11 +61,15 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
   const isCondensedRef = useRef(false)
   const lastScrollYRef = useRef(0)
   const graceUntilRef = useRef(0)
+  const stateLockUntilRef = useRef(0)
 
   const setCondensed = useCallback((next: boolean) => {
     if (isCondensedRef.current === next) return
     isCondensedRef.current = next
     setIsCondensed(next)
+    // Block further toggles until the height animation finishes so the
+    // browser's animation-induced scroll events can't bounce us back.
+    stateLockUntilRef.current = Date.now() + STATE_LOCK_MS
   }, [])
 
   useEffect(() => {
@@ -71,13 +82,19 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
       const y = window.scrollY
       const last = lastScrollYRef.current
       const diff = y - last
+      // Always advance the baseline so neither lock window leaves a stale
+      // anchor that turns the next real scroll into a giant phantom delta.
+      lastScrollYRef.current = y
 
-      // During the post-click grace window, follow the cursor scroll
-      // without flipping state — but still keep lastScrollY current.
-      if (Date.now() < graceUntilRef.current) {
-        lastScrollYRef.current = y
-        return
-      }
+      const now = Date.now()
+
+      // Post-hamburger grace: don't re-condense from the user's continued
+      // scroll for a brief moment after they manually expanded the row.
+      if (now < graceUntilRef.current) return
+
+      // Post-toggle lock: ignore scroll events caused by the row 2 height
+      // animation itself. See STATE_LOCK_MS comment for the gory details.
+      if (now < stateLockUntilRef.current) return
 
       if (Math.abs(diff) < SCROLL_DEADZONE) return
 
@@ -88,8 +105,6 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
       } else if (diff < 0) {
         setCondensed(false)
       }
-
-      lastScrollYRef.current = y
     }
 
     // Sync on mount — handles reload-on-scrolled-page.
