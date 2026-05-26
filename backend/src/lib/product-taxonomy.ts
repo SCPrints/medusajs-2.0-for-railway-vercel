@@ -61,6 +61,14 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   // Sweatshirts / Crews (non-hooded). "Half Zip" is AS Colour shorthand for
   // a quarter-zip pullover sweat (no hood); shop-categories.ts further
   // routes it to the quarter-zips sub via KW_QUARTER_ZIP.
+  //
+  // Australian workwear vocab (DNC catalog mostly uses these):
+  //   - "fleecy" / "fleecy top" — fleece-lined pullover (most of DNC's HiVis
+  //     1/2 Zip Fleecy Top line). Distinct from "fleece" which routes to
+  //     Jackets because AS Colour uses "fleece" exclusively for outer wear.
+  //   - "jumper" — AU/UK for sweater
+  //   - "sloppy joe" — AU for sweatshirt
+  //   - "track top" — top half of a tracksuit
   "sweatshirt": "Sweatshirts",
   "sweatshirts": "Sweatshirts",
   "crew": "Sweatshirts",
@@ -73,6 +81,12 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "quarter zip": "Sweatshirts",
   "quarter-zip": "Sweatshirts",
   "1/4 zip": "Sweatshirts",
+  "fleecy": "Sweatshirts",
+  "fleecy top": "Sweatshirts",
+  "jumper": "Sweatshirts",
+  "jumpers": "Sweatshirts",
+  "sloppy joe": "Sweatshirts",
+  "track top": "Sweatshirts",
   // Shirts (woven / work / dress)
   "shirt": "Shirts",
   "shirts": "Shirts",
@@ -81,6 +95,8 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "short sleeve shirt": "Shirts",
   "ss shirt": "Shirts",
   "shirting and tops": "Shirts",
+  "blouse": "Shirts",
+  "blouses": "Shirts",
   // Healthcare uniforms — Biz Care territory. These canonical types
   // route to the `healthcare-*` audience subs (scrub-tops / scrub-pants /
   // tunics / lab-coats / cardigans). Generic "scrubs" defaults to tops.
@@ -162,14 +178,40 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "chinos": "Pants",
   "legging": "Pants",
   "leggings": "Pants",
+  // Denim — DNC workwear catalog has multiple Jeans / Denim Stretch Jeans
+  // / Cotton Denim Jeans variants. "denim" alone catches titles where the
+  // garment word ("jeans"/"trousers") is dropped.
+  "jeans": "Pants",
+  "jean": "Pants",
+  "denim": "Pants",
+  "denim jeans": "Pants",
   // Jackets
+  //
+  // Australian workwear vocab (DNC catalog):
+  //   - "windcheater" — AU for windbreaker (often fleecy-lined)
+  //   - "parka" — heavy hooded jacket
+  //   - "jerkin" — sleeveless work jacket
+  //   - "bluey coat" / "bluey jacket" — heavy wool work coat (Australian
+  //     workwear staple)
+  //   - "dust coat" — long protective lab/work coat
   "jacket": "Jackets",
   "jackets": "Jackets",
   "fleece": "Jackets",
   "softshell": "Jackets",
   "soft shell": "Jackets",
   "windbreaker": "Jackets",
+  "windcheater": "Jackets",
+  "windcheaters": "Jackets",
   "rain jacket": "Jackets",
+  "parka": "Jackets",
+  "parkas": "Jackets",
+  "jerkin": "Jackets",
+  "jerkins": "Jackets",
+  "bluey": "Jackets",
+  "bluey coat": "Jackets",
+  "bluey jacket": "Jackets",
+  "dust coat": "Jackets",
+  "dust coats": "Jackets",
   "vest": "Jackets",
   "vests": "Jackets",
   // Headwear
@@ -195,6 +237,12 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "drawstring bag": "Bags",
   "cooler bag": "Bags",
   // Accessories
+  //
+  // Australian workwear PPE (DNC catalog):
+  //   - "bandanna"/"bandana"/"neck chief" — neck covers
+  //   - "boot"/"boots"/"gumboot"/"gum boot" — work footwear
+  //   - "glove"/"gloves" — work gloves
+  //   - "knee pad"/"knee pads" — tradie knee protection
   "accessory": "Accessories",
   "accessories": "Accessories",
   "lanyard": "Accessories",
@@ -213,6 +261,24 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "tea towels": "Accessories",
   "flag": "Accessories",
   "flags": "Accessories",
+  "bandanna": "Accessories",
+  "bandanas": "Accessories",
+  "bandana": "Accessories",
+  "bandannas": "Accessories",
+  "neck chief": "Accessories",
+  "neck chiefs": "Accessories",
+  "boot": "Accessories",
+  "boots": "Accessories",
+  "gumboot": "Accessories",
+  "gum boot": "Accessories",
+  "gumboots": "Accessories",
+  "gum boots": "Accessories",
+  "glove": "Accessories",
+  "gloves": "Accessories",
+  "knee pad": "Accessories",
+  "knee pads": "Accessories",
+  "kneepad": "Accessories",
+  "kneepads": "Accessories",
   // Socks
   "socks": "Socks",
   "sock": "Socks",
