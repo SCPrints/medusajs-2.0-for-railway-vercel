@@ -12,7 +12,7 @@ import LineItemOptions from "@modules/common/components/line-item-options"
 import LineItemPrice from "@modules/common/components/line-item-price"
 import AggregatedTierBanner from "@modules/cart/components/aggregated-tier-banner"
 import LineItemMockupPreview from "@modules/customizer/components/line-item-mockup-preview"
-import { getPrimaryGarmentImageUrl } from "@modules/products/lib/variant-options"
+import { resolveCartLineImageUrl } from "@modules/products/lib/variant-options"
 import {
   getCustomizerMockupArtifacts,
   getCustomizerMockupUrls,
@@ -170,10 +170,7 @@ const CartDropdown = ({
                               // so the dropdown shows the colour the
                               // customer picked (sleeve / tag mockups
                               // always render against a white placeholder).
-                              getPrimaryGarmentImageUrl(
-                                item.variant?.product as HttpTypes.StoreProduct | undefined,
-                                item.variant as HttpTypes.StoreProductVariant | undefined
-                              ) ?? item.variant?.product?.thumbnail
+                              resolveCartLineImageUrl(item)
                             }
                             productImages={item.variant?.product?.images}
                             size="square"

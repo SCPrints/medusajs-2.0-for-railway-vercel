@@ -16,7 +16,7 @@ import {
   getCustomizerMockupArtifacts,
   getCustomizerMockupUrls,
 } from "@modules/customizer/lib/metadata"
-import { getPrimaryGarmentImageUrl } from "@modules/products/lib/variant-options"
+import { resolveCartLineImageUrl } from "@modules/products/lib/variant-options"
 import SkeletonLineItem from "@modules/skeletons/components/skeleton-line-item"
 import { useMemo, useState } from "react"
 
@@ -268,14 +268,7 @@ const CartItemGroup = ({
 
   const mockupArtifacts = firstLine ? getCustomizerMockupArtifacts(firstLine) : []
   const mockupUrls = firstLine ? getCustomizerMockupUrls(firstLine) : []
-  const fallbackThumb = firstLine
-    ? getPrimaryGarmentImageUrl(
-        firstLine.variant?.product as HttpTypes.StoreProduct | undefined,
-        firstLine.variant as HttpTypes.StoreProductVariant | undefined
-      ) ??
-      firstLine.variant?.product?.thumbnail ??
-      firstLine.thumbnail
-    : undefined
+  const fallbackThumb = resolveCartLineImageUrl(firstLine) ?? undefined
   const showThumbnail = isDesignGroup && !!firstLine
 
   return (

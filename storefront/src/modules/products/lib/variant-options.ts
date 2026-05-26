@@ -911,6 +911,39 @@ const garmentUrlLooksLikeFront = (url: string) => {
 }
 
 /**
+ * Cart-line thumbnail fallback chain used by the cart dropdown, cart line
+ * component, and cart group template: primary garment image → product
+ * thumbnail → line thumbnail. Centralised so the three render paths stay
+ * in sync; the customizer mockup (which renders against a white placeholder
+ * for sleeve / tag prints) is intentionally ignored here so the swatch
+ * thumbnail in the cart always shows the actual garment colour.
+ */
+export function resolveCartLineImageUrl(
+  line:
+    | {
+        variant?:
+          | (HttpTypes.StoreProductVariant & {
+              product?: HttpTypes.StoreProduct | null | undefined
+            })
+          | null
+          | undefined
+        thumbnail?: string | null
+      }
+    | null
+    | undefined
+): string | null {
+  if (!line) return null
+  const variant = line.variant ?? undefined
+  const product = variant?.product as HttpTypes.StoreProduct | undefined
+  return (
+    getPrimaryGarmentImageUrl(product, variant) ??
+    product?.thumbnail ??
+    line.thumbnail ??
+    null
+  )
+}
+
+/**
  * Garment mockup URL for the customizer canvas and mockup renders, matched to print side.
  * Front/back: variant `garment_images`, colour-matched product images, then filename heuristics.
  * Sleeves: static placeholders (no per-product sleeve photography in catalog).
