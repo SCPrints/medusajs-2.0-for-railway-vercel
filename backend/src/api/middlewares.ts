@@ -50,6 +50,15 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "4mb" },
     },
     {
+      // Bulk-order grid posts up to 300 lines in one request. Each line
+      // carries a CustomizerMetadata payload (~5-15kb after sanitiseation)
+      // so the worst case is ~5MB — keep headroom at 32mb to match the
+      // customizer render limit.
+      matcher: "/store/carts/:id/scp-line-items-batch",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "32mb" },
+    },
+    {
       matcher: "/store/carts/:id/embroidery-line-items",
       methods: ["POST"],
       bodyParser: { sizeLimit: "4mb" },

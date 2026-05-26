@@ -1,6 +1,6 @@
 "use client"
 
-import { addScpLineItemToCartSafe, addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart, updateScpDesignInCart } from "@lib/data/cart"
+import { addScpLineItemToCartSafe, addScpLineItemsBatchSafe, addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart, updateScpDesignInCart } from "@lib/data/cart"
 import { createMyDesign, getMyDesign, updateMyDesign } from "@lib/data/designs"
 import { getOrderLineCustomizerMetadata } from "@lib/data/orders"
 import CustomizerProductPicker, {
@@ -51,6 +51,7 @@ import {
 import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
+import { replaceInlineRasterWithHostedUrls } from "@modules/customizer/lib/inline-raster-to-hosted"
 import { extractCartDesigns, filterByKind } from "@lib/util/cart-decorations"
 import { sanitizeCartAddError } from "@lib/util/sanitize-cart-error"
 import {
@@ -2685,8 +2686,25 @@ export default function CustomizerTemplate({
       version: "7.0.0",
       objects: sideObjects,
     })
-    const artworkSvg = staticCanvas.toSVG()
+    const rawArtworkSvg = staticCanvas.toSVG()
     staticCanvas.dispose()
+
+    // Fabric inlines every raster as a base64 data URL inside the SVG. Swap
+    // each one for its hosted R2 counterpart so the render payload stays
+    // under Vercel's serverless function body limit (~4.5 MB). Without this,
+    // multi-MB customer uploads return 413 from /api/customizer/render-* on
+    // Windows / large originals.
+    const dataUrlToHostedUrl: Record<string, string> = {}
+    for (const upload of sessionUploads) {
+      if (upload.dataUrl && upload.originalStorageUrl) {
+        dataUrlToHostedUrl[upload.dataUrl] = upload.originalStorageUrl
+      }
+    }
+    const artworkSvg = await replaceInlineRasterWithHostedUrls(
+      rawArtworkSvg,
+      dataUrlToHostedUrl,
+      new Map()
+    )
 
     const garmentImageUrlForApi = resolveGarmentImageUrlForCustomizerRender(
       mockupGarmentUrl,
@@ -2778,8 +2796,22 @@ export default function CustomizerTemplate({
         height: canvasDims.height,
       })
       await staticCanvas.loadFromJSON({ version: "7.0.0", objects: sideObjects })
-      const artworkSvg = staticCanvas.toSVG()
+      const rawArtworkSvg = staticCanvas.toSVG()
       staticCanvas.dispose()
+
+      // Same body-size protection as renderSideArtifacts — swap inline data
+      // URLs for hosted ones before POSTing.
+      const dataUrlToHostedUrl: Record<string, string> = {}
+      for (const upload of sessionUploads) {
+        if (upload.dataUrl && upload.originalStorageUrl) {
+          dataUrlToHostedUrl[upload.dataUrl] = upload.originalStorageUrl
+        }
+      }
+      const artworkSvg = await replaceInlineRasterWithHostedUrls(
+        rawArtworkSvg,
+        dataUrlToHostedUrl,
+        new Map()
+      )
 
       const garmentImageUrlForApi = resolveGarmentImageUrlForCustomizerRender(
         mockupGarmentUrl,
@@ -3692,7 +3724,13 @@ export default function CustomizerTemplate({
         return
       }
 
-      for (const quantityEntry of resolvedQuantities) {
+      // Build the batch payload up front then submit in ONE request. The
+      // previous version awaited `addScpLineItemToCartSafe` per cell — for
+      // a 252-cell bulk-grid add that was 252 sequential POSTs, each
+      // triggering a full `recomputeScpCartPricing` over the whole cart.
+      // The backend route now accepts the whole batch and does ONE
+      // recompute at the end (see scp-line-items-batch/route.ts).
+      const batchItems = resolvedQuantities.map((quantityEntry) => {
         // Per-cell mockup overrides: bulk-grid cells carry colour-specific
         // composited mockups for every decorated side so the cart preview
         // shows the actual colour the customer ordered — not the design-
@@ -3737,10 +3775,9 @@ export default function CustomizerTemplate({
           }
         }
 
-        const addResult = await addScpLineItemToCartSafe({
+        return {
           variantId: quantityEntry.variant.id,
           quantity: quantityEntry.quantity,
-          countryCode,
           printSizeId: scpPrintSizeId,
           metadata: {
             customizerDesign: sanitizeCustomizerDesignForCart(
@@ -3765,10 +3802,34 @@ export default function CustomizerTemplate({
             product_handle: selectedProduct.handle ?? undefined,
             product_title: selectedProduct.title ?? undefined,
           },
-        })
+        }
+      })
 
-        if (!addResult.ok) {
-          throw new Error(addResult.error)
+      if (batchItems.length > 0) {
+        // Single-line fast-path (e.g. customizer "Add to cart" outside the
+        // bulk-grid) keeps using the original endpoint — preserves the
+        // existing single-line code path 1:1 and avoids exercising the
+        // batch path for low-volume traffic until it's settled in prod.
+        if (batchItems.length === 1) {
+          const only = batchItems[0]
+          const addResult = await addScpLineItemToCartSafe({
+            variantId: only.variantId,
+            quantity: only.quantity,
+            countryCode,
+            printSizeId: only.printSizeId,
+            metadata: only.metadata,
+          })
+          if (!addResult.ok) {
+            throw new Error(addResult.error)
+          }
+        } else {
+          const batchResult = await addScpLineItemsBatchSafe({
+            countryCode,
+            items: batchItems,
+          })
+          if (!batchResult.ok) {
+            throw new Error(batchResult.error)
+          }
         }
       }
 

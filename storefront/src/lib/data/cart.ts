@@ -576,6 +576,89 @@ export async function addScpLineItemToCartSafe(input: {
 }
 
 /**
+ * Bulk add: N customizer lines in one request. Used by the bulk-order grid
+ * when the customer commits a colour×size matrix. Routes to the
+ * /store/carts/:id/scp-line-items-batch endpoint which runs ONE
+ * addToCartWorkflow + ONE recomputeScpCartPricing for the whole batch —
+ * cutting the per-line O(N²) recompute storm down to O(N).
+ *
+ * `safe` variant returns a discriminated union so the caller can render the
+ * failure inline rather than throwing across the customizer's submit
+ * boundary.
+ */
+export async function addScpLineItemsBatchSafe(input: {
+  countryCode: string
+  items: Array<{
+    variantId: string
+    quantity: number
+    metadata?: Record<string, unknown>
+    printSizeId: ScpPrintSizeId
+  }>
+}): Promise<
+  | { ok: true; itemsAdded: number; itemsAfter: number }
+  | { ok: false; error: string }
+> {
+  const { countryCode, items } = input
+
+  if (items.length === 0) {
+    return { ok: false, error: "No items to add." }
+  }
+  if (items.some((it) => !it.variantId)) {
+    return { ok: false, error: "Missing variant id on one or more items." }
+  }
+
+  const cart = await getOrSetCart(countryCode)
+  if (!cart?.id) {
+    return { ok: false, error: "Error retrieving or creating cart." }
+  }
+
+  cartDebug("addScpLineItemsBatch:start", {
+    cartId: cart.id,
+    item_count: items.length,
+  })
+
+  try {
+    const raw = await postJsonMedusa(`/store/carts/${cart.id}/scp-line-items-batch`, {
+      items: items.map((it) => ({
+        variant_id: it.variantId,
+        quantity: it.quantity,
+        metadata: it.metadata ?? {},
+        scp_print: {
+          version: SCP_PRINT_PRICING_VERSION,
+          print_size_id: it.printSizeId,
+        },
+      })),
+    })
+    const response = (raw ?? {}) as {
+      ok?: boolean
+      cart_id?: string
+      items_added?: number
+      items_after?: number
+    }
+    const itemsAdded = typeof response.items_added === "number" ? response.items_added : items.length
+    const itemsAfter = typeof response.items_after === "number" ? response.items_after : itemsAdded
+    cartDebug("addScpLineItemsBatch:success", {
+      cartId: cart.id,
+      itemsAdded,
+    })
+    revalidateTag("cart", "max")
+    return { ok: true, itemsAdded, itemsAfter }
+  } catch (error) {
+    cartDebug("addScpLineItemsBatch:failed", {
+      cartId: cart.id,
+      message: error instanceof Error ? error.message : "unknown",
+    })
+    return {
+      ok: false,
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not add these items to your cart right now.",
+    }
+  }
+}
+
+/**
  * In-place design update for a set of existing cart lines that share a
  * customizer design-group. The artwork/text/positions change but the line
  * ids, variants, and quantities are preserved — so created_at, manual
