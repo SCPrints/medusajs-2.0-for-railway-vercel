@@ -2619,8 +2619,7 @@ export default function CustomizerTemplate({
     }
     const artworkSvg = await replaceInlineRasterWithHostedUrls(
       rawArtworkSvg,
-      dataUrlToHostedUrl,
-      new Map()
+      dataUrlToHostedUrl
     )
 
     const garmentImageUrlForApi = resolveGarmentImageUrlForCustomizerRender(
@@ -2726,8 +2725,7 @@ export default function CustomizerTemplate({
       }
       const artworkSvg = await replaceInlineRasterWithHostedUrls(
         rawArtworkSvg,
-        dataUrlToHostedUrl,
-        new Map()
+        dataUrlToHostedUrl
       )
 
       const garmentImageUrlForApi = resolveGarmentImageUrlForCustomizerRender(

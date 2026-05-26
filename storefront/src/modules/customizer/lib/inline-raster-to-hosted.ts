@@ -12,8 +12,7 @@
  *   1. Build a `data: → hosted` map from `sessionUploads` (already populated
  *      when the customer picked the file).
  *   2. For any data URL with no mapping (re-orders, pasted images, etc.),
- *      upload it on the fly via the existing helper and cache the result for
- *      the print+mockup pair so we only pay one upload per unique blob.
+ *      upload it on the fly via the existing helper.
  *   3. If the upload fails, leave the data URL in place — same behaviour as
  *      today (the request will still fail at the render endpoint with a clear
  *      error, but we won't have made anything worse).
@@ -57,13 +56,11 @@ function dataUrlToFile(dataUrl: string, name: string): File | null {
  * Rewrite every inline raster href in `svg` to a hosted R2 URL.
  *
  * `knownHostedByDataUrl` is the dataUrl→hosted map you've already collected
- * from sessionUploads. Pass `uploadCache` across the print+mockup calls for
- * the same side so a brand-new upload is only paid for once.
+ * from sessionUploads. Anything not in the map gets uploaded on the fly.
  */
 export async function replaceInlineRasterWithHostedUrls(
   svg: string,
-  knownHostedByDataUrl: Record<string, string>,
-  uploadCache: Map<string, string | null>
+  knownHostedByDataUrl: Record<string, string>
 ): Promise<string> {
   if (!svg.includes("data:image/")) {
     return svg
@@ -91,20 +88,11 @@ export async function replaceInlineRasterWithHostedUrls(
       resolved[dataUrl] = known
       continue
     }
-    if (uploadCache.has(dataUrl)) {
-      const cached = uploadCache.get(dataUrl)
-      if (cached) {
-        resolved[dataUrl] = cached
-      }
-      continue
-    }
     const file = dataUrlToFile(dataUrl, `inline_${Date.now()}_${i}`)
     if (!file) {
-      uploadCache.set(dataUrl, null)
       continue
     }
     const hosted = await uploadCustomerOriginalUnchanged(file)
-    uploadCache.set(dataUrl, hosted ?? null)
     if (hosted) {
       resolved[dataUrl] = hosted
     }
