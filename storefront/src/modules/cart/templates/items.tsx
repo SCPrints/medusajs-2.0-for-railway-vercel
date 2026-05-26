@@ -273,18 +273,42 @@ const CartItemGroup = ({
 
   return (
     <>
-      <Table.Row className="bg-ui-bg-subtle">
+      <Table.Row className="bg-ui-bg-subtle hover:bg-ui-bg-subtle-hover transition-colors">
         {/* Medusa UI's Table.Cell prop type doesn't declare `colSpan`, but it forwards rest props to <td>. */}
         <Table.Cell {...({ colSpan: 5 } as any)} className="!py-2">
           <div className="flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="flex flex-1 items-center justify-between gap-3 text-left"
+              className="flex flex-1 items-center justify-between gap-3 rounded-md text-left transition-colors hover:bg-ui-bg-base/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-border-interactive/40"
               aria-expanded={open}
+              aria-label={open ? "Collapse group" : "Expand group to see variants"}
               data-testid="cart-group-toggle"
             >
               <div className="flex items-center gap-3 min-w-0">
+                {/* Explicit chevron button styled like a real disclosure
+                    control. Previously a tiny ▾/▸ unicode glyph inside the
+                    title text — customers didn't realise the row was
+                    clickable. Sized at 28×28 with a ring so it reads as
+                    an interactive affordance even before hover. */}
+                <span
+                  aria-hidden
+                  className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full bg-ui-bg-base text-ui-fg-base ring-1 ring-ui-border-base"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`transition-transform duration-200 ${open ? "rotate-90" : "rotate-0"}`}
+                  >
+                    <polyline points="9 6 15 12 9 18" />
+                  </svg>
+                </span>
                 {showThumbnail ? (
                   <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-ui-bg-base ring-1 ring-ui-border-base">
                     <LineItemMockupPreview
@@ -296,7 +320,7 @@ const CartItemGroup = ({
                   </div>
                 ) : null}
                 <Text className="txt-medium-plus text-ui-fg-base truncate">
-                  {open ? "▾" : "▸"} {title}{" "}
+                  {title}{" "}
                   {isDesignGroup ? (
                     <span className="ml-1 inline-block rounded-full bg-ui-bg-base px-2 py-0.5 text-xs text-ui-fg-subtle">
                       custom design
@@ -308,6 +332,9 @@ const CartItemGroup = ({
                 {lineCount} {lineCount === 1 ? "variant" : "variants"} ·{" "}
                 {totalQuantity} units
                 {formattedTotal ? ` · ${formattedTotal}` : ""}
+                <span className="ml-2 text-ui-fg-muted underline underline-offset-2 hidden small:inline">
+                  {open ? "Hide" : "Show"} variants
+                </span>
               </Text>
             </button>
             {showGroupEditLink ? (
