@@ -1,5 +1,3 @@
-import { convertToLocale } from "@lib/util/money"
-
 import {
   resolveScpPrintSizeForSide,
   resolveScpTierIndexForQuantity,
@@ -62,9 +60,6 @@ const resolveBulkTierForQuantity = (tiers: BulkPricingTier[], quantity: number) 
     }
     return true
   }) ?? tiers[tiers.length - 1]
-
-export const formatCurrency = (amount: number, currencyCode = "aud") =>
-  convertToLocale({ amount, currency_code: currencyCode })
 
 export const calculatePricing = ({
   basePriceCents,

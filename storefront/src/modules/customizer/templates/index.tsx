@@ -22,7 +22,6 @@ import BulkOrderGrid, {
   type BulkCellEntry,
   type BulkPricingEstimate,
 } from "@modules/customizer/components/bulk-order-grid"
-import ManagementPanel from "@modules/customizer/components/management-panel"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
 import SideSelector from "@modules/customizer/components/side-selector"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -382,7 +381,6 @@ export default function CustomizerTemplate({
   const step2Ref = useRef<HTMLDivElement | null>(null)
   const step3Ref = useRef<HTMLDivElement | null>(null)
   const step4Ref = useRef<HTMLDivElement | null>(null)
-  const sidebarScrollRef = useRef<HTMLDivElement | null>(null)
 
   /**
    * Resolver for EmbroiderySideConfig — returns a data URL of the artwork
@@ -534,7 +532,6 @@ export default function CustomizerTemplate({
   // true. Re-hydration / re-edit flows set it via the same setter as the
   // size, so prior selections appear pre-selected on return.
   const [scpPrintSizeChosen, setScpPrintSizeChosen] = useState(false)
-  const [showPrintAreaGuides, setShowPrintAreaGuides] = useState(false)
   // Guided PDP wizard: tracks the highest step the user has reached (1..4).
   // Steps below `pdpStep` collapse to summary chips with a "Change" link.
   const [pdpStep, setPdpStep] = useState<1 | 2 | 3 | 4>(1)
@@ -2138,11 +2135,9 @@ export default function CustomizerTemplate({
     syncSize()
 
     canvas.on("object:moving", (event: any) => {
-      setShowPrintAreaGuides(true)
       clampObjectToBounds(event.target)
     })
     canvas.on("object:scaling", (event: any) => {
-      setShowPrintAreaGuides(true)
       // Cap the artwork size at the current print area (per-side, per-size).
       // Skipped when the effective print size is "oversize" (no max).
       const obj = event.target
@@ -2178,22 +2173,18 @@ export default function CustomizerTemplate({
       clampObjectToBounds(event.target)
     })
     canvas.on("object:rotating", (event: any) => {
-      setShowPrintAreaGuides(true)
       clampObjectToBounds(event.target)
     })
     canvas.on("object:modified", syncHandlers)
     canvas.on("object:added", syncHandlers)
     canvas.on("object:removed", syncHandlers)
     canvas.on("selection:created", () => {
-      setShowPrintAreaGuides(true)
       updateLayers()
     })
     canvas.on("selection:updated", () => {
-      setShowPrintAreaGuides(true)
       updateLayers()
     })
     canvas.on("selection:cleared", () => {
-      setShowPrintAreaGuides(false)
       updateLayers()
     })
 
@@ -2213,7 +2204,6 @@ export default function CustomizerTemplate({
     }
 
     saveCurrentSide()
-    setShowPrintAreaGuides(false)
     setCurrentSide(nextSide)
     await loadSide(nextSide)
   }
@@ -2576,103 +2566,6 @@ export default function CustomizerTemplate({
     if (!layer) return false
     return !layer.locked
   }, [layers, selectedLayerId])
-
-  const selectLayer = (id: string) => {
-    const canvas = fabricCanvasRef.current
-    const object = canvas?.getObjects().find((entry: any) => getObjectId(entry) === id)
-    if (!object) {
-      return
-    }
-    canvas.setActiveObject(object)
-    canvas.renderAll()
-    updateLayers()
-  }
-
-  const toggleLayerVisibility = (id: string) => {
-    const canvas = fabricCanvasRef.current
-    const object = canvas?.getObjects().find((entry: any) => getObjectId(entry) === id)
-    if (!object) {
-      return
-    }
-    object.set({ visible: object.visible === false })
-    canvas.renderAll()
-    updateLayers()
-    saveCurrentSide()
-  }
-
-  const toggleLayerLock = (id: string) => {
-    const canvas = fabricCanvasRef.current
-    const object = canvas?.getObjects().find((entry: any) => getObjectId(entry) === id)
-    if (!object) {
-      return
-    }
-    const nextLocked = !object.lockMovementX
-    object.set({
-      lockMovementX: nextLocked,
-      lockMovementY: nextLocked,
-      lockScalingX: nextLocked,
-      lockScalingY: nextLocked,
-      lockRotation: nextLocked,
-    })
-    updateLayers()
-    saveCurrentSide()
-  }
-
-  const alignSelection = (mode: "centerX" | "centerY" | "top" | "middle" | "bottom") => {
-    const canvas = fabricCanvasRef.current
-    const object = canvas?.getActiveObject()
-    if (!object) {
-      return
-    }
-
-    const width = object.getScaledWidth?.() ?? 0
-    const height = object.getScaledHeight?.() ?? 0
-    const updates: Record<string, number> = {}
-
-    if (mode === "centerX") {
-      updates.left = printArea.x + printArea.width / 2 - width / 2
-    }
-    if (mode === "centerY" || mode === "middle") {
-      updates.top = printArea.y + printArea.height / 2 - height / 2
-    }
-    if (mode === "top") {
-      updates.top = printArea.y
-    }
-    if (mode === "bottom") {
-      updates.top = printArea.y + printArea.height - height
-    }
-
-    object.set(updates)
-    clampObjectToBounds(object)
-    saveCurrentSide()
-  }
-
-  const recolorSelectedSvg = (nextColor: string) => {
-    const canvas = fabricCanvasRef.current
-    const object = canvas?.getActiveObject()
-    if (!object) {
-      return
-    }
-
-    const updateColor = (target: any) => {
-      if (typeof target.set === "function") {
-        if (target.fill) {
-          target.set("fill", nextColor)
-        }
-        if (target.stroke) {
-          target.set("stroke", nextColor)
-        }
-      }
-
-      if (Array.isArray(target._objects)) {
-        target._objects.forEach((child: any) => updateColor(child))
-      }
-    }
-
-    updateColor(object)
-    canvas.renderAll()
-    saveCurrentSide()
-  }
 
   const changeSizeQuantity = (size: string, quantity: number) => {
     const safeQty = Math.max(0, Math.floor(Number.isFinite(quantity) ? quantity : 0))
@@ -4161,12 +4054,6 @@ export default function CustomizerTemplate({
                       garmentTitle={garmentDisplayTitle}
                       printSideKey={currentSide}
                       printArea={printArea}
-                      // The dashed print rectangle is no longer rendered — image
-                      // sizing/positioning is enforced invisibly via fit-to-area
-                      // on placement, scale clamping during resize, and position
-                      // clamping on drag, so the guide became redundant noise on
-                      // garment photos that don't crop neatly to a rectangle.
-                      showPrintAreaGuides={false}
                       outOfBoundsWarning={outOfBoundsWarning}
                       dpiWarning={dpiWarning}
                       fabricContainerRef={fabricContainerRef}
@@ -4516,7 +4403,7 @@ export default function CustomizerTemplate({
             )
           })()}
         </div>
-        <div ref={sidebarScrollRef} className={`order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
+        <div className={`order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
           isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
         }`}>
           <div className="space-y-1 border-b border-ui-border-base pb-3">

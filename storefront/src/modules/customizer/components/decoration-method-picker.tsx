@@ -7,8 +7,6 @@ type Props = {
   side: GarmentSide
   value: DecorationMethod
   onChange: (side: GarmentSide, method: DecorationMethod) => void
-  /** Disable picker (e.g. while another async op is in flight). */
-  disabled?: boolean
   /** Optional list of methods this product supports. Defaults to both. */
   availableMethods?: DecorationMethod[]
 }
@@ -32,7 +30,6 @@ const DecorationMethodPicker: React.FC<Props> = ({
   side,
   value,
   onChange,
-  disabled,
   availableMethods = ["print", "embroidery"],
 }) => {
   // When only one method is available (e.g. embroidery-only for beanies),
@@ -50,7 +47,6 @@ const DecorationMethodPicker: React.FC<Props> = ({
             <button
               key={method}
               type="button"
-              disabled={disabled}
               onClick={() => onChange(side, method)}
               title={METHOD_HINT[method]}
               aria-pressed={selected}
@@ -58,7 +54,7 @@ const DecorationMethodPicker: React.FC<Props> = ({
                 selected
                   ? "border-[var(--brand-primary,#002a5c)] bg-[var(--brand-primary,#002a5c)] text-white shadow-sm"
                   : "border-ui-border-base bg-ui-bg-base text-ui-fg-base hover:border-ui-border-strong hover:bg-ui-bg-subtle"
-              } disabled:cursor-not-allowed disabled:opacity-50`}
+              }`}
             >
               <span className="flex items-center gap-1.5 text-sm font-semibold">
                 {selected ? <span aria-hidden>✓</span> : null}

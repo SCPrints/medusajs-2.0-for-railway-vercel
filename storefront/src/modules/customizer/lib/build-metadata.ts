@@ -132,16 +132,3 @@ export function buildCustomizerMetadataBase(
       : {}),
   }
 }
-
-/**
- * Read the decoration method for a side, defaulting to "print" when the
- * metadata is v2 (no method specified) or the side isn't explicitly listed.
- * Use this everywhere instead of accessing the map directly so v2 metadata
- * continues to read as all-print.
- */
-export function getSideDecorationMethod(
-  metadata: Pick<CustomizerMetadata, "sideDecorationMethods"> | null | undefined,
-  side: GarmentSide
-): DecorationMethod {
-  return metadata?.sideDecorationMethods?.[side] ?? "print"
-}

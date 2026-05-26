@@ -68,8 +68,6 @@ type PricingPanelProps = {
    * Falls back to the full SCP size list when omitted.
    */
   allowedPrintSizesBySide?: Partial<Record<GarmentSide, ScpPrintSizeId[]>>
-  /** When true, breakdown labels reflect SCP tiered print dollars instead of the legacy flat surcharge. */
-  scpPricingEnabled?: boolean
   /** Hide the built-in print-size dropdown (when an external picker controls scpPrintSizeId). */
   hidePrintSizeSelector?: boolean
   /** Hide the panel header (when caller renders its own step heading). */
@@ -163,7 +161,6 @@ export default function PricingPanel({
   prints,
   onChangePrintSize,
   allowedPrintSizesBySide,
-  scpPricingEnabled = true,
   hidePrintSizeSelector = false,
   hideHeader = false,
   primaryCtaLabel,
@@ -607,7 +604,7 @@ export default function PricingPanel({
             </div>
           ) : (
             <p className="flex justify-between">
-              <span>{scpPricingEnabled ? "SCP print (all locations) / garment" : "Print location surcharge / unit"}</span>
+              <span>SCP print (all locations) / garment</span>
               <span>{formatMoney(pricing.sideSurchargePerUnitCents, currencyCode)}</span>
             </p>
           )}

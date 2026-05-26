@@ -6,12 +6,9 @@ import { RefObject } from "react"
 type CanvasStageProps = {
   garmentImage: string | null
   garmentTitle: string | null
-  /** When true, no product photo behind the print area (avoids duplicating the PDP gallery). */
-  omitBackgroundImage?: boolean
   /** Included in the image key so front/back swaps remount even if URLs match. */
   printSideKey?: string
   printArea: RenderPlacement
-  showPrintAreaGuides?: boolean
   outOfBoundsWarning: string | null
   dpiWarning: string | null
   /** Empty mount node; parent creates the canvas imperatively so Fabric can wrap the canvas without breaking React’s sibling tree. */
@@ -23,16 +20,14 @@ type CanvasStageProps = {
 export default function CanvasStage({
   garmentImage,
   garmentTitle,
-  omitBackgroundImage = false,
   printSideKey = "front",
   printArea,
-  showPrintAreaGuides = false,
   outOfBoundsWarning,
   dpiWarning,
   fabricContainerRef,
   tintColor,
 }: CanvasStageProps) {
-  const showPhoto = !omitBackgroundImage && garmentImage
+  const showPhoto = garmentImage
   // Sleeve placeholders are line drawings on white. When we have a sampled
   // variant colour, paint the body by laying the colour behind the image and
   // multiplying — dark line work stays dark, white body picks up the colour.
@@ -118,29 +113,11 @@ export default function CanvasStage({
             }
           />
         </>
-      ) : omitBackgroundImage ? (
-        <div
-          className="absolute inset-0 bg-ui-bg-subtle bg-[linear-gradient(45deg,transparent_46%,rgb(0_0_0/0.06)_49%,rgb(0_0_0/0.06)_51%,transparent_55%)] bg-[length:12px_12px]"
-          aria-hidden
-        />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center p-6 text-sm text-ui-fg-subtle">
           No garment image available. You can still design and export artwork.
         </div>
       )}
-
-      {showPrintAreaGuides ? (
-        <div
-          className="pointer-events-none absolute border-2 border-dashed border-sky-500"
-          style={{
-            left: printArea.x,
-            top: printArea.y,
-            width: printArea.width,
-            height: printArea.height,
-          }}
-          aria-hidden
-        />
-      ) : null}
 
       {/*
         Sleeve view uses a generic line-drawing placeholder (we don't have

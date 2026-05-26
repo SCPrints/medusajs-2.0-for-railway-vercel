@@ -7,8 +7,6 @@ export type GarmentSide =
   | "bottle_label"
   | "bottle_back_label"
 
-export type CustomizerElementType = "image" | "text" | "shape"
-
 export type SideLayout = {
   side: GarmentSide
   objects: Record<string, unknown>[]
