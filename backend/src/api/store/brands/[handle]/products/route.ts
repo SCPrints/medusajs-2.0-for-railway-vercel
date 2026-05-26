@@ -170,14 +170,21 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     context,
   })
 
-  // AP products store every variant image at the product level (~60 images per
-  // style) because the AP API nests images per variant. Listing cards don't need
-  // product.images — they read garment_images.front from variant metadata.
-  // Strip the array here so the listing payload isn't 10× larger than other brands.
-  // The PDP uses a different route and still receives the full image gallery.
+  // AP products explode in two ways that make brand-listing pages clunky:
+  //  1) They store ~60 images at the product level (the AP API nests images per
+  //     variant). Listing cards don't render product.images — they read
+  //     variant.metadata.garment_images.front for the swatch hover preview.
+  //  2) They have 150–250 variants per style (~30 colours × ~5–8 sizes), and
+  //     the listing card only needs (a) one variant per colour to look up the
+  //     swatch image and (b) the cheapest variant to derive the "From $X" /
+  //     "100+ $X" lines. Shipping every size variant for every colour bloats
+  //     the JSON by ~10× and forces the client to hydrate/parse all of it.
+  //  3) variant.metadata.garment_images carries front/back/model_image/all —
+  //     the listing only needs `front`; the gallery uses a different route.
+  // PDP traffic is unaffected — that route doesn't go through here.
   const trimmedProducts = (products ?? []).map((p: any) => {
     if (p.metadata?.source === "aussiepacific") {
-      return { ...p, images: [] }
+      return compactAussiePacificProductForListing(p)
     }
     return p
   })
@@ -188,4 +195,82 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     offset: q.offset,
     limit: q.limit,
   })
+}
+
+const COLOR_OPTION_MATCHER = /(color|colour|shade)/i
+
+type VariantLike = {
+  options?: Array<{ option_id?: string; value?: string }> | null
+  calculated_price?: { calculated_amount?: number | null } | null
+  metadata?: Record<string, unknown> | null
+}
+
+type ProductLike = {
+  metadata?: Record<string, any> | null
+  options?: Array<{ id?: string; title?: string | null }> | null
+  variants?: VariantLike[] | null
+  [key: string]: unknown
+}
+
+const cheapestFirst = (variants: VariantLike[]): VariantLike[] =>
+  [...variants].sort((a, b) => {
+    const am = a.calculated_price?.calculated_amount ?? Number.POSITIVE_INFINITY
+    const bm = b.calculated_price?.calculated_amount ?? Number.POSITIVE_INFINITY
+    return am - bm
+  })
+
+function compactAussiePacificProductForListing(p: ProductLike): ProductLike {
+  const variants = p.variants ?? []
+  const colorOption = (p.options ?? []).find(
+    (o) => typeof o.title === "string" && COLOR_OPTION_MATCHER.test(o.title)
+  )
+  const colorOptionId = colorOption?.id
+
+  let compactedVariants: VariantLike[]
+  if (!colorOptionId || variants.length <= 1) {
+    compactedVariants = cheapestFirst(variants).slice(0, 1)
+  } else {
+    const byColor = new Map<string, VariantLike[]>()
+    const noColor: VariantLike[] = []
+    for (const v of variants) {
+      const raw = (v.options ?? []).find(
+        (ov) => ov.option_id === colorOptionId
+      )?.value
+      const key = typeof raw === "string" ? raw.trim() : ""
+      if (!key) {
+        noColor.push(v)
+        continue
+      }
+      const arr = byColor.get(key) ?? []
+      arr.push(v)
+      byColor.set(key, arr)
+    }
+    compactedVariants = []
+    for (const group of byColor.values()) {
+      const cheapest = cheapestFirst(group)[0]
+      if (cheapest) compactedVariants.push(cheapest)
+    }
+    if (noColor.length) {
+      const cheapestNoColor = cheapestFirst(noColor)[0]
+      if (cheapestNoColor) compactedVariants.push(cheapestNoColor)
+    }
+  }
+
+  const trimmedVariants = compactedVariants.map((v) => {
+    const meta = (v.metadata ?? {}) as Record<string, unknown>
+    const gi = meta.garment_images as { front?: unknown } | undefined
+    if (!gi || typeof gi !== "object") {
+      return v
+    }
+    const front = typeof gi.front === "string" ? gi.front : undefined
+    return {
+      ...v,
+      metadata: {
+        ...meta,
+        garment_images: front ? { front } : {},
+      },
+    }
+  })
+
+  return { ...p, images: [], variants: trimmedVariants }
 }
