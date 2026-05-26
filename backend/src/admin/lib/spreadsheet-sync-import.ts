@@ -408,8 +408,13 @@ export function detectFashionBizVariantCatalog(parsed: ParsedCsv): boolean {
 
 function slugBizCollectionHandle(styleCodeRaw: string): string {
   const s = styleCodeRaw.trim().toUpperCase()
+  // Collapse ALL non-alphanumeric runs (including consecutive `-`) into a
+  // single dash. Supplier CSVs sometimes carry literal `--` in style codes
+  // (observed in Ramo's Export_Core: "F366HZ--5", "T805HD--6"), and Medusa
+  // rejects handles with consecutive dashes ("Invalid product handle … It
+  // must contain URL safe characters").
   const slug = `biz-collection-${s.toLowerCase()}`
-    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
   return (slug || "biz-collection-product").slice(0, 120)
 }
@@ -602,8 +607,9 @@ function slugHoneybeeColour(colour: string): string {
 }
 
 function slugHoneybeeHandle(prefix: string, styleCodeRaw: string): string {
+  // See note on slugBizCollectionHandle re: collapsing consecutive dashes.
   const slug = `${prefix}-${styleCodeRaw.trim().toLowerCase()}`
-    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
   return (slug || `${prefix}-product`).slice(0, 120)
 }
@@ -679,8 +685,13 @@ export function inferHoneybeeBrandFromRows(rows: ParsedCsv["rows"]): HoneybeeBra
 }
 
 function slugRamoHandle(parentCode: string): string {
+  // Collapse ALL non-alphanumeric runs (including consecutive `-`) into a
+  // single dash. Ramo's Export_Core CSV carries literal `--` in some
+  // parent_codes ("F366HZ--5", "T805HD--6", etc.), and Medusa rejects
+  // handles with consecutive dashes — "Invalid product handle … It must
+  // contain URL safe characters".
   const slug = `ramo-${parentCode.trim().toLowerCase()}`
-    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
   return (slug || "ramo-product").slice(0, 120)
 }
@@ -996,8 +1007,9 @@ export function expandHoneybeeCatalogToTemplate(
 }
 
 function slugDncHandle(styleCodeRaw: string): string {
+  // See note on slugRamoHandle re: collapsing consecutive dashes.
   const slug = `dnc-${styleCodeRaw.trim().toLowerCase()}`
-    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
   return (slug || "dnc-product").slice(0, 120)
 }
@@ -1118,6 +1130,12 @@ export function expandDncWorkwearCatalogToTemplate(
       base["product thumbnail"] = thumb
       base["product image 1 url"] = thumb
     }
+
+    /** Resolved to the DNC Workwear Brand entity by the spreadsheet-sync page
+     * post-batch (auto-creates if missing). DNC's handle is in
+     * `WORKWEAR_BRAND_HANDLES`, so audience routing into Workwear follows
+     * automatically once the link lands. */
+    base["product brand"] = "DNC Workwear"
 
     rowsOut.push(base)
   }

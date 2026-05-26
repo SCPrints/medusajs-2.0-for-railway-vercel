@@ -33,4 +33,6 @@ export const SUPPLIER_HANDLE_PREFIX_TO_BRAND: ReadonlyArray<{
   { prefix: "biz-care-", brandHandle: "biz-care" },
   { prefix: "biz-corporates-", brandHandle: "biz-corporates" },
   { prefix: "aussie-pacific-", brandHandle: "aussie-pacific" },
+  { prefix: "ramo-", brandHandle: "ramo" },
+  { prefix: "dnc-", brandHandle: "dnc-workwear" },
 ]

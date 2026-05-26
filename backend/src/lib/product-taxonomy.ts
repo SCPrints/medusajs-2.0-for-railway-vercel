@@ -160,6 +160,8 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "cargo pants": "Pants",
   "chino": "Pants",
   "chinos": "Pants",
+  "legging": "Pants",
+  "leggings": "Pants",
   // Jackets
   "jacket": "Jackets",
   "jackets": "Jackets",
@@ -197,6 +199,12 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "accessories": "Accessories",
   "lanyard": "Accessories",
   "lanyards": "Accessories",
+  "blanket": "Accessories",
+  "blankets": "Accessories",
+  "mask": "Accessories",
+  "masks": "Accessories",
+  "face mask": "Accessories",
+  "face masks": "Accessories",
   "belt": "Accessories",
   "belts": "Accessories",
   "umbrella": "Accessories",
@@ -208,9 +216,13 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   // Socks
   "socks": "Socks",
   "sock": "Socks",
-  // Aprons
+  // Aprons — includes baby bibs (functionally chest-covering garments; the
+  // shop tree short-circuits all Aprons to accessories-aprons regardless
+  // of demographic, so baby bibs sit alongside adult aprons).
   "apron": "Aprons",
   "aprons": "Aprons",
+  "bib": "Aprons",
+  "bibs": "Aprons",
   // Overalls
   "overalls": "Overalls",
   "overall": "Overalls",
@@ -662,12 +674,19 @@ const GENDERLESS_PRODUCT_TYPES = new Set([
  * we default these products to Unisex once title inference has had its
  * chance to find a more specific cue.
  *
+ * Ramo is added with the same convention — most of their catalog is
+ * general apparel where the title (e.g. "Ranger Polo") and CSV columns
+ * carry no demographic cue. Without this fallback, ungendered Ramo
+ * products land without a Unisex tag (audience CATEGORY routing still
+ * defaults to mens+womens via shop-categories.ts:inferAudiences, but the
+ * Unisex tag matters for storefront filters + reporting).
+ *
  * FashionBiz (Biz Collection / Biz Care / Biz Corporates / Syzmik) and
  * Aussie Pacific are excluded on purpose: their products carry explicit
  * gender via `gender` / `main_category`, so a missing demographic there
  * is a data issue worth surfacing, not a unisex default.
  */
-const UNISEX_BY_DEFAULT_BRAND_HANDLES = new Set(["as-colour", "ascolour"])
+const UNISEX_BY_DEFAULT_BRAND_HANDLES = new Set(["as-colour", "ascolour", "ramo"])
 
 /**
  * Convenience wrapper for per-supplier importers. Takes the result of
@@ -1031,6 +1050,149 @@ export function classifyAussiePacificProduct(
       if (t && !seenTags.has(t)) {
         seenTags.add(t)
         tags.push(t)
+      }
+    }
+  }
+
+  return { productType, tags }
+}
+
+/**
+ * Derive Medusa product_type and tags from a DNC Workwear CSV row.
+ *
+ * DNC's price-list CSV carries no structured taxonomy — only Description
+ * (the product title) and Description2/3 (colour + size). So this classifier
+ * is intentionally minimal: it returns null type / empty tags and lets
+ * `applyTitleFallbacks` do all the work. The DNC brand handle is in
+ * `WORKWEAR_BRAND_HANDLES`, so audience routing into Workwear happens via
+ * `inferAudiences` regardless of what we put here.
+ */
+export function classifyDncProduct(
+  _row: Record<string, string>,
+  _unknownLog?: string[]
+): { productType: string | null; tags: string[] } {
+  return { productType: null, tags: [] }
+}
+
+/**
+ * Derive Medusa product_type and tags from a Ramo CSV row.
+ *
+ * Ramo's CSV has two type signals of very different quality (observed in
+ * Export_Core_2026-02 across 13,801 rows):
+ *
+ *  - `attribute_type`: 30 distinct values, almost entirely garment words —
+ *    "T-shirts", "Hoodie", "Polo", "Jacket", "Apron", "Bib", … plus
+ *    comma-separated combos like "Fleece,Hoodie". This is the reliable
+ *    type signal.
+ *  - `primary_category`: 101 distinct values, mostly marketing range names
+ *    ("Greatness Range", "Accelerator Range", "Kangaroo Pocket") or generic
+ *    catch-alls ("All Products", "Accessories"). Often wrong — e.g. AP403B
+ *    "Full-bib Apron" carries `primary_category="Accessories"` even though
+ *    `attribute_type="Apron"` and the title says "Apron". Useful for
+ *    demographic cues (Ladies/Mens/Kids variants) but unreliable for type.
+ *
+ * Strategy:
+ *  - Type: try `attribute_type` first, then `primary_category` as fallback,
+ *    then null → let `applyTitleFallbacks` use the title (most reliable signal).
+ *  - Demographic tag: scan `primary_category` for Ladies/Mens/Kids tokens —
+ *    that's where they live (e.g. "Ladies Polos", "Kids Tees").
+ *  - Demographic-only tokens never become productType — defensive pattern
+ *    copied from `classifyAussiePacificProduct`.
+ */
+export function classifyRamoProduct(
+  row: Record<string, string>,
+  unknownLog?: string[]
+): { productType: string | null; tags: string[] } {
+  const RAMO_DEMOGRAPHIC_KEYS = new Set([
+    "ladies",
+    "lady",
+    "women",
+    "womens",
+    "woman",
+    "mens",
+    "men",
+    "kids",
+    "kid",
+    "youth",
+    "youths",
+    "children",
+    "child",
+    "boys",
+    "boy",
+    "girls",
+    "girl",
+    "unisex",
+  ])
+  const RAMO_DEMOGRAPHIC_TO_TAG: Record<string, string> = {
+    ladies: "Women",
+    lady: "Women",
+    women: "Women",
+    womens: "Women",
+    woman: "Women",
+    mens: "Men",
+    men: "Men",
+    kids: "Kids",
+    kid: "Kids",
+    youth: "Kids",
+    youths: "Kids",
+    children: "Kids",
+    child: "Kids",
+    boys: "Kids",
+    boy: "Kids",
+    girls: "Kids",
+    girl: "Kids",
+    unisex: "Unisex",
+  }
+
+  // Token-aware type resolver. Accepts a comma-separated value (Ramo's
+  // attribute_type sometimes carries "Jacket,Hoodie" / "Fleece,Hoodie").
+  // Tries exact alias first, then splits on commas / whitespace / hyphens
+  // / underscores / slashes, returning the first token that resolves to a
+  // canonical productType. Demographic-only tokens are skipped so a value
+  // like "Ladies" never becomes the productType.
+  const tryResolveType = (raw: string | null | undefined): string | null => {
+    if (!raw?.trim()) return null
+    const k = raw.trim().toLowerCase()
+    const exact = PRODUCT_TYPE_ALIASES[k]
+    if (exact && !RAMO_DEMOGRAPHIC_KEYS.has(k)) return exact
+    for (const token of k.split(/[,\s\-_/]+/).filter(Boolean)) {
+      if (RAMO_DEMOGRAPHIC_KEYS.has(token)) continue
+      const t = PRODUCT_TYPE_ALIASES[token]
+      if (t) return t
+    }
+    return null
+  }
+
+  const attributeTypeRaw = (row["attribute_type"] ?? "").trim()
+  const primaryRaw = (row["primary_category"] ?? "").trim()
+
+  // Type: attribute_type (reliable) → primary_category (lower confidence) → null.
+  const productType =
+    tryResolveType(attributeTypeRaw) ?? tryResolveType(primaryRaw)
+
+  if (!productType && (attributeTypeRaw || primaryRaw)) {
+    unknownLog?.push(
+      `[ramo product_type] Could not resolve from attribute_type="${attributeTypeRaw}" / primary_category="${primaryRaw}" — leaving null for title fallback.`
+    )
+  }
+
+  // Demographic tag — extracted from primary_category tokens (that's where
+  // Ladies/Mens/Kids cues live in Ramo's CSV).
+  const tags: string[] = []
+  const seenTags = new Set<string>()
+  if (primaryRaw) {
+    const pk = primaryRaw.toLowerCase()
+    const exactDemo = RAMO_DEMOGRAPHIC_TO_TAG[pk]
+    if (exactDemo && !seenTags.has(exactDemo)) {
+      seenTags.add(exactDemo)
+      tags.push(exactDemo)
+    } else {
+      for (const token of pk.split(/[,\s\-_/]+/).filter(Boolean)) {
+        const t = RAMO_DEMOGRAPHIC_TO_TAG[token]
+        if (t && !seenTags.has(t)) {
+          seenTags.add(t)
+          tags.push(t)
+        }
       }
     }
   }

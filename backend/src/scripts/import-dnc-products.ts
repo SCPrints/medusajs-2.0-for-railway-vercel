@@ -26,8 +26,22 @@ import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules, ProductStatus } from "@medusajs/framework/utils"
 import { createProductsWorkflow } from "@medusajs/medusa/core-flows"
 
+import { BRAND_MODULE } from "../modules/brand"
+import { classifyDncProduct } from "../lib/product-taxonomy"
+import {
+  applyShopCategoriesToProducts,
+  applyTaxonomyToProducts,
+  linkProductsToBrand,
+} from "../lib/supplier-import-pipeline"
 import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
 import { withNonTrackedInventoryDefaults } from "./utils/variant-inventory-defaults"
+
+// DNC brand identity — single source of truth via the Brand entity (per
+// CLAUDE.md "Brands"). external_code keeps the brand identifiable across
+// importers (spreadsheet sync resolves by name OR external_code).
+const DNC_BRAND_NAME = "DNC Workwear"
+const DNC_BRAND_HANDLE = "dnc-workwear"
+const DNC_BRAND_EXTERNAL_CODE = "DNC"
 
 type CsvRow = Record<string, string>
 
@@ -162,6 +176,31 @@ const isDiscontinued = (row: CsvRow) =>
   (row["Condition"] || "").trim().toLowerCase() === "discontinued"
 
 const isHeaderRow = (row: CsvRow) => !(row["Description2"] || "").trim() && !(row["Description3"] || "").trim()
+
+/**
+ * Admin / freight / surcharge ProductCodes that aren't real garments and
+ * must never enter the catalog. Observed in DNC Vol 13:
+ *   - Z9002      → "Surcharge"
+ *   - ZXDBOX     → "Cross-Docking Charge - BOX"
+ *   - ZXDCTN     → "Cross-Docking Charge - CTN"
+ *   - ZXDEACH    → "Cross-Docking Charge - EACH"
+ *   - ZXDOUTR    → "Cross-Docking Charge - OUTR"
+ *   - ZXDPAIR    → "Cross-Docking Charge - PAIR"
+ *   - ZXDPLT(2/3)→ "Cross-Docking Charge - PLT"
+ *   - ZXDROL     → "Cross-Docking Charge - ROL"
+ *
+ * Match by prefix so any future ZXD* variants are also skipped. Override
+ * via DNC_INCLUDE_ADMIN_CODES=1 for the rare case staff want them imported.
+ */
+const DNC_ADMIN_CODE_PREFIXES = ["Z9002", "ZXD"] as const
+
+const isAdminProductCode = (code: string): boolean => {
+  if (process.env.DNC_INCLUDE_ADMIN_CODES === "1" || process.env.DNC_INCLUDE_ADMIN_CODES === "true") {
+    return false
+  }
+  const upper = code.trim().toUpperCase()
+  return DNC_ADMIN_CODE_PREFIXES.some((p) => upper.startsWith(p))
+}
 
 const DNC_CSV_FILENAMES = [
   "dnc-vol-13.csv",
@@ -454,6 +493,10 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
   const fulfillmentModuleService = container.resolve(Modules.FULFILLMENT) as {
     listShippingProfiles: (filters?: Record<string, unknown>) => Promise<Array<{ id: string }>>
   }
+  const brandService = container.resolve(BRAND_MODULE) as {
+    listBrands: (filters?: Record<string, unknown>) => Promise<Array<{ id: string; name?: string; handle?: string; external_code?: string | null }>>
+    createBrands: (data: Array<Record<string, unknown>>) => Promise<Array<{ id: string; name?: string }>>
+  }
 
   if (typeof productModuleService.updateProductVariants !== "function") {
     throw new Error("updateProductVariants is not available on product module")
@@ -495,16 +538,56 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
   }
   const shippingProfileId = shippingProfiles[0]!.id
 
+  // Resolve (or auto-create) the DNC Brand entity. DNC's handle is in
+  // WORKWEAR_BRAND_HANDLES so audience routing into Workwear is automatic
+  // once the Product↔Brand link lands via the supplier-import-pipeline.
+  const existingBrands = await brandService.listBrands({})
+  let dncBrand = existingBrands.find(
+    (b) =>
+      (b.external_code ?? "").toUpperCase() === DNC_BRAND_EXTERNAL_CODE ||
+      (b.handle ?? "").toLowerCase() === DNC_BRAND_HANDLE ||
+      (b.name ?? "").toLowerCase() === DNC_BRAND_NAME.toLowerCase()
+  )
+  if (!dncBrand && apply) {
+    const [created] = await brandService.createBrands([
+      {
+        name: DNC_BRAND_NAME,
+        handle: DNC_BRAND_HANDLE,
+        external_code: DNC_BRAND_EXTERNAL_CODE,
+        is_active: true,
+      },
+    ])
+    dncBrand = created
+    logger.info(`Created brand "${DNC_BRAND_NAME}" (${dncBrand!.id}).`)
+  } else if (!dncBrand) {
+    logger.info(
+      `[dry] Would create brand "${DNC_BRAND_NAME}" (handle ${DNC_BRAND_HANDLE}, external_code ${DNC_BRAND_EXTERNAL_CODE}).`
+    )
+  } else {
+    logger.info(`Reusing existing brand "${dncBrand.name ?? DNC_BRAND_NAME}" (${dncBrand.id}).`)
+  }
+
   const prepared: Array<{
     handle: string
     productPayload: Record<string, unknown>
     skus: string[]
+    /** Header (or single) row from the CSV — fed to classifyDncProduct in the pipeline. */
+    sourceRow: CsvRow
   }> = []
 
   let orphanCount = 0
+  let adminSkipCount = 0
   for (const g of groups) {
     if (prepared.length >= maxProducts) {
       break
+    }
+    // Skip admin / freight / surcharge groups (Z9002, ZXD*) — they aren't
+    // garments and shouldn't be in the catalog. Override with
+    // DNC_INCLUDE_ADMIN_CODES=1 in the rare case staff want them imported.
+    const groupBaseCode = (g.rows[0]?.["ProductCode"] || "").trim()
+    if (isAdminProductCode(groupBaseCode)) {
+      adminSkipCount++
+      continue
     }
     const built = buildVariantRows(g)
     if (!built || !built.variantRows.length) {
@@ -643,6 +726,10 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
     prepared.push({
       handle,
       skus: medusaVariants.map((x) => (x.sku as string) || "").filter(Boolean),
+      // Brand identity is set via the Product↔Brand Module Link below
+      // (linkProductsToBrand), NOT via metadata.brand — the read-path
+      // metadata fallback was removed on 2026-05-23.
+      sourceRow: g.rows[0]!,
       productPayload: {
         title: productTitle,
         description: undefined,
@@ -651,10 +738,6 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
         thumbnail: thumbnail || undefined,
         weight: groupBaseWeight,
         images: Array.from(imgs).map((url) => ({ url })),
-        metadata: {
-          brand: "DNC Workwear",
-          brand_slug: "dnc",
-        },
         options,
         variants: medusaVariants,
         shipping_profile_id: shippingProfileId,
@@ -664,7 +747,7 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
   }
 
   logger.info(
-    `Prepared products: ${prepared.length} (orphan single-SKU groups: ${orphanCount}). Max products cap: ${
+    `Prepared products: ${prepared.length} (orphan single-SKU groups: ${orphanCount}, admin/surcharge skipped: ${adminSkipCount}). Max products cap: ${
       maxProducts === Number.POSITIVE_INFINITY ? "none" : maxProducts
     }`
   )
@@ -704,15 +787,25 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
     return
   }
 
+  // Accumulator for the post-create pipeline (brand link + taxonomy +
+  // shop categories). One pass at the end across every batch.
+  const createdForPipeline: Array<{ id: string; handle: string; title?: string }> = []
+  const sourceByHandle = new Map<string, CsvRow>(
+    toCreate.map((p) => [p.handle, p.sourceRow])
+  )
+
   for (const batch of chunk(toCreate, productBatchSize)) {
     const products = batch.map((b) => b.productPayload) as any[]
     await createProductsWorkflow(container).run({ input: { products } })
     const batchHandles = batch.map((b) => b.handle)
     const { data: createdProducts } = await query.graph({
       entity: "product",
-      fields: ["id", "handle"],
+      fields: ["id", "handle", "title"],
       filters: { handle: batchHandles },
     })
+    for (const pr of (createdProducts ?? []) as Array<{ id: string; handle: string; title?: string | null }>) {
+      createdForPipeline.push({ id: pr.id, handle: pr.handle, title: pr.title ?? undefined })
+    }
     const idByHandle = new Map(
       (createdProducts ?? []).map((pr: { id: string; handle: string }) => [pr.handle, pr.id])
     )
@@ -778,6 +871,23 @@ export default async function importDncProducts({ container, args }: ExecArgs) {
       }
     }
     logger.info(`Created batch: ${batch.map((b) => b.handle).join(", ")}`)
+  }
+
+  // Post-create taxonomy pipeline (CLAUDE.md "Types & tags convention").
+  // Idempotent — safe to re-run if the import is retried.
+  if (createdForPipeline.length) {
+    if (dncBrand) {
+      await linkProductsToBrand(container, createdForPipeline, dncBrand.id)
+    } else {
+      logger.warn("DNC brand was not resolved; skipping Product↔Brand link step.")
+    }
+    await applyTaxonomyToProducts(container, {
+      products: createdForPipeline,
+      sourceByHandle,
+      classify: classifyDncProduct,
+      logger,
+    })
+    await applyShopCategoriesToProducts(container, createdForPipeline, logger)
   }
 
   logger.info(
