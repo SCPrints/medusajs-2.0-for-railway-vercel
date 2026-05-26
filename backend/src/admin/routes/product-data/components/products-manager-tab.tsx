@@ -658,8 +658,6 @@ const ProductsManagerTab = () => {
         disabled={loading}
       />
 
-      <QualityLegend />
-
       <ResultsTable
         products={products}
         loading={loading}
@@ -1113,12 +1111,12 @@ const ResultsTable = (props: ResultsTableProps) => {
                 <span>Data quality</span>
                 <HelpTooltip
                   text={{
-                    title: "Data quality dots",
-                    body: "Each row shows seven dots — one per signal the storefront needs to render the product correctly. Green = present, red = missing. Hover any dot for the label.",
+                    title: "Data quality",
+                    body: "A red badge per signal the product is missing — Image, Description, Type, Tags, Brand, Sales channel, or Shop category. Green 'Complete' means everything the storefront needs is in place.",
                     bullets: [
-                      "Order, left → right: Image · Description · Type · Tags · Brand · Sales channel · Shop category.",
-                      "Use the 'Data quality' filter checkboxes above to surface only products missing a given signal — then bulk-edit to fix them.",
-                      "A product with a red 'Sales channel' dot is invisible to the storefront. A red 'Type' or 'Shop category' dot breaks the mega-menu drill-down.",
+                      "Use the 'Missing X' checkboxes in the filter bar to narrow the table to one gap type, then tick rows and bulk-edit to fix.",
+                      "Missing Sales channel = invisible to the storefront. Missing Type or Shop category = invisible to the mega-menu.",
+                      "Missing Brand on a freshly-imported supplier batch usually means the importer skipped the brand link — fix it once with bulk 'Set brand' rather than re-importing.",
                     ],
                   }}
                 />
@@ -1235,7 +1233,7 @@ const ResultsTable = (props: ResultsTableProps) => {
                   </Badge>
                 </Table.Cell>
                 <Table.Cell className="hidden lg:table-cell">
-                  <QualityDots quality={p.quality} />
+                  <QualityCell quality={p.quality} />
                 </Table.Cell>
               </Table.Row>
             ))
@@ -1248,55 +1246,41 @@ const ResultsTable = (props: ResultsTableProps) => {
 
 /* ─────────────── quality dots ─────────────── */
 
-const QualityDots = ({ quality }: { quality: Quality }) => {
-  return (
-    <div className="flex items-center gap-1">
-      {QUALITY_KEYS.map((k) => {
-        const ok = quality[k]
-        return (
-          <span
-            key={k}
-            title={`${QUALITY_LABELS[k]}: ${ok ? "ok" : "missing"}`}
-            className={`inline-block size-2 rounded-full ${ok ? "bg-ui-tag-green-icon" : "bg-ui-tag-red-icon"}`}
-          />
-        )
-      })}
-    </div>
-  )
-}
-
-/* ─────────────── quality legend ─────────────── */
-
 /**
- * Always-visible legend that documents the seven data-quality dots in
- * the table column. Rendered between the bulk-action bar and the
- * table so it sits right above the dots themselves. Without this,
- * staff have to mouse-hover each dot to read the label — confusing on
- * first encounter and bad on touchscreens.
+ * Per-row "data quality" cell.
+ *
+ * Earlier version showed 7 unlabelled dots in fixed order, which was
+ * cryptic — staff had to mentally count positions and look up a legend
+ * to know what was missing. This version shows the data instead of
+ * encoding it: a single green "Complete" badge when nothing's missing,
+ * or one red badge per missing signal (named in plain English). Lets
+ * staff scan the column at a glance.
  */
-const QualityLegend = () => {
+const QualityCell = ({ quality }: { quality: Quality }) => {
+  const missing: Array<{ key: string; label: string }> = []
+  for (const k of QUALITY_KEYS) {
+    if (!quality[k]) {
+      missing.push({ key: k, label: QUALITY_LABELS[k] })
+    }
+  }
+  if (missing.length === 0) {
+    return (
+      <Badge size="2xsmall" color="green">
+        Complete
+      </Badge>
+    )
+  }
   return (
-    <Container className="p-0">
-      <div className="flex flex-col gap-2 px-4 py-3">
-        <Text size="xsmall" weight="plus" className="text-ui-fg-subtle">
-          Data-quality column key
-        </Text>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          {QUALITY_KEYS.map((k) => (
-            <div key={k} className="flex items-center gap-1.5">
-              <span className="inline-block size-2 rounded-full bg-ui-tag-green-icon" />
-              <span className="inline-block size-2 rounded-full bg-ui-tag-red-icon" />
-              <Text size="xsmall" className="text-ui-fg-muted">
-                {QUALITY_LABELS[k]}
-              </Text>
-            </div>
-          ))}
-          <Text size="xsmall" className="text-ui-fg-muted">
-            (green = present, red = missing — read each row's seven dots in this order)
-          </Text>
-        </div>
-      </div>
-    </Container>
+    <div
+      className="flex flex-wrap gap-1"
+      title={`Missing: ${missing.map((m) => m.label).join(", ")}`}
+    >
+      {missing.map((m) => (
+        <Badge key={m.key} size="2xsmall" color="red">
+          {m.label}
+        </Badge>
+      ))}
+    </div>
   )
 }
 
