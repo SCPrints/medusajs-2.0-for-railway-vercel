@@ -20,10 +20,18 @@ const baseInput = {
 }
 
 describe("buildCustomizerMetadataBase", () => {
-  it("emits all five sides even when only some have layouts", () => {
+  it("emits every garment side even when only some have layouts", () => {
     const meta = buildCustomizerMetadataBase(baseInput)
     const sides = meta.sideLayouts.map((s) => s.side)
-    expect(sides).toEqual(["front", "back", "left_sleeve", "right_sleeve", "printed_tag"])
+    expect(sides).toEqual([
+      "front",
+      "back",
+      "left_sleeve",
+      "right_sleeve",
+      "printed_tag",
+      "bottle_label",
+      "bottle_back_label",
+    ])
     expect(meta.sideLayouts.find((s) => s.side === "front")?.objects).toHaveLength(1)
     expect(meta.sideLayouts.find((s) => s.side === "back")?.objects).toEqual([])
   })

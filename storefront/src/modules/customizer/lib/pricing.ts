@@ -116,11 +116,16 @@ export const calculatePricing = ({
       ? (firstTierBase - baseUnit) / firstTierBase
       : 0
     : getQuantityDiscountRate(safeQuantity)
-  const discountedUnitPriceCents = normalizedTiers.length
+  // Keep the precise per-unit value around so total = unit × qty is computed
+  // before rounding. Rounding the unit to 2dp first and then multiplying
+  // accumulates cents of error across large quantities (e.g. 23.375 × 50
+  // collapses to 23.38 × 50 = 1169 instead of the actual 1168.75).
+  const preciseDiscountedUnit = normalizedTiers.length
     ? beforeDiscountUnit
-    : round2(beforeDiscountUnit * (1 - quantityDiscountRate))
+    : beforeDiscountUnit * (1 - quantityDiscountRate)
+  const discountedUnitPriceCents = round2(preciseDiscountedUnit)
   const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
-  const totalPriceCents = round2(discountedUnitPriceCents * safeQuantity)
+  const totalPriceCents = round2(preciseDiscountedUnit * safeQuantity)
 
   return {
     baseUnitPriceCents: baseUnit,
