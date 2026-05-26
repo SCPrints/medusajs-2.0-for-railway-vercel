@@ -3966,7 +3966,7 @@ export default function CustomizerTemplate({
                       {selectedProduct?.title ? `Design your ${selectedProduct.title}` : "Design your product"}
                     </p>
                   </div>
-                  {pickerProducts && pickerProducts.length > 0 ? (
+                  {!isAdminProofMode && pickerProducts && pickerProducts.length > 0 ? (
                     <CustomizerProductPicker
                       products={pickerProducts}
                       currentHandle={selectedProduct?.handle ?? null}
@@ -3981,9 +3981,12 @@ export default function CustomizerTemplate({
                   ) : null}
                 </div>
                 <div className="mt-2 flex items-center gap-3 small:mt-0">
-                  <p className="hidden text-xs text-ui-fg-subtle small:block">
-                    Drag, resize and position your artwork.
-                  </p>
+                  {!isAdminProofMode ? (
+                    <p className="hidden text-xs text-ui-fg-subtle small:block">
+                      Drag, resize and position your artwork.
+                    </p>
+                  ) : null}
+                  {!isAdminProofMode && (
                   <DesignPreviewPopover
                     decoratedSides={decoratedSides}
                     canvasSize={canvasSize}
@@ -3999,6 +4002,7 @@ export default function CustomizerTemplate({
                     layoutVersion={layoutVersion}
                     variantId={activeVariantId}
                   />
+                  )}
                 </div>
               </div>
 
