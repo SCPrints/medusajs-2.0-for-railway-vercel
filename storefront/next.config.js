@@ -135,6 +135,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "aussiepacific-images.s3.ap-southeast-2.amazonaws.com",
       },
+      {
+        protocol: "https",
+        hostname: "www.ramo.com.au",
+      },
     ],
   },
   // ──────────────────────────────────────────────────────────────────
