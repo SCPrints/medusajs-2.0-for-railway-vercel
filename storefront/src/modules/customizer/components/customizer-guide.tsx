@@ -327,7 +327,7 @@ export default function CustomizerGuide({
       {/* Trigger button — wrapper holds the pulse ring outside overflow:hidden context */}
       <div className={`relative shrink-0 ${active ? "invisible pointer-events-none" : ""}`}>
         {showTriggerPulse && (
-          <span className="absolute -inset-1.5 rounded-xl animate-ping bg-ui-fg-base/15 pointer-events-none" />
+          <span className="absolute -inset-1.5 rounded-xl animate-ping bg-[var(--brand-secondary)]/30 pointer-events-none" />
         )}
         <button
           ref={triggerRef}
@@ -339,7 +339,7 @@ export default function CustomizerGuide({
           }}
           aria-label="Open the step-by-step guide"
           aria-expanded={active}
-          className="flex items-center gap-1 rounded-lg border border-ui-border-base bg-ui-bg-base px-2.5 py-1.5 text-xs font-medium text-ui-fg-subtle shadow-sm transition-colors hover:bg-ui-bg-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base whitespace-nowrap"
+          className="flex items-center gap-1 rounded-lg border border-[var(--brand-secondary)] bg-[var(--brand-secondary)] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2 whitespace-nowrap"
         >
           <svg
             width="12"
