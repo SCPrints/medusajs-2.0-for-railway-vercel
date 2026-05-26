@@ -76,20 +76,10 @@ export default function CustomizerGuide({
           ? stepRefs.step3
           : stepRefs.step4
 
-  // ------------------------------------------------------------------
-  // Rect tracking — continuous rAF loop while the guide is active.
-  //
-  // Earlier this tried scheduled timeouts (0/150/350/550 ms) + scroll
-  // listeners on window + the sticky sidebar container. That covers
-  // pdpStep-driven layout transitions but misses two real-world cases:
-  // (a) the customer scrolls a scroll container we don't have a ref for
-  // (the body, the page wrapper, or an iframe-ancestor on touch), and
-  // (b) framer-motion / canvas-resize layout shifts that don't line up
-  // with the hard-coded timeout schedule. A per-frame rAF poll is cheap
-  // (one getBoundingClientRect + an equality check) and bulletproof —
-  // setState only fires when the rect actually changes, so React doesn't
-  // re-render every frame.
-  // ------------------------------------------------------------------
+  // Rect tracking — per-frame rAF poll while the guide is active. Equality
+  // check keeps setState noiseless (no re-render unless the rect changes),
+  // so this handles arbitrary scroll containers + framer-motion / canvas
+  // layout shifts without needing to subscribe to specific event sources.
   useEffect(() => {
     if (!active) return
     let rafId = 0
@@ -126,16 +116,15 @@ export default function CustomizerGuide({
     }
   }, [active, guideStep, activeRef])
 
-  // ------------------------------------------------------------------
-  // Auto-advance when pdpStep moves forward
-  // ------------------------------------------------------------------
+  // Auto-advance when pdpStep moves forward. Advances ONE step at a time
+  // so a manual "Got it" tap (which bumps guideStep itself) doesn't get
+  // overrun by this effect snapping straight to pdpStep when the customer
+  // is multiple wizard steps ahead.
   useEffect(() => {
     if (!active) return
     if (pdpStep > guideStep) {
-      const next = pdpStep as 1 | 2 | 3 | 4
+      const next = (guideStep + 1) as 1 | 2 | 3 | 4
       setGuideStep(next)
-      // Scroll the newly spotlit card into view, then re-measure rect
-      // once the scroll has settled.
       const targetRef =
         next === 1
           ? stepRefs.step1
