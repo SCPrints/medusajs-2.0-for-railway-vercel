@@ -192,6 +192,38 @@ export default function CustomizerGuide({
     if (w && h) setTooltipSize({ w, h })
   }, [active, guideStep])
 
+  // Auto-open the guide when the customer clicked "Need help?" on the
+  // Photos tab. Discoverability of the help action belongs on the first
+  // PDP screen, but the guide overlay (which targets the wizard step DOM
+  // nodes) can only live inside the customizer — so the Photos button
+  // sets a sessionStorage flag, swaps to the Customise tab, and we
+  // consume the flag here on mount. One-shot: cleared immediately so
+  // closing + re-opening the customise tab doesn't keep re-popping.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    let flag: string | null = null
+    try {
+      flag = window.sessionStorage.getItem("sc:open-guide-on-mount")
+      if (flag === "1") {
+        window.sessionStorage.removeItem("sc:open-guide-on-mount")
+      }
+    } catch {
+      return
+    }
+    if (flag !== "1") return
+    // Defer briefly so the wizard's step DOM nodes (stepRefs) are mounted
+    // and the spotlight has something to target on first render.
+    const t = setTimeout(() => {
+      phCapture("guide_started", { source: "photos_tab_button" })
+      capturedStartRef.current = true
+      const startStep = hasStep1 ? pdpStep : (Math.max(pdpStep, 2) as 2 | 3 | 4)
+      setGuideStep(startStep as 1 | 2 | 3 | 4)
+      setActive(true)
+    }, 200)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ------------------------------------------------------------------
   // Focus trap inside tooltip
   // ------------------------------------------------------------------

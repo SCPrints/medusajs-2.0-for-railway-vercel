@@ -76,6 +76,23 @@ export default function PdpSplitTabs({
     setActive(1)
   }
 
+  /** "Need help?" trigger from the Photos tab. Switches to Customise and
+   *  signals the wizard's CustomizerGuide to auto-open on mount so the
+   *  customer doesn't have to find the button again. The guide overlay
+   *  targets wizard step DOM nodes, so it can only live inside the
+   *  customizer — but the discoverability of the help action belongs on
+   *  the first screen the customer sees. */
+  const openGuideFromPhotos = () => {
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.setItem("sc:open-guide-on-mount", "1")
+      } catch {
+        /* sessionStorage may throw in private mode — non-fatal. */
+      }
+    }
+    goDesign(false)
+  }
+
   return (
     <div className="w-full">
       <LayoutGroup id={`${baseId}-pdp-split-tabs`}>
@@ -139,13 +156,40 @@ export default function PdpSplitTabs({
             </div>
           </div>
           <div className="flex flex-col gap-4 lg:col-span-5 lg:sticky lg:top-24 lg:self-start">
-            <div className="space-y-1 border-b border-ui-border-base pb-3">
-              <p className="text-xl font-semibold text-ui-fg-base">
-                Pick your colour
-              </p>
-              <p className="text-xs text-ui-fg-subtle">
-                Tap "Customise this garment" when you're ready to design.
-              </p>
+            <div className="flex items-start justify-between gap-3 border-b border-ui-border-base pb-3">
+              <div className="space-y-1">
+                <p className="text-xl font-semibold text-ui-fg-base">
+                  Pick your colour
+                </p>
+                <p className="text-xs text-ui-fg-subtle">
+                  Tap "Customise this garment" when you're ready to design.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openGuideFromPhotos}
+                aria-label="Open the step-by-step guide"
+                className="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--brand-secondary)] bg-[var(--brand-secondary)] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2 whitespace-nowrap"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden
+                  className="shrink-0"
+                >
+                  <circle cx="6" cy="6" r="5.4" stroke="currentColor" strokeWidth="1.2" />
+                  <path
+                    d="M5.1 4.6C5.1 4.1 5.5 3.7 6 3.7s.9.4.9.9c0 .4-.2.7-.6.9L6 5.8v.7"
+                    stroke="currentColor"
+                    strokeWidth="1.1"
+                    strokeLinecap="round"
+                  />
+                  <circle cx="6" cy="7.9" r=".5" fill="currentColor" />
+                </svg>
+                Need help?
+              </button>
             </div>
             <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-4 shadow-sm">
               {variantPickers}
