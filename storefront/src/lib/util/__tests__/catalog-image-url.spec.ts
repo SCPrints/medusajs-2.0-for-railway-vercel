@@ -43,10 +43,10 @@ describe("catalogSwatchBackgroundImageUrl", () => {
     expect(catalogSwatchBackgroundImageUrl(src)).toBe(src)
   })
 
-  it("returns /_next/image with q=75 when optimized", () => {
+  it("returns /_next/image with valid w=64 when optimized", () => {
     process.env = { ...env, NEXT_PUBLIC_UNOPTIMIZED_IMAGES: "false", VERCEL: undefined }
     expect(catalogSwatchBackgroundImageUrl(src)).toBe(
-      `/_next/image?url=${encodeURIComponent(src)}&w=80&q=75`
+      `/_next/image?url=${encodeURIComponent(src)}&w=64&q=75`
     )
   })
 })

@@ -23,6 +23,11 @@ export function catalogSwatchBackgroundImageUrl(sourceUrl: string): string {
   if (catalogImagesUnoptimized()) {
     return sourceUrl
   }
+  // `w` must match Vercel's allowed deviceSizes ∪ imageSizes. The previous w=80
+  // wasn't in either list and silently returned 400 INVALID_IMAGE_OPTIMIZE_REQUEST,
+  // which was hidden while the Vercel-bypass returned the raw URL. Swatches are
+  // rendered at 20px (h-5 w-5) so DPR=2 → 40px target → 64 is the smallest legal
+  // width that still covers retina without upscaling.
   const encoded = encodeURIComponent(sourceUrl)
-  return `/_next/image?url=${encoded}&w=80&q=75`
+  return `/_next/image?url=${encoded}&w=64&q=75`
 }
