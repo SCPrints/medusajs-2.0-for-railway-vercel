@@ -106,6 +106,27 @@ const FIELDS = [
   "brand.handle",
 ] as const
 
+// Minimal field set for the quality-detection pass and ids_only requests.
+// Drops `.name` / `.value` / `.handle` on relations — the post-filter only
+// needs to know whether each relation has at least one row, and ids_only
+// callers throw the rows away after collecting `id`. Pulling just the
+// relation `.id` columns lets the Mikro-ORM joiner skip the wider hydration
+// path on M2M relations (tags / categories / sales_channels) and on the
+// Brand module link.
+const LIGHT_FIELDS = [
+  "id",
+  "title",
+  "status",
+  "thumbnail",
+  "description",
+  "created_at",
+  "type.id",
+  "tags.id",
+  "categories.id",
+  "sales_channels.id",
+  "brand.id",
+] as const
+
 function readBrand(p: RawProduct): { id: string; name: string | null; handle: string | null } | null {
   if (!p.brand) return null
   const raw = Array.isArray(p.brand) ? p.brand[0] : p.brand
@@ -254,46 +275,136 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // Sort: query.graph expects { field: "ASC" | "DESC" }
   const orderRaw = body.order ?? "-created_at"
   const field = orderRaw.replace(/^-/, "")
-  const direction = orderRaw.startsWith("-") ? "DESC" : "ASC"
+  const direction: "ASC" | "DESC" = orderRaw.startsWith("-") ? "DESC" : "ASC"
 
-  // Fetch strategy depends on whether any data-quality flag is set:
-  // - No quality filter → DB-paginated. We only fetch the visible page
-  //   plus a separate lightweight count, keeping per-request CPU cost
-  //   bounded. This is the hot path 99% of the time.
-  // - Quality filter set → Must over-fetch and post-filter in memory,
-  //   because "missing brand / sales channel / tags / etc." can't be
-  //   expressed as a query.graph filter against null relations. We cap
-  //   at 600 instead of 2000 so the event loop stays responsive enough
-  //   for /health to answer within its 10s timeout. UI surfaces a
-  //   "truncated" warning when this cap was hit.
-  // - ids_only ("Select all matching") → honour the requested cap up
-  //   to 1000; still bounded by the same in-memory ceiling.
   const idsOnly = !!body.ids_only
   const idsLimit = body.ids_limit ?? 1000
   const hasQualityFilter = !!body.missing?.length
   const limit = body.limit ?? 50
   const offset = body.offset ?? 0
 
-  // How many we pull from the DB in this request.
-  let underlyingTake: number
-  let underlyingSkip: number
-  if (idsOnly) {
-    underlyingTake = Math.min(idsLimit, 1000)
-    underlyingSkip = 0
-  } else if (hasQualityFilter) {
-    underlyingTake = 600
-    underlyingSkip = 0
-  } else {
-    underlyingTake = limit
-    underlyingSkip = offset
+  // ── Two-pass strategy when a data-quality filter ("Missing X") is set ──
+  //
+  // The flag asks for products with a NULL/empty relation (no tags, no
+  // brand, no sales-channel, etc.) — query.graph can't express that as
+  // a SQL-level filter, so we have to fetch and post-filter in JS. The
+  // single-pass version pulled the full FIELDS set (7 fat relations
+  // including .name / .value) for up to 600 rows on every filter change,
+  // which was what dragged the page out to minutes for big brands.
+  //
+  //   Pass 1 — LIGHT_FIELDS (id + minimal relation IDs) on up to 600
+  //            rows. Enough to compute missing-X, sort, and slice to the
+  //            visible page.
+  //   Pass 2 — full FIELDS limited to the visible page's IDs (≤ pageSize,
+  //            i.e. 25-200). Tiny join cost compared to a 600-row fetch.
+  //
+  // The other two paths (no quality filter, ids_only) keep their existing
+  // single-pass behaviour because they don't need the over-fetch.
+  if (hasQualityFilter) {
+    const lightTake = idsOnly ? Math.min(idsLimit, 1000) : 600
+    let lightRows: RawProduct[] = []
+    try {
+      const { data } = (await query.graph({
+        entity: "product",
+        fields: LIGHT_FIELDS as unknown as string[],
+        filters,
+        pagination: {
+          take: lightTake,
+          skip: 0,
+          order: { [field]: direction },
+        },
+      })) as { data?: any[] }
+      lightRows = (data as RawProduct[]) ?? []
+    } catch (err: any) {
+      res.status(500).json({
+        message: `products-manager list (pass 1) failed: ${err?.message ?? err}`,
+      })
+      return
+    }
+
+    const flags = new Set(body.missing!)
+    const filtered = lightRows.filter((p) => {
+      const q = computeQuality(p)
+      if (flags.has("image") && q.has_image) return false
+      if (flags.has("description") && q.has_description) return false
+      if (flags.has("type") && q.has_type) return false
+      if (flags.has("tags") && q.has_tags) return false
+      if (flags.has("brand") && q.has_brand) return false
+      if (flags.has("sales_channel") && q.has_sales_channel) return false
+      if (flags.has("shop_category") && q.has_shop_category) return false
+      return true
+    })
+    const truncated = lightRows.length >= lightTake
+
+    if (idsOnly) {
+      res.json({
+        ids: filtered.slice(0, idsLimit).map((p) => p.id),
+        count: filtered.length,
+        truncated,
+      })
+      return
+    }
+
+    const pageIds = filtered.slice(offset, offset + limit).map((p) => p.id)
+    if (pageIds.length === 0) {
+      res.json({
+        products: [],
+        count: filtered.length,
+        limit,
+        offset,
+        truncated,
+      })
+      return
+    }
+
+    let fullRows: RawProduct[] = []
+    try {
+      const { data } = (await query.graph({
+        entity: "product",
+        fields: FIELDS as unknown as string[],
+        filters: { id: pageIds },
+        pagination: { take: pageIds.length, skip: 0 },
+      })) as { data?: any[] }
+      fullRows = (data as RawProduct[]) ?? []
+    } catch (err: any) {
+      res.status(500).json({
+        message: `products-manager list (pass 2) failed: ${err?.message ?? err}`,
+      })
+      return
+    }
+
+    // `filters.id = [...]` doesn't preserve list order — re-stitch
+    // pass-2 rows in the sort order pass-1 produced.
+    const byId = new Map<string, RawProduct>()
+    for (const row of fullRows) byId.set(row.id, row)
+    const ordered: RawProduct[] = []
+    for (const id of pageIds) {
+      const row = byId.get(id)
+      if (row) ordered.push(row)
+    }
+
+    res.json({
+      products: ordered.map(toProductResponse),
+      count: filtered.length,
+      limit,
+      offset,
+      truncated,
+    })
+    return
   }
+
+  // ── Single-pass DB-paginated path (no quality filter) ──
+  const underlyingTake = idsOnly ? Math.min(idsLimit, 1000) : limit
+  const underlyingSkip = idsOnly ? 0 : offset
 
   let raw: RawProduct[] = []
   let dbCount: number | null = null
   try {
     const { data, metadata } = (await query.graph({
       entity: "product",
-      fields: FIELDS as unknown as string[],
+      fields: idsOnly
+        ? (LIGHT_FIELDS as unknown as string[])
+        : (FIELDS as unknown as string[]),
       filters,
       pagination: {
         take: underlyingTake,
@@ -310,10 +421,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
+  if (idsOnly) {
+    res.json({
+      ids: raw.slice(0, idsLimit).map((p) => p.id),
+      count: dbCount ?? raw.length,
+      truncated: false,
+    })
+    return
+  }
+
   // If we DB-paginated and Medusa didn't hand us metadata.count, run a
-  // cheap count query: same filters, id-only fields, no relations.
-  // Skip when quality filters are set (we'd discard the count anyway).
-  if (!idsOnly && !hasQualityFilter && dbCount === null) {
+  // cheap id-only count query: same filters, no relations.
+  if (dbCount === null) {
     try {
       const { data: countData } = await query.graph({
         entity: "product",
@@ -327,88 +446,46 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  // Apply data-quality post-filter (cheap walk).
-  let filtered: RawProduct[] = raw
-  if (hasQualityFilter) {
-    const flags = new Set(body.missing!)
-    filtered = raw.filter((p) => {
-      const q = computeQuality(p)
-      if (flags.has("image") && q.has_image) return false
-      if (flags.has("description") && q.has_description) return false
-      if (flags.has("type") && q.has_type) return false
-      if (flags.has("tags") && q.has_tags) return false
-      if (flags.has("brand") && q.has_brand) return false
-      if (flags.has("sales_channel") && q.has_sales_channel) return false
-      if (flags.has("shop_category") && q.has_shop_category) return false
-      return true
-    })
-  }
-
-  const totalCount = hasQualityFilter
-    ? filtered.length
-    : (dbCount ?? raw.length + underlyingSkip)
-  const truncated = hasQualityFilter && raw.length >= underlyingTake
-
-  if (idsOnly) {
-    res.json({
-      ids: filtered.slice(0, idsLimit).map((p) => p.id),
-      count: totalCount,
-      truncated,
-    })
-    return
-  }
-
-  // When DB-paginated (no quality filter) raw IS the visible page, so
-  // we hand it through. When quality-filtered we over-fetched and slice
-  // the post-filter list manually.
-  const page = hasQualityFilter
-    ? filtered.slice(offset, offset + limit)
-    : filtered
-
-  const products = page.map((p) => {
-    const brand = readBrand(p)
-    const variantCount = Array.isArray(p.variants) ? p.variants.length : 0
-    const tags = Array.isArray(p.tags) ? p.tags : []
-    const categories = Array.isArray(p.categories) ? p.categories : []
-    const salesChannels = Array.isArray(p.sales_channels)
-      ? p.sales_channels
-      : []
-    return {
-      id: p.id,
-      title: p.title ?? null,
-      handle: p.handle ?? null,
-      thumbnail: p.thumbnail ?? null,
-      status: p.status ?? null,
-      created_at: p.created_at ?? null,
-      variant_count: variantCount,
-      type: p.type?.id
-        ? { id: p.type.id, value: p.type.value ?? null }
-        : null,
-      tags: tags.map((t) => ({ id: t.id, value: t.value })),
-      category_count: categories.length,
-      category_ids: categories.map((c) => c.id),
-      collection: p.collection?.id
-        ? {
-            id: p.collection.id,
-            handle: p.collection.handle ?? null,
-            title: p.collection.title ?? null,
-          }
-        : null,
-      sales_channel_count: salesChannels.length,
-      sales_channels: salesChannels.map((s) => ({
-        id: s.id,
-        name: s.name ?? null,
-      })),
-      brand,
-      quality: computeQuality(p),
-    }
-  })
-
   res.json({
-    products,
-    count: totalCount,
+    products: raw.map(toProductResponse),
+    count: dbCount ?? raw.length + underlyingSkip,
     limit,
     offset,
-    truncated,
+    truncated: false,
   })
+}
+
+function toProductResponse(p: RawProduct) {
+  const brand = readBrand(p)
+  const variantCount = Array.isArray(p.variants) ? p.variants.length : 0
+  const tags = Array.isArray(p.tags) ? p.tags : []
+  const categories = Array.isArray(p.categories) ? p.categories : []
+  const salesChannels = Array.isArray(p.sales_channels) ? p.sales_channels : []
+  return {
+    id: p.id,
+    title: p.title ?? null,
+    handle: p.handle ?? null,
+    thumbnail: p.thumbnail ?? null,
+    status: p.status ?? null,
+    created_at: p.created_at ?? null,
+    variant_count: variantCount,
+    type: p.type?.id ? { id: p.type.id, value: p.type.value ?? null } : null,
+    tags: tags.map((t) => ({ id: t.id, value: t.value })),
+    category_count: categories.length,
+    category_ids: categories.map((c) => c.id),
+    collection: p.collection?.id
+      ? {
+          id: p.collection.id,
+          handle: p.collection.handle ?? null,
+          title: p.collection.title ?? null,
+        }
+      : null,
+    sales_channel_count: salesChannels.length,
+    sales_channels: salesChannels.map((s) => ({
+      id: s.id,
+      name: s.name ?? null,
+    })),
+    brand,
+    quality: computeQuality(p),
+  }
 }

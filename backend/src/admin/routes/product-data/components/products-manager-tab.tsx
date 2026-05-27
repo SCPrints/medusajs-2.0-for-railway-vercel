@@ -1181,6 +1181,8 @@ const ResultsTable = (props: ResultsTableProps) => {
                     <div className="flex min-w-0 flex-col">
                       <a
                         href={`/app/products/${p.id}`}
+                        target="_blank"
+                        rel="noreferrer"
                         className="text-sm text-ui-fg-base hover:underline truncate"
                       >
                         {p.title ?? "(no title)"}
