@@ -218,6 +218,58 @@ module.exports = {
           },
           "100%": { transform: "translate3d(0, 0, 0) scale(1) rotate(0deg)" },
         },
+        /** Trust-strip icon animations (home page, immediately under hero). Each
+         * "occasional" animation keeps the icon at rest for most of the cycle
+         * and activates only briefly so the strip doesn't feel busy. */
+        "pin-wiggle": {
+          "0%, 78%, 100%": { transform: "rotate(0deg)" },
+          "82%": { transform: "rotate(-9deg)" },
+          "86%": { transform: "rotate(9deg)" },
+          "90%": { transform: "rotate(-5deg)" },
+          "94%": { transform: "rotate(3deg)" },
+          "98%": { transform: "rotate(0deg)" },
+        },
+        "truck-drive": {
+          "0%, 60%": { transform: "translateX(0)", opacity: "1" },
+          "70%": { transform: "translateX(28px)", opacity: "0" },
+          "71%": { transform: "translateX(-28px)", opacity: "0" },
+          "85%": { transform: "translateX(0)", opacity: "1" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        "print-stamp": {
+          "0%, 70%": { transform: "scale(1)", opacity: "1" },
+          "72%": { transform: "scale(0)", opacity: "0" },
+          "80%": { transform: "scale(0)", opacity: "0" },
+          "84%": { transform: "scale(1.45)", opacity: "1" },
+          "89%": { transform: "scale(0.85)", opacity: "1" },
+          "94%": { transform: "scale(1.06)", opacity: "1" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        "pulse-trace": {
+          "0%": { strokeDashoffset: "0" },
+          "100%": { strokeDashoffset: "-1" },
+        },
+        "tick-draw": {
+          "0%, 65%": { strokeDashoffset: "0" },
+          "70%": { strokeDashoffset: "1" },
+          "75%": { strokeDashoffset: "1" },
+          "88%": { strokeDashoffset: "0" },
+          "100%": { strokeDashoffset: "0" },
+        },
+        "slide-in-from-right": {
+          "0%, 65%": { transform: "translateX(0)", opacity: "1" },
+          "73%": { transform: "translateX(34px)", opacity: "0" },
+          "74%": { transform: "translateX(34px)", opacity: "0" },
+          "88%": { transform: "translateX(0)", opacity: "1" },
+          "100%": { transform: "translateX(0)", opacity: "1" },
+        },
+        "proof-tick-draw": {
+          "0%, 65%": { strokeDashoffset: "0" },
+          "73%": { strokeDashoffset: "1" },
+          "88%": { strokeDashoffset: "1" },
+          "95%": { strokeDashoffset: "0" },
+          "100%": { strokeDashoffset: "0" },
+        },
       },
       animation: {
         ring: "ring 2.2s cubic-bezier(0.5, 0, 0.5, 1) infinite",
@@ -242,6 +294,15 @@ module.exports = {
           "card-listing-enter 0.68s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 forwards",
         "card-listing-leave":
           "card-listing-leave-dynamic 0.5s cubic-bezier(0.36, 0.55, 0.19, 0.99) 1 forwards",
+        /** Trust-strip icon animations. Long cycles keep them feeling occasional. */
+        "pin-wiggle": "pin-wiggle 7s ease-in-out infinite",
+        "truck-drive": "truck-drive 7s ease-in-out infinite",
+        "print-stamp": "print-stamp 7s cubic-bezier(0.34, 1.56, 0.64, 1) infinite",
+        "pulse-trace": "pulse-trace 1.8s linear infinite",
+        "tick-draw": "tick-draw 7s ease-in-out infinite",
+        "slide-in-from-right":
+          "slide-in-from-right 8s cubic-bezier(0.22, 1, 0.36, 1) infinite",
+        "proof-tick-draw": "proof-tick-draw 8s ease-in-out infinite",
       },
     },
   },

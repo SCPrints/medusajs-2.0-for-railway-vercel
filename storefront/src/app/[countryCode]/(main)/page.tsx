@@ -11,6 +11,7 @@ import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
+import HomeTrustStrip from "@modules/home/components/home-trust-strip"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import SpaceHero from "@modules/home/components/space-hero"
 import HeroOverlay from "@modules/home/components/space-hero/hero-overlay"
@@ -133,110 +134,11 @@ const TruckIcon = ({ className }: StatIconProps) => (
   </svg>
 )
 
-// New trust-stripe icons: live tracker, DPI artwork checker, in-house proofs.
-const TrackerIcon = ({ className }: StatIconProps) => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden
-  >
-    <path d="M3 12h4l3-8 4 16 3-8h4" />
-  </svg>
-)
-
-const ArtworkCheckIcon = ({ className }: StatIconProps) => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden
-  >
-    <rect x="3" y="3" width="18" height="14" rx="2" />
-    <path d="M3 13l5-4 4 3 3-2 6 4" />
-    <path d="M14 20l3 3 5-6" />
-  </svg>
-)
-
-const ProofIcon = ({ className }: StatIconProps) => (
-  <svg
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden
-  >
-    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-    <path d="M14 2v6h6" />
-    <path d="M8 14l3 3 5-5" />
-  </svg>
-)
-
 const WHY_STATS = [
   { value: "10+ yrs", label: "Printing experience", Icon: ExperienceIcon },
   { value: "NSW, AU", label: "Local studio", Icon: LocationIcon },
   { value: "Aus-wide", label: "Shipping", Icon: TruckIcon },
   { value: "From 1", label: "Garment minimum", Icon: StackIcon },
-]
-
-// Six-stat trust band rendered immediately under the hero. Built from
-// signals the AU/US/UK and JP/CN/KR/EU competitive reviews flagged as
-// invisible to prospects — production tracker + DPI check are unique to
-// SC Prints; heritage + minimum + shipping match competitor norms.
-type TrustStat = {
-  Icon: React.FC<StatIconProps>
-  lead: string
-  subLine: string
-}
-
-const TRUST_STATS: TrustStat[] = [
-  {
-    Icon: LocationIcon,
-    lead: "NSW studio",
-    subLine: "10+ years printing in Sydney",
-  },
-  {
-    Icon: TruckIcon,
-    lead: "Australia-wide",
-    subLine: "Shipped from our studio",
-  },
-  {
-    Icon: StackIcon,
-    lead: "From 1 garment",
-    subLine: "No minimum order",
-  },
-  {
-    Icon: TrackerIcon,
-    lead: "Live order tracking",
-    subLine: "Status at every stage",
-  },
-  {
-    Icon: ArtworkCheckIcon,
-    lead: "Free DPI check",
-    subLine: "We catch low-res artwork early",
-  },
-  {
-    Icon: ProofIcon,
-    lead: "In-house proofs",
-    subLine: "Digital mockup before we print",
-  },
 ]
 
 export default async function Home({
@@ -306,31 +208,10 @@ export default async function Home({
 
         {/* 2. Trust strip — immediately under hero. Six signals: heritage,
             shipping, no minimum, live order tracking, free DPI check, in-house
-            proofs. The last three are unique to SC Prints and not visible
-            anywhere else on the site pre-purchase. */}
-        <section className="border-y border-ui-border-base bg-ui-bg-subtle">
-          <ul className="content-container grid list-none grid-cols-2 gap-x-3 gap-y-4 px-4 py-5 phone:gap-x-6 phone:py-6 tablet:grid-cols-3 small:grid-cols-6">
-            {TRUST_STATS.map((stat) => {
-              const { Icon } = stat
-              return (
-                <li
-                  key={stat.lead}
-                  className="flex items-start gap-2.5 phone:gap-3"
-                >
-                  <Icon className="mt-0.5 size-5 shrink-0 text-[var(--brand-secondary)] phone:size-6" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold leading-tight text-ui-fg-base phone:text-sm">
-                      {stat.lead}
-                    </p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-ui-fg-subtle phone:text-xs">
-                      {stat.subLine}
-                    </p>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
+            proofs. Each icon has its own subtle animation (see
+            [home-trust-strip.tsx]). The last three signals are unique to SC
+            Prints and not visible anywhere else on the site pre-purchase. */}
+        <HomeTrustStrip />
 
         {/* 3. Featured products — on screen within 2–3 scrolls */}
         <section className="content-container py-12">
