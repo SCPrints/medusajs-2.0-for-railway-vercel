@@ -15,6 +15,10 @@ export const AUDIT_ENTITY = {
   ORGANISATION: "organisation",
   TASK: "task",
   PRODUCT: "product",
+  // Phase 1 of the customer fulfillment service. See Docs/FULFILLMENT_PHASE_1_SPEC.md.
+  ORGANISATION_DESIGN: "organisation_design",
+  ORGANISATION_DESTINATION: "organisation_destination",
+  ORG_INVENTORY: "org_inventory",
 } as const
 export type AuditEntity = (typeof AUDIT_ENTITY)[keyof typeof AUDIT_ENTITY]
 
@@ -62,5 +66,23 @@ export const AUDIT_ACTION = {
   BULK_SALES_CHANNELS_CHANGED: "bulk_sales_channels_changed",
   BULK_CATEGORIES_CHANGED: "bulk_categories_changed",
   BULK_COLLECTION_CHANGED: "bulk_collection_changed",
+  // Phase 1 of the customer fulfillment service.
+  STOCK_RESERVED: "stock_reserved",
+  STOCK_SHIPPED: "stock_shipped",
+  STOCK_RELEASED: "stock_released",
+  STOCK_RECEIVED: "stock_received",
+  STOCK_ADJUSTED_UP: "stock_adjusted_up",
+  STOCK_ADJUSTED_DOWN: "stock_adjusted_down",
+  FULFILLMENT_ORDER_CREATED: "fulfillment_order_created",
+  DESIGN_CREATED: "design_created",
+  DESIGN_UPDATED: "design_updated",
+  DESIGN_DEACTIVATED: "design_deactivated",
+  DESTINATION_CREATED: "destination_created",
+  DESTINATION_UPDATED: "destination_updated",
+  DESTINATION_DEACTIVATED: "destination_deactivated",
+  INVENTORY_ROW_CREATED: "inventory_row_created",
+  INVENTORY_ROW_UPDATED: "inventory_row_updated",
+  INVENTORY_ROW_DEACTIVATED: "inventory_row_deactivated",
+  ORGANISATION_PRIMARY_CONTACT_SET: "organisation_primary_contact_set",
 } as const
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION]

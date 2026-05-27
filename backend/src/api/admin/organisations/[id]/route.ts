@@ -13,6 +13,13 @@ const updateSchema = z.object({
   default_pricing_tier: z.string().max(60).nullable().optional(),
   tax_exempt: z.boolean().optional(),
   tax_exempt_reason: z.string().max(200).nullable().optional(),
+  // Customer-of-record for fulfillment orders. See FULFILLMENT_PHASE_1_SPEC.md.
+  primary_contact_customer_id: z
+    .string()
+    .min(1)
+    .max(80)
+    .nullable()
+    .optional(),
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {

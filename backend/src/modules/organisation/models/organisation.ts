@@ -30,6 +30,10 @@ const Organisation = model
     default_pricing_tier: model.text().nullable(),
     tax_exempt: model.boolean().default(false),
     tax_exempt_reason: model.text().nullable(),
+    // Customer-of-record for fulfillment orders placed against this org.
+    // Required (form-level guard) for any org that has inventory rows.
+    // See Docs/FULFILLMENT_PHASE_1_SPEC.md → "Resolved decisions Q1".
+    primary_contact_customer_id: model.text().nullable(),
     metadata: model.json().default({}),
   })
   .indexes([{ on: ["handle"], unique: true }])

@@ -349,6 +349,10 @@ const medusaConfig = {
     },
 
     {
+      resolve: "./src/modules/org-inventory",
+    },
+
+    {
       key: Modules.FULFILLMENT,
       resolve: "@medusajs/fulfillment",
       options: {
