@@ -11,8 +11,13 @@ import { getStoreProductTagValues } from "@lib/util/product-tags"
 import ProductListingCard from "@modules/products/components/product-listing-card"
 import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
 
-/** Medusa list responses include `calculated_price`; avoid N+1 `getProductsById` per tile. */
+/** Medusa list responses include `calculated_price`; avoid N+1 `getProductsById` per tile.
+ *  Products with a precomputed `metadata.listing_summary` (the brand-listing
+ *  fast-path) carry their cheapest amount inside the summary, so an empty
+ *  variants array is fine — never refetch when that's present. */
 function productHasRegionalPrices(product: HttpTypes.StoreProduct): boolean {
+  const meta = (product.metadata ?? {}) as Record<string, unknown>
+  if (meta.listing_summary) return true
   return (product.variants ?? []).some(
     (v) =>
       (v as { calculated_price?: { calculated_amount?: unknown } })

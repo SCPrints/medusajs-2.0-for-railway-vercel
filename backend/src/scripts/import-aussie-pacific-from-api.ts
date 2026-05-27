@@ -543,4 +543,8 @@ export default async function importAussiePacificFromApi({
   })
 
   logger.info("Aussie Pacific API import complete.")
+  logger.info(
+    "Next: run `npx medusa exec src/scripts/backfill-aussiepacific-listing-summary.ts` " +
+      "to populate the brand-listing fast-path metadata on the newly created products."
+  )
 }

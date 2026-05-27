@@ -240,7 +240,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // PDP traffic is unaffected — that route doesn't go through here.
   const trimmedProducts = (products ?? []).map((p: any) => {
     if (p.metadata?.source === "aussiepacific") {
-      return compactAussiePacificProductForListing(p)
+      const compacted = compactAussiePacificProductForListing(p)
+      // If the product has a precomputed listing_summary, the storefront's
+      // card fast-path reads it directly and doesn't iterate variants at all
+      // — so we can drop the variant array from the response entirely. Cuts
+      // payload roughly in half on top of the per-colour compaction.
+      // Products without the summary fall back to the compacted variants
+      // (the storefront's variant-iteration path still works).
+      if (p.metadata?.listing_summary) {
+        return { ...compacted, variants: [] }
+      }
+      return compacted
     }
     return p
   })
