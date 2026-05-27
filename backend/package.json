@@ -23,6 +23,7 @@
     "trim-ramo-catalog": "npx medusa exec ./src/scripts/trim-ramo-catalog-by-allowlist.ts --",
     "import-dnc-products": "npx medusa exec ./src/scripts/import-dnc-products.ts --",
     "import-ramo-from-csv": "npx medusa exec ./src/scripts/import-ramo-from-csv.ts --",
+    "backfill-ramo-cdn-images": "npx medusa exec ./src/scripts/_backfill-ramo-cdn-images.ts --",
     "generate-as-colour-website-pricing-import-csv": "node -r ts-node/register/transpile-only ./src/scripts/generate-as-colour-website-pricing-import-csv.ts --",
     "audit-pricing-csv": "node -r ts-node/register/transpile-only ./src/scripts/audit-wholesale-pricing-csv.ts --",
     "generate-as-colour-gold-import-csv": "node -r ts-node/register/transpile-only ./src/scripts/generate-as-colour-gold-import-csv.ts --",
