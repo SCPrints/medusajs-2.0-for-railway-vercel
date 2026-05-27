@@ -39,6 +39,36 @@ type CardPhase = "rest" | "enter" | "hold" | "leave"
 
 const VELOCITY_EPS = 0.5
 
+/**
+ * Warm the browser image cache for every swatch's hover-preview image. Called
+ * on the first pointer-enter of a card so that by the time the user actually
+ * hovers a swatch, the `<Image src>` swap is served from cache instead of
+ * triggering a fresh /_next/image round-trip (~300-500ms each on cold cache,
+ * which was the perceptible "hovering swatches takes a long time" complaint).
+ *
+ * The constructed URL must match what Next.js Image will request for the card
+ * at its rendered desktop width: 260px slot × DPR 2 picks the 640w srcset
+ * entry, and the card declares quality={50}. Mobile DPR may pick a different
+ * srcset but the cache miss is still cheaper than a cold first hover.
+ */
+function preloadCardSwatchImages(
+  swatches: ProductListingCardData["swatches"],
+  alreadyPreloadedRef: React.MutableRefObject<boolean>
+) {
+  if (typeof window === "undefined" || alreadyPreloadedRef.current) {
+    return
+  }
+  alreadyPreloadedRef.current = true
+  const seen = new Set<string>()
+  for (const s of swatches) {
+    const raw = s.imageUrl
+    if (!raw || seen.has(raw)) continue
+    seen.add(raw)
+    const img = new window.Image()
+    img.src = `/_next/image?url=${encodeURIComponent(raw)}&w=640&q=50`
+  }
+}
+
 function subscribeReducedMotion(cb: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
   mq.addEventListener("change", cb)
@@ -430,6 +460,7 @@ function ProductListingCardTiltLift({
 
   const cardRootRef = useRef<HTMLElement | null>(null)
   const [swatchPhotosActive, setSwatchPhotosActive] = useState(false)
+  const swatchesPreloadedRef = useRef(false)
 
   useEffect(() => {
     setPreviewUrl(defaultImageUrl)
@@ -448,7 +479,8 @@ function ProductListingCardTiltLift({
 
   const onPointerEnter = useCallback(() => {
     setPointerInside(true)
-  }, [])
+    preloadCardSwatchImages(swatches, swatchesPreloadedRef)
+  }, [swatches])
 
   const content = (
     <ListingCardContent
