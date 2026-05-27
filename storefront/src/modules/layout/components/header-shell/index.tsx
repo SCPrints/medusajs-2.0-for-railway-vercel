@@ -248,7 +248,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           className="hidden small:block overflow-hidden"
           aria-hidden={isCondensed}
         >
-          <div className="content-container flex h-12 w-full items-center border-t border-white/10">
+          <div className="content-container flex h-12 w-full items-center">
             <DesktopMegaMenu audiences={audiences} />
 
             {/* Supplementary nav — direct links (no dropdowns). Sits on
