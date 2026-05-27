@@ -3,20 +3,19 @@
  *
  * Next.js 16 defaults `images.qualities` to `[75]` only — requests with other `q`
  * values return 400 INVALID_IMAGE_OPTIMIZE_REQUEST on Vercel. Listing cards use
- * `quality={50}` and swatch backgrounds used `q=40`.
+ * `quality={50}` (declared in next.config.js `qualities`) and swatch backgrounds
+ * use `q=75`.
  *
- * Vercel may also return 402 when Image Optimization is unavailable on the plan.
- * We default to unoptimized images on Vercel so supplier CDN URLs load directly.
+ * Optimization is ON by default everywhere. The previous Vercel-detection branch
+ * was a Hobby-plan workaround for 402 responses from `/_next/image`; Vercel Pro
+ * includes optimization and the workaround silently turned 12-card brand pages
+ * into ~150 MB of raw supplier JPEGs (one full-res garment photo per swatch ×
+ * up to 6 swatches × 12 cards). Set NEXT_PUBLIC_UNOPTIMIZED_IMAGES=true to opt
+ * out for a quick fallback if the monthly optimization quota gets hit.
  */
 
 export function catalogImagesUnoptimized(): boolean {
-  if (process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === "true") {
-    return true
-  }
-  if (process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === "false") {
-    return false
-  }
-  return process.env.VERCEL === "1"
+  return process.env.NEXT_PUBLIC_UNOPTIMIZED_IMAGES === "true"
 }
 
 /** Small swatch `background-image` URL for product listing cards. */

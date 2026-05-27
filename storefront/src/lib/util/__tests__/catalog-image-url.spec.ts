@@ -15,7 +15,7 @@ describe("catalogImagesUnoptimized", () => {
     expect(catalogImagesUnoptimized()).toBe(true)
   })
 
-  it("returns false when explicitly false even on Vercel", () => {
+  it("returns false when explicitly false", () => {
     process.env = {
       ...env,
       NEXT_PUBLIC_UNOPTIMIZED_IMAGES: "false",
@@ -24,9 +24,9 @@ describe("catalogImagesUnoptimized", () => {
     expect(catalogImagesUnoptimized()).toBe(false)
   })
 
-  it("defaults to true on Vercel when env unset", () => {
+  it("defaults to false on Vercel when env unset", () => {
     process.env = { ...env, NEXT_PUBLIC_UNOPTIMIZED_IMAGES: undefined, VERCEL: "1" }
-    expect(catalogImagesUnoptimized()).toBe(true)
+    expect(catalogImagesUnoptimized()).toBe(false)
   })
 })
 
