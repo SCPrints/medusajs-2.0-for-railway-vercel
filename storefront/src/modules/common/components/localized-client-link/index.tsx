@@ -1,9 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import React from "react"
-import { useTransitionRouter } from "next-view-transitions"
+
+/**
+ * If the browser's startViewTransition() snapshot phase doesn't complete
+ * within this many ms, fall back to a plain router.push so the click is
+ * never lost. The customizer page in particular (Fabric.js canvas + the
+ * 5500-line wizard) can stall the snapshot indefinitely, which previously
+ * left users with a "click does nothing, URL doesn't change" hang on the
+ * SC Prints logo and other internal links.
+ */
+const VIEW_TRANSITION_FALLBACK_MS = 250
 
 const runPageTransition = () => {
   // Reset scroll to the top of the new page. Next.js's router.push normally
@@ -44,6 +53,51 @@ const runPageTransition = () => {
   )
 }
 
+type NavRouter = ReturnType<typeof useRouter>
+
+/**
+ * Navigate via the browser View Transitions API when available, with a hard
+ * timeout fallback to plain `router.push` so a stalled snapshot phase never
+ * blocks the click. Replaces the previous `next-view-transitions` integration
+ * which had no timeout and hung indefinitely on heavy customizer pages.
+ */
+function navigateWithViewTransition(router: NavRouter, href: string): void {
+  if (
+    typeof document === "undefined" ||
+    typeof (document as any).startViewTransition !== "function"
+  ) {
+    router.push(href)
+    return
+  }
+
+  let didNavigate = false
+  const navigate = () => {
+    if (didNavigate) return
+    didNavigate = true
+    router.push(href)
+  }
+
+  const fallbackTimer = window.setTimeout(navigate, VIEW_TRANSITION_FALLBACK_MS)
+
+  try {
+    const transition = (document as any).startViewTransition(() => {
+      window.clearTimeout(fallbackTimer)
+      navigate()
+    })
+    // Fire the clip-path animation once the new DOM is snapshotted; any failure
+    // (unsupported pseudo-elements, transition skip, etc.) is non-fatal — the
+    // navigation itself is already in flight.
+    if (transition?.ready && typeof transition.ready.then === "function") {
+      transition.ready.then(runPageTransition).catch(() => undefined)
+    }
+  } catch {
+    // startViewTransition can throw synchronously when called during an
+    // active transition. Bail out cleanly to the timeout-driven fallback.
+    window.clearTimeout(fallbackTimer)
+    navigate()
+  }
+}
+
 /**
  * Use this component to create a Next.js `<Link />` that persists the current country code in the url,
  * without having to explicitly pass it as a prop.
@@ -63,7 +117,7 @@ const LocalizedClientLink = ({
   passHref?: true
   [x: string]: any
 }) => {
-  const router = useTransitionRouter()
+  const router = useRouter()
   const { countryCode } = useParams()
   const normalizedCountryCode = Array.isArray(countryCode)
     ? countryCode[0]
@@ -106,9 +160,7 @@ const LocalizedClientLink = ({
     }
 
     e.preventDefault()
-    router.push(localizedHref, {
-      onTransitionReady: runPageTransition,
-    })
+    navigateWithViewTransition(router, localizedHref)
   }
 
   return (
