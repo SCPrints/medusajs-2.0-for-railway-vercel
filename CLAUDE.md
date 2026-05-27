@@ -767,6 +767,7 @@ Every reminder/digest job is gated behind an `*_ENABLED` flag so accidental boot
 | `CONTACT_NOTIFICATION_EMAIL` | Admin inbox for contact-form + quote submissions. | unset — submissions still persist |
 | `NEWSLETTER_NOTIFICATION_EMAIL` | Admin inbox for new newsletter signups. | unset |
 | `ORDER_NOTIFICATION_EMAIL` | Admin inbox for order-placed notification. | unset |
+| `FULFILLMENT_NOTIFICATION_EMAIL` | Comma-separated inboxes for internal "new fulfillment order" alerts (Phase 2 customer portal restocks). Falls back to `ORDER_NOTIFICATION_EMAIL` then `CONTACT_NOTIFICATION_EMAIL` so production gets notified even if this is unset. | unset |
 | `ADMIN_PUBLIC_URL` | Public admin URL used in digest emails. | falls back to `BACKEND_URL` |
 
 #### Shipping (ShipStation + dropship)

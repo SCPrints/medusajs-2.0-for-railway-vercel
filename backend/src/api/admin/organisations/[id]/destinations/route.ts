@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
+import { revalidateOrgTags } from "../../../../../lib/storefront-revalidate"
 
 const createSchema = z.object({
   name: z.string().min(1).max(200),
@@ -74,5 +75,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       metadata: body.metadata ?? {},
     },
   ])
+  void revalidateOrgTags(id, ["destinations"])
   res.status(201).json({ destination: created[0] })
 }

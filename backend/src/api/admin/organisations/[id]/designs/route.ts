@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
+import { revalidateOrgTags } from "../../../../../lib/storefront-revalidate"
 
 const MAX_BYTES = 8 * 1024 * 1024 // 8 MB ceiling for thumbnail + print file
 
@@ -144,6 +145,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       metadata: body.metadata ?? {},
     },
   ])
+
+  // Fire-and-forget cache purge to the storefront
+  void revalidateOrgTags(id, ["designs"])
 
   res.status(201).json({ design: created[0] })
 }

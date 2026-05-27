@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import { ORG_INVENTORY_MODULE } from "../../../../../../../modules/org-inventory"
 import type OrgInventoryModuleService from "../../../../../../../modules/org-inventory/service"
+import { revalidateOrgTags } from "../../../../../../../lib/storefront-revalidate"
 
 const schema = z.object({
   target_quantity: z.number().int().nonnegative(),
@@ -36,5 +37,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     actor_id: (req as any).auth_context?.actor_id ?? null,
   })
   const fresh = await service.retrieveOrgInventory(invId)
+  void revalidateOrgTags(orgId, ["inventory"])
   res.json({ inventory: fresh, movement })
 }

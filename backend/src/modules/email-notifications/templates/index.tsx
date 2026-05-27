@@ -72,6 +72,11 @@ import {
   StaleOrderManagerEscalationEmail,
   isStaleOrderManagerEscalationData,
 } from './stale-order-manager-escalation'
+import {
+  FULFILLMENT_ORDER_PLACED,
+  FulfillmentOrderPlacedTemplate,
+  isFulfillmentOrderPlacedData,
+} from './fulfillment-order-placed'
 
 export const EmailTemplates = {
   INVITE_USER,
@@ -90,6 +95,7 @@ export const EmailTemplates = {
   TASK_OVERDUE,
   STALE_ORDER_OWNER_ALERT,
   STALE_ORDER_MANAGER_ESCALATION,
+  FULFILLMENT_ORDER_PLACED,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -240,6 +246,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
       }
       return <StaleOrderManagerEscalationEmail {...data} />
 
+    case EmailTemplates.FULFILLMENT_ORDER_PLACED:
+      if (!isFulfillmentOrderPlacedData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.FULFILLMENT_ORDER_PLACED}"`
+        )
+      }
+      return <FulfillmentOrderPlacedTemplate {...data} />
+
     default:
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
@@ -263,4 +278,5 @@ export {
   TaskOverdueEmail,
   StaleOrderOwnerAlertEmail,
   StaleOrderManagerEscalationEmail,
+  FulfillmentOrderPlacedTemplate,
 }

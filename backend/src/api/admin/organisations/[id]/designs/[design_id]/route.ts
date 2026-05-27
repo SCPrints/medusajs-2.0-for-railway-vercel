@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../../modules/organisation/service"
+import { revalidateOrgTags } from "../../../../../../lib/storefront-revalidate"
 
 const MAX_BYTES = 8 * 1024 * 1024
 
@@ -130,6 +131,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   await service.updateOrganisationDesigns([update as any])
   const fresh = await service.retrieveOrganisationDesign(designId)
+  void revalidateOrgTags(id, ["designs"])
   res.json({ design: fresh })
 }
 
@@ -151,5 +153,6 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   await service.updateOrganisationDesigns([
     { id: designId, is_active: false } as any,
   ])
+  void revalidateOrgTags(id, ["designs"])
   res.json({ ok: true })
 }

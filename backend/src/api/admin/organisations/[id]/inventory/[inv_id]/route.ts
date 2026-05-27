@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import { ORG_INVENTORY_MODULE } from "../../../../../../modules/org-inventory"
 import type OrgInventoryModuleService from "../../../../../../modules/org-inventory/service"
+import { revalidateOrgTags } from "../../../../../../lib/storefront-revalidate"
 
 const updateSchema = z.object({
   fulfillment_mode: z.enum(["held_stock", "print_on_demand"]).optional(),
@@ -59,6 +60,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
   await service.updateOrgInventories([update as any])
   const fresh = await service.retrieveOrgInventory(invId)
+  void revalidateOrgTags(orgId, ["inventory"])
   res.json({ inventory: fresh })
 }
 
@@ -79,5 +81,6 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   await service.updateOrgInventories([
     { id: invId, is_active: false } as any,
   ])
+  void revalidateOrgTags(orgId, ["inventory"])
   res.json({ ok: true })
 }

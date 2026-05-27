@@ -8,6 +8,7 @@ import { SUPPORT_REPLY_TO_EMAIL } from "../lib/constants"
 import { tagUrl } from "../lib/email-utm"
 import { orderInboxAddress } from "../lib/order-inbox-alias"
 import { readWatchers } from "../lib/order-watchers"
+import { revalidateOrgTags } from "../lib/storefront-revalidate"
 import { EmailTemplates } from "../modules/email-notifications/templates"
 import {
   PRODUCTION_STAGE_EVENT,
@@ -138,6 +139,13 @@ export default async function orderProductionStageChangedHandler({
         (error as Error).message
       }`
     )
+  }
+
+  // Phase 2: bust per-org orders cache so the stage badge on the
+  // customer portal updates promptly (instead of waiting for the
+  // cacheLife window).
+  if (orderMeta.fulfillment_order && orderMeta.organisation_id) {
+    void revalidateOrgTags(String(orderMeta.organisation_id), ["orders"])
   }
 }
 

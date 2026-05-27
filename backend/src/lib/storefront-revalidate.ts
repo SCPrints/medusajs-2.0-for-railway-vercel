@@ -127,3 +127,100 @@ export const tagsForCollection = (handle?: string | null): string[] => {
   if (h) out.push(`collection-${h}`)
   return out
 }
+
+/* ---- Org-scoped revalidation (Phase 2 fulfillment portal) ---- */
+
+export type OrgRevalidateKind =
+  | "designs"
+  | "destinations"
+  | "inventory"
+  | "orders"
+  | "members"
+  | "detail"
+  | "all"
+
+const ORG_TAG = (orgId: string, kind: Exclude<OrgRevalidateKind, "all">) =>
+  `org:${orgId}:${kind}`
+
+const ORG_ALL_TAGS = (orgId: string): string[] => [
+  ORG_TAG(orgId, "detail"),
+  ORG_TAG(orgId, "designs"),
+  ORG_TAG(orgId, "destinations"),
+  ORG_TAG(orgId, "inventory"),
+  ORG_TAG(orgId, "orders"),
+  ORG_TAG(orgId, "members"),
+]
+
+export function tagsForOrg(
+  organisationId: string,
+  kinds: ReadonlyArray<OrgRevalidateKind>
+): string[] {
+  const out = new Set<string>()
+  for (const kind of kinds) {
+    if (kind === "all") {
+      for (const t of ORG_ALL_TAGS(organisationId)) out.add(t)
+    } else {
+      out.add(ORG_TAG(organisationId, kind))
+    }
+  }
+  return Array.from(out)
+}
+
+/**
+ * POST the given tags to the storefront's `/api/revalidate-org`
+ * endpoint. Same auth + timeout pattern as `revalidateStorefrontTags`
+ * but hits the per-org route so tag validation runs on the
+ * storefront side too (must start with `org:`).
+ *
+ * Fire-and-forget; failures swallowed + logged. Safe to call from
+ * a route handler without awaiting.
+ */
+export async function revalidateOrgTags(
+  organisationId: string,
+  kinds: ReadonlyArray<OrgRevalidateKind>,
+  logger?: { info?: (msg: string) => void; warn?: (msg: string) => void; error?: (msg: string) => void }
+): Promise<boolean> {
+  if (!STOREFRONT_URL || !REVALIDATE_SECRET) {
+    warnMissingOnce(logger)
+    return false
+  }
+  const tags = tagsForOrg(organisationId, kinds)
+  if (tags.length === 0) return false
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), REVALIDATE_TIMEOUT_MS)
+  try {
+    const res = await fetch(`${STOREFRONT_URL}/api/revalidate-org`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${REVALIDATE_SECRET}`,
+      },
+      body: JSON.stringify({ organisation_id: organisationId, tags }),
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => "")
+      const msg = `[storefront-revalidate-org] ${res.status} ${res.statusText} — ${text.slice(0, 200)}`
+      if (logger?.warn) logger.warn(msg)
+      else console.warn(msg)
+      return false
+    }
+    if (logger?.info) {
+      logger.info(
+        `[storefront-revalidate-org] purged org=${organisationId} tags=${tags.join(", ")}`
+      )
+    }
+    return true
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error
+        ? `[storefront-revalidate-org] ${err.name}: ${err.message}`
+        : `[storefront-revalidate-org] unknown error`
+    if (logger?.warn) logger.warn(msg)
+    else console.warn(msg)
+    return false
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}

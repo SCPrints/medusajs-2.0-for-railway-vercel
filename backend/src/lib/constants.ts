@@ -151,6 +151,15 @@ export const SUPPORT_REPLY_TO_EMAIL =
   undefined
 
 /**
+ * Comma-separated inboxes for internal "new fulfillment order" alerts
+ * (Phase 2 customer portal restocks). Falls back to ORDER_NOTIFICATION_EMAIL
+ * so production gets notified even if this isn't set yet. See
+ * Docs/FULFILLMENT_PHASE_2_SPEC.md → Email notifications.
+ */
+export const FULFILLMENT_NOTIFICATION_EMAIL =
+  process.env.FULFILLMENT_NOTIFICATION_EMAIL
+
+/**
  * Who receives "new newsletter subscriber" alerts. Falls back to CONTACT_NOTIFICATION_EMAIL.
  */
 export const NEWSLETTER_NOTIFICATION_EMAIL = process.env.NEWSLETTER_NOTIFICATION_EMAIL

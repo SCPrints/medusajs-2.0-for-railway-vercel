@@ -6,6 +6,7 @@ import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import { ORG_INVENTORY_MODULE } from "../../../../../modules/org-inventory"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
 import type OrgInventoryModuleService from "../../../../../modules/org-inventory/service"
+import { revalidateOrgTags } from "../../../../../lib/storefront-revalidate"
 
 const createSchema = z.object({
   product_variant_id: z.string().min(1),
@@ -220,6 +221,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       actor_id: (req as any).auth_context?.actor_id ?? null,
     })
   }
+
+  void revalidateOrgTags(id, ["inventory"])
 
   res.status(201).json({ inventory: created })
 }

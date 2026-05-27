@@ -55,13 +55,34 @@ export const getOrderLineCustomizerMetadata = cache(async function (
   }
 })
 
+// Hide org-fulfillment orders from the customer's personal order history
+// (Phase 2 Q10). The primary contact on a fulfillment org would otherwise
+// see every org-restock alongside their personal orders. Fulfillment
+// orders surface under /account/organisations/[id]/orders instead.
+//
+// Caveat: the Medusa store `order.list` endpoint doesn't accept metadata
+// filters, so we filter post-fetch. To keep the requested `limit` honest,
+// we over-fetch and slice — costs an extra row scan but the customer's
+// list is typically small.
+const OVER_FETCH_MULTIPLIER = 3
+const MAX_OVER_FETCH = 100
+
 export const listOrders = cache(async function (
   limit: number = 10,
   offset: number = 0
 ) {
   const headers = await authedNextHeaders({ tags: ["order"] })
+  const overFetch = Math.min(
+    MAX_OVER_FETCH,
+    Math.max(limit, limit * OVER_FETCH_MULTIPLIER)
+  )
   return sdk.store.order
-    .list({ limit, offset, fields: ORDER_FIELDS }, headers)
-    .then(({ orders }) => orders.map((o: any) => normalizeOrderUnits(o)))
+    .list({ limit: overFetch, offset, fields: ORDER_FIELDS }, headers)
+    .then(({ orders }) => {
+      const filtered = (orders ?? []).filter(
+        (o: any) => o?.metadata?.fulfillment_order !== true
+      )
+      return filtered.slice(0, limit).map((o: any) => normalizeOrderUnits(o))
+    })
     .catch((err) => medusaError(err))
 })

@@ -3,6 +3,7 @@ import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../../modules/organisation/service"
+import { revalidateOrgTags } from "../../../../../../lib/storefront-revalidate"
 
 const updateSchema = z.object({
   name: z.string().min(1).max(200).optional(),
@@ -59,6 +60,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
   await service.updateOrganisationDestinations([update as any])
   const fresh = await service.retrieveOrganisationDestination(destId)
+  void revalidateOrgTags(id, ["destinations"])
   res.json({ destination: fresh })
 }
 
@@ -79,5 +81,6 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   await service.updateOrganisationDestinations([
     { id: destId, is_active: false } as any,
   ])
+  void revalidateOrgTags(id, ["destinations"])
   res.json({ ok: true })
 }

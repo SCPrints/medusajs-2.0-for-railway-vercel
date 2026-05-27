@@ -8,6 +8,7 @@ import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../lib/audit-entities"
 import { writeAudit } from "../lib/audit-log"
 import { captureEvent } from "../lib/posthog"
+import { revalidateOrgTags } from "../lib/storefront-revalidate"
 import { ORG_INVENTORY_MODULE } from "../modules/org-inventory"
 import type OrgInventoryModuleService from "../modules/org-inventory/service"
 
@@ -98,6 +99,13 @@ export default async function fulfillmentOnShipmentCreated({
     logger.error(
       `[fulfillment-on-shipment-created] could not stamp processed flag on ${orderId}: ${(err as Error).message}`
     )
+  }
+
+  if (meta.organisation_id) {
+    void revalidateOrgTags(String(meta.organisation_id), [
+      "orders",
+      "inventory",
+    ])
   }
 }
 
