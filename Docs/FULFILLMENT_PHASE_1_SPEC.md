@@ -290,19 +290,17 @@ The movement service is the single mutation point — all reads of `on_hand`/`re
 
 ### 5. Module links
 
+**IMPORTANT — intra-module relationships don't get link files.** Medusa's
+`defineLink` is for cross-module relationships only. The `organisation_design`
+and `organisation_destination` entities live in the SAME module as
+`organisation`, so the org↔design and org↔destination relationships are
+navigated through service methods (`service.listOrganisationDesigns({ organisation_id })`),
+NOT through `defineLink`. Creating a same-module link triggers the
+"Conflict configuration for service" error at build/sync-links time. This
+matches the existing `organisation_member` pattern — that entity also has
+no link file.
+
 ```ts
-// backend/src/links/organisation-designs.ts
-defineLink(
-  OrganisationModule.linkable.organisation,
-  { linkable: OrganisationModule.linkable.organisation_design, isList: true }
-)
-
-// backend/src/links/organisation-destinations.ts
-defineLink(
-  OrganisationModule.linkable.organisation,
-  { linkable: OrganisationModule.linkable.organisation_destination, isList: true }
-)
-
 // backend/src/links/organisation-inventory.ts
 defineLink(
   OrganisationModule.linkable.organisation,
@@ -346,6 +344,14 @@ defineLink(
 `isList: true` is required on the parent side of any 1:many link per the existing convention (see `organisation-tasks.ts` and the `feedback_medusa_definelink_islist` memory).
 
 **Module placement**: `organisation_design` + `organisation_destination` both live in the **organisation module** alongside `organisation_member` — they're properties of the org, not of inventory. `org_inventory` + `org_inventory_movement` live in a **new `org-inventory` module** (separate concern, mutation-heavy, has its own service layer).
+
+**Cross-module link summary** (`backend/src/links/`):
+- `customer-organisations-primary.ts` — Customer ↔ Organisation (isList:true on customer side, for primary_contact_customer_id reverse navigation)
+- `organisation-inventory.ts` — Organisation ↔ OrgInventory (isList:true on org side)
+- `design-inventory.ts` — OrganisationDesign ↔ OrgInventory (isList:true on design side)
+- `variant-org-inventory.ts` — ProductVariant ↔ OrgInventory (isList:true on variant side)
+
+No `organisation-designs.ts` or `organisation-destinations.ts` — same module, navigated via service methods.
 
 ---
 
@@ -790,7 +796,13 @@ Four new migrations on the `organisation` + new `org-inventory` modules:
 4. `Migration2027XXXXXXXXXX_OrgInventory.ts` — creates `org_inventory` + `org_inventory_movement` tables (one migration since they're tightly coupled)
 5. `Migration2027XXXXXXXXXX_OrderFulfillmentMetadata.ts` — index on `order.metadata->>'fulfillment_order'` for the list query (optional but cheap)
 
-Plus `pnpm --filter backend medusa db:sync-links` after the new `defineLink`s land. The new links materialise `organisation_design ↔ organisation`, `organisation_destination ↔ organisation`, `org_inventory ↔ organisation`, `org_inventory ↔ organisation_design`, `org_inventory ↔ product_variant`, `order ↔ organisation`, `order ↔ organisation_destination`, and `customer ↔ organisation` (for primary_contact).
+Plus `pnpm --filter backend medusa db:sync-links` after the new `defineLink`s land. The new links materialise:
+- `customer ↔ organisation` (primary_contact_customer_id)
+- `organisation ↔ org_inventory`
+- `organisation_design ↔ org_inventory`
+- `product_variant ↔ org_inventory`
+
+(Same-module relationships — org↔design, org↔destination — are NOT module links; they're queried via service methods. Creating a `defineLink` between same-module entities triggers a "Conflict configuration for service" error at sync-links time.)
 
 ---
 
