@@ -115,9 +115,83 @@ For schools, sports clubs, businesses — anything that groups multiple customer
 - **Members:** add individual customers with a role (`owner` / `purchaser` / `viewer`).
 - **Default pricing tier:** future hook for price-list overrides.
 - **Tax-exempt:** flag snapshots to every order placed by org members.
+- **Primary contact:** required before placing fulfillment orders — set on the org overview tab.
 - **Notes:** internal context for the sales team.
 
 Customers see their memberships at `/account/organisations` on the storefront.
+
+Owners can manage members from the storefront portal (invite by email, change roles, remove) — see *Customer fulfillment service* below.
+
+## Customer fulfillment service (B2B restocks)
+
+A per-organisation inventory + drop-ship workflow for ongoing B2B customers (Lifegrain Cafe is the first one). Replaces the "Uniforms spreadsheet" pattern: each customer gets pre-approved designs, a destination network, an inventory grid keyed on *(design × garment)*, and a self-service customer portal.
+
+### When to use this vs a normal order
+
+- **Fulfillment order** — the customer has locked artwork + locked garment combos that they restock against repeatedly. They want live stock, no customizer, consistent unit pricing.
+- **Normal order** — one-off custom job. Customer goes through the storefront customizer / quote flow.
+
+### The three building blocks
+
+Configured inside the org detail page (`/app/organisations` → pick org → tabs).
+
+1. **Designs** — upload a thumbnail (shown to customer) + a print file (staff-only, never exposed via store API). Each design is attached to every fulfillment order line so production sees the right artwork.
+2. **Destinations** — the customer's ship-to network (e.g. one row per shop). Address + contact + delivery notes (gate codes, receiving hours). Admin-only management; customers see them read-only on the portal.
+3. **Inventory rows** — one row per (design × variant) combo. Carries unit price (cents), unit cost (cents), fulfillment mode, current on_hand + reserved, optional reorder_point + lead_time_days.
+
+### Fulfillment modes
+
+| Mode | Means | On order placement | On shipment |
+|---|---|---|---|
+| **Held stock** | Pre-printed garments on our racks. Customer sees live `on_hand`. | `quantity_reserved` += qty | Both `on_hand` and `reserved` decrement |
+| **Print on demand** | Print only when ordered. Customer sees a "PoD" badge. | Unassigned `print_run` task created | No inventory effect |
+
+### Over-allocation
+
+Customers can order *more* than is on_hand for held_stock rows. The portal warns inline ("we'll print N additional units, +X days"). The Phase 1 subscriber reserves the full qty AND auto-creates a print task for the deficit (priority high, unassigned) so production knows to print more.
+
+### Placing a fulfillment order (admin)
+
+Use when you get an order via email/phone instead of the customer portal.
+
+- `/app/fulfillment/new` — two-step item picker (design tile → size picker), pick destination, hit submit.
+- `/app/fulfillment` — list view filtered to `metadata.fulfillment_order=true` orders.
+- Refuses to submit if the org has no *primary contact* set.
+
+### Customer portal (Phase 2)
+
+Customers self-serve at `/account/organisations/[id]`. Six tabs, gated by role:
+
+- **Overview** — stats + 5 most recent orders + Place New Order CTA.
+- **Designs** — gallery + modal showing SKU coverage. Read-only.
+- **Inventory** — full admin-parity grid: on_hand / reserved / available / reorder_point / lead_time. Below-reorder filter highlights what needs restocking.
+- **Destinations** — list + modal with full address + delivery notes. Read-only.
+- **Orders** — history filtered to this org with the production-stage tracker on each detail page.
+- **Members** — owner-only. Invite by email (invitee must already have an SC Prints account), change roles, remove. Last-owner guard prevents lockout.
+
+### Self-cancellation
+
+Purchaser + owner roles can cancel a fulfillment order within 24 hours of placement from the customer portal. After that the button disappears and the customer has to email us. Cancellation auto-releases the held_stock reservation; print-on-demand tasks are NOT auto-cancelled (staff intervention via `/app/tasks`).
+
+### What the subscribers do automatically
+
+- **On order placed** — held_stock lines reserved; PoD lines + over-allocation deficits become unassigned print tasks. Customer gets a "Restock confirmed" email; production gets an internal alert to `FULFILLMENT_NOTIFICATION_EMAIL` (falls back to `ORDER_NOTIFICATION_EMAIL`).
+- **On shipment created** — held_stock lines decrement both `on_hand` and `reserved` in one movement. Customer gets the standard order-shipped email.
+- **On order cancelled** — held_stock reservations released; `on_hand` untouched.
+
+All three are idempotent — re-fired events don't double-process.
+
+### Cache invalidation
+
+The customer portal uses Next.js cache tags. When admin mutates a design / destination / inventory row, the backend fires a fire-and-forget POST to `/api/revalidate-org` on the storefront so customer pages refresh on next render. Requires `STOREFRONT_URL` + `REVALIDATE_SECRET` on the backend.
+
+### Common ops
+
+- **Onboarding a new fulfillment org** — create org → set `primary_contact_customer_id` → add designs (thumbnail + print file) → add destinations → add inventory rows. Pick fulfillment mode per row.
+- **Customer says stock is wrong** — inventory row → Adjust action lets you reconcile `on_hand` to a target (movement log records the delta).
+- **Print run finished** — inventory row → Receive action increments `on_hand` by the run quantity. Auto-backs any over-allocations.
+- **Add a new SKU mid-relationship** — inventory tab → add row. Customer sees it on their portal within a render.
+- **Primary contact's personal order history cluttered with restocks** — already fixed. The primary contact's `/account/orders` filters out `metadata.fulfillment_order=true`; restocks only show under `/account/organisations/[id]/orders`.
 
 ## Group orders (customer-driven)
 
@@ -365,6 +439,14 @@ These features exist as backend infrastructure but don't have admin UI:
 - **Snooze** — A customer note with a future "remind me" date.
 - **Org / organisation** — A school, club, business — a group of customers sharing identity.
 - **Recipe** — Reusable production settings for a job (mesh count, ink, etc.).
+- **Fulfillment order** — An order placed against a B2B org's pre-approved designs + locked garments. Tagged `metadata.fulfillment_order=true`. Filters separately from one-off orders.
+- **Organisation design** — Pre-approved brand artwork for a fulfillment org. Carries a print file the customer never sees.
+- **Destination** — A ship-to address in a fulfillment org's network. One org typically has many.
+- **Inventory row** — One record per (design × garment) combo for a fulfillment org. Holds unit price, fulfillment mode, on_hand, reserved.
+- **Held stock** — Fulfillment mode where pre-printed garments sit on our racks. Customer sees live on_hand.
+- **Print on demand (PoD)** — Fulfillment mode where we print only when ordered. No stock held.
+- **Over-allocation** — Ordering more than on_hand for a held_stock row. Allowed; auto-creates a print task for the deficit.
+- **Primary contact** — The customer_id used as the order's customer-of-record on every fulfillment order. The actual placing member is preserved on `order.metadata.placed_by_customer_id`.
 
 ---
 

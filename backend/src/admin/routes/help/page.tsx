@@ -9,6 +9,7 @@ import {
 } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 import SystemMapPage from "../system-map/page"
+import { HelpTooltip } from "../../components/reports/help-tooltip"
 
 /**
  * In-admin staff guide. Renders an embedded copy of `Docs/STAFF_GUIDE.md`
@@ -55,12 +56,27 @@ const SECTIONS: Section[] = [
     body: (
       <ul className="list-disc pl-5 text-sm space-y-1">
         <li><strong>Order owner</strong> — the staff member responsible for this specific order. Auto-stamps from the customer's owner (or rotation if un-owned) when <code>OWNER_AUTOSTAMP_ENABLED</code> is on. Override per-order if a different teammate is handling this job. See <em>Owner &amp; rotation</em>.</li>
-        <li><strong>Stale badge (red)</strong> — auto-stamped if production stage hasn&apos;t moved in 3+ days. Clears when you advance. Phase 11 also auto-creates a Task for the owner ("Investigate stale order #N", priority high) so it lands in <a href="/app/tasks" className="underline">My tasks</a>.</li>
+        <li>
+          <strong>Stale badge (red)</strong>
+          <HelpTooltip text={{
+            title: "Stale order",
+            body: "An order whose production stage hasn't advanced in STALE_ORDER_THRESHOLD_DAYS (default 3). Auto-flagged by the daily 08:00 UTC scan; auto-clears when you move the stage forward. Phase 11 escalation: a Task lands in the owner's queue immediately; if it stays stale past STALE_ORDER_ESCALATION_DAYS, the manager inbox gets pinged once.",
+          }} />
+          {" — auto-stamped if production stage hasn't moved in 3+ days. Clears when you advance. Phase 11 also auto-creates a Task for the owner (\"Investigate stale order #N\", priority high) so it lands in "}
+          <a href="/app/tasks" className="underline">My tasks</a>.
+        </li>
         <li><strong>Production stage tracker</strong> — three parallel tracks (artwork / blanks / production). Advance from here.</li>
         <li><strong>Customer perks</strong> — &quot;Free shipping (waive at fulfillment)&quot; surfaces when the customer&apos;s tag qualifies. Apply via Order Edit.</li>
         <li><strong>Deposit &amp; balance</strong> — track upfront payment + balance due date. Bookkeeping only, no money movement.</li>
         <li><strong>NPS</strong> — score + comment from the customer after delivery.</li>
-        <li><strong>Watchers</strong> — up to 5 extra emails that get CC&apos;d on production-stage updates. Add/remove now writes audit rows.</li>
+        <li>
+          <strong>Watchers</strong>
+          <HelpTooltip text={{
+            title: "Watchers",
+            body: "Extra email addresses that get CC'd on every customer-facing production-stage email for an order. Useful when a school P&C buyer wants the principal looped in, or a corporate buyer wants their assistant on the thread. Add/remove from the widget — writes an audit row each time.",
+          }} />
+          {" — up to 5 extra emails that get CC'd on production-stage updates. Add/remove now writes audit rows."}
+        </li>
         <li><strong>Production photos</strong> — snap from phone, latest auto-appears in customer&apos;s next stage email.</li>
         <li><strong>Print recipes</strong> — link reusable production settings (mesh count, flash temp, embroidery file).</li>
         <li><strong>Rejects / spoilage</strong> — log every scrapped garment. Powers the /app/production-rejects report.</li>
@@ -125,7 +141,13 @@ const SECTIONS: Section[] = [
           Eight customer tiers let you give known/valued customers a flat below-retail price without exposing the rate on the public storefront. A tiered customer who logs in sees <strong>one flat price per variant</strong> on the PDP and inside the customizer — the public 5-band quantity ladder is hidden for them.
         </Text>
 
-        <Text className="mt-3 font-semibold">The 8 tiers</Text>
+        <Text className="mt-3 font-semibold">
+          The 8 tiers
+          <HelpTooltip text={{
+            title: "Tier math",
+            body: "Each tier multiplier is applied to the variant's ex-GST cost and produces the GST-inclusive selling price (same convention as the public ladder, which uses cost × 1.65 as its floor). Costs come from variant.metadata.cost_price_ex_gst_minor — written by every supplier importer. A nightly cron at 06:00 UTC regenerates all 8 tier price-lists from current cost so supplier price rises propagate within ~24h.",
+          }} />
+        </Text>
         <Text size="xsmall" className="text-ui-fg-muted">
           Multiplier is applied to ex-GST cost and produces the GST-inclusive selling price (same convention as today&apos;s public ladder, which uses cost × 1.65 as its floor).
         </Text>
@@ -393,10 +415,198 @@ const SECTIONS: Section[] = [
           <a href="/app/organisations" className="underline">/app/organisations</a> — schools, clubs, businesses as first-class accounts. Add customers as members with a role (owner / purchaser / viewer).
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
+          <li>
+            <strong>Roles</strong>
+            <HelpTooltip text={{
+              title: "Member roles",
+              bullets: [
+                "owner — full control: invite/remove members, change roles, place + cancel orders",
+                "purchaser — can place + cancel orders within 24h; can't manage members",
+                "viewer — read-only across designs, inventory, destinations, orders",
+              ],
+            }} />
+            {" — owner / purchaser / viewer. Owners can manage members from the storefront portal (Phase 2)."}
+          </li>
+          <li>
+            <strong>Primary contact</strong>
+            <HelpTooltip text={{
+              title: "Primary contact",
+              body: "The customer-of-record on every fulfillment order placed against this org. Required before placing any fulfillment order — pick one from the org overview tab. The actual member who clicks 'submit' on the customer portal is preserved separately on order.metadata.placed_by_customer_id so audit history stays accurate.",
+            }} />
+            {" — set on the org overview tab. Required for fulfillment orders."}
+          </li>
           <li><strong>Default pricing tier</strong> — sets up org-level pricing (future price-list integration).</li>
           <li><strong>Tax-exempt at org level</strong> — snapshots to every order placed by org members.</li>
           <li>Customers see their memberships at <code>/account/organisations</code> on the storefront.</li>
         </ul>
+      </>
+    ),
+  },
+  {
+    id: "fulfillment-service",
+    title: "Customer fulfillment service (B2B restocks)",
+    body: (
+      <>
+        <Text>
+          A per-organisation inventory + drop-ship workflow for ongoing B2B customers (the first one is Lifegrain Cafe). Replaces the "Uniforms spreadsheet" pattern: each customer gets pre-approved designs, a destination network, an inventory grid keyed on <em>(design × garment)</em>, and a self-service customer portal so they can browse, restock, and track without emailing us.
+        </Text>
+
+        <Text className="mt-3 font-semibold">When to use this vs a normal order</Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Fulfillment order</strong> — the customer has locked artwork + locked garment combos that they restock against repeatedly. They want to see live stock, place orders without going through the customizer, and see consistent unit pricing.</li>
+          <li><strong>Normal order</strong> — one-off custom job. Customer goes through the storefront customizer / quote flow.</li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">The three building blocks</Text>
+        <Text size="xsmall" className="text-ui-fg-muted">
+          Configure these inside the org detail page (<a href="/app/organisations" className="underline">/app/organisations</a> → pick org → tabs).
+        </Text>
+        <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
+          <li>
+            <strong>Designs</strong>
+            <HelpTooltip text={{
+              title: "Organisation designs",
+              body: "Pre-approved brand artwork — distinct from the customer-scoped 'My designs' module on the storefront. Each design carries a thumbnail (shown to customer) + a print file URL (staff-only, never exposed via store API). Used as the artwork attached to every fulfillment order line so production sees the right file without re-approval each time.",
+            }} />
+            {" — upload a thumbnail + a print file. Print file URL is never exposed to the customer; only the thumbnail."}
+          </li>
+          <li>
+            <strong>Destinations</strong>
+            <HelpTooltip text={{
+              title: "Destinations",
+              body: "The customer's ship-to network. Each row carries an address, contact info, and delivery notes (gate codes, receiving hours, etc.). Per Phase 1 Q4, destination management is admin-only — customers see them read-only on the portal with a 'contact us' CTA.",
+            }} />
+            {" — the customer's ship-to addresses (e.g. one row per store). Customer side is read-only; they email us to add or change."}
+          </li>
+          <li>
+            <strong>Inventory rows</strong>
+            <HelpTooltip text={{
+              title: "Inventory row",
+              body: "One row per (design × garment variant) combination. Holds the unit price (in cents), fulfillment mode, current on_hand + reserved counts, and optional reorder_point + lead_time_days. The available field is computed as on_hand - reserved; mutations always go through the OrgInventoryService so the movement ledger stays consistent.",
+            }} />
+            {" — one row per (design × garment) combo. Add via the inventory tab; pick a real Medusa variant + design, set unit price (cents) and unit cost (cents), choose fulfillment mode."}
+          </li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">Fulfillment modes</Text>
+        <div className="mt-2 overflow-hidden rounded-md border border-ui-border-base">
+          <table className="w-full text-sm">
+            <thead className="bg-ui-bg-subtle text-ui-fg-subtle">
+              <tr>
+                <th className="px-3 py-1.5 text-left font-medium">Mode</th>
+                <th className="px-3 py-1.5 text-left font-medium">Means</th>
+                <th className="px-3 py-1.5 text-left font-medium">On order placement</th>
+                <th className="px-3 py-1.5 text-left font-medium">On shipment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ui-border-base">
+              <tr>
+                <td className="px-3 py-1"><strong>Held stock</strong></td>
+                <td className="px-3 py-1">Pre-printed garments sitting in our racks. Customer sees live <code>on_hand</code> count.</td>
+                <td className="px-3 py-1"><code>quantity_reserved</code>+=qty</td>
+                <td className="px-3 py-1">Both <code>on_hand</code> and <code>reserved</code> decrement</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-1"><strong>Print on demand</strong></td>
+                <td className="px-3 py-1">We print only when ordered. No stock held; customer sees "PoD" badge.</td>
+                <td className="px-3 py-1">No reservation — auto-creates an unassigned <em>print_run</em> task</td>
+                <td className="px-3 py-1">No inventory effect</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <Text className="mt-3 font-semibold">
+          Over-allocation
+          <HelpTooltip text={{
+            title: "Over-allocation",
+            body: "Customers can order more than is currently on_hand for a held_stock row. The reservation goes through and a print_run task is auto-created for the deficit (priority high, unassigned). The portal shows an amber 'we'll print N additional units' hint inline on the line at order time so they know it'll take longer.",
+          }} />
+        </Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li>The portal <em>allows</em> a held_stock line to exceed availability — it inline-warns "We'll print [N] additional units — adds approximately [lead_time] days to that line's delivery."</li>
+          <li>The Phase 1 subscriber reserves the full qty AND auto-creates a print task for the deficit (priority high, unassigned). Lands in <a href="/app/tasks" className="underline">/app/tasks</a> under the print queue.</li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">Placing an order (admin)</Text>
+        <Text size="xsmall" className="text-ui-fg-muted">
+          Use when you receive an order via email/phone instead of the customer portal.
+        </Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><a href="/app/fulfillment/new" className="underline">/app/fulfillment/new</a> — two-step item picker (design tile → size picker), pick destination, hit submit.</li>
+          <li>The list at <a href="/app/fulfillment" className="underline">/app/fulfillment</a> filters orders by <code>metadata.fulfillment_order=true</code>. Order detail uses the standard page + an extra "Fulfillment context" widget at the top.</li>
+          <li>Refuses to submit if the org has no <em>primary contact</em> set. Fix that on the org overview tab first.</li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">Customer portal (Phase 2)</Text>
+        <Text size="xsmall" className="text-ui-fg-muted">
+          Customers self-serve at <code>/account/organisations/[id]</code>. Six tabs, gated by role.
+        </Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Overview</strong> — stats + 5 most recent orders + the Place New Order CTA.</li>
+          <li><strong>Designs</strong> — gallery + modal showing SKU coverage. Read-only.</li>
+          <li><strong>Inventory</strong> — full admin-parity grid (Phase 2 Q3). Customer sees on_hand / reserved / available / reorder_point / lead_time for held_stock rows. Below-reorder filter highlights what needs restocking.</li>
+          <li><strong>Destinations</strong> — list + modal with full address + delivery notes. Read-only.</li>
+          <li><strong>Orders</strong> — history filtered to this org, with the production-stage tracker on each detail page.</li>
+          <li>
+            <strong>Members</strong>
+            <HelpTooltip text={{
+              title: "Members tab (storefront)",
+              body: "Owner-only tab. Lets the org owner invite members by email (the invitee must already have an SC Prints customer account — register first, then re-invite), change a member's role, or remove a member. A 'last owner' guard prevents demoting or removing the only owner.",
+            }} />
+            {" — owner-only. Invite by email, change roles, remove. Last-owner guard prevents lockout."}
+          </li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">
+          Self-cancellation window
+          <HelpTooltip text={{
+            title: "24h cancellation",
+            body: "Purchaser or owner roles can cancel a fulfillment order from the storefront within 24 hours of placement. After that the cancel button disappears and the customer has to email us. The cancel calls Medusa's cancelOrderWorkflow; the Phase 1 fulfillment-on-order-cancelled subscriber releases the held_stock reservations automatically.",
+          }} />
+        </Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li>Purchaser + owner roles see a "Cancel order" button on the order detail page for 24 hours after placement.</li>
+          <li>After 24h the button disappears — they need to email us.</li>
+          <li>Cancellation auto-releases the held_stock reservation. Print-on-demand print tasks are NOT auto-cancelled (staff intervention via <a href="/app/tasks" className="underline">/app/tasks</a>).</li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">What the subscribers do (you don't have to think about this)</Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>On order placed</strong> — held_stock lines reserved; PoD lines + over-allocation deficits become unassigned print tasks. Customer gets a "Restock confirmed" email; production gets one to <code>FULFILLMENT_NOTIFICATION_EMAIL</code> (falls back to <code>ORDER_NOTIFICATION_EMAIL</code>).</li>
+          <li><strong>On shipment created</strong> — held_stock lines decrement <em>both</em> <code>on_hand</code> and <code>reserved</code> in one movement. Customer gets the standard order-shipped email.</li>
+          <li><strong>On order cancelled</strong> — held_stock reservations released; <code>on_hand</code> untouched.</li>
+          <li>All three are idempotent — re-fired events don't double-process.</li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">Emails sent</Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>To the customer</strong> — restock confirmation when an order's placed, then the existing production-stage emails (artwork approval, in production, shipped, delivered).</li>
+          <li><strong>To us</strong> — internal alert routed to <code>FULFILLMENT_NOTIFICATION_EMAIL</code> when a portal order lands. Falls back to <code>ORDER_NOTIFICATION_EMAIL</code> if unset.</li>
+        </ul>
+
+        <Text className="mt-4 font-semibold">Cache invalidation
+          <HelpTooltip text={{
+            title: "Storefront cache invalidation",
+            body: "The customer portal uses Next.js cache tags (org:[id]:designs, :destinations, :inventory, :orders, :members). When admin mutates any of those, the backend fires a fire-and-forget POST to /api/revalidate-org on the storefront so customer pages refresh on their next render. If STOREFRONT_URL or REVALIDATE_SECRET is unset, the call no-ops silently and cached data goes stale at its cacheLife window.",
+          }} />
+        </Text>
+        <Text size="xsmall" className="text-ui-fg-muted">
+          When you change a design / destination / inventory row in admin, the storefront customer portal sees the update on the next page render (no manual refresh needed). Requires <code>STOREFRONT_URL</code> + <code>REVALIDATE_SECRET</code> set on the backend.
+        </Text>
+
+        <Text className="mt-4 font-semibold">Common ops</Text>
+        <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Onboarding a new org for fulfillment</strong> — create the org, set its primary_contact_customer_id, add their designs (thumbnail + print file each), add their destinations, then add inventory rows for each (design × garment × size) combo. Pick fulfillment mode per row.</li>
+          <li><strong>Customer says stock is wrong</strong> — open the inventory row → adjust action lets you reconcile <code>on_hand</code> to a target quantity (movement log records the delta).</li>
+          <li><strong>Print run finished</strong> — inventory row → receive action increments <code>on_hand</code> by the run quantity. Auto-backs any over-allocations.</li>
+          <li><strong>Customer wants to add a new SKU</strong> — open inventory tab → add row. They'll see it on their portal within a render.</li>
+          <li><strong>Personal contact's own order history is cluttered with restocks</strong> — already fixed. The primary contact's <code>/account/orders</code> hides orders tagged <code>metadata.fulfillment_order=true</code>; restocks only show under <code>/account/organisations/[id]/orders</code>.</li>
+        </ul>
+
+        <Text size="xsmall" className="text-ui-fg-muted mt-3">
+          Audit + analytics: every place/cancel writes an audit row (entity=order, action=fulfillment_order_created | fulfillment_order_cancelled). PostHog gets <code>portal_new_order_submitted</code> + <code>portal_order_cancelled</code> events keyed on the placing customer's distinctId.
+        </Text>
       </>
     ),
   },
@@ -679,6 +889,11 @@ const SECTIONS: Section[] = [
         <div><strong>Add an order watcher</strong> Order detail → Watchers</div>
         <div><strong>Set deposit + balance</strong> Order detail → Deposit &amp; balance</div>
         <div><strong>Add a school as an org</strong> <a href="/app/organisations" className="underline">/app/organisations</a></div>
+        <div><strong>Set up a fulfillment customer (Lifegrain-style)</strong> <a href="/app/organisations" className="underline">/app/organisations</a> → Designs / Destinations / Inventory tabs</div>
+        <div><strong>Place an admin fulfillment order</strong> <a href="/app/fulfillment/new" className="underline">/app/fulfillment/new</a></div>
+        <div><strong>See all fulfillment orders</strong> <a href="/app/fulfillment" className="underline">/app/fulfillment</a></div>
+        <div><strong>Reconcile stocktake on an inventory row</strong> Org detail → Inventory tab → row → Adjust</div>
+        <div><strong>Mark a print run received</strong> Org detail → Inventory tab → row → Receive</div>
         <div><strong>Add a gallery tile</strong> <a href="/app/lookbook" className="underline">/app/lookbook</a></div>
         <div><strong>Snooze a customer for Tuesday</strong> Customer detail → Notes → add note with snooze date</div>
         <div><strong>Tax invoice</strong> Customer side: /account/orders/[id] → Tax invoice button</div>
@@ -707,6 +922,14 @@ const SECTIONS: Section[] = [
         <div><dt className="font-semibold inline">Task</dt> <dd className="inline">— a staff to-do anchored to a customer / order / quote / org. Single assignee, optional due_at + priority. Lives at <a href="/app/tasks" className="underline">/app/tasks</a>.</dd></div>
         <div><dt className="font-semibold inline">Audit log</dt> <dd className="inline">— the polymorphic activity feed. Every meaningful staff action (tag add, note pin, owner change, watcher add, automation fire) writes a row. Surfaced on the customer-journey widget as the purple "Activity" track.</dd></div>
         <div><dt className="font-semibold inline">Suppression</dt> <dd className="inline">— a marketing-email opt-out. Stored by email (works for guests too). Global or per-stream. Blocks every marketing-job send.</dd></div>
+        <div><dt className="font-semibold inline">Fulfillment order</dt> <dd className="inline">— an order placed against a B2B org's pre-approved designs + locked garments. Tagged with <code>metadata.fulfillment_order=true</code>. Filters separately from one-off customer orders.</dd></div>
+        <div><dt className="font-semibold inline">Organisation design</dt> <dd className="inline">— pre-approved brand artwork for a fulfillment org. Distinct from the customer "My designs" library; carries a print file the customer never sees.</dd></div>
+        <div><dt className="font-semibold inline">Destination</dt> <dd className="inline">— a ship-to address in a fulfillment org's network. One org typically has many (one per shop / branch).</dd></div>
+        <div><dt className="font-semibold inline">Inventory row</dt> <dd className="inline">— one record per (design × garment) combo for a fulfillment org. Holds unit price, fulfillment mode, on_hand, reserved.</dd></div>
+        <div><dt className="font-semibold inline">Held stock</dt> <dd className="inline">— fulfillment mode where pre-printed garments sit in our racks. Customer sees live on_hand counts.</dd></div>
+        <div><dt className="font-semibold inline">Print on demand (PoD)</dt> <dd className="inline">— fulfillment mode where we print only when ordered. No stock held; placing an order spawns an unassigned print task.</dd></div>
+        <div><dt className="font-semibold inline">Over-allocation</dt> <dd className="inline">— ordering more than on_hand for a held_stock row. Allowed; portal warns the customer, system auto-creates a print task for the deficit.</dd></div>
+        <div><dt className="font-semibold inline">Primary contact</dt> <dd className="inline">— the customer_id used as the order's customer-of-record on every fulfillment order. The actual member who placed an order is preserved on <code>order.metadata.placed_by_customer_id</code>.</dd></div>
       </dl>
     ),
   },
