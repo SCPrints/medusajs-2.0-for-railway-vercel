@@ -13,21 +13,41 @@ import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
 /**
  * Two-row sticky header with scroll-direction-aware collapse.
  *
+ * State machine adapted from Colour Cartel's <sticky-header> custom element
+ * (https://thecolourcartel.com.au/cdn/shop/t/69/assets/header.js). Instead
+ * of flipping state on per-event direction, we accumulate scroll distance
+ * in the current direction; on direction reversal we reset the counter to
+ * 0 and start over. State only commits once SCROLL_DISTANCE_THRESHOLD px
+ * have accumulated in the new direction.
+ *
+ * Why: a 48px reverse-delta event from browser scroll-anchoring (fired
+ * when row 2's height shrinks above the viewport anchor) just resets the
+ * direction counter — it can't flip state on its own. That removes the
+ * bounce loop the prior per-event-direction implementation hit and lets
+ * us drop the time-based animation lock entirely.
+ *
+ * The CSS `overflow-anchor: none` on <html> in globals.css disables the
+ * anchor mechanism upstream; the distance threshold is a second line of
+ * defence against any other reflow-driven scroll events (momentum jitter,
+ * trackpad noise, browser-internal scroll adjustments).
+ *
  * Layout:
  *   ROW 1 (h-20, always visible):
- *     [hamburger* | logo] · · · [phone] [search] [text-links] [cart]
+ *     [hamburger* | logo] · · · [search] [account] [cart]
  *     * mobile: MobileMegaMenu hamburger (always)
  *     * desktop: condensed hamburger appears ONLY when row 2 has been
  *       collapsed by scrolling.
  *   ROW 2 (h-12, desktop-only, collapsible):
  *     [Mens · Womens · Kids · Workwear · Corporates · Healthcare · Accessories]
+ *     · · · [Brands · Services · Best Sellers]
  *
  * Scroll behaviour (desktop only — mobile never shows row 2):
- *   - scrollY < 10            → expanded (force)
- *   - scrolling DOWN past 80  → condensed (hamburger appears in row 1)
- *   - scrolling UP            → expanded
- *   - hamburger click         → expanded + 500ms grace so a tiny scroll
- *                               doesn't immediately re-condense
+ *   - scrollY < 10                  → expanded (force)
+ *   - scrolling DOWN ≥200px past 80 → condensed (hamburger appears in row 1)
+ *   - scrolling UP ≥200px           → expanded
+ *   - hamburger click               → expanded + 1000ms cooldown so the
+ *                                     user's continuing scroll doesn't
+ *                                     immediately re-collapse
  *
  * Row 2 uses Framer Motion height+opacity animation. The motion wrapper
  * has overflow:hidden which clips both the trigger row AND any open
@@ -41,15 +61,10 @@ import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
  */
 
 const COLLAPSE_THRESHOLD = 80
-const SCROLL_DEADZONE = 4
-const HAMBURGER_GRACE_MS = 500
-// Must exceed the Framer height animation duration (220ms). When row 2's
-// height animates, the sticky header's footprint in the document changes
-// every frame and the browser fires scroll events to follow the reflow.
-// Those events arrive with reversed deltas relative to the user's actual
-// scroll direction; without this lock the state flips back, the animation
-// reverses, and the row bounces 6-7× before settling.
-const STATE_LOCK_MS = 280
+const SCROLL_DISTANCE_THRESHOLD = 200
+const MANUAL_TOGGLE_COOLDOWN_MS = 1000
+
+type ScrollDirection = "up" | "down" | "none"
 
 type Props = {
   audiences: MenuAudience[]
@@ -60,51 +75,66 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
   const [isCondensed, setIsCondensed] = useState(false)
   const isCondensedRef = useRef(false)
   const lastScrollYRef = useRef(0)
-  const graceUntilRef = useRef(0)
-  const stateLockUntilRef = useRef(0)
+  const scrollDirectionRef = useRef<ScrollDirection>("none")
+  const scrollDistanceRef = useRef(0)
+  const manualToggleUntilRef = useRef(0)
 
   const setCondensed = useCallback((next: boolean) => {
     if (isCondensedRef.current === next) return
     isCondensedRef.current = next
     setIsCondensed(next)
-    // Block further toggles until the height animation finishes so the
-    // browser's animation-induced scroll events can't bounce us back.
-    stateLockUntilRef.current = Date.now() + STATE_LOCK_MS
   }, [])
 
   useEffect(() => {
-    // Passive scroll listener fires at the browser's natural rate (already
-    // throttled to vsync by every modern engine). Adding RAF on top broke
-    // verification in headless browsers that pause RAF — and the
-    // ref-mirrored setCondensed already short-circuits no-op transitions,
-    // so the React render cost is bounded.
+    let rafScheduled = false
+
     const handleScroll = () => {
-      const y = window.scrollY
-      const last = lastScrollYRef.current
-      const diff = y - last
-      // Always advance the baseline so neither lock window leaves a stale
-      // anchor that turns the next real scroll into a giant phantom delta.
-      lastScrollYRef.current = y
+      // Coalesce bursts of scroll events into one frame. Reads of
+      // window.scrollY are cheap but coalescing keeps the state machine
+      // from advancing through multiple per-frame events with stale data.
+      if (rafScheduled) return
+      rafScheduled = true
+      requestAnimationFrame(() => {
+        rafScheduled = false
 
-      const now = Date.now()
+        const y = window.scrollY
+        const last = lastScrollYRef.current
+        const newDirection: ScrollDirection =
+          y > last ? "down" : y < last ? "up" : scrollDirectionRef.current
 
-      // Post-hamburger grace: don't re-condense from the user's continued
-      // scroll for a brief moment after they manually expanded the row.
-      if (now < graceUntilRef.current) return
+        if (newDirection !== scrollDirectionRef.current) {
+          // Direction flip — reset the counter. Small reverse-delta
+          // events (scroll anchoring, momentum settling, trackpad
+          // jitter) land here and CAN'T flip state on their own.
+          scrollDirectionRef.current = newDirection
+          scrollDistanceRef.current = 0
+        } else {
+          scrollDistanceRef.current += Math.abs(y - last)
+        }
 
-      // Post-toggle lock: ignore scroll events caused by the row 2 height
-      // animation itself. See STATE_LOCK_MS comment for the gory details.
-      if (now < stateLockUntilRef.current) return
+        lastScrollYRef.current = y
 
-      if (Math.abs(diff) < SCROLL_DEADZONE) return
+        // Force expanded near the top regardless of accumulated distance —
+        // matches the "back at top = unconditional restore" behaviour from
+        // Colour Cartel's handleScrolledBeforeHeader.
+        if (y < 10) {
+          setCondensed(false)
+          return
+        }
 
-      if (y < 10) {
-        setCondensed(false)
-      } else if (diff > 0 && y > COLLAPSE_THRESHOLD) {
-        setCondensed(true)
-      } else if (diff < 0) {
-        setCondensed(false)
-      }
+        // Honour manual hamburger toggle for a brief cooldown.
+        if (Date.now() < manualToggleUntilRef.current) return
+
+        if (scrollDistanceRef.current < SCROLL_DISTANCE_THRESHOLD) return
+
+        if (newDirection === "down" && y > COLLAPSE_THRESHOLD) {
+          setCondensed(true)
+          scrollDistanceRef.current = 0
+        } else if (newDirection === "up") {
+          setCondensed(false)
+          scrollDistanceRef.current = 0
+        }
+      })
     }
 
     // Sync on mount — handles reload-on-scrolled-page.
@@ -119,7 +149,11 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
 
   const handleHamburgerClick = useCallback(() => {
     setCondensed(false)
-    graceUntilRef.current = Date.now() + HAMBURGER_GRACE_MS
+    manualToggleUntilRef.current = Date.now() + MANUAL_TOGGLE_COOLDOWN_MS
+    // Reset the distance counter too so the user's first scroll-down
+    // after clicking starts fresh from 0 rather than carrying leftover
+    // accumulation from before the click.
+    scrollDistanceRef.current = 0
   }, [setCondensed])
 
   return (

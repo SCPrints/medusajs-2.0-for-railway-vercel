@@ -2,7 +2,6 @@ import { Suspense } from "react"
 
 import { listStoreProductTags, listStoreProductTypes } from "@lib/data/catalog-facets"
 import { listBrands, retrieveBrandByHandle } from "@lib/data/brands"
-import AsColourStoreUgcMasonry from "@modules/brands/components/as-colour-store-ugc-masonry"
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
 import RefinementList from "@modules/store/components/refinement-list"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -77,7 +76,6 @@ const StoreTemplate = async ({
       ) ?? null
     : null
   const isRamo = brandMatchesAny(brand, ["ramo", "stanley/stella"])
-  const isAsColour = brandMatchesAny(brand, ["as-colour", "as colour"])
   const catalogTitle = matchedBrand
     ? matchedBrand.name
     : isRamo
@@ -143,7 +141,6 @@ const StoreTemplate = async ({
             </p>
           ) : null}
         </header>
-        {isAsColour && pageNumber === 1 ? <AsColourStoreUgcMasonry /> : null}
         <Suspense fallback={<SkeletonProductGrid />}>
           <PaginatedProducts
             sortBy={sort}

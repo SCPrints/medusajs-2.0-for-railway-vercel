@@ -8,6 +8,14 @@
       "cwd": "storefront",
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "storefront-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["start"],
+      "cwd": "storefront",
+      "port": 3100,
+      "env": { "PORT": "3100" }
     }
   ]
 }

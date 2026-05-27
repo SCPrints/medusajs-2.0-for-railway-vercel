@@ -28,6 +28,18 @@ main {
   color: var(--brand-primary);
 }
 
+/* Disable browser scroll anchoring. The sticky header's row 2 animates its
+   height between 0 and 48px on scroll-direction change; when its footprint
+   in document flow shrinks, the browser's anchoring auto-adjusts scrollY by
+   the same delta to keep the viewport-anchor element stable. That adjustment
+   fires a scroll event with a delta opposite to the user's real direction,
+   which the header-shell handler reads as scroll-up and re-expands the row —
+   restarting the bounce loop. Opt the whole document out: the e-commerce
+   pages don't async-insert content above the fold, so we lose nothing. */
+html {
+  overflow-anchor: none;
+}
+
 .cursor-follow-trail {
   position: fixed;
   inset: 0;
