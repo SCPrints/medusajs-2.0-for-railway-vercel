@@ -59,9 +59,65 @@ const STORE_PRODUCT_FIELDS = [
   "brand.*",
 ]
 
+// In-memory TTL cache for the brand-products listing. This is the hot path on
+// every brand page render and was costing ~1s per call (Medusa's query.graph
+// pulls the full variant tree before the per-AP compaction strips it). A 60s
+// TTL is safe — the storefront already caches its own call to this route for
+// 120s (cacheLife on getBrandProducts), so an extra 60s of backend caching
+// doesn't extend the visible staleness window. Stock/price changes from admin
+// or the nightly importer take effect within ~3 min worst-case.
+const BRAND_PRODUCTS_CACHE_TTL_MS = 60_000
+const BRAND_PRODUCTS_CACHE_MAX = 500
+const brandProductsCache = new Map<
+  string,
+  { body: unknown; expiresAt: number }
+>()
+
+function getCachedBrandProducts(key: string): unknown | undefined {
+  const hit = brandProductsCache.get(key)
+  if (!hit) return undefined
+  if (Date.now() > hit.expiresAt) {
+    brandProductsCache.delete(key)
+    return undefined
+  }
+  // Re-insert to mark as most-recently-used. Map preserves insertion order,
+  // so the oldest key is always at the head — cheap LRU semantics on eviction.
+  brandProductsCache.delete(key)
+  brandProductsCache.set(key, hit)
+  return hit.body
+}
+
+function setCachedBrandProducts(key: string, body: unknown): void {
+  brandProductsCache.set(key, {
+    body,
+    expiresAt: Date.now() + BRAND_PRODUCTS_CACHE_TTL_MS,
+  })
+  while (brandProductsCache.size > BRAND_PRODUCTS_CACHE_MAX) {
+    const oldest = brandProductsCache.keys().next().value
+    if (!oldest) break
+    brandProductsCache.delete(oldest)
+  }
+}
+
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { handle } = paramsSchema.parse(req.params ?? {})
   const q = querySchema.parse(req.query ?? {})
+
+  const cacheKey = [
+    handle,
+    q.region_id ?? "",
+    String(q.limit),
+    String(q.offset),
+    q.order ?? "",
+    (q.type_id ?? []).join(","),
+    (q.tag_id ?? []).join(","),
+  ].join("|")
+
+  const cached = getCachedBrandProducts(cacheKey)
+  if (cached) {
+    res.json(cached)
+    return
+  }
 
   const brandService = req.scope.resolve<BrandModuleService>(BRAND_MODULE)
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
@@ -189,12 +245,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     return p
   })
 
-  res.json({
+  const responseBody = {
     products: trimmedProducts,
     count: metadata?.count ?? 0,
     offset: q.offset,
     limit: q.limit,
-  })
+  }
+  setCachedBrandProducts(cacheKey, responseBody)
+  res.json(responseBody)
 }
 
 const COLOR_OPTION_MATCHER = /(color|colour|shade)/i
