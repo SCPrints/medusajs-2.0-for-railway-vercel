@@ -2,7 +2,7 @@
 
 import { HttpTypes } from "@medusajs/types"
 import { clx } from "@medusajs/ui"
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import { sortGarmentColorLabels } from "@modules/products/lib/garment-color-order"
@@ -82,34 +82,45 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
     : 0
 
   /**
-   * Find every variant that matches a given (this option = this value)
-   * AND every *other* selected option already chosen. Used to decide whether
-   * a size pill or colour swatch deserves a stock-warning `!`.
+   * value → matching variants, where a match is (this option = value) AND every
+   * *other* already-selected option. Drives the per-swatch / per-size stock
+   * warning `!`. Memoised: this previously ran once per rendered swatch on
+   * every render — O(values × variants × options), and FashionBiz garments
+   * carry 20+ colours — so it re-swept the whole catalog on each re-render.
+   * Now it recomputes only when the product or the other selected options change.
    */
-  const variantsForOptionValue = (value: string) => {
+  const valueToMatchingVariants = useMemo(() => {
+    const values = (option.values ?? [])
+      .map((v) => v.value)
+      .filter((v): v is string => v != null && v !== "")
     const otherOptionTitles = (product.options ?? [])
       .map((o) => o.title ?? "")
       .filter((t) => t && t !== title)
-    return (product.variants ?? []).filter((variant) => {
-      const variantOptionValue = variant.options?.find(
-        (vo) => vo.option_id === option.id
-      )?.value
-      if (variantOptionValue !== value) return false
-      // Honour other already-selected options so e.g. picking "Black" then
-      // viewing size pills only considers Black variants for stock.
-      for (const otherTitle of otherOptionTitles) {
-        const otherSelected = selectedOptions[otherTitle]
-        if (!otherSelected) continue
-        const otherOpt = product.options?.find((o) => o.title === otherTitle)
-        if (!otherOpt) continue
-        const variantOtherValue = variant.options?.find(
-          (vo) => vo.option_id === otherOpt.id
+    const map = new Map<string, HttpTypes.StoreProductVariant[]>()
+    for (const value of values) {
+      const matches = (product.variants ?? []).filter((variant) => {
+        const variantOptionValue = variant.options?.find(
+          (vo) => vo.option_id === option.id
         )?.value
-        if (variantOtherValue !== otherSelected) return false
-      }
-      return true
-    })
-  }
+        if (variantOptionValue !== value) return false
+        // Honour other already-selected options so e.g. picking "Black" then
+        // viewing size pills only considers Black variants for stock.
+        for (const otherTitle of otherOptionTitles) {
+          const otherSelected = selectedOptions[otherTitle]
+          if (!otherSelected) continue
+          const otherOpt = product.options?.find((o) => o.title === otherTitle)
+          if (!otherOpt) continue
+          const variantOtherValue = variant.options?.find(
+            (vo) => vo.option_id === otherOpt.id
+          )?.value
+          if (variantOtherValue !== otherSelected) return false
+        }
+        return true
+      })
+      map.set(value, matches)
+    }
+    return map
+  }, [product, option, title, selectedOptions])
 
   return (
     <div
@@ -140,7 +151,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
         // for that colour and only warn when the *whole colour* is gone /
         // backorder-only — per-size nuance comes from the size pickers.
         const matchingVariants =
-          v != null && v !== "" ? variantsForOptionValue(v) : []
+          v != null && v !== "" ? valueToMatchingVariants.get(v) ?? [] : []
         let stockWarning: { message: string; kind: ReturnType<typeof aggregateStockKind> } | null = null
         if (matchingVariants.length > 0) {
           if (isColorOption) {
@@ -177,7 +188,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
                 onClick={() => updateOption(option.title ?? "", v ?? "")}
                 data-no-squish
                 className={clx(
-                  "h-8 w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",
+                  "h-11 w-11 small:h-8 small:w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",
                   {
                     "border-[var(--brand-accent)] ring-2 ring-[var(--brand-accent)] ring-offset-1":
                       isSelected,
@@ -215,7 +226,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
             onClick={() => updateOption(option.title ?? "", v ?? "")}
             key={v}
             className={clx(
-              "border-ui-border-base bg-ui-bg-subtle border text-small-regular h-10 rounded-rounded p-2 flex-1 inline-flex items-center justify-center gap-1.5",
+              "border-ui-border-base bg-ui-bg-subtle border text-small-regular h-11 small:h-10 rounded-rounded p-2 flex-1 inline-flex items-center justify-center gap-1.5",
               {
                 "border-ui-border-interactive": isSelected,
                 "hover:shadow-elevation-card-rest transition-shadow ease-in-out duration-150":
@@ -239,7 +250,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
         <button
           type="button"
           onClick={() => setColourExpanded(true)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle text-[11px] font-semibold text-ui-fg-base transition-all duration-150 ease-in-out hover:scale-105 hover:border-[var(--brand-secondary)] hover:ring-2 hover:ring-[var(--brand-secondary)] hover:ring-offset-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
+          className="inline-flex h-11 w-11 small:h-8 small:w-8 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle text-[11px] font-semibold text-ui-fg-base transition-all duration-150 ease-in-out hover:scale-105 hover:border-[var(--brand-secondary)] hover:ring-2 hover:ring-[var(--brand-secondary)] hover:ring-offset-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
           aria-label={`Show ${hiddenColourCount} more ${title?.toLowerCase()} option${hiddenColourCount === 1 ? "" : "s"}`}
           data-testid="option-swatch-show-more"
         >

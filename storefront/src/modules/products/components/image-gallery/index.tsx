@@ -5,7 +5,7 @@ import { Container } from "@medusajs/ui"
 import Image from "next/image"
 import { useEffect, useMemo, useState } from "react"
 import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
-import { useProductOptions } from "@modules/products/context/product-options-context"
+import { useColorHover, useProductOptions } from "@modules/products/context/product-options-context"
 import {
   buildColorNeedlesForRelaxedMatch,
   filterGarmentImageUrlsForVariantColor,
@@ -42,7 +42,8 @@ const ImageGallery = ({
   heroLayout = false,
   heroClassName = "",
 }: ImageGalleryProps) => {
-  const { options, colorHoverPreview } = useProductOptions()
+  const { options } = useProductOptions()
+  const colorHoverPreview = useColorHover()
 
   const effectiveOptions = useMemo(() => {
     const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))

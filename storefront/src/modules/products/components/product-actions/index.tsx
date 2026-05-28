@@ -259,7 +259,7 @@ export default function ProductActions({
             <div className="flex items-center border rounded-md border-ui-border-base">
               <button
                 type="button"
-                className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center px-3 py-2 text-ui-fg-muted disabled:opacity-40"
                 onClick={() => updateQuantity(quantity - 1)}
                 disabled={quantity <= 1 || isAdding || !!disabled}
                 aria-label="Decrease quantity"
@@ -279,7 +279,7 @@ export default function ProductActions({
               />
               <button
                 type="button"
-                className="px-3 py-2 text-ui-fg-muted disabled:opacity-40"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center px-3 py-2 text-ui-fg-muted disabled:opacity-40"
                 onClick={() => updateQuantity(quantity + 1)}
                 disabled={quantity >= 999 || isAdding || !!disabled}
                 aria-label="Increase quantity"

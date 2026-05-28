@@ -5,7 +5,7 @@ import { HttpTypes } from "@medusajs/types"
 
 import { extractDefaultGarmentFromProduct } from "@modules/customizer/lib/default-garment"
 import { useProductOptionsOptional } from "@modules/products/context/product-options-context"
-import { resolveVariantFromOptions } from "@modules/products/lib/variant-options"
+import { isColorOptionTitle, resolveVariantFromOptions } from "@modules/products/lib/variant-options"
 import CustomizerTemplate from "@modules/customizer/templates"
 import type { Tier } from "@lib/customer-tiers"
 
@@ -45,14 +45,25 @@ export default function EmbeddedProductCustomizer({
   const productOptions = useProductOptionsOptional()
 
   const syncVariantId = useMemo(() => {
-    const resolved = resolveVariantFromOptions(
-      product,
-      productOptions?.options ?? {}
-    )
-    const rawId = resolved?.id ?? product.variants?.[0]?.id ?? null
+    const opts = productOptions?.options ?? {}
+    const resolved = resolveVariantFromOptions(product, opts)
     const ids = new Set(product.variants?.map((v) => v.id) ?? [])
-    if (rawId && ids.has(rawId)) {
-      return rawId
+    if (resolved?.id && ids.has(resolved.id)) {
+      return resolved.id
+    }
+    // No exact full-option match. Prefer the first variant of the SELECTED
+    // COLOUR rather than the global first variant — otherwise the canvas mockup
+    // snaps to a different colour than the picker shows when the chosen colour
+    // has no variant for the currently-selected size.
+    const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
+    const selectedColor = colorOption?.title ? opts[colorOption.title] : undefined
+    if (colorOption && selectedColor) {
+      const colorVariant = product.variants?.find((v) =>
+        v.options?.some(
+          (vo) => vo.option_id === colorOption.id && vo.value === selectedColor
+        )
+      )
+      if (colorVariant?.id) return colorVariant.id
     }
     return product.variants?.[0]?.id ?? null
   }, [product, productOptions?.options])

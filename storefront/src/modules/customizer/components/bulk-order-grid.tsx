@@ -805,7 +805,7 @@ function ColourRow({
                 const next = e.target.value === "" ? 0 : Number(e.target.value)
                 onChangeQuantity(size, next)
               }}
-              className="h-9 w-14 rounded-md border border-ui-border-base bg-white px-2 text-center text-sm tabular-nums focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base disabled:cursor-not-allowed disabled:bg-ui-bg-disabled disabled:text-ui-fg-muted"
+              className="h-11 w-14 small:h-9 rounded-md border border-ui-border-base bg-white px-2 text-center text-sm tabular-nums focus:border-ui-fg-base focus:outline-none focus:ring-1 focus:ring-ui-fg-base disabled:cursor-not-allowed disabled:bg-ui-bg-disabled disabled:text-ui-fg-muted"
               aria-label={`${colour} size ${size} quantity`}
             />
           </td>
@@ -819,7 +819,7 @@ function ColourRow({
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className="rounded-md p-1 text-ui-fg-muted transition-colors hover:bg-ui-bg-subtle hover:text-ui-fg-base disabled:cursor-not-allowed disabled:opacity-30"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-1 text-ui-fg-muted transition-colors hover:bg-ui-bg-subtle hover:text-ui-fg-base disabled:cursor-not-allowed disabled:opacity-30 small:min-h-0 small:min-w-0"
           aria-label={`Remove ${colour}`}
           title={canRemove ? `Remove ${colour}` : "Keep at least one colour"}
         >
@@ -892,7 +892,7 @@ function MobileColourCard({
           type="button"
           onClick={onRemove}
           disabled={!canRemove}
-          className="rounded-md p-1 text-ui-fg-muted transition-colors hover:bg-ui-bg-subtle hover:text-ui-fg-base disabled:cursor-not-allowed disabled:opacity-30"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md p-1 text-ui-fg-muted transition-colors hover:bg-ui-bg-subtle hover:text-ui-fg-base disabled:cursor-not-allowed disabled:opacity-30 small:min-h-0 small:min-w-0"
           aria-label={`Remove ${colour}`}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>

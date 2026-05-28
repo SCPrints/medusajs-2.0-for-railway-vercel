@@ -35,27 +35,36 @@ const LowResolutionModal = ({
   onAcceptVectorization,
 }: Props) => {
   const shownRef = useRef(false)
+  // One-shot analytics when the modal opens. Kept separate from the ESC
+  // listener so a DPI recompute while the modal is open doesn't re-run this or
+  // churn the keydown listener. worstDpi/imagesBelowCritical are read at open
+  // time, which is the moment the modal's headline is captured anyway.
   useEffect(() => {
     if (!open) {
       shownRef.current = false
       return
     }
-    if (!shownRef.current) {
-      // Fire once per open transition — guards against StrictMode double-effects.
-      shownRef.current = true
-      const payload = {
-        worst_dpi: worstDpi,
-        images_below_critical: imagesBelowCritical,
-      }
-      trackVectorizationFunnel("modal_shown", payload)
-      phCapture("vectorization_modal_shown", payload)
+    if (shownRef.current) return
+    shownRef.current = true
+    const payload = {
+      worst_dpi: worstDpi,
+      images_below_critical: imagesBelowCritical,
     }
+    trackVectorizationFunnel("modal_shown", payload)
+    phCapture("vectorization_modal_shown", payload)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // ESC-to-close — re-subscribes only when open/onClose change, not on every
+  // DPI recompute.
+  useEffect(() => {
+    if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [open, onClose, worstDpi, imagesBelowCritical])
+  }, [open, onClose])
 
   const fireDismissed = () => {
     const payload = { worst_dpi: worstDpi }

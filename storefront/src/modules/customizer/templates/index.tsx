@@ -107,7 +107,7 @@ import {
 import { resolveGarmentSwatchColor } from "@modules/products/lib/garment-swatch-colors"
 import { HttpTypes } from "@medusajs/types"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 import { trackCustomizerAction, trackCustomizerFunnel } from "@lib/analytics"
 import { phCapture } from "@lib/posthog"
@@ -1013,6 +1013,21 @@ export default function CustomizerTemplate({
     [activeVariantId, selectedProduct]
   )
 
+  // Stable resolver passed to <DesignPreviewPopover/>. Memoised so the popover's
+  // thumbnail-generation effect doesn't re-run (and flicker "Rendering…") on
+  // every parent re-render — it previously received an inline arrow recreated
+  // each render, which sat in that effect's dependency array.
+  const getGarmentUrlForSide = useCallback(
+    (side: GarmentSide) =>
+      getGarmentImageUrlForPrintSide(
+        selectedProduct,
+        selectedVariant,
+        side,
+        defaultGarmentImage
+      ),
+    [selectedProduct, selectedVariant, defaultGarmentImage]
+  )
+
   /**
    * Per-size stock state for the size matrix in <PricingPanel/>. Keyed by
    * size value, recomputed when the colour-selected variant changes (because
@@ -1272,7 +1287,12 @@ export default function CustomizerTemplate({
       return
     }
 
-    const pr = printArea
+    // Live print area via the ref — this fn is invoked from Fabric event
+    // listeners bound once at mount (object:moving/scaling/rotating), where the
+    // captured `printArea` state would be the stale 0×0 mount value (canvasSize
+    // is {0,0} on the first render). Reading the ref matches the sibling
+    // object:scaling cap, which already does this.
+    const pr = printAreaRef.current
     if (pr.width < MIN_PRINT_AREA_PX || pr.height < MIN_PRINT_AREA_PX) {
       setOutOfBoundsWarning(null)
       return
@@ -1350,13 +1370,18 @@ export default function CustomizerTemplate({
       setDpiAssessment({ worstDpi: null, severity: "ok", imagesEvaluated: 0, imagesBelowCritical: 0 })
       return
     }
-    if (printArea.width < 1 || printArea.height < 1) {
+    // Live print area via the ref — like clampObjectToBounds, this fn runs
+    // from the once-bound Fabric listeners (via syncHandlers on object:modified
+    // /added/removed), where captured `printArea` state is the stale 0×0 mount
+    // value. Without this the live low-res warning never updates while scaling.
+    const pr = printAreaRef.current
+    if (pr.width < 1 || pr.height < 1) {
       setDpiWarning(null)
       setDpiAssessment({ worstDpi: null, severity: "ok", imagesEvaluated: 0, imagesBelowCritical: 0 })
       return
     }
 
-    const pixelsPerInch = printArea.width / PRINT_AREA_INCHES.width
+    const pixelsPerInch = pr.width / PRINT_AREA_INCHES.width
     if (!Number.isFinite(pixelsPerInch) || pixelsPerInch <= 0) {
       setDpiWarning(null)
       setDpiAssessment({ worstDpi: null, severity: "ok", imagesEvaluated: 0, imagesBelowCritical: 0 })
@@ -2576,10 +2601,20 @@ export default function CustomizerTemplate({
     )
     if (productOptionsFromPdp) {
       productOptionsFromPdp.setSizeQuantity(size, safeQty)
+      // Only mirror the size into the shared single-value option when the order
+      // is effectively single-size (this is the only row with a quantity). For
+      // a multi-size order "the selected size" is ambiguous, and writing the
+      // last-touched row here made the synced canvas variant jump around as the
+      // customer filled in quantities across sizes.
       const sizeOption = getSizeOption(selectedProduct)
       const sizeTitle = sizeOption?.title
-      if (sizeTitle) {
-        productOptionsFromPdp.setOptionValue(sizeTitle, size)
+      if (sizeTitle && safeQty > 0) {
+        const otherNonZero = sizeMatrix.some(
+          (entry) => entry.size !== size && entry.quantity > 0
+        )
+        if (!otherNonZero) {
+          productOptionsFromPdp.setOptionValue(sizeTitle, size)
+        }
       }
     }
   }
@@ -3991,14 +4026,7 @@ export default function CustomizerTemplate({
                     decoratedSides={decoratedSides}
                     canvasSize={canvasSize}
                     sideLayouts={sideLayoutsRef.current}
-                    getGarmentUrlForSide={(side) =>
-                      getGarmentImageUrlForPrintSide(
-                        selectedProduct,
-                        selectedVariant,
-                        side,
-                        defaultGarmentImage
-                      )
-                    }
+                    getGarmentUrlForSide={getGarmentUrlForSide}
                     layoutVersion={layoutVersion}
                     variantId={activeVariantId}
                   />
@@ -4883,6 +4911,11 @@ export default function CustomizerTemplate({
                   </div>
                   {sideDecorationMethods[currentSide] === "embroidery" ? (
                     <EmbroiderySideConfig
+                      // Remount per side: the component seeds its mm/stitch
+                      // inputs from `value` on mount only, so without a per-side
+                      // key it would show (and persist) the previous side's
+                      // values when switching garment sides.
+                      key={currentSide}
                       side={currentSide}
                       value={sideEmbroideryConfigs[currentSide]}
                       onChange={(side, next) => {

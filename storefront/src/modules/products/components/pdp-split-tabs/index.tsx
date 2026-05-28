@@ -2,7 +2,7 @@
 
 import { LayoutGroup, motion, useReducedMotion } from "framer-motion"
 import { useSearchParams } from "next/navigation"
-import { useId, useState, type ReactNode } from "react"
+import { useId, useState, type KeyboardEvent, type ReactNode } from "react"
 
 type Props = {
   /** Hero + thumbnails gallery (ImageGallery in heroLayout mode). */
@@ -93,6 +93,23 @@ export default function PdpSplitTabs({
     goDesign(false)
   }
 
+  // WAI-ARIA tablist keyboard nav: arrow / Home / End move between tabs. Only
+  // meaningful once the Customise tab is revealed (designMounted) — before that
+  // there is a single tab.
+  const onTablistKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (!designMounted) return
+    let target: 0 | 1 | null = null
+    if (e.key === "ArrowRight" || e.key === "End") target = 1
+    else if (e.key === "ArrowLeft" || e.key === "Home") target = 0
+    if (target === null) return
+    e.preventDefault()
+    if (target === 1) goDesign(false)
+    else setActive(0)
+    if (typeof document !== "undefined") {
+      document.getElementById(`${baseId}-tab-${target}`)?.focus()
+    }
+  }
+
   return (
     <div className="w-full">
       <LayoutGroup id={`${baseId}-pdp-split-tabs`}>
@@ -100,6 +117,7 @@ export default function PdpSplitTabs({
           className="relative mb-6 flex gap-1 border-b border-ui-border-base"
           role="tablist"
           aria-label="Product view"
+          onKeyDown={onTablistKeyDown}
         >
           {TAB_LABELS.map((label, i) => {
             // Hide the Customise tab until the customer engages the

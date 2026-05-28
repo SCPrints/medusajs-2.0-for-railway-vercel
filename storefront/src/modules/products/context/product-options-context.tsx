@@ -44,8 +44,13 @@ const buildEmptySizeQuantities = (product: HttpTypes.StoreProduct): Record<strin
 type ProductOptionsContextValue = {
   options: Record<string, string | undefined>
   setOptionValue: (title: string, value: string) => void
-  /** Temporary colour for PDP main image (hover on swatch); does not change cart selection. */
-  colorHoverPreview: string | null
+  /**
+   * Setter for the temporary swatch-hover colour preview. Kept on this context
+   * (not the hover-value context) because a `useState` setter has a stable
+   * identity — so hover changes never invalidate this value object and never
+   * re-render its consumers (OptionSelect, the customizer template). The hover
+   * *value* lives in a separate context below so only the gallery re-renders.
+   */
   setColorHoverPreview: (value: string | null) => void
   /** Quantity per size label (customizer + multi-size cart). Keys match size option values. */
   sizeQuantities: Record<string, number>
@@ -53,6 +58,19 @@ type ProductOptionsContextValue = {
 }
 
 const ProductOptionsContext = createContext<ProductOptionsContextValue | null>(null)
+
+/**
+ * Hover-preview colour is isolated in its own context so that sweeping the
+ * mouse across a colour-swatch row only re-renders the image gallery — not the
+ * ~5000-line customizer template or the swatch list itself. Previously this
+ * value lived on the ProductOptions value object, so every `onPointerEnter`
+ * created a new context value and re-rendered every consumer.
+ */
+type ColorHoverContextValue = {
+  colorHoverPreview: string | null
+}
+
+const ColorHoverContext = createContext<ColorHoverContextValue | null>(null)
 
 export const ProductOptionsProvider = ({
   children,
@@ -100,16 +118,24 @@ export const ProductOptionsProvider = ({
     () => ({
       options,
       setOptionValue,
-      colorHoverPreview,
       setColorHoverPreview,
       sizeQuantities,
       setSizeQuantity,
     }),
-    [options, setOptionValue, colorHoverPreview, sizeQuantities, setSizeQuantity]
+    [options, setOptionValue, setColorHoverPreview, sizeQuantities, setSizeQuantity]
+  )
+
+  // Separate value object so only ColorHoverContext consumers (the gallery)
+  // re-render when the hover preview changes — not every ProductOptions consumer.
+  const hoverValue = useMemo<ColorHoverContextValue>(
+    () => ({ colorHoverPreview }),
+    [colorHoverPreview]
   )
 
   return (
-    <ProductOptionsContext.Provider value={value}>{children}</ProductOptionsContext.Provider>
+    <ProductOptionsContext.Provider value={value}>
+      <ColorHoverContext.Provider value={hoverValue}>{children}</ColorHoverContext.Provider>
+    </ProductOptionsContext.Provider>
   )
 }
 
@@ -125,3 +151,12 @@ export const useProductOptions = () => {
 
 /** For components that may render outside a provider (e.g. standalone customizer). */
 export const useProductOptionsOptional = () => useContext(ProductOptionsContext)
+
+/**
+ * Colour hover-preview value (swatch hover). Isolated from ProductOptions so
+ * hovering swatches only re-renders this context's consumers (the image
+ * gallery). Returns null outside a provider so ImageGallery stays safe when
+ * rendered in non-PDP contexts.
+ */
+export const useColorHover = (): string | null =>
+  useContext(ColorHoverContext)?.colorHoverPreview ?? null

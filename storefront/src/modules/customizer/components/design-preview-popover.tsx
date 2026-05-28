@@ -130,8 +130,15 @@ export default function DesignPreviewPopover({
   useEffect(() => {
     if (!open) return
     let cancelled = false
+    // Only show the "Rendering…" busy state when at least one side actually
+    // needs an (expensive) Fabric render. On a pure cache hit we rebuild the
+    // thumbs map without flipping busy — stops the popover flickering when the
+    // parent re-renders during canvas interaction.
+    const anyMissing = decoratedSides.some(
+      (side) => !cacheRef.current.get(`${side}:${layoutVersion}`)
+    )
     ;(async () => {
-      setBusy(true)
+      if (anyMissing) setBusy(true)
       const next: Record<string, { designDataUrl: string; garmentUrl: string | null }> = {}
       const results = await Promise.all(
         decoratedSides.map(async (side) => {

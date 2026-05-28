@@ -86,7 +86,14 @@ export default function CustomizerGuide({
     let prev: DOMRect | null = null
     let prevVw = 0
     let prevVh = 0
-    const tick = () => {
+    let lastRun = 0
+    const tick = (now: number) => {
+      rafId = requestAnimationFrame(tick)
+      // Throttle layout reads to ~10fps. A coach-mark spotlight doesn't need
+      // 60fps tracking, and getBoundingClientRect() every frame forces a
+      // continuous synchronous layout read for the lifetime of the guide.
+      if (now - lastRun < 100) return
+      lastRun = now
       const node = activeRef.current
       if (node) {
         const next = node.getBoundingClientRect()
@@ -108,7 +115,6 @@ export default function CustomizerGuide({
         prevVh = vh
         setViewport({ w: vw, h: vh })
       }
-      rafId = requestAnimationFrame(tick)
     }
     rafId = requestAnimationFrame(tick)
     return () => {

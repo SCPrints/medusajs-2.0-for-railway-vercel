@@ -497,7 +497,7 @@ export default function InputPanel({
                   onClick={() => applyColor(swatch)}
                   aria-label={`Use ${swatch}`}
                   title={swatch}
-                  className={`h-6 w-6 rounded-full border transition-transform hover:scale-110 ${
+                  className={`h-11 w-11 small:h-6 small:w-6 rounded-full border transition-transform hover:scale-110 ${
                     isActive
                       ? "border-ui-fg-base ring-2 ring-ui-fg-base ring-offset-1"
                       : "border-ui-border-base"

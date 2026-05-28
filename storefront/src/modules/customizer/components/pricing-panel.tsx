@@ -303,11 +303,15 @@ export default function PricingPanel({
                   type="number"
                   min={0}
                   max={999}
-                  value={sizeEntry.quantity}
+                  // Render empty (not "0") when zero so the field can be
+                  // cleared and retyped — otherwise backspacing snaps to 0 and
+                  // fights the caret. Mirrors the bulk-order grid input.
+                  value={sizeEntry.quantity === 0 ? "" : sizeEntry.quantity}
                   onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) =>
-                    onChangeSizeQty(sizeEntry.size, Number(event.target.value))
-                  }
+                  onChange={(event) => {
+                    const raw = event.target.value
+                    onChangeSizeQty(sizeEntry.size, raw === "" ? 0 : Number(raw))
+                  }}
                   className="w-12 shrink-0 rounded-md border border-ui-border-base px-1.5 py-0.5 text-sm transition-colors duration-200"
                   style={inputStyle}
                 />
