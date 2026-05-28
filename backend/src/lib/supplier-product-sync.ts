@@ -462,39 +462,53 @@ export async function applyProductDiffs(opts: {
     return summary
   }
 
+  // Chunk both workflow calls so a 77-style Gildan import doesn't blow
+  // through Node's old-space heap building one giant input object.
+  // 25 products with ~30 variant patches each is ~750 row-equivalents
+  // per call — well clear of the GC working set that took down the
+  // backend at 11:06.
+  const UPDATE_CHUNK_SIZE = 25
+  const VARIANT_CHUNK_SIZE = 100
+
   if (productsPayload.length) {
-    try {
-      await updateProductsWorkflow(container).run({
-        input: { products: productsPayload as any },
-      })
-      summary.productsUpdated = productsPayload.length
-      summary.variantsUpdated = productsPayload.reduce(
-        (acc, p) => acc + ((p.variants as unknown[] | undefined)?.length ?? 0),
-        0
-      )
-    } catch (err: any) {
-      summary.errors++
-      logger.warn(
-        `updateProductsWorkflow failed for ${productsPayload.length} product(s): ${err?.message ?? err}`
-      )
+    for (let i = 0; i < productsPayload.length; i += UPDATE_CHUNK_SIZE) {
+      const chunk = productsPayload.slice(i, i + UPDATE_CHUNK_SIZE)
+      try {
+        await updateProductsWorkflow(container).run({
+          input: { products: chunk as any },
+        })
+        summary.productsUpdated += chunk.length
+        summary.variantsUpdated += chunk.reduce(
+          (acc, p) => acc + ((p.variants as unknown[] | undefined)?.length ?? 0),
+          0
+        )
+      } catch (err: any) {
+        summary.errors++
+        logger.warn(
+          `updateProductsWorkflow chunk ${i + 1}-${i + chunk.length} failed: ${err?.message ?? err}`
+        )
+      }
     }
   }
 
   if (newVariants.length) {
-    try {
-      await batchProductVariantsWorkflow(container).run({
-        input: {
-          create: newVariants as any,
-          update: [],
-          delete: [],
-        },
-      })
-      summary.variantsAdded = newVariants.length
-    } catch (err: any) {
-      summary.errors++
-      logger.warn(
-        `batchProductVariantsWorkflow create failed for ${newVariants.length} variant(s): ${err?.message ?? err}`
-      )
+    for (let i = 0; i < newVariants.length; i += VARIANT_CHUNK_SIZE) {
+      const chunk = newVariants.slice(i, i + VARIANT_CHUNK_SIZE)
+      try {
+        await batchProductVariantsWorkflow(container).run({
+          input: {
+            create: chunk as any,
+            update: [],
+            delete: [],
+          },
+        })
+        summary.variantsAdded += chunk.length
+      } catch (err: any) {
+        summary.errors++
+        logger.warn(
+          `batchProductVariantsWorkflow create chunk ${i + 1}-${i + chunk.length} failed: ${err?.message ?? err}`
+        )
+      }
     }
   }
 

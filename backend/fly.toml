@@ -12,6 +12,14 @@ primary_region = 'syd'
 [env]
   PORT = '9000'
   NODE_ENV = 'production'
+  # Bump Node's default ~1.7GB old-space heap closer to the 4GB the
+  # machine actually has. The Gildan importer OOM'd at 11:06 building a
+  # single updateProductsWorkflow input with 77 products × thousands of
+  # variant patches — Node's GC couldn't keep up with the working-set
+  # spike during workflow input construction. 3GB leaves ~1GB for the
+  # Sharp image processing pool, libuv threads, and the Redis/Postgres
+  # clients without OS-level OOM-kill.
+  NODE_OPTIONS = '--max-old-space-size=3072'
 
 [http_service]
   internal_port = 9000
