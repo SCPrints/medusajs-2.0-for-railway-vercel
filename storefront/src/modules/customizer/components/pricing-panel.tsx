@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { memo, useMemo } from "react"
 
 import { convertToLocale } from "@lib/util/money"
 import {
@@ -144,7 +144,7 @@ const ExpandCollapsePlus = () => (
   </span>
 )
 
-export default function PricingPanel({
+function PricingPanel({
   currencyCode,
   pricing,
   sizes,
@@ -667,3 +667,8 @@ export default function PricingPanel({
     </div>
   )
 }
+
+// Memoised so it skips re-renders driven by unrelated customizer state (wizard
+// step, layer selection, DPI warnings, …). The parent stabilises every prop:
+// `pricing` is useMemo'd and the handlers use the latest-ref pattern.
+export default memo(PricingPanel)

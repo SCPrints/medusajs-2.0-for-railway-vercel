@@ -1194,15 +1194,30 @@ export default function CustomizerTemplate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutVersion, canvasSize.width, canvasSize.height, selectedProduct?.id])
 
-  const pricing = calculatePricing({
-    basePriceCents,
-    decoratedSidesCount,
-    decoratedSides,
-    totalQuantity: totalQty,
-    bulkPricingTiers,
-    scpPrint: { printSizeId: scpPrintSizeId },
-    prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
-  })
+  // Memoised so the object identity is stable for the memoised <PricingPanel/>.
+  // The deps cover every input to calculatePricing — a missing one would show a
+  // stale price, so this list must stay complete if the call args change.
+  const pricing = useMemo(
+    () =>
+      calculatePricing({
+        basePriceCents,
+        decoratedSidesCount,
+        decoratedSides,
+        totalQuantity: totalQty,
+        bulkPricingTiers,
+        scpPrint: { printSizeId: scpPrintSizeId },
+        prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
+      }),
+    [
+      basePriceCents,
+      decoratedSidesCount,
+      decoratedSides,
+      totalQty,
+      bulkPricingTiers,
+      scpPrintSizeId,
+      printSpecs,
+    ]
+  )
 
   const updateLayers = () => {
     const canvas = fabricCanvasRef.current
@@ -3979,6 +3994,32 @@ export default function CustomizerTemplate({
     }
   }
 
+  // Stable handler identities for the memoised <PricingPanel/>. The latest-ref
+  // pattern keeps each prop's identity constant (so React.memo can skip renders
+  // driven by unrelated state) while always invoking the freshest closure — no
+  // stale-closure risk even though these close over volatile state.
+  const addCustomizedToCartRef = useRef(addCustomizedToCart)
+  addCustomizedToCartRef.current = addCustomizedToCart
+  const changeSizeQuantityRef = useRef(changeSizeQuantity)
+  changeSizeQuantityRef.current = changeSizeQuantity
+  const handleChangePrintSizeRef = useRef(handleChangePrintSize)
+  handleChangePrintSizeRef.current = handleChangePrintSize
+
+  const stableOnAddToCart = useCallback(() => addCustomizedToCartRef.current(), [])
+  const stableOnChangeSizeQty = useCallback(
+    (size: string, quantity: number) => changeSizeQuantityRef.current(size, quantity),
+    []
+  )
+  const stableOnChangePrintSize = useCallback(
+    (objectId: string, sizeId: ScpPrintSizeId | null) =>
+      handleChangePrintSizeRef.current(objectId, sizeId),
+    []
+  )
+  const stableOnScpPrintSizeIdChange = useCallback((id: ScpPrintSizeId) => {
+    setScpPrintSizeId(id)
+    setScpPrintSizeChosen(true)
+  }, [])
+
   const sideLabel =
     currentSide === "left_sleeve"
       ? "Left Sleeve"
@@ -5222,21 +5263,18 @@ export default function CustomizerTemplate({
                 currencyCode={currencyCode}
                 pricing={pricing}
                 sizes={sizeMatrix}
-                onChangeSizeQty={changeSizeQuantity}
-                onAddToCart={() => addCustomizedToCart()}
+                onChangeSizeQty={stableOnChangeSizeQty}
+                onAddToCart={stableOnAddToCart}
                 isSubmitting={isSubmitting}
                 embeddedOnPdp={embedded}
                 flyImageSrc={flyImageSrcForAddToCart}
                 showDtfTierEstimator={productMetadataShowsDtfTierEstimator(selectedProduct)}
                 embedPdpQuantityStepNumber={embedPdpQuantityStepNumber}
                 scpPrintSizeId={scpPrintSizeId}
-                onScpPrintSizeIdChange={(id) => {
-                setScpPrintSizeId(id)
-                setScpPrintSizeChosen(true)
-              }}
+                onScpPrintSizeIdChange={stableOnScpPrintSizeIdChange}
                 decoratedSides={decoratedSides}
                 prints={printSpecs}
-                onChangePrintSize={handleChangePrintSize}
+                onChangePrintSize={stableOnChangePrintSize}
                 allowedPrintSizesBySide={allowedSizesBySide}
                 hidePrintSizeSelector
                 hideHeader
