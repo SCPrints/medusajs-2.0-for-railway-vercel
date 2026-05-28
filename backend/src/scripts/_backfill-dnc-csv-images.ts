@@ -1,32 +1,27 @@
 /**
- * Backfill colour-specific images for DNC products by re-reading the
- * source CSV (backend/data/DNC Workwear Volume 13 Price List - Product
- * data (CSV).csv). The CSV's `Image` column has the real per-colour
- * URL for every variant row, e.g.
+ * Backfill colour-specific images for DNC products by hitting DNC's
+ * predictable CDN URL pattern. DNC variant SKUs encode the image:
  *
  *   ProductCode 110110061 (Trad Chef Jacket S/S Black XXS)
+ *     SKU minus last 2 chars = 1101100
  *     → https://www.dncworkwear.com.au/images/hires/1101100.jpg
+ *
  *   ProductCode 110134961 (Trad Chef Jacket S/S White XXS)
+ *     SKU minus last 2 chars = 1101349
  *     → https://www.dncworkwear.com.au/images/hires/1101349.jpg
  *
- * Why we need this: many DNC products only have one image right now
- * because (a) earlier imports only captured the parent-row image, and/or
- * (b) `_scrape-dnc-missing-images.ts` REPLACED images[] with a single
- * og:image when it filled in missing thumbnails. The CSV is the source
- * of truth and already has every colour's URL.
+ * Last 2 chars = size code (61=XXS, 62=XS, ...); the remainder = style +
+ * 3-digit colour code. Many variants per product share the same colour
+ * code, so we deduplicate before probing.
  *
- * Strategy:
- *   1. Read CSV, group rows the same way the importer does (rows whose
- *      ProductCode shares a prefix with the previous baseCode form one
- *      group → one Medusa product).
- *   2. Collect every distinct `Image` URL from each group.
- *   3. Derive the handle (`dnc-{baseCode_lowercased}`) and look up the
- *      product in the DB.
- *   4. Diff against existing images[]; HEAD-check only the new URLs to
- *      drop stale entries; merge survivors into images[].
+ * Strategy (same shape as _backfill-ramo-cdn-images.ts):
+ *   1. Walk every dnc-* product with its variants (id, sku).
+ *   2. Build candidate URL set per product: distinct codes derived from
+ *      each variant's SKU.
+ *   3. HEAD-check each candidate. Drop URLs already on the product.
+ *   4. Merge survivors into images[], set thumbnail if missing.
  *
- * Idempotent: re-running adds nothing if the product already has every
- * CSV-derived URL.
+ * Throttled ~10 req/sec, 8s per-URL timeout.
  *
  * Run locally:
  *   pnpm --filter backend exec medusa exec src/scripts/_backfill-dnc-csv-images.ts
@@ -39,24 +34,16 @@
  * Env:
  *   DNC_CDN_LIMIT=N    cap how many products to process (testing)
  *   DNC_CDN_APPLY=1    same as passing --apply
- *   DNC_CSV=path       override CSV path (default: data/DNC Workwear Volume 13...)
  */
-
-import fs from "node:fs"
-import path from "node:path"
 
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
+const CDN_BASE = "https://www.dncworkwear.com.au/images/hires/"
 const FETCH_TIMEOUT_MS = 8000
 const DELAY_MS = 100 // ~10 req/sec
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
-
-const DNC_CSV_FILENAMES = [
-  "dnc-vol-13.csv",
-  "DNC Workwear Volume 13 Price List - Product data (CSV).csv",
-] as const
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
@@ -66,151 +53,20 @@ const getApplyFlag = (args: string[] | undefined): boolean =>
   process.env.DNC_CDN_APPLY === "1" ||
   process.env.DNC_CDN_APPLY === "true"
 
-type CsvRow = Record<string, string>
-
-/* ---------- CSV parsing (same shape as the importer) ---------- */
-
-const parseCsvLine = (line: string): string[] => {
-  const out: string[] = []
-  let value = ""
-  let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i]
-    if (ch === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        value += '"'
-        i++
-      } else {
-        inQuotes = !inQuotes
-      }
-      continue
-    }
-    if (ch === "," && !inQuotes) {
-      out.push(value)
-      value = ""
-      continue
-    }
-    value += ch
-  }
-  out.push(value)
-  return out
+/**
+ * Strip the last 2 chars (size code) off the SKU. Returns null for SKUs
+ * too short or with non-alphanumeric chars.
+ *
+ *   "110110061" → "1101100"
+ *   "B00010004" → "B000100"
+ *   "abc"        → null (no size suffix to drop confidently)
+ */
+const skuToImageCode = (sku: string): string | null => {
+  const s = sku.trim()
+  if (s.length < 4) return null
+  if (!/^[A-Za-z0-9]+$/.test(s)) return null
+  return s.slice(0, -2)
 }
-
-const splitCsvRecords = (raw: string): string[] => {
-  const records: string[] = []
-  let current = ""
-  let inQuotes = false
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i]
-    if (ch === '"') {
-      if (inQuotes && raw[i + 1] === '"') {
-        current += '"'
-        i++
-      } else {
-        inQuotes = !inQuotes
-        current += ch
-      }
-      continue
-    }
-    if (!inQuotes) {
-      if (ch === "\n") {
-        if (current.length > 0 || records.length > 0) records.push(current)
-        current = ""
-        continue
-      }
-      if (ch === "\r") {
-        if (raw[i + 1] === "\n") i++
-        if (current.length > 0 || records.length > 0) records.push(current)
-        current = ""
-        continue
-      }
-    }
-    current += ch
-  }
-  if (current.length > 0 || records.length > 0) records.push(current)
-  return records.filter((r) => r.trim().length > 0)
-}
-
-const parseCsv = (raw: string): CsvRow[] => {
-  const lines = splitCsvRecords(raw)
-  if (!lines.length) return []
-  const headers = parseCsvLine(lines[0])
-  return lines.slice(1).map((line) => {
-    const parts = parseCsvLine(line)
-    const row: CsvRow = {}
-    headers.forEach((header, idx) => {
-      row[header] = (parts[idx] ?? "").trim()
-    })
-    return row
-  })
-}
-
-const resolveCsvPath = (cwd: string): string => {
-  const fromEnv = process.env.DNC_CSV?.trim()
-  const candidates: string[] = []
-  if (fromEnv) candidates.push(path.resolve(fromEnv))
-  for (const name of DNC_CSV_FILENAMES) {
-    candidates.push(path.resolve(cwd, "data", name))
-    candidates.push(path.resolve(cwd, "backend", "data", name))
-  }
-  for (const p of candidates) {
-    if (fs.existsSync(p)) return p
-  }
-  throw new Error(
-    `DNC CSV not found. Set DNC_CSV or place one of: ${DNC_CSV_FILENAMES.join(", ")} under data/. Tried: ${candidates.join(", ")}`
-  )
-}
-
-/* ---------- Grouping (same algorithm as importer) ---------- */
-
-const isHeaderRow = (row: CsvRow): boolean =>
-  !(row["Description2"] || "").trim() && !(row["Description3"] || "").trim()
-
-type DncGroup = { baseCode: string; rows: CsvRow[] }
-
-const groupDncRows = (rows: CsvRow[]): DncGroup[] => {
-  const groups: DncGroup[] = []
-  let current: CsvRow[] = []
-  let baseCode: string | null = null
-
-  const flush = () => {
-    if (current.length && baseCode) groups.push({ baseCode, rows: current })
-    current = []
-    baseCode = null
-  }
-
-  for (const row of rows) {
-    const code = (row["ProductCode"] || "").trim()
-    if (!code) continue
-
-    if (!current.length) {
-      current = [row]
-      baseCode = code
-      continue
-    }
-
-    if (code.startsWith(baseCode!)) {
-      current.push(row)
-      continue
-    }
-
-    flush()
-    current = [row]
-    baseCode = code
-  }
-  flush()
-  return groups
-}
-
-const slugifyHandle = (code: string) =>
-  code
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 100) || "product"
-
-/* ---------- HEAD-check ---------- */
 
 const headOk = async (url: string): Promise<boolean> => {
   const controller = new AbortController()
@@ -230,16 +86,15 @@ const headOk = async (url: string): Promise<boolean> => {
   }
 }
 
-/* ---------- Main ---------- */
-
-type DbProduct = {
+type DncProduct = {
   id: string
   handle: string
   thumbnail: string | null
   images: Array<{ url: string }>
+  variants: Array<{ id: string; sku: string | null }>
 }
 
-export default async function backfillDncCsvImages({
+export default async function backfillDncCdnImages({
   container,
   args,
 }: ExecArgs) {
@@ -251,52 +106,20 @@ export default async function backfillDncCsvImages({
   const limitEnv = Number.parseInt(process.env.DNC_CDN_LIMIT ?? "", 10)
   const limit = Number.isFinite(limitEnv) && limitEnv > 0 ? limitEnv : Infinity
 
-  logger.info(`DNC CSV image backfill — ${apply ? "APPLY" : "DRY RUN"}`)
+  logger.info(`DNC CDN image backfill — ${apply ? "APPLY" : "DRY RUN"}`)
   if (limit !== Infinity) logger.info(`Cap: DNC_CDN_LIMIT=${limit}`)
 
-  // 1. Load + parse CSV.
-  const csvPath = resolveCsvPath(process.cwd())
-  logger.info(`CSV: ${path.basename(csvPath)}`)
-  const csv = parseCsv(fs.readFileSync(csvPath, "utf-8"))
-  logger.info(`CSV rows: ${csv.length}`)
-
-  // 2. Build handle → distinct image URLs map from CSV.
-  const groups = groupDncRows(csv)
-  logger.info(`CSV groups: ${groups.length}`)
-
-  const csvImagesByHandle = new Map<string, string[]>()
-  for (const g of groups) {
-    const urls = new Set<string>()
-    for (const r of g.rows) {
-      const u = (r["Image"] || "").trim()
-      if (u && /^https?:\/\//i.test(u)) urls.add(u)
-    }
-    if (urls.size === 0) continue
-    const handle = `dnc-${slugifyHandle(g.baseCode)}`
-    // A baseCode can appear once (and the group is just the header row
-    // with extras). Merge if we ever encounter the same handle twice
-    // (defensive — the grouping algorithm shouldn't produce duplicates).
-    const existing = csvImagesByHandle.get(handle)
-    if (existing) {
-      for (const u of urls) if (!existing.includes(u)) existing.push(u)
-    } else {
-      csvImagesByHandle.set(handle, Array.from(urls))
-    }
-  }
-  logger.info(`Handles with CSV image URLs: ${csvImagesByHandle.size}`)
-
-  // 3. Walk every dnc-* product in DB.
   const { data: all } = await query.graph({
     entity: "product",
-    fields: ["id", "handle", "thumbnail", "images.url"],
+    fields: ["id", "handle", "thumbnail", "images.url", "variants.id", "variants.sku"],
     filters: { handle: { $like: "dnc-%" } },
     pagination: { take: 5000 },
   })
-  const products = (all ?? []) as DbProduct[]
-  logger.info(`DB dnc-* products: ${products.length}`)
+  const products = (all ?? []) as DncProduct[]
+  logger.info(`Found ${products.length} dnc-* products.`)
 
   let processed = 0
-  let noCsvMatch = 0
+  let noCodes = 0
   let nothingNew = 0
   let addedTotal = 0
   let missedTotal = 0
@@ -304,26 +127,33 @@ export default async function backfillDncCsvImages({
 
   for (const p of products) {
     if (processed >= limit) break
+    processed++
 
-    const csvUrls = csvImagesByHandle.get(p.handle)
-    if (!csvUrls || csvUrls.length === 0) {
-      noCsvMatch++
+    const codes = new Set<string>()
+    for (const v of p.variants ?? []) {
+      const code = skuToImageCode(v.sku ?? "")
+      if (code) codes.add(code)
+    }
+
+    if (codes.size === 0) {
+      noCodes++
+      logger.warn(`  [${processed}] ${p.handle}: no derivable codes, skip`)
       continue
     }
 
-    processed++
     const existingUrls = new Set(
       (p.images ?? []).map((i) => i.url).filter(Boolean)
     )
-    const toProbe = csvUrls.filter((u) => !existingUrls.has(u))
-    if (toProbe.length === 0) {
+    const candidates = Array.from(codes).map((c) => `${CDN_BASE}${c}.jpg`)
+    const toCheck = candidates.filter((u) => !existingUrls.has(u))
+    if (toCheck.length === 0) {
       nothingNew++
       continue
     }
 
     const hits: string[] = []
     const misses: string[] = []
-    for (const url of toProbe) {
+    for (const url of toCheck) {
       if (await headOk(url)) hits.push(url)
       else misses.push(url)
       await sleep(DELAY_MS)
@@ -332,7 +162,7 @@ export default async function backfillDncCsvImages({
     if (hits.length === 0) {
       missedTotal += misses.length
       logger.info(
-        `  [${processed}] ${p.handle}: 0/${toProbe.length} hits (CSV URLs stale)`
+        `  [${processed}] ${p.handle}: 0/${toCheck.length} hits`
       )
       continue
     }
@@ -368,12 +198,12 @@ export default async function backfillDncCsvImages({
   }
 
   logger.info("=== Summary ===")
-  logger.info(`Processed:                 ${processed}`)
-  logger.info(`No CSV match:              ${noCsvMatch}`)
-  logger.info(`Nothing new (up-to-date):  ${nothingNew}`)
-  logger.info(`URLs added:                ${addedTotal}`)
-  logger.info(`URLs missed (404):         ${missedTotal}`)
+  logger.info(`Processed:              ${processed}`)
+  logger.info(`No derivable codes:     ${noCodes}`)
+  logger.info(`Nothing new:            ${nothingNew}`)
+  logger.info(`URLs added:             ${addedTotal}`)
+  logger.info(`URLs missed (404):      ${missedTotal}`)
   logger.info(
-    `Products updated:          ${updatedProducts}${apply ? "" : " (dry run — no writes)"}`
+    `Products updated:       ${updatedProducts}${apply ? "" : " (dry run — no writes)"}`
   )
 }
