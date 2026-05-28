@@ -385,6 +385,62 @@ export default async function seedDemoData({ container }: ExecArgs) {
     );
   }
 
+  // AusPost is the planned successor to ShipStation. Seeded alongside so
+  // staff can flip LIVE_SHIPPING_PROVIDER once creds + testbed QA are green.
+  const auspostProviders =
+    await fulfillmentModuleService.listFulfillmentProviders({
+      id: "auspost_auspost",
+    });
+  const hasAusPost = auspostProviders.length > 0;
+
+  if (hasAusPost) {
+    auShippingOptions.push(
+      {
+        name: "Australia Post Parcel Post (AU)",
+        price_type: "calculated",
+        provider_id: "auspost_auspost",
+        service_zone_id: australiaServiceZone.id,
+        shipping_profile_id: shippingProfile.id,
+        type: {
+          label: "Parcel Post",
+          description: "Live quote via Australia Post (Parcel Post).",
+          code: "auspost_parcel_au",
+        },
+        // product_id matches AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID at
+        // seed time; staff can override per-account in admin if AusPost
+        // issues a different code for their MyPost Business profile.
+        data: { product_id: "7E55" },
+        prices: [],
+        rules: [
+          { attribute: "enabled_in_store", value: "true", operator: "eq" },
+          { attribute: "is_return", value: "false", operator: "eq" },
+        ],
+      },
+      {
+        name: "Australia Post Express Post (AU)",
+        price_type: "calculated",
+        provider_id: "auspost_auspost",
+        service_zone_id: australiaServiceZone.id,
+        shipping_profile_id: shippingProfile.id,
+        type: {
+          label: "Express Post",
+          description: "Live quote via Australia Post (Express Post).",
+          code: "auspost_express_au",
+        },
+        data: { product_id: "7E54" },
+        prices: [],
+        rules: [
+          { attribute: "enabled_in_store", value: "true", operator: "eq" },
+          { attribute: "is_return", value: "false", operator: "eq" },
+        ],
+      }
+    );
+  } else {
+    logger.info(
+      "AusPost provider not registered — skipping AusPost shipping options. Configure AUSPOST_* env vars per Docs/AUSPOST_SETUP.md and re-seed once registration is approved."
+    );
+  }
+
   await createShippingOptionsWorkflow(container).run({
     input: auShippingOptions,
   });

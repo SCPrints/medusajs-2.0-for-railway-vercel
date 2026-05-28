@@ -8,6 +8,9 @@ import { listShippingOptionsForCartWorkflow } from "@medusajs/medusa/core-flows"
 
 import { computeCartWeight } from "../../../lib/cart-weight"
 import {
+  AUSPOST_WAREHOUSE_COUNTRY_CODE,
+  AUSPOST_WAREHOUSE_POSTCODE,
+  LIVE_SHIPPING_PROVIDER,
   SHIPPING_FLAT_RATE_MAX_GRAMS,
   SHIPPING_PACKAGING_OVERHEAD_GRAMS,
   SHIPSTATION_WAREHOUSE_COUNTRY_CODE,
@@ -25,6 +28,14 @@ const isManualOption = (option: ShippingOption) =>
 
 const isShipStationOption = (option: ShippingOption) =>
   typeof option.provider_id === "string" && option.provider_id.startsWith("shipstation_")
+
+const isAusPostOption = (option: ShippingOption) =>
+  typeof option.provider_id === "string" && option.provider_id.startsWith("auspost_")
+
+const isLiveProviderOption = (option: ShippingOption): boolean =>
+  LIVE_SHIPPING_PROVIDER === "auspost"
+    ? isAusPostOption(option)
+    : isShipStationOption(option)
 
 /**
  * Hybrid shipping endpoint:
@@ -81,15 +92,27 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // Stamp the decision onto cart.metadata so it rides into the order and the
   // Admin can render a "Shipping decision" panel post-checkout. Idempotent —
   // overwriting on every storefront poll means the latest cart state wins.
+  // ship_from comes from the active provider's warehouse env vars, so the
+  // stamped decision always reflects which provider would have quoted.
+  const shipFromPostcode =
+    LIVE_SHIPPING_PROVIDER === "auspost"
+      ? AUSPOST_WAREHOUSE_POSTCODE || SHIPSTATION_WAREHOUSE_POSTCODE
+      : SHIPSTATION_WAREHOUSE_POSTCODE
+  const shipFromCountry =
+    LIVE_SHIPPING_PROVIDER === "auspost"
+      ? AUSPOST_WAREHOUSE_COUNTRY_CODE || SHIPSTATION_WAREHOUSE_COUNTRY_CODE
+      : SHIPSTATION_WAREHOUSE_COUNTRY_CODE
+
   const shippingDecision = {
     tier,
+    provider: LIVE_SHIPPING_PROVIDER,
     total_weight_grams: weightSummary.totalWeightGrams,
     items_weight_grams: weightSummary.itemsWeightGrams,
     packaging_overhead_grams: weightSummary.packagingOverheadGrams,
     threshold_grams: SHIPPING_FLAT_RATE_MAX_GRAMS,
     items_missing_weight: weightSummary.itemsMissingWeight,
-    ship_from_postcode: SHIPSTATION_WAREHOUSE_POSTCODE || null,
-    ship_from_country: SHIPSTATION_WAREHOUSE_COUNTRY_CODE || null,
+    ship_from_postcode: shipFromPostcode || null,
+    ship_from_country: shipFromCountry || null,
     computed_at: new Date().toISOString(),
   }
   try {
@@ -130,15 +153,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   // If the threshold filter would leave us with no options at all, fall back to
   // the unfiltered list so checkout never dead-ends. This is also what happens
-  // in dev environments where ShipStation isn't configured (`shipstation_*`
-  // options simply don't exist) — the manual flat tiers stay available even
-  // when the cart is technically over the threshold.
+  // in dev environments where neither shipping provider is configured
+  // (`shipstation_*` / `auspost_*` options simply don't exist) — the manual
+  // flat tiers stay available even when the cart is technically over the
+  // threshold.
   let filtered: ShippingOption[]
   if (tier === "flat") {
     const manualOnly = options.filter(isManualOption)
     filtered = manualOnly.length ? manualOnly : options
   } else {
-    const liveOnly = options.filter(isShipStationOption)
+    const liveOnly = options.filter(isLiveProviderOption)
     filtered = liveOnly.length ? liveOnly : options
   }
 
@@ -150,5 +174,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     threshold_grams: SHIPPING_FLAT_RATE_MAX_GRAMS,
     items_missing_weight: weightSummary.itemsMissingWeight,
     tier,
+    provider: LIVE_SHIPPING_PROVIDER,
   })
 }

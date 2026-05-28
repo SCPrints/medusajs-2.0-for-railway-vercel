@@ -20,6 +20,8 @@ import {
   RESEND_API_KEY,
   SHIPSTATION_API_KEY,
   STRIPE_API_KEY,
+  AUSPOST_API_KEY,
+  AUSPOST_TEST_MODE,
 } from "../../../../lib/constants"
 
 /**
@@ -270,6 +272,17 @@ export async function GET(_req: MedusaRequest, res: MedusaResponse) {
       headers: SHIPSTATION_API_KEY
         ? { "API-Key": SHIPSTATION_API_KEY }
         : undefined,
+    }),
+    ping("Australia Post", {
+      // We can't ping the auth-gated endpoints without a full OAuth dance
+      // (which would burn token-endpoint quota every 60s). Instead probe
+      // the API root — proves DNS + TCP + TLS without authenticating.
+      // 401/403/404 all confirm reachability.
+      configured: Boolean(AUSPOST_API_KEY),
+      url: AUSPOST_TEST_MODE
+        ? "https://digitalapi.auspost.com.au/test/shipping/v2/"
+        : "https://digitalapi.auspost.com.au/shipping/v2/",
+      expectedOkStatuses: [200, 400, 401, 403, 404],
     }),
     ping("Object storage", {
       configured: Boolean(MINIO_ENDPOINT),

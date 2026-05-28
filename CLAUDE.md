@@ -1023,8 +1023,8 @@ Env vars (see [backend/src/lib/constants.ts](backend/src/lib/constants.ts) for f
 
 ## Shipping & dropship
 
-### ShipStation fulfillment provider
-Real-time rate calculation, label purchase, and shipment tracking via ShipStation API v2.
+### ShipStation fulfillment provider (being deprecated)
+Real-time rate calculation, label purchase, and shipment tracking via ShipStation API v2. **Slated for removal** once the AusPost direct integration (below) clears 50+ live parcels — driven by ShipStation's ~US$50/mo API tier vs AusPost's free direct API on the same MyPost Business charge account.
 
 | Component | Path |
 | --- | --- |
@@ -1035,6 +1035,27 @@ Real-time rate calculation, label purchase, and shipment tracking via ShipStatio
 | Shipment-created → email | [backend/src/subscribers/order-shipment-created.ts](backend/src/subscribers/order-shipment-created.ts) |
 
 **Env**: `SHIPSTATION_API_KEY` + warehouse fields (see env table). **Gotcha**: rates silently fail if any required warehouse field is missing; `variant.weight` or `item.metadata.weight_grams` must be set or only packaging overhead is used.
+
+### Australia Post direct fulfillment provider (successor)
+Replacement for the ShipStation provider. Uses AusPost's Shipping & Tracking API v2 (OAuth client-credentials) against a MyPost Business account + Credit (Charge) Account. AusPost has no webhook push, so tracking events sync via a 4-hourly poll cron rather than the ShipStation-style realtime webhook.
+
+| Component | Path |
+| --- | --- |
+| Module + service + OAuth client + address mapping | [backend/src/modules/auspost/](backend/src/modules/auspost/) |
+| Tracking-poll cron (`0 */4 * * *`) | [backend/src/jobs/sync-auspost-tracking.ts](backend/src/jobs/sync-auspost-tracking.ts) |
+| Parcels widget (renders only for auspost_* fulfillments) | [backend/src/admin/widgets/order-auspost-parcels.tsx](backend/src/admin/widgets/order-auspost-parcels.tsx) |
+| Provider-switch in cart shipping endpoint | [backend/src/api/store/cart-shipping-options/route.ts](backend/src/api/store/cart-shipping-options/route.ts) |
+| Setup checklist + cutover playbook | [Docs/AUSPOST_SETUP.md](Docs/AUSPOST_SETUP.md) |
+
+**Env**: `AUSPOST_API_KEY` + `AUSPOST_API_SECRET` + `AUSPOST_ACCOUNT_NUMBER` + `AUSPOST_OAUTH_CLIENT_ID` + `AUSPOST_OAUTH_CLIENT_SECRET` + `AUSPOST_WAREHOUSE_*` (postcode/city/state/address_1/phone/name). **All five OAuth+account vars are required** — partial config silently fails to register the provider at boot. `AUSPOST_TEST_MODE=true` routes through the testbed. **Provider switch**: `LIVE_SHIPPING_PROVIDER` (default `shipstation`) flips the cart-shipping-options filter between the two providers without code changes — both stay registered during transition.
+
+**Service codes** are hardcoded to AusPost defaults (`7E55` Parcel Post, `7E54` Express Post) and can be overridden per-account via `AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID` / `_EXPRESS_PRODUCT_ID`. AusPost has no equivalent of ShipStation's "list services" endpoint, so the merchant treats these as opaque per-account strings — sync against `POST /prices/shipments` response if AusPost issues a different code.
+
+**Gotcha 1 — labels are debited on success**. `POST /labels` triggers AusPost billing immediately. The createFulfillment flow wraps this single call without retry to avoid double-charge. If the call 5xxs partway, the AusPost shipment is created but the label isn't — staff regenerate via the admin order detail page.
+
+**Gotcha 2 — testbed labels are generic**. AusPost's testbed returns a sample PDF regardless of payload. Visual QA must be done against one real production label before cutover.
+
+**Gotcha 3 — no cancel after manifesting**. Once a shipment is lodged (or fed to `POST /orders` for eParcel) the DELETE endpoint 4xxs. The cancelFulfillment logs and swallows so the Medusa cancellation flow doesn't roll back the order — operator refunds via the MyPost Business UI.
 
 ### AS Colour dropship status sync
 AS Colour has no webhooks — every 15 minutes a job polls non-terminal AS Colour orders and writes status / shipments into order metadata.

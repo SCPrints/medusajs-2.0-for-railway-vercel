@@ -104,6 +104,102 @@ export const SHIPSTATION_PACKAGE_HEIGHT_CM = parsePackageDimCm(
   15
 )
 
+/**
+ * Australia Post Shipping & Tracking API v2 — direct integration replacing
+ * ShipStation for AU-domestic parcels. Off until creds are issued.
+ *
+ * Account setup (multi-day approval window — see Docs/AUSPOST_SETUP.md):
+ *   1. MyPost Business account + Credit (Charge) Account
+ *   2. Developer Centre registration
+ *   3. Shipping & Tracking API registration approved
+ *   4. Receive: account number, API key, secret, OAuth client_id/client_secret
+ *
+ * When AUSPOST_API_KEY is unset the module is not registered and every
+ * downstream surface (cart-shipping-options filter, tracking-poll cron,
+ * system-health ping) becomes a silent no-op.
+ *
+ * `AUSPOST_TEST_MODE=true` routes API calls through the testbed environment
+ * (separate creds issued by AusPost alongside production ones). Test-bed
+ * labels are generic — do final visual QA against one real prod label.
+ */
+export const AUSPOST_API_KEY = process.env.AUSPOST_API_KEY
+export const AUSPOST_API_SECRET = process.env.AUSPOST_API_SECRET
+export const AUSPOST_ACCOUNT_NUMBER = process.env.AUSPOST_ACCOUNT_NUMBER
+export const AUSPOST_OAUTH_CLIENT_ID = process.env.AUSPOST_OAUTH_CLIENT_ID
+export const AUSPOST_OAUTH_CLIENT_SECRET =
+  process.env.AUSPOST_OAUTH_CLIENT_SECRET
+export const AUSPOST_TEST_MODE =
+  String(process.env.AUSPOST_TEST_MODE).toLowerCase() === "true"
+
+/**
+ * Optional per-account service product_id overrides. AusPost's published
+ * codes (7E55 Parcel Post, 7E54 Express Post) are correct for most
+ * MyPost Business accounts but eParcel + contract customers see different
+ * codes. Sync against the response from POST /prices/shipments before
+ * locking these in.
+ */
+export const AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID =
+  process.env.AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID || "7E55"
+export const AUSPOST_DEFAULT_SERVICE_EXPRESS_PRODUCT_ID =
+  process.env.AUSPOST_DEFAULT_SERVICE_EXPRESS_PRODUCT_ID || "7E54"
+
+/** Label generation: PDF (default, opens in a viewer) / ZPL (Zebra) / PNG. */
+export const AUSPOST_LABEL_FORMAT =
+  (process.env.AUSPOST_LABEL_FORMAT || "PDF").toUpperCase() as "PDF" | "ZPL" | "PNG"
+/** A4-1pp = one label per A4 sheet; A6-1pp = thermal 4×6". Match the studio printer. */
+export const AUSPOST_LABEL_LAYOUT =
+  process.env.AUSPOST_LABEL_LAYOUT || "A4-1pp"
+
+/**
+ * AusPost ship-from address. Same shape as SHIPSTATION_WAREHOUSE_*; if both
+ * sets are populated they serve their respective providers. Country code
+ * defaults to AU because AusPost only ships from AU origins.
+ */
+export const AUSPOST_WAREHOUSE_POSTCODE = process.env.AUSPOST_WAREHOUSE_POSTCODE
+export const AUSPOST_WAREHOUSE_COUNTRY_CODE =
+  process.env.AUSPOST_WAREHOUSE_COUNTRY_CODE || "AU"
+export const AUSPOST_WAREHOUSE_CITY = process.env.AUSPOST_WAREHOUSE_CITY
+export const AUSPOST_WAREHOUSE_STATE = process.env.AUSPOST_WAREHOUSE_STATE
+export const AUSPOST_WAREHOUSE_NAME =
+  process.env.AUSPOST_WAREHOUSE_NAME || "Warehouse"
+export const AUSPOST_WAREHOUSE_ADDRESS_1 = process.env.AUSPOST_WAREHOUSE_ADDRESS_1
+export const AUSPOST_WAREHOUSE_PHONE = process.env.AUSPOST_WAREHOUSE_PHONE
+/** Required on international shipments for the commercial invoice. */
+export const AUSPOST_WAREHOUSE_ABN = process.env.AUSPOST_WAREHOUSE_ABN
+
+/**
+ * Nominal AusPost parcel dimensions (cm) for rate quotes — sized for a
+ * standard SC Prints garment satchel. Override per environment if the
+ * studio swaps packaging.
+ */
+export const AUSPOST_PACKAGE_LENGTH_CM = parsePackageDimCm(
+  process.env.AUSPOST_PACKAGE_LENGTH_CM,
+  35
+)
+export const AUSPOST_PACKAGE_WIDTH_CM = parsePackageDimCm(
+  process.env.AUSPOST_PACKAGE_WIDTH_CM,
+  25
+)
+export const AUSPOST_PACKAGE_HEIGHT_CM = parsePackageDimCm(
+  process.env.AUSPOST_PACKAGE_HEIGHT_CM,
+  10
+)
+
+/**
+ * Cart-shipping-options tier filter switch: which provider's `*_*` options
+ * to surface above the SHIPPING_FLAT_RATE_MAX_GRAMS threshold.
+ *
+ *   "shipstation" — current behaviour, kept as default until AusPost is proven
+ *   "auspost"     — flip after testbed QA + first live prod parcel succeeds
+ *
+ * Both providers stay registered during the transition; only the storefront
+ * filter switches. Lets you roll back via a single env-var change.
+ */
+export const LIVE_SHIPPING_PROVIDER =
+  (process.env.LIVE_SHIPPING_PROVIDER || "shipstation").toLowerCase() as
+    | "shipstation"
+    | "auspost"
+
 const parseIntEnv = (raw: string | undefined, fallback: number) => {
   if (!raw) {
     return fallback

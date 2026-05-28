@@ -433,7 +433,7 @@ const SECTIONS: Section[] = [
         </div>
         <div>
           <p className="font-semibold text-ui-fg-base"><span className="inline-block w-2.5 h-2.5 rounded-sm bg-amber-100 border border-amber-800 mr-1 align-middle" />External services</p>
-          <p className="text-ui-fg-subtle text-xs mt-0.5">Resend (email), Slack (alerts), PostHog (analytics + cohorts), GA4 (e-commerce tracking), ShipStation, Stripe, Meilisearch</p>
+          <p className="text-ui-fg-subtle text-xs mt-0.5">Resend (email), Slack (alerts), PostHog (analytics + cohorts), GA4 (e-commerce tracking), ShipStation / Australia Post, Stripe, Meilisearch</p>
         </div>
         <div>
           <p className="font-semibold text-ui-fg-base">Admin dashboard</p>
@@ -480,6 +480,7 @@ const SECTIONS: Section[] = [
         POSTHOG[PostHog Cloud US]
         GOOGLE[Google GSC + GA4]
         SHIPSTATION[ShipStation]
+        AUSPOST[Australia Post · direct API]
         SUPPLIERS[AS Colour / FashionBiz / Aussie Pacific APIs]
         ANTHROPIC[Anthropic · chatbot + AI copy]
     end
@@ -990,7 +991,8 @@ const SECTIONS: Section[] = [
               ["PostHog Cloud (US)", "Product analytics + cohort sync + LLM tracking", "POSTHOG_API_KEY + POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID + POSTHOG_HOST"],
               ["GA4", "E-commerce funnel tracking (storefront-side)", "NEXT_PUBLIC_GA_MEASUREMENT_ID"],
               ["Google GSC + GA4 (admin reporting)", "Read via service account that impersonates info@scprints.com.au (DWD)", "GOOGLE_SERVICE_ACCOUNT_JSON + GSC_SITE_URL + GA4_PROPERTY_ID"],
-              ["ShipStation", "Shipping label rates + tracking", "SHIPSTATION_API_KEY + SHIPSTATION_WEBHOOK_SECRET + SHIPSTATION_WAREHOUSE_*"],
+              ["ShipStation", "Shipping label rates + tracking (being deprecated — paid API tier)", "SHIPSTATION_API_KEY + SHIPSTATION_WEBHOOK_SECRET + SHIPSTATION_WAREHOUSE_*"],
+              ["Australia Post (direct)", "Replacement for ShipStation — OAuth + Shipping & Tracking API v2; no webhook (poll every 4h)", "AUSPOST_API_KEY + AUSPOST_API_SECRET + AUSPOST_ACCOUNT_NUMBER + AUSPOST_OAUTH_CLIENT_ID + AUSPOST_OAUTH_CLIENT_SECRET + AUSPOST_WAREHOUSE_*"],
               ["AS Colour API", "Supplier catalog + hourly inventory + dropship orders", "ASCOLOUR_SUBSCRIPTION_KEY + ASCOLOUR_PRICELIST_*"],
               ["FashionBiz API", "Supplier catalog + daily inventory (no dropship endpoint)", "FASHIONBIZ_API_TOKEN + FASHIONBIZ_BRANCH + FASHIONBIZ_COST_ADJUSTMENT"],
               ["Aussie Pacific API", "Supplier catalog + daily inventory + dropship orders (submit-only, no status endpoint)", "AUSSIE_PACIFIC_API_TOKEN + AUSSIE_PACIFIC_COST_ADJUSTMENT"],
