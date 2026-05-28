@@ -1,7 +1,7 @@
 "use client"
 
 import { RenderPlacement } from "@modules/customizer/lib/types"
-import { RefObject } from "react"
+import { memo, RefObject } from "react"
 
 type CanvasStageProps = {
   garmentImage: string | null
@@ -17,7 +17,7 @@ type CanvasStageProps = {
   tintColor?: string | null
 }
 
-export default function CanvasStage({
+function CanvasStage({
   garmentImage,
   garmentTitle,
   printSideKey = "front",
@@ -150,3 +150,9 @@ export default function CanvasStage({
     </div>
   )
 }
+
+// Memoised: every prop is a primitive (compared by value) or a stable
+// reference — printArea is useMemo'd and fabricContainerRef is a ref — so the
+// garment <img> + tint computation no longer re-render on unrelated customizer
+// state changes (layers, pricing, wizard step, DPI assessment, …).
+export default memo(CanvasStage)
