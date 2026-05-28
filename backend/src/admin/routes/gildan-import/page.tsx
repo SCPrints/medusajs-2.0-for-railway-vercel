@@ -54,7 +54,12 @@ const readFileAsBase64 = (file: File): Promise<string> =>
 const GildanImportPage = () => {
   const [file, setFile] = useState<File | null>(null)
   const [dryRun, setDryRun] = useState(true)
-  const [updateExisting, setUpdateExisting] = useState(false)
+  // Default ON — re-running with the same xlsx but skipping existing
+  // styles is almost never what the operator wants (it locks in any data
+  // gaps from the first import). The diff helper is conservative:
+  // appends images, preserves staff metadata, only writes when there's
+  // a real change. Untick if you specifically want create-only.
+  const [updateExisting, setUpdateExisting] = useState(true)
   const [limit, setLimit] = useState<string>("")
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<ImportResponse | null>(null)
