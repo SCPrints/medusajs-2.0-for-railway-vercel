@@ -24,6 +24,8 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
   "biz-care": { initials: "BC", bgClass: "bg-teal-700", logoSrc: `${LOGO_BASE}/biz-care.svg` },
   "biz-corporates": { initials: "BC", bgClass: "bg-blue-800", logoSrc: `${LOGO_BASE}/biz-corporates.svg` },
   fashionbiz: { initials: "FZ", bgClass: "bg-rose-900" },
+  "dnc-workwear": { initials: "DNC", bgClass: "bg-slate-800", logoSrc: "/images/brands/dnc.png" },
+  ramo: { initials: "RA", bgClass: "bg-red-700", logoSrc: "/images/brands/ramo.png" },
 }
 
 const FALLBACK_PRESENTATION: BrandPresentation = {
