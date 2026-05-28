@@ -64,6 +64,14 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "4mb" },
     },
     {
+      // Gildan supplier xlsx upload — base64-encoded in the request body.
+      // The 2026-01 file is ~600KB on disk → ~2.1MB base64; headroom up to
+      // 32mb covers future catalog growth without further config changes.
+      matcher: "/admin/gildan/import",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "32mb" },
+    },
+    {
       // ShipStation v2 webhook endpoint. Preserve the raw request body so we
       // can verify the HMAC-SHA256 signature header.
       matcher: "/hooks/shipstation",
