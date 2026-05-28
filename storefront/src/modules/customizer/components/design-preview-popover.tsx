@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { memo, useEffect, useRef, useState } from "react"
 import * as fabric from "fabric"
 
 import type { GarmentSide } from "@modules/customizer/lib/types"
@@ -80,7 +80,7 @@ const composeDesignLayer = async (
   }
 }
 
-export default function DesignPreviewPopover({
+function DesignPreviewPopover({
   decoratedSides,
   canvasSize,
   sideLayouts,
@@ -275,3 +275,9 @@ export default function DesignPreviewPopover({
     </div>
   )
 }
+
+// Memoised: all props are now stable references — decoratedSides is useMemo'd,
+// sideLayouts is a ref, getGarmentUrlForSide is a useCallback (see the parent),
+// and the rest are primitives — so the popover no longer re-renders on every
+// parent render while the canvas is being manipulated.
+export default memo(DesignPreviewPopover)
