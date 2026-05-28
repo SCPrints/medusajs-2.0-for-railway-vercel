@@ -31,10 +31,36 @@ const filenameStem = (s: string): string => {
   return base.replace(/__\d+\.\d+$/, "")
 }
 
-// Capture the full /images/stencil/<size>w/products/<pid>/<iid>/<file>.ext
-// segment so we can rewrite the size to a consistent 1280w bucket.
+// Capture the full /images/stencil/<size>/products/<pid>/<iid>/<file>.ext
+// segment so we can rewrite the size to a consistent 1280w bucket. Size
+// can be either the legacy `1280w` form OR the newer `1280x1280` form
+// — observed in the same page across pre-2026 and post-2026 product
+// uploads on gildanbrands.com.au. Filename is matched permissively
+// (allowing `.` and `_` inside the stem) so the multi-suffix CDN form
+// `H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg`
+// captures too; the suffix groups are then stripped in JS.
 const FULL_CDN_PATH_RE =
-  /\/images\/stencil\/(\d+)w\/products\/(\d+)\/(\d+)\/([A-Za-z0-9_\-]+__\d+\.\d+\.(?:jpg|jpeg|png|webp))/g
+  /\/images\/stencil\/(\d+(?:w|x\d+))\/products\/(\d+)\/(\d+)\/([A-Za-z0-9_.\-]+\.(?:jpg|jpeg|png|webp))/gi
+
+/** Strip a base filename's trailing `__<digits>(.<digits>)*` suffix groups. */
+const stripFilenameSuffixes = (base: string): string =>
+  base.replace(/(__\d+(?:\.\d+)*)+$/, "")
+
+/**
+ * Some Gildan styles (notably the Hammer line — H000, H100, etc.) ship
+ * xlsx filenames like `H000_White_01.jpg` while the live CDN serves
+ * them as `H000_White_A1.jpg`. Generate an alias so xlsx lookups still
+ * resolve. The pattern is "underscore + capital A + digits" at the END
+ * of the stem; replace with "underscore + zero-padded digits".
+ *
+ *   H000_White_A1   → H000_White_01
+ *   H000_Black_A12  → H000_Black_12
+ */
+const aliasStem = (stem: string): string | null => {
+  const m = /^(.+)_A(\d+)$/.exec(stem)
+  if (!m) return null
+  return `${m[1]}_${m[2].padStart(2, "0")}`
+}
 
 /**
  * Parse a Gildan product page's HTML and return a map of
@@ -51,18 +77,26 @@ export function extractImageUrlsFromGildanHtml(
   for (const match of html.matchAll(FULL_CDN_PATH_RE)) {
     const productId = match[2]
     const imageId = match[3]
-    const cdnFilename = match[4] // e.g. "102_Blush_01__72716.1764901939.jpg"
-    const stem = filenameStem(cdnFilename)
+    const cdnFilename = match[4] // e.g. "H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
+    const baseWithExt = cdnFilename
+    const base = baseWithExt.replace(/\.(jpg|jpeg|png|webp)$/i, "")
+    const stem = stripFilenameSuffixes(base)
     // Always normalise to 1280w so the storefront gets a consistent
     // resolution regardless of which srcset variant we matched first.
     const url = `https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/${productId}/${imageId}/${cdnFilename}`
+    // Register the stem under EVERY extension the xlsx might reference.
     // First occurrence wins; map every plausible extension form so
     // xlsx-supplied `.jpg` filenames still resolve when the CDN actually
     // serves `.webp` (and vice-versa).
-    if (!out.has(`${stem}.jpg`)) out.set(`${stem}.jpg`, url)
-    if (!out.has(`${stem}.jpeg`)) out.set(`${stem}.jpeg`, url)
-    if (!out.has(`${stem}.png`)) out.set(`${stem}.png`, url)
-    if (!out.has(`${stem}.webp`)) out.set(`${stem}.webp`, url)
+    const stems = [stem]
+    const alt = aliasStem(stem)
+    if (alt && alt !== stem) stems.push(alt)
+    for (const s of stems) {
+      if (!out.has(`${s}.jpg`)) out.set(`${s}.jpg`, url)
+      if (!out.has(`${s}.jpeg`)) out.set(`${s}.jpeg`, url)
+      if (!out.has(`${s}.png`)) out.set(`${s}.png`, url)
+      if (!out.has(`${s}.webp`)) out.set(`${s}.webp`, url)
+    }
   }
   return out
 }
@@ -122,6 +156,11 @@ function readCache(file: string): CacheRow | null {
     const raw = fs.readFileSync(file, "utf8")
     const parsed = JSON.parse(raw) as CacheRow
     if (!parsed || typeof parsed !== "object" || !parsed.urlByFilename) return null
+    // Empty maps mean the page rendered but our regex didn't match any
+    // CDN URLs — typically because of a filename-format change. Treat
+    // as a miss so a re-run picks up the fix instead of locking in the
+    // empty result forever.
+    if (Object.keys(parsed.urlByFilename).length === 0) return null
     return parsed
   } catch {
     return null

@@ -418,6 +418,42 @@ describe("extractImageUrlsFromGildanHtml", () => {
   it("returns an empty map on empty html", () => {
     expect(extractImageUrlsFromGildanHtml("").size).toBe(0)
   })
+
+  it("matches the multi-suffix CDN filename form on newer product pages", () => {
+    // Observed on gildan-hammer-h000-t-shirt and other 2025/2026 uploads —
+    // filenames have TWO __<digits>.<digits> suffix groups instead of one.
+    const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg?c=1">`
+    const out = extractImageUrlsFromGildanHtml(html)
+    // The xlsx ships filenames like "H000_White_04.jpg" — the alias maps
+    // _A<n> → _<padded n> so the lookup still resolves.
+    expect(out.get("H000_White_04.jpg")).toBe(
+      "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
+    )
+    // The raw _A<n> form is also stored for any future xlsx that uses it.
+    expect(out.get("H000_White_A4.jpg")).toBe(
+      "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
+    )
+  })
+
+  it("matches the 1280x1280 size form as well as 1280w", () => {
+    const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg">`
+    const out = extractImageUrlsFromGildanHtml(html)
+    // Output URL is rewritten to the 1280w bucket regardless of which
+    // source srcset variant we matched.
+    expect(out.get("H000_White_04.jpg")).toBe(
+      "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
+    )
+  })
+
+  it("does NOT alias non-A-prefixed stems", () => {
+    // SF500_Black_01 stays as-is — no _A<n> → _<n> rewrite to corrupt
+    // the lookup.
+    const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1895/7194/SF500_Black_01__79162.1766117298.jpg">`
+    const out = extractImageUrlsFromGildanHtml(html)
+    expect(out.get("SF500_Black_01.jpg")).toBeDefined()
+    // No spurious alias under SF500_Black_00.jpg etc.
+    expect(out.get("SF500_Black_00.jpg")).toBeUndefined()
+  })
 })
 
 describe("parseGildanSitemap", () => {
