@@ -9,6 +9,10 @@ import {
   renderGildanDescription,
 } from "../mapping"
 import { extractImageUrlsFromGildanHtml } from "../image-scraper"
+import {
+  GildanSitemapResolver,
+  parseGildanSitemap,
+} from "../sitemap-resolver"
 import { priceLadderFromGildan, resolveGildanCost } from "../pricing"
 import type { GildanColour, GildanProduct, GildanRow } from "../types"
 
@@ -413,6 +417,119 @@ describe("extractImageUrlsFromGildanHtml", () => {
   })
   it("returns an empty map on empty html", () => {
     expect(extractImageUrlsFromGildanHtml("").size).toBe(0)
+  })
+})
+
+describe("parseGildanSitemap", () => {
+  const fixture = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://gildanbrands.com.au/gildan-softstyle-sf500-hoodie/</loc></url>
+  <url><loc>https://gildanbrands.com.au/gildan-hammer-h000-t-shirt/</loc></url>
+  <url><loc>https://gildanbrands.com.au/american-apparel-102-t-shirt/</loc></url>
+  <url><loc>https://gildanbrands.com.au/comfort-colors-1717/</loc></url>
+  <url><loc>https://gildanbrands.com.au/gildan-dryblend-8800b-polo-shirt/</loc></url>
+  <url><loc>https://gildanbrands.com.au/gildan-softstyle-64v00-t-shirt/</loc></url>
+  <url><loc>https://gildanbrands.com.au/gildan-heavy-cotton-5400-t-shirt/</loc></url>
+</urlset>`
+
+  it("extracts style codes from URL slugs (alphanumeric tokens containing a digit)", () => {
+    const m = parseGildanSitemap(fixture)
+    expect(m.get("sf500")).toBe(
+      "https://gildanbrands.com.au/gildan-softstyle-sf500-hoodie/"
+    )
+    expect(m.get("h000")).toBe(
+      "https://gildanbrands.com.au/gildan-hammer-h000-t-shirt/"
+    )
+    expect(m.get("102")).toBe(
+      "https://gildanbrands.com.au/american-apparel-102-t-shirt/"
+    )
+    expect(m.get("1717")).toBe(
+      "https://gildanbrands.com.au/comfort-colors-1717/"
+    )
+    expect(m.get("8800b")).toBe(
+      "https://gildanbrands.com.au/gildan-dryblend-8800b-polo-shirt/"
+    )
+    expect(m.get("64v00")).toBe(
+      "https://gildanbrands.com.au/gildan-softstyle-64v00-t-shirt/"
+    )
+    expect(m.get("5400")).toBe(
+      "https://gildanbrands.com.au/gildan-heavy-cotton-5400-t-shirt/"
+    )
+  })
+
+  it("returns an empty map on empty/malformed input", () => {
+    expect(parseGildanSitemap("").size).toBe(0)
+    expect(parseGildanSitemap("<root></root>").size).toBe(0)
+  })
+
+  it("filters out tokens without a digit", () => {
+    const m = parseGildanSitemap(fixture)
+    // Pure-word tokens shouldn't end up as style codes.
+    expect(m.get("gildan")).toBeUndefined()
+    expect(m.get("softstyle")).toBeUndefined()
+    expect(m.get("hoodie")).toBeUndefined()
+    expect(m.get("t")).toBeUndefined()
+    expect(m.get("shirt")).toBeUndefined()
+  })
+
+  it("first occurrence wins on collisions", () => {
+    const dupes = `
+      <url><loc>https://example.com/a-1000-shirt/</loc></url>
+      <url><loc>https://example.com/b-1000-hoodie/</loc></url>
+    `
+    const m = parseGildanSitemap(dupes)
+    expect(m.get("1000")).toBe("https://example.com/a-1000-shirt/")
+  })
+})
+
+describe("GildanSitemapResolver", () => {
+  it("caches the parsed map across multiple resolve() calls", async () => {
+    let fetchCount = 0
+    const fixture = `<urlset>
+      <url><loc>https://gildanbrands.com.au/gildan-softstyle-sf500-hoodie/</loc></url>
+    </urlset>`
+    const resolver = new GildanSitemapResolver({
+      fetcher: async () => {
+        fetchCount++
+        return {
+          ok: true,
+          status: 200,
+          text: async () => fixture,
+        }
+      },
+    })
+    expect(await resolver.resolve("SF500")).toBe(
+      "https://gildanbrands.com.au/gildan-softstyle-sf500-hoodie/"
+    )
+    expect(await resolver.resolve("sf500")).toBe(
+      "https://gildanbrands.com.au/gildan-softstyle-sf500-hoodie/"
+    )
+    expect(await resolver.resolve("not-in-sitemap")).toBeNull()
+    expect(fetchCount).toBe(1)
+  })
+
+  it("returns null + logs a warning when the sitemap fetch fails", async () => {
+    const warnings: string[] = []
+    const resolver = new GildanSitemapResolver({
+      logger: { warn: (m) => warnings.push(m) },
+      fetcher: async () => ({
+        ok: false,
+        status: 500,
+        text: async () => "",
+      }),
+    })
+    expect(await resolver.resolve("SF500")).toBeNull()
+    expect(warnings.some((w) => w.includes("HTTP 500"))).toBe(true)
+  })
+
+  it("survives a thrown fetcher (network error) without crashing", async () => {
+    const resolver = new GildanSitemapResolver({
+      fetcher: async () => {
+        throw new Error("ECONNREFUSED")
+      },
+    })
+    expect(await resolver.resolve("SF500")).toBeNull()
+    expect(await resolver.size()).toBe(0)
   })
 })
 

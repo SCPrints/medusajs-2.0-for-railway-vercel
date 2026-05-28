@@ -21,6 +21,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { slugify } from "../../utils/string-case"
+import type { GildanSitemapResolver } from "./sitemap-resolver"
 
 /** Stem of an image filename without extension or hash suffix. */
 const filenameStem = (s: string): string => {
@@ -93,6 +94,14 @@ export type GildanImageScraperOptions = {
    * Optional HTTP fetcher override (for tests). Defaults to global fetch.
    */
   fetcher?: (url: string, init?: any) => Promise<{ ok: boolean; text(): Promise<string>; status: number }>
+  /**
+   * Sitemap resolver — when set, the scraper resolves the live product
+   * URL via the BigCommerce sitemap instead of trusting the (often
+   * stale) URL in the xlsx column. Without a resolver the scraper
+   * falls back to the passed `productUrl`, matching the old behaviour
+   * for tests and legacy callers.
+   */
+  sitemapResolver?: GildanSitemapResolver | null
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -139,11 +148,20 @@ export class GildanImageScraper {
   private readonly noCache: boolean
   private readonly fetcher: NonNullable<GildanImageScraperOptions["fetcher"]>
   private readonly logger: GildanImageScraperOptions["logger"]
+  private readonly sitemapResolver: GildanSitemapResolver | null
   /**
    * Stats — useful for the admin UI to surface what happened. Re-reset
    * between imports if you re-use the instance.
    */
-  public stats = { cacheHits: 0, cacheMisses: 0, fetchErrors: 0, fetched: 0 }
+  public stats = {
+    cacheHits: 0,
+    cacheMisses: 0,
+    fetchErrors: 0,
+    fetched: 0,
+    sitemapResolved: 0,
+    xlsxFallback: 0,
+    urlUnresolved: 0,
+  }
 
   constructor(opts: GildanImageScraperOptions = {}) {
     this.delayMs = opts.delayMs ?? 300
@@ -155,6 +173,32 @@ export class GildanImageScraper {
     this.noCache = opts.noCache ?? false
     this.fetcher = opts.fetcher ?? defaultFetcher
     this.logger = opts.logger
+    this.sitemapResolver = opts.sitemapResolver ?? null
+  }
+
+  /**
+   * Pick the live product URL for a style. When a sitemap resolver is
+   * configured we look up the canonical URL there (preferred) and only
+   * fall back to the xlsx URL if the style isn't in the sitemap
+   * (typically a brand-new release).
+   */
+  private async resolveProductUrl(
+    styleParent: string,
+    xlsxUrl: string | null | undefined
+  ): Promise<string | null> {
+    if (this.sitemapResolver) {
+      const sitemapUrl = await this.sitemapResolver.resolve(styleParent)
+      if (sitemapUrl) {
+        this.stats.sitemapResolved++
+        return sitemapUrl
+      }
+    }
+    if (xlsxUrl) {
+      this.stats.xlsxFallback++
+      return xlsxUrl
+    }
+    this.stats.urlUnresolved++
+    return null
   }
 
   /**
@@ -171,7 +215,6 @@ export class GildanImageScraper {
   }): Promise<Map<string, string>> {
     const { brand, styleParent, productUrl, filenames } = opts
     const result = new Map<string, string>()
-    if (!productUrl) return result
 
     const cacheFile = cachePathFor(this.cacheDir, brand, styleParent)
     let cached: CacheRow | null = null
@@ -183,8 +226,15 @@ export class GildanImageScraper {
       urlByFilename = new Map(Object.entries(cached.urlByFilename))
     } else {
       this.stats.cacheMisses++
+      const effectiveUrl = await this.resolveProductUrl(styleParent, productUrl)
+      if (!effectiveUrl) {
+        this.logger?.warn?.(
+          `[gildan-image-scraper] no URL for ${brand}/${styleParent} (sitemap miss + no xlsx fallback)`
+        )
+        return result
+      }
       try {
-        const html = await this.fetchWithTimeout(productUrl)
+        const html = await this.fetchWithTimeout(effectiveUrl)
         urlByFilename = extractImageUrlsFromGildanHtml(html)
         this.stats.fetched++
         if (!this.noCache) {
@@ -197,7 +247,7 @@ export class GildanImageScraper {
       } catch (err: any) {
         this.stats.fetchErrors++
         this.logger?.warn?.(
-          `[gildan-image-scraper] fetch failed for ${productUrl}: ${err?.message ?? err}`
+          `[gildan-image-scraper] fetch failed for ${effectiveUrl}: ${err?.message ?? err}`
         )
         return result
       }
@@ -223,15 +273,24 @@ export class GildanImageScraper {
     }>
   ): Promise<void> {
     for (const s of styles) {
-      if (!s.productUrl) continue
       const cacheFile = cachePathFor(this.cacheDir, s.brand, s.styleParent)
       if (!this.noCache && readCache(cacheFile)) {
         this.stats.cacheHits++
         continue
       }
       this.stats.cacheMisses++
+      const effectiveUrl = await this.resolveProductUrl(
+        s.styleParent,
+        s.productUrl
+      )
+      if (!effectiveUrl) {
+        this.logger?.warn?.(
+          `[gildan-image-scraper] no URL for ${s.brand}/${s.styleParent} (sitemap miss + no xlsx fallback)`
+        )
+        continue
+      }
       try {
-        const html = await this.fetchWithTimeout(s.productUrl)
+        const html = await this.fetchWithTimeout(effectiveUrl)
         const map = extractImageUrlsFromGildanHtml(html)
         this.stats.fetched++
         if (!this.noCache) {
@@ -246,7 +305,7 @@ export class GildanImageScraper {
       } catch (err: any) {
         this.stats.fetchErrors++
         this.logger?.warn?.(
-          `[gildan-image-scraper] fetch failed for ${s.productUrl}: ${err?.message ?? err}`
+          `[gildan-image-scraper] fetch failed for ${effectiveUrl}: ${err?.message ?? err}`
         )
       }
       await sleep(this.delayMs)

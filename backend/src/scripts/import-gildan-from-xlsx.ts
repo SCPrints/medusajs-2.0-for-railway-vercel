@@ -51,6 +51,7 @@ import {
   renderGildanDescription,
 } from "../modules/gildan/mapping"
 import { GildanImageScraper } from "../modules/gildan/image-scraper"
+import { GildanSitemapResolver } from "../modules/gildan/sitemap-resolver"
 import { priceLadderFromGildan, resolveGildanCost } from "../modules/gildan/pricing"
 import {
   ladderToTierMinor,
@@ -183,11 +184,18 @@ export default async function importGildanFromXlsx({
   // 1. Pre-warm the image scraper cache against gildanbrands.com.au.
   // 97 unique styles × ~300ms throttle ≈ 30s for a cold run; subsequent
   // imports hit the disk cache and finish in milliseconds.
+  const sitemapResolver = new GildanSitemapResolver({
+    logger: {
+      info: (m) => logger.info(m),
+      warn: (m) => logger.warn(m),
+    },
+  })
   const scraper = new GildanImageScraper({
     logger: {
       info: (m) => logger.info(m),
       warn: (m) => logger.warn(m),
     },
+    sitemapResolver,
   })
   logger.info(
     `Pre-warming image scraper cache for ${products.length} style(s) — first run takes ~${Math.ceil(products.length * 0.4)}s.`

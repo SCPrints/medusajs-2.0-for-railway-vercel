@@ -64,6 +64,7 @@ import {
   renderGildanDescription,
 } from "../../../../modules/gildan/mapping"
 import { GildanImageScraper } from "../../../../modules/gildan/image-scraper"
+import { GildanSitemapResolver } from "../../../../modules/gildan/sitemap-resolver"
 import {
   priceLadderFromGildan,
   resolveGildanCost,
@@ -215,7 +216,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const toUpdate = new Map<string, DesiredProduct>()
     const existingByHandle = new Map<string, ExistingProductRow>()
 
-    const scraper = new GildanImageScraper({ logger })
+    const sitemapResolver = new GildanSitemapResolver({ logger })
+    const scraper = new GildanImageScraper({ logger, sitemapResolver })
     logger.info(
       `Pre-warming image scraper cache for ${products.length} style(s)…`
     )
@@ -227,7 +229,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }))
     )
     logger.info(
-      `Image scraper: ${scraper.stats.cacheHits} cached, ${scraper.stats.fetched} fetched, ${scraper.stats.fetchErrors} errors.`
+      `Image scraper: ${scraper.stats.cacheHits} cached, ${scraper.stats.fetched} fetched, ${scraper.stats.fetchErrors} errors. URL source: ${scraper.stats.sitemapResolved} via sitemap, ${scraper.stats.xlsxFallback} via xlsx fallback, ${scraper.stats.urlUnresolved} unresolved.`
     )
 
     const allHandles = products.map((p) =>
