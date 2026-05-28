@@ -3,7 +3,11 @@ import { Suspense } from "react"
 
 import { listBrands } from "@lib/data/brands"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
-import { getBrandPresentation, brandInitials } from "@modules/brands/data/brands"
+import {
+  brandInitials,
+  DEFAULT_LOGO_CLASS,
+  getBrandPresentation,
+} from "@modules/brands/data/brands"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 
@@ -140,7 +144,7 @@ async function BrandsContent() {
                       <img
                         src={logoSrc}
                         alt=""
-                        className="max-h-full max-w-[70%] object-contain object-left [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.08))]"
+                        className={`${presentation.logoClass ?? DEFAULT_LOGO_CLASS} [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.08))]`}
                         loading="lazy"
                         decoding="async"
                       />
