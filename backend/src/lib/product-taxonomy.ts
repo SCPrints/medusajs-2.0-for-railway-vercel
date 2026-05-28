@@ -1,6 +1,7 @@
 import type { AsColourProduct } from "../modules/ascolour/types"
 import type { FashionBizProduct } from "../modules/fashionbiz/types"
 import type { AussiePacificProduct } from "../modules/aussiepacific/types"
+import type { GildanProduct } from "../modules/gildan/types"
 
 // Canonical product type names — must match create-product-types.ts exactly.
 // All alias keys are lowercase; the values are the exact Medusa ProductType.value strings.
@@ -298,6 +299,12 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "trackpants": "Trackpants",
   "track pants": "Trackpants",
   "tracksuit pants": "Trackpants",
+  // Gildan-style fleecewear bottoms — "sweatpants" is the US/Gildan term,
+  // closest AU equivalent is "Trackpants" (already the canonical type).
+  "sweatpants": "Trackpants",
+  // Gildan-style athletic tank cut. "racerback" already routes to Tanks
+  // above; "racerneck" is Gildan's spelling for the same cut.
+  "racerneck": "Tanks",
   "jogger": "Trackpants",
   "joggers": "Trackpants",
   // Underwear / Kids
@@ -324,6 +331,12 @@ export const TAG_ALIASES: Record<string, string> = {
   "kids | youth": "Kids",
   "kids": "Kids",
   "youth": "Kids",
+  "toddler": "Kids",
+  "toddlers": "Kids",
+  "infant": "Kids",
+  "infants": "Kids",
+  "baby": "Kids",
+  "babies": "Kids",
   // Fit
   "regular": "Regular Fit",
   "regular fit": "Regular Fit",
@@ -1259,6 +1272,188 @@ export function classifyRamoProduct(
           seenTags.add(t)
           tags.push(t)
         }
+      }
+    }
+  }
+
+  return { productType, tags }
+}
+
+/**
+ * Derive Medusa product_type and tags from a grouped Gildan product.
+ *
+ * Gildan's xlsx ships two structured taxonomy columns whose meaning
+ * depends on each other:
+ *
+ *   Sub1         Sub2          → product_type
+ *   T-Shirt      Crew Neck     → T-Shirts (NOT Sweatshirts — "Crew Neck"
+ *                                here means the T-shirt has a crew collar,
+ *                                not that it's a crewneck sweatshirt)
+ *   T-Shirt      Long Sleeve   → Longsleeves
+ *   T-Shirt      Tank Top      → Tanks
+ *   T-Shirt      Polo          → Polos (Gildan mislabel — Sub1 is wrong)
+ *   T-Shirt      V-Neck        → T-Shirts (V-Neck is a SHAPE — shop-categories.ts
+ *                                routes the title-based v-necks sub)
+ *   T-Shirt      Sueded/CVC/Polyester → T-Shirts (fabric variants in Sub2)
+ *   Fleece       Sweatshirt/Crewneck/Crew Neck → Sweatshirts
+ *   Fleece       Hooded/Hoodie → Hoodies
+ *   Fleece       Sweatpants    → Trackpants
+ *   Fleece       Blanket       → Accessories
+ *   French Terry Jacket        → Jackets
+ *   French Terry Bottoms       → Pants
+ *   French Terry T-SHIRT       → T-Shirts
+ *   Bottoms      Shorts        → Shorts
+ *   Bottoms      Pants         → Pants
+ *   Polo         (any)         → Polos
+ *   Tank/Tanks   (any)         → Tanks
+ *   Cap          (any)         → Headwear
+ *   Bags         Tote          → Bags
+ *
+ * Because "Crew Neck" alone in `PRODUCT_TYPE_ALIASES` maps to Sweatshirts
+ * (correct for AS Colour / other suppliers where Crewneck = sweatshirt),
+ * we can't just feed Sub2 through `normalizeProductType` — it would
+ * mis-classify 3,395 T-shirts. The 2D table below is supplier-specific
+ * and intentional.
+ *
+ * tags: gender (col 8) is the most reliable demographic signal — feeds
+ * straight through `normalizeTags` (Toddler/Youth/Womens already aliased
+ * to Kids/Women in TAG_ALIASES). Fit (col 9) feeds through normalizeTags
+ * for "Boxy Fit", "Modern Classic Fit" etc. Top tier (col 16) is mostly
+ * redundant with gender but provides a fallback when gender is null.
+ */
+const GILDAN_SUB1_SUB2_TO_TYPE: Record<string, Record<string, string>> = {
+  "t-shirt": {
+    "long sleeve": "Longsleeves",
+    "tank top": "Tanks",
+    polo: "Polos",
+    // All other Sub2 values (Crew Neck/Crew neck/Crewneck/V-Neck/CVC/
+    // Sueded/Polyester) keep the Sub1-default "T-Shirts".
+  },
+  fleece: {
+    sweatshirt: "Sweatshirts",
+    "crew neck": "Sweatshirts",
+    crewneck: "Sweatshirts",
+    hooded: "Hoodies",
+    hoodie: "Hoodies",
+    sweatpants: "Trackpants",
+    blanket: "Accessories",
+  },
+  "french terry": {
+    jacket: "Jackets",
+    bottoms: "Pants",
+    "t-shirt": "T-Shirts",
+  },
+  bottoms: {
+    shorts: "Shorts",
+    pants: "Pants",
+  },
+  bags: {
+    tote: "Bags",
+  },
+}
+
+/** Sub1-only default when Sub2 isn't a known shape modifier. */
+const GILDAN_SUB1_DEFAULT_TYPE: Record<string, string> = {
+  "t-shirt": "T-Shirts",
+  polo: "Polos",
+  tank: "Tanks",
+  tanks: "Tanks",
+  cap: "Headwear",
+  bags: "Bags",
+}
+
+/** Gildan-specific top-tier values to filter out before tag normalisation. */
+const GILDAN_TOP_TIER_NOISE = new Set([
+  // "Adult" carries no demographic info that gender doesn't already give us.
+  "adult",
+  // "Accessories" is a type-level signal, not a tag — already handled by
+  // the productType resolver.
+  "accessories",
+  // "Unisex" maps through normalizeTags already; keep it out of the
+  // top-tier loop to avoid double-tagging.
+  "unisex",
+])
+
+/**
+ * Demographic-only token map for Gildan. We bypass `normalizeTags` for
+ * these because some tokens — notably "youth" — are in
+ * `PRODUCT_TYPE_ALIASES` too (it's both a demographic and a garment
+ * indicator depending on supplier). The token-stripping filter inside
+ * `normalizeTags` would otherwise drop them. Same workaround as
+ * `classifyAussiePacificProduct`.
+ */
+const GILDAN_DEMOGRAPHIC_TO_TAG: Record<string, string> = {
+  womens: "Women",
+  women: "Women",
+  ladies: "Women",
+  lady: "Women",
+  mens: "Men",
+  men: "Men",
+  unisex: "Unisex",
+  youth: "Kids",
+  kids: "Kids",
+  toddler: "Kids",
+  toddlers: "Kids",
+  infant: "Kids",
+  baby: "Kids",
+}
+
+export function classifyGildanProduct(
+  product: Pick<
+    GildanProduct,
+    "subcategory1" | "subcategory2" | "gender" | "fit" | "topTierCategory"
+  >,
+  unknownLog?: string[]
+): { productType: string | null; tags: string[] } {
+  const sub1 = (product.subcategory1 ?? "").trim().toLowerCase()
+  const sub2 = (product.subcategory2 ?? "").trim().toLowerCase()
+  const gender = (product.gender ?? "").trim()
+  const top = (product.topTierCategory ?? "").trim()
+  const fit = (product.fit ?? "").trim()
+
+  // Resolve product type via the (Sub1, Sub2) table → Sub1 default.
+  let productType: string | null = null
+  const sub2Map = GILDAN_SUB1_SUB2_TO_TYPE[sub1]
+  if (sub2Map && sub2 in sub2Map) {
+    productType = sub2Map[sub2]
+  } else if (sub1 in GILDAN_SUB1_DEFAULT_TYPE) {
+    productType = GILDAN_SUB1_DEFAULT_TYPE[sub1]
+  }
+  if (!productType) {
+    unknownLog?.push(
+      `[gildan product_type] Unmapped (sub1="${sub1}", sub2="${sub2}") — leaving null for title fallback.`
+    )
+  }
+
+  // Demographic tag — handled directly (bypassing normalizeTags so
+  // "youth" / "kids" survive the garment-type filter).
+  const tags: string[] = []
+  const seenTags = new Set<string>()
+  const addDemographic = (raw: string | null | undefined) => {
+    const k = (raw ?? "").trim().toLowerCase()
+    if (!k) return
+    const canonical = GILDAN_DEMOGRAPHIC_TO_TAG[k]
+    if (canonical && !seenTags.has(canonical)) {
+      seenTags.add(canonical)
+      tags.push(canonical)
+    }
+  }
+  addDemographic(gender)
+  // Fall back to top-tier category for the demographic when gender is empty
+  // (3 rows in the 2026-01 file). Also picks up "Ladies" → Women when
+  // gender is set to something orthogonal.
+  if (top && !GILDAN_TOP_TIER_NOISE.has(top.toLowerCase())) {
+    addDemographic(top)
+  }
+
+  // Fit (Boxy Fit / Classic Fit / Modern Classic Fit / Oversized fit / …)
+  // flows through normalizeTags — those land in canonical form via
+  // TAG_ALIASES, or fall through title-cased if unknown.
+  if (fit) {
+    for (const t of normalizeTags([fit], unknownLog)) {
+      if (!seenTags.has(t)) {
+        seenTags.add(t)
+        tags.push(t)
       }
     }
   }

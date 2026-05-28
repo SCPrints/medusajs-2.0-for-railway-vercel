@@ -12,15 +12,27 @@
  *     pnpm --filter backend medusa exec import-fashionbiz-from-api
  *
  * Env vars (medusa exec eats `--flags` via yargs, so env is canonical):
- *   IMPORT_LIMIT    — cap products per brand
- *   IMPORT_DRY_RUN  — 1/true to log only, no DB writes
- *   IMPORT_BRANDS   — comma-separated subset of:
- *                     biz-collection, biz-care, biz-corporates, syzmik
- *                     Default: all four.
+ *   IMPORT_LIMIT             — cap products per brand
+ *   IMPORT_DRY_RUN           — 1/true to log only, no DB writes
+ *   IMPORT_BRANDS            — comma-separated subset of:
+ *                              biz-collection, biz-care, biz-corporates, syzmik
+ *                              Default: all four.
+ *   IMPORT_UPDATE_EXISTING   — 1/true to ALSO diff + update existing handles
+ *                              instead of skipping them. Picks up corrected
+ *                              titles/descriptions/images, new colour
+ *                              variants, and supplier price changes.
+ *                              Defaults off so re-runs stay create-only.
  *
- * Idempotency: create-only, keyed by handle (`{brand}-{slug}`). Existing
- * handles are skipped. Re-importing to update an existing product is a
- * follow-up.
+ * Idempotency:
+ *   - Without IMPORT_UPDATE_EXISTING: create-only, keyed by handle
+ *     (`{brand}-{slug}`); existing handles skipped.
+ *   - With IMPORT_UPDATE_EXISTING: new handles still create; existing
+ *     handles flow through `applyProductUpdates` which:
+ *       - only writes when the diff is non-empty
+ *       - preserves staff metadata customisations
+ *       - appends new image URLs without removing existing ones
+ *       - leaves variants present only in the database alone (don't break
+ *         re-orders for colours FashionBiz has since dropped).
  */
 
 import { ExecArgs } from "@medusajs/framework/types"
@@ -61,6 +73,11 @@ import {
   linkProductsToBrand,
   seedInventoryLevels,
 } from "../lib/supplier-import-pipeline"
+import {
+  applyProductUpdates,
+  type DesiredProduct,
+  type ExistingProductRow,
+} from "../lib/supplier-product-sync"
 
 const PRICE_CURRENCY_CODE = "aud"
 const FASHIONBIZ_LOCATION_NAME = "FashionBiz Warehouse"
@@ -134,11 +151,15 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
     flags.has("--dry-run") ||
     process.env.IMPORT_DRY_RUN === "1" ||
     process.env.IMPORT_DRY_RUN === "true"
+  const updateExisting =
+    flags.has("--update-existing") ||
+    process.env.IMPORT_UPDATE_EXISTING === "1" ||
+    process.env.IMPORT_UPDATE_EXISTING === "true"
   const brands = parseBrandsEnv(process.env.IMPORT_BRANDS)
   const costAdjustment = fashionbiz.getCostAdjustment()
 
   logger.info(
-    `FashionBiz import — brands=[${brands.join(", ")}], limit=${limit ?? "all"}, dryRun=${dryRun}, costAdjustment=${costAdjustment}`
+    `FashionBiz import — brands=[${brands.join(", ")}], limit=${limit ?? "all"}, dryRun=${dryRun}, updateExisting=${updateExisting}, costAdjustment=${costAdjustment}`
   )
   if (costAdjustment === 1.0) {
     logger.warn(
@@ -225,6 +246,13 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
   }
   const toCreate: any[] = []
   const created: CreatedProductContext[] = []
+  // Desired payloads for handles that already exist, keyed by handle. Only
+  // populated when IMPORT_UPDATE_EXISTING=1 — those flow through the diff
+  // helper instead of createProductsWorkflow.
+  const toUpdate = new Map<string, DesiredProduct>()
+  // Full graph-queried existing products (variants, prices, images, metadata)
+  // — only populated when IMPORT_UPDATE_EXISTING=1, where the diff needs them.
+  const existingByHandle = new Map<string, ExistingProductRow>()
   let skippedClearance = 0
 
   // Skip-list: existing handles across all brands in scope. We collect all
@@ -257,20 +285,52 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
     batches.push({ brand, products: details })
   }
 
-  // 3. Existing-handle skip-list (one query per brand)
+  // 3. Existing-handle lookup (one query per brand). When updateExisting is
+  // off we only need `id, handle` for the skip set. When updateExisting is
+  // on we pull the full graph so the diff helper can compare title,
+  // description, images, variants, prices, and metadata.
   for (const batch of batches) {
     const handles = batch.products.map((p) => handleForProduct(batch.brand, p.slug))
+    const fields = updateExisting
+      ? [
+          "id",
+          "handle",
+          "title",
+          "description",
+          "thumbnail",
+          "material",
+          "status",
+          "metadata",
+          "images.id",
+          "images.url",
+          "variants.id",
+          "variants.sku",
+          "variants.title",
+          "variants.metadata",
+          "variants.prices.id",
+          "variants.prices.amount",
+          "variants.prices.currency_code",
+          "variants.prices.min_quantity",
+          "variants.prices.max_quantity",
+        ]
+      : ["id", "handle"]
     const { data: existing } = await query.graph({
       entity: "product",
-      fields: ["id", "handle"],
+      fields,
       filters: { handle: handles },
     })
     const existingHandles = new Set((existing ?? []).map((p: any) => p.handle))
+    if (updateExisting) {
+      for (const p of (existing ?? []) as ExistingProductRow[]) {
+        existingByHandle.set(p.handle, p)
+      }
+    }
 
-    // 4. Build create payloads
+    // 4. Build create + update payloads
     for (const product of batch.products) {
       const handle = handleForProduct(batch.brand, product.slug)
-      if (existingHandles.has(handle)) {
+      const isExisting = existingHandles.has(handle)
+      if (isExisting && !updateExisting) {
         logger.info(`  Skipping existing handle ${handle}`)
         continue
       }
@@ -425,6 +485,33 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
         // stored in metadata above too, so safe either way).
       }
 
+      if (isExisting) {
+        // Update path — keep the create payload (same shape) but route it
+        // through the diff helper instead of createProductsWorkflow. Skip
+        // the unused create-only fields when building the desired payload
+        // so they don't end up in updateProductsWorkflow's input.
+        const desired: DesiredProduct = {
+          handle,
+          title,
+          description: renderDescription(product.description),
+          thumbnail,
+          material: product.fabric ?? undefined,
+          status: ProductStatus.PUBLISHED,
+          images: productImages,
+          variants: productVariants.map((v: any) => ({
+            sku: v.sku,
+            title: v.title,
+            options: v.options,
+            manage_inventory: v.manage_inventory,
+            allow_backorder: v.allow_backorder,
+            metadata: v.metadata,
+            prices: v.prices,
+          })),
+          metadata: productPayload.metadata,
+        }
+        toUpdate.set(handle, desired)
+        continue
+      }
       toCreate.push(productPayload)
       created.push({
         brand: batch.brand,
@@ -437,7 +524,7 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
   }
 
   logger.info(
-    `Prepared ${toCreate.length} product(s) for creation. Skipped ${skippedClearance} clearance style(s).`
+    `Prepared ${toCreate.length} for create, ${toUpdate.size} for update. Skipped ${skippedClearance} clearance style(s).`
   )
 
   if (dryRun) {
@@ -445,23 +532,37 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
     if (toCreate.length) {
       const sample = toCreate[0]
       logger.info(
-        `Sample payload: handle=${sample.handle}, variants=${sample.variants.length}, base price=$${(sample.variants[0]?.prices?.[0]?.amount ?? 0) / 100}`
+        `Sample CREATE payload: handle=${sample.handle}, variants=${sample.variants.length}, base price=$${(sample.variants[0]?.prices?.[0]?.amount ?? 0) / 100}`
       )
+    }
+    if (toUpdate.size) {
+      await applyProductUpdates({
+        container,
+        desired: toUpdate,
+        existing: existingByHandle,
+        supplierMetaKey: "fashionbiz",
+        logger,
+        dryRun: true,
+      })
     }
     return
   }
 
-  if (!toCreate.length) {
-    logger.info("Nothing to create.")
+  if (!toCreate.length && !toUpdate.size) {
+    logger.info("Nothing to create or update.")
     return
   }
 
-  // 5. Create products
-  const { result } = await createProductsWorkflow(container).run({
-    input: { products: toCreate },
-  })
-  const createdProducts = (result as any[]) ?? []
-  logger.info(`Created ${createdProducts.length} products.`)
+  // 5. Create products (only when there ARE new handles — updates fall
+  // through to the diff helper further down).
+  let createdProducts: any[] = []
+  if (toCreate.length) {
+    const { result } = await createProductsWorkflow(container).run({
+      input: { products: toCreate },
+    })
+    createdProducts = (result as any[]) ?? []
+    logger.info(`Created ${createdProducts.length} products.`)
+  }
 
   // 5b. Taxonomy — classify + title fallbacks + persist product_type/tags.
   const fbByHandle = new Map<string, FashionBizProduct>()
@@ -545,7 +646,33 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
     }
   }
 
-  // 6. Seed inventory levels at the FashionBiz Warehouse
+  // 5g. Update existing products (IMPORT_UPDATE_EXISTING path). Picks up
+  // corrected titles / descriptions / images, new colour variants
+  // FashionBiz added since the last import, and price changes. Doesn't
+  // re-run taxonomy or category assignment on existing products —
+  // alias-map improvements stay opt-in via backfill-product-taxonomy.ts,
+  // which is the explicit way to redo classification without touching
+  // staff-curated tags.
+  if (toUpdate.size) {
+    const { summary } = await applyProductUpdates({
+      container,
+      desired: toUpdate,
+      existing: existingByHandle,
+      supplierMetaKey: "fashionbiz",
+      logger,
+    })
+    logger.info(
+      `Update summary: ${summary.productsUpdated} product(s) touched (${summary.productsUnchanged} unchanged), ${summary.variantsAdded} new variant(s), ${summary.variantsUpdated} variant patches, ${summary.errors} error(s).`
+    )
+  }
+
+  // 6. Seed inventory levels at the FashionBiz Warehouse — only for newly
+  // created products. Updates rely on the daily sync-fashionbiz-inventory
+  // cron to pick up stock levels for the variants the diff helper added.
+  if (!createdProducts.length) {
+    logger.info("FashionBiz API import complete.")
+    return
+  }
   if (!locationId) {
     logger.warn("FashionBiz stock location missing; skipping inventory seed.")
     return

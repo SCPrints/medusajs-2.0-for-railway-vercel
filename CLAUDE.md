@@ -710,6 +710,9 @@ Always returns 204 so failures never break UX. Query length validated 1-500 char
 | `AUSSIE_PACIFIC_BASE_URL` | Optional. Aussie Pacific API base URL — only override for staging or proxy. | `https://api.aussiepacific.com.au` |
 | `AUSSIE_PACIFIC_COST_ADJUSTMENT` | Multiplier applied to the API `price` field before it's fed into the bulk-price ladder. We currently assume AP's `price` is ex-GST cost (same convention as AS Colour and the FashionBiz "1-99" tier), so default is `1.0`. Calibrate against the first real invoice — if AP returns inc-GST prices, set `0.909`; if AP's published price sits below the trade rate (like FashionBiz's distributor storefront), set the observed ratio. The first 5 styles emit a calibration log line during import so the operator can sanity-check before scaling up. | `1.0` |
 | `AUSSIE_PACIFIC_DEFAULT_SHIPPING_METHOD` | Optional. Default shipping method embedded in dropship order payloads. Falls back to the form input on the admin widget when unset. | unset |
+| `GILDAN_XLSX_PATH` | Optional. Default absolute path to the Gildan Brands Australia data file for the CLI `import-gildan-from-xlsx` script. Ignored by the admin upload UI. | unset |
+| `GILDAN_COST_ADJUSTMENT` | Multiplier applied to Gildan's `Classic` cost column before it's fed into the bulk-price ladder. The Classic tier is SC Prints' assigned wholesale tier per Gildan (ex GST). Calibrate against the first invoice — set above 1.0 if Gildan's actual billing rate exceeds the column value. | `1.0` |
+| `GILDAN_IMAGE_SCRAPE_CACHE_DIR` | Disk cache directory for the BigCommerce image scraper. Cached file contains a filename→URL map per `(brand, style)`. Point at a persistent volume (e.g. Fly volume mount) so the cache survives deploys. | `/tmp/gildan-image-cache` |
 | `QUOTE_EXPIRY_CRON_ENABLED` | Daily cron that transitions `status = quoted` quotes whose `expires_at` is past to `status = expired`, appending a `QuoteEvent` + audit row. Off by default so dry-running quote workflows in dev doesn't auto-expire stale test data. See [backend/src/jobs/expire-quotes.ts](backend/src/jobs/expire-quotes.ts). | `false` |
 | `EMAIL_SUPPRESSION_TABLE_ENABLED` | Enables the suppression-table check inside `shouldSendMarketingEmail()` ([backend/src/lib/marketing-email.ts](backend/src/lib/marketing-email.ts)). Phase 8 ships the table and flips this to `true`. Until then the helper short-circuits the suppression check and relies only on `customer.metadata.marketing_consent_email`. | `false` |
 | `OWNER_AUTOSTAMP_ENABLED` | Auto-assigns ownership on every new order — inheriting the customer's owner first, falling back to `pickNextOwner()` from the rotation table. Off by default so existing orders aren't disrupted before the rotation is populated. See [backend/src/subscribers/order-placed-stamp-owner.ts](backend/src/subscribers/order-placed-stamp-owner.ts). | `false` |
@@ -933,7 +936,7 @@ Env vars: `IMPORT_LIMIT` (per-brand cap), `IMPORT_DRY_RUN=1` (no DB writes), `IM
 
 The adjustment exists because the public-API "1-99" tier is a *published* price; FashionBiz's distributor storefront charges customers ~15% above that for trade pricing. Without the multiplier the storefront retail ladder underprices garments by ~15% relative to actual cost.
 
-**Idempotency**: create-only, keyed by handle (`{brand}-{slug}`, e.g. `biz-collection-p400ms`). Existing handles are skipped — re-importing to update is a planned follow-up.
+**Idempotency**: create-only by default, keyed by handle (`{brand}-{slug}`, e.g. `biz-collection-p400ms`). Set `IMPORT_UPDATE_EXISTING=1` to ALSO diff + apply changes to existing handles — picks up corrected titles, descriptions, new images, new colour variants FashionBiz added since the last run, and price changes. Driven by the shared [supplier-product-sync.ts](backend/src/lib/supplier-product-sync.ts) helper; preserves staff metadata customisations on top-level merge and never deletes variants/images. Tags + categories are NOT re-applied on update (alias-map improvements stay opt-in via `backfill-product-taxonomy.ts`).
 
 **Stock**: lives at a separate `"FashionBiz Warehouse"` stock location, parallel to `"AS Colour Warehouse"`, so per-supplier stock provenance is preserved. The daily job walks every variant whose `metadata.fashionbiz.product_slug` is set, groups by `(brand, slug, colour)`, and calls one `/stock` endpoint per group (FashionBiz has no `updated_at` filter, so a full sweep is required).
 
@@ -974,6 +977,49 @@ Env vars: `IMPORT_LIMIT` (cap product count), `IMPORT_DRY_RUN=1` (no DB writes).
 **Dropship**: AP's API documents `POST /api/v1/order` but exposes **no GET endpoint for order retrieval, no shipment/tracking endpoints, and no webhooks**. The admin widget submits the order and records whatever response AP returns (typically just a reference + "Submitted" status). Operators reconcile shipment progress via AP email confirmations or the distributor portal until AP adds a status endpoint. The status-mapping lib + reserved metadata fields (`aussiepacific_last_synced_at`, `aussiepacific_shipments`) are in place so a polling cron can be added later without touching the create flow.
 
 **Workshop "ship-to" address**: AP dropships reuse the existing `ASCOLOUR_WORKSHOP_*` env vars (same physical SC Prints address). If AP ever needs a different destination, introduce `AUSSIE_PACIFIC_WORKSHOP_*` overrides at that point.
+
+### Gildan Brands Australia (xlsx) importer
+
+Distinct from the API-driven importers — Gildan supplies a single spreadsheet covering all three of their house brands (Gildan, American Apparel, Comfort Colors). Source is the operator-uploaded `.xlsx` file rather than a vendor API. No stock data in the file → variants are configured "always available" (`manage_inventory: false`, `allow_backorder: true`) and there is **no daily stock-sync cron**.
+
+| Component | Path |
+| --- | --- |
+| Module (service + types + mapping + pricing + image scraper, no API client) | [backend/src/modules/gildan/](backend/src/modules/gildan/) |
+| Pure mapping helpers | [backend/src/modules/gildan/mapping.ts](backend/src/modules/gildan/mapping.ts) |
+| Pricing wrapper (delegates to shared ladder) | [backend/src/modules/gildan/pricing.ts](backend/src/modules/gildan/pricing.ts) |
+| BigCommerce image scraper (cached per-style) | [backend/src/modules/gildan/image-scraper.ts](backend/src/modules/gildan/image-scraper.ts) |
+| CLI import script | [backend/src/scripts/import-gildan-from-xlsx.ts](backend/src/scripts/import-gildan-from-xlsx.ts) |
+| Classifier | `classifyGildanProduct` in [backend/src/lib/product-taxonomy.ts](backend/src/lib/product-taxonomy.ts) |
+| Admin upload page | [backend/src/admin/routes/gildan-import/page.tsx](backend/src/admin/routes/gildan-import/page.tsx) |
+| Admin REST endpoint | [backend/src/api/admin/gildan/import/route.ts](backend/src/api/admin/gildan/import/route.ts) |
+
+Run the CLI import with:
+
+```bash
+GILDAN_XLSX_PATH=/abs/path/to/file.xlsx IMPORT_LIMIT=5 IMPORT_DRY_RUN=1 \
+  pnpm --filter backend medusa exec import-gildan-from-xlsx
+```
+
+Or use the admin page at `/app/gildan-import` — upload the .xlsx, tick Dry Run, click Preview, then re-submit without Dry Run.
+
+Env vars (see [backend/src/lib/constants.ts](backend/src/lib/constants.ts) for full descriptions):
+- `GILDAN_XLSX_PATH` — default xlsx path for the CLI script; ignored by the admin UI (which uploads per-import).
+- `GILDAN_COST_ADJUSTMENT` — multiplier on the Classic-tier cost (default 1.0). Adjust if Gildan's invoice rate differs from the column.
+- `GILDAN_IMAGE_SCRAPE_CACHE_DIR` — on-disk cache for the image scraper. Default `/tmp/gildan-image-cache`; point at a persistent volume in production so the cache survives redeploys.
+
+**Pricing**: the xlsx ships THREE cost tiers per row (Heavyweight / Midweight / Classic). Per the operator (2026-05-28), SC Prints is charged at the Classic tier (ex GST), so the importer feeds `Classic × GILDAN_COST_ADJUSTMENT` through the shared `buildPriceLadder()`. Stored on `variant.metadata.cost_price_ex_gst_minor` for the tier-pricing regen job. Same ladder shape as FashionBiz / AS Colour / AP, so the storefront tier-pricing UI just works.
+
+**Image resolution** (the gnarly part): the xlsx ships image FILENAMES only (e.g. `102_Blush_01.jpg`) — no URLs. The real CDN URL on `cdn11.bigcommerce.com/s-zjdadllt1z/.../102_Blush_01__72716.1764901939.jpg` appends a hash + timestamp that's unpredictable. The importer scrapes each style's page on `gildanbrands.com.au` once, parses out the full CDN URLs, and caches the filename→URL map to disk per `(brand, style)`. A full first-run import (~97 styles × 300ms) takes ~30s for image scraping; subsequent imports are sub-second.
+
+**Brand entities**: parent `Gildan Brands Australia` (`handle: gildan-brands-australia`, `external_code: GBA`) auto-created if missing on first import; children `Gildan`, `American Apparel`, `Comfort Colors` are auto-created underneath. Staff can re-parent or adjust external codes in admin afterwards — the importer respects existing brand entities and only fills gaps.
+
+**Idempotency**: same shape as the other importers — create-only by default (existing handles skipped), opt-in `IMPORT_UPDATE_EXISTING=1` (or the admin "Update Existing" checkbox) routes existing handles through the shared `applyProductUpdates` diff path. Picks up corrected titles, image URLs (new ones appended; existing kept), new colour variants Gildan added, and Classic-tier price changes.
+
+**Status filter**: rows with `Status="NEW - INACTIVE"` (~453 rows in the 2026-01 file) are silently dropped before grouping. Active and ACTIVE (casing-inconsistent) both pass.
+
+**Taxonomy quirk**: Gildan uses two structured columns (`Subcategory1` / `Subcategory2`) whose meaning is mutually dependent — e.g. Sub1=`T-Shirt` + Sub2=`Crew Neck` means "T-shirt with a crew collar" (type = T-Shirts), NOT a crewneck sweatshirt. `classifyGildanProduct` uses a 2D Sub1×Sub2 lookup table for this reason rather than feeding Sub2 through `PRODUCT_TYPE_ALIASES` directly (which would mis-classify 3,395 T-shirts). New Sub1/Sub2 pairs surface in the import log and should be added to `GILDAN_SUB1_SUB2_TO_TYPE` rather than papered over with a title fallback.
+
+**No dropship**: Gildan ships pallets to SC Prints' warehouse — not a per-order dropship model. There's no equivalent of the AS Colour / Aussie Pacific dropship widgets.
 
 ## Shipping & dropship
 

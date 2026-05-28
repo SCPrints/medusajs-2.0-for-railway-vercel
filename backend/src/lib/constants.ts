@@ -458,6 +458,33 @@ export const AUSSIE_PACIFIC_DEFAULT_SHIPPING_METHOD =
   process.env.AUSSIE_PACIFIC_DEFAULT_SHIPPING_METHOD
 
 /**
+ * Gildan Brands Australia (xlsx) — covers Gildan, American Apparel, and
+ * Comfort Colors. Source is a static spreadsheet uploaded per-import via
+ * the admin UI or pointed at via `GILDAN_XLSX_PATH` from the CLI.
+ *
+ * `GILDAN_COST_ADJUSTMENT` is the calibration dial for the retail price
+ * ladder. The xlsx ships three cost tiers per row (Heavyweight / Midweight
+ * / Classic); SC Prints is charged at the Classic tier (ex GST per the
+ * operator), which is what flows through `buildPriceLadder()`. Default 1.0
+ * — set higher if Gildan's invoice rate ends up above the column value.
+ *
+ * `GILDAN_IMAGE_SCRAPE_CACHE_DIR` is the on-disk cache directory used by
+ * the BigCommerce image scraper to remember filename→URL mappings between
+ * imports. Default `/tmp/gildan-image-cache`; set to a persistent location
+ * (e.g. a Fly volume mount) in production so the cache survives deploys.
+ *
+ * No daily sync cron — the xlsx has no on-hand stock data; variants are
+ * configured `manage_inventory: false` / `allow_backorder: true` ("always
+ * available") per the operator's preference.
+ */
+export const GILDAN_XLSX_PATH = process.env.GILDAN_XLSX_PATH
+export const GILDAN_COST_ADJUSTMENT = Number.parseFloat(
+  process.env.GILDAN_COST_ADJUSTMENT || "1.0"
+)
+export const GILDAN_IMAGE_SCRAPE_CACHE_DIR =
+  process.env.GILDAN_IMAGE_SCRAPE_CACHE_DIR
+
+/**
  * Google Search Console + Google Analytics 4 (read-only).
  *
  * `GOOGLE_SERVICE_ACCOUNT_JSON` is the full JSON key for a service account.

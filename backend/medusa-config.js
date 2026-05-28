@@ -46,6 +46,9 @@ import {
   AUSSIE_PACIFIC_BASE_URL,
   AUSSIE_PACIFIC_COST_ADJUSTMENT,
   AUSSIE_PACIFIC_DEFAULT_SHIPPING_METHOD,
+  GILDAN_XLSX_PATH,
+  GILDAN_COST_ADJUSTMENT,
+  GILDAN_IMAGE_SCRAPE_CACHE_DIR,
   WORKER_MODE,
   MINIO_ENDPOINT,
   MINIO_ACCESS_KEY,
@@ -271,6 +274,19 @@ const medusaConfig = {
           },
         }]
       : []),
+
+    // Gildan module — registered unconditionally. Unlike FashionBiz/AP it
+    // has no API token gate; the spreadsheet is uploaded per-import via the
+    // admin UI, and the CLI script honours GILDAN_XLSX_PATH. The module
+    // itself is otherwise inert at boot.
+    {
+      resolve: "./src/modules/gildan",
+      options: {
+        cost_adjustment: GILDAN_COST_ADJUSTMENT,
+        xlsx_path: GILDAN_XLSX_PATH,
+        image_scrape_cache_dir: GILDAN_IMAGE_SCRAPE_CACHE_DIR,
+      },
+    },
 
     {
       resolve: "./src/modules/designs",
