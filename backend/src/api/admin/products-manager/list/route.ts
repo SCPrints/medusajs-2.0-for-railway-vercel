@@ -201,20 +201,30 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   // Same trap as brand: `filters.sales_channels` throws "Trying to
   // query by not existing property Product.sales_channels" because the
-  // relation is a Module Link, not a column on Product. Resolve from
-  // the sales_channel side and intersect with any existing id filter.
+  // relation is a Module Link, not a column on Product. Medusa core's
+  // admin /admin/products route handles this via `maybeApplyLinkFilter`
+  // against the link entity `product_sales_channel`; we mirror that —
+  // query the link table directly with both ends as filters so we only
+  // pull the rows we need. If brand already narrowed the id set, scope
+  // the link lookup to that subset too (turns 1500-row sweeps into
+  // 200-row ones).
   if (body.sales_channel_ids?.length) {
     try {
-      const { data: channelRows = [] } = await query.graph({
-        entity: "sales_channel",
-        fields: ["id", "products.id"],
-        filters: { id: body.sales_channel_ids },
-        pagination: { take: body.sales_channel_ids.length, skip: 0 },
+      const linkFilters: Record<string, unknown> = {
+        sales_channel_id: body.sales_channel_ids,
+      }
+      if (Array.isArray(filters.id)) {
+        linkFilters.product_id = filters.id
+      }
+      const { data: linkRows = [] } = await query.graph({
+        entity: "product_sales_channel",
+        fields: ["product_id"],
+        filters: linkFilters,
+        pagination: { take: 10000, skip: 0 },
       })
       const ids = new Set<string>()
-      for (const c of channelRows as any[]) {
-        const products = Array.isArray(c?.products) ? c.products : []
-        for (const p of products) if (p?.id) ids.add(p.id)
+      for (const row of linkRows as any[]) {
+        if (row?.product_id) ids.add(row.product_id)
       }
       if (ids.size === 0) {
         res.json({
