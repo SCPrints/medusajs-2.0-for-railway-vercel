@@ -162,8 +162,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (body.collection_ids?.length) filters.collection_id = body.collection_ids
   if (body.tag_ids?.length) filters.tags = { id: body.tag_ids }
   if (body.category_ids?.length) filters.categories = { id: body.category_ids }
-  if (body.sales_channel_ids?.length)
-    filters.sales_channels = { id: body.sales_channel_ids }
 
   // Brand is a Module Link (not a core Product property), so
   // `filters.brand` throws "Trying to query by not existing property
@@ -196,6 +194,58 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     } catch (err: any) {
       res.status(500).json({
         message: `brand filter resolution failed: ${err?.message ?? err}`,
+      })
+      return
+    }
+  }
+
+  // Same trap as brand: `filters.sales_channels` throws "Trying to
+  // query by not existing property Product.sales_channels" because the
+  // relation is a Module Link, not a column on Product. Resolve from
+  // the sales_channel side and intersect with any existing id filter.
+  if (body.sales_channel_ids?.length) {
+    try {
+      const { data: channelRows = [] } = await query.graph({
+        entity: "sales_channel",
+        fields: ["id", "products.id"],
+        filters: { id: body.sales_channel_ids },
+        pagination: { take: body.sales_channel_ids.length, skip: 0 },
+      })
+      const ids = new Set<string>()
+      for (const c of channelRows as any[]) {
+        const products = Array.isArray(c?.products) ? c.products : []
+        for (const p of products) if (p?.id) ids.add(p.id)
+      }
+      if (ids.size === 0) {
+        res.json({
+          products: [],
+          count: 0,
+          limit: body.limit ?? 50,
+          offset: body.offset ?? 0,
+          truncated: false,
+        })
+        return
+      }
+      if (Array.isArray(filters.id)) {
+        const existing = new Set(filters.id as string[])
+        const intersection = [...ids].filter((id) => existing.has(id))
+        if (intersection.length === 0) {
+          res.json({
+            products: [],
+            count: 0,
+            limit: body.limit ?? 50,
+            offset: body.offset ?? 0,
+            truncated: false,
+          })
+          return
+        }
+        filters.id = intersection
+      } else {
+        filters.id = [...ids]
+      }
+    } catch (err: any) {
+      res.status(500).json({
+        message: `sales channel filter resolution failed: ${err?.message ?? err}`,
       })
       return
     }
