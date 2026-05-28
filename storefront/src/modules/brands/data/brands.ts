@@ -80,6 +80,24 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/ramo.svg`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
   },
+  gildan: {
+    initials: "GI",
+    bgClass: "bg-zinc-800",
+    logoSrc: `${LOGO_BASE}/gildan.svg`,
+    logoClass: "max-h-full max-w-[45%] object-contain object-left",
+  },
+  "american-apparel": {
+    initials: "AA",
+    bgClass: "bg-zinc-900",
+    logoSrc: `${LOGO_BASE}/american-apparel.svg`,
+    logoClass: "max-h-full max-w-[40%] object-contain object-left",
+  },
+  "comfort-colors": {
+    initials: "CC",
+    bgClass: "bg-stone-700",
+    logoSrc: `${LOGO_BASE}/comfort-colors.svg`,
+    logoClass: "max-h-full max-w-[45%] object-contain object-left",
+  },
 }
 
 const FALLBACK_PRESENTATION: BrandPresentation = {
