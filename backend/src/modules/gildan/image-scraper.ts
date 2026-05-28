@@ -312,15 +312,15 @@ export class GildanImageScraper {
       }
     }
 
-    // Lookup filenames against the map. Filenames are case-sensitive
-    // matches against what xlsx ships; if a colour is missing from the
-    // scraped page entirely (e.g. just-released colour Gildan hasn't
-    // photographed yet), no URL is returned for that filename.
-    for (const f of filenames) {
-      const url = urlByFilename.get(f)
-      if (url) result.set(f, url)
-    }
-    return result
+    // Return the full per-style map with its normalised keys —
+    // `buildGildanGarmentImages` runs xlsx filenames through
+    // `normalizeGildanFilenameKey` on lookup, so callers get a hit
+    // regardless of whether the xlsx form matches the CDN form. The
+    // `filenames` parameter is retained for API compat but no longer
+    // narrows the result (the cache is already per-style, so there are
+    // no cross-style URL collisions to filter out).
+    void filenames
+    return urlByFilename
   }
 
   /** Pre-warm the cache for a list of (brand, style, url) tuples. */
