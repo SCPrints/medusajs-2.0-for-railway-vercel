@@ -47,27 +47,63 @@ const stripFilenameSuffixes = (base: string): string =>
   base.replace(/(__\d+(?:\.\d+)*)+$/, "")
 
 /**
- * Some Gildan styles (notably the Hammer line — H000, H100, etc.) ship
- * xlsx filenames like `H000_White_01.jpg` while the live CDN serves
- * them as `H000_White_A1.jpg`. Generate an alias so xlsx lookups still
- * resolve. The pattern is "underscore + capital A + digits" at the END
- * of the stem; replace with "underscore + zero-padded digits".
+ * Normalise a Gildan filename (xlsx or CDN) to a canonical lookup key.
+ * The supplier ships different naming conventions on the website vs
+ * the data file; this collapses them onto a single comparable form so
+ * lookups succeed regardless of which form was supplied. All key
+ * differences observed in the 2026-01 catalog:
  *
- *   H000_White_A1   → H000_White_01
- *   H000_Black_A12  → H000_Black_12
+ *   xlsx                            CDN
+ *   1466_Black_01.jpg               1466_Black_US24_A1__...jpg
+ *   1469_BlueJean_01.jpg            1469_BlueJean_US24_D1__...jpg
+ *   1567_BlueJean_01.jpg            1567_Blue_Jean_1__...jpg
+ *   65000B_White_01.jpg             65000B_WHITE_01__...jpg
+ *   H000_White_01.jpg               H000_White_A4__...jpg
+ *
+ * Normalisation pipeline:
+ *   1. Strip extension and CDN `__N.N` suffix groups.
+ *   2. Lowercase.
+ *   3. Strip `_us<digits>` season tags (e.g. _us24, _us25).
+ *   4. Collapse multiple underscores.
+ *   5. Pad the trailing ordinal — optional letter prefix (A/D/P/...)
+ *      followed by digits — to two digits without the prefix.
+ *   6. Collapse middle tokens (everything between style and ordinal)
+ *      into one — joins `Blue_Jean` to `bluejean`, `Heather_Grey` to
+ *      `heathergrey`, etc. Style codes don't contain underscores so
+ *      the first token is always the style.
+ *   7. Re-append `.jpg` as the canonical extension.
+ *
+ * Exported so `mapping.ts:buildGildanGarmentImages` can normalise
+ * xlsx-side filenames before looking them up in the URL map.
  */
-const aliasStem = (stem: string): string | null => {
-  const m = /^(.+)_A(\d+)$/.exec(stem)
-  if (!m) return null
-  return `${m[1]}_${m[2].padStart(2, "0")}`
+export function normalizeGildanFilenameKey(filename: string): string {
+  const base = filename.replace(/\.(jpg|jpeg|png|webp)$/i, "")
+  const stripped = stripFilenameSuffixes(base)
+  let s = stripped.toLowerCase()
+  s = s.replace(/_us\d+/g, "")
+  // xlsx ships split colours like "Black/White" or "Htr Indigo" while the
+  // CDN concatenates ("BlackWhite", "HtrIndigo"). Strip slashes and
+  // spaces so the colour token collapses to the CDN form.
+  s = s.replace(/[\s\/\\]+/g, "")
+  s = s.replace(/_+/g, "_").replace(/^_|_$/g, "")
+  s = s.replace(/_([a-z])?(\d+)$/, (_, _prefix, d) => `_${d.padStart(2, "0")}`)
+  const parts = s.split("_").filter(Boolean)
+  if (parts.length >= 3) {
+    const style = parts[0]
+    const ordinal = parts[parts.length - 1]
+    const middle = parts.slice(1, -1).join("")
+    s = `${style}_${middle}_${ordinal}`
+  }
+  return `${s}.jpg`
 }
 
 /**
  * Parse a Gildan product page's HTML and return a map of
- * `xlsx-filename` → `full CDN URL` (normalised to the 1280w bucket).
+ * `normalized xlsx-filename key` → `full CDN URL` (1280w bucket).
  *
  * Pure — accepts the raw HTML so callers can unit-test against fixtures
- * without spinning up an HTTP client.
+ * without spinning up an HTTP client. Callers MUST run input filenames
+ * through `normalizeGildanFilenameKey` before looking them up.
  */
 export function extractImageUrlsFromGildanHtml(
   html: string
@@ -78,25 +114,9 @@ export function extractImageUrlsFromGildanHtml(
     const productId = match[2]
     const imageId = match[3]
     const cdnFilename = match[4] // e.g. "H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
-    const baseWithExt = cdnFilename
-    const base = baseWithExt.replace(/\.(jpg|jpeg|png|webp)$/i, "")
-    const stem = stripFilenameSuffixes(base)
-    // Always normalise to 1280w so the storefront gets a consistent
-    // resolution regardless of which srcset variant we matched first.
     const url = `https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/${productId}/${imageId}/${cdnFilename}`
-    // Register the stem under EVERY extension the xlsx might reference.
-    // First occurrence wins; map every plausible extension form so
-    // xlsx-supplied `.jpg` filenames still resolve when the CDN actually
-    // serves `.webp` (and vice-versa).
-    const stems = [stem]
-    const alt = aliasStem(stem)
-    if (alt && alt !== stem) stems.push(alt)
-    for (const s of stems) {
-      if (!out.has(`${s}.jpg`)) out.set(`${s}.jpg`, url)
-      if (!out.has(`${s}.jpeg`)) out.set(`${s}.jpeg`, url)
-      if (!out.has(`${s}.png`)) out.set(`${s}.png`, url)
-      if (!out.has(`${s}.webp`)) out.set(`${s}.webp`, url)
-    }
+    const key = normalizeGildanFilenameKey(cdnFilename)
+    if (!out.has(key)) out.set(key, url)
   }
   return out
 }

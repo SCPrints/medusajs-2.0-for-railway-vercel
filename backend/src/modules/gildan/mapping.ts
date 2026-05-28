@@ -20,6 +20,7 @@
  */
 
 import { slugify, titleCase } from "../../utils/string-case"
+import { normalizeGildanFilenameKey } from "./image-scraper"
 import type { GildanColour, GildanProduct, GildanRow } from "./types"
 import { GILDAN_BRAND_HANDLE_BY_NAME } from "./types"
 
@@ -330,7 +331,11 @@ export function buildGildanGarmentImages(
   const seen = new Set<string>()
   const push = (filename: string | null) => {
     if (!filename) return
-    const url = urlByFilename.get(filename)
+    // Lookup keys are normalised (lowercase, season-stripped, ordinal-
+    // padded, middle-tokens-collapsed) — see `normalizeGildanFilenameKey`.
+    // The xlsx ships filenames in human-readable case ("H000_White_01.jpg"),
+    // so we have to normalise before lookup.
+    const url = urlByFilename.get(normalizeGildanFilenameKey(filename))
     if (!url || seen.has(url)) return
     seen.add(url)
     ordered.push(url)

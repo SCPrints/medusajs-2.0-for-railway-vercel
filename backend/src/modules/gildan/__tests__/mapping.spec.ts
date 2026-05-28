@@ -8,7 +8,10 @@ import {
   parseGildanRow,
   renderGildanDescription,
 } from "../mapping"
-import { extractImageUrlsFromGildanHtml } from "../image-scraper"
+import {
+  extractImageUrlsFromGildanHtml,
+  normalizeGildanFilenameKey,
+} from "../image-scraper"
 import {
   GildanSitemapResolver,
   parseGildanSitemap,
@@ -361,17 +364,19 @@ describe("buildGildanGarmentImages", () => {
       },
       sizes: [],
     }
+    // Map keys are normalised (lowercase, ordinal-padded, etc.) — same
+    // shape `extractImageUrlsFromGildanHtml` returns.
     const urlByFilename = new Map([
       [
-        "102_Blush_01.jpg",
+        "102_blush_01.jpg",
         "https://cdn11.bigcommerce.com/.../102_Blush_01__1234.5678.jpg",
       ],
       [
-        "102_Blush_02.jpg",
+        "102_blush_02.jpg",
         "https://cdn11.bigcommerce.com/.../102_Blush_02__1234.5678.jpg",
       ],
       [
-        "102_Blush_03.jpg",
+        "102_blush_03.jpg",
         "https://cdn11.bigcommerce.com/.../102_Blush_03__1234.5678.jpg",
       ],
     ])
@@ -395,42 +400,77 @@ describe("buildGildanGarmentImages", () => {
   })
 })
 
+describe("normalizeGildanFilenameKey", () => {
+  // Each pair is [input form, expected normalised key].
+  // Verified against the live 2026-01 catalog — these are the actual
+  // xlsx-vs-CDN filename divergences the importer has to reconcile.
+  const cases: Array<[string, string]> = [
+    // Identity (no normalisation needed)
+    ["102_Blush_01.jpg", "102_blush_01.jpg"],
+    ["SF500_Black_01.jpg", "sf500_black_01.jpg"],
+    // Hammer line — _A<n> ordinal
+    ["H000_White_A4.jpg", "h000_white_04.jpg"],
+    ["H000_White_04.jpg", "h000_white_04.jpg"],
+    // Comfort Colors — _US<year>_ season tag
+    ["1466_Black_US24_A1.jpg", "1466_black_01.jpg"],
+    ["1466_Black_01.jpg", "1466_black_01.jpg"],
+    // Comfort Colors — _D<n> ordinal (detail)
+    ["1469_BlueJean_US24_D1.jpg", "1469_bluejean_01.jpg"],
+    ["1469_BlueJean_01.jpg", "1469_bluejean_01.jpg"],
+    // Multi-word colour split by underscore in CDN
+    ["1567_Blue_Jean_1.jpg", "1567_bluejean_01.jpg"],
+    ["1567_BlueJean_01.jpg", "1567_bluejean_01.jpg"],
+    // All-caps CDN form vs mixed-case xlsx
+    ["65000B_WHITE_01.jpg", "65000b_white_01.jpg"],
+    ["65000B_White_01.jpg", "65000b_white_01.jpg"],
+    // CDN multi-suffix `__N.N.N__N.N` is stripped before normalisation
+    [
+      "H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg",
+      "h000_white_04.jpg",
+    ],
+    // 2003CVC — slashes (xlsx) vs collapsed (CDN)
+    ["2003CVC_Black/White_01.jpg", "2003cvc_blackwhite_01.jpg"],
+    ["2003CVC_BlackWhite_01.jpg", "2003cvc_blackwhite_01.jpg"],
+    // 2003CVC — multi-word with both space and slash
+    ["2003CVC_White/Htr Indigo_01.jpg", "2003cvc_whitehtrindigo_01.jpg"],
+  ]
+  for (const [input, expected] of cases) {
+    it(`${input} → ${expected}`, () => {
+      expect(normalizeGildanFilenameKey(input)).toBe(expected)
+    })
+  }
+})
+
 describe("extractImageUrlsFromGildanHtml", () => {
-  it("parses CDN URLs and maps them to xlsx filenames, normalising to 1280w", () => {
+  it("parses CDN URLs and stores under normalised filename keys, rewriting to 1280w", () => {
     const html = `
       <img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1889/6041/102_Blush_01__72716.1764901939.jpg?c=1">
       <img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1920w/products/1889/6042/102_Blush_02__22074.1764901945.jpg?c=1">
       <img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/2560w/products/1889/6033/102_Burgundy_04__88692.1764901944.jpg">
     `
     const out = extractImageUrlsFromGildanHtml(html)
-    expect(out.get("102_Blush_01.jpg")).toBe(
+    expect(out.get("102_blush_01.jpg")).toBe(
       "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1889/6041/102_Blush_01__72716.1764901939.jpg"
     )
-    // 1920w in source HTML — normalised to 1280w in output.
-    expect(out.get("102_Blush_02.jpg")).toBe(
+    // 1920w in source HTML — rewritten to 1280w in output.
+    expect(out.get("102_blush_02.jpg")).toBe(
       "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1889/6042/102_Blush_02__22074.1764901945.jpg"
     )
-    // 2560w in source HTML — normalised to 1280w in output.
-    expect(out.get("102_Burgundy_04.jpg")).toBe(
+    expect(out.get("102_burgundy_04.jpg")).toBe(
       "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1889/6033/102_Burgundy_04__88692.1764901944.jpg"
     )
   })
+
   it("returns an empty map on empty html", () => {
     expect(extractImageUrlsFromGildanHtml("").size).toBe(0)
   })
 
   it("matches the multi-suffix CDN filename form on newer product pages", () => {
-    // Observed on gildan-hammer-h000-t-shirt and other 2025/2026 uploads —
-    // filenames have TWO __<digits>.<digits> suffix groups instead of one.
     const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg?c=1">`
     const out = extractImageUrlsFromGildanHtml(html)
-    // The xlsx ships filenames like "H000_White_04.jpg" — the alias maps
-    // _A<n> → _<padded n> so the lookup still resolves.
-    expect(out.get("H000_White_04.jpg")).toBe(
-      "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
-    )
-    // The raw _A<n> form is also stored for any future xlsx that uses it.
-    expect(out.get("H000_White_A4.jpg")).toBe(
+    // A4 ordinal in CDN normalises to 04 in the lookup key — xlsx using
+    // "H000_White_04.jpg" matches.
+    expect(out.get(normalizeGildanFilenameKey("H000_White_04.jpg"))).toBe(
       "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
     )
   })
@@ -438,21 +478,31 @@ describe("extractImageUrlsFromGildanHtml", () => {
   it("matches the 1280x1280 size form as well as 1280w", () => {
     const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg">`
     const out = extractImageUrlsFromGildanHtml(html)
-    // Output URL is rewritten to the 1280w bucket regardless of which
-    // source srcset variant we matched.
-    expect(out.get("H000_White_04.jpg")).toBe(
+    // A4 ordinal in CDN normalises to 04 in the lookup key — xlsx using
+    // "H000_White_04.jpg" matches.
+    expect(out.get(normalizeGildanFilenameKey("H000_White_04.jpg"))).toBe(
       "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1867/1591/H000_White_A4__60614.1736478537.386.513__46175.1746035808.jpg"
     )
   })
 
-  it("does NOT alias non-A-prefixed stems", () => {
-    // SF500_Black_01 stays as-is — no _A<n> → _<n> rewrite to corrupt
-    // the lookup.
-    const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1895/7194/SF500_Black_01__79162.1766117298.jpg">`
+  it("resolves Comfort Colors `_US24_A1` form to the xlsx `_01` form", () => {
+    const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1951/4367/1466_Black_US24_A1__62892.1736892779.386.513__64658.1746036157.jpg">`
     const out = extractImageUrlsFromGildanHtml(html)
-    expect(out.get("SF500_Black_01.jpg")).toBeDefined()
-    // No spurious alias under SF500_Black_00.jpg etc.
-    expect(out.get("SF500_Black_00.jpg")).toBeUndefined()
+    // The xlsx ships "1466_Black_01.jpg"; lookup goes through normalize.
+    expect(out.get(normalizeGildanFilenameKey("1466_Black_01.jpg"))).toBeDefined()
+  })
+
+  it("resolves multi-word colour names with internal underscores", () => {
+    const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/2000/1000/1567_Blue_Jean_1__123.456.jpg">`
+    const out = extractImageUrlsFromGildanHtml(html)
+    // xlsx says "1567_BlueJean_01.jpg" — collapsed colour token.
+    expect(out.get(normalizeGildanFilenameKey("1567_BlueJean_01.jpg"))).toBeDefined()
+  })
+
+  it("resolves all-caps CDN colour names against mixed-case xlsx", () => {
+    const html = `<img src="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/2000/1000/65000B_WHITE_01__123.456.jpg">`
+    const out = extractImageUrlsFromGildanHtml(html)
+    expect(out.get(normalizeGildanFilenameKey("65000B_White_01.jpg"))).toBeDefined()
   })
 })
 
