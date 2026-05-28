@@ -4,7 +4,7 @@ import {
   buildAusPostTrackingUrl,
   normalizeAustralianState,
   normalizeCountryCode,
-  priceStringToCents,
+  priceToNumber,
 } from "../mapping"
 
 describe("auspost/mapping", () => {
@@ -73,7 +73,7 @@ describe("auspost/mapping", () => {
       email: "jane@example.com",
     } as const
 
-    it("builds a complete AusPost address from a Medusa cart address", () => {
+    it("builds a domestic AusPost address WITHOUT a country field", () => {
       const out = buildAusPostAddressFromCart(baseCart)
       expect(out).toEqual({
         name: "Jane Citizen",
@@ -82,10 +82,11 @@ describe("auspost/mapping", () => {
         suburb: "Sydney",
         state: "NSW",
         postcode: "2000",
-        country: "AU",
         phone: "+61400000000",
         email: "jane@example.com",
       })
+      // The v1 API doesn't expect `country` on domestic shipments.
+      expect(out.country).toBeUndefined()
     })
 
     it("throws if postcode is missing", () => {
@@ -106,7 +107,7 @@ describe("auspost/mapping", () => {
       ).toThrow(/city|suburb/i)
     })
 
-    it("preserves non-AU province as-is rather than normalising to a NSW code", () => {
+    it("keeps country + raw province for non-AU (international) destinations", () => {
       const out = buildAusPostAddressFromCart({
         ...baseCart,
         country_code: "us",
@@ -146,6 +147,8 @@ describe("auspost/mapping", () => {
       expect(out.suburb).toBe("Newtown")
       expect(out.postcode).toBe("2042")
       expect(out.name).toBe("Override Warehouse")
+      // Domestic AU ship-from omits country.
+      expect(out.country).toBeUndefined()
     })
 
     it("falls back to env vars when stock location address is empty", () => {
@@ -187,33 +190,27 @@ describe("auspost/mapping", () => {
     })
   })
 
-  describe("priceStringToCents", () => {
-    it("parses AUD decimal strings into integer cents", () => {
-      expect(priceStringToCents("9.95")).toBe(995)
-      expect(priceStringToCents("12.00")).toBe(1200)
-      expect(priceStringToCents("0.05")).toBe(5)
+  describe("priceToNumber", () => {
+    it("parses AUD decimal strings into DOLLARS (major units), not cents", () => {
+      // Critical: Medusa's calculated_amount is in major units. Returning
+      // cents here would charge shipping 100×.
+      expect(priceToNumber("9.95")).toBe(9.95)
+      expect(priceToNumber("12.00")).toBe(12)
+      expect(priceToNumber("0.05")).toBe(0.05)
     })
 
     it("handles numeric input (already a number)", () => {
-      expect(priceStringToCents(9.95)).toBe(995)
-      expect(priceStringToCents(0)).toBe(0)
+      expect(priceToNumber(9.95)).toBe(9.95)
+      expect(priceToNumber(0)).toBe(0)
     })
 
-    it("returns 0 for invalid input", () => {
-      expect(priceStringToCents("")).toBe(0)
-      expect(priceStringToCents("not a price")).toBe(0)
-      expect(priceStringToCents(null)).toBe(0)
-      expect(priceStringToCents(undefined)).toBe(0)
-      expect(priceStringToCents(-5)).toBe(0)
-    })
-
-    it("rounds normal two-decimal prices to cents without loss", () => {
-      // AusPost rates are always two-decimal AUD strings — these are the
-      // only cases that matter in practice. 3+ decimal floats hit JS
-      // float quirks (1.005 * 100 ≠ 100.5) but never appear in API output.
-      expect(priceStringToCents("9.99")).toBe(999)
-      expect(priceStringToCents("0.01")).toBe(1)
-      expect(priceStringToCents("100.50")).toBe(10050)
+    it("returns 0 for invalid or negative input", () => {
+      expect(priceToNumber("")).toBe(0)
+      expect(priceToNumber("not a price")).toBe(0)
+      expect(priceToNumber(null)).toBe(0)
+      expect(priceToNumber(undefined)).toBe(0)
+      expect(priceToNumber(-5)).toBe(0)
+      expect(priceToNumber("-1.50")).toBe(0)
     })
   })
 })

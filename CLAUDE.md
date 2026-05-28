@@ -1037,7 +1037,7 @@ Real-time rate calculation, label purchase, and shipment tracking via ShipStatio
 **Env**: `SHIPSTATION_API_KEY` + warehouse fields (see env table). **Gotcha**: rates silently fail if any required warehouse field is missing; `variant.weight` or `item.metadata.weight_grams` must be set or only packaging overhead is used.
 
 ### Australia Post direct fulfillment provider (successor)
-Replacement for the ShipStation provider. Uses AusPost's Shipping & Tracking API v2 (OAuth client-credentials) against a MyPost Business account + Credit (Charge) Account. AusPost has no webhook push, so tracking events sync via a 4-hourly poll cron rather than the ShipStation-style realtime webhook.
+Replacement for the ShipStation provider. Uses AusPost's classic **Shipping & Tracking API v1** with **HTTP Basic Auth** (`Authorization: Basic base64(api_key:api_password)` + `Account-Number` header — NOT OAuth; AusPost's OAuth flow belongs to its separate newer "Parcel Send"/v2 generation, which MyPost Business accounts don't use) against a MyPost Business account + Credit (Charge) Account. AusPost has no webhook push, so tracking events sync via a 4-hourly poll cron rather than the ShipStation-style realtime webhook.
 
 | Component | Path |
 | --- | --- |
@@ -1047,9 +1047,13 @@ Replacement for the ShipStation provider. Uses AusPost's Shipping & Tracking API
 | Provider-switch in cart shipping endpoint | [backend/src/api/store/cart-shipping-options/route.ts](backend/src/api/store/cart-shipping-options/route.ts) |
 | Setup checklist + cutover playbook | [Docs/AUSPOST_SETUP.md](Docs/AUSPOST_SETUP.md) |
 
-**Env**: `AUSPOST_API_KEY` + `AUSPOST_API_SECRET` + `AUSPOST_ACCOUNT_NUMBER` + `AUSPOST_OAUTH_CLIENT_ID` + `AUSPOST_OAUTH_CLIENT_SECRET` + `AUSPOST_WAREHOUSE_*` (postcode/city/state/address_1/phone/name). **All five OAuth+account vars are required** — partial config silently fails to register the provider at boot. `AUSPOST_TEST_MODE=true` routes through the testbed. **Provider switch**: `LIVE_SHIPPING_PROVIDER` (default `shipstation`) flips the cart-shipping-options filter between the two providers without code changes — both stay registered during transition.
+**Env**: `AUSPOST_API_KEY` + `AUSPOST_API_PASSWORD` + `AUSPOST_ACCOUNT_NUMBER` + `AUSPOST_WAREHOUSE_*` (postcode/city/state/address_1/phone/name). **All three credential vars are required** — partial config silently fails to register the provider at boot. `AUSPOST_TEST_MODE=true` routes through the testbed (`/test/shipping/v1`). **Provider switch**: `LIVE_SHIPPING_PROVIDER` (default `shipstation`) flips the cart-shipping-options filter between the two providers without code changes — both stay registered during transition.
 
-**Service codes** are hardcoded to AusPost defaults (`7E55` Parcel Post, `7E54` Express Post) and can be overridden per-account via `AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID` / `_EXPRESS_PRODUCT_ID`. AusPost has no equivalent of ShipStation's "list services" endpoint, so the merchant treats these as opaque per-account strings — sync against `POST /prices/shipments` response if AusPost issues a different code.
+**Service codes** are hardcoded to AusPost defaults (`7E55` Parcel Post, `7E54` Express Post) and can be overridden per-account via `AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID` / `_EXPRESS_PRODUCT_ID`. AusPost has no equivalent of ShipStation's "list services" endpoint, so the merchant treats these as opaque per-account strings — sync against the `POST /prices/items` response (`items[].prices[].product_id`) if AusPost issues a different code.
+
+**Pricing**: `calculatePrice` returns DOLLARS (major units), matching the ShipStation provider — Medusa's `calculated_amount` for a shipping option is major units, NOT cents. AusPost `/prices/items` returns ex-GST `calculated_price` + `calculated_gst`; we sum them and mark the option tax-inclusive.
+
+**Cred-shape checkpoint (v1 vs v2)**: this code targets v1 + Basic Auth. When creds arrive, confirm the shape — an **API key (UUID) + password** = v1 (this code works as-is); a **client_id + client_secret** = the v2/OAuth generation, which needs a different client + endpoint shapes. See [Docs/AUSPOST_SETUP.md](Docs/AUSPOST_SETUP.md).
 
 **Gotcha 1 — labels are debited on success**. `POST /labels` triggers AusPost billing immediately. The createFulfillment flow wraps this single call without retry to avoid double-charge. If the call 5xxs partway, the AusPost shipment is created but the label isn't — staff regenerate via the admin order detail page.
 

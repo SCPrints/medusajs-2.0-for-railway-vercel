@@ -105,14 +105,23 @@ export const SHIPSTATION_PACKAGE_HEIGHT_CM = parsePackageDimCm(
 )
 
 /**
- * Australia Post Shipping & Tracking API v2 — direct integration replacing
+ * Australia Post Shipping & Tracking API **v1** — direct integration replacing
  * ShipStation for AU-domestic parcels. Off until creds are issued.
+ *
+ * AUTH MODEL — HTTP Basic Auth (NOT OAuth). The classic Shipping & Tracking
+ * API authenticates every call with:
+ *     Authorization: Basic base64("<api_key>:<api_password>")
+ *     Account-Number: <10-digit MyPost Business account number>
+ * There is no token endpoint. (AusPost also has a *newer* OAuth-based API
+ * generation — "Parcel Send" / integrated-merchant — at /shipping/v2. We do
+ * NOT target that: MyPost Business accounts get the v1 key+password creds.
+ * See the cred-shape checkpoint in Docs/AUSPOST_SETUP.md before going live.)
  *
  * Account setup (multi-day approval window — see Docs/AUSPOST_SETUP.md):
  *   1. MyPost Business account + Credit (Charge) Account
  *   2. Developer Centre registration
  *   3. Shipping & Tracking API registration approved
- *   4. Receive: account number, API key, secret, OAuth client_id/client_secret
+ *   4. Receive: account number, API key (UUID), API password
  *
  * When AUSPOST_API_KEY is unset the module is not registered and every
  * downstream surface (cart-shipping-options filter, tracking-poll cron,
@@ -123,11 +132,10 @@ export const SHIPSTATION_PACKAGE_HEIGHT_CM = parsePackageDimCm(
  * labels are generic — do final visual QA against one real prod label.
  */
 export const AUSPOST_API_KEY = process.env.AUSPOST_API_KEY
-export const AUSPOST_API_SECRET = process.env.AUSPOST_API_SECRET
+/** The API key's paired password (the "secret" half of the Basic Auth pair). */
+export const AUSPOST_API_PASSWORD =
+  process.env.AUSPOST_API_PASSWORD || process.env.AUSPOST_API_SECRET
 export const AUSPOST_ACCOUNT_NUMBER = process.env.AUSPOST_ACCOUNT_NUMBER
-export const AUSPOST_OAUTH_CLIENT_ID = process.env.AUSPOST_OAUTH_CLIENT_ID
-export const AUSPOST_OAUTH_CLIENT_SECRET =
-  process.env.AUSPOST_OAUTH_CLIENT_SECRET
 export const AUSPOST_TEST_MODE =
   String(process.env.AUSPOST_TEST_MODE).toLowerCase() === "true"
 

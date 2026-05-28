@@ -992,7 +992,7 @@ const SECTIONS: Section[] = [
               ["GA4", "E-commerce funnel tracking (storefront-side)", "NEXT_PUBLIC_GA_MEASUREMENT_ID"],
               ["Google GSC + GA4 (admin reporting)", "Read via service account that impersonates info@scprints.com.au (DWD)", "GOOGLE_SERVICE_ACCOUNT_JSON + GSC_SITE_URL + GA4_PROPERTY_ID"],
               ["ShipStation", "Shipping label rates + tracking (being deprecated — paid API tier)", "SHIPSTATION_API_KEY + SHIPSTATION_WEBHOOK_SECRET + SHIPSTATION_WAREHOUSE_*"],
-              ["Australia Post (direct)", "Replacement for ShipStation — OAuth + Shipping & Tracking API v2; no webhook (poll every 4h)", "AUSPOST_API_KEY + AUSPOST_API_SECRET + AUSPOST_ACCOUNT_NUMBER + AUSPOST_OAUTH_CLIENT_ID + AUSPOST_OAUTH_CLIENT_SECRET + AUSPOST_WAREHOUSE_*"],
+              ["Australia Post (direct)", "Replacement for ShipStation — Shipping & Tracking API v1 (HTTP Basic Auth); no webhook (poll every 4h)", "AUSPOST_API_KEY + AUSPOST_API_PASSWORD + AUSPOST_ACCOUNT_NUMBER + AUSPOST_WAREHOUSE_*"],
               ["AS Colour API", "Supplier catalog + hourly inventory + dropship orders", "ASCOLOUR_SUBSCRIPTION_KEY + ASCOLOUR_PRICELIST_*"],
               ["FashionBiz API", "Supplier catalog + daily inventory (no dropship endpoint)", "FASHIONBIZ_API_TOKEN + FASHIONBIZ_BRANCH + FASHIONBIZ_COST_ADJUSTMENT"],
               ["Aussie Pacific API", "Supplier catalog + daily inventory + dropship orders (submit-only, no status endpoint)", "AUSSIE_PACIFIC_API_TOKEN + AUSSIE_PACIFIC_COST_ADJUSTMENT"],

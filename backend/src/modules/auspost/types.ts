@@ -1,5 +1,5 @@
 /**
- * Australia Post Shipping & Tracking API v2 types.
+ * Australia Post Shipping & Tracking API **v1** types.
  *
  * Reference: https://developers.auspost.com.au/apis/shipping-and-tracking/reference
  *
@@ -10,10 +10,14 @@ export type AusPostAddress = {
   /** First line is street, second is suite/unit/floor. AusPost accepts up to 3 lines. */
   lines: string[]
   suburb: string
-  /** 3-letter state code: NSW / VIC / QLD / WA / SA / TAS / NT / ACT. */
+  /** State code: ACT/NSW/NT/QLD/SA/TAS/VIC/WA. */
   state: string
   postcode: string
-  country: string
+  /**
+   * Omitted for domestic AU shipments (the v1 API doesn't expect it there);
+   * required + set for international.
+   */
+  country?: string
   /** Optional but recommended — AusPost may SMS the recipient on delivery. */
   phone?: string | null
   email?: string | null
@@ -39,57 +43,47 @@ export type AusPostShipmentItem = AusPostParcelDims & {
   /** Quantity defaults to 1; AusPost prefers one item per parcel. */
   quantity?: number
   /**
-   * Service product_id, e.g. "7E55" (Parcel Post). Account-derived. Treat as opaque.
-   * Required at shipment creation; not required for a price quote.
+   * Service product_id, e.g. "7E55" (Parcel Post). Account-derived. Treat as
+   * opaque. Required at shipment creation; not required for a price quote.
    */
   product_id?: string
   /** Free-text description, used on commercial invoice for international. */
   description?: string
 }
 
-/** Per-shipment input on POST /prices/shipments */
-export type AusPostPriceQuoteShipment = {
+/**
+ * POST /prices/items request — per-item rate shop.
+ * `from`/`to` carry postcodes; each item carries its dims.
+ */
+export type AusPostItemPricesRequest = {
   from: { postcode: string; country?: string }
-  to: { postcode: string; suburb?: string; country?: string }
-  items: AusPostParcelDims[]
-  shipment_reference?: string
+  to: { postcode: string; country?: string }
+  items: Array<AusPostParcelDims & { item_reference?: string }>
 }
 
-export type AusPostPriceQuoteRequest = {
-  shipments: AusPostPriceQuoteShipment[]
-}
-
-export type AusPostPriceQuoteOption = {
-  /** Account-specific service identifier. Persist this — it's required at shipment time. */
+export type AusPostPriceOption = {
+  /** Account-specific service identifier — persist this; required at shipment time. */
   product_id: string
   /** Human-readable, e.g. "Parcel Post". */
   product_type?: string
-  /** Inclusive of GST. AUD cents (we'll convert from `price` string). */
-  price_inc_gst?: number
-  price_exc_gst?: number
-  /** Raw decimal string from API — keep for debugging. */
-  price?: string
+  /** Price EXCLUSIVE of GST, in dollars (decimal). */
+  calculated_price?: number
+  /** GST component, in dollars. */
+  calculated_gst?: number
   /** Optional ETA window. */
-  estimated_delivery_date_range?: {
-    min: string
-    max: string
-  }
+  estimated_delivery_date_range?: { min: string; max: string }
   [k: string]: unknown
 }
 
-export type AusPostPriceQuoteResponseShipment = {
-  shipment_reference?: string
-  product_ids?: string[]
-  /** The API returns either `prices` or `services` depending on the endpoint flavour. */
-  prices?: AusPostPriceQuoteOption[]
-  /** Pricing errors per shipment do not 4xx the whole call. */
-  errors?: { code?: string; message: string }[]
+export type AusPostItemPricesResponseItem = {
+  item_reference?: string
+  prices?: AusPostPriceOption[]
+  errors?: { code?: string; name?: string; message: string }[]
 }
 
-export type AusPostPriceQuoteResponse = {
-  shipments?: AusPostPriceQuoteResponseShipment[]
-  /** Top-level errors (auth, bad request shape). */
-  errors?: { code?: string; message: string }[]
+export type AusPostItemPricesResponse = {
+  items?: AusPostItemPricesResponseItem[]
+  errors?: { code?: string; name?: string; message: string }[]
 }
 
 export type AusPostCreateShipmentRequest = {
@@ -137,7 +131,7 @@ export type AusPostCreatedShipment = {
 
 export type AusPostCreateShipmentResponse = {
   shipments?: AusPostCreatedShipment[]
-  errors?: { code?: string; message: string; context?: Record<string, unknown> }[]
+  errors?: { code?: string; name?: string; message: string; context?: Record<string, unknown> }[]
 }
 
 export type AusPostLabelRequest = {
@@ -146,11 +140,15 @@ export type AusPostLabelRequest = {
   preferences: Array<{
     type: "PRINT"
     format: "PDF" | "ZPL" | "PNG"
-    /** e.g. "A4-1pp" (one per page), "A6-1pp" (thermal). */
-    layout: string
     groups: Array<{
-      group: "Parcel Post" | "Express Post" | "International" | string
+      /** Group name, e.g. "Parcel Post" / "Express Post" (verified-correct). */
+      group: string
+      /** e.g. "A4-1pp" (one per page), "A6-1pp" (thermal). */
       layout?: string
+      /** Mandatory on the v1 labels API. */
+      branded?: boolean
+      left_offset?: number
+      top_offset?: number
     }>
   }>
   shipments: Array<{ shipment_id: string }>
@@ -163,14 +161,22 @@ export type AusPostLabelResponse = {
     url?: string
     status?: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED"
   }>
-  errors?: { code?: string; message: string }[]
+  errors?: { code?: string; name?: string; message: string }[]
 }
 
 export type AusPostTrackingEvent = {
   description: string
   location?: string
-  event_date_time: string
+  /** v1 uses `date` (not `event_date_time`). */
+  date: string
   signer_name?: string
+}
+
+export type AusPostTrackableItem = {
+  article_id?: string
+  /** Per-article event log. */
+  events?: AusPostTrackingEvent[]
+  status?: string
 }
 
 export type AusPostTrackingResult = {
@@ -182,15 +188,17 @@ export type AusPostTrackingResult = {
     | "Lodged"
     | "Returned"
     | string
-  events?: AusPostTrackingEvent[]
+  /** Events live UNDER trackable_items, not on the result directly. */
+  trackable_items?: AusPostTrackableItem[]
+  errors?: { code?: string; name?: string; message: string }[]
 }
 
 export type AusPostTrackingResponse = {
   tracking_results?: AusPostTrackingResult[]
-  errors?: { code?: string; message: string }[]
+  errors?: { code?: string; name?: string; message: string }[]
 }
 
-/** Default Australia Post service product_ids (verify against /prices/shipments per account). */
+/** Default Australia Post service product_ids (verify against /prices/items per account). */
 export const AUSPOST_DEFAULT_PRODUCT_IDS = {
   PARCEL_POST: "7E55",
   EXPRESS_POST: "7E54",

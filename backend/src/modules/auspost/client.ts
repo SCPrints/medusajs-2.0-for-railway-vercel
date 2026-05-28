@@ -4,121 +4,51 @@ import {
   AusPostCreatedShipment,
   AusPostCreateShipmentRequest,
   AusPostCreateShipmentResponse,
+  AusPostItemPricesRequest,
+  AusPostItemPricesResponse,
   AusPostLabelRequest,
   AusPostLabelResponse,
-  AusPostPriceQuoteRequest,
-  AusPostPriceQuoteResponse,
   AusPostTrackingResponse,
 } from "./types"
 
-const PROD_API_BASE = "https://digitalapi.auspost.com.au/shipping/v2"
-const TEST_API_BASE = "https://digitalapi.auspost.com.au/test/shipping/v2"
-const OAUTH_TOKEN_URL = "https://welcome.api1.auspost.com.au/oauth/token"
-const OAUTH_AUDIENCE = "https://digitalapi.auspost.com.au/shipping/v2"
-
-type CachedToken = {
-  access_token: string
-  /** Epoch ms when this token expires. */
-  expires_at: number
-}
+// Classic Shipping & Tracking API — v1, HTTP Basic Auth.
+const PROD_API_BASE = "https://digitalapi.auspost.com.au/shipping/v1"
+const TEST_API_BASE = "https://digitalapi.auspost.com.au/test/shipping/v1"
 
 /**
- * AusPost Shipping & Tracking v2 client.
+ * AusPost Shipping & Tracking v1 client.
  *
- * Auth: OAuth client_credentials, cached for the token's TTL (~1h).
- * Headers on every data call:
- *   Authorization: Bearer <token>
- *   Account-Number: <account_number>
- *   Content-Type: application/json
+ * Auth: HTTP Basic — `Authorization: Basic base64("<api_key>:<password>")` —
+ * plus an `Account-Number` header. There is NO OAuth token endpoint for this
+ * API generation; credentials are sent on every call.
  *
  * Retries: not implemented here — wrap calls in retry-with-backoff at the
  * caller layer if needed. POST /labels is the only call that's debited on
- * success, so naive retry of a 504 risks double-charge. Use shipment_reference
- * for idempotency on POST /shipments (AusPost enforces uniqueness per account).
+ * success, so naive retry of a 504 risks double-charge. Use a unique
+ * shipment_reference on POST /shipments for idempotency on retry (AusPost
+ * enforces uniqueness per account).
  */
 export class AusPostClient {
   private options: AusPostOptions
-  private token: CachedToken | null = null
+  private authHeader: string
 
   constructor(options: AusPostOptions) {
     this.options = options
+    this.authHeader =
+      "Basic " +
+      Buffer.from(`${options.api_key}:${options.api_password}`).toString("base64")
   }
 
   private get baseUrl(): string {
     return this.options.test_mode ? TEST_API_BASE : PROD_API_BASE
   }
 
-  /** Returns a valid access_token, fetching from /oauth/token if cached one is missing or expired. */
-  private async getAccessToken(): Promise<string> {
-    const now = Date.now()
-    if (this.token && this.token.expires_at > now + 30_000) {
-      return this.token.access_token
-    }
-
-    const body = new URLSearchParams({
-      grant_type: "client_credentials",
-      client_id: this.options.oauth_client_id,
-      client_secret: this.options.oauth_client_secret,
-      audience: OAUTH_AUDIENCE,
-      scope: "shipping",
-    })
-
-    const resp = await fetch(OAUTH_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: body.toString(),
-    })
-
-    const text = await resp.text()
-    if (!resp.ok) {
-      throw new MedusaError(
-        MedusaError.Types.UNAUTHORIZED,
-        `AusPost OAuth token request failed (${resp.status}): ${text.slice(0, 400)}`
-      )
-    }
-
-    let json: { access_token?: string; expires_in?: number; token_type?: string }
-    try {
-      json = JSON.parse(text)
-    } catch {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        `AusPost OAuth returned non-JSON: ${text.slice(0, 200)}`
-      )
-    }
-
-    if (!json.access_token) {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        `AusPost OAuth response missing access_token`
-      )
-    }
-
-    const ttlSec = typeof json.expires_in === "number" && json.expires_in > 0
-      ? json.expires_in
-      : 3600
-    this.token = {
-      access_token: json.access_token,
-      expires_at: now + ttlSec * 1000,
-    }
-    return this.token.access_token
-  }
-
-  /** Allow callers to invalidate the token (e.g. after a 401 retry). */
-  invalidateToken(): void {
-    this.token = null
-  }
-
-  private async sendRequest<T>(
-    path: string,
-    init?: RequestInit
-  ): Promise<T> {
-    const token = await this.getAccessToken()
+  private async sendRequest<T>(path: string, init?: RequestInit): Promise<T> {
     const resp = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: {
         ...init?.headers,
-        Authorization: `Bearer ${token}`,
+        Authorization: this.authHeader,
         "Account-Number": this.options.account_number,
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -134,19 +64,24 @@ export class AusPostClient {
         ? this.formatErrors(body) || JSON.stringify(body).slice(0, 400)
         : String(body).slice(0, 400)
       throw new MedusaError(
-        resp.status === 401
+        resp.status === 401 || resp.status === 403
           ? MedusaError.Types.UNAUTHORIZED
           : MedusaError.Types.INVALID_DATA,
         `AusPost ${path} failed (${resp.status}): ${message}`
       )
     }
 
-    // Some endpoints (e.g. errors during a non-fatal partial) surface errors[] on 200.
-    if (isJson && Array.isArray((body as { errors?: unknown[] }).errors) && (body as { errors: unknown[] }).errors.length) {
-      const message = this.formatErrors(body)
+    // Some endpoints surface a non-fatal errors[] on a 200 (e.g. one bad
+    // shipment in a batch). Treat any populated errors[] as fatal here — we
+    // only ever submit single-item batches, so a partial is a real failure.
+    if (
+      isJson &&
+      Array.isArray((body as { errors?: unknown[] }).errors) &&
+      (body as { errors: unknown[] }).errors.length
+    ) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        `AusPost ${path} returned errors: ${message}`
+        `AusPost ${path} returned errors: ${this.formatErrors(body)}`
       )
     }
 
@@ -154,22 +89,29 @@ export class AusPostClient {
   }
 
   private formatErrors(body: unknown): string {
-    const errors = (body as { errors?: { message?: string; code?: string }[] })?.errors
+    const errors = (body as { errors?: { message?: string; code?: string; name?: string }[] })
+      ?.errors
     if (!Array.isArray(errors) || errors.length === 0) return ""
     return errors
-      .map((e) => [e.code, e.message].filter(Boolean).join(": "))
+      .map((e) => [e.code, e.name, e.message].filter(Boolean).join(": "))
       .filter(Boolean)
       .join("; ")
   }
 
   /**
-   * POST /prices/shipments — quote rates across one or more shipments.
-   * Returns an array of available service products with prices per shipment.
+   * POST /prices/items — per-item price across all eligible products.
+   * Returns `items[].prices[]` each with `product_id` + `calculated_price`
+   * (ex GST) + `calculated_gst`. This is the rate-shop endpoint: send the
+   * parcel dims and read back every service product with its price, then the
+   * service layer picks the one matching the shipping option's product_id.
+   *
+   * (Distinct from POST /prices/shipments, which only returns an aggregate
+   * shipment_summary and can't be filtered per product_id.)
    */
-  async getPriceQuote(
-    payload: AusPostPriceQuoteRequest
-  ): Promise<AusPostPriceQuoteResponse> {
-    return this.sendRequest<AusPostPriceQuoteResponse>("/prices/shipments", {
+  async getItemPrices(
+    payload: AusPostItemPricesRequest
+  ): Promise<AusPostItemPricesResponse> {
+    return this.sendRequest<AusPostItemPricesResponse>("/prices/items", {
       method: "POST",
       body: JSON.stringify(payload),
     })
@@ -190,8 +132,8 @@ export class AusPostClient {
 
   /**
    * POST /labels — generate labels for one or more shipments.
-   * With `wait_for_label_url: true` the response includes a signed URL directly.
-   * This is the call that triggers AusPost billing.
+   * With `wait_for_label_url: true` the response includes a signed URL
+   * directly. This is the call that triggers AusPost billing.
    */
   async generateLabels(payload: AusPostLabelRequest): Promise<AusPostLabelResponse> {
     return this.sendRequest<AusPostLabelResponse>("/labels", {
@@ -215,8 +157,9 @@ export class AusPostClient {
   }
 
   /**
-   * GET /track/{tracking_ids} — tracking events for up to 10 tracking IDs in one call.
-   * Returns array of tracking_results — one per ID. Missing IDs are surfaced as errors.
+   * GET /track?tracking_ids=… — tracking events for up to 10 IDs in one call.
+   * Response: `tracking_results[]` each with `status` + `trackable_items[]`,
+   * where the events live under `trackable_items[].events[]`.
    */
   async getTracking(trackingIds: string[]): Promise<AusPostTrackingResponse> {
     if (trackingIds.length === 0) {
@@ -235,8 +178,8 @@ export class AusPostClient {
 
   /**
    * DELETE /shipments/{shipment_id} — void/cancel an unmanifested shipment.
-   * Once manifested at the counter or via POST /orders, this call returns 4xx
-   * and refund must be done via the MyPost Business portal.
+   * Once manifested at the counter (or via POST /orders), this call returns
+   * 4xx and refund must be done via the MyPost Business portal.
    */
   async cancelShipment(shipmentId: string): Promise<void> {
     await this.sendRequest<unknown>(
@@ -246,12 +189,15 @@ export class AusPostClient {
   }
 
   /**
-   * Smoke test for system-health: invokes the auth flow + a no-op token call.
-   * Returns true on success, false on any failure (does not throw).
+   * Smoke test for diagnostics: a cheap authenticated GET against /accounts.
+   * Returns true on a 2xx, false on any failure (does not throw). Note this
+   * still sends Basic Auth creds, so a 401 correctly returns false.
    */
   async ping(): Promise<boolean> {
     try {
-      await this.getAccessToken()
+      await this.sendRequest<unknown>(
+        `/accounts/${encodeURIComponent(this.options.account_number)}`
+      )
       return true
     } catch {
       return false

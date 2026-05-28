@@ -23,10 +23,8 @@ import {
   PAYPAL_IS_SANDBOX,
   SHIPSTATION_API_KEY,
   AUSPOST_API_KEY,
-  AUSPOST_API_SECRET,
+  AUSPOST_API_PASSWORD,
   AUSPOST_ACCOUNT_NUMBER,
-  AUSPOST_OAUTH_CLIENT_ID,
-  AUSPOST_OAUTH_CLIENT_SECRET,
   AUSPOST_TEST_MODE,
   AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID,
   AUSPOST_DEFAULT_SERVICE_EXPRESS_PRODUCT_ID,
@@ -396,24 +394,20 @@ const medusaConfig = {
                 },
               }]
             : []),
-          // AusPost is gated by the full OAuth credential set, not just the
-          // API key — a partial config would fail at first quote. Keep all
-          // five vars required so config errors surface at boot, not during
-          // checkout.
+          // AusPost (v1, HTTP Basic Auth) gated on the full credential triple
+          // — key + password + account number. A partial config would fail at
+          // first quote, so require all three so the error surfaces at boot,
+          // not during checkout.
           ...(AUSPOST_API_KEY &&
-          AUSPOST_API_SECRET &&
-          AUSPOST_ACCOUNT_NUMBER &&
-          AUSPOST_OAUTH_CLIENT_ID &&
-          AUSPOST_OAUTH_CLIENT_SECRET
+          AUSPOST_API_PASSWORD &&
+          AUSPOST_ACCOUNT_NUMBER
             ? [{
                 resolve: "./src/modules/auspost",
                 id: "auspost",
                 options: {
                   api_key: AUSPOST_API_KEY,
-                  api_secret: AUSPOST_API_SECRET,
+                  api_password: AUSPOST_API_PASSWORD,
                   account_number: AUSPOST_ACCOUNT_NUMBER,
-                  oauth_client_id: AUSPOST_OAUTH_CLIENT_ID,
-                  oauth_client_secret: AUSPOST_OAUTH_CLIENT_SECRET,
                   test_mode: AUSPOST_TEST_MODE,
                   parcel_product_id: AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID,
                   express_product_id: AUSPOST_DEFAULT_SERVICE_EXPRESS_PRODUCT_ID,

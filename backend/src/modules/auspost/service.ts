@@ -11,8 +11,6 @@ import {
 } from "@medusajs/framework/types"
 import { AbstractFulfillmentProviderService, MedusaError } from "@medusajs/framework/utils"
 import {
-  AUSPOST_DEFAULT_SERVICE_EXPRESS_PRODUCT_ID,
-  AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID,
   AUSPOST_LABEL_FORMAT,
   AUSPOST_LABEL_LAYOUT,
   AUSPOST_PACKAGE_HEIGHT_CM,
@@ -32,13 +30,12 @@ import {
   buildAusPostAddressFromCart,
   buildAusPostShipFromAddress,
   buildAusPostTrackingUrl,
-  priceStringToCents,
+  priceToNumber,
 } from "./mapping"
 import {
   AUSPOST_DEFAULT_PRODUCT_IDS,
   AusPostAddress,
-  AusPostCreatedShipment,
-  AusPostPriceQuoteOption,
+  AusPostPriceOption,
   AusPostShipmentItem,
 } from "./types"
 
@@ -70,13 +67,14 @@ type InjectedDependencies = {
 }
 
 export type AusPostOptions = {
+  /** API key (UUID) — the username half of the Basic Auth pair. */
   api_key: string
-  api_secret: string
+  /** API password — the secret half of the Basic Auth pair. */
+  api_password: string
+  /** 10-digit MyPost Business account number, sent as the Account-Number header. */
   account_number: string
-  oauth_client_id: string
-  oauth_client_secret: string
   test_mode: boolean
-  /** Optional override per supplier when staff configure non-standard service codes. */
+  /** Optional per-account service-code overrides. */
   parcel_product_id?: string
   express_product_id?: string
   label_format?: "PDF" | "ZPL" | "PNG"
@@ -84,22 +82,22 @@ export type AusPostOptions = {
 }
 
 /**
- * AusPost Shipping & Tracking v2 fulfillment provider.
+ * AusPost Shipping & Tracking **v1** fulfillment provider (HTTP Basic Auth).
  *
  * Mirrors the ShipStation provider's shape so the cart-shipping-options
- * tier filter, admin widgets, and webhook receivers can switch with a
- * single env-var flip (LIVE_SHIPPING_PROVIDER).
+ * tier filter, admin widgets, and shipment flow can switch with a single
+ * env-var flip (LIVE_SHIPPING_PROVIDER).
  *
  * Differences from ShipStation:
  *  - No webhook push for tracking — see jobs/sync-auspost-tracking.ts which
- *    polls the Track API every 4h.
- *  - getFulfillmentOptions() returns a fixed set (Parcel Post / Express Post)
- *    rather than a dynamic carrier catalogue; AusPost has no equivalent of
- *    ShipStation's GET /carriers.
- *  - createFulfillment() performs two API calls (createShipment + generateLabels)
- *    whereas ShipStation does it in one (purchaseLabelForShipment).
- *  - Per-fulfillment metadata persists tracking IDs + label URL so the
- *    tracking-poll cron can resolve back without re-fetching the shipment.
+ *    polls the Track API every 4h and (on first event) runs
+ *    createOrderShipmentWorkflow to mark the order shipped + email the customer.
+ *  - getFulfillmentOptions() returns a fixed pair (Parcel Post / Express Post)
+ *    — AusPost has no equivalent of ShipStation's GET /carriers.
+ *  - calculatePrice() returns DOLLARS (major units), same as ShipStation, NOT
+ *    cents — Medusa's calculated_amount is in major units here.
+ *  - createFulfillment() does two API calls (createShipment + generateLabels)
+ *    where ShipStation does one.
  */
 class AusPostProviderService extends AbstractFulfillmentProviderService {
   static identifier = "auspost"
@@ -115,13 +113,7 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
   }
 
   static validateOptions(options: Record<string, any>) {
-    const required = [
-      "api_key",
-      "api_secret",
-      "account_number",
-      "oauth_client_id",
-      "oauth_client_secret",
-    ]
+    const required = ["api_key", "api_password", "account_number"]
     for (const key of required) {
       if (!options[key]) {
         throw new MedusaError(
@@ -132,7 +124,7 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
     }
   }
 
-  /** Exposes the client for the tracking-poll cron + system-health check. */
+  /** Exposes the client for the tracking-poll cron + diagnostics. */
   getClient(): AusPostClient {
     return this.client
   }
@@ -142,8 +134,8 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
    * pair: Parcel Post (standard) + Express Post (overnight). Staff can
    * override the product_ids via env vars per-account.
    *
-   * The `id` here is consumed as the Medusa shipping option's `data.product_id`,
-   * which `calculatePrice` later passes back to the AusPost quote API.
+   * The `id` here becomes the Medusa shipping option's `data.product_id`,
+   * which `calculatePrice` later matches against the /prices/items response.
    */
   async getFulfillmentOptions(): Promise<FulfillmentOption[]> {
     const parcelId =
@@ -207,40 +199,9 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
     return Number((safeGrams / 1000).toFixed(3))
   }
 
-  private quoteRequestFor({
-    from,
-    to,
-    weightKg,
-  }: {
-    from: AusPostAddress
-    to: AusPostAddress
-    weightKg: number
-  }) {
-    return {
-      shipments: [
-        {
-          from: { postcode: from.postcode, country: from.country },
-          to: {
-            postcode: to.postcode,
-            suburb: to.suburb,
-            country: to.country,
-          },
-          items: [
-            {
-              length: AUSPOST_PACKAGE_LENGTH_CM,
-              width: AUSPOST_PACKAGE_WIDTH_CM,
-              height: AUSPOST_PACKAGE_HEIGHT_CM,
-              weight: weightKg,
-            },
-          ],
-        },
-      ],
-    }
-  }
-
   /**
    * Quote rates for a single option. Returns the matching service's price in
-   * cents (inclusive of GST), or 0 if the option's product_id isn't quoted.
+   * DOLLARS (inclusive of GST), or 0 if the option's product_id isn't quoted.
    */
   async calculatePrice(
     optionData: CalculateShippingOptionPriceDTO["optionData"],
@@ -276,26 +237,38 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
     })
     const toAddress = buildAusPostAddressFromCart(to as CartAddressDTO)
     const weightKg = this.computeShipmentWeightKg(items)
+    const isDomestic = (toAddress.country ?? "AU") === "AU"
 
-    const quote = await this.client.getPriceQuote(
-      this.quoteRequestFor({ from: fromAddress, to: toAddress, weightKg })
-    )
+    const resp = await this.client.getItemPrices({
+      from: { postcode: fromAddress.postcode },
+      to: {
+        postcode: toAddress.postcode,
+        ...(isDomestic ? {} : { country: toAddress.country }),
+      },
+      items: [
+        {
+          length: AUSPOST_PACKAGE_LENGTH_CM,
+          width: AUSPOST_PACKAGE_WIDTH_CM,
+          height: AUSPOST_PACKAGE_HEIGHT_CM,
+          weight: weightKg,
+        },
+      ],
+    })
 
-    const shipmentResult = quote.shipments?.[0]
-    const options = shipmentResult?.prices || []
+    const options = resp.items?.[0]?.prices || []
     const match = options.find((o) => o.product_id === product_id)
 
     if (!match) {
       this.logger_.warn(
-        `AusPost calculatePrice: requested product_id ${product_id} not in quote response ` +
+        `AusPost calculatePrice: requested product_id ${product_id} not in /prices/items response ` +
           `(available: ${options.map((o) => o.product_id).join(", ") || "none"})`
       )
       return { calculated_amount: 0, is_calculated_price_tax_inclusive: true }
     }
 
-    const cents = pickPriceCents(match)
+    const dollars = pickPriceDollarsIncGst(match)
     return {
-      calculated_amount: cents,
+      calculated_amount: dollars,
       is_calculated_price_tax_inclusive: true,
     }
   }
@@ -362,7 +335,7 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
     })
     const toAddress = buildAusPostAddressFromCart(shippingAddress)
 
-    // Sum weight across the items actually being fulfilled (may be a partial fulfillment).
+    // Sum weight across the items actually being fulfilled (may be partial).
     const orderItems = (order as any)?.items as OrderLineItemDTO[] | undefined
     const itemsToFulfill = (items as any[])
       .map((row) => {
@@ -373,10 +346,10 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
 
     const weightKg = this.computeShipmentWeightKg(itemsToFulfill)
 
-    // Build a unique shipment_reference for AusPost idempotency. Re-running
-    // createFulfillment for the same Medusa fulfillment_id will be rejected
-    // by AusPost (duplicate reference) — surface that as a clearer error
-    // upstream.
+    // Unique shipment_reference for AusPost idempotency. Re-running
+    // createFulfillment for the same Medusa fulfillment_id is rejected by
+    // AusPost (duplicate reference) — that surfaces as a clearer error than a
+    // silent double-charge.
     const shipmentReference = `medusa-fulfillment-${fulfillmentId || Date.now()}`
 
     const apItem: AusPostShipmentItem = {
@@ -426,8 +399,15 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
             | "PDF"
             | "ZPL"
             | "PNG",
-          layout: this.options_.label_layout || AUSPOST_LABEL_LAYOUT,
-          groups: [{ group: labelGroup }],
+          groups: [
+            {
+              group: labelGroup,
+              layout: this.options_.label_layout || AUSPOST_LABEL_LAYOUT,
+              branded: false,
+              left_offset: 0,
+              top_offset: 0,
+            },
+          ],
         },
       ],
       shipments: [{ shipment_id: shipment.shipment_id }],
@@ -490,9 +470,9 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
 
   /**
    * Returns the persisted label URL so admin "download label" surfaces work
-   * without a second API call. Note: AusPost label URLs are signed and expire;
-   * if the URL is older than a few hours and 403s, the merchant can regenerate
-   * via POST /labels with the same shipment_id.
+   * without a second API call. AusPost label URLs are signed and expire; if
+   * the URL 403s the merchant regenerates via POST /labels with the same
+   * shipment_id.
    */
   async getFulfillmentDocuments(data: Record<string, unknown>): Promise<any> {
     const { label_url } = data as { label_url?: string }
@@ -501,18 +481,11 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
   }
 }
 
-/** Prefer GST-inclusive cents; fall back to ex-GST or the raw string. */
-function pickPriceCents(o: AusPostPriceQuoteOption): number {
-  if (typeof o.price_inc_gst === "number" && Number.isFinite(o.price_inc_gst)) {
-    return Math.round(o.price_inc_gst * 100)
-  }
-  if (typeof o.price_exc_gst === "number" && Number.isFinite(o.price_exc_gst)) {
-    return Math.round(o.price_exc_gst * 100)
-  }
-  if (typeof o.price === "string") {
-    return priceStringToCents(o.price)
-  }
-  return 0
+/** AusPost /prices/items returns ex-GST `calculated_price` + `calculated_gst`. Sum → inc-GST dollars. */
+function pickPriceDollarsIncGst(o: AusPostPriceOption): number {
+  const ex = priceToNumber(o.calculated_price)
+  const gst = priceToNumber(o.calculated_gst)
+  return Number((ex + gst).toFixed(2))
 }
 
 export default AusPostProviderService

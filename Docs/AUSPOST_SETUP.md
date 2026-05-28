@@ -49,11 +49,18 @@ You'll receive **two sets** of creds (testbed + production):
 
 | What you get | Where it goes in `.env` |
 |---|---|
-| MyPost Business **Account Number** | `AUSPOST_ACCOUNT_NUMBER` |
-| **API Key** | `AUSPOST_API_KEY` |
-| **API Secret** | `AUSPOST_API_SECRET` |
-| OAuth **Client ID** | `AUSPOST_OAUTH_CLIENT_ID` |
-| OAuth **Client Secret** | `AUSPOST_OAUTH_CLIENT_SECRET` |
+| MyPost Business **Account Number** (10-digit) | `AUSPOST_ACCOUNT_NUMBER` |
+| **API Key** (a UUID) | `AUSPOST_API_KEY` |
+| **API Password** (the key's secret) | `AUSPOST_API_PASSWORD` |
+
+### 5a. ⚠️ STOP — confirm your credential shape (v1 vs v2)
+
+AusPost runs **two** API generations and this integration targets the classic **v1 (HTTP Basic Auth)** one that MyPost Business accounts use. Before going further, look at what you were issued:
+
+- ✅ **API key (a UUID) + password** → you have **v1**. This code works as-is. Continue.
+- ⚠️ **OAuth `client_id` + `client_secret`** (no plain key/password) → you were issued the newer **v2 / Parcel Send** generation. The endpoint shapes differ and the client needs an auth + endpoint swap. **Stop and flag this** before configuring — don't try to force v2 creds into the v1 vars.
+
+If you're unsure, ask your AusPost onboarding contact "is my Shipping & Tracking API access v1 (Basic Auth) or v2 (OAuth)?" The answer determines whether this code runs unchanged.
 
 ### 6. Verify the studio's ship-from address in MyPost Business *(5 minutes)*
 
@@ -73,11 +80,9 @@ Set on the Fly backend secrets:
 
 ```bash
 fly secrets set --app sc-prints-backend \
-  AUSPOST_API_KEY="<testbed-api-key>" \
-  AUSPOST_API_SECRET="<testbed-secret>" \
+  AUSPOST_API_KEY="<testbed-api-key-uuid>" \
+  AUSPOST_API_PASSWORD="<testbed-api-password>" \
   AUSPOST_ACCOUNT_NUMBER="<account-number>" \
-  AUSPOST_OAUTH_CLIENT_ID="<oauth-id>" \
-  AUSPOST_OAUTH_CLIENT_SECRET="<oauth-secret>" \
   AUSPOST_TEST_MODE="true" \
   AUSPOST_WAREHOUSE_POSTCODE="<studio-postcode>" \
   AUSPOST_WAREHOUSE_STATE="NSW" \
@@ -155,7 +160,7 @@ When you've shipped at least 50 AusPost parcels with no operational issues:
 Run the system-health check first:
 - `GET /admin/reports/system-health` → look for the "Australia Post" tile
 - `unset` = env vars missing
-- `down` = OAuth or DNS broken
+- `down` = DNS/network broken or the API root is unreachable
 - `ok` = reachable, doesn't prove auth works (no auth ping; we'd burn token quota)
 
 If shipments fail to create, check the Fly logs for the `AusPost /shipments failed` message — the error array AusPost returns has codes that map directly to the developer reference docs.

@@ -274,14 +274,13 @@ export async function GET(_req: MedusaRequest, res: MedusaResponse) {
         : undefined,
     }),
     ping("Australia Post", {
-      // We can't ping the auth-gated endpoints without a full OAuth dance
-      // (which would burn token-endpoint quota every 60s). Instead probe
-      // the API root — proves DNS + TCP + TLS without authenticating.
-      // 401/403/404 all confirm reachability.
+      // Unauthenticated probe of the v1 API root — proves DNS + TCP + TLS
+      // without sending creds. 401/403/404 all confirm reachability (the
+      // endpoint exists and is rejecting the anonymous call).
       configured: Boolean(AUSPOST_API_KEY),
       url: AUSPOST_TEST_MODE
-        ? "https://digitalapi.auspost.com.au/test/shipping/v2/"
-        : "https://digitalapi.auspost.com.au/shipping/v2/",
+        ? "https://digitalapi.auspost.com.au/test/shipping/v1/"
+        : "https://digitalapi.auspost.com.au/shipping/v1/",
       expectedOkStatuses: [200, 400, 401, 403, 404],
     }),
     ping("Object storage", {

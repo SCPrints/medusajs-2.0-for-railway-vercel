@@ -71,7 +71,9 @@ export function buildAusPostAddressFromCart(
     suburb,
     state: country === "AU" ? normalizeAustralianState(to.province) : (to.province || "").trim(),
     postcode,
-    country,
+    // The v1 API doesn't expect `country` on domestic shipments — only send
+    // it for international destinations.
+    ...(country === "AU" ? {} : { country }),
     phone: to.phone?.trim() || null,
     email: to.email?.trim() || null,
   }
@@ -118,7 +120,8 @@ export function buildAusPostShipFromAddress(input: {
     suburb,
     state,
     postcode,
-    country,
+    // Ship-from is always AU for AusPost, so country is omitted (domestic).
+    ...(country === "AU" ? {} : { country }),
     phone,
   }
 }
@@ -132,18 +135,21 @@ export function buildAusPostTrackingUrl(trackingId: string): string {
 }
 
 /**
- * Parses an AusPost decimal price string (e.g. "9.95") into cents.
- * Returns 0 on invalid or negative input — callers should treat zero as
- * "unknown" and not bill. AusPost rates are always positive, so a negative
- * value here means an upstream bug.
+ * Parses an AusPost price (decimal string "9.95" or number) into a dollar
+ * amount (MAJOR units) — Medusa's calculated_amount for a shipping option is
+ * in major units, matching how the ShipStation provider returns it. Do NOT
+ * convert to cents here or shipping is charged 100×.
+ *
+ * Returns 0 on invalid or negative input — callers treat zero as "unknown"
+ * and don't bill. AusPost rates are always positive, so a negative value
+ * means an upstream bug.
  */
-export function priceStringToCents(raw: string | number | null | undefined): number {
+export function priceToNumber(raw: string | number | null | undefined): number {
   if (typeof raw === "number" && Number.isFinite(raw)) {
-    if (raw < 0) return 0
-    return Math.round(raw * 100)
+    return raw < 0 ? 0 : raw
   }
   if (typeof raw !== "string") return 0
   const n = Number.parseFloat(raw)
   if (!Number.isFinite(n) || n < 0) return 0
-  return Math.round(n * 100)
+  return n
 }

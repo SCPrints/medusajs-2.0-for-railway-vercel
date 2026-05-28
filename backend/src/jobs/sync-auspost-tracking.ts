@@ -3,86 +3,106 @@ import {
   ContainerRegistrationKeys,
   Modules,
 } from "@medusajs/framework/utils"
+import { createOrderShipmentWorkflow } from "@medusajs/medusa/core-flows"
 
-import { AUSPOST_API_KEY } from "../lib/constants"
+import {
+  AUSPOST_ACCOUNT_NUMBER,
+  AUSPOST_API_KEY,
+  AUSPOST_API_PASSWORD,
+  AUSPOST_TEST_MODE,
+} from "../lib/constants"
+import { AusPostClient } from "../modules/auspost/client"
 import { buildAusPostTrackingUrl } from "../modules/auspost/mapping"
-import type AusPostProviderService from "../modules/auspost/service"
 import type { AusPostTrackingResult } from "../modules/auspost/types"
 
 const TRACK_BATCH_SIZE = 10
 const LOOKBACK_DAYS = 60
 const TERMINAL_STATUSES = new Set(["Delivered", "Returned"])
 
+type ParcelEvent = {
+  description: string
+  location: string | null
+  /** Widget + email expect `event_date_time`; AusPost v1 source field is `date`. */
+  event_date_time: string
+  signer_name: string | null
+}
+
 type ParcelRecord = {
   tracking_number?: string | null
   tracking_url?: string | null
-  label_id?: string | null
   shipment_id?: string | null
   carrier_id?: string | null
   carrier_code?: string | null
   service_code?: string | null
   label_url?: string | null
-  weight_grams?: number | null
-  voided_at?: string | null
-  shipped_at?: string | null
-  // AusPost-specific fields the order-auspost-parcels widget reads
   tracking_status?: string | null
-  events?: Array<{
-    description: string
-    location?: string | null
-    event_date_time: string
-    signer_name?: string | null
-  }>
+  events?: ParcelEvent[]
+  shipped_at?: string | null
 }
+
+type FulfillmentItemRow = { line_item_id?: string | null; quantity?: number | null }
 
 type FulfillmentRow = {
   id: string
   provider_id?: string | null
   data?: Record<string, unknown> | null
   metadata?: Record<string, unknown> | null
+  items?: FulfillmentItemRow[] | null
+}
+
+/** Flatten AusPost trackable_items[].events[] into a single chronological list. */
+const flattenEvents = (result: AusPostTrackingResult): ParcelEvent[] => {
+  const events: ParcelEvent[] = []
+  for (const ti of result.trackable_items || []) {
+    for (const e of ti.events || []) {
+      events.push({
+        description: e.description,
+        location: e.location || null,
+        event_date_time: e.date,
+        signer_name: e.signer_name || null,
+      })
+    }
+  }
+  // Oldest → newest by timestamp where parseable.
+  return events.sort((a, b) => {
+    const ta = Date.parse(a.event_date_time)
+    const tb = Date.parse(b.event_date_time)
+    if (!Number.isFinite(ta) || !Number.isFinite(tb)) return 0
+    return ta - tb
+  })
 }
 
 /**
- * Daily 04:30 UTC cron — AusPost has no webhook push, so we poll the
- * Track API every 4 hours and materialise events into
- * `fulfillment.metadata.parcels[]` (same shape the ShipStation webhook
- * writes, so the order-shipped email + tracking-list storefront component
- * read it without provider awareness).
+ * Every-4h cron — AusPost has no webhook push, so we poll the Track API and
+ * materialise events into `fulfillment.metadata.parcels[]` (same shape the
+ * ShipStation webhook writes, so the storefront tracking-list + order-shipped
+ * email read it provider-agnostically).
  *
- * Cadence: 4h is enough for parcel transit — events cluster at lodgement,
- * sorting facility, and out-for-delivery, with ~30min between status flips.
- * Faster polling burns the (undocumented but ~60 req/min) AusPost rate
- * budget without buying meaningfully fresher data.
- *
- * Behaviour:
- *  - Walks all orders created in the last 60 days with auspost fulfillments
- *  - Skips fulfillments whose persisted tracking_status is already terminal
- *  - Batches tracking IDs in groups of 10 (AusPost's per-call max)
- *  - On first event detection (parcel handed over) emits `order.shipment_created`
- *    so the existing customer-shipped email fires
- *  - Persists tracking_status + events[] back to fulfillment.metadata.parcels
+ * On the FIRST scan that surfaces any tracking event, we run
+ * `createOrderShipmentWorkflow` (exactly as the ShipStation webhook does) so
+ * the order is actually marked shipped in Medusa AND the ORDER_SHIPPED email
+ * fires — not just an event emitted into the void.
  *
  * No-ops silently if AUSPOST_API_KEY is unset (dev / pre-go-live state).
  */
 export default async function syncAusPostTracking(container: MedusaContainer) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
 
-  if (!AUSPOST_API_KEY) {
-    logger.debug("AusPost tracking sync: AUSPOST_API_KEY unset, skipping.")
+  // Gate on the full credential triple — same set medusa-config requires to
+  // register the provider. Construct the client directly from env (mirroring
+  // the ShipStation webhook) rather than resolving the fulfillment provider
+  // from the container, whose registration key isn't a stable public API.
+  if (!AUSPOST_API_KEY || !AUSPOST_API_PASSWORD || !AUSPOST_ACCOUNT_NUMBER) {
+    logger.debug("AusPost tracking sync: credentials unset, skipping.")
     return
   }
 
-  let provider: AusPostProviderService
-  try {
-    provider = container.resolve(
-      "auspost_auspost"
-    ) as unknown as AusPostProviderService
-  } catch {
-    logger.debug("AusPost tracking sync: provider not registered, skipping.")
-    return
-  }
-
-  const client = provider.getClient()
+  const client = new AusPostClient({
+    api_key: AUSPOST_API_KEY,
+    api_password: AUSPOST_API_PASSWORD,
+    account_number: AUSPOST_ACCOUNT_NUMBER,
+    test_mode: AUSPOST_TEST_MODE,
+  })
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const fulfillmentService = container.resolve(Modules.FULFILLMENT) as {
     updateFulfillment?: (
@@ -90,17 +110,11 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
       data: { metadata?: Record<string, unknown> }
     ) => Promise<unknown>
   }
-  const eventBus = container.resolve(Modules.EVENT_BUS) as {
-    emit: (event: { name: string; data: unknown }) => Promise<unknown>
-  }
 
   const since = new Date(
     Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000
   ).toISOString()
 
-  // Pull every order in the lookback window with its fulfillments + metadata.
-  // Filtering here on provider_id would force the query through a join we don't
-  // need — cheaper to overfetch and filter in memory at this volume.
   const { data: orders } = await query.graph({
     entity: "order",
     fields: [
@@ -111,6 +125,8 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
       "fulfillments.provider_id",
       "fulfillments.data",
       "fulfillments.metadata",
+      "fulfillments.items.line_item_id",
+      "fulfillments.items.quantity",
     ],
     pagination: { take: 1000, skip: 0 },
   })
@@ -152,7 +168,6 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
     `AusPost tracking sync: polling ${pending.length} active fulfillment(s)`
   )
 
-  // Batch into groups of 10 — AusPost's Track API hard cap.
   for (let i = 0; i < pending.length; i += TRACK_BATCH_SIZE) {
     const batch = pending.slice(i, i + TRACK_BATCH_SIZE)
     const ids = batch.map((p) => p.tracking_id)
@@ -177,39 +192,28 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
       const result = byId.get(row.tracking_id)
       if (!result) continue
 
-      const events = (result.events || []).map((e) => ({
-        description: e.description,
-        location: e.location || null,
-        event_date_time: e.event_date_time,
-        signer_name: e.signer_name || null,
-      }))
+      const events = flattenEvents(result)
+      const fdata = (row.fulfillment.data as Record<string, unknown> | null) || {}
 
       const parcel: ParcelRecord = {
         tracking_number: row.tracking_id,
         tracking_url: buildAusPostTrackingUrl(row.tracking_id),
-        shipment_id:
-          ((row.fulfillment.data as Record<string, unknown> | null)
-            ?.shipment_id as string) || null,
+        shipment_id: (fdata.shipment_id as string) || null,
         carrier_code: "australia_post",
         carrier_id: "auspost",
-        service_code:
-          ((row.fulfillment.data as Record<string, unknown> | null)
-            ?.product_id as string) || null,
-        label_url:
-          ((row.fulfillment.data as Record<string, unknown> | null)
-            ?.label_url as string) || null,
+        service_code: (fdata.product_id as string) || null,
+        label_url: (fdata.label_url as string) || null,
         tracking_status: result.status || null,
         events,
-        shipped_at:
-          events.length > 0
-            ? events[events.length - 1]?.event_date_time
-            : null,
+        shipped_at: events.length ? events[events.length - 1]?.event_date_time : null,
       }
 
       const existingMetadata =
         (row.fulfillment.metadata as Record<string, unknown> | null) || {}
       const isFirstScan = !existingMetadata.shipment_synced_at
 
+      // Always persist the latest parcel snapshot (events drive the widget +
+      // the customer-facing tracking page) regardless of shipment status.
       try {
         await fulfillmentService.updateFulfillment?.(row.fulfillment.id, {
           metadata: {
@@ -217,8 +221,6 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
             provider: "auspost",
             parcels: [parcel],
             tracking_status: result.status || null,
-            shipment_synced_at:
-              existingMetadata.shipment_synced_at ?? new Date().toISOString(),
             last_polled_at: new Date().toISOString(),
           },
         })
@@ -231,22 +233,46 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
         continue
       }
 
-      // On first detection of any tracking event, fire the same shipment
-      // event the ShipStation webhook fires — kicks off the customer
-      // ORDER_SHIPPED email without provider awareness in the subscriber.
+      // First time we see a real tracking event, create the Medusa shipment
+      // (marks items shipped + emits order.shipment_created → ORDER_SHIPPED
+      // email). Mirrors the ShipStation webhook's createOrderShipmentWorkflow
+      // call. Only stamp shipment_synced_at once the workflow succeeds so a
+      // transient failure retries on the next tick.
       if (isFirstScan && events.length > 0) {
         try {
-          await eventBus.emit({
-            name: "order.shipment_created",
-            data: {
+          await createOrderShipmentWorkflow(container).run({
+            input: {
               order_id: row.order_id,
               fulfillment_id: row.fulfillment.id,
-              no_notification: false,
+              items: (row.fulfillment.items || [])
+                .filter((it) => !!it.line_item_id)
+                .map((it) => ({
+                  id: it.line_item_id as string,
+                  quantity: typeof it.quantity === "number" ? it.quantity : 1,
+                })),
+              labels: [
+                {
+                  tracking_number: row.tracking_id,
+                  tracking_url: buildAusPostTrackingUrl(row.tracking_id),
+                  label_url: (fdata.label_url as string) || "",
+                },
+              ],
+            },
+          })
+
+          await fulfillmentService.updateFulfillment?.(row.fulfillment.id, {
+            metadata: {
+              ...existingMetadata,
+              provider: "auspost",
+              parcels: [parcel],
+              tracking_status: result.status || null,
+              last_polled_at: new Date().toISOString(),
+              shipment_synced_at: new Date().toISOString(),
             },
           })
         } catch (err) {
           logger.warn(
-            `AusPost tracking sync: failed to emit order.shipment_created for ${row.fulfillment.id}: ${
+            `AusPost tracking sync: createOrderShipmentWorkflow failed for ${row.fulfillment.id} (will retry next tick): ${
               (err as Error).message
             }`
           )
@@ -258,7 +284,7 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
 
 export const config = {
   name: "sync-auspost-tracking",
-  // Every 4 hours; mid-day local time the first event of an overnight
-  // dispatch is already visible. Cron field at 0,4,8,12,16,20 UTC.
+  // Every 4 hours; by mid-morning local the first event of an overnight
+  // dispatch is visible. Cron fires at 0,4,8,12,16,20 UTC.
   schedule: "0 */4 * * *",
 }
