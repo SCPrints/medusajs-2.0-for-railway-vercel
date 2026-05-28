@@ -35,7 +35,11 @@ const PLANET_DEFS: PlanetDef[] = [
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface TrailParticle {
-  x: number; y: number; life: number; maxLife: number; size: number; color: string
+  x: number; y: number
+  vx: number; vy: number       // px / ms — slow cascade drift
+  life: number; maxLife: number
+  baseSize: number              // size at spawn; rendered size shrinks with life
+  color: string
 }
 
 interface Planet {
@@ -58,12 +62,32 @@ interface Flyby {
 
 interface LogoPixel { lx: number; ly: number }
 
+// 3-layer parallax starfield. Each layer is a pre-rendered offscreen canvas
+// that gets blitted twice per frame (with drift offset) so it tiles seamlessly.
+// Layered blits + a small twinkler overlay = ~3 drawImage + ~50 fillRect per
+// frame on the stars canvas, vs. 1500-3000 fillRect/frame for a redraw-from-
+// scratch approach. Cheap on phone and respects DPR.
+interface StarLayer {
+  canvas: HTMLCanvasElement     // device-pixel sized: w*dpr × h*dpr
+  speed: number                 // logical px / ms, horizontal leftward drift
+  width: number                 // logical width the layer was built for
+}
+
+interface Twinkler {
+  x: number; y: number           // logical
+  size: number                   // 1 or 2 device-pixel-equivalent
+  rgb: [number, number, number]
+  phase: number                  // 0..2π
+  freq: number                   // rad / ms
+}
+
 interface SceneState {
   planets: Planet[]; comets: Comet[]; nextCometMs: number
   flybys: Flyby[]; flybySprites: HTMLCanvasElement[]; nextFlybyMs: number
   logoImg: HTMLImageElement | null; logoW: number; logoH: number
   logoPixels: LogoPixel[] | null; logoCols: number; logoRows: number; logoPixelSize: number
   earthImg: HTMLImageElement | null; earthFrames: number
+  starLayers: StarLayer[]; twinklers: Twinkler[]
 }
 
 // ─── Planet sprite helpers ────────────────────────────────────────────────────
@@ -420,6 +444,134 @@ function spawnFlyby(w: number, h: number, shipDefs: ShipDef[]): Flyby {
   }
 }
 
+// ─── Parallax starfield ──────────────────────────────────────────────────────
+// Three independently-drifting star layers + a small set of twinklers. The
+// per-layer offscreen canvases are pre-rendered once (and rebuilt on resize);
+// the rAF loop only blits + overdraws twinklers, which keeps per-frame cost
+// low even on phone.
+
+function pickWeighted<T>(items: readonly T[], weights: readonly number[]): T {
+  const total = weights.reduce((a, b) => a + b, 0)
+  let r = Math.random() * total
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i]
+    if (r <= 0) return items[i]
+  }
+  return items[items.length - 1]
+}
+
+function buildStarLayer(
+  w: number, h: number, dpr: number,
+  count: number,
+  sizes: readonly number[], sizeWeights: readonly number[],
+  colours: readonly string[],
+): HTMLCanvasElement {
+  const c = document.createElement("canvas")
+  c.width = Math.max(1, Math.ceil(w * dpr))
+  c.height = Math.max(1, Math.ceil(h * dpr))
+  const ctx = c.getContext("2d")!
+  ctx.scale(dpr, dpr)
+  ctx.imageSmoothingEnabled = false
+  for (let i = 0; i < count; i++) {
+    const size = pickWeighted(sizes, sizeWeights)
+    ctx.fillStyle = colours[Math.floor(Math.random() * colours.length)]
+    ctx.fillRect(Math.floor(Math.random() * w), Math.floor(Math.random() * h), size, size)
+  }
+  return c
+}
+
+function buildStarfield(w: number, h: number, dpr: number): { layers: StarLayer[]; twinklers: Twinkler[] } {
+  // Total star count scales with viewport area (same density baseline as the
+  // pre-parallax version). Distributed 60% distant / 30% mid / 10% foreground
+  // so depth reads correctly without overcrowding the foreground.
+  const total = Math.floor((w * h) / 2800)
+  const distantCount = Math.floor(total * 0.6)
+  const midCount = Math.floor(total * 0.3)
+  const fgCount = Math.max(8, Math.floor(total * 0.1))
+
+  const distant = buildStarLayer(w, h, dpr, distantCount,
+    [1], [1],
+    ["#1F2833", "#252F40", "#2A3548"])
+  const mid = buildStarLayer(w, h, dpr, midCount,
+    [1, 2], [0.85, 0.15],
+    ["#5C6370", "#7A8390", "#9098A6"])
+  const fg = buildStarLayer(w, h, dpr, fgCount,
+    [1, 2], [0.45, 0.55],
+    ["#C5C6C7", "#FFFFFF", "#66FCF1", "#FFE680"])
+
+  const layers: StarLayer[] = [
+    { canvas: distant, speed: 0.005, width: w },
+    { canvas: mid,     speed: 0.018, width: w },
+    { canvas: fg,      speed: 0.045, width: w },
+  ]
+
+  // Twinklers float over the foreground layer and modulate alpha via sin().
+  // Cap count for phone; we want this to feel alive, not chaotic.
+  const twinklerCount = Math.min(40, Math.max(10, Math.floor((w * h) / 32000)))
+  const twinklers: Twinkler[] = []
+  const twinklerPalette: [number, number, number][] = [
+    [197, 198, 199], // STAR_BRIGHT
+    [255, 255, 255], // pure white
+    [102, 252, 241], // cyan (matches secondary palette)
+    [255, 230, 128], // soft gold
+  ]
+  for (let i = 0; i < twinklerCount; i++) {
+    twinklers.push({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      size: Math.random() < 0.35 ? 2 : 1,
+      rgb: twinklerPalette[Math.floor(Math.random() * twinklerPalette.length)],
+      phase: Math.random() * Math.PI * 2,
+      freq: 0.001 + Math.random() * 0.003,
+    })
+  }
+
+  return { layers, twinklers }
+}
+
+function setupStarsCanvasSize(canvas: HTMLCanvasElement, w: number, h: number, dpr: number) {
+  canvas.width = Math.max(1, Math.ceil(w * dpr))
+  canvas.height = Math.max(1, Math.ceil(h * dpr))
+  canvas.style.width = `${w}px`
+  canvas.style.height = `${h}px`
+}
+
+function paintStarsFrame(
+  canvas: HTMLCanvasElement,
+  w: number, h: number, dpr: number,
+  layers: readonly StarLayer[],
+  twinklers: readonly Twinkler[],
+  elapsed: number,
+) {
+  const ctx = canvas.getContext("2d")!
+  // Reset transform every frame in case the canvas was resized between paints
+  // (canvas.width = ... clears state). Single setTransform replaces save/scale/restore.
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.imageSmoothingEnabled = false
+  ctx.fillStyle = BG
+  ctx.fillRect(0, 0, w, h)
+
+  for (const layer of layers) {
+    let offset = (elapsed * layer.speed) % layer.width
+    if (offset < 0) offset += layer.width
+    // Blit the layer twice (current frame + wrapped) so the horizontal drift
+    // tiles seamlessly with no visible seam.
+    ctx.drawImage(layer.canvas, -offset, 0, layer.width, h)
+    ctx.drawImage(layer.canvas, layer.width - offset, 0, layer.width, h)
+  }
+
+  for (const t of twinklers) {
+    // sin-modulated 0..1; only render the "on" half so each star spends roughly
+    // half its cycle dark. Gives the classic 8-bit blinker rhythm without a
+    // background-locked twinkle that you'd see on every star at once.
+    const lum = (Math.sin(elapsed * t.freq + t.phase) + 1) * 0.5
+    if (lum < 0.5) continue
+    const alpha = (lum - 0.5) * 2
+    ctx.fillStyle = `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},${alpha})`
+    ctx.fillRect(Math.floor(t.x), Math.floor(t.y), t.size, t.size)
+  }
+}
+
 function sampleLogoPixels(img: HTMLImageElement, targetCols: number): { pixels: LogoPixel[]; cols: number; rows: number } {
   const cols = targetCols, rows = Math.round(cols * img.naturalHeight / img.naturalWidth)
   const off = document.createElement("canvas"); off.width = cols; off.height = rows
@@ -452,21 +604,7 @@ export default function SpaceHero({ className, style }: { className?: string; st
     const earthImg = new Image()
     earthImg.src = "/branding/earth-spritesheet.png"
     earthImg.onload = () => { if (stateRef.current) stateRef.current.earthFrames = Math.round(earthImg.naturalWidth / earthImg.naturalHeight) }
-    return { planets, comets: [], nextCometMs: randomBetween(3000, 7000), flybys: [], flybySprites: [], nextFlybyMs: randomBetween(8000, 18000), logoImg, logoW: 0, logoH: 0, logoPixels: null, logoCols: 0, logoRows: 0, logoPixelSize: 0, earthImg, earthFrames: 0 }
-  }, [])
-
-  const drawStars = useCallback((canvas: HTMLCanvasElement, w: number, h: number, dpr: number) => {
-    canvas.width = w * dpr; canvas.height = h * dpr
-    canvas.style.width = `${w}px`; canvas.style.height = `${h}px`
-    const ctx = canvas.getContext("2d")!; ctx.scale(dpr, dpr)
-    ctx.fillStyle = BG; ctx.fillRect(0, 0, w, h)
-    const count = Math.floor((w * h) / 2800)
-    for (let i = 0; i < count; i++) {
-      const bright = Math.random() < 0.2
-      ctx.fillStyle = bright ? STAR_BRIGHT : STAR_DIM
-      const sz = bright && Math.random() < 0.3 ? 2 : 1
-      ctx.fillRect(Math.floor(Math.random() * w), Math.floor(Math.random() * h), sz, sz)
-    }
+    return { planets, comets: [], nextCometMs: randomBetween(3000, 7000), flybys: [], flybySprites: [], nextFlybyMs: randomBetween(8000, 18000), logoImg, logoW: 0, logoH: 0, logoPixels: null, logoCols: 0, logoRows: 0, logoPixelSize: 0, earthImg, earthFrames: 0, starLayers: [], twinklers: [] }
   }, [])
 
   const getOrbitScale = (w: number) => w < 480 ? 0.35 : w < 768 ? 0.55 : 1.0
@@ -483,11 +621,21 @@ export default function SpaceHero({ className, style }: { className?: string; st
 
     sceneCanvas.width = w * dpr; sceneCanvas.height = h * dpr
     sceneCanvas.style.width = `${w}px`; sceneCanvas.style.height = `${h}px`
-    drawStars(starsCanvas, w, h, dpr)
+    setupStarsCanvasSize(starsCanvas, w, h, dpr)
 
     const state = stateRef.current!
     const ctx = sceneCanvas.getContext("2d")!
     ctx.scale(dpr, dpr)
+
+    const initStarfield = () => {
+      const built = buildStarfield(w, h, dpr)
+      state.starLayers = built.layers
+      state.twinklers = built.twinklers
+    }
+    initStarfield()
+    // Paint one static frame immediately so the hero is visible before the
+    // rAF tick begins (mirrors the original drawStars() init behaviour).
+    paintStarsFrame(starsCanvas, w, h, dpr, state.starLayers, state.twinklers, 0)
 
     let lastTs = performance.now(), elapsed = 0
 
@@ -527,8 +675,15 @@ export default function SpaceHero({ className, style }: { className?: string; st
         w = newW; h = newH
         sceneCanvas.width = w * dpr; sceneCanvas.height = h * dpr
         sceneCanvas.style.width = `${w}px`; sceneCanvas.style.height = `${h}px`
-        ctx.scale(dpr, dpr); drawStars(starsCanvas, w, h, dpr); calcLogoSize()
+        ctx.scale(dpr, dpr)
+        setupStarsCanvasSize(starsCanvas, w, h, dpr)
+        initStarfield()
+        calcLogoSize()
       }
+
+      // Parallax starfield — blit pre-rendered layers with drift offsets +
+      // overdraw twinklers. Painted on its own canvas below the scene canvas.
+      paintStarsFrame(starsCanvas, w, h, dpr, state.starLayers, state.twinklers, elapsed)
 
       const cx = w / 2, cy = h / 2
       const orbitScale = getOrbitScale(w)
@@ -643,27 +798,51 @@ export default function SpaceHero({ className, style }: { className?: string; st
             const spawnX = originX + perpX * spread - vnX * drift + randomBetween(-1.5, 1.5)
             const spawnY = originY + perpY * spread - vnY * drift + randomBetween(-1.5, 1.5)
             const life = randomBetween(900, 2400)
-            const p: TrailParticle = { x: spawnX, y: spawnY, life, maxLife: life, size: pSize, color: planet.def.trailColor }
+            // Cascade drift: each particle fans outward (perpendicular to
+            // motion, sign matched to its spread side) and slightly backward
+            // along the motion vector. Magnitudes are tiny (px/ms) so a
+            // 2-second-life particle moves ~20-40 logical pixels — enough to
+            // read as "dust dissolving away", not as obvious motion.
+            const spreadSign = spread === 0 ? (Math.random() < 0.5 ? 1 : -1) : Math.sign(spread)
+            const outward = randomBetween(0.008, 0.022)
+            const backward = randomBetween(0.004, 0.014)
+            const vx = perpX * spreadSign * outward - vnX * backward
+            const vy = perpY * spreadSign * outward - vnY * backward
+            const baseSize = Math.random() < 0.25 ? Math.max(1, pSize - 1) : pSize  // a few small sparks per emit
+            const p: TrailParticle = {
+              x: spawnX, y: spawnY, vx, vy,
+              life, maxLife: life,
+              baseSize, color: planet.def.trailColor,
+            }
             if (planet.trail.length < maxTrail) { planet.trail.push(p) }
             else { const old = planet.trail.shift()!; Object.assign(old, p); planet.trail.push(old) }
           }
           planet.prevX = px; planet.prevY = py
         }
+        // Drift + decay. Multiplier converts px/ms → px over the frame's delta.
         for (let i = planet.trail.length - 1; i >= 0; i--) {
-          planet.trail[i].life -= delta
-          if (planet.trail[i].life <= 0) planet.trail.splice(i, 1)
+          const tp = planet.trail[i]
+          tp.x += tp.vx * delta
+          tp.y += tp.vy * delta
+          tp.life -= delta
+          if (tp.life <= 0) planet.trail.splice(i, 1)
         }
       }
 
       const sorted = state.planets.slice(0, visibleCount).sort((a, b) => Math.sin(a.angle) - Math.sin(b.angle))
 
-      // ── Draw trails ──────────────────────────────────────────────────────────
+      // ── Draw trails (cascading dissolve) ─────────────────────────────────────
+      // Non-linear curves: alpha holds bright longer then fades fast at end
+      // (life^0.5), size shrinks more aggressively (life^0.7) so particles
+      // "pixelate down" as they die. Effect reads as cosmic dust dissolving.
       for (const planet of state.planets.slice(0, visibleCount)) {
         const [r, g, b] = hexToRgb(planet.def.trailColor)
         for (const p of planet.trail) {
-          const alpha = (p.life / p.maxLife) * 0.9
+          const lifeFrac = p.life / p.maxLife
+          const alpha = Math.pow(lifeFrac, 0.5) * 0.9
+          const size = Math.max(1, Math.round(p.baseSize * Math.pow(lifeFrac, 0.7)))
           ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`
-          ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size)
+          ctx.fillRect(Math.round(p.x), Math.round(p.y), size, size)
         }
       }
 
@@ -732,7 +911,7 @@ export default function SpaceHero({ className, style }: { className?: string; st
       rafRef.current = requestAnimationFrame(tick)
     }
     rafRef.current = requestAnimationFrame(tick)
-  }, [drawStars, initScene])
+  }, [initScene])
 
   useEffect(() => {
     const starsCanvas = starsCanvasRef.current
@@ -744,10 +923,9 @@ export default function SpaceHero({ className, style }: { className?: string; st
 
     stateRef.current = initScene()
 
-    // Respect prefers-reduced-motion. initScene() already painted the
-    // initial frame above, so skipping runLoop leaves the customer with a
-    // single static snapshot of the scene instead of the animation. Saves
-    // battery on phone + accessibility win.
+    // Respect prefers-reduced-motion. Paint a single static parallax-starfield
+    // frame so the hero isn't a flat black panel, then bail before scheduling
+    // the rAF tick. Saves battery on phone + accessibility win.
     let reducedMotion = false
     try {
       reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -755,6 +933,12 @@ export default function SpaceHero({ className, style }: { className?: string; st
       reducedMotion = false
     }
     if (reducedMotion) {
+      const dpr = window.devicePixelRatio || 1
+      const w = starsCanvas.parentElement?.clientWidth ?? window.innerWidth
+      const h = starsCanvas.parentElement?.clientHeight ?? window.innerHeight
+      setupStarsCanvasSize(starsCanvas, w, h, dpr)
+      const built = buildStarfield(w, h, dpr)
+      paintStarsFrame(starsCanvas, w, h, dpr, built.layers, built.twinklers, 0)
       return
     }
 
