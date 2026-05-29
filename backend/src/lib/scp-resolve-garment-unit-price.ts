@@ -1,4 +1,4 @@
-import { MedusaError } from "@medusajs/framework/utils"
+import { MedusaError, QueryContext } from "@medusajs/framework/utils"
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -148,31 +148,44 @@ export async function resolveGarmentUnitAmountMajor(params: {
 
   const currencyCode = cart.currency_code ?? cart.region?.currency_code ?? undefined
 
-  const ctxArgs =
-    currencyCode && cart.region_id
-      ? {
-          context: {
-            quantity,
-            region_id: cart.region_id,
-            currency_code: currencyCode,
-            ...(cart.id ? { cart_id: cart.id } : {}),
-            ...(cart.sales_channel_id ? { sales_channel_id: cart.sales_channel_id } : {}),
-          },
-        }
-      : {}
+  if (!currencyCode) {
+    // calculated_price cannot be computed without a currency. The bulk_pricing
+    // path above already returned for properly-imported products, so this only
+    // bites a product WITHOUT bulk_pricing on a cart with no resolvable
+    // currency — surface a clear error instead of Medusa's cryptic one.
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "Could not resolve garment unit price: the cart has no currency_code/region for price calculation."
+    )
+  }
 
-  const { data: pricedRows } = await query.graph(
-    {
-      entity: "variants",
-      filters: { id: variantId },
-      fields: [
-        "id",
-        "calculated_price.calculated_amount",
-        "calculated_price.currency_code",
-      ],
+  // calculated_price MUST be requested with the pricing context wrapped in
+  // QueryContext and nested under the `calculated_price` field, inside the
+  // query-config object (first arg). A flat context — or a context passed as
+  // the second (options) arg — is silently ignored, and Medusa then throws
+  // "Method calculatePrices requires currency_code in the pricing context".
+  // This branch is only reached for variants WITHOUT bulk_pricing metadata
+  // (e.g. RAMO), so the wrong shape stayed latent until such a product shipped.
+  const pricingContext: Record<string, unknown> = {
+    currency_code: currencyCode,
+    quantity,
+  }
+  if (cart.region_id) {
+    pricingContext.region_id = cart.region_id
+  }
+
+  const { data: pricedRows } = await query.graph({
+    entity: "variants",
+    filters: { id: variantId },
+    fields: [
+      "id",
+      "calculated_price.calculated_amount",
+      "calculated_price.currency_code",
+    ],
+    context: {
+      calculated_price: QueryContext(pricingContext),
     },
-    ctxArgs
-  )
+  })
 
   const calculatedAmount = (pricedRows?.[0] as { calculated_price?: { calculated_amount?: unknown } } | undefined)
     ?.calculated_price?.calculated_amount
