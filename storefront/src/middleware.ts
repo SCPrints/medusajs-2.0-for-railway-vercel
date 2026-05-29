@@ -150,6 +150,10 @@ export const config = {
     // `offline.html`, `sw.js`, `manifest.webmanifest` excluded so the service
     // worker can pre-cache the offline fallback page without country-code
     // routing.
-    "/((?!api|_next/|offline\\.html|sw\\.js|manifest\\.webmanifest|favicon.ico|animation-lab/|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg|.*\\.riv|.*\\.webp).*)",
+    // Static media extensions are excluded so the middleware doesn't prefix
+    // them with /{countryCode}/ and 307-redirect them — that broke the Shaka
+    // Wear hero <video> (the .mp4 was redirected to /au/images/... so the
+    // <source> couldn't load and the poster showed as a static frame).
+    "/((?!api|_next/|offline\\.html|sw\\.js|manifest\\.webmanifest|favicon.ico|animation-lab/|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg|.*\\.riv|.*\\.webp|.*\\.mp4|.*\\.webm|.*\\.mov).*)",
   ],
 }
