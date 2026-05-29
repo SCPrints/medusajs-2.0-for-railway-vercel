@@ -30,7 +30,10 @@ export function Pagination({
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams)
     params.set("page", newPage.toString())
-    router.push(`${pathname}?${params.toString()}`)
+    // `scroll: false` keeps the viewport where it is instead of jumping back to
+    // the top of the page (which on brand/category pages means scrolling all the
+    // way up past the hero banner). The next page loads in place.
+    router.push(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
   // Mouse hover state must drive scale + color: we use CSS sibling selectors via
