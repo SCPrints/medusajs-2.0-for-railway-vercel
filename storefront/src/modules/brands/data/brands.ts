@@ -49,6 +49,15 @@ export const DEFAULT_LOGO_CLASS =
   "max-h-full max-w-[50%] object-contain object-left"
 
 const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
+  "shaka-wear": {
+    initials: "SW",
+    // Dark tile so the white initials fallback + brand-hero white title read.
+    // The logo PNG is recoloured to the shared muted grey so it shows on both
+    // the dark mega-menu tile and the light brand-hero chip.
+    bgClass: "bg-neutral-900",
+    logoSrc: `${LOGO_BASE}/shaka-wear.png`,
+    logoClass: "max-h-full max-w-[55%] object-contain object-left",
+  },
   "as-colour": {
     initials: "AS",
     bgClass: "bg-zinc-900",

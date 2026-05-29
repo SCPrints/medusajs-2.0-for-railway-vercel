@@ -151,6 +151,12 @@ const nextConfig = {
         protocol: "https",
         hostname: "www.ramo.com.au",
       },
+      {
+        // Shaka Wear product images — hotlinked from the Shaka Wear US site
+        // (shakawear.com is Shopify-hosted). See import-shaka-wear.ts.
+        protocol: "https",
+        hostname: "cdn.shopify.com",
+      },
     ],
   },
   // ──────────────────────────────────────────────────────────────────

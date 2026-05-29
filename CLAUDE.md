@@ -1039,6 +1039,29 @@ Env vars (see [backend/src/lib/constants.ts](backend/src/lib/constants.ts) for f
 
 **No dropship**: Gildan ships pallets to SC Prints' warehouse — not a per-order dropship model. There's no equivalent of the AS Colour / Aussie Pacific dropship widgets.
 
+### Shaka Wear (PDF price list → baked-data seed)
+
+The leanest importer — no API and no CSV. The only source is the AU distributor **Prime Example**'s PDF wholesale price list (`Price_List_PrinterPartner_Jan2026.pdf`) + their 2026 catalogue. The 6 styles SC Prints stocks (sizes, ex-GST costs, AU colour names) are baked into a committed data module; images + marketing copy are hotlinked from the Shaka Wear US site (Shopify CDN), matched to the AU colour names. No stock data → variants are "always available" (`manage_inventory: false`), no stock location, no sync cron — same policy as Gildan.
+
+| Component | Path |
+| --- | --- |
+| Resolved catalog data (sizes, costs, colour→images, descriptions) | [backend/src/scripts/shaka-wear-catalog.ts](backend/src/scripts/shaka-wear-catalog.ts) |
+| Seed importer | [backend/src/scripts/import-shaka-wear.ts](backend/src/scripts/import-shaka-wear.ts) |
+| Storefront logo (recoloured grey, matches other tiles) | [storefront/public/images/brands/logos/shaka-wear.png](storefront/public/images/brands/logos/shaka-wear.png) + presentation entry in [storefront/src/modules/brands/data/brands.ts](storefront/src/modules/brands/data/brands.ts) |
+| Image-host allowlist (`cdn.shopify.com`) | [storefront/next.config.js](storefront/next.config.js) |
+
+Run with `pnpm --filter backend medusa exec src/scripts/import-shaka-wear.ts` (`IMPORT_DRY_RUN=1` / `IMPORT_LIMIT=N` supported). Idempotent — create-only, keyed by handle; to re-seed, delete the products in admin and re-run.
+
+**Pricing**: the price list states "Price Ex GST", so each size's cost feeds `buildPriceLadder()` directly (cost-adjustment 1.0). Cost is **per-size** — 10M-001's 3XL and 10M-005's 2XL are dearer than their base sizes, so each variant gets its own ladder (the AS Colour within-style cost-variation pattern), not one product-level cost.
+
+**Brand**: standalone `Shaka Wear` brand (`external_code = "SHAKA"`), no parent. The distributor (Prime Example) is recorded in brand + product metadata, NOT as a parent brand — Shaka Wear is the brand identity, Prime Example is just the AU supplier. Brand row `logo_url` is left null on purpose so the storefront falls through to the local presentation logo.
+
+**Colours**: the PDF shows swatches only (no names); names came from the distributor's 2026 catalogue and were matched to the US site's per-colour images (light normalisation, e.g. AU "Denim" → US "Washed Denim", "Off-White" → "Off White"). The US "L/S Standard" style is `10M-104` on the Jan-2026 price list but `10M-105` in the 2025 catalogue — the price list (newer) wins.
+
+**Regenerating**: if the price list or stocked colours change, re-run the generator described in the header of `shaka-wear-catalog.ts` (sizes/costs are hand-edited from the PDF; images re-scraped from the US site's JSON-LD `ProductGroup`).
+
+**Post-deploy**: products auto-index to Meilisearch via the plugin's `product.created` subscriber when the script runs on prod; if search/listings lag, run `reindex-meilisearch.ts`.
+
 ## Shipping & dropship
 
 ### ShipStation fulfillment provider (being deprecated)
