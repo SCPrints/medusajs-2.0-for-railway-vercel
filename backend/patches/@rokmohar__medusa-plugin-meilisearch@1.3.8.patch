@@ -1,0 +1,31 @@
+diff --git a/.medusa/server/src/jobs/meilisearch-products-index.js b/.medusa/server/src/jobs/meilisearch-products-index.js
+index 872112ffeb63bc9007f3fe3725551ed166703e1f..fbb247f4aca869d61b43678d255222807e05e082 100644
+--- a/.medusa/server/src/jobs/meilisearch-products-index.js
++++ b/.medusa/server/src/jobs/meilisearch-products-index.js
+@@ -11,7 +11,9 @@ const sync_products_1 = require("../workflows/sync-products");
+  */
+ const productsIndexJobWorkflow = (0, workflows_sdk_1.createWorkflow)('products-index-job-workflow', () => {
+     const result = sync_products_1.syncProductsWorkflow.runAsStep({
+-        input: {},
++        // SC Prints patch: smaller batches => lighter per-pass query.graph load
++        // (default 1000 pulls all products + price/variant/tag/brand joins at once).
++        input: { batchSize: 200 },
+     });
+     return new workflows_sdk_1.WorkflowResponse(result);
+ });
+@@ -23,7 +25,14 @@ async function meilisearchProductsIndexJob(container) {
+ }
+ exports.config = {
+     name: 'meilisearch-products-index',
+-    schedule: '* * * * *',
++    // SC Prints patch: upstream default is '* * * * *' (every minute). A full
++    // reindex of our ~1400-product catalog takes ~6 min, so per-minute runs
++    // pile up and pin CPU (BullMQ "Missing lock ... moveToFinished" loop).
++    // Real-time product-upsert/-delete subscribers keep search fresh; this
++    // scheduled pass is only a drift-healing reconcile, so once a day at
++    // 16:00 UTC (02:00 AEST, off-peak) is plenty. Re-create this patch on
++    // plugin upgrade (see Docs/ upgrade runbook).
++    schedule: '0 16 * * *',
+     numberOfExecutions: 1,
+ };
+ //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWVpbGlzZWFyY2gtcHJvZHVjdHMtaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvam9icy9tZWlsaXNlYXJjaC1wcm9kdWN0cy1pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFpQkEsOENBU0M7QUF6QkQsMkRBQTBFO0FBRTFFLDhEQUFpRTtBQUVqRTs7OztHQUlHO0FBQ0gsTUFBTSx3QkFBd0IsR0FBRyxJQUFBLDhCQUFjLEVBQUMsNkJBQTZCLEVBQUUsR0FBRyxFQUFFO0lBQ2xGLE1BQU0sTUFBTSxHQUFHLG9DQUFvQixDQUFDLFNBQVMsQ0FBQztRQUM1QyxLQUFLLEVBQUUsRUFBRTtLQUNWLENBQUMsQ0FBQTtJQUNGLE9BQU8sSUFBSSxnQ0FBZ0IsQ0FBQyxNQUFNLENBQUMsQ0FBQTtBQUNyQyxDQUFDLENBQUMsQ0FBQTtBQUVhLEtBQUssVUFBVSwyQkFBMkIsQ0FBQyxTQUEwQjtJQUNsRixNQUFNLE1BQU0sR0FBRyxTQUFTLENBQUMsT0FBTyxDQUFDLFFBQVEsQ0FBQyxDQUFBO0lBQzFDLE1BQU0sQ0FBQyxJQUFJLENBQUMsOEJBQThCLENBQUMsQ0FBQTtJQUUzQyxNQUFNLEVBQ0osTUFBTSxFQUFFLEVBQUUsY0FBYyxFQUFFLFlBQVksRUFBRSxHQUN6QyxHQUFHLE1BQU0sd0JBQXdCLENBQUMsU0FBUyxDQUFDLENBQUMsR0FBRyxFQUFFLENBQUE7SUFFbkQsTUFBTSxDQUFDLElBQUksQ0FBQyx3QkFBd0IsY0FBYyx5QkFBeUIsWUFBWSxXQUFXLENBQUMsQ0FBQTtBQUNyRyxDQUFDO0FBRVksUUFBQSxNQUFNLEdBQWtCO0lBQ25DLElBQUksRUFBRSw0QkFBNEI7SUFDbEMsUUFBUSxFQUFFLFdBQVc7SUFDckIsa0JBQWtCLEVBQUUsQ0FBQztDQUN0QixDQUFBIn0=
