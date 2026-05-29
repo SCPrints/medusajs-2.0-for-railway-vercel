@@ -20,6 +20,7 @@ import { z } from "zod"
 
 const QualityFlag = z.enum([
   "image",
+  "broken_image",
   "description",
   "type",
   "tags",
@@ -72,6 +73,7 @@ type RawProduct = {
   status?: string | null
   description?: string | null
   created_at?: string | null
+  metadata?: Record<string, any> | null
   variants?: Array<{ id: string }> | null
   type?: { id?: string; value?: string } | null
   tags?: Array<{ id: string; value: string }> | null
@@ -89,6 +91,7 @@ const FIELDS = [
   "status",
   "description",
   "created_at",
+  "metadata",
   "variants.id",
   "type.id",
   "type.value",
@@ -120,6 +123,7 @@ const LIGHT_FIELDS = [
   "thumbnail",
   "description",
   "created_at",
+  "metadata",
   "type.id",
   "tags.id",
   "categories.id",
@@ -138,8 +142,13 @@ function computeQuality(p: RawProduct) {
   const brand = readBrand(p)
   const desc = typeof p.description === "string" ? p.description.trim() : ""
   const thumb = typeof p.thumbnail === "string" ? p.thumbnail.trim() : ""
+  // Set by the image-audit scan ([services/image-audit]): the thumbnail
+  // field is populated but the URL HEAD-checks dead. Distinct from
+  // has_image (which only knows the field is non-empty).
+  const brokenImage = p.metadata?.image_audit?.status === "broken"
   return {
     has_image: thumb.length > 0,
+    broken_image: brokenImage,
     has_description: desc.length > 0,
     has_type: !!p.type?.id,
     has_tags: Array.isArray(p.tags) && p.tags.length > 0,
@@ -386,6 +395,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const filtered = lightRows.filter((p) => {
       const q = computeQuality(p)
       if (flags.has("image") && q.has_image) return false
+      // Inverted polarity vs the "missing X" flags: keep only products
+      // the audit marked broken (thumbnail present but the URL is dead).
+      if (flags.has("broken_image") && !q.broken_image) return false
       if (flags.has("description") && q.has_description) return false
       if (flags.has("type") && q.has_type) return false
       if (flags.has("tags") && q.has_tags) return false

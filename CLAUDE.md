@@ -720,6 +720,7 @@ Always returns 204 so failures never break UX. Query length validated 1-500 char
 | `UNSUBSCRIBE_LINK_SECRET` | HMAC key used to sign the one-click unsubscribe URL embedded in marketing emails. Same shape as `NPS_LINK_SECRET`: must be set in prod (so links can't be forged), dev placeholder used otherwise so links verify locally. | `unsubscribe-dev-secret-do-not-use-in-prod` |
 | `MARKETING_PREFERENCE_CENTER_URL` | Where one-click unsubscribe redirects after writing the suppression row. Storefront page that confirms the action / lets the customer toggle per-stream prefs. Falls back to `/` if unset. | unset (recommend `${STOREFRONT_URL}/email-preferences`) |
 | `AUTOMATION_EXPANDED_TRIGGERS_ENABLED` | Gates the Phase 10 trigger expansion (`customer.created`, `order.delivered`) and the new actions (`create_task`, `assign_owner`). Off by default so existing rules using only `order.placed` + `order.production_stage_changed` keep working unchanged until staff opt in. | `false` |
+| `IMAGE_AUDIT_ENABLED` | Gates the weekly product-image liveness cron ([backend/src/jobs/audit-product-images.ts](backend/src/jobs/audit-product-images.ts)), which HEAD-checks every thumbnail and stamps `metadata.image_audit.status = "broken"` on dead URLs to power the "Broken image" data-quality flag in `/app/product-data`. Off by default because a full sweep hits external supplier CDNs. The on-demand "Scan images" button in the admin works regardless of this gate. | `false` |
 | `QUOTE_CONVERSION_ENABLED` | Master switch for the quote-on-order-placed / quote-on-order-cancelled subscribers (Phase 11). ON by default — closing the quote loop is the desired behaviour in production. Set to `false` to disable the loop closure without removing the subscribers. | `true` |
 | `STALE_ORDER_ESCALATION_DAYS` | How many days an order stays in `metadata.is_stale = true` before the manager-escalation path fires (Phase 11). Distinct from `STALE_ORDER_THRESHOLD_DAYS` (which controls when "stale" is flagged in the first place). | `3` |
 | `STALE_ORDER_MANAGER_EMAIL` | Comma-separated inboxes that get the manager escalation when an order has been stale longer than `STALE_ORDER_ESCALATION_DAYS`. Unset = no escalation (the owner task + audit still fire). | unset |
@@ -1163,6 +1164,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | `30 23 * * *` | 09:30 next day | [send-reorder-reminders.ts](backend/src/jobs/send-reorder-reminders.ts) | Repeat-customer nudge |
 | `45 23 * * *` | 09:45 next day | [run-report-alerts.ts](backend/src/jobs/run-report-alerts.ts) | Evaluate threshold alerts and email staff |
 | `0 0 * * 1` | Mon 10:00 | [send-winback-emails.ts](backend/src/jobs/send-winback-emails.ts) | Weekly dormant-customer email |
+| `0 17 * * 0` | Mon 03:00 | [audit-product-images.ts](backend/src/jobs/audit-product-images.ts) | HEAD-check every product thumbnail; flag dead URLs as `metadata.image_audit.status = "broken"` (gated by `IMAGE_AUDIT_ENABLED`) |
 | `0 22 2 * *` | 2nd of month 08:00 | [send-monthly-digest.ts](backend/src/jobs/send-monthly-digest.ts) | Internal monthly performance digest |
 
 Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, ShipStation, PostHog, Google) no-op silently when their token/key env vars are unset.
@@ -1291,6 +1293,18 @@ One admin page consolidating five spreadsheet/import workflows into tabs: import
 | Per-supplier importer UIs | [backend/src/admin/routes/ascolour-import/](backend/src/admin/routes/ascolour-import/), [fashionbiz-import/](backend/src/admin/routes/fashionbiz-import/), [aussie-pacific-import/](backend/src/admin/routes/aussie-pacific-import/) |
 | Spreadsheet sync libs | [spreadsheet-sync-brands.ts](backend/src/admin/lib/spreadsheet-sync-brands.ts), [-categories.ts](backend/src/admin/lib/spreadsheet-sync-categories.ts), [-import.ts](backend/src/admin/lib/spreadsheet-sync-import.ts), [-preview.ts](backend/src/admin/lib/spreadsheet-sync-preview.ts), [-tags.ts](backend/src/admin/lib/spreadsheet-sync-tags.ts), [-update-import.ts](backend/src/admin/lib/spreadsheet-sync-update-import.ts) |
 | CSV import / export helpers | [csv-import.ts](backend/src/admin/lib/csv-import.ts) + [csv-export.ts](backend/src/admin/lib/csv-export.ts) |
+
+**Broken-image audit** (Browse & manage). The "Missing image" data-quality flag only checks `product.thumbnail` is a non-empty *string* — it never loads the URL, so a populated-but-dead thumbnail (supplier CDN rotated the file, a scraped/guessed URL was wrong, hotlinking blocked, R2 object GC'd) renders a broken icon yet reads as "has image". The separate **"Broken image"** flag catches those: a periodic scan HEAD-checks each thumbnail (HEAD, with a ranged-GET fallback for HEAD-hostile hosts) and stamps `metadata.image_audit.status = "broken"`; the filter + an orange "Broken image" badge in the data-quality column read that stamp. The scan only writes products whose broken-ness *changed* (no first-run reindex storm over the healthy catalog). Combine with a Brand filter to sweep one supplier's range — the quality post-filter caps pass 1 at 600 rows like the other flags.
+
+| Component | Path |
+| --- | --- |
+| Liveness check + classifiers (unit-tested) | [backend/src/services/image-audit/check.ts](backend/src/services/image-audit/check.ts) |
+| Scan runner + in-process state | [backend/src/services/image-audit/run.ts](backend/src/services/image-audit/run.ts) |
+| Weekly cron (`0 17 * * 0`, gated by `IMAGE_AUDIT_ENABLED`) | [backend/src/jobs/audit-product-images.ts](backend/src/jobs/audit-product-images.ts) |
+| On-demand trigger + status (background fire-and-forget) | [backend/src/api/admin/products-manager/image-audit/route.ts](backend/src/api/admin/products-manager/image-audit/route.ts) |
+| Filter + badge wiring | `broken_image` flag in [backend/src/api/admin/products-manager/list/route.ts](backend/src/api/admin/products-manager/list/route.ts) + [products-manager-tab.tsx](backend/src/admin/routes/product-data/components/products-manager-tab.tsx) + ["Scan images" control](backend/src/admin/routes/product-data/components/image-scan-control.tsx) |
+
+**Scope note (v1)**: checks the **thumbnail** only (the image that renders broken in lists/cards), not every gallery image. Emits a `image_audit_completed` PostHog event per run. Gallery-image checking is a clean follow-up — extend `run.ts` to also walk `images.url`.
 
 ### Export widgets (CSV download from list pages)
 | Widget | Purpose |

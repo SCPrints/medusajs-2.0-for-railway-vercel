@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
+import ImageScanControl from "./image-scan-control"
 import {
   MultiSelectPicker,
   type MultiSelectOption,
@@ -54,6 +55,7 @@ const STATUS_OPTIONS = [
 
 const QUALITY_FLAGS = [
   { value: "image", label: "Missing image" },
+  { value: "broken_image", label: "Broken image" },
   { value: "description", label: "Missing description" },
   { value: "type", label: "Missing type" },
   { value: "tags", label: "Missing tags" },
@@ -94,7 +96,12 @@ type SortKey =
   | "status"
   | "-status"
 
-type Quality = Record<(typeof QUALITY_KEYS)[number], boolean>
+// `broken_image` is a separate axis from the has_X "missing" signals
+// (true = thumbnail present but its URL is dead), so it lives outside
+// QUALITY_KEYS and is rendered/handled on its own.
+type Quality = Record<(typeof QUALITY_KEYS)[number], boolean> & {
+  broken_image?: boolean
+}
 
 type Product = {
   id: string
@@ -937,6 +944,10 @@ const FilterBar = (props: FilterBarProps) => {
               text={{
                 title: "Data quality flags",
                 body: "Tick any flag to filter to products that are missing that signal. Combine flags to surface products with multiple gaps. Useful right after an importer run to spot products that fell through.",
+                bullets: [
+                  "Missing image: no thumbnail set at all.",
+                  "Broken image: thumbnail IS set but its URL is dead (404/unreachable) — renders a broken icon. Populated by the periodic image scan, not computed live. Click \"Scan images\" to refresh, or combine with a Brand filter to sweep one supplier's range.",
+                ],
               }}
             />
           </Label>
@@ -962,6 +973,7 @@ const FilterBar = (props: FilterBarProps) => {
               </label>
             ))}
           </div>
+          <ImageScanControl />
         </div>
       </div>
     </Container>
@@ -1112,7 +1124,7 @@ const ResultsTable = (props: ResultsTableProps) => {
                 <HelpTooltip
                   text={{
                     title: "Data quality",
-                    body: "A red badge per signal the product is missing — Image, Description, Type, Tags, Brand, Sales channel, or Shop category. Green 'Complete' means everything the storefront needs is in place.",
+                    body: "A red badge per signal the product is missing — Image, Description, Type, Tags, Brand, Sales channel, or Shop category. An orange 'Broken image' badge means the thumbnail is set but its URL is dead (from the image scan). Green 'Complete' means everything the storefront needs is in place.",
                     bullets: [
                       "Use the 'Missing X' checkboxes in the filter bar to narrow the table to one gap type, then tick rows and bulk-edit to fix.",
                       "Missing Sales channel = invisible to the storefront. Missing Type or Shop category = invisible to the mega-menu.",
@@ -1265,18 +1277,25 @@ const QualityCell = ({ quality }: { quality: Quality }) => {
       missing.push({ key: k, label: QUALITY_LABELS[k] })
     }
   }
-  if (missing.length === 0) {
+  const broken = !!quality.broken_image
+  if (missing.length === 0 && !broken) {
     return (
       <Badge size="2xsmall" color="green">
         Complete
       </Badge>
     )
   }
+  const titleParts = [
+    ...(broken ? ["Broken image (thumbnail URL doesn't load)"] : []),
+    ...(missing.length ? [`Missing: ${missing.map((m) => m.label).join(", ")}`] : []),
+  ]
   return (
-    <div
-      className="flex flex-wrap gap-1"
-      title={`Missing: ${missing.map((m) => m.label).join(", ")}`}
-    >
+    <div className="flex flex-wrap gap-1" title={titleParts.join(" · ")}>
+      {broken ? (
+        <Badge size="2xsmall" color="orange">
+          Broken image
+        </Badge>
+      ) : null}
       {missing.map((m) => (
         <Badge key={m.key} size="2xsmall" color="red">
           {m.label}
