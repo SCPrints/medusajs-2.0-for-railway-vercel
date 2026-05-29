@@ -3,6 +3,7 @@ import { HttpTypes } from "@medusajs/types"
 import { cacheLife, cacheTag } from "next/cache"
 import { getRegion } from "./regions"
 import { getBrandProducts } from "./brands"
+import { LISTING_VIA_SEARCH_ENABLED, searchListing } from "./listing-search"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import { sortProducts } from "@lib/util/sort-products"
@@ -307,6 +308,81 @@ const CLIENT_FILTER_PAGE_BATCH = 100
 const CLIENT_FILTER_MAX_PAGES = 80
 
 /**
+ * Listing-via-search: sort + filter + paginate the listing IN Meilisearch,
+ * then hydrate the page's product IDs via Medusa for live region pricing.
+ * Returns `null` on any miss (flag off / unconfigured / Meili error) so the
+ * caller falls back to the legacy in-memory scan. A legit empty category
+ * returns an empty page (NOT null) so we don't fall back to the full catalog.
+ */
+async function getListingViaSearch({
+  page,
+  limit,
+  queryParams,
+  sortBy,
+  filters,
+  countryCode,
+  brandHandle,
+}: {
+  page: number
+  limit: number
+  queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
+  sortBy: SortOptions
+  filters?: ProductFilters
+  countryCode: string
+  brandHandle?: string
+}): Promise<{
+  response: { products: HttpTypes.StoreProduct[]; count: number }
+  nextPage: number | null
+  queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
+} | null> {
+  const qp = (queryParams ?? {}) as Record<string, unknown>
+  const firstOf = (v: unknown): string | undefined => {
+    if (Array.isArray(v)) return typeof v[0] === "string" ? v[0] : undefined
+    return typeof v === "string" ? v : undefined
+  }
+
+  const result = await searchListing({
+    scope: {
+      categoryId: firstOf(qp.category_id),
+      collectionId: firstOf(qp.collection_id),
+      brandHandle,
+    },
+    filters: {
+      minPrice: filters?.minPrice,
+      maxPrice: filters?.maxPrice,
+      inStock: filters?.inStock,
+      brand: filters?.brand,
+      fabric: filters?.fabric,
+      // type/tag arrive via queryParams (PaginatedProducts), not the filters object.
+      typeId: firstOf(qp.type_id) ?? filters?.typeId,
+      tagId: firstOf(qp.tag_id) ?? filters?.tagId,
+    },
+    sortBy,
+    page,
+    limit,
+  })
+
+  if (!result) return null
+
+  if (result.ids.length === 0) {
+    return { response: { products: [], count: result.count }, nextPage: null, queryParams }
+  }
+
+  const region = await getRegion(countryCode)
+  if (!region) return null
+
+  const hydrated = await getProductsById({ ids: result.ids, regionId: region.id })
+  // getProductsById returns products in arbitrary order — restore Meili's ranking.
+  const rank = new Map(result.ids.map((id, i) => [id, i]))
+  const products = [...hydrated].sort(
+    (a, b) => (rank.get(a.id ?? "") ?? 0) - (rank.get(b.id ?? "") ?? 0)
+  )
+
+  const nextPage = result.count > page * limit ? page + 1 : null
+  return { response: { products, count: result.count }, nextPage, queryParams }
+}
+
+/**
  * Fetches products for list views.
  * - Default “Latest” (`created_at`) with no client filters: one Medusa page + API `count` so
  *   pagination matches the full catalog (not capped at 100 items / 9 pages).
@@ -389,6 +465,24 @@ export async function getProductsListWithSort({
       nextPage: hasMore ? resolvedPage + 1 : null,
       queryParams,
     }
+  }
+
+  // Listing-via-search (flag-gated): we only reach here when the legacy path
+  // would otherwise scan the whole catalog (price sort and/or client filters).
+  // Let Meili do the sort+filter+paginate and hydrate the page's IDs instead.
+  // `id` queryParams = a Meili-search results page (bounded already) — leave those
+  // on the scan path. Any miss/error returns null and falls through to the scan.
+  if (LISTING_VIA_SEARCH_ENABLED && !(queryParams as Record<string, unknown>)?.id) {
+    const viaSearch = await getListingViaSearch({
+      page: resolvedPage,
+      limit,
+      queryParams,
+      sortBy,
+      filters,
+      countryCode,
+      brandHandle,
+    })
+    if (viaSearch) return viaSearch
   }
 
   let products: HttpTypes.StoreProduct[] = []

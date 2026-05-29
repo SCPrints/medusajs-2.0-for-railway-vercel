@@ -803,6 +803,22 @@ The MinIO module name is historical — we run against Cloudflare R2 in producti
 
 The plugin (`@rokmohar/medusa-plugin-meilisearch` in [backend/medusa-config.js](backend/medusa-config.js)) auto-indexes products on backend boot and on `product.created`/`product.updated`/`product.deleted` events. To force a full reindex after schema changes, restart the backend or call the plugin's reindex endpoint from admin.
 
+**Plugin freshness (v1.3.8) — load-bearing for listing-via-search:** beyond `product.*`, the plugin ships subscribers that re-index the affected product on `price.created/updated/deleted`, `inventory_item.*`, `inventory_level.*`, `variant.*`, and category/collection/tag/type attach/detach. So an indexed `min_price_aud` stays correct when prices change and `in_stock` stays correct when stock changes — **no custom freshness job**. It also supports a `transformer(product)` to index computed fields and `sortableAttributes` / `filterableAttributes` in `indexSettings`.
+
+#### Listing via search (Meili as the listing engine)
+
+Category / store / collection / brand product grids can sort + filter + paginate **in Meilisearch**, then hydrate the page's product IDs via Medusa for live region pricing — replacing the in-memory catalog scan in [`getProductsListWithSort`](storefront/src/lib/data/products.ts) that ran for every non-`created_at` sort and every brand/fabric/price/stock filter (the cause of the "sorting looks frozen" rage-click sessions). Gated by `LISTING_VIA_SEARCH` (default off), with graceful fallback to the legacy scan on any Meili miss/error.
+
+**Why one indexed price sorts correctly for everyone:** the catalog is AUD-only and customer tiers are a *uniform* multiplier (platinum 1.10× … member 1.45×, applied identically to every product via `applyTierMultiplier`) — a positive constant preserves ordering, so the guest base `min_price_aud` orders identically for every tier. `min_price_aud` mirrors the tile headline-price rule in [listing-summary.ts](backend/src/lib/listing-summary.ts).
+
+| Component | Path |
+| --- | --- |
+| Meili doc transformer (`min_price_aud`, `category_ids`, `brand_handle`, `type_id`, `tag_ids`, `fabric[]`, `in_stock`, `created_at_ts`) + index settings | [backend/medusa-config.js](backend/medusa-config.js) (search `meiliTransformProduct`) |
+| Server-side Meili listing query + flag | [storefront/src/lib/data/listing-search.ts](storefront/src/lib/data/listing-search.ts) |
+| Delegation + ID hydration (order-preserving) | `getListingViaSearch` in [storefront/src/lib/data/products.ts](storefront/src/lib/data/products.ts) |
+
+**Cutover runbook:** (1) deploy backend with the new config; (2) reindex so the new fields + sortable/filterable settings apply (`cd /app/.medusa/server && npx medusa exec src/scripts/reindex-meilisearch.ts`, or emit `meilisearch.sync`); (3) verify in the Meili dashboard that products carry `min_price_aud` / `category_ids` / `in_stock`; (4) set `LISTING_VIA_SEARCH=true` on the storefront. `created_at`/`title` with no filters intentionally stay on the fast Medusa API path (they never scanned) — to fully unify, also route them through `getListingViaSearch`.
+
 #### Redis (event bus + workflow engine + locking)
 
 | Variable | Purpose | Default |
@@ -832,6 +848,7 @@ All other env vars (Medusa core, AS Colour, Stripe, etc.) are documented in [bac
 | `NEXT_PUBLIC_VECTORIZATION_VARIANT_ID` | Variant ID of the vectorization service product. Without it, the modal still works but the service line isn't auto-added — your team adds it via Order Edit. |
 | `NEXT_PUBLIC_VECTORIZATION_DISPLAY_PRICE` | Optional. Free-form string (e.g. `$15`) shown in the modal CTA copy. |
 | `ANTHROPIC_API_KEY` | Required for the storefront chatbot (`/api/chat`). Returns 503 when unset. |
+| `LISTING_VIA_SEARCH` | Optional. `true` routes category/store/collection/brand product **listings** (price sort + brand/fabric/price/stock/type/tag filters) through Meilisearch instead of the in-memory catalog scan. Default off. **Only flip to `true` after a reindex** has run against the target Meili (so the `min_price_aud` / `category_ids` / `in_stock` fields + sortable/filterable settings exist) — a premature flip 400s and silently falls back to the legacy scan. `NEXT_PUBLIC_LISTING_VIA_SEARCH` is an accepted alias. See "Listing via search" below. |
 
 ## First-time setup checklist
 

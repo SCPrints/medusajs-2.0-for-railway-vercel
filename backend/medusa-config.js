@@ -67,6 +67,99 @@ import {
   MEILISEARCH_ADMIN_KEY
 } from 'lib/constants';
 
+/**
+ * Meilisearch product document transformer (listing-engine support).
+ *
+ * The default plugin doc only carries text fields. To let the storefront sort
+ * + filter + paginate listings IN Meili (instead of scanning the whole catalog
+ * in-memory), we materialise the facets the storefront filters on, plus a
+ * sortable price. The plugin re-runs this transformer on every product /
+ * variant / price / inventory / category / tag / type event (its built-in
+ * subscribers), so these fields stay fresh automatically — no extra job.
+ *
+ * `min_price_aud` is the cheapest variant's single-unit (qty-1) GUEST price in
+ * minor units (cents). This is correct to sort by for every customer because
+ * (a) the catalog is AUD-only and (b) customer tiers are a uniform multiplier
+ * (platinum 1.10x … member 1.45x) applied identically to every product — a
+ * positive constant preserves ordering. Mirrors the tile headline-price rule
+ * in src/lib/listing-summary.ts so the sort matches what shoppers see.
+ */
+const meiliToMinorAud = (amount) => {
+  const n = Number(amount);
+  return Number.isFinite(n) ? Math.round(n * 100) : null;
+};
+
+const meiliVariantBaseMinor = (variant) => {
+  const meta = (variant && variant.metadata) || {};
+  // 1) importer-written base (qty 1-9 band), dollars — every supplier importer writes this.
+  const bp = meta.bulk_pricing;
+  const tier0 = bp && Array.isArray(bp.tiers) ? bp.tiers[0] : null;
+  const fromMeta = tier0 ? meiliToMinorAud(tier0.amount) : meiliToMinorAud(meta.base_sale_price);
+  if (fromMeta != null) return fromMeta;
+  // 2) fall back to raw price rows: rules-free (no price-list/group) AUD, lowest min_quantity.
+  const prices = (variant && variant.price_set && variant.price_set.prices) || [];
+  let best = null;
+  for (const p of prices) {
+    if (!p) continue;
+    if (String(p.currency_code || '').toLowerCase() !== 'aud') continue;
+    if ((p.rules_count ?? 0) !== 0) continue;
+    const mq = p.min_quantity == null ? 1 : Number(p.min_quantity);
+    const minor = meiliToMinorAud(p.amount);
+    if (minor == null) continue;
+    if (best == null || mq < best.mq) best = { mq, minor };
+  }
+  return best ? best.minor : null;
+};
+
+const meiliTransformProduct = (product) => {
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+
+  let minPrice = null;
+  for (const v of variants) {
+    const b = meiliVariantBaseMinor(v);
+    if (b == null) continue;
+    if (minPrice == null || b < minPrice) minPrice = b;
+  }
+
+  const inStock = variants.some((v) => {
+    if (!v) return false;
+    if (v.manage_inventory === false) return true;
+    if (v.allow_backorder === true) return true;
+    const q = v.inventory_quantity;
+    if (q == null) return true; // unknown → don't hide (matches storefront hasStock logic)
+    return Number(q) > 0;
+  });
+
+  const meta = product.metadata || {};
+  const fabricRaw =
+    meta.fabric_type || meta.fabric || meta.material || meta.composition || null;
+  const fabric = fabricRaw
+    ? String(fabricRaw).toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2)
+    : [];
+
+  const doc = {
+    id: product.id,
+    handle: product.handle,
+    title: product.title,
+    description: product.description,
+    thumbnail: product.thumbnail,
+    variant_sku: variants.map((v) => v && v.sku).filter(Boolean).join(' '),
+    created_at_ts: product.created_at ? new Date(product.created_at).getTime() : 0,
+    category_ids: (product.categories || []).map((c) => c && c.id).filter(Boolean),
+    collection_id: product.collection_id || null,
+    type_id: (product.type && product.type.id) || null,
+    tag_ids: (product.tags || []).map((t) => t && t.id).filter(Boolean),
+    brand_handle: (product.brand && product.brand.handle) || null,
+    brand_name: product.brand && product.brand.name ? String(product.brand.name).toLowerCase() : null,
+    fabric,
+    in_stock: inStock,
+  };
+  // Omit when unknown so price-less products sink to the end of a price sort
+  // (Meili places docs missing a sortable attribute last).
+  if (minPrice != null) doc.min_price_aud = minPrice;
+  return doc;
+};
+
 const medusaConfig = {
   projectConfig: {
     databaseUrl: DATABASE_URL,
@@ -445,11 +538,33 @@ const medusaConfig = {
               products: {
                 type: 'products',
                 enabled: true,
-                fields: ['id', 'title', 'description', 'handle', 'variant_sku', 'thumbnail'],
+                // Relations the transformer aggregates into flat indexed fields.
+                // Each path costs a JOIN at index time only (not per storefront
+                // request), so listing reads stay cheap.
+                fields: [
+                  'id', 'title', 'description', 'handle', 'thumbnail', 'created_at',
+                  'collection_id',
+                  'categories.id',
+                  'type.id', 'type.value',
+                  'tags.id', 'tags.value',
+                  'brand.handle', 'brand.name',
+                  'variants.id', 'variants.sku', 'variants.metadata',
+                  'variants.inventory_quantity', 'variants.manage_inventory', 'variants.allow_backorder',
+                  'variants.price_set.prices.amount',
+                  'variants.price_set.prices.currency_code',
+                  'variants.price_set.prices.min_quantity',
+                  'variants.price_set.prices.rules_count',
+                ],
+                transformer: (product) => meiliTransformProduct(product),
                 indexSettings: {
                   searchableAttributes: ['title', 'description', 'variant_sku'],
                   displayedAttributes: ['id', 'handle', 'title', 'description', 'variant_sku', 'thumbnail'],
-                  filterableAttributes: ['id', 'handle'],
+                  // Drive storefront listing facets in Meili instead of the in-memory catalog scan.
+                  filterableAttributes: [
+                    'id', 'handle', 'category_ids', 'collection_id', 'type_id',
+                    'tag_ids', 'brand_handle', 'brand_name', 'fabric', 'in_stock', 'min_price_aud',
+                  ],
+                  sortableAttributes: ['min_price_aud', 'created_at_ts', 'title'],
                 },
                 primaryKey: 'id',
               },
