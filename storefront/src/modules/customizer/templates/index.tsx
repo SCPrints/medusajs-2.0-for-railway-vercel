@@ -4026,6 +4026,75 @@ export default function CustomizerTemplate({
     setScpPrintSizeChosen(true)
   }, [])
 
+  // Lifted out of the bulkMode render branch (a conditional early-return where
+  // hooks can't live) so the props handed to the memoised <BulkOrderGrid/> have
+  // stable identities. Cheap to compute each render; only consumed in bulk mode.
+  const bulkPrintThumbSources = useMemo(
+    () =>
+      DESIGN_SIDES.reduce<Array<{ side: GarmentSide; printUrl: string }>>((acc, side) => {
+        const cached = prerenderedArtifactsRef.current.get(side)
+        if (cached?.printUrl) acc.push({ side, printUrl: cached.printUrl })
+        return acc
+      }, []),
+    // prerenderedArtifactsRef is repopulated by the prefetch effect on canvas
+    // changes (which bump layoutVersion) and on colour/variant changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layoutVersion, activeVariantId]
+  )
+  const bulkPrintArtifactForThumb = bulkPrintThumbSources[0] ?? null
+  const latestBulkHandlers = {
+    estimate: (qty: number): BulkPricingEstimate | null => {
+      if (!qty || !basePriceCents) return null
+      const breakdown = calculatePricing({
+        basePriceCents,
+        decoratedSidesCount,
+        decoratedSides,
+        totalQuantity: qty,
+        bulkPricingTiers,
+        scpPrint: { printSizeId: scpPrintSizeId },
+        prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
+      })
+      const activeTier = breakdown.activeBulkTier
+      // calculatePricing's `*Cents` fields are misnamed — Medusa 2.x stores
+      // price.amount in major units (dollars), so these are already dollars.
+      return {
+        unitPriceMajor: breakdown.discountedUnitPriceCents,
+        totalPriceMajor: breakdown.totalPriceCents,
+        activeTierLabel: activeTier
+          ? `${activeTier.minQuantity}${activeTier.maxQuantity ? `–${activeTier.maxQuantity}` : "+"}`
+          : undefined,
+      }
+    },
+    submit: async (cells: BulkCellEntry[]) => {
+      phCapture(editGroupId ? "bulk_grid_updated_cart" : "bulk_grid_added_to_cart", {
+        product_id: selectedProduct.id,
+        line_count: cells.length,
+        total_quantity: cells.reduce((sum, c) => sum + c.quantity, 0),
+        colour_count: new Set(cells.map((c) => c.variant.id.split(":")[0])).size,
+        edit_group: editGroupId ? true : false,
+      })
+      await addCustomizedToCart(cells)
+      // Fresh bulk adds drop back to the wizard; group-edit mode navigates to
+      // /cart inside addCustomizedToCart itself.
+      if (!editGroupId) setBulkMode(false)
+    },
+  }
+  const bulkHandlersRef = useRef(latestBulkHandlers)
+  bulkHandlersRef.current = latestBulkHandlers
+  const stableEstimatePricingForTotal = useCallback(
+    (qty: number) => bulkHandlersRef.current.estimate(qty),
+    []
+  )
+  const stableHandleBulkSubmit = useCallback(
+    (cells: BulkCellEntry[]) => bulkHandlersRef.current.submit(cells),
+    []
+  )
+  const stableBulkClose = useCallback(() => setBulkMode(false), [])
+  const stableBulkBackToProduct = useCallback(() => {
+    setBulkMode(false)
+    setPdpStep(1)
+  }, [])
+
   // Stable props for the memoised <InputPanel/>. Handlers go through a
   // latest-ref so their identities stay constant (React.memo can then skip the
   // frequent canvas-interaction re-renders) while always invoking the freshest
@@ -4349,68 +4418,9 @@ export default function CustomizerTemplate({
     // per filled qty; each becomes its own cart line via the existing
     // `addCustomizedToCart` path with the `bulkCells` argument.
     if (bulkMode && selectedProduct && selectedVariant) {
-      // Collect every decorated side's print PNG so the bulk grid can
-      // composite a per-colour mockup for each one (not just front).
-      // Without this, the back/sleeve/tag thumbnails in the cart show
-      // the base render — typically the design-reference colour, not
-      // the colour the customer actually picked.
-      const printThumbSources = DESIGN_SIDES.reduce<
-        Array<{ side: GarmentSide; printUrl: string }>
-      >((acc, side) => {
-        const cached = prerenderedArtifactsRef.current.get(side)
-        if (cached?.printUrl) {
-          acc.push({ side, printUrl: cached.printUrl })
-        }
-        return acc
-      }, [])
-      // Back-compat with paths that still expect a single thumb source.
-      const printArtifactForThumb = printThumbSources[0] ?? null
-      const estimatePricingForTotal = (qty: number): BulkPricingEstimate | null => {
-        if (!qty || !basePriceCents) return null
-        const breakdown = calculatePricing({
-          basePriceCents,
-          decoratedSidesCount,
-          decoratedSides,
-          totalQuantity: qty,
-          bulkPricingTiers,
-          scpPrint: { printSizeId: scpPrintSizeId },
-          prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
-        })
-        const activeTier = breakdown.activeBulkTier
-        // calculatePricing's `*Cents` fields are misnamed — Medusa 2.x stores
-        // price.amount in major units (dollars), so `basePriceCents` is dollars
-        // and the breakdown returns dollars too. PricingPanel passes them
-        // straight to formatMoney without /100; the bulk grid must too.
-        return {
-          unitPriceMajor: breakdown.discountedUnitPriceCents,
-          totalPriceMajor: breakdown.totalPriceCents,
-          activeTierLabel: activeTier
-            ? `${activeTier.minQuantity}${activeTier.maxQuantity ? `–${activeTier.maxQuantity}` : "+"}`
-            : undefined,
-        }
-      }
-      const handleBulkSubmit = async (cells: BulkCellEntry[]) => {
-        phCapture(
-          editGroupId ? "bulk_grid_updated_cart" : "bulk_grid_added_to_cart",
-          {
-            product_id: selectedProduct.id,
-            line_count: cells.length,
-            total_quantity: cells.reduce((sum, c) => sum + c.quantity, 0),
-            colour_count: new Set(
-              cells.map((c) => c.variant.id.split(":")[0])
-            ).size,
-            edit_group: editGroupId ? true : false,
-          }
-        )
-        await addCustomizedToCart(cells)
-        // Group-edit mode: addCustomizedToCart navigates to /cart on
-        // success itself (see the group-edit cleanup branch). For
-        // fresh bulk adds, drop back to the wizard so the customer can
-        // tweak more sides if they want.
-        if (!editGroupId) {
-          setBulkMode(false)
-        }
-      }
+      // Prop-building consts are lifted to the component top level (see
+      // bulkPrintThumbSources / stableHandleBulkSubmit etc.) so they have
+      // stable identities for the memoised <BulkOrderGrid/>.
       return (
         <div className="fixed inset-0 z-[60] overflow-hidden bg-white">
           <BulkOrderGrid
@@ -4419,25 +4429,12 @@ export default function CustomizerTemplate({
             defaultGarmentImage={defaultGarmentImage}
             currencyCode={currencyCode}
             isSubmitting={isSubmitting}
-            printThumbSource={printArtifactForThumb}
-            printThumbSources={printThumbSources}
-            estimatePricingForTotal={estimatePricingForTotal}
-            onClose={() => {
-              // Just close the grid — return to the wizard so the
-              // customer can tweak the design canvas (artwork, text,
-              // print sizes) and re-open the grid to adjust cells. In
-              // edit mode this preserves editGroupId so the next bulk
-              // submit still fans out across the existing cart group.
-              // To abandon the whole edit, the customer uses the
-              // "Cancel edit" button in the amber banner that the
-              // wizard sidebar renders while editGroupId is set.
-              setBulkMode(false)
-            }}
-            onBackToProduct={() => {
-              setBulkMode(false)
-              setPdpStep(1)
-            }}
-            onSubmit={handleBulkSubmit}
+            printThumbSource={bulkPrintArtifactForThumb}
+            printThumbSources={bulkPrintThumbSources}
+            estimatePricingForTotal={stableEstimatePricingForTotal}
+            onClose={stableBulkClose}
+            onBackToProduct={stableBulkBackToProduct}
+            onSubmit={stableHandleBulkSubmit}
             initialCells={
               editGroupCells.length > 0 ? editGroupCells : undefined
             }

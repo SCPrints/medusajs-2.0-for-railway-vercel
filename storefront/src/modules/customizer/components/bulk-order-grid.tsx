@@ -1,7 +1,7 @@
 "use client"
 
 import { HttpTypes } from "@medusajs/types"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { memo, useEffect, useMemo, useRef, useState } from "react"
 
 import { convertToLocale } from "@lib/util/money"
 import { phCapture } from "@lib/posthog"
@@ -137,7 +137,7 @@ export const compareSizes = (a: string, b: string): number => {
   return a.localeCompare(b, undefined, { numeric: true })
 }
 
-export default function BulkOrderGrid({
+function BulkOrderGrid({
   product,
   baseVariant,
   defaultGarmentImage,
@@ -1168,3 +1168,8 @@ async function composeColourMockup(input: {
 
   return canvas.toDataURL("image/jpeg", 0.82)
 }
+
+// Memoised: the parent stabilises every prop (thumb sources via useMemo,
+// handlers via latest-ref / useCallback lifted out of the bulkMode render
+// branch), so the full-screen grid skips re-renders from unrelated parent state.
+export default memo(BulkOrderGrid)
