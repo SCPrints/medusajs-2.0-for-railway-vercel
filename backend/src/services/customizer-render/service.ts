@@ -194,6 +194,40 @@ const isSafeRemoteImageUrl = (value: string): boolean => {
 }
 
 /**
+ * Customer-original uploads were historically stored under the R2 *S3 API*
+ * endpoint (`<acct>.r2.cloudflarestorage.com/<bucket>/<key>`), which requires
+ * SigV4 auth and returns 400/401 to the unauthenticated fetch() below — so the
+ * artwork never inlined and the print PNG + mockup rendered BLANK. The very
+ * same object is public at `MINIO_PUBLIC_URL/<key>`. Rewrite our own
+ * private-endpoint URLs to that public host before fetching, so designs already
+ * stored with the private URL still render (no re-upload needed). Foreign hosts
+ * (supplier CDNs, public `*.r2.dev` URLs) pass through untouched.
+ */
+export const rewriteOwnR2UrlToPublic = (rawUrl: string): string => {
+  if (!MINIO_ENDPOINT || !MINIO_PUBLIC_URL) {
+    return rawUrl
+  }
+  try {
+    const parsed = new URL(rawUrl)
+    const endpointHost = MINIO_ENDPOINT.replace(/^https?:\/\//, "")
+      .replace(/\/.*$/, "")
+      .replace(/:(\d+)$/, "")
+      .toLowerCase()
+    if (parsed.hostname.toLowerCase() !== endpointHost) {
+      return rawUrl
+    }
+    const bucketPrefix = `/${MINIO_BUCKET || "medusa-media"}/`
+    if (!parsed.pathname.startsWith(bucketPrefix)) {
+      return rawUrl
+    }
+    const keyPath = parsed.pathname.slice(bucketPrefix.length)
+    return `${MINIO_PUBLIC_URL.replace(/\/$/, "")}/${keyPath}`
+  } catch {
+    return rawUrl
+  }
+}
+
+/**
  * sharp/librsvg does NOT fetch remote `<image href="https://…">` references
  * when rasterizing an SVG — only inline `data:` URIs are drawn. The storefront
  * swaps the artwork's inline base64 for its hosted R2 URL to keep the render
@@ -228,7 +262,9 @@ const inlineRemoteSvgImages = async (svg: string): Promise<string> => {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 12_000)
       try {
-        const response = await fetch(url, { signal: controller.signal })
+        const response = await fetch(rewriteOwnR2UrlToPublic(url), {
+          signal: controller.signal,
+        })
         if (!response.ok) {
           return
         }

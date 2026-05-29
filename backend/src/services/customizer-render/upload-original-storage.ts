@@ -5,6 +5,7 @@ import {
   MINIO_ACCESS_KEY,
   MINIO_BUCKET,
   MINIO_ENDPOINT,
+  MINIO_PUBLIC_URL,
   MINIO_SECRET_KEY,
 } from "../../lib/constants"
 
@@ -49,6 +50,7 @@ function parseMinioConfig() {
     accessKey: MINIO_ACCESS_KEY,
     secretKey: MINIO_SECRET_KEY,
     bucket: MINIO_BUCKET || "medusa-media",
+    publicUrl: MINIO_PUBLIC_URL?.replace(/\/$/, "") || null,
   }
 }
 
@@ -92,6 +94,15 @@ export async function uploadCustomerOriginalFile(
     "x-amz-acl": "public-read",
   })
 
+  // Prefer the public CDN/R2 host. The S3 API endpoint (MINIO_ENDPOINT) on
+  // Cloudflare R2 requires SigV4 auth and returns 400/401 to anonymous GETs,
+  // so a customer-original stored under it cannot be fetched by the browser
+  // canvas OR re-inlined by the backend render — the artwork rasterizes BLANK
+  // (blank print PNG + artwork-less mockup). Mirrors uploadToMinio() in
+  // service.ts, which already builds the public URL correctly.
+  if (config.publicUrl) {
+    return `${config.publicUrl}/${key}`
+  }
   const protocol = config.useSSL ? "https" : "http"
   return `${protocol}://${config.endPoint}/${config.bucket}/${key}`
 }
