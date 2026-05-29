@@ -4,7 +4,9 @@ import { notFound } from "next/navigation"
 import { retrieveBrandByHandle } from "@lib/data/brands"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import StoreTemplate from "@modules/store/templates"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import BrandHero from "@modules/brands/components/brand-hero"
+import BrandGallery from "@modules/brands/components/brand-gallery"
+import { getBrandPresentation } from "@modules/brands/data/brands"
 
 type Params = {
   params: Promise<{ countryCode: string; handle: string }>
@@ -58,45 +60,24 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
   const { brand, children } = await retrieveBrandByHandle(handle)
   if (!brand) notFound()
 
+  const presentation = getBrandPresentation(brand.handle)
+  const logoSrc = brand.logo_url ?? presentation.logoSrc ?? null
+  const galleryImages = presentation.gallery ?? []
+
   return (
     <>
-      <section className="content-container border-b border-ui-border-base py-10 small:py-14">
-        <div className="flex flex-col items-start gap-4 small:flex-row small:items-end small:justify-between">
-          <div className="flex items-center gap-4">
-            {brand.logo_url ? (
-              <img
-                src={brand.logo_url}
-                alt={brand.name}
-                className="h-12 w-auto object-contain"
-                loading="lazy"
-              />
-            ) : null}
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-ui-fg-base">
-                {brand.name}
-              </h1>
-              {brand.description ? (
-                <p className="mt-2 max-w-2xl text-base text-ui-fg-subtle">{brand.description}</p>
-              ) : null}
-            </div>
-          </div>
-        </div>
+      <BrandHero
+        name={brand.name}
+        description={brand.description}
+        logoSrc={logoSrc}
+        bannerSrc={presentation.bannerSrc ?? null}
+        bgClass={presentation.bgClass}
+        childBrands={children}
+      />
 
-        {children.length > 0 ? (
-          <ul className="mt-6 flex flex-wrap gap-2">
-            {children.map((c) => (
-              <li key={c.id}>
-                <LocalizedClientLink
-                  href={`/brands/${c.handle}`}
-                  className="rounded-full border border-ui-border-base bg-ui-bg-subtle px-3 py-1 text-small-regular text-ui-fg-base hover:bg-ui-bg-subtle-hover"
-                >
-                  {c.name}
-                </LocalizedClientLink>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      {galleryImages.length > 0 ? (
+        <BrandGallery brandName={brand.name} images={galleryImages} />
+      ) : null}
 
       <StoreTemplate
         sortBy={(sp.sortBy as any) || "created_at"}
@@ -109,6 +90,9 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         typeId={sp.typeId?.trim() || undefined}
         tagId={sp.tagId?.trim() || undefined}
         countryCode={countryCode}
+        heading={{ eyebrow: "Shop the range", title: `All ${brand.name} products` }}
+        showHeaderDescription={false}
+        titleTag="h2"
       />
     </>
   )

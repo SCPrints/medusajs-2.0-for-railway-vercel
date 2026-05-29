@@ -31,6 +31,9 @@ const StoreTemplate = async ({
   typeId,
   tagId,
   countryCode,
+  heading,
+  showHeaderDescription = true,
+  titleTag = "h1",
 }: {
   sortBy?: SortOptions
   page?: string
@@ -42,6 +45,16 @@ const StoreTemplate = async ({
   typeId?: string
   tagId?: string
   countryCode: string
+  /**
+   * Override the catalog header eyebrow/title. Used by the brand landing page
+   * so the product grid reads as a distinct "shop the range" section beneath the
+   * brand hero instead of repeating the brand name the hero already shows.
+   */
+  heading?: { eyebrow?: string; title?: string }
+  /** Hide the auto-generated description paragraph (e.g. the hero already shows it). */
+  showHeaderDescription?: boolean
+  /** Render the catalog title as an h2 when the page already has an h1 (brand hero). */
+  titleTag?: "h1" | "h2"
 }) => {
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
@@ -84,6 +97,8 @@ const StoreTemplate = async ({
         ? brand.trim()
         : "All products"
 
+  const TitleTag = titleTag
+
   const facetOptions: CatalogFacetOptions = {
     brands: brands.map((b) => ({
       id: b.handle,
@@ -122,19 +137,24 @@ const StoreTemplate = async ({
       <div className="w-full">
         <header className="mb-8 border-l-4 border-[var(--brand-secondary)] pl-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
-            {matchedBrand || isRamo ? "Brand catalog" : brand ? "Filtered catalog" : "Catalog"}
+            {heading?.eyebrow ??
+              (matchedBrand || isRamo
+                ? "Brand catalog"
+                : brand
+                  ? "Filtered catalog"
+                  : "Catalog")}
           </p>
-          <h1
+          <TitleTag
             className="page-title-catalog mt-2"
             data-testid="store-page-title"
           >
-            {catalogTitle}
-          </h1>
-          {brandData.brand?.description ? (
+            {heading?.title ?? catalogTitle}
+          </TitleTag>
+          {showHeaderDescription && brandData.brand?.description ? (
             <p className="mt-3 max-w-2xl text-sm text-ui-fg-subtle small:text-base">
               {brandData.brand.description}
             </p>
-          ) : !brand ? (
+          ) : showHeaderDescription && !brand ? (
             <p className="mt-3 max-w-2xl text-sm text-ui-fg-subtle small:text-base">
               Browse our full range of garments &mdash; filter by brand, type,
               or fabric to narrow things down.
