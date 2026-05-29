@@ -359,13 +359,23 @@ export async function getProductsListWithSort({
       filters?.inStock
   )
 
-  const useApiPagination = sortBy === "created_at" && !hasClientFilters
+  // Sorts backed by a real, indexed product column are ordered + paginated by
+  // the Medusa API directly (one page, no scan). Price sorts are excluded on
+  // purpose: calculated prices are per-variant/per-region and aren't an
+  // orderable column, so they fall through to the in-memory scan below.
+  const API_SORT_ORDER: Partial<Record<SortOptions, string>> = {
+    created_at: "-created_at",
+    title_asc: "title",
+    title_desc: "-title",
+  }
+  const useApiPagination = Boolean(API_SORT_ORDER[sortBy]) && !hasClientFilters
 
   if (useApiPagination) {
     const { response } = await getProductsList({
       pageParam: resolvedPage,
       queryParams: {
         ...queryParams,
+        order: API_SORT_ORDER[sortBy],
         limit,
       },
       countryCode,

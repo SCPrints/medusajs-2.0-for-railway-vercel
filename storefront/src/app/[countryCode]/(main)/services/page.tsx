@@ -3,7 +3,6 @@ import type { SVGProps } from "react"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import MarketingHero from "@modules/common/components/marketing-hero"
-import ScrambleDecodeText from "@modules/common/components/scramble-decode-text"
 import SectionHeader from "@modules/common/components/section-header"
 import { iconBase } from "@modules/common/icons/icon-base"
 import { services } from "@modules/services/data"
@@ -166,14 +165,7 @@ export default async function ServicesPage({
       />
       <MarketingHero
         eyebrow="SC PRINTS Services"
-        title={
-          <>
-            <span aria-hidden="true">
-              <ScrambleDecodeText text={SERVICES_HERO_TITLE} />
-            </span>
-            <span className="sr-only">{SERVICES_HERO_TITLE}</span>
-          </>
-        }
+        title={SERVICES_HERO_TITLE}
         subtitle="Whether you need large production runs, premium stitched logos, or flexible short-run options, we match each job to the right print method for quality, turnaround, and budget."
       >
         <div className="mt-7 flex flex-wrap gap-3">

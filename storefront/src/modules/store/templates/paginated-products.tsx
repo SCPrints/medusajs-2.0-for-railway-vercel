@@ -93,10 +93,8 @@ export default async function PaginatedProducts({
     queryParams.type_id = [trimmedTypeId]
   }
 
-  if (sortBy === "created_at") {
-    /** Descending (newest first), aligned with client-side sort in `sort-products.ts` */
-    queryParams["order"] = "-created_at"
-  }
+  // The Medusa `order` param for column-backed sorts (created_at, title) is
+  // derived inside `getProductsListWithSort`; price sorts use its in-memory scan.
 
   // Parallelise the region lookup and the products fetch — both are
   // independent and were previously sequential awaits. `getProductsListWithSort`

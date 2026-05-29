@@ -141,7 +141,13 @@ const StoreTemplate = async ({
             </p>
           ) : null}
         </header>
-        <Suspense fallback={<SkeletonProductGrid />}>
+        {/* key on every result-affecting param so the skeleton shows
+            immediately on sort/filter/page change instead of leaving the
+            previous grid on screen during the soft navigation. */}
+        <Suspense
+          key={`${sort}:${pageNumber}:${resolvedBrandHandle ?? ""}:${minPrice ?? ""}:${maxPrice ?? ""}:${inStock ?? ""}:${brand ?? ""}:${fabric ?? ""}:${tagId ?? ""}:${typeId ?? ""}`}
+          fallback={<SkeletonProductGrid />}
+        >
           <PaginatedProducts
             sortBy={sort}
             page={pageNumber}

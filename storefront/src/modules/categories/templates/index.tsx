@@ -157,7 +157,13 @@ export default function CategoryTemplate({
           data-testid="sort-by-container"
         />
         <div className="w-full">
-          <Suspense fallback={<SkeletonProductGrid />}>
+          {/* key on every result-affecting param so the skeleton shows
+              immediately on sort/filter/page change instead of leaving the
+              previous grid on screen during the soft navigation. */}
+          <Suspense
+            key={`${sort}:${pageNumber}:${minPrice ?? ""}:${maxPrice ?? ""}:${inStock ?? ""}:${brand ?? ""}:${fabric ?? ""}`}
+            fallback={<SkeletonProductGrid />}
+          >
             <PaginatedProducts
               sortBy={sort}
               page={pageNumber}

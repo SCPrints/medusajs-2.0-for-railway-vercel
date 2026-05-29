@@ -47,7 +47,13 @@ export default function CollectionTemplate({
         <div className="mb-8">
           <h1 className="page-title-catalog">{collection.title}</h1>
         </div>
-        <Suspense fallback={<SkeletonProductGrid />}>
+        {/* key on every result-affecting param so the skeleton shows
+            immediately on sort/filter/page change instead of leaving the
+            previous grid on screen during the soft navigation. */}
+        <Suspense
+          key={`${sort}:${pageNumber}:${minPrice ?? ""}:${maxPrice ?? ""}:${inStock ?? ""}:${brand ?? ""}:${fabric ?? ""}`}
+          fallback={<SkeletonProductGrid />}
+        >
           <PaginatedProducts
             sortBy={sort}
             page={pageNumber}
