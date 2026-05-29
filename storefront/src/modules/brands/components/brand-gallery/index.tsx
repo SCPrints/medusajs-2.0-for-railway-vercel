@@ -9,10 +9,9 @@ type Props = {
 }
 
 /**
- * Lifestyle / UGC gallery for a brand landing page — real photos of decorated
- * garments. Rendered only when the brand has gallery images configured in
- * `@modules/brands/data/brands` (the caller guards on a non-empty array), so
- * brands without photos simply omit this section.
+ * Product gallery for a brand landing page — stock/lifestyle shots of blanks
+ * in the catalogue. Rendered only when the brand has gallery images configured
+ * in `@modules/brands/data/brands` (the caller guards on a non-empty array).
  */
 export default function BrandGallery({ brandName, images }: Props) {
   if (!images.length) return null
@@ -20,8 +19,8 @@ export default function BrandGallery({ brandName, images }: Props) {
   return (
     <section className="content-container border-t border-ui-border-base py-12 small:py-16">
       <SectionHeader
-        eyebrow="In the wild"
-        title={`${brandName} decorated by SC Prints`}
+        eyebrow="The range"
+        title={`Stock ${brandName} we print on`}
       />
       <ul className="grid grid-cols-2 gap-3 small:grid-cols-3 small:gap-4">
         {images.map((image, index) => (

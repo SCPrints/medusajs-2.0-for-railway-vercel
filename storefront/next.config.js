@@ -110,10 +110,22 @@ const nextConfig = {
         protocol: "https",
         hostname: "medusa-server-testing.s3.us-east-1.amazonaws.com",
       },
-      { 
+      {
         protocol: "https",
         hostname:
           hostnameFromEnvUrl(process.env.NEXT_PUBLIC_MINIO_ENDPOINT) ?? "localhost",
+      },
+      // Customizer mockups + uploads use MINIO_PUBLIC_URL on the backend (R2 public
+      // dev URL like pub-<hash>.r2.dev), which differs from the private S3 endpoint.
+      {
+        protocol: "https",
+        hostname:
+          hostnameFromEnvUrl(process.env.NEXT_PUBLIC_MINIO_PUBLIC_URL) ??
+          "localhost",
+      },
+      {
+        protocol: "https",
+        hostname: "**.r2.dev",
       },
       {
         protocol: "https",

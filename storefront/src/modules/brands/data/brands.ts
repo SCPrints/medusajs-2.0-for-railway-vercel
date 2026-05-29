@@ -36,9 +36,8 @@ export type BrandPresentation = {
    */
   bannerSrc?: string
   /**
-   * Lifestyle / UGC photos of decorated garments shown in the "in the wild"
-   * gallery on the brand landing page. Render is skipped entirely when this is
-   * empty, so a brand simply has no gallery until photos are added here.
+   * Stock / lifestyle product photos for the gallery on the brand landing page.
+   * Render is skipped entirely when this is empty.
    */
   gallery?: BrandGalleryImage[]
 }
@@ -57,12 +56,12 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoClass: "h-full max-w-[40%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/as-colour-banner.png`,
     gallery: [
-      { src: `${BRAND_BASE}/as-colour/ugc/ugc-1.png`, alt: "Custom-printed AS Colour apparel worn by a customer" },
-      { src: `${BRAND_BASE}/as-colour/ugc/ugc-2.png`, alt: "Screen-printed AS Colour tee in the wild" },
-      { src: `${BRAND_BASE}/as-colour/ugc/ugc-3.png`, alt: "AS Colour garment decorated by SC Prints" },
-      { src: `${BRAND_BASE}/as-colour/ugc/ugc-4.png`, alt: "Embroidered AS Colour apparel" },
-      { src: `${BRAND_BASE}/as-colour/ugc/ugc-5.png`, alt: "AS Colour streetwear with custom print" },
-      { src: `${BRAND_BASE}/as-colour/ugc/ugc-6.png`, alt: "Custom AS Colour merch printed by SC Prints" },
+      { src: `${BRAND_BASE}/as-colour/ugc/ugc-1.png`, alt: "AS Colour apparel product photo" },
+      { src: `${BRAND_BASE}/as-colour/ugc/ugc-2.png`, alt: "AS Colour tee product shot" },
+      { src: `${BRAND_BASE}/as-colour/ugc/ugc-3.png`, alt: "AS Colour garment stock photo" },
+      { src: `${BRAND_BASE}/as-colour/ugc/ugc-4.png`, alt: "AS Colour apparel lifestyle shot" },
+      { src: `${BRAND_BASE}/as-colour/ugc/ugc-5.png`, alt: "AS Colour streetwear product photo" },
+      { src: `${BRAND_BASE}/as-colour/ugc/ugc-6.png`, alt: "AS Colour blank garment" },
     ],
   },
   "aussie-pacific": {
