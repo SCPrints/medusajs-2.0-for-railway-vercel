@@ -54,6 +54,11 @@ import {
   applyTaxonomyToProducts,
   linkProductsToBrand,
 } from "../lib/supplier-import-pipeline"
+import {
+  revalidateStorefrontTags,
+  tagsForBrand,
+  tagsForProduct,
+} from "../lib/storefront-revalidate"
 import { SHAKA_WEAR_CATALOG, type ShakaStyle } from "./shaka-wear-catalog"
 
 const PRICE_CURRENCY_CODE = "aud"
@@ -306,41 +311,55 @@ export default async function importShakaWear({ container, args }: ExecArgs) {
     }
     return
   }
-  if (!toCreate.length) {
+  if (toCreate.length) {
+    const { result } = await createProductsWorkflow(container).run({
+      input: { products: toCreate },
+    })
+    const createdProducts = (result as any[]) ?? []
+    logger.info(`Created ${createdProducts.length} products.`)
+
+    // Taxonomy: every Shaka Wear style is a unisex T-Shirt; tags carry sleeve +
+    // oversized signals. applyTitleFallbacks then back-fills from the title.
+    const sourceByHandle = new Map<string, ShakaStyle>()
+    for (const ctx of created) sourceByHandle.set(ctx.handle, ctx.style)
+    await applyTaxonomyToProducts(container, {
+      products: createdProducts,
+      sourceByHandle,
+      classify: (style: ShakaStyle) => ({
+        productType: "T-Shirts",
+        tags: style.tags,
+      }),
+      logger,
+      brandHandle: BRAND_HANDLE,
+    })
+
+    // Shop categories — Unisex cross-lists into both mens + womens t-shirts.
+    await applyShopCategoriesToProducts(container, createdProducts, logger)
+
+    // Brand link — all six products to the one Shaka Wear brand.
+    await linkProductsToBrand(
+      container,
+      createdProducts as Array<{ id: string; handle: string }>,
+      brandId
+    )
+  } else {
     logger.info("Nothing to create — all styles already exist.")
-    return
   }
 
-  const { result } = await createProductsWorkflow(container).run({
-    input: { products: toCreate },
-  })
-  const createdProducts = (result as any[]) ?? []
-  logger.info(`Created ${createdProducts.length} products.`)
-
-  // Taxonomy: every Shaka Wear style is a unisex T-Shirt; tags carry sleeve +
-  // oversized signals. applyTitleFallbacks then back-fills from the title.
-  const sourceByHandle = new Map<string, ShakaStyle>()
-  for (const ctx of created) sourceByHandle.set(ctx.handle, ctx.style)
-  await applyTaxonomyToProducts(container, {
-    products: createdProducts,
-    sourceByHandle,
-    classify: (style: ShakaStyle) => ({
-      productType: "T-Shirts",
-      tags: style.tags,
-    }),
-    logger,
-    brandHandle: BRAND_HANDLE,
-  })
-
-  // Shop categories — Unisex cross-lists into both mens + womens t-shirts.
-  await applyShopCategoriesToProducts(container, createdProducts, logger)
-
-  // Brand link — all six products to the one Shaka Wear brand.
-  await linkProductsToBrand(
-    container,
-    createdProducts as Array<{ id: string; handle: string }>,
-    brandId
-  )
+  // Bust the storefront's tag-based caches so the new brand card (the cached
+  // `brands` list has a 10-min revalidate), the brand's product grid, and the
+  // mens/womens T-Shirt category listings appear immediately instead of after
+  // the revalidate window. Creating a brand via the service emits no event the
+  // storefront listens for, so without this the `brands` list stays stale.
+  // Runs even on a no-op re-run, so this script doubles as a "refresh the
+  // storefront for Shaka Wear" command. No-ops in dev when STOREFRONT_URL /
+  // REVALIDATE_SECRET are unset.
+  // (dry-run already returned above, so this only runs on a real import.)
+  const purgeTags = new Set<string>(["categories", ...tagsForBrand(BRAND_HANDLE)])
+  for (const style of styles) {
+    for (const t of tagsForProduct(style.handle)) purgeTags.add(t)
+  }
+  await revalidateStorefrontTags([...purgeTags], logger)
 
   logger.info("Shaka Wear import complete.")
 }
