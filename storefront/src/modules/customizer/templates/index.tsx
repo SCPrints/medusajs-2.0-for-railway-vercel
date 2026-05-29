@@ -1302,12 +1302,18 @@ export default function CustomizerTemplate({
       return
     }
 
-    // Live print area via the ref — this fn is invoked from Fabric event
-    // listeners bound once at mount (object:moving/scaling/rotating), where the
-    // captured `printArea` state would be the stale 0×0 mount value (canvasSize
-    // is {0,0} on the first render). Reading the ref matches the sibling
-    // object:scaling cap, which already does this.
-    const pr = printAreaRef.current
+    // Clamp POSITION to the whole canvas (garment), NOT the selected print-size
+    // box. Customers place artwork anywhere on the garment; the print SIZE only
+    // caps how large it can scale (handled separately by the object:scaling cap
+    // + the print-size-shrink effect, both of which read printAreaRef). The
+    // backend print render trims to the artwork's own opaque pixels and the
+    // mockup composites it at this canvas position, so free placement renders
+    // faithfully — pinning art inside the small A6 box only restricts the editor.
+    // Read live canvas dims (not the `canvasSize` state) so this stays correct
+    // when invoked from the once-bound Fabric listeners.
+    const canvasW = Number(canvas.getWidth?.() ?? canvas.width ?? 0)
+    const canvasH = Number(canvas.getHeight?.() ?? canvas.height ?? 0)
+    const pr = { x: 0, y: 0, width: canvasW, height: canvasH }
     if (pr.width < MIN_PRINT_AREA_PX || pr.height < MIN_PRINT_AREA_PX) {
       setOutOfBoundsWarning(null)
       return
@@ -1374,7 +1380,7 @@ export default function CustomizerTemplate({
       Math.abs(dx) > PRINT_AREA_EPS || Math.abs(dy) > PRINT_AREA_EPS
 
     setOutOfBoundsWarning(
-      moved ? "Artwork was nudged to stay inside the print area." : null
+      moved ? "Artwork was nudged to stay on the garment." : null
     )
   }
 
