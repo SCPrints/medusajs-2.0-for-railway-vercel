@@ -117,6 +117,27 @@ const ImageGallery = ({
       if (relaxed.length) {
         return relaxed
       }
+
+      // Colour selected but no colour-specific photo exists (e.g. a RAMO
+      // colourway the supplier never shot). Show the generic model/lifestyle
+      // shots — flagged on product.metadata by the RAMO image backfill —
+      // rather than a jumble of every OTHER colour's garment. No-op for
+      // suppliers without this metadata key.
+      const modelUrls = (product.metadata as Record<string, unknown> | undefined)
+        ?.ramo_model_image_urls
+      if (Array.isArray(modelUrls) && modelUrls.length) {
+        const modelKeys = new Set(
+          modelUrls
+            .filter((u): u is string => typeof u === "string")
+            .map((u) => normalizeImageUrl(u))
+        )
+        const generic = validImages.filter((image) =>
+          modelKeys.has(normalizeImageUrl(image.url))
+        )
+        if (generic.length) {
+          return generic
+        }
+      }
     }
 
     return validImages
