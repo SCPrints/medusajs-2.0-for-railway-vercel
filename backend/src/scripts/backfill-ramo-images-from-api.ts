@@ -185,26 +185,48 @@ export default async function backfillRamoImagesFromApi({ container, args }: Exe
   }
   const stylesNeeded = new Set(byStyle.keys())
 
+  // colours we actually carry per style — used to score RAMO listings.
+  const ourColoursByStyle = new Map<string, string[]>()
+  for (const [style, p] of byStyle) {
+    ourColoursByStyle.set(
+      style,
+      Array.from(
+        new Set(
+          p.variants
+            .map(colourOfVariant)
+            .filter((c): c is string => typeof c === "string" && c.length > 0)
+        )
+      )
+    )
+  }
+
   // ---- resolve style → web_name + parsed product -----------------------
   // Walk the FULL product sitemap, fetch each product's API (disk-cached),
-  // and keep the RICHEST listing per style. RAMO sometimes carries duplicate
-  // / seasonal listings for one style (e.g. `regular-adults-tee` +
-  // `regular-adults-tee-13`, where the latter only stocks a few colours); the
-  // listing with the most colours is the canonical one. The per-web_name JSON
-  // cache makes re-runs cheap, so a full walk (no early stop) is fine.
+  // and per style keep the listing that COVERS THE MOST OF OUR COLOURS
+  // (tiebreak: most total colours). RAMO sometimes carries several listings
+  // for one style code:
+  //   - duplicate/seasonal (e.g. `regular-adults-tee` vs `-tee-13`)
+  //   - genuinely different garments sharing a base (mens vs ladies hanley,
+  //     both style T107BT) — here "most colours overall" would wrongly pick
+  //     the ladies listing for our mens product, so we score by overlap with
+  //     OUR colour set instead. The per-web_name JSON cache keeps re-runs cheap.
   const parsedByStyle = new Map<string, { webName: string; parsed: RamoParsedProduct }>()
   const bestByStyle = new Map<
     string,
-    { webName: string; parsed: RamoParsedProduct; colours: number }
+    { webName: string; parsed: RamoParsedProduct; overlap: number; total: number }
   >()
 
   const consider = (webName: string, json: unknown): void => {
     const parsed = json ? parseRamoProductApi(json) : null
     if (!parsed || !parsed.styleCode || !stylesNeeded.has(parsed.styleCode)) return
-    const colours = Object.keys(parsed.colourImages).length
+    const total = Object.keys(parsed.colourImages).length
+    const ourColours = ourColoursByStyle.get(parsed.styleCode) ?? []
+    const overlap = ourColours.length
+      ? Object.keys(matchColoursToVariants(ourColours, parsed.colourImages).matched).length
+      : total
     const cur = bestByStyle.get(parsed.styleCode)
-    if (!cur || colours > cur.colours) {
-      bestByStyle.set(parsed.styleCode, { webName, parsed, colours })
+    if (!cur || overlap > cur.overlap || (overlap === cur.overlap && total > cur.total)) {
+      bestByStyle.set(parsed.styleCode, { webName, parsed, overlap, total })
     }
   }
 
@@ -250,7 +272,9 @@ export default async function backfillRamoImagesFromApi({ container, args }: Exe
   for (const [style, best] of bestByStyle) {
     parsedByStyle.set(style, { webName: best.webName, parsed: best.parsed })
     stylesNeeded.delete(style)
-    logger.info(`  ↳ ${style} → ${best.webName} (${best.colours} colours)`)
+    logger.info(
+      `  ↳ ${style} → ${best.webName} (${best.overlap} of our colours, ${best.total} on RAMO)`
+    )
   }
 
   if (stylesNeeded.size > 0) {
