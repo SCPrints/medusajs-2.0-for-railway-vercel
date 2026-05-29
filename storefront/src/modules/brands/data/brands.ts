@@ -155,6 +155,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     bgClass: "bg-zinc-800",
     logoSrc: `${LOGO_BASE}/gildan.svg`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
+    bannerSrc: `${BRAND_BASE}/gildan-banner.jpg`,
     gallery: [
       { src: `${BRAND_BASE}/gildan/tee.jpg`, alt: "Gildan Heavy Cotton t-shirt" },
       { src: `${BRAND_BASE}/gildan/hoodie.jpg`, alt: "Gildan Heavy Blend hoodie" },
@@ -168,6 +169,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     bgClass: "bg-zinc-900",
     logoSrc: `${LOGO_BASE}/american-apparel.svg`,
     logoClass: "max-h-full max-w-[40%] object-contain object-left",
+    bannerSrc: `${BRAND_BASE}/american-apparel-banner.jpg`,
     gallery: [
       { src: `${BRAND_BASE}/american-apparel/tee.jpg`, alt: "American Apparel cotton t-shirt" },
       { src: `${BRAND_BASE}/american-apparel/crewneck.jpg`, alt: "American Apparel ReFlex fleece crewneck" },
@@ -181,6 +183,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     bgClass: "bg-stone-700",
     logoSrc: `${LOGO_BASE}/comfort-colors.svg`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
+    bannerSrc: `${BRAND_BASE}/comfort-colors-banner.jpg`,
     gallery: [
       { src: `${BRAND_BASE}/comfort-colors/tee.jpg`, alt: "Comfort Colors garment-dyed t-shirt" },
       { src: `${BRAND_BASE}/comfort-colors/hoodie.jpg`, alt: "Comfort Colors garment-dyed hoodie" },
