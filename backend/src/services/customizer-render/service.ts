@@ -173,11 +173,107 @@ const dataUrlFromBuffer = (buffer: Buffer, mimeType: string) =>
  * Fabric `toSVG()` plus Sharp density can yield a bitmap not exactly matching the editor canvas;
  * normalize so placement pixels match the storefront.
  */
+const REMOTE_SVG_IMAGE_PATTERN = /(xlink:href|href)="(https?:\/\/[^"]+)"/g
+
+const isSafeRemoteImageUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      return false
+    }
+    if (
+      process.env.NODE_ENV === "production" &&
+      isPrivateHost(parsed.hostname.toLowerCase())
+    ) {
+      return false
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * sharp/librsvg does NOT fetch remote `<image href="https://…">` references
+ * when rasterizing an SVG — only inline `data:` URIs are drawn. The storefront
+ * swaps the artwork's inline base64 for its hosted R2 URL to keep the render
+ * payload under the serverless body limit (see replaceInlineRasterWithHostedUrls
+ * in the storefront), so WITHOUT re-inlining here the artwork rasterizes BLANK
+ * (blank print PNG + artwork-less mockup). Fetch each remote image server-side
+ * — R2 is reachable here, the same way the garment image is fetched below — and
+ * inline it as a `data:` URI so sharp can draw it. Best-effort: a failed or
+ * blocked fetch leaves the URL in place (that one image stays blank, no worse
+ * than before) and never throws, so a flaky CDN can't take the whole render down.
+ */
+const inlineRemoteSvgImages = async (svg: string): Promise<string> => {
+  if (!svg.includes("http")) {
+    return svg
+  }
+  const urls = new Set<string>()
+  REMOTE_SVG_IMAGE_PATTERN.lastIndex = 0
+  let match: RegExpExecArray | null
+  while ((match = REMOTE_SVG_IMAGE_PATTERN.exec(svg)) !== null) {
+    urls.add(match[2])
+  }
+  if (urls.size === 0) {
+    return svg
+  }
+
+  const inlinedByUrl = new Map<string, string>()
+  await Promise.all(
+    Array.from(urls).map(async (url) => {
+      if (!isSafeRemoteImageUrl(url)) {
+        return
+      }
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 12_000)
+      try {
+        const response = await fetch(url, { signal: controller.signal })
+        if (!response.ok) {
+          return
+        }
+        const contentType = response.headers.get("content-type") ?? ""
+        if (!contentType.startsWith("image/")) {
+          return
+        }
+        const buffer = Buffer.from(await response.arrayBuffer())
+        if (buffer.length === 0) {
+          return
+        }
+        inlinedByUrl.set(
+          url,
+          `data:${contentType};base64,${buffer.toString("base64")}`
+        )
+      } catch {
+        // Leave the URL in place — that image renders blank, no worse than before.
+      } finally {
+        clearTimeout(timeout)
+      }
+    })
+  )
+
+  if (inlinedByUrl.size === 0) {
+    return svg
+  }
+
+  return svg.replace(REMOTE_SVG_IMAGE_PATTERN, (whole, attr: string, url: string) => {
+    const inlined = inlinedByUrl.get(url)
+    return inlined ? `${attr}="${inlined}"` : whole
+  })
+}
+
 const rasterizeCustomizerSvgToCanvas = async (
   svgBuffer: Buffer,
   canvas?: { width: number; height: number }
 ): Promise<{ buffer: Buffer; width: number; height: number }> => {
-  let buf = await sharp(svgBuffer, { density: 144 }).ensureAlpha().png().toBuffer()
+  // Re-inline remote <image href> URLs first: the storefront swaps inline
+  // rasters for hosted R2 URLs to shrink the payload, and sharp won't fetch
+  // them — without this the artwork rasterizes blank.
+  const inlinedSvg = await inlineRemoteSvgImages(svgBuffer.toString("utf8"))
+  let buf = await sharp(Buffer.from(inlinedSvg), { density: 144 })
+    .ensureAlpha()
+    .png()
+    .toBuffer()
   let meta = await sharp(buf).metadata()
   let w = meta.width ?? 0
   let h = meta.height ?? 0
