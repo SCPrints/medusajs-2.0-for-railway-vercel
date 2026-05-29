@@ -9,6 +9,18 @@ const STAR_BRIGHT = "#C5C6C7"
 const COMET_HEAD = "#FFFFFF"
 const COMET_TRAIL = "#45A29E"
 
+// Soft background nebula blobs, coloured from the brand palette (teal accent,
+// navy, a faint magenta). Drawn additively + drifting slowly behind the stars
+// so the void reads as a deep, rich cosmos rather than flat black.
+const NEBULA: {
+  x: number; y: number; r: number; color: [number, number, number]
+  alpha: number; driftX: number; driftY: number; phase: number
+}[] = [
+  { x: 0.28, y: 0.34, r: 0.55, color: [40, 96, 100], alpha: 0.16, driftX: 0.00003,  driftY: 0.000021, phase: 0.0 },
+  { x: 0.72, y: 0.30, r: 0.50, color: [44, 48, 96],  alpha: 0.14, driftX: 0.000025, driftY: 0.000018, phase: 2.1 },
+  { x: 0.55, y: 0.70, r: 0.62, color: [82, 32, 60],  alpha: 0.10, driftX: 0.000018, driftY: 0.000015, phase: 4.0 },
+]
+
 // ─── Planet definitions ──────────────────────────────────────────────────────
 type PlanetType = "terran" | "arid" | "gas" | "ice" | "lava" | "neon"
 
@@ -18,19 +30,23 @@ interface PlanetDef {
   startAngle: number; type: PlanetType
 }
 
+// Speeds ~halved from the original for the calmer drift you liked. The two
+// genuine clashers retuned toward the brand palette — neon-green → soft magenta,
+// the purple/orange gas giant → muted indigo with sandy bands. The rest keep
+// their colour for variety.
 const PLANET_DEFS: PlanetDef[] = [
   { baseSize: 12, scale: 3, primary: "#C5C6C7", secondary: "#FFFFFF",
-    trailColor: "#C5C6C7", orbitRX: 200, orbitRY: 75, speed: 0.00075, startAngle: 3.3, type: "ice" },
+    trailColor: "#C5C6C7", orbitRX: 200, orbitRY: 75, speed: 0.00038, startAngle: 3.3, type: "ice" },
   { baseSize: 16, scale: 3, primary: "#D9534F", secondary: "#F0AD4E",
-    trailColor: "#D9534F", orbitRX: 310, orbitRY: 115, speed: 0.00042, startAngle: 2.1, type: "arid" },
+    trailColor: "#D9534F", orbitRX: 310, orbitRY: 115, speed: 0.00022, startAngle: 2.1, type: "arid" },
   { baseSize: 20, scale: 3, primary: "#8B1A1A", secondary: "#FF4500",
-    trailColor: "#FF4500", orbitRX: 410, orbitRY: 150, speed: 0.00031, startAngle: 5.5, type: "lava" },
+    trailColor: "#FF4500", orbitRX: 410, orbitRY: 150, speed: 0.00016, startAngle: 5.5, type: "lava" },
   { baseSize: 32, scale: 3, primary: "#45A29E", secondary: "#66FCF1",
-    trailColor: "#45A29E", orbitRX: 510, orbitRY: 185, speed: 0.00021, startAngle: 0.5, type: "terran" },
-  { baseSize: 24, scale: 3, primary: "#1A7A4A", secondary: "#39FF14",
-    trailColor: "#39FF14", orbitRX: 590, orbitRY: 210, speed: 0.00016, startAngle: 1.2, type: "neon" },
-  { baseSize: 48, scale: 2.5, primary: "#6B5B95", secondary: "#FF7B25",
-    trailColor: "#6B5B95", orbitRX: 680, orbitRY: 242, speed: 0.00011, startAngle: 4.0, type: "gas" },
+    trailColor: "#45A29E", orbitRX: 510, orbitRY: 185, speed: 0.00011, startAngle: 0.5, type: "terran" },
+  { baseSize: 24, scale: 3, primary: "#6E2A4E", secondary: "#FF5FA0",
+    trailColor: "#C24A7C", orbitRX: 590, orbitRY: 210, speed: 0.00009, startAngle: 1.2, type: "neon" },
+  { baseSize: 48, scale: 2.5, primary: "#4A4570", secondary: "#C9B89A",
+    trailColor: "#6A6390", orbitRX: 680, orbitRY: 242, speed: 0.00006, startAngle: 4.0, type: "gas" },
 ]
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -51,6 +67,8 @@ interface Planet {
 interface Comet {
   x: number; y: number; vx: number; vy: number; active: boolean; trailLen: number
 }
+
+interface ShootingStar { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; len: number }
 
 interface Flyby {
   x: number; y: number; vx: number; vy: number
@@ -79,10 +97,12 @@ interface Twinkler {
   rgb: [number, number, number]
   phase: number                  // 0..2π
   freq: number                   // rad / ms
+  sparkle: boolean               // hero stars get a 4-point glint near peak
 }
 
 interface SceneState {
   planets: Planet[]; comets: Comet[]; nextCometMs: number
+  shootingStars: ShootingStar[]; nextShootMs: number
   flybys: Flyby[]; flybySprites: HTMLCanvasElement[]; nextFlybyMs: number
   logoImg: HTMLImageElement | null; logoW: number; logoH: number
   logoPixels: LogoPixel[] | null; logoCols: number; logoRows: number; logoPixelSize: number
@@ -416,11 +436,38 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
 }
 
+// Soft luminous halo behind a planet so it reads as a lit world, not a flat
+// pixel disc. Additive blend; intensity scales with the planet's depth.
+function drawPlanetGlow(ctx: CanvasRenderingContext2D, px: number, py: number, radius: number, color: string, intensity: number) {
+  const [r, g, b] = hexToRgb(color)
+  const glowR = radius * 2.4
+  const grad = ctx.createRadialGradient(px, py, radius * 0.6, px, py, glowR)
+  grad.addColorStop(0, `rgba(${r},${g},${b},${0.30 * intensity})`)
+  grad.addColorStop(1, `rgba(${r},${g},${b},0)`)
+  ctx.save()
+  ctx.globalCompositeOperation = "lighter"
+  ctx.fillStyle = grad
+  ctx.fillRect(px - glowR, py - glowR, glowR * 2, glowR * 2)
+  ctx.restore()
+}
+
 function spawnComet(w: number, h: number): Comet {
   const fromRight = Math.random() > 0.5
   const speed = randomBetween(0.55, 0.85)
   const angle = randomBetween(0.3, 0.6)
   return { x: fromRight ? w + 40 : -40, y: randomBetween(-40, h * 0.4), vx: fromRight ? -Math.cos(angle) * speed : Math.cos(angle) * speed, vy: Math.sin(angle) * speed, active: true, trailLen: randomBetween(80, 140) }
+}
+
+function spawnShoot(w: number, h: number): ShootingStar {
+  const fromRight = Math.random() > 0.5
+  const speed = randomBetween(0.9, 1.4)
+  const angle = randomBetween(0.25, 0.5)
+  const life = randomBetween(450, 800)
+  return {
+    x: randomBetween(w * 0.1, w * 0.9), y: randomBetween(-20, h * 0.5),
+    vx: (fromRight ? -1 : 1) * Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+    life, maxLife: life, len: randomBetween(28, 52),
+  }
 }
 
 function spawnFlyby(w: number, h: number, shipDefs: ShipDef[]): Flyby {
@@ -523,6 +570,7 @@ function buildStarfield(w: number, h: number, dpr: number): { layers: StarLayer[
       rgb: twinklerPalette[Math.floor(Math.random() * twinklerPalette.length)],
       phase: Math.random() * Math.PI * 2,
       freq: 0.001 + Math.random() * 0.003,
+      sparkle: Math.random() < 0.22,
     })
   }
 
@@ -542,6 +590,7 @@ function paintStarsFrame(
   layers: readonly StarLayer[],
   twinklers: readonly Twinkler[],
   elapsed: number,
+  parallaxX = 0,
 ) {
   const ctx = canvas.getContext("2d")!
   // Reset transform every frame in case the canvas was resized between paints
@@ -551,14 +600,34 @@ function paintStarsFrame(
   ctx.fillStyle = BG
   ctx.fillRect(0, 0, w, h)
 
-  for (const layer of layers) {
-    let offset = (elapsed * layer.speed) % layer.width
+  // Soft drifting nebula clouds (behind the stars). Additive blend over the
+  // near-black void adds colour + depth without any new moving "objects".
+  ctx.save()
+  ctx.globalCompositeOperation = "lighter"
+  for (const n of NEBULA) {
+    const nx = n.x * w + Math.sin(elapsed * n.driftX + n.phase) * w * 0.05 - parallaxX * 6
+    const ny = n.y * h + Math.cos(elapsed * n.driftY + n.phase) * h * 0.045
+    const rad = n.r * Math.max(w, h)
+    const g = ctx.createRadialGradient(nx, ny, 0, nx, ny, rad)
+    g.addColorStop(0, `rgba(${n.color[0]},${n.color[1]},${n.color[2]},${n.alpha})`)
+    g.addColorStop(0.5, `rgba(${n.color[0]},${n.color[1]},${n.color[2]},${n.alpha * 0.4})`)
+    g.addColorStop(1, `rgba(${n.color[0]},${n.color[1]},${n.color[2]},0)`)
+    ctx.fillStyle = g
+    ctx.fillRect(nx - rad, ny - rad, rad * 2, rad * 2)
+  }
+  ctx.restore()
+
+  // Per-layer horizontal parallax, folded into the seamless tiling offset.
+  // Distant layer barely shifts; foreground shifts most → depth on mouse move.
+  const PLX = [0.25, 0.55, 1.0]
+  layers.forEach((layer, i) => {
+    let offset = (elapsed * layer.speed - parallaxX * 16 * (PLX[i] ?? 1)) % layer.width
     if (offset < 0) offset += layer.width
     // Blit the layer twice (current frame + wrapped) so the horizontal drift
     // tiles seamlessly with no visible seam.
     ctx.drawImage(layer.canvas, -offset, 0, layer.width, h)
     ctx.drawImage(layer.canvas, layer.width - offset, 0, layer.width, h)
-  }
+  })
 
   for (const t of twinklers) {
     // sin-modulated 0..1; only render the "on" half so each star spends roughly
@@ -569,6 +638,14 @@ function paintStarsFrame(
     const alpha = (lum - 0.5) * 2
     ctx.fillStyle = `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},${alpha})`
     ctx.fillRect(Math.floor(t.x), Math.floor(t.y), t.size, t.size)
+    // Hero stars get a brief 4-point diamond glint near peak brightness.
+    if (t.sparkle && alpha > 0.6) {
+      const ga = ((alpha - 0.6) / 0.4) * 0.5
+      const gx = Math.floor(t.x), gy = Math.floor(t.y)
+      ctx.fillStyle = `rgba(${t.rgb[0]},${t.rgb[1]},${t.rgb[2]},${ga})`
+      ctx.fillRect(gx - 2, gy, 5, 1)
+      ctx.fillRect(gx, gy - 2, 1, 5)
+    }
   }
 }
 
@@ -592,6 +669,7 @@ export default function SpaceHero({ className, style }: { className?: string; st
   const stateRef = useRef<SceneState | null>(null)
   const pausedRef = useRef(false)
   const shipDefsRef = useRef<ShipDef[] | null>(null)
+  const pointerTargetRef = useRef({ x: 0, y: 0 })  // normalised −1..1 cursor/tilt offset
 
   const initScene = useCallback((): SceneState => {
     const planets: Planet[] = PLANET_DEFS.map(def => ({
@@ -604,7 +682,7 @@ export default function SpaceHero({ className, style }: { className?: string; st
     const earthImg = new Image()
     earthImg.src = "/branding/earth-spritesheet.png"
     earthImg.onload = () => { if (stateRef.current) stateRef.current.earthFrames = Math.round(earthImg.naturalWidth / earthImg.naturalHeight) }
-    return { planets, comets: [], nextCometMs: randomBetween(3000, 7000), flybys: [], flybySprites: [], nextFlybyMs: randomBetween(8000, 18000), logoImg, logoW: 0, logoH: 0, logoPixels: null, logoCols: 0, logoRows: 0, logoPixelSize: 0, earthImg, earthFrames: 0, starLayers: [], twinklers: [] }
+    return { planets, comets: [], nextCometMs: randomBetween(3000, 7000), shootingStars: [], nextShootMs: randomBetween(1500, 4000), flybys: [], flybySprites: [], nextFlybyMs: randomBetween(8000, 18000), logoImg, logoW: 0, logoH: 0, logoPixels: null, logoCols: 0, logoRows: 0, logoPixelSize: 0, earthImg, earthFrames: 0, starLayers: [], twinklers: [] }
   }, [])
 
   const getOrbitScale = (w: number) => w < 480 ? 0.35 : w < 768 ? 0.55 : 1.0
@@ -638,9 +716,10 @@ export default function SpaceHero({ className, style }: { className?: string; st
     paintStarsFrame(starsCanvas, w, h, dpr, state.starLayers, state.twinklers, 0)
 
     let lastTs = performance.now(), elapsed = 0
+    let plxX = 0, plxY = 0, logoIntro = 0   // eased parallax + one-shot logo reveal
 
     const LOGO_SAMPLE_COLS = 72, LOGO_DISPLAY_COLS = 64
-    const EARTH_FRAME_MS = 80  // 30 frames over 2.4 s = 80 ms/frame
+    const EARTH_FRAME_MS = 130  // slowed from 80 → ~3.9 s/rotation for a calmer spin
 
     const calcLogoSize = () => {
       if (!state.logoImg || state.logoImg.naturalWidth === 0) return
@@ -681,11 +760,17 @@ export default function SpaceHero({ className, style }: { className?: string; st
         calcLogoSize()
       }
 
+      // Ease parallax toward the pointer/tilt target; advance the logo reveal.
+      const pt = pointerTargetRef.current
+      plxX += (pt.x - plxX) * 0.06
+      plxY += (pt.y - plxY) * 0.06
+      if (state.logoPixels && state.logoPixels.length > 0) logoIntro = Math.min(1, logoIntro + delta / 900)
+
       // Parallax starfield — blit pre-rendered layers with drift offsets +
       // overdraw twinklers. Painted on its own canvas below the scene canvas.
-      paintStarsFrame(starsCanvas, w, h, dpr, state.starLayers, state.twinklers, elapsed)
+      paintStarsFrame(starsCanvas, w, h, dpr, state.starLayers, state.twinklers, elapsed, plxX)
 
-      const cx = w / 2, cy = h / 2
+      const cx = w / 2 - plxX * 26, cy = h / 2 - plxY * 26
       const orbitScale = getOrbitScale(w)
       const visibleCount = getVisibleCount(w)
       const floatY = Math.sin(elapsed * 0.0005) * 7
@@ -715,6 +800,26 @@ export default function SpaceHero({ className, style }: { className?: string; st
         ctx.strokeStyle = grad; ctx.lineWidth = 2
         ctx.beginPath(); ctx.moveTo(comet.x, comet.y); ctx.lineTo(tx, ty); ctx.stroke()
         ctx.fillStyle = COMET_HEAD; ctx.fillRect(Math.round(comet.x) - 1, Math.round(comet.y) - 1, 3, 3)
+      }
+
+      // ── Shooting stars (faint, fast, frequent — distinct from the big comets) ─
+      state.nextShootMs -= delta
+      if (state.nextShootMs <= 0) {
+        if (state.shootingStars.length < 3) state.shootingStars.push(spawnShoot(w, h))
+        state.nextShootMs = randomBetween(2500, 6000)
+      }
+      for (let i = state.shootingStars.length - 1; i >= 0; i--) {
+        const s = state.shootingStars[i]
+        s.x += s.vx * delta; s.y += s.vy * delta; s.life -= delta
+        if (s.life <= 0 || s.x < -60 || s.x > w + 60 || s.y > h + 60) { state.shootingStars.splice(i, 1); continue }
+        const spd = Math.hypot(s.vx, s.vy)
+        const tx = s.x - (s.vx / spd) * s.len, ty = s.y - (s.vy / spd) * s.len
+        const a = Math.sin((s.life / s.maxLife) * Math.PI) * 0.55  // fade in then out
+        const grad = ctx.createLinearGradient(s.x, s.y, tx, ty)
+        grad.addColorStop(0, `rgba(255,255,255,${a})`)
+        grad.addColorStop(1, "rgba(255,255,255,0)")
+        ctx.strokeStyle = grad; ctx.lineWidth = 1
+        ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(tx, ty); ctx.stroke()
       }
 
       // ── Flybys ───────────────────────────────────────────────────────────────
@@ -855,20 +960,42 @@ export default function SpaceHero({ className, style }: { className?: string; st
         const isGas = planet.def.type === "gas"
         const drawW = isGas ? rendered * 2 : rendered
         const z = Math.sin(planet.angle)
-        ctx.save(); ctx.globalAlpha = 0.38 + 0.62 * ((z + 1) / 2); ctx.imageSmoothingEnabled = false
+        const depth = 0.38 + 0.62 * ((z + 1) / 2)
+        drawPlanetGlow(ctx, px, py, (isGas ? drawW : rendered) / 2, planet.def.secondary, depth)
+        ctx.save(); ctx.globalAlpha = depth; ctx.imageSmoothingEnabled = false
         ctx.drawImage(planet.sprite, Math.round(px - drawW / 2), Math.round(py - rendered / 2), drawW, rendered)
         ctx.restore()
       }
 
-      // ── Draw pixel logo ──────────────────────────────────────────────────────
+      // ── Brand logo: halo + one-shot reveal (spinning-Earth fill untouched) ────
       if (state.logoPixels && state.logoPixels.length > 0 && state.logoPixelSize > 0) {
         const ps = state.logoPixelSize
-        const offX = cx - (state.logoCols * ps) / 2
-        const offY = cy + floatY - (state.logoRows * ps) / 2
-        const logoW = state.logoCols * ps
-        const logoH = state.logoRows * ps
+        const lW = state.logoCols * ps
+        const lH = state.logoRows * ps
+        const ctr = cy + floatY
+        const e = 1 - Math.pow(1 - logoIntro, 3)   // easeOutCubic reveal 0→1
 
+        // Soft teal halo behind the mark, fading in with the reveal.
+        const gr = Math.max(lW, lH) * 0.62
+        const halo = ctx.createRadialGradient(cx, ctr, 0, cx, ctr, gr)
+        halo.addColorStop(0, "rgba(61,207,194,0.18)")
+        halo.addColorStop(0.5, "rgba(61,207,194,0.06)")
+        halo.addColorStop(1, "rgba(61,207,194,0)")
         ctx.save()
+        ctx.globalAlpha = e
+        ctx.globalCompositeOperation = "lighter"
+        ctx.fillStyle = halo
+        ctx.fillRect(cx - gr, ctr - gr, gr * 2, gr * 2)
+        ctx.restore()
+
+        // Reveal: fade + slight scale-up around the logo centre.
+        ctx.save()
+        ctx.globalAlpha = e
+        const s = 0.92 + 0.08 * e
+        ctx.translate(cx, ctr); ctx.scale(s, s); ctx.translate(-cx, -ctr)
+
+        const offX = cx - lW / 2
+        const offY = ctr - lH / 2
         ctx.beginPath()
         for (const { lx, ly } of state.logoPixels)
           ctx.rect(Math.round(offX + lx * ps), Math.round(offY + ly * ps), ps, ps)
@@ -877,10 +1004,10 @@ export default function SpaceHero({ className, style }: { className?: string; st
         if (state.earthImg?.complete && state.earthFrames > 0) {
           const frameSize = state.earthImg.naturalHeight  // each frame is square
           const frame = Math.floor(elapsed / EARTH_FRAME_MS) % state.earthFrames
-          const tileH = logoH
+          const tileH = lH
           const tileW = tileH  // frames are square
           ctx.imageSmoothingEnabled = true
-          for (let tx = offX; tx < offX + logoW; tx += tileW)
+          for (let tx = offX; tx < offX + lW; tx += tileW)
             ctx.drawImage(state.earthImg, frame * frameSize, 0, frameSize, frameSize, tx, offY, tileW, tileH)
         } else {
           ctx.fillStyle = "#FFFFFF"
@@ -903,6 +1030,7 @@ export default function SpaceHero({ className, style }: { className?: string; st
         const rendered = planet.def.baseSize * planet.def.scale
         const isGas = planet.def.type === "gas"
         const drawW = isGas ? rendered * 2 : rendered
+        drawPlanetGlow(ctx, px, py, (isGas ? drawW : rendered) / 2, planet.def.secondary, 1)
         ctx.save(); ctx.imageSmoothingEnabled = false
         ctx.drawImage(planet.sprite, Math.round(px - drawW / 2), Math.round(py - rendered / 2), drawW, rendered)
         ctx.restore()
@@ -945,6 +1073,20 @@ export default function SpaceHero({ className, style }: { className?: string; st
     const observer = new IntersectionObserver(([entry]) => { pausedRef.current = !entry.isIntersecting }, { threshold: 0 })
     observer.observe(starsCanvas)
 
+    // Mouse / device-tilt parallax. Interaction-driven (not scroll). iOS without
+    // motion permission simply never fires the tilt event → graceful no-op.
+    const onMouse = (e: MouseEvent) => {
+      pointerTargetRef.current.x = (e.clientX / window.innerWidth - 0.5) * 2
+      pointerTargetRef.current.y = (e.clientY / window.innerHeight - 0.5) * 2
+    }
+    const onTilt = (e: DeviceOrientationEvent) => {
+      if (e.gamma == null || e.beta == null) return
+      pointerTargetRef.current.x = Math.max(-1, Math.min(1, e.gamma / 30))
+      pointerTargetRef.current.y = Math.max(-1, Math.min(1, (e.beta - 45) / 30))
+    }
+    window.addEventListener("mousemove", onMouse, { passive: true })
+    window.addEventListener("deviceorientation", onTilt, { passive: true })
+
     // Defer the animation loop until the browser is idle so the rAF
     // pixel churn doesn't fight the initial paint / hydration / Lighthouse
     // Speed Index measurement. initScene() above has already painted a
@@ -962,6 +1104,8 @@ export default function SpaceHero({ className, style }: { className?: string; st
     return () => {
       cancelAnimationFrame(rafRef.current)
       observer.disconnect()
+      window.removeEventListener("mousemove", onMouse)
+      window.removeEventListener("deviceorientation", onTilt)
       if (idleHandle !== null) {
         const cancelRic = (window as unknown as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback
         if (typeof cancelRic === "function") cancelRic(idleHandle)
@@ -974,6 +1118,14 @@ export default function SpaceHero({ className, style }: { className?: string; st
     <div className={className} style={{ position: "relative", width: "100%", height: "100%", minHeight: "600px", overflow: "hidden", background: BG, ...style }}>
       <canvas ref={starsCanvasRef} style={{ position: "absolute", inset: 0, display: "block" }} />
       <canvas ref={sceneCanvasRef} style={{ position: "absolute", inset: 0, display: "block" }} />
+      {/* Vignette: subtle corner darkening to frame the centre + add cinematic depth */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "radial-gradient(ellipse at 50% 44%, transparent 50%, rgba(4,5,12,0.55) 100%)",
+        }}
+      />
     </div>
   )
 }
