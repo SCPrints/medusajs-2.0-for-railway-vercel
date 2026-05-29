@@ -71,6 +71,8 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         description={brand.description}
         logoSrc={logoSrc}
         bannerSrc={presentation.bannerSrc ?? null}
+        videoSrc={presentation.videoSrc ?? null}
+        videoPosterSrc={presentation.videoPosterSrc ?? null}
         bgClass={presentation.bgClass}
         childBrands={children}
       />

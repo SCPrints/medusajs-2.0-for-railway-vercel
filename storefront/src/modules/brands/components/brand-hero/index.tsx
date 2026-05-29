@@ -1,6 +1,7 @@
 import Image from "next/image"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import BrandHeroVideo from "./video"
 
 type ChildBrand = {
   id: string
@@ -13,6 +14,13 @@ type Props = {
   description?: string | null
   logoSrc?: string | null
   bannerSrc?: string | null
+  /**
+   * Optional autoplaying background video (muted/looping). Takes precedence
+   * over `bannerSrc`. `videoPosterSrc` is the still shown while it loads and
+   * to `prefers-reduced-motion` visitors.
+   */
+  videoSrc?: string | null
+  videoPosterSrc?: string | null
   /** Tailwind background class used for the gradient fallback when no banner exists. */
   bgClass: string
   childBrands?: ChildBrand[]
@@ -29,13 +37,17 @@ export default function BrandHero({
   description,
   logoSrc,
   bannerSrc,
+  videoSrc,
+  videoPosterSrc,
   bgClass,
   childBrands = [],
 }: Props) {
   return (
     <section className="relative w-full overflow-hidden bg-zinc-900">
       <div className="absolute inset-0">
-        {bannerSrc ? (
+        {videoSrc ? (
+          <BrandHeroVideo src={videoSrc} poster={videoPosterSrc} />
+        ) : bannerSrc ? (
           <Image
             src={bannerSrc}
             alt=""

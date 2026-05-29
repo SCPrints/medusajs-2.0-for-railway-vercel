@@ -36,6 +36,13 @@ export type BrandPresentation = {
    */
   bannerSrc?: string
   /**
+   * Optional autoplaying, muted, looping background video for the hero. Takes
+   * precedence over `bannerSrc`. `videoPosterSrc` is the still shown while it
+   * loads and to `prefers-reduced-motion` visitors. Local file in /public.
+   */
+  videoSrc?: string
+  videoPosterSrc?: string
+  /**
    * Stock / lifestyle product photos for the gallery on the brand landing page.
    * Render is skipped entirely when this is empty.
    */
@@ -57,6 +64,9 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     bgClass: "bg-neutral-900",
     logoSrc: `${LOGO_BASE}/shaka-wear.png`,
     logoClass: "max-h-full max-w-[55%] object-contain object-left",
+    // Their homepage hero loop (sourced from shakawear.com, hosted locally).
+    videoSrc: `${BRAND_BASE}/shaka-wear-hero.mp4`,
+    videoPosterSrc: `${BRAND_BASE}/shaka-wear-hero-poster.jpg`,
   },
   "as-colour": {
     initials: "AS",
