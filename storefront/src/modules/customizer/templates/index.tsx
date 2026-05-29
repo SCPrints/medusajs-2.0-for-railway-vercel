@@ -4026,6 +4026,73 @@ export default function CustomizerTemplate({
     setScpPrintSizeChosen(true)
   }, [])
 
+  // Stable props for the memoised <InputPanel/>. Handlers go through a
+  // latest-ref so their identities stay constant (React.memo can then skip the
+  // frequent canvas-interaction re-renders) while always invoking the freshest
+  // closure. Inline-built data props are useMemo'd.
+  const latestInputPanelHandlers = {
+    onUploadFile: handleUploadFile,
+    onReuseUpload: handleReuseUpload,
+    onAddCartDesign: handleAddCartDesignFromCart,
+    onAddText: handleAddText,
+    onAddCurvedText: handleAddCurvedText,
+    onRemoveSelectedImage: removeSelectedImage,
+    onUpdateSelectedText: updateActiveText,
+    onDeselectText: deselectActiveText,
+  }
+  const inputPanelHandlersRef = useRef(latestInputPanelHandlers)
+  inputPanelHandlersRef.current = latestInputPanelHandlers
+  const inputPanelProps = useMemo(
+    () => ({
+      onUploadFile: (file: File) => inputPanelHandlersRef.current.onUploadFile(file),
+      onReuseUpload: (uploadId: string) =>
+        inputPanelHandlersRef.current.onReuseUpload(uploadId),
+      onAddCartDesign: (design: { id: string; name: string; url: string }) =>
+        inputPanelHandlersRef.current.onAddCartDesign(design),
+      onAddText: (input: {
+        text: string
+        color: string
+        fontFamily: string
+        letterSpacing: number
+      }) => inputPanelHandlersRef.current.onAddText(input),
+      onAddCurvedText: (input: { text: string; color: string; radius: number }) =>
+        inputPanelHandlersRef.current.onAddCurvedText(input),
+      onRemoveSelectedImage: () => inputPanelHandlersRef.current.onRemoveSelectedImage(),
+      onUpdateSelectedText: (
+        patch: Partial<{
+          text: string
+          color: string
+          fontFamily: string
+          letterSpacing: number
+        }>
+      ) => inputPanelHandlersRef.current.onUpdateSelectedText(patch),
+      onDeselectText: () => inputPanelHandlersRef.current.onDeselectText(),
+      onDeleteUpload: (uploadId: string) =>
+        setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId)),
+    }),
+    []
+  )
+  const inputPanelUploads = useMemo(
+    () =>
+      sessionUploads.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        previewUrl: entry.dataUrl,
+        type: entry.type,
+      })),
+    [sessionUploads]
+  )
+  const inputPanelDisabledMessage = useMemo(
+    () =>
+      pdpHasVariantOptions && !pdpStep1Done
+        ? {
+            title: "Customize first",
+            body: 'Tap "Customise this garment" above to start.',
+          }
+        : undefined,
+    [pdpHasVariantOptions, pdpStep1Done]
+  )
+
   const sideLabel =
     currentSide === "left_sleeve"
       ? "Left Sleeve"
@@ -4088,35 +4155,21 @@ export default function CustomizerTemplate({
                   className="order-2 border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 scroll-mt-20 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base"
                 >
                   <InputPanel
-                    onUploadFile={handleUploadFile}
-                    uploads={sessionUploads.map((entry) => ({
-                      id: entry.id,
-                      name: entry.name,
-                      previewUrl: entry.dataUrl,
-                      type: entry.type,
-                    }))}
-                    onReuseUpload={handleReuseUpload}
+                    onUploadFile={inputPanelProps.onUploadFile}
+                    uploads={inputPanelUploads}
+                    onReuseUpload={inputPanelProps.onReuseUpload}
                     cartDesigns={cartArtworkDesigns}
-                    onAddCartDesign={handleAddCartDesignFromCart}
-                    onAddText={handleAddText}
-                    onAddCurvedText={handleAddCurvedText}
-                    onRemoveSelectedImage={removeSelectedImage}
+                    onAddCartDesign={inputPanelProps.onAddCartDesign}
+                    onAddText={inputPanelProps.onAddText}
+                    onAddCurvedText={inputPanelProps.onAddCurvedText}
+                    onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
                     canRemoveImage={canRemoveImage}
-                    onDeleteUpload={(uploadId) =>
-                      setSessionUploads((current) => current.filter((entry) => entry.id !== uploadId))
-                    }
+                    onDeleteUpload={inputPanelProps.onDeleteUpload}
                     enabled={!embedded || (!pdpHasVariantOptions || pdpStep1Done)}
-                    disabledMessage={
-                      pdpHasVariantOptions && !pdpStep1Done
-                        ? {
-                            title: "Customize first",
-                            body: 'Tap "Customise this garment" above to start.',
-                          }
-                        : undefined
-                    }
+                    disabledMessage={inputPanelDisabledMessage}
                     selectedText={selectedTextSnapshot}
-                    onUpdateSelectedText={updateActiveText}
-                    onDeselectText={deselectActiveText}
+                    onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}
+                    onDeselectText={inputPanelProps.onDeselectText}
                     className="border-0 bg-transparent p-0"
                   />
                 </div>

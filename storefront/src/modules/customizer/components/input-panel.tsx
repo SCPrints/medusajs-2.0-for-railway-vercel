@@ -1,6 +1,6 @@
 "use client"
 
-import { ChangeEvent, useEffect, useRef, useState } from "react"
+import { ChangeEvent, memo, useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
 // Free Google Fonts curated for apparel/print work. Each entry pairs the
@@ -81,7 +81,7 @@ type InputPanelProps = {
   className?: string
 }
 
-export default function InputPanel({
+function InputPanel({
   onUploadFile,
   uploads,
   onReuseUpload,
@@ -541,3 +541,8 @@ export default function InputPanel({
     </div>
   )
 }
+
+// Memoised: the parent stabilises every prop (handlers via latest-ref, the
+// uploads + disabledMessage objects via useMemo), so this no longer re-renders
+// on every canvas interaction while the customizer is open.
+export default memo(InputPanel)
