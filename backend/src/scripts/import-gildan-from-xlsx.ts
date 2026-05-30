@@ -292,7 +292,7 @@ export default async function importGildanFromXlsx({
       if (c.images.hero) allFilenames.push(c.images.hero)
       for (const v of c.images.views) allFilenames.push(v)
     }
-    const urlByFilename = await scraper.resolveImageUrls({
+    const { urlByFilename, urlByColour } = await scraper.resolveImageUrls({
       brand: product.brand,
       styleParent: product.styleParent,
       productUrl: product.productUrl,
@@ -324,7 +324,7 @@ export default async function importGildanFromXlsx({
     const productImages: Array<{ url: string }> = []
     const seenUrls = new Set<string>()
     for (const c of product.colours) {
-      const garmentImages = buildGildanGarmentImages(c, urlByFilename)
+      const garmentImages = buildGildanGarmentImages(c, urlByFilename, urlByColour)
       for (const url of garmentImages.all) {
         if (!seenUrls.has(url)) {
           seenUrls.add(url)
@@ -337,7 +337,7 @@ export default async function importGildanFromXlsx({
     const productVariants: any[] = []
     const seenSkus = new Set<string>()
     for (const colour of product.colours) {
-      const garmentImages = buildGildanGarmentImages(colour, urlByFilename)
+      const garmentImages = buildGildanGarmentImages(colour, urlByFilename, urlByColour)
       for (const size of colour.sizes) {
         if (!size.sku || seenSkus.has(size.sku)) continue
         seenSkus.add(size.sku)

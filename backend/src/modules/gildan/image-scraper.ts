@@ -121,6 +121,145 @@ export function extractImageUrlsFromGildanHtml(
   return out
 }
 
+/**
+ * Normalise a Gildan colour label to a stable lookup key for the page's
+ * `data-color-name` swatch map. The website occasionally prefixes a shade
+ * with a marketing token the data file omits — Gildan's current sport grey
+ * is "RS Sport Grey" on gildanbrands.com.au but just "Sport Grey" in the
+ * xlsx. Strip that leading token and collapse to alphanumerics so
+ * "RS Sport Grey", "Sport Grey", and "sport-grey" all key to "sportgrey".
+ *
+ * Exported so `mapping.ts:buildGildanGarmentImages` (and the repair script)
+ * can key colour names against `extractColorImageMapFromGildanHtml`'s output.
+ */
+export function normalizeGildanColourKey(name: string): string {
+  const s = (name ?? "")
+    .toLowerCase()
+    .trim()
+    // Leading marketing / shade-line token the data file omits (e.g. the
+    // "RS" in "RS Sport Grey"). Anchored + word-bounded so it never eats a
+    // real colour like "Russet".
+    .replace(/^(?:rs|really\s*soft)\b\s*/, "")
+  return s.replace(/[^a-z0-9]+/g, "")
+}
+
+/**
+ * Dedup key for a CDN image URL — the trailing filename, lower-cased and
+ * query-stripped. The BigCommerce filename carries a unique hash, so this
+ * collapses the same image across size buckets (`605x755` vs `1280w`) and
+ * `?c=1` cache-busters without colliding distinct images.
+ */
+export function normalizeImageUrlForDedup(url: string): string {
+  const noQuery = (url ?? "").split("?")[0]!.trim()
+  const file = noQuery.split("/").pop() ?? noQuery
+  return file.toLowerCase()
+}
+
+/** /images/stencil/<bucket>/products/<pid>/<iid>/<file>.ext — single match. */
+const STENCIL_PATH_RE =
+  /\/images\/stencil\/\d+(?:w|x\d+)\/products\/(\d+)\/(\d+)\/([A-Za-z0-9_.\-]+\.(?:jpg|jpeg|png|webp))/i
+
+/**
+ * Parse a Gildan product page and return `colour-key → ordered CDN URLs`
+ * (1280w bucket, query-stripped).
+ *
+ * Unlike `extractImageUrlsFromGildanHtml` (which keys by filename and only
+ * resolves when the xlsx filename lines up with the CDN one), this reads
+ * BigCommerce's own per-thumbnail `data-color-name="..."` swatch labels, so
+ * it resolves images by COLOUR regardless of the filename scheme. This is
+ * the ONLY way to get images for Gildan's youth styles (SF500B, 65000B,
+ * 64000B), whose website filenames are keyed by colour CODE
+ * (`SF500B_426_A1`, `65000B_533C_032_..._SD_F_...`) rather than colour name
+ * — the filename path can never bridge "426" → "Black".
+ *
+ * Colour keys run through `normalizeGildanColourKey`. The hero/main gallery
+ * image is labelled with the product title rather than a colour, so it keys
+ * to a non-colour string and is harmlessly ignored by colour-name lookups.
+ * Pure — accepts raw HTML so callers can unit-test against fixtures.
+ */
+export function extractColorImageMapFromGildanHtml(
+  html: string
+): Map<string, string[]> {
+  const out = new Map<string, string[]>()
+  if (!html) return out
+  // Each gallery thumbnail is
+  //   <div class="productView-thumbnail" data-color-name="X"> <a … href="<cdn>"> …
+  // Splitting on the attribute scopes each segment to one thumbnail; the
+  // thumbnail's OWN image is the one directly after the attribute. Bound the
+  // search to a small window so a colour-picker swatch marker that carries
+  // `data-color-name` but NO adjacent image can't sweep an unrelated colour's
+  // photo from later in the gallery.
+  const ADJACENT_IMG_WINDOW = 800
+  const segments = html.split(/data-color-name="/i)
+  for (let i = 1; i < segments.length; i++) {
+    const seg = segments[i]
+    const close = seg.indexOf('"')
+    if (close < 0) continue
+    const key = normalizeGildanColourKey(seg.slice(0, close))
+    if (!key) continue
+    const window = seg.slice(close + 1, close + 1 + ADJACENT_IMG_WINDOW)
+    const m = window.match(STENCIL_PATH_RE)
+    if (!m) continue
+    const url = `https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/${m[1]}/${m[2]}/${m[3]}`
+    const arr = out.get(key)
+    if (arr) {
+      if (!arr.includes(url)) arr.push(url)
+    } else {
+      out.set(key, [url])
+    }
+  }
+  return dropMislabelledColourImages(out)
+}
+
+/**
+ * Guard against the supplier occasionally tagging a thumbnail with the wrong
+ * colour. Observed on the AA 2PQ shorts page, where "arctic" swatches point at
+ * `2PQ_HeatherGrey_*` files — trusting the label would put a grey photo on the
+ * Arctic variant (a wrong-colour image is worse than none).
+ *
+ * Rule: drop an image whose filename clearly names a DIFFERENT colour swatch
+ * present on the same page but NOT its own. Only fires for name-based
+ * filenames (where a colour word is detectable); code-based filenames
+ * (`2001Y_000C_…`) carry no colour word, so they're always kept. Keys shorter
+ * than 4 chars (e.g. "red", "tan") are excluded as conflict signals to avoid
+ * substring false positives.
+ */
+function dropMislabelledColourImages(
+  map: Map<string, string[]>
+): Map<string, string[]> {
+  const conflictTokens = [...map.keys()].filter((k) => k.length >= 4)
+  for (const [key, urls] of map) {
+    const kept = urls.filter((url) => {
+      const compact = normalizeImageUrlForDedup(url).replace(/[^a-z0-9]/g, "")
+      if (compact.includes(key)) return true // filename names its own colour
+      // names another swatch's colour but not its own → mislabelled, drop
+      return !conflictTokens.some(
+        (other) => other !== key && compact.includes(other)
+      )
+    })
+    if (kept.length) map.set(key, kept)
+    else map.delete(key)
+  }
+  return map
+}
+
+/**
+ * Garment view (front / back / model) inferred from a Gildan image
+ * URL/filename. Covers all three filename schemes the website ships:
+ *   - adult name-based:  `_01` front, `_02` back, `_03..05` model/detail
+ *   - youth hoodie:      `_A1` front, `_B1` back, `_C1` detail
+ *   - youth tee (G2023): `_SD_F_` front, `_SD_B_` back
+ */
+export function gildanGarmentView(
+  url: string
+): "front" | "back" | "model" | "other" {
+  const u = url.toLowerCase()
+  if (/_a1[._]/.test(u) || /_sd_f_/.test(u) || /_01[._]/.test(u)) return "front"
+  if (/_b1[._]/.test(u) || /_sd_b_/.test(u) || /_02[._]/.test(u)) return "back"
+  if (/_c1[._]/.test(u) || /_0[345][._]/.test(u)) return "model"
+  return "other"
+}
+
 export type GildanImageScraperOptions = {
   /**
    * Inter-request delay in ms. Gildan's storefront is BigCommerce-hosted so
@@ -163,6 +302,22 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 type CacheRow = {
   scrapedAt: string
   urlByFilename: Record<string, string>
+  /**
+   * Colour-name → ordered CDN URLs, from the page's `data-color-name`
+   * swatch labels. Added 2026-05 to support youth styles whose website
+   * filenames are colour-CODE keyed (unbridgeable by `urlByFilename`).
+   * Optional in the type only so legacy cache rows parse; `readCache`
+   * treats its absence as stale and forces a re-fetch.
+   */
+  urlByColour?: Record<string, string[]>
+}
+
+/** Both lookup maps for a single style's images. */
+export type GildanResolvedImages = {
+  /** Filename-keyed (xlsx ↔ CDN). Primary path for adult name-based styles. */
+  urlByFilename: Map<string, string>
+  /** Colour-name-keyed (`data-color-name`). Fallback for youth code-named styles. */
+  urlByColour: Map<string, string[]>
 }
 
 const cachePathFor = (
@@ -181,6 +336,11 @@ function readCache(file: string): CacheRow | null {
     // as a miss so a re-run picks up the fix instead of locking in the
     // empty result forever.
     if (Object.keys(parsed.urlByFilename).length === 0) return null
+    // Legacy rows predate the colour map (and so locked youth styles to
+    // their single name-based White image). Treat as stale so a re-run
+    // repopulates `urlByColour`. Present-but-empty is a valid "page has no
+    // swatch labels" result and is NOT re-fetched.
+    if (!("urlByColour" in parsed)) return null
     return parsed
   } catch {
     return null
@@ -271,56 +431,67 @@ export class GildanImageScraper {
     styleParent: string
     productUrl: string | null | undefined
     filenames: ReadonlyArray<string>
-  }): Promise<Map<string, string>> {
+  }): Promise<GildanResolvedImages> {
     const { brand, styleParent, productUrl, filenames } = opts
-    const result = new Map<string, string>()
+    const empty: GildanResolvedImages = {
+      urlByFilename: new Map(),
+      urlByColour: new Map(),
+    }
 
     const cacheFile = cachePathFor(this.cacheDir, brand, styleParent)
     let cached: CacheRow | null = null
     if (!this.noCache) cached = readCache(cacheFile)
 
-    let urlByFilename: Map<string, string>
     if (cached) {
       this.stats.cacheHits++
-      urlByFilename = new Map(Object.entries(cached.urlByFilename))
-    } else {
-      this.stats.cacheMisses++
-      const effectiveUrl = await this.resolveProductUrl(styleParent, productUrl)
-      if (!effectiveUrl) {
-        this.logger?.warn?.(
-          `[gildan-image-scraper] no URL for ${brand}/${styleParent} (sitemap miss + no xlsx fallback)`
-        )
-        return result
-      }
-      try {
-        const html = await this.fetchWithTimeout(effectiveUrl)
-        urlByFilename = extractImageUrlsFromGildanHtml(html)
-        this.stats.fetched++
-        if (!this.noCache) {
-          writeCache(cacheFile, {
-            scrapedAt: new Date().toISOString(),
-            urlByFilename: Object.fromEntries(urlByFilename),
-          })
-        }
-        await sleep(this.delayMs)
-      } catch (err: any) {
-        this.stats.fetchErrors++
-        this.logger?.warn?.(
-          `[gildan-image-scraper] fetch failed for ${effectiveUrl}: ${err?.message ?? err}`
-        )
-        return result
+      return {
+        urlByFilename: new Map(Object.entries(cached.urlByFilename)),
+        urlByColour: new Map(Object.entries(cached.urlByColour ?? {})),
       }
     }
 
-    // Return the full per-style map with its normalised keys —
-    // `buildGildanGarmentImages` runs xlsx filenames through
-    // `normalizeGildanFilenameKey` on lookup, so callers get a hit
-    // regardless of whether the xlsx form matches the CDN form. The
-    // `filenames` parameter is retained for API compat but no longer
-    // narrows the result (the cache is already per-style, so there are
-    // no cross-style URL collisions to filter out).
-    void filenames
-    return urlByFilename
+    this.stats.cacheMisses++
+    const effectiveUrl = await this.resolveProductUrl(styleParent, productUrl)
+    if (!effectiveUrl) {
+      this.logger?.warn?.(
+        `[gildan-image-scraper] no URL for ${brand}/${styleParent} (sitemap miss + no xlsx fallback)`
+      )
+      return empty
+    }
+    try {
+      const maps = await this.fetchMaps(effectiveUrl)
+      this.stats.fetched++
+      if (!this.noCache) {
+        writeCache(cacheFile, {
+          scrapedAt: new Date().toISOString(),
+          urlByFilename: Object.fromEntries(maps.urlByFilename),
+          urlByColour: Object.fromEntries(maps.urlByColour),
+        })
+      }
+      await sleep(this.delayMs)
+      // The full per-style maps are returned with their normalised keys —
+      // `buildGildanGarmentImages` re-normalises xlsx filenames / colour
+      // names on lookup, so callers get a hit regardless of source form.
+      // `filenames` is retained for API compat but no longer narrows the
+      // result (the cache is already per-style — no cross-style collisions).
+      void filenames
+      return maps
+    } catch (err: any) {
+      this.stats.fetchErrors++
+      this.logger?.warn?.(
+        `[gildan-image-scraper] fetch failed for ${effectiveUrl}: ${err?.message ?? err}`
+      )
+      return empty
+    }
+  }
+
+  /** Fetch a product page once and extract both the filename + colour maps. */
+  private async fetchMaps(url: string): Promise<GildanResolvedImages> {
+    const html = await this.fetchWithTimeout(url)
+    return {
+      urlByFilename: extractImageUrlsFromGildanHtml(html),
+      urlByColour: extractColorImageMapFromGildanHtml(html),
+    }
   }
 
   /** Pre-warm the cache for a list of (brand, style, url) tuples. */
@@ -349,17 +520,17 @@ export class GildanImageScraper {
         continue
       }
       try {
-        const html = await this.fetchWithTimeout(effectiveUrl)
-        const map = extractImageUrlsFromGildanHtml(html)
+        const maps = await this.fetchMaps(effectiveUrl)
         this.stats.fetched++
         if (!this.noCache) {
           writeCache(cacheFile, {
             scrapedAt: new Date().toISOString(),
-            urlByFilename: Object.fromEntries(map),
+            urlByFilename: Object.fromEntries(maps.urlByFilename),
+            urlByColour: Object.fromEntries(maps.urlByColour),
           })
         }
         this.logger?.info?.(
-          `[gildan-image-scraper] warmed ${s.brand}/${s.styleParent} (${map.size} URLs)`
+          `[gildan-image-scraper] warmed ${s.brand}/${s.styleParent} (${maps.urlByFilename.size} filename URLs, ${maps.urlByColour.size} colours)`
         )
       } catch (err: any) {
         this.stats.fetchErrors++

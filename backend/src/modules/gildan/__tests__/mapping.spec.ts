@@ -9,7 +9,10 @@ import {
   renderGildanDescription,
 } from "../mapping"
 import {
+  extractColorImageMapFromGildanHtml,
   extractImageUrlsFromGildanHtml,
+  gildanGarmentView,
+  normalizeGildanColourKey,
   normalizeGildanFilenameKey,
 } from "../image-scraper"
 import {
@@ -397,6 +400,209 @@ describe("buildGildanGarmentImages", () => {
     expect(result.front).toBe("")
     expect(result.back).toBeUndefined()
     expect(result.all).toEqual([])
+  })
+
+  it("falls back to the colour-name map for youth styles when filenames don't resolve", () => {
+    // Youth hoodie: website filenames are colour-CODE keyed (426 = Black),
+    // so the xlsx's name-based filename never resolves. The colour map keys
+    // by colour name and carries A1/B1/C1 (front/back/detail).
+    const colour: GildanColour = {
+      name: "Black",
+      hex: "#000000",
+      images: { hero: "SF500B_Black_01.jpg", views: [] },
+      sizes: [],
+    }
+    const urlByColour = new Map<string, string[]>([
+      [
+        "black",
+        [
+          "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1905/2960/SF500B_426_A1__x.y.jpg",
+          "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1905/2961/SF500B_426_B1__x.y.jpg",
+          "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1905/2962/SF500B_426_C1__x.y.jpg",
+        ],
+      ],
+    ])
+    const result = buildGildanGarmentImages(colour, new Map(), urlByColour)
+    expect(result.front).toContain("_A1__")
+    expect(result.back).toContain("_B1__")
+    expect(result.model_image).toContain("_C1__")
+    expect(result.all.length).toBe(3)
+  })
+
+  it("matches 'Sport Grey' against the page's 'RS Sport Grey' swatch label", () => {
+    const colour: GildanColour = {
+      name: "Sport Grey",
+      hex: null,
+      images: { hero: "SF500B_SportGrey_01.jpg", views: [] },
+      sizes: [],
+    }
+    const urlByColour = new Map<string, string[]>([
+      [
+        normalizeGildanColourKey("rs sport grey"),
+        ["https://cdn11.bigcommerce.com/.../SF500B_CG7_A1__x.y.jpg"],
+      ],
+    ])
+    const result = buildGildanGarmentImages(colour, new Map(), urlByColour)
+    expect(result.front).toContain("SF500B_CG7_A1")
+  })
+
+  it("prefers the filename path over the colour map when both could resolve", () => {
+    const colour: GildanColour = {
+      name: "Blush",
+      hex: null,
+      images: { hero: "102_Blush_01.jpg", views: [] },
+      sizes: [],
+    }
+    const urlByFilename = new Map([
+      ["102_blush_01.jpg", "https://cdn/.../102_Blush_01__a.b.jpg"],
+    ])
+    const urlByColour = new Map<string, string[]>([
+      ["blush", ["https://cdn/.../SHOULD_NOT_BE_USED_A1__a.b.jpg"]],
+    ])
+    const result = buildGildanGarmentImages(colour, urlByFilename, urlByColour)
+    expect(result.front).toContain("102_Blush_01")
+    expect(result.all).toHaveLength(1)
+  })
+})
+
+describe("normalizeGildanColourKey", () => {
+  const cases: Array<[string, string]> = [
+    ["Black", "black"],
+    ["Sport Grey", "sportgrey"],
+    ["RS Sport Grey", "sportgrey"], // website prefixes the new shade line
+    ["rs sport grey", "sportgrey"],
+    ["Really Soft Sport Grey", "sportgrey"],
+    ["Pitch Black", "pitchblack"],
+    ["Light Blue", "lightblue"],
+    ["Brown Savana", "brownsavana"],
+    ["Russet", "russet"], // 'rs' inside a word is NOT stripped
+  ]
+  it.each(cases)("normalizes %s → %s", (input, expected) => {
+    expect(normalizeGildanColourKey(input)).toBe(expected)
+  })
+})
+
+describe("gildanGarmentView", () => {
+  const cases: Array<[string, "front" | "back" | "model" | "other"]> = [
+    // adult name-based
+    ["https://cdn/.../65000_Black_01__a.b.jpg", "front"],
+    ["https://cdn/.../65000_Black_02__a.b.jpg", "back"],
+    ["https://cdn/.../65000_Black_03__a.b.jpg", "model"],
+    ["https://cdn/.../65000_Black_05__a.b.jpg", "model"],
+    // youth hoodie A1/B1/C1
+    ["https://cdn/.../SF500B_426_A1__a.b.jpg", "front"],
+    ["https://cdn/.../SF500B_426_B1__a.b.jpg", "back"],
+    ["https://cdn/.../SF500B_426_C1__a.b.jpg", "model"],
+    // youth tee SD_F / SD_B
+    ["https://cdn/.../65000B_533C_032_G2023_SD_F_10747__a.b.jpg", "front"],
+    ["https://cdn/.../65000B_533C_032_G2023_SD_B_10701__a.b.jpg", "back"],
+  ]
+  it.each(cases)("classifies %s as %s", (url, expected) => {
+    expect(gildanGarmentView(url)).toBe(expected)
+  })
+})
+
+describe("extractColorImageMapFromGildanHtml", () => {
+  // Mirrors the gildanbrands.com.au gallery shape: each thumbnail is a
+  // `<div class="productView-thumbnail" data-color-name="X">` wrapping an
+  // `<a … href="<cdn>">`. The hero image is labelled with the product
+  // TITLE, not a colour, so it must not pollute the colour map.
+  const html = `
+    <div class="productView-thumbnail" data-color-name="sf500b youth hoodie front">
+      <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1905/2950/SF500B_White_01__hero.1.jpg?c=1"></a>
+    </div>
+    <div class="productView-thumbnail" data-color-name="black">
+      <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1905/2960/SF500B_426_A1__a.1.jpg?c=1"></a>
+    </div>
+    <div class="productView-thumbnail" data-color-name="black">
+      <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/605x755/products/1905/2961/SF500B_426_B1__b.1.jpg?c=1"></a>
+    </div>
+    <div class="productView-thumbnail" data-color-name="rs sport grey">
+      <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1905/2970/SF500B_CG7_A1__c.1.jpg?c=1"></a>
+    </div>
+  `
+
+  it("groups images by normalised colour name", () => {
+    const map = extractColorImageMapFromGildanHtml(html)
+    expect(map.get("black")).toEqual([
+      "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1905/2960/SF500B_426_A1__a.1.jpg",
+      "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1905/2961/SF500B_426_B1__b.1.jpg",
+    ])
+    expect(map.get("sportgrey")).toEqual([
+      "https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280w/products/1905/2970/SF500B_CG7_A1__c.1.jpg",
+    ])
+  })
+
+  it("rewrites every bucket to the canonical 1280w form and strips the query", () => {
+    const map = extractColorImageMapFromGildanHtml(html)
+    for (const urls of map.values()) {
+      for (const u of urls) {
+        expect(u).toContain("/stencil/1280w/")
+        expect(u).not.toContain("?")
+      }
+    }
+  })
+
+  it("does not surface the title-labelled hero image as a colour", () => {
+    const map = extractColorImageMapFromGildanHtml(html)
+    // The hero's data-color-name is the product title — it keys to a long
+    // non-colour slug, never to a real variant colour.
+    expect(map.has("black")).toBe(true)
+    expect([...map.keys()]).not.toContain("white")
+  })
+
+  it("returns an empty map for empty/garbage html", () => {
+    expect(extractColorImageMapFromGildanHtml("").size).toBe(0)
+    expect(extractColorImageMapFromGildanHtml("<div>no swatches</div>").size).toBe(0)
+  })
+
+  it("drops a mislabelled image whose filename names a different swatch colour", () => {
+    // Supplier reality (AA 2PQ): an "arctic" swatch points at a HeatherGrey
+    // file while a real "heather grey" swatch also exists. Trusting the label
+    // would put a grey photo on Arctic — drop it.
+    const html = `
+      <div class="productView-thumbnail" data-color-name="heather grey">
+        <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1/10/2PQ_HeatherGrey_01__a.1.jpg?c=1"></a>
+      </div>
+      <div class="productView-thumbnail" data-color-name="arctic">
+        <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1/11/2PQ_HeatherGrey_03__b.1.jpg?c=1"></a>
+      </div>
+      <div class="productView-thumbnail" data-color-name="black">
+        <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1/12/2PQ_Black_01__c.1.jpg?c=1"></a>
+      </div>
+    `
+    const map = extractColorImageMapFromGildanHtml(html)
+    expect(map.has("arctic")).toBe(false) // mislabelled → dropped entirely
+    expect(map.get("heathergrey")).toHaveLength(1)
+    expect(map.get("black")).toHaveLength(1)
+  })
+
+  it("keeps code-based filenames (no colour word to conflict) for all swatches", () => {
+    // Youth/AM2025 styles: filenames are colour-CODE keyed, so the guard must
+    // never drop them (there's no colour word in the filename).
+    const html = `
+      <div class="productView-thumbnail" data-color-name="white">
+        <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1/10/2001Y_000C_Z00_AM2025_F_19485__a.1.jpg?c=1"></a>
+      </div>
+      <div class="productView-thumbnail" data-color-name="black">
+        <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1/11/2001Y_B6C_Z36_AM2025_F_17551__b.1.jpg?c=1"></a>
+      </div>
+    `
+    const map = extractColorImageMapFromGildanHtml(html)
+    expect(map.get("white")).toHaveLength(1)
+    expect(map.get("black")).toHaveLength(1)
+  })
+
+  it("does not associate an image that is far from the swatch marker", () => {
+    // A colour-picker swatch carrying data-color-name but no adjacent image
+    // must not sweep a distant gallery image.
+    const filler = " ".repeat(1200)
+    const html = `
+      <span data-color-name="arctic"></span>${filler}
+      <a href="https://cdn11.bigcommerce.com/s-zjdadllt1z/images/stencil/1280x1280/products/1/10/2PQ_Black_01__a.1.jpg?c=1"></a>
+    `
+    const map = extractColorImageMapFromGildanHtml(html)
+    expect(map.has("arctic")).toBe(false)
   })
 })
 

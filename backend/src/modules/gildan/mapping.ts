@@ -20,7 +20,11 @@
  */
 
 import { slugify, titleCase } from "../../utils/string-case"
-import { normalizeGildanFilenameKey } from "./image-scraper"
+import {
+  gildanGarmentView,
+  normalizeGildanColourKey,
+  normalizeGildanFilenameKey,
+} from "./image-scraper"
 import type { GildanColour, GildanProduct, GildanRow } from "./types"
 import { GILDAN_BRAND_HANDLE_BY_NAME } from "./types"
 
@@ -320,12 +324,17 @@ export function compareSizeCodes(a: string, b: string): number {
  * every importer (front URL is load-bearing; back/all are optional).
  *
  * Takes resolved CDN URLs (filename → URL map already applied). When the
- * scraper didn't find URLs for a colour, falls back to empty strings so
- * downstream code doesn't crash on undefined.
+ * filename path resolves nothing — which is the case for Gildan's youth
+ * styles, whose website filenames are colour-CODE keyed and so can never
+ * match the xlsx's colour-NAME filenames — falls back to the colour-name
+ * map built from the page's `data-color-name` swatch labels
+ * (`extractColorImageMapFromGildanHtml`). Falls back to empty strings when
+ * neither resolves so downstream code doesn't crash on undefined.
  */
 export function buildGildanGarmentImages(
   colour: GildanColour,
-  urlByFilename: ReadonlyMap<string, string>
+  urlByFilename: ReadonlyMap<string, string>,
+  urlByColour?: ReadonlyMap<string, string[]>
 ): { front: string; back?: string; model_image?: string; all: string[] } {
   const ordered: string[] = []
   const seen = new Set<string>()
@@ -342,9 +351,27 @@ export function buildGildanGarmentImages(
   }
   push(colour.images.hero)
   for (const v of colour.images.views) push(v)
-  const front = ordered.find((u) => /_01[._]/.test(u)) ?? ordered[0] ?? ""
-  const back = ordered.find((u) => /_02[._]/.test(u))
-  const model = ordered.find((u) => /_03[._]|_04[._]|_05[._]/.test(u))
+
+  // Fallback: the supplier's website keys youth-style images by colour CODE
+  // (e.g. "SF500B_426_A1"), so the name-based xlsx filenames never resolve.
+  // The page's `data-color-name` swatch labels DO carry the colour name, so
+  // look the colour up there when the filename path came up empty.
+  if (ordered.length === 0 && urlByColour) {
+    const byColour = urlByColour.get(normalizeGildanColourKey(colour.name))
+    if (byColour) {
+      for (const url of byColour) {
+        if (!seen.has(url)) {
+          seen.add(url)
+          ordered.push(url)
+        }
+      }
+    }
+  }
+
+  const front =
+    ordered.find((u) => gildanGarmentView(u) === "front") ?? ordered[0] ?? ""
+  const back = ordered.find((u) => gildanGarmentView(u) === "back")
+  const model = ordered.find((u) => gildanGarmentView(u) === "model")
   return {
     front,
     ...(back ? { back } : {}),
