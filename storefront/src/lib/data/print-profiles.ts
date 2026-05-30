@@ -77,11 +77,43 @@ const sanitizeAreas = (input: unknown): PrintProfileArea[] => {
   return out
 }
 
+const ALL_METHODS = ["print", "embroidery"] as const
+
+/**
+ * Product-level technique restriction (`metadata.print_methods`). Returns the
+ * allowed subset, or null when absent / permits every method (== no restriction).
+ */
+function sanitizeMethodFilter(input: unknown): string[] | null {
+  if (!Array.isArray(input)) return null
+  const uniq = Array.from(
+    new Set((input as unknown[]).filter((m) => m === "print" || m === "embroidery"))
+  ) as string[]
+  if (!uniq.length) return null
+  if (ALL_METHODS.every((m) => uniq.includes(m))) return null
+  return uniq
+}
+
+/** Intersect each area's methods with the restriction; drop emptied areas. */
+function applyMethodFilter(
+  areas: PrintProfileArea[],
+  allow: string[] | null
+): PrintProfileArea[] {
+  if (!allow) return areas
+  const set = new Set(allow)
+  const out: PrintProfileArea[] = []
+  for (const a of areas) {
+    const methods = a.methods.filter((m) => set.has(m))
+    if (methods.length) out.push({ ...a, methods: methods as PrintProfileArea["methods"] })
+  }
+  return out
+}
+
 /**
  * Resolve the print profile a product should use: an inline `print_config`
- * override wins, else the referenced profile by handle, else null (caller falls
- * back to the legacy heuristic). Returns null when the feature flag is off so
- * the customizer stays on the legacy path until cutover.
+ * override wins, else the referenced profile by handle (optionally narrowed by
+ * a product-level `print_methods` technique restriction), else null (caller
+ * falls back to the legacy heuristic). Returns null when the feature flag is
+ * off so the customizer stays on the legacy path until cutover.
  */
 export function resolvePrintProfileForProduct(
   product: Pick<HttpTypes.StoreProduct, "metadata"> | null | undefined,
@@ -98,7 +130,10 @@ export function resolvePrintProfileForProduct(
   const handle = typeof meta.print_profile === "string" ? meta.print_profile : null
   if (handle && handle !== "custom") {
     const match = catalog.find((p) => p.handle === handle)
-    if (match) return { handle, areas: sanitizeAreas(match.areas) }
+    if (match) {
+      const filter = sanitizeMethodFilter(meta.print_methods)
+      return { handle, areas: applyMethodFilter(sanitizeAreas(match.areas), filter) }
+    }
   }
   return null
 }

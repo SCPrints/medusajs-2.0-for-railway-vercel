@@ -12,7 +12,9 @@ import {
   CUSTOM_PROFILE_HANDLE,
   PRINT_METHODS,
   PRINT_SIZES,
+  applyMethodFilter,
   sanitizeAreas,
+  sanitizeMethodFilter,
   type PrintProfileArea,
 } from "../../../../../lib/print-profile"
 import {
@@ -37,10 +39,22 @@ const postSchema = z
     profile_handle: z.string().trim().min(1).nullable().optional(),
     /** Inline full-custom areas. When provided, profile_handle is forced to "custom". */
     areas: z.array(areaSchema).nullable().optional(),
+    /**
+     * Product-level technique restriction layered on top of the assigned
+     * profile (e.g. ["embroidery"] = embroidery-only garment). `["print","embroidery"]`
+     * or null clears it (defer to the profile). Only meaningful in profile mode.
+     */
+    methods: z.array(z.enum(PRINT_METHODS)).nullable().optional(),
   })
-  .refine((b) => b.profile_handle !== undefined || b.areas !== undefined, {
-    message: "Provide profile_handle or areas.",
-  })
+  .refine(
+    (b) =>
+      b.profile_handle !== undefined ||
+      b.areas !== undefined ||
+      b.methods !== undefined,
+    {
+      message: "Provide profile_handle, areas, or methods.",
+    }
+  )
 
 type ProductMeta = Record<string, unknown>
 
@@ -92,13 +106,18 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const meta = (product.metadata ?? {}) as ProductMeta
   const { resolved, handle, isCustom } = resolveAreas(meta, byHandle)
+  // Product-level technique restriction only applies in profile mode (custom
+  // already carries per-area methods).
+  const methodFilter = isCustom ? null : sanitizeMethodFilter(meta.print_methods)
+  const resolvedFiltered = resolved ? applyMethodFilter(resolved, methodFilter) : null
 
   res.json({
     product_id: product.id,
     profile_handle: handle,
     is_custom: isCustom,
+    methods: methodFilter,
     custom_areas: isCustom ? sanitizeAreas(meta.print_config) : [],
-    resolved_areas: resolved,
+    resolved_areas: resolvedFiltered,
     profiles: profiles.map((p) => ({
       id: p.id,
       name: p.name,
@@ -128,6 +147,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   if (body.areas !== undefined && body.areas !== null) {
     // Full-custom: store inline areas, mark the profile reference as "custom".
+    // Custom areas carry their own per-location methods, so the product-level
+    // technique restriction is irrelevant here — clear it.
     const clean = sanitizeAreas(body.areas)
     if (!clean.length) {
       throw new MedusaError(
@@ -137,6 +158,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
     meta.print_profile = CUSTOM_PROFILE_HANDLE
     meta.print_config = clean
+    delete meta.print_methods
   } else if (body.profile_handle) {
     // Assign a stored profile by handle — validate it exists.
     const [match] = await service.listAndCountPrintProfiles(
@@ -151,10 +173,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
     meta.print_profile = body.profile_handle
     delete meta.print_config
-  } else {
+    // Apply the optional per-product technique restriction. `methods` undefined
+    // = leave as-is; both/empty = clear (defer to profile); single = restrict.
+    if (body.methods !== undefined) {
+      const filter = sanitizeMethodFilter(body.methods)
+      if (filter) meta.print_methods = filter
+      else delete meta.print_methods
+    }
+  } else if (body.profile_handle === null) {
     // Explicit clear (profile_handle: null and no areas).
     delete meta.print_profile
     delete meta.print_config
+    delete meta.print_methods
+  } else {
+    // Only `methods` sent with no profile change — apply against the existing
+    // profile assignment (no-op if the product has no profile).
+    if (body.methods !== undefined) {
+      const filter = sanitizeMethodFilter(body.methods)
+      if (filter && typeof meta.print_profile === "string" && meta.print_profile !== CUSTOM_PROFILE_HANDLE) {
+        meta.print_methods = filter
+      } else {
+        delete meta.print_methods
+      }
+    }
   }
 
   await productModule.updateProducts(id, { metadata: meta })
@@ -166,6 +207,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       product_id: id,
       profile_handle: typeof meta.print_profile === "string" ? meta.print_profile : null,
       is_custom: meta.print_profile === CUSTOM_PROFILE_HANDLE,
+      methods: Array.isArray(meta.print_methods) ? meta.print_methods : null,
     })
   } catch {
     /* best-effort telemetry */
@@ -178,5 +220,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     product_id: id,
     profile_handle: typeof meta.print_profile === "string" ? meta.print_profile : null,
     is_custom: meta.print_profile === CUSTOM_PROFILE_HANDLE,
+    methods: sanitizeMethodFilter(meta.print_methods),
   })
 }

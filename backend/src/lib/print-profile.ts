@@ -343,6 +343,48 @@ export function inferPrintProfileHandle(product: ClassifiableProduct): string {
   return DEFAULT_PROFILE_HANDLE
 }
 
+/**
+ * Parse a product-level technique restriction (`metadata.print_methods`).
+ * Returns the allowed-method subset, or `null` when absent / invalid / permits
+ * EVERY method (both ticked == "no restriction, defer to the profile").
+ */
+export function sanitizeMethodFilter(input: unknown): PrintMethod[] | null {
+  if (!Array.isArray(input)) return null
+  const uniq = Array.from(
+    new Set(
+      input.filter((m): m is PrintMethod =>
+        (PRINT_METHODS as readonly string[]).includes(m as string)
+      )
+    )
+  )
+  if (!uniq.length) return null
+  if (PRINT_METHODS.every((m) => uniq.includes(m))) return null
+  return uniq
+}
+
+/**
+ * Layer a product-level technique restriction on top of a profile's areas:
+ * intersect each area's methods with `allow`, dropping any area left with no
+ * method (e.g. a print-only neck tag under an embroidery-only garment). A null
+ * filter is a no-op. Used by the admin resolved preview AND the storefront
+ * resolver so a garment can be flagged print-only / embroidery-only without
+ * forking it to a full-custom config.
+ */
+export function applyMethodFilter(
+  areas: PrintProfileArea[],
+  allow: PrintMethod[] | null | undefined
+): PrintProfileArea[] {
+  if (!allow || !allow.length) return areas
+  const set = new Set<string>(allow)
+  if (PRINT_METHODS.every((m) => set.has(m))) return areas
+  const out: PrintProfileArea[] = []
+  for (const a of areas) {
+    const methods = a.methods.filter((m) => set.has(m))
+    if (methods.length) out.push({ ...a, methods })
+  }
+  return out
+}
+
 /** Coerce/clean an arbitrary areas payload into valid PrintProfileArea[]. */
 export function sanitizeAreas(input: unknown): PrintProfileArea[] {
   if (!Array.isArray(input)) return []

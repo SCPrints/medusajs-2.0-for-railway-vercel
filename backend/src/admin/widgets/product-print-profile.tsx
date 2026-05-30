@@ -1,20 +1,38 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
 import type { DetailWidgetProps, AdminProduct } from "@medusajs/framework/types"
-import { Badge, Button, Container, Heading, Select, Text } from "@medusajs/ui"
+import { Badge, Button, Checkbox, Container, Heading, Label, Select, Text } from "@medusajs/ui"
 import { Plus } from "@medusajs/icons"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import {
   AreaRow,
   BLANK_AREA,
+  METHOD_OPTIONS,
   SIDE_LABEL,
   areaSummary,
+  toggle,
   type Area,
 } from "../components/print-profile/area-editor"
 
 const CUSTOM = "custom"
 const NONE = "__none__"
+const ALL_METHODS = ["print", "embroidery"]
+
+/** Methods offered by at least one area of a profile (its natural capability). */
+const unionMethods = (areas: Area[]): string[] =>
+  ALL_METHODS.filter((m) => areas.some((a) => a.methods.includes(m)))
+
+const setEq = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((x) => b.includes(x))
+
+/** Preview: intersect each area's methods with the product-level restriction. */
+const filterAreasByMethods = (areas: Area[], allow: string[]): Area[] => {
+  if (!allow.length || setEq(allow, ALL_METHODS)) return areas
+  return areas
+    .map((a) => ({ ...a, methods: a.methods.filter((m) => allow.includes(m)) }))
+    .filter((a) => a.methods.length)
+}
 
 type ProfileOption = {
   id: string
@@ -27,6 +45,7 @@ type ProfileOption = {
 type LoadState = {
   profile_handle: string | null
   is_custom: boolean
+  methods: string[] | null
   custom_areas: Area[]
   resolved_areas: Area[] | null
   profiles: ProfileOption[]
@@ -37,6 +56,8 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
   const [state, setState] = useState<LoadState | null>(null)
   const [selected, setSelected] = useState<string>(NONE)
   const [customAreas, setCustomAreas] = useState<Area[]>([])
+  const [methods, setMethods] = useState<string[]>(ALL_METHODS)
+  const [initialMethods, setInitialMethods] = useState<string[]>(ALL_METHODS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,6 +87,16 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
           : json.resolved_areas ?? []
         ).map((a) => ({ ...a, methods: [...a.methods], sizes: [...a.sizes] }))
       )
+      // Techniques: a saved restriction wins; otherwise default to the assigned
+      // profile's full capability (so both boxes start ticked for a both-method
+      // profile, only embroidery for an embroidery-only one, etc.).
+      const profileAreas =
+        !json.is_custom && json.profile_handle
+          ? json.profiles.find((p) => p.handle === json.profile_handle)?.areas ?? []
+          : []
+      const initM = json.methods?.length ? json.methods : unionMethods(profileAreas)
+      setMethods(initM.length ? initM : ALL_METHODS)
+      setInitialMethods(initM.length ? initM : ALL_METHODS)
     } catch (err: any) {
       setError(err?.message ?? String(err))
     } finally {
@@ -77,15 +108,20 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
     void load()
   }, [load])
 
-  // The areas the customizer will use for the currently-selected option.
+  const isProfileMode = selected !== CUSTOM && selected !== NONE
+
+  // The areas the customizer will use for the currently-selected option —
+  // profile areas narrowed by the product-level technique restriction.
   const previewAreas = useMemo<Area[] | null>(() => {
     if (!state) return null
     if (selected === CUSTOM) return customAreas
     if (selected === NONE) return null
-    return state.profiles.find((p) => p.handle === selected)?.areas ?? null
-  }, [state, selected, customAreas])
+    const areas = state.profiles.find((p) => p.handle === selected)?.areas ?? null
+    return areas ? filterAreasByMethods(areas, methods) : null
+  }, [state, selected, customAreas, methods])
 
-  const dirty = selected !== initialSelected || selected === CUSTOM
+  const methodsChanged = isProfileMode && !setEq(methods, initialMethods)
+  const dirty = selected !== initialSelected || selected === CUSTOM || methodsChanged
 
   const save = async () => {
     if (!productId) return
@@ -105,7 +141,16 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
       } else if (selected === NONE) {
         body.profile_handle = null
       } else {
+        if (!methods.length) {
+          throw new Error("Pick at least one technique (Print and/or Embroidery).")
+        }
         body.profile_handle = selected
+        // Only send a restriction when it's narrower than the profile's natural
+        // capability; otherwise clear it (defer to the profile defaults).
+        const profileAreas =
+          state?.profiles.find((p) => p.handle === selected)?.areas ?? []
+        const union = unionMethods(profileAreas)
+        body.methods = setEq(methods, union) ? null : methods
       }
       const res = await fetch(`/admin/products/${productId}/print-profile`, {
         method: "POST",
@@ -152,7 +197,13 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
 
         <Select
           value={selected}
-          onValueChange={setSelected}
+          onValueChange={(v) => {
+            setSelected(v)
+            if (v !== NONE && v !== CUSTOM) {
+              const prof = state?.profiles.find((p) => p.handle === v)
+              setMethods(prof ? unionMethods(prof.areas) : ALL_METHODS)
+            }
+          }}
           disabled={loading || saving}
         >
           <Select.Trigger>
@@ -200,11 +251,33 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
             inferred from the title/tags. Assign a profile for explicit control.
           </Text>
         ) : (
-          <Text size="xsmall" className="text-ui-fg-muted">
-            {previewAreas
-              ? `Allows: ${areaSummary(previewAreas)}.`
-              : "This profile has no print locations."}
-          </Text>
+          <div className="flex flex-col gap-y-2">
+            <div className="flex flex-col gap-y-1">
+              <Label className="text-xs">Techniques (this garment)</Label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {METHOD_OPTIONS.map((m) => (
+                  <label key={m.id} className="flex items-center gap-x-2 text-sm">
+                    <Checkbox
+                      checked={methods.includes(m.id)}
+                      disabled={loading || saving}
+                      onCheckedChange={() => setMethods((cur) => toggle(cur, m.id))}
+                    />
+                    {m.label}
+                  </label>
+                ))}
+              </div>
+              <Text size="xsmall" className="text-ui-fg-muted">
+                Applies to every location above. Leave both ticked to use the
+                profile's defaults; untick one to restrict this garment (e.g.
+                embroidery-only).
+              </Text>
+            </div>
+            <Text size="xsmall" className="text-ui-fg-muted">
+              {previewAreas
+                ? `Allows: ${areaSummary(previewAreas)}.`
+                : "This profile has no print locations."}
+            </Text>
+          </div>
         )}
 
         <div className="flex items-center justify-between">
