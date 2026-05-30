@@ -27,6 +27,8 @@ function headers(): HeadersInit {
  * `PRINT_PROFILES_ENABLED=true` flips the customizer from the legacy title/tag
  * inference to the explicit profile read. Kept off until the catalog has been
  * seeded + every product backfilled, mirroring the LISTING_VIA_SEARCH cutover.
+ * Cutover completed 2026-05-30 (7 system profiles seeded, ~1417 products
+ * backfilled); the flag is set on Vercel Production.
  */
 export function printProfilesEnabled(): boolean {
   return (
