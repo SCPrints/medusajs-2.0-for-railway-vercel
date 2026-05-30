@@ -63,6 +63,13 @@ import {
   PrintSpec,
   SizeQuantity,
 } from "@modules/customizer/lib/types"
+import {
+  profileAllowedSides,
+  profileMethodsForSide,
+  profileSizesForSide,
+  type PrintMethod,
+  type ResolvedPrintProfile,
+} from "@modules/customizer/lib/print-profile"
 import DecorationMethodPicker from "@modules/customizer/components/decoration-method-picker"
 import EmbroiderySideConfig from "@modules/customizer/components/embroidery-side-config"
 import {
@@ -181,6 +188,13 @@ type CustomizerTemplateProps = {
    * hides the public quantity ladder. `null` for guests / untiered customers.
    */
   tier?: Tier | null
+  /**
+   * Explicit print profile resolved server-side from the product
+   * (`metadata.print_profile` / `print_config`). When present (feature flag on
+   * + product assigned), it drives which sides / methods / sizes the customer
+   * can pick. `null` falls back to the legacy title/tag heuristics.
+   */
+  printProfile?: ResolvedPrintProfile | null
 }
 
 // Visual-only dimensions used to scale the dashed print-area guide on the
@@ -369,6 +383,7 @@ export default function CustomizerTemplate({
   integratedPdpSlots,
   pickerProducts,
   tier = null,
+  printProfile = null,
 }: CustomizerTemplateProps) {
   const params = useParams()
   const router = useRouter()
@@ -868,13 +883,22 @@ export default function CustomizerTemplate({
    * picker and the standalone /customizer rail share the same gate.
    */
   const allowedPrintSides = useMemo<GarmentSide[]>(() => {
+    // Explicit print profile (admin-managed) wins over the legacy inference.
+    if (printProfile) {
+      const fromProfile = profileAllowedSides(printProfile)
+      if (fromProfile.length) return fromProfile
+    }
     if (productIsHat) return ["front"]
     if (productIsSleeveless) return ["front", "back", "printed_tag"]
     const productTags = getStoreProductTagValues(selectedProduct).map((t) => t.toLowerCase())
     const productTitleLower = (selectedProduct.title ?? "").toLowerCase()
     const isFrontBackOnlyProduct =
       productTags.some((t) =>
-        /\b(pants?|shorts?|trousers?|jeans?|leggings?|skirts?|tote|totes|bags?|backpacks?|pouch|pouches|cap|caps|hat|hats|beanie|beanies|apron|aprons|towel|towels)\b/.test(
+        // `shorts?(?!\s*sleeve)` so the canonical "Short Sleeve" tag isn't
+        // mistaken for the garment "shorts" (which used to cap short-sleeve
+        // tees at front+back). The print-profile path supersedes this whole
+        // heuristic once PRINT_PROFILES_ENABLED is on + the product is backfilled.
+        /\b(pants?|shorts?(?!\s*sleeve)|trousers?|jeans?|leggings?|skirts?|tote|totes|bags?|backpacks?|pouch|pouches|cap|caps|hat|hats|beanie|beanies|apron|aprons|towel|towels)\b/.test(
           t
         )
       ) ||
@@ -882,19 +906,23 @@ export default function CustomizerTemplate({
     return isFrontBackOnlyProduct
       ? ["front", "back"]
       : ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
-  }, [productIsHat, productIsSleeveless, selectedProduct])
-  const allowedSizesForCurrentSide = useMemo(
-    () =>
-      getAllowedScpPrintSizesForSide(currentSide, {
-        isLongSleeve: productIsLongSleeve,
-        isHat: productIsHat,
-      }),
-    [currentSide, productIsLongSleeve, productIsHat]
-  )
+  }, [printProfile, productIsHat, productIsSleeveless, selectedProduct])
+  const allowedSizesForCurrentSide = useMemo(() => {
+    if (printProfile) {
+      const fromProfile = profileSizesForSide(printProfile, currentSide)
+      if (fromProfile.length) return fromProfile
+    }
+    return getAllowedScpPrintSizesForSide(currentSide, {
+      isLongSleeve: productIsLongSleeve,
+      isHat: productIsHat,
+    })
+  }, [printProfile, currentSide, productIsLongSleeve, productIsHat])
   /**
    * Per-side allowed sizes — fed into PricingPanel so the per-print size
-   * dropdown only offers what the side physically supports (sleeves on a
-   * short-sleeve tee are A6-only, hats are A6-only everywhere, etc).
+   * dropdown only offers what the side physically supports. The explicit print
+   * profile (when present) defines these per location; otherwise we fall back
+   * to the legacy garment-cut heuristics (sleeves on a short-sleeve tee are
+   * A6-only, hats are A6-only everywhere, etc).
    */
   const allowedSizesBySide = useMemo<
     Partial<Record<GarmentSide, ScpPrintSizeId[]>>
@@ -902,16 +930,34 @@ export default function CustomizerTemplate({
     () =>
       DESIGN_SIDES.reduce(
         (acc, side) => {
-          acc[side] = getAllowedScpPrintSizesForSide(side, {
-            isLongSleeve: productIsLongSleeve,
-            isHat: productIsHat,
-          })
+          const fromProfile = printProfile
+            ? profileSizesForSide(printProfile, side)
+            : []
+          acc[side] = fromProfile.length
+            ? fromProfile
+            : getAllowedScpPrintSizesForSide(side, {
+                isLongSleeve: productIsLongSleeve,
+                isHat: productIsHat,
+              })
           return acc
         },
         {} as Partial<Record<GarmentSide, ScpPrintSizeId[]>>
       ),
-    [productIsLongSleeve, productIsHat]
+    [printProfile, productIsLongSleeve, productIsHat]
   )
+  /**
+   * Decoration methods offered for the current side. Profile-driven when a
+   * print profile is assigned (per-location methods); otherwise the legacy
+   * rule — beanie/puffer garments are embroidery-only, everything else offers
+   * both print and embroidery.
+   */
+  const availableMethodsForCurrentSide = useMemo<PrintMethod[]>(() => {
+    if (printProfile) {
+      const fromProfile = profileMethodsForSide(printProfile, currentSide)
+      if (fromProfile.length) return fromProfile
+    }
+    return productIsBeanie || productIsPuffer ? ["embroidery"] : ["print", "embroidery"]
+  }, [printProfile, currentSide, productIsBeanie, productIsPuffer])
 
   /**
    * Manual size override entry point. The per-print row in PricingPanel
@@ -989,11 +1035,18 @@ export default function CustomizerTemplate({
    * explicit method (e.g. restored from a saved design / re-order).
    */
   useEffect(() => {
-    if (!productIsBeanie && !productIsPuffer) return
     if (sideDecorationMethods[currentSide]) return
-    setSideDecorationMethods((prev) => ({ ...prev, [currentSide]: "embroidery" }))
-    setSizingDoneSides((prev) => ({ ...prev, [currentSide]: true }))
-  }, [productIsBeanie, productIsPuffer, currentSide, sideDecorationMethods])
+    // Auto-select embroidery + skip the print-size step when this side only
+    // supports embroidery — beanie/puffer garments, or an embroidery-only
+    // location on the assigned print profile.
+    if (
+      availableMethodsForCurrentSide.length === 1 &&
+      availableMethodsForCurrentSide[0] === "embroidery"
+    ) {
+      setSideDecorationMethods((prev) => ({ ...prev, [currentSide]: "embroidery" }))
+      setSizingDoneSides((prev) => ({ ...prev, [currentSide]: true }))
+    }
+  }, [availableMethodsForCurrentSide, currentSide, sideDecorationMethods])
   const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
   const embedPdpQuantityStepNumber = showPdpLabeledOptionsStep ? 3 : 2
   // Canvas is the primary view from the moment the embedded customizer
@@ -1962,21 +2015,41 @@ export default function CustomizerTemplate({
       return
     }
 
-    const serialized = canvas.toJSON([
+    // These custom props link a serialized canvas object back to its source.
+    // `customizerUploadId` ties an object to the upload it came from so the
+    // cart-add flow attaches only the customer-original files actually placed
+    // on this design (not stale items from the persistent "My uploads" tray).
+    const CUSTOM_PROPS = [
       "customizerId",
       "customizerLabel",
       "sourceWidthPx",
       "sourceHeightPx",
-      // Tag attached on add — links a canvas object back to the upload it
-      // came from so the cart-add flow only attaches the customer-original
-      // files actually referenced on the canvas (not stale items from the
-      // persistent "My uploads" tray).
       "customizerUploadId",
-    ])
-    sideLayoutsRef.current[currentSideRef.current] = (serialized.objects ?? []) as Record<
-      string,
-      unknown
-    >[]
+    ] as const
+    const serialized = canvas.toJSON([...CUSTOM_PROPS])
+    const serializedObjects = (serialized.objects ?? []) as Record<string, unknown>[]
+    // Fabric's Group.toObject() does NOT reliably copy these custom props —
+    // notably for SVG uploads (loaded via groupSVGElements) it drops
+    // `customizerUploadId` + `customizerLabel` entirely. That silently broke
+    // the "download the customer's original file" flow: with no
+    // `customizerUploadId` on the serialized object, cart-add saw "no uploads
+    // referenced" and wrote an empty `customerOriginalFiles`, so the admin was
+    // left with only the rendered print PNG. Re-stamp the props from the live
+    // objects (same z-order as toJSON — nothing is excludeFromExport, so
+    // indices align 1:1) so the link survives Fabric's per-type quirks.
+    const liveObjects = canvas.getObjects() as Array<Record<string, unknown>>
+    serializedObjects.forEach((obj, i) => {
+      const live = liveObjects[i]
+      if (!live) {
+        return
+      }
+      for (const key of CUSTOM_PROPS) {
+        if (obj[key] == null && live[key] != null) {
+          obj[key] = live[key]
+        }
+      }
+    })
+    sideLayoutsRef.current[currentSideRef.current] = serializedObjects
     bumpLayoutVersion()
   }
 
@@ -2038,8 +2111,35 @@ export default function CustomizerTemplate({
       if (loadVersion !== sideLoadVersionRef.current) {
         return
       }
-      canvas.getObjects().forEach((object: any) => {
+      const liveAfterLoad = canvas.getObjects()
+      // Restore our custom link props onto revived objects is index-aligned
+      // only when loadFromJSON loaded every object (the happy path). The
+      // survival fallback above may load a subset, so skip the restore when
+      // counts diverge to avoid mis-assigning props across objects.
+      const canRestoreProps = liveAfterLoad.length === objects.length
+      liveAfterLoad.forEach((object: any, i: number) => {
         getObjectId(object)
+        // Fabric can drop our custom props when reviving a Group (SVG uploads),
+        // and a later saveCurrentSide re-serialises from the live object — so
+        // without this restore a reloaded SVG side would lose its
+        // `customizerUploadId` again and the customer-original-file link would
+        // silently break. Mirrors the re-stamp in saveCurrentSide.
+        if (canRestoreProps) {
+          const src = objects[i] as Record<string, unknown> | undefined
+          if (src) {
+            for (const key of [
+              "customizerId",
+              "customizerLabel",
+              "sourceWidthPx",
+              "sourceHeightPx",
+              "customizerUploadId",
+            ]) {
+              if (object[key] == null && src[key] != null) {
+                object[key] = src[key]
+              }
+            }
+          }
+        }
         // Re-apply mobile-friendly control styling to objects rehydrated from
         // saved JSON — loadFromJSON resets controls to Fabric defaults.
         object.set({
@@ -4980,11 +5080,10 @@ export default function CustomizerTemplate({
                       side={currentSide}
                       value={
                         sideDecorationMethods[currentSide] ??
-                        (productIsBeanie || productIsPuffer ? "embroidery" : "print")
+                        availableMethodsForCurrentSide[0] ??
+                        "print"
                       }
-                      availableMethods={
-                        productIsBeanie || productIsPuffer ? ["embroidery"] : ["print", "embroidery"]
-                      }
+                      availableMethods={availableMethodsForCurrentSide}
                       onChange={(side, method) => {
                         setSideDecorationMethods((prev) => ({ ...prev, [side]: method }))
                         if (method === "embroidery") {

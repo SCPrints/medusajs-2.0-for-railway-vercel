@@ -470,6 +470,10 @@ const medusaConfig = {
     },
 
     {
+      resolve: "./src/modules/print-profile",
+    },
+
+    {
       key: Modules.FULFILLMENT,
       resolve: "@medusajs/fulfillment",
       options: {

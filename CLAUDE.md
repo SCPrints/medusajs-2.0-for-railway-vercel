@@ -850,6 +850,7 @@ All other env vars (Medusa core, AS Colour, Stripe, etc.) are documented in [bac
 | `NEXT_PUBLIC_VECTORIZATION_DISPLAY_PRICE` | Optional. Free-form string (e.g. `$15`) shown in the modal CTA copy. |
 | `ANTHROPIC_API_KEY` | Required for the storefront chatbot (`/api/chat`). Returns 503 when unset. |
 | `LISTING_VIA_SEARCH` | Optional. `true` routes category/store/collection/brand product **listings** (price sort + brand/fabric/price/stock/type/tag filters) through Meilisearch instead of the in-memory catalog scan. Default off. **Only flip to `true` after a reindex** has run against the target Meili (so the `min_price_aud` / `category_ids` / `in_stock` fields + sortable/filterable settings exist) — a premature flip 400s and silently falls back to the legacy scan. `NEXT_PUBLIC_LISTING_VIA_SEARCH` is an accepted alias. See "Listing via search" below. |
+| `PRINT_PROFILES_ENABLED` | Optional. `true` makes the customizer read each product's explicit **print profile** (printable areas + techniques + sizes) instead of inferring them from the title/tags. Default off. **Only flip to `true` after** seeding profiles + running `backfill-print-profiles.ts` so every product is assigned — otherwise unassigned products fall back to the legacy heuristics. `NEXT_PUBLIC_PRINT_PROFILES_ENABLED` is an accepted alias. See "Print profiles" above. |
 
 ## First-time setup checklist
 
@@ -1654,6 +1655,41 @@ Sticky bottom bars (cart CTA, customizer toolbar, mobile nav) must respect the i
 - `useEffect` + `window.innerWidth` polling — `useMediaQuery` handles this correctly.
 - Server-side device detection (UA sniffing) — modern responsive CSS handles every device we care about.
 - Separate `/m/` mobile routes — would fragment SEO and double the maintenance surface.
+
+## Print profiles (printable areas + techniques + sizes per garment)
+
+The single source of truth for **what can be printed where, with which technique (Print/DTF vs Embroidery), at what size** for a garment. Replaces the invisible title/tag regex inference that used to live only in the storefront customizer (the `is*GarmentProduct` helpers + the `allowedPrintSides` memo). Staff assign every product an explicit, editable profile in admin; the customizer reads the resolved profile instead of guessing.
+
+**Data model**: a product references a profile **by handle** on `metadata.print_profile` (so editing a profile propagates to every product on it). A full-custom product instead carries an inline `metadata.print_config` (a `PrintProfileArea[]`) which **wins** over the handle reference. Each area is `{ key, label, methods[], sizes[], max_prints? }` where `key` is a `GarmentSide` (`front`/`back`/`left_sleeve`/`right_sleeve`/`printed_tag`) and `sizes` are `ScpPrintSizeId`s (`up_to_a6`…`oversize`).
+
+**Vocabulary is mirrored** backend ([backend/src/lib/print-profile.ts](backend/src/lib/print-profile.ts)) ↔ storefront ([storefront/src/modules/customizer/lib/print-profile.ts](storefront/src/modules/customizer/lib/print-profile.ts)). The 4 sizes / 2 methods / 5 sides are small + stable; a sync-check script (production-stage pattern) is a clean follow-up if they ever drift.
+
+| Component | Path |
+| --- | --- |
+| Module + model (`areas` jsonb) + migration | [backend/src/modules/print-profile/](backend/src/modules/print-profile/) |
+| Vocabulary, `SYSTEM_PROFILES`, backfill classifier | [backend/src/lib/print-profile.ts](backend/src/lib/print-profile.ts) |
+| Admin REST (CRUD) | [backend/src/api/admin/print-profiles/route.ts](backend/src/api/admin/print-profiles/route.ts) + [\[id\]/route.ts](backend/src/api/admin/print-profiles/[id]/route.ts) |
+| Store REST (cached catalog) | [backend/src/api/store/print-profiles/route.ts](backend/src/api/store/print-profiles/route.ts) |
+| Per-product assign (GET resolved + POST handle/custom) | [backend/src/api/admin/products/\[id\]/print-profile/route.ts](backend/src/api/admin/products/[id]/print-profile/route.ts) |
+| Bulk "Set print profile" action | `set_print_profile` in [backend/src/api/admin/products-manager/bulk/route.ts](backend/src/api/admin/products-manager/bulk/route.ts) |
+| Admin CRUD page `/app/print-profiles` | [backend/src/admin/routes/print-profiles/page.tsx](backend/src/admin/routes/print-profiles/page.tsx) |
+| Shared area editor (page + widget) | [backend/src/admin/components/print-profile/area-editor.tsx](backend/src/admin/components/print-profile/area-editor.tsx) |
+| Product-detail widget | [backend/src/admin/widgets/product-print-profile.tsx](backend/src/admin/widgets/product-print-profile.tsx) |
+| Product data column + bulk control | [products-manager-tab.tsx](backend/src/admin/routes/product-data/components/products-manager-tab.tsx) + [list route](backend/src/api/admin/products-manager/list/route.ts) (`print_profile` field) |
+| Seed system profiles | [backend/src/scripts/seed-print-profiles.ts](backend/src/scripts/seed-print-profiles.ts) |
+| Backfill every product | [backend/src/scripts/backfill-print-profiles.ts](backend/src/scripts/backfill-print-profiles.ts) |
+| Storefront data layer + resolver + flag | [storefront/src/lib/data/print-profiles.ts](storefront/src/lib/data/print-profiles.ts) |
+| Customizer read (`allowedPrintSides` / methods / sizes memos) | [storefront/src/modules/customizer/templates/index.tsx](storefront/src/modules/customizer/templates/index.tsx) |
+
+**Seeded system profiles** (`is_system: true` — editable but not deletable): `short-sleeve-garment`, `long-sleeve-garment`, `sleeveless`, `cap-headwear`, `beanie`, `bag-tote`, `puffer-jacket`. These reproduce the previous hard-coded heuristics as explicit data (e.g. puffer = embroidery-only, beanie = embroidery-only front, sleeves A6 on short-sleeve / A3 on long-sleeve).
+
+**Storefront read is server-side prop-threading** (no client fetch, no flash): the PDP template + standalone `/customizer` page call `getPrintProfileForProduct(product)`, which resolves `metadata.print_profile`/`print_config` against the cached catalog, and pass `printProfile` → `EmbeddedProductCustomizer` → `CustomizerTemplate`. The customizer's `allowedPrintSides` / `availableMethodsForCurrentSide` / `allowedSizesBySide` memos read it, falling back to the legacy `is*GarmentProduct` heuristics when it's null. This works because the in-customizer "Change product" picker **navigates** (server round-trip), so a swapped product always re-resolves server-side.
+
+**Feature flag** `PRINT_PROFILES_ENABLED` (default OFF; `NEXT_PUBLIC_PRINT_PROFILES_ENABLED` alias accepted). When off, `getPrintProfileForProduct` returns null and the customizer stays on the legacy heuristics — so the module + admin can ship before cutover. **Cutover runbook**: (1) `fly deploy` (migration runs via release_command); (2) `medusa exec src/scripts/seed-print-profiles.ts`; (3) `DRY_RUN=1` then real `backfill-print-profiles.ts` (assigns every published product a profile via the same precedence the storefront used to infer — beanie → cap → puffer → sleeveless → bag/front+back → long-sleeve → short-sleeve); (4) verify in admin; (5) set `PRINT_PROFILES_ENABLED=true` on the storefront + redeploy.
+
+**Backfill classifier fixes the `shorts?` bug**: the front+back detection uses `shorts?(?!\s*sleeve)` so the canonical "Short Sleeve" tag is no longer mistaken for the garment "shorts" (the original symptom — short-sleeve tees capped at front+back). The same fix was also applied to the legacy fallback regex in the customizer for the pre-cutover window.
+
+**Phase 2 (deferred)**: custom-named print areas beyond the fixed `GarmentSide` set — needs canvas geometry / placeholder work in the ~5500-line customizer template. Today "full custom" reuses the known side keys.
 
 ## Customizer wizard architecture
 

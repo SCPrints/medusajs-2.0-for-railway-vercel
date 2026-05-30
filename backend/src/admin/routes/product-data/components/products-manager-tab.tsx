@@ -119,7 +119,18 @@ type Product = {
   sales_channel_count: number
   sales_channels: Array<{ id: string; name: string | null }>
   brand: { id: string; name: string | null; handle: string | null } | null
+  print_profile: string | null
   quality: Quality
+}
+
+/** "short-sleeve-garment" → "Short Sleeve Garment"; "custom" → "Custom". */
+const humanizeProfileHandle = (handle: string | null): string => {
+  if (!handle) return "—"
+  if (handle === "custom") return "Custom"
+  return handle
+    .split("-")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ")
 }
 
 type Filters = {
@@ -158,6 +169,7 @@ type BulkActionKey =
   | "set_sales_channels"
   | "set_categories"
   | "set_collection"
+  | "set_print_profile"
 
 type BulkResult = {
   succeeded: string[]
@@ -173,6 +185,7 @@ const ACTION_LABELS: Record<BulkActionKey, string> = {
   set_sales_channels: "Sales channels…",
   set_categories: "Categories…",
   set_collection: "Set collection",
+  set_print_profile: "Set print profile",
 }
 
 /* ─────────────── component ─────────────── */
@@ -182,6 +195,7 @@ const ProductsManagerTab = () => {
 
   /* ─ filter options (loaded once) ─ */
   const [brandOptions, setBrandOptions] = useState<MultiSelectOption[]>([])
+  const [printProfileOptions, setPrintProfileOptions] = useState<MultiSelectOption[]>([])
   const [typeOptions, setTypeOptions] = useState<MultiSelectOption[]>([])
   const [tagOptions, setTagOptions] = useState<MultiSelectOption[]>([])
   const [categoryOptions, setCategoryOptions] = useState<MultiSelectOption[]>(
@@ -253,7 +267,7 @@ const ProductsManagerTab = () => {
     let cancelled = false
     const load = async () => {
       try {
-        const [types, tags, cats, cols, chans, brands] = await Promise.all([
+        const [types, tags, cats, cols, chans, brands, printProfiles] = await Promise.all([
           sdk.admin.productType.list({ limit: 500, offset: 0 }),
           sdk.admin.productTag.list({ limit: 500, offset: 0 }),
           (sdk.admin as any).productCategory.list({
@@ -271,8 +285,17 @@ const ProductsManagerTab = () => {
           fetch("/admin/brands?limit=500", { credentials: "include" })
             .then((r) => (r.ok ? r.json() : { brands: [] }))
             .catch(() => ({ brands: [] })),
+          fetch("/admin/print-profiles", { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : { print_profiles: [] }))
+            .catch(() => ({ print_profiles: [] })),
         ])
         if (cancelled) return
+        setPrintProfileOptions(
+          ((printProfiles as any).print_profiles ?? []).map((p: any) => ({
+            value: p.handle,
+            label: p.name ?? p.handle,
+          }))
+        )
         setTypeOptions(
           ((types as any).product_types ?? []).map((t: any) => ({
             value: t.id,
@@ -711,6 +734,7 @@ const ProductsManagerTab = () => {
           categoryOptions={categoryOptions}
           collectionOptions={collectionOptions}
           salesChannelOptions={salesChannelOptions}
+          printProfileOptions={printProfileOptions}
         />
       ) : null}
 
@@ -1112,6 +1136,17 @@ const ResultsTable = (props: ResultsTableProps) => {
               Type
             </Table.HeaderCell>
             <Table.HeaderCell className="hidden lg:table-cell">
+              <div className="flex items-center gap-1">
+                <span>Print profile</span>
+                <HelpTooltip
+                  text={{
+                    title: "Print profile",
+                    body: "Which print rules the storefront customizer applies to this product (printable locations + techniques + sizes). Assign one per product on the product page, or in bulk via 'Set print profile'. '—' means no profile is assigned (the customizer falls back to automatic title/tag inference); 'Custom' means this product has its own per-product locations.",
+                  }}
+                />
+              </div>
+            </Table.HeaderCell>
+            <Table.HeaderCell className="hidden lg:table-cell">
               Tags
             </Table.HeaderCell>
             <Table.HeaderCell className="hidden lg:table-cell text-right">
@@ -1149,6 +1184,7 @@ const ResultsTable = (props: ResultsTableProps) => {
               <Table.Cell className="hidden md:table-cell" />
               <Table.Cell className="hidden lg:table-cell" />
               <Table.Cell className="hidden lg:table-cell" />
+              <Table.Cell className="hidden lg:table-cell" />
               <Table.Cell />
               <Table.Cell className="hidden lg:table-cell" />
             </Table.Row>
@@ -1162,6 +1198,7 @@ const ResultsTable = (props: ResultsTableProps) => {
               </Table.Cell>
               <Table.Cell className="hidden md:table-cell" />
               <Table.Cell className="hidden md:table-cell" />
+              <Table.Cell className="hidden lg:table-cell" />
               <Table.Cell className="hidden lg:table-cell" />
               <Table.Cell className="hidden lg:table-cell" />
               <Table.Cell />
@@ -1210,6 +1247,19 @@ const ResultsTable = (props: ResultsTableProps) => {
                 </Table.Cell>
                 <Table.Cell className="hidden md:table-cell">
                   <Text size="small">{p.type?.value ?? "—"}</Text>
+                </Table.Cell>
+                <Table.Cell className="hidden lg:table-cell">
+                  {p.print_profile === "custom" ? (
+                    <Badge size="2xsmall" color="orange">
+                      Custom
+                    </Badge>
+                  ) : p.print_profile ? (
+                    <Text size="small">{humanizeProfileHandle(p.print_profile)}</Text>
+                  ) : (
+                    <Text size="small" className="text-ui-fg-muted">
+                      —
+                    </Text>
+                  )}
                 </Table.Cell>
                 <Table.Cell className="hidden lg:table-cell">
                   <div className="flex flex-wrap gap-1">
@@ -1401,6 +1451,7 @@ type ActionConfigModalProps = {
   categoryOptions: MultiSelectOption[]
   collectionOptions: MultiSelectOption[]
   salesChannelOptions: MultiSelectOption[]
+  printProfileOptions: MultiSelectOption[]
 }
 
 const ActionConfigModal = (props: ActionConfigModalProps) => {
@@ -1478,6 +1529,18 @@ function renderActionBody(
           submit={(value) => submit({ collection_id: value })}
           submitting={submitting}
           allowNone
+          onCancel={props.onClose}
+        />
+      )
+    case "set_print_profile":
+      return (
+        <SingleSetForm
+          label="Print profile"
+          options={props.printProfileOptions}
+          submit={(value) =>
+            value ? submit({ profile_handle: value }) : Promise.resolve()
+          }
+          submitting={submitting}
           onCancel={props.onClose}
         />
       )

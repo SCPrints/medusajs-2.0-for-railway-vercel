@@ -6,6 +6,7 @@ import { getCustomerTier } from "@lib/data/customer-tier"
 import { getMyDesign } from "@lib/data/designs"
 import { retrieveOrder } from "@lib/data/orders"
 import { getProductsList } from "@lib/data/products"
+import { getPrintProfileForProduct } from "@lib/data/print-profiles"
 import { getRegion } from "@lib/data/regions"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
@@ -245,6 +246,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
     .filter((p) => p.handle.length > 0)
 
   const tier = await getCustomerTier()
+  const printProfile = await getPrintProfileForProduct(customizerProduct)
 
   // Slots are server-rendered then handed to the client customizer template so
   // the gallery + variant pickers participate in the same unified PDP layout
@@ -312,6 +314,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
                         }}
                         pickerProducts={pickerProducts}
                         tier={tier}
+                        printProfile={printProfile}
                       />
                     </PdpCustomizerBoundary>
                   }

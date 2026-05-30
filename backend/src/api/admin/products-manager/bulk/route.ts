@@ -83,6 +83,10 @@ const SetCollection = z.object({
   action: z.literal("set_collection"),
   payload: z.object({ collection_id: z.string().min(1).nullable() }),
 })
+const SetPrintProfile = z.object({
+  action: z.literal("set_print_profile"),
+  payload: z.object({ profile_handle: z.string().min(1) }),
+})
 
 const BulkAction = z.discriminatedUnion("action", [
   ChangeStatus,
@@ -93,6 +97,7 @@ const BulkAction = z.discriminatedUnion("action", [
   SetSalesChannels,
   SetCategories,
   SetCollection,
+  SetPrintProfile,
 ])
 
 const bodySchema = z
@@ -434,6 +439,57 @@ async function handleSetCollection(
   return { succeeded, failed }
 }
 
+async function handleSetPrintProfile(
+  productModule: ProductModuleLike,
+  query: QueryLike,
+  ids: string[],
+  profile_handle: string
+): Promise<BulkResult> {
+  const succeeded: string[] = []
+  const failed: Array<{ id: string; error: string }> = []
+
+  // Validate the profile exists before touching any product.
+  const { data: profileRows = [] } = await query.graph({
+    entity: "print_profile",
+    fields: ["id", "handle"],
+    filters: { handle: profile_handle },
+  })
+  if (!profileRows.length) {
+    const msg = `No print profile with handle "${profile_handle}".`
+    for (const id of ids) failed.push({ id, error: msg })
+    return { succeeded, failed }
+  }
+
+  const { data: products = [] } = await query.graph({
+    entity: "product",
+    fields: ["id", "metadata"],
+    filters: { id: ids },
+    pagination: { take: ids.length, skip: 0 },
+  })
+  const metaById = new Map<string, Record<string, unknown>>(
+    (products as any[]).map((p) => [p.id, { ...((p.metadata ?? {}) as Record<string, unknown>) }])
+  )
+
+  for (const id of ids) {
+    const meta = metaById.get(id)
+    if (!meta) {
+      failed.push({ id, error: "Product not found." })
+      continue
+    }
+    try {
+      meta.print_profile = profile_handle
+      // Bulk assignment always uses a stored profile — clear any prior
+      // per-product custom override so the assignment is unambiguous.
+      delete meta.print_config
+      await productModule.updateProducts(id, { metadata: meta })
+      succeeded.push(id)
+    } catch (err: any) {
+      failed.push({ id, error: err?.message ?? String(err) })
+    }
+  }
+  return { succeeded, failed }
+}
+
 /* ─────────────── route ─────────────── */
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -555,6 +611,17 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         )
         auditAction = AUDIT_ACTION.BULK_COLLECTION_CHANGED
         actionPayloadForAudit = { collection_id: payload.collection_id }
+        break
+      }
+      case "set_print_profile": {
+        result = await handleSetPrintProfile(
+          productModule,
+          query,
+          product_ids,
+          payload.profile_handle
+        )
+        auditAction = AUDIT_ACTION.BULK_PRINT_PROFILE_CHANGED
+        actionPayloadForAudit = { profile_handle: payload.profile_handle }
         break
       }
       default: {

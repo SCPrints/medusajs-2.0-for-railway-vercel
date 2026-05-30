@@ -12,6 +12,7 @@ import SkeletonProductionEtaStrip from "@modules/skeletons/components/skeleton-p
 import ProductActionsWrapper from "./product-actions-wrapper"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import { getCustomerTier } from "@lib/data/customer-tier"
+import { getPrintProfileForProduct } from "@lib/data/print-profiles"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
 import PdpSplitTabs from "@modules/products/components/pdp-split-tabs"
@@ -100,6 +101,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
   )
 
   const decorationMethods = getEnabledDecorationMethods(product)
+  const printProfile = await getPrintProfileForProduct(product)
 
   return (
     <>
@@ -147,6 +149,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                             variantPickers: variantPickersSlot,
                           }}
                           tier={tier}
+                          printProfile={printProfile}
                         />
                       </PdpCustomizerBoundary>
                     }

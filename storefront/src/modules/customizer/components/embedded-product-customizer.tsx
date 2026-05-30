@@ -8,9 +8,12 @@ import { useProductOptionsOptional } from "@modules/products/context/product-opt
 import { isColorOptionTitle, resolveVariantFromOptions } from "@modules/products/lib/variant-options"
 import CustomizerTemplate from "@modules/customizer/templates"
 import type { Tier } from "@lib/customer-tiers"
+import type { ResolvedPrintProfile } from "@modules/customizer/lib/print-profile"
 
 type Props = {
   product: HttpTypes.StoreProduct
+  /** Resolved print profile (areas/methods/sizes). Null = legacy heuristic gating. */
+  printProfile?: ResolvedPrintProfile | null
   /** When set, gallery and variant pickers sit in the same grid as the design canvas (unified PDP layout). */
   integratedPdpSlots?: {
     gallery: ReactNode
@@ -41,6 +44,7 @@ export default function EmbeddedProductCustomizer({
   integratedPdpSlots,
   tier = null,
   pickerProducts,
+  printProfile = null,
 }: Props) {
   const productOptions = useProductOptionsOptional()
 
@@ -80,6 +84,7 @@ export default function EmbeddedProductCustomizer({
       product={product}
       pickerProducts={pickerProducts}
       tier={tier}
+      printProfile={printProfile}
     />
   )
 }

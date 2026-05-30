@@ -558,6 +558,10 @@ function toProductResponse(p: RawProduct) {
       name: s.name ?? null,
     })),
     brand,
+    print_profile:
+      typeof p.metadata?.print_profile === "string"
+        ? (p.metadata.print_profile as string)
+        : null,
     quality: computeQuality(p),
   }
 }
