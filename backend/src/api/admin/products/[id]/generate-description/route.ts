@@ -3,19 +3,10 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { generateProductDescriptions } from "../../../../../services/ai-copy/generate"
-import type { ProductContext } from "../../../../../services/ai-copy/prompt"
-
-const SAFE_METADATA_KEYS = [
-  "fabric_blend",
-  "fabric",
-  "gsm",
-  "fit",
-  "neckline",
-  "season",
-  "country_of_origin",
-  "care_instructions",
-  "decoration_methods",
-] as const
+import {
+  AI_DESC_PRODUCT_FIELDS,
+  productToContext,
+} from "../../../../../services/ai-copy/context"
 
 const generateSchema = z.object({
   /** Optional hint to bias the model — e.g. "winter, casual",
@@ -40,19 +31,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const { data: products } = await query.graph({
     entity: "product",
-    fields: [
-      "id",
-      "title",
-      "handle",
-      "description",
-      "weight",
-      "metadata",
-      "type.value",
-      "tags.value",
-      "variants.title",
-      "brand.name",
-      "brand.handle",
-    ],
+    fields: [...AI_DESC_PRODUCT_FIELDS],
     filters: { id: productId },
   })
   const product = (products as any[])?.[0]
@@ -68,42 +47,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
-  // Extract only the metadata keys we consider safe to send to an LLM.
-  const rawMeta = (product.metadata as Record<string, unknown> | undefined) ?? {}
-  const safeMeta: Record<string, string | number | boolean | null> = {}
-  for (const k of SAFE_METADATA_KEYS) {
-    const v = rawMeta[k]
-    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-      safeMeta[k] = v
-    }
-  }
-  if (body.hint) safeMeta.hint = body.hint.trim()
-
-  const brand = Array.isArray(product.brand) ? product.brand[0] : product.brand
-  const ctx: ProductContext = {
-    title: String(product.title),
-    handle: typeof product.handle === "string" ? product.handle : null,
-    brand_name: brand?.name ?? null,
-    brand_handle: brand?.handle ?? null,
-    description_current: typeof product.description === "string" ? product.description : null,
-    type_value:
-      typeof product.type?.value === "string" ? product.type.value : null,
-    weight_grams:
-      typeof product.weight === "number" && product.weight > 0
-        ? product.weight
-        : null,
-    tags: Array.isArray(product.tags)
-      ? product.tags
-          .map((t: any) => (typeof t?.value === "string" ? t.value : null))
-          .filter((v: any): v is string => typeof v === "string")
-      : null,
-    variant_titles: Array.isArray(product.variants)
-      ? product.variants
-          .map((v: any) => (typeof v?.title === "string" ? v.title : null))
-          .filter((v: any): v is string => typeof v === "string")
-      : null,
-    safe_metadata: safeMeta,
-  }
+  const ctx = productToContext(product, body.hint)
 
   const result = await generateProductDescriptions(ctx)
 

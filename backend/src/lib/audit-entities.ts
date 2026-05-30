@@ -67,6 +67,7 @@ export const AUDIT_ACTION = {
   BULK_CATEGORIES_CHANGED: "bulk_categories_changed",
   BULK_COLLECTION_CHANGED: "bulk_collection_changed",
   BULK_PRINT_PROFILE_CHANGED: "bulk_print_profile_changed",
+  BULK_DESCRIPTION_GENERATED: "bulk_description_generated",
   // Phase 1 of the customer fulfillment service.
   STOCK_RESERVED: "stock_reserved",
   STOCK_SHIPPED: "stock_shipped",

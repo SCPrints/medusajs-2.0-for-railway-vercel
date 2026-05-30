@@ -14,7 +14,7 @@ import {
   toast,
   usePrompt,
 } from "@medusajs/ui"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import ImageScanControl from "./image-scan-control"
@@ -230,6 +230,7 @@ const ProductsManagerTab = () => {
   /* ─ active bulk-action modal ─ */
   const [activeAction, setActiveAction] = useState<BulkActionKey | null>(null)
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null)
+  const [aiModalOpen, setAiModalOpen] = useState(false)
 
   /* ─ derived ─ */
   const pageCount = Math.max(1, Math.ceil(totalCount / pageSize) || 1)
@@ -685,6 +686,7 @@ const ProductsManagerTab = () => {
         onPickAction={setActiveAction}
         onDelete={runDelete}
         onExport={exportSelected}
+        onAiDescriptions={() => setAiModalOpen(true)}
         disabled={loading}
       />
 
@@ -743,6 +745,18 @@ const ProductsManagerTab = () => {
           result={bulkResult}
           onClose={() => setBulkResult(null)}
           onRetry={retryFailed}
+        />
+      ) : null}
+
+      {aiModalOpen ? (
+        <AiDescriptionModal
+          selectedIds={[...selectedIds]}
+          loadedProducts={products}
+          onClose={() => setAiModalOpen(false)}
+          onComplete={(cleanRun) => {
+            setRefreshNonce((n) => n + 1)
+            if (cleanRun) setSelectedIds(new Set())
+          }}
         />
       ) : null}
     </div>
@@ -1015,6 +1029,7 @@ type BulkActionBarProps = {
   onPickAction: (action: BulkActionKey) => void
   onDelete: () => void | Promise<void>
   onExport: () => void
+  onAiDescriptions: () => void
   disabled: boolean
 }
 
@@ -1073,6 +1088,9 @@ const BulkActionBar = (props: BulkActionBarProps) => {
                   </DropdownMenu.Item>
                 ))}
                 <DropdownMenu.Separator />
+                <DropdownMenu.Item onClick={props.onAiDescriptions}>
+                  AI descriptions…
+                </DropdownMenu.Item>
                 <DropdownMenu.Item onClick={props.onExport}>
                   Export CSV
                 </DropdownMenu.Item>
@@ -1821,6 +1839,279 @@ const ResultModal = (props: ResultModalProps) => {
               Close
             </Button>
           </div>
+        </FocusModal.Body>
+      </FocusModal.Content>
+    </FocusModal>
+  )
+}
+
+/* ─────────────── AI descriptions modal ─────────────── */
+
+const AI_DESC_CHUNK = 6
+
+type DescriptionLength = "short" | "standard" | "detailed"
+
+const LENGTH_OPTIONS: { value: DescriptionLength; label: string; hint: string }[] = [
+  { value: "short", label: "Short", hint: "One line (~140 chars)" },
+  { value: "standard", label: "Standard", hint: "~2 sentences" },
+  { value: "detailed", label: "Detailed", hint: "~3 short paragraphs" },
+]
+
+type AiDescriptionModalProps = {
+  selectedIds: string[]
+  loadedProducts: Product[]
+  onClose: () => void
+  /** cleanRun === true when every product wrote with no failures and no cancel. */
+  onComplete: (cleanRun: boolean) => void
+}
+
+/**
+ * Bulk AI description generator. One paid LLM call per product, so it
+ * chunks the selection and POSTs each chunk to
+ * `/admin/products-manager/ai-descriptions`, showing live progress. The
+ * tab must stay open for the run to finish — this is a foreground tool,
+ * not a background job.
+ */
+const AiDescriptionModal = (props: AiDescriptionModalProps) => {
+  // Snapshot the selection at mount — the parent clears it on a clean run,
+  // which would otherwise reset the progress UI mid-display.
+  const [ids] = useState(props.selectedIds)
+  const total = ids.length
+  const [length, setLength] = useState<DescriptionLength>("standard")
+  const [overwrite, setOverwrite] = useState(false)
+  const [phase, setPhase] = useState<"config" | "running" | "done">("config")
+  const [done, setDone] = useState(0)
+  const [wrote, setWrote] = useState(0)
+  const [skipped, setSkipped] = useState(0)
+  const [failures, setFailures] = useState<Array<{ id: string; error: string }>>([])
+  const [fatalError, setFatalError] = useState<string | null>(null)
+  const cancelRef = useRef(false)
+
+  // Approximate (current page only) — how many selected rows already have copy.
+  const loadedSelectedWithDesc = useMemo(() => {
+    const sel = new Set(ids)
+    return props.loadedProducts.filter(
+      (p) => sel.has(p.id) && p.quality.has_description
+    ).length
+  }, [ids, props.loadedProducts])
+
+  const run = async () => {
+    cancelRef.current = false
+    setPhase("running")
+    setDone(0)
+    setWrote(0)
+    setSkipped(0)
+    setFailures([])
+    setFatalError(null)
+
+    let okCount = 0
+    let skipCount = 0
+    let fatal: string | null = null
+    const fails: Array<{ id: string; error: string }> = []
+
+    for (let i = 0; i < ids.length; i += AI_DESC_CHUNK) {
+      if (cancelRef.current) break
+      const chunk = ids.slice(i, i + AI_DESC_CHUNK)
+      try {
+        const res = await fetch("/admin/products-manager/ai-descriptions", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ product_ids: chunk, length, overwrite }),
+        })
+        if (res.status === 503) {
+          const j = await res.json().catch(() => ({}))
+          fatal =
+            j?.detail ||
+            "AI provider not configured. Set AI_PROVIDER + the matching API key on the backend."
+          break
+        }
+        if (!res.ok) {
+          const text = await res.text().catch(() => "")
+          for (const id of chunk)
+            fails.push({ id, error: `HTTP ${res.status}: ${text.slice(0, 120)}` })
+        } else {
+          const data = (await res.json()) as {
+            succeeded: string[]
+            failed: Array<{ id: string; error: string }>
+            skipped: string[]
+          }
+          okCount += data.succeeded.length
+          skipCount += data.skipped.length
+          fails.push(...data.failed)
+        }
+      } catch (err: any) {
+        for (const id of chunk)
+          fails.push({ id, error: err?.message ?? "Network error" })
+      }
+      setDone(Math.min(i + chunk.length, ids.length))
+      setWrote(okCount)
+      setSkipped(skipCount)
+      setFailures([...fails])
+    }
+
+    setFatalError(fatal)
+    setPhase("done")
+
+    const cleanRun = !fatal && fails.length === 0 && !cancelRef.current
+    if (fatal) {
+      toast.error(fatal)
+    } else if (fails.length === 0) {
+      toast.success(
+        `AI descriptions: wrote ${okCount}${skipCount ? `, skipped ${skipCount}` : ""}.`
+      )
+    } else {
+      toast.warning(
+        `AI descriptions: wrote ${okCount}, failed ${fails.length}${skipCount ? `, skipped ${skipCount}` : ""}.`
+      )
+    }
+    props.onComplete(cleanRun)
+  }
+
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0
+  const running = phase === "running"
+
+  return (
+    <FocusModal
+      open
+      onOpenChange={(o) => {
+        // Block closing mid-run so a chunk loop isn't orphaned.
+        if (!o && !running) props.onClose()
+      }}
+    >
+      <FocusModal.Content>
+        <FocusModal.Header>
+          <FocusModal.Title>AI descriptions</FocusModal.Title>
+          <Text size="small" className="text-ui-fg-muted">
+            {total} product{total === 1 ? "" : "s"} selected
+          </Text>
+        </FocusModal.Header>
+        <FocusModal.Body className="flex flex-col gap-4 p-6">
+          {phase === "config" ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label size="small">Length</Label>
+                <Select
+                  value={length}
+                  onValueChange={(v) => setLength(v as DescriptionLength)}
+                >
+                  <Select.Trigger>
+                    <Select.Value />
+                  </Select.Trigger>
+                  <Select.Content>
+                    {LENGTH_OPTIONS.map((o) => (
+                      <Select.Item key={o.value} value={o.value}>
+                        {o.label} — {o.hint}
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-md border border-ui-border-base p-3">
+                <Checkbox
+                  checked={overwrite}
+                  onCheckedChange={(v) => setOverwrite(Boolean(v))}
+                />
+                <div className="flex flex-col gap-1">
+                  <Text size="small" weight="plus">
+                    Overwrite existing descriptions
+                  </Text>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    Off (default): products that already have a description are
+                    skipped — only blanks get written. On: every selected
+                    product is regenerated and replaced. There's no per-field
+                    undo.
+                  </Text>
+                </div>
+              </label>
+
+              {!overwrite && loadedSelectedWithDesc > 0 ? (
+                <Text size="xsmall" className="text-ui-fg-muted">
+                  At least {loadedSelectedWithDesc} of the selected rows on this
+                  page already have a description and will be skipped.
+                </Text>
+              ) : null}
+
+              <div className="rounded-md border border-ui-border-base bg-ui-bg-subtle p-3">
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  Generates one description per product via the configured AI
+                  provider and applies it directly (status is left untouched).
+                  Runs in batches of {AI_DESC_CHUNK} — keep this tab open until
+                  it finishes. Roughly a few seconds per product.
+                </Text>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="secondary" onClick={props.onClose}>
+                  Cancel
+                </Button>
+                <Button variant="primary" onClick={() => void run()}>
+                  Generate {total} description{total === 1 ? "" : "s"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <Text size="small" weight="plus">
+                    {running ? "Generating…" : "Done"}
+                  </Text>
+                  <Text size="small" className="text-ui-fg-muted">
+                    {done} / {total}
+                  </Text>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-ui-bg-subtle">
+                  <div
+                    className="h-full rounded-full bg-ui-fg-interactive transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Badge color="green">{wrote} written</Badge>
+                  {skipped > 0 ? <Badge color="grey">{skipped} skipped</Badge> : null}
+                  {failures.length > 0 ? (
+                    <Badge color="red">{failures.length} failed</Badge>
+                  ) : null}
+                </div>
+              </div>
+
+              {fatalError ? (
+                <div className="rounded-md border border-rose-200 bg-rose-50 p-3">
+                  <Text size="small" className="text-rose-800">
+                    {fatalError}
+                  </Text>
+                </div>
+              ) : null}
+
+              {failures.length > 0 ? (
+                <div className="flex flex-col gap-2">
+                  <Label size="small">Failures</Label>
+                  <pre className="max-h-56 overflow-auto rounded-md bg-ui-bg-subtle p-3 font-mono text-xs">
+                    {failures.map((f) => `${f.id}: ${f.error}`).join("\n")}
+                  </pre>
+                </div>
+              ) : null}
+
+              <div className="flex justify-end gap-2 pt-2">
+                {running ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      cancelRef.current = true
+                    }}
+                  >
+                    Stop
+                  </Button>
+                ) : (
+                  <Button variant="primary" onClick={props.onClose}>
+                    Close
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </FocusModal.Body>
       </FocusModal.Content>
     </FocusModal>
