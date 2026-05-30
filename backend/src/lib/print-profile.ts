@@ -185,6 +185,17 @@ export const SYSTEM_PROFILES: PrintProfileShape[] = [
       area("printed_tag", EMB_ONLY, A6_ONLY),
     ],
   },
+  {
+    name: "Socks",
+    handle: "socks",
+    description: "Socks — print only, front + back. Small print area (A6).",
+    is_system: true,
+    position: 7,
+    areas: [
+      area("front", PRINT_ONLY, A6_ONLY),
+      area("back", PRINT_ONLY, A6_ONLY),
+    ],
+  },
 ]
 
 /** Default profile handle for an unclassifiable apparel product. */
@@ -209,6 +220,7 @@ type ClassifiableProduct = {
 
 const PUFFER_PATTERN =
   /\b(puffer|quilted|down[\s-]?(?:jacket|filled|fill|vest)|(?:padded|insulated)[\s-]?(?:jacket|vest|gilet|bodywarmer|coat|parka))\b/
+const SOCKS_PATTERN = /\bsocks?\b/
 const SLEEVELESS_PATTERN = /\b(?:vest|singlet|tank|camisole)s?\b/
 const FRONT_BACK_TAG_PATTERN =
   /\b(pants?|shorts?(?!\s*sleeve)|trousers?|jeans?|leggings?|skirts?|tote|totes|bags?|backpacks?|pouch|pouches|apron|aprons|towel|towels)\b/
@@ -302,6 +314,15 @@ export function inferPrintProfileHandle(product: ClassifiableProduct): string {
   // 3. Puffer / insulated jacket (embroidery only).
   if (PUFFER_PATTERN.test(generalMeta) || PUFFER_PATTERN.test(titleBlob)) {
     return "puffer-jacket"
+  }
+  // 3b. Socks (print only, front + back) — distinctive, checked before the
+  // sleeveless / front+back fallbacks so a "sock" never mis-buckets.
+  if (
+    tags.some((t) => SOCKS_PATTERN.test(t)) ||
+    SOCKS_PATTERN.test(generalMeta) ||
+    SOCKS_PATTERN.test(titleBlob)
+  ) {
+    return "socks"
   }
   // 4. Sleeveless.
   if (SLEEVELESS_PATTERN.test(generalMeta) || SLEEVELESS_PATTERN.test(titleBlob)) {
