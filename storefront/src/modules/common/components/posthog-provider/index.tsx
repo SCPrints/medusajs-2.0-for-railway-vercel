@@ -33,6 +33,7 @@ const initPostHog = () => {
     person_profiles: "identified_only",
     autocapture: true,
     capture_exceptions: true,
+    capture_performance: { web_vitals: true },
     disable_session_recording: false,
     rate_limiting: { events_per_second: 10 },
     // Surveys aren't used on this storefront; opting out skips loading
