@@ -13,7 +13,9 @@ import { getPostHog } from "../../../lib/posthog"
 const createSchema = z.object({
   title: z.string().min(1).max(200),
   organisation_name: z.string().max(200).optional(),
-  owner_email: z.string().min(3).max(200),
+  // Becomes the cart's + order's email at convert time, so validate the
+  // format here (was min(3), which let "abc" through into order records).
+  owner_email: z.string().email().max(200),
   owner_name: z.string().max(200).optional(),
   base_product_id: z.string().min(1).max(120).optional(),
   base_variant_id: z.string().min(1).max(120).optional(),

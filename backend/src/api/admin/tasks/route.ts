@@ -7,7 +7,6 @@ import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
 import { captureEvent } from "../../../lib/posthog"
 
-const STATUS = ["open", "in_progress", "done", "cancelled"] as const
 const PRIORITY = ["low", "normal", "high", "urgent"] as const
 
 const createSchema = z.object({

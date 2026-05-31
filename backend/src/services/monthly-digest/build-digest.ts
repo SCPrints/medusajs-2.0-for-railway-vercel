@@ -7,7 +7,6 @@ import {
   pctDelta,
 } from "../../lib/reports/orders"
 import {
-  PRODUCTION_STAGES,
   STAGE_SLA_DAYS,
   type ProductionStage,
 } from "../../lib/production-stage"
@@ -471,8 +470,3 @@ export async function buildMonthlyDigest(
     currency_code: currency,
   }
 }
-
-// Hint to TS that this is value-agnostic re: PRODUCTION_STAGES; the
-// import is needed at runtime for the `STAGE_SLA_DAYS` access pattern
-// to typecheck against the canonical stage union.
-void PRODUCTION_STAGES

@@ -237,7 +237,7 @@ export async function buildCustomerJourney(
   }
 
   // ---- PostHog events (last N days) ----
-  let posthogConfigured = isPostHogConfigured()
+  const posthogConfigured = isPostHogConfigured()
   if (posthogConfigured && customer?.email) {
     try {
       const hogql = `

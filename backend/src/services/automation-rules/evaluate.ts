@@ -7,11 +7,10 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 import { ADMIN_WORKSPACE_MODULE } from "../../modules/admin-workspace"
 import { AUTOMATION_RULE_MODULE } from "../../modules/automation-rule"
 import {
-  PRODUCTION_STAGE_EVENT,
   isProductionStage,
-  type ProductionStageChangedEvent,
-  type ProductionStageHistoryEntry,
+  planProductionStageChange,
 } from "../../lib/production-stage"
+import { mergeOrderMetadata } from "../../lib/order-metadata"
 import { writeAudit } from "../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { TASK_MODULE } from "../../modules/task"
@@ -283,41 +282,32 @@ const dispatchAction = async (
       const eventBus = container.resolve(Modules.EVENT_BUS) as any
       const order = await orderModuleService.retrieveOrder(orderId)
       const meta = (order.metadata ?? {}) as Record<string, unknown>
-      const fromStage =
-        typeof meta.production_stage === "string" &&
-        isProductionStage(meta.production_stage)
-          ? (meta.production_stage as any)
-          : null
-      if (fromStage === action.params.stage) {
+
+      // Plan via the shared helper so a legacy stage routes to the correct
+      // track(s) and emits the matching per-track event(s) — identical logic
+      // to the admin production-stage route. Previously this always wrote
+      // production_stage + emitted the generic event, so a rule targeting an
+      // artwork/blanks stage (e.g. awaiting_approval) drifted the track
+      // fields and never fired the artwork-approval email.
+      const plan = planProductionStageChange(
+        meta,
+        { stage: action.params.stage },
+        {
+          orderId,
+          changedAt: new Date().toISOString(),
+          changedBy: "automation",
+          note: action.params.note ?? null,
+        }
+      )
+      if (!plan.changed || !plan.metadata) {
         return { ok: true, detail: "already at stage" }
       }
-      const changedAt = new Date().toISOString()
-      const newEntry: ProductionStageHistoryEntry = {
-        stage: action.params.stage as any,
-        changed_at: changedAt,
-        changed_by: "automation",
-        note: action.params.note ?? null,
+      // Atomic merge — an order.placed rule runs concurrently with the
+      // metadata stampers, so a full read-modify-write would clobber them.
+      await mergeOrderMetadata(container, orderId, plan.metadata)
+      for (const e of plan.events) {
+        await eventBus.emit({ name: e.name, data: e.data })
       }
-      const history = Array.isArray(meta.production_stage_history)
-        ? (meta.production_stage_history as ProductionStageHistoryEntry[])
-        : []
-      await orderModuleService.updateOrders(orderId, {
-        metadata: {
-          ...meta,
-          production_stage: action.params.stage,
-          production_stage_changed_at: changedAt,
-          production_stage_history: [...history, newEntry],
-        },
-      })
-      const ev: ProductionStageChangedEvent = {
-        order_id: orderId,
-        from_stage: fromStage,
-        to_stage: action.params.stage as any,
-        changed_at: changedAt,
-        changed_by: "automation",
-        note: action.params.note ?? null,
-      }
-      await eventBus.emit({ name: PRODUCTION_STAGE_EVENT, data: ev })
       return { ok: true }
     }
   } catch (err: any) {

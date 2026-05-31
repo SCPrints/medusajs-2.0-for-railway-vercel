@@ -671,7 +671,7 @@ Nightly job computes top-K co-purchased products per product; stored in product 
 | Nightly job (`0 2 * * *`) | [backend/src/jobs/refresh-cross-sell-recommendations.ts](backend/src/jobs/refresh-cross-sell-recommendations.ts) |
 | Compute + refresh logic | [backend/src/services/cross-sell-recommendations/](backend/src/services/cross-sell-recommendations/) |
 
-**Tuning**: `CROSS_SELL_MAX_PER_PRODUCT`, `CROSS_SELL_MIN_CO_OCCURRENCE`. **Storage**: `product.metadata.cross_sell_product_ids`. **Scale ceiling**: pulls full order history each run — promote to a materialised view past ~10k orders.
+**Env gate**: `CROSS_SELL_ENABLED=true` — the job no-ops (logs + returns) without it. **Tuning**: `CROSS_SELL_MAX_PER_PRODUCT`, `CROSS_SELL_MIN_CO_OCCURRENCE`. **Storage**: `product.metadata.cross_sell_product_ids`. **Scale ceiling**: pulls full order history each run — promote to a materialised view past ~10k orders.
 
 ### Search event logging
 Storefront fire-and-forget POST captures search queries + result counts for trending / zero-result analysis.
@@ -1415,7 +1415,7 @@ Polymorphic `audit_log` table in [backend/src/modules/admin-workspace/models/aud
 Every marketing-email send path **must** call `shouldSendMarketingEmail({ container, email, customer_id?, template_kind })` from [backend/src/lib/marketing-email.ts](backend/src/lib/marketing-email.ts) before invoking the notification module. Returns `{ ok: false, reason: "consent_false" | "suppressed_global" | "suppressed_stream" | "no_email" }` to block, `{ ok: true }` to proceed. Composes a `customer.metadata.marketing_consent_email` check with the (Phase 8) `email_suppression` table — the suppression check is gated by `EMAIL_SUPPRESSION_TABLE_ENABLED` so this helper is safe to deploy before the table exists. Emits `marketing_email_skipped` PostHog event on block so the dashboard can surface "we skipped N emails today due to X". `template_kind` is one of `cart_reminder | reorder_reminder | winback | monthly_digest | nps_request`.
 
 ### Quote expiry cron (Phase 5)
-[backend/src/jobs/expire-quotes.ts](backend/src/jobs/expire-quotes.ts) runs daily at 23:45 UTC. Walks `quote.status = "quoted"` rows whose `expires_at` is past and transitions them to `"expired"`, appending a `QuoteEvent` (`type: status_changed`) and an `audit_log` row. Opt-in via `QUOTE_EXPIRY_CRON_ENABLED=true`. Selection logic lives in [backend/src/services/quote/expire.ts](backend/src/services/quote/expire.ts) as a pure function so it can be unit-tested without the DB.
+[backend/src/jobs/expire-quotes.ts](backend/src/jobs/expire-quotes.ts) runs daily at 23:00 UTC (`0 23 * * *`). Walks `quote.status = "quoted"` rows whose `expires_at` is past and transitions them to `"expired"`, appending a `QuoteEvent` (`type: status_changed`) and an `audit_log` row. Opt-in via `QUOTE_EXPIRY_CRON_ENABLED=true`. Selection logic lives in [backend/src/services/quote/expire.ts](backend/src/services/quote/expire.ts) as a pure function so it can be unit-tested without the DB.
 
 ### Customer & order ownership (Phase 6)
 Every customer and every order can have an "owner" (a Medusa admin User). Owner inheritance: when an order is placed, the `order-placed-stamp-owner` subscriber copies the customer's existing owner; if the customer has no owner, it falls back to `pickNextOwner()` (rotation-based) and stamps both the customer and order with the picked user. Gated by `OWNER_AUTOSTAMP_ENABLED=true`.

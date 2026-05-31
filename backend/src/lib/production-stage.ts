@@ -419,3 +419,199 @@ export type ProductionStageChangedEvent = {
   note?: string | null
   track?: ProductionTrack
 }
+
+export type ProductionStageChangeInput = {
+  stage?: ProductionStage
+  artwork_stage?: ArtworkStage
+  blanks_stage?: BlanksStage
+  production_stage?: DownstreamStage
+}
+
+export type ProductionStageChangePlan = {
+  changed: boolean
+  /**
+   * Metadata fields to merge over the existing `order.metadata`. Null when
+   * nothing changed.
+   */
+  metadata:
+    | {
+        production_stage: ProductionStage
+        production_stage_changed_at: string
+        production_stage_history: ProductionStageHistoryEntry[]
+        artwork_stage: ArtworkStage
+        artwork_stage_changed_at: string | null
+        blanks_stage: BlanksStage
+        blanks_stage_changed_at: string | null
+      }
+    | null
+  events: Array<{ name: string; data: ProductionStageChangedEvent }>
+}
+
+function readStageFromMeta(meta: Record<string, unknown>): ProductionStage | null {
+  const raw = (meta as { production_stage?: unknown }).production_stage
+  return isProductionStage(raw) ? raw : null
+}
+
+function readHistoryFromMeta(
+  meta: Record<string, unknown>
+): ProductionStageHistoryEntry[] {
+  const raw = (meta as { production_stage_history?: unknown })
+    .production_stage_history
+  if (!Array.isArray(raw)) return []
+  return raw.filter((entry): entry is ProductionStageHistoryEntry => {
+    if (!entry || typeof entry !== "object") return false
+    const stage = (entry as { stage?: unknown }).stage
+    const changed_at = (entry as { changed_at?: unknown }).changed_at
+    return isProductionStage(stage) && typeof changed_at === "string"
+  })
+}
+
+/**
+ * Resolve the three track stages from an order's metadata, deriving legacy
+ * orders that only carry `production_stage`.
+ */
+export function resolveTracksFromMeta(meta: Record<string, unknown>): {
+  artwork: ArtworkStage
+  blanks: BlanksStage
+  downstream: DownstreamStage
+} {
+  const m = meta as { artwork_stage?: unknown; blanks_stage?: unknown }
+  const current = readStageFromMeta(meta)
+  const derived = deriveTracksFromLegacyStage(current)
+  return {
+    artwork: isArtworkStage(m.artwork_stage)
+      ? m.artwork_stage
+      : derived.artwork_stage,
+    blanks: isBlanksStage(m.blanks_stage)
+      ? m.blanks_stage
+      : derived.blanks_stage,
+    downstream: isDownstreamStage(current)
+      ? (current as DownstreamStage)
+      : derived.production_stage,
+  }
+}
+
+/**
+ * Pure planner for a production-stage change. Mirrors the admin
+ * `POST /orders/:id/production-stage` route so EVERY caller (that route, the
+ * automation-rules `set_production_stage` action) routes a legacy `stage` to
+ * the correct track(s), writes every track field, and emits the matching
+ * per-track event — rather than always writing `production_stage` + emitting
+ * the generic event (which left artwork/blanks stages from drifting and
+ * stopped the artwork-approval email from firing). Returns the metadata patch
+ * to merge and the events to emit; `changed: false` when it's a no-op.
+ *
+ * NOTE: keep in lockstep with the route handler's inline logic.
+ */
+export function planProductionStageChange(
+  meta: Record<string, unknown>,
+  input: ProductionStageChangeInput,
+  opts: {
+    orderId: string
+    changedAt: string
+    changedBy: string
+    note?: string | null
+  }
+): ProductionStageChangePlan {
+  const current = resolveTracksFromMeta(meta)
+  let nextArtwork: ArtworkStage = current.artwork
+  let nextBlanks: BlanksStage = current.blanks
+  let nextDownstream: DownstreamStage = current.downstream
+
+  if (input.artwork_stage) nextArtwork = input.artwork_stage
+  if (input.blanks_stage) nextBlanks = input.blanks_stage
+  if (input.production_stage) nextDownstream = input.production_stage
+  if (input.stage) {
+    if (isArtworkStage(input.stage)) nextArtwork = input.stage
+    else if (isBlanksStage(input.stage)) nextBlanks = input.stage
+    else if (isDownstreamStage(input.stage)) nextDownstream = input.stage
+    else {
+      const d = deriveTracksFromLegacyStage(input.stage)
+      nextArtwork = d.artwork_stage
+      nextBlanks = d.blanks_stage
+      nextDownstream = d.production_stage
+    }
+  }
+
+  const transitions: Array<{
+    track: ProductionTrack
+    from: ProductionStage
+    to: ProductionStage
+  }> = []
+  if (nextArtwork !== current.artwork)
+    transitions.push({ track: "artwork", from: current.artwork, to: nextArtwork })
+  if (nextBlanks !== current.blanks)
+    transitions.push({ track: "blanks", from: current.blanks, to: nextBlanks })
+  if (nextDownstream !== current.downstream)
+    transitions.push({
+      track: "production",
+      from: current.downstream,
+      to: nextDownstream,
+    })
+
+  if (transitions.length === 0) {
+    return { changed: false, metadata: null, events: [] }
+  }
+
+  const note = opts.note ?? null
+  const history = readHistoryFromMeta(meta)
+  const newEntries: ProductionStageHistoryEntry[] = transitions.map((t) => ({
+    stage: t.to,
+    changed_at: opts.changedAt,
+    changed_by: opts.changedBy,
+    note,
+    track: t.track,
+  }))
+
+  const downstreamChanged = transitions.find((t) => t.track === "production")
+  const persistedStage: ProductionStage = downstreamChanged
+    ? downstreamChanged.to
+    : transitions[transitions.length - 1].to
+
+  const m = meta as {
+    artwork_stage_changed_at?: unknown
+    blanks_stage_changed_at?: unknown
+  }
+  const artworkChanged = transitions.some((t) => t.track === "artwork")
+  const blanksChanged = transitions.some((t) => t.track === "blanks")
+
+  const events = transitions.map((t) => ({
+    name:
+      t.track === "artwork"
+        ? ARTWORK_STAGE_EVENT
+        : t.track === "blanks"
+          ? BLANKS_STAGE_EVENT
+          : PRODUCTION_STAGE_EVENT,
+    data: {
+      order_id: opts.orderId,
+      from_stage: t.from,
+      to_stage: t.to,
+      changed_at: opts.changedAt,
+      changed_by: opts.changedBy,
+      note,
+      track: t.track,
+    } as ProductionStageChangedEvent,
+  }))
+
+  return {
+    changed: true,
+    metadata: {
+      production_stage: persistedStage,
+      production_stage_changed_at: opts.changedAt,
+      production_stage_history: [...history, ...newEntries],
+      artwork_stage: nextArtwork,
+      artwork_stage_changed_at: artworkChanged
+        ? opts.changedAt
+        : typeof m.artwork_stage_changed_at === "string"
+          ? m.artwork_stage_changed_at
+          : null,
+      blanks_stage: nextBlanks,
+      blanks_stage_changed_at: blanksChanged
+        ? opts.changedAt
+        : typeof m.blanks_stage_changed_at === "string"
+          ? m.blanks_stage_changed_at
+          : null,
+    },
+    events,
+  }
+}
