@@ -4,6 +4,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js"
+import {
+  sampleWordmarkStipple,
+  type StipplePoint,
+} from "@modules/home/components/home-particle-three/sample-wordmark"
 
 /**
  * BlockCityHero — variant 3. A "city of blocks seen from above": the same
@@ -37,6 +41,16 @@ const TUNING = {
   bobAmplitude: 0.6, // world units along the view axis
   bobSpeed: 0.8, // radians/sec
   bobRippleScale: 1.8, // phase per unit radius → wave breathing out from centre
+
+  // Voxelised wordmark — built from the SAME blocks, but raised toward the
+  // viewer, taller, glowing and steadier so it stands out from the rippling
+  // field and reads as the logo rather than an overlay.
+  logoSampleCols: 30, // voxel resolution (chunky; bold SC reads, PRINTS stylised)
+  logoWorldW: 4.0, // world width of the mosaic (sized so the near-square logo fits the frame)
+  logoZ: 1.6, // raised toward the camera (field centre sits far at -depth)
+  logoBlockScale: 1.45, // block face = grid pitch × this → slight overlap = chunky/connected
+  logoDepth: 1.25, // tall towers so the logo reads as raised
+  logoBobAmplitude: 0.1, // much steadier than the field's 0.6
 
   camZ: 7.4,
   fov: 55,
@@ -91,8 +105,15 @@ type Block = {
   color: THREE.Color
 }
 
-function CityBlocks({ reducedMotion }: { reducedMotion: boolean }) {
+function CityBlocks({
+  reducedMotion,
+  stipple,
+}: {
+  reducedMotion: boolean
+  stipple: { points: StipplePoint[]; width: number; height: number } | null
+}) {
   const meshRef = useRef<THREE.InstancedMesh>(null)
+  const logoRef = useRef<THREE.InstancedMesh>(null)
   const dummy = useMemo(() => new THREE.Object3D(), [])
   const glowTex = useMemo(() => makeGlowTexture(), [])
 
@@ -106,6 +127,19 @@ function CityBlocks({ reducedMotion }: { reducedMotion: boolean }) {
         roughness: 0.62,
         metalness: 0.0,
         toneMapped: false, // keep the candy colours vivid
+      }),
+    []
+  )
+  // Logo blocks glow (emissive) so they pop out of the colourful field.
+  const logoMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: "#ffffff",
+        emissive: new THREE.Color("#bff3ec"), // faint brand-teal glow
+        emissiveIntensity: 0.6,
+        roughness: 0.36,
+        metalness: 0.0,
+        toneMapped: false,
       }),
     []
   )
@@ -139,7 +173,27 @@ function CityBlocks({ reducedMotion }: { reducedMotion: boolean }) {
     return out
   }, [])
 
-  // Initial matrices + colours.
+  // Voxelised wordmark — each opaque source pixel becomes a logo block, mapped
+  // onto a centred plane raised toward the camera (block face slightly larger
+  // than the grid pitch → chunky, connected letterforms).
+  const logo = useMemo(() => {
+    const empty = { points: [] as { x: number; y: number; baseZ: number; phase: number }[], face: 0.2 }
+    if (!stipple || stipple.points.length === 0) return empty
+    const aspect = stipple.width / stipple.height
+    const worldH = TUNING.logoWorldW / aspect
+    const pitch = TUNING.logoWorldW / stipple.width
+    const face = pitch * TUNING.logoBlockScale
+    const baseZ = TUNING.logoZ + TUNING.logoDepth / 2
+    const points = stipple.points.map((p) => ({
+      x: (p.u - 0.5) * TUNING.logoWorldW,
+      y: (0.5 - p.v) * worldH, // image v grows downward
+      baseZ,
+      phase: (Math.abs(p.u - 0.5) + Math.abs(p.v - 0.5)) * 3.0,
+    }))
+    return { points, face }
+  }, [stipple])
+
+  // Initial matrices + colours (field).
   useEffect(() => {
     const mesh = meshRef.current
     if (!mesh) return
@@ -155,20 +209,50 @@ function CityBlocks({ reducedMotion }: { reducedMotion: boolean }) {
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
   }, [blocks, dummy])
 
-  useFrame((state) => {
-    if (reducedMotion) return
-    const mesh = meshRef.current
-    if (!mesh) return
-    const t = state.clock.getElapsedTime() * TUNING.bobSpeed
-    for (let i = 0; i < blocks.length; i++) {
-      const b = blocks[i]
-      const dz = Math.sin(t + b.phase) * TUNING.bobAmplitude
-      dummy.position.set(b.x, b.y, b.baseZ + dz)
-      dummy.scale.set(TUNING.blockFace, TUNING.blockFace, b.depth)
+  // Initial matrices (logo).
+  useEffect(() => {
+    const mesh = logoRef.current
+    if (!mesh || logo.points.length === 0) return
+    for (let i = 0; i < logo.points.length; i++) {
+      const b = logo.points[i]
+      dummy.position.set(b.x, b.y, b.baseZ)
+      dummy.scale.set(logo.face, logo.face, TUNING.logoDepth)
       dummy.updateMatrix()
       mesh.setMatrixAt(i, dummy.matrix)
     }
     mesh.instanceMatrix.needsUpdate = true
+  }, [logo, dummy])
+
+  useFrame((state) => {
+    if (reducedMotion) return
+    const t = state.clock.getElapsedTime() * TUNING.bobSpeed
+
+    const mesh = meshRef.current
+    if (mesh) {
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i]
+        const dz = Math.sin(t + b.phase) * TUNING.bobAmplitude
+        dummy.position.set(b.x, b.y, b.baseZ + dz)
+        dummy.scale.set(TUNING.blockFace, TUNING.blockFace, b.depth)
+        dummy.updateMatrix()
+        mesh.setMatrixAt(i, dummy.matrix)
+      }
+      mesh.instanceMatrix.needsUpdate = true
+    }
+
+    // Logo bobs gently + slower so it reads as anchored vs. the rippling field.
+    const lm = logoRef.current
+    if (lm && logo.points.length > 0) {
+      for (let i = 0; i < logo.points.length; i++) {
+        const b = logo.points[i]
+        const dz = Math.sin(t * 0.8 + b.phase) * TUNING.logoBobAmplitude
+        dummy.position.set(b.x, b.y, b.baseZ + dz)
+        dummy.scale.set(logo.face, logo.face, TUNING.logoDepth)
+        dummy.updateMatrix()
+        lm.setMatrixAt(i, dummy.matrix)
+      }
+      lm.instanceMatrix.needsUpdate = true
+    }
   })
 
   return (
@@ -190,6 +274,10 @@ function CityBlocks({ reducedMotion }: { reducedMotion: boolean }) {
       </mesh>
 
       <instancedMesh ref={meshRef} args={[geometry, material, blocks.length]} />
+
+      {logo.points.length > 0 && (
+        <instancedMesh ref={logoRef} args={[geometry, logoMaterial, logo.points.length]} />
+      )}
     </>
   )
 }
@@ -209,12 +297,37 @@ export default function BlockCityHero({ className, style }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const [inView, setInView] = useState(true)
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [stipple, setStipple] = useState<{
+    points: StipplePoint[]
+    width: number
+    height: number
+  } | null>(null)
 
   useEffect(() => {
     try {
       setReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches)
     } catch {
       /* noop */
+    }
+  }, [])
+
+  // Voxelise the wordmark (each opaque pixel → a logo block).
+  useEffect(() => {
+    let cancelled = false
+    sampleWordmarkStipple(
+      "/branding/sc-prints-logo-transparent.png",
+      TUNING.logoSampleCols,
+      90,
+      false
+    )
+      .then((res) => {
+        if (!cancelled) setStipple(res)
+      })
+      .catch(() => {
+        /* logo optional — the city still renders */
+      })
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -253,7 +366,7 @@ export default function BlockCityHero({ className, style }: Props) {
       >
         <color attach="background" args={[TUNING.bg]} />
         <Rig />
-        <CityBlocks reducedMotion={reducedMotion} />
+        <CityBlocks reducedMotion={reducedMotion} stipple={stipple} />
       </Canvas>
     </div>
   )
