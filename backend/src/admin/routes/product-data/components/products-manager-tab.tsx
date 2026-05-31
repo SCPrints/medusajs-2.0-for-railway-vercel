@@ -230,6 +230,14 @@ const ProductsManagerTab = () => {
   /* ─ active bulk-action modal ─ */
   const [activeAction, setActiveAction] = useState<BulkActionKey | null>(null)
   const [bulkResult, setBulkResult] = useState<BulkResult | null>(null)
+  // Remembers the last bulk run's action + payload so the result modal's
+  // "Retry failed" button can re-issue the same operation on just the
+  // failures. "delete" is recorded too so the button hides after a
+  // destructive run (we don't silently re-delete).
+  const [lastBulk, setLastBulk] = useState<{
+    action: BulkActionKey | "delete"
+    payload: Record<string, unknown>
+  } | null>(null)
   const [aiModalOpen, setAiModalOpen] = useState(false)
 
   /* ─ derived ─ */
@@ -490,6 +498,7 @@ const ProductsManagerTab = () => {
         toast.error("No products selected.")
         return null
       }
+      setLastBulk({ action: key, payload })
       try {
         const res = await fetch("/admin/products-manager/bulk", {
           method: "POST",
@@ -543,6 +552,9 @@ const ProductsManagerTab = () => {
       cancelText: "Cancel",
     })
     if (!confirmed) return
+    // Record the run so the result modal's retry button hides for deletes
+    // (a stale non-delete action must not be re-applied to the failed rows).
+    setLastBulk({ action: "delete", payload: {} })
     try {
       const res = await fetch("/admin/products-manager/bulk", {
         method: "POST",
@@ -658,6 +670,16 @@ const ProductsManagerTab = () => {
 
   /* ─────────────── render ─────────────── */
 
+  // "Retry failed" re-runs the last bulk action on just the failed products.
+  // Only offered for non-destructive actions that left at least one failure.
+  const retryHandler =
+    bulkResult &&
+    lastBulk &&
+    lastBulk.action !== "delete" &&
+    bulkResult.failed.length > 0
+      ? () => retryFailed(lastBulk.action, lastBulk.payload)
+      : undefined
+
   return (
     <div className="flex flex-col gap-4">
       <FilterBar
@@ -744,7 +766,7 @@ const ProductsManagerTab = () => {
         <ResultModal
           result={bulkResult}
           onClose={() => setBulkResult(null)}
-          onRetry={retryFailed}
+          onRetry={retryHandler}
         />
       ) : null}
 
@@ -1805,14 +1827,22 @@ const MultiSetForm = ({
 type ResultModalProps = {
   result: BulkResult
   onClose: () => void
-  onRetry: (
-    action: BulkActionKey | "delete",
-    payload: Record<string, unknown>
-  ) => Promise<void>
+  /** Re-run the last bulk action on just the failures. Absent = no retry. */
+  onRetry?: () => Promise<void>
 }
 
 const ResultModal = (props: ResultModalProps) => {
   const { succeeded, failed, total } = props.result
+  const [retrying, setRetrying] = useState(false)
+  const handleRetry = async () => {
+    if (!props.onRetry || retrying) return
+    setRetrying(true)
+    try {
+      await props.onRetry()
+    } finally {
+      setRetrying(false)
+    }
+  }
   return (
     <FocusModal open onOpenChange={(o) => !o && props.onClose()}>
       <FocusModal.Content>
@@ -1834,8 +1864,22 @@ const ResultModal = (props: ResultModalProps) => {
               </pre>
             </div>
           ) : null}
-          <div className="flex justify-end pt-2">
-            <Button variant="primary" onClick={props.onClose}>
+          <div className="flex justify-end gap-2 pt-2">
+            {props.onRetry && failed.length > 0 ? (
+              <Button
+                variant="secondary"
+                isLoading={retrying}
+                disabled={retrying}
+                onClick={handleRetry}
+              >
+                Retry {failed.length} failed
+              </Button>
+            ) : null}
+            <Button
+              variant="primary"
+              onClick={props.onClose}
+              disabled={retrying}
+            >
               Close
             </Button>
           </div>
