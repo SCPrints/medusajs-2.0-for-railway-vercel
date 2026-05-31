@@ -13,7 +13,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HomeTrustStrip from "@modules/home/components/home-trust-strip"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
-import SpaceHero from "@modules/home/components/space-hero"
+import DigitalRainHero from "@modules/home/components/digital-rain-hero"
 import HeroOverlay from "@modules/home/components/space-hero/hero-overlay"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
@@ -200,9 +200,11 @@ export default async function Home({
           }}
         />
 
-        {/* 1. Hero */}
+        {/* 1. Hero — full-spectrum neon "digital rain" (see digital-rain-hero).
+            The previous pixel space scene is preserved at /[countryCode]/space-hero
+            and can be swapped back by re-importing SpaceHero here. */}
         <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#0B0C10]">
-          <SpaceHero style={{ position: "absolute", inset: 0, height: "100%" }} />
+          <DigitalRainHero style={{ position: "absolute", inset: 0, height: "100%" }} />
           <HeroOverlay />
         </section>
 
