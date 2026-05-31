@@ -144,8 +144,17 @@ export async function sendWinbackEmails(
 
       if (c.customer_id) {
         try {
+          // Spread existing metadata — Medusa replaces the whole jsonb on
+          // update, so a bare write would wipe marketing_consent_email +
+          // the other lifecycle stamps.
+          const existingCustomer = await customerModuleService
+            .retrieveCustomer(c.customer_id)
+            .catch(() => null)
+          const customerMeta = ((existingCustomer as any)?.metadata ??
+            {}) as Record<string, unknown>
           await customerModuleService.updateCustomers(c.customer_id, {
             metadata: {
+              ...customerMeta,
               last_winback_sent_at: now.toISOString(),
             },
           })

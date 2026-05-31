@@ -18,6 +18,10 @@ export class Migration20260618000000 extends Migration {
         '"assigned_to" text null, ' +
         '"currency_code" text not null default \'aud\', ' +
         '"total_estimate" numeric null, ' +
+        // model.bigNumber() always generates a paired raw_<field> jsonb
+        // property; MikroORM SELECTs it, so it must exist or every quote
+        // read throws. (Mirrors stripe-payment-link's raw_amount.)
+        '"raw_total_estimate" jsonb null, ' +
         '"line_items" jsonb not null default \'{}\'::jsonb, ' +
         '"metadata" jsonb not null default \'{}\'::jsonb, ' +
         '"expires_at" timestamptz null, ' +

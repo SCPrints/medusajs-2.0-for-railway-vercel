@@ -1,6 +1,13 @@
 import { Migration } from "@medusajs/framework/mikro-orm/migrations"
 
-export class Migration20260509000000 extends Migration {
+// NOTE: timestamp bumped from ...000000 to ...000001 to avoid a global
+// migration-name collision with search-log's Migration20260509000000.
+// Medusa keys migrations by name across ALL modules in one shared
+// mikro_orm_migrations table, so the second identically-named migration is
+// silently skipped — leaving report_annotation uncreated on a fresh DB.
+// Every statement is IF NOT EXISTS, so re-running on an existing DB is a
+// no-op. Same class of fix as commit 69c57550 (pos_session collision).
+export class Migration20260509000001 extends Migration {
   async up(): Promise<void> {
     this.addSql(
       'create table if not exists "report_annotation" (' +

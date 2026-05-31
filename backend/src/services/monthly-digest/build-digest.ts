@@ -121,8 +121,11 @@ export async function buildMonthlyDigest(
     }
   }
 
-  let newCustomersCurrent = 0
-  let newCustomersPrior = 0
+  // Sets, not counters — a new customer who places 2+ orders in the period
+  // must count once (distinct_customers already de-dups; new_customers used
+  // to over-count by incrementing per in-period order).
+  const newCustomersCurrentSet = new Set<string>()
+  const newCustomersPriorSet = new Set<string>()
   let currency = "AUD"
   // Top product aggregation
   const productAgg = new Map<
@@ -147,7 +150,7 @@ export async function buildMonthlyDigest(
         customersCurrent.add(key)
         const firstOrder = firstOrderByCustomer.get(key)
         if (firstOrder != null && firstOrder >= period.from.getTime()) {
-          newCustomersCurrent += 1
+          newCustomersCurrentSet.add(key)
         }
       }
       // Top products in current period only
@@ -183,11 +186,14 @@ export async function buildMonthlyDigest(
           firstOrder >= prior.from.getTime() &&
           firstOrder < prior.to.getTime()
         ) {
-          newCustomersPrior += 1
+          newCustomersPriorSet.add(key)
         }
       }
     }
   }
+
+  const newCustomersCurrent = newCustomersCurrentSet.size
+  const newCustomersPrior = newCustomersPriorSet.size
 
   const aovCurrent = ordersCurrent > 0 ? revCurrent / ordersCurrent : 0
   const aovPrior = ordersPrior > 0 ? revPrior / ordersPrior : 0

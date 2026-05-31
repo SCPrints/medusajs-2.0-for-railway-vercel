@@ -38,19 +38,50 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(400).json({ error: err?.message ?? "invalid" })
   }
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
-  const handle = body.handle.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-")
-  const [created] = await service.createOrganisations([
-    {
-      handle,
-      name: body.name,
-      abn: body.abn ?? null,
-      contact_email: body.contact_email ?? null,
-      contact_phone: body.contact_phone ?? null,
-      notes: body.notes ?? null,
-      default_pricing_tier: body.default_pricing_tier ?? null,
-      tax_exempt: body.tax_exempt ?? false,
-      tax_exempt_reason: body.tax_exempt_reason ?? null,
-    },
-  ])
+  const base =
+    body.handle
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "") || "org"
+
+  // `handle` is unique on the model — dedupe (org → org-2 → org-3 …) so a
+  // colliding slug doesn't crash the create with a raw 500.
+  let handle = base
+  try {
+    const existing = await service.listOrganisations({}, { take: 1000 })
+    const taken = new Set(
+      (existing as any[]).map((o) => o.handle).filter(Boolean)
+    )
+    let n = 2
+    while (taken.has(handle)) handle = `${base}-${n++}`
+  } catch {
+    /* best-effort dedupe; the catch below still guards a real collision */
+  }
+
+  let created
+  try {
+    ;[created] = await service.createOrganisations([
+      {
+        handle,
+        name: body.name,
+        abn: body.abn ?? null,
+        contact_email: body.contact_email ?? null,
+        contact_phone: body.contact_phone ?? null,
+        notes: body.notes ?? null,
+        default_pricing_tier: body.default_pricing_tier ?? null,
+        tax_exempt: body.tax_exempt ?? false,
+        tax_exempt_reason: body.tax_exempt_reason ?? null,
+      },
+    ])
+  } catch (err: any) {
+    // Unique-constraint race (two creates slugified to the same handle).
+    if (/unique|duplicate/i.test(err?.message ?? "")) {
+      return res
+        .status(409)
+        .json({ error: `An organisation with handle "${handle}" already exists.` })
+    }
+    throw err
+  }
   res.status(201).json({ organisation: created })
 }

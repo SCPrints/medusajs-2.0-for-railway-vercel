@@ -205,7 +205,10 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
         label_url: (fdata.label_url as string) || null,
         tracking_status: result.status || null,
         events,
-        shipped_at: events.length ? events[events.length - 1]?.event_date_time : null,
+        // Oldest event = dispatch. events is sorted oldest→newest, so [0] —
+        // the last index would track the latest scan (i.e. delivery), making
+        // shipped_at drift forward on every poll.
+        shipped_at: events.length ? events[0]?.event_date_time : null,
       }
 
       const existingMetadata =

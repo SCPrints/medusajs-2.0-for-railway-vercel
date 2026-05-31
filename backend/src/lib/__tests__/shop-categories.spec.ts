@@ -36,6 +36,15 @@ describe("inferAudiences", () => {
     expect(inferAudiences(ctx({ title: "Kids Polo", typeValue: "Polos" }))).toEqual(["kids"])
   })
 
+  it("recognises AS Colour's \"Wo's\" women's shorthand (not unisex)", () => {
+    // "Wo's Heavy Hood" must route to womens only — previously it missed
+    // KW_WOMENS and fell through to the unisex (mens + womens) default,
+    // surfacing women's garments under /mens.
+    expect(
+      inferAudiences(ctx({ title: "Wo's Heavy Hood", typeValue: "Hoodies" }))
+    ).toEqual(["womens"])
+  })
+
   it("falls back to unisex (mens + womens) when no demographic cue", () => {
     expect(
       inferAudiences(ctx({ title: "Premium Polo", typeValue: "Polos" })).sort()

@@ -9,7 +9,8 @@ import { AUDIT_ENTITY, AUDIT_ACTION } from "../lib/audit-entities"
 import { captureEvent } from "../lib/posthog"
 
 /**
- * Daily 23:45 UTC. Opt-in via `QUOTE_EXPIRY_CRON_ENABLED=true`.
+ * Daily 23:00 UTC (see `config.schedule`). Opt-in via
+ * `QUOTE_EXPIRY_CRON_ENABLED=true`.
  *
  * Walks every `quote` whose `status === "quoted"` and `expires_at` is
  * in the past; transitions them to `"expired"` and writes both a

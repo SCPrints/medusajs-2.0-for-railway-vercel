@@ -116,7 +116,9 @@ export async function buildStudioDashboard(
         "created_at",
         "status",
       ],
-      pagination: { take: 1000, skip: 0 },
+      // Newest first — the bucket only cares about the last 14 days, so an
+      // unordered slice could miss recent orders once volume passes 1000.
+      pagination: { take: 1000, skip: 0, order: { created_at: "DESC" } },
     })
     const ordersByCustomer = new Map<string, any[]>()
     for (const o of (orders as any[]) ?? []) {
@@ -191,7 +193,8 @@ export async function buildStudioDashboard(
     const { data: orders } = await query.graph({
       entity: "order",
       fields: ["id", "display_id", "email", "customer_id", "metadata", "created_at"],
-      pagination: { take: 1000, skip: 0 },
+      // Newest first — the bucket only looks at the last 30 days.
+      pagination: { take: 1000, skip: 0, order: { created_at: "DESC" } },
     })
     for (const o of (orders as any[]) ?? []) {
       const meta = (o.metadata as Record<string, unknown> | undefined) ?? {}

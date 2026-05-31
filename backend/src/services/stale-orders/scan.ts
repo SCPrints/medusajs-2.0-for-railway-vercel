@@ -6,9 +6,14 @@ import {
 
 import {
   SLACK_PRODUCTION_WEBHOOK_URL,
+  STALE_ORDER_ESCALATION_DAYS,
   STALE_ORDER_THRESHOLD_DAYS,
 } from "../../lib/constants"
-import { notifyStaleOrders, type NotifyResult } from "./notify"
+import {
+  escalateStaleOrders,
+  notifyStaleOrders,
+  type NotifyResult,
+} from "./notify"
 
 const TERMINAL_STAGES = new Set(["shipped", "delivered"])
 
@@ -46,6 +51,8 @@ export async function scanStaleOrders(
   const now = options.now ?? new Date()
   const thresholdDays = options.thresholdDays ?? STALE_ORDER_THRESHOLD_DAYS
   const thresholdMs = thresholdDays * 24 * 60 * 60 * 1000
+  const escalationMs =
+    (thresholdDays + STALE_ORDER_ESCALATION_DAYS) * 24 * 60 * 60 * 1000
 
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const orderModuleService = container.resolve(Modules.ORDER) as any
@@ -57,6 +64,7 @@ export async function scanStaleOrders(
   })
 
   const newlyStale: StaleOrderEntry[] = []
+  const escalationCandidates: StaleOrderEntry[] = []
   let considered = 0
   let cleared = 0
 
@@ -78,6 +86,22 @@ export async function scanStaleOrders(
     const ageMs = now.getTime() - changedMs
     const wasMarkedStale = meta.is_stale === true
     const isStaleNow = ageMs >= thresholdMs
+
+    // Manager-escalation candidates: any still-stale order aged past
+    // THRESHOLD + ESCALATION that hasn't been escalated this streak.
+    // Independent of the newly-stale / cleared branches below — escalation
+    // is meant to fire *after* an order has stayed stale, which the
+    // one-shot newlyStale list (always ~THRESHOLD days old) can never reach.
+    if (isStaleNow && ageMs >= escalationMs && meta.stale_escalated_at == null) {
+      escalationCandidates.push({
+        order_id: o.id as string,
+        display_id: typeof o.display_id === "number" ? o.display_id : null,
+        stage,
+        days_in_stage: Math.floor(ageMs / (24 * 60 * 60 * 1000)),
+        email: typeof o.email === "string" ? o.email : null,
+        customer_id: typeof o.customer_id === "string" ? o.customer_id : null,
+      })
+    }
 
     if (isStaleNow && !wasMarkedStale) {
       try {
@@ -120,7 +144,7 @@ export async function scanStaleOrders(
     )
   }
 
-  // Phase 11 — owner notification + task creation + manager escalation.
+  // Phase 11 — owner notification + task creation (newly-stale only).
   let notify: NotifyResult | undefined
   if (newlyStale.length > 0) {
     try {
@@ -128,6 +152,24 @@ export async function scanStaleOrders(
     } catch (err: any) {
       logger.warn(
         `stale-orders: notify side-effects failed: ${err?.message ?? err}`
+      )
+    }
+  }
+
+  // Phase 11 — manager escalation for orders stale past THRESHOLD + ESCALATION.
+  if (escalationCandidates.length > 0) {
+    try {
+      const esc = await escalateStaleOrders(container, escalationCandidates, {
+        now,
+      })
+      notify = {
+        tasks_created: notify?.tasks_created ?? 0,
+        owners_notified: notify?.owners_notified ?? 0,
+        managers_escalated: esc.managers_escalated,
+      }
+    } catch (err: any) {
+      logger.warn(
+        `stale-orders: manager escalation failed: ${err?.message ?? err}`
       )
     }
   }

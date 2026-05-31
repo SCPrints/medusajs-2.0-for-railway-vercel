@@ -5,7 +5,6 @@ import {
 import {
   ContainerRegistrationKeys,
   MedusaError,
-  Modules,
 } from "@medusajs/framework/utils"
 import {
   addToCartWorkflow,

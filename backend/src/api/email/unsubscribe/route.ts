@@ -136,10 +136,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   // Forward the signed token to the preference center so the customer
   // can re-enable specific streams without needing a separate link.
+  // Forward the *verified* kind (not a hard-coded "all") so the
+  // (email, kind, sig) triple stays internally consistent — the sig was
+  // signed over `${email}:${kind}`, so claiming kind=all here would fail
+  // verification at the preference center for per-stream links.
   const base =
     MARKETING_PREFERENCE_CENTER_URL && MARKETING_PREFERENCE_CENTER_URL.length > 0
       ? MARKETING_PREFERENCE_CENTER_URL
       : "/"
-  const target = `${base}${base.includes("?") ? "&" : "?"}email=${encodeURIComponent(email)}&kind=all&sig=${encodeURIComponent(String(q.sig ?? ""))}&unsubscribed=1`
+  const target = `${base}${base.includes("?") ? "&" : "?"}email=${encodeURIComponent(email)}&kind=${encodeURIComponent(kind)}&sig=${encodeURIComponent(String(q.sig ?? ""))}&unsubscribed=1`
   return res.redirect(303, target)
 }

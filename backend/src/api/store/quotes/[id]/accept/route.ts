@@ -57,6 +57,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       .json({ error: "quote no longer accepting", status: quote.status })
   }
 
+  // Idempotency: the accept link is static and non-expiring, so a re-POST
+  // (refresh, double-click) must NOT mint a second cart, re-add line items,
+  // or append another status_changed event. If the quote is already
+  // accepted/converted and carries its cart, return that cart unchanged.
+  const existingCartId =
+    typeof (quote.metadata as any)?.cart_id === "string"
+      ? ((quote.metadata as any).cart_id as string)
+      : null
+  if (
+    (quote.status === "accepted" || quote.status === "converted") &&
+    existingCartId
+  ) {
+    return res.json({
+      ok: true,
+      cart_id: existingCartId,
+      lines_added: 0,
+      skipped_items: [],
+      idempotent: true,
+    })
+  }
+
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   // Pick a region — use the first published region for the quote's currency.
   let regionId: string | null = null

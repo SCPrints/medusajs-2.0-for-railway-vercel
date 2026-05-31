@@ -8,8 +8,17 @@ import { Migration } from "@medusajs/framework/mikro-orm/migrations"
  * via foreign-key-style logical link.
  *
  * See Docs/FULFILLMENT_PHASE_1_SPEC.md → data model §§ 3-4.
+ *
+ * NOTE: timestamp bumped from ...000000 to ...000003 to avoid a global
+ * migration-name collision with organisation's Migration20270601000000
+ * (organisation already occupies ...000000/000001/000002, so ...000003 is
+ * the next free slot). Medusa keys migrations by name across ALL modules in
+ * one shared mikro_orm_migrations table, so the second identically-named
+ * migration is silently skipped — which is exactly why org_inventory went
+ * missing in prod and needed the fix-org-inventory-tables.ts band-aid. Every
+ * statement is IF NOT EXISTS, so re-running on an existing DB is a no-op.
  */
-export class Migration20270601000000 extends Migration {
+export class Migration20270601000003 extends Migration {
   async up(): Promise<void> {
     this.addSql(
       'create table if not exists "org_inventory" (' +

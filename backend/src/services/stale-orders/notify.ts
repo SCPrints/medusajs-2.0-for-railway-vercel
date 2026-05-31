@@ -7,7 +7,6 @@ import {
 import {
   ADMIN_PUBLIC_URL,
   BACKEND_URL,
-  STALE_ORDER_ESCALATION_DAYS,
   STALE_ORDER_MANAGER_EMAIL,
 } from "../../lib/constants"
 import { getOwner } from "../../lib/crm-owners"
@@ -49,21 +48,17 @@ export type NotifyResult = {
 const PRIORITY_BY_DAYS = (days: number): "high" | "urgent" => (days >= 7 ? "urgent" : "high")
 
 /**
- * Phase 11 side-effects for newly-stale orders:
+ * Phase 11 side-effects for *newly*-stale orders: look up the order's
+ * owner (or the customer's owner as a fallback), record an `audit_log`
+ * row against the order (so the Activity tab surfaces it), create a Task
+ * for the owner, fire the `stale_order_notified_owner` PostHog event, and
+ * email the owner (STALE_ORDER_OWNER_ALERT).
  *
- *   1. Look up the order's owner (or the customer's owner as a
- *      fallback). Record `audit_log` against the order (so the
- *      Activity tab surfaces it) and create a Task for the owner.
- *   2. If the order is still stale after STALE_ORDER_ESCALATION_DAYS
- *      additional days (so total = THRESHOLD + ESCALATION_DAYS
- *      since the stage changed), and a manager inbox is configured,
- *      flag the row for the manager-escalation channel.
- *
- * The "send email" step is intentionally not wired here — proper
- * staff-alert email templates ship in a follow-up. The PostHog event
- * `stale_order_notified_owner` + audit row + Task creation give
- * staff the surfacing they need today via /app/tasks and the order
- * Activity tab.
+ * Manager escalation is intentionally NOT done here. A newly-stale order
+ * is always ~THRESHOLD days old, so it can never satisfy the documented
+ * "THRESHOLD + ESCALATION" window — escalation is handled by the separate
+ * escalateStaleOrders() pass below, which the cron drives off orders that
+ * have *stayed* stale long enough.
  */
 export async function notifyStaleOrders(
   container: MedusaContainer,
@@ -187,88 +182,117 @@ export async function notifyStaleOrders(
 
       ownersNotified += 1
     }
-
-    // 2) Manager escalation — fires once per stale streak. We stamp
-    //    `metadata.stale_escalated_at` after the first manager mention
-    //    so subsequent runs no-op until the order moves stage and
-    //    becomes "newly stale" again (which clears the flag).
-    if (STALE_ORDER_MANAGER_EMAIL && e.days_in_stage >= STALE_ORDER_ESCALATION_DAYS) {
-      try {
-        const order = await orderService.retrieveOrder(e.order_id)
-        const meta = (order?.metadata ?? {}) as Record<string, unknown>
-        if (!meta.stale_escalated_at) {
-          await orderService.updateOrders(e.order_id, {
-            metadata: { ...meta, stale_escalated_at: now.toISOString() },
-          })
-          await writeAudit({
-            container,
-            entity: AUDIT_ENTITY.ORDER,
-            entity_id: e.order_id,
-            action: AUDIT_ACTION.STATUS_CHANGED,
-            actor_id: "system",
-            details: {
-              kind: "stale_order_manager_escalated",
-              days_in_stage: e.days_in_stage,
-              manager_recipients: STALE_ORDER_MANAGER_EMAIL,
-            },
-          })
-          try {
-            captureEvent("system", "stale_order_escalated_to_manager", {
-              order_id: e.order_id,
-              days_in_stage: e.days_in_stage,
-            })
-          } catch {
-            /* best-effort */
-          }
-
-          // Send the manager escalation email to every address in the
-          // comma-separated env var.
-          try {
-            const recipients = STALE_ORDER_MANAGER_EMAIL.split(",")
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0)
-            if (recipients.length > 0) {
-              const owner = await resolveUserEmail(container, ownerUserId)
-              const notificationService = container.resolve(
-                Modules.NOTIFICATION
-              ) as any
-              for (const to of recipients) {
-                await notificationService.createNotifications({
-                  to,
-                  channel: "email",
-                  template: EmailTemplates.STALE_ORDER_MANAGER_ESCALATION,
-                  data: {
-                    emailOptions: {
-                      subject: `Escalation: order #${e.display_id ?? e.order_id.slice(-6)} stale ${e.days_in_stage}d`,
-                    },
-                    escalation: {
-                      orderDisplayId: e.display_id,
-                      orderId: e.order_id,
-                      stage: e.stage,
-                      daysInStage: e.days_in_stage,
-                      ownerLabel: owner?.label ?? null,
-                      customerEmail: e.email,
-                      orderUrl: buildOrderAdminUrl(e.order_id),
-                    },
-                  },
-                })
-              }
-            }
-          } catch (err: any) {
-            logger.warn(
-              `stale-orders/notify: manager email send failed for ${e.order_id}: ${err?.message ?? err}`
-            )
-          }
-
-          managersEscalated += 1
-        }
-      } catch (err: any) {
-        logger.warn(
-          `stale-orders/notify: manager escalation failed for ${e.order_id}: ${err?.message ?? err}`
-        )
-      }
-    }
   }
 
   return { tasks_created: tasksCreated, owners_notified: ownersNotified, managers_escalated: managersEscalated }
+}
+
+/**
+ * Manager-escalation pass. The caller (scanStaleOrders) selects orders that
+ * have been stale for at least THRESHOLD + ESCALATION days and haven't been
+ * escalated this streak. Here we stamp `metadata.stale_escalated_at` (once
+ * per streak — cleared when the order moves stage and becomes fresh again),
+ * write an audit row, fire the PostHog event, and email every
+ * STALE_ORDER_MANAGER_EMAIL recipient. No-op when no manager inbox is set.
+ */
+export async function escalateStaleOrders(
+  container: MedusaContainer,
+  entries: StaleOrderEntry[],
+  options: { now?: Date } = {}
+): Promise<{ managers_escalated: number }> {
+  if (!STALE_ORDER_MANAGER_EMAIL) return { managers_escalated: 0 }
+  const recipients = STALE_ORDER_MANAGER_EMAIL.split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+  if (recipients.length === 0) return { managers_escalated: 0 }
+
+  const now = options.now ?? new Date()
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const orderService = container.resolve(Modules.ORDER) as any
+
+  let managersEscalated = 0
+  for (const e of entries) {
+    try {
+      const order = await orderService.retrieveOrder(e.order_id)
+      const meta = (order?.metadata ?? {}) as Record<string, unknown>
+      if (meta.stale_escalated_at) continue // already escalated this streak
+
+      await orderService.updateOrders(e.order_id, {
+        metadata: { ...meta, stale_escalated_at: now.toISOString() },
+      })
+      await writeAudit({
+        container,
+        entity: AUDIT_ENTITY.ORDER,
+        entity_id: e.order_id,
+        action: AUDIT_ACTION.STATUS_CHANGED,
+        actor_id: "system",
+        details: {
+          kind: "stale_order_manager_escalated",
+          days_in_stage: e.days_in_stage,
+          manager_recipients: STALE_ORDER_MANAGER_EMAIL,
+        },
+      })
+      try {
+        captureEvent("system", "stale_order_escalated_to_manager", {
+          order_id: e.order_id,
+          days_in_stage: e.days_in_stage,
+        })
+      } catch {
+        /* best-effort */
+      }
+
+      // Resolve the owner only for the email's display label.
+      let ownerLabel: string | null = null
+      try {
+        const owned = await getOwner({
+          container,
+          entity: AUDIT_ENTITY.ORDER,
+          entity_id: e.order_id,
+        })
+        const owner = await resolveUserEmail(container, owned?.user_id ?? null)
+        ownerLabel = owner?.label ?? null
+      } catch {
+        /* soft fail */
+      }
+
+      try {
+        const notificationService = container.resolve(
+          Modules.NOTIFICATION
+        ) as any
+        for (const to of recipients) {
+          await notificationService.createNotifications({
+            to,
+            channel: "email",
+            template: EmailTemplates.STALE_ORDER_MANAGER_ESCALATION,
+            data: {
+              emailOptions: {
+                subject: `Escalation: order #${e.display_id ?? e.order_id.slice(-6)} stale ${e.days_in_stage}d`,
+              },
+              escalation: {
+                orderDisplayId: e.display_id,
+                orderId: e.order_id,
+                stage: e.stage,
+                daysInStage: e.days_in_stage,
+                ownerLabel,
+                customerEmail: e.email,
+                orderUrl: buildOrderAdminUrl(e.order_id),
+              },
+            },
+          })
+        }
+      } catch (err: any) {
+        logger.warn(
+          `stale-orders/escalate: manager email send failed for ${e.order_id}: ${err?.message ?? err}`
+        )
+      }
+
+      managersEscalated += 1
+    } catch (err: any) {
+      logger.warn(
+        `stale-orders/escalate: failed for ${e.order_id}: ${err?.message ?? err}`
+      )
+    }
+  }
+
+  return { managers_escalated: managersEscalated }
 }

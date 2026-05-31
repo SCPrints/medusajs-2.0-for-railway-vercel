@@ -85,6 +85,9 @@ export default async function newsletterSyncOnCustomerCreated({
   try {
     await customerModuleService.updateCustomers(customerId, {
       metadata: {
+        // Spread existing keys — Medusa replaces the whole metadata jsonb
+        // on update, so a bare write would discard any signup-supplied keys.
+        ...existingMeta,
         marketing_consent_email: true,
         marketing_consent_updated_at: new Date().toISOString(),
         marketing_consent_source: "newsletter_migration",

@@ -139,8 +139,17 @@ export async function sendNpsRequests(
       })
 
       if (c.customer_id) {
+        // Read-modify-write: Medusa replaces the whole metadata jsonb on
+        // update, so spread the customer's existing keys or we'd wipe
+        // marketing_consent_email + the other lifecycle stamps.
+        const existingCustomer = await customerModuleService
+          .retrieveCustomer(c.customer_id)
+          .catch(() => null)
+        const customerMeta = ((existingCustomer as any)?.metadata ??
+          {}) as Record<string, unknown>
         await customerModuleService.updateCustomers(c.customer_id, {
           metadata: {
+            ...customerMeta,
             last_nps_request_sent_at: now.toISOString(),
           },
         })

@@ -328,7 +328,11 @@ const ACCESSORY_TYPES = new Set([
 // DETECTION REGEXES
 // ============================================================
 
-const KW_WOMENS = /\b(women|womens|woman|women's|ladies|ladie's|lady|female)s?\b/i
+// Keep in sync with TITLE_KW_WOMENS in product-taxonomy.ts. "wo's" is AS
+// Colour's shorthand for "women's" (e.g. "Wo's Heavy Hood"); without it
+// these products fail this branch and fall through to the unisex default,
+// cross-listing women's garments under /mens.
+const KW_WOMENS = /\b(women|womens|woman|women's|ladies|ladie's|lady|female|wo's)s?\b/i
 const KW_MENS = /\b(mens|men's|gents)\b/i
 const KW_KIDS = /\b(kid|kids|youth|child|children|infant|baby|babies|toddler)s?\b/i
 

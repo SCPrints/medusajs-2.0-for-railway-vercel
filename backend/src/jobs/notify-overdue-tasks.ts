@@ -27,10 +27,10 @@ import { EmailTemplates } from "../modules/email-notifications/templates"
  *   2. Write an audit row (per entity the task is anchored to)
  *   3. Emit a `task_overdue_notified` PostHog event so the dashboard
  *      can surface "N teammates have overdue work this week"
+ *   4. Email the assignee (EmailTemplates.TASK_OVERDUE)
  *
- * Email/Slack delivery is intentionally deferred to a follow-up — for
- * v1 the audit + studio bucket is enough surfacing (Studio dashboard
- * extension comes in the same Phase 7 follow-up).
+ * Slack delivery is still deferred to a follow-up; the Studio dashboard
+ * `tasks_due_today` bucket likewise comes later.
  */
 export default async function notifyOverdueTasksJob(container: MedusaContainer) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
