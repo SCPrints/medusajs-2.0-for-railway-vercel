@@ -3,55 +3,85 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js"
 import { useRouter } from "next/navigation"
 
 /**
- * BlockProductHero — variant 3b. The perspective block-city, but every tile's
- * top is a PRODUCT image: hover a tile to raise it toward you, move off and it
- * eases back down, click to open the product.
+ * BlockProductHero — a continuous field of long, soft-cornered candy blocks.
+ * At rest it's just the blocks (no images). Hover lifts a block TOWARD the
+ * viewer (not up the screen → never leaves the cursor → no bounce) and fades in
+ * its product image on a rounded top-cap; move off and it glides back slowly
+ * (image fades with it) so a swept mouse leaves a trail. Click opens the product.
  *
- * Each tile is its own textured mesh (so r3f's native per-object pointer events
- * give us hover + click for free — no instanced-atlas raycasting). Textures are
- * loaded through Next's same-origin image optimiser (/_next/image) so they're
- * WebGL-safe (no cross-origin canvas taint). MeshBasicMaterial keeps the product
- * images true-colour (no lighting wash). A gentle ripple bob remains, kept small
- * so the tiles stay a near-solid surface (you don't see under them).
+ * Form notes from feedback:
+ * - Bodies are RoundedBoxGeometry (soft corners, not harsh cubes).
+ * - Tiles TOUCH on a square pitch (no overlap) so adjacent walls are back-to-back
+ *   (opposite normals) → no z-fighting/flicker — with polygonOffset as insurance.
+ * - The image lives on a separate rounded top-cap that only appears on hover, so
+ *   it's never on the long side walls.
  *
- * "Whole field is products" for now — products repeat across the grid. Curating
- * a chosen subset later is just a matter of which cells get a product vs a
- * plain colour. Three.js + r3f, dynamic-imported ssr:false.
+ * Image caps load via Next's same-origin optimiser (WebGL-safe). Three.js + r3f.
  */
 
 type Product = { thumbnail: string; handle: string; title: string }
 
+const COLS = 13
+const ROWS = 9
+const FIELD_HALF_W = 9.5
+// Square pitch so tiles tile perfectly (no black gaps, no overlap → no z-fight).
+const FIELD_HALF_H = (FIELD_HALF_W * ROWS) / COLS
+const PITCH = (2 * FIELD_HALF_W) / COLS
+
 const TUNING = {
-  cols: 12,
-  rows: 8,
-  fieldHalfW: 8.4,
-  fieldHalfH: 5.4,
-  depth: 6, // bowl depth — radial convergence (gentler than the abstract city)
-  tileFace: 1.32, // world size of a tile face (big → product images are legible)
-  tileDepth: 0.5, // thin-ish so it reads as a tile, not a tall tower
-  bobAmplitude: 0.16, // REDUCED — tiles stay a near-solid surface
-  bobSpeed: 0.7,
-  bobRippleScale: 1.6,
-  hoverRaise: 1.4, // how far a hovered tile lifts toward the viewer
-  hoverLerp: 0.18, // ease factor toward the raise target (up fast-ish, down slow)
+  depth: 4, // gentle bowl → continuous near-flat surface
+  tileFace: PITCH * 1.0, // exactly touching
+  tileDepth: 4.0, // long blocks
+  cornerRadius: 0.06, // soft corners (in unit-box space)
+  bobAmplitude: 0.05, // tiny ripple
+  bobSpeed: 0.55,
+  bobRippleScale: 1.5,
+  hoverRaiseZ: 2.6, // lift toward viewer (no screen-Y → no bounce)
+  upLerp: 0.06, // gentle rise
+  downLerp: 0.025, // slow glide back → trailing settle
+  capInset: 0.9, // image cap size relative to the face
+  capOffset: 0.04, // cap sits just in front of the body's top face
   camZ: 7.4,
   fov: 55,
   bg: "#0c0b1a",
 } as const
 
-// Fallback tile colours shown until a product image loads (or if it fails).
 const PALETTE = ["#3dcfc2", "#ff4d7d", "#b9a7ff", "#ffe46b", "#7fe7e0", "#9b7bff"]
 
-// Route thumbnails through Next's optimiser → same-origin → safe as a WebGL
-// texture (a raw cross-origin R2 URL would taint and fail to upload).
 function nextImg(url: string, w = 256): string {
   return `/_next/image?url=${encodeURIComponent(url)}&w=${w}&q=75`
 }
 
-type Tile = { x: number; y: number; baseZ: number; phase: number; productIndex: number }
+// Rounded-rect alpha mask for the image cap (so revealed product images have soft corners too).
+function makeRoundedAlpha(): THREE.Texture {
+  const S = 128
+  const c = document.createElement("canvas")
+  c.width = S
+  c.height = S
+  const ctx = c.getContext("2d")!
+  ctx.clearRect(0, 0, S, S)
+  ctx.fillStyle = "#ffffff"
+  const r = S * 0.16
+  const x = 2
+  const y = 2
+  const w = S - 4
+  const h = S - 4
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.arcTo(x + w, y, x + w, y + h, r)
+  ctx.arcTo(x + w, y + h, x, y + h, r)
+  ctx.arcTo(x, y + h, x, y, r)
+  ctx.arcTo(x, y, x + w, y, r)
+  ctx.closePath()
+  ctx.fill()
+  return new THREE.CanvasTexture(c)
+}
+
+type Tile = { x: number; y: number; baseZ: number; phase: number; productIndex: number; colorIndex: number }
 
 function Tiles({
   products,
@@ -63,23 +93,25 @@ function Tiles({
   reducedMotion: boolean
 }) {
   const router = useRouter()
-  const geom = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
+  const bodyGeom = useMemo(() => new RoundedBoxGeometry(1, 1, 1, 4, TUNING.cornerRadius), [])
+  const capGeom = useMemo(() => new THREE.PlaneGeometry(1, 1), [])
+  const roundedAlpha = useMemo(() => makeRoundedAlpha(), [])
 
   const tiles = useMemo<Tile[]>(() => {
-    const { cols, rows, fieldHalfW, fieldHalfH, depth, bobRippleScale } = TUNING
     const out: Tile[] = []
     let k = 0
-    for (let i = 0; i < cols; i++) {
-      for (let j = 0; j < rows; j++) {
-        const u = cols > 1 ? (i / (cols - 1)) * 2 - 1 : 0
-        const v = rows > 1 ? (j / (rows - 1)) * 2 - 1 : 0
+    for (let i = 0; i < COLS; i++) {
+      for (let j = 0; j < ROWS; j++) {
+        const u = COLS > 1 ? (i / (COLS - 1)) * 2 - 1 : 0
+        const v = ROWS > 1 ? (j / (ROWS - 1)) * 2 - 1 : 0
         const r = Math.min(1, Math.hypot(u, v))
         out.push({
-          x: u * fieldHalfW,
-          y: v * fieldHalfH,
-          baseZ: -depth * (1 - r), // centre far, edges near
-          phase: r * bobRippleScale * Math.PI * 2 + (i * 0.3 + j * 0.7),
+          x: u * FIELD_HALF_W,
+          y: v * FIELD_HALF_H,
+          baseZ: -TUNING.depth * (1 - r) + TUNING.tileDepth / 2,
+          phase: r * TUNING.bobRippleScale * Math.PI * 2 + (i * 0.3 + j * 0.7),
           productIndex: products.length ? k % products.length : 0,
+          colorIndex: (i * 3 + j * 5) % PALETTE.length,
         })
         k++
       }
@@ -87,22 +119,43 @@ function Tiles({
     return out
   }, [products])
 
-  // One material per product (shared across the tiles that repeat it). Starts as
-  // a palette colour; swaps to the product image (true colour) once it loads.
-  const materials = useMemo(
+  // Candy block bodies (lit, soft corners). polygonOffset = z-fight insurance.
+  const bodyMaterials = useMemo(
     () =>
-      products.map(
-        (_, idx) =>
+      PALETTE.map(
+        (hex) =>
+          new THREE.MeshStandardMaterial({
+            color: new THREE.Color(hex),
+            roughness: 0.72,
+            metalness: 0,
+            polygonOffset: true,
+            polygonOffsetFactor: 1,
+            polygonOffsetUnits: 1,
+          })
+      ),
+    []
+  )
+
+  // Per-tile image caps (rounded, transparent; fade in with the lift).
+  const capMaterials = useMemo(
+    () =>
+      tiles.map(
+        () =>
           new THREE.MeshBasicMaterial({
-            color: new THREE.Color(PALETTE[idx % PALETTE.length]),
+            color: new THREE.Color("#ffffff"),
+            alphaMap: roundedAlpha,
+            transparent: true,
+            opacity: 0,
+            depthWrite: false,
             toneMapped: false,
           })
       ),
-    [products]
+    [tiles, roundedAlpha]
   )
 
   useEffect(() => {
     const loader = new THREE.TextureLoader()
+    const texByProduct: (THREE.Texture | null)[] = products.map(() => null)
     const created: THREE.Texture[] = []
     products.forEach((p, idx) => {
       if (!p.thumbnail) return
@@ -111,23 +164,27 @@ function Tiles({
         (tex) => {
           tex.colorSpace = THREE.SRGBColorSpace
           tex.anisotropy = 4
-          materials[idx].map = tex
-          materials[idx].color.set("#ffffff") // let the image show at true colour
-          materials[idx].needsUpdate = true
+          texByProduct[idx] = tex
           created.push(tex)
+          // Assign to every cap that shows this product.
+          tiles.forEach((tile, k) => {
+            if (tile.productIndex === idx) {
+              capMaterials[k].map = tex
+              capMaterials[k].needsUpdate = true
+            }
+          })
         },
         undefined,
-        () => {
-          /* keep the palette fallback colour on load failure */
-        }
+        () => {}
       )
     })
     return () => {
       created.forEach((t) => t.dispose())
     }
-  }, [products, materials])
+  }, [products, tiles, capMaterials])
 
-  const meshRefs = useRef<(THREE.Mesh | null)[]>([])
+  const bodyRefs = useRef<(THREE.Mesh | null)[]>([])
+  const capRefs = useRef<(THREE.Mesh | null)[]>([])
   const raise = useMemo(() => new Float32Array(tiles.length), [tiles.length])
   const hoveredRef = useRef(-1)
   const cursorPointerRef = useRef(false)
@@ -135,15 +192,24 @@ function Tiles({
   useFrame((state) => {
     const t = reducedMotion ? 0 : state.clock.getElapsedTime() * TUNING.bobSpeed
     for (let k = 0; k < tiles.length; k++) {
-      const m = meshRefs.current[k]
-      if (!m) continue
+      const body = bodyRefs.current[k]
+      if (!body) continue
       const tile = tiles[k]
-      const target = hoveredRef.current === k ? TUNING.hoverRaise : 0
-      raise[k] += (target - raise[k]) * TUNING.hoverLerp
+      const target = hoveredRef.current === k ? 1 : 0
+      const rate = target > raise[k] ? TUNING.upLerp : TUNING.downLerp
+      raise[k] += (target - raise[k]) * rate
       const bob = reducedMotion ? 0 : Math.sin(t + tile.phase) * TUNING.bobAmplitude
-      m.position.z = tile.baseZ + bob + raise[k]
+      const z = tile.baseZ + bob + raise[k] * TUNING.hoverRaiseZ
+      body.position.z = z
+
+      const cap = capRefs.current[k]
+      if (cap) {
+        cap.position.z = z + TUNING.tileDepth / 2 + TUNING.capOffset
+        const op = Math.min(1, raise[k] * 1.6)
+        ;(cap.material as THREE.MeshBasicMaterial).opacity = op
+        cap.visible = op > 0.01
+      }
     }
-    // Drive the cursor from the hover ref (avoids over/out ordering flicker).
     const wantPointer = hoveredRef.current >= 0
     if (wantPointer !== cursorPointerRef.current) {
       cursorPointerRef.current = wantPointer
@@ -153,30 +219,45 @@ function Tiles({
 
   return (
     <>
+      <ambientLight intensity={0.78} />
+      <directionalLight position={[3, 6, 8]} intensity={0.6} />
+      <directionalLight position={[-5, -3, 4]} intensity={0.22} color="#9fb4ff" />
       {tiles.map((tile, k) => (
-        <mesh
-          key={k}
-          ref={(el) => {
-            meshRefs.current[k] = el
-          }}
-          geometry={geom}
-          material={materials[tile.productIndex]}
-          position={[tile.x, tile.y, tile.baseZ]}
-          scale={[TUNING.tileFace, TUNING.tileFace, TUNING.tileDepth]}
-          onPointerOver={(e) => {
-            e.stopPropagation()
-            hoveredRef.current = k
-          }}
-          onPointerOut={(e) => {
-            e.stopPropagation()
-            if (hoveredRef.current === k) hoveredRef.current = -1
-          }}
-          onClick={(e) => {
-            e.stopPropagation()
-            const p = products[tile.productIndex]
-            if (p) router.push(`/${countryCode}/products/${p.handle}`)
-          }}
-        />
+        <group key={k}>
+          <mesh
+            ref={(el) => {
+              bodyRefs.current[k] = el
+            }}
+            geometry={bodyGeom}
+            material={bodyMaterials[tile.colorIndex]}
+            position={[tile.x, tile.y, tile.baseZ]}
+            scale={[TUNING.tileFace, TUNING.tileFace, TUNING.tileDepth]}
+            onPointerOver={(e) => {
+              e.stopPropagation()
+              hoveredRef.current = k
+            }}
+            onPointerOut={(e) => {
+              e.stopPropagation()
+              if (hoveredRef.current === k) hoveredRef.current = -1
+            }}
+            onClick={(e) => {
+              e.stopPropagation()
+              const p = products[tile.productIndex]
+              if (p) router.push(`/${countryCode}/products/${p.handle}`)
+            }}
+          />
+          <mesh
+            ref={(el) => {
+              capRefs.current[k] = el
+            }}
+            geometry={capGeom}
+            material={capMaterials[k]}
+            position={[tile.x, tile.y, tile.baseZ + TUNING.tileDepth / 2 + TUNING.capOffset]}
+            scale={[TUNING.tileFace * TUNING.capInset, TUNING.tileFace * TUNING.capInset, 1]}
+            visible={false}
+            raycast={() => {}}
+          />
+        </group>
       ))}
     </>
   )
@@ -214,17 +295,17 @@ export default function BlockProductHero({ products, countryCode, className, sty
   useEffect(() => {
     const el = wrapRef.current
     if (!el) return
-    const obs = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
-      threshold: 0,
-    })
+    const obs = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0 })
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
 
-  // Always reset the cursor if we unmount mid-hover.
-  useEffect(() => () => {
-    document.body.style.cursor = "auto"
-  }, [])
+  useEffect(
+    () => () => {
+      document.body.style.cursor = "auto"
+    },
+    []
+  )
 
   return (
     <div
