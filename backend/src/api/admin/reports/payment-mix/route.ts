@@ -212,6 +212,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
+  // Share denominator = the sum of per-gateway revenue (payment amounts),
+  // NOT grandTotalRevenue (order totals). The two diverge for split
+  // deposit+balance payments — dividing by order totals let the shares
+  // exceed 100%. Dividing by the amount actually being apportioned keeps
+  // them summing to 100%.
+  const sumGatewayRevenue = Array.from(byGateway.values()).reduce(
+    (acc, s) => acc + s.revenue,
+    0
+  )
+
   const gateways = Array.from(byGateway.values()).map((s) => {
     const totalFees = s.fees_observed + s.fees_estimated
     const effectiveFeePct =
@@ -226,8 +236,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       payments_with_fee_data: s.payments_with_fee_data,
       payments_total: s.payments_total,
       revenue_share_pct:
-        grandTotalRevenue > 0
-          ? Math.round((s.revenue / grandTotalRevenue) * 1000) / 10
+        sumGatewayRevenue > 0
+          ? Math.round((s.revenue / sumGatewayRevenue) * 1000) / 10
           : 0,
     }
   })

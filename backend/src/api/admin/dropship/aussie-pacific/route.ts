@@ -30,28 +30,43 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const since = new Date(
     Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000
   ).toISOString()
+  const sinceMs = Date.parse(since)
 
-  const { data: rawOrders } = await query.graph({
-    entity: "order",
-    fields: [
-      "id",
-      "display_id",
-      "created_at",
-      "status",
-      "metadata",
-      "email",
-      "shipping_address.first_name",
-      "shipping_address.last_name",
-      "items.id",
-      "items.variant_sku",
-      "items.title",
-      "items.quantity",
-      "items.metadata",
-    ],
-    pagination: { take: 500, skip: 0, order: { created_at: "DESC" } },
-  })
-
-  const orders = (rawOrders as any[]) ?? []
+  // Paginate newest-first until we cross the 90-day cutoff. A single take:500
+  // page silently dropped the oldest *unsent* orders once 90-day volume
+  // exceeded 500 — they'd never appear in the pending queue.
+  const PAGE = 500
+  const orders: any[] = []
+  let skip = 0
+  while (true) {
+    const { data } = await query.graph({
+      entity: "order",
+      fields: [
+        "id",
+        "display_id",
+        "created_at",
+        "status",
+        "metadata",
+        "email",
+        "shipping_address.first_name",
+        "shipping_address.last_name",
+        "items.id",
+        "items.variant_sku",
+        "items.title",
+        "items.quantity",
+        "items.metadata",
+      ],
+      pagination: { take: PAGE, skip, order: { created_at: "DESC" } },
+    })
+    const page = (data as any[]) ?? []
+    orders.push(...page)
+    const last = page[page.length - 1]
+    const lastMs = last?.created_at ? Date.parse(last.created_at) : NaN
+    // Ordered DESC — once a full page ends older than the cutoff, stop.
+    if (page.length < PAGE || (Number.isFinite(lastMs) && lastMs < sinceMs)) break
+    skip += PAGE
+    if (skip >= 20000) break // safety cap
+  }
 
   const pending: any[] = []
   const sent: any[] = []

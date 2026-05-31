@@ -88,8 +88,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
   if (q) {
     // Medusa's graph layer supports an `$ilike` operator for case-insensitive
-    // substring matching; safer than building a raw SQL `LIKE`.
-    filters.title = { $ilike: `%${q}%` }
+    // substring matching; safer than building a raw SQL `LIKE`. Strip LIKE
+    // wildcards (%/_) so a literal "%" doesn't match every product.
+    filters.title = { $ilike: `%${q.replace(/[%_]/g, "")}%` }
   }
 
   const { data, metadata } = await query.graph({

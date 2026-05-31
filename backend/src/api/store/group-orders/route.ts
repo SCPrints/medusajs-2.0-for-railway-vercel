@@ -3,7 +3,7 @@ import type {
   MedusaResponse,
 } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import { ulid } from "ulid"
+import { randomBytes } from "crypto"
 import { z } from "zod"
 
 import { GROUP_ORDER_MODULE } from "../../../modules/group-order"
@@ -24,8 +24,12 @@ const createSchema = z.object({
 })
 
 function makePublicToken() {
-  // Half-length ULID + random chars — short enough to share, hard to guess.
-  return `${ulid().slice(-12).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+  // This token is the ONLY capability protecting the public group-order page
+  // (roster of names/sizes) and the participant-submission endpoint, so it
+  // must not be guessable. crypto.randomBytes is a CSPRNG — the old
+  // ULID-slice + Math.random() was neither full-entropy nor cryptographic.
+  // 16 URL-safe chars, 96 bits.
+  return randomBytes(12).toString("base64url")
 }
 
 export async function POST(

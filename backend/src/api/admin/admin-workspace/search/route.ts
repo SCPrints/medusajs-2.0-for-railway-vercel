@@ -23,8 +23,11 @@ type Hit = {
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+  // Strip LIKE wildcards (%/_) so a user typing "%" doesn't match everything.
   const q =
-    typeof req.query.q === "string" ? req.query.q.trim() : ""
+    typeof req.query.q === "string"
+      ? req.query.q.trim().replace(/[%_]/g, "")
+      : ""
   if (q.length === 0) {
     return res.json({ q, hits: [] })
   }
