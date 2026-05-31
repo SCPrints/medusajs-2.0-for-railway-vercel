@@ -6,6 +6,7 @@ import {
   isProductionStage,
   type ProductionStageHistoryEntry,
 } from "../lib/production-stage"
+import { mergeOrderMetadata } from "../lib/order-metadata"
 
 /**
  * Stamps `production_stage = "received"` onto every newly placed order so the
@@ -59,17 +60,16 @@ export default async function orderPlacedStampProductionStageHandler({
   }
 
   try {
-    await orderModuleService.updateOrders(orderId, {
-      metadata: {
-        ...meta,
-        production_stage: "received",
-        production_stage_changed_at: changedAt,
-        production_stage_history: [initialEntry],
-        artwork_stage: "pending",
-        artwork_stage_changed_at: changedAt,
-        blanks_stage: "not_started",
-        blanks_stage_changed_at: changedAt,
-      },
+    // Atomic JSONB merge — five subscribers stamp order.metadata
+    // concurrently on order.placed; a read-modify-write would lose keys.
+    await mergeOrderMetadata(container, orderId, {
+      production_stage: "received",
+      production_stage_changed_at: changedAt,
+      production_stage_history: [initialEntry],
+      artwork_stage: "pending",
+      artwork_stage_changed_at: changedAt,
+      blanks_stage: "not_started",
+      blanks_stage_changed_at: changedAt,
     })
   } catch (error) {
     logger.error(

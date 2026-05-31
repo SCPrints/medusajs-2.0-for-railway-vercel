@@ -28,6 +28,9 @@ const buildContainer = (state: {
   assignment?: AssignmentRow | null
   // Optional: an existing assignment linked to entity_id (only one for the test).
   linkedAssignmentByEntity?: Record<string, AssignmentRow>
+  // Optional: mock for the raw `__pg_connection__.raw` call pickNextOwner uses
+  // for its atomic rotation claim. Defaults to "no row claimed".
+  pgRaw?: (...args: any[]) => Promise<any>
 } = {}) => {
   const rotation = [...(state.rotation ?? [])]
   const linkedAssignmentByEntity = { ...(state.linkedAssignmentByEntity ?? {}) }
@@ -111,6 +114,9 @@ const buildContainer = (state: {
 
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() }
 
+  const pgRaw = jest.fn(state.pgRaw ?? (async () => ({ rows: [] })))
+  const pg = { raw: pgRaw }
+
   return {
     resolve: jest.fn((key: string) => {
       if (key === ADMIN_WORKSPACE_MODULE) return ws
@@ -119,6 +125,7 @@ const buildContainer = (state: {
         return { graph: queryGraph }
       if (key === ContainerRegistrationKeys.LINK)
         return { create: linkCreate, dismiss: linkDismiss }
+      if (key === "__pg_connection__") return pg
       throw new Error(`unexpected resolve(${key})`)
     }),
     _state: { rotation, linkedAssignmentByEntity },
@@ -133,70 +140,49 @@ const buildContainer = (state: {
       linkDismiss,
       queryGraph,
       logger,
+      pgRaw,
     },
   } as any
 }
 
 describe("pickNextOwner", () => {
-  it("returns null when no one is enabled in rotation", async () => {
-    const container = buildContainer({ rotation: [] })
+  // The pick is now a single atomic `UPDATE … WHERE id = (SELECT … FOR UPDATE
+  // SKIP LOCKED) RETURNING user_id` so concurrent order.placed events can't
+  // assign the same teammate. The oldest-first / never-picked-first / position
+  // tiebreak ordering lives in the SQL ORDER BY (exercised by Postgres, not
+  // unit-testable here); these tests cover the claim contract + plumbing.
+
+  it("returns null when the atomic claim selects no row", async () => {
+    const container = buildContainer({ pgRaw: async () => ({ rows: [] }) })
     expect(await pickNextOwner({ container })).toBeNull()
   })
 
-  it("picks the never-picked user before any picked user", async () => {
-    const past = new Date("2026-05-01T00:00:00Z")
+  it("returns the user claimed by the atomic UPDATE…RETURNING", async () => {
     const container = buildContainer({
-      rotation: [
-        { id: "r1", user_id: "u1", enabled: true, position: 100, last_picked_at: past },
-        { id: "r2", user_id: "u2", enabled: true, position: 100, last_picked_at: null },
-      ],
+      pgRaw: async () => ({ rows: [{ user_id: "u2" }] }),
     })
-    const picked = await pickNextOwner({ container })
-    expect(picked).toEqual({ user_id: "u2" })
+    expect(await pickNextOwner({ container })).toEqual({ user_id: "u2" })
   })
 
-  it("picks the oldest last_picked_at when all have been picked", async () => {
+  it("claims atomically: oldest/never-picked first, FOR UPDATE SKIP LOCKED", async () => {
     const container = buildContainer({
-      rotation: [
-        { id: "r1", user_id: "u1", enabled: true, position: 100, last_picked_at: new Date("2026-05-15T00:00:00Z") },
-        { id: "r2", user_id: "u2", enabled: true, position: 100, last_picked_at: new Date("2026-05-01T00:00:00Z") },
-        { id: "r3", user_id: "u3", enabled: true, position: 100, last_picked_at: new Date("2026-05-10T00:00:00Z") },
-      ],
-    })
-    const picked = await pickNextOwner({ container })
-    expect(picked).toEqual({ user_id: "u2" })
-  })
-
-  it("tiebreaks on position when last_picked_at is equal", async () => {
-    const sameTs = new Date("2026-05-10T00:00:00Z")
-    const container = buildContainer({
-      rotation: [
-        { id: "r1", user_id: "u1", enabled: true, position: 200, last_picked_at: sameTs },
-        { id: "r2", user_id: "u2", enabled: true, position: 50, last_picked_at: sameTs },
-      ],
-    })
-    const picked = await pickNextOwner({ container })
-    expect(picked).toEqual({ user_id: "u2" })
-  })
-
-  it("updates last_picked_at on the chosen row", async () => {
-    const container = buildContainer({
-      rotation: [
-        { id: "r1", user_id: "u1", enabled: true, position: 100, last_picked_at: null },
-      ],
+      pgRaw: async () => ({ rows: [{ user_id: "u1" }] }),
     })
     await pickNextOwner({ container })
-    expect(container._spies.updateCrmOwnerRotations).toHaveBeenCalledWith(
-      "r1",
-      expect.objectContaining({ last_picked_at: expect.any(Date) })
-    )
+    const sql = String(container._spies.pgRaw.mock.calls[0][0]).toLowerCase()
+    expect(sql).toContain('update "crm_owner_rotation"')
+    expect(sql).toContain("enabled = true")
+    expect(sql).toContain("last_picked_at asc nulls first")
+    expect(sql).toContain("position asc")
+    expect(sql).toContain("for update skip locked")
+    expect(sql).toContain("returning user_id")
   })
 
-  it("ignores disabled rows", async () => {
+  it("returns null (and doesn't throw) when the claim query errors", async () => {
     const container = buildContainer({
-      rotation: [
-        { id: "r1", user_id: "u1", enabled: false, position: 100, last_picked_at: null },
-      ],
+      pgRaw: async () => {
+        throw new Error("db down")
+      },
     })
     expect(await pickNextOwner({ container })).toBeNull()
   })

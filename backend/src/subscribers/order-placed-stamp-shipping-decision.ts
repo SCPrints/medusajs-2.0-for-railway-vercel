@@ -1,6 +1,7 @@
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import { IOrderModuleService } from "@medusajs/framework/types"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
+
+import { mergeOrderMetadata } from "../lib/order-metadata"
 
 /**
  * Defensive bridge between cart and order:
@@ -21,7 +22,6 @@ export default async function orderPlacedStampShippingDecisionHandler({
 
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
-  const orderModuleService: IOrderModuleService = container.resolve(Modules.ORDER)
 
   const { data: orders } = await query.graph({
     entity: "order",
@@ -59,23 +59,10 @@ export default async function orderPlacedStampShippingDecisionHandler({
   }
 
   try {
-    const updater = (orderModuleService as unknown as {
-      updateOrders?: (
-        id: string,
-        data: { metadata?: Record<string, unknown> }
-      ) => Promise<unknown>
-    }).updateOrders
-    if (typeof updater !== "function") {
-      logger.warn(
-        "order.placed shipping_decision bridge: orderModuleService.updateOrders unavailable; skipping."
-      )
-      return
-    }
-    await updater.call(orderModuleService, orderId, {
-      metadata: {
-        ...orderMetadata,
-        shipping_decision: decision,
-      },
+    // Atomic JSONB merge — concurrent order.placed stamps would otherwise
+    // clobber each other (Medusa update REPLACES the metadata jsonb).
+    await mergeOrderMetadata(container, orderId, {
+      shipping_decision: decision,
     })
   } catch (err) {
     logger.error(

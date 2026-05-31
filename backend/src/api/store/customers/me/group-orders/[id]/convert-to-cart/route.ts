@@ -100,6 +100,58 @@ export async function POST(
     })
   }
 
+  // ---- Atomic conversion claim (prevents duplicate carts) ----
+  // The idempotency check above is a read-then-write; two concurrent POSTs
+  // (double-click / retry) both pass it and both build a full cart with real
+  // reserved inventory. Flip status to a transient "converting" in ONE
+  // statement so only one POST proceeds. A 'converting' row older than 5 min
+  // is treated as a crashed prior attempt and may be re-claimed, so a failed
+  // conversion self-heals without manual revert.
+  const pg = req.scope.resolve<any>("__pg_connection__")
+  if (pg?.raw) {
+    let claimed = false
+    try {
+      const claim = await pg.raw(
+        `update "group_order"
+            set status = 'converting', updated_at = now()
+          where id = ?
+            and deleted_at is null
+            and status <> 'converted'
+            and (status <> 'converting' or updated_at < now() - interval '5 minutes')
+          returning id`,
+        [groupOrderId]
+      )
+      claimed = (claim?.rows?.length ?? 0) > 0
+    } catch {
+      // If the claim query itself fails, convert anyway — losing the race
+      // guard is better than blocking every conversion.
+      claimed = true
+    }
+    if (!claimed) {
+      const fresh = await service
+        .retrieveGroupOrder(groupOrderId)
+        .catch(() => null)
+      const m = ((fresh as any)?.metadata ?? {}) as Record<string, unknown>
+      if (
+        fresh &&
+        (fresh as any).status === "converted" &&
+        typeof m.cart_id === "string"
+      ) {
+        return res.json({
+          cart_id: m.cart_id,
+          lines_added: 0,
+          skipped: [],
+          already_converted: true,
+        })
+      }
+      return res.status(409).json({
+        error: "conversion_in_progress",
+        detail:
+          "This group order is already being converted — try again in a moment.",
+      })
+    }
+  }
+
   const participants = await service.listGroupOrderParticipants(
     { group_order_id: groupOrderId },
     { take: 1000 }

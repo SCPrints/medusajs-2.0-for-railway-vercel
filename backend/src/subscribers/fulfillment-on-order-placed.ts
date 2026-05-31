@@ -8,6 +8,7 @@ import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../lib/audit-entities"
 import { writeAudit } from "../lib/audit-log"
 import { captureEvent } from "../lib/posthog"
+import { mergeOrderMetadata } from "../lib/order-metadata"
 import { revalidateOrgTags } from "../lib/storefront-revalidate"
 import { ORG_INVENTORY_MODULE } from "../modules/org-inventory"
 import type OrgInventoryModuleService from "../modules/org-inventory/service"
@@ -171,10 +172,12 @@ export default async function fulfillmentOnOrderPlaced({
     }
   }
 
-  // Mark processed for idempotency
+  // Mark processed for idempotency. Atomic JSONB merge — this runs
+  // concurrently with the other order.placed metadata stampers, so a
+  // read-modify-write would clobber their keys (and vice-versa).
   try {
-    await orderModuleService.updateOrders(orderId, {
-      metadata: { ...meta, fulfillment_subscriber_ran: true },
+    await mergeOrderMetadata(container, orderId, {
+      fulfillment_subscriber_ran: true,
     })
   } catch (err) {
     logger.error(

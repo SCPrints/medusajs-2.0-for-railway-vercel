@@ -285,58 +285,46 @@ export async function pickNextOwner(input: {
 }): Promise<{ user_id: string } | null> {
   const { container } = input
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
-  const ws = container.resolve(ADMIN_WORKSPACE_MODULE) as any
 
-  let rows: Array<{
-    id: string
-    user_id: string
-    enabled: boolean
-    position: number
-    last_picked_at: Date | string | null
-  }> = []
+  // Atomic claim: select the oldest-picked enabled row AND stamp its
+  // last_picked_at in a single statement. The previous list→sort→update was
+  // a read-then-write race — two concurrent order.placed events (the Redis
+  // bus runs subscribers in parallel) both read the same "oldest" row and
+  // assigned the same teammate. FOR UPDATE SKIP LOCKED makes a second
+  // concurrent pick skip the row the first is claiming and take the next,
+  // preserving fair rotation under contention.
+  let picked: { user_id: string } | null = null
   try {
-    rows = await ws.listCrmOwnerRotations(
-      { enabled: true },
-      { take: 100 }
+    const pg = container.resolve<any>("__pg_connection__")
+    if (!pg?.raw) throw new Error("pg connection unavailable")
+    const result = await pg.raw(
+      `update "crm_owner_rotation"
+          set last_picked_at = now(), updated_at = now()
+        where id = (
+          select id from "crm_owner_rotation"
+           where enabled = true and deleted_at is null
+           order by last_picked_at asc nulls first, position asc
+           limit 1
+           for update skip locked
+        )
+      returning user_id`
     )
+    const userId = result?.rows?.[0]?.user_id ?? null
+    picked = userId ? { user_id: userId } : null
   } catch (err: any) {
-    logger.warn(`pickNextOwner: list failed: ${err?.message ?? err}`)
+    logger.warn(`pickNextOwner: atomic pick failed: ${err?.message ?? err}`)
     return null
   }
 
-  if (rows.length === 0) return null
-
-  // Sort: never-picked first, then oldest-picked first, then by position.
-  const sorted = [...rows].sort((a, b) => {
-    const aTs = a.last_picked_at
-      ? new Date(a.last_picked_at as any).getTime()
-      : 0
-    const bTs = b.last_picked_at
-      ? new Date(b.last_picked_at as any).getTime()
-      : 0
-    if (aTs !== bTs) return aTs - bTs
-    return (a.position ?? 100) - (b.position ?? 100)
-  })
-
-  const next = sorted[0]
-  try {
-    await ws.updateCrmOwnerRotations(next.id, {
-      last_picked_at: new Date(),
-    })
-  } catch (err: any) {
-    logger.warn(`pickNextOwner: update failed: ${err?.message ?? err}`)
-    // Continue — returning the user even without the bookkeeping update
-    // is better than returning null and refusing to assign anyone.
-  }
+  if (!picked) return null
 
   try {
     captureEvent("system", "owner_round_robin_picked", {
-      user_id: next.user_id,
-      rotation_size: rows.length,
+      user_id: picked.user_id,
     })
   } catch {
     /* best-effort */
   }
 
-  return { user_id: next.user_id }
+  return picked
 }

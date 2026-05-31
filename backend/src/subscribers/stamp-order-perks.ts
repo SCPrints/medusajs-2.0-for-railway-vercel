@@ -8,6 +8,7 @@ import type {
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 
 import { FREE_SHIPPING_TAGS } from "../lib/constants"
+import { mergeOrderMetadata } from "../lib/order-metadata"
 
 /**
  * On `order.placed`, snapshot any tier-perks the customer was entitled
@@ -63,12 +64,11 @@ export default async function stampOrderPerks({
       }
     }
 
-    await orderModuleService.updateOrders(orderId, {
-      metadata: {
-        ...meta,
-        applied_perks: perks,
-        applied_perks_customer_tags_snapshot: tagLabels,
-      },
+    // Atomic JSONB merge — concurrent order.placed stamps would otherwise
+    // clobber each other (Medusa update REPLACES the metadata jsonb).
+    await mergeOrderMetadata(container, orderId, {
+      applied_perks: perks,
+      applied_perks_customer_tags_snapshot: tagLabels,
     })
   } catch (err: any) {
     logger.warn(

@@ -5,6 +5,8 @@ import type {
 } from "@medusajs/framework/types"
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 
+import { mergeOrderMetadata } from "../lib/order-metadata"
+
 /**
  * On `order.placed`, snapshot the customer's `tax_exempt` flag onto
  * the order itself. The tax-invoice PDF reads `order.metadata` rather
@@ -42,13 +44,12 @@ export default async function stampOrderTaxExempt({
     )
     const customerMeta = ((customer as any).metadata ?? {}) as Record<string, unknown>
     if (customerMeta.tax_exempt !== true) return
-    await orderModuleService.updateOrders(orderId, {
-      metadata: {
-        ...orderMeta,
-        tax_exempt: true,
-        tax_exempt_reason: customerMeta.tax_exempt_reason ?? null,
-        tax_exempt_abn: customerMeta.tax_exempt_abn ?? null,
-      },
+    // Atomic JSONB merge — concurrent order.placed stamps would otherwise
+    // clobber each other (Medusa update REPLACES the metadata jsonb).
+    await mergeOrderMetadata(container, orderId, {
+      tax_exempt: true,
+      tax_exempt_reason: customerMeta.tax_exempt_reason ?? null,
+      tax_exempt_abn: customerMeta.tax_exempt_abn ?? null,
     })
   } catch (err: any) {
     logger.warn(
