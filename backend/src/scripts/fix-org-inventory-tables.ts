@@ -4,7 +4,14 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 /**
  * Recovery script for the customer fulfillment service.
  *
- * Medusa's per-module migration tracker can fall out of sync with the
+ * ROOT CAUSE NOW FIXED: org_inventory went missing because its migration
+ * (Migration20270601000000) collided by name with organisation's migration
+ * and was silently skipped. That migration has since been renamed to
+ * Migration20270601000003 (globally unique), so a fresh `db:migrate` now
+ * creates these tables correctly. This script is kept only as an emergency
+ * fallback — it should never be needed in a normal deploy.
+ *
+ * Medusa's per-module migration tracker can also fall out of sync with the
  * database in a few rare scenarios (e.g. an initial deploy that
  * partially ran migrations + recorded the tracker entry before the
  * actual SQL committed). When that happens, `medusa db:migrate`

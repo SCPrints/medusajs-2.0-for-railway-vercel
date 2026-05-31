@@ -218,9 +218,9 @@ export default async function regenerateTierPriceLists({ container }: ExecArgs) 
 
     if (dryRun) {
       const sample = allVariantPrices[0]
-      const samplePrice = applyTierMultiplier(sample.costMinor, tier)
+      const samplePrice = applyTierMultiplier(sample.costMinor, tier) / 100
       logger.info(
-        `[regenerate-tier-price-lists] (dry run) "${title}" would have ${allVariantPrices.length} prices — sample: ${sample.sku ?? sample.variantId} cost=${sample.costMinor}c → ${samplePrice}c`
+        `[regenerate-tier-price-lists] (dry run) "${title}" would have ${allVariantPrices.length} prices — sample: ${sample.sku ?? sample.variantId} cost=${sample.costMinor}c → $${samplePrice.toFixed(2)}`
       )
       continue
     }
@@ -235,7 +235,12 @@ export default async function regenerateTierPriceLists({ container }: ExecArgs) 
 
     const newPrices = allVariantPrices.map((vp) => ({
       price_set_id: vp.priceSetId,
-      amount: applyTierMultiplier(vp.costMinor, tier),
+      // Medusa v2 stores price amounts in MAJOR units (dollars).
+      // applyTierMultiplier returns MINOR units (cents), so divide by 100 —
+      // matching bulk-tier-prices.ts and update-as-colour-pricing.ts. Without
+      // this, every tier PriceList override was written ~100× too high (this
+      // script is the live `regenerate-tier-prices` nightly cron).
+      amount: applyTierMultiplier(vp.costMinor, tier) / 100,
       currency_code: currencyCode,
     }))
 
