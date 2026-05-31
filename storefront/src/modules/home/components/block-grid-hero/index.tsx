@@ -157,6 +157,19 @@ function FieldAndLogo({
   const tex = useMemo(() => makeRoundedTexture(), [])
   const glowTex = useMemo(() => makeGlowTexture(), [])
   const dummy = useMemo(() => new THREE.Object3D(), [])
+  // Explicit geometry + material passed via args (the pattern that mounts
+  // reliably in r3f v9 — the undefined-args + child-geometry form rendered blank).
+  const blockGeometry = useMemo(() => new THREE.PlaneGeometry(1, 1), [])
+  const blockMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: tex,
+        alphaTest: 0.5,
+        toneMapped: false,
+        side: THREE.DoubleSide,
+      }),
+    [tex]
+  )
 
   // Field blocks — a Z-bowl grid radiating from centre.
   const field = useMemo<BlockData[]>(() => {
@@ -271,26 +284,10 @@ function FieldAndLogo({
         />
       </mesh>
 
-      <instancedMesh ref={fieldRef} args={[undefined, undefined, field.length]}>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial
-          map={tex}
-          alphaTest={0.5}
-          toneMapped={false}
-          side={THREE.DoubleSide}
-        />
-      </instancedMesh>
+      <instancedMesh ref={fieldRef} args={[blockGeometry, blockMaterial, field.length]} />
 
       {logo.length > 0 && (
-        <instancedMesh ref={logoRef} args={[undefined, undefined, logo.length]}>
-          <planeGeometry args={[1, 1]} />
-          <meshBasicMaterial
-            map={tex}
-            alphaTest={0.5}
-            toneMapped={false}
-            side={THREE.DoubleSide}
-          />
-        </instancedMesh>
+        <instancedMesh ref={logoRef} args={[blockGeometry, blockMaterial, logo.length]} />
       )}
     </>
   )
