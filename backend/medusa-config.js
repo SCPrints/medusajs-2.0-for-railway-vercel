@@ -140,6 +140,12 @@ const meiliTransformProduct = (product) => {
     ? String(fabricRaw).toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2)
     : [];
 
+  // Raw lowercased material string for full-text search (e.g. "100% cotton jersey").
+  // Kept separate from `fabric` (token array used for filtering) so free-text
+  // searches like "polyester" or "merino" find products by composition without
+  // the false-positives from numeric tokens ("100", "200") in the split array.
+  const material_text = fabricRaw ? String(fabricRaw).toLowerCase() : null;
+
   const doc = {
     id: product.id,
     handle: product.handle,
@@ -155,6 +161,7 @@ const meiliTransformProduct = (product) => {
     brand_handle: (product.brand && product.brand.handle) || null,
     brand_name: product.brand && product.brand.name ? String(product.brand.name).toLowerCase() : null,
     fabric,
+    material_text,
     in_stock: inStock,
   };
   // Omit when unknown so price-less products sink to the end of a price sort
@@ -564,7 +571,7 @@ const medusaConfig = {
                 ],
                 transformer: (product) => meiliTransformProduct(product),
                 indexSettings: {
-                  searchableAttributes: ['title', 'description', 'variant_sku'],
+                  searchableAttributes: ['title', 'description', 'variant_sku', 'material_text'],
                   displayedAttributes: ['id', 'handle', 'title', 'description', 'variant_sku', 'thumbnail'],
                   // Drive storefront listing facets in Meili instead of the in-memory catalog scan.
                   filterableAttributes: [
