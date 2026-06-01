@@ -20,8 +20,18 @@ type SortProductsProps = {
    *  mobile filter bar next to the "Filters" button. Default is the
    *  desktop-style vertical radio list. */
   variant?: "radio" | "inline-mobile"
+  /** Show an inline spinner while the sort navigation is in flight. */
+  pending?: boolean
   "data-testid"?: string
 }
+
+const PendingSpinner = ({ className }: { className?: string }) => (
+  <span
+    role="status"
+    aria-label="Updating results"
+    className={`inline-block animate-spin rounded-full border-2 border-current border-t-transparent ${className ?? ""}`}
+  />
+)
 
 const sortOptions = [
   {
@@ -51,6 +61,7 @@ const SortProducts = ({
   sortBy,
   setQueryParams,
   variant = "radio",
+  pending = false,
 }: SortProductsProps) => {
   const handleChange = (value: SortOptions) => {
     setQueryParams("sortBy", value)
@@ -69,6 +80,7 @@ const SortProducts = ({
           value={sortBy}
           onChange={onSelect}
           aria-label="Sort products"
+          aria-busy={pending}
           data-testid={dataTestId}
           className="min-h-11 w-full appearance-none truncate bg-transparent px-3 pr-8 text-sm font-medium text-ui-fg-base outline-none"
         >
@@ -79,20 +91,28 @@ const SortProducts = ({
           ))}
         </select>
         <span className="pointer-events-none absolute right-2 inset-y-0 flex items-center text-ui-fg-subtle">
-          <ChevronUpDown />
+          {pending ? <PendingSpinner className="h-3.5 w-3.5" /> : <ChevronUpDown />}
         </span>
       </div>
     )
   }
 
   return (
-    <FilterRadioGroup
-      title="Sort by"
-      items={sortOptions}
-      value={sortBy}
-      handleChange={handleChange}
-      data-testid={dataTestId}
-    />
+    <div className="relative" aria-busy={pending}>
+      <FilterRadioGroup
+        title="Sort by"
+        items={sortOptions}
+        value={sortBy}
+        handleChange={handleChange}
+        data-testid={dataTestId}
+      />
+      {pending ? (
+        <span className="mt-3 inline-flex items-center gap-1.5 text-xs text-ui-fg-muted">
+          <PendingSpinner className="h-3 w-3" />
+          Updating&hellip;
+        </span>
+      ) : null}
+    </div>
   )
 }
 

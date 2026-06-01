@@ -131,8 +131,11 @@ const meiliTransformProduct = (product) => {
   });
 
   const meta = product.metadata || {};
+  // Importers write the composition to the native `material` column, not
+  // metadata — keep `product.material` last so a metadata override still wins.
   const fabricRaw =
-    meta.fabric_type || meta.fabric || meta.material || meta.composition || null;
+    meta.fabric_type || meta.fabric || meta.material || meta.composition ||
+    product.material || null;
   const fabric = fabricRaw
     ? String(fabricRaw).toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2)
     : [];
@@ -547,7 +550,7 @@ const medusaConfig = {
                 // request), so listing reads stay cheap.
                 fields: [
                   'id', 'title', 'description', 'handle', 'thumbnail', 'created_at',
-                  'collection_id',
+                  'collection_id', 'material',
                   'categories.id',
                   'type.id', 'type.value',
                   'tags.id', 'tags.value',

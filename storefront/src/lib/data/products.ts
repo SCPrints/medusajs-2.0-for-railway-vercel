@@ -42,6 +42,9 @@ function productBrandMatchesClientFilter(
  *
  * Why each field is here:
  *  - +metadata, +type, +tags    — PLP tile + filter chip rendering
+ *  - +material                  — fabric (?fabric=) filter. Importers write the
+ *                                 composition to the native `material` column,
+ *                                 NOT metadata, so the filter reads it from here.
  *  - *variants.calculated_price — price line on every tile
  *  - *variants.options          — colour swatch resolution
  *  - +variants.metadata         — bulk_pricing tiers shown as "100+ A$x" line on tiles
@@ -59,7 +62,7 @@ function productBrandMatchesClientFilter(
  *                                 expansion would re-join the images table.
  */
 const STORE_PRODUCT_FIELDS =
-  "+metadata,+type,*variants.calculated_price,*variants.options,+variants.metadata,+variants.sku,+variants.manage_inventory,+variants.allow_backorder,+variants.inventory_quantity,+tags,*brand"
+  "+metadata,+material,+type,*variants.calculated_price,*variants.options,+variants.metadata,+variants.sku,+variants.manage_inventory,+variants.allow_backorder,+variants.inventory_quantity,+tags,*brand"
 
 /**
  * Single-product fetch (PDP) needs everything the list query needs PLUS the
@@ -518,12 +521,14 @@ export async function getProductsListWithSort({
         (variant as HttpTypes.StoreProductVariant)?.inventory_quantity === null ||
         (variant as HttpTypes.StoreProductVariant).inventory_quantity! > 0
     )
-    const fabric = getMetadataValue(product, [
-      "fabric_type",
-      "fabric",
-      "material",
-      "composition",
-    ])?.toLowerCase()
+    // Importers write the composition to the native `material` column; only a
+    // handful of suppliers stash it in metadata. Check both, metadata first.
+    const fabricRaw =
+      getMetadataValue(product, ["fabric_type", "fabric", "material", "composition"]) ??
+      (typeof product.material === "string" && product.material.trim()
+        ? product.material.trim()
+        : null)
+    const fabric = fabricRaw?.toLowerCase()
 
     if (typeof filters?.minPrice === "number") {
       if (minVariantPrice === null || minVariantPrice < filters.minPrice) {

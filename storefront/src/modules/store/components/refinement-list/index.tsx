@@ -7,7 +7,9 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useOptimistic,
   useState,
+  useTransition,
   type ChangeEvent,
 } from "react"
 
@@ -78,6 +80,13 @@ const RefinementList = ({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  // Sort/filter changes are a server round-trip (router.push → re-fetch). Price
+  // sorts + filters hit the in-memory catalog scan, which can take seconds. Wrap
+  // the navigation in a transition so the controls show an instant "pending"
+  // state, and optimistically reflect the chosen sort so the selection lights up
+  // on click instead of waiting for the server — the cause of the rage-clicks.
+  const [isPending, startTransition] = useTransition()
+  const [optimisticSort, setOptimisticSort] = useOptimistic(sortBy)
   const [minPriceInput, setMinPriceInput] = useState(
     typeof filters?.minPrice === "number" ? String(filters.minPrice) : ""
   )
@@ -152,7 +161,10 @@ const RefinementList = ({
 
   const setSortQueryParam = (name: string, value: string) => {
     const query = createQueryString({ [name]: value })
-    router.push(`${pathname}?${query}`)
+    startTransition(() => {
+      if (name === "sortBy") setOptimisticSort(value as SortOptions)
+      router.push(`${pathname}?${query}`)
+    })
   }
 
   const applyFilters = () => {
@@ -182,7 +194,9 @@ const RefinementList = ({
       tag: undefined,
     })
 
-    router.push(`${pathname}?${query}`)
+    startTransition(() => {
+      router.push(`${pathname}?${query}`)
+    })
     setDrawerOpen(false)
   }
 
@@ -204,7 +218,9 @@ const RefinementList = ({
       tag: undefined,
     })
 
-    router.push(`${pathname}?${query}`)
+    startTransition(() => {
+      router.push(`${pathname}?${query}`)
+    })
     setDrawerOpen(false)
   }
 
@@ -290,7 +306,7 @@ const RefinementList = ({
       />
 
       <div className="flex gap-2 pt-1">
-        <Button type="button" size="small" onClick={applyFilters}>
+        <Button type="button" size="small" onClick={applyFilters} isLoading={isPending}>
           Apply
         </Button>
         <Button type="button" size="small" variant="secondary" onClick={clearFilters}>
@@ -336,10 +352,11 @@ const RefinementList = ({
 
         <div className="flex-1 min-w-0">
           <SortProducts
-            sortBy={sortBy}
+            sortBy={optimisticSort}
             setQueryParams={setSortQueryParam}
             data-testid={dataTestId}
             variant="inline-mobile"
+            pending={isPending}
           />
         </div>
       </div>
@@ -372,9 +389,10 @@ const RefinementList = ({
             </div>
             <div className="flex flex-col gap-8 overflow-y-auto px-5 py-5">
               <SortProducts
-                sortBy={sortBy}
+                sortBy={optimisticSort}
                 setQueryParams={setSortQueryParam}
                 data-testid={dataTestId}
+                pending={isPending}
               />
               {filterForm}
             </div>
@@ -385,9 +403,10 @@ const RefinementList = ({
       {/* Desktop: inline sidebar (existing layout) */}
       <div className="hidden small:flex small:flex-col gap-12 py-4 mb-8 small:px-0 small:min-w-[250px] small:ml-[1.675rem]">
         <SortProducts
-          sortBy={sortBy}
+          sortBy={optimisticSort}
           setQueryParams={setSortQueryParam}
           data-testid={dataTestId}
+          pending={isPending}
         />
         {filterForm}
       </div>

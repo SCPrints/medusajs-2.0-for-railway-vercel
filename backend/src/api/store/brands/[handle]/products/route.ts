@@ -38,6 +38,7 @@ const STORE_PRODUCT_FIELDS = [
   "collection_id",
   "type_id",
   "weight",
+  "material",
   "created_at",
   "updated_at",
   "metadata",
