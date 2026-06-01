@@ -63,6 +63,15 @@ const FEATURE_BOUNDARY = new RegExp(
     "\\s+perfect for\\b",
     "\\s+ideal for\\b",
     "\\s+designed (to|for)\\b",
+    "\\s+Composition of\\b",
+    "\\s+We have removed\\b",
+    "\\s*Maximised Print Surface\\s*:",
+    "\\s*\\*?\\s*Please note\\b",
+    "\\s+Complies\\b",
+    // Pocket / closure feature lists (DNC workwear pants & jackets)
+    "\\s+(Two|One|LHS|RHS)\\s+(large\\s+)?(cargo|side|back|zip|hidden|flap)\\b",
+    "\\s+cargo pockets?\\b",
+    "\\s+hidden zip\\b",
   ].join("|"),
   "i"
 )

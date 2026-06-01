@@ -80,6 +80,36 @@ describe("cleanMaterialString", () => {
     expect(cleanMaterialString("285gsm 100% Cotton Canvas")).toBe("285gsm 100% Cotton Canvas")
   })
 
+  it("preserves long but legitimate detailed compositions", () => {
+    // These are real fabric specs B2B customers want — must NOT be truncated.
+    expect(
+      cleanMaterialString(
+        "Heavy weight, 470 GSM, 100% cotton duck canvas, polyester blanket lining for body, recycled polyester padded sleeve lining"
+      )
+    ).toBe(
+      "Heavy weight, 470 GSM, 100% cotton duck canvas, polyester blanket lining for body, recycled polyester padded sleeve lining"
+    )
+    expect(
+      cleanMaterialString("300D Heavy Duty Breathable Polyester/PU, Seam-Sealed, Waterproof Outer Shell")
+    ).toBe("300D Heavy Duty Breathable Polyester/PU, Seam-Sealed, Waterproof Outer Shell")
+  })
+
+  it("cuts DNC pocket/closure feature lists", () => {
+    expect(
+      cleanMaterialString(
+        "260 gsm middle weight cotton duck weave, Two large cargo pockets, LHS hidden zip pocket"
+      )
+    ).toBe("260 gsm middle weight cotton duck weave")
+  })
+
+  it("clears pure marketing prose with no composition", () => {
+    expect(
+      cleanMaterialString(
+        "Maximised Print Surface: We have removed drawstrings and embroidered neck triangle"
+      )
+    ).toBeNull()
+  })
+
   it("returns null when nothing meaningful remains", () => {
     expect(cleanMaterialString("Features: only feature text")).toBeNull()
   })
