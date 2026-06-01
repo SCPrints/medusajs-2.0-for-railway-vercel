@@ -21,6 +21,7 @@
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { extractFabricFromHtml as extractFabricAP } from "./import-aussie-pacific-from-api"
+import { cleanMaterialString } from "../lib/material-text"
 
 const BATCH = 200
 
@@ -62,7 +63,9 @@ export function extractFabricFromRamoHtml(html: string | null | undefined): stri
     }
   }
   if (!out.length) return null
-  return out.join(" ").replace(/\s+/g, " ").trim().slice(0, 250) || null
+  const joined = out.join(" ").replace(/\s+/g, " ").trim().slice(0, 250)
+  // Drop any feature prose that bled into the fabric line block.
+  return cleanMaterialString(joined)
 }
 
 type Extractor = (html: string | null | undefined) => string | null

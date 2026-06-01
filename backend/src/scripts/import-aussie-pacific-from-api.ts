@@ -62,6 +62,7 @@ import {
 } from "../modules/aussiepacific/mapping"
 import { BRAND_MODULE } from "../modules/brand"
 import { classifyAussiePacificProduct } from "../lib/product-taxonomy"
+import { cleanMaterialString } from "../lib/material-text"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -93,7 +94,9 @@ export function extractFabricFromHtml(html: string | null | undefined): string |
     .replace(/<[^>]+>/g, " ") // strip tags (e.g. <img> icons)
     .replace(/\s+/g, " ")
     .trim()
-  return text || null
+  // AP closes the Fabric <p> inconsistently — feature bullets sometimes bleed
+  // into the same paragraph. Strip them so the PDP "Material" line stays clean.
+  return cleanMaterialString(text)
 }
 const CALIBRATION_LOG_LIMIT = 5
 

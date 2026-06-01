@@ -27,6 +27,7 @@
 
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
+import { cleanMaterialString } from "../lib/material-text"
 
 const BATCH = 200
 const DEFAULT_THROTTLE_MS = 500
@@ -64,7 +65,8 @@ export function extractDncFabricFromHtml(html: string | null | undefined): strin
     // Strip leading/trailing punctuation
     text = text.replace(/^[\s,.:;"'\-]+|[\s,.:;"'\-]+$/g, "")
     if (text && text.length < 300 && FABRIC_KEYWORDS_RE.test(text)) {
-      return text
+      // Drop trailing spec/feature prose ("Wash-n-wear", "Size: ...", etc.)
+      return cleanMaterialString(text)
     }
   }
   return null
