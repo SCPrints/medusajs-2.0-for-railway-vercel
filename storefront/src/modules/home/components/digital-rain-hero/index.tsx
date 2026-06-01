@@ -151,9 +151,48 @@ function updateStreams(streams: Stream[], dtMs: number, cell: number, h: number)
   }
 }
 
+// ─── T-shirt silhouette ───────────────────────────────────────────────────────
+// Draws a filled t-shirt shape centered at (cx, cy) sized to ~size px.
+// Proportions are tuned to stay readable at 8–18 px.
+function drawTshirt(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  color: string
+): void {
+  const bw = size * 0.48   // body half-width
+  const ht = size * 0.56   // half-height (shirt taller than wide)
+  const sw = size * 0.30   // sleeve horizontal extension each side
+  const sd = size * 0.28   // sleeve vertical drop
+  const nw = size * 0.17   // half-neck width
+  const nd = size * 0.15   // neck curve depth
+
+  const top = cy - ht
+  const bot = cy + ht
+
+  ctx.beginPath()
+  ctx.moveTo(cx - bw - sw, top)                                       // top-left sleeve outer
+  ctx.lineTo(cx - bw,      top)                                       // sleeve → left shoulder
+  ctx.lineTo(cx - nw,      top)                                       // shoulder → neck left
+  ctx.quadraticCurveTo(cx, top + nd, cx + nw, top)                   // neck curve
+  ctx.lineTo(cx + bw,      top)                                       // neck right → right shoulder
+  ctx.lineTo(cx + bw + sw, top)                                       // shoulder → sleeve top outer
+  ctx.lineTo(cx + bw + sw, top + sd)                                  // sleeve outer right edge
+  ctx.lineTo(cx + bw,      top + sd)                                  // sleeve bottom → body top-right
+  ctx.lineTo(cx + bw,      bot)                                       // right body side
+  ctx.lineTo(cx - bw,      bot)                                       // bottom hem
+  ctx.lineTo(cx - bw,      top + sd)                                  // left body side up
+  ctx.lineTo(cx - bw - sw, top + sd)                                  // body left → sleeve bottom
+  ctx.closePath()
+  ctx.fillStyle = color
+  ctx.fill()
+}
+
 // ─── Draw ─────────────────────────────────────────────────────────────────────
 // Two passes: a soft additive "bloom" behind the bright leading tiles for the
-// neon glow, then the crisp blocky tiles on top.
+// neon glow, then the crisp blocky tiles on top. The leading (head) tile of
+// each stream is drawn as a t-shirt silhouette instead of a rectangle.
 function drawStreams(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -215,15 +254,23 @@ function drawStreams(
       const a = clamp01(tail) * env * TUNING.rainAlpha
       if (a <= 0.012) continue
 
-      // Some leading tiles render as tall blocks; deep-tail tiles stay square
-      // and shrink to dots. Gives the "chunky blocks + trailing dots" texture.
+      const color = `hsla(${hue}, ${sat}%, ${light}%, ${a})`
+
+      // Head tile → t-shirt silhouette (above a minimum size so tiny heads
+      // don't produce unreadable smears at the threshold boundary).
+      if (i === 0 && size >= 6) {
+        drawTshirt(ctx, Math.round(s.x), Math.round(y), size, color)
+        continue
+      }
+
+      // Trailing tiles: blocky rects with occasional tall blocks.
       let dw = size
       let dh = size
       if (frac < 0.55 && Math.sin(i * 1.3 + s.hueSeed * 2) > 1 - s.tallChance * 2) {
         dh = size * 1.7
       }
 
-      ctx.fillStyle = `hsla(${hue}, ${sat}%, ${light}%, ${a})`
+      ctx.fillStyle = color
       ctx.fillRect(
         Math.round(s.x - dw / 2),
         Math.round(y - dh / 2),
