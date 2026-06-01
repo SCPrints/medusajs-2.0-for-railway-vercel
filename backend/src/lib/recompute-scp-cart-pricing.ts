@@ -3,9 +3,11 @@ import { updateLineItemInCartWorkflow } from "@medusajs/medusa/core-flows"
 
 import {
   bnLikeToMajorAmount,
-  garmentMajorFromBulkMetadataOrNull,
+  garmentMajorWithTier,
   normalizeBulkPricingTiersFromVariantMetadata,
+  resolveTierForCartCustomer,
 } from "./scp-resolve-garment-unit-price"
+import type { Tier } from "./customer-tiers"
 import {
   isScpPrintSizeId,
   resolveScpTierIndexForQuantity,
@@ -131,10 +133,15 @@ const isLineEligible = (line: CartLineForRecompute): boolean => {
 
 const computeNewUnitPriceMajor = (
   line: CartLineForRecompute,
-  aggregatedQty: number
+  aggregatedQty: number,
+  tier?: Tier | null
 ): number | null => {
   const variantMeta = line.variant?.metadata ?? null
-  const garmentFromTiers = garmentMajorFromBulkMetadataOrNull(variantMeta, aggregatedQty)
+  // Tier customers get a flat garment price (cost × multiplier), quantity-
+  // independent — it replaces the aggregated bulk-tier lookup. The print/
+  // embroidery surcharge below still tiers on aggregated quantity (decoration
+  // is a service, not covered by the garment-cost tier).
+  const garmentFromTiers = garmentMajorWithTier(variantMeta, aggregatedQty, tier)
   const scpBlock = readScpServerBlock(line.metadata)
 
   // Garment portion: prefer the live tier lookup when the variant has a
@@ -238,6 +245,7 @@ export async function recomputeScpCartPricing(
     filters: { id: cartId },
     fields: [
       "id",
+      "customer_id",
       "completed_at",
       "items.id",
       "items.quantity",
@@ -250,6 +258,7 @@ export async function recomputeScpCartPricing(
   const cart = carts?.[0] as
     | {
         id?: string
+        customer_id?: string | null
         completed_at?: unknown
         items?: Array<{
           id?: string
@@ -262,6 +271,10 @@ export async function recomputeScpCartPricing(
     | undefined
 
   if (!cart || cart.completed_at) return empty
+
+  // Tier customers get a flat garment price that replaces the bulk ladder.
+  // Resolved once per recompute and applied to every eligible line.
+  const tier = await resolveTierForCartCustomer(query as never, cart.customer_id ?? null)
   const rawItems = Array.isArray(cart.items) ? cart.items : []
   if (!rawItems.length) return empty
 
@@ -337,7 +350,7 @@ export async function recomputeScpCartPricing(
   const pending: PendingUpdate[] = []
   for (const line of eligible) {
     const oldUnitPrice = bnLikeToMajorAmount(line.unit_price) ?? 0
-    const newUnitPriceMajor = computeNewUnitPriceMajor(line, effectiveQty)
+    const newUnitPriceMajor = computeNewUnitPriceMajor(line, effectiveQty, tier)
     if (newUnitPriceMajor === null) continue
     if (round2(oldUnitPrice) === round2(newUnitPriceMajor)) continue
 
@@ -391,7 +404,8 @@ export async function recomputeScpCartPricing(
  * and could also be reused by an admin "what-if" preview widget later.
  */
 export function recomputeScpCartPricingPure(
-  lines: CartLineForRecompute[]
+  lines: CartLineForRecompute[],
+  tier?: Tier | null
 ): {
   aggregated_quantity: number
   prices: Map<string, number>
@@ -413,7 +427,7 @@ export function recomputeScpCartPricingPure(
   const effectiveQty = Math.max(1, aggregatedQty)
 
   for (const line of eligible) {
-    const major = computeNewUnitPriceMajor(line, effectiveQty)
+    const major = computeNewUnitPriceMajor(line, effectiveQty, tier)
     if (major !== null) prices.set(line.id, major)
   }
 

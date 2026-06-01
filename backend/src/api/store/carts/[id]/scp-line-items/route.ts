@@ -7,7 +7,10 @@ import { addToCartWorkflow } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 
 import { SCP_BLANK_ALIGNED_QUANTITY_TIERS } from "../../../../../lib/scp-dtf-print-pricing"
-import type { RemoteJoinerGraphLike } from "../../../../../lib/scp-resolve-garment-unit-price"
+import {
+  resolveTierForCartCustomer,
+  type RemoteJoinerGraphLike,
+} from "../../../../../lib/scp-resolve-garment-unit-price"
 import { getPostHog } from "../../../../../lib/posthog"
 import { recomputeScpCartPricing } from "../../../../../lib/recompute-scp-cart-pricing"
 import {
@@ -99,6 +102,7 @@ async function scpLineItemsPostHandler(req: MedusaRequest, res: MedusaResponse) 
     filters: { id: cartId },
     fields: [
       "id",
+      "customer_id",
       "currency_code",
       "region_id",
       "sales_channel_id",
@@ -117,6 +121,13 @@ async function scpLineItemsPostHandler(req: MedusaRequest, res: MedusaResponse) 
     throw new MedusaError(MedusaError.Types.INVALID_DATA, "Cannot modify a completed cart.")
   }
 
+  // Tier customers pay a flat garment price (cost × multiplier) that replaces
+  // the bulk ladder — resolved here and threaded into the per-line pricing.
+  const tier = await resolveTierForCartCustomer(
+    query,
+    typeof cart.customer_id === "string" ? cart.customer_id : null
+  )
+
   // All the SCP per-line pricing math lives in computeScpLineDescriptor so
   // the new POST /store/carts/:id/scp-line-items-batch route can reuse it.
   // Behaviour identical to the previous inline block.
@@ -133,6 +144,7 @@ async function scpLineItemsPostHandler(req: MedusaRequest, res: MedusaResponse) 
       region?: { currency_code?: string | null } | null
     },
     query,
+    tier,
   })
   const {
     unitPriceMajor,

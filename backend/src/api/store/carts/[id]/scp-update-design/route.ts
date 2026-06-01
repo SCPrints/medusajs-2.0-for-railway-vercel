@@ -25,6 +25,7 @@ import {
 import {
   RemoteJoinerGraphLike,
   resolveGarmentUnitAmountMajor,
+  resolveTierForCartCustomer,
 } from "../../../../../lib/scp-resolve-garment-unit-price"
 import { recomputeScpCartPricing } from "../../../../../lib/recompute-scp-cart-pricing"
 import { getPostHog } from "../../../../../lib/posthog"
@@ -153,6 +154,7 @@ async function scpUpdateDesignPostHandler(
     filters: { id: cartId },
     fields: [
       "id",
+      "customer_id",
       "completed_at",
       "currency_code",
       "region_id",
@@ -169,6 +171,7 @@ async function scpUpdateDesignPostHandler(
   const cart = carts?.[0] as
     | {
         id?: string
+        customer_id?: string | null
         completed_at?: unknown
         currency_code?: string | null
         region_id?: string | null
@@ -195,6 +198,12 @@ async function scpUpdateDesignPostHandler(
       "Cannot modify a completed cart."
     )
   }
+
+  // Flat tier garment price (replaces the bulk ladder) for tier customers.
+  const tier = await resolveTierForCartCustomer(
+    query,
+    typeof cart.customer_id === "string" ? cart.customer_id : null
+  )
 
   const cartItems = Array.isArray(cart.items) ? cart.items : []
   const cartItemsById = new Map<
@@ -362,6 +371,7 @@ async function scpUpdateDesignPostHandler(
         sales_channel_id?: string | null
         region?: { currency_code?: string | null } | null
       },
+      tier,
     })
 
     const unitPriceMajor = round2(

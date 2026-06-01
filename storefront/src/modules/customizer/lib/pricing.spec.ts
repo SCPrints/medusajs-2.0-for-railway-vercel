@@ -116,4 +116,39 @@ describe("calculatePricing", () => {
     expect(pricing.discountedUnitPriceCents).toBeCloseTo(24.12, 2)
     expect(pricing.totalPriceCents).toBeCloseTo(1326.6, 2)
   })
+
+  it("a tier price replaces the bulk ladder: flat garment unit, no bulk, no qty discount", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 30,
+      decoratedSidesCount: 2,
+      totalQuantity: 200, // would hit the 100+ bulk band without a tier
+      bulkPricingTiers: [
+        { minQuantity: 1, maxQuantity: 9, amountCents: 23.9 },
+        { minQuantity: 100, amountCents: 17.92 },
+      ],
+      tierUnitCents: 13.92, // flat tier garment price (cost × multiplier)
+    })
+
+    expect(pricing.tierPriceApplied).toBe(true)
+    expect(pricing.hasBulkPricing).toBe(false)
+    expect(pricing.bulkPricingTiers).toBeUndefined()
+    expect(pricing.activeBulkTier).toBeUndefined()
+    expect(pricing.quantityDiscountRate).toBe(0)
+    // garment is flat at the tier price; decoration surcharge still applies
+    expect(pricing.baseUnitPriceCents).toBe(13.92)
+    expect(pricing.sideSurchargePerUnitCents).toBe(5)
+    expect(pricing.discountedUnitPriceCents).toBeCloseTo(18.92, 2)
+    expect(pricing.totalPriceCents).toBeCloseTo(3784, 2)
+  })
+
+  it("ignores a null/invalid tierUnitCents and keeps standard pricing", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 1,
+      totalQuantity: 50,
+      tierUnitCents: null,
+    })
+    expect(pricing.tierPriceApplied).toBe(false)
+    expect(pricing.quantityDiscountRate).toBe(0.15)
+  })
 })

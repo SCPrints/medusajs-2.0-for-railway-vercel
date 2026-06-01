@@ -25,6 +25,13 @@ export type PricingInput = {
   decoratedSides?: GarmentSide[]
   totalQuantity: number
   bulkPricingTiers?: BulkPricingTier[]
+  /**
+   * Logged-in tier customer's flat garment unit price (major units = dollars),
+   * i.e. `cost × multiplier`. When set, it REPLACES the bulk ladder entirely
+   * (it's cheaper than any quantity band) — no bulk tiers, no quantity discount.
+   * Mirrors the backend SCP charge so the customizer shows what it charges.
+   */
+  tierUnitCents?: number | null
   /** When set, garment-side pricing adds SCP tiered print dollars instead of the flat per-side surcharge. */
   scpPrint?: {
     printSizeId: ScpPrintSizeId
@@ -62,6 +69,8 @@ export type PricingBreakdown = {
   bulkPricingTiers?: BulkPricingTier[]
   discountedUnitPriceCents: number
   totalPriceCents: number
+  /** True when the flat customer-tier garment price replaced the bulk ladder. */
+  tierPriceApplied?: boolean
 }
 
 export type RenderPlacement = {

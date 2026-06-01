@@ -23,6 +23,7 @@ import BulkOrderGrid, {
   type BulkPricingEstimate,
 } from "@modules/customizer/components/bulk-order-grid"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
+import { getTierUnitMajorForVariant } from "@lib/util/tier-price"
 import SideSelector from "@modules/customizer/components/side-selector"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
 import {
@@ -1144,12 +1145,20 @@ export default function CustomizerTemplate({
     (selectedVariant as any)?.prices?.[0]?.currency_code ??
     "usd"
   const basePriceCents = resolveVariantPrice(selectedVariant, selectedProduct)
-  // Tier customers see a flat tier price (already baked into calculated_price
-  // via the matching customer_group-scoped PriceList). Suppress the public
-  // quantity ladder so they don't see retail bands they aren't paying.
-  const bulkPricingTiers = useMemo(
-    () => (tier ? [] : resolveVariantBulkPricingTiers(selectedVariant)),
+  // A tier customer's flat garment price (cost × multiplier), major units.
+  // Mirrors the backend SCP charge (garmentMajorWithTier) so the customizer
+  // shows exactly what it charges. Null when there's no tier or the variant
+  // has no cost — then standard pricing (incl. the bulk ladder) applies.
+  const tierUnitCents = useMemo(
+    () => getTierUnitMajorForVariant(selectedVariant as any, tier),
     [selectedVariant, tier]
+  )
+  // The flat tier price replaces the quantity ladder entirely (it's cheaper
+  // than any band) — hide the bulk bands when, and only when, a tier price
+  // actually applies to this variant.
+  const bulkPricingTiers = useMemo(
+    () => (tierUnitCents != null ? [] : resolveVariantBulkPricingTiers(selectedVariant)),
+    [selectedVariant, tierUnitCents]
   )
 
   const productBrand = useMemo(() => {
@@ -1260,6 +1269,7 @@ export default function CustomizerTemplate({
         bulkPricingTiers,
         scpPrint: { printSizeId: scpPrintSizeId },
         prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
+        tierUnitCents,
       }),
     [
       basePriceCents,
@@ -1269,6 +1279,7 @@ export default function CustomizerTemplate({
       bulkPricingTiers,
       scpPrintSizeId,
       printSpecs,
+      tierUnitCents,
     ]
   )
 
@@ -4153,6 +4164,7 @@ export default function CustomizerTemplate({
         bulkPricingTiers,
         scpPrint: { printSizeId: scpPrintSizeId },
         prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
+        tierUnitCents,
       })
       const activeTier = breakdown.activeBulkTier
       // calculatePricing's `*Cents` fields are misnamed — Medusa 2.x stores

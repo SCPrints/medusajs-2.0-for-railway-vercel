@@ -69,6 +69,7 @@ export const calculatePricing = ({
   bulkPricingTiers,
   scpPrint,
   prints,
+  tierUnitCents,
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
   const decoratedSidesResolved = Math.max(0, Math.floor(decoratedSidesCount || 0))
@@ -103,15 +104,26 @@ export const calculatePricing = ({
       }, 0)
     )
   }
-  const normalizedTiers = normalizeTiers(bulkPricingTiers)
+  // A tier customer pays a flat garment price (cost × multiplier) that replaces
+  // the quantity ladder entirely — it's cheaper than any bulk band, so there's
+  // no bulk pricing and no quantity discount. The decoration surcharge above
+  // still applies (the tier covers the garment, not the print/embroidery).
+  const tierActive =
+    typeof tierUnitCents === "number" && Number.isFinite(tierUnitCents) && tierUnitCents >= 0
+
+  const normalizedTiers = tierActive ? [] : normalizeTiers(bulkPricingTiers)
   const activeBulkTier = normalizedTiers.length
     ? resolveBulkTierForQuantity(normalizedTiers, safeQuantity)
     : undefined
   const fallbackBaseUnit = Math.max(0, round2(basePriceCents))
-  const baseUnit = activeBulkTier?.amountCents ?? fallbackBaseUnit
+  const baseUnit = tierActive
+    ? Math.max(0, round2(tierUnitCents as number))
+    : activeBulkTier?.amountCents ?? fallbackBaseUnit
   const beforeDiscountUnit = round2(baseUnit + sideSurchargePerUnit)
   const firstTierBase = normalizedTiers[0]?.amountCents ?? baseUnit
-  const quantityDiscountRate = normalizedTiers.length
+  const quantityDiscountRate = tierActive
+    ? 0
+    : normalizedTiers.length
     ? firstTierBase > baseUnit
       ? (firstTierBase - baseUnit) / firstTierBase
       : 0
@@ -120,9 +132,10 @@ export const calculatePricing = ({
   // before rounding. Rounding the unit to 2dp first and then multiplying
   // accumulates cents of error across large quantities (e.g. 23.375 × 50
   // collapses to 23.38 × 50 = 1169 instead of the actual 1168.75).
-  const preciseDiscountedUnit = normalizedTiers.length
-    ? beforeDiscountUnit
-    : beforeDiscountUnit * (1 - quantityDiscountRate)
+  const preciseDiscountedUnit =
+    tierActive || normalizedTiers.length
+      ? beforeDiscountUnit
+      : beforeDiscountUnit * (1 - quantityDiscountRate)
   const discountedUnitPriceCents = round2(preciseDiscountedUnit)
   const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
   const totalPriceCents = round2(preciseDiscountedUnit * safeQuantity)
@@ -132,10 +145,11 @@ export const calculatePricing = ({
     sideSurchargePerUnitCents: sideSurchargePerUnit,
     sideSurchargeTotalCents,
     quantityDiscountRate,
-    hasBulkPricing: normalizedTiers.length > 0,
+    hasBulkPricing: !tierActive && normalizedTiers.length > 0,
     activeBulkTier,
     bulkPricingTiers: normalizedTiers.length ? normalizedTiers : undefined,
     discountedUnitPriceCents,
     totalPriceCents,
+    tierPriceApplied: tierActive,
   }
 }

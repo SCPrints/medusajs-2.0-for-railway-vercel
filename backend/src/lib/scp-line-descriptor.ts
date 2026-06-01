@@ -31,6 +31,7 @@ import {
   RemoteJoinerGraphLike,
   resolveGarmentUnitAmountMajor,
 } from "./scp-resolve-garment-unit-price"
+import type { Tier } from "./customer-tiers"
 
 export type CartForLineDescriptor = {
   id?: string
@@ -69,6 +70,8 @@ export type ScpLineDescriptorInput = {
   printSizeIdRaw: string
   cart: CartForLineDescriptor
   query: RemoteJoinerGraphLike
+  /** Cart customer's pricing tier — flat garment price replaces the ladder. */
+  tier?: Tier | null
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -81,7 +84,7 @@ const round2 = (n: number) => Math.round(n * 100) / 100
 export async function computeScpLineDescriptor(
   input: ScpLineDescriptorInput
 ): Promise<ScpLineDescriptor> {
-  const { variantId, quantity, metadata: incomingMetadata, printSizeIdRaw, cart, query } = input
+  const { variantId, quantity, metadata: incomingMetadata, printSizeIdRaw, cart, query, tier } = input
 
   if (!isScpPrintSizeId(printSizeIdRaw)) {
     throw new MedusaError(
@@ -191,6 +194,7 @@ export async function computeScpLineDescriptor(
     variantId,
     quantity,
     cart,
+    tier,
   })
 
   const unitPriceMajor = round2(

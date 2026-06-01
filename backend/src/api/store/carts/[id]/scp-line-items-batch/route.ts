@@ -7,7 +7,10 @@ import { addToCartWorkflow } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 
 import { SCP_BLANK_ALIGNED_QUANTITY_TIERS } from "../../../../../lib/scp-dtf-print-pricing"
-import type { RemoteJoinerGraphLike } from "../../../../../lib/scp-resolve-garment-unit-price"
+import {
+  resolveTierForCartCustomer,
+  type RemoteJoinerGraphLike,
+} from "../../../../../lib/scp-resolve-garment-unit-price"
 import { getPostHog } from "../../../../../lib/posthog"
 import { recomputeScpCartPricing } from "../../../../../lib/recompute-scp-cart-pricing"
 import {
@@ -112,6 +115,7 @@ async function scpLineItemsBatchPostHandler(
     filters: { id: cartId },
     fields: [
       "id",
+      "customer_id",
       "currency_code",
       "region_id",
       "sales_channel_id",
@@ -129,6 +133,12 @@ async function scpLineItemsBatchPostHandler(
   if (cart.completed_at) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, "Cannot modify a completed cart.")
   }
+
+  // Flat tier garment price (replaces the bulk ladder) for tier customers.
+  const tier = await resolveTierForCartCustomer(
+    query,
+    typeof cart.customer_id === "string" ? cart.customer_id : null
+  )
 
   // Resolve every line's pricing + merged metadata up front. If any item
   // throws here, the whole batch fails before we touch the cart so the
@@ -153,6 +163,7 @@ async function scpLineItemsBatchPostHandler(
           printSizeIdRaw: item.scp_print.print_size_id,
           cart: cartForDescriptor,
           query,
+          tier,
         })
         return {
           variantId: descriptor.variantId,

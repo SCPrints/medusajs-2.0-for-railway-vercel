@@ -1,6 +1,27 @@
 import { MedusaError, QueryContext } from "@medusajs/framework/utils"
 
+import {
+  applyTierMultiplier,
+  tierForCustomer,
+  type CustomerGroupLike,
+  type Tier,
+} from "./customer-tiers"
+
 const round2 = (n: number) => Math.round(n * 100) / 100
+
+/** Ex-GST cost (minor units) stamped on variant metadata by the importers, or null. */
+const readCostMinorFromMetadata = (
+  metadata: Record<string, unknown> | null | undefined
+): number | null => {
+  const raw = metadata?.cost_price_ex_gst_minor
+  const n =
+    typeof raw === "number"
+      ? raw
+      : typeof raw === "string" && raw.trim()
+      ? Number(raw)
+      : Number.NaN
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null
+}
 
 /**
  * Resolve garment-only unit amount for SCP pricing lines (AUD major units / Medusa `price.amount` scale):
@@ -98,6 +119,57 @@ export function garmentMajorFromBulkMetadataOrNull(
   return resolveBulkTierMajorForQuantity(tiers, quantity)
 }
 
+/**
+ * Garment unit (major) for a customer, tier-aware.
+ *
+ * A tier customer pays a FLAT `cost × multiplier` (quantity-independent) that
+ * replaces the bulk ladder entirely — identical to the backend tier PriceList
+ * (`round(cost_minor × mult) / 100`), so the customizer charge equals what a
+ * plain variant would be charged via Medusa. Falls back to the standard
+ * quantity-ladder lookup when there's no tier or the variant has no cost (the
+ * same products the tier PriceList can't cover). Returns null only when neither
+ * a tier price nor a bulk ladder is available (caller then tries
+ * calculated_price).
+ */
+export function garmentMajorWithTier(
+  metadata: Record<string, unknown> | null | undefined,
+  quantity: number,
+  tier?: Tier | null
+): number | null {
+  if (tier) {
+    const costMinor = readCostMinorFromMetadata(metadata)
+    if (costMinor !== null) {
+      return round2(applyTierMultiplier(costMinor, tier) / 100)
+    }
+  }
+  return garmentMajorFromBulkMetadataOrNull(metadata, quantity)
+}
+
+/**
+ * Resolve the pricing tier for a cart's customer (or null for guests / no
+ * tier). Reads customer_groups — admin-scope by design, so this runs server
+ * side via Remote Query. Soft-fails to null so a lookup hiccup never blocks an
+ * add-to-cart; the line then prices at the standard ladder.
+ */
+export async function resolveTierForCartCustomer(
+  query: RemoteJoinerGraphLike,
+  customerId: string | null | undefined
+): Promise<Tier | null> {
+  if (!customerId) return null
+  try {
+    const { data } = await query.graph({
+      entity: "customer",
+      filters: { id: customerId },
+      fields: ["id", "groups.id", "groups.name", "groups.metadata"],
+    })
+    const customer = data?.[0] as { groups?: CustomerGroupLike[] } | undefined
+    if (!customer) return null
+    return tierForCustomer({ groups: customer.groups ?? [] })
+  } catch {
+    return null
+  }
+}
+
 /** Remote Joiner graph runner (`scope.resolve(ContainerRegistrationKeys.QUERY)`). */
 export type RemoteJoinerGraphLike = {
   graph: (
@@ -130,8 +202,10 @@ export async function resolveGarmentUnitAmountMajor(params: {
   variantId: string
   quantity: number
   cart: CartPricingLike
+  /** Tier customer → flat `cost × multiplier` garment price (replaces the ladder). */
+  tier?: Tier | null
 }): Promise<number> {
-  const { query, variantId, quantity, cart } = params
+  const { query, variantId, quantity, cart, tier } = params
 
   const { data: metaRows } = await query.graph({
     entity: "variants",
@@ -141,9 +215,9 @@ export async function resolveGarmentUnitAmountMajor(params: {
 
   const variantMeta = (metaRows?.[0] as { metadata?: Record<string, unknown> } | undefined)?.metadata
 
-  const bulkMajor = garmentMajorFromBulkMetadataOrNull(variantMeta ?? null, quantity)
-  if (bulkMajor !== null && bulkMajor >= 0) {
-    return Math.max(0, round2(bulkMajor))
+  const garmentMajor = garmentMajorWithTier(variantMeta ?? null, quantity, tier)
+  if (garmentMajor !== null && garmentMajor >= 0) {
+    return Math.max(0, round2(garmentMajor))
   }
 
   const currencyCode = cart.currency_code ?? cart.region?.currency_code ?? undefined
