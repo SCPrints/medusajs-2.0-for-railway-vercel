@@ -7,6 +7,8 @@ import {
   resolveDisplayMinorForVariant,
   resolveHeadlineMinorAmount,
 } from "@lib/util/resolve-display-minor"
+import { productHasTierableCost } from "@lib/util/tier-price"
+import type { Tier } from "@lib/customer-tiers"
 
 type BulkTier = {
   min_quantity: number
@@ -130,12 +132,14 @@ function getCheapestVariant(
  * bulk_pricing has a tier whose range includes quantity 100.
  */
 export function getProductListingCardPriceLines(
-  product: HttpTypes.StoreProduct
+  product: HttpTypes.StoreProduct,
+  tier?: Tier | null
 ): {
   fromLine: string
   hundredPlusLine: string | null
 } {
-  const { cheapestPrice } = getProductPrice({ product })
+  const tierActive = !!tier && productHasTierableCost(product)
+  const { cheapestPrice } = getProductPrice({ product, tier })
   if (!cheapestPrice) {
     return {
       fromLine: "Request quote",
@@ -144,6 +148,12 @@ export function getProductListingCardPriceLines(
   }
 
   const fromLine = `From ${cheapestPrice.calculated_price} * ex GST`
+
+  // Tier customers pay a single flat price — the quantity ladder ("100+ …")
+  // doesn't apply to them, so suppress it.
+  if (tierActive) {
+    return { fromLine, hundredPlusLine: null }
+  }
 
   const v = getCheapestVariant(product)
   if (!v) {

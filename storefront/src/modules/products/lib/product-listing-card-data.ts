@@ -12,6 +12,8 @@ import { catalogSwatchBackgroundImageUrl } from "@lib/util/catalog-image-url"
 import { type ListingSummary, readListingSummary } from "@lib/listing-summary"
 import { getProductListingCardPriceLines } from "@lib/util/listing-card-price-text"
 import { convertToLocale } from "@lib/util/money"
+import { productHasTierableCost } from "@lib/util/tier-price"
+import type { Tier } from "@lib/customer-tiers"
 import type { VariantPrice } from "types/global"
 
 export type ProductListingSwatch = {
@@ -74,12 +76,20 @@ export const getColorValues = (product: HttpTypes.StoreProduct) => {
  */
 export function buildProductListingCardData(
   product: HttpTypes.StoreProduct,
-  _cheapestPrice: VariantPrice | null
+  _cheapestPrice: VariantPrice | null,
+  tier?: Tier | null
 ): ProductListingCardData {
   const handle = product.handle ?? ""
 
+  // The listing_summary fast-path caches the *standard* cheapest/100+ amounts
+  // and carries no cost — so it can't represent tier pricing. For a tier
+  // customer on a product whose variants carry cost, fall through to the
+  // variant route (which recomputes `cost × multiplier`). Guests, and tier
+  // customers on costless products, keep the fast-path.
+  const useTierVariantRoute = !!tier && productHasTierableCost(product)
+
   const summary = readListingSummary(product)
-  if (summary) {
+  if (summary && !useTierVariantRoute) {
     return buildFromListingSummary(handle, product.title, summary)
   }
 
@@ -117,7 +127,7 @@ export function buildProductListingCardData(
       ? swatches[0].imageUrl || catalogFallback
       : catalogFallback
 
-  const { fromLine, hundredPlusLine } = getProductListingCardPriceLines(product)
+  const { fromLine, hundredPlusLine } = getProductListingCardPriceLines(product, tier)
 
   return {
     href: `/products/${handle}`,

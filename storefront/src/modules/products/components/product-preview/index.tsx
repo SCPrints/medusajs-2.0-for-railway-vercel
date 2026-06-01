@@ -5,6 +5,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import Thumbnail from "../thumbnail"
 import PreviewPrice from "./price"
 import { getProductsById } from "@lib/data/products"
+import { getCustomerTier } from "@lib/data/customer-tier"
 import { HttpTypes } from "@medusajs/types"
 import ProductTags from "@modules/products/components/product-tags"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -36,14 +37,15 @@ export default async function ProductPreview({
   region: HttpTypes.StoreRegion
   layout?: "default" | "boxed"
 }) {
-  const pricedProduct = productHasRegionalPrices(product)
-    ? product
-    : (
-        await getProductsById({
-          ids: [product.id!],
-          regionId: region.id,
-        })
-      )[0]
+  const [pricedProductResolved, tier] = await Promise.all([
+    productHasRegionalPrices(product)
+      ? Promise.resolve(product)
+      : getProductsById({ ids: [product.id!], regionId: region.id }).then(
+          (list) => list[0]
+        ),
+    getCustomerTier(),
+  ])
+  const pricedProduct = pricedProductResolved
 
   if (!pricedProduct) {
     return null
@@ -51,6 +53,7 @@ export default async function ProductPreview({
 
   const { cheapestPrice } = getProductPrice({
     product: pricedProduct,
+    tier,
   })
 
   const tagLabels = getStoreProductTagValues(pricedProduct)
@@ -58,7 +61,8 @@ export default async function ProductPreview({
   if (layout === "boxed") {
     const cardData = buildProductListingCardData(
       pricedProduct,
-      cheapestPrice
+      cheapestPrice,
+      tier
     )
     return <ProductListingCard className="h-full" {...cardData} />
   }

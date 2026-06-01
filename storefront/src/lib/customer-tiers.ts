@@ -95,3 +95,8 @@ export function getCustomerTier(customer: CustomerLike | null | undefined): Tier
   }
   return best
 }
+
+/** Apply a tier's multiplier to an ex-GST cost in minor units (cents). */
+export function applyTierMultiplier(costMinor: number, tier: Tier): number {
+  return Math.round(costMinor * tier.multiplier)
+}

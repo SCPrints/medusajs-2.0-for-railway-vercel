@@ -8,6 +8,9 @@
  * major units (decimal dollars), matching Medusa 2.x `price.amount`.
  */
 
+import type { Tier } from "@lib/customer-tiers"
+import { getTierUnitMajorForVariant } from "./tier-price"
+
 const toNumber = (value: unknown) => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value
@@ -72,8 +75,23 @@ type VariantForDisplayMinor = {
   product?: { handle?: string }
 }
 
-/** Returns Medusa's `calculated_amount` directly (major units). */
-export const resolveDisplayMinorForVariant = (variant: VariantForDisplayMinor): number => {
+/**
+ * Returns the unit price to display (major units).
+ *
+ * - With a `tier`: the flat `cost × multiplier` tier price when the variant has
+ *   a known cost (mirrors the backend customer_group PriceList → display equals
+ *   what checkout charges). Falls back to Medusa's `calculated_amount` when the
+ *   variant has no cost — the same variants the tier PriceList can't cover.
+ * - Without a `tier` (default): Medusa's `calculated_amount` directly.
+ */
+export const resolveDisplayMinorForVariant = (
+  variant: VariantForDisplayMinor,
+  tier?: Tier | null
+): number => {
+  const tierMajor = getTierUnitMajorForVariant(variant, tier)
+  if (tierMajor != null) {
+    return tierMajor
+  }
   const c = variant?.calculated_price?.calculated_amount
   return typeof c === "number" && Number.isFinite(c) ? c : 0
 }

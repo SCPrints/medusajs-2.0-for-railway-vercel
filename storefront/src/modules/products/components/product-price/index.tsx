@@ -11,6 +11,7 @@ import {
   calculateTierSavingsPercents,
 } from "@lib/util/calculate-tier-savings"
 import { TIER_GROUP_NAME_PREFIX, type Tier } from "@lib/customer-tiers"
+import { getTierUnitMajorForVariant, productHasTierableCost } from "@lib/util/tier-price"
 import { HttpTypes } from "@medusajs/types"
 
 type BulkTier = {
@@ -109,13 +110,19 @@ export default function ProductPrice({
   const { cheapestPrice, variantPrice } = getProductPrice({
     product,
     variantId: variant?.id,
+    tier,
   })
 
   const selectedPrice = variant ? variantPrice : cheapestPrice
-  // Tier customers see a flat price (already reflected in calculated_price
-  // via the matching customer_group-scoped PriceList) — hide the quantity
-  // ladder so they aren't confused about which tier they're getting.
-  const bulkTiers = tier ? [] : getBulkPricingTiers(variant)
+  // The flat tier price replaces the quantity ladder entirely — it's cheaper
+  // than even the 100+ band, so bulk pricing is not applicable to a tier
+  // customer and must not be shown. Gate this on the tier price actually
+  // resolving for the variant (i.e. it has a cost): on a costless product the
+  // backend can't tier-price, so the customer keeps standard + bulk pricing.
+  const tierAppliesToVariant = variant
+    ? getTierUnitMajorForVariant(variant, tier) != null
+    : !!tier && productHasTierableCost(product)
+  const bulkTiers = tierAppliesToVariant ? [] : getBulkPricingTiers(variant)
   const selectedQuantity = Math.max(1, quantity)
   const activeBulkTier =
     variant && bulkTiers.length ? resolveTierForQuantity(bulkTiers, selectedQuantity) : null
@@ -193,7 +200,7 @@ export default function ProductPrice({
           {activeUnitPrice}
         </span>
       </span>
-      {tier ? (
+      {tierAppliesToVariant ? (
         <span className="text-xs text-ui-fg-interactive font-medium">
           Your {tierLabel} pricing
         </span>

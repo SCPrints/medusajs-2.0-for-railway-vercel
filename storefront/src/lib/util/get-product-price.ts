@@ -2,6 +2,8 @@ import { HttpTypes } from "@medusajs/types"
 import { getPercentageDiff } from "./get-precentage-diff"
 import { convertMinorToLocale } from "./money"
 import { resolveDisplayMinorForVariant } from "./resolve-display-minor"
+import { getTierUnitMajorForVariant } from "./tier-price"
+import type { Tier } from "@lib/customer-tiers"
 
 /**
  * Force-set product handle on a variant so downstream `resolveDisplayMinorForVariant`
@@ -22,16 +24,22 @@ const variantWithProductHandle = (product: HttpTypes.StoreProduct, variant: any)
 /** Resolved unit minor for UI (bulk vs Medusa + AS Colour AUD hundredfold when both are wrong). */
 export const getDisplayUnitMinorForVariant = (variant: any) => resolveDisplayMinorForVariant(variant)
 
-export const getPricesForVariant = (variant: any) => {
+export const getPricesForVariant = (variant: any, tier?: Tier | null) => {
   if (!variant?.calculated_price?.calculated_amount) {
     return null
   }
 
-  const calculatedMinor = variant.calculated_price.calculated_amount
-  const displayMinor = resolveDisplayMinorForVariant(variant)
+  // With an active tier (and a costed variant), the displayed unit becomes the
+  // flat `cost × multiplier` tier price; `calculated_price_number` follows it so
+  // headline/total math downstream uses the same number checkout will charge.
+  const displayMinor = resolveDisplayMinorForVariant(variant, tier)
+  const tierActive = getTierUnitMajorForVariant(variant, tier) != null
+  const calculatedMinor = tierActive
+    ? displayMinor
+    : variant.calculated_price.calculated_amount
 
   return {
-    /** Raw Medusa `calculated_amount` (minor). Use for logic that must match the API. */
+    /** Medusa `calculated_amount`, or the tier unit when a tier is active. */
     calculated_price_number: calculatedMinor,
     /** Resolved unit minor for totals / line math — same basis as `calculated_price` string. */
     display_unit_minor: displayMinor,
@@ -46,7 +54,10 @@ export const getPricesForVariant = (variant: any) => {
       currency_code: variant.calculated_price.currency_code,
     }),
     currency_code: variant.calculated_price.currency_code,
-    price_type: variant.calculated_price.calculated_price.price_list_type,
+    // Tier pricing is a flat override, never a "sale" — don't trigger sale styling.
+    price_type: tierActive
+      ? "default"
+      : variant.calculated_price.calculated_price.price_list_type,
     percentage_diff: getPercentageDiff(
       variant.calculated_price.original_amount,
       calculatedMinor
@@ -57,9 +68,12 @@ export const getPricesForVariant = (variant: any) => {
 export function getProductPrice({
   product,
   variantId,
+  tier = null,
 }: {
   product: HttpTypes.StoreProduct
   variantId?: string
+  /** Logged-in customer's pricing tier — applies the flat tier price when set. */
+  tier?: Tier | null
 }) {
   if (!product || !product.id) {
     throw new Error("No product provided")
@@ -70,13 +84,14 @@ export function getProductPrice({
       return null
     }
 
-    const displayMinor = (v: any) => resolveDisplayMinorForVariant(variantWithProductHandle(product, v))
+    const displayMinor = (v: any) =>
+      resolveDisplayMinorForVariant(variantWithProductHandle(product, v), tier)
 
     const cheapestVariant: any = product.variants
       .filter((v: any) => !!v.calculated_price)
       .sort((a: any, b: any) => displayMinor(a) - displayMinor(b))[0]
 
-    return getPricesForVariant(variantWithProductHandle(product, cheapestVariant))
+    return getPricesForVariant(variantWithProductHandle(product, cheapestVariant), tier)
   }
 
   const variantPrice = () => {
@@ -92,7 +107,7 @@ export function getProductPrice({
       return null
     }
 
-    return getPricesForVariant(variantWithProductHandle(product, variant))
+    return getPricesForVariant(variantWithProductHandle(product, variant), tier)
   }
 
   return {

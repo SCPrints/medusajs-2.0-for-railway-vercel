@@ -2,6 +2,27 @@ import ChevronDown from "@modules/common/icons/chevron-down"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { convertMinorToLocale } from "@lib/util/money"
 import { HttpTypes } from "@medusajs/types"
+import { TIER_GROUP_NAME_PREFIX, type Tier } from "@lib/customer-tiers"
+
+const TradePricingBadge = ({ tier }: { tier: Tier }) => {
+  const label = tier.name.slice(TIER_GROUP_NAME_PREFIX.length)
+  const discountPct = Math.round((1 - tier.multiplier / 2.2) * 100)
+  return (
+    <div className="mt-4 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M13.5 4.5 6 12l-3.5-3.5" />
+        </svg>
+        Trade pricing active — {label}
+      </span>
+      <span className="text-xs text-emerald-700">
+        {tier.rank === 1
+          ? "Our best pricing is applied to your account on every product."
+          : `Your account price is applied to every product${discountPct > 0 ? ` (around ${discountPct}% off retail)` : ""}.`}
+      </span>
+    </div>
+  )
+}
 
 const ArrowRightIcon = ({ className }: { className?: string }) => (
   <svg
@@ -23,9 +44,10 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
 type OverviewProps = {
   customer: HttpTypes.StoreCustomer | null
   orders: HttpTypes.StoreOrder[] | null
+  tier?: Tier | null
 }
 
-const Overview = ({ customer, orders }: OverviewProps) => {
+const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
   const profileCompletion = getProfileCompletion(customer)
   const addressCount = customer?.addresses?.length || 0
   const recentOrders = orders ?? []
@@ -34,6 +56,11 @@ const Overview = ({ customer, orders }: OverviewProps) => {
   return (
     <div data-testid="overview-page-wrapper">
       <div className="small:hidden px-5 pb-6">
+        {tier ? (
+          <div className="mb-4">
+            <TradePricingBadge tier={tier} />
+          </div>
+        ) : null}
         {latestOrder ? (
           <LocalizedClientLink
             href={`/account/orders/details/${latestOrder.id}`}
@@ -115,6 +142,7 @@ const Overview = ({ customer, orders }: OverviewProps) => {
               {customer?.email}
             </span>
           </p>
+          {tier ? <TradePricingBadge tier={tier} /> : null}
         </header>
 
         <div className="mt-8 grid grid-cols-2 gap-4">
