@@ -152,39 +152,34 @@ function updateStreams(streams: Stream[], dtMs: number, cell: number, h: number)
 }
 
 // ─── T-shirt silhouette ───────────────────────────────────────────────────────
-// Draws a filled t-shirt shape centered at (cx, cy) sized to ~size px.
-// Proportions are tuned to stay readable at 8–18 px.
-function drawTshirt(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  size: number,
-  color: string
-): void {
+// Builds the t-shirt path (no fill). Caller sets fillStyle + calls ctx.fill().
+function tshirtPath(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
   const bw = size * 0.48   // body half-width
-  const ht = size * 0.56   // half-height (shirt taller than wide)
+  const ht = size * 0.56   // half-height
   const sw = size * 0.30   // sleeve horizontal extension each side
   const sd = size * 0.28   // sleeve vertical drop
   const nw = size * 0.17   // half-neck width
   const nd = size * 0.15   // neck curve depth
-
   const top = cy - ht
   const bot = cy + ht
-
   ctx.beginPath()
-  ctx.moveTo(cx - bw - sw, top)                                       // top-left sleeve outer
-  ctx.lineTo(cx - bw,      top)                                       // sleeve → left shoulder
-  ctx.lineTo(cx - nw,      top)                                       // shoulder → neck left
-  ctx.quadraticCurveTo(cx, top + nd, cx + nw, top)                   // neck curve
-  ctx.lineTo(cx + bw,      top)                                       // neck right → right shoulder
-  ctx.lineTo(cx + bw + sw, top)                                       // shoulder → sleeve top outer
-  ctx.lineTo(cx + bw + sw, top + sd)                                  // sleeve outer right edge
-  ctx.lineTo(cx + bw,      top + sd)                                  // sleeve bottom → body top-right
-  ctx.lineTo(cx + bw,      bot)                                       // right body side
-  ctx.lineTo(cx - bw,      bot)                                       // bottom hem
-  ctx.lineTo(cx - bw,      top + sd)                                  // left body side up
-  ctx.lineTo(cx - bw - sw, top + sd)                                  // body left → sleeve bottom
+  ctx.moveTo(cx - bw - sw, top)
+  ctx.lineTo(cx - bw,      top)
+  ctx.lineTo(cx - nw,      top)
+  ctx.quadraticCurveTo(cx, top + nd, cx + nw, top)
+  ctx.lineTo(cx + bw,      top)
+  ctx.lineTo(cx + bw + sw, top)
+  ctx.lineTo(cx + bw + sw, top + sd)
+  ctx.lineTo(cx + bw,      top + sd)
+  ctx.lineTo(cx + bw,      bot)
+  ctx.lineTo(cx - bw,      bot)
+  ctx.lineTo(cx - bw,      top + sd)
+  ctx.lineTo(cx - bw - sw, top + sd)
   ctx.closePath()
+}
+
+function drawTshirt(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, color: string): void {
+  tshirtPath(ctx, cx, cy, size)
   ctx.fillStyle = color
   ctx.fill()
 }
@@ -219,15 +214,20 @@ function drawStreams(
       const a = (1 - frac) * 0.5 * env * TUNING.rainAlpha
       if (a <= 0.01) continue
       const hue = s.hue + Math.sin(i * 0.7 + s.hueSeed) * 10
-      // Head tile gets a larger bloom to match the bigger t-shirt silhouette.
-      const bloom = i === 0 ? size * 5.5 : size * 2.1
       ctx.fillStyle = `hsla(${hue}, 100%, 62%, ${a})`
-      ctx.fillRect(
-        Math.round(s.x - bloom / 2),
-        Math.round(y - bloom / 2),
-        Math.round(bloom),
-        Math.round(bloom)
-      )
+      if (i === 0) {
+        // T-shirt-shaped bloom so the glow follows the silhouette, not a box.
+        tshirtPath(ctx, s.x, y, size * 3.2)
+        ctx.fill()
+      } else {
+        const bloom = size * 2.1
+        ctx.fillRect(
+          Math.round(s.x - bloom / 2),
+          Math.round(y - bloom / 2),
+          Math.round(bloom),
+          Math.round(bloom)
+        )
+      }
     }
   }
 
