@@ -6,6 +6,7 @@ import Thumbnail from "../thumbnail"
 import PreviewPrice from "./price"
 import { getProductsById } from "@lib/data/products"
 import { getCustomerTier } from "@lib/data/customer-tier"
+import type { Tier } from "@lib/customer-tiers"
 import { HttpTypes } from "@medusajs/types"
 import ProductTags from "@modules/products/components/product-tags"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -31,19 +32,33 @@ export default async function ProductPreview({
   isFeatured,
   region,
   layout = "default",
+  tier: tierProp,
 }: {
   product: HttpTypes.StoreProduct
   isFeatured?: boolean
   region: HttpTypes.StoreRegion
   layout?: "default" | "boxed"
+  /**
+   * Optional pre-resolved customer tier from the parent. When rendered as part
+   * of a product grid (PaginatedProducts / featured rails), the parent fetches
+   * the tier once and passes it down so we don't re-await React.cache for
+   * every one of N tiles. Falls back to a per-tile lookup for callers that
+   * don't pass it (e.g. single-product previews on the home page).
+   */
+  tier?: Tier | null
 }) {
+  // Resolve tier from the prop if the parent fed it in; otherwise fall back
+  // to a per-tile fetch (React.cache deduplicates within a request).
+  const tierPromise =
+    tierProp !== undefined ? Promise.resolve(tierProp) : getCustomerTier()
+
   const [pricedProductResolved, tier] = await Promise.all([
     productHasRegionalPrices(product)
       ? Promise.resolve(product)
       : getProductsById({ ids: [product.id!], regionId: region.id }).then(
           (list) => list[0]
         ),
-    getCustomerTier(),
+    tierPromise,
   ])
   const pricedProduct = pricedProductResolved
 

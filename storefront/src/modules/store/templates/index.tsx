@@ -34,6 +34,7 @@ const StoreTemplate = async ({
   heading,
   showHeaderDescription = true,
   titleTag = "h1",
+  preResolvedBrand,
 }: {
   sortBy?: SortOptions
   page?: string
@@ -55,6 +56,14 @@ const StoreTemplate = async ({
   showHeaderDescription?: boolean
   /** Render the catalog title as an h2 when the page already has an h1 (brand hero). */
   titleTag?: "h1" | "h2"
+  /**
+   * Brand entity already resolved by the parent (e.g. brand landing page already
+   * called `retrieveBrandByHandle` in its own server component). When provided,
+   * skips the duplicate fetch inside the parallel block — saves one cache lookup
+   * roundtrip + the cold-cache fetch on revalidation. Pass `null` explicitly to
+   * skip the lookup when the brand is known to not exist.
+   */
+  preResolvedBrand?: { handle: string; description: string | null } | null
 }) => {
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
@@ -62,17 +71,27 @@ const StoreTemplate = async ({
   // Derive a candidate handle from the URL brand param. Converts "AS Colour" → "as-colour",
   // "Biz Collection" → "biz-collection", etc. The dedicated brand endpoint resolves the
   // brand entity server-side; we don't need to fetch its product IDs here anymore.
+  // When the parent has already resolved the brand, skip the redundant fetch.
   const brandHandleGuess = brand
     ? brand.trim().toLowerCase().replace(/\s+/g, "-")
     : null
+  const shouldFetchBrand = preResolvedBrand === undefined && brandHandleGuess
 
   const [productTypes, productTags, brands, brandData] = await Promise.all([
     listStoreProductTypes(),
     listStoreProductTags(),
     listBrands(),
-    brandHandleGuess
-      ? retrieveBrandByHandle(brandHandleGuess)
-      : Promise.resolve({ brand: null, children: [] }),
+    shouldFetchBrand
+      ? retrieveBrandByHandle(brandHandleGuess!)
+      : Promise.resolve({
+          brand: preResolvedBrand
+            ? ({
+                handle: preResolvedBrand.handle,
+                description: preResolvedBrand.description,
+              } as any)
+            : null,
+          children: [] as any[],
+        }),
   ])
 
   // If the requested brand handle exists on the backend, we route the product list

@@ -95,6 +95,13 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         heading={{ eyebrow: "Shop the range", title: `All ${brand.name} products` }}
         showHeaderDescription={false}
         titleTag="h2"
+        /* Pass the already-resolved brand so StoreTemplate skips the duplicate
+         * `retrieveBrandByHandle` fetch (the brand page already called it
+         * above in line 60). One less cache lookup roundtrip per render. */
+        preResolvedBrand={{
+          handle: brand.handle,
+          description: brand.description ?? null,
+        }}
       />
     </>
   )

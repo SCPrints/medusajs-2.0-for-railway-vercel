@@ -2,6 +2,7 @@ import { HttpTypes } from "@medusajs/types"
 
 import { getProductsListWithSort } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
+import { getCustomerTier } from "@lib/data/customer-tier"
 import { listStoreProductTags } from "@lib/data/catalog-facets"
 import ProductPreview from "@modules/products/components/product-preview"
 import { Pagination } from "@modules/store/components/pagination"
@@ -96,12 +97,17 @@ export default async function PaginatedProducts({
   // The Medusa `order` param for column-backed sorts (created_at, title) is
   // derived inside `getProductsListWithSort`; price sorts use its in-memory scan.
 
-  // Parallelise the region lookup and the products fetch — both are
-  // independent and were previously sequential awaits. `getProductsListWithSort`
-  // internally calls `getRegion(countryCode)` again, but that call is cached
-  // (`cacheLife: 3600` on the regions module) so the second invocation is free.
-  // Saves ~100-300ms per category-page render on cold cache.
-  const [region, productsResult] = await Promise.all([
+  // Parallelise the region lookup, products fetch, AND customer-tier lookup
+  // at this level — `getCustomerTier()` was previously called once per
+  // ProductPreview (× 12 tiles per page) inside their own Promise.all blocks.
+  // Even though it's React.cache-deduped (one real fetch per request), each
+  // tile still awaited the resolved promise, adding ~30-50ms of scheduling
+  // overhead per tile = ~400ms total. Resolving it once here and passing
+  // the result down keeps the per-tile render pure-sync after data lands.
+  // `getProductsListWithSort` internally calls `getRegion(countryCode)` again,
+  // but that call is cached (`cacheLife: 3600` on the regions module) so
+  // the second invocation is free.
+  const [region, productsResult, tier] = await Promise.all([
     getRegion(countryCode),
     getProductsListWithSort({
       page,
@@ -117,6 +123,7 @@ export default async function PaginatedProducts({
       countryCode,
       brandHandle,
     }),
+    getCustomerTier(),
   ])
 
   if (!region) {
@@ -138,7 +145,12 @@ export default async function PaginatedProducts({
         {products.map((p) => {
           return (
             <li key={p.id} className="h-full">
-              <ProductPreview product={p} region={region} layout="boxed" />
+              <ProductPreview
+                product={p}
+                region={region}
+                layout="boxed"
+                tier={tier}
+              />
             </li>
           )
         })}
