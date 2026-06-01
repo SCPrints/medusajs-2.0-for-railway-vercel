@@ -72,12 +72,6 @@ export default function HeroOverlay() {
 
           <div className="mt-7 flex flex-wrap gap-3">
             <LocalizedClientLink
-              href="/customizer"
-              className="pointer-events-auto inline-flex items-center rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
-            >
-              Design now
-            </LocalizedClientLink>
-            <LocalizedClientLink
               href="/store"
               className="pointer-events-auto inline-flex items-center rounded-lg border border-white/40 bg-white/10 px-6 py-3 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black"
             >

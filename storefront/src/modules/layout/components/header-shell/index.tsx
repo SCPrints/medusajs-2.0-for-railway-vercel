@@ -1,7 +1,6 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import Image from "next/image"
 
 import type { MenuAudience } from "@lib/data/shop-categories-menu"
@@ -184,39 +183,40 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           </LocalizedClientLink>
 
           {/* Desktop condensed hamburger — only visible when row 2 has
-              been collapsed by scrolling */}
-          <AnimatePresence initial={false}>
-            {isCondensed && (
-              <motion.button
-                key="condensed-hamburger"
-                type="button"
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                onClick={handleHamburgerClick}
-                aria-label="Show shop categories"
-                aria-expanded={false}
-                className="hidden small:inline-flex items-center justify-center min-h-10 min-w-10 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] transition-colors overflow-hidden"
-                data-testid="nav-condensed-hamburger"
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  aria-hidden
-                >
-                  <line x1="4" y1="7" x2="20" y2="7" />
-                  <line x1="4" y1="12" x2="20" y2="12" />
-                  <line x1="4" y1="17" x2="20" y2="17" />
-                </svg>
-              </motion.button>
-            )}
-          </AnimatePresence>
+              been collapsed by scrolling. Uses CSS max-width + opacity
+              transition instead of Framer Motion to keep the animation
+              compositor-friendly (transform/opacity only). */}
+          <button
+            type="button"
+            onClick={handleHamburgerClick}
+            aria-label="Show shop categories"
+            aria-expanded={false}
+            aria-hidden={!isCondensed}
+            className="hidden small:inline-flex items-center justify-center overflow-hidden text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
+            style={{
+              maxWidth: isCondensed ? 44 : 0,
+              opacity: isCondensed ? 1 : 0,
+              pointerEvents: isCondensed ? "auto" : "none",
+              minHeight: 40,
+              transition: "max-width 0.18s ease-out, opacity 0.18s ease-out, color 0.15s",
+            }}
+            data-testid="nav-condensed-hamburger"
+          >
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
 
           {/* Spacer pushes the right cluster to the edge */}
           <div className="flex-1" />
@@ -237,16 +237,19 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           {cartSlot}
         </div>
 
-        {/* ROW 2 — audience nav, desktop-only, collapsible */}
-        <motion.div
-          initial={false}
-          animate={{
-            height: isCondensed ? 0 : "auto",
-            opacity: isCondensed ? 0 : 1,
-          }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
+        {/* ROW 2 — audience nav, desktop-only, collapsible.
+            max-height instead of height so the value is known at parse time
+            (h-12 = 3rem). overflow-hidden clips the DesktopMegaMenu dropdown
+            panel as the row collapses — same behaviour as the previous
+            Framer Motion wrapper. */}
+        <div
           className="hidden small:block overflow-hidden"
           aria-hidden={isCondensed}
+          style={{
+            maxHeight: isCondensed ? 0 : "3rem",
+            opacity: isCondensed ? 0 : 1,
+            transition: "max-height 0.22s ease-out, opacity 0.22s ease-out",
+          }}
         >
           <div className="content-container flex h-12 w-full items-center">
             <DesktopMegaMenu audiences={audiences} />
@@ -279,7 +282,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
               </LocalizedClientLink>
             </div>
           </div>
-        </motion.div>
+        </div>
       </header>
     </div>
   )

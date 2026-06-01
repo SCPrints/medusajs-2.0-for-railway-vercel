@@ -104,7 +104,7 @@ const TrackerIcon = ({ className }: StatIconProps) => {
       <path
         d={d}
         pathLength="1"
-        style={{ strokeDasharray: "0.12 0.88" }}
+        style={{ strokeDasharray: "0.12 0.88", willChange: "stroke-dashoffset" }}
         className="motion-safe:animate-pulse-trace"
       />
     </svg>
@@ -132,7 +132,7 @@ const ArtworkCheckIcon = ({ className }: StatIconProps) => (
     <path
       d="M14 20l3 3 5-6"
       pathLength="1"
-      style={{ strokeDasharray: 1 }}
+      style={{ strokeDasharray: 1, willChange: "stroke-dashoffset" }}
       className="motion-safe:animate-tick-draw"
     />
   </svg>
@@ -159,7 +159,7 @@ const ProofIcon = ({ className }: StatIconProps) => (
     <path
       d="M8 14l3 3 5-5"
       pathLength="1"
-      style={{ strokeDasharray: 1 }}
+      style={{ strokeDasharray: 1, willChange: "stroke-dashoffset" }}
       className="motion-safe:animate-proof-tick-draw"
     />
   </svg>
