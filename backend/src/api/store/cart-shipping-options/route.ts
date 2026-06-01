@@ -4,7 +4,7 @@ import {
   MedusaError,
   Modules,
 } from "@medusajs/framework/utils"
-import { listShippingOptionsForCartWorkflow } from "@medusajs/medusa/core-flows"
+import { listShippingOptionsForCartWithPricingWorkflow } from "@medusajs/medusa/core-flows"
 
 import { computeCartWeight } from "../../../lib/cart-weight"
 import {
@@ -129,11 +129,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     )
   }
 
-  const { result: allOptions } = await listShippingOptionsForCartWorkflow(
-    req.scope
-  ).run({
-    input: { cart_id: cartId, is_return: false },
-  })
+  // MUST use the *WithPricing* workflow. The "Standard Shipping (AU)" option is
+  // `price_type: "calculated"`, so its price only exists once the provider's
+  // calculatePrice runs (calculateShippingOptionsPricesStep). The plain
+  // `listShippingOptionsForCartWorkflow` deliberately skips that step — it
+  // returns calculated options with a null `calculated_price`, which the
+  // storefront renders as "Unavailable" and blocks checkout. (It worked for the
+  // old flat-rate options because their price is a stored price-set value.)
+  const { result: allOptions } =
+    await listShippingOptionsForCartWithPricingWorkflow(req.scope).run({
+      input: { cart_id: cartId, is_return: false },
+    })
 
   const options = (allOptions ?? []) as ShippingOption[]
 
