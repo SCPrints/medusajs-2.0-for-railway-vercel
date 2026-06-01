@@ -34,9 +34,7 @@ const formatKg = (grams: number) => {
 const Shipping: React.FC<ShippingProps> = ({
   cart,
   availableShippingMethods,
-  shippingTier,
   totalWeightGrams,
-  thresholdGrams,
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [pendingOptionId, setPendingOptionId] = useState<string | null>(null)
@@ -120,23 +118,11 @@ const Shipping: React.FC<ShippingProps> = ({
       </div>
       {isOpen ? (
         <div data-testid="delivery-options-container">
-          {shippingTier && typeof totalWeightGrams === "number" && (
+          {typeof totalWeightGrams === "number" && totalWeightGrams > 0 && (
             <p className="text-small-regular mb-4 rounded-lg border border-[rgba(61,207,194,0.35)] bg-[rgba(61,207,194,0.1)] px-3 py-2.5 text-ui-fg-subtle">
-              {shippingTier === "flat"
-                ? `Eligible for flat-rate shipping (cart weight ${formatKg(
-                    totalWeightGrams
-                  )}${
-                    thresholdGrams
-                      ? `, under the ${formatKg(thresholdGrams)} threshold`
-                      : ""
-                  }).`
-                : `Live freight quotes shown — cart weight ${formatKg(
-                    totalWeightGrams
-                  )}${
-                    cart?.shipping_address?.postal_code
-                      ? ` to ${cart.shipping_address.postal_code}`
-                      : ""
-                  }.`}
+              {`Shipping is calculated by total weight — your cart is ${formatKg(
+                totalWeightGrams
+              )}.`}
             </p>
           )}
           <div className="pb-8">

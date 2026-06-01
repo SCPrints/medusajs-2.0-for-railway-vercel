@@ -782,7 +782,8 @@ Every reminder/digest job is gated behind an `*_ENABLED` flag so accidental boot
 | `SHIPSTATION_WEBHOOK_SECRET` | Required for incoming label events. | unset |
 | `SHIPSTATION_WAREHOUSE_*` | Warehouse address fallback (`POSTCODE`, `COUNTRY_CODE`, `CITY`, `STATE`, `ADDRESS_1`, `PHONE`, `NAME`). Prefer the stock-location address in admin. | unset |
 | `SHIPSTATION_PACKAGE_LENGTH_CM` / `_WIDTH_CM` / `_HEIGHT_CM` | Default package dimensions for rate quotes. | unset |
-| `SHIPPING_PACKAGING_OVERHEAD_GRAMS` | Added to item weight for accurate rates. | sensible default |
+| `SHIPPING_PACKAGING_OVERHEAD_GRAMS` | Added to item weight for accurate rates. | `150` |
+| `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` | Per-unit fallback weight for line items with no real weight (no variant/product weight, no `metadata.weight_grams`). Makes the weight-based "Standard Shipping" rate scale with order size before products have weights set. Bump toward 350 for a hoodie-heavy mix. See "Customer-facing rate" above + [shipping-rate.ts](backend/src/lib/shipping-rate.ts). | `300` |
 
 #### File storage (S3-compatible)
 
@@ -1064,6 +1065,22 @@ Run with `pnpm --filter backend medusa exec src/scripts/import-shaka-wear.ts` (`
 **Post-deploy**: products auto-index to Meilisearch via the plugin's `product.created` subscriber when the script runs on prod; if search/listings lag, run `reindex-meilisearch.ts`.
 
 ## Shipping & dropship
+
+### Customer-facing rate: single weight-based "Standard Shipping" (current model)
+The storefront checkout shows **one** shipping option — "Standard Shipping (AU)" — whose price is computed from the cart's **total weight** by an in-house calculated fulfillment provider (`scp_scp`). No flat per-order rate, no external carrier call. This replaced the old hybrid (flat ≤3kg manual `$10/$15` + `Express` + blank-carrier ShipStation/AusPost "live quote" options), which underpriced bulk orders (every cart weighed ~packaging-only because nothing in the catalog has a weight set) and showed a priceless, unselectable Express.
+
+| Component | Path |
+| --- | --- |
+| Provider (pure weight→price, no external API) | [backend/src/modules/scp-shipping/](backend/src/modules/scp-shipping/) |
+| Weight→price ladder (the tunable numbers) | [backend/src/lib/shipping-rate.ts](backend/src/lib/shipping-rate.ts) |
+| Cart-weight calc + default-garment-weight fallback | [backend/src/lib/cart-weight.ts](backend/src/lib/cart-weight.ts) |
+| Storefront options endpoint (narrows to `scp_*`) | [backend/src/api/store/cart-shipping-options/route.ts](backend/src/api/store/cart-shipping-options/route.ts) |
+| Provider registration (`id: "scp"`, unconditional) | [backend/medusa-config.js](backend/medusa-config.js) |
+| Prod migration script | [backend/src/scripts/reconfigure-shipping-weight-based.ts](backend/src/scripts/reconfigure-shipping-weight-based.ts) |
+
+**The no-weights conundrum, solved by a default:** `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` (default `300`) is the per-unit fallback applied to any line item with no real weight (no `variant.weight` / `product.weight` / `metadata.weight_grams`). So weight scales with quantity *today* even though ~nothing has a weight set; the moment a real weight is entered it overrides the default automatically. `calculatePrice` returns **dollars (major units), ex-GST** (repo convention — the storefront adds the "ex GST" label; Medusa applies region GST). The ladder lives in code (not env) on purpose: shipping prices are business numbers that belong in code review.
+
+**Cutover runbook (existing prod DB):** (1) `cd backend && fly deploy` (registers the `scp_scp` provider); (2) `cd /app/.medusa/server && DRY_RUN=1 npx medusa exec src/scripts/reconfigure-shipping-weight-based.js` to preview, then re-run without `DRY_RUN` (creates the one weight-based option, soft-deletes Express + flat + live-quote options); (3) `git push origin master` for the storefront banner/display changes. The custom route filters to `scp_*` with a fallback to the unfiltered list, so checkout never dead-ends if the option isn't created yet. The ShipStation/AusPost providers below stay registered but are **not** surfaced at checkout under this model — they remain the future live-rate upgrade path (flip the route filter + create calculated options) once real weights + AusPost creds land.
 
 ### ShipStation fulfillment provider (being deprecated)
 Real-time rate calculation, label purchase, and shipment tracking via ShipStation API v2. **Slated for removal** once the AusPost direct integration (below) clears 50+ live parcels — driven by ShipStation's ~US$50/mo API tier vs AusPost's free direct API on the same MyPost Business charge account.

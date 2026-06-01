@@ -1,4 +1,7 @@
-import { SHIPPING_PACKAGING_OVERHEAD_GRAMS } from "./constants"
+import {
+  SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS,
+  SHIPPING_PACKAGING_OVERHEAD_GRAMS,
+} from "./constants"
 
 type WeightyVariant = {
   weight?: number | string | null
@@ -55,28 +58,44 @@ export const lineItemWeightGrams = (item: WeightyItem): number => {
 }
 
 export type CartWeightSummary = {
-  /** Σ(item.weight × quantity) without packaging overhead, grams. */
+  /** Σ(item.weight × quantity) without packaging overhead, grams. Includes the default-weight fallback for weightless items. */
   itemsWeightGrams: number
-  /** Total weight Medusa will quote ShipStation with, grams. */
+  /** Total weight used to price shipping, grams (items + packaging overhead). */
   totalWeightGrams: number
   /** Configurable packaging overhead, grams. */
   packagingOverheadGrams: number
-  /** Number of line items with no resolvable weight (zero counted in the total). */
+  /** Number of line items with no resolvable REAL weight (these used the default fallback). */
   itemsMissingWeight: number
+  /** The per-unit default applied to weightless items (0 when the fallback is disabled). */
+  defaultItemWeightGrams: number
 }
 
+/**
+ * Compute a cart's shipping weight.
+ *
+ * `defaultItemWeightGrams` is the per-UNIT fallback for line items that have no
+ * real weight (no variant/product weight, no `metadata.weight_grams`). It
+ * defaults to `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` so weight-based shipping
+ * scales with order size even though almost nothing in the catalog has a
+ * weight set yet. Pass `0` to opt out (raw real-weight-only behaviour).
+ */
 export const computeCartWeight = (
   cart: WeightyCart | null | undefined,
-  packagingOverheadGrams: number = SHIPPING_PACKAGING_OVERHEAD_GRAMS
+  packagingOverheadGrams: number = SHIPPING_PACKAGING_OVERHEAD_GRAMS,
+  defaultItemWeightGrams: number = SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS
 ): CartWeightSummary => {
   const items = Array.isArray(cart?.items) ? cart!.items! : []
+  const fallbackPerUnit = defaultItemWeightGrams > 0 ? defaultItemWeightGrams : 0
   let itemsWeightGrams = 0
   let itemsMissingWeight = 0
 
   for (const item of items) {
     const qty = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 0
-    const perLine = lineItemWeightGrams(item)
-    if (perLine === 0) {
+    const realPerLine = lineItemWeightGrams(item)
+    // No real weight → fall back to the default per-unit garment weight so the
+    // line still contributes mass (and bulk orders price correctly).
+    const perLine = realPerLine > 0 ? realPerLine : fallbackPerUnit
+    if (realPerLine === 0) {
       itemsMissingWeight++
     }
     itemsWeightGrams += perLine * qty
@@ -88,6 +107,7 @@ export const computeCartWeight = (
     totalWeightGrams: itemsWeightGrams + overhead,
     packagingOverheadGrams: overhead,
     itemsMissingWeight,
+    defaultItemWeightGrams: fallbackPerUnit,
   }
 }
 

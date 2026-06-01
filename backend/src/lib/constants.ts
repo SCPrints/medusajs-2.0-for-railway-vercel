@@ -230,6 +230,21 @@ export const SHIPPING_PACKAGING_OVERHEAD_GRAMS = parseIntEnv(
   150
 )
 
+/**
+ * Fallback per-UNIT garment weight (grams) applied to any line item that has
+ * no resolvable real weight (no variant.weight, product.weight, or
+ * metadata.weight_grams). SC Prints' catalog is almost entirely garments of
+ * similar mass and ~none have weights set yet, so this default is what makes
+ * the weight-based "Standard Shipping" rate scale with order size TODAY — one
+ * tee ≈ 0.45 kg, twenty boxes ≈ a lot of kg, different price. The moment a
+ * real weight is set on a product/variant it overrides this automatically.
+ * Bump toward 350 if your mix skews to hoodies and you want margin protection.
+ */
+export const SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS = parseIntEnv(
+  process.env.SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS,
+  300
+)
+
 export const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT
 export const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY
 export const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY

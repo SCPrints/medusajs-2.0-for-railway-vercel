@@ -38,7 +38,12 @@ export function getStoreCartShippingOptionMinorAmount(
 
   const calculated = option.calculated_price?.calculated_amount
   if (typeof calculated === "number" && Number.isFinite(calculated)) {
-    return normalizeShippingAmountForDisplay(calculated)
+    // Calculated amounts come from a fulfillment provider's `calculatePrice`,
+    // which by repo convention returns MAJOR units (AUD dollars) — see the
+    // scp/ShipStation/AusPost providers. Do NOT apply the cents heuristic here:
+    // it would wrongly divide a legitimately large rate (e.g. a $1,000 freight
+    // quote) by 100. The heuristic stays on the `amount`/`prices` branches.
+    return calculated
   }
 
   const prices = option.prices

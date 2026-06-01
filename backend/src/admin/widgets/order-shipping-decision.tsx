@@ -8,9 +8,15 @@ import { useMemo } from "react"
 
 type ShippingDecision = {
   tier: "flat" | "live"
+  /** Present on orders priced by the weight-based scp_scp rate. */
+  model?: "weight_based"
+  provider?: string
+  /** Quoted shipping rate (AUD, ex-GST) for the cart's weight. */
+  amount_aud?: number
   total_weight_grams?: number
   items_weight_grams?: number
   packaging_overhead_grams?: number
+  default_item_weight_grams?: number
   threshold_grams?: number
   items_missing_weight?: number
   ship_from_postcode?: string | null
@@ -62,18 +68,30 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
           <HelpTooltip
             text={{
               title: "Shipping decision",
-              body: "Whether this order qualifies for flat-rate shipping or needs a live ShipStation quote, calculated from the total cart weight at checkout vs the 3 kg threshold.",
+              body: "How shipping was priced for this order, computed from the total cart weight at checkout.",
               bullets: [
-                "Flat-rate: total cart weight ≤ 3 kg.",
-                "Live quote: total cart weight > 3 kg — ShipStation calculates the rate.",
-                "\"Items missing weight\" means some variants have no weight set. Fix them in the product's Variant weights widget.",
+                "Weight-based: a single Standard rate scaled by total cart weight (the current model).",
+                "\"Items missing weight\" means those lines had no real weight set, so the default garment weight was used. Set real weights in the product's Variant weights widget for accuracy.",
+                "Older orders may show Flat-rate / Live quote from the previous tiered model.",
               ],
             }}
           />
         </Heading>
         {decision ? (
-          <Badge color={decision.tier === "flat" ? "blue" : "green"}>
-            {decision.tier === "flat" ? "Flat-rate" : "Live ShipStation quote"}
+          <Badge
+            color={
+              decision.model === "weight_based"
+                ? "purple"
+                : decision.tier === "flat"
+                ? "blue"
+                : "green"
+            }
+          >
+            {decision.model === "weight_based"
+              ? "Weight-based"
+              : decision.tier === "flat"
+              ? "Flat-rate"
+              : "Live ShipStation quote"}
           </Badge>
         ) : null}
       </div>
@@ -94,14 +112,41 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
                 {formatKg(decision.packaging_overhead_grams)}
               </Text>
             </Row>
-            <Row label="Threshold">
-              <Text size="small">{formatKg(decision.threshold_grams)}</Text>
-            </Row>
+            {typeof decision.amount_aud === "number" ? (
+              <Row label="Quoted rate (ex GST)">
+                <Text size="small" weight="plus">
+                  {`$${decision.amount_aud.toFixed(2)}`}
+                </Text>
+              </Row>
+            ) : null}
+            {decision.model !== "weight_based" ? (
+              <Row label="Threshold">
+                <Text size="small">{formatKg(decision.threshold_grams)}</Text>
+              </Row>
+            ) : null}
             {typeof decision.items_missing_weight === "number" &&
             decision.items_missing_weight > 0 ? (
-              <Row label="Items missing weight">
-                <Text size="small" className="text-ui-fg-error">
+              <Row
+                label={
+                  decision.model === "weight_based"
+                    ? "Lines using default weight"
+                    : "Items missing weight"
+                }
+              >
+                <Text
+                  size="small"
+                  className={
+                    decision.model === "weight_based"
+                      ? "text-ui-fg-subtle"
+                      : "text-ui-fg-error"
+                  }
+                >
                   {decision.items_missing_weight}
+                  {decision.model === "weight_based" &&
+                  typeof decision.default_item_weight_grams === "number" &&
+                  decision.default_item_weight_grams > 0
+                    ? ` (@ ${decision.default_item_weight_grams} g)`
+                    : ""}
                 </Text>
               </Row>
             ) : null}

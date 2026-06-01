@@ -492,6 +492,14 @@ const medusaConfig = {
             resolve: "@medusajs/fulfillment-manual",
             id: "manual",
           },
+          // SC Prints in-house weight-based calculated rate (provider_id
+          // `scp_scp`). Self-contained — no external API — so it's registered
+          // unconditionally. Powers the single "Standard Shipping (AU)" option
+          // whose price scales with cart weight. See src/lib/shipping-rate.ts.
+          {
+            resolve: "./src/modules/scp-shipping",
+            id: "scp",
+          },
           ...(SHIPSTATION_API_KEY
             ? [{
                 resolve: "./src/modules/shipstation",

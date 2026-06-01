@@ -231,67 +231,26 @@ export default async function seedDemoData({ container }: ExecArgs) {
     (z) => z.name === "Australia"
   )!;
 
-  // Two-tier shipping for the AU region:
-  //   - Manual flat $10 / $15 AUD options (used when cart ≤ ~3kg)
-  //   - ShipStation calculated options (used when cart > ~3kg)
-  // The custom /store/cart-shipping-options route filters between the two
-  // tiers based on total cart weight + packaging overhead.
+  // Single weight-based shipping option for the AU region. The price is
+  // computed by the in-house `scp_scp` provider from the cart's total weight
+  // (see src/lib/shipping-rate.ts) — no flat per-order rate, no external
+  // carrier. Express + the old flat/live-carrier options were retired; an
+  // existing prod database is migrated by
+  // scripts/reconfigure-shipping-weight-based.ts.
   const auShippingOptions: any[] = [
     {
       name: "Standard Shipping (AU)",
-      price_type: "flat",
-      provider_id: "manual_manual",
+      price_type: "calculated",
+      provider_id: "scp_scp",
       service_zone_id: australiaServiceZone.id,
       shipping_profile_id: shippingProfile.id,
       type: {
         label: "Standard",
-        description: "Flat-rate Australia Post (≤ 3kg).",
+        description: "Calculated by weight (Australia-wide).",
         code: "standard_au",
       },
-      prices: [
-        {
-          currency_code: "aud",
-          amount: 10,
-        },
-        {
-          region_id: auRegion.id,
-          amount: 10,
-        },
-      ],
-      rules: [
-        {
-          attribute: "enabled_in_store",
-          value: "true",
-          operator: "eq",
-        },
-        {
-          attribute: "is_return",
-          value: "false",
-          operator: "eq",
-        },
-      ],
-    },
-    {
-      name: "Express Shipping (AU)",
-      price_type: "flat",
-      provider_id: "manual_manual",
-      service_zone_id: australiaServiceZone.id,
-      shipping_profile_id: shippingProfile.id,
-      type: {
-        label: "Express",
-        description: "Flat-rate Australia Post Express (≤ 3kg).",
-        code: "express_au",
-      },
-      prices: [
-        {
-          currency_code: "aud",
-          amount: 15,
-        },
-        {
-          region_id: auRegion.id,
-          amount: 15,
-        },
-      ],
+      data: {},
+      prices: [],
       rules: [
         {
           attribute: "enabled_in_store",
@@ -306,140 +265,6 @@ export default async function seedDemoData({ container }: ExecArgs) {
       ],
     },
   ];
-
-  // Only seed the calculated tier if the ShipStation provider is configured;
-  // otherwise the option would 500 on every checkout when an admin tries to
-  // resolve a rate. Admin can still create these options manually later.
-  const fulfillmentProviders =
-    await fulfillmentModuleService.listFulfillmentProviders({
-      id: "shipstation_shipstation",
-    });
-  const hasShipStation = fulfillmentProviders.length > 0;
-
-  if (hasShipStation) {
-    auShippingOptions.push(
-      {
-        name: "Standard Live Quote (AU)",
-        price_type: "calculated",
-        provider_id: "shipstation_shipstation",
-        service_zone_id: australiaServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Standard",
-          description: "Live freight quote via ShipStation (>3kg).",
-          code: "standard_live_au",
-        },
-        // Carrier IDs vary per ShipStation account — leave blank so admins
-        // wire them up via the Admin once the carriers are imported.
-        data: {
-          carrier_id: "",
-          carrier_service_code: "",
-        },
-        prices: [],
-        rules: [
-          {
-            attribute: "enabled_in_store",
-            value: "true",
-            operator: "eq",
-          },
-          {
-            attribute: "is_return",
-            value: "false",
-            operator: "eq",
-          },
-        ],
-      },
-      {
-        name: "Express Live Quote (AU)",
-        price_type: "calculated",
-        provider_id: "shipstation_shipstation",
-        service_zone_id: australiaServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Express",
-          description: "Live express freight quote via ShipStation (>3kg).",
-          code: "express_live_au",
-        },
-        data: {
-          carrier_id: "",
-          carrier_service_code: "",
-        },
-        prices: [],
-        rules: [
-          {
-            attribute: "enabled_in_store",
-            value: "true",
-            operator: "eq",
-          },
-          {
-            attribute: "is_return",
-            value: "false",
-            operator: "eq",
-          },
-        ],
-      }
-    );
-  } else {
-    logger.info(
-      "ShipStation provider not registered (SHIPSTATION_API_KEY unset) — skipping calculated shipping options. Set SHIPSTATION_API_KEY and re-seed (or create the options via Admin) to enable live quotes."
-    );
-  }
-
-  // AusPost is the planned successor to ShipStation. Seeded alongside so
-  // staff can flip LIVE_SHIPPING_PROVIDER once creds + testbed QA are green.
-  const auspostProviders =
-    await fulfillmentModuleService.listFulfillmentProviders({
-      id: "auspost_auspost",
-    });
-  const hasAusPost = auspostProviders.length > 0;
-
-  if (hasAusPost) {
-    auShippingOptions.push(
-      {
-        name: "Australia Post Parcel Post (AU)",
-        price_type: "calculated",
-        provider_id: "auspost_auspost",
-        service_zone_id: australiaServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Parcel Post",
-          description: "Live quote via Australia Post (Parcel Post).",
-          code: "auspost_parcel_au",
-        },
-        // product_id matches AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID at
-        // seed time; staff can override per-account in admin if AusPost
-        // issues a different code for their MyPost Business profile.
-        data: { product_id: "7E55" },
-        prices: [],
-        rules: [
-          { attribute: "enabled_in_store", value: "true", operator: "eq" },
-          { attribute: "is_return", value: "false", operator: "eq" },
-        ],
-      },
-      {
-        name: "Australia Post Express Post (AU)",
-        price_type: "calculated",
-        provider_id: "auspost_auspost",
-        service_zone_id: australiaServiceZone.id,
-        shipping_profile_id: shippingProfile.id,
-        type: {
-          label: "Express Post",
-          description: "Live quote via Australia Post (Express Post).",
-          code: "auspost_express_au",
-        },
-        data: { product_id: "7E54" },
-        prices: [],
-        rules: [
-          { attribute: "enabled_in_store", value: "true", operator: "eq" },
-          { attribute: "is_return", value: "false", operator: "eq" },
-        ],
-      }
-    );
-  } else {
-    logger.info(
-      "AusPost provider not registered — skipping AusPost shipping options. Configure AUSPOST_* env vars per Docs/AUSPOST_SETUP.md and re-seed once registration is approved."
-    );
-  }
 
   await createShippingOptionsWorkflow(container).run({
     input: auShippingOptions,
