@@ -49,6 +49,37 @@ describe("cleanMaterialString", () => {
     expect(cleanMaterialString("  200gsm   65% Polyester,  ")).toBe("200gsm 65% Polyester")
   })
 
+  it("cuts feature prose at a sentence boundary (DNC prose pattern)", () => {
+    expect(
+      cleanMaterialString(
+        "75 D 100% polyester, micro fibre, ribstop with 70 gsm polyester mesh and 210 T taffeta. 2 side pockets, zipped pocket on right lower leg"
+      )
+    ).toBe("75 D 100% polyester, micro fibre, ribstop with 70 gsm polyester mesh and 210 T taffeta")
+    expect(
+      cleanMaterialString("95% Cotton, 5% Spandex Premium quality. No itching, no marking")
+    ).toBe("95% Cotton, 5% Spandex Premium quality")
+  })
+
+  it("does NOT cut decimals (no space after period)", () => {
+    expect(cleanMaterialString("7.5 oz 100% cotton")).toBe("7.5 oz 100% cotton")
+  })
+
+  it("cuts Ramo marketing prose (no delimiter)", () => {
+    expect(
+      cleanMaterialString(
+        "260gsm, 50% cotton 43% polyester 7% spandex This hoodie not only provides a heather look"
+      )
+    ).toBe("260gsm, 50% cotton 43% polyester 7% spandex")
+    expect(
+      cleanMaterialString("160 gsm, 60% cotton 40% Polyester Made from ring-spun soft yarn")
+    ).toBe("160 gsm, 60% cotton 40% Polyester")
+  })
+
+  it("preserves legit composition tokens that look capitalised (Drill, Canvas)", () => {
+    expect(cleanMaterialString("311gsm Heavyweight Cotton Drill")).toBe("311gsm Heavyweight Cotton Drill")
+    expect(cleanMaterialString("285gsm 100% Cotton Canvas")).toBe("285gsm 100% Cotton Canvas")
+  })
+
   it("returns null when nothing meaningful remains", () => {
     expect(cleanMaterialString("Features: only feature text")).toBeNull()
   })

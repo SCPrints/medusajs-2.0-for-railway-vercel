@@ -54,9 +54,27 @@ const FEATURE_BOUNDARY = new RegExp(
     "\\s+New mesh knit",
     "\\s+Honeycomb knit",
     "\\s+reflective tab",
+    // Marketing-prose starts (Ramo) — unambiguous; never part of a composition.
+    "\\s+Made (from|using|with)\\b",
+    "\\s+This (hoodie|singlet|tee|shirt|polo|garment|fabric|jacket|product)\\b",
+    "\\s+A stylish\\b",
+    "\\s+not only\\b",
+    "\\s+that offers\\b",
+    "\\s+perfect for\\b",
+    "\\s+ideal for\\b",
+    "\\s+designed (to|for)\\b",
   ].join("|"),
   "i"
 )
+
+/**
+ * A sentence boundary: a period followed by whitespace and a word character.
+ * Composition strings interleave feature prose as separate sentences
+ * ("... 210 T taffeta. 2 side pockets, zipped pocket ..."); the composition is
+ * always the first sentence. This does NOT match decimals ("7.5 oz") because
+ * those have no space after the period.
+ */
+const SENTENCE_BOUNDARY = /\.\s+\S/
 
 /** Minimum length for a plausible composition once trimmed. */
 const MIN_LENGTH = 4
@@ -73,9 +91,17 @@ export function cleanMaterialString(
   let text = raw.replace(/\s+/g, " ").trim()
   if (!text) return null
 
+  // 1) Cut at the earliest feature-keyword / section-label boundary.
   const m = text.match(FEATURE_BOUNDARY)
   if (m && typeof m.index === "number") {
     text = text.slice(0, m.index)
+  }
+
+  // 2) Cut at the first sentence boundary — feature prose runs as separate
+  //    sentences after the composition (DNC pattern). Keep the first sentence.
+  const s = text.match(SENTENCE_BOUNDARY)
+  if (s && typeof s.index === "number") {
+    text = text.slice(0, s.index + 1) // keep the period
   }
 
   // Trim trailing connective punctuation left dangling by the cut.
