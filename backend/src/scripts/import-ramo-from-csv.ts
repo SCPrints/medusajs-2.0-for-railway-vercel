@@ -37,6 +37,7 @@ import {
 } from "../lib/supplier-import-pipeline"
 import { parseMoneyToMinor } from "../utils/parse-money-to-minor"
 import { withNonTrackedInventoryDefaults } from "./utils/variant-inventory-defaults"
+import { extractFabricFromRamoHtml } from "./backfill-material-from-description"
 
 type CsvRow = Record<string, string>
 
@@ -455,6 +456,8 @@ export default async function importRamoFromCsv({ container, args }: ExecArgs) {
       if (v.variantImage) imgs.add(v.variantImage)
     }
 
+    const material = extractFabricFromRamoHtml(description)
+
     prepared.push({
       handle,
       skus: medusaVariants.map((x) => (x.sku as string) || "").filter(Boolean),
@@ -462,6 +465,7 @@ export default async function importRamoFromCsv({ container, args }: ExecArgs) {
       productPayload: {
         title: productTitle,
         description: description || undefined,
+        material: material ?? undefined,
         handle,
         status: importStatus,
         thumbnail: heroImage || undefined,
