@@ -228,24 +228,26 @@ function useListingCardSwatchesObserver(
   setSwatchPhotosActive: (v: boolean) => void
 ) {
   useEffect(() => {
-    const el = rootRef.current
-    if (!el) {
-      return
-    }
+    // Swatch *photo* backgrounds (the per-colour garment thumbnail rendered
+    // as a circle background) used to auto-activate when the card got within
+    // 160px of viewport. With ~6 swatches per card × 12 cards above the fold,
+    // that fired ~72 extra image requests on every PLP load — dominating the
+    // user-perceived "page-loaded" time even though HTML returned in 1-2s.
+    //
+    // Now: photos only load when the user actually hovers / focuses the
+    // swatch row (the onMouseEnter/onFocusCapture handlers in
+    // ListingCardContent set swatchPhotosActive=true). Initial render shows
+    // flat colour swatches (resolveGarmentSwatchColor) — small CSS dots,
+    // no network request. Users who interact get the photos on-demand.
+    //
+    // Falls back to immediate activation in environments without
+    // IntersectionObserver so legacy clients still see the photos.
     if (typeof IntersectionObserver === "undefined") {
       setSwatchPhotosActive(true)
-      return
     }
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setSwatchPhotosActive(true)
-        }
-      },
-      { rootMargin: "160px 0px", threshold: 0 }
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
+    // No observer subscription — the rootRef + setSwatchPhotosActive args
+    // are kept on the function signature for callsite compatibility.
+    void rootRef
   }, [rootRef, setSwatchPhotosActive])
 }
 
