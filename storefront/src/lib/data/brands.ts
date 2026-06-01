@@ -41,7 +41,11 @@ function brandHeaders(): HeadersInit {
 export async function listBrands(): Promise<StorefrontBrand[]> {
   "use cache"
   cacheTag("brands")
-  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
+  // `stale: 86400` (vs the previous `stale: 600` = `revalidate`) enables true
+  // stale-while-revalidate: after 10 min the cached list is considered stale
+  // but served immediately while the next request triggers a background refresh.
+  // Without it, users hit cold-cache 4-second waits whenever revalidate expires.
+  cacheLife({ revalidate: 600, stale: 86400, expire: 86400 })
   try {
     const res = await fetch(`${MEDUSA_BACKEND_URL}/store/brands?limit=500`, {
       headers: brandHeaders(),
@@ -63,7 +67,10 @@ export async function retrieveBrandByHandle(handle: string): Promise<{
 }> {
   "use cache"
   cacheTag("brands", `brand-${handle}`)
-  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
+  // Brand entities are touched rarely (admin edits); bump revalidate to 1h
+  // and stale window to a full day so brand pages NEVER block on a fresh
+  // fetch under steady traffic.
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   try {
     const res = await fetch(`${MEDUSA_BACKEND_URL}/store/brands/${encodeURIComponent(handle)}`, {
       headers: brandHeaders(),
@@ -113,7 +120,12 @@ export async function getBrandProducts(
 ): Promise<{ products: HttpTypes.StoreProduct[]; count: number }> {
   "use cache"
   cacheTag("brands", `brand-${handle}`, "products")
-  cacheLife({ revalidate: 120, stale: 120, expire: 86400 })
+  // Product data changes more often than brand entities (nightly imports,
+  // inventory sync), so revalidate stays at 2 min — but bump stale to a day
+  // so users get an instant response and the refresh happens in background.
+  // Backend webhook hits `revalidateTag("products")` on imports for immediate
+  // invalidation when staff need it.
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
   const search = new URLSearchParams()
   if (typeof params.limit === "number") search.set("limit", String(params.limit))
   if (typeof params.offset === "number") search.set("offset", String(params.offset))

@@ -80,7 +80,12 @@ export async function getProductsById({
 }) {
   "use cache"
   cacheTag("products")
-  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
+  // stale-while-revalidate: serve immediately + refresh in background.
+  // expire=86400 (was 600) prevents the cache from being fully evicted
+  // every 10 min, which was forcing cold-cache 4-second waits on the
+  // next user. `revalidateTag("products")` (called from the backend on
+  // product writes) invalidates faster when staff need it.
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
   // Build-time prerender resilience: if the backend hiccups (503 under
   // concurrent build load), return [] instead of throwing so the entire
   // build doesn't fail over a single transient request. At runtime the
@@ -107,7 +112,12 @@ export async function getProductByHandle(
 ) {
   "use cache"
   cacheTag("products", `product-${String(handle ?? "").trim().toLowerCase()}`)
-  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
+  // stale-while-revalidate: serve immediately + refresh in background.
+  // expire=86400 (was 600) prevents the cache from being fully evicted
+  // every 10 min, which was forcing cold-cache 4-second waits on the
+  // next user. `revalidateTag("products")` (called from the backend on
+  // product writes) invalidates faster when staff need it.
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
   const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
   if (!normalizedHandle) {
     return null
@@ -162,7 +172,12 @@ export async function getProductsList({
 }> {
   "use cache"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
-  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
+  // stale-while-revalidate: serve immediately + refresh in background.
+  // expire=86400 (was 600) prevents the cache from being fully evicted
+  // every 10 min, which was forcing cold-cache 4-second waits on the
+  // next user. `revalidateTag("products")` (called from the backend on
+  // product writes) invalidates faster when staff need it.
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
   const limit = queryParams?.limit || 12
   const validPageParam = Math.max(pageParam, 1);
   const offset = (validPageParam - 1) * limit
@@ -413,7 +428,12 @@ export async function getProductsListWithSort({
 }> {
   "use cache"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
-  cacheLife({ revalidate: 120, stale: 120, expire: 600 })
+  // stale-while-revalidate: serve immediately + refresh in background.
+  // expire=86400 (was 600) prevents the cache from being fully evicted
+  // every 10 min, which was forcing cold-cache 4-second waits on the
+  // next user. `revalidateTag("products")` (called from the backend on
+  // product writes) invalidates faster when staff need it.
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
   const limit = queryParams?.limit || 12
   const resolvedPage = !page || page < 1 ? 1 : page
 
