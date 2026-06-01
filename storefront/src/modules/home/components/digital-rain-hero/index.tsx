@@ -219,7 +219,8 @@ function drawStreams(
       const a = (1 - frac) * 0.5 * env * TUNING.rainAlpha
       if (a <= 0.01) continue
       const hue = s.hue + Math.sin(i * 0.7 + s.hueSeed) * 10
-      const bloom = size * 2.1
+      // Head tile gets a larger bloom to match the bigger t-shirt silhouette.
+      const bloom = i === 0 ? size * 5.5 : size * 2.1
       ctx.fillStyle = `hsla(${hue}, 100%, 62%, ${a})`
       ctx.fillRect(
         Math.round(s.x - bloom / 2),
@@ -259,7 +260,8 @@ function drawStreams(
       // Head tile → t-shirt silhouette (above a minimum size so tiny heads
       // don't produce unreadable smears at the threshold boundary).
       if (i === 0 && size >= 6) {
-        drawTshirt(ctx, Math.round(s.x), Math.round(y), size, color)
+        // Scale up 2.5× so the t-shirt is clearly readable at stream head scale.
+        drawTshirt(ctx, Math.round(s.x), Math.round(y), size * 2.5, color)
         continue
       }
 
