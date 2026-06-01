@@ -84,6 +84,19 @@ const nextConfig = {
      */
     unoptimized: catalogImagesUnoptimized,
     qualities: [40, 50, 75],
+    /**
+     * Cache each optimized image at Vercel's edge for 60 days. The default
+     * minimumCacheTTL is 60 seconds, which left product images cycling
+     * through `x-vercel-cache: MISS` for almost every user — even repeat
+     * visitors. Source URLs change when the underlying file changes
+     * (suppliers cycle CDN paths; R2 writes use ULID-keyed paths), so a
+     * long edge cache is safe — the URL itself is the cache-bust signal.
+     *
+     * Bigger edge cache = first user pays the optimization cost, all
+     * subsequent users get instant CDN responses. The single biggest lever
+     * for image-heavy PLP pages.
+     */
+    minimumCacheTTL: 60 * 60 * 24 * 60,
     remotePatterns: [
       {
         protocol: "http",
