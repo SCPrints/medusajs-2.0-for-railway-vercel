@@ -47,7 +47,10 @@ const TUNING = {
   downLerp: 0.025, // slow glide back → trailing settle
   capInset: 0.9, // image cap size relative to the face
   capOffset: 0.04, // cap sits just in front of the body's top face
-  camZ: 15, // pulled back → many smaller blocks fit, no ballooning near ones
+  camY: 5.5, // camera raised → looks DOWN at the field at an angle so you see the
+  camZ: 14, //  block tops AND side walls → a lifting block reads as a 3D block rising, not a flat square
+  lookY: -0.6,
+  lookZ: -2,
   fov: 45,
   bg: "#0c0b1a",
 } as const
@@ -122,7 +125,7 @@ function Tiles({
         const baseZ = -TUNING.depth * (1 - r) + TUNING.tileDepth / 2
         // Unit direction from this block toward the camera — the lift travels
         // along this so off-axis blocks grow in place (inward), never off-frame.
-        const ld = new THREE.Vector3(0, 0, TUNING.camZ).sub(new THREE.Vector3(x, y, baseZ)).normalize()
+        const ld = new THREE.Vector3(0, TUNING.camY, TUNING.camZ).sub(new THREE.Vector3(x, y, baseZ)).normalize()
         out.push({
           x,
           y,
@@ -296,8 +299,8 @@ function Tiles({
 function Rig() {
   const { camera } = useThree()
   useEffect(() => {
-    camera.position.set(0, 0, TUNING.camZ)
-    camera.lookAt(0, 0, -TUNING.depth)
+    camera.position.set(0, TUNING.camY, TUNING.camZ)
+    camera.lookAt(0, TUNING.lookY, TUNING.lookZ)
   }, [camera])
   return null
 }
@@ -353,7 +356,7 @@ export default function BlockProductHero({ products, countryCode, className, sty
     >
       <Canvas
         frameloop={inView ? "always" : "never"}
-        camera={{ position: [0, 0, TUNING.camZ], fov: TUNING.fov, near: 0.1, far: 100 }}
+        camera={{ position: [0, TUNING.camY, TUNING.camZ], fov: TUNING.fov, near: 0.1, far: 100 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         dpr={[1, 2]}
         style={{ position: "absolute", inset: 0 }}
