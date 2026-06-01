@@ -64,7 +64,7 @@ export default async function backfillAussiePacificMaterial({ container }: ExecA
       logger.info(`[backfill-ap-material] ${product.handle}: "${fabric}"`)
 
       if (!dryRun) {
-        await productModule.updateProducts([{ id: product.id, material: fabric }])
+        await productModule.updateProducts(product.id, { material: fabric })
       }
       updated++
     }
