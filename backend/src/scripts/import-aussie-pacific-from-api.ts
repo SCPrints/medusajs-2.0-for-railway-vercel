@@ -72,6 +72,29 @@ import {
 const PRICE_CURRENCY_CODE = "aud"
 const AUSSIEPACIFIC_LOCATION_NAME = "Aussie Pacific Warehouse"
 const AUSSIEPACIFIC_BRAND_HANDLE = "aussie-pacific"
+
+/**
+ * Extract the fabric/composition string from AP's HTML product description.
+ *
+ * AP descriptions embed composition in a paragraph like:
+ *   <p>Fabric:<br>160gm 100%<img ...> Polyester</p>
+ * or
+ *   <p>Fabric:<br>160gm 100% Cotton</p>
+ *
+ * Returns the text content (HTML tags stripped) immediately following
+ * "Fabric:<br>", e.g. "160gm 100% Polyester". Returns null if not found.
+ */
+export function extractFabricFromHtml(html: string | null | undefined): string | null {
+  if (!html) return null
+  // Grab everything between Fabric:<br> and </p>
+  const match = html.match(/Fabric:\s*<br\s*\/?>([\s\S]*?)<\/p>/i)
+  if (!match) return null
+  const text = match[1]
+    .replace(/<[^>]+>/g, " ") // strip tags (e.g. <img> icons)
+    .replace(/\s+/g, " ")
+    .trim()
+  return text || null
+}
 const CALIBRATION_LOG_LIMIT = 5
 
 /**
@@ -392,6 +415,7 @@ export default async function importAussiePacificFromApi({
     }
 
     const title = product.name ? titleCase(product.name) : `Aussie Pacific ${product.style_code}`
+    const material = extractFabricFromHtml(product.description)
 
     const productPayload: any = {
       title,
@@ -399,6 +423,7 @@ export default async function importAussiePacificFromApi({
       status: ProductStatus.PUBLISHED,
       description: product.description ?? "",
       thumbnail,
+      material: material ?? undefined,
       images: productImages,
       options,
       variants: productVariants,
