@@ -9,12 +9,14 @@ import { createShippingOptionsWorkflow } from "@medusajs/medusa/core-flows"
  * provider.
  *
  * What it does (idempotent):
- *   1. Ensure the `scp_scp` "Standard Shipping (AU)" calculated option exists
- *      in the "Australia" service zone.
- *   2. Soft-delete the old AU options (manual_* / shipstation_* / auspost_*) so
+ *   0. Enable the `scp_scp` fulfillment provider on every stock location — it
+ *      must be enabled on the location, not just registered in medusa-config,
+ *      or createShippingOptions rejects it.
+ *   1. Soft-delete the old AU options (manual_* / shipstation_* / auspost_*) so
  *      Express + the broken live-quote rows disappear from checkout + admin.
- *      Soft delete keeps historical orders' shipping-method references intact
- *      and is reversible (restoreShippingOptions).
+ *      Soft delete keeps historical order references intact (reversible).
+ *   2. Ensure the `scp_scp` "Standard Shipping (AU)" calculated option exists
+ *      in the "Australia" service zone.
  *
  * Run AFTER deploying the backend that registers the scp provider:
  *   cd /app/.medusa/server && npx medusa exec src/scripts/reconfigure-shipping-weight-based.js
@@ -23,6 +25,8 @@ import { createShippingOptionsWorkflow } from "@medusajs/medusa/core-flows"
 export default async function reconfigureShipping({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const fulfillment = container.resolve(Modules.FULFILLMENT) as any
+  const stockLocationModule = container.resolve(Modules.STOCK_LOCATION) as any
+  const link = container.resolve(ContainerRegistrationKeys.LINK)
   const DRY_RUN =
     process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true"
 
@@ -74,6 +78,42 @@ export default async function reconfigureShipping({ container }: ExecArgs) {
   )
   for (const o of toDelete) {
     logger.info(`[reconfigure-shipping]   retire → ${o.name} [${o.provider_id}] (${o.id})`)
+  }
+
+  // 0. Enable the scp_scp provider on every stock location BEFORE any
+  //    create/delete. Registering the provider in medusa-config is NOT enough —
+  //    createShippingOptions validates the provider is enabled for the location,
+  //    so without this the create throws "Providers (scp_scp) are not enabled
+  //    for the service location" (which is exactly what stranded the AU zone
+  //    with zero options on the first run). Placed before the destructive steps
+  //    so a failure here aborts safely (nothing deleted yet). Idempotent:
+  //    link.create throws on an existing link, which we treat as already-enabled.
+  const allLocations = (await stockLocationModule.listStockLocations(
+    {},
+    { take: 1000 }
+  )) as Array<{ id: string; name?: string }>
+  for (const loc of allLocations ?? []) {
+    if (DRY_RUN) {
+      logger.info(
+        `[reconfigure-shipping] would enable scp_scp on location "${loc.name}" (${loc.id}).`
+      )
+      continue
+    }
+    try {
+      await link.create({
+        [Modules.STOCK_LOCATION]: { stock_location_id: loc.id },
+        [Modules.FULFILLMENT]: { fulfillment_provider_id: "scp_scp" },
+      })
+      logger.info(
+        `[reconfigure-shipping] Enabled scp_scp on location "${loc.name}" (${loc.id}).`
+      )
+    } catch (err) {
+      logger.info(
+        `[reconfigure-shipping] scp_scp already enabled on "${loc.name}" (or link skipped): ${
+          (err as Error).message
+        }`
+      )
+    }
   }
 
   // 1. Retire the legacy options first so the new option can reuse the

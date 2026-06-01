@@ -181,6 +181,20 @@ export default async function seedDemoData({ container }: ExecArgs) {
     },
   });
 
+  // Enable the in-house weight-based shipping provider on this location too, so
+  // createShippingOptionsWorkflow accepts the scp_scp "Standard Shipping (AU)"
+  // option below. Registering the provider in medusa-config is not enough — it
+  // must be enabled on the stock location or the workflow rejects it with
+  // "Providers (scp_scp) are not enabled for the service location".
+  await link.create({
+    [Modules.STOCK_LOCATION]: {
+      stock_location_id: stockLocation.id,
+    },
+    [Modules.FULFILLMENT]: {
+      fulfillment_provider_id: "scp_scp",
+    },
+  });
+
   logger.info("Seeding fulfillment data...");
   const shippingProfiles = await fulfillmentModuleService.listShippingProfiles({
     type: "default",
