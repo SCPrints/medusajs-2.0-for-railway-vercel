@@ -1391,7 +1391,8 @@ These routes exist but aren't linked from the main nav. Some are intentional lan
 | `[countryCode]/(main)/particle-logo/`, `particle-threejs/`, `particle-flow/` | Tsparticles + Three.js sandboxes (`particle-logo/` is active work) |
 | `[countryCode]/(main)/old-hero/` | Legacy hero — superseded by current home hero |
 | `[countryCode]/(main)/jungle-scene/`, `space-hero/` | Animation isolation tests |
-| `[countryCode]/(main)/sandbox/` | Internal index page listing the six animation/dev routes above. `noindex,nofollow`. Linked from the footer Quick Links as "Sandbox" (added 2026-05-25 when the per-route footer links were consolidated). |
+| `[countryCode]/(main)/block-hero/`, `city-hero/` | Three.js block/city hero A/B candidates (noindex) |
+| `[countryCode]/(main)/sandbox/` | **Animation Lab** — consolidated index of all 14 animation/dev routes grouped into 5 categories (Wordmark animations, Home hero candidates, Scenes & environments, UI labs, Personal). `noindex,nofollow`. Linked from the footer Quick Links as "Sandbox". |
 
 ## Tests
 
