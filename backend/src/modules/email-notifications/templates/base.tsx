@@ -124,7 +124,7 @@ export const Base: React.FC<BaseProps> = ({ preview, children, unsubscribeUrl })
             {/* Branded header bar */}
             <Section style={{ backgroundColor: NAVY, padding: '20px 28px', textAlign: 'center' }}>
               <Img
-                src="https://sc-prints.com.au/branding/sc-prints-logo-white.png"
+                src="https://www.scprints.com.au/branding/sc-prints-logo-white.png"
                 alt="SC Prints"
                 width={160}
                 style={{ margin: '0 auto', display: 'block' }}
@@ -142,7 +142,7 @@ export const Base: React.FC<BaseProps> = ({ preview, children, unsubscribeUrl })
             <Section style={{ padding: '16px 28px 24px', borderTop: '1px solid #ebebeb' }}>
               <Text style={{ margin: 0, fontSize: '11px', color: '#9ca3af', textAlign: 'center', lineHeight: '16px' }}>
                 SC Prints &middot; Reply to this email for help &middot;{' '}
-                <a href="https://sc-prints.com.au" style={{ color: '#9ca3af' }}>sc-prints.com.au</a>
+                <a href="https://www.scprints.com.au" style={{ color: '#9ca3af' }}>scprints.com.au</a>
               </Text>
               {unsubscribeUrl ? (
                 <Text style={{ margin: '8px 0 0', fontSize: '11px', color: '#9ca3af', textAlign: 'center', lineHeight: '16px' }}>

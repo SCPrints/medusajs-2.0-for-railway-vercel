@@ -271,7 +271,7 @@ const SeoAnalyticsPage = () => {
               bullets: [
                 "Data refreshes daily at ~05:00 UTC via the refresh-seo-analytics cron; click 'Refresh now' to force a re-pull on demand.",
                 "GSC numbers trail real time by 2–3 days, so the most recent end of the window may be partial.",
-                "Configured via GSC_SITE_URL env var — must match the property exactly (e.g. 'https://sc-prints.com.au/' or 'sc-domain:sc-prints.com.au').",
+                "Configured via GSC_SITE_URL env var — must match the property exactly (e.g. 'https://www.scprints.com.au/' or 'sc-domain:scprints.com.au').",
               ],
             }}
           >

@@ -7,61 +7,64 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { useRouter } from "next/navigation"
 
 /**
- * BlockProductHero — a continuous field of long, soft-cornered candy blocks.
- * At rest it's just the blocks (no images). Hover lifts a block TOWARD the
- * viewer (not up the screen → never leaves the cursor → no bounce) and fades in
- * its product image on a rounded top-cap; move off and it glides back slowly
- * (image fades with it) so a swept mouse leaves a trail. Click opens the product.
+ * BlockProductHero — a field of soft candy blocks standing on a floor, seen from
+ * above at an angle (blocks stand UPRIGHT, never leaning). Hover grows a block
+ * UP into a 3D tower (base planted → no bounce, walls reveal) and fades its
+ * product image in on the top face. Click opens the product.
  *
- * Form notes from feedback:
- * - Bodies are RoundedBoxGeometry (soft corners, not harsh cubes).
- * - Tiles TOUCH on a square pitch (no overlap) so adjacent walls are back-to-back
- *   (opposite normals) → no z-fighting/flicker — with polygonOffset as insurance.
- * - The image lives on a separate rounded top-cap that only appears on hover, so
- *   it's never on the long side walls.
- *
- * Image caps load via Next's same-origin optimiser (WebGL-safe). Three.js + r3f.
+ * A live TUNER PANEL (this preview route only) drives the framing/height/density
+ * via sliders so the look can be dialled in directly; values persist to
+ * localStorage. Once happy, copy them into DEFAULTS and the panel can be dropped.
  */
 
 type Product = { thumbnail: string; handle: string; title: string }
 
-const COLS = 16
-const ROWS = 11
-const FIELD_HALF_W = 9.5
-// Square pitch so tiles tile perfectly (no black gaps, no overlap → no z-fight).
-const FIELD_HALF_H = (FIELD_HALF_W * ROWS) / COLS
-const PITCH = (2 * FIELD_HALF_W) / COLS
+// Tunable (driven by the panel).
+type Cfg = {
+  cols: number
+  rows: number
+  fieldHalfW: number
+  nearZ: number
+  restHeight: number
+  liftHeight: number
+  camY: number
+  camZ: number
+  lookZ: number
+  fov: number
+}
 
-const TUNING = {
-  depth: 1.2, // nearly flat → uniform block sizes, many visible (not a few huge near ones)
-  tileFace: PITCH * 1.05, // slight overlap closes the corner/row gaps (rounded + polygonOffset keep flicker away)
-  tileDepth: 2.2, // block length
-  cornerRadius: 0.05, // soft corners, but smaller gaps at junctions
-  bobAmplitude: 0.05, // tiny ripple
-  bobSpeed: 0.55,
-  bobRippleScale: 1.5,
-  // Hover lift travels ALONG the line to the camera, so off-axis blocks grow in
-  // place (move inward) rather than shoving off-frame → no edge cut-off, no bounce.
-  liftDist: 2.6,
-  upLerp: 0.06, // gentle rise
-  downLerp: 0.025, // slow glide back → trailing settle
-  capInset: 0.9, // image cap size relative to the face
-  capOffset: 0.04, // cap sits just in front of the body's top face
-  camY: 5.5, // camera raised → looks DOWN at the field at an angle so you see the
-  camZ: 14, //  block tops AND side walls → a lifting block reads as a 3D block rising, not a flat square
-  lookY: -0.6,
-  lookZ: -2,
-  fov: 45,
-  bg: "#0c0b1a",
-} as const
+const DEFAULTS: Cfg = {
+  cols: 16,
+  rows: 10,
+  fieldHalfW: 9.5,
+  nearZ: 4,
+  restHeight: 1.6,
+  liftHeight: 2.6,
+  camY: 13,
+  camZ: 10,
+  lookZ: -3,
+  fov: 36,
+}
 
+// Fixed (not exposed in the panel).
+const TILE_FACE_MUL = 1.04
+const CORNER_RADIUS = 0.06
+const BOB_AMP = 0.04
+const BOB_SPEED = 0.55
+const BOB_RIPPLE = 1.4
+const UP_LERP = 0.07
+const DOWN_LERP = 0.025
+const CAP_INSET = 0.86
+const CAP_OFFSET = 0.05
+const FLOOR_Y = -0.1
+const BG = "#0c0b1a"
 const PALETTE = ["#3dcfc2", "#ff4d7d", "#b9a7ff", "#ffe46b", "#7fe7e0", "#9b7bff"]
+const STORAGE_KEY = "scp_product_hero_cfg_v1"
 
 function nextImg(url: string, w = 256): string {
   return `/_next/image?url=${encodeURIComponent(url)}&w=${w}&q=75`
 }
 
-// Rounded-rect alpha mask for the image cap (so revealed product images have soft corners too).
 function makeRoundedAlpha(): THREE.Texture {
   const S = 128
   const c = document.createElement("canvas")
@@ -86,54 +89,36 @@ function makeRoundedAlpha(): THREE.Texture {
   return new THREE.CanvasTexture(c)
 }
 
-type Tile = {
-  x: number
-  y: number
-  baseZ: number
-  lx: number
-  ly: number
-  lz: number
-  phase: number
-  productIndex: number
-  colorIndex: number
-}
+type Tile = { x: number; z: number; phase: number; productIndex: number; colorIndex: number }
 
 function Tiles({
   products,
   countryCode,
   reducedMotion,
+  cfg,
 }: {
   products: Product[]
   countryCode: string
   reducedMotion: boolean
+  cfg: Cfg
 }) {
   const router = useRouter()
-  const bodyGeom = useMemo(() => new RoundedBoxGeometry(1, 1, 1, 4, TUNING.cornerRadius), [])
+  const bodyGeom = useMemo(() => new RoundedBoxGeometry(1, 1, 1, 4, CORNER_RADIUS), [])
   const capGeom = useMemo(() => new THREE.PlaneGeometry(1, 1), [])
   const roundedAlpha = useMemo(() => makeRoundedAlpha(), [])
+
+  const pitch = (2 * cfg.fieldHalfW) / cfg.cols
+  const tileFace = pitch * TILE_FACE_MUL
 
   const tiles = useMemo<Tile[]>(() => {
     const out: Tile[] = []
     let k = 0
-    for (let i = 0; i < COLS; i++) {
-      for (let j = 0; j < ROWS; j++) {
-        const u = COLS > 1 ? (i / (COLS - 1)) * 2 - 1 : 0
-        const v = ROWS > 1 ? (j / (ROWS - 1)) * 2 - 1 : 0
-        const r = Math.min(1, Math.hypot(u, v))
-        const x = u * FIELD_HALF_W
-        const y = v * FIELD_HALF_H
-        const baseZ = -TUNING.depth * (1 - r) + TUNING.tileDepth / 2
-        // Unit direction from this block toward the camera — the lift travels
-        // along this so off-axis blocks grow in place (inward), never off-frame.
-        const ld = new THREE.Vector3(0, TUNING.camY, TUNING.camZ).sub(new THREE.Vector3(x, y, baseZ)).normalize()
+    for (let i = 0; i < cfg.cols; i++) {
+      for (let j = 0; j < cfg.rows; j++) {
         out.push({
-          x,
-          y,
-          baseZ,
-          lx: ld.x,
-          ly: ld.y,
-          lz: ld.z,
-          phase: r * TUNING.bobRippleScale * Math.PI * 2 + (i * 0.3 + j * 0.7),
+          x: (i - (cfg.cols - 1) / 2) * pitch,
+          z: cfg.nearZ - j * pitch,
+          phase: (i * 0.3 + j * 0.7) * BOB_RIPPLE,
           productIndex: products.length ? k % products.length : 0,
           colorIndex: (i * 3 + j * 5) % PALETTE.length,
         })
@@ -141,9 +126,9 @@ function Tiles({
       }
     }
     return out
-  }, [products])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, cfg.cols, cfg.rows, cfg.fieldHalfW, cfg.nearZ])
 
-  // Candy block bodies (lit, soft corners). polygonOffset = z-fight insurance.
   const bodyMaterials = useMemo(
     () =>
       PALETTE.map(
@@ -160,7 +145,6 @@ function Tiles({
     []
   )
 
-  // Per-tile image caps (rounded, transparent; fade in with the lift).
   const capMaterials = useMemo(
     () =>
       tiles.map(
@@ -179,7 +163,6 @@ function Tiles({
 
   useEffect(() => {
     const loader = new THREE.TextureLoader()
-    const texByProduct: (THREE.Texture | null)[] = products.map(() => null)
     const created: THREE.Texture[] = []
     products.forEach((p, idx) => {
       if (!p.thumbnail) return
@@ -188,9 +171,7 @@ function Tiles({
         (tex) => {
           tex.colorSpace = THREE.SRGBColorSpace
           tex.anisotropy = 4
-          texByProduct[idx] = tex
           created.push(tex)
-          // Assign to every cap that shows this product.
           tiles.forEach((tile, k) => {
             if (tile.productIndex === idx) {
               capMaterials[k].map = tex
@@ -214,25 +195,22 @@ function Tiles({
   const cursorPointerRef = useRef(false)
 
   useFrame((state) => {
-    const t = reducedMotion ? 0 : state.clock.getElapsedTime() * TUNING.bobSpeed
+    const t = reducedMotion ? 0 : state.clock.getElapsedTime() * BOB_SPEED
     for (let k = 0; k < tiles.length; k++) {
       const body = bodyRefs.current[k]
       if (!body) continue
       const tile = tiles[k]
       const target = hoveredRef.current === k ? 1 : 0
-      const rate = target > raise[k] ? TUNING.upLerp : TUNING.downLerp
+      const rate = target > raise[k] ? UP_LERP : DOWN_LERP
       raise[k] += (target - raise[k]) * rate
-      const bob = reducedMotion ? 0 : Math.sin(t + tile.phase) * TUNING.bobAmplitude
-      const lift = raise[k] * TUNING.liftDist
-      // Travel along the line to the camera → grows in place, never off-frame.
-      const bx = tile.x + tile.lx * lift
-      const by = tile.y + tile.ly * lift
-      const bz = tile.baseZ + bob + tile.lz * lift
-      body.position.set(bx, by, bz)
+      const bob = reducedMotion ? 0 : Math.sin(t + tile.phase) * BOB_AMP
+      const h = cfg.restHeight + raise[k] * cfg.liftHeight + bob
+      body.scale.set(tileFace, h, tileFace)
+      body.position.set(tile.x, h / 2, tile.z)
 
       const cap = capRefs.current[k]
       if (cap) {
-        cap.position.set(bx, by, bz + TUNING.tileDepth / 2 + TUNING.capOffset)
+        cap.position.set(tile.x, h + CAP_OFFSET, tile.z)
         const op = Math.min(1, raise[k] * 1.6)
         ;(cap.material as THREE.MeshBasicMaterial).opacity = op
         cap.visible = op > 0.01
@@ -247,12 +225,11 @@ function Tiles({
 
   return (
     <>
-      <ambientLight intensity={0.78} />
-      <directionalLight position={[3, 6, 8]} intensity={0.6} />
-      <directionalLight position={[-5, -3, 4]} intensity={0.22} color="#9fb4ff" />
-      {/* Backdrop so any gap between blocks reads as a muted dark-candy seam, never black. */}
-      <mesh position={[0, 0, -(TUNING.depth + TUNING.tileDepth + 8)]} raycast={() => {}}>
-        <planeGeometry args={[90, 60]} />
+      <ambientLight intensity={0.62} />
+      <directionalLight position={[2, 12, 5]} intensity={0.8} />
+      <directionalLight position={[-6, 4, -2]} intensity={0.18} color="#9fb4ff" />
+      <mesh position={[0, FLOOR_Y, -3]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => {}}>
+        <planeGeometry args={[160, 160]} />
         <meshBasicMaterial color="#241c45" toneMapped={false} />
       </mesh>
       {tiles.map((tile, k) => (
@@ -263,8 +240,8 @@ function Tiles({
             }}
             geometry={bodyGeom}
             material={bodyMaterials[tile.colorIndex]}
-            position={[tile.x, tile.y, tile.baseZ]}
-            scale={[TUNING.tileFace, TUNING.tileFace, TUNING.tileDepth]}
+            position={[tile.x, cfg.restHeight / 2, tile.z]}
+            scale={[tileFace, cfg.restHeight, tileFace]}
             onPointerOver={(e) => {
               e.stopPropagation()
               hoveredRef.current = k
@@ -285,8 +262,9 @@ function Tiles({
             }}
             geometry={capGeom}
             material={capMaterials[k]}
-            position={[tile.x, tile.y, tile.baseZ + TUNING.tileDepth / 2 + TUNING.capOffset]}
-            scale={[TUNING.tileFace * TUNING.capInset, TUNING.tileFace * TUNING.capInset, 1]}
+            position={[tile.x, cfg.restHeight + CAP_OFFSET, tile.z]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            scale={[tileFace * CAP_INSET, tileFace * CAP_INSET, 1]}
             visible={false}
             raycast={() => {}}
           />
@@ -296,13 +274,97 @@ function Tiles({
   )
 }
 
-function Rig() {
+function Rig({ cfg }: { cfg: Cfg }) {
   const { camera } = useThree()
   useEffect(() => {
-    camera.position.set(0, TUNING.camY, TUNING.camZ)
-    camera.lookAt(0, TUNING.lookY, TUNING.lookZ)
-  }, [camera])
+    camera.position.set(0, cfg.camY, cfg.camZ)
+    camera.lookAt(0, 0, cfg.lookZ)
+    if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+      ;(camera as THREE.PerspectiveCamera).fov = cfg.fov
+      camera.updateProjectionMatrix()
+    }
+  }, [camera, cfg.camY, cfg.camZ, cfg.lookZ, cfg.fov])
   return null
+}
+
+const SLIDERS: { key: keyof Cfg; min: number; max: number; step: number }[] = [
+  { key: "cols", min: 6, max: 28, step: 1 },
+  { key: "rows", min: 4, max: 18, step: 1 },
+  { key: "fieldHalfW", min: 5, max: 16, step: 0.5 },
+  { key: "nearZ", min: -2, max: 8, step: 0.5 },
+  { key: "restHeight", min: 0.3, max: 4, step: 0.1 },
+  { key: "liftHeight", min: 0.5, max: 6, step: 0.1 },
+  { key: "camY", min: 2, max: 26, step: 0.5 },
+  { key: "camZ", min: 1, max: 26, step: 0.5 },
+  { key: "lookZ", min: -14, max: 6, step: 0.5 },
+  { key: "fov", min: 18, max: 70, step: 1 },
+]
+
+function TunerPanel({ cfg, onChange }: { cfg: Cfg; onChange: (c: Cfg) => void }) {
+  const [open, setOpen] = useState(true)
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 90,
+        right: 12,
+        zIndex: 30,
+        width: 230,
+        background: "rgba(12,11,26,0.86)",
+        border: "1px solid rgba(255,255,255,0.15)",
+        borderRadius: 10,
+        padding: open ? "10px 12px" : "6px 12px",
+        color: "#fff",
+        font: "11px/1.4 ui-monospace, monospace",
+        backdropFilter: "blur(6px)",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <strong style={{ fontSize: 11, letterSpacing: 0.5 }}>HERO TUNER</strong>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          style={{ background: "transparent", color: "#ff4d7d", border: 0, cursor: "pointer", fontSize: 14 }}
+        >
+          {open ? "–" : "+"}
+        </button>
+      </div>
+      {open && (
+        <>
+          {SLIDERS.map(({ key, min, max, step }) => (
+            <label key={key} style={{ display: "block", marginTop: 7 }}>
+              <span style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{key}</span>
+                <span style={{ color: "#7fe7e0" }}>{cfg[key]}</span>
+              </span>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                step={step}
+                value={cfg[key]}
+                onChange={(e) => onChange({ ...cfg, [key]: parseFloat(e.target.value) })}
+                style={{ width: "100%" }}
+              />
+            </label>
+          ))}
+          <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+            <button
+              onClick={() => navigator.clipboard?.writeText(JSON.stringify(cfg, null, 2))}
+              style={{ flex: 1, background: "#3dcfc2", color: "#0c0b1a", border: 0, borderRadius: 6, padding: "5px 0", cursor: "pointer", fontWeight: 700 }}
+            >
+              Copy values
+            </button>
+            <button
+              onClick={() => onChange({ ...DEFAULTS })}
+              style={{ background: "rgba(255,255,255,0.12)", color: "#fff", border: 0, borderRadius: 6, padding: "5px 8px", cursor: "pointer" }}
+            >
+              Reset
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 type Props = {
@@ -316,6 +378,25 @@ export default function BlockProductHero({ products, countryCode, className, sty
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const [inView, setInView] = useState(true)
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [cfg, setCfg] = useState<Cfg>(DEFAULTS)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) setCfg({ ...DEFAULTS, ...JSON.parse(raw) })
+    } catch {
+      /* noop */
+    }
+  }, [])
+
+  const updateCfg = (c: Cfg) => {
+    setCfg(c)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(c))
+    } catch {
+      /* noop */
+    }
+  }
 
   useEffect(() => {
     try {
@@ -350,23 +431,24 @@ export default function BlockProductHero({ products, countryCode, className, sty
         height: "100%",
         minHeight: "600px",
         overflow: "hidden",
-        background: TUNING.bg,
+        background: BG,
         ...style,
       }}
     >
       <Canvas
         frameloop={inView ? "always" : "never"}
-        camera={{ position: [0, TUNING.camY, TUNING.camZ], fov: TUNING.fov, near: 0.1, far: 100 }}
+        camera={{ position: [0, cfg.camY, cfg.camZ], fov: cfg.fov, near: 0.1, far: 300 }}
         gl={{ antialias: true, powerPreference: "high-performance" }}
         dpr={[1, 2]}
         style={{ position: "absolute", inset: 0 }}
       >
-        <color attach="background" args={[TUNING.bg]} />
-        <Rig />
+        <color attach="background" args={[BG]} />
+        <Rig cfg={cfg} />
         {products.length > 0 && (
-          <Tiles products={products} countryCode={countryCode} reducedMotion={reducedMotion} />
+          <Tiles products={products} countryCode={countryCode} reducedMotion={reducedMotion} cfg={cfg} />
         )}
       </Canvas>
+      <TunerPanel cfg={cfg} onChange={updateCfg} />
     </div>
   )
 }

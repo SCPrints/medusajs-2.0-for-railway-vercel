@@ -125,7 +125,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         */}
         <link
           rel="preconnect"
-          href="https://sc-prints-backend.fly.dev"
+          href="https://api.scprints.com.au"
           crossOrigin="anonymous"
         />
         <link

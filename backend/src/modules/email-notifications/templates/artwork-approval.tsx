@@ -111,7 +111,7 @@ ArtworkApprovalEmail.PreviewProps = {
   approval: {
     firstName: "Sam",
     orderDisplayId: 42,
-    approvalUrl: "https://sc-prints.com.au/au/artwork-approval/test-id?sig=abc123",
+    approvalUrl: "https://www.scprints.com.au/au/artwork-approval/test-id?sig=abc123",
     mockupImages: null,
     proofImageUrl: null,
     staffNote: null,

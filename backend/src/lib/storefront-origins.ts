@@ -1,10 +1,10 @@
 /**
  * Browser origins allowed on custom store API routes (contact, newsletter, etc.).
- * Production storefront is sc-prints.com.au; Vercel preview URLs keep the legacy project slug.
+ * Production storefront is scprints.com.au; Vercel preview URLs keep the legacy project slug.
  */
 export const STOREFRONT_ORIGIN_ALLOWLIST = [
-  "https://sc-prints.com.au",
-  "https://www.sc-prints.com.au",
+  "https://scprints.com.au",
+  "https://www.scprints.com.au",
   "https://medusajs-2-0-for-railway-vercel.vercel.app",
   "http://localhost:8000",
 ] as const

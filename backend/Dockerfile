@@ -29,7 +29,7 @@ COPY . .
 ENV DATABASE_URL=postgresql://x:x@localhost:5432/x \
     JWT_SECRET=build-placeholder \
     COOKIE_SECRET=build-placeholder \
-    BACKEND_PUBLIC_URL=https://sc-prints-backend.fly.dev
+    BACKEND_PUBLIC_URL=https://api.scprints.com.au
 
 RUN pnpm build
 

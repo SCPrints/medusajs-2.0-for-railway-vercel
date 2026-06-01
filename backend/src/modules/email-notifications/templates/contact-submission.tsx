@@ -101,7 +101,7 @@ ContactSubmissionEmail.PreviewProps = {
     email: "jane@example.com",
     subject: "Order question",
     message: "Hi team,\nI need help with my latest order.",
-    sourceOrigin: "https://medusajs-2-0-for-railway-vercel.vercel.app",
+    sourceOrigin: "https://www.scprints.com.au",
     sourceIp: "203.0.113.10",
     userAgent: "Mozilla/5.0",
   },
