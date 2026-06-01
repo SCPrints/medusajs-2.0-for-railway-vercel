@@ -25,28 +25,30 @@ import { useRouter } from "next/navigation"
 
 type Product = { thumbnail: string; handle: string; title: string }
 
-const COLS = 13
-const ROWS = 9
+const COLS = 16
+const ROWS = 11
 const FIELD_HALF_W = 9.5
 // Square pitch so tiles tile perfectly (no black gaps, no overlap → no z-fight).
 const FIELD_HALF_H = (FIELD_HALF_W * ROWS) / COLS
 const PITCH = (2 * FIELD_HALF_W) / COLS
 
 const TUNING = {
-  depth: 4, // gentle bowl → continuous near-flat surface
-  tileFace: PITCH * 1.0, // exactly touching
-  tileDepth: 4.0, // long blocks
-  cornerRadius: 0.06, // soft corners (in unit-box space)
+  depth: 1.2, // nearly flat → uniform block sizes, many visible (not a few huge near ones)
+  tileFace: PITCH * 1.05, // slight overlap closes the corner/row gaps (rounded + polygonOffset keep flicker away)
+  tileDepth: 2.2, // block length
+  cornerRadius: 0.05, // soft corners, but smaller gaps at junctions
   bobAmplitude: 0.05, // tiny ripple
   bobSpeed: 0.55,
   bobRippleScale: 1.5,
-  hoverRaiseZ: 2.6, // lift toward viewer (no screen-Y → no bounce)
+  // Hover lift travels ALONG the line to the camera, so off-axis blocks grow in
+  // place (move inward) rather than shoving off-frame → no edge cut-off, no bounce.
+  liftDist: 2.6,
   upLerp: 0.06, // gentle rise
   downLerp: 0.025, // slow glide back → trailing settle
   capInset: 0.9, // image cap size relative to the face
   capOffset: 0.04, // cap sits just in front of the body's top face
-  camZ: 7.4,
-  fov: 55,
+  camZ: 15, // pulled back → many smaller blocks fit, no ballooning near ones
+  fov: 45,
   bg: "#0c0b1a",
 } as const
 
@@ -81,7 +83,17 @@ function makeRoundedAlpha(): THREE.Texture {
   return new THREE.CanvasTexture(c)
 }
 
-type Tile = { x: number; y: number; baseZ: number; phase: number; productIndex: number; colorIndex: number }
+type Tile = {
+  x: number
+  y: number
+  baseZ: number
+  lx: number
+  ly: number
+  lz: number
+  phase: number
+  productIndex: number
+  colorIndex: number
+}
 
 function Tiles({
   products,
@@ -105,10 +117,19 @@ function Tiles({
         const u = COLS > 1 ? (i / (COLS - 1)) * 2 - 1 : 0
         const v = ROWS > 1 ? (j / (ROWS - 1)) * 2 - 1 : 0
         const r = Math.min(1, Math.hypot(u, v))
+        const x = u * FIELD_HALF_W
+        const y = v * FIELD_HALF_H
+        const baseZ = -TUNING.depth * (1 - r) + TUNING.tileDepth / 2
+        // Unit direction from this block toward the camera — the lift travels
+        // along this so off-axis blocks grow in place (inward), never off-frame.
+        const ld = new THREE.Vector3(0, 0, TUNING.camZ).sub(new THREE.Vector3(x, y, baseZ)).normalize()
         out.push({
-          x: u * FIELD_HALF_W,
-          y: v * FIELD_HALF_H,
-          baseZ: -TUNING.depth * (1 - r) + TUNING.tileDepth / 2,
+          x,
+          y,
+          baseZ,
+          lx: ld.x,
+          ly: ld.y,
+          lz: ld.z,
           phase: r * TUNING.bobRippleScale * Math.PI * 2 + (i * 0.3 + j * 0.7),
           productIndex: products.length ? k % products.length : 0,
           colorIndex: (i * 3 + j * 5) % PALETTE.length,
@@ -199,12 +220,16 @@ function Tiles({
       const rate = target > raise[k] ? TUNING.upLerp : TUNING.downLerp
       raise[k] += (target - raise[k]) * rate
       const bob = reducedMotion ? 0 : Math.sin(t + tile.phase) * TUNING.bobAmplitude
-      const z = tile.baseZ + bob + raise[k] * TUNING.hoverRaiseZ
-      body.position.z = z
+      const lift = raise[k] * TUNING.liftDist
+      // Travel along the line to the camera → grows in place, never off-frame.
+      const bx = tile.x + tile.lx * lift
+      const by = tile.y + tile.ly * lift
+      const bz = tile.baseZ + bob + tile.lz * lift
+      body.position.set(bx, by, bz)
 
       const cap = capRefs.current[k]
       if (cap) {
-        cap.position.z = z + TUNING.tileDepth / 2 + TUNING.capOffset
+        cap.position.set(bx, by, bz + TUNING.tileDepth / 2 + TUNING.capOffset)
         const op = Math.min(1, raise[k] * 1.6)
         ;(cap.material as THREE.MeshBasicMaterial).opacity = op
         cap.visible = op > 0.01
@@ -222,6 +247,11 @@ function Tiles({
       <ambientLight intensity={0.78} />
       <directionalLight position={[3, 6, 8]} intensity={0.6} />
       <directionalLight position={[-5, -3, 4]} intensity={0.22} color="#9fb4ff" />
+      {/* Backdrop so any gap between blocks reads as a muted dark-candy seam, never black. */}
+      <mesh position={[0, 0, -(TUNING.depth + TUNING.tileDepth + 8)]} raycast={() => {}}>
+        <planeGeometry args={[90, 60]} />
+        <meshBasicMaterial color="#241c45" toneMapped={false} />
+      </mesh>
       {tiles.map((tile, k) => (
         <group key={k}>
           <mesh
