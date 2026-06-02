@@ -931,6 +931,31 @@ Admin sidebar entry at `/app/seo-analytics` showing 28-day Search Console + GA4 
 
 If `GOOGLE_SERVICE_ACCOUNT_JSON` is unset the cron and routes no-op silently — dev environments without Google credentials still boot.
 
+## Product images — HARD RULES (never wipe images)
+
+Product images are load-bearing customer-facing data. A 2026-06-02 incident wiped/broke images on 9 AS Colour products because a script did a **wholesale replace** of `product.images` with **unvalidated** supplier URLs (the AS Colour API returns image records whose `urlZoom` 404s — its metadata is out of sync with its CDN). These rules exist so it never happens again. **They are mandatory for any code or script that writes `product.images` / `product.thumbnail`.**
+
+1. **NEVER wholesale-replace a product's images from a supplier API/feed.** Do not write an images array that drops existing working images. The only sanctioned write shapes are **append-only** or **repair-only** (below).
+2. **ALWAYS HEAD-validate every URL before writing it.** Reuse `checkImageUrl` from [backend/src/services/image-audit/check.ts](backend/src/services/image-audit/check.ts) (HEAD → ranged-GET fallback; only 404/410 = definitively dead). Never write a URL you haven't confirmed returns 200.
+3. **Only remove an image if it is CONFIRMED dead (404/410).** Transient errors (timeout, 5xx, 403, network 0) must NEVER cause removal — keep the image. Removing on uncertainty is how you lose good photos to a blip.
+4. **Supplier importers are create-only by design.** They must not refresh/replace images on products that already exist. Do not "fix" this by adding an update-existing image path that overwrites.
+5. **Never reduce a product to zero images.** If a repair would empty the gallery, skip the product and log it for manual review.
+6. **After any direct image write, purge the storefront cache** — writing via the product module does NOT auto-fire revalidation. `POST {storefront}/api/revalidate-products` with `Authorization: Bearer $REVALIDATE_SECRET`, body `{"tags":["products"]}` (the secret is a Fly backend secret + Vercel env). The PDP fetcher is SWR `revalidate:120` so it will not self-heal usefully fast.
+
+**The two sanctioned image scripts (copy these patterns; do not invent a third shape without these guards):**
+
+| Script | Guarantee |
+| --- | --- |
+| [backend/src/scripts/repair-ascolour-images.ts](backend/src/scripts/repair-ascolour-images.ts) | Repair-only. Removes ONLY confirmed-dead (404/410) URLs, recovers a live size-variant (`urlZoom→urlStandard→urlThumbnail→urlTiny`) per shot, keeps every non-dead image, repoints thumbnail to a live shot. Idempotent. |
+| [backend/src/scripts/scrape-ascolour-website-images.ts](backend/src/scripts/scrape-ascolour-website-images.ts) | Append-only + HEAD-validated. Fills missing per-colour **views** (front `_COLOUR__` + back `_COLOUR_BACK`) by scraping ascolour.com (resolves URL via the sitemap), validating each candidate, and appending only 200s. Physically cannot remove/overwrite. |
+
+**Deleted on purpose — do NOT recreate:** `refresh-ascolour-images.ts` was the wholesale-replace-with-unvalidated-URLs footgun that caused the incident. There is no safe version of "replace all images from the API". If you think you need it, you want `repair` (remove dead) + `scrape` (add missing) instead.
+
+**AS Colour image specifics worth knowing:**
+- The storefront maps **colour → photo by the colour token in the filename** (e.g. `5080_HEAVY_TEE_NAVY__…` → the Navy swatch). No colour→image metadata is stored; the filename is the join key. So every colour needs both a `_COLOUR__` (front) and `_COLOUR_BACK` image present, both live.
+- The authenticated **API CDN** (`s-lqiq2tqil5`) and the public **website CDN** (`s-hsi95a83fz`) are different BigCommerce stores. When the API 404s a colour, the **website** usually still has it live — that's what `scrape-ascolour-website-images.ts` recovers.
+- **Detection/early warning:** the weekly `audit-product-images` cron (gated by `IMAGE_AUDIT_ENABLED`) HEAD-checks every product thumbnail catalog-wide and flags dead ones (`metadata.image_audit.status = "broken"`), surfaced by the "Broken image" filter in `/app/product-data`. Keep this ON in production so a wiped/dead image is caught automatically across all ~30k products, not discovered by a customer.
+
 ## Catalog importers
 
 ### AS Colour API importer + hourly inventory sync
