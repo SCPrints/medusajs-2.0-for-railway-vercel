@@ -29,6 +29,15 @@ export type BrandPresentation = {
    */
   logoClass?: string
   /**
+   * Background applied to the logo's container in the dark side-menu brand
+   * list (e.g. `"bg-white"`). The hero and `/brands` grid already place the
+   * logo on a light surface, but the side-menu renders it on a dark panel —
+   * so a dark/black logo needs an explicit light chip there to stay legible.
+   * Only applied when a `logoSrc` exists. Omit for logos that already read on
+   * dark (white / muted-grey wordmarks like AS Colour, Shaka).
+   */
+  logoChipClass?: string
+  /**
    * Full-width banner shown as the hero background on the `/brands/<handle>`
    * landing page. When absent the hero falls back to a branded gradient built
    * from `bgClass`. These are the same wide banners used by the home-page
@@ -62,10 +71,12 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
   "thread-lab": {
     initials: "TL",
     bgClass: "bg-stone-900",
-    // No logo file yet — brand tile shows initials fallback.
-    // Add a logo PNG/SVG to /public/images/brands/logos/thread-lab.png and
-    // uncomment the line below once it's available.
-    // logoSrc: `${LOGO_BASE}/thread-lab.png`,
+    // Black "ThreadLAB." wordmark (supplied by the brand) on transparent.
+    // Reads on the white hero chip + the white /brands grid card as-is; the
+    // dark side-menu needs the white chip below to stay legible.
+    logoSrc: `${LOGO_BASE}/thread-lab.png`,
+    logoClass: "max-h-full max-w-[68%] object-contain object-left",
+    logoChipClass: "bg-white",
     // Hero loop hotlinked from Thread Lab's own homepage — the factory/fabric
     // "threadheads_video" section about halfway down threadlab.com.au. Plain
     // <video> element, so no next.config allowlist needed. If the URL ever

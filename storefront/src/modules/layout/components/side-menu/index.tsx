@@ -351,7 +351,10 @@ const SideMenu = ({
                                   <span
                                     className={clx(
                                       "flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md",
-                                      !logoSrc && presentation.bgClass
+                                      logoSrc
+                                        ? presentation.logoChipClass &&
+                                            `${presentation.logoChipClass} p-1.5`
+                                        : presentation.bgClass
                                     )}
                                   >
                                     {logoSrc ? (
