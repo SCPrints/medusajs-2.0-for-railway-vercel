@@ -59,6 +59,7 @@ import {
   tierMinorToPriceSetRows,
 } from "../utils/bulk-tier-prices"
 import { classifyGildanProduct } from "../lib/product-taxonomy"
+import { parseGsm } from "../utils/parse-gsm"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -400,6 +401,11 @@ export default async function importGildanFromXlsx({
       sales_channels: [{ id: defaultSalesChannelId }],
       metadata: {
         source: "gildan",
+        // Gildan XLSX column 11 carries fabric weight as a string
+        // (e.g. "200 GSM"). parseGsm extracts the numeric value.
+        ...(parseGsm(product.fabricWeight) !== null
+          ? { gsm: parseGsm(product.fabricWeight) }
+          : {}),
         gildan: {
           brand: product.brand,
           style_parent: product.styleParent,

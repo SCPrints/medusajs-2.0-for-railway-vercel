@@ -30,6 +30,7 @@ import {
   seedInventoryLevels,
 } from "../lib/supplier-import-pipeline"
 import { slugify, titleCase } from "../utils/string-case"
+import { parseGsm } from "../utils/parse-gsm"
 
 const PRICE_CURRENCY_CODE = "aud"
 // AS Colour brand identity — single source of truth via the Brand entity
@@ -293,6 +294,12 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
     }
     const thumbnail = productImages[0]?.url
 
+    // AS Colour exposes GSM per-variant as a string (e.g. "320 GSM"). All
+    // variants in a style share the same fabric weight, so we take it from
+    // the first one. parseGsm returns null for qualitative strings like
+    // "Heavy Weight" so only numeric values land in metadata.
+    const gsm = parseGsm((variants as any[])[0]?.weight)
+
     const productVariants = (variants as any[]).map((v) => {
       const variantOptions: Record<string, string> = {}
       if (hasColour && v.colour) variantOptions["Colour"] = v.colour
@@ -383,6 +390,7 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
       // "Brands"). No product tag for brand — we link below after create.
       metadata: {
         source: "ascolour",
+        ...(gsm !== null ? { gsm } : {}),
         ascolour: {
           styleCode: product.styleCode,
           lastSync: new Date().toISOString(),

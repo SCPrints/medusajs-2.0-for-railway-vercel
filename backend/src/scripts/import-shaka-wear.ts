@@ -60,6 +60,7 @@ import {
   tagsForProduct,
 } from "../lib/storefront-revalidate"
 import { SHAKA_WEAR_CATALOG, type ShakaStyle } from "./shaka-wear-catalog"
+import { parseGsm } from "../utils/parse-gsm"
 
 const PRICE_CURRENCY_CODE = "aud"
 const SOURCE = "shaka-wear"
@@ -278,6 +279,8 @@ export default async function importShakaWear({ container, args }: ExecArgs) {
       sales_channels: [{ id: defaultSalesChannelId }],
       metadata: {
         source: SOURCE,
+        // FABRIC_WEIGHT is "7.5 oz / 255 GSM" — parseGsm extracts 255.
+        gsm: parseGsm(FABRIC_WEIGHT),
         bulk_pricing: productBulkPricing,
         shaka_wear: {
           style_code: style.code,

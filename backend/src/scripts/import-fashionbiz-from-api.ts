@@ -67,6 +67,7 @@ import {
 } from "../modules/fashionbiz/mapping"
 import { BRAND_MODULE } from "../modules/brand"
 import { classifyFashionBizProduct } from "../lib/product-taxonomy"
+import { parseGsm } from "../utils/parse-gsm"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -447,6 +448,16 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
 
       const title = product.name ? titleCase(product.name) : `FashionBiz ${product.code}`
 
+      // FashionBiz embeds GSM in the fabric description strings, e.g.
+      // "60% Cotton, 40% Polyester; 190 GSM; 4-way stretch". Extract the
+      // first numeric match across all fabric items.
+      const gsmFabricItems: string[] = product.description?.fabric
+        ? (Array.isArray(product.description.fabric)
+            ? product.description.fabric
+            : [product.description.fabric])
+        : []
+      const gsm = gsmFabricItems.map((s) => parseGsm(s)).find((n) => n !== null) ?? null
+
       const productPayload: any = {
         title,
         handle,
@@ -461,6 +472,7 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
         sales_channels: [{ id: defaultSalesChannelId }],
         metadata: {
           source: "fashionbiz",
+          ...(gsm !== null ? { gsm } : {}),
           fashionbiz: {
             id: product.id,
             slug: product.slug,
