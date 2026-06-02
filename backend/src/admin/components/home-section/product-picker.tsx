@@ -8,6 +8,18 @@ type ProductSummary = {
   title: string
   thumbnail: string | null
   status: string
+  kind?: "product" | "bundle"
+}
+
+/** Curated handles reference a bundle by prefixing its handle. */
+const BUNDLE_PREFIX = "bundle:"
+
+type AdminBundle = {
+  id: string
+  handle: string
+  title: string
+  thumbnail_url: string | null
+  status: string
 }
 
 type Props = {
@@ -29,6 +41,9 @@ export const HomeSectionProductPicker = ({ value, onChange }: Props) => {
   const [searching, setSearching] = useState(false)
   const [resolved, setResolved] = useState<Record<string, ProductSummary>>({})
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Bundles have no search endpoint — fetch the full (small) list once and
+  // filter client-side. Cached for the lifetime of the picker.
+  const bundlesRef = useRef<ProductSummary[] | null>(null)
 
   // Resolve the currently-selected handles → product summaries (titles +
   // thumbnails for the chips, and to detect unresolved handles).
@@ -71,24 +86,57 @@ export const HomeSectionProductPicker = ({ value, onChange }: Props) => {
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
       try {
+        // Bundles first (cached) — staff usually have only a handful, so a
+        // matching bundle should surface above the long product tail.
+        let bundleMatches: ProductSummary[] = []
+        try {
+          if (!bundlesRef.current) {
+            const bres = await fetch("/admin/bundles?limit=200", {
+              credentials: "include",
+            })
+            if (bres.ok) {
+              const bdata = await bres.json()
+              bundlesRef.current = ((bdata.bundles ?? []) as AdminBundle[]).map(
+                (b) => ({
+                  id: b.id,
+                  handle: `${BUNDLE_PREFIX}${b.handle}`,
+                  title: b.title,
+                  thumbnail: b.thumbnail_url ?? null,
+                  status: b.status === "active" ? "published" : "draft",
+                  kind: "bundle" as const,
+                })
+              )
+            }
+          }
+          const ql = q.toLowerCase()
+          bundleMatches = (bundlesRef.current ?? []).filter(
+            (b) =>
+              b.title.toLowerCase().includes(ql) ||
+              b.handle.toLowerCase().includes(ql)
+          )
+        } catch {
+          // bundle search is best-effort; ignore and show products only
+        }
+
         const res = await fetch(
           `/admin/products?q=${encodeURIComponent(
             q
           )}&limit=20&fields=id,handle,title,thumbnail,status`,
           { credentials: "include" }
         )
+        let productMatches: ProductSummary[] = []
         if (res.ok) {
           const data = await res.json()
-          setResults(
-            ((data.products ?? []) as any[]).map((p) => ({
-              id: p.id,
-              handle: p.handle,
-              title: p.title,
-              thumbnail: p.thumbnail ?? null,
-              status: p.status,
-            }))
-          )
+          productMatches = ((data.products ?? []) as any[]).map((p) => ({
+            id: p.id,
+            handle: p.handle,
+            title: p.title,
+            thumbnail: p.thumbnail ?? null,
+            status: p.status,
+            kind: "product" as const,
+          }))
         }
+        setResults([...bundleMatches, ...productMatches])
       } catch {
         setResults([])
       } finally {
@@ -125,7 +173,7 @@ export const HomeSectionProductPicker = ({ value, onChange }: Props) => {
           <MagnifyingGlass />
         </div>
         <Input
-          placeholder="Search products to add…"
+          placeholder="Search products or bundles to add…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="pl-8"
@@ -141,7 +189,7 @@ export const HomeSectionProductPicker = ({ value, onChange }: Props) => {
             </Text>
           ) : results.length === 0 ? (
             <Text size="small" className="px-3 py-3 text-ui-fg-muted">
-              No products match “{query.trim()}”.
+              No products or bundles match “{query.trim()}”.
             </Text>
           ) : (
             results.map((p) => {
@@ -158,6 +206,11 @@ export const HomeSectionProductPicker = ({ value, onChange }: Props) => {
                   <span className="flex-1 truncate text-sm text-ui-fg-base">
                     {p.title}
                   </span>
+                  {p.kind === "bundle" ? (
+                    <Badge size="2xsmall" color="purple">
+                      Bundle
+                    </Badge>
+                  ) : null}
                   {p.status !== "published" ? (
                     <Badge size="2xsmall" color="orange">
                       {p.status}
@@ -182,12 +235,12 @@ export const HomeSectionProductPicker = ({ value, onChange }: Props) => {
       {/* Selected, ordered list */}
       <div className="flex flex-col gap-1.5">
         <Text size="xsmall" className="text-ui-fg-muted">
-          {value.length} product{value.length === 1 ? "" : "s"} in this section
+          {value.length} item{value.length === 1 ? "" : "s"} in this section
           {value.length ? " · top of list shows first" : ""}
         </Text>
         {value.length === 0 ? (
           <Text size="small" className="text-ui-fg-muted">
-            No products yet — search above to add some.
+            Nothing yet — search products or bundles above to add some.
           </Text>
         ) : (
           <ul className="flex list-none flex-col gap-1.5 p-0">
@@ -201,8 +254,14 @@ export const HomeSectionProductPicker = ({ value, onChange }: Props) => {
                 >
                   <Thumb url={p?.thumbnail ?? null} />
                   <span className="flex-1 truncate text-sm text-ui-fg-base">
-                    {p?.title ?? handle}
+                    {p?.title ?? handle.replace(BUNDLE_PREFIX, "")}
                   </span>
+                  {p?.kind === "bundle" ||
+                  handle.startsWith(BUNDLE_PREFIX) ? (
+                    <Badge size="2xsmall" color="purple">
+                      Bundle
+                    </Badge>
+                  ) : null}
                   {unresolved ? (
                     <Badge size="2xsmall" color="red">
                       Unresolved

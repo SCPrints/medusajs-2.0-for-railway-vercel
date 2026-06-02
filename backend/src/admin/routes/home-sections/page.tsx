@@ -171,8 +171,8 @@ const HomeSectionsPage = () => {
               title: "Home page sections",
               body: "Curated product rows shown on the storefront home page, top to bottom in weight order (lower weight = higher on the page).",
               bullets: [
-                "Each section has its own title, optional subtitle, and a hand-picked, reorderable product list.",
-                "Products are referenced by handle, so they survive supplier re-imports.",
+                "Each section has its own title, optional subtitle, and a hand-picked, reorderable list of products and/or bundles.",
+                "Products and bundles are referenced by handle, so they survive supplier re-imports.",
                 "Unpublished sections are hidden from the storefront but kept here.",
                 "A product flagged “Unresolved” no longer exists in the catalog — the storefront skips it; remove or replace it.",
               ],
@@ -291,7 +291,7 @@ const HomeSectionsPage = () => {
                   </Text>
                 ) : null}
                 <Text size="xsmall" className="text-ui-fg-muted">
-                  {s.product_handles.length} product
+                  {s.product_handles.length} item
                   {s.product_handles.length === 1 ? "" : "s"} · /{s.handle}
                 </Text>
               </div>

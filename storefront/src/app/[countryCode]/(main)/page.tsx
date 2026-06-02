@@ -12,6 +12,7 @@ import {
   getProductsById,
 } from "@lib/data/products"
 import { getHomeSections } from "@lib/data/home-sections"
+import { listBundles, type Bundle } from "@lib/data/bundles"
 import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
@@ -27,6 +28,7 @@ import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
 import SectionHeader from "@modules/common/components/section-header"
 import ProductListingCard from "@modules/products/components/product-listing-card"
 import { buildProductListingCardData } from "@modules/products/lib/product-listing-card-data"
+import BundleCard from "@modules/bundles/components/bundle-card"
 
 
 export async function generateStaticParams() {
@@ -166,11 +168,17 @@ export default async function Home({
   // curation survives supplier re-imports. If no sections are curated yet,
   // we fall back to the legacy "popular hoodies" logic so the page is never
   // empty mid-rollout.
+  // A curated section entry is either a product or a bundle. Bundles are
+  // referenced in the curated handle list with a `bundle:` prefix.
+  const BUNDLE_PREFIX = "bundle:"
+  type FeaturedItem =
+    | { kind: "product"; product: HttpTypes.StoreProduct }
+    | { kind: "bundle"; bundle: Bundle }
   type FeaturedSection = {
     id: string
     title: string
     subtitle: string | null
-    products: HttpTypes.StoreProduct[]
+    items: FeaturedItem[]
   }
 
   const curatedSections = await getHomeSections()
@@ -180,25 +188,49 @@ export default async function Home({
     const allHandles = Array.from(
       new Set(curatedSections.flatMap((s) => s.product_handles))
     )
-    const pricedProducts = allHandles.length
-      ? await getProductsByHandle({ handles: allHandles, regionId: region.id })
+    const productHandles = allHandles.filter(
+      (h) => !h.startsWith(BUNDLE_PREFIX)
+    )
+    const hasBundles = allHandles.some((h) => h.startsWith(BUNDLE_PREFIX))
+
+    const pricedProducts = productHandles.length
+      ? await getProductsByHandle({
+          handles: productHandles,
+          regionId: region.id,
+        })
       : []
     const byHandle = new Map(
       pricedProducts
         .filter((p) => p.handle)
         .map((p) => [p.handle as string, p])
     )
+
+    // Bundles carry no region pricing on the card (item count only), so one
+    // unscoped listBundles() call hydrates every curated bundle.
+    const bundlesByHandle = new Map<string, Bundle>()
+    if (hasBundles) {
+      const allBundles = await listBundles()
+      for (const b of allBundles) bundlesByHandle.set(b.handle, b)
+    }
+
     featuredSections = curatedSections
       .map((s) => ({
         id: s.id,
         title: s.title,
         subtitle: s.subtitle,
         // preserve the staff-curated order; skip handles that no longer resolve
-        products: s.product_handles
-          .map((h) => byHandle.get(h))
-          .filter((p): p is HttpTypes.StoreProduct => Boolean(p)),
+        items: s.product_handles
+          .map((h): FeaturedItem | null => {
+            if (h.startsWith(BUNDLE_PREFIX)) {
+              const bundle = bundlesByHandle.get(h.slice(BUNDLE_PREFIX.length))
+              return bundle ? { kind: "bundle", bundle } : null
+            }
+            const product = byHandle.get(h)
+            return product ? { kind: "product", product } : null
+          })
+          .filter((i): i is FeaturedItem => Boolean(i)),
       }))
-      .filter((s) => s.products.length > 0)
+      .filter((s) => s.items.length > 0)
   }
 
   if (featuredSections.length === 0) {
@@ -220,9 +252,10 @@ export default async function Home({
         id: "featured-fallback",
         title: "Popular garments to start your order",
         subtitle: "Featured range",
-        products: (products ?? []).map(
-          (p) => (p.id ? pricedMap.get(p.id) : undefined) ?? p
-        ),
+        items: (products ?? []).map((p) => ({
+          kind: "product" as const,
+          product: (p.id ? pricedMap.get(p.id) : undefined) ?? p,
+        })),
       },
     ]
   }
@@ -280,7 +313,18 @@ export default async function Home({
               subtitle={section.subtitle}
               viewAllHref={sectionIndex === 0 ? "/store" : undefined}
             >
-              {section.products.map((product) => {
+              {section.items.map((item) => {
+                if (item.kind === "bundle") {
+                  return (
+                    <li
+                      key={item.bundle.id}
+                      className="w-[280px] shrink-0 snap-start"
+                    >
+                      <BundleCard bundle={item.bundle} />
+                    </li>
+                  )
+                }
+                const product = item.product
                 const { cheapestPrice } = getProductPrice({ product })
                 const data = buildProductListingCardData(product, cheapestPrice)
                 return (
