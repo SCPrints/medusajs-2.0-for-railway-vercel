@@ -55,7 +55,44 @@ export type BrandPresentation = {
 export const DEFAULT_LOGO_CLASS =
   "max-h-full max-w-[50%] object-contain object-left"
 
+const THREAD_LAB_CDN =
+  "https://cdn.shopify.com/s/files/1/0749/0073/4179/files"
+
 const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
+  "thread-lab": {
+    initials: "TL",
+    bgClass: "bg-stone-900",
+    // No logo file yet — brand tile shows initials fallback.
+    // Add a logo PNG/SVG to /public/images/brands/logos/thread-lab.png and
+    // uncomment the line below once it's available.
+    // logoSrc: `${LOGO_BASE}/thread-lab.png`,
+    gallery: [
+      {
+        src: `${THREAD_LAB_CDN}/black-core-tee_ab118b29-9ffb-4fd5-9729-88ed1eacf0a0.jpg`,
+        alt: "Thread Lab Core Tee in Black",
+      },
+      {
+        src: `${THREAD_LAB_CDN}/natural-premium-tee_da817f66-f6f3-465f-8dd4-d8c4d4041b41.jpg`,
+        alt: "Thread Lab Premium Tee in Natural",
+      },
+      {
+        src: `${THREAD_LAB_CDN}/natural-core-hoodie.jpg`,
+        alt: "Thread Lab Core Hoodie in Natural",
+      },
+      {
+        src: `${THREAD_LAB_CDN}/stoneblue-superior-tee.jpg`,
+        alt: "Thread Lab Superior Tee in Stone Blue",
+      },
+      {
+        src: `${THREAD_LAB_CDN}/Frame_7cff79c6-6a70-451b-9e86-6d82201ae39a.jpg`,
+        alt: "Thread Lab Elevated Hoodie in Jungle",
+      },
+      {
+        src: `${THREAD_LAB_CDN}/natural-core-sweatshirt.jpg`,
+        alt: "Thread Lab Core Crew in Natural",
+      },
+    ],
+  },
   "shaka-wear": {
     initials: "SW",
     // Dark tile so the white initials fallback + brand-hero white title read.
