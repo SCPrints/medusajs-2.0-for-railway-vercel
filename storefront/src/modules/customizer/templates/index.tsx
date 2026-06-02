@@ -4932,11 +4932,15 @@ export default function CustomizerTemplate({
               Also hidden in admin proof mode — admin already has the
               variant from URL params and only needs to save the proof. */}
           {hasStep1 && !editGroupId && !isAdminProofMode ? (
-            <div ref={step1Ref} className={`space-y-3 rounded-xl border p-4 ${
-              pdpStep === 1
-                ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
-                : "border-ui-border-base bg-ui-bg-subtle/40"
-            }`}>
+            <div ref={step1Ref} className={
+              assemblyLayout
+                ? "space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                : `space-y-3 rounded-xl border p-4 ${
+                    pdpStep === 1
+                      ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
+                      : "border-ui-border-base bg-ui-bg-subtle/40"
+                  }`
+            }>
               <StepHeader
                 num={1}
                 title="Product options"
@@ -5074,11 +5078,15 @@ export default function CustomizerTemplate({
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-                  className={`space-y-3 rounded-xl border p-4 ${
-                  pdpStep === 2
-                    ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
-                    : "border-ui-border-base bg-ui-bg-subtle/40"
-                }`}>
+                  className={
+                  assemblyLayout
+                    ? "space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                    : `space-y-3 rounded-xl border p-4 ${
+                        pdpStep === 2
+                          ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
+                          : "border-ui-border-base bg-ui-bg-subtle/40"
+                      }`
+                }>
                   <StepHeader
                     num={stepNum(2)}
                     title={decoratedCount > 0 ? "Add / change print positions" : "Select print location"}
@@ -5256,11 +5264,15 @@ export default function CustomizerTemplate({
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-              className={`space-y-3 rounded-xl border p-4 ${
-              pdpStep === 3
-                ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
-                : "border-ui-border-base bg-ui-bg-subtle/40"
-            }`}>
+              className={
+              assemblyLayout
+                ? "space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                : `space-y-3 rounded-xl border p-4 ${
+                    pdpStep === 3
+                      ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
+                      : "border-ui-border-base bg-ui-bg-subtle/40"
+                  }`
+            }>
               <StepHeader
                 num={stepNum(3)}
                 title="Print size"
@@ -5569,7 +5581,7 @@ export default function CustomizerTemplate({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
               className="flex flex-col gap-3"
             >
-              <div className="space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm">
+              <div className={assemblyLayout ? "space-y-2 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
                 <StepHeader num={stepNum(4)} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
