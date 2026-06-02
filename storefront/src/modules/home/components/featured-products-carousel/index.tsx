@@ -62,8 +62,8 @@ export default function FeaturedProductsCarousel({
         type="button"
         aria-label="Scroll products left"
         onClick={() => scrollByCards(-1)}
-        className={`absolute left-0 top-1/2 z-10 hidden h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-md transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 small:flex ${
-          hasArrows ? "" : "small:!hidden"
+        className={`absolute left-1.5 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-md transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 tablet:flex ${
+          hasArrows ? "" : "tablet:!hidden"
         }`}
         disabled={!canLeft}
       >
@@ -87,8 +87,8 @@ export default function FeaturedProductsCarousel({
         type="button"
         aria-label="Scroll products right"
         onClick={() => scrollByCards(1)}
-        className={`absolute right-0 top-1/2 z-10 hidden h-11 w-11 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-md transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 small:flex ${
-          hasArrows ? "" : "small:!hidden"
+        className={`absolute right-1.5 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-md transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 tablet:flex ${
+          hasArrows ? "" : "tablet:!hidden"
         }`}
         disabled={!canRight}
       >
