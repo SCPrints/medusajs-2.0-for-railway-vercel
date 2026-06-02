@@ -40,7 +40,7 @@ const CARDS: CardConfig[] = [
     description:
       "Storefront filters, the chatbot, and decoration pricing all key off product_type. No type = no filter match.",
     fixGuidance:
-      "Open the product, set Type from the right rail. Or run the backfill script to retry title inference.",
+      "Open the product, set Type from the right rail. Or run the bulk backfill (command at the bottom of this panel) to retry title inference across the catalog.",
   },
   {
     key: "missing_demographic_tag",
@@ -56,7 +56,7 @@ const CARDS: CardConfig[] = [
     description:
       "The mega-menu uses Shop categories like `mens-polos` / `kids-t-shirts`. Type + demographic combine to assign these automatically — if either is missing, the category isn't set.",
     fixGuidance:
-      "Fix type or demographic tag first, then re-run the backfill script or re-import. Manual category assignment works too.",
+      "Fix type or demographic tag first, then re-run the bulk backfill (command at the bottom of this panel) or re-import. Manual category assignment works too.",
   },
 ]
 
@@ -112,7 +112,7 @@ const TaxonomyAuditPanel = () => {
                   "Missing product type: storefront filters, the chatbot, and decoration pricing don't see the product at all.",
                   "Missing demographic tag: hidden from the Mens / Womens / Kids drill-down in the mega-menu and audience-aware reports.",
                   "Missing Shop category: not pinned to a `mens-polos` / `kids-t-shirts` etc. node, so it won't surface in the mega-menu.",
-                  "Click a row to open the product detail in a new tab — fix from there. Or run `backfill-product-taxonomy.ts` to retry title inference on every product.",
+                  "Click a row to open the product detail in a new tab — fix from there. Or run the bulk backfill command (bottom of this panel) to retry title inference on every product — .js on the prod server, .ts locally.",
                 ],
               }}
             />
@@ -205,16 +205,49 @@ const TaxonomyAuditPanel = () => {
         })}
       </div>
 
-      <div className="rounded-md border border-ui-border-base bg-ui-bg-subtle p-4">
-        <Text size="xsmall" className="text-ui-fg-muted">
-          Bulk fix: run{" "}
-          <code className="bg-ui-bg-base px-1 rounded">
-            npx medusa exec src/scripts/backfill-product-taxonomy.ts
-          </code>{" "}
-          from the backend to retry title-based inference on every product.
-          Set <code className="bg-ui-bg-base px-1 rounded">DRY_RUN=1</code> first to preview
-          the changes before committing.
+      <div className="rounded-md border border-ui-border-base bg-ui-bg-subtle p-4 flex flex-col gap-y-3">
+        <Text size="small" className="text-ui-fg-base font-medium">
+          Bulk fix — re-run title inference on every product
         </Text>
+        <Text size="xsmall" className="text-ui-fg-muted">
+          This script re-runs the taxonomy classifier on the whole catalog and
+          re-assigns Shop categories. Always preview with{" "}
+          <code className="bg-ui-bg-base px-1 rounded">DRY_RUN=1</code> first, then
+          re-run without it to commit. Note the file extension differs by
+          environment — <strong>.ts</strong> locally, <strong>.js</strong> on the
+          production server (the build compiles TypeScript to JavaScript).
+        </Text>
+
+        <div>
+          <Text size="xsmall" className="text-ui-fg-subtle font-medium mb-1">
+            On the production server (Fly)
+          </Text>
+          <pre className="bg-ui-bg-base text-ui-fg-base text-xs rounded p-3 overflow-x-auto whitespace-pre">
+{`fly ssh console --app sc-prints-backend
+cd /app/.medusa/server
+
+# 1. Preview (no DB writes)
+DRY_RUN=1 npx medusa exec src/scripts/backfill-product-taxonomy.js
+
+# 2. Commit the changes
+npx medusa exec src/scripts/backfill-product-taxonomy.js`}
+          </pre>
+        </div>
+
+        <div>
+          <Text size="xsmall" className="text-ui-fg-subtle font-medium mb-1">
+            Locally (from the repo)
+          </Text>
+          <pre className="bg-ui-bg-base text-ui-fg-base text-xs rounded p-3 overflow-x-auto whitespace-pre">
+{`cd backend
+
+# 1. Preview (no DB writes)
+DRY_RUN=1 npx medusa exec src/scripts/backfill-product-taxonomy.ts
+
+# 2. Commit the changes
+npx medusa exec src/scripts/backfill-product-taxonomy.ts`}
+          </pre>
+        </div>
       </div>
     </Container>
   )
