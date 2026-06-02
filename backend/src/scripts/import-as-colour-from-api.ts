@@ -294,11 +294,13 @@ export default async function importAsColourFromApi({ container, args }: ExecArg
     }
     const thumbnail = productImages[0]?.url
 
-    // AS Colour exposes GSM per-variant as a string (e.g. "320 GSM"). All
-    // variants in a style share the same fabric weight, so we take it from
-    // the first one. parseGsm returns null for qualitative strings like
-    // "Heavy Weight" so only numeric values land in metadata.
-    const gsm = parseGsm((variants as any[])[0]?.weight)
+    // AS Colour exposes GSM via `fabricWeight` on the product object
+    // (e.g. "320 GSM"). Falls back to `composition` which often embeds it
+    // ("Heavy weight, 320 GSM, 100% cotton canvas"). parseGsm returns null
+    // for purely qualitative strings so only numeric values land in metadata.
+    const gsm =
+      parseGsm((product as any).fabricWeight) ??
+      parseGsm((product as any).composition)
 
     const productVariants = (variants as any[]).map((v) => {
       const variantOptions: Record<string, string> = {}
