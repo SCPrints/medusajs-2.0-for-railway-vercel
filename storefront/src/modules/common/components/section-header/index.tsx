@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 
 type Props = {
-  eyebrow: string
+  eyebrow?: string
   title: string
   action?: ReactNode
   align?: "left" | "center"
@@ -27,9 +27,11 @@ export default function SectionHeader({
           : "border-l-4 border-[var(--brand-secondary)] pl-4"
       }
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
-        {eyebrow}
-      </p>
+      {eyebrow ? (
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+          {eyebrow}
+        </p>
+      ) : null}
       <h2
         id={id}
         className="mt-2 text-3xl font-semibold text-ui-fg-base"

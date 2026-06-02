@@ -296,6 +296,23 @@ Tag-filterable masonry grid of past client jobs at `/lookbook`. Staff curate via
 
 Sort by `weight` ascending; `is_published = false` hides from storefront.
 
+### Home page sections (curated product rails)
+Staff curate any number of named product rails shown on the storefront home page from `/app/home-sections`. Each section has a title, optional subtitle (rendered as the eyebrow), a hand-picked **ordered** product list, a publish toggle, and a `weight` (lower = higher on the page). The home page renders every published section in weight order; "Popular products" is just section #1, curated by hand. Replaces the old hardcoded "popular hoodies" inference in `getHomeFeaturedRangeProducts` — which is now the **fallback** when no sections are curated (so the page is never empty mid-rollout).
+
+| Component | Path |
+| --- | --- |
+| Module + model (`product_handles` jsonb, ordered) + migration | [backend/src/modules/home-section/](backend/src/modules/home-section/) |
+| Admin REST (list/create + [id] update/delete) | [backend/src/api/admin/home-sections/route.ts](backend/src/api/admin/home-sections/route.ts) + [\[id\]/route.ts](backend/src/api/admin/home-sections/[id]/route.ts) |
+| Admin handle-resolution (chips + unresolved flag) | [backend/src/api/admin/home-sections/resolve/route.ts](backend/src/api/admin/home-sections/resolve/route.ts) |
+| Store REST (published, weight-ordered) | [backend/src/api/store/home-sections/route.ts](backend/src/api/store/home-sections/route.ts) |
+| Admin CRUD page `/app/home-sections` | [backend/src/admin/routes/home-sections/page.tsx](backend/src/admin/routes/home-sections/page.tsx) |
+| Product picker (search + reorder + unresolved badge) | [backend/src/admin/components/home-section/product-picker.tsx](backend/src/admin/components/home-section/product-picker.tsx) |
+| Storefront data layer | [storefront/src/lib/data/home-sections.ts](storefront/src/lib/data/home-sections.ts) |
+| By-handle product hydrator | `getProductsByHandle` in [storefront/src/lib/data/products.ts](storefront/src/lib/data/products.ts) |
+| Home page render + fallback | [storefront/src/app/\[countryCode\]/(main)/page.tsx](storefront/src/app/[countryCode]/(main)/page.tsx) |
+
+**Key choice**: products are referenced by **handle**, not id (same as bundles) — curation survives supplier re-imports. Handles that no longer resolve are silently skipped on the storefront and flagged with an **"Unresolved"** badge in the admin picker so staff can fix stale curation. No env gate (additive, fallback-safe); no module link to products (soft handle pointer). `sdk.store.product.list` accepts `handle: string[]`, so one call hydrates every section's products with region pricing.
+
 ### Group orders (team / club bulk buys)
 A customer creates a "group order" off a base product + design, shares a public token, and parents/players submit individual sizes. The owner closes the order; the converter builds one cart with line items per participant.
 

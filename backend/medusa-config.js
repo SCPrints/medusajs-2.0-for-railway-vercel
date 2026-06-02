@@ -432,6 +432,10 @@ const medusaConfig = {
     },
 
     {
+      resolve: "./src/modules/home-section",
+    },
+
+    {
       resolve: "./src/modules/organisation",
     },
 

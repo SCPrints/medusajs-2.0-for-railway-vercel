@@ -122,6 +122,45 @@ export async function getProductsById({
 }
 
 /**
+ * Hydrate an unordered set of product handles into region-priced products in a
+ * single call. Used by the home-page curated sections (handles survive supplier
+ * re-imports, so curation keyed by handle never silently breaks). Caller is
+ * responsible for re-ordering the result to match its desired display order —
+ * the backend does not preserve input order. Handles that don't resolve simply
+ * don't come back (the section render skips them).
+ */
+export async function getProductsByHandle({
+  handles,
+  regionId,
+}: {
+  handles: string[]
+  regionId: string
+}) {
+  "use cache"
+  cacheTag("products")
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  if (!handles.length) {
+    return []
+  }
+  try {
+    const { products } = await sdk.store.product.list({
+      // `handle` accepts an array at runtime; cast widens the SDK preview type.
+      handle: handles,
+      region_id: regionId,
+      fields: STORE_PRODUCT_FIELDS,
+      limit: handles.length,
+    } as HttpTypes.FindParams & HttpTypes.StoreProductParams)
+    return products
+  } catch (error) {
+    console.warn(
+      "[getProductsByHandle] backend fetch failed; returning empty array",
+      (error as Error).message
+    )
+    return []
+  }
+}
+
+/**
  * Slimmer hydration path used by `getListingViaSearch`. Drops the inventory
  * fields and a few extras that the PLP listing card doesn't render — Meili
  * has already filtered by `in_stock` so re-checking server-side is wasted

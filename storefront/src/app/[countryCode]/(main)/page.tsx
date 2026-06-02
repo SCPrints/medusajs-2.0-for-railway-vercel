@@ -1,11 +1,17 @@
 import { Metadata } from "next"
+import { HttpTypes } from "@medusajs/types"
 
 import {
   getInstagramFeedMedia,
   getInstagramHandleDisplay,
   getInstagramProfileUrl,
 } from "@lib/data/instagram"
-import { getHomeFeaturedRangeProducts, getProductsById } from "@lib/data/products"
+import {
+  getHomeFeaturedRangeProducts,
+  getProductsByHandle,
+  getProductsById,
+} from "@lib/data/products"
+import { getHomeSections } from "@lib/data/home-sections"
 import { getRegion } from "@lib/data/regions"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
@@ -153,24 +159,72 @@ export default async function Home({
     return null
   }
 
-  const products = await getHomeFeaturedRangeProducts({
-    countryCode,
-    limit: 12,
-  })
+  // Home product rails are staff-curated in admin (/app/home-sections). Each
+  // published section is a hand-picked, ordered list of products, rendered
+  // top-to-bottom in weight order. Products are referenced by handle so
+  // curation survives supplier re-imports. If no sections are curated yet,
+  // we fall back to the legacy "popular hoodies" logic so the page is never
+  // empty mid-rollout.
+  type FeaturedSection = {
+    id: string
+    title: string
+    subtitle: string | null
+    products: HttpTypes.StoreProduct[]
+  }
 
-  const productIds = (products ?? [])
-    .map((product) => product.id)
-    .filter(Boolean) as string[]
-  const pricedProducts = productIds.length
-    ? await getProductsById({
-        ids: productIds,
-        regionId: region.id,
-      })
-    : []
+  const curatedSections = await getHomeSections()
+  let featuredSections: FeaturedSection[] = []
 
-  const pricedMap = new Map(
-    pricedProducts.map((product) => [product.id, product])
-  )
+  if (curatedSections.length > 0) {
+    const allHandles = Array.from(
+      new Set(curatedSections.flatMap((s) => s.product_handles))
+    )
+    const pricedProducts = allHandles.length
+      ? await getProductsByHandle({ handles: allHandles, regionId: region.id })
+      : []
+    const byHandle = new Map(
+      pricedProducts
+        .filter((p) => p.handle)
+        .map((p) => [p.handle as string, p])
+    )
+    featuredSections = curatedSections
+      .map((s) => ({
+        id: s.id,
+        title: s.title,
+        subtitle: s.subtitle,
+        // preserve the staff-curated order; skip handles that no longer resolve
+        products: s.product_handles
+          .map((h) => byHandle.get(h))
+          .filter((p): p is HttpTypes.StoreProduct => Boolean(p)),
+      }))
+      .filter((s) => s.products.length > 0)
+  }
+
+  if (featuredSections.length === 0) {
+    const products = await getHomeFeaturedRangeProducts({
+      countryCode,
+      limit: 12,
+    })
+    const productIds = (products ?? [])
+      .map((product) => product.id)
+      .filter(Boolean) as string[]
+    const pricedProducts = productIds.length
+      ? await getProductsById({ ids: productIds, regionId: region.id })
+      : []
+    const pricedMap = new Map(
+      pricedProducts.map((product) => [product.id, product])
+    )
+    featuredSections = [
+      {
+        id: "featured-fallback",
+        title: "Popular garments to start your order",
+        subtitle: "Featured range",
+        products: (products ?? []).map(
+          (p) => (p.id ? pricedMap.get(p.id) : undefined) ?? p
+        ),
+      },
+    ]
+  }
 
   const instagramMedia = await getInstagramFeedMedia()
   const instagramProfileUrl = getInstagramProfileUrl()
@@ -215,58 +269,56 @@ export default async function Home({
             Prints and not visible anywhere else on the site pre-purchase. */}
         <HomeTrustStrip />
 
-        {/* 3. Featured products — on screen within 2–3 scrolls */}
-        <section className="content-container py-12">
-          <SectionHeader
-            eyebrow="Featured range"
-            title="Popular garments to start your order"
-            action={
-              <LocalizedClientLink
-                href="/store"
-                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
-              >
-                View all products
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="transition-transform group-hover:translate-x-0.5"
-                  aria-hidden
-                >
-                  <path d="M3 8h10M9 4l4 4-4 4" />
-                </svg>
-              </LocalizedClientLink>
-            }
-          />
+        {/* 3. Featured products — staff-curated sections (see /app/home-sections),
+            rendered top-to-bottom in weight order. Falls back to popular hoodies
+            when no sections are curated. On screen within 2–3 scrolls. */}
+        {featuredSections.map((section, sectionIndex) => (
+          <section key={section.id} className="content-container py-12">
+            <SectionHeader
+              eyebrow={section.subtitle ?? undefined}
+              title={section.title}
+              action={
+                sectionIndex === 0 ? (
+                  <LocalizedClientLink
+                    href="/store"
+                    className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                  >
+                    View all products
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="transition-transform group-hover:translate-x-0.5"
+                      aria-hidden
+                    >
+                      <path d="M3 8h10M9 4l4 4-4 4" />
+                    </svg>
+                  </LocalizedClientLink>
+                ) : undefined
+              }
+            />
 
-          <ul className="no-scrollbar flex list-none snap-x gap-5 overflow-x-auto pb-2">
-            {products.map((product) => {
-              const pricedProduct = product.id
-                ? pricedMap.get(product.id)
-                : undefined
-              const { cheapestPrice } = pricedProduct
-                ? getProductPrice({ product: pricedProduct })
-                : { cheapestPrice: null }
-              const data = buildProductListingCardData(
-                pricedProduct ?? product,
-                cheapestPrice
-              )
-              return (
-                <li
-                  key={product.id}
-                  className="w-[280px] shrink-0 snap-start"
-                >
-                  <ProductListingCard {...data} />
-                </li>
-              )
-            })}
-          </ul>
-        </section>
+            <ul className="no-scrollbar flex list-none snap-x gap-5 overflow-x-auto pb-2">
+              {section.products.map((product) => {
+                const { cheapestPrice } = getProductPrice({ product })
+                const data = buildProductListingCardData(product, cheapestPrice)
+                return (
+                  <li
+                    key={product.id}
+                    className="w-[280px] shrink-0 snap-start"
+                  >
+                    <ProductListingCard {...data} />
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        ))}
 
         {/* 4. Brand carousel — contextualises the products above */}
         <ScrollingPictureBar />
