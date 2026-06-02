@@ -51,11 +51,16 @@ const fileNameUpper = (url: string): string => {
   }
 }
 
-// Colour is "covered" if its underscore-delimited token appears in any filename.
-const colourCovered = (colour: string, fileTokens: string[]): boolean => {
-  const t = colourToken(colour)
-  if (!t) return false
-  return fileTokens.some((f) => f.includes(`_${t}_`))
+// The two colour-specific views we want for every colour. AS Colour filenames
+// are `<style>_<NAME>_<COLOUR>__<hash>` (front) and `..._<COLOUR>_BACK__<hash>`.
+const VIEWS = ["front", "back"] as const
+type View = (typeof VIEWS)[number]
+
+// Which view (if any) a filename represents for a given colour token.
+const viewOf = (fileUpper: string, token: string): View | null => {
+  if (fileUpper.includes(`_${token}_BACK`)) return "back"
+  if (fileUpper.includes(`_${token}__`)) return "front"
+  return null
 }
 
 const dedupeKey = (url: string): string => fileNameUpper(url).replace(/\.[A-Z]+$/, "")
@@ -156,16 +161,28 @@ export default async function scrapeAsColourWebsiteImages({ container }: ExecArg
 
       const currentUrls: string[] = (product.images ?? []).map((i: any) => i.url).filter(Boolean)
       const currentTokens = currentUrls.map(fileNameUpper)
-      const missing = [...colours].filter((c) => !colourCovered(c, currentTokens))
-      if (!missing.length) continue
+
+      // Which (colour, view) pairs is the product MISSING? A colour needs both a
+      // front and a back; having only one (e.g. Navy front, no back) is a gap.
+      const needs: Array<{ colour: string; token: string; view: View }> = []
+      for (const colour of colours) {
+        const t = colourToken(colour)
+        if (!t) continue
+        for (const view of VIEWS) {
+          const has = currentTokens.some((f) => viewOf(f, t) === view)
+          if (!has) needs.push({ colour, token: t, view })
+        }
+      }
+      if (!needs.length) continue
 
       scanned++
       if (limit && scanned > limit) { stopped = true; break }
       withGaps++
+      const needLabel = needs.map((n) => `${n.colour} ${n.view}`).join(", ")
 
       const pageUrl = urlMap.get(styleUpper)
       if (!pageUrl) {
-        logger.warn(`  ${product.handle} (${styleCode}): missing ${missing.join(", ")} but no website URL in sitemap — skip`)
+        logger.warn(`  ${product.handle} (${styleCode}): missing [${needLabel}] but no website URL in sitemap — skip`)
         noUrl++
         continue
       }
@@ -190,34 +207,36 @@ export default async function scrapeAsColourWebsiteImages({ container }: ExecArg
 
       const existingKeys = new Set(currentUrls.map(dedupeKey))
       const additions: string[] = []
-      const coveredNow = new Set<string>()
+      const filledLabels: string[] = []
+      const stillGapLabels: string[] = []
 
-      for (const colour of missing) {
-        const t = colourToken(colour)
-        const candidates = [...byFile.values()].filter((u) => fileNameUpper(u).includes(`_${t}_`))
-        let added = false
+      for (const need of needs) {
+        // A website image for exactly this colour + view.
+        const candidates = [...byFile.values()].filter(
+          (u) => viewOf(fileNameUpper(u), need.token) === need.view
+        )
+        let got = false
         for (const cand of candidates) {
-          if (existingKeys.has(dedupeKey(cand))) { added = true; continue }
+          if (existingKeys.has(dedupeKey(cand))) { got = true; break }
           const res = await checkImageUrl(cand, timeoutMs)
           if (!res.ok) continue
           additions.push(cand)
           existingKeys.add(dedupeKey(cand))
-          added = true
+          got = true
+          break
         }
-        if (added) coveredNow.add(colour)
+        if (got) filledLabels.push(`${need.colour} ${need.view}`)
+        else { stillGapLabels.push(`${need.colour} ${need.view}`); stillMissing++ }
       }
 
-      const stillGap = missing.filter((c) => !coveredNow.has(c))
-      if (stillGap.length) stillMissing += stillGap.length
-
       if (!additions.length) {
-        logger.warn(`  ${product.handle} (${styleCode}): missing ${missing.join(", ")} — found nothing live on website to add`)
+        logger.warn(`  ${product.handle} (${styleCode}): missing [${needLabel}] — found nothing live on website to add`)
         continue
       }
 
       filled++
       logger.info(
-        `  ${product.handle} (${styleCode}): +${additions.length} image(s) for ${[...coveredNow].join(", ")}${stillGap.length ? ` (still no photo: ${stillGap.join(", ")})` : ""}`
+        `  ${product.handle} (${styleCode}): +${additions.length} image(s) [${filledLabels.join(", ")}]${stillGapLabels.length ? ` (still missing: ${stillGapLabels.join(", ")})` : ""}`
       )
 
       if (dryRun) continue
