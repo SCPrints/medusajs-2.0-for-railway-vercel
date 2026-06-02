@@ -66,6 +66,15 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     // Add a logo PNG/SVG to /public/images/brands/logos/thread-lab.png and
     // uncomment the line below once it's available.
     // logoSrc: `${LOGO_BASE}/thread-lab.png`,
+    // Hero loop hotlinked from Thread Lab's own homepage — the factory/fabric
+    // "threadheads_video" section about halfway down threadlab.com.au. Plain
+    // <video> element, so no next.config allowlist needed. If the URL ever
+    // 404s (re-upload), download + host locally under /public/images/brands/
+    // like shaka-wear-hero.mp4.
+    videoSrc:
+      "https://www.threadlab.com.au/cdn/shop/videos/c/vp/6254479295be4931a8a1208b9e8276f0/6254479295be4931a8a1208b9e8276f0.HD-1080p-7.2Mbps-57638434.mp4?v=0",
+    videoPosterSrc:
+      "https://www.threadlab.com.au/cdn/shop/files/preview_images/6254479295be4931a8a1208b9e8276f0.thumbnail.0000000000_800x.jpg?v=1758091777",
     gallery: [
       {
         src: `${THREAD_LAB_CDN}/black-core-tee_ab118b29-9ffb-4fd5-9729-88ed1eacf0a0.jpg`,

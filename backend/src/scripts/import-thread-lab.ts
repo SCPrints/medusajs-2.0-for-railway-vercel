@@ -49,6 +49,11 @@ import {
   tagsForProduct,
 } from "../lib/storefront-revalidate"
 import { THREAD_LAB_CATALOG, type ThreadLabStyle } from "./thread-lab-catalog"
+import {
+  buildThreadLabGarmentImages,
+  fetchThreadLabColourImages,
+  type ColourImageSet,
+} from "./thread-lab-images"
 
 const PRICE_CURRENCY_CODE = "aud"
 const SOURCE = "thread-lab"
@@ -66,124 +71,7 @@ const buildSku = (code: string, colour: string, size: string): string =>
   `TL-${code}-${colourSku(colour)}-${size.toUpperCase()}`
 
 // ---------------------------------------------------------------------------
-// Shopify image fetching
-// ---------------------------------------------------------------------------
-
-type ShopifyProductJson = {
-  product: {
-    images: Array<{
-      id: number
-      src: string
-      variant_ids: number[]
-    }>
-    variants: Array<{
-      id: number
-      option1: string // Colour
-      option2: string // Size
-    }>
-  }
-}
-
-/**
- * Fetch all images from Thread Lab's Shopify product JSON and group them by
- * colour name. Images with no variant_ids are unassigned (shared across all
- * colours). Deduplicates within each colour's list.
- */
-async function fetchColourImages(
-  slug: string,
-  colours: string[],
-  logger: { warn: (m: string) => void }
-): Promise<Record<string, string[]>> {
-  const url = `${BRAND_URL}/products/${slug}.json`
-  let data: ShopifyProductJson
-  try {
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(15_000),
-    })
-    if (!res.ok) {
-      logger.warn(`Image fetch failed for ${slug}: HTTP ${res.status}`)
-      return buildFallback(colours)
-    }
-    data = await res.json()
-  } catch (err: any) {
-    logger.warn(`Image fetch error for ${slug}: ${err?.message ?? err}`)
-    return buildFallback(colours)
-  }
-
-  const { images, variants } = data.product
-
-  // variant ID → colour name
-  const variantToColour = new Map<number, string>()
-  for (const v of variants) {
-    if (v.option1) variantToColour.set(v.id, v.option1)
-  }
-
-  // colour → deduplicated image URL list
-  const colourImages: Record<string, string[]> = {}
-  const colourSeen: Record<string, Set<string>> = {}
-  for (const c of colours) {
-    colourImages[c] = []
-    colourSeen[c] = new Set()
-  }
-
-  for (const img of images) {
-    const src = img.src
-    if (!src) continue
-
-    if (img.variant_ids.length === 0) {
-      // unassigned → add to all colours
-      for (const c of colours) {
-        if (!colourSeen[c].has(src)) {
-          colourSeen[c].add(src)
-          colourImages[c].push(src)
-        }
-      }
-    } else {
-      const imgColours = new Set<string>()
-      for (const vid of img.variant_ids) {
-        const c = variantToColour.get(vid)
-        if (c && colourImages[c] !== undefined) imgColours.add(c)
-      }
-      for (const c of imgColours) {
-        if (!colourSeen[c].has(src)) {
-          colourSeen[c].add(src)
-          colourImages[c].push(src)
-        }
-      }
-    }
-  }
-
-  return colourImages
-}
-
-function buildFallback(colours: string[]): Record<string, string[]> {
-  const out: Record<string, string[]> = {}
-  for (const c of colours) out[c] = []
-  return out
-}
-
-// ---------------------------------------------------------------------------
-// garment_images shape (PDP colour-swap + customizer contract)
-// ---------------------------------------------------------------------------
-
-function buildGarmentImages(images: string[]): {
-  front: string
-  back?: string
-  model_image?: string
-  all: string[]
-} {
-  const all = images.filter(Boolean)
-  return {
-    front: all[0] ?? "",
-    ...(all[1] ? { back: all[1] } : {}),
-    ...(all[2] ? { model_image: all[2] } : {}),
-    all,
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Main
+// Main  (image fetching + garment_images shaping live in ./thread-lab-images)
 // ---------------------------------------------------------------------------
 
 export default async function importThreadLab({ container, args }: ExecArgs) {
@@ -252,11 +140,12 @@ export default async function importThreadLab({ container, args }: ExecArgs) {
 
     // Fetch all colour → images from Thread Lab Shopify JSON
     logger.info(`  Fetching images for ${style.slug}…`)
-    const colourImages = await fetchColourImages(
+    const colourImages = await fetchThreadLabColourImages(
       style.slug,
       style.colours,
       logger
     )
+    const emptySet: ColourImageSet = { specific: [], shared: [] }
 
     const sizeCodes = style.sizes.map((s) => s.code)
     const options = [
@@ -264,11 +153,13 @@ export default async function importThreadLab({ container, args }: ExecArgs) {
       { title: "Size", values: sizeCodes },
     ]
 
-    // Product-level gallery = union of all colour images (colour order)
+    // Product-level gallery = union of every colour's images (colour-specific
+    // first, then shared lifestyle shots), deduped, preserving order.
     const productImages: Array<{ url: string }> = []
     const seenUrls = new Set<string>()
     for (const colour of style.colours) {
-      for (const url of colourImages[colour] ?? []) {
+      const set = colourImages[colour] ?? emptySet
+      for (const url of [...set.specific, ...set.shared]) {
         if (url && !seenUrls.has(url)) {
           seenUrls.add(url)
           productImages.push({ url })
@@ -287,7 +178,9 @@ export default async function importThreadLab({ container, args }: ExecArgs) {
     const variants: any[] = []
     const seenSkus = new Set<string>()
     for (const colour of style.colours) {
-      const garmentImages = buildGarmentImages(colourImages[colour] ?? [])
+      const garmentImages = buildThreadLabGarmentImages(
+        colourImages[colour] ?? emptySet
+      )
       for (const size of style.sizes) {
         const sku = buildSku(style.code, colour, size.code)
         if (seenSkus.has(sku)) continue
@@ -443,7 +336,7 @@ async function ensureThreadLabBrand(opts: {
       external_code: BRAND_EXTERNAL_CODE,
       parent_id: null,
       description:
-        "Thread Lab is a Melbourne-based premium blank apparel brand built for decoration. Two ranges — the 200–275 GSM Core line for everyday print volume, and the 480 GSM Elevated line in 100% spiro spun combed cotton for premium commissions.",
+        "Thread Lab is a Melbourne-based premium blank apparel brand built for decoration.",
       metadata: {
         brand_url: BRAND_URL,
         country_of_origin: "AU",
