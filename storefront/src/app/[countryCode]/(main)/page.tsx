@@ -20,6 +20,7 @@ import HomeCoreServicesLordicons from "@modules/home/components/home-core-servic
 import HomeTrustStrip from "@modules/home/components/home-trust-strip"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import DigitalRainHero from "@modules/home/components/digital-rain-hero"
+import FeaturedProductsCarousel from "@modules/home/components/featured-products-carousel"
 import HeroOverlay from "@modules/home/components/space-hero/hero-overlay"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
@@ -303,7 +304,7 @@ export default async function Home({
               }
             />
 
-            <ul className="no-scrollbar flex list-none snap-x gap-5 overflow-x-auto pb-2">
+            <FeaturedProductsCarousel ariaLabel={section.title}>
               {section.products.map((product) => {
                 const { cheapestPrice } = getProductPrice({ product })
                 const data = buildProductListingCardData(product, cheapestPrice)
@@ -316,7 +317,7 @@ export default async function Home({
                   </li>
                 )
               })}
-            </ul>
+            </FeaturedProductsCarousel>
           </section>
         ))}
 
