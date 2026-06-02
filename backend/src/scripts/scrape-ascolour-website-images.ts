@@ -35,6 +35,7 @@
 import { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { checkImageUrl } from "../services/image-audit/check"
+import { writeProductImages, imageKey, type Liveness } from "../lib/safe-product-images"
 
 const PAGE_SIZE = 100
 const SITEMAP_BASE = "https://ascolour.com/xmlsitemap.php?type=products&page="
@@ -239,13 +240,22 @@ export default async function scrapeAsColourWebsiteImages({ container }: ExecArg
         `  ${product.handle} (${styleCode}): +${additions.length} image(s) [${filledLabels.join(", ")}]${stillGapLabels.length ? ` (still missing: ${stillGapLabels.join(", ")})` : ""}`
       )
 
-      if (dryRun) continue
+      // Write through the enforced guard. allowRepairRemovals defaults to false,
+      // so this is structurally append-only — nothing existing can be dropped.
+      // additions were already HEAD-validated above; mark them live to skip re-checks.
+      const knownLiveness = new Map<string, Liveness>()
+      for (const u of additions) knownLiveness.set(imageKey(u), "live")
       try {
-        // APPEND ONLY — keep every existing image, add the validated new ones.
-        const finalImages = [...currentUrls, ...additions].map((url) => ({ url }))
-        await productModule.updateProducts!(product.id, { images: finalImages })
+        const res = await writeProductImages(container, product.id, [...currentUrls, ...additions], {
+          currentUrls,
+          knownLiveness,
+          timeoutMs,
+          dryRun,
+          logger,
+        })
+        if (!res.wrote && !dryRun) filled--
       } catch (err: any) {
-        logger.warn(`  ${product.handle} (${styleCode}): updateProducts failed — ${err?.message ?? err}`)
+        logger.warn(`  ${product.handle} (${styleCode}): safe write failed — ${err?.message ?? err}`)
         filled--
       }
     }

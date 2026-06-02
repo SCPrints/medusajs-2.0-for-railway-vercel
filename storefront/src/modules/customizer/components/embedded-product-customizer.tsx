@@ -19,6 +19,13 @@ type Props = {
     gallery: ReactNode
     variantPickers: ReactNode
   }
+  /**
+   * Assembly-Studio-style full-screen shell: big canvas left, fixed
+   * collapsible-section menu right. Used by the `/customizer-v2` test page.
+   * Functionality is identical to the normal embedded mode — only the layout
+   * chrome changes.
+   */
+  assemblyLayout?: boolean
   /** Logged-in customer's tier, resolved by the server parent. */
   tier?: Tier | null
   /**
@@ -45,6 +52,7 @@ export default function EmbeddedProductCustomizer({
   tier = null,
   pickerProducts,
   printProfile = null,
+  assemblyLayout = false,
 }: Props) {
   const productOptions = useProductOptionsOptional()
 
@@ -79,6 +87,7 @@ export default function EmbeddedProductCustomizer({
       embedded
       pdpSyncedVariantId={syncVariantId}
       integratedPdpSlots={integratedPdpSlots}
+      assemblyLayout={assemblyLayout}
       defaultGarmentImage={defaultGarment?.url ?? null}
       defaultGarmentTitle={defaultGarment?.title ?? null}
       product={product}

@@ -275,36 +275,11 @@ export default async function Home({
             when no sections are curated. On screen within 2–3 scrolls. */}
         {featuredSections.map((section, sectionIndex) => (
           <section key={section.id} className="content-container py-12">
-            <SectionHeader
-              eyebrow={section.subtitle ?? undefined}
+            <FeaturedProductsCarousel
               title={section.title}
-              action={
-                sectionIndex === 0 ? (
-                  <LocalizedClientLink
-                    href="/store"
-                    className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
-                  >
-                    View all products
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="transition-transform group-hover:translate-x-0.5"
-                      aria-hidden
-                    >
-                      <path d="M3 8h10M9 4l4 4-4 4" />
-                    </svg>
-                  </LocalizedClientLink>
-                ) : undefined
-              }
-            />
-
-            <FeaturedProductsCarousel ariaLabel={section.title}>
+              subtitle={section.subtitle}
+              viewAllHref={sectionIndex === 0 ? "/store" : undefined}
+            >
               {section.products.map((product) => {
                 const { cheapestPrice } = getProductPrice({ product })
                 const data = buildProductListingCardData(product, cheapestPrice)

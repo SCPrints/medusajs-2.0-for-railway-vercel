@@ -46,6 +46,7 @@ import { ASCOLOUR_MODULE } from "../modules/ascolour"
 import AsColourService from "../modules/ascolour/service"
 import { AsColourImage } from "../modules/ascolour/types"
 import { checkImageUrl } from "../services/image-audit/check"
+import { writeProductImages, imageKey, type Liveness } from "../lib/safe-product-images"
 
 const PAGE_SIZE = 100
 const HEAD_CONCURRENCY = 8
@@ -253,14 +254,27 @@ export default async function repairAsColourImages({ container }: ExecArgs) {
         `  ${product.handle} (${styleCode}): removed ${deadCurrent.length} dead, recovered ${recovered.length}; ${currentUrls.length} → ${finalUrls.length} image(s); thumb → ${fileName(thumbnail)}`
       )
 
-      if (dryRun) continue
+      // Write through the enforced guard. Reuse the liveness we already computed
+      // (current checks + recovered = live) so it doesn't re-HEAD everything.
+      const knownLiveness = new Map<string, Liveness>()
+      for (const c of currentChecks) {
+        knownLiveness.set(imageKey(c.url), isDead(c.res.status) ? "dead" : c.res.ok ? "live" : "unknown")
+      }
+      for (const u of recovered) knownLiveness.set(imageKey(u), "live")
+
       try {
-        await productModule.updateProducts!(product.id, {
+        const res = await writeProductImages(container, product.id, finalUrls, {
           thumbnail,
-          images: finalUrls.map((url) => ({ url })),
+          allowRepairRemovals: true, // repair MAY remove — but only confirmed-dead, enforced by the guard
+          currentUrls,
+          knownLiveness,
+          timeoutMs,
+          dryRun,
+          logger,
         })
+        if (!res.wrote && !dryRun) repaired--
       } catch (err: any) {
-        logger.warn(`  ${product.handle} (${styleCode}): updateProducts failed — ${err?.message ?? err}`)
+        logger.warn(`  ${product.handle} (${styleCode}): safe write failed — ${err?.message ?? err}`)
         repaired--
       }
     }

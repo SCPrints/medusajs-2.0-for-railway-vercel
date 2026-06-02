@@ -178,6 +178,14 @@ type CustomizerTemplateProps = {
     variantPickers: ReactNode
   }
   /**
+   * Assembly-Studio-style full-screen shell (the `/customizer-v2` test): big
+   * garment canvas on the left, a fixed-width menu of collapsible sections on
+   * the right with a sticky pricing/Add-to-Cart footer. Only changes layout
+   * chrome — every piece of functionality is shared with normal embedded mode.
+   * Implies `embedded` behaviour (requires `integratedPdpSlots`).
+   */
+  assemblyLayout?: boolean
+  /**
    * Catalog products available in the in-customizer "Change product" picker.
    * Only used by the standalone /customizer route — PDP embeds always know
    * their product up front and never show the picker.
@@ -382,6 +390,7 @@ export default function CustomizerTemplate({
   embedded = false,
   pdpSyncedVariantId = null,
   integratedPdpSlots,
+  assemblyLayout = false,
   pickerProducts,
   tier = null,
   printProfile = null,
@@ -4284,8 +4293,8 @@ export default function CustomizerTemplate({
       : currentSide.charAt(0).toUpperCase() + currentSide.slice(1)
 
   const editorColumn = (
-          <div className="space-y-4">
-            <div className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-sm">
+          <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col" : "space-y-4"}>
+            <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col overflow-hidden bg-ui-bg-base" : "overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-sm"}>
               <div className="flex flex-col border-b border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 small:flex-row small:items-center small:justify-between">
                 <div className="flex items-start gap-3">
                   <div>
@@ -4329,7 +4338,7 @@ export default function CustomizerTemplate({
                 </div>
               </div>
 
-              <div className="flex flex-col lg:flex-row lg:items-stretch">
+              <div className={`flex flex-col lg:flex-row lg:items-stretch${assemblyLayout ? " flex-1 min-h-0" : ""}`}>
                 {!isAdminProofMode && (
                 <div
                   id="customizer-input-panel"
@@ -4356,11 +4365,11 @@ export default function CustomizerTemplate({
                 </div>
                 )}
 
-                <div className="order-1 min-h-[min(58vh,680px)] flex-1 p-4 small:p-5 lg:order-2">
+                <div className={assemblyLayout ? "order-1 flex flex-1 min-h-0 flex-col p-4 lg:order-2" : "order-1 min-h-[min(58vh,680px)] flex-1 p-4 small:p-5 lg:order-2"}>
                   <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
                     Editing: {sideLabel}
                   </p>
-                  <div className="z-[1]">
+                  <div className={assemblyLayout ? "z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]"}>
                     <CanvasStage
                       tintColor={variantTintHex}
                       garmentImage={garmentImageUrl}
@@ -4577,9 +4586,13 @@ export default function CustomizerTemplate({
           gallery / canvas. Desktop keeps the original side-by-side
           layout (col-span sits on lg, where order-* is reset to none).
         */}
-        <div className={`order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
-          isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
-        }`}>
+        <div className={
+          assemblyLayout
+            ? "flex min-w-0 flex-col flex-1 h-full overflow-hidden p-3 small:p-4"
+            : `order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
+                isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
+              }`
+        }>
           {showSideNudge && (
             <div className="flex items-center gap-2 rounded-lg bg-ui-bg-subtle/90 px-3 py-2 text-xs text-ui-fg-base ring-1 ring-ui-border-base">
               <span className="shrink-0 text-ui-fg-muted" aria-hidden>✏</span>
@@ -4638,10 +4651,35 @@ export default function CustomizerTemplate({
             )
           })()}
         </div>
-        <div className={`order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
-          isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
-        }`}>
-          {!isAdminProofMode && (
+        <div className={
+          assemblyLayout
+            ? "flex w-full small:w-[380px] lg:w-[400px] shrink-0 flex-col border-t border-ui-border-base bg-ui-bg-base h-full overflow-hidden small:border-t-0 small:border-l"
+            : `order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
+                isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
+              }`
+        }>
+          {assemblyLayout && (
+            <div className="flex items-center justify-between gap-2 border-b border-ui-border-base px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-ui-fg-base">
+                  {selectedProduct?.title ?? "Customise"}
+                </p>
+                <p className="text-[11px] uppercase tracking-wide text-ui-fg-subtle">
+                  SC Prints Studio
+                </p>
+              </div>
+              {!isAdminProofMode ? (
+                <CustomizerGuide
+                  pdpStep={pdpStep}
+                  hasStep1={hasStep1}
+                  stepRefs={{ step1: step1Ref, step2: step2Ref, step3: step3Ref, step4: step4Ref }}
+                  showTriggerPulse={showGuidePulse}
+                />
+              ) : null}
+            </div>
+          )}
+          <div className={assemblyLayout ? "flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-4" : "contents"}>
+          {!isAdminProofMode && !assemblyLayout && (
           <div className="space-y-1 border-b border-ui-border-base pb-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -5489,6 +5527,7 @@ export default function CustomizerTemplate({
           )}
               </motion.div>
           )}
+          </div>
         </div>
         <LowResolutionModal
           open={lowResModalOpen}
