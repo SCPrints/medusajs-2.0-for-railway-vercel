@@ -33,7 +33,7 @@ function CanvasStage({
   dpiWarning,
   fabricContainerRef,
   tintColor,
-  frameClassName = "aspect-[4/5] w-full",
+  frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
 }: CanvasStageProps) {
   const showPhoto = garmentImage
   // Sleeve placeholders are line drawings on white. When we have a sampled
@@ -77,7 +77,7 @@ function CanvasStage({
     : undefined
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle ${frameClassName}`}>
+    <div className={`relative overflow-hidden ${frameClassName}`}>
       {showPhoto ? (
         <>
           {applySleeveTint ? (

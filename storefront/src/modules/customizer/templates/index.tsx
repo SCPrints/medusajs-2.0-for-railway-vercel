@@ -4304,8 +4304,9 @@ export default function CustomizerTemplate({
   const editorColumn = (
           <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col" : "space-y-4"}>
             <div className={assemblyLayout ? "flex flex-1 min-h-0 flex-col overflow-hidden bg-ui-bg-base" : "overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base shadow-sm"}>
-              <div className="flex flex-col border-b border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 small:flex-row small:items-center small:justify-between">
+              <div className={`flex flex-col px-4 py-3 small:flex-row small:items-center small:justify-between${assemblyLayout ? " py-2.5" : " border-b border-ui-border-base bg-ui-bg-subtle/40"}`}>
                 <div className="flex items-start gap-3">
+                  {!assemblyLayout && (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle">
                       Design preview
@@ -4314,6 +4315,7 @@ export default function CustomizerTemplate({
                       {selectedProduct?.title ? `Design your ${selectedProduct.title}` : "Design your product"}
                     </p>
                   </div>
+                  )}
                   {!isAdminProofMode && pickerProducts && pickerProducts.length > 0 ? (
                     <CustomizerProductPicker
                       products={pickerProducts}
@@ -4329,7 +4331,7 @@ export default function CustomizerTemplate({
                   ) : null}
                 </div>
                 <div className="mt-2 flex items-center gap-3 small:mt-0">
-                  {!isAdminProofMode ? (
+                  {!isAdminProofMode && !assemblyLayout ? (
                     <p className="hidden text-xs text-ui-fg-subtle small:block">
                       Drag, resize and position your artwork.
                     </p>
@@ -4390,7 +4392,7 @@ export default function CustomizerTemplate({
                       fabricContainerRef={fabricContainerRef}
                       frameClassName={
                         assemblyLayout
-                          ? "mx-auto aspect-[4/5] h-full max-h-full w-auto max-w-full"
+                          ? "mx-auto aspect-[4/5] h-full max-h-full w-auto max-w-full rounded-xl"
                           : undefined
                       }
                     />
@@ -4478,28 +4480,23 @@ export default function CustomizerTemplate({
             type="button"
             onClick={onToggle}
             aria-expanded={!!assemblyOpen}
-            className="flex w-full items-center justify-between gap-2 text-left"
+            className="group flex w-full items-center justify-between gap-3 text-left"
           >
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
-                  done ? "bg-emerald-100 text-emerald-700" : "bg-ui-fg-base text-white"
-                }`}
-                aria-hidden
-              >
-                {done ? "✓" : num}
-              </span>
-              <span className="truncate text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-[15px] font-semibold text-ui-fg-base">
                 {title}
               </span>
               {badge && (
-                <span className="shrink-0 rounded-full bg-ui-bg-base-hover px-2 py-0.5 text-[11px] font-medium text-ui-fg-base ring-1 ring-ui-border-base">
+                <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
                   {badge}
                 </span>
               )}
             </span>
-            <span aria-hidden className="shrink-0 text-base leading-none text-ui-fg-muted">
-              {assemblyOpen ? "▾" : "▸"}
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
+              aria-hidden
+            >
+              {assemblyOpen ? "✕" : done ? "✎" : "+"}
             </span>
           </button>
         )
@@ -4609,29 +4606,24 @@ export default function CustomizerTemplate({
       <button
         type="button"
         onClick={onExpand}
-        className="flex w-full items-center justify-between gap-2 rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-3.5 text-left transition hover:bg-ui-bg-subtle/40"
+        className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base px-5 py-4 text-left transition hover:border-ui-border-strong"
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <span
-            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
-              done ? "bg-emerald-100 text-emerald-700" : "bg-ui-bg-base text-ui-fg-subtle ring-1 ring-ui-border-base"
-            }`}
-            aria-hidden
-          >
-            {done ? "✓" : num}
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-[15px] font-semibold text-ui-fg-base">
+            {title}
           </span>
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-              {title}
+          {status ? (
+            <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
+              {status}
             </span>
-            {status ? (
-              <span className="truncate text-xs font-normal normal-case text-ui-fg-subtle">
-                {status}
-              </span>
-            ) : null}
-          </span>
+          ) : null}
         </span>
-        <span aria-hidden className="shrink-0 text-base leading-none text-ui-fg-muted">▸</span>
+        <span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
+          aria-hidden
+        >
+          {done ? "✎" : "+"}
+        </span>
       </button>
     )
 
@@ -4696,7 +4688,7 @@ export default function CustomizerTemplate({
         */}
         <div className={
           assemblyLayout
-            ? "flex min-w-0 flex-col flex-1 h-full overflow-hidden p-3 small:p-4"
+            ? "flex min-w-0 flex-col flex-1 h-full overflow-hidden bg-ui-bg-base p-3 small:p-4"
             : `order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
               }`
@@ -4761,7 +4753,7 @@ export default function CustomizerTemplate({
         </div>
         <div className={
           assemblyLayout
-            ? "flex w-full small:w-[380px] lg:w-[400px] shrink-0 flex-col border-t border-ui-border-base bg-ui-bg-base h-full overflow-hidden small:border-t-0 small:border-l"
+            ? "flex w-full small:w-[400px] lg:w-[420px] shrink-0 flex-col border-t border-ui-border-base bg-ui-bg-subtle h-full overflow-hidden small:border-t-0 small:border-l"
             : `order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
               }`
@@ -4786,7 +4778,7 @@ export default function CustomizerTemplate({
               ) : null}
             </div>
           )}
-          <div className={assemblyLayout ? "flex flex-1 flex-col gap-2 overflow-y-auto px-4 py-4" : "contents"}>
+          <div className={assemblyLayout ? "flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-5" : "contents"}>
           {!isAdminProofMode && !assemblyLayout && (
           <div className="space-y-1 border-b border-ui-border-base pb-3">
             <div className="flex items-start justify-between gap-2">
@@ -4999,26 +4991,21 @@ export default function CustomizerTemplate({
               take the full width of the design column. */}
           {assemblyLayout && !isAdminProofMode ? (
             assemblyArtworkOpen ? (
-              <div className="space-y-3 rounded-xl border border-ui-fg-base bg-ui-bg-base p-4 shadow-sm">
+              <div className="space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setAssemblyArtworkOpen(false)}
                   aria-expanded={true}
-                  className="flex w-full items-center justify-between gap-2 text-left"
+                  className="group flex w-full items-center justify-between gap-3 text-left"
                 >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ui-fg-base text-[10px] font-semibold text-white"
-                      aria-hidden
-                    >
-                      ✎
-                    </span>
-                    <span className="truncate text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
-                      Artwork
-                    </span>
+                  <span className="truncate text-[15px] font-semibold text-ui-fg-base">
+                    Artwork
                   </span>
-                  <span aria-hidden className="shrink-0 text-base leading-none text-ui-fg-muted">
-                    ▾
+                  <span
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
+                    aria-hidden
+                  >
+                    ✕
                   </span>
                 </button>
                 <InputPanel

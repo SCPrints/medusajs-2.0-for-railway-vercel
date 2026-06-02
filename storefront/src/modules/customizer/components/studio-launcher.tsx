@@ -105,7 +105,7 @@ export default function StudioLauncher({ title, gallery, productInfo, studio }: 
           site header/footer. */}
       {open ? (
         <div
-          className="fixed inset-0 z-[200] flex flex-col bg-ui-bg-base"
+          className="fixed inset-0 z-[200] flex flex-col bg-ui-bg-subtle"
           role="dialog"
           aria-modal="true"
           aria-label={`Customise ${title}`}
