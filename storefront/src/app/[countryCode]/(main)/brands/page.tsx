@@ -144,7 +144,8 @@ async function BrandsContent() {
                       <img
                         src={logoSrc}
                         alt=""
-                        className={`${presentation.logoClass ?? DEFAULT_LOGO_CLASS} [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.08))]`}
+                        style={presentation.logoFilterClass ? { filter: `${presentation.logoFilterClass} drop-shadow(0 1px 2px rgba(0,0,0,0.08))` } : { filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
+                        className={presentation.logoClass ?? DEFAULT_LOGO_CLASS}
                         loading="lazy"
                         decoding="async"
                       />

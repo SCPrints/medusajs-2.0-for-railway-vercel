@@ -29,6 +29,11 @@ export type BrandPresentation = {
    */
   logoClass?: string
   /**
+   * CSS filter applied to the logo image to adjust its appearance
+   * (e.g. `"grayscale(1)"` for black logos that should render grey).
+   */
+  logoFilterClass?: string
+  /**
    * Background applied to the logo's container in the dark side-menu brand
    * list (e.g. `"bg-white"`). The hero and `/brands` grid already place the
    * logo on a light surface, but the side-menu renders it on a dark panel —
@@ -76,6 +81,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     // dark side-menu needs the white chip below to stay legible.
     logoSrc: `${LOGO_BASE}/thread-lab.png`,
     logoClass: "max-h-full max-w-[68%] object-contain object-left",
+    logoFilterClass: "grayscale(1) brightness(1.4)",
     logoChipClass: "bg-white",
     // Hero loop hotlinked from Thread Lab's own homepage — the factory/fabric
     // "threadheads_video" section about halfway down threadlab.com.au. Plain
@@ -145,6 +151,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     bgClass: "bg-stone-700",
     logoSrc: `${LOGO_BASE}/aussie-pacific.svg`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
+    logoFilterClass: "grayscale(1) brightness(1.4)",
     bannerSrc: `${BRAND_BASE}/aussie-pacific-banner.png`,
     gallery: [
       { src: `${BRAND_BASE}/aussie-pacific/hoodie.jpg`, alt: "Aussie Pacific hoodie" },
