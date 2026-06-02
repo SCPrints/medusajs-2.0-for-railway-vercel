@@ -97,6 +97,39 @@ export default async function ProductPage({ params }: Props) {
           price: cheapestPrice.calculated_price_number,
           availability: "https://schema.org/InStock",
           itemCondition: "https://schema.org/NewCondition",
+          hasMerchantReturnPolicy: {
+            "@type": "MerchantReturnPolicy",
+            applicableCountry: "AU",
+            returnPolicyCategory:
+              "https://schema.org/MerchantReturnNotPermitted",
+          },
+          shippingDetails: {
+            "@type": "OfferShippingDetails",
+            shippingRate: {
+              "@type": "MonetaryAmount",
+              value: "11.00",
+              currency: "AUD",
+            },
+            shippingDestination: {
+              "@type": "DefinedRegion",
+              addressCountry: "AU",
+            },
+            deliveryTime: {
+              "@type": "ShippingDeliveryTime",
+              handlingTime: {
+                "@type": "QuantitativeValue",
+                minValue: 3,
+                maxValue: 14,
+                unitCode: "DAY",
+              },
+              transitTime: {
+                "@type": "QuantitativeValue",
+                minValue: 1,
+                maxValue: 5,
+                unitCode: "DAY",
+              },
+            },
+          },
         }
       : undefined,
   }
