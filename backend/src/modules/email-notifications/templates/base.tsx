@@ -124,7 +124,7 @@ export const Base: React.FC<BaseProps> = ({ preview, children, unsubscribeUrl })
             {/* Branded header bar */}
             <Section style={{ backgroundColor: NAVY, padding: '20px 28px', textAlign: 'center' }}>
               <Img
-                src="https://www.scprints.com.au/branding/sc-prints-logo-white.png"
+                src="https://www.scprints.com.au/branding/sc-prints-logo-white-transparent.png"
                 alt="SC Prints"
                 width={160}
                 style={{ margin: '0 auto', display: 'block' }}
