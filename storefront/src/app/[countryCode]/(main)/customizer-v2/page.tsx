@@ -11,13 +11,16 @@ import { getRegion } from "@lib/data/regions"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
+import StudioLauncher from "@modules/customizer/components/studio-launcher"
 import AssemblyLayoutGrid from "@modules/products/components/assembly-layout-grid"
+import ImageGallery from "@modules/products/components/image-gallery"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
 import ProductActions from "@modules/products/components/product-actions"
 import { CustomizeModeProvider } from "@modules/products/context/customize-mode-context"
 import { PrintPlacementProvider } from "@modules/products/context/print-placement-context"
 import { ProductOptionsProvider } from "@modules/products/context/product-options-context"
 import ProductActionsWrapper from "@modules/products/templates/product-actions-wrapper"
+import ProductInfo from "@modules/products/templates/product-info"
 
 export async function generateStaticParams() {
   return [{ countryCode: "au" }]
@@ -250,31 +253,51 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
     </Suspense>
   )
 
+  // Landing photo gallery (the "photos" view shown before the studio opens).
+  const gallerySlot = (
+    <ImageGallery
+      product={customizerProduct}
+      images={customizerProduct?.images || []}
+      thumbnail={customizerProduct?.thumbnail || null}
+      heroLayout
+      heroClassName="max-h-[62vh]"
+    />
+  )
+
+  // The full Assembly studio (canvas + collapsible section menu). Mounted by
+  // StudioLauncher only once the customer opens it.
+  const studioSlot = (
+    <AssemblyLayoutGrid
+      customizerSlot={
+        <PdpCustomizerBoundary>
+          <EmbeddedProductCustomizer
+            product={customizerProduct}
+            assemblyLayout
+            integratedPdpSlots={{
+              gallery: null,
+              variantPickers: variantPickersSlot,
+            }}
+            pickerProducts={pickerProducts}
+            tier={tier}
+            printProfile={printProfile}
+          />
+        </PdpCustomizerBoundary>
+      }
+    />
+  )
+
   return (
     <>
       <CartEditBanner />
-      {/* Full-bleed: break out of the (main) content padding so the studio
-          shell can fill the viewport edge-to-edge like Assembly. */}
-      <div className="px-3 py-3 small:px-4" data-testid="customizer-v2-container">
+      <div className="content-container py-6" data-testid="customizer-v2-container">
         <PrintPlacementProvider>
           <ProductOptionsProvider product={customizerProduct}>
             <CustomizeModeProvider>
-              <AssemblyLayoutGrid
-                customizerSlot={
-                  <PdpCustomizerBoundary>
-                    <EmbeddedProductCustomizer
-                      product={customizerProduct}
-                      assemblyLayout
-                      integratedPdpSlots={{
-                        gallery: null,
-                        variantPickers: variantPickersSlot,
-                      }}
-                      pickerProducts={pickerProducts}
-                      tier={tier}
-                      printProfile={printProfile}
-                    />
-                  </PdpCustomizerBoundary>
-                }
+              <StudioLauncher
+                title={customizerProduct.title ?? "Customise"}
+                gallery={gallerySlot}
+                productInfo={<ProductInfo product={customizerProduct} hideTitle />}
+                studio={studioSlot}
               />
             </CustomizeModeProvider>
           </ProductOptionsProvider>

@@ -15,6 +15,13 @@ type CanvasStageProps = {
   fabricContainerRef: RefObject<HTMLDivElement | null>
   /** Hex colour sampled from the variant photo, used to tint the sleeve placeholder line drawing. */
   tintColor?: string | null
+  /**
+   * Sizing classes for the canvas frame. Default fills the column width at a
+   * 4:5 aspect. The full-screen studio passes a height-bound variant so the
+   * whole garment fits the tall column instead of overflowing (and being
+   * clipped) at the bottom.
+   */
+  frameClassName?: string
 }
 
 function CanvasStage({
@@ -26,6 +33,7 @@ function CanvasStage({
   dpiWarning,
   fabricContainerRef,
   tintColor,
+  frameClassName = "aspect-[4/5] w-full",
 }: CanvasStageProps) {
   const showPhoto = garmentImage
   // Sleeve placeholders are line drawings on white. When we have a sampled
@@ -69,7 +77,7 @@ function CanvasStage({
     : undefined
 
   return (
-    <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
+    <div className={`relative overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle ${frameClassName}`}>
       {showPhoto ? (
         <>
           {applySleeveTint ? (

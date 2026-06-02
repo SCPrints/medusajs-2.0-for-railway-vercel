@@ -562,6 +562,15 @@ export default function CustomizerTemplate({
   const [pdpStep, setPdpStep] = useState<1 | 2 | 3 | 4>(1)
   const [pdpStep1Done, setPdpStep1Done] = useState(false)
   const [pdpStep2Done, setPdpStep2Done] = useState(false)
+  // Assembly layout (/customizer-v2) free accordion: which section is expanded,
+  // independent of the wizard's `pdpStep`. null = all collapsed. Only consulted
+  // when `assemblyLayout` is true.
+  const [assemblyExpanded, setAssemblyExpanded] = useState<1 | 2 | 3 | 4 | null>(1)
+  // Assembly layout: the "Artwork" section (InputPanel) is a peer accordion
+  // section. Tracked separately from the numeric wizard steps; the two are
+  // kept mutually-exclusive (opening one closes the other) so the menu stays
+  // one-section-at-a-time like Assembly.
+  const [assemblyArtworkOpen, setAssemblyArtworkOpen] = useState(false)
   const [showGuidePulse, setShowGuidePulse] = useState(false)
   // Record<GarmentSide, true> avoids Set spread which requires es2015+ target.
   const [sizingDoneSides, setSizingDoneSides] = useState<Partial<Record<GarmentSide, true>>>({})
@@ -4339,7 +4348,7 @@ export default function CustomizerTemplate({
               </div>
 
               <div className={`flex flex-col lg:flex-row lg:items-stretch${assemblyLayout ? " flex-1 min-h-0" : ""}`}>
-                {!isAdminProofMode && (
+                {!isAdminProofMode && !assemblyLayout && (
                 <div
                   id="customizer-input-panel"
                   className="order-2 border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 scroll-mt-20 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base"
@@ -4379,6 +4388,11 @@ export default function CustomizerTemplate({
                       outOfBoundsWarning={outOfBoundsWarning}
                       dpiWarning={dpiWarning}
                       fabricContainerRef={fabricContainerRef}
+                      frameClassName={
+                        assemblyLayout
+                          ? "mx-auto aspect-[4/5] h-full max-h-full w-auto max-w-full"
+                          : undefined
+                      }
                     />
                   </div>
                 </div>
@@ -4441,6 +4455,8 @@ export default function CustomizerTemplate({
       badge,
       active,
       help,
+      assemblyOpen,
+      onToggle,
     }: {
       num: number
       title: string
@@ -4449,42 +4465,82 @@ export default function CustomizerTemplate({
       badge?: string
       active?: boolean
       help?: string
-    }) => (
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span
-            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
-              done
-                ? "bg-emerald-100 text-emerald-700"
-                : active
-                ? "bg-ui-fg-base text-white"
-                : "bg-ui-bg-base text-ui-fg-subtle ring-1 ring-ui-border-base"
-            }`}
-            aria-hidden
-          >
-            {done ? "✓" : num}
-          </span>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base truncate">
-            {title}
-          </h3>
-          {badge && (
-            <span className="shrink-0 rounded-full bg-ui-bg-base-hover px-2 py-0.5 text-[11px] font-medium text-ui-fg-base ring-1 ring-ui-border-base">
-              {badge}
-            </span>
-          )}
-          {help && <HelpTip text={help} />}
-        </div>
-        {!active && onChange ? (
+      assemblyOpen?: boolean
+      onToggle?: () => void
+    }) => {
+      // Assembly layout: the whole header row is a toggle with a chevron, so
+      // any section can be collapsed/expanded at any time (no inline help
+      // tooltip here — a nested <button> is invalid; the top-bar guide covers
+      // help).
+      if (assemblyLayout) {
+        return (
           <button
             type="button"
-            className="text-xs font-medium text-ui-fg-interactive hover:underline"
-            onClick={onChange}
+            onClick={onToggle}
+            aria-expanded={!!assemblyOpen}
+            className="flex w-full items-center justify-between gap-2 text-left"
           >
-            Change
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                  done ? "bg-emerald-100 text-emerald-700" : "bg-ui-fg-base text-white"
+                }`}
+                aria-hidden
+              >
+                {done ? "✓" : num}
+              </span>
+              <span className="truncate text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+                {title}
+              </span>
+              {badge && (
+                <span className="shrink-0 rounded-full bg-ui-bg-base-hover px-2 py-0.5 text-[11px] font-medium text-ui-fg-base ring-1 ring-ui-border-base">
+                  {badge}
+                </span>
+              )}
+            </span>
+            <span aria-hidden className="shrink-0 text-base leading-none text-ui-fg-muted">
+              {assemblyOpen ? "▾" : "▸"}
+            </span>
           </button>
-        ) : null}
-      </div>
-    )
+        )
+      }
+      return (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+                done
+                  ? "bg-emerald-100 text-emerald-700"
+                  : active
+                  ? "bg-ui-fg-base text-white"
+                  : "bg-ui-bg-base text-ui-fg-subtle ring-1 ring-ui-border-base"
+              }`}
+              aria-hidden
+            >
+              {done ? "✓" : num}
+            </span>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-ui-fg-base truncate">
+              {title}
+            </h3>
+            {badge && (
+              <span className="shrink-0 rounded-full bg-ui-bg-base-hover px-2 py-0.5 text-[11px] font-medium text-ui-fg-base ring-1 ring-ui-border-base">
+                {badge}
+              </span>
+            )}
+            {help && <HelpTip text={help} />}
+          </div>
+          {!active && onChange ? (
+            <button
+              type="button"
+              className="text-xs font-medium text-ui-fg-interactive hover:underline"
+              onClick={onChange}
+            >
+              Change
+            </button>
+          ) : null}
+        </div>
+      )
+    }
 
     // Dimmed, clickable preview card for steps the customer hasn't reached
     // yet. Clicking advances `pdpStep` directly so the customer can jump
@@ -4532,6 +4588,58 @@ export default function CustomizerTemplate({
         <p className={`mt-1.5 pl-7 text-xs ${isNext ? "text-ui-fg-subtle" : "text-ui-fg-muted"}`}>{hint}</p>
       </button>
     )
+
+    // Assembly layout: a collapsed section row (title + status + chevron) shown
+    // in place of the full card when the section isn't expanded. Clicking it
+    // expands the section (and jumps the underlying wizard step so the full UI
+    // inside renders).
+    const AssemblyCollapsedHeader = ({
+      num,
+      title,
+      status,
+      done,
+      onExpand,
+    }: {
+      num: number | string
+      title: string
+      status?: string
+      done?: boolean
+      onExpand: () => void
+    }) => (
+      <button
+        type="button"
+        onClick={onExpand}
+        className="flex w-full items-center justify-between gap-2 rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-3.5 text-left transition hover:bg-ui-bg-subtle/40"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${
+              done ? "bg-emerald-100 text-emerald-700" : "bg-ui-bg-base text-ui-fg-subtle ring-1 ring-ui-border-base"
+            }`}
+            aria-hidden
+          >
+            {done ? "✓" : num}
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+              {title}
+            </span>
+            {status ? (
+              <span className="truncate text-xs font-normal normal-case text-ui-fg-subtle">
+                {status}
+              </span>
+            ) : null}
+          </span>
+        </span>
+        <span aria-hidden className="shrink-0 text-base leading-none text-ui-fg-muted">▸</span>
+      </button>
+    )
+
+    const expandAssemblySection = (n: 1 | 2 | 3 | 4) => {
+      setAssemblyExpanded(n)
+      setAssemblyArtworkOpen(false)
+      setPdpStep(n)
+    }
 
     // Bulk-order grid takes over the viewport when active — design stays
     // intact in canvas state, so closing the grid drops the customer back
@@ -4843,9 +4951,11 @@ export default function CustomizerTemplate({
                 done={pdpStep1Done && pdpStep > 1}
                 active={pdpStep === 1}
                 onChange={() => setPdpStep(1)}
+                assemblyOpen={assemblyExpanded === 1}
+                onToggle={() => setAssemblyExpanded((p) => (p === 1 ? null : 1))}
                 help="Pick your colour and any other options, then tap 'Customise this garment' to open the design tool."
               />
-              {pdpStep === 1 ? (
+              {(assemblyLayout ? assemblyExpanded === 1 : pdpStep === 1) ? (
                 <>
                   {integratedPdpSlots.variantPickers}
                   <button
@@ -4877,10 +4987,70 @@ export default function CustomizerTemplate({
                     Free design tool · upload artwork or add text
                   </p>
                 </>
-              ) : (
+              ) : assemblyLayout ? null : (
                 <p className="text-xs text-ui-fg-subtle">Selected. Click Change to edit.</p>
               )}
             </div>
+          ) : null}
+
+          {/* Artwork — collapsible section (assembly layout only). Hosts the
+              InputPanel (upload / text / saved uploads) that in the normal
+              layout sits beside the canvas; moving it here lets the canvas
+              take the full width of the design column. */}
+          {assemblyLayout && !isAdminProofMode ? (
+            assemblyArtworkOpen ? (
+              <div className="space-y-3 rounded-xl border border-ui-fg-base bg-ui-bg-base p-4 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setAssemblyArtworkOpen(false)}
+                  aria-expanded={true}
+                  className="flex w-full items-center justify-between gap-2 text-left"
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ui-fg-base text-[10px] font-semibold text-white"
+                      aria-hidden
+                    >
+                      ✎
+                    </span>
+                    <span className="truncate text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
+                      Artwork
+                    </span>
+                  </span>
+                  <span aria-hidden className="shrink-0 text-base leading-none text-ui-fg-muted">
+                    ▾
+                  </span>
+                </button>
+                <InputPanel
+                  onUploadFile={inputPanelProps.onUploadFile}
+                  uploads={inputPanelUploads}
+                  onReuseUpload={inputPanelProps.onReuseUpload}
+                  cartDesigns={cartArtworkDesigns}
+                  onAddCartDesign={inputPanelProps.onAddCartDesign}
+                  onAddText={inputPanelProps.onAddText}
+                  onAddCurvedText={inputPanelProps.onAddCurvedText}
+                  onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
+                  canRemoveImage={canRemoveImage}
+                  onDeleteUpload={inputPanelProps.onDeleteUpload}
+                  enabled={!embedded || !pdpHasVariantOptions || pdpStep1Done}
+                  disabledMessage={inputPanelDisabledMessage}
+                  selectedText={selectedTextSnapshot}
+                  onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}
+                  onDeselectText={inputPanelProps.onDeselectText}
+                  className="border-0 bg-transparent p-0"
+                />
+              </div>
+            ) : (
+              <AssemblyCollapsedHeader
+                num="✎"
+                title="Artwork"
+                status="Upload a logo or add text"
+                onExpand={() => {
+                  setAssemblyArtworkOpen(true)
+                  setAssemblyExpanded(null)
+                }}
+              />
+            )
           ) : null}
 
           {/* Wizard steps 2-4. Hidden in admin proof mode (the Save Proof
@@ -4897,7 +5067,7 @@ export default function CustomizerTemplate({
               >
 
           {/* Step 2 — Print location */}
-          {pdpStep >= 2 || !hasStep1 ? (
+          {(assemblyLayout ? assemblyExpanded === 2 : (pdpStep >= 2 || !hasStep1)) ? (
             (() => {
               const sideLabelMap: Record<GarmentSide, string> = {
                 front: "Front",
@@ -4930,6 +5100,8 @@ export default function CustomizerTemplate({
                     badge={pdpStep2Done && pdpStep > 2 ? sideLabel : undefined}
                     help="Choose which part of the garment to print on — front, back, sleeves, or inside neck tag. Select a location, add your artwork, then use the button below the canvas to add prints to more locations. Each location is priced separately."
                     onChange={() => setPdpStep(2)}
+                    assemblyOpen={assemblyExpanded === 2}
+                    onToggle={() => setAssemblyExpanded(null)}
                   />
 
                   {/* At Step 4 collapse to just the header — saves vertical space.
@@ -5004,6 +5176,18 @@ export default function CustomizerTemplate({
                 </motion.div>
               )
             })()
+          ) : assemblyLayout ? (
+            <AssemblyCollapsedHeader
+              num={stepNum(2)}
+              title="Print location"
+              status={
+                decoratedSides.length > 0
+                  ? `${decoratedSides.length} location${decoratedSides.length === 1 ? "" : "s"}`
+                  : "No selection"
+              }
+              done={pdpStep2Done}
+              onExpand={() => expandAssemblySection(2)}
+            />
           ) : (
             <StepPreview
               num={stepNum(2)}
@@ -5079,7 +5263,7 @@ export default function CustomizerTemplate({
           })()}
 
           {/* Step 3 — Print size */}
-          {pdpStep >= 3 ? (
+          {(assemblyLayout ? assemblyExpanded === 3 : pdpStep >= 3) ? (
             <motion.div
               ref={step3Ref}
               initial={{ opacity: 0, y: 12 }}
@@ -5112,6 +5296,8 @@ export default function CustomizerTemplate({
                       }
                     : undefined
                 }
+                assemblyOpen={assemblyExpanded === 3}
+                onToggle={() => setAssemblyExpanded(null)}
               />
               {pdpStep === 3 ? (
                 <>
@@ -5252,6 +5438,14 @@ export default function CustomizerTemplate({
                 </div>
               )}
             </motion.div>
+          ) : assemblyLayout ? (
+            <AssemblyCollapsedHeader
+              num={stepNum(3)}
+              title="Print size"
+              status={printSizeLabel}
+              done={pdpStep3Done}
+              onExpand={() => expandAssemblySection(3)}
+            />
           ) : (
             <div ref={step3Ref}>
               <StepPreview
@@ -5379,7 +5573,7 @@ export default function CustomizerTemplate({
                 </div>
               </div>
             </motion.div>
-          ) : pdpStep >= 4 ? (
+          ) : (assemblyLayout ? assemblyExpanded === 4 : pdpStep >= 4) ? (
             /* Original Step 4 — Quantities, notes & checkout (fresh add flow). */
             <motion.div
               ref={step4Ref}
@@ -5389,7 +5583,7 @@ export default function CustomizerTemplate({
               className="flex flex-col gap-3"
             >
               <div className="space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm">
-                <StepHeader num={stepNum(4)} title="Quantity & checkout" done={false} active={true} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
+                <StepHeader num={stepNum(4)} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
                     front: "Front",
@@ -5514,6 +5708,13 @@ export default function CustomizerTemplate({
                 </p>
               </div>
             </motion.div>
+          ) : assemblyLayout ? (
+            <AssemblyCollapsedHeader
+              num={stepNum(4)}
+              title="Quantity & checkout"
+              status="Sizes, quantities & add to cart"
+              onExpand={() => expandAssemblySection(4)}
+            />
           ) : (
             <div ref={step4Ref}>
               <StepPreview
