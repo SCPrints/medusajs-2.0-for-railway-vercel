@@ -57,63 +57,70 @@ export default function FeaturedProductsCarousel({
 
   return (
     <div className="relative">
-      {/* Prev */}
-      <button
-        type="button"
-        aria-label="Scroll products left"
-        onClick={() => scrollByCards(-1)}
-        className={`absolute left-1.5 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-md transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 tablet:flex ${
-          hasArrows ? "" : "tablet:!hidden"
-        }`}
-        disabled={!canLeft}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M10 12L6 8l4-4" />
-        </svg>
-      </button>
-
-      {/* Next */}
-      <button
-        type="button"
-        aria-label="Scroll products right"
-        onClick={() => scrollByCards(1)}
-        className={`absolute right-1.5 top-1/2 z-20 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-md transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 tablet:flex ${
-          hasArrows ? "" : "tablet:!hidden"
-        }`}
-        disabled={!canRight}
-      >
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M6 4l4 4-4 4" />
-        </svg>
-      </button>
-
+      {/* Scroller first in DOM. `isolate` forces it into its own stacking
+          context so the GPU-composited card hover transforms can NEVER paint
+          above the arrow controls — the bug that made the arrows "disappear
+          under the products". The arrows are rendered AFTER the scroller and
+          on a higher overlay layer below. */}
       <ul
         ref={scrollerRef}
         aria-label={ariaLabel}
-        className="no-scrollbar flex list-none snap-x gap-5 overflow-x-auto pb-2"
+        className="no-scrollbar isolate flex list-none snap-x gap-5 overflow-x-auto pb-2"
       >
         {children}
       </ul>
+
+      {/* Arrow overlay — sibling AFTER the scroller, z-30, pointer-events
+          only on the buttons themselves so the rail stays interactive. */}
+      <div className="pointer-events-none absolute inset-0 z-30 hidden tablet:block">
+        <button
+          type="button"
+          aria-label="Scroll products left"
+          onClick={() => scrollByCards(-1)}
+          className={`pointer-events-auto absolute left-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-lg transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 ${
+            hasArrows ? "" : "!hidden"
+          }`}
+          disabled={!canLeft}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M10 12L6 8l4-4" />
+          </svg>
+        </button>
+
+        <button
+          type="button"
+          aria-label="Scroll products right"
+          onClick={() => scrollByCards(1)}
+          className={`pointer-events-auto absolute right-1.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white text-ui-fg-base shadow-lg transition hover:bg-ui-bg-subtle disabled:pointer-events-none disabled:opacity-0 ${
+            hasArrows ? "" : "!hidden"
+          }`}
+          disabled={!canRight}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M6 4l4 4-4 4" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }
