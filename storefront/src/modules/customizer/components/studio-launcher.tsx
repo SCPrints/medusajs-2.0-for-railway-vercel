@@ -10,6 +10,8 @@ type Props = {
   gallery: ReactNode
   /** Optional colour swatches shown on the landing; switching colour swaps the gallery photos. */
   colourSelector?: ReactNode
+  /** Optional cart button (count + dropdown) shown in the studio top bar. */
+  cartButton?: ReactNode
   /** Optional product description / spec tabs shown below the landing. */
   productInfo?: ReactNode
   /**
@@ -28,7 +30,7 @@ type Props = {
  * open (body scroll is locked); the only scroll is inside the studio's
  * right-hand section panel. SC Prints branding stays top-left in black.
  */
-export default function StudioLauncher({ title, gallery, colourSelector, productInfo, studio }: Props) {
+export default function StudioLauncher({ title, gallery, colourSelector, cartButton, productInfo, studio }: Props) {
   const [open, setOpen] = useState(false)
 
   // Lock all page scroll (html + body) + wire Escape-to-close while the studio
@@ -130,14 +132,20 @@ export default function StudioLauncher({ title, gallery, colourSelector, product
                 {title}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ui-border-base px-3.5 text-sm font-medium text-ui-fg-base transition-colors hover:bg-ui-bg-subtle"
-            >
-              <span aria-hidden className="text-base leading-none">←</span>
-              Back to photos
-            </button>
+            <div className="flex shrink-0 items-center gap-2 small:gap-3">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ui-border-base px-3.5 text-sm font-medium text-ui-fg-base transition-colors hover:bg-ui-bg-subtle"
+              >
+                <span aria-hidden className="text-base leading-none">←</span>
+                <span className="hidden phone:inline">Back to photos</span>
+                <span className="phone:hidden">Photos</span>
+              </button>
+              {cartButton ? (
+                <div className="flex items-center text-ui-fg-base">{cartButton}</div>
+              ) : null}
+            </div>
           </div>
 
           {/* Studio body — fills the rest; the only scroll lives inside the

@@ -9,6 +9,8 @@ import { getProductsList } from "@lib/data/products"
 import { getPrintProfileForProduct } from "@lib/data/print-profiles"
 import { getRegion } from "@lib/data/regions"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import CartButton from "@modules/layout/components/cart-button"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import LandingColourSelector from "@modules/customizer/components/landing-colour-selector"
@@ -298,6 +300,20 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
                 title={customizerProduct.title ?? "Customise"}
                 gallery={gallerySlot}
                 colourSelector={<LandingColourSelector product={customizerProduct} />}
+                cartButton={
+                  <Suspense
+                    fallback={
+                      <LocalizedClientLink
+                        href="/cart"
+                        className="inline-flex h-9 items-center rounded-full px-3 text-sm font-medium text-ui-fg-base hover:bg-ui-bg-subtle"
+                      >
+                        Cart
+                      </LocalizedClientLink>
+                    }
+                  >
+                    <CartButton />
+                  </Suspense>
+                }
                 productInfo={<ProductInfo product={customizerProduct} hideTitle />}
                 studio={studioSlot}
               />
