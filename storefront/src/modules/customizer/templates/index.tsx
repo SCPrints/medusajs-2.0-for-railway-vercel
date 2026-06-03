@@ -4483,34 +4483,26 @@ export default function CustomizerTemplate({
             type="button"
             onClick={onToggle}
             aria-expanded={!!assemblyOpen}
-            className="group flex w-full items-center justify-between gap-3 text-left"
+            className="flex w-full items-start justify-between gap-3 text-left"
           >
-            <span className="flex min-w-0 items-center gap-3">
-              {assemblyNum != null && (
-                <span
-                  className="shrink-0 text-lg font-black leading-none tabular-nums text-ui-fg-base"
-                  aria-hidden
-                >
-                  {String(assemblyNum).padStart(2, "0")}
+            <span className="flex min-w-0 flex-col pt-1">
+              <span className="truncate text-[15px] font-semibold text-ui-fg-base">
+                {title}
+              </span>
+              {badge && (
+                <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
+                  {badge}
                 </span>
               )}
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-[15px] font-semibold text-ui-fg-base">
-                  {title}
-                </span>
-                {badge && (
-                  <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
-                    {badge}
-                  </span>
-                )}
+            </span>
+            {assemblyNum != null && (
+              <span
+                className="-mr-1 -mt-1 shrink-0 select-none text-[32px] font-black leading-none tabular-nums text-ui-fg-base"
+                aria-hidden
+              >
+                {String(assemblyNum).padStart(2, "0")}
               </span>
-            </span>
-            <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
-              aria-hidden
-            >
-              {assemblyOpen ? "✕" : done ? "✎" : "+"}
-            </span>
+            )}
           </button>
         )
       }
@@ -4622,34 +4614,26 @@ export default function CustomizerTemplate({
       <button
         type="button"
         onClick={onExpand}
-        className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base px-5 py-4 text-left transition hover:border-ui-border-strong"
+        className="flex w-full items-start justify-between gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base px-5 py-4 text-left transition hover:border-ui-border-strong"
       >
-        <span className="flex min-w-0 items-center gap-3">
-          {assemblyNum != null && (
-            <span
-              className="shrink-0 text-lg font-black leading-none tabular-nums text-ui-fg-base"
-              aria-hidden
-            >
-              {String(assemblyNum).padStart(2, "0")}
-            </span>
-          )}
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-[15px] font-semibold text-ui-fg-base">
-              {title}
-            </span>
-            {status ? (
-              <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
-                {status}
-              </span>
-            ) : null}
+        <span className="flex min-w-0 flex-col pt-1">
+          <span className="truncate text-[15px] font-semibold text-ui-fg-base">
+            {title}
           </span>
+          {status ? (
+            <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
+              {status}
+            </span>
+          ) : null}
         </span>
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
-          aria-hidden
-        >
-          {done ? "✎" : "+"}
-        </span>
+        {assemblyNum != null && (
+          <span
+            className="-mr-1 -mt-1 shrink-0 select-none text-[32px] font-black leading-none tabular-nums text-ui-fg-base"
+            aria-hidden
+          >
+            {String(assemblyNum).padStart(2, "0")}
+          </span>
+        )}
       </button>
     )
 
@@ -5027,24 +5011,16 @@ export default function CustomizerTemplate({
                   type="button"
                   onClick={() => setAssemblyArtworkOpen(false)}
                   aria-expanded={true}
-                  className="group flex w-full items-center justify-between gap-3 text-left"
+                  className="flex w-full items-start justify-between gap-3 text-left"
                 >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <span
-                      className="shrink-0 text-lg font-black leading-none tabular-nums text-ui-fg-base"
-                      aria-hidden
-                    >
-                      02
-                    </span>
-                    <span className="truncate text-[15px] font-semibold text-ui-fg-base">
-                      Artwork
-                    </span>
+                  <span className="truncate pt-1 text-[15px] font-semibold text-ui-fg-base">
+                    Artwork
                   </span>
                   <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
+                    className="-mr-1 -mt-1 shrink-0 select-none text-[32px] font-black leading-none tabular-nums text-ui-fg-base"
                     aria-hidden
                   >
-                    ✕
+                    02
                   </span>
                 </button>
                 <InputPanel
