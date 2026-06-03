@@ -2748,7 +2748,7 @@ export default function CustomizerTemplate({
   const clearPrintLocation = (side: GarmentSide) => {
     const canvas = fabricCanvasRef.current
     if (side === currentSide && canvas) {
-      canvas.getObjects().slice().forEach((obj) => canvas.remove(obj))
+      ;(canvas.getObjects() as any[]).slice().forEach((obj: any) => canvas.remove(obj))
       canvas.discardActiveObject()
       canvas.renderAll()
       updateLayers()
