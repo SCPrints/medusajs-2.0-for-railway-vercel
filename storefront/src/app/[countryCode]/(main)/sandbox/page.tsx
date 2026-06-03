@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-type Status = "active" | "candidate" | "archived" | "lab" | "personal"
+type Status = "active" | "candidate" | "archived" | "lab"
 
 type SandboxItem = {
   href: string
@@ -28,7 +28,6 @@ const STATUS_LABELS: Record<Status, string> = {
   candidate: "Candidate",
   archived: "Archived",
   lab: "Lab",
-  personal: "Personal",
 }
 
 const STATUS_STYLES: Record<Status, string> = {
@@ -36,14 +35,12 @@ const STATUS_STYLES: Record<Status, string> = {
   candidate: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
   archived: "bg-gray-50 text-gray-500 ring-1 ring-gray-200",
   lab: "bg-violet-50 text-violet-700 ring-1 ring-violet-200",
-  personal: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
 }
 
 const CATEGORIES: Category[] = [
   {
     title: "Wordmark animations",
-    description:
-      "Particle physics applied to the SC Prints wordmark (and bleh image).",
+    description: "Particle physics applied to the SC Prints wordmark.",
     items: [
       {
         href: "/particle-logo",
@@ -68,22 +65,6 @@ const CATEGORIES: Category[] = [
           "Previous v3 Newmix tuning that ran as the home hero. Kept for reference.",
         status: "archived",
         tech: "Custom fluid sim",
-      },
-      {
-        href: "/bleh",
-        label: "Bleh — Newmix fluid sim",
-        description:
-          "Same Newmix fluid sim as particle-logo but with the bleh image as the source — useful for tuning the physics without the wordmark distraction.",
-        status: "lab",
-        tech: "Custom fluid sim",
-      },
-      {
-        href: "/bleh2",
-        label: "Bleh — Three.js GPU",
-        description:
-          "Same Three.js 140k-particle approach as particle-threejs, but using the bleh image as source.",
-        status: "lab",
-        tech: "Three.js",
       },
     ],
   },
@@ -112,7 +93,7 @@ const CATEGORIES: Category[] = [
         href: "/block-hero",
         label: "Block grid hero",
         description:
-          "Perspective grid of bobbing pastel blocks with the SC Prints wordmark voxelised at the centre. A/B candidate against digital rain.",
+          "Perspective grid of bobbing pastel blocks with the flat black SC Prints wordmark over the centre. A/B candidate against digital rain.",
         status: "candidate",
         tech: "Three.js",
       },
@@ -159,25 +140,6 @@ const CATEGORIES: Category[] = [
           "Paginated lab with 10 sections per page: embeds, Rive presets, Spline slots, WebGL, button interactions. Add ?page=2 for more.",
         status: "lab",
         tech: "Rive · Spline · WebGL",
-      },
-    ],
-  },
-  {
-    title: "Personal",
-    description: "Dev splash pages and personal experiments.",
-    items: [
-      {
-        href: "/dmc",
-        label: "DMC splash",
-        description: "Daniel Mudie Cunningham splash animation.",
-        status: "personal",
-      },
-      {
-        href: "/dan",
-        label: "Daniel Mudie Cunningham",
-        description:
-          "Personal curation / portfolio page — \"Curation, Creation, Criticism\".",
-        status: "personal",
       },
     ],
   },
