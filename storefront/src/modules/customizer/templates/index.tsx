@@ -4503,7 +4503,7 @@ export default function CustomizerTemplate({
             </span>
             {assemblyNum != null && (
               <span
-                className="pointer-events-none absolute -top-3 right-4 select-none text-[56px] font-black leading-none tabular-nums text-ui-fg-base"
+                className="pointer-events-none absolute -top-3 -right-1 select-none text-[5rem] font-black leading-none tracking-tighter text-ui-fg-base"
                 aria-hidden
               >
                 {String(assemblyNum).padStart(2, "0")}
@@ -4640,7 +4640,7 @@ export default function CustomizerTemplate({
         </span>
         {assemblyNum != null && (
           <span
-            className="pointer-events-none absolute -top-3 right-4 select-none text-[56px] font-black leading-none tabular-nums text-ui-fg-base"
+            className="pointer-events-none absolute -top-3 -right-1 select-none text-[5rem] font-black leading-none tracking-tighter text-ui-fg-base"
             aria-hidden
           >
             {String(assemblyNum).padStart(2, "0")}
@@ -5036,7 +5036,7 @@ export default function CustomizerTemplate({
                   </span>
                 </button>
                 <span
-                  className="pointer-events-none absolute -top-3 right-4 select-none text-[56px] font-black leading-none tabular-nums text-ui-fg-base"
+                  className="pointer-events-none absolute -top-3 -right-1 select-none text-[5rem] font-black leading-none tracking-tighter text-ui-fg-base"
                   aria-hidden
                 >
                   02
