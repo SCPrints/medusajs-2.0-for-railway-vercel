@@ -4957,7 +4957,7 @@ export default function CustomizerTemplate({
               ) : null}
             </div>
           )}
-          <div className={assemblyLayout ? "flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-5" : "contents"}>
+          <div className={assemblyLayout ? "flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-5 [&>*]:shrink-0" : "contents"}>
           {!isAdminProofMode && !assemblyLayout && (
           <div className="space-y-1 border-b border-ui-border-base pb-3">
             <div className="flex items-start justify-between gap-2">
@@ -5186,7 +5186,7 @@ export default function CustomizerTemplate({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col gap-2"
+                className="flex flex-col gap-2 [&>*]:shrink-0"
               >
 
           {/* Step 2 — Print location */}
