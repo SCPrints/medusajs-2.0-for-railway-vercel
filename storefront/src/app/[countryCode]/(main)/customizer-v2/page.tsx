@@ -11,6 +11,7 @@ import { getRegion } from "@lib/data/regions"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
+import LandingColourSelector from "@modules/customizer/components/landing-colour-selector"
 import StudioLauncher from "@modules/customizer/components/studio-launcher"
 import AssemblyLayoutGrid from "@modules/products/components/assembly-layout-grid"
 import ImageGallery from "@modules/products/components/image-gallery"
@@ -296,6 +297,7 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
               <StudioLauncher
                 title={customizerProduct.title ?? "Customise"}
                 gallery={gallerySlot}
+                colourSelector={<LandingColourSelector product={customizerProduct} />}
                 productInfo={<ProductInfo product={customizerProduct} hideTitle />}
                 studio={studioSlot}
               />

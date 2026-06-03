@@ -8,6 +8,8 @@ type Props = {
   title: string
   /** Server-rendered photo gallery (the landing "photos" view). */
   gallery: ReactNode
+  /** Optional colour swatches shown on the landing; switching colour swaps the gallery photos. */
+  colourSelector?: ReactNode
   /** Optional product description / spec tabs shown below the landing. */
   productInfo?: ReactNode
   /**
@@ -26,7 +28,7 @@ type Props = {
  * open (body scroll is locked); the only scroll is inside the studio's
  * right-hand section panel. SC Prints branding stays top-left in black.
  */
-export default function StudioLauncher({ title, gallery, productInfo, studio }: Props) {
+export default function StudioLauncher({ title, gallery, colourSelector, productInfo, studio }: Props) {
   const [open, setOpen] = useState(false)
 
   // Lock all page scroll (html + body) + wire Escape-to-close while the studio
@@ -92,6 +94,9 @@ export default function StudioLauncher({ title, gallery, productInfo, studio }: 
               Opens the full-screen design studio · upload artwork or add text
             </p>
           </div>
+          {colourSelector ? (
+            <div className="border-t border-ui-border-base pt-5">{colourSelector}</div>
+          ) : null}
           {productInfo ? (
             <div className="border-t border-ui-border-base pt-5">{productInfo}</div>
           ) : null}
