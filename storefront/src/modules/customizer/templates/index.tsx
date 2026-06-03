@@ -560,7 +560,11 @@ export default function CustomizerTemplate({
   // Guided PDP wizard: tracks the highest step the user has reached (1..4).
   // Steps below `pdpStep` collapse to summary chips with a "Change" link.
   const [pdpStep, setPdpStep] = useState<1 | 2 | 3 | 4>(1)
-  const [pdpStep1Done, setPdpStep1Done] = useState(false)
+  // Assembly studio: sections are freely navigable, so Step 1 is never a
+  // gate — start it "done" so the Artwork/InputPanel and other features
+  // aren't locked behind a "Customise this garment" click (that button is
+  // removed in the studio). Legacy non-assembly wizard still starts false.
+  const [pdpStep1Done, setPdpStep1Done] = useState(assemblyLayout)
   const [pdpStep2Done, setPdpStep2Done] = useState(false)
   // Assembly layout (/customizer-v2) free accordion: which section is expanded,
   // independent of the wizard's `pdpStep`. null = all collapsed. Only consulted
@@ -5130,34 +5134,41 @@ export default function CustomizerTemplate({
               {(assemblyLayout ? assemblyExpanded === 1 : pdpStep === 1) ? (
                 <>
                   {integratedPdpSlots.variantPickers}
-                  <button
-                    type="button"
-                    className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:bg-[var(--brand-primary-hover,#be123c)] hover:scale-[1.01] active:scale-[0.99]"
-                    onClick={() => {
-                      setPdpStep1Done(true)
-                      setPdpStep((s) => (s > 1 ? s : 2))
-                    }}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="20"
-                      height="20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden
-                    >
-                      <path d="M12 20h9" />
-                      <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                    </svg>
-                    Customise this garment
-                    <span aria-hidden className="text-lg leading-none">→</span>
-                  </button>
-                  <p className="mt-1 text-center text-[11px] text-ui-fg-subtle">
-                    Free design tool · upload artwork or add text
-                  </p>
+                  {/* The "Customise this garment" CTA only exists in the legacy
+                      non-assembly wizard, where it gates Step 1. In the studio
+                      the sections are freely navigable, so it's removed. */}
+                  {!assemblyLayout && (
+                    <>
+                      <button
+                        type="button"
+                        className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:bg-[var(--brand-primary-hover,#be123c)] hover:scale-[1.01] active:scale-[0.99]"
+                        onClick={() => {
+                          setPdpStep1Done(true)
+                          setPdpStep((s) => (s > 1 ? s : 2))
+                        }}
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="20"
+                          height="20"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                        >
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                        </svg>
+                        Customise this garment
+                        <span aria-hidden className="text-lg leading-none">→</span>
+                      </button>
+                      <p className="mt-1 text-center text-[11px] text-ui-fg-subtle">
+                        Free design tool · upload artwork or add text
+                      </p>
+                    </>
+                  )}
                 </>
               ) : assemblyLayout ? null : (
                 <p className="text-xs text-ui-fg-subtle">Selected. Click Change to edit.</p>
