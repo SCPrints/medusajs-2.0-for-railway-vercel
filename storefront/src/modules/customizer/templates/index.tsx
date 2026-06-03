@@ -4655,6 +4655,159 @@ export default function CustomizerTemplate({
       setPdpStep(n)
     }
 
+    // Print-size body, extracted so it can be reused in BOTH the legacy
+    // non-assembly Step 3 card AND the merged assembly "Print location & size"
+    // section. `full` selects the editing UI (method picker + embroidery config
+    // + size tiles) vs. the collapsed summary line. Closes over all the
+    // component state it needs (in scope here).
+    const renderPrintSizeBody = (full: boolean) =>
+      full ? (
+        <>
+          {/* Per-side method picker — always visible here so the
+              customer can switch a side between print and embroidery
+              after the initial position setup (e.g. front=print at
+              first, then change back=embroidery without re-opening
+              the print-positions step). */}
+          <div className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-ui-fg-subtle">
+                Decoration method · {sideLabel}
+              </span>
+            </div>
+            <DecorationMethodPicker
+              side={currentSide}
+              value={
+                sideDecorationMethods[currentSide] ??
+                availableMethodsForCurrentSide[0] ??
+                "print"
+              }
+              availableMethods={availableMethodsForCurrentSide}
+              onChange={(side, method) => {
+                setSideDecorationMethods((prev) => ({ ...prev, [side]: method }))
+                if (method === "embroidery") {
+                  setSizingDoneSides((prev) => ({ ...prev, [side]: true }))
+                } else {
+                  setSideEmbroideryConfigs((prev) => {
+                    const next = { ...prev }
+                    delete next[side]
+                    return next
+                  })
+                  setSizingDoneSides((prev) => {
+                    const next = { ...prev }
+                    delete next[side]
+                    return next
+                  })
+                  // Re-prompt for print size since we just reverted to print.
+                  setScpPrintSizeChosen(false)
+                }
+              }}
+            />
+          </div>
+          {sideDecorationMethods[currentSide] === "embroidery" ? (
+            <EmbroiderySideConfig
+              // Remount per side: the component seeds its mm/stitch
+              // inputs from `value` on mount only, so without a per-side
+              // key it would show (and persist) the previous side's
+              // values when switching garment sides.
+              key={currentSide}
+              side={currentSide}
+              value={sideEmbroideryConfigs[currentSide]}
+              onChange={(side, next) => {
+                setSideEmbroideryConfigs((prev) => ({ ...prev, [side]: next }))
+              }}
+              getArtworkDataUrl={getCurrentSideArtworkDataUrl}
+            />
+          ) : allowedSizesForCurrentSide.length === 1 &&
+            allowedSizesForCurrentSide[0] === "up_to_a6" ? (
+            <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
+              <span className="font-semibold text-ui-fg-base">{sideLabel}</span> prints
+              are limited to A6 (10×15 cm) — only one size is available for this location.
+            </p>
+          ) : (currentSide === "left_sleeve" || currentSide === "right_sleeve") &&
+            productIsLongSleeve ? (
+            <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
+              <span className="font-semibold text-ui-fg-base">{sideLabel}</span> prints on
+              long-sleeve garments can go up to A3 (29×42 cm).
+            </p>
+          ) : null}
+          {sideDecorationMethods[currentSide] === "embroidery" ? null : (
+            <div className="grid grid-cols-2 gap-2">
+              {SCP_PRINT_SIZE_OPTIONS.filter((opt) =>
+                allowedSizesForCurrentSide.includes(opt.id)
+              ).map((opt) => {
+                // Show the price the customer will *actually* pay at their
+                // current quantity (highest 1-9 tier if no qty set yet) —
+                // not the cheapest 100+ tier. The bulk discount drops it
+                // further at higher qty, communicated via the bulk-tier
+                // panel below.
+                const matrixRow = SCP_PRINT_UNIT_MATRIX[opt.id]
+                const tierIdx = resolveScpTierIndexForQuantity(totalQty)
+                const currentPrice = matrixRow[tierIdx]
+                const bestPrice = matrixRow[matrixRow.length - 1]
+                const showsDiscountHint = currentPrice > bestPrice
+                const selected = scpPrintSizeChosen && scpPrintSizeId === opt.id
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => {
+                      setScpPrintSizeId(opt.id)
+                      setScpPrintSizeChosen(true)
+                      setSizingDoneSides((prev) => ({ ...prev, [currentSide]: true as const }))
+                      setPdpStep((s) => (s > 3 ? s : 4))
+                    }}
+                    className={`relative flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
+                      selected
+                        ? "border-ui-border-interactive bg-ui-bg-base-pressed"
+                        : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle"
+                    }`}
+                  >
+                    {selected && (
+                      <span
+                        aria-hidden
+                        className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-100 text-[10px] font-bold text-emerald-700"
+                      >
+                        ✓
+                      </span>
+                    )}
+                    <span className="text-sm font-semibold text-ui-fg-base">
+                      {opt.label}
+                    </span>
+                    <span className="text-[11px] text-ui-fg-subtle">
+                      {opt.dimensionsLabel}
+                    </span>
+                    <span className="text-[11px] text-ui-fg-muted">
+                      ${currentPrice.toFixed(2)} ea
+                      {showsDiscountHint
+                        ? ` · drops to $${bestPrice.toFixed(2)} at 100+`
+                        : ""}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between gap-2 rounded-lg bg-ui-bg-subtle/60 px-2.5 py-2">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ui-fg-base">{printSizeLabel}</p>
+              <p className="text-[11px] text-ui-fg-muted">
+                {SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === scpPrintSizeId)?.dimensionsLabel}
+              </p>
+            </div>
+            <p className="shrink-0 text-sm font-semibold text-ui-fg-base">
+              $
+              {SCP_PRINT_UNIT_MATRIX[scpPrintSizeId][
+                resolveScpTierIndexForQuantity(totalQty)
+              ].toFixed(2)}{" "}
+              <span className="text-[11px] font-normal text-ui-fg-subtle">ea / location</span>
+            </p>
+          </div>
+        </div>
+      )
+
     // Bulk-order grid takes over the viewport when active — design stays
     // intact in canvas state, so closing the grid drops the customer back
     // exactly where they were. The grid produces one (variant × size) cell
@@ -5012,67 +5165,6 @@ export default function CustomizerTemplate({
             </div>
           ) : null}
 
-          {/* Artwork — collapsible section (assembly layout only). Hosts the
-              InputPanel (upload / text / saved uploads) that in the normal
-              layout sits beside the canvas; moving it here lets the canvas
-              take the full width of the design column. */}
-          {assemblyLayout && !isAdminProofMode ? (
-            assemblyArtworkOpen ? (
-              <div className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setAssemblyArtworkOpen(false)}
-                  aria-expanded={true}
-                  className="flex w-full flex-col items-start gap-2.5 text-left"
-                >
-                  <span
-                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle"
-                    aria-hidden
-                  >
-                    ✕
-                  </span>
-                  <span className="truncate pr-12 text-[15px] font-semibold text-ui-fg-base">
-                    Artwork
-                  </span>
-                </button>
-                <span
-                  className="pointer-events-none absolute -top-3 -right-1 select-none text-[5rem] font-black leading-none tracking-tighter text-ui-fg-base"
-                  aria-hidden
-                >
-                  02
-                </span>
-                <InputPanel
-                  onUploadFile={inputPanelProps.onUploadFile}
-                  uploads={inputPanelUploads}
-                  onReuseUpload={inputPanelProps.onReuseUpload}
-                  cartDesigns={cartArtworkDesigns}
-                  onAddCartDesign={inputPanelProps.onAddCartDesign}
-                  onAddText={inputPanelProps.onAddText}
-                  onAddCurvedText={inputPanelProps.onAddCurvedText}
-                  onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
-                  canRemoveImage={canRemoveImage}
-                  onDeleteUpload={inputPanelProps.onDeleteUpload}
-                  enabled={!embedded || !pdpHasVariantOptions || pdpStep1Done}
-                  disabledMessage={inputPanelDisabledMessage}
-                  selectedText={selectedTextSnapshot}
-                  onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}
-                  onDeselectText={inputPanelProps.onDeselectText}
-                  className="border-0 bg-transparent p-0"
-                />
-              </div>
-            ) : (
-              <AssemblyCollapsedHeader
-                assemblyNum={2}
-                title="Artwork"
-                status="Upload a logo or add text"
-                onExpand={() => {
-                  setAssemblyArtworkOpen(true)
-                  setAssemblyExpanded(null)
-                }}
-              />
-            )
-          ) : null}
-
           {/* Wizard steps 2-4. Hidden in admin proof mode (the Save Proof
               panel above replaces the wizard). The motion.div gives the
               steps a soft mount-in once Step 1 is completed (or on first
@@ -5118,9 +5210,19 @@ export default function CustomizerTemplate({
                 }>
                   <StepHeader
                     num={stepNum(2)}
-                    assemblyNum={3}
-                    title={decoratedCount > 0 ? "Add / change print positions" : "Select print location"}
-                    done={pdpStep2Done && pdpStep > 2}
+                    assemblyNum={2}
+                    title={
+                      assemblyLayout
+                        ? "Print location & size"
+                        : decoratedCount > 0
+                        ? "Add / change print positions"
+                        : "Select print location"
+                    }
+                    done={
+                      assemblyLayout
+                        ? pdpStep2Done && pdpStep3Done
+                        : pdpStep2Done && pdpStep > 2
+                    }
                     active={pdpStep === 2}
                     badge={pdpStep2Done && pdpStep > 2 ? sideLabel : undefined}
                     help="Choose which part of the garment to print on — front, back, sleeves, or inside neck tag. Select a location, add your artwork, then use the button below the canvas to add prints to more locations. Each location is priced separately."
@@ -5131,8 +5233,11 @@ export default function CustomizerTemplate({
 
                   {/* At Step 4 collapse to just the header — saves vertical space.
                       "Change" on the header lets the customer jump back to pick
-                      a different location. */}
-                  {pdpStep < 4 ? (
+                      a different location. In assembly mode the section's own
+                      accordion controls visibility, so keep the body mounted
+                      whenever the section is expanded (pdpStep advances to 4
+                      after a size is picked but we still want it visible). */}
+                  {assemblyLayout || pdpStep < 4 ? (
                     <>
                       {decoratedCount > 0 ? (
                         <div className="space-y-1.5 rounded-lg bg-emerald-50/70 px-2.5 py-2 ring-1 ring-emerald-200">
@@ -5157,7 +5262,15 @@ export default function CustomizerTemplate({
                       <SideSelector
                         currentSide={currentSide}
                         allowedSides={allowedPrintSides}
-                        decoratedSides={decoratedSides}
+                        // Tick both decorated AND sized sides so a location the
+                        // customer has confirmed a print size on shows ✓ even
+                        // before artwork lands on it.
+                        decoratedSides={Array.from(
+                          new Set([
+                            ...decoratedSides,
+                            ...(Object.keys(sizingDoneSides) as GarmentSide[]),
+                          ])
+                        )}
                         hideSelection={pdpStep === 2 && !pdpStep2Done}
                         onSelectSide={(side) => {
                           switchSide(side)
@@ -5191,11 +5304,25 @@ export default function CustomizerTemplate({
                       )}
                       {/*
                         The decoration-method picker (Print/Embroidery) used
-                        to live here, but it's now in Step 3 alongside the
-                        size/embroidery configuration — that way the customer
-                        can change a side's method any time they're working
-                        on it, not just during the initial Step-2 setup.
+                        to live here, but it's now in the print-size body
+                        (renderPrintSizeBody) alongside the size/embroidery
+                        configuration — that way the customer can change a
+                        side's method any time they're working on it.
                       */}
+
+                      {/* Assembly only: the print-size selection is folded
+                          into this combined section, rendered inline beneath
+                          the location tabs once a position is chosen. In the
+                          non-assembly layout the size body stays in its own
+                          Step 3 card further down. */}
+                      {assemblyLayout && pdpStep2Done ? (
+                        <div className="space-y-4 border-t border-ui-border-base pt-4">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-ui-fg-subtle">
+                            Print size · {sideLabel}
+                          </p>
+                          {renderPrintSizeBody(true)}
+                        </div>
+                      ) : null}
                     </>
                   ) : null}
                 </motion.div>
@@ -5203,14 +5330,16 @@ export default function CustomizerTemplate({
             })()
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
-              assemblyNum={3}
-              title="Print location"
+              assemblyNum={2}
+              title="Print location & size"
               status={
-                decoratedSides.length > 0
-                  ? `${decoratedSides.length} location${decoratedSides.length === 1 ? "" : "s"}`
+                decoratedSides.length > 0 || pdpStep3Done
+                  ? `${decoratedSides.length || "No"} location${
+                      decoratedSides.length === 1 ? "" : "s"
+                    } · ${printSizeLabel}`
                   : "No selection"
               }
-              done={pdpStep2Done}
+              done={pdpStep2Done && pdpStep3Done}
               onExpand={() => expandAssemblySection(2)}
             />
           ) : (
@@ -5287,22 +5416,84 @@ export default function CustomizerTemplate({
             )
           })()}
 
-          {/* Step 3 — Print size */}
-          {(assemblyLayout ? assemblyExpanded === 3 : pdpStep >= 3) ? (
+          {/* Artwork — collapsible section (assembly layout only). Hosts the
+              InputPanel (upload / text / saved uploads) that in the normal
+              layout sits beside the canvas; moving it here lets the canvas
+              take the full width of the design column. Sits AFTER the combined
+              "Print location & size" section so the studio flow reads
+              location/size → artwork → quantity. */}
+          {assemblyLayout && !isAdminProofMode ? (
+            assemblyArtworkOpen ? (
+              <div className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setAssemblyArtworkOpen(false)}
+                  aria-expanded={true}
+                  className="flex w-full flex-col items-start gap-2.5 text-left"
+                >
+                  <span
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle"
+                    aria-hidden
+                  >
+                    ✕
+                  </span>
+                  <span className="truncate pr-12 text-[15px] font-semibold text-ui-fg-base">
+                    Artwork
+                  </span>
+                </button>
+                <span
+                  className="pointer-events-none absolute -top-3 -right-1 select-none text-[5rem] font-black leading-none tracking-tighter text-ui-fg-base"
+                  aria-hidden
+                >
+                  03
+                </span>
+                <InputPanel
+                  onUploadFile={inputPanelProps.onUploadFile}
+                  uploads={inputPanelUploads}
+                  onReuseUpload={inputPanelProps.onReuseUpload}
+                  cartDesigns={cartArtworkDesigns}
+                  onAddCartDesign={inputPanelProps.onAddCartDesign}
+                  onAddText={inputPanelProps.onAddText}
+                  onAddCurvedText={inputPanelProps.onAddCurvedText}
+                  onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
+                  canRemoveImage={canRemoveImage}
+                  onDeleteUpload={inputPanelProps.onDeleteUpload}
+                  enabled={!embedded || !pdpHasVariantOptions || pdpStep1Done}
+                  disabledMessage={inputPanelDisabledMessage}
+                  selectedText={selectedTextSnapshot}
+                  onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}
+                  onDeselectText={inputPanelProps.onDeselectText}
+                  className="border-0 bg-transparent p-0"
+                />
+              </div>
+            ) : (
+              <AssemblyCollapsedHeader
+                assemblyNum={3}
+                title="Artwork"
+                status="Upload a logo or add text"
+                onExpand={() => {
+                  setAssemblyArtworkOpen(true)
+                  setAssemblyExpanded(null)
+                }}
+              />
+            )
+          ) : null}
+
+          {/* Step 3 — Print size. ASSEMBLY MODE: this section is folded into
+              the combined "Print location & size" card above (section 02), so
+              it renders nothing standalone here. NON-ASSEMBLY MODE: unchanged —
+              its own card / preview, body shared via renderPrintSizeBody(). */}
+          {assemblyLayout ? null : pdpStep >= 3 ? (
             <motion.div
               ref={step3Ref}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
-              className={
-              assemblyLayout
-                ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
-                : `space-y-3 rounded-xl border p-4 ${
-                    pdpStep === 3
-                      ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
-                      : "border-ui-border-base bg-ui-bg-subtle/40"
-                  }`
-            }>
+              className={`space-y-3 rounded-xl border p-4 ${
+                pdpStep === 3
+                  ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
+                  : "border-ui-border-base bg-ui-bg-subtle/40"
+              }`}>
               <StepHeader
                 num={stepNum(3)}
                 assemblyNum={4}
@@ -5329,153 +5520,8 @@ export default function CustomizerTemplate({
                 assemblyOpen={assemblyExpanded === 3}
                 onToggle={() => setAssemblyExpanded(null)}
               />
-              {pdpStep === 3 ? (
-                <>
-                  {/* Per-side method picker — always visible here so the
-                      customer can switch a side between print and embroidery
-                      after the initial Step-2 setup (e.g. front=print at
-                      first, then change back=embroidery without re-opening
-                      the print-positions step). */}
-                  <div className="rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2">
-                    <div className="mb-1.5 flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-ui-fg-subtle">
-                        Decoration method · {sideLabel}
-                      </span>
-                    </div>
-                    <DecorationMethodPicker
-                      side={currentSide}
-                      value={
-                        sideDecorationMethods[currentSide] ??
-                        availableMethodsForCurrentSide[0] ??
-                        "print"
-                      }
-                      availableMethods={availableMethodsForCurrentSide}
-                      onChange={(side, method) => {
-                        setSideDecorationMethods((prev) => ({ ...prev, [side]: method }))
-                        if (method === "embroidery") {
-                          setSizingDoneSides((prev) => ({ ...prev, [side]: true }))
-                        } else {
-                          setSideEmbroideryConfigs((prev) => {
-                            const next = { ...prev }
-                            delete next[side]
-                            return next
-                          })
-                          setSizingDoneSides((prev) => {
-                            const next = { ...prev }
-                            delete next[side]
-                            return next
-                          })
-                          // Re-prompt for print size since we just reverted to print.
-                          setScpPrintSizeChosen(false)
-                        }
-                      }}
-                    />
-                  </div>
-                  {sideDecorationMethods[currentSide] === "embroidery" ? (
-                    <EmbroiderySideConfig
-                      // Remount per side: the component seeds its mm/stitch
-                      // inputs from `value` on mount only, so without a per-side
-                      // key it would show (and persist) the previous side's
-                      // values when switching garment sides.
-                      key={currentSide}
-                      side={currentSide}
-                      value={sideEmbroideryConfigs[currentSide]}
-                      onChange={(side, next) => {
-                        setSideEmbroideryConfigs((prev) => ({ ...prev, [side]: next }))
-                      }}
-                      getArtworkDataUrl={getCurrentSideArtworkDataUrl}
-                    />
-                  ) : allowedSizesForCurrentSide.length === 1 &&
-                  allowedSizesForCurrentSide[0] === "up_to_a6" ? (
-                    <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
-                      <span className="font-semibold text-ui-fg-base">{sideLabel}</span> prints
-                      are limited to A6 (10×15 cm) — only one size is available for this location.
-                    </p>
-                  ) : (currentSide === "left_sleeve" || currentSide === "right_sleeve") &&
-                    productIsLongSleeve ? (
-                    <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
-                      <span className="font-semibold text-ui-fg-base">{sideLabel}</span> prints on
-                      long-sleeve garments can go up to A3 (29×42 cm).
-                    </p>
-                  ) : null}
-                  {sideDecorationMethods[currentSide] === "embroidery" ? null : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {SCP_PRINT_SIZE_OPTIONS.filter((opt) =>
-                      allowedSizesForCurrentSide.includes(opt.id)
-                    ).map((opt) => {
-                      // Show the price the customer will *actually* pay at their
-                      // current quantity (highest 1-9 tier if no qty set yet) —
-                      // not the cheapest 100+ tier. The bulk discount drops it
-                      // further at higher qty, communicated via the bulk-tier
-                      // panel below.
-                      const matrixRow = SCP_PRINT_UNIT_MATRIX[opt.id]
-                      const tierIdx = resolveScpTierIndexForQuantity(totalQty)
-                      const currentPrice = matrixRow[tierIdx]
-                      const bestPrice = matrixRow[matrixRow.length - 1]
-                      const showsDiscountHint = currentPrice > bestPrice
-                      const selected = scpPrintSizeChosen && scpPrintSizeId === opt.id
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => {
-                            setScpPrintSizeId(opt.id)
-                            setScpPrintSizeChosen(true)
-                            setSizingDoneSides((prev) => ({ ...prev, [currentSide]: true as const }))
-                            setPdpStep((s) => (s > 3 ? s : 4))
-                          }}
-                          className={`flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
-                            selected
-                              ? "border-ui-border-interactive bg-ui-bg-base-pressed"
-                              : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle"
-                          }`}
-                        >
-                          <span className="text-sm font-semibold text-ui-fg-base">
-                            {opt.label}
-                          </span>
-                          <span className="text-[11px] text-ui-fg-subtle">
-                            {opt.dimensionsLabel}
-                          </span>
-                          <span className="text-[11px] text-ui-fg-muted">
-                            ${currentPrice.toFixed(2)} ea
-                            {showsDiscountHint
-                              ? ` · drops to $${bestPrice.toFixed(2)} at 100+`
-                              : ""}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  )}
-                </>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-baseline justify-between gap-2 rounded-lg bg-ui-bg-subtle/60 px-2.5 py-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-ui-fg-base">{printSizeLabel}</p>
-                      <p className="text-[11px] text-ui-fg-muted">
-                        {SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === scpPrintSizeId)?.dimensionsLabel}
-                      </p>
-                    </div>
-                    <p className="shrink-0 text-sm font-semibold text-ui-fg-base">
-                      $
-                      {SCP_PRINT_UNIT_MATRIX[scpPrintSizeId][
-                        resolveScpTierIndexForQuantity(totalQty)
-                      ].toFixed(2)}{" "}
-                      <span className="text-[11px] font-normal text-ui-fg-subtle">ea / location</span>
-                    </p>
-                  </div>
-                </div>
-              )}
+              {renderPrintSizeBody(pdpStep === 3)}
             </motion.div>
-          ) : assemblyLayout ? (
-            <AssemblyCollapsedHeader
-              assemblyNum={4}
-              title="Print size"
-              status={printSizeLabel}
-              done={pdpStep3Done}
-              onExpand={() => expandAssemblySection(3)}
-            />
           ) : (
             <div ref={step3Ref}>
               <StepPreview
@@ -5613,7 +5659,7 @@ export default function CustomizerTemplate({
               className="flex flex-col gap-3"
             >
               <div className={assemblyLayout ? "relative space-y-2 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
-                <StepHeader num={stepNum(4)} assemblyNum={5} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
+                <StepHeader num={stepNum(4)} assemblyNum={4} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
                     front: "Front",
@@ -5740,7 +5786,7 @@ export default function CustomizerTemplate({
             </motion.div>
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
-              assemblyNum={5}
+              assemblyNum={4}
               title="Quantity & checkout"
               status="Sizes, quantities & add to cart"
               onExpand={() => expandAssemblySection(4)}
