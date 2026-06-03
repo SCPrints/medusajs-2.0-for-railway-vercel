@@ -2736,6 +2736,40 @@ export default function CustomizerTemplate({
     setUploadError(null)
   }
 
+  /**
+   * Remove an entire print location. Clears every artwork object on that side
+   * and un-confirms it, so the location drops off the order — cart-add and
+   * pricing are both derived from `decoratedSides` (sides that still hold
+   * artwork), so emptying the side fully removes it. Works whether the side is
+   * the one currently on the canvas (live remove) or a different saved side
+   * (clears its stored layout). This is the explicit "remove this location"
+   * control the assembly wizard previously lacked.
+   */
+  const clearPrintLocation = (side: GarmentSide) => {
+    const canvas = fabricCanvasRef.current
+    if (side === currentSide && canvas) {
+      canvas.getObjects().slice().forEach((obj) => canvas.remove(obj))
+      canvas.discardActiveObject()
+      canvas.renderAll()
+      updateLayers()
+      // Serialises the now-empty canvas → sideLayoutsRef[side] = [] + bumps version.
+      saveCurrentSide()
+    } else {
+      sideLayoutsRef.current[side] = []
+      bumpLayoutVersion()
+    }
+    // Drop the per-side "sized" flag so the location is fully un-confirmed and
+    // won't show a stale ✓ / sized state if the customer revisits it.
+    setSizingDoneSides((prev) => {
+      if (!prev[side]) return prev
+      const next = { ...prev }
+      delete next[side]
+      return next
+    })
+    setUploadError(null)
+    trackCustomizerAction("print_location_removed", { side })
+  }
+
   const canRemoveImage = useMemo(() => {
     // Same relaxation — enable Remove for any selected, non-locked
     // top-level layer (image / svg-group / text). Locked layers stay
@@ -5260,10 +5294,19 @@ export default function CustomizerTemplate({
                             {decoratedAllowed.map((s) => (
                               <li
                                 key={s}
-                                className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-emerald-900 ring-1 ring-emerald-200"
+                                className="inline-flex items-center gap-1 rounded-full bg-white py-0.5 pl-2 pr-1 text-[11px] font-medium text-emerald-900 ring-1 ring-emerald-200"
                               >
                                 <span aria-hidden>✓</span>
                                 {sideLabelMap[s]}
+                                <button
+                                  type="button"
+                                  onClick={() => clearPrintLocation(s)}
+                                  aria-label={`Remove ${sideLabelMap[s]} print location`}
+                                  title={`Remove ${sideLabelMap[s]}`}
+                                  className="ml-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-900"
+                                >
+                                  ×
+                                </button>
                               </li>
                             ))}
                           </ul>
@@ -5273,15 +5316,15 @@ export default function CustomizerTemplate({
                       <SideSelector
                         currentSide={currentSide}
                         allowedSides={allowedPrintSides}
-                        // Tick both decorated AND sized sides so a location the
-                        // customer has confirmed a print size on shows ✓ even
-                        // before artwork lands on it.
-                        decoratedSides={Array.from(
-                          new Set([
-                            ...decoratedSides,
-                            ...(Object.keys(sizingDoneSides) as GarmentSide[]),
-                          ])
-                        )}
+                        // A tab is ticked ✓ ONLY once it actually has artwork on
+                        // it. Merely visiting a location — or a single-size side
+                        // (sleeves/tag = A6) being auto-sized just to unlock the
+                        // upload panel — must NOT mark it "added", otherwise
+                        // clicking through the sleeve tabs silently confirms
+                        // locations the customer never chose. "Added" == has
+                        // artwork, which is exactly what cart + pricing derive
+                        // from (decoratedSides), so the three now agree.
+                        decoratedSides={decoratedSides}
                         hideSelection={pdpStep === 2 && !pdpStep2Done}
                         onSelectSide={(side) => {
                           switchSide(side)
