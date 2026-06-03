@@ -4459,6 +4459,7 @@ export default function CustomizerTemplate({
       help,
       assemblyOpen,
       onToggle,
+      assemblyNum,
     }: {
       num: number
       title: string
@@ -4469,6 +4470,8 @@ export default function CustomizerTemplate({
       help?: string
       assemblyOpen?: boolean
       onToggle?: () => void
+      /** Display-order ordinal shown (zero-padded) in the studio header. */
+      assemblyNum?: number
     }) => {
       // Assembly layout: the whole header row is a toggle with a chevron, so
       // any section can be collapsed/expanded at any time (no inline help
@@ -4482,15 +4485,25 @@ export default function CustomizerTemplate({
             aria-expanded={!!assemblyOpen}
             className="group flex w-full items-center justify-between gap-3 text-left"
           >
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-[15px] font-semibold text-ui-fg-base">
-                {title}
-              </span>
-              {badge && (
-                <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
-                  {badge}
+            <span className="flex min-w-0 items-center gap-3">
+              {assemblyNum != null && (
+                <span
+                  className="shrink-0 text-lg font-black leading-none tabular-nums text-ui-fg-base"
+                  aria-hidden
+                >
+                  {String(assemblyNum).padStart(2, "0")}
                 </span>
               )}
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-[15px] font-semibold text-ui-fg-base">
+                  {title}
+                </span>
+                {badge && (
+                  <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
+                    {badge}
+                  </span>
+                )}
+              </span>
             </span>
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
@@ -4596,27 +4609,40 @@ export default function CustomizerTemplate({
       status,
       done,
       onExpand,
+      assemblyNum,
     }: {
-      num: number | string
+      num?: number | string
       title: string
       status?: string
       done?: boolean
       onExpand: () => void
+      /** Display-order ordinal shown (zero-padded) in the studio header. */
+      assemblyNum?: number
     }) => (
       <button
         type="button"
         onClick={onExpand}
         className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base px-5 py-4 text-left transition hover:border-ui-border-strong"
       >
-        <span className="flex min-w-0 flex-col">
-          <span className="truncate text-[15px] font-semibold text-ui-fg-base">
-            {title}
-          </span>
-          {status ? (
-            <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
-              {status}
+        <span className="flex min-w-0 items-center gap-3">
+          {assemblyNum != null && (
+            <span
+              className="shrink-0 text-lg font-black leading-none tabular-nums text-ui-fg-base"
+              aria-hidden
+            >
+              {String(assemblyNum).padStart(2, "0")}
             </span>
-          ) : null}
+          )}
+          <span className="flex min-w-0 flex-col">
+            <span className="truncate text-[15px] font-semibold text-ui-fg-base">
+              {title}
+            </span>
+            {status ? (
+              <span className="mt-0.5 truncate text-xs font-normal text-ui-fg-subtle">
+                {status}
+              </span>
+            ) : null}
+          </span>
         </span>
         <span
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
@@ -4943,6 +4969,7 @@ export default function CustomizerTemplate({
             }>
               <StepHeader
                 num={1}
+                assemblyNum={1}
                 title="Product options"
                 done={pdpStep1Done && pdpStep > 1}
                 active={pdpStep === 1}
@@ -5002,8 +5029,16 @@ export default function CustomizerTemplate({
                   aria-expanded={true}
                   className="group flex w-full items-center justify-between gap-3 text-left"
                 >
-                  <span className="truncate text-[15px] font-semibold text-ui-fg-base">
-                    Artwork
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span
+                      className="shrink-0 text-lg font-black leading-none tabular-nums text-ui-fg-base"
+                      aria-hidden
+                    >
+                      02
+                    </span>
+                    <span className="truncate text-[15px] font-semibold text-ui-fg-base">
+                      Artwork
+                    </span>
                   </span>
                   <span
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle transition-colors group-hover:bg-ui-bg-base-hover"
@@ -5033,7 +5068,7 @@ export default function CustomizerTemplate({
               </div>
             ) : (
               <AssemblyCollapsedHeader
-                num="✎"
+                assemblyNum={2}
                 title="Artwork"
                 status="Upload a logo or add text"
                 onExpand={() => {
@@ -5089,6 +5124,7 @@ export default function CustomizerTemplate({
                 }>
                   <StepHeader
                     num={stepNum(2)}
+                    assemblyNum={3}
                     title={decoratedCount > 0 ? "Add / change print positions" : "Select print location"}
                     done={pdpStep2Done && pdpStep > 2}
                     active={pdpStep === 2}
@@ -5173,7 +5209,7 @@ export default function CustomizerTemplate({
             })()
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
-              num={stepNum(2)}
+              assemblyNum={3}
               title="Print location"
               status={
                 decoratedSides.length > 0
@@ -5275,6 +5311,7 @@ export default function CustomizerTemplate({
             }>
               <StepHeader
                 num={stepNum(3)}
+                assemblyNum={4}
                 title="Print size"
                 done={currentSideSized && pdpStep > 3}
                 active={pdpStep === 3}
@@ -5439,7 +5476,7 @@ export default function CustomizerTemplate({
             </motion.div>
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
-              num={stepNum(3)}
+              assemblyNum={4}
               title="Print size"
               status={printSizeLabel}
               done={pdpStep3Done}
@@ -5582,7 +5619,7 @@ export default function CustomizerTemplate({
               className="flex flex-col gap-3"
             >
               <div className={assemblyLayout ? "space-y-2 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
-                <StepHeader num={stepNum(4)} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
+                <StepHeader num={stepNum(4)} assemblyNum={5} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
                     front: "Front",
@@ -5709,7 +5746,7 @@ export default function CustomizerTemplate({
             </motion.div>
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
-              num={stepNum(4)}
+              assemblyNum={5}
               title="Quantity & checkout"
               status="Sizes, quantities & add to cart"
               onExpand={() => expandAssemblySection(4)}
