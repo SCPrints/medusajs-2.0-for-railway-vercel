@@ -4483,9 +4483,15 @@ export default function CustomizerTemplate({
             type="button"
             onClick={onToggle}
             aria-expanded={!!assemblyOpen}
-            className="flex w-full items-start justify-between gap-3 text-left"
+            className="flex w-full flex-col items-start gap-2.5 text-left"
           >
-            <span className="flex min-w-0 flex-col pt-1">
+            <span
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle"
+              aria-hidden
+            >
+              {assemblyOpen ? "✕" : done ? "✎" : "+"}
+            </span>
+            <span className="flex min-w-0 flex-col pr-12">
               <span className="truncate text-[15px] font-semibold text-ui-fg-base">
                 {title}
               </span>
@@ -4497,7 +4503,7 @@ export default function CustomizerTemplate({
             </span>
             {assemblyNum != null && (
               <span
-                className="-mr-1 -mt-1 shrink-0 select-none text-[32px] font-black leading-none tabular-nums text-ui-fg-base"
+                className="pointer-events-none absolute -top-3 right-4 select-none text-[56px] font-black leading-none tabular-nums text-ui-fg-base"
                 aria-hidden
               >
                 {String(assemblyNum).padStart(2, "0")}
@@ -4614,9 +4620,15 @@ export default function CustomizerTemplate({
       <button
         type="button"
         onClick={onExpand}
-        className="flex w-full items-start justify-between gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base px-5 py-4 text-left transition hover:border-ui-border-strong"
+        className="relative flex w-full flex-col items-start gap-2.5 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base px-5 py-4 text-left transition hover:border-ui-border-strong"
       >
-        <span className="flex min-w-0 flex-col pt-1">
+        <span
+          className="flex h-7 w-7 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle"
+          aria-hidden
+        >
+          {done ? "✎" : "+"}
+        </span>
+        <span className="flex min-w-0 flex-col pr-12">
           <span className="truncate text-[15px] font-semibold text-ui-fg-base">
             {title}
           </span>
@@ -4628,7 +4640,7 @@ export default function CustomizerTemplate({
         </span>
         {assemblyNum != null && (
           <span
-            className="-mr-1 -mt-1 shrink-0 select-none text-[32px] font-black leading-none tabular-nums text-ui-fg-base"
+            className="pointer-events-none absolute -top-3 right-4 select-none text-[56px] font-black leading-none tabular-nums text-ui-fg-base"
             aria-hidden
           >
             {String(assemblyNum).padStart(2, "0")}
@@ -4944,7 +4956,7 @@ export default function CustomizerTemplate({
           {hasStep1 && !editGroupId && !isAdminProofMode ? (
             <div ref={step1Ref} className={
               assemblyLayout
-                ? "space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
                 : `space-y-3 rounded-xl border p-4 ${
                     pdpStep === 1
                       ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
@@ -5006,23 +5018,29 @@ export default function CustomizerTemplate({
               take the full width of the design column. */}
           {assemblyLayout && !isAdminProofMode ? (
             assemblyArtworkOpen ? (
-              <div className="space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
+              <div className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setAssemblyArtworkOpen(false)}
                   aria-expanded={true}
-                  className="flex w-full items-start justify-between gap-3 text-left"
+                  className="flex w-full flex-col items-start gap-2.5 text-left"
                 >
-                  <span className="truncate pt-1 text-[15px] font-semibold text-ui-fg-base">
-                    Artwork
-                  </span>
                   <span
-                    className="-mr-1 -mt-1 shrink-0 select-none text-[32px] font-black leading-none tabular-nums text-ui-fg-base"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-ui-bg-subtle text-base leading-none text-ui-fg-subtle"
                     aria-hidden
                   >
-                    02
+                    ✕
+                  </span>
+                  <span className="truncate pr-12 text-[15px] font-semibold text-ui-fg-base">
+                    Artwork
                   </span>
                 </button>
+                <span
+                  className="pointer-events-none absolute -top-3 right-4 select-none text-[56px] font-black leading-none tabular-nums text-ui-fg-base"
+                  aria-hidden
+                >
+                  02
+                </span>
                 <InputPanel
                   onUploadFile={inputPanelProps.onUploadFile}
                   uploads={inputPanelUploads}
@@ -5091,7 +5109,7 @@ export default function CustomizerTemplate({
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
                   className={
                   assemblyLayout
-                    ? "space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                    ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
                     : `space-y-3 rounded-xl border p-4 ${
                         pdpStep === 2
                           ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
@@ -5278,7 +5296,7 @@ export default function CustomizerTemplate({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
               className={
               assemblyLayout
-                ? "space-y-4 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+                ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
                 : `space-y-3 rounded-xl border p-4 ${
                     pdpStep === 3
                       ? "border-ui-fg-base bg-ui-bg-base shadow-sm"
@@ -5594,7 +5612,7 @@ export default function CustomizerTemplate({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
               className="flex flex-col gap-3"
             >
-              <div className={assemblyLayout ? "space-y-2 rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
+              <div className={assemblyLayout ? "relative space-y-2 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
                 <StepHeader num={stepNum(4)} assemblyNum={5} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
