@@ -6,6 +6,7 @@ import { HelpTooltip } from "../../components/reports/help-tooltip"
 import AsColourImportPage from "../ascolour-import/page"
 import FashionBizImportPage from "../fashionbiz-import/page"
 import AussiePacificImportPage from "../aussie-pacific-import/page"
+import GildanImportPage from "../gildan-import/page"
 import ProductTypeTagManagePage from "../product-type-tag-manage/page"
 import SpreadsheetSyncPage from "../spreadsheet-sync/page"
 import SpreadsheetSyncUpdatePage from "../spreadsheet-sync-update/page"
@@ -36,13 +37,14 @@ const ProductDataPage = () => {
           <HelpTooltip
             text={{
               title: "Product data",
-              body: "Three bulk-catalog workflows on a single page. Each tab is a different surgical instrument — pick the right one before running.",
+              body: "Bulk-catalog workflows on a single page. General tabs for any supplier, plus supplier-specific tabs. Each tab is a different surgical instrument — pick the right one before running.",
               bullets: [
+                "Browse & manage: filter the catalog by brand, type, tag, category, sales channel, or data-quality gap, then bulk-edit selected products (status, brand, tags, sales channels, categories, collection, delete, export CSV).",
                 "Import new products: from a supplier CSV (DNC, FashionBiz, AS Colour, etc.). Creates products that don't exist yet — never use to tweak existing ones.",
                 "Update existing: patches columns on already-imported products. Matches by SKU; only patches the columns you tick.",
-                "Browse & manage: filter the catalog by brand, type, tag, category, sales channel, or data-quality gap, then bulk-edit selected products (status, brand, tags, sales channels, categories, collection, delete, export CSV).",
                 "Types & tags: delete unused or duplicate product types and tags from the store.",
                 "Taxonomy audit: live count of products missing the type, demographic tag, or Shop category the storefront needs to group them by.",
+                "Supplier tabs (AS Colour, FashionBiz, Aussie Pacific, Gildan): supplier-specific import flows with live validation and image scraping.",
                 "Result logs are scoped to your last action — they clear when you start a new sync or pick a new file.",
               ],
             }}
@@ -66,6 +68,7 @@ const ProductDataPage = () => {
             <Tabs.Trigger value="ascolour-import">AS Colour Import</Tabs.Trigger>
             <Tabs.Trigger value="fashionbiz-import">FashionBiz Import</Tabs.Trigger>
             <Tabs.Trigger value="aussie-pacific-import">Aussie Pacific Import</Tabs.Trigger>
+            <Tabs.Trigger value="gildan-import">Gildan Import</Tabs.Trigger>
           </Tabs.List>
         </Container>
 
@@ -146,6 +149,10 @@ const ProductDataPage = () => {
 
         <Tabs.Content value="aussie-pacific-import" className="flex flex-col gap-y-3">
           <AussiePacificImportPage />
+        </Tabs.Content>
+
+        <Tabs.Content value="gildan-import" className="flex flex-col gap-y-3">
+          <GildanImportPage />
         </Tabs.Content>
       </Tabs>
     </div>

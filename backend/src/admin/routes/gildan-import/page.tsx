@@ -1,4 +1,3 @@
-import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ArrowDownTray } from "@medusajs/icons"
 import {
   Badge,
@@ -269,10 +268,5 @@ const Stat = ({ label, value }: { label: string; value: number }) => (
     </Text>
   </div>
 )
-
-export const config = defineRouteConfig({
-  label: "Gildan Import",
-  icon: ArrowDownTray,
-})
 
 export default GildanImportPage
