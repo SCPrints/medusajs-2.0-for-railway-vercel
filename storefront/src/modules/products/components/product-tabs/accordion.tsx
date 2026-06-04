@@ -15,6 +15,7 @@ type AccordionItemProps = AccordionPrimitive.AccordionItemProps & {
   active?: boolean
   triggerable?: boolean
   titleClassName?: string
+  hideTrigger?: boolean
   children: React.ReactNode
 }
 
@@ -44,6 +45,7 @@ const Item: React.FC<AccordionItemProps> = ({
   forceMountContent = undefined,
   triggerable,
   titleClassName,
+  hideTrigger = false,
   ...props
 }) => {
   return (
@@ -67,10 +69,12 @@ const Item: React.FC<AccordionItemProps> = ({
                 {title}
               </Text>
             </div>
-            {/* x@ts-expect-error */}
-            <AccordionPrimitive.Trigger>
-              {customTrigger || <MorphingTrigger />}
-            </AccordionPrimitive.Trigger>
+            {!hideTrigger && (
+              /* x@ts-expect-error */
+              <AccordionPrimitive.Trigger>
+                {customTrigger || <MorphingTrigger />}
+              </AccordionPrimitive.Trigger>
+            )}
           </div>
           {subtitle && (
             <Text as="span" size="small" className="mt-1">

@@ -29,6 +29,7 @@ export default function LandingColourSelector({ product }: Props) {
       updateOption={setOptionValue}
       disabled={false}
       hideSizeOption
+      hideTrigger
     />
   )
 }

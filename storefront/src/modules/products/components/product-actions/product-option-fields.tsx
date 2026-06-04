@@ -13,6 +13,8 @@ type ProductOptionFieldsProps = {
   disabled: boolean
   /** Embedded customizer: size + quantities live in the pricing panel. */
   hideSizeOption?: boolean
+  /** Hide the accordion +/- toggle trigger. */
+  hideTrigger?: boolean
   "data-testid"?: string
 }
 
@@ -34,6 +36,7 @@ export default function ProductOptionFields({
   updateOption,
   disabled,
   hideSizeOption = false,
+  hideTrigger = false,
   "data-testid": dataTestId,
 }: ProductOptionFieldsProps) {
   const productOptions = (product.options ?? []).filter(
@@ -59,6 +62,7 @@ export default function ProductOptionFields({
               subtitle={selected}
               headingSize="medium"
               titleClassName="text-base font-semibold text-ui-fg-base"
+              hideTrigger={hideTrigger}
             >
               <OptionSelect
                 product={product}
