@@ -3,7 +3,6 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import ContactForm from "@modules/contact/components/contact-form"
 import ContactMap from "@modules/contact/components/contact-map"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import SessionIntro from "@modules/home/components/home-session-intro"
 
 
 export async function generateStaticParams() {
@@ -96,8 +95,7 @@ export default async function ContactPage({
   }
 
   return (
-    <SessionIntro>
-      <div className="content-container py-14 small:py-20">
+    <div className="content-container py-14 small:py-20">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(contactStructuredData) }}
@@ -178,6 +176,5 @@ export default async function ContactPage({
           </div>
         </div>
       </div>
-    </SessionIntro>
   )
 }
