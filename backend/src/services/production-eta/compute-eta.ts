@@ -56,13 +56,13 @@ export type ProductionEtaConfig = {
 export const DEFAULT_PRODUCTION_ETA_CONFIG: ProductionEtaConfig = {
   baseline_days_per_stage: {
     received: 1,
-    art_review: 2,
-    awaiting_approval: 2,
-    approved: 1,
-    blanks_ordered: 4,
+    art_review: 1,
+    awaiting_approval: 1,
+    approved: 0,
+    blanks_ordered: 2,
     blanks_arrived: 1,
-    in_production: 2,
-    quality_check: 1,
+    in_production: 1,
+    quality_check: 0,
   },
   daily_throughput_per_stage: {
     received: 20,
@@ -75,7 +75,7 @@ export const DEFAULT_PRODUCTION_ETA_CONFIG: ProductionEtaConfig = {
     quality_check: 15,
   },
   congestion_multiplier: 1.4,
-  minimum_range_days: 2,
+  minimum_range_days: 3,
   minimum_eta_days: 4,
 }
 
