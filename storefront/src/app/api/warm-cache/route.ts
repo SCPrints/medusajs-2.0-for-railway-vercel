@@ -32,15 +32,26 @@ import { listShopCategoriesMenu } from "@lib/data/shop-categories-menu"
  *   - listShopCategoriesMenu — used in nav on every page.
  *
  * Auth:
- *   Vercel cron requests include `Authorization: Bearer ${CRON_SECRET}`.
- *   Manual hits (e.g. for debugging) work too — the warmer is read-only
- *   and idempotent; worst case a curious user warms the cache for us.
+ *   When `CRON_SECRET` is set (always, in prod — Vercel injects it for cron
+ *   invocations as `Authorization: Bearer ${CRON_SECRET}`), the route REQUIRES
+ *   that header and 401s otherwise. This stops anyone from hammering the route
+ *   to amplify load on the slow backend catalog queries (each cold call is
+ *   multi-second × 4 queries). When `CRON_SECRET` is unset (local dev), the
+ *   gate is skipped so manual warming still works.
  *
  * Schedule:
  *   Configured in vercel.json. Cron-friendly: runs in ~1 second when
  *   all caches are warm, ~5 seconds on a true cold cache.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const cronSecret = process.env.CRON_SECRET
+  if (cronSecret) {
+    const auth = request.headers.get("authorization")
+    if (auth !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
+    }
+  }
+
   const start = Date.now()
   const results = await Promise.allSettled([
     listStoreProductTags(),

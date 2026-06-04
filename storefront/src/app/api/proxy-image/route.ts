@@ -54,8 +54,47 @@ function dynamicHostsFromEnv(): string[] {
   return out
 }
 
+/**
+ * Reject literal private / loopback / link-local / metadata hosts so that
+ * even a misconfigured (or compromised) allowlist entry can't be used to
+ * reach internal infrastructure or the cloud metadata endpoint. This is a
+ * cheap second layer behind the allowlist + the `redirect: "manual"` guard
+ * below — it catches the case where an allowlisted host resolves to, or a
+ * `url=` param points directly at, an internal address.
+ */
+function isBlockedAddress(hostname: string): boolean {
+  const lower = hostname.toLowerCase()
+  if (lower === "localhost" || lower.endsWith(".localhost")) return true
+  if (lower === "metadata.google.internal") return true
+  // IPv6 loopback / unspecified / link-local / unique-local.
+  if (lower === "::1" || lower === "[::1]" || lower === "::" || lower === "[::]")
+    return true
+  if (
+    lower.startsWith("[fe80:") ||
+    lower.startsWith("fe80:") ||
+    lower.startsWith("[fc") ||
+    lower.startsWith("[fd") ||
+    lower.startsWith("fc") ||
+    lower.startsWith("fd")
+  )
+    return true
+  // IPv4 literals in private / loopback / link-local / metadata ranges.
+  const v4 = lower.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (v4) {
+    const [a, b] = [Number(v4[1]), Number(v4[2])]
+    if (a === 10) return true // 10.0.0.0/8
+    if (a === 127) return true // loopback
+    if (a === 0) return true // 0.0.0.0/8
+    if (a === 169 && b === 254) return true // link-local + 169.254.169.254 metadata
+    if (a === 172 && b >= 16 && b <= 31) return true // 172.16.0.0/12
+    if (a === 192 && b === 168) return true // 192.168.0.0/16
+  }
+  return false
+}
+
 function isAllowedHost(hostname: string): boolean {
   const lower = hostname.toLowerCase()
+  if (isBlockedAddress(lower)) return false
   if (STATIC_HOST_ALLOWLIST.includes(lower)) return true
   if (dynamicHostsFromEnv().includes(lower)) return true
   // Wildcards for R2 dev URLs (random subdomain per bucket) and the
@@ -105,7 +144,19 @@ export async function GET(req: NextRequest) {
       // a stale supplier image. Cache on the EDGE / CDN at our layer
       // via the response headers below.
       cache: "no-store",
+      // SSRF guard: do NOT follow redirects. The allowlist only validates
+      // the initial hostname — an allowlisted host (or one with an open
+      // redirect) that 3xx-bounces to http://169.254.169.254/... or an
+      // internal service would otherwise be followed server-side and the
+      // response streamed back to the caller. Treat any redirect as an error.
+      redirect: "manual",
     })
+    if (upstream.status >= 300 && upstream.status < 400) {
+      return NextResponse.json(
+        { message: `Upstream ${parsed.hostname} attempted a redirect; refusing to follow.` },
+        { status: 502 }
+      )
+    }
     if (!upstream.ok || !upstream.body) {
       return NextResponse.json(
         { message: `Upstream ${parsed.hostname} returned ${upstream.status}.` },

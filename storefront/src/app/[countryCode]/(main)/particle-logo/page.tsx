@@ -25,6 +25,9 @@ export async function generateMetadata({
   return {
     title: "Interactive particle logo",
     description,
+    // Dev/experiment sandbox — keep out of the index like the sibling
+    // experiment routes (space-hero, jungle-scene, etc.).
+    robots: { index: false, follow: false },
     alternates: {
       canonical: canonicalPath,
     },

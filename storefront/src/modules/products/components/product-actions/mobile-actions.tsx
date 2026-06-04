@@ -69,6 +69,9 @@ const MobileActions: React.FC<MobileActionsProps> = ({
           <div
             className="bg-white flex flex-col gap-y-3 justify-center items-center text-large-regular p-4 h-full w-full border-t border-gray-200"
             data-testid="mobile-actions"
+            // Respect the iOS home-indicator so the Add-to-cart / Select-Options
+            // CTAs aren't tucked under it (canonical pattern: mobile-checkout-bar).
+            style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
           >
             <div className="flex items-center gap-x-2">
               <span data-testid="mobile-title">{product.title}</span>
@@ -160,6 +163,7 @@ const MobileActions: React.FC<MobileActionsProps> = ({
                   <div className="w-full flex justify-end pr-6">
                     <button
                       onClick={close}
+                      aria-label="Close options"
                       className="bg-white w-12 h-12 rounded-full text-ui-fg-base flex justify-center items-center"
                       data-testid="close-modal-button"
                     >

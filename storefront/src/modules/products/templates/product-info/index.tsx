@@ -1,5 +1,6 @@
 import { HttpTypes } from "@medusajs/types"
 import { Heading, Text } from "@medusajs/ui"
+import sanitizeHtml from "sanitize-html"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ProductTags from "@modules/products/components/product-tags"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -15,14 +16,60 @@ type ProductInfoProps = {
   hideTitle?: boolean
 }
 
-const sanitizeDescriptionHtml = (description: string) => {
-  return description
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
-    .replace(/\son\w+="[^"]*"/gi, "")
-    .replace(/\son\w+='[^']*'/gi, "")
-    .replace(/javascript:/gi, "")
+/**
+ * Allowlist-based sanitizer for product description HTML.
+ *
+ * Descriptions are written by supplier importers (AS Colour / FashionBiz /
+ * Gildan) and AI-copy drafts — not exclusively hand-trusted admins — so this
+ * is rendered via dangerouslySetInnerHTML and MUST be sanitized with an
+ * allowlist. The previous denylist regex was trivially bypassable
+ * (`<img src=x onerror=...>` with unquoted/whitespaced handlers, `<svg onload>`,
+ * entity-encoded `javascript:`), which is a stored-XSS vector. sanitize-html
+ * strips everything not explicitly permitted below.
+ */
+const DESCRIPTION_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: [
+    "p",
+    "br",
+    "span",
+    "strong",
+    "b",
+    "em",
+    "i",
+    "u",
+    "ul",
+    "ol",
+    "li",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "a",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+  ],
+  allowedAttributes: {
+    a: ["href", "title", "target", "rel"],
+  },
+  // Only safe URL schemes — blocks javascript:/data:/vbscript: hrefs.
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesAppliedToAttributes: ["href"],
+  // Force external links to be safe.
+  transformTags: {
+    a: sanitizeHtml.simpleTransform("a", {
+      rel: "noopener noreferrer nofollow",
+    }),
+  },
+  disallowedTagsMode: "discard",
 }
+
+const sanitizeDescriptionHtml = (description: string) =>
+  sanitizeHtml(description, DESCRIPTION_SANITIZE_OPTIONS)
 
 const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
   const description = product.description?.trim() ?? ""

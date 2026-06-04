@@ -16,8 +16,13 @@ type InputProps = Omit<
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ type, name, label, touched, required, topLabel, ...props }, ref) => {
+  ({ type, name, label, touched, required, topLabel, id, ...props }, ref) => {
     const inputRef = React.useRef<HTMLInputElement>(null)
+    // The floating <label> associates via htmlFor, which matches `id` (not
+    // `name`). Without an id on the input the label was never linked, so
+    // screen readers announced every field as unlabeled. Derive a stable id
+    // from an explicit `id` prop when given, else fall back to `name`.
+    const inputId = id ?? name
     const [showPassword, setShowPassword] = useState(false)
     const [inputType, setInputType] = useState(type)
 
@@ -41,6 +46,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div className="flex relative z-0 w-full txt-compact-medium">
           <input
             type={inputType}
+            id={inputId}
             name={name}
             placeholder=" "
             required={required}
@@ -49,7 +55,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={inputRef}
           />
           <label
-            htmlFor={name}
+            htmlFor={inputId}
             onClick={() => inputRef.current?.focus()}
             className="flex items-center justify-center mx-3 px-1 transition-all absolute duration-300 top-3 -z-1 origin-0 text-ui-fg-subtle"
           >
