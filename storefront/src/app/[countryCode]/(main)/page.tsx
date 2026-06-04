@@ -20,9 +20,10 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HomeTrustStrip from "@modules/home/components/home-trust-strip"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
-import DigitalRainHero from "@modules/home/components/digital-rain-hero"
+import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
+import { NEWMIX_V3_TUNING } from "@modules/home/components/home-particle-logo-hero/newmix-v3-preset"
+import { WORDMARK_GRADIENT } from "@modules/common/lib/wordmark-gradient"
 import FeaturedProductsCarousel from "@modules/home/components/featured-products-carousel"
-import HeroOverlay from "@modules/home/components/space-hero/hero-overlay"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
 import SectionHeader from "@modules/common/components/section-header"
@@ -288,13 +289,20 @@ export default async function Home({
           }}
         />
 
-        {/* 1. Hero — full-spectrum neon "digital rain" (see digital-rain-hero).
-            The previous pixel space scene is preserved at /[countryCode]/space-hero
-            and can be swapped back by re-importing SpaceHero here. */}
-        <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#0B0C10]">
-          <DigitalRainHero style={{ position: "absolute", inset: 0, height: "100%" }} />
-          <HeroOverlay />
-        </section>
+        {/* 1. Hero — interactive "Newmix v3" particle-logo wordmark (the SC Prints
+            wordmark rendered as a cursor-reactive fluid-sim stipple). The shared
+            NEWMIX_V3_TUNING preset is also used by the /[countryCode]/old-hero
+            reference page so the two never drift. The previous neon digital-rain
+            hero (DigitalRainHero + HeroOverlay) and the pixel space scene
+            (/space-hero) can be swapped back by re-importing them here. */}
+        <HomeParticleLogoHero
+          interactionMode="newmix"
+          animatedParticleCap={55000}
+          newmixLiveTuning={NEWMIX_V3_TUNING}
+          bgClassName="bg-ui-fg-base"
+          wordmarkGradient={WORDMARK_GRADIENT}
+          sectionAriaLabel="SC Prints — custom print apparel"
+        />
 
         {/* 2. Trust strip — immediately under hero. Six signals: heritage,
             shipping, no minimum, live order tracking, free DPI check, in-house

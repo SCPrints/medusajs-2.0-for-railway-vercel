@@ -2,9 +2,8 @@ import { Metadata } from "next"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
-import { NEWMIX_V3_TUNING } from "@modules/home/components/home-particle-logo-hero/newmix-v3-preset"
-import { WORDMARK_GRADIENT } from "@modules/common/lib/wordmark-gradient"
+import DigitalRainHero from "@modules/home/components/digital-rain-hero"
+import HeroOverlay from "@modules/home/components/space-hero/hero-overlay"
 
 
 export async function generateStaticParams() {
@@ -19,25 +18,25 @@ export async function generateMetadata({
   params,
 }: MetadataProps): Promise<Metadata> {
   const { countryCode } = await params
-  const canonicalPath = `/${countryCode}/old-hero`
+  const canonicalPath = `/${countryCode}/digital-rain-hero`
   const description =
-    "The original SC Prints home page hero — an interactive particle physics wordmark that reacts to cursor movement."
+    "The neon digital-rain home page hero — preserved for reference after the Newmix v3 particle wordmark was adopted."
 
   return {
-    title: "Old home page animation",
+    title: "Digital rain hero",
     description,
     robots: { index: false, follow: false },
     alternates: { canonical: canonicalPath },
     openGraph: {
       url: buildAbsoluteUrl(canonicalPath),
-      title: `Old home page animation | ${SEO.siteName}`,
+      title: `Digital rain hero | ${SEO.siteName}`,
       description,
       images: [SEO.ogImage],
     },
   }
 }
 
-export default function OldHeroPage() {
+export default function DigitalRainHeroPage() {
   return (
     <div className="relative min-h-screen bg-black text-white">
       <div className="pointer-events-none fixed left-0 top-0 z-[40] w-full px-4 py-4 sm:px-6">
@@ -50,13 +49,12 @@ export default function OldHeroPage() {
           </LocalizedClientLink>
         </div>
       </div>
-      <HomeParticleLogoHero
-        interactionMode="newmix"
-        animatedParticleCap={55000}
-        newmixLiveTuning={NEWMIX_V3_TUNING}
-        bgClassName="bg-ui-fg-base"
-        wordmarkGradient={WORDMARK_GRADIENT}
-      />
+      {/* Faithful copy of the previous home hero: neon digital-rain canvas with
+          the marketing overlay (headline + pricing hook + CTAs) on top. */}
+      <section className="relative h-[100dvh] min-h-[600px] w-full overflow-hidden bg-[#0B0C10]">
+        <DigitalRainHero style={{ position: "absolute", inset: 0, height: "100%" }} />
+        <HeroOverlay />
+      </section>
     </div>
   )
 }

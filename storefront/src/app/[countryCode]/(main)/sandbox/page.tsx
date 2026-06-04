@@ -62,8 +62,8 @@ const CATEGORIES: Category[] = [
         href: "/old-hero",
         label: "Particle logo — Newmix v3",
         description:
-          "Previous v3 Newmix tuning that ran as the home hero. Kept for reference.",
-        status: "archived",
+          "The v3 Newmix tuning currently running as the home page hero. This page is a standalone reference of the same animation.",
+        status: "active",
         tech: "Custom fluid sim",
       },
     ],
@@ -74,11 +74,11 @@ const CATEGORIES: Category[] = [
       "Full-screen scenes tested (or currently running) as the SC Prints homepage hero.",
     items: [
       {
-        href: "/",
-        label: "Digital rain — current live hero",
+        href: "/digital-rain-hero",
+        label: "Digital rain",
         description:
-          "Neon digital-rain canvas currently running on the home page. Link goes to the real home.",
-        status: "active",
+          "Neon digital-rain canvas that previously ran as the home page hero, before the Newmix v3 particle wordmark was adopted. Preserved for reference.",
+        status: "archived",
         tech: "Canvas 2D",
       },
       {
