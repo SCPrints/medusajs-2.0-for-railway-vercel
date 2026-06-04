@@ -3,6 +3,9 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import ContactForm from "@modules/contact/components/contact-form"
 import ContactMap from "@modules/contact/components/contact-map"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
+import { NEWMIX_V3_TUNING } from "@modules/home/components/home-particle-logo-hero/newmix-v3-preset"
+import { WORDMARK_GRADIENT } from "@modules/common/lib/wordmark-gradient"
 
 
 export async function generateStaticParams() {
@@ -95,7 +98,19 @@ export default async function ContactPage({
   }
 
   return (
-    <div className="content-container py-14 small:py-20">
+    <>
+      {/* Hero — interactive "Newmix v3" particle-logo wordmark, moved here from
+          the home page. Self-sizing full-bleed section (~72vh). */}
+      <HomeParticleLogoHero
+        interactionMode="newmix"
+        animatedParticleCap={55000}
+        newmixLiveTuning={NEWMIX_V3_TUNING}
+        bgClassName="bg-ui-fg-base"
+        wordmarkGradient={WORDMARK_GRADIENT}
+        sectionAriaLabel="SC Prints — custom print apparel"
+      />
+
+      <div className="content-container py-14 small:py-20">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(contactStructuredData) }}
@@ -176,5 +191,6 @@ export default async function ContactPage({
           </div>
         </div>
       </div>
+    </>
   )
 }

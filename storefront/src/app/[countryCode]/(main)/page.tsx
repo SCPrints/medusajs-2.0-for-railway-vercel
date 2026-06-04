@@ -20,9 +20,6 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HomeTrustStrip from "@modules/home/components/home-trust-strip"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
-import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
-import { NEWMIX_V3_TUNING } from "@modules/home/components/home-particle-logo-hero/newmix-v3-preset"
-import { WORDMARK_GRADIENT } from "@modules/common/lib/wordmark-gradient"
 import FeaturedProductsCarousel from "@modules/home/components/featured-products-carousel"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
 import ScrollingPictureBar from "@modules/home/components/scrolling-picture-bar"
@@ -289,22 +286,8 @@ export default async function Home({
           }}
         />
 
-        {/* 1. Hero — interactive "Newmix v3" particle-logo wordmark (the SC Prints
-            wordmark rendered as a cursor-reactive fluid-sim stipple). The shared
-            NEWMIX_V3_TUNING preset is also used by the /[countryCode]/old-hero
-            reference page so the two never drift. The previous neon digital-rain
-            hero (DigitalRainHero + HeroOverlay) and the pixel space scene
-            (/space-hero) can be swapped back by re-importing them here. */}
-        <HomeParticleLogoHero
-          interactionMode="newmix"
-          animatedParticleCap={55000}
-          newmixLiveTuning={NEWMIX_V3_TUNING}
-          bgClassName="bg-ui-fg-base"
-          wordmarkGradient={WORDMARK_GRADIENT}
-          sectionAriaLabel="SC Prints — custom print apparel"
-        />
-
-        {/* 2. Trust strip — immediately under hero. Six signals: heritage,
+        {/* Trust strip — now the top of the home page after the particle-logo
+            hero was moved to the contact page. Six signals: heritage,
             shipping, no minimum, live order tracking, free DPI check, in-house
             proofs. Each icon has its own subtle animation (see
             [home-trust-strip.tsx]). The last three signals are unique to SC
