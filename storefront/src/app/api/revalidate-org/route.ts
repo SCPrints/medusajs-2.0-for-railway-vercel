@@ -2,6 +2,7 @@ import { revalidateTag } from "next/cache"
 import { type NextRequest, NextResponse } from "next/server"
 
 import { ALL_ORG_TAGS_FOR } from "@lib/util/org-cache-tags"
+import { safeEqual } from "@lib/util/api-guard"
 
 /**
  * On-demand cache purge for per-organisation tag-based caches
@@ -55,13 +56,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Header-only: a `?secret=` query param leaks into access logs, proxies,
+  // Referer headers and browser history — so we no longer accept it.
   const bearer = request.headers
     .get("authorization")
     ?.replace(/^Bearer\s+/i, "")
     ?.trim()
-  const q = request.nextUrl.searchParams.get("secret")?.trim()
-  const provided = bearer || q
-  if (provided !== expected) {
+
+  if (!bearer || !safeEqual(bearer, expected)) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
   }
 

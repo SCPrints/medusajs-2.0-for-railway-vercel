@@ -133,7 +133,15 @@ export async function middleware(request: NextRequest) {
   if (cartId && !checkoutStep) {
     redirectUrl = `${redirectUrl}&step=address`
     response = NextResponse.redirect(`${redirectUrl}`, 307)
-    response.cookies.set("_medusa_cart_id", cartId, { maxAge: 60 * 60 * 24 })
+    // Match setCartId's hardening (cookies.ts): httpOnly so JS can't read the
+    // cart token, sameSite=strict to blunt cart-fixation via a crafted
+    // `?cart_id=` link, secure in prod.
+    response.cookies.set("_medusa_cart_id", cartId, {
+      maxAge: 60 * 60 * 24,
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    })
   }
 
   // Set a cookie to indicate that we're onboarding. This is used to show the onboarding flow.

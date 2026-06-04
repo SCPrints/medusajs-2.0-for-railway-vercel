@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { CHATBOT_SYSTEM_PROMPT } from "@lib/chatbot/system-prompt"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
 
 type ChatMessage = { role: "user" | "assistant"; content: string }
 
@@ -7,6 +8,9 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 const MODEL = "claude-haiku-4-5-20251001"
 const MAX_HISTORY = 20
 const MAX_USER_CHARS = 4000
+// 20 messages × 4000 chars ≈ 80 KB of legitimate payload; 128 KB leaves
+// headroom for JSON overhead while still rejecting absurd bodies.
+const MAX_BODY_BYTES = 128 * 1024
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY
@@ -17,12 +21,14 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  let body: unknown
-  try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "invalid_payload" }, { status: 400 })
-  }
+  // Each call spends real Anthropic tokens on our key — throttle per IP so a
+  // scripted loop can't run up the bill (denial-of-wallet).
+  const limited = enforceRateLimit(req, { name: "chat", limit: 20, windowMs: 60_000 })
+  if (limited) return limited
+
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.data
 
   const messages = sanitiseMessages((body as any)?.messages)
   if (messages.length === 0) {

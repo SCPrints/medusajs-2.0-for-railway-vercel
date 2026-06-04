@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getOrCreateRequestId } from "@lib/request-context"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+
+const MAX_BODY_BYTES = 256 * 1024
 
 function getBackendBaseUrl() {
   const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
@@ -38,8 +41,15 @@ async function postContact(
 }
 
 export async function POST(req: NextRequest) {
+  // Unauthenticated relay → backend contact route (emails staff). Throttle +
+  // size-cap to prevent inbox-flood spam and oversized bodies.
+  const limited = enforceRateLimit(req, { name: "contact", limit: 10, windowMs: 60_000 })
+  if (limited) return limited
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const payload = await req.json()
+    const payload = parsed.data
     const backendBaseUrl = getBackendBaseUrl()
     const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
     const requestId = await getOrCreateRequestId()

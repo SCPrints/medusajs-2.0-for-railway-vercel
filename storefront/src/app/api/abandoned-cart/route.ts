@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+
+const MAX_BODY_BYTES = 64 * 1024
 
 function getBackendBaseUrl() {
   const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
@@ -22,8 +25,15 @@ async function postAbandonedCartFollowup(endpoint: string, payload: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  // Unauthenticated relay → backend abandoned-cart route. Throttle + size-cap
+  // (fired client-side on cart changes, so the limit is a little higher).
+  const limited = enforceRateLimit(req, { name: "abandoned-cart", limit: 30, windowMs: 60_000 })
+  if (limited) return limited
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const payload = await req.json()
+    const payload = parsed.data
     const backendBaseUrl = getBackendBaseUrl()
 
     let response = await postAbandonedCartFollowup(

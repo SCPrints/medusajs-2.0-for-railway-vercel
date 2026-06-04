@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+
+// Base64-encoded original artwork; 16 MB caps the relay/OOM surface while
+// allowing high-res source files.
+const MAX_BODY_BYTES = 16 * 1024 * 1024
 
 function getBackendBaseUrl() {
   const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
@@ -9,8 +14,14 @@ function getBackendBaseUrl() {
 }
 
 export async function POST(req: NextRequest) {
+  // Throttle (generous — a design session uploads several files) + size-cap.
+  const limited = enforceRateLimit(req, { name: "upload-original", limit: 40, windowMs: 60_000 })
+  if (limited) return limited
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const payload = await req.json()
+    const payload = parsed.data
     const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
     const response = await fetch(`${getBackendBaseUrl()}/store/customizer/upload-original`, {
       method: "POST",

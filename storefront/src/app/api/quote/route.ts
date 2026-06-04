@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
 
 /**
  * Storefront proxy → backend POST /store/quotes. Forwards the
@@ -6,6 +7,10 @@ import { NextRequest, NextResponse } from "next/server"
  * board image uploads without the storefront becoming a CORS
  * negotiator.
  */
+// Mood-board base64 uploads can be sizeable; 8 MB is generous for a form
+// submission while still capping the open-relay / OOM surface.
+const MAX_BODY_BYTES = 8 * 1024 * 1024
+
 function getBackendBaseUrl() {
   const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
   if (!backendUrl) {
@@ -15,8 +20,16 @@ function getBackendBaseUrl() {
 }
 
 export async function POST(req: NextRequest) {
+  // Throttle + size-cap: this is an unauthenticated relay to a backend write
+  // route (quote creation also emails staff) — without limits it's a spam /
+  // inbox-flood / OOM vector.
+  const limited = enforceRateLimit(req, { name: "quote", limit: 10, windowMs: 60_000 })
+  if (limited) return limited
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const payload = await req.json()
+    const payload = parsed.data
     const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
     const headers: Record<string, string> = {
       "Content-Type": "application/json",

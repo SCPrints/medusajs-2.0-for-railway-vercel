@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+
+// Customizer line items carry the full customizerDesign metadata; 6 MB caps
+// it while staying well above a realistic single-line payload.
+const MAX_BODY_BYTES = 6 * 1024 * 1024
 
 /**
  * POST /api/pos-bridge/items
@@ -31,12 +36,13 @@ function getBackendBaseUrl(): string {
 }
 
 export async function POST(req: NextRequest) {
-  let payload: any
-  try {
-    payload = await req.json()
-  } catch {
-    return NextResponse.json({ error: "invalid_payload" }, { status: 400 })
-  }
+  // The session ID is the capability (no auth), so throttle + size-cap to blunt
+  // a guessed-session-ID injection flood, and validate numeric bounds below.
+  const limited = enforceRateLimit(req, { name: "pos-bridge", limit: 60, windowMs: 60_000 })
+  if (limited) return limited
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+  const payload = parsed.data as any
 
   const sessionId: string | undefined = payload?.pos_session_id
   if (!sessionId || typeof sessionId !== "string") {
@@ -49,6 +55,20 @@ export async function POST(req: NextRequest) {
   // Strip pos_session_id from the body — the backend route reads it
   // from the URL.
   const { pos_session_id: _drop, ...itemBody } = payload
+
+  // Bound the numeric fields an attacker with a session ID could otherwise set
+  // freely (price/quantity injection into a real cart).
+  const quantity = (itemBody as any).quantity
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10_000) {
+    return NextResponse.json({ error: "invalid_quantity" }, { status: 400 })
+  }
+  const unitPrice = (itemBody as any).unit_price_cents
+  if (
+    unitPrice != null &&
+    (!Number.isInteger(unitPrice) || unitPrice < 0 || unitPrice > 100_000_000)
+  ) {
+    return NextResponse.json({ error: "invalid_unit_price" }, { status: 400 })
+  }
 
   let backendBaseUrl: string
   try {
