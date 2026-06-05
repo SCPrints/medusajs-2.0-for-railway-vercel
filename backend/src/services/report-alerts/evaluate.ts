@@ -256,7 +256,9 @@ export async function evaluateMetrics(
     .reduce((s, c) => s + c.revenue, 0)
   const top10Share = total30 > 0 ? (top10Revenue / total30) * 100 : 0
 
-  // Capacity red: same logic as /admin/reports/capacity
+  // Capacity red: same logic as /admin/reports/capacity — both accumulate
+  // pipelineWorkDays from the DOWNSTREAM track only (see the pipeline block
+  // above) and divide by daily throughput.
   const throughputPerDay = shippedLast30 / 30
   const daysOfWork =
     throughputPerDay > 0 ? pipelineWorkDays / throughputPerDay : 0

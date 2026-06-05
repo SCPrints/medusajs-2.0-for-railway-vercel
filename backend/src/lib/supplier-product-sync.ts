@@ -28,6 +28,7 @@
  */
 
 import type { MedusaContainer } from "@medusajs/framework/types"
+import { Modules } from "@medusajs/framework/utils"
 import {
   batchProductVariantsWorkflow,
   updateProductsWorkflow,
@@ -135,11 +136,12 @@ export type ProductDiff = {
   /** Image URLs to append (existing URLs preserved; missing ones NOT removed). */
   imageUrlsToAdd: string[]
   /**
-   * Image/thumbnail change to apply via the safe `writeProductimages()`
+   * Image/thumbnail change to apply via the safe `writeProductImages()`
    * chokepoint (HARD RULES) — NOT through updateProductsWorkflow, so every URL
    * is HEAD-validated and the gallery can never be wiped. Null when neither
    * images nor thumbnail changed. `desiredUrls` is the FULL intended final list
-   * (existing + new); `currentUrls` lets the writer skip a redundant DB read.
+   * (existing + new); `currentUrls` is the existing list passed through for the
+   * writer's diff.
    */
   imageWrite:
     | { desiredUrls: string[]; currentUrls: string[]; thumbnail: string | null }
@@ -546,6 +548,7 @@ export async function applyProductDiffs(opts: {
   // gallery. Sequential, one product at a time, to keep supplier-CDN load
   // modest. Image-only products are counted here; products that also had a
   // top-level/variant change were already counted by the workflow chunk.
+  const imageWrittenIds: string[] = []
   for (const d of diffs) {
     if (!d.imageWrite) continue
     try {
@@ -559,13 +562,32 @@ export async function applyProductDiffs(opts: {
           logger,
         }
       )
-      if (result.wrote && !payloadIds.has(d.productId)) {
-        summary.productsUpdated++
+      if (result.wrote) {
+        imageWrittenIds.push(d.productId)
+        if (!payloadIds.has(d.productId)) summary.productsUpdated++
       }
     } catch (err: any) {
       summary.errors++
       logger.warn(
         `writeProductImages failed for ${d.handle}: ${err?.message ?? err}`
+      )
+    }
+  }
+
+  // writeProductImages writes via the product module directly, which does NOT
+  // emit `product.updated` (only workflows do). Without an event, the Meili
+  // index + storefront cache wouldn't pick up the new images (a regression vs
+  // the old updateProductsWorkflow image path). Re-emit it for every product
+  // whose images actually changed so both refresh. Best-effort.
+  if (imageWrittenIds.length) {
+    try {
+      const eventBus = container.resolve(Modules.EVENT_BUS) as any
+      await eventBus.emit(
+        imageWrittenIds.map((id) => ({ name: "product.updated", data: { id } }))
+      )
+    } catch (err: any) {
+      logger.warn(
+        `supplier-product-sync: failed to emit product.updated for ${imageWrittenIds.length} image-updated product(s): ${err?.message ?? err}`
       )
     }
   }

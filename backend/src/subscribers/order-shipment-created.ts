@@ -23,6 +23,12 @@ export default async function orderShipmentCreatedHandler({
 }: SubscriberArgs<{ id?: string; order_id?: string; no_notification?: boolean }>) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
 
+  // Respect the core-supplied suppression flag — when staff create the shipment
+  // with "do not notify the customer", skip the ORDER_SHIPPED email.
+  if (data?.no_notification) {
+    return
+  }
+
   const orderId = await resolveOrderIdFromShipmentEvent(container, data)
   if (!orderId) {
     logger.warn(

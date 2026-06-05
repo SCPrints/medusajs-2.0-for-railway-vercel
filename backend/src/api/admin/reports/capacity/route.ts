@@ -2,8 +2,11 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
+  DOWNSTREAM_STAGES,
+  DOWNSTREAM_STAGE_SLA_DAYS,
   PRODUCTION_STAGES,
   STAGE_SLA_DAYS,
+  resolveTracksFromMeta,
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
@@ -35,9 +38,6 @@ import {
 const NON_TERMINAL_STAGES = PRODUCTION_STAGES.filter(
   (s) => s !== "delivered"
 )
-
-const stageIdx = (stage: ProductionStage): number =>
-  PRODUCTION_STAGES.indexOf(stage)
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -112,45 +112,47 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!currentStage || currentStage === "delivered") continue
 
     const rawHistory = meta.production_stage_history
-    let enteredCurrentMs: number | null = null
-    if (Array.isArray(rawHistory)) {
-      const sorted = [...rawHistory]
-        .filter(
-          (e: any) =>
-            e &&
-            typeof e === "object" &&
-            typeof e.stage === "string" &&
-            typeof e.changed_at === "string"
-        )
-        .sort(
-          (a: any, b: any) =>
-            Date.parse(a.changed_at) - Date.parse(b.changed_at)
-        )
-      const lastForStage = [...sorted]
-        .reverse()
-        .find((e: any) => e.stage === currentStage)
-      if (lastForStage) {
-        const t = Date.parse(lastForStage.changed_at as string)
-        if (Number.isFinite(t)) enteredCurrentMs = t
-      }
+    const sorted = Array.isArray(rawHistory)
+      ? [...rawHistory]
+          .filter(
+            (e: any) =>
+              e &&
+              typeof e === "object" &&
+              typeof e.stage === "string" &&
+              typeof e.changed_at === "string"
+          )
+          .sort(
+            (a: any, b: any) =>
+              Date.parse(a.changed_at) - Date.parse(b.changed_at)
+          )
+      : []
+    const daysInStage = (stage: string): number => {
+      const last = [...sorted].reverse().find((e: any) => e.stage === stage)
+      if (!last) return 0
+      const t = Date.parse(last.changed_at as string)
+      return Number.isFinite(t) ? Math.max(0, (now - t) / 86_400_000) : 0
     }
-    const daysAtCurrent =
-      enteredCurrentMs != null
-        ? Math.max(0, (now - enteredCurrentMs) / 86_400_000)
-        : 0
+    const daysAtCurrent = daysInStage(currentStage)
 
-    // Compute remaining work: residual SLA on current stage + sum of
-    // SLAs for every stage between current+1 and shipped (inclusive).
-    // Stages with null SLA contribute 0. "Shipped" is treated as "in
-    // transit" so its SLA is the time customer waits before delivery.
-    const currentIdx = stageIdx(currentStage)
-    const currentSla = STAGE_SLA_DAYS[currentStage] ?? 0
-    let workDaysRemaining = Math.max(0, currentSla - daysAtCurrent)
-    for (let i = currentIdx + 1; i < PRODUCTION_STAGES.length; i++) {
-      const stage = PRODUCTION_STAGES[i]
-      if (stage === "delivered") continue
-      const sla = STAGE_SLA_DAYS[stage]
-      if (sla != null) workDaysRemaining += sla
+    // Remaining production work is the DOWNSTREAM track only. `meta.production_stage`
+    // can hold an artwork/blanks-track value, and PRODUCTION_STAGES is a UNION
+    // (not a chronological sequence) — iterating it from currentIdx+1 summed
+    // unrelated prep-track SLAs and over-stated the pipeline. Anchor on the
+    // resolved downstream stage and walk DOWNSTREAM_STAGES (a real sequence).
+    // Mirrors services/report-alerts/evaluate.ts so the capacity_red alert and
+    // this page agree. Residual = max(0, downstream SLA − days in it); "shipped"
+    // SLA is kept (in-transit wait), "delivered" excluded.
+    const downstream = resolveTracksFromMeta(meta).downstream
+    const dIdx = (DOWNSTREAM_STAGES as readonly string[]).indexOf(downstream)
+    const currentSla = DOWNSTREAM_STAGE_SLA_DAYS[downstream] ?? 0
+    let workDaysRemaining = Math.max(0, currentSla - daysInStage(downstream))
+    if (dIdx >= 0) {
+      for (let i = dIdx + 1; i < DOWNSTREAM_STAGES.length; i++) {
+        const stage = DOWNSTREAM_STAGES[i]
+        if (stage === "delivered") continue
+        const sla = DOWNSTREAM_STAGE_SLA_DAYS[stage]
+        if (sla != null) workDaysRemaining += sla
+      }
     }
     pipelineWorkDays += workDaysRemaining
     stageLoadCounts.set(

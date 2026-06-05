@@ -51,18 +51,23 @@ type QuoteEvent = {
   created_at: string
 }
 
-const STATUS_LABELS: Record<Quote["status"], string> = {
+// Keyed by string (not Quote["status"]) so the transient "converting" status —
+// written briefly by the accept route's atomic claim, outside the model enum —
+// still renders a labelled badge instead of a blank one.
+const STATUS_LABELS: Record<string, string> = {
   new: "New",
   quoted: "Quoted",
   accepted: "Accepted",
+  converting: "Converting…",
   lost: "Lost",
   expired: "Expired",
 }
 
-const STATUS_COLORS: Record<Quote["status"], "blue" | "orange" | "green" | "red" | "grey"> = {
+const STATUS_COLORS: Record<string, "blue" | "orange" | "green" | "red" | "grey"> = {
   new: "blue",
   quoted: "orange",
   accepted: "green",
+  converting: "orange",
   lost: "red",
   expired: "grey",
 }
