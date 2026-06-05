@@ -4945,10 +4945,17 @@ export default function CustomizerTemplate({
                 }
                 onClick={() => {
                   if (!canAddLocation) return
-                  switchSide(nextUndecoratedSide)
-                  setPdpStep2Done(true)
-                  setPdpStep(3)
-                  setScpPrintSizeChosen(false)
+                  // Don't auto-pick the next side — open the print
+                  // location & size selector (Step 2) and let the
+                  // customer choose which location to add. Auto-switching
+                  // made the button behave differently at each stage and
+                  // do nothing once every side had been auto-picked.
+                  if (assemblyLayout) {
+                    setAssemblyExpanded(2)
+                  } else {
+                    setPdpStep(2)
+                  }
+                  step2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" })
                 }}
                 className={`w-full rounded-xl border-2 border-dashed px-4 py-2.5 text-left text-sm font-medium transition-colors ${
                   canAddLocation
@@ -5439,14 +5446,18 @@ export default function CustomizerTemplate({
                 }
                 onClick={() => {
                   if (!canAddLocation) return
-                  switchSide(nextSide)
-                  setPdpStep2Done(true)
-                  setPdpStep(3)
-                  // The new location hasn't been sized yet, so clear the
-                  // shared "size chosen" flag — otherwise the size picker
-                  // shows the previous location's choice pre-highlighted
-                  // and the customer has no visual cue to pick fresh.
-                  setScpPrintSizeChosen(false)
+                  // Don't auto-pick the next side — open the print
+                  // location & size selector (Step 2) so the customer
+                  // chooses which location to add. Previously this jumped
+                  // straight to a size step for an auto-chosen side, which
+                  // behaved differently at each stage and did nothing once
+                  // every side had already been auto-picked.
+                  if (assemblyLayout) {
+                    setAssemblyExpanded(2)
+                  } else {
+                    setPdpStep(2)
+                  }
+                  step2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" })
                 }}
                 className={`w-full rounded-xl border-2 border-dashed px-4 py-3 text-left text-sm font-medium transition-colors ${
                   canAddLocation
