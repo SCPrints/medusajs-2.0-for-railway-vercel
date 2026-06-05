@@ -33,6 +33,8 @@ import {
   updateProductsWorkflow,
 } from "@medusajs/medusa/core-flows"
 
+import { writeProductImages } from "./safe-product-images"
+
 export type SupplierSyncLogger = {
   info: (msg: string) => void
   warn: (msg: string) => void
@@ -132,6 +134,16 @@ export type ProductDiff = {
   variantsToAdd: NewVariantPayload[]
   /** Image URLs to append (existing URLs preserved; missing ones NOT removed). */
   imageUrlsToAdd: string[]
+  /**
+   * Image/thumbnail change to apply via the safe `writeProductimages()`
+   * chokepoint (HARD RULES) — NOT through updateProductsWorkflow, so every URL
+   * is HEAD-validated and the gallery can never be wiped. Null when neither
+   * images nor thumbnail changed. `desiredUrls` is the FULL intended final list
+   * (existing + new); `currentUrls` lets the writer skip a redundant DB read.
+   */
+  imageWrite:
+    | { desiredUrls: string[]; currentUrls: string[]; thumbnail: string | null }
+    | null
   /** Free-text reasons the diff fired; useful for logging. */
   reasons: string[]
 }
@@ -257,13 +269,10 @@ export function diffProduct(opts: {
     topLevelPatch.description = desired.description
     reasons.push("description changed")
   }
-  if (
+  const thumbnailChanged =
     desired.thumbnail !== undefined &&
     !eqString(desired.thumbnail ?? "", existing.thumbnail ?? "")
-  ) {
-    topLevelPatch.thumbnail = desired.thumbnail
-    reasons.push("thumbnail changed")
-  }
+
   if (
     desired.material !== undefined &&
     !eqString(desired.material ?? "", existing.material ?? "")
@@ -273,10 +282,13 @@ export function diffProduct(opts: {
   }
 
   // Images: append new URLs, never remove. Preserves images staff may
-  // have uploaded manually.
-  const existingUrls = new Set(
-    (existing.images ?? []).map((i) => i.url).filter(Boolean)
-  )
+  // have uploaded manually. The actual write goes through `writeProductImages`
+  // (HARD RULES) — not updateProductsWorkflow — so URLs are HEAD-validated and
+  // the gallery can't be wiped; here we only compute the intended final set.
+  const existingUrlList = (existing.images ?? [])
+    .map((i) => i.url)
+    .filter(Boolean) as string[]
+  const existingUrls = new Set(existingUrlList)
   const imageUrlsToAdd: string[] = []
   for (const img of desired.images ?? []) {
     if (img?.url && !existingUrls.has(img.url)) {
@@ -285,12 +297,18 @@ export function diffProduct(opts: {
   }
   if (imageUrlsToAdd.length) {
     reasons.push(`+${imageUrlsToAdd.length} image(s)`)
-    // Medusa accepts the full final list as images. Append.
-    topLevelPatch.images = [
-      ...(existing.images ?? []).map((i) => ({ url: i.url })),
-      ...imageUrlsToAdd.map((url) => ({ url })),
-    ]
   }
+  if (thumbnailChanged) {
+    reasons.push("thumbnail changed")
+  }
+  const imageWrite =
+    imageUrlsToAdd.length || thumbnailChanged
+      ? {
+          desiredUrls: [...existingUrlList, ...imageUrlsToAdd],
+          currentUrls: existingUrlList,
+          thumbnail: thumbnailChanged ? (desired.thumbnail ?? null) : null,
+        }
+      : null
 
   // Metadata: replace supplier key, preserve everything else.
   const metaResult = mergeMetadata(
@@ -372,6 +390,7 @@ export function diffProduct(opts: {
     variantUpdates,
     variantsToAdd,
     imageUrlsToAdd,
+    imageWrite,
     reasons,
   }
 }
@@ -384,7 +403,8 @@ export function diffHasChanges(d: ProductDiff): boolean {
   return (
     Object.keys(d.topLevelPatch).length > 0 ||
     d.variantUpdates.length > 0 ||
-    d.variantsToAdd.length > 0
+    d.variantsToAdd.length > 0 ||
+    d.imageWrite != null
   )
 }
 
@@ -446,6 +466,14 @@ export async function applyProductDiffs(opts: {
     for (const v of d.variantsToAdd) newVariants.push(v)
   }
 
+  // Products whose only change is images/thumbnail aren't in productsPayload
+  // (image writes go through writeProductImages, not the workflow) — count them
+  // separately so the summary still reflects them.
+  const payloadIds = new Set(productsPayload.map((p) => p.id as string))
+  const imageOnlyDiffs = diffs.filter(
+    (d) => d.imageWrite && !payloadIds.has(d.productId)
+  )
+
   if (dryRun) {
     for (const d of diffs) {
       if (!diffHasChanges(d)) continue
@@ -453,7 +481,7 @@ export async function applyProductDiffs(opts: {
         `[dry-run] ${d.handle}: ${d.reasons.join(", ") || "(no human-readable reasons)"}`
       )
     }
-    summary.productsUpdated = productsPayload.length
+    summary.productsUpdated = productsPayload.length + imageOnlyDiffs.length
     summary.variantsAdded = newVariants.length
     summary.variantsUpdated = productsPayload.reduce(
       (acc, p) => acc + ((p.variants as unknown[] | undefined)?.length ?? 0),
@@ -509,6 +537,36 @@ export async function applyProductDiffs(opts: {
           `batchProductVariantsWorkflow create chunk ${i + 1}-${i + chunk.length} failed: ${err?.message ?? err}`
         )
       }
+    }
+  }
+
+  // Image writes — through the safe `writeProductImages` chokepoint, NOT the
+  // update workflow. Each call HEAD-validates every URL (only confirmed-live
+  // 200s are added), force-keeps existing live images, and never empties the
+  // gallery. Sequential, one product at a time, to keep supplier-CDN load
+  // modest. Image-only products are counted here; products that also had a
+  // top-level/variant change were already counted by the workflow chunk.
+  for (const d of diffs) {
+    if (!d.imageWrite) continue
+    try {
+      const result = await writeProductImages(
+        container,
+        d.productId,
+        d.imageWrite.desiredUrls,
+        {
+          thumbnail: d.imageWrite.thumbnail ?? undefined,
+          currentUrls: d.imageWrite.currentUrls,
+          logger,
+        }
+      )
+      if (result.wrote && !payloadIds.has(d.productId)) {
+        summary.productsUpdated++
+      }
+    } catch (err: any) {
+      summary.errors++
+      logger.warn(
+        `writeProductImages failed for ${d.handle}: ${err?.message ?? err}`
+      )
     }
   }
 

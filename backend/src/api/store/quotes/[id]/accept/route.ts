@@ -78,6 +78,61 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
+  // ---- Atomic conversion claim (prevents duplicate carts) ----
+  // The idempotency check above is a read-then-write; two concurrent POSTs
+  // (refresh / double-click on the static accept link) both pass it and each
+  // mint a full cart, then the last updateQuotes wins and orphans the other
+  // cart. Flip status to a transient "converting" in ONE statement so only one
+  // POST proceeds. A 'converting' row older than 5 min is treated as a crashed
+  // prior attempt and may be re-claimed, so a failed accept self-heals. Mirrors
+  // the group-order convert-to-cart route. (status is a plain text column, so a
+  // transient value outside the model enum is fine.)
+  const pg = req.scope.resolve<any>("__pg_connection__")
+  if (pg?.raw) {
+    let claimed = false
+    try {
+      const claim = await pg.raw(
+        `update "quote"
+            set status = 'converting', updated_at = now()
+          where id = ?
+            and deleted_at is null
+            and status <> 'accepted'
+            and status <> 'converted'
+            and (status <> 'converting' or updated_at < now() - interval '5 minutes')
+          returning id`,
+        [id]
+      )
+      claimed = (claim?.rows?.length ?? 0) > 0
+    } catch {
+      // If the claim query itself fails, proceed anyway — losing the race guard
+      // is better than blocking every acceptance.
+      claimed = true
+    }
+    if (!claimed) {
+      const fresh = await service.retrieveQuote(id).catch(() => null)
+      const m = ((fresh as any)?.metadata ?? {}) as Record<string, unknown>
+      if (
+        fresh &&
+        ((fresh as any).status === "accepted" ||
+          (fresh as any).status === "converted") &&
+        typeof m.cart_id === "string"
+      ) {
+        return res.json({
+          ok: true,
+          cart_id: m.cart_id,
+          lines_added: 0,
+          skipped_items: [],
+          idempotent: true,
+        })
+      }
+      return res.status(409).json({
+        error: "acceptance_in_progress",
+        detail:
+          "This quote is already being accepted — try again in a moment.",
+      })
+    }
+  }
+
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   // Pick a region — use the first published region for the quote's currency.
   let regionId: string | null = null

@@ -11,10 +11,13 @@ import { getPostHog } from "../../../lib/posthog"
  *   {
  *     "query": "raw user input",
  *     "results_count": 42,
- *     "country_code": "au",
- *     "customer_id": "cus_..."  (optional; populated server-side from
- *                                 auth in the future)
+ *     "country_code": "au"
  *   }
+ *
+ * Attribution: `customer_id` is resolved SERVER-SIDE from the session
+ * (`req.auth_context.actor_id`) when the caller is an authenticated
+ * customer — never trusted from the request body, which is unauthenticated
+ * and would let any caller attribute searches to an arbitrary customer.
  *
  * Returns 204 always so a logging failure never breaks search UX. Drops
  * empty queries and queries longer than 500 chars defensively.
@@ -24,7 +27,6 @@ const bodySchema = z.object({
   query: z.string().trim().min(1).max(500),
   results_count: z.number().int().nonnegative(),
   country_code: z.string().trim().max(8).optional(),
-  customer_id: z.string().trim().max(64).optional(),
 })
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -34,6 +36,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     res.status(204).end()
     return
   }
+
+  // Only trust a server-resolved customer id (set when the request carries a
+  // valid customer session/token); anonymous callers get null.
+  const customerId =
+    typeof (req as any).auth_context?.actor_id === "string"
+      ? ((req as any).auth_context.actor_id as string)
+      : null
 
   const logger = (req.scope as any).resolve?.("logger") ?? console
   try {
@@ -45,14 +54,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         query_normalized: queryNormalized,
         results_count: parsed.data.results_count,
         country_code: parsed.data.country_code ?? null,
-        customer_id: parsed.data.customer_id ?? null,
+        customer_id: customerId,
       },
     ])
   } catch (err: any) {
     logger.warn?.(`[search-events] log failed: ${err?.message ?? err}`)
   }
 
-  const distinctId = parsed.data.customer_id ?? "anonymous"
+  const distinctId = customerId ?? "anonymous"
   getPostHog()?.capture({
     distinctId,
     event: "site searched",

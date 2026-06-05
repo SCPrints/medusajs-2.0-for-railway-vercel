@@ -544,7 +544,7 @@ export default async function importFashionBizFromApi({ container, args }: ExecA
     if (toCreate.length) {
       const sample = toCreate[0]
       logger.info(
-        `Sample CREATE payload: handle=${sample.handle}, variants=${sample.variants.length}, base price=$${(sample.variants[0]?.prices?.[0]?.amount ?? 0) / 100}`
+        `Sample CREATE payload: handle=${sample.handle}, variants=${sample.variants.length}, base price=$${sample.variants[0]?.prices?.[0]?.amount ?? 0}`
       )
     }
     if (toUpdate.size) {

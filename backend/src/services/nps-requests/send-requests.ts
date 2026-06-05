@@ -101,12 +101,14 @@ export async function sendNpsRequests(
     }
 
     const unsubscribeUrl = buildUnsubscribeUrl(c.email, "nps_request")
-    try {
-      const ratingUrls = [1, 2, 3, 4, 5].map((score) => ({
-        score,
-        url: buildRatingUrl(c.order_id, score),
-      }))
+    const ratingUrls = [1, 2, 3, 4, 5].map((score) => ({
+      score,
+      url: buildRatingUrl(c.order_id, score),
+    }))
 
+    // 1. SEND — the irreversible action. A failure here means nothing went out,
+    //    so it's a real failure and the customer stays a candidate for retry.
+    try {
       await notificationModuleService.createNotifications({
         to: c.email,
         channel: "email",
@@ -128,7 +130,23 @@ export async function sendNpsRequests(
           },
         },
       })
+    } catch (err: any) {
+      failures += 1
+      logger.warn(
+        `nps-requests: send failed for order ${c.order_id}: ${err?.message ?? err}`
+      )
+      continue
+    }
 
+    // The email is out — count it as sent regardless of what the idempotency
+    // stamp below does, so a stamp failure can't reclassify a delivered email
+    // as a failure (it previously did, inflating `failures`).
+    sent += 1
+
+    // 2. STAMP idempotency in its own try. The candidate builder dedups on
+    //    these stamps, so a failure here risks a duplicate next run — log it
+    //    loudly rather than silently re-queueing.
+    try {
       const order = await orderModuleService.retrieveOrder(c.order_id)
       const orderMeta = ((order as any).metadata ?? {}) as Record<string, unknown>
       await orderModuleService.updateOrders(c.order_id, {
@@ -154,23 +172,20 @@ export async function sendNpsRequests(
           },
         })
       }
-
-      getPostHog()?.capture({
-        distinctId: c.customer_id ?? c.email,
-        event: "nps request sent",
-        properties: {
-          order_id: c.order_id,
-          email: c.email,
-        },
-      })
-
-      sent += 1
     } catch (err: any) {
-      failures += 1
       logger.warn(
-        `nps-requests: send failed for order ${c.order_id}: ${err?.message ?? err}`
+        `nps-requests: SENT for order ${c.order_id} but idempotency stamp failed — customer may be re-emailed next run: ${err?.message ?? err}`
       )
     }
+
+    getPostHog()?.capture({
+      distinctId: c.customer_id ?? c.email,
+      event: "nps request sent",
+      properties: {
+        order_id: c.order_id,
+        email: c.email,
+      },
+    })
   }
 
   return {

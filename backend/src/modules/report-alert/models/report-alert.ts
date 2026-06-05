@@ -28,12 +28,17 @@ const ReportAlert = model
     name: model.text(),
     metric: model.text(),
     comparator: model.text(),
-    threshold: model.number(),
+    // bigNumber (→ "numeric" column) not number (→ "integer") so fractional
+    // thresholds like an SLA-breach % of 5.5 aren't truncated. The DB column was
+    // already hand-migrated as `numeric`; this makes the model match it. The
+    // paired `raw_threshold`/`raw_last_value` jsonb columns are added by
+    // Migration20270610000001.
+    threshold: model.bigNumber(),
     recipient_email: model.text(),
     cooldown_days: model.number().default(7),
     enabled: model.boolean().default(true),
     last_fired_at: model.text().nullable(),
-    last_value: model.number().nullable(),
+    last_value: model.bigNumber().nullable(),
   })
   .indexes([{ on: ["enabled"] }])
 

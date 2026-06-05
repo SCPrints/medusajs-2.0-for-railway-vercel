@@ -170,9 +170,16 @@ describe("supplier-product-sync — diffProduct", () => {
     }
     const d = diffProduct({ desired, existing: baseExisting, supplierMetaKey: "gildan" })
     expect(d.imageUrlsToAdd).toEqual(["https://cdn/64000_Red_01.jpg"])
-    expect((d.topLevelPatch.images as any[]).map((i) => i.url)).toEqual([
+    // Images are NOT written via the workflow patch — they go through the safe
+    // writeProductImages chokepoint. The diff exposes the full intended final
+    // list (existing first, new appended) + the existing list for the writer.
+    expect(d.topLevelPatch.images).toBeUndefined()
+    expect(d.imageWrite?.desiredUrls).toEqual([
       "https://cdn/64000_Black_01.jpg",
       "https://cdn/64000_Red_01.jpg",
+    ])
+    expect(d.imageWrite?.currentUrls).toEqual([
+      "https://cdn/64000_Black_01.jpg",
     ])
   })
 
@@ -315,6 +322,7 @@ describe("supplier-product-sync — diffHasChanges", () => {
         variantUpdates: [],
         variantsToAdd: [],
         imageUrlsToAdd: [],
+        imageWrite: null,
         reasons: [],
       })
     ).toBe(false)
@@ -328,7 +336,26 @@ describe("supplier-product-sync — diffHasChanges", () => {
         variantUpdates: [],
         variantsToAdd: [],
         imageUrlsToAdd: [],
+        imageWrite: null,
         reasons: [],
+      })
+    ).toBe(true)
+  })
+  it("returns true when only images/thumbnail changed", () => {
+    expect(
+      diffHasChanges({
+        productId: "p",
+        handle: "h",
+        topLevelPatch: {},
+        variantUpdates: [],
+        variantsToAdd: [],
+        imageUrlsToAdd: ["https://cdn/new.jpg"],
+        imageWrite: {
+          desiredUrls: ["https://cdn/new.jpg"],
+          currentUrls: [],
+          thumbnail: null,
+        },
+        reasons: ["+1 image(s)"],
       })
     ).toBe(true)
   })
