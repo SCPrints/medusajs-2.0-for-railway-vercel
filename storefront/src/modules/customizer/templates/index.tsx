@@ -5780,23 +5780,39 @@ export default function CustomizerTemplate({
                     ).size > 1
                   : false
                 if (!hasMultipleColours) return null
+                // The bulk grid is the end of the flow — once inside, the
+                // customer fills sizes and adds to cart without coming back
+                // to the canvas. So warn them to finish adding artwork on
+                // every print position first (only relevant when the
+                // garment supports more than one position).
+                const multiplePositions = allowedPrintSides.length > 1
                 return (
-                  <button
-                    type="button"
-                    onClick={() => setBulkMode(true)}
-                    disabled={isSubmitting}
-                    className="flex w-full items-center justify-between gap-3 rounded-xl border border-ui-fg-base bg-white px-4 py-3 text-left text-sm font-medium text-ui-fg-base shadow-sm transition-colors hover:bg-ui-bg-subtle disabled:opacity-60"
-                  >
-                    <span className="flex flex-col">
-                      <span>Order multiple colours →</span>
-                      <span className="text-xs font-normal text-ui-fg-subtle">
-                        Full-page grid · pick colours, fill sizes, add everything in one click.
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setBulkMode(true)}
+                      disabled={isSubmitting}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-ui-fg-base bg-white px-4 py-3 text-left text-sm font-medium text-ui-fg-base shadow-sm transition-colors hover:bg-ui-bg-subtle disabled:opacity-60"
+                    >
+                      <span className="flex flex-col">
+                        <span>Order multiple colours →</span>
+                        <span className="text-xs font-normal text-ui-fg-subtle">
+                          Full-page grid · pick colours, fill sizes, add everything in one click.
+                        </span>
                       </span>
-                    </span>
-                    <span className="rounded-full bg-ui-fg-base px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                      Bulk
-                    </span>
-                  </button>
+                      <span className="rounded-full bg-ui-fg-base px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                        Bulk
+                      </span>
+                    </button>
+                    {multiplePositions && (
+                      <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-snug text-amber-800 ring-1 ring-amber-200">
+                        <span aria-hidden className="mt-px shrink-0">⚠</span>
+                        <span>
+                          Finish adding artwork to <strong>all your print positions</strong> (front, back, sleeves…) before opening the bulk grid — you complete your order there and won&apos;t be able to add more artwork once inside.
+                        </span>
+                      </p>
+                    )}
+                  </div>
                 )
               })()}
               <PricingPanel
