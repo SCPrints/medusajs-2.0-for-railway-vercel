@@ -607,7 +607,7 @@ Email cadence keeping repeat / dormant customers warm and producing an internal 
 | --- | --- | --- | --- | --- |
 | Reorder reminders | [send-reorder-reminders.ts](backend/src/jobs/send-reorder-reminders.ts) | `30 23 * * *` | [reorder-reminder.tsx](backend/src/modules/email-notifications/templates/reorder-reminder.tsx) | `REORDER_REMINDERS_ENABLED` |
 | Win-back | [send-winback-emails.ts](backend/src/jobs/send-winback-emails.ts) | `0 0 * * 1` (weekly Monday) | [winback.tsx](backend/src/modules/email-notifications/templates/winback.tsx) | `WINBACK_EMAILS_ENABLED` |
-| Monthly digest (internal) | [send-monthly-digest.ts](backend/src/jobs/send-monthly-digest.ts) | `0 22 2 * *` (2nd of month) | [monthly-digest.tsx](backend/src/modules/email-notifications/templates/monthly-digest.tsx) | `MONTHLY_DIGEST_RECIPIENTS` (comma-separated emails) |
+| Monthly digest (internal) | [send-monthly-digest.ts](backend/src/jobs/send-monthly-digest.ts) | `0 22 * * *` daily, gated to the 2nd in-handler (a monthly `0 22 2 * *` cron overflows Node's setTimeout >24.85 days and loops) | [monthly-digest.tsx](backend/src/modules/email-notifications/templates/monthly-digest.tsx) | `MONTHLY_DIGEST_RECIPIENTS` (comma-separated emails) |
 
 Services: [reorder-reminders/](backend/src/services/reorder-reminders/), [churn-queue/](backend/src/services/churn-queue/) (drives win-back; classifies dormancy as drifting / at_risk / lost based on median order gap), [monthly-digest/](backend/src/services/monthly-digest/).
 
@@ -1249,7 +1249,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | `45 23 * * *` | 09:45 next day | [run-report-alerts.ts](backend/src/jobs/run-report-alerts.ts) | Evaluate threshold alerts and email staff |
 | `0 0 * * 1` | Mon 10:00 | [send-winback-emails.ts](backend/src/jobs/send-winback-emails.ts) | Weekly dormant-customer email |
 | `0 17 * * 0` | Mon 03:00 | [audit-product-images.ts](backend/src/jobs/audit-product-images.ts) | HEAD-check every product thumbnail; flag dead URLs as `metadata.image_audit.status = "broken"` (gated by `IMAGE_AUDIT_ENABLED`) |
-| `0 22 2 * *` | 2nd of month 08:00 | [send-monthly-digest.ts](backend/src/jobs/send-monthly-digest.ts) | Internal monthly performance digest |
+| `0 22 * * *` | daily 08:00 (runs on 2nd only) | [send-monthly-digest.ts](backend/src/jobs/send-monthly-digest.ts) | Internal monthly performance digest. Daily cron gated to the 2nd in-handler — a monthly `0 22 2 * *` cron overflows Node's setTimeout (>24.85 days → 1ms → tight loop). |
 
 Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, ShipStation, PostHog, Google) no-op silently when their token/key env vars are unset.
 
