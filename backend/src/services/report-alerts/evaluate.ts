@@ -2,9 +2,15 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import type { MedusaContainer } from "@medusajs/framework/types"
 
 import {
+  ARTWORK_STAGES,
+  BLANKS_STAGES,
+  DOWNSTREAM_STAGES,
+  DOWNSTREAM_STAGE_SLA_DAYS,
   PRODUCTION_STAGES,
   STAGE_SLA_DAYS,
+  resolveTracksFromMeta,
   type ProductionStage,
+  type ProductionTrack,
 } from "../../lib/production-stage"
 import {
   fetchOrdersForReports,
@@ -39,6 +45,30 @@ export const METRIC_LABELS: Record<MetricKey, string> = {
 export type MetricSnapshot = Record<MetricKey, number>
 
 const NON_TERMINAL = PRODUCTION_STAGES.filter((s) => s !== "delivered")
+
+/**
+ * Resolve a stage value to its position WITHIN ITS OWN TRACK (normalising
+ * legacy aliases). `PRODUCTION_STAGES` is a union of all three parallel tracks,
+ * NOT a chronological order — so comparing union indices mistakes a normal
+ * cross-track forward move (e.g. artwork `approved` → production `in_production`)
+ * for a rollback. Track-relative ordinals make rollback detection accurate.
+ */
+function trackPosition(
+  stage: string
+): { track: ProductionTrack; index: number } | null {
+  let s = stage
+  if (s === "art_review") s = "in_review"
+  else if (s === "blanks_ordered") s = "ordered"
+  else if (s === "blanks_arrived") s = "arrived"
+
+  let idx = (ARTWORK_STAGES as readonly string[]).indexOf(s)
+  if (idx >= 0) return { track: "artwork", index: idx }
+  idx = (BLANKS_STAGES as readonly string[]).indexOf(s)
+  if (idx >= 0) return { track: "blanks", index: idx }
+  idx = (DOWNSTREAM_STAGES as readonly string[]).indexOf(s)
+  if (idx >= 0) return { track: "production", index: idx }
+  return null
+}
 
 const sevenDaysAgo = (now: Date): Date =>
   new Date(now.getTime() - 7 * 86_400_000)
@@ -95,11 +125,35 @@ export async function evaluateMetrics(
 
     // SLA + reprint walk
     let touchedLast7 = false
+    // Track the most recent ordinal seen PER TRACK so a reprint is detected as
+    // a genuine within-track regression, not a union-index artefact.
+    const lastTrackIdx: Partial<Record<ProductionTrack, number>> = {}
+    const firstPos = sortedHistory.length
+      ? trackPosition(sortedHistory[0].stage as string)
+      : null
+    if (firstPos) lastTrackIdx[firstPos.track] = firstPos.index
+
     for (let i = 1; i < sortedHistory.length; i++) {
       const transitionAt = sortedHistory[i].changed_at as string
       const fromStage = sortedHistory[i - 1].stage as ProductionStage
       const toStage = sortedHistory[i].stage as ProductionStage
-      if (!inRange(transitionAt, window7Start, now)) continue
+      const inWin = inRange(transitionAt, window7Start, now)
+
+      // Reprint: a within-track BACKWARD step relative to that track's prior
+      // position. Counted only if it happened in the window. Update the
+      // per-track pointer even for out-of-window entries so the baseline stays
+      // accurate. (PRODUCTION_STAGES is a union, not an order — the old
+      // union-index comparison flagged normal cross-track forward moves.)
+      const pos = trackPosition(toStage)
+      if (pos) {
+        const prev = lastTrackIdx[pos.track]
+        if (inWin && prev != null && pos.index < prev) {
+          reprintEventOrderIds.add(o.id)
+        }
+        lastTrackIdx[pos.track] = pos.index
+      }
+
+      if (!inWin) continue
       touchedLast7 = true
 
       // SLA: count completed dwell on `fromStage`
@@ -115,17 +169,10 @@ export async function evaluateMetrics(
         slaTransitions += 1
         if (days > sla) slaBreaches += 1
       }
-
-      // Reprint: rollback transition
-      const fromIdx = PRODUCTION_STAGES.indexOf(fromStage)
-      const toIdx = PRODUCTION_STAGES.indexOf(toStage)
-      if (fromIdx > 0 && toIdx >= 0 && toIdx < fromIdx) {
-        reprintEventOrderIds.add(o.id)
-      }
     }
     if (touchedLast7) ordersWorkedLast7.add(o.id)
 
-    // Currently breaching + pipeline workload
+    // Currently breaching: latest stage (any track) sat longer than its SLA.
     const last = sortedHistory[sortedHistory.length - 1]
     if (last) {
       const stage = last.stage as ProductionStage
@@ -134,17 +181,37 @@ export async function evaluateMetrics(
       if (sla != null && Number.isFinite(enteredMs) && stage !== "delivered") {
         const daysAt = Math.max(0, (nowMs - enteredMs) / 86_400_000)
         if (daysAt > sla) currentlyBreaching += 1
-        // Pipeline work-days remaining
-        const stageIdx = PRODUCTION_STAGES.indexOf(stage)
-        let workLeft = Math.max(0, sla - daysAt)
-        for (let i = stageIdx + 1; i < PRODUCTION_STAGES.length; i++) {
-          const s = PRODUCTION_STAGES[i]
-          if (s === "delivered") continue
-          const sla2 = STAGE_SLA_DAYS[s]
-          if (sla2 != null) workLeft += sla2
-        }
-        pipelineWorkDays += workLeft
       }
+    }
+
+    // Pipeline work-days remaining — sum remaining DOWNSTREAM-track SLAs only.
+    // Anchored on the order's resolved downstream stage (not the latest entry
+    // of any track) and walking DOWNSTREAM_STAGES (a real sequence) instead of
+    // the PRODUCTION_STAGES union, so artwork/blanks SLAs aren't double-counted.
+    const downstream = resolveTracksFromMeta(meta).downstream
+    const dIdx = (DOWNSTREAM_STAGES as readonly string[]).indexOf(downstream)
+    if (dIdx >= 0 && downstream !== "delivered") {
+      // Time already spent in the current downstream stage, if recorded.
+      let daysInDownstream = 0
+      for (let i = sortedHistory.length - 1; i >= 0; i--) {
+        if (sortedHistory[i].stage === downstream) {
+          const enteredMs = Date.parse(sortedHistory[i].changed_at as string)
+          if (Number.isFinite(enteredMs)) {
+            daysInDownstream = Math.max(0, (nowMs - enteredMs) / 86_400_000)
+          }
+          break
+        }
+      }
+      const currentSla = DOWNSTREAM_STAGE_SLA_DAYS[downstream]
+      let workLeft =
+        currentSla != null ? Math.max(0, currentSla - daysInDownstream) : 0
+      for (let i = dIdx + 1; i < DOWNSTREAM_STAGES.length; i++) {
+        const s = DOWNSTREAM_STAGES[i]
+        if (s === "delivered") continue
+        const sla2 = DOWNSTREAM_STAGE_SLA_DAYS[s]
+        if (sla2 != null) workLeft += sla2
+      }
+      pipelineWorkDays += workLeft
     }
 
     // Throughput: shipped in last 30 days

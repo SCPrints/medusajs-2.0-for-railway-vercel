@@ -110,5 +110,7 @@ export default async function fulfillmentOnOrderCancelled({
 }
 
 export const config: SubscriberConfig = {
-  event: "order.cancelled",
+  // Core `cancelOrderWorkflow` emits OrderWorkflowEvents.CANCELED = "order.canceled"
+  // (US spelling, single-l). The old "order.cancelled" never fired.
+  event: "order.canceled",
 }

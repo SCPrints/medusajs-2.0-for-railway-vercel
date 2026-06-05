@@ -22,7 +22,8 @@
  */
 
 import { ExecArgs } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { writeProductImages } from "../lib/safe-product-images"
 
 const DNC_PRODUCT_URL_PREFIX = "https://www.dncworkwear.com.au/Product/"
 const SKIP_PREFIXES = ["Z9002", "ZXD"] as const
@@ -87,7 +88,6 @@ const fetchHeroImage = async (url: string): Promise<string | null> => {
 export default async function scrapeDncMissingImages({ container }: ExecArgs) {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
-  const productModule = container.resolve(Modules.PRODUCT) as any
 
   const limitEnv = Number.parseInt(process.env.DNC_SCRAPE_LIMIT ?? "", 10)
   const limit = Number.isFinite(limitEnv) && limitEnv > 0 ? limitEnv : Infinity
@@ -142,13 +142,24 @@ export default async function scrapeDncMissingImages({ container }: ExecArgs) {
     }
 
     try {
-      await productModule.updateProducts(p.id, {
+      // HARD RULE 0/2: route through the safe chokepoint — it HEAD-validates
+      // the scraped og:image (only a confirmed-live 200 is written) and
+      // force-keeps any existing gallery images rather than wholesale-replacing.
+      const writeResult = await writeProductImages(container, p.id, [imageUrl], {
         thumbnail: imageUrl,
-        images: [{ url: imageUrl }],
+        logger,
       })
-      scraped++
-      if (scraped <= 5 || scraped % 10 === 0) {
-        logger.info(`  [${i}/${candidates.length}] ${p.handle}: ✓ ${imageUrl}`)
+      if (writeResult.wrote) {
+        scraped++
+        if (scraped <= 5 || scraped % 10 === 0) {
+          logger.info(`  [${i}/${candidates.length}] ${p.handle}: ✓ ${imageUrl}`)
+        }
+      } else {
+        // Not written — the scraped URL failed liveness validation (dead/unverified).
+        notFound++
+        logger.warn(
+          `  [${i}/${candidates.length}] ${p.handle}: scraped image not live (${imageUrl})`
+        )
       }
     } catch (e: any) {
       failed++

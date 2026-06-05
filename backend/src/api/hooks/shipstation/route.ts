@@ -388,7 +388,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   })
 
   if (handledShippedEvent && newParcels.length) {
-    // Emit `order.shipment_created` so the dispatch-email subscriber fires.
+    // createOrderShipmentWorkflow emits `shipment.created` so the dispatch-email subscriber fires.
     // Parcels are already persisted above, so a 5xx response here is safe:
     // ShipStation will retry, idempotency dedupes the parcels, and the workflow re-fires.
     try {

@@ -7,23 +7,32 @@ import { SubscriberArgs, SubscriberConfig } from '@medusajs/medusa'
 import { SUPPORT_REPLY_TO_EMAIL } from '../lib/constants'
 import { EmailTemplates } from '../modules/email-notifications/templates'
 import type { OrderShippedParcel } from '../modules/email-notifications/templates/order-shipped'
+import { resolveOrderIdFromShipmentEvent } from '../lib/resolve-order-from-fulfillment'
 
 /**
- * `order.shipment_created` is emitted by the core `createOrderShipmentWorkflow`
- * (which the ShipStation webhook triggers once labels arrive). We reload the
- * order with its fulfillments + shipping address, materialise the parcels
- * array, and dispatch the ORDER_SHIPPED email.
+ * `shipment.created` (FulfillmentWorkflowEvents.SHIPMENT_CREATED) is emitted by
+ * the core `createOrderShipmentWorkflow` — which both the ShipStation webhook and
+ * the AusPost tracking job trigger once labels arrive. The event payload is
+ * `{ id: <fulfillment_id>, no_notification }`, so we translate the fulfillment id
+ * to its order, reload the order with its fulfillments + shipping address,
+ * materialise the parcels array, and dispatch the ORDER_SHIPPED email.
  */
 export default async function orderShipmentCreatedHandler({
   event: { data },
   container,
-}: SubscriberArgs<{ id?: string; order_id?: string; fulfillment_id?: string }>) {
-  const orderId = data?.order_id || data?.id
+}: SubscriberArgs<{ id?: string; order_id?: string; no_notification?: boolean }>) {
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+
+  const orderId = await resolveOrderIdFromShipmentEvent(container, data)
   if (!orderId) {
+    logger.warn(
+      `shipment.created: could not resolve order from fulfillment ${data?.id}; skipping ORDER_SHIPPED email.`
+    )
     return
   }
-
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  // The event's `id` is the fulfillment that was just shipped — use it to
+  // prefer that fulfillment's parcels.
+  const shippedFulfillmentId = data?.id
   const notificationModuleService: INotificationModuleService = container.resolve(
     Modules.NOTIFICATION
   )
@@ -37,7 +46,7 @@ export default async function orderShipmentCreatedHandler({
     })
   } catch (error) {
     logger.error(
-      `order.shipment_created: failed to retrieve order ${orderId}: ${
+      `shipment.created: failed to retrieve order ${orderId}: ${
         (error as Error).message
       }`
     )
@@ -47,7 +56,7 @@ export default async function orderShipmentCreatedHandler({
   const shippingAddress = order.shipping_address
   if (!shippingAddress) {
     logger.warn(
-      `order.shipment_created: order ${orderId} has no shipping_address; skipping ORDER_SHIPPED email.`
+      `shipment.created: order ${orderId} has no shipping_address; skipping ORDER_SHIPPED email.`
     )
     return
   }
@@ -69,8 +78,8 @@ export default async function orderShipmentCreatedHandler({
   let parcels: OrderShippedParcel[] = []
 
   // Prefer the shipstation-managed parcels metadata; fall back to native labels.
-  if (data?.fulfillment_id) {
-    const matched = fulfillments.find((f: any) => f.id === data.fulfillment_id)
+  if (shippedFulfillmentId) {
+    const matched = fulfillments.find((f: any) => f.id === shippedFulfillmentId)
     if (matched) {
       parcels = parcelsFromFulfillment(matched)
     }
@@ -88,7 +97,7 @@ export default async function orderShipmentCreatedHandler({
 
   if (!parcels.length) {
     logger.warn(
-      `order.shipment_created: order ${orderId} has no resolvable tracking parcels; skipping ORDER_SHIPPED email.`
+      `shipment.created: order ${orderId} has no resolvable tracking parcels; skipping ORDER_SHIPPED email.`
     )
     return
   }
@@ -113,7 +122,7 @@ export default async function orderShipmentCreatedHandler({
     })
   } catch (error) {
     logger.error(
-      `order.shipment_created: failed to send ORDER_SHIPPED email for order ${orderId}: ${
+      `shipment.created: failed to send ORDER_SHIPPED email for order ${orderId}: ${
         (error as Error).message
       }`
     )
@@ -137,5 +146,5 @@ const parcelsFromFulfillment = (fulfillment: any): OrderShippedParcel[] => {
 }
 
 export const config: SubscriberConfig = {
-  event: 'order.shipment_created',
+  event: 'shipment.created',
 }

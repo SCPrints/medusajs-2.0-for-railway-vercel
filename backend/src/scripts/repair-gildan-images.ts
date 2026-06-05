@@ -56,6 +56,7 @@ import {
 import { GildanSitemapResolver } from "../modules/gildan/sitemap-resolver"
 import { buildGildanGarmentImages } from "../modules/gildan/mapping"
 import type { GildanColour } from "../modules/gildan/types"
+import { writeProductImages } from "../lib/safe-product-images"
 
 /** Default targets when neither --all nor --handles is given. */
 const DEFAULT_HANDLES = ["gildan-sf500b", "gildan-65000b"]
@@ -296,16 +297,28 @@ export default async function repairGildanImages({ container, args }: ExecArgs) 
     if (!apply) continue
 
     try {
-      await productModule.updateProducts(p.id, {
-        images: mergedImages.map((url) => ({ url })),
+      // HARD RULE 0/2: route through the safe chokepoint — it HEAD-validates
+      // every scraped URL (only confirmed-live 200s are added), force-keeps
+      // existing live images, and never empties the gallery. `mergedImages` is
+      // the FULL intended final list (existing + resolved, front-first).
+      const writeResult = await writeProductImages(container, p.id, mergedImages, {
         thumbnail: mergedImages[0] || p.thumbnail || undefined,
-        metadata: {
-          ...(p.metadata ?? {}),
-          gildan_image_repair_at: new Date().toISOString(),
-        },
+        currentUrls: existingUrls,
+        logger,
       })
-      productsUpdated++
-      imagesAddedTotal += addedCount
+      if (writeResult.wrote) {
+        productsUpdated++
+        imagesAddedTotal += writeResult.added.length
+        // Stamp the repair timestamp separately — writeProductImages only
+        // touches images/thumbnail, not metadata (read-modify-write to keep
+        // every other metadata key).
+        await productModule.updateProducts(p.id, {
+          metadata: {
+            ...(p.metadata ?? {}),
+            gildan_image_repair_at: new Date().toISOString(),
+          },
+        })
+      }
     } catch (e: any) {
       logger.warn(`    product update failed for ${p.handle}: ${e?.message ?? e}`)
       continue

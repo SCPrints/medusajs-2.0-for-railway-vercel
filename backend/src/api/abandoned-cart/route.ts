@@ -1,13 +1,10 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { INotificationModuleService } from "@medusajs/framework/types"
-import { Modules } from "@medusajs/framework/utils"
 import { Pool } from "pg"
 import { ulid } from "ulid"
 
-import { CONTACT_NOTIFICATION_EMAIL, DATABASE_URL, SUPPORT_REPLY_TO_EMAIL } from "../../lib/constants"
+import { DATABASE_URL } from "../../lib/constants"
 import { getPostHog } from "../../lib/posthog"
 import { getStorefrontOriginAllowlist } from "../../lib/storefront-origins"
-import { EmailTemplates } from "../../modules/email-notifications/templates"
 
 const abandonedCartPool = new Pool({
   connectionString: DATABASE_URL,
@@ -96,7 +93,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     Array.isArray(body.items) && body.items.length
       ? body.items.filter((item) => item && typeof item === "object")
       : []
-  const notifyCustomer = body.notify_customer === true
 
   if (!cartId || !isValidEmail(email)) {
     return res.status(400).json({
@@ -156,43 +152,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     ]
   )
 
-  if (notifyCustomer) {
-    try {
-      const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
-      const supportRecipient = CONTACT_NOTIFICATION_EMAIL?.trim()
-      const recipients = supportRecipient && supportRecipient !== email
-        ? [email, supportRecipient]
-        : [email]
-      for (const recipient of recipients) {
-        await notificationModuleService.createNotifications({
-          to: recipient,
-          channel: "email",
-          template: EmailTemplates.CART_REMINDER,
-          data: {
-            emailOptions: {
-              subject: "Your SC PRINTS cart reminder",
-              replyTo: supportRecipient || SUPPORT_REPLY_TO_EMAIL,
-            },
-            reminder: {
-              cartId,
-              email,
-              itemCount,
-              currencyCode,
-              cartTotal,
-              countryCode,
-              items: items.map((item: any) => ({
-                title: typeof item?.title === "string" ? item.title : null,
-                quantity: typeof item?.quantity === "number" ? item.quantity : null,
-              })),
-            },
-            preview: "Your cart is saved and ready when you are.",
-          },
-        })
-      }
-    } catch (error) {
-      console.error("Failed to send cart reminder notification", error)
-    }
-  }
+  // NOTE: this endpoint is unauthenticated (storefront fire-and-forget capture).
+  // It deliberately does NOT send email here — an immediate send keyed only on a
+  // request body field is an email-abuse/spoofing vector and would bypass the
+  // marketing-consent gate. The daily `send-abandoned-cart-reminders` cron owns
+  // delivery: it is consent-gated (`shouldSendMarketingEmail`), idempotent, and
+  // rate-capped per run.
 
   getPostHog()?.capture({
     distinctId: email,
@@ -203,15 +168,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       cart_total: cartTotal,
       currency_code: currencyCode ?? null,
       country_code: countryCode ?? null,
-      notify_customer: notifyCustomer,
       $set: { email },
     },
   })
 
   return res.status(200).json({
     success: true,
-    message: notifyCustomer
-      ? "Cart saved. Reminder email sent."
-      : "Cart follow-up details saved.",
+    message: "Cart follow-up details saved.",
   })
 }

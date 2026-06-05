@@ -9,6 +9,7 @@ import { AUDIT_ACTION, AUDIT_ENTITY } from "../lib/audit-entities"
 import { writeAudit } from "../lib/audit-log"
 import { captureEvent } from "../lib/posthog"
 import { revalidateOrgTags } from "../lib/storefront-revalidate"
+import { resolveOrderIdFromShipmentEvent } from "../lib/resolve-order-from-fulfillment"
 import { ORG_INVENTORY_MODULE } from "../modules/org-inventory"
 import type OrgInventoryModuleService from "../modules/org-inventory/service"
 
@@ -27,11 +28,13 @@ import type OrgInventoryModuleService from "../modules/org-inventory/service"
 export default async function fulfillmentOnShipmentCreated({
   event: { data },
   container,
-}: SubscriberArgs<{ id: string }>) {
-  const orderId = data?.id
+}: SubscriberArgs<{ id?: string; order_id?: string }>) {
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+
+  // `shipment.created` carries the fulfillment id; translate to the order.
+  const orderId = await resolveOrderIdFromShipmentEvent(container, data)
   if (!orderId) return
 
-  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
   const orderModuleService: IOrderModuleService = container.resolve(
     Modules.ORDER
   )
@@ -110,5 +113,5 @@ export default async function fulfillmentOnShipmentCreated({
 }
 
 export const config: SubscriberConfig = {
-  event: "order.shipment_created",
+  event: "shipment.created",
 }

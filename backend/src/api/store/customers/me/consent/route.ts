@@ -92,7 +92,17 @@ export async function POST(
   const customerModuleService: ICustomerModuleService = req.scope.resolve(
     Modules.CUSTOMER
   )
-  await customerModuleService.updateCustomers(customerId, { metadata: patch })
+  // Read-modify-write: Medusa REPLACES the whole metadata jsonb on update, so
+  // we must spread the existing keys or we'd wipe tier/owner/NPS timestamps and
+  // the other consent flags the caller didn't touch.
+  const existing = await customerModuleService.retrieveCustomer(customerId)
+  const mergedMetadata = {
+    ...((existing.metadata as Record<string, unknown>) ?? {}),
+    ...patch,
+  }
+  await customerModuleService.updateCustomers(customerId, {
+    metadata: mergedMetadata,
+  })
 
   const customer = await customerModuleService.retrieveCustomer(customerId)
   const consent = readConsentFromMetadata(

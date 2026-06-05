@@ -237,7 +237,7 @@ export default async function syncAusPostTracking(container: MedusaContainer) {
       }
 
       // First time we see a real tracking event, create the Medusa shipment
-      // (marks items shipped + emits order.shipment_created → ORDER_SHIPPED
+      // (marks items shipped + emits shipment.created → ORDER_SHIPPED
       // email). Mirrors the ShipStation webhook's createOrderShipmentWorkflow
       // call. Only stamp shipment_synced_at once the workflow succeeds so a
       // transient failure retries on the next tick.

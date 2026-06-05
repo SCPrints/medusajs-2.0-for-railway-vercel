@@ -86,6 +86,30 @@ class OrgInventoryModuleService extends MedusaService({
     const reservedDelta = change.reserved_delta ?? 0
     if (onHandDelta === 0 && reservedDelta === 0) return
 
+    // Atomic increment in the DB. The cached aggregates were previously updated
+    // with a read-then-write (retrieve → add delta → update), which loses
+    // updates under concurrency: two subscribers run in parallel on the Redis
+    // bus (e.g. reserve + ship, or two reserves on the same row), both read the
+    // same value, and the second write clobbers the first. `col = col + delta`
+    // computed in the DB is race-free. The movement ledger remains the source
+    // of truth — these are caches — but they must stay consistent.
+    try {
+      const knex = (this as any).__container__?.__pg_connection__
+      if (knex?.raw) {
+        await knex.raw(
+          `update "org_inventory"
+              set "quantity_on_hand" = "quantity_on_hand" + ?,
+                  "quantity_reserved" = "quantity_reserved" + ?,
+                  "updated_at" = now()
+            where "id" = ? and "deleted_at" is null`,
+          [onHandDelta, reservedDelta, inventoryId]
+        )
+        return
+      }
+    } catch {
+      // Fall through to the non-atomic path so the mutation never hard-fails.
+    }
+
     const row = await this.retrieveOrgInventory(inventoryId)
     const nextOnHand = (row.quantity_on_hand ?? 0) + onHandDelta
     const nextReserved = (row.quantity_reserved ?? 0) + reservedDelta
@@ -148,7 +172,7 @@ class OrgInventoryModuleService extends MedusaService({
   /**
    * Ship stock. Releases the reservation AND decrements physical
    * stock — both effects in one movement row. Triggered by the
-   * `order.shipment_created` subscriber.
+   * `shipment.created` subscriber.
    */
   async ship(args: ShipArgs): Promise<any> {
     if (args.quantity <= 0) throw new Error("quantity must be positive")
