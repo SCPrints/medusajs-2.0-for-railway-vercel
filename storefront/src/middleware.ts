@@ -146,7 +146,12 @@ export async function middleware(request: NextRequest) {
 
   // Set a cookie to indicate that we're onboarding. This is used to show the onboarding flow.
   if (isOnboarding) {
-    response.cookies.set("_medusa_onboarding", "true", { maxAge: 60 * 60 * 24 })
+    response.cookies.set("_medusa_onboarding", "true", {
+      maxAge: 60 * 60 * 24,
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV === "production",
+    })
   }
 
   return response

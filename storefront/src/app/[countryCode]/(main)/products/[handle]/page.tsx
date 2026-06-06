@@ -6,6 +6,7 @@ import { getRegion } from "@lib/data/regions"
 import { getProductByHandle } from "@lib/data/products"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import { safeJsonLd } from "@lib/util/json-ld"
 
 type Props = {
   params: Promise<{ countryCode: string; handle: string }>
@@ -138,7 +139,7 @@ export default async function ProductPage({ params }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productStructuredData) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(productStructuredData) }}
       />
       <ProductTemplate
         product={pricedProduct}

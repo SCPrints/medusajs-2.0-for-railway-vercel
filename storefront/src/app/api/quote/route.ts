@@ -7,9 +7,11 @@ import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
  * board image uploads without the storefront becoming a CORS
  * negotiator.
  */
-// Mood-board base64 uploads can be sizeable; 8 MB is generous for a form
-// submission while still capping the open-relay / OOM surface.
-const MAX_BODY_BYTES = 8 * 1024 * 1024
+// The BYO form allows up to 20 MB of mood-board images (raw), which base64-
+// inflate to ~27 MB of POST body. Cap at 28 MB so a permitted submission never
+// 413s here, while still bounding the open-relay / OOM surface. (Keep this in
+// step with MAX_TOTAL_BYTES in byo-inquiry-form.tsx.)
+const MAX_BODY_BYTES = 28 * 1024 * 1024
 
 function getBackendBaseUrl() {
   const backendUrl = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL

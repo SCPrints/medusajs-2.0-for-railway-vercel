@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+// Sends a base64 image to Anthropic vision; 8 MB covers a high-res source.
+const MAX_BODY_BYTES = 8 * 1024 * 1024
 // Match the chat route's model — that one is verified working in production,
 // and stitch estimation with a well-constrained system prompt is well within
 // Haiku's wheelhouse. Previously hard-coded a Sonnet alias that wasn't a
@@ -151,12 +154,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  let body: EstimateBody
-  try {
-    body = (await req.json()) as EstimateBody
-  } catch {
-    return NextResponse.json({ error: "invalid_payload" }, { status: 400 })
-  }
+  // Each call spends Anthropic VISION tokens on our key — throttle per IP +
+  // cap the body (same denial-of-wallet class as /api/chat).
+  const limited = enforceRateLimit(req, { name: "embroidery-estimate", limit: 20, windowMs: 60_000 })
+  if (limited) return limited
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+  const body = parsed.data as EstimateBody
 
   if (typeof body.imageBase64 !== "string" || !body.imageBase64.length) {
     return NextResponse.json(

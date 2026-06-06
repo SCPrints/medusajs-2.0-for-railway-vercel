@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
+import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+
+// Spends real remove.bg API credits per call; base64 dataUrl can be large.
+const MAX_BODY_BYTES = 16 * 1024 * 1024
 
 export async function POST(req: NextRequest) {
+  // Throttle + cap: paid-3rd-party-API-per-call (denial-of-wallet) + large
+  // base64 relay (OOM) — same class as /api/chat and upload-original.
+  const limited = enforceRateLimit(req, { name: "remove-bg", limit: 30, windowMs: 60_000 })
+  if (limited) return limited
+  const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
+  if (!parsed.ok) return parsed.response
+
   try {
-    const body = (await req.json()) as { dataUrl?: string }
+    const body = parsed.data as { dataUrl?: string }
     const dataUrl = body?.dataUrl
 
     if (!dataUrl || typeof dataUrl !== "string") {

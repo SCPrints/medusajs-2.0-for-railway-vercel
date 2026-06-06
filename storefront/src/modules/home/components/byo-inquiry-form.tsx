@@ -41,6 +41,17 @@ type MoodBoardImage = {
 
 const MAX_MOOD_BOARD = 5
 const MAX_FILE_BYTES = 8 * 1024 * 1024
+// Aggregate cap across all attached images. Base64 inflates by ~33%, so 20 MB
+// raw ≈ 27 MB of POST body — kept below the /api/quote route cap (28 MB) so a
+// permitted mood board never silently 413s at the proxy.
+const MAX_TOTAL_BYTES = 20 * 1024 * 1024
+
+// Estimate the raw byte size of an already-encoded data URL (base64 → bytes).
+const dataUrlRawBytes = (dataUrl: string): number => {
+  const comma = dataUrl.indexOf(",")
+  const b64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl
+  return Math.floor((b64.length * 3) / 4)
+}
 
 const fileToDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -68,6 +79,10 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
   const addImages = async (files: FileList | null) => {
     if (!files || files.length === 0) return
     const next: MoodBoardImage[] = []
+    let runningTotal = moodBoard.reduce(
+      (sum, m) => sum + dataUrlRawBytes(m.data_base64),
+      0
+    )
     for (const file of Array.from(files)) {
       if (moodBoard.length + next.length >= MAX_MOOD_BOARD) break
       if (!file.type.startsWith("image/")) continue
@@ -75,6 +90,13 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
         alert(`${file.name} is larger than 8 MB — skipping.`)
         continue
       }
+      if (runningTotal + file.size > MAX_TOTAL_BYTES) {
+        alert(
+          "Mood board total is over 20 MB — skipping the rest. Remove an image or use smaller files."
+        )
+        break
+      }
+      runningTotal += file.size
       try {
         const dataUrl = await fileToDataUrl(file)
         next.push({

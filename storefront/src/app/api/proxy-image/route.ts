@@ -66,17 +66,14 @@ function isBlockedAddress(hostname: string): boolean {
   const lower = hostname.toLowerCase()
   if (lower === "localhost" || lower.endsWith(".localhost")) return true
   if (lower === "metadata.google.internal") return true
-  // IPv6 loopback / unspecified / link-local / unique-local.
-  if (lower === "::1" || lower === "[::1]" || lower === "::" || lower === "[::]")
-    return true
-  if (
-    lower.startsWith("[fe80:") ||
-    lower.startsWith("fe80:") ||
-    lower.startsWith("[fc") ||
-    lower.startsWith("[fd") ||
-    lower.startsWith("fc") ||
-    lower.startsWith("fd")
-  )
+  // Block ALL IPv6 literals outright — no allowlisted host is ever an IPv6
+  // literal, and enumerating safe ranges is error-prone (e.g. URL() normalises
+  // the IPv4-mapped loopback `[::ffff:127.0.0.1]` to `[::ffff:7f00:1]`, which
+  // slips past per-prefix checks). `new URL().hostname` brackets every IPv6
+  // host, so this catches them all.
+  if (lower.startsWith("[")) return true
+  if (lower === "::1" || lower === "::" || lower.startsWith("fe80:") ||
+      lower.startsWith("fc") || lower.startsWith("fd"))
     return true
   // IPv4 literals in private / loopback / link-local / metadata ranges.
   const v4 = lower.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
@@ -104,6 +101,24 @@ function isAllowedHost(hostname: string): boolean {
   if (lower.endsWith(".r2.cloudflarestorage.com")) return true
   return false
 }
+
+// Only raster image types are proxied. image/svg+xml is REJECTED on purpose:
+// an SVG served back from our own origin can execute script (stored XSS), and
+// the `.r2.dev` wildcard host is attacker-registerable.
+const RASTER_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/bmp",
+  "image/tiff",
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
+])
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024
+const UPSTREAM_TIMEOUT_MS = 10_000
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url")
@@ -136,6 +151,8 @@ export async function GET(req: NextRequest) {
     )
   }
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS)
   try {
     const upstream = await fetch(parsed.toString(), {
       // Don't forward cookies / auth; this is a public-image proxy.
@@ -150,6 +167,7 @@ export async function GET(req: NextRequest) {
       // internal service would otherwise be followed server-side and the
       // response streamed back to the caller. Treat any redirect as an error.
       redirect: "manual",
+      signal: controller.signal,
     })
     if (upstream.status >= 300 && upstream.status < 400) {
       return NextResponse.json(
@@ -163,25 +181,55 @@ export async function GET(req: NextRequest) {
         { status: upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502 }
       )
     }
-    const contentType = upstream.headers.get("content-type") ?? "image/*"
-    if (!contentType.startsWith("image/")) {
+    const baseType = (upstream.headers.get("content-type") ?? "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase()
+    if (!RASTER_IMAGE_TYPES.has(baseType)) {
       return NextResponse.json(
-        { message: `Upstream returned non-image content (${contentType}).` },
+        { message: `Upstream returned unsupported content type (${baseType || "unknown"}).` },
         { status: 415 }
       )
     }
-    const headers = new Headers()
-    headers.set("content-type", contentType)
+    // Response-size cap: reject honest oversized bodies up front…
     const upstreamLength = upstream.headers.get("content-length")
+    if (upstreamLength && Number(upstreamLength) > MAX_IMAGE_BYTES) {
+      return NextResponse.json(
+        { message: "Upstream image exceeds size cap." },
+        { status: 413 }
+      )
+    }
+    // …and enforce the cap during streaming too, in case content-length lies
+    // (the wildcard `.r2.dev` host is attacker-registerable).
+    let streamed = 0
+    const capped = upstream.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, ctrl) {
+          streamed += chunk.byteLength
+          if (streamed > MAX_IMAGE_BYTES) {
+            ctrl.error(new Error("image exceeds size cap"))
+            return
+          }
+          ctrl.enqueue(chunk)
+        },
+      })
+    )
+    const headers = new Headers()
+    headers.set("content-type", baseType)
     if (upstreamLength) headers.set("content-length", upstreamLength)
     headers.set("access-control-allow-origin", "*")
+    // Defense-in-depth: never let a browser content-sniff this into something
+    // executable, even though we already restrict to raster types above.
+    headers.set("x-content-type-options", "nosniff")
     headers.set("cache-control", "public, max-age=3600, s-maxage=86400")
-    return new NextResponse(upstream.body, { status: 200, headers })
+    return new NextResponse(capped, { status: 200, headers })
   } catch (error) {
     console.error("proxy-image upstream fetch failed", { url, error })
     return NextResponse.json(
       { message: "Failed to fetch upstream image." },
       { status: 502 }
     )
+  } finally {
+    clearTimeout(timeout)
   }
 }
