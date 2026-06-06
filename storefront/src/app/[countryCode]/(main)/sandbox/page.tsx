@@ -39,6 +39,37 @@ const STATUS_STYLES: Record<Status, string> = {
 
 const CATEGORIES: Category[] = [
   {
+    title: "Print-process heroes",
+    description:
+      "Hero candidates that show what SC Prints actually does — the logo being decorated by each production method (DTF, screen print, embroidery), not abstract particles.",
+    items: [
+      {
+        href: "/print-formation-hero",
+        label: "Ink → Garment (DTF print-formation)",
+        description:
+          "Loose ink particles swarm onto a blank tee and assemble the SC Prints mark, then a heat-press bar sweeps across and sets it crisp with a flash + steam. Cursor brushes the wet ink.",
+        status: "candidate",
+        tech: "Canvas 2D",
+      },
+      {
+        href: "/screenprint-hero",
+        label: "CMYK screen-print registration",
+        description:
+          "The wordmark registers from four CMYK halftone separations (C→M→Y→K at real screen angles) into a full-colour rosette on press stock, then resolves to a solid fill. Cursor is a loupe over the dots.",
+        status: "candidate",
+        tech: "Canvas 2D",
+      },
+      {
+        href: "/embroidery-hero",
+        label: "Machine embroidery stitch-on",
+        description:
+          "The wordmark is stitched in satin thread on a hooped fabric, stitch by stitch, a needle bobbing along the sewing path. Finishes with a specular sheen that rakes across and follows the cursor.",
+        status: "candidate",
+        tech: "Canvas 2D",
+      },
+    ],
+  },
+  {
     title: "Wordmark animations",
     description: "Particle physics applied to the SC Prints wordmark.",
     items: [
