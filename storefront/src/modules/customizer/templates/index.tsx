@@ -4901,7 +4901,11 @@ export default function CustomizerTemplate({
         */}
         <div className={
           assemblyLayout
-            ? "flex min-w-0 flex-col flex-1 h-full overflow-hidden bg-ui-bg-base p-3 small:p-4"
+            // Mobile/tablet (below small:=1024) stacks flex-col: pin the canvas
+            // to a fixed share of the viewport (basis-[46vh], no grow/shrink) so
+            // it can't be starved to ~0 by the section panel below it. Desktop
+            // (small:flex-row) restores flex-1 + full height.
+            ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-3 small:p-4 basis-[46vh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
             : `order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
               }`
@@ -4973,7 +4977,11 @@ export default function CustomizerTemplate({
         </div>
         <div className={
           assemblyLayout
-            ? "flex w-full small:w-[400px] lg:w-[420px] shrink-0 flex-col border-t border-ui-border-base bg-ui-bg-subtle h-full overflow-hidden small:border-t-0 small:border-l"
+            // Mobile/tablet: the panel takes the height the fixed canvas leaves
+            // (grow/shrink + min-h-0) and scrolls internally, instead of
+            // shrink-0 + h-full which claimed the whole column and squished the
+            // canvas. Desktop: fixed-width, full-height side panel as before.
+            ? "flex w-full small:w-[400px] lg:w-[420px] flex-col border-t border-ui-border-base bg-ui-bg-subtle overflow-hidden min-h-0 grow shrink basis-0 small:grow-0 small:shrink-0 small:basis-auto small:h-full small:border-t-0 small:border-l"
             : `order-1 lg:order-none flex min-w-0 flex-col gap-2 self-start lg:sticky lg:top-24 lg:pr-1 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-5" : "lg:col-span-4"
               }`
@@ -4992,8 +5000,21 @@ export default function CustomizerTemplate({
                 <CustomizerGuide
                   pdpStep={pdpStep}
                   hasStep1={hasStep1}
+                  assemblyLayout
                   stepRefs={{ step1: step1Ref, step2: step2Ref, step3: step3Ref, step4: step4Ref }}
                   showTriggerPulse={showGuidePulse}
+                  onFocusStep={(n) => {
+                    // Open the accordion section this guide step highlights so
+                    // its ref mounts: 1=colour, 2=location+size, 4=quantity all
+                    // ride assemblyExpanded; 3=Artwork is its own toggle.
+                    if (n === 3) {
+                      setAssemblyExpanded(null)
+                      setAssemblyArtworkOpen(true)
+                    } else {
+                      setAssemblyArtworkOpen(false)
+                      setAssemblyExpanded(n)
+                    }
+                  }}
                 />
               ) : null}
             </div>
@@ -5489,7 +5510,10 @@ export default function CustomizerTemplate({
               location/size → artwork → quantity. */}
           {assemblyLayout && !isAdminProofMode ? (
             assemblyArtworkOpen ? (
-              <div className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
+              // step3Ref lives here in assembly mode (the v1 "Print size" step
+              // that normally holds it renders null above) so the guide's step-3
+              // spotlight targets the Artwork section.
+              <div ref={step3Ref} className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setAssemblyArtworkOpen(false)}

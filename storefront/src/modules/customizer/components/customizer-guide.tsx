@@ -20,6 +20,20 @@ type CustomizerGuideProps = {
     step4: RefObject<HTMLDivElement | null>
   }
   showTriggerPulse: boolean
+  /**
+   * Assembly-studio layout (`/customizer-v2`). When true the guide narrates the
+   * v2 accordion sections (colour / location+size / artwork / quantity) and uses
+   * `onFocusStep` to open the matching section before spotlighting it — without
+   * this the spotlight freezes on section 1, because steps 2-4 target DOM nodes
+   * that only mount when their accordion section is expanded.
+   */
+  assemblyLayout?: boolean
+  /**
+   * Assembly only: open the accordion section that step `n` highlights so its
+   * ref mounts. Called once per step change (never on every render), so it
+   * doesn't fight a customer who manually re-opens a different section.
+   */
+  onFocusStep?: (step: 1 | 2 | 3 | 4) => void
 }
 
 type StepConfig = {
@@ -46,6 +60,29 @@ const STEP_CONFIGS: Record<1 | 2 | 3 | 4, StepConfig> = {
   },
 }
 
+// `/customizer-v2` accordion copy. The studio is already open (the customer
+// pressed "Customise this garment" to get here), and size is merged into the
+// "Print location & size" section, so the steps map 1:1 onto the four visible
+// accordion sections — colour, location+size, artwork, quantity.
+const ASSEMBLY_STEP_CONFIGS: Record<1 | 2 | 3 | 4, StepConfig> = {
+  1: {
+    headline: "Pick your colour",
+    body: "Choose the garment colour and any other options. Each colour shows its own mockup on the left.",
+  },
+  2: {
+    headline: "Choose where to print & the size",
+    body: "Pick a location — Front, Back or a sleeve — then set the print size. Add as many locations as you like; each is priced separately.",
+  },
+  3: {
+    headline: "Add your artwork",
+    body: "Upload a logo (PNG, JPG or SVG) or add text, then drag and resize it right on the garment preview.",
+  },
+  4: {
+    headline: "Set quantities & add to cart",
+    body: "Enter how many of each size you need. Bulk discounts apply automatically as the quantity grows — then add to cart.",
+  },
+}
+
 const SPOTLIGHT_PADDING = 12
 
 export default function CustomizerGuide({
@@ -53,8 +90,11 @@ export default function CustomizerGuide({
   hasStep1,
   stepRefs,
   showTriggerPulse,
+  assemblyLayout = false,
+  onFocusStep,
 }: CustomizerGuideProps) {
   const prefersReducedMotion = useReducedMotion()
+  const STEPS = assemblyLayout ? ASSEMBLY_STEP_CONFIGS : STEP_CONFIGS
   const [active, setActive] = useState(false)
   const [guideStep, setGuideStep] = useState<1 | 2 | 3 | 4>(pdpStep)
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null)
@@ -66,6 +106,9 @@ export default function CustomizerGuide({
   const announcerRef = useRef<HTMLSpanElement | null>(null)
   // Tracks whether we've emitted guide_started for this activation
   const capturedStartRef = useRef(false)
+  // Assembly only: the last step we asked the studio to open, so onFocusStep
+  // fires once per step change (not on every render).
+  const lastFocusedStepRef = useRef<number | null>(null)
 
   const activeRef =
     guideStep === 1
@@ -147,11 +190,37 @@ export default function CustomizerGuide({
   }, [pdpStep, guideStep, active, stepRefs, prefersReducedMotion])
 
   // ------------------------------------------------------------------
+  // Assembly layout: open the accordion section the current step targets so
+  // its DOM node exists for the spotlight, then scroll it into the panel
+  // viewport. Fires once per step change (guarded by lastFocusedStepRef) so it
+  // never overrides a customer who manually re-opens a different section while
+  // the guide is open. No-op in the v1 PDP (no assemblyLayout / no callback).
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (!active || !assemblyLayout) {
+      lastFocusedStepRef.current = null
+      return
+    }
+    if (lastFocusedStepRef.current === guideStep) return
+    lastFocusedStepRef.current = guideStep
+    onFocusStep?.(guideStep)
+    // Wait for the section to expand + mount before scrolling it into view.
+    const t = setTimeout(() => {
+      activeRef.current?.scrollIntoView({
+        behavior: prefersReducedMotion ? "auto" : "smooth",
+        block: "center",
+      })
+    }, 140)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, guideStep, assemblyLayout])
+
+  // ------------------------------------------------------------------
   // Announce step to screen readers
   // ------------------------------------------------------------------
   useEffect(() => {
     if (!active || !announcerRef.current) return
-    const cfg = STEP_CONFIGS[guideStep]
+    const cfg = STEPS[guideStep]
     announcerRef.current.textContent = `Step ${guideStep} of 4: ${cfg.headline}. ${cfg.body}`
   }, [active, guideStep])
 
@@ -169,10 +238,17 @@ export default function CustomizerGuide({
   useEffect(() => {
     if (!active) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose("esc")
+      if (e.key !== "Escape") return
+      // Capture phase + stopImmediatePropagation so the studio overlay's own
+      // window-level Escape listener (StudioLauncher) doesn't ALSO fire and
+      // tear down the whole studio, discarding the in-progress design. First
+      // Escape closes the guide; once it's inactive this listener is gone, so
+      // a second Escape closes the studio as normal.
+      e.stopImmediatePropagation()
+      handleClose("esc")
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, guideStep])
 
@@ -343,7 +419,7 @@ export default function CustomizerGuide({
     }
   }
 
-  const cfg = STEP_CONFIGS[guideStep]
+  const cfg = STEPS[guideStep]
   const cutout = getCutout()
 
   // ------------------------------------------------------------------
@@ -354,7 +430,7 @@ export default function CustomizerGuide({
       {/* Trigger button — wrapper holds the pulse ring outside overflow:hidden context */}
       <div className={`relative shrink-0 ${active ? "invisible pointer-events-none" : ""}`}>
         {showTriggerPulse && (
-          <span className="absolute -inset-1.5 rounded-xl animate-ping bg-[var(--brand-secondary)]/30 pointer-events-none" />
+          <span className="absolute -inset-1.5 rounded-xl animate-ping bg-[var(--brand-primary)]/30 pointer-events-none" />
         )}
         <button
           ref={triggerRef}
@@ -366,7 +442,7 @@ export default function CustomizerGuide({
           }}
           aria-label="Open the step-by-step guide"
           aria-expanded={active}
-          className="flex items-center gap-1 rounded-lg border border-[var(--brand-secondary)] bg-[var(--brand-secondary)] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2 whitespace-nowrap"
+          className="flex min-h-9 items-center gap-1 rounded-lg border border-[var(--brand-primary)] bg-[var(--brand-primary)] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 whitespace-nowrap"
         >
           <svg
             width="12"

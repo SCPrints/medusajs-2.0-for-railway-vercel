@@ -136,7 +136,7 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-ui-border-base px-3.5 text-sm font-medium text-ui-fg-base transition-colors hover:bg-ui-bg-subtle"
+                className="inline-flex h-11 items-center gap-1.5 rounded-full border border-ui-border-base px-3.5 text-sm font-medium text-ui-fg-base transition-colors hover:bg-ui-bg-subtle"
               >
                 <span aria-hidden className="text-base leading-none">←</span>
                 <span className="hidden phone:inline">Back to photos</span>
