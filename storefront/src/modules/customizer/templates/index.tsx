@@ -4501,7 +4501,19 @@ export default function CustomizerTemplate({
                   <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-ui-fg-subtle">
                     Editing: {sideLabel}
                   </p>
-                  <div className={assemblyLayout ? "z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]"}>
+                  <div className={assemblyLayout ? "relative isolate z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]"}>
+                    {/* SC Prints watermark — sits on the studio page BEHIND the
+                        garment picture (negative z-index), slightly oversize so
+                        it peeks around the garment. Faint; non-interactive. */}
+                    {assemblyLayout && (
+                      <img
+                        src="/branding/scp-vector.svg"
+                        alt=""
+                        aria-hidden
+                        draggable={false}
+                        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.12]"
+                      />
+                    )}
                     <CanvasStage
                       tintColor={variantTintHex}
                       garmentImage={garmentImageUrl}
