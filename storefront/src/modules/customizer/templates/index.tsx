@@ -550,7 +550,19 @@ export default function CustomizerTemplate({
   // PricingPanel disables the projection.
   const [aggregatedCartQuantity, setAggregatedCartQuantity] = useState<number | undefined>(undefined)
   const [layoutVersion, setLayoutVersion] = useState(0)
-  const [scpPrintSizeId, setScpPrintSizeId] = useState<ScpPrintSizeId>(DEFAULT_SCP_PRINT_SIZE_ID)
+  // Print size is stored PER SIDE so each location keeps its own size — picking
+  // A3 on the Front no longer reshapes the Back when you switch to it.
+  // `scpPrintSizeId` resolves to the current side's size; `setScpPrintSizeId`
+  // writes to whichever side is active at call time (via currentSideRef, so it's
+  // correct even mid side-switch). Pricing is driven by per-object printSpecs,
+  // so this only affects the live frame + the selected-size UI, never the price.
+  const [scpPrintSizeBySide, setScpPrintSizeBySide] = useState<
+    Partial<Record<GarmentSide, ScpPrintSizeId>>
+  >({})
+  const scpPrintSizeId = scpPrintSizeBySide[currentSide] ?? DEFAULT_SCP_PRINT_SIZE_ID
+  const setScpPrintSizeId = useCallback((id: ScpPrintSizeId) => {
+    setScpPrintSizeBySide((prev) => ({ ...prev, [currentSideRef.current]: id }))
+  }, [])
   // Tracks whether the customer has actively chosen a size in the picker.
   // Pricing still uses `scpPrintSizeId` (defaulted to A6) so totals work pre-
   // selection, but the tile UI doesn't highlight anything until this flips
@@ -2935,7 +2947,7 @@ export default function CustomizerTemplate({
     const pa = getPrintArea(
       Math.round(canvasDims.width),
       Math.round(canvasDims.height),
-      resolveScpPrintSizeForSide(side, scpPrintSizeId) as ScpPrintSizeId
+      resolveScpPrintSizeForSide(side, scpPrintSizeBySide[side] ?? DEFAULT_SCP_PRINT_SIZE_ID) as ScpPrintSizeId
     )
     const pw = Math.max(1, Math.round(pa.width))
     const ph = Math.max(1, Math.round(pa.height))
@@ -3032,7 +3044,7 @@ export default function CustomizerTemplate({
         mockupGarmentUrl,
         defaultGarmentImage
       )
-      const pa = getPrintArea(canvasDims.width, canvasDims.height, resolveScpPrintSizeForSide(side, scpPrintSizeId) as ScpPrintSizeId)
+      const pa = getPrintArea(canvasDims.width, canvasDims.height, resolveScpPrintSizeForSide(side, scpPrintSizeBySide[side] ?? DEFAULT_SCP_PRINT_SIZE_ID) as ScpPrintSizeId)
       const payload = {
         side,
         artworkSvg,

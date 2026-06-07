@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 
 type Props = {
   /** Garment title, shown beside the photos and in the studio top bar. */
@@ -38,11 +38,86 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
   // lazy until the first open so the heavy Fabric canvas doesn't spin up behind
   // the landing.
   const [hasOpenedOnce, setHasOpenedOnce] = useState(false)
+  // Product-details drawer (description / tags), so the marketing copy that's
+  // on the landing is still reachable once the full-screen studio covers it.
+  const [showDetails, setShowDetails] = useState(false)
+
+  const overlayRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const landingRef = useRef<HTMLDivElement | null>(null)
 
   const openStudio = () => {
     setHasOpenedOnce(true)
     setOpen(true)
   }
+
+  const closeStudio = () => {
+    setShowDetails(false)
+    setOpen(false)
+  }
+
+  // Accessibility: while the studio overlay is open, make the page behind it
+  // inert (removed from tab order + the a11y tree), move focus into the
+  // overlay, trap Tab within it, and restore focus to the trigger on close.
+  // The site header/footer + landing all sit behind the fixed overlay and would
+  // otherwise be reachable by keyboard / screen reader.
+  useEffect(() => {
+    if (!open) {
+      if (landingRef.current) landingRef.current.inert = false
+      return
+    }
+    const overlay = overlayRef.current
+    if (landingRef.current) landingRef.current.inert = true
+
+    const focusables = () =>
+      overlay
+        ? Array.from(
+            overlay.querySelectorAll<HTMLElement>(
+              'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+            )
+          ).filter((el) => el.offsetParent !== null)
+        : []
+
+    const focusTimer = setTimeout(() => focusables()[0]?.focus(), 60)
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !overlay) return
+      // A sub-layer (bulk grid, colour picker, help guide) manages its own focus.
+      if (document.querySelector("[data-studio-sublayer]")) return
+      if (document.querySelector('[aria-label^="Customizer guide"]')) return
+      const f = focusables()
+      if (!f.length) return
+      const first = f[0]
+      const last = f[f.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    overlay?.addEventListener("keydown", onKey)
+
+    return () => {
+      clearTimeout(focusTimer)
+      overlay?.removeEventListener("keydown", onKey)
+      if (landingRef.current) landingRef.current.inert = false
+      triggerRef.current?.focus()
+    }
+  }, [open])
+
+  // Close the details drawer on Escape (without closing the whole studio).
+  useEffect(() => {
+    if (!showDetails) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return
+      e.stopImmediatePropagation()
+      setShowDetails(false)
+    }
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
+  }, [showDetails])
 
   // Lock all page scroll (html + body) + wire Escape-to-close while the studio
   // overlay is open, so the customer can never accidentally scroll the page
@@ -80,7 +155,7 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
   return (
     <>
       {/* Landing — text (title, CTA, details) on the left of the picture. */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
+      <div ref={landingRef} className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
         {/* Text column — sits to the left of the photo on desktop, below it on
             mobile (image-first). */}
         <div className="order-2 flex flex-col gap-5 lg:order-none lg:col-span-5">
@@ -89,6 +164,7 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
               {title}
             </h1>
             <button
+              ref={triggerRef}
               type="button"
               onClick={openStudio}
               className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary,#1e293b)] focus-visible:ring-offset-2"
@@ -131,6 +207,7 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
           closing never unmounts the canvas (the design survives reopen). */}
       {hasOpenedOnce ? (
         <div
+          ref={overlayRef}
           className={`fixed inset-0 z-[200] flex-col bg-ui-bg-subtle ${open ? "flex" : "hidden"}`}
           role="dialog"
           aria-modal="true"
@@ -155,13 +232,26 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
             <div className="flex shrink-0 items-center gap-2 small:gap-3">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closeStudio}
                 className="inline-flex h-11 items-center gap-1.5 rounded-full border border-ui-border-base px-3.5 text-sm font-medium text-ui-fg-base transition-colors hover:bg-ui-bg-subtle"
               >
                 <span aria-hidden className="text-base leading-none">←</span>
                 <span className="hidden phone:inline">Back to photos</span>
                 <span className="phone:hidden">Photos</span>
               </button>
+              {productInfo ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDetails(true)}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-full border border-ui-border-base px-3.5 text-sm font-medium text-ui-fg-base transition-colors hover:bg-ui-bg-subtle"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 16v-4M12 8h.01" />
+                  </svg>
+                  <span className="hidden phone:inline">Details</span>
+                </button>
+              ) : null}
               {cartButton ? (
                 <div className="flex items-center text-ui-fg-base">{cartButton}</div>
               ) : null}
@@ -171,6 +261,41 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
           {/* Studio body — fills the rest; the only scroll lives inside the
               right-hand section panel within `studio`. */}
           <div className="min-h-0 flex-1">{studio}</div>
+
+          {/* Product-details drawer — surfaces the description / spec tabs that
+              live on the landing, so they're still reachable in the studio.
+              Tagged as a sub-layer so Escape dismisses it (not the studio). */}
+          {showDetails && productInfo ? (
+            <div className="absolute inset-0 z-[60] flex justify-end" data-studio-sublayer>
+              <button
+                type="button"
+                aria-label="Close product details"
+                onClick={() => setShowDetails(false)}
+                className="absolute inset-0 cursor-default bg-black/40"
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Product details"
+                className="relative flex h-full w-full max-w-md flex-col bg-ui-bg-base shadow-xl"
+              >
+                <div className="flex h-14 shrink-0 items-center justify-between border-b border-ui-border-base px-4">
+                  <p className="text-sm font-semibold text-ui-fg-base">Product details</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowDetails(false)}
+                    aria-label="Close"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-ui-fg-subtle transition-colors hover:bg-ui-bg-subtle hover:text-ui-fg-base"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{productInfo}</div>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </>
