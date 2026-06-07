@@ -5502,7 +5502,7 @@ export default function CustomizerTemplate({
                 }>
                   <StepHeader
                     num={stepNum(2)}
-                    assemblyNum={2}
+                    assemblyNum={stepNum(2)}
                     title={
                       assemblyLayout
                         ? "Print location & size"
@@ -5644,7 +5644,7 @@ export default function CustomizerTemplate({
             })()
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
-              assemblyNum={2}
+              assemblyNum={stepNum(2)}
               title="Print location & size"
               status={
                 decoratedSides.length > 0 || pdpStep3Done
@@ -5772,7 +5772,7 @@ export default function CustomizerTemplate({
                   className="pointer-events-none absolute -top-3 -right-1 select-none text-[5rem] font-black leading-none tracking-tighter text-ui-fg-base"
                   aria-hidden
                 >
-                  03
+                  {String(stepNum(3)).padStart(2, "0")}
                 </span>
                 <InputPanel
                   onUploadFile={inputPanelProps.onUploadFile}
@@ -5810,7 +5810,7 @@ export default function CustomizerTemplate({
               </motion.div>
             ) : (
               <AssemblyCollapsedHeader
-                assemblyNum={3}
+                assemblyNum={stepNum(3)}
                 title="Artwork"
                 status="Upload a logo or add text"
                 onExpand={() => {
@@ -5838,7 +5838,7 @@ export default function CustomizerTemplate({
               }`}>
               <StepHeader
                 num={stepNum(3)}
-                assemblyNum={4}
+                assemblyNum={stepNum(4)}
                 title="Print size"
                 done={currentSideSized && pdpStep > 3}
                 active={pdpStep === 3}
@@ -6001,7 +6001,7 @@ export default function CustomizerTemplate({
               className="flex flex-col gap-3"
             >
               <div className={assemblyLayout ? "relative space-y-2 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
-                <StepHeader num={stepNum(4)} assemblyNum={4} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
+                <StepHeader num={stepNum(4)} assemblyNum={stepNum(4)} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
                     front: "Front",
@@ -6161,7 +6161,7 @@ export default function CustomizerTemplate({
             </motion.div>
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
-              assemblyNum={4}
+              assemblyNum={stepNum(4)}
               title="Quantity & checkout"
               status="Sizes, quantities & add to cart"
               onExpand={() => expandAssemblySection(4)}

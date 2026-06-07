@@ -6,6 +6,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react"
 type Props = {
   /** Garment title, shown beside the photos and in the studio top bar. */
   title: string
+  /**
+   * Open the studio immediately on load (re-order / saved-design deep links,
+   * which carry artwork to replay). Server-computed so it's available at
+   * hydration — avoids the `useSearchParams()`-null-during-prerender trap.
+   */
+  autoOpen?: boolean
   /** Server-rendered photo gallery (the landing "photos" view). */
   gallery: ReactNode
   /** Optional colour swatches shown on the landing; switching colour swaps the gallery photos. */
@@ -30,7 +36,7 @@ type Props = {
  * open (body scroll is locked); the only scroll is inside the studio's
  * right-hand section panel. SC Prints branding stays top-left in black.
  */
-export default function StudioLauncher({ title, gallery, colourSelector, cartButton, productInfo, studio }: Props) {
+export default function StudioLauncher({ title, autoOpen = false, gallery, colourSelector, cartButton, productInfo, studio }: Props) {
   const [open, setOpen] = useState(false)
   // Once the studio has been opened, keep it MOUNTED (just hidden when closed)
   // so "Back to photos" / Escape never unmount the canvas and silently discard
@@ -55,6 +61,14 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
     setShowDetails(false)
     setOpen(false)
   }
+
+  // Re-order / saved-design deep links: open the studio on first paint so the
+  // canvas mounts and the rehydration effect replays the saved artwork, instead
+  // of stranding the customer on the photo landing.
+  useEffect(() => {
+    if (autoOpen) openStudio()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Accessibility: while the studio overlay is open, make the page behind it
   // inert (removed from tab order + the a11y tree), move focus into the

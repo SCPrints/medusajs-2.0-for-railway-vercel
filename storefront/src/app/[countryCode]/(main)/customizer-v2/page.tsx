@@ -298,6 +298,10 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
             <CustomizeModeProvider>
               <StudioLauncher
                 title={customizerProduct.title ?? "Customise"}
+                // Re-order / saved-design links carry artwork to replay, so open
+                // the studio straight away instead of stranding the customer on
+                // the photo page (the canvas rehydration runs once it's open).
+                autoOpen={Boolean(reorderRef || designId)}
                 gallery={gallerySlot}
                 colourSelector={<LandingColourSelector product={customizerProduct} />}
                 cartButton={
