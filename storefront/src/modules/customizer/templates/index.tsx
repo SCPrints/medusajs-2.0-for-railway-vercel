@@ -4504,8 +4504,10 @@ export default function CustomizerTemplate({
                   <div className={assemblyLayout ? "relative isolate z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]"}>
                     {/* SC Prints watermark — sits on the studio page BEHIND the
                         garment picture (negative z-index), slightly oversize so
-                        it peeks around the garment. Faint; non-interactive. */}
-                    {assemblyLayout && (
+                        it peeks around the garment. Faint; non-interactive.
+                        Front/back only — the sleeve line-drawings and zoomed tag
+                        view get too busy with it behind them. */}
+                    {assemblyLayout && (currentSide === "front" || currentSide === "back") && (
                       <img
                         src="/branding/scp-vector.svg"
                         alt=""
@@ -4513,6 +4515,22 @@ export default function CustomizerTemplate({
                         draggable={false}
                         className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.12]"
                       />
+                    )}
+                    {/* Brief "preparing" overlay while the Fabric canvas first
+                        sizes itself on initial studio open — avoids a stark
+                        blank/half-rendered flash. canvasSize stays > 0 after the
+                        first mount (studio is kept mounted), so this only shows
+                        once. */}
+                    {assemblyLayout && canvasSize.width === 0 && (
+                      <div
+                        className="pointer-events-none absolute inset-0 z-[3] flex items-center justify-center bg-ui-bg-base"
+                        aria-hidden
+                      >
+                        <div className="flex flex-col items-center gap-3 text-ui-fg-subtle">
+                          <span className="h-8 w-8 animate-spin rounded-full border-2 border-ui-border-strong border-t-transparent" />
+                          <span className="text-xs">Preparing your studio…</span>
+                        </div>
+                      </div>
                     )}
                     <CanvasStage
                       tintColor={variantTintHex}
@@ -4772,6 +4790,7 @@ export default function CustomizerTemplate({
       <button
         type="button"
         onClick={onExpand}
+        aria-expanded={false}
         className="relative flex w-full flex-col items-start gap-2.5 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base px-5 py-4 text-left transition hover:border-ui-border-strong"
       >
         <span

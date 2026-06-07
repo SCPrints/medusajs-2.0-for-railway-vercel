@@ -99,7 +99,7 @@ function InputPanel({
   onDeselectText,
   className,
 }: InputPanelProps) {
-  const [text, setText] = useState("Your text")
+  const [text, setText] = useState("")
   const [fontFamily, setFontFamily] = useState("Inter")
   const [color, setColor] = useState("#111827")
   const [addingText, setAddingText] = useState(false)
@@ -122,6 +122,10 @@ function InputPanel({
       lastSyncedTextId.current = selectedText.id
     } else if (!selectedText) {
       lastSyncedTextId.current = null
+      // Returning to "add" mode (deselected): clear the field so the next add
+      // starts blank instead of re-using the just-edited text (which would add
+      // a duplicate layer if "Add text to design" is tapped again).
+      setText("")
     }
   }, [selectedText])
 
@@ -180,6 +184,10 @@ function InputPanel({
         }
       }
       onAddText({ text: trimmed, color, fontFamily, letterSpacing: 0 })
+      // Clear the field after adding so a second tap doesn't duplicate the
+      // text. If the new layer auto-selects, the selection effect repopulates
+      // it for editing; otherwise it stays blank for the next add.
+      setText("")
     } finally {
       setAddingText(false)
     }
