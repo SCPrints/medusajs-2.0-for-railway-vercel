@@ -5406,7 +5406,15 @@ export default function CustomizerTemplate({
               />
               {(assemblyLayout ? assemblyExpanded === 1 : pdpStep === 1) ? (
                 <>
-                  {integratedPdpSlots.variantPickers}
+                  {/* Fade-slide the colour/size pickers in on expand so section
+                      01 matches the mount animation of the other sections. */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+                  >
+                    {integratedPdpSlots.variantPickers}
+                  </motion.div>
                   {/* The "Customise this garment" CTA only exists in the legacy
                       non-assembly wizard, where it gates Step 1. In the studio
                       the sections are freely navigable, so it's removed. */}
@@ -5737,7 +5745,13 @@ export default function CustomizerTemplate({
               // step3Ref lives here in assembly mode (the v1 "Print size" step
               // that normally holds it renders null above) so the guide's step-3
               // spotlight targets the Artwork section.
-              <div ref={step3Ref} className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm">
+              <motion.div
+                ref={step3Ref}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+                className="relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
+              >
                 <button
                   type="button"
                   onClick={() => setAssemblyArtworkOpen(false)}
@@ -5793,7 +5807,7 @@ export default function CustomizerTemplate({
                     <span aria-hidden>→</span>
                   </button>
                 )}
-              </div>
+              </motion.div>
             ) : (
               <AssemblyCollapsedHeader
                 assemblyNum={3}
