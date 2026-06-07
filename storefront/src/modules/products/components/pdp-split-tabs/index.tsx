@@ -214,7 +214,7 @@ export default function PdpSplitTabs({
               <button
                 type="button"
                 onClick={() => goDesign(true)}
-                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:scale-[1.01] hover:bg-[var(--brand-primary-hover,#be123c)] active:scale-[0.99]"
+                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:scale-[1.01] hover:brightness-110 active:scale-[0.99]"
               >
                 <svg
                   viewBox="0 0 24 24"

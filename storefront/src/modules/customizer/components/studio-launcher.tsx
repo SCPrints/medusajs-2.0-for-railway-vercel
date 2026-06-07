@@ -32,6 +32,17 @@ type Props = {
  */
 export default function StudioLauncher({ title, gallery, colourSelector, cartButton, productInfo, studio }: Props) {
   const [open, setOpen] = useState(false)
+  // Once the studio has been opened, keep it MOUNTED (just hidden when closed)
+  // so "Back to photos" / Escape never unmount the canvas and silently discard
+  // the in-progress design — reopening restores the exact same design. Stays
+  // lazy until the first open so the heavy Fabric canvas doesn't spin up behind
+  // the landing.
+  const [hasOpenedOnce, setHasOpenedOnce] = useState(false)
+
+  const openStudio = () => {
+    setHasOpenedOnce(true)
+    setOpen(true)
+  }
 
   // Lock all page scroll (html + body) + wire Escape-to-close while the studio
   // overlay is open, so the customer can never accidentally scroll the page
@@ -48,7 +59,14 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
     html.style.overflow = "hidden"
     body.style.overflow = "hidden"
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false)
+      if (e.key !== "Escape") return
+      // Don't tear the customer out of the studio when a sub-layer is open
+      // (the bulk-colour grid, a colour picker, the help guide). Escape should
+      // dismiss THAT layer, not the whole studio + their design. Sub-layers tag
+      // themselves with data-studio-sublayer; the guide stops Escape itself via
+      // a capture-phase listener.
+      if (document.querySelector("[data-studio-sublayer]")) return
+      setOpen(false)
     }
     window.addEventListener("keydown", onKey)
     return () => {
@@ -72,8 +90,8 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
             </h1>
             <button
               type="button"
-              onClick={() => setOpen(true)}
-              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:bg-[var(--brand-primary-hover,#be123c)] hover:scale-[1.01] active:scale-[0.99]"
+              onClick={openStudio}
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary,#1e293b)] focus-visible:ring-offset-2"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -109,12 +127,14 @@ export default function StudioLauncher({ title, gallery, colourSelector, cartBut
       </div>
 
       {/* Full-screen studio overlay — fixed over the entire viewport, above the
-          site header/footer. */}
-      {open ? (
+          site header/footer. Mounted once opened, then toggled via display so
+          closing never unmounts the canvas (the design survives reopen). */}
+      {hasOpenedOnce ? (
         <div
-          className="fixed inset-0 z-[200] flex flex-col bg-ui-bg-subtle"
+          className={`fixed inset-0 z-[200] flex-col bg-ui-bg-subtle ${open ? "flex" : "hidden"}`}
           role="dialog"
           aria-modal="true"
+          aria-hidden={!open}
           aria-label={`Customise ${title}`}
         >
           {/* Studio top bar — black SC Prints wordmark left, close right. */}

@@ -272,7 +272,7 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
   const studioSlot = (
     <AssemblyLayoutGrid
       customizerSlot={
-        <PdpCustomizerBoundary>
+        <PdpCustomizerBoundary variant="studio">
           <EmbeddedProductCustomizer
             product={customizerProduct}
             assemblyLayout

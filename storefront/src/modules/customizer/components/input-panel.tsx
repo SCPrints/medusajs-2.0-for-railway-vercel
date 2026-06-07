@@ -105,6 +105,7 @@ function InputPanel({
   const [addingText, setAddingText] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [addingCartDesignId, setAddingCartDesignId] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   const isEditingText = !!selectedText
   const lastSyncedTextId = useRef<string | null>(null)
@@ -200,8 +201,13 @@ function InputPanel({
       return
     }
 
-    await onUploadFile(file)
-    event.target.value = ""
+    setIsUploading(true)
+    try {
+      await onUploadFile(file)
+    } finally {
+      setIsUploading(false)
+      event.target.value = ""
+    }
   }
 
   return (
@@ -274,19 +280,31 @@ function InputPanel({
             raw input chrome is hidden behind a button + filename pair.
           */}
           <label
-            className="flex w-full cursor-pointer items-center gap-3 rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm transition hover:border-[var(--brand-secondary)]/50 hover:bg-ui-bg-subtle"
+            aria-busy={isUploading}
+            className={`flex w-full items-center gap-3 rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 text-sm transition ${
+              isUploading
+                ? "cursor-wait opacity-70"
+                : "cursor-pointer hover:border-[var(--brand-secondary)]/50 hover:bg-ui-bg-subtle"
+            }`}
             title="Upload a PNG, JPG, or SVG to add to your design"
           >
-            <span className="rounded-md border border-ui-border-base bg-ui-bg-subtle px-2.5 py-1 text-xs font-semibold text-ui-fg-base">
-              Choose file
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-ui-border-base bg-ui-bg-subtle px-2.5 py-1 text-xs font-semibold text-ui-fg-base">
+              {isUploading && (
+                <span
+                  aria-hidden
+                  className="h-3 w-3 animate-spin rounded-full border-2 border-ui-border-strong border-t-transparent"
+                />
+              )}
+              {isUploading ? "Uploading…" : "Choose file"}
             </span>
             <span className="truncate text-xs text-ui-fg-subtle">
-              PNG, JPG, or SVG
+              {isUploading ? "Please wait" : "PNG, JPG, or SVG"}
             </span>
             <input
               type="file"
               accept="image/png,image/jpeg,image/svg+xml"
               onChange={onFileChange}
+              disabled={isUploading}
               className="sr-only"
               aria-label="Upload a PNG, JPG, or SVG to add to your design"
             />

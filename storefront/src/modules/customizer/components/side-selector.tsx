@@ -45,7 +45,7 @@ export default function SideSelector({ currentSide, onSelectSide, allowedSides, 
             type="button"
             role="tab"
             aria-selected={selected}
-            className={`min-w-[4.5rem] flex-1 rounded-lg px-2 py-2 text-center text-xs font-semibold transition-colors small:min-w-0 small:px-3 small:text-sm ${
+            className={`flex min-h-11 min-w-[3.5rem] flex-1 items-center justify-center rounded-lg px-2 py-2 text-center text-xs font-semibold transition-colors small:min-h-0 small:min-w-0 small:px-3 small:text-sm ${
               selected
                 ? "bg-[var(--brand-secondary)] text-white shadow-md ring-2 ring-[var(--brand-secondary)] ring-offset-2 ring-offset-ui-bg-subtle"
                 : "text-ui-fg-subtle hover:bg-ui-bg-base/60 hover:text-ui-fg-base"

@@ -1,7 +1,7 @@
 "use client"
 
 import { RenderPlacement } from "@modules/customizer/lib/types"
-import { memo, RefObject } from "react"
+import { memo, RefObject, useEffect, useState } from "react"
 
 type CanvasStageProps = {
   garmentImage: string | null
@@ -35,7 +35,14 @@ function CanvasStage({
   tintColor,
   frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
 }: CanvasStageProps) {
-  const showPhoto = garmentImage
+  // Fall back to the "no garment image" placeholder when the mockup URL is dead
+  // (supplier CDN rotated the file, R2 object GC'd) instead of a browser
+  // broken-image icon. Reset whenever the garment or side changes.
+  const [imgFailed, setImgFailed] = useState(false)
+  useEffect(() => {
+    setImgFailed(false)
+  }, [garmentImage, printSideKey])
+  const showPhoto = garmentImage && !imgFailed
   // Sleeve placeholders are line drawings on white. When we have a sampled
   // variant colour, paint the body by laying the colour behind the image and
   // multiplying — dark line work stays dark, white body picks up the colour.
@@ -110,6 +117,7 @@ function CanvasStage({
             alt={garmentTitle ?? "Garment"}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out"
             draggable={false}
+            onError={() => setImgFailed(true)}
             style={
               applySleeveTint
                 ? {

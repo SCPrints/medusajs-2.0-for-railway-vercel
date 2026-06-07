@@ -961,14 +961,18 @@ function ColourPicker({
 }: ColourPickerProps) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
+      if (e.key !== "Escape") return
+      // Close only this picker — stop the studio overlay's window-level Escape
+      // (and the bulk grid behind us) from also acting on the same keypress.
+      e.stopImmediatePropagation()
+      onClose()
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener("keydown", onKey, true)
+    return () => window.removeEventListener("keydown", onKey, true)
   }, [onClose])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" role="dialog" aria-modal="true" data-studio-sublayer>
       <div className="flex h-[80vh] w-full max-w-2xl flex-col rounded-t-2xl bg-white shadow-xl sm:h-[70vh] sm:rounded-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-ui-border-base px-4 py-3">
           <div>

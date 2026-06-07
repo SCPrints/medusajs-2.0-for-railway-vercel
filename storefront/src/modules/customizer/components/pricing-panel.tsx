@@ -301,13 +301,19 @@ function PricingPanel({
                 ) : null}
                 <input
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   min={0}
                   max={999}
                   // Render empty (not "0") when zero so the field can be
                   // cleared and retyped — otherwise backspacing snaps to 0 and
                   // fights the caret. Mirrors the bulk-order grid input.
                   value={sizeEntry.quantity === 0 ? "" : sizeEntry.quantity}
-                  onFocus={(event) => event.currentTarget.select()}
+                  onFocus={(event) => {
+                    event.currentTarget.select()
+                    // Lift the field above the on-screen keyboard on phones.
+                    event.currentTarget.scrollIntoView({ block: "center", behavior: "smooth" })
+                  }}
                   onChange={(event) => {
                     const raw = event.target.value
                     onChangeSizeQty(sizeEntry.size, raw === "" ? 0 : Number(raw))
@@ -634,7 +640,7 @@ function PricingPanel({
           }}
           disabled={isSubmitting || quantity <= 0}
           isLoading={isSubmitting}
-          className="w-full rounded-xl px-4 py-3.5 text-base font-semibold shadow-sm transition hover:opacity-95 disabled:opacity-50"
+          className="w-full rounded-xl px-4 py-3.5 text-base font-semibold shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
           flyImageSrc={flyImageSrc}
         >
           {isSubmitting ? ctaLoadingLabel : ctaLabel}
@@ -646,7 +652,8 @@ function PricingPanel({
             void onAddToCart()
           }}
           disabled={isSubmitting || quantity <= 0}
-          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:opacity-50"
+          title={quantity <= 0 ? "Enter a quantity for at least one size first" : undefined}
+          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? ctaLoadingLabel : ctaLabel}
         </button>

@@ -340,7 +340,7 @@ const CartItemGroup = ({
             {showGroupEditLink ? (
               <LocalizedClientLink
                 href={`/products/${productHandle}?edit_group=${editGroupId}`}
-                className="shrink-0 rounded-md bg-[var(--brand-primary,#e11d48)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-rose-400/40 transition-colors hover:bg-[var(--brand-primary-hover,#be123c)]"
+                className="shrink-0 rounded-md bg-[var(--brand-primary,#1e293b)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-black/5 transition-all hover:brightness-110"
                 data-testid="cart-group-edit-design"
               >
                 ✏️ Edit design

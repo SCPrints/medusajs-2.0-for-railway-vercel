@@ -4,6 +4,11 @@ import React from "react"
 
 type Props = {
   children: React.ReactNode
+  /**
+   * "studio" = full-screen /customizer-v2 overlay (no product options below the
+   * customizer, so the recovery copy points at "Back to photos" instead).
+   */
+  variant?: "pdp" | "studio"
 }
 
 type State = {
@@ -44,8 +49,9 @@ class PdpCustomizerBoundary extends React.Component<Props, State> {
             Customizer is temporarily unavailable for this product.
           </p>
           <p className="mt-1 text-xs">
-            The product page still works. Try again, or continue with the
-            standard product options below.
+            {this.props.variant === "studio"
+              ? "Try again, or use the “Back to photos” button at the top to return to the product."
+              : "The product page still works. Try again, or continue with the standard product options below."}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
             <button

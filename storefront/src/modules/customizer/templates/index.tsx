@@ -1044,6 +1044,10 @@ export default function CustomizerTemplate({
   // Show a brief nudge when the customer switches to a side with no artwork yet.
   useEffect(() => {
     if (!embedded) return
+    // In the studio the canvas + "Editing: {side}" label sit ABOVE the panel,
+    // so "upload artwork in the panel below" points the wrong way — and the
+    // Artwork section is a separate accordion, not directly below. Skip it.
+    if (assemblyLayout) return
     if (pdpStep < 2) return
     // decoratedSides is populated after canvas load — only nudge once the wizard
     // is past step 1 and the customer has actually switched sides.
@@ -1072,6 +1076,18 @@ export default function CustomizerTemplate({
   }, [availableMethodsForCurrentSide, currentSide, sideDecorationMethods])
   const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
   const embedPdpQuantityStepNumber = showPdpLabeledOptionsStep ? 3 : 2
+
+  // Single-variant / no-options products have no "Product options" section
+  // (section 01), so the default open section (assemblyExpanded = 1) would
+  // leave the studio with every section collapsed and no obvious starting
+  // point. Open "Print location" (section 02) instead. Guarded on the default
+  // so it never overrides a section the customer later opens.
+  useEffect(() => {
+    if (assemblyLayout && !showPdpLabeledOptionsStep && assemblyExpanded === 1) {
+      setAssemblyExpanded(2)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assemblyLayout, showPdpLabeledOptionsStep])
   // Canvas is the primary view from the moment the embedded customizer
   // mounts — gallery hides immediately so the customer can start designing
   // without scrolling past a hero image first (mirrors The Print Bar's
@@ -1215,6 +1231,25 @@ export default function CustomizerTemplate({
   )
   const decoratedSidesCount = decoratedSides.length
   const totalQty = sizeMatrix.reduce((total, entry) => total + entry.quantity, 0)
+
+  // Studio (assembly) only: warn before refresh / tab-close / browser-back when
+  // there's an unsaved design on the canvas. The design lives in memory only, so
+  // an accidental reload would silently wipe it. Reads sideLayoutsRef live (a
+  // ref, always current) so the listener never needs re-subscribing.
+  useEffect(() => {
+    if (!assemblyLayout) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      const hasDesign = DESIGN_SIDES.some(
+        (side) => (sideLayoutsRef.current[side] ?? []).length > 0
+      )
+      if (!hasDesign) return
+      e.preventDefault()
+      // Legacy browsers require returnValue to be set to trigger the prompt.
+      e.returnValue = ""
+    }
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => window.removeEventListener("beforeunload", onBeforeUnload)
+  }, [assemblyLayout])
 
   /**
    * One PrintSpec per top-level Fabric object — the canonical input to the
@@ -2520,6 +2555,15 @@ export default function CustomizerTemplate({
     return seen
   }
 
+  // Non-blocking heads-up when a file's original couldn't be archived to
+  // storage — the asset is already on the canvas, but it must be re-uploaded
+  // before checkout or the print is lost. The cart-add path enforces this too.
+  const warnArchiveFailed = (name: string) => {
+    setUploadError(
+      `Heads up — we couldn't save “${name}” to our servers. It's on your design, but please re-upload it before checkout or the print may not come through.`
+    )
+  }
+
   const handleUploadFile = async (file: File) => {
     const isAllowedType =
       file.type === "image/png" ||
@@ -2528,6 +2572,11 @@ export default function CustomizerTemplate({
 
     if (!isAllowedType) {
       setUploadError("Please upload PNG, JPG, or SVG.")
+      return
+    }
+
+    if (file.size === 0) {
+      setUploadError("That file looks empty or corrupted. Please choose a different file.")
       return
     }
 
@@ -2573,6 +2622,7 @@ export default function CustomizerTemplate({
           svgText: svg,
           uploadId: nextAsset.id,
         })
+        if (!originalStorageUrl) warnArchiveFailed(nextAsset.name)
         return
       }
 
@@ -2600,8 +2650,14 @@ export default function CustomizerTemplate({
         dataUrl,
         uploadId: nextAsset.id,
       })
+      if (!originalStorageUrl) warnArchiveFailed(nextAsset.name)
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Could not upload image.")
+      // Never leak a raw decode / FabricError (which can embed the data URL)
+      // to the customer; log it for staff and show recoverable copy.
+      console.error("[customizer] upload failed", error)
+      setUploadError(
+        "We couldn't process that file. Make sure it's a valid PNG, JPG or SVG and try again."
+      )
     }
   }
 
@@ -2733,6 +2789,25 @@ export default function CustomizerTemplate({
     canvas.renderAll()
     updateLayers()
     saveCurrentSide()
+    // If that was the last object on this side, drop the stale per-side "sized"
+    // and decoration-method flags so the now-empty location isn't left looking
+    // confirmed (a ghost ✓ / locked method). The cart never sees it either way
+    // (cart-add filters by object count), but the wizard state stays honest.
+    const side = currentSideRef.current
+    if ((sideLayoutsRef.current[side] ?? []).length === 0) {
+      setSizingDoneSides((prev) => {
+        if (!prev[side]) return prev
+        const next = { ...prev }
+        delete next[side]
+        return next
+      })
+      setSideDecorationMethods((prev) => {
+        if (!prev[side]) return prev
+        const next = { ...prev }
+        delete next[side]
+        return next
+      })
+    }
     setUploadError(null)
   }
 
@@ -2781,7 +2856,9 @@ export default function CustomizerTemplate({
   }, [layers, selectedLayerId])
 
   const changeSizeQuantity = (size: string, quantity: number) => {
-    const safeQty = Math.max(0, Math.floor(Number.isFinite(quantity) ? quantity : 0))
+    // Clamp 0–999 per size (matches the bulk grid) so a stray paste / spinner
+    // can't build a 99,999-unit line. Floors decimals to whole garments.
+    const safeQty = Math.max(0, Math.min(999, Math.floor(Number.isFinite(quantity) ? quantity : 0)))
     setSizeMatrix((current) =>
       current.map((entry) =>
         entry.size === size ? { ...entry, quantity: safeQty } : entry
@@ -3385,9 +3462,14 @@ export default function CustomizerTemplate({
         (u) => referencedUploadsCheck.has(u.id) && !u.originalStorageUrl
       )
       if (uploadsWithoutArchive.length > 0) {
+        // Customer-safe, recoverable copy — never expose backend env vars. The
+        // diagnostic detail is logged for staff instead.
+        console.error(
+          "[customizer] add-to-cart blocked: uploads missing archived original (check MINIO_* / STORE_CORS on the backend)",
+          uploadsWithoutArchive.map((u) => u.id)
+        )
         setUploadError(
-          "Could not archive your uploaded file(s). On the Fly Medusa backend set MinIO vars (MINIO_*), STORE_CORS to include your storefront URL, " +
-            "and redeploy. Then remove uploads in “My uploads” and choose your file again."
+          "We couldn't save your uploaded artwork to our servers — please check your connection, remove the file in “My uploads”, and upload it again before checking out."
         )
         return
       }
@@ -4358,6 +4440,7 @@ export default function CustomizerTemplate({
                     <CustomizerProductPicker
                       products={pickerProducts}
                       currentHandle={selectedProduct?.handle ?? null}
+                      basePath={assemblyLayout ? "/customizer-v2" : "/customizer"}
                       hasUnsavedDesign={() => {
                         // Any side carrying objects = real design work the
                         // customer would lose by switching products.
@@ -4467,6 +4550,25 @@ export default function CustomizerTemplate({
               </p>
             )}
             {statusMessage && <p className="text-sm text-emerald-700">{statusMessage}</p>}
+            {/* Reorder / saved-design re-edit: when an original upload can't be
+                reloaded from storage (GC'd R2 object), warn the customer right
+                under the canvas so they don't re-order with the print missing.
+                The edit-group flow surfaces its own copy inside the "Save design
+                changes" box, so only render here when NOT in that flow. */}
+            {!editGroupId && hydrationPlaceholderSides.length > 0 && (
+              <div className="rounded-md border border-rose-300 bg-rose-50 px-2.5 py-2 text-xs text-rose-900" role="alert">
+                <p className="font-semibold">⚠️ Some artwork didn't reload</p>
+                <p className="mt-1">
+                  The original upload for{" "}
+                  <span className="font-semibold">
+                    {hydrationPlaceholderSides.join(", ")}
+                  </span>{" "}
+                  appears to be missing from storage. Switch to that side and
+                  re-upload it via <span className="font-semibold">Add to design</span>{" "}
+                  before checking out, so the print isn't lost.
+                </p>
+              </div>
+            )}
           </div>
   )
 
@@ -4793,6 +4895,21 @@ export default function CustomizerTemplate({
                       setScpPrintSizeChosen(true)
                       setSizingDoneSides((prev) => ({ ...prev, [currentSide]: true as const }))
                       setPdpStep((s) => (s > 3 ? s : 4))
+                      // Studio momentum: picking a size moves the accordion to
+                      // the next logical section — quantity if a location is
+                      // already decorated, otherwise Artwork to place the print.
+                      if (assemblyLayout) {
+                        const hasDecorated = decoratedSides.some((s) =>
+                          allowedPrintSides.includes(s)
+                        )
+                        if (hasDecorated) {
+                          setAssemblyArtworkOpen(false)
+                          setAssemblyExpanded(4)
+                        } else {
+                          setAssemblyExpanded(null)
+                          setAssemblyArtworkOpen(true)
+                        }
+                      }
                     }}
                     className={`relative flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-colors ${
                       selected
@@ -4856,7 +4973,7 @@ export default function CustomizerTemplate({
       // bulkPrintThumbSources / stableHandleBulkSubmit etc.) so they have
       // stable identities for the memoised <BulkOrderGrid/>.
       return (
-        <div className="fixed inset-0 z-[60] overflow-hidden bg-white">
+        <div className="fixed inset-0 z-[60] overflow-hidden bg-white" data-studio-sublayer>
           <BulkOrderGrid
             product={selectedProduct}
             baseVariant={selectedVariant}
@@ -4893,6 +5010,43 @@ export default function CustomizerTemplate({
     return (
       <div id="customize" className="contents">
         {/*
+          Studio (assembly) toast: surfaces upload / add-to-cart errors and
+          success messages as a fixed overlay banner. In the two-column studio
+          the inline message (rendered down in the canvas column) is off-screen
+          when the customer is acting in the right-hand panel — so a failed "Add
+          to cart" looked like a dead button. This mirrors it where they're
+          looking. Safe-area aware; dismissable.
+        */}
+        {assemblyLayout && (uploadError || statusMessage) ? (
+          <div
+            className="pointer-events-none fixed inset-x-3 bottom-3 z-[210] flex justify-center"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <div
+              role="alert"
+              aria-live="assertive"
+              className={`pointer-events-auto flex max-w-md items-start gap-3 rounded-xl px-4 py-3 text-sm shadow-lg ring-1 ${
+                uploadError
+                  ? "bg-rose-50 text-rose-800 ring-rose-200"
+                  : "bg-emerald-50 text-emerald-800 ring-emerald-200"
+              }`}
+            >
+              <span className="flex-1 leading-snug">{uploadError || statusMessage}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setUploadError(null)
+                  setStatusMessage(null)
+                }}
+                aria-label="Dismiss message"
+                className="-mr-1 -mt-1 shrink-0 rounded p-1 text-base leading-none opacity-60 transition-opacity hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {/*
           Column order is swapped on mobile via Tailwind `order-*` so the
           customer sees the Customize and checkout wizard (with the
           prominent "Customize this product" CTA in step 1) above the
@@ -4905,7 +5059,7 @@ export default function CustomizerTemplate({
             // to a fixed share of the viewport (basis-[46vh], no grow/shrink) so
             // it can't be starved to ~0 by the section panel below it. Desktop
             // (small:flex-row) restores flex-1 + full height.
-            ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-3 small:p-4 basis-[46vh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
+            ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-3 small:p-4 basis-[46dvh] [@media(max-height:520px)]:basis-[40dvh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
             : `order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
               }`
@@ -4924,8 +5078,10 @@ export default function CustomizerTemplate({
               placed artwork on the canvas; size can be picked later. Lives
               under the canvas so the design surface stays the focal point;
               this prompt only matters once the customer's eye drops below
-              the artwork. */}
-          {isCustomizing && allowedPrintSides.length > 1 && (() => {
+              the artwork. Suppressed in the studio (assembly), which has its
+              own single in-panel "Add print to another location" button — two
+              identical CTAs is confusing. */}
+          {!assemblyLayout && isCustomizing && allowedPrintSides.length > 1 && (() => {
             const undecoratedAllowed = allowedPrintSides.filter(
               (s) => !decoratedSides.includes(s)
             )
@@ -5019,7 +5175,14 @@ export default function CustomizerTemplate({
               ) : null}
             </div>
           )}
-          <div className={assemblyLayout ? "flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-5 [&>*]:shrink-0" : "contents"}>
+          <div
+            className={assemblyLayout ? "flex flex-1 flex-col gap-3 overflow-y-auto px-4 pt-5 [&>*]:shrink-0 scroll-pb-24" : "contents"}
+            style={
+              assemblyLayout
+                ? { paddingBottom: "calc(2rem + env(safe-area-inset-bottom))" }
+                : undefined
+            }
+          >
           {!isAdminProofMode && !assemblyLayout && (
           <div className="space-y-1 border-b border-ui-border-base pb-3">
             <div className="flex items-start justify-between gap-2">
@@ -5190,7 +5353,12 @@ export default function CustomizerTemplate({
                 active={pdpStep === 1}
                 onChange={() => setPdpStep(1)}
                 assemblyOpen={assemblyExpanded === 1}
-                onToggle={() => setAssemblyExpanded((p) => (p === 1 ? null : 1))}
+                onToggle={() => {
+                  // Keep one section open at a time — closing Artwork (its own
+                  // toggle) when section 01 opens avoids two expanded panels.
+                  setAssemblyArtworkOpen(false)
+                  setAssemblyExpanded((p) => (p === 1 ? null : 1))
+                }}
                 help="Pick your colour and any other options, then tap 'Customise this garment' to open the design tool."
               />
               {(assemblyLayout ? assemblyExpanded === 1 : pdpStep === 1) ? (
@@ -5203,7 +5371,7 @@ export default function CustomizerTemplate({
                     <>
                       <button
                         type="button"
-                        className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:bg-[var(--brand-primary-hover,#be123c)] hover:scale-[1.01] active:scale-[0.99]"
+                        className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99]"
                         onClick={() => {
                           setPdpStep1Done(true)
                           setPdpStep((s) => (s > 1 ? s : 2))
@@ -5328,10 +5496,23 @@ export default function CustomizerTemplate({
                                 {sideLabelMap[s]}
                                 <button
                                   type="button"
-                                  onClick={() => clearPrintLocation(s)}
+                                  onClick={() => {
+                                    // Removing a location deletes its artwork
+                                    // with no undo — confirm so a phone mis-tap
+                                    // doesn't silently wipe a finished side.
+                                    if (
+                                      typeof window !== "undefined" &&
+                                      !window.confirm(
+                                        `Remove the ${sideLabelMap[s]} print? Its artwork will be deleted.`
+                                      )
+                                    ) {
+                                      return
+                                    }
+                                    clearPrintLocation(s)
+                                  }}
                                   aria-label={`Remove ${sideLabelMap[s]} print location`}
                                   title={`Remove ${sideLabelMap[s]}`}
-                                  className="ml-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-900"
+                                  className="ml-0.5 inline-flex h-5 min-h-11 w-5 min-w-11 items-center justify-center rounded-full text-sm leading-none text-emerald-700 transition-colors hover:bg-emerald-100 hover:text-emerald-900 small:min-h-0 small:min-w-0"
                                 >
                                   ×
                                 </button>
@@ -5440,7 +5621,7 @@ export default function CustomizerTemplate({
               sides and at least one is still unused; greys out until
               the customer has placed artwork on the current side so
               they don't strand an empty location behind. */}
-          {embedded && pdpStep >= 2 && allowedPrintSides.length > 1 && (() => {
+          {embedded && (assemblyLayout || pdpStep >= 2) && allowedPrintSides.length > 1 && (() => {
             const undecoratedAllowed = allowedPrintSides.filter(
               (s) => !decoratedSides.includes(s)
             )
@@ -5554,6 +5735,21 @@ export default function CustomizerTemplate({
                   onDeselectText={inputPanelProps.onDeselectText}
                   className="border-0 bg-transparent p-0"
                 />
+                {/* Forward momentum: once artwork is on the garment, send the
+                    customer straight to quantity & checkout. */}
+                {decoratedSides.some((s) => allowedPrintSides.includes(s)) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssemblyArtworkOpen(false)
+                      setAssemblyExpanded(4)
+                    }}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-ui-fg-base px-4 py-2.5 text-sm font-semibold text-ui-bg-base transition-opacity hover:opacity-90"
+                  >
+                    Continue to quantity
+                    <span aria-hidden>→</span>
+                  </button>
+                )}
               </div>
             ) : (
               <AssemblyCollapsedHeader
@@ -5716,7 +5912,7 @@ export default function CustomizerTemplate({
                     void addCustomizedToCart()
                   }}
                   disabled={isSubmitting || editGroupLineIds.length === 0}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#e11d48)] px-4 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-lg shadow-rose-500/30 ring-1 ring-rose-400/40 transition-transform hover:bg-[var(--brand-primary-hover,#be123c)] hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-3 text-sm font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isSubmitting
                     ? "Saving…"
@@ -5761,6 +5957,23 @@ export default function CustomizerTemplate({
                   }
                   const sidesForSummary = decoratedSides.filter((s) => allowedPrintSides.includes(s))
                   if (sidesForSummary.length === 0) {
+                    if (assemblyLayout) {
+                      return (
+                        <div className="rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
+                          <p>No artwork added yet — add a logo or text before checkout.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAssemblyExpanded(null)
+                              setAssemblyArtworkOpen(true)
+                            }}
+                            className="mt-1.5 inline-flex items-center gap-1 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+                          >
+                            Open the Artwork section <span aria-hidden>→</span>
+                          </button>
+                        </div>
+                      )
+                    }
                     return (
                       <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900 ring-1 ring-amber-200">
                         No artwork added yet — use the{" "}

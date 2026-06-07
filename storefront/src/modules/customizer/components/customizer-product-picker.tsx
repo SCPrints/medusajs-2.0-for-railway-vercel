@@ -22,11 +22,17 @@ type Props = {
    * discard. Wires to the customizer's Fabric state so we can warn before nav.
    */
   hasUnsavedDesign?: () => boolean
+  /**
+   * Route to push when a product is picked. Defaults to the v1 `/customizer`;
+   * the studio (`/customizer-v2`) passes its own path so "Change product"
+   * doesn't eject the customer back to the old layout.
+   */
+  basePath?: string
 }
 
 const SEARCH_DEBOUNCE_MS = 280
 
-const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign }: Props) => {
+const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, basePath = "/customizer" }: Props) => {
   const router = useRouter()
   const { countryCode } = useParams() as { countryCode: string }
   const [open, setOpen] = useState(false)
@@ -130,7 +136,7 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign }: 
       return
     }
     setOpen(false)
-    router.push(`/${countryCode}/customizer?handle=${encodeURIComponent(handle)}`)
+    router.push(`/${countryCode}${basePath}?handle=${encodeURIComponent(handle)}`)
   }
 
   const trimmedQuery = query.trim()
