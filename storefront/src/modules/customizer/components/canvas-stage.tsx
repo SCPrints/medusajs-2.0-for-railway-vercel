@@ -22,6 +22,13 @@ type CanvasStageProps = {
    * clipped) at the bottom.
    */
   frameClassName?: string
+  /**
+   * Studio only: multiply-blend the garment photo so its white background drops
+   * out and the SC Prints watermark behind it shows through. Skipped for light
+   * garments (a white tee would go see-through) — the caller decides via the
+   * sampled tint.
+   */
+  removeWhiteBg?: boolean
 }
 
 function CanvasStage({
@@ -34,6 +41,7 @@ function CanvasStage({
   fabricContainerRef,
   tintColor,
   frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
+  removeWhiteBg = false,
 }: CanvasStageProps) {
   // Fall back to the "no garment image" placeholder when the mockup URL is dead
   // (supplier CDN rotated the file, R2 object GC'd) instead of a browser
@@ -83,6 +91,24 @@ function CanvasStage({
       }
     : undefined
 
+  // Multiply the garment so its white photo background drops out to reveal the
+  // watermark behind. Front/back photo only, and only when the garment is dark
+  // enough that multiply won't turn its own body see-through (a white tee).
+  const garmentLum = (() => {
+    const m = tintColor ? /^#?([0-9a-f]{6})$/i.exec(tintColor) : null
+    if (!m) return null
+    const v = parseInt(m[1], 16)
+    return (0.2126 * ((v >> 16) & 0xff) + 0.7152 * ((v >> 8) & 0xff) + 0.0722 * (v & 0xff)) / 255
+  })()
+  const knockoutWhite =
+    removeWhiteBg &&
+    Boolean(showPhoto) &&
+    !applySleeveTint &&
+    !isSleeveView &&
+    !isTagView &&
+    garmentLum != null &&
+    garmentLum < 0.6
+
   return (
     <div className={`relative overflow-hidden ${frameClassName}`}>
       {showPhoto ? (
@@ -125,6 +151,8 @@ function CanvasStage({
                     mixBlendMode: isDarkTint ? "lighten" : "multiply",
                     filter: isDarkTint ? "invert(1)" : undefined,
                   }
+                : knockoutWhite
+                ? { ...(tagZoomStyle ?? {}), mixBlendMode: "multiply" }
                 : tagZoomStyle
             }
           />

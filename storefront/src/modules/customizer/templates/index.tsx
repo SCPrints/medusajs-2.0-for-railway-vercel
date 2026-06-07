@@ -4546,6 +4546,7 @@ export default function CustomizerTemplate({
                     )}
                     <CanvasStage
                       tintColor={variantTintHex}
+                      removeWhiteBg={assemblyLayout && (currentSide === "front" || currentSide === "back")}
                       garmentImage={garmentImageUrl}
                       garmentTitle={garmentDisplayTitle}
                       printSideKey={currentSide}
