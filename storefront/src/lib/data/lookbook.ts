@@ -22,11 +22,12 @@ export type LookbookPage = {
   tags: string[]
 }
 
-export const LOOKBOOK_PAGE_SIZE = 24
-
+// NOTE: this file is "use server" — it may ONLY export async functions (and
+// types). Do not add non-async `export const` here or the whole module fails
+// to compile. Page size lives in the page component instead.
 export async function getLookbookPage(
   page = 1,
-  limit = LOOKBOOK_PAGE_SIZE
+  limit = 24
 ): Promise<LookbookPage> {
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1
   const offset = (safePage - 1) * limit

@@ -1,7 +1,9 @@
 import { Metadata } from "next"
 
-import { getLookbookPage, LOOKBOOK_PAGE_SIZE } from "@lib/data/lookbook"
+import { getLookbookPage } from "@lib/data/lookbook"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+
+const LOOKBOOK_PAGE_SIZE = 24
 
 type Params = {
   params: Promise<{ countryCode: string }>
