@@ -2,6 +2,7 @@ import { Metadata } from "next"
 
 import { getLookbookPage } from "@lib/data/lookbook"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import LookbookGallery from "@modules/lookbook/components/lookbook-gallery"
 
 const LOOKBOOK_PAGE_SIZE = 24
 
@@ -103,52 +104,7 @@ export default async function LookbookPage({ searchParams }: Params) {
           </div>
         </div>
       ) : (
-        <ul
-          className="mt-10 columns-2 gap-4 small:columns-3 large:columns-4"
-          style={{ columnFill: "balance" }}
-        >
-          {items.map((item) => (
-            <li
-              key={item.id}
-              className="group mb-4 break-inside-avoid overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-md"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.image_url}
-                alt={item.title}
-                loading="lazy"
-                className="block w-full"
-              />
-              <div className="p-4">
-                <p className="text-sm font-semibold text-ui-fg-base">
-                  {item.title}
-                </p>
-                {item.description ? (
-                  <p className="mt-1 text-xs text-ui-fg-subtle">
-                    {item.description}
-                  </p>
-                ) : null}
-                {item.attribution ? (
-                  <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">
-                    Photo by {item.attribution}
-                  </p>
-                ) : null}
-                {item.tags.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {item.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="inline-flex rounded-full border border-ui-border-base bg-ui-bg-subtle px-2 py-0.5 text-[10px] font-medium text-ui-fg-subtle"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <LookbookGallery items={items} />
       )}
 
       {totalPages > 1 ? (
