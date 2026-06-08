@@ -39,8 +39,12 @@ const fileToDataUrl = (file: File): Promise<string> =>
     r.readAsDataURL(file)
   })
 
+const PAGE_SIZE = 24
+
 const LookbookPage = () => {
   const [items, setItems] = useState<Item[]>([])
+  const [count, setCount] = useState(0)
+  const [offset, setOffset] = useState(0)
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
 
@@ -53,14 +57,24 @@ const LookbookPage = () => {
   const [file, setFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (nextOffset: number) => {
     setLoading(true)
     try {
-      const res = await fetch("/admin/lookbook?include_unpublished=true", {
-        credentials: "include",
-      })
-      const json = (await res.json()) as { items?: Item[] }
+      const res = await fetch(
+        `/admin/lookbook?include_unpublished=true&limit=${PAGE_SIZE}&offset=${nextOffset}`,
+        { credentials: "include" }
+      )
+      const json = (await res.json()) as { items?: Item[]; count?: number }
+      const total = json.count ?? 0
+      // If this page is now empty (e.g. deleted the last tile on it), step back.
+      if (nextOffset > 0 && (json.items?.length ?? 0) === 0 && total > 0) {
+        const prev = Math.max(nextOffset - PAGE_SIZE, 0)
+        setOffset(prev)
+        return load(prev)
+      }
       setItems(json.items ?? [])
+      setCount(total)
+      setOffset(nextOffset)
     } catch {
       toast.error("Failed to load lookbook")
     } finally {
@@ -69,7 +83,7 @@ const LookbookPage = () => {
   }, [])
 
   useEffect(() => {
-    load()
+    load(0)
   }, [load])
 
   const submit = async () => {
@@ -111,7 +125,7 @@ const LookbookPage = () => {
       setAttribution("")
       setOrderId("")
       setFile(null)
-      await load()
+      await load(0)
     } catch (err: any) {
       toast.error(err?.message ?? "Save failed")
     } finally {
@@ -127,7 +141,7 @@ const LookbookPage = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ is_published: !item.is_published }),
       })
-      await load()
+      await load(offset)
     } catch {
       toast.error("Update failed")
     }
@@ -140,7 +154,7 @@ const LookbookPage = () => {
         method: "DELETE",
         credentials: "include",
       })
-      await load()
+      await load(offset)
     } catch {
       toast.error("Delete failed")
     }
@@ -166,7 +180,7 @@ const LookbookPage = () => {
           />
         </Heading>
         <div className="flex items-center gap-x-2">
-          <Badge color="blue">{items.length} tiles</Badge>
+          <Badge color="blue">{count} tiles</Badge>
           <Button size="small" onClick={() => setOpen((v) => !v)}>
             {open ? "Cancel" : "New tile"}
           </Button>
@@ -283,6 +297,32 @@ const LookbookPage = () => {
             ))}
           </ul>
         )}
+
+        {count > PAGE_SIZE ? (
+          <div className="mt-4 flex items-center justify-between border-t border-ui-border-base pt-4">
+            <Text size="xsmall" className="text-ui-fg-muted">
+              {`${offset + 1}–${Math.min(offset + items.length, count)} of ${count}`}
+            </Text>
+            <div className="flex items-center gap-x-2">
+              <Button
+                size="small"
+                variant="secondary"
+                disabled={loading || offset === 0}
+                onClick={() => load(Math.max(offset - PAGE_SIZE, 0))}
+              >
+                Previous
+              </Button>
+              <Button
+                size="small"
+                variant="secondary"
+                disabled={loading || offset + PAGE_SIZE >= count}
+                onClick={() => load(offset + PAGE_SIZE)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </Container>
   )

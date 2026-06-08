@@ -27,12 +27,19 @@ const createSchema = z.object({
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const includeUnpublished =
     String(req.query.include_unpublished ?? "").toLowerCase() === "true"
-  const service = req.scope.resolve<LookbookModuleService>(LOOKBOOK_MODULE)
-  const items = await service.listLookbookItems(
-    includeUnpublished ? {} : { is_published: true },
-    { order: { weight: "ASC" }, take: 500 }
+
+  const limit = Math.min(
+    Math.max(parseInt(String(req.query.limit ?? "24"), 10) || 24, 1),
+    100
   )
-  res.json({ items })
+  const offset = Math.max(parseInt(String(req.query.offset ?? "0"), 10) || 0, 0)
+
+  const service = req.scope.resolve<LookbookModuleService>(LOOKBOOK_MODULE)
+  const [items, count] = await service.listAndCountLookbookItems(
+    includeUnpublished ? {} : { is_published: true },
+    { order: { weight: "ASC", id: "ASC" }, take: limit, skip: offset }
+  )
+  res.json({ items, count, limit, offset })
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {

@@ -1,16 +1,31 @@
 import { Metadata } from "next"
 
-import { getLookbookItems } from "@lib/data/lookbook"
+import { getLookbookPage, LOOKBOOK_PAGE_SIZE } from "@lib/data/lookbook"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-
-export async function generateStaticParams() {
-  return [{ countryCode: "au" }]
+type Params = {
+  params: Promise<{ countryCode: string }>
+  searchParams: Promise<{ page?: string }>
 }
 
 export const metadata: Metadata = {
   title: "Lookbook",
   description: "Real SC PRINTS jobs in the wild — see what we make.",
+}
+
+/** Compact pager model: [1, "…", 4, 5, 6, "…", 20]. */
+const buildPageList = (current: number, total: number): (number | "…")[] => {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  const out: (number | "…")[] = [1]
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+  if (start > 2) out.push("…")
+  for (let p = start; p <= end; p++) out.push(p)
+  if (end < total - 1) out.push("…")
+  out.push(total)
+  return out
 }
 
 const ArrowRightIcon = ({ className }: { className?: string }) => (
@@ -30,11 +45,18 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-export default async function LookbookPage() {
-  const items = await getLookbookItems()
-  const tags = Array.from(
-    new Set(items.flatMap((i) => i.tags ?? []).filter(Boolean))
-  ).sort()
+export default async function LookbookPage({ searchParams }: Params) {
+  const sp = await searchParams
+  const requestedPage = Math.max(parseInt(String(sp?.page ?? "1"), 10) || 1, 1)
+
+  const { items, count, limit, tags } = await getLookbookPage(
+    requestedPage,
+    LOOKBOOK_PAGE_SIZE
+  )
+
+  const totalPages = Math.max(Math.ceil(count / limit), 1)
+  const currentPage = Math.min(requestedPage, totalPages)
+  const pageHref = (n: number) => (n <= 1 ? "/lookbook" : `/lookbook?page=${n}`)
 
   return (
     <div className="content-container py-14 small:py-20">
@@ -126,6 +148,68 @@ export default async function LookbookPage() {
           ))}
         </ul>
       )}
+
+      {totalPages > 1 ? (
+        <nav
+          className="mt-12 flex items-center justify-center gap-1.5"
+          aria-label="Lookbook pagination"
+        >
+          {currentPage > 1 ? (
+            <LocalizedClientLink
+              href={pageHref(currentPage - 1)}
+              rel="prev"
+              className="inline-flex h-9 items-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)]/40"
+            >
+              Prev
+            </LocalizedClientLink>
+          ) : (
+            <span className="inline-flex h-9 cursor-not-allowed items-center rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 text-sm font-semibold text-ui-fg-muted">
+              Prev
+            </span>
+          )}
+
+          {buildPageList(currentPage, totalPages).map((p, i) =>
+            p === "…" ? (
+              <span
+                key={`gap-${i}`}
+                className="inline-flex h-9 w-9 items-center justify-center text-sm text-ui-fg-muted"
+              >
+                …
+              </span>
+            ) : p === currentPage ? (
+              <span
+                key={p}
+                aria-current="page"
+                className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg bg-[var(--brand-secondary)] px-3 text-sm font-semibold text-white"
+              >
+                {p}
+              </span>
+            ) : (
+              <LocalizedClientLink
+                key={p}
+                href={pageHref(p)}
+                className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)]/40"
+              >
+                {p}
+              </LocalizedClientLink>
+            )
+          )}
+
+          {currentPage < totalPages ? (
+            <LocalizedClientLink
+              href={pageHref(currentPage + 1)}
+              rel="next"
+              className="inline-flex h-9 items-center rounded-lg border border-ui-border-base bg-white px-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)]/40"
+            >
+              Next
+            </LocalizedClientLink>
+          ) : (
+            <span className="inline-flex h-9 cursor-not-allowed items-center rounded-lg border border-ui-border-base bg-ui-bg-subtle px-3 text-sm font-semibold text-ui-fg-muted">
+              Next
+            </span>
+          )}
+        </nav>
+      ) : null}
     </div>
   )
 }

@@ -45,6 +45,15 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "12mb" },
     },
     {
+      // Lookbook tile create — staff upload a photo as a base64 data URL in
+      // the JSON body. Route caps the decoded image at 8MB (MAX_BYTES); base64
+      // inflates by ~1.33x so 12mb covers it. Without this the default ~100kb
+      // limit rejects every real photo with a generic "unknown_error" 500.
+      matcher: "/admin/lookbook",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "12mb" },
+    },
+    {
       matcher: "/store/carts/:id/scp-line-items",
       methods: ["POST"],
       bodyParser: { sizeLimit: "4mb" },
