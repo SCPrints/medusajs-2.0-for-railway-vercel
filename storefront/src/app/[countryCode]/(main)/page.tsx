@@ -14,11 +14,19 @@ import {
 import { getHomeSections } from "@lib/data/home-sections"
 import { listBundles, type Bundle } from "@lib/data/bundles"
 import { getRegion } from "@lib/data/regions"
+import { getProductionEta } from "@lib/data/production-eta"
+import { getLookbookPage } from "@lib/data/lookbook"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import HomeHero from "@modules/home/components/home-hero"
+import HomeTurnaroundBanner from "@modules/home/components/home-turnaround-banner"
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HomeTrustStrip from "@modules/home/components/home-trust-strip"
+import HomeToolsRail from "@modules/home/components/home-tools-rail"
+import HomeLookbookRail from "@modules/home/components/home-lookbook-rail"
+import HomeIndustryGrid from "@modules/home/components/home-industry-grid"
+import HomeGuaranteeBlock from "@modules/home/components/home-guarantee-block"
 import HowOrderWorksSection from "@modules/home/components/how-order-works-section"
 import FeaturedProductsCarousel from "@modules/home/components/featured-products-carousel"
 import InstagramFeedStrip from "@modules/home/components/instagram-feed-strip"
@@ -258,7 +266,14 @@ export default async function Home({
     ]
   }
 
-  const instagramMedia = await getInstagramFeedMedia()
+  // Independent feeds for the new home sections — fetch in parallel so they
+  // don't waterfall. Each degrades to empty/null on failure and its section
+  // self-hides (turnaround banner, lookbook rail).
+  const [instagramMedia, productionEta, lookbook] = await Promise.all([
+    getInstagramFeedMedia(),
+    getProductionEta(),
+    getLookbookPage(1, 8),
+  ])
   const instagramProfileUrl = getInstagramProfileUrl()
   const instagramHandle = getInstagramHandleDisplay()
 
@@ -286,17 +301,25 @@ export default async function Home({
           }}
         />
 
-        {/* Trust strip — now the top of the home page after the particle-logo
-            hero was moved to the contact page. Six signals: heritage,
-            shipping, no minimum, live order tracking, free DPI check, in-house
-            proofs. Each icon has its own subtle animation (see
-            [home-trust-strip.tsx]). The last three signals are unique to SC
+        {/* 1. Hero — benefit headline + dual CTA (Start designing → /customizer,
+            Get a quote → /byo) + value-prop badges. The first real H1 in the
+            home body. Image-free shell for now; a background image/canvas can be
+            dropped in behind the content later (see home-hero.tsx). */}
+        <HomeHero />
+
+        {/* 2. Live turnaround line — mirrors the production-ETA range already
+            shown on PDPs. Self-hides if the ETA service is unavailable. */}
+        <HomeTurnaroundBanner eta={productionEta} />
+
+        {/* 3. Trust strip — now reinforces below the hero rather than leading.
+            Six signals: heritage, shipping, no minimum, live order tracking,
+            free DPI check, in-house proofs. The last three are unique to SC
             Prints and not visible anywhere else on the site pre-purchase. */}
         <HomeTrustStrip />
 
-        {/* 3. Featured products — staff-curated sections (see /app/home-sections),
+        {/* Featured products — staff-curated sections (see /app/home-sections),
             rendered top-to-bottom in weight order. Falls back to popular hoodies
-            when no sections are curated. On screen within 2–3 scrolls. */}
+            when no sections are curated. */}
         {featuredSections.map((section, sectionIndex) => (
           <section key={section.id} className="content-container py-12">
             <FeaturedProductsCarousel
@@ -331,6 +354,18 @@ export default async function Home({
           </section>
         ))}
 
+        {/* Tools rail — surfaces the built-but-buried Design Studio, DTF
+            builder, BYO and Bundles, which had no home entry point before. */}
+        <HomeToolsRail />
+
+        {/* Our recent work — Lookbook social proof. Self-hides when no tiles
+            are published. */}
+        <HomeLookbookRail items={lookbook.items} />
+
+        {/* Shop by industry — routes segmented B2B buyers to the existing
+            /industries landing pages. */}
+        <HomeIndustryGrid />
+
         {/* 4. Brand carousel — contextualises the products above */}
         <ScrollingPictureBar />
 
@@ -345,6 +380,10 @@ export default async function Home({
 
         {/* 6. How to order — once the customer has seen what's available */}
         <HowOrderWorksSection />
+
+        {/* Risk-reversal — reframes our real proof/DPI/local/pricing
+            capabilities as promises right before the closing CTA. */}
+        <HomeGuaranteeBlock />
 
         {/* 7. Why SC Prints + single closing CTA */}
         <section className="content-container py-16">
@@ -383,9 +422,11 @@ export default async function Home({
               within one business day.
             </p>
             <div className="mt-7 flex justify-center">
+              {/* P2: re-pointed from /contact (email-only) to /byo — the real
+                  quote intake (mood-board upload + accept-link conversion). */}
               <LocalizedClientLink
-                href="/contact"
-                className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                href="/byo"
+                className="group inline-flex min-h-12 items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
               >
                 Start a quote
                 <svg
