@@ -302,9 +302,9 @@ export default async function Home({
         />
 
         {/* 1. Hero — benefit headline + dual CTA (Start designing → /customizer,
-            Get a quote → /byo) + value-prop badges. The first real H1 in the
-            home body. Image-free shell for now; a background image/canvas can be
-            dropped in behind the content later (see home-hero.tsx). */}
+            Shop the range → /store) + value-prop badges. The first real H1 in
+            the home body. Image-free shell for now; a background image/canvas
+            can be dropped in behind the content later (see home-hero.tsx). */}
         <HomeHero />
 
         {/* 2. Live turnaround line — mirrors the production-ETA range already
@@ -422,13 +422,14 @@ export default async function Home({
               within one business day.
             </p>
             <div className="mt-7 flex justify-center">
-              {/* P2: re-pointed from /contact (email-only) to /byo — the real
-                  quote intake (mood-board upload + accept-link conversion). */}
+              {/* Assisted-help path for larger team/club/corporate runs →
+                  /contact. Not a quote flow: SC Prints sells direct off the
+                  catalogue, so this is "talk to us", not "get a quote". */}
               <LocalizedClientLink
-                href="/byo"
+                href="/contact"
                 className="group inline-flex min-h-12 items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
               >
-                Start a quote
+                Get in touch
                 <svg
                   width="16"
                   height="16"

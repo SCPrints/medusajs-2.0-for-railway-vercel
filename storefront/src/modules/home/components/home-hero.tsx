@@ -2,6 +2,10 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 
 // Home hero (Phase 1 "shell"). Typographic, image-free so it ships reliably and
 // fast — the background is a subtle brand-tinted gradient, not a hosted asset.
+// Dual CTA: "Start designing" → /customizer (design-it-yourself) and
+// "Shop the range" → /store (browse-and-buy). No quote CTA — SC Prints sells
+// direct off the catalogue (bulk-tier pricing is on the cards), so a "get a
+// quote" path doesn't fit the model.
 // To upgrade the visual later (owner decision): drop a background <Image>, a
 // looping <video>, or one of the built canvas heroes
 // (digital-rain-hero / print-formation-hero / screenprint-cmyk-hero /
@@ -84,10 +88,10 @@ export default function HomeHero() {
             </LocalizedClientLink>
 
             <LocalizedClientLink
-              href="/byo"
+              href="/store"
               className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-ui-border-base bg-white px-6 py-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)] hover:text-[var(--brand-secondary)]"
             >
-              Get a quote
+              Shop the range
               <ArrowIcon className="transition-transform group-hover:translate-x-0.5" />
             </LocalizedClientLink>
           </div>
