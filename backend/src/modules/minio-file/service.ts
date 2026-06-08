@@ -201,8 +201,14 @@ class MinioFileProviderService extends AbstractFileProviderService {
       if (Buffer.isBuffer(file.content)) {
         content = file.content
       } else if (typeof file.content === 'string') {
-        // If it's a base64 string, decode it
-        if (file.content.match(/^[A-Za-z0-9+/]+=*$/)) {
+        // If it's a base64 string, decode it. NOTE: detect base64 with a
+        // linear "contains a non-base64 char" scan — NOT an anchored
+        // `^[A-Za-z0-9+/]+=*$` regex. The greedy `+` over a multi-MB base64
+        // string (e.g. a 3MB photo → ~4MB of chars) makes V8's regex engine
+        // recurse and throw "Maximum call stack size exceeded". A negated
+        // character class with no quantifier scans once, O(n), no recursion.
+        const hasNonBase64Char = /[^A-Za-z0-9+/=\s]/.test(file.content)
+        if (!hasNonBase64Char) {
           content = Buffer.from(file.content, 'base64')
         } else {
           content = Buffer.from(file.content, 'binary')
