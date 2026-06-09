@@ -45,10 +45,10 @@ type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }
 
-// Regenerate the home page periodically so the rotating "Our recent work"
-// lookbook rail (random window per render) actually cycles through new tiles
-// instead of being frozen by the full route cache.
-export const revalidate = 600
+// NOTE: Cache Components is enabled, so this route's uncached data fetches
+// (incl. the rotating lookbook rail) run per render — no `revalidate`/route
+// cache freezes the random selection. (`export const revalidate` is also
+// incompatible with cacheComponents and breaks the build.)
 
 export async function generateMetadata({
   params,
