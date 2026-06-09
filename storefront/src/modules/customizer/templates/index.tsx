@@ -1235,6 +1235,33 @@ export default function CustomizerTemplate({
     [selectedProduct, selectedVariant, currentSide, defaultGarmentImage]
   )
 
+  // Ordered fallbacks for the canvas when the colour-specific garment shot above
+  // is dead (the AS Colour CDN rotates per-colour files and 404s individual
+  // colours — see also the gallery, which masks this via the next/image cache).
+  // Prefer generic, colour-agnostic shots for the current side, then thumbnail /
+  // default / any other image. CanvasStage tries each in order on load error, so
+  // dead candidates are skipped and the customer still gets a garment to design
+  // on instead of a blank "No garment image available". (Source repair via the
+  // AS Colour image scripts is still the real fix; this is graceful degradation.)
+  const garmentImageFallbacks = useMemo(() => {
+    const imgs = (selectedProduct?.images ?? [])
+      .map((image) => image.url)
+      .filter((u): u is string => typeof u === "string" && u.length > 0)
+    const fileOf = (u: string) => (u.split("?")[0].split("/").pop() ?? "").toLowerCase()
+    const frontMain = imgs.filter((u) => /_(front|main)__/.test(fileOf(u)))
+    const back = imgs.filter((u) => /_back__/.test(fileOf(u)))
+    const wantBack = currentSide === "back"
+    const ordered = [
+      ...(wantBack ? [...back, ...frontMain] : [...frontMain, ...back]),
+      selectedProduct?.thumbnail ?? "",
+      defaultGarmentImage ?? "",
+      ...imgs,
+    ].filter((u): u is string => typeof u === "string" && u.length > 0)
+    return Array.from(new Set(ordered))
+      .filter((u) => u !== garmentImageUrl)
+      .slice(0, 8)
+  }, [selectedProduct, currentSide, defaultGarmentImage, garmentImageUrl])
+
   const garmentDisplayTitle = selectedProduct?.title ?? defaultGarmentTitle
 
   const decoratedSides = useMemo(
@@ -4548,6 +4575,7 @@ export default function CustomizerTemplate({
                       tintColor={variantTintHex}
                       removeWhiteBg={assemblyLayout && (currentSide === "front" || currentSide === "back")}
                       garmentImage={garmentImageUrl}
+                      garmentImageFallbacks={garmentImageFallbacks}
                       garmentTitle={garmentDisplayTitle}
                       printSideKey={currentSide}
                       printArea={printArea}

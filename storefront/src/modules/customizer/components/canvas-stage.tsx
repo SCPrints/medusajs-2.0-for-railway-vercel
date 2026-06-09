@@ -1,10 +1,17 @@
 "use client"
 
 import { RenderPlacement } from "@modules/customizer/lib/types"
-import { memo, RefObject, useEffect, useState } from "react"
+import { memo, RefObject, useEffect, useMemo, useState } from "react"
 
 type CanvasStageProps = {
   garmentImage: string | null
+  /**
+   * Ordered alternates tried (in order) when `garmentImage` fails to load — a
+   * supplier's colour-specific shot can 404 (the AS Colour CDN rotates per-colour
+   * files) while the generic front/main shot is still live. Lets the canvas show
+   * a working garment instead of a blank placeholder.
+   */
+  garmentImageFallbacks?: string[]
   garmentTitle: string | null
   /** Included in the image key so front/back swaps remount even if URLs match. */
   printSideKey?: string
@@ -33,6 +40,7 @@ type CanvasStageProps = {
 
 function CanvasStage({
   garmentImage,
+  garmentImageFallbacks = [],
   garmentTitle,
   printSideKey = "front",
   printArea,
@@ -43,14 +51,25 @@ function CanvasStage({
   frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
   removeWhiteBg = false,
 }: CanvasStageProps) {
-  // Fall back to the "no garment image" placeholder when the mockup URL is dead
-  // (supplier CDN rotated the file, R2 object GC'd) instead of a browser
-  // broken-image icon. Reset whenever the garment or side changes.
-  const [imgFailed, setImgFailed] = useState(false)
+  // The mockup URL can be dead (supplier CDN rotated the file, R2 object GC'd).
+  // Rather than drop straight to the blank placeholder, walk an ordered list of
+  // candidates — the colour-specific shot first, then generic/working fallbacks —
+  // advancing on each load error. Only show the placeholder once every candidate
+  // has failed. Reset to the top of the list whenever the garment or side changes.
+  const candidates = useMemo(
+    () =>
+      [garmentImage, ...garmentImageFallbacks].filter(
+        (u): u is string => typeof u === "string" && u.length > 0
+      ),
+    [garmentImage, garmentImageFallbacks]
+  )
+  const [srcIndex, setSrcIndex] = useState(0)
   useEffect(() => {
-    setImgFailed(false)
+    setSrcIndex(0)
   }, [garmentImage, printSideKey])
-  const showPhoto = garmentImage && !imgFailed
+  const effectiveSrc = candidates[srcIndex] ?? null
+  const handleImgError = () => setSrcIndex((i) => i + 1)
+  const showPhoto = Boolean(effectiveSrc)
   // Sleeve placeholders are line drawings on white. When we have a sampled
   // variant colour, paint the body by laying the colour behind the image and
   // multiplying — dark line work stays dark, white body picks up the colour.
@@ -122,8 +141,8 @@ function CanvasStage({
               className="absolute inset-0"
               style={{
                 backgroundColor: tintColor ?? "transparent",
-                WebkitMaskImage: `url(${garmentImage})`,
-                maskImage: `url(${garmentImage})`,
+                WebkitMaskImage: `url(${effectiveSrc})`,
+                maskImage: `url(${effectiveSrc})`,
                 WebkitMaskRepeat: "no-repeat",
                 maskRepeat: "no-repeat",
                 WebkitMaskSize: "cover",
@@ -138,12 +157,12 @@ function CanvasStage({
           {/* Native <img>: garment URLs come from variant metadata / many CDNs and may not match
               next/image remotePatterns; using next/image here caused render errors caught by PDP boundary. */}
           <img
-            key={`${printSideKey}-${garmentImage}`}
-            src={garmentImage!}
+            key={`${printSideKey}-${srcIndex}-${effectiveSrc}`}
+            src={effectiveSrc!}
             alt={garmentTitle ?? "Garment"}
             className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out"
             draggable={false}
-            onError={() => setImgFailed(true)}
+            onError={handleImgError}
             style={
               applySleeveTint
                 ? {
