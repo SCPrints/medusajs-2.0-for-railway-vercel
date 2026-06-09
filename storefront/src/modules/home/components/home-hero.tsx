@@ -1,15 +1,14 @@
+import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-// Home hero (Phase 1 "shell"). Typographic, image-free so it ships reliably and
-// fast — the background is a subtle brand-tinted gradient, not a hosted asset.
+// Home hero (Phase 1). Full-bleed product photo (a rack of blank garments)
+// behind the content, with a left-to-right white scrim so the dark headline +
+// dual CTA stay readable on the left while the garments show through on the
+// right. The image is the LCP element (priority load).
 // Dual CTA: "Start designing" → /customizer (design-it-yourself) and
 // "Shop the range" → /store (browse-and-buy). No quote CTA — SC Prints sells
 // direct off the catalogue (bulk-tier pricing is on the cards), so a "get a
 // quote" path doesn't fit the model.
-// To upgrade the visual later (owner decision): drop a background <Image>, a
-// looping <video>, or one of the built canvas heroes
-// (digital-rain-hero / print-formation-hero / screenprint-cmyk-hero /
-// embroidery-stitch-hero under this same folder) BEHIND the content grid here.
 // Keep the content (H1 + dual CTA + badges) untouched so SEO/conversion holds.
 
 const BADGES = [
@@ -55,14 +54,30 @@ const ArrowIcon = ({ className }: { className?: string }) => (
 
 export default function HomeHero() {
   return (
-    <section className="relative overflow-hidden border-b border-ui-border-base bg-gradient-to-b from-ui-bg-subtle to-ui-bg-base">
-      {/* Soft brand glow — purely decorative, sits behind the content. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-24 -top-24 hidden h-96 w-96 rounded-full bg-[var(--brand-secondary)]/10 blur-3xl tablet:block"
+    <section className="relative overflow-hidden border-b border-ui-border-base bg-ui-bg-subtle">
+      {/* Full-bleed product photo — the LCP element, sits behind the content. */}
+      <Image
+        src="/images/home/hero-rack.jpg"
+        alt="A rack of blank hoodies and sweatshirts ready for custom printing"
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover object-center"
       />
 
-      <div className="content-container relative py-16 small:py-24">
+      {/* White scrim — strong on the left for text contrast, fading to clear on
+          the right so the garments stay visible. A subtle bottom fade keeps the
+          badges legible on mobile where the rack fills more of the frame. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 small:to-transparent"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/80 via-white/20 to-transparent tablet:hidden"
+      />
+
+      <div className="content-container relative py-16 small:py-28">
         <div className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]/80">
             Custom apparel &amp; branded merch · NSW
