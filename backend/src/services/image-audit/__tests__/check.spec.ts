@@ -1,4 +1,9 @@
-import { classifyThumbnail, shouldStamp } from "../check"
+import {
+  classifyProductImages,
+  classifyThumbnail,
+  shouldStamp,
+  type UrlCheck,
+} from "../check"
 
 describe("classifyThumbnail", () => {
   it("treats empty / whitespace thumbnail as missing", () => {
@@ -54,5 +59,96 @@ describe("shouldStamp", () => {
     expect(shouldStamp(undefined, "missing")).toBe(false)
     expect(shouldStamp("ok", "missing")).toBe(false)
     expect(shouldStamp("missing", "ok")).toBe(false)
+  })
+})
+
+describe("classifyProductImages (thumbnail + gallery)", () => {
+  const THUMB = "https://cdn/thumb.jpg"
+  const FRONT = "https://cdn/black-front.jpg"
+  const BACK = "https://cdn/black-back.jpg"
+  const checks = (entries: Array<[string, UrlCheck]>) => new Map(entries)
+
+  it("is ok when thumbnail and every gallery image are live", () => {
+    expect(
+      classifyProductImages(
+        THUMB,
+        [FRONT, BACK],
+        checks([
+          [THUMB, { ok: true, status: 200 }],
+          [FRONT, { ok: true, status: 200 }],
+          [BACK, { ok: true, status: 200 }],
+        ])
+      )
+    ).toEqual({ status: "ok", broken_urls: [] })
+  })
+
+  it("is broken when a GALLERY image is dead even though the thumbnail is fine (the 2026-06-10 per-colour rot)", () => {
+    const result = classifyProductImages(
+      THUMB,
+      [FRONT, BACK],
+      checks([
+        [THUMB, { ok: true, status: 200 }],
+        [FRONT, { ok: false, status: 404 }],
+        [BACK, { ok: true, status: 200 }],
+      ])
+    )
+    expect(result.status).toBe("broken")
+    expect(result.broken_urls).toEqual([FRONT])
+  })
+
+  it("is broken when only the thumbnail is dead", () => {
+    const result = classifyProductImages(
+      THUMB,
+      [FRONT],
+      checks([
+        [THUMB, { ok: false, status: 410 }],
+        [FRONT, { ok: true, status: 200 }],
+      ])
+    )
+    expect(result.status).toBe("broken")
+    expect(result.broken_urls).toEqual([THUMB])
+  })
+
+  it("collects every dead url, deduped against the thumbnail", () => {
+    const result = classifyProductImages(
+      FRONT, // thumbnail IS one of the gallery urls
+      [FRONT, BACK],
+      checks([
+        [FRONT, { ok: false, status: 404 }],
+        [BACK, { ok: false, status: 404 }],
+      ])
+    )
+    expect(result.status).toBe("broken")
+    expect(result.broken_urls).toEqual([FRONT, BACK])
+  })
+
+  it("keeps thumbnail-missing semantics when nothing is dead", () => {
+    expect(
+      classifyProductImages(
+        "",
+        [FRONT],
+        checks([[FRONT, { ok: true, status: 200 }]])
+      )
+    ).toEqual({ status: "missing", broken_urls: [] })
+    expect(classifyProductImages(null, [], checks([]))).toEqual({
+      status: "missing",
+      broken_urls: [],
+    })
+  })
+
+  it("never flags unchecked urls (no check result = no verdict)", () => {
+    expect(
+      classifyProductImages(THUMB, [FRONT], checks([[THUMB, { ok: true, status: 200 }]]))
+    ).toEqual({ status: "ok", broken_urls: [] })
+  })
+
+  it("ignores blank / null gallery entries", () => {
+    expect(
+      classifyProductImages(
+        THUMB,
+        ["", null, undefined, "   "],
+        checks([[THUMB, { ok: true, status: 200 }]])
+      )
+    ).toEqual({ status: "ok", broken_urls: [] })
   })
 })

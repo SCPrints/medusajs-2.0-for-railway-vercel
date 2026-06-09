@@ -1,10 +1,16 @@
 /**
  * Product-image audit runner.
  *
- * Walks products, HEAD-checks each thumbnail, and stamps
- * `product.metadata.image_audit = { status, checked_at, status_code }` on
- * the ones whose broken-ness changed. The "Broken image" data-quality
- * flag in /app/product-data reads `image_audit.status === "broken"`.
+ * Walks products, HEAD-checks the thumbnail AND every gallery image, and
+ * stamps `product.metadata.image_audit = { status, checked_at, status_code,
+ * broken_count, broken_urls }` on the ones whose broken-ness changed. The
+ * "Broken image" data-quality flag in /app/product-data reads
+ * `image_audit.status === "broken"`.
+ *
+ * Gallery scope matters: thumbnail-only auditing misses per-colour rot — a
+ * supplier CDN rotating individual colour files leaves the thumbnail healthy
+ * while that colour's PDP gallery + customizer canvas break (2026-06-10
+ * incident). ~1.3k products / ~27k URLs keeps the weekly sweep under an hour.
  *
  * Called from two places:
  *   - the weekly cron ([jobs/audit-product-images.ts]) — full catalog
@@ -18,7 +24,7 @@
 
 import {
   checkImageUrl,
-  classifyThumbnail,
+  classifyProductImages,
   shouldStamp,
   type ImageAuditStatus,
 } from "./check"
@@ -82,8 +88,26 @@ type ProductRow = {
   id: string
   handle: string | null
   thumbnail: string | null
+  images?: Array<{ url?: string | null }> | null
   metadata: Record<string, any> | null
 }
+
+/** Unique, trimmed thumbnail + gallery URLs for one product. */
+const productImageUrls = (p: ProductRow): string[] => {
+  const urls = new Set<string>()
+  if (typeof p.thumbnail === "string" && p.thumbnail.trim()) {
+    urls.add(p.thumbnail.trim())
+  }
+  for (const img of p.images ?? []) {
+    if (typeof img?.url === "string" && img.url.trim()) {
+      urls.add(img.url.trim())
+    }
+  }
+  return [...urls]
+}
+
+/** Cap stored broken-URL lists so product metadata stays bounded. */
+const BROKEN_URLS_STAMP_CAP = 20
 
 async function resolveBrandProductIds(
   deps: AuditDeps,
@@ -159,7 +183,7 @@ export async function runImageAudit(
     `image-audit: start source=${opts.source ?? "?"} scope=${scope} concurrency=${concurrency} timeoutMs=${timeoutMs}`
   )
 
-  const fields = ["id", "handle", "thumbnail", "metadata"]
+  const fields = ["id", "handle", "thumbnail", "images.url", "metadata"]
 
   const processPage = async (rows: ProductRow[]) => {
     if (opts.limit && summary.scanned >= opts.limit) return false
@@ -170,22 +194,26 @@ export async function runImageAudit(
     }
     summary.scanned += page.length
 
-    // Only populated thumbnails need a network check; empty ones are
-    // "missing" (the existing flag owns them).
-    const urls = page
-      .map((p) => (typeof p.thumbnail === "string" ? p.thumbnail.trim() : ""))
-      .filter((u) => u.length > 0)
+    // Check thumbnail + every gallery image. Only populated URLs need a
+    // network check; products with no images at all are "missing" (the
+    // existing flag owns them).
+    const urls = [...new Set(page.flatMap(productImageUrls))]
     const statusByUrl = urls.length
-      ? await checkUrls([...new Set(urls)], concurrency, timeoutMs)
+      ? await checkUrls(urls, concurrency, timeoutMs)
       : new Map()
+    summary.checked += urls.length
 
     for (const p of page) {
       const thumb =
         typeof p.thumbnail === "string" ? p.thumbnail.trim() : ""
-      const check = thumb ? statusByUrl.get(thumb) ?? null : null
-      if (thumb) summary.checked++
+      const thumbCheck = thumb ? statusByUrl.get(thumb) ?? null : null
 
-      const next = classifyThumbnail(p.thumbnail, check)
+      const classification = classifyProductImages(
+        p.thumbnail,
+        (p.images ?? []).map((i) => i?.url),
+        statusByUrl
+      )
+      const next = classification.status
       const prev = (p.metadata?.image_audit?.status ?? undefined) as
         | ImageAuditStatus
         | undefined
@@ -200,7 +228,9 @@ export async function runImageAudit(
         ...(p.metadata ?? {}),
         image_audit: {
           status: next,
-          status_code: check?.status ?? null,
+          status_code: thumbCheck?.status ?? null,
+          broken_count: classification.broken_urls.length,
+          broken_urls: classification.broken_urls.slice(0, BROKEN_URLS_STAMP_CAP),
           checked_at: new Date().toISOString(),
         },
       }
@@ -208,7 +238,11 @@ export async function runImageAudit(
         await deps.productModule.updateProducts(p.id, { metadata: nextMeta })
         summary.updated++
         deps.logger.info(
-          `image-audit: ${p.handle ?? p.id} ${prev ?? "—"} → ${next}${check ? ` (HTTP ${check.status})` : ""}`
+          `image-audit: ${p.handle ?? p.id} ${prev ?? "—"} → ${next}${
+            classification.broken_urls.length
+              ? ` (${classification.broken_urls.length} dead url(s))`
+              : ""
+          }`
         )
       } catch (err: any) {
         summary.errors++

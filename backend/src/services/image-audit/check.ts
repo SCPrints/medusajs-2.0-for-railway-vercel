@@ -101,3 +101,46 @@ export function shouldStamp(
   if (prev === next) return false
   return next === "broken" || prev === "broken"
 }
+
+export type ProductImagesClassification = {
+  status: ImageAuditStatus
+  /** Confirmed-dead URLs (thumbnail and/or gallery), deduped. */
+  broken_urls: string[]
+}
+
+/**
+ * Product-level status from the thumbnail AND every gallery image.
+ *
+ * Thumbnail-only auditing misses the failure mode that actually bites: a
+ * supplier CDN rotates per-COLOUR files (2026-06-10: AS Colour killed
+ * individual colour fronts on 10 products ~3 weeks before anyone noticed),
+ * which leaves the thumbnail healthy while the PDP gallery and the
+ * customizer canvas break for those colours. A product is "broken" if ANY
+ * of its image URLs is confirmed dead; "missing" keeps its existing
+ * thumbnail-level semantics.
+ */
+export function classifyProductImages(
+  thumbnail: string | null | undefined,
+  galleryUrls: ReadonlyArray<string | null | undefined>,
+  checks: ReadonlyMap<string, UrlCheck>
+): ProductImagesClassification {
+  const thumb = typeof thumbnail === "string" ? thumbnail.trim() : ""
+  const candidates = new Set<string>()
+  if (thumb) candidates.add(thumb)
+  for (const raw of galleryUrls) {
+    const url = typeof raw === "string" ? raw.trim() : ""
+    if (url) candidates.add(url)
+  }
+
+  const broken_urls = [...candidates].filter((url) => {
+    const check = checks.get(url)
+    return Boolean(check && !check.ok)
+  })
+  if (broken_urls.length) {
+    return { status: "broken", broken_urls }
+  }
+  if (!thumb || !checks.get(thumb)) {
+    return { status: "missing", broken_urls: [] }
+  }
+  return { status: "ok", broken_urls: [] }
+}
