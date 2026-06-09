@@ -1,25 +1,15 @@
 import type { ProductionEta } from "@lib/data/production-eta"
 
-// Live production-turnaround line (Phase 1 P4). The range comes from the same
-// `getProductionEta()` service already shown on PDPs (computed from current
-// queue depth), so this introduces no new promise — it mirrors what customers
-// already see on product pages. Renders nothing when the service is
-// unavailable, so the home page never shows a broken/empty bar.
+// Turnaround line (Phase 1 P4). Fixed promise — custom orders currently ship
+// within 7 business days (most go out same/next day), so we state that directly
+// rather than surfacing the queue-depth ETA range. The `eta` prop is kept for
+// compatibility with the home page but is intentionally unused.
 
 export default function HomeTurnaroundBanner({
-  eta,
+  eta: _eta,
 }: {
   eta: ProductionEta | null
 }) {
-  if (!eta || !eta.low_days || !eta.high_days) {
-    return null
-  }
-
-  const range =
-    eta.low_days === eta.high_days
-      ? `${eta.low_days}`
-      : `${eta.low_days}–${eta.high_days}`
-
   return (
     <section className="border-b border-ui-border-base bg-[var(--brand-secondary)]/[0.06]">
       <div className="content-container flex items-center justify-center gap-2.5 px-4 py-2.5 text-center">
@@ -28,9 +18,9 @@ export default function HomeTurnaroundBanner({
           className="inline-block size-2 shrink-0 rounded-full bg-[var(--brand-secondary)] motion-safe:animate-pulse"
         />
         <p className="text-xs font-medium text-ui-fg-base phone:text-sm">
-          Custom orders are currently going out in{" "}
+          Custom orders are currently going out{" "}
           <span className="font-semibold text-[var(--brand-secondary)]">
-            ~{range} business days
+            within 7 business days
           </span>{" "}
           from our NSW studio.
         </p>

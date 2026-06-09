@@ -93,7 +93,7 @@ const FAQ_SECTIONS: FaqSection[] = [
       {
         question: "What is your typical turnaround?",
         answer:
-          "Typical turnaround is around 7-10 business days once artwork approval and payment are completed. Peak periods may take longer.",
+          "Most custom orders ship within 7 business days once artwork approval and payment are completed — often same or next day. Peak periods may take longer.",
       },
     ],
   },
