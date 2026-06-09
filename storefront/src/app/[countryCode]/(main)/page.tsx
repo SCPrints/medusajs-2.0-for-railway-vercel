@@ -15,7 +15,7 @@ import { getHomeSections } from "@lib/data/home-sections"
 import { listBundles, type Bundle } from "@lib/data/bundles"
 import { getRegion } from "@lib/data/regions"
 import { getProductionEta } from "@lib/data/production-eta"
-import { getLookbookPage } from "@lib/data/lookbook"
+import { getLookbookHomeRail } from "@lib/data/lookbook"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -44,6 +44,11 @@ export async function generateStaticParams() {
 type MetadataProps = {
   params: Promise<{ countryCode: string }>
 }
+
+// Regenerate the home page periodically so the rotating "Our recent work"
+// lookbook rail (random window per render) actually cycles through new tiles
+// instead of being frozen by the full route cache.
+export const revalidate = 600
 
 export async function generateMetadata({
   params,
@@ -269,10 +274,10 @@ export default async function Home({
   // Independent feeds for the new home sections — fetch in parallel so they
   // don't waterfall. Each degrades to empty/null on failure and its section
   // self-hides (turnaround banner, lookbook rail).
-  const [instagramMedia, productionEta, lookbook] = await Promise.all([
+  const [instagramMedia, productionEta, lookbookItems] = await Promise.all([
     getInstagramFeedMedia(),
     getProductionEta(),
-    getLookbookPage(1, 8),
+    getLookbookHomeRail(8),
   ])
   const instagramProfileUrl = getInstagramProfileUrl()
   const instagramHandle = getInstagramHandleDisplay()
@@ -360,7 +365,7 @@ export default async function Home({
 
         {/* Our recent work — Lookbook social proof. Self-hides when no tiles
             are published. */}
-        <HomeLookbookRail items={lookbook.items} />
+        <HomeLookbookRail items={lookbookItems} />
 
         {/* Shop by industry — routes segmented B2B buyers to the existing
             /industries landing pages. */}
