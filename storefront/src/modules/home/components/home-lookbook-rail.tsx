@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 import type { LookbookItem } from "@lib/data/lookbook"
 
 import SectionHeader from "@modules/common/components/section-header"
@@ -63,14 +65,16 @@ export default function HomeLookbookRail({
                 className="group block overflow-hidden rounded-lg border border-ui-border-base bg-white"
               >
                 <div className="relative aspect-[4/5] overflow-hidden bg-ui-bg-subtle">
-                  {/* Plain <img>: lookbook images are arbitrary external
-                      (R2/CDN) URLs, so we avoid next/image domain config. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  {/* next/image resamples server-side to the tile size (R2 host
+                      is allowlisted in next.config.js), which removes the
+                      downscaling moiré a raw full-res <img> showed and cuts
+                      payload. Fixed aspect-[4/5] box → fill + object-cover. */}
+                  <Image
                     src={item.image_url}
                     alt={item.title}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    fill
+                    sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
+                    className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                   />
                 </div>
                 {(item.title || item.attribution) && (

@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { LookbookItem } from "@lib/data/lookbook"
@@ -77,12 +78,19 @@ export default function LookbookGallery({ items }: Props) {
               className="group block w-full cursor-zoom-in overflow-hidden rounded-xl border border-ui-border-base bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/60"
             >
               <div className="overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                {/* next/image resamples server-side to roughly the column
+                    width, which removes the downscaling moiré that a raw
+                    full-res <img> showed on the small tiles (and cuts payload).
+                    width/height 0 + h-auto is the standard pattern for remote
+                    images of unknown aspect ratio — `sizes` matches the
+                    2/3/4-column masonry so the optimizer picks the right size. */}
+                <Image
                   src={item.image_url}
                   alt={item.title}
-                  loading="lazy"
-                  className="block w-full transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+                  width={0}
+                  height={0}
+                  sizes="(min-width: 1440px) 25vw, (min-width: 1024px) 33vw, 50vw"
+                  className="block h-auto w-full transition-transform duration-300 ease-out group-hover:scale-[1.04]"
                 />
               </div>
               <div className="p-4">
