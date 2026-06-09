@@ -4541,18 +4541,19 @@ export default function CustomizerTemplate({
                     Editing: {sideLabel}
                   </p>
                   <div className={assemblyLayout ? "relative isolate z-[1] flex flex-1 min-h-0 items-center justify-center" : "z-[1]"}>
-                    {/* SC Prints watermark — sits on the studio page BEHIND the
-                        garment picture (negative z-index), slightly oversize so
-                        it peeks around the garment. Faint; non-interactive.
-                        Front/back only — the sleeve line-drawings and zoomed tag
-                        view get too busy with it behind them. */}
+                    {/* SC Prints watermark — overlaid ON TOP of the studio area
+                        (page background + garment photo together), slightly
+                        oversize so it spans past the photo edges uncut. Faint;
+                        non-interactive. Unconditional per colour so every
+                        product looks the same. Front/back only — the sleeve
+                        line-drawings and zoomed tag view get too busy with it. */}
                     {assemblyLayout && (currentSide === "front" || currentSide === "back") && (
                       <img
                         src="/branding/scp-vector.svg"
                         alt=""
                         aria-hidden
                         draggable={false}
-                        className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.12]"
+                        className="pointer-events-none absolute left-1/2 top-1/2 z-[2] h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.12]"
                       />
                     )}
                     {/* Brief "preparing" overlay while the Fabric canvas first
@@ -4573,7 +4574,6 @@ export default function CustomizerTemplate({
                     )}
                     <CanvasStage
                       tintColor={variantTintHex}
-                      removeWhiteBg={assemblyLayout && (currentSide === "front" || currentSide === "back")}
                       garmentImage={garmentImageUrl}
                       garmentImageFallbacks={garmentImageFallbacks}
                       garmentTitle={garmentDisplayTitle}
