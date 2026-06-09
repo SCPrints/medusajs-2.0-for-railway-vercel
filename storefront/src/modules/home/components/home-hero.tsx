@@ -70,7 +70,7 @@ export default function HomeHero() {
           badges legible on mobile where the rack fills more of the frame. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-r from-white via-white/90 to-white/30 small:to-transparent"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,white_0%,white_28%,rgba(255,255,255,0.55)_45%,transparent_62%)]"
       />
       <div
         aria-hidden
