@@ -1,10 +1,10 @@
 "use client"
 
 import { Container, clx } from "@medusajs/ui"
-import Image from "next/image"
 
 import { LineItemMockupArtifact } from "@modules/customizer/lib/metadata"
 import Thumbnail from "@modules/products/components/thumbnail"
+import SafeImage from "@modules/common/components/safe-image"
 
 type LineItemMockupPreviewProps = {
   mockups?: LineItemMockupArtifact[]
@@ -80,7 +80,7 @@ const LineItemMockupPreview = ({
             className="relative flex-1 min-h-0 overflow-hidden rounded-md group"
             title={mockup.label}
           >
-            <Image
+            <SafeImage
               src={mockup.mockupUrl}
               alt={`${mockup.label} mockup`}
               className="absolute inset-0 object-cover object-center"

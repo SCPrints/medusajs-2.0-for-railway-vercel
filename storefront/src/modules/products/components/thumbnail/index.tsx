@@ -1,8 +1,8 @@
 import { Container, clx } from "@medusajs/ui"
-import Image from "next/image"
 import React from "react"
 
 import PlaceholderImage from "@modules/common/icons/placeholder-image"
+import SafeImage from "@modules/common/components/safe-image"
 
 import { remapStaleExternalGarmentUrl } from "@lib/util/remap-stale-supplier-images"
 
@@ -68,7 +68,7 @@ const ImageOrPlaceholder = ({
   sizes,
 }: Pick<ThumbnailProps, "size"> & { image?: string; sizes: string }) => {
   return image ? (
-    <Image
+    <SafeImage
       src={image}
       alt="Thumbnail"
       className="absolute inset-0 object-cover object-center"
