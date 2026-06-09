@@ -1,7 +1,19 @@
 "use client"
 
 import Image from "next/image"
+import { useSearchParams } from "next/navigation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
+
+/**
+ * URL params that signal "the customer arrived to design/edit, not browse" —
+ * kept in sync with `PdpSplitTabs`'s `startsOnDesign` set. On the PDP studio
+ * these MUST auto-open the overlay so the canvas mounts and its rehydration
+ * effect can replay the cart line / saved design / order artwork. `?edit_group=`
+ * in particular is a real cart-edit deep link to `/products/<handle>` — without
+ * the auto-open the customer is stranded on the photo landing with nothing to
+ * hydrate.
+ */
+const DEEP_LINK_PARAMS = ["edit_group", "edit", "design", "reorder", "adminProof"] as const
 
 type Props = {
   /** Garment title, shown beside the photos and in the studio top bar. */
@@ -10,6 +22,8 @@ type Props = {
    * Open the studio immediately on load (re-order / saved-design deep links,
    * which carry artwork to replay). Server-computed so it's available at
    * hydration — avoids the `useSearchParams()`-null-during-prerender trap.
+   * On the PDP this is usually left unset; the component also auto-opens for
+   * any {@link DEEP_LINK_PARAMS} it sees in the URL client-side.
    */
   autoOpen?: boolean
   /** Server-rendered photo gallery (the landing "photos" view). */
@@ -26,6 +40,14 @@ type Props = {
    * spin up behind the landing.
    */
   studio: ReactNode
+  /**
+   * Optional marketing/spec content rendered below the landing hero (production
+   * ETA, decoration estimator, spec tabs). Lives inside the landing's inert
+   * scope so it's removed from the a11y/tab order while the studio is open, and
+   * is server-rendered into the DOM so crawlers index the full PDP content even
+   * though the design surface is a deferred overlay.
+   */
+  belowFold?: ReactNode
 }
 
 /**
@@ -36,7 +58,9 @@ type Props = {
  * open (body scroll is locked); the only scroll is inside the studio's
  * right-hand section panel. SC Prints branding stays top-left in black.
  */
-export default function StudioLauncher({ title, autoOpen = false, gallery, colourSelector, cartButton, productInfo, studio }: Props) {
+export default function StudioLauncher({ title, autoOpen = false, gallery, colourSelector, cartButton, productInfo, studio, belowFold }: Props) {
+  const searchParams = useSearchParams()
+  const deepLinkOpen = DEEP_LINK_PARAMS.some((p) => !!searchParams?.get(p))
   const [open, setOpen] = useState(false)
   // Once the studio has been opened, keep it MOUNTED (just hidden when closed)
   // so "Back to photos" / Escape never unmount the canvas and silently discard
@@ -66,7 +90,7 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
   // canvas mounts and the rehydration effect replays the saved artwork, instead
   // of stranding the customer on the photo landing.
   useEffect(() => {
-    if (autoOpen) openStudio()
+    if (autoOpen || deepLinkOpen) openStudio()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -168,8 +192,12 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
 
   return (
     <>
-      {/* Landing — text (title, CTA, details) on the left of the picture. */}
-      <div ref={landingRef} className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
+      {/* Landing — everything behind the studio overlay. Wrapped in one ref so
+          the whole PDP (hero + below-fold marketing) goes inert together while
+          the studio is open. */}
+      <div ref={landingRef}>
+      {/* Hero — text (title, CTA, details) on the left of the picture. */}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-start">
         {/* Text column — sits to the left of the photo on desktop, below it on
             mobile (image-first). */}
         <div className="order-2 flex flex-col gap-5 lg:order-none lg:col-span-5">
@@ -214,6 +242,12 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
 
         {/* Picture — to the right of the text on desktop, first on mobile. */}
         <div className="order-1 lg:order-none lg:col-span-7">{gallery}</div>
+      </div>
+
+      {/* Below-fold marketing/spec content (production ETA, decoration
+          estimator, spec tabs). Server-rendered so it's indexable, and inert
+          with the rest of the landing while the studio is open. */}
+      {belowFold ? <div className="mt-12">{belowFold}</div> : null}
       </div>
 
       {/* Full-screen studio overlay — fixed over the entire viewport, above the
