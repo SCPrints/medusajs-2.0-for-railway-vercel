@@ -860,7 +860,11 @@ export function getPrimaryGarmentImageUrl(
       urlMatchesColorLabelStrict(image.url, selectedColor)
     )
     if (strict.length) {
-      return remapStaleExternalGarmentUrl(strict[0].url)
+      // Front-ish pick, NOT strict[0] — array order is not a contract (see
+      // pickFrontishGarmentUrl). strict[0] showed the BACK photo whenever a
+      // repair/import left the colour's back earlier in the array.
+      const frontish = pickFrontishGarmentUrl(strict.map((i) => i.url))
+      return remapStaleExternalGarmentUrl(frontish ?? strict[0].url)
     }
   }
 
@@ -875,11 +879,17 @@ export function getPrimaryGarmentImageUrl(
       urlMatchesColorNeedles(image.url, relaxedNeedles)
     )
     if (relaxed.length) {
-      return remapStaleExternalGarmentUrl(relaxed[0].url)
+      const frontish = pickFrontishGarmentUrl(relaxed.map((i) => i.url))
+      return remapStaleExternalGarmentUrl(frontish ?? relaxed[0].url)
     }
   }
 
-  return remapStaleExternalGarmentUrl(validImages[0]?.url ?? product.thumbnail ?? null)
+  return remapStaleExternalGarmentUrl(
+    pickFrontishGarmentUrl(validImages.map((i) => i.url)) ??
+      validImages[0]?.url ??
+      product.thumbnail ??
+      null
+  )
 }
 
 const garmentUrlLooksLikeBack = (url: string) => {
@@ -909,6 +919,43 @@ const garmentUrlLooksLikeFront = (url: string) => {
     (lower.includes("product") && (lower.includes("_01_") || lower.includes("_01.")))
   )
 }
+
+/** Side/turn/thumb/detail shots — real photos, but never the preferred front view. */
+const garmentUrlLooksLikeAltView = (url: string) => {
+  const file = (url.split("?")[0].split("/").pop() ?? "").toLowerCase()
+  return /(^|[-_.])(side|turn|thumb|detail|swatch)([-_.]|$)/.test(file)
+}
+
+/**
+ * Order-independent front pick from a set of candidate URLs. AS Colour colour
+ * fronts carry NO "front" token (`_BLACK__` is the front, `_BLACK_BACK` the
+ * back), so "front" here means: an explicit front marker if present, else the
+ * first url that is neither a back nor a side/turn/thumb shot, else any
+ * non-back. Selection MUST NOT depend on `product.images` array order — image
+ * repair/scrape scripts and supplier re-imports append/reorder freely, and
+ * order-dependent picks regress to showing backs (2026-06-10 incident: the
+ * repair appended recovered colour fronts after the existing backs and every
+ * repaired colour's canvas flipped to the back photo).
+ */
+const pickFrontishGarmentUrl = (urls: string[]): string | undefined =>
+  urls.find(garmentUrlLooksLikeFront) ??
+  urls.find((u) => !garmentUrlLooksLikeBack(u) && !garmentUrlLooksLikeAltView(u)) ??
+  urls.find((u) => !garmentUrlLooksLikeBack(u))
+
+/**
+ * Display rank for ordering garment views: explicit front (0) → neutral, e.g.
+ * an AS Colour `_COLOUR__` front (1) → side/turn/thumb (2) → back (3). Use with
+ * a stable sort so a colour-filtered gallery leads with the front no matter
+ * where imports/repair scripts left it in the `product.images` array.
+ */
+export const garmentUrlViewRank = (url: string): number =>
+  garmentUrlLooksLikeFront(url)
+    ? 0
+    : garmentUrlLooksLikeBack(url)
+    ? 3
+    : garmentUrlLooksLikeAltView(url)
+    ? 2
+    : 1
 
 /**
  * Cart-line thumbnail fallback chain used by the cart dropdown, cart line

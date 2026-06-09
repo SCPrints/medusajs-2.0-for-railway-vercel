@@ -11,6 +11,7 @@ import {
   filterGarmentImageUrlsForVariantColor,
   findProductImageByUrl,
   findProductImageByVariantSku,
+  garmentUrlViewRank,
   getGarmentImageUrlsFromMetadata,
   isColorOptionTitle,
   normalizeImageUrl,
@@ -98,7 +99,12 @@ const ImageGallery = ({
         urlMatchesColorLabelStrict(image.url, selectedColor)
       )
       if (strict.length) {
-        return strict
+        // Stable view-rank sort so the hero leads with the FRONT — array
+        // order is not a contract (repair/scrape scripts append fronts after
+        // backs; see pickFrontishGarmentUrl in variant-options).
+        return [...strict].sort(
+          (a, b) => garmentUrlViewRank(a.url) - garmentUrlViewRank(b.url)
+        )
       }
     }
 
@@ -115,7 +121,9 @@ const ImageGallery = ({
         urlMatchesColorNeedles(image.url, relaxedNeedles)
       )
       if (relaxed.length) {
-        return relaxed
+        return [...relaxed].sort(
+          (a, b) => garmentUrlViewRank(a.url) - garmentUrlViewRank(b.url)
+        )
       }
 
       // Colour selected but no colour-specific photo exists (e.g. a RAMO
