@@ -292,6 +292,31 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         </div>
       </section>
 
+      {service.slug === "embroidery" && (
+        <section className="mt-12">
+          <SectionHeader
+            eyebrow="Thread library"
+            title="Hundreds of thread colours, in-house"
+          />
+          <figure className="overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-subtle">
+            <div className="relative h-[320px] small:h-[460px]">
+              <Image
+                src="/images/services/embroidery/thread-colour-wall.jpg"
+                alt="Wall of embroidery thread cones arranged in a rainbow colour spectrum at the SC Prints studio."
+                fill
+                sizes="(max-width: 1024px) 100vw, 1200px"
+                className="object-cover"
+              />
+            </div>
+            <figcaption className="px-6 py-4 text-sm text-ui-fg-subtle">
+              Our studio thread wall — with hundreds of colours on hand, we can
+              match your brand palette closely without waiting on special-order
+              thread.
+            </figcaption>
+          </figure>
+        </section>
+      )}
+
       <section className="mt-12 grid gap-6 large:grid-cols-[2fr_1fr]">
         <div className="rounded-xl border border-ui-border-base bg-white p-6 small:p-7">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
