@@ -57,6 +57,18 @@ export type BrandPresentation = {
   videoSrc?: string
   videoPosterSrc?: string
   /**
+   * "light" renders a split hero: text on the left, a product photo on the
+   * right, over the `bgClass` background. Text is dark (not white). Designed
+   * for product-shot images with a white/light background — `mix-blend-multiply`
+   * makes the white bg transparent so the brand colour shows through cleanly.
+   */
+  heroVariant?: "light"
+  /**
+   * Product / lifestyle photo used by the "light" hero variant (right-hand side).
+   * Local /public path or absolute URL.
+   */
+  heroProductSrc?: string
+  /**
    * Stock / lifestyle product photos for the gallery on the brand landing page.
    * Render is skipped entirely when this is empty.
    */
@@ -200,9 +212,11 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
   },
   ramo: {
     initials: "RA",
-    bgClass: "bg-red-700",
+    bgClass: "bg-stone-200",
     logoSrc: `${LOGO_BASE}/ramo.svg`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
+    heroVariant: "light",
+    heroProductSrc: `${BRAND_BASE}/ramo/hero-hoodies.png`,
     gallery: [
       { src: `${BRAND_BASE}/ramo/oversize-hoodie.jpg`, alt: "Ramo oversize easy-fit hoodie" },
       { src: `${BRAND_BASE}/ramo/half-zip-fleece.jpg`, alt: "Ramo enterprise half-zip fleece" },

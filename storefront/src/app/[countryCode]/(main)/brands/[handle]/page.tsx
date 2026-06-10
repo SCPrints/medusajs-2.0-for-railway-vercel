@@ -75,6 +75,8 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         videoPosterSrc={presentation.videoPosterSrc ?? null}
         bgClass={presentation.bgClass}
         childBrands={children}
+        heroVariant={presentation.heroVariant ?? null}
+        heroProductSrc={presentation.heroProductSrc ?? null}
       />
 
       {galleryImages.length > 0 ? (
