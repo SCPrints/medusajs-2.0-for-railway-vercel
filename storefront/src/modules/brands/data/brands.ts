@@ -195,6 +195,7 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     bgClass: "bg-teal-700",
     logoSrc: `${LOGO_BASE}/biz-care.svg`,
     logoClass: "max-h-full max-w-[45%] object-contain object-left",
+    bannerSrc: `${BRAND_BASE}/biz-care-banner.jpg`,
   },
   "biz-corporates": {
     initials: "BC",
