@@ -56,7 +56,7 @@ Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack
 | Service | Provider | Region | Address / app | Cost |
 | --- | --- | --- | --- | --- |
 | Backend (Medusa server + admin SPA) | Fly.io | Sydney (`syd`) | `sc-prints-backend.fly.dev` | shared-cpu-4x · 4GB · ~$22/mo |
-| Storefront (Next.js) | Vercel | global (Sydney edge) | `medusajs-2-0-for-railway-vercel.vercel.app` (custom domain TBD) | Hobby (free) |
+| Storefront (Next.js) | Vercel | global (Sydney edge) | `medusajs-2-0-for-railway-vercel.vercel.app` (custom domain TBD) | **Pro plan** (NOT Hobby — unrestricted cron schedules + usage-billed image optimization apply) |
 | Postgres 16 | DigitalOcean Managed Postgres | SYD1 | `sc-prints-db-do-user-37546044-0.i.db.ondigitalocean.com:25060` | ~$15/mo |
 | File storage (S3-compatible) | Cloudflare R2 | Oceania | bucket `sc-prints-media`, public dev URL `https://pub-4b98c1b8d55d4d9597ff5cfac6aa611a.r2.dev` | free tier |
 | Search index | self-hosted Meilisearch v1.10 | Fly.io Sydney | `sc-prints-search.fly.dev` (separate Fly app, see [meilisearch/fly.toml](meilisearch/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
