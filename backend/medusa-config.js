@@ -591,6 +591,14 @@ const medusaConfig = {
                     'tag_ids', 'brand_handle', 'brand_name', 'fabric', 'in_stock', 'min_price_aud',
                   ],
                   sortableAttributes: ['min_price_aud', 'created_at_ts', 'title'],
+                  // Default maxTotalHits (1000) silently capped BOTH search
+                  // pagination (store-wide listing has 1346 products — page
+                  // counts beyond 1000 were wrong) AND the reindex script's
+                  // orphan sweep (stale unsellable docs survived every
+                  // reindex and ghosted at the top of newest-first listings).
+                  // Applied live via PATCH on 2026-06-10; kept here so a
+                  // recreated index gets it on boot.
+                  pagination: { maxTotalHits: 5000 },
                 },
                 primaryKey: 'id',
               },
