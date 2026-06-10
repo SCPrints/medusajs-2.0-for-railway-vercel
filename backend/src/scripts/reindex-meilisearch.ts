@@ -103,12 +103,18 @@ export default async function reindexMeilisearch({ container }: ExecArgs) {
 
       for (const idx of indexes) {
         const orphanIds: string[] = []
-        let sweepOffset = 0
+        let sweepPage = 1
 
         while (true) {
+          // hitsPerPage/page (NOT offset/limit) puts Meili in exhaustive
+          // pagination mode. offset/limit is capped by maxTotalHits
+          // (default 1000), which silently ended the sweep early on a
+          // 1500+ doc index — ~200 stale docs survived every reindex and
+          // ghost (unsellable) products kept surfacing at the top of
+          // newest-first listings. Found 2026-06-10.
           const result = await meili.search(idx, "", {
             attributesToRetrieve: ["id"],
-            paginationOptions: { offset: sweepOffset, limit: batchSize },
+            paginationOptions: { hitsPerPage: batchSize, page: sweepPage },
           })
           if (result.hits.length === 0) break
 
@@ -116,7 +122,7 @@ export default async function reindexMeilisearch({ container }: ExecArgs) {
             if (!validIds.has(hit.id)) orphanIds.push(hit.id)
           }
 
-          sweepOffset += batchSize
+          sweepPage += 1
           if (result.hits.length < batchSize) break
         }
 
