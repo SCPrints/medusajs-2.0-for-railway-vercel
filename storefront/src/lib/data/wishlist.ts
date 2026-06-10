@@ -18,9 +18,9 @@ export type WishlistItem = {
 
 const WISHLIST_TAG = "customer-wishlist"
 
-const cacheInit = {
-  next: { tags: [WISHLIST_TAG] as string[] },
-}
+// NOTE: per-customer data — deliberately uncached. (A previous version passed
+// `next: { tags }` inside `headers`, which the Medusa SDK coerces to a junk
+// HTTP header; it never did anything. Do not re-add cache options here.)
 
 export const listMyWishlist = cache(async function (): Promise<{
   items: WishlistItem[]
@@ -32,7 +32,7 @@ export const listMyWishlist = cache(async function (): Promise<{
   }
   try {
     const res = (await sdk.client.fetch("/store/customers/me/wishlist", {
-      headers: { ...headers, ...cacheInit },
+      headers: { ...headers },
     })) as { wishlist_items?: WishlistItem[]; count?: number }
     return { items: res.wishlist_items ?? [], count: res.count ?? 0 }
   } catch {

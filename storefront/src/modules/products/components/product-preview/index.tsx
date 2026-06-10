@@ -33,6 +33,7 @@ export default async function ProductPreview({
   region,
   layout = "default",
   tier: tierProp,
+  imagePriority,
 }: {
   product: HttpTypes.StoreProduct
   isFeatured?: boolean
@@ -46,6 +47,12 @@ export default async function ProductPreview({
    * don't pass it (e.g. single-product previews on the home page).
    */
   tier?: Tier | null
+  /**
+   * Set for the first row of a grid so the tile image fetches eagerly with
+   * fetchpriority=high — the grid image is the field-LCP element on listing
+   * pages and the lazy default delays it until post-hydration.
+   */
+  imagePriority?: boolean
 }) {
   // Resolve tier from the prop if the parent fed it in; otherwise fall back
   // to a per-tile fetch (React.cache deduplicates within a request).
@@ -79,7 +86,13 @@ export default async function ProductPreview({
       cheapestPrice,
       tier
     )
-    return <ProductListingCard className="h-full" {...cardData} />
+    return (
+      <ProductListingCard
+        className="h-full"
+        {...cardData}
+        imagePriority={imagePriority}
+      />
+    )
   }
 
   const gridThumbSizes = isFeatured
@@ -98,6 +111,7 @@ export default async function ProductPreview({
           size="full"
           isFeatured={isFeatured}
           sizes={gridThumbSizes}
+          priority={imagePriority}
         />
         <div className="flex txt-compact-medium mt-4 justify-between">
           <Text className="text-ui-fg-subtle" data-testid="product-title">

@@ -157,8 +157,17 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
 
   return (
     <div className="sticky top-0 inset-x-0 z-50 group">
-      <header className="relative mx-auto bg-ui-fg-base">
+      {/* The header's FLOW HEIGHT is constant: the dark background lives on
+          each row, not on <header>, and row 2 collapses by sliding its inner
+          bar away inside a fixed-height transparent slot (transform/opacity
+          only — compositor-friendly AND zero layout shift). The previous
+          max-height 0↔3rem animation shrank the sticky element's footprint
+          on every scroll-direction flip, shifting the whole page by 48px
+          (recurring desktop CLS) and fighting browser scroll anchoring
+          (see the now-removed overflow-anchor hack in globals.css). */}
+      <header className="relative mx-auto">
         {/* ROW 1 — utility, always visible */}
+        <div className="bg-ui-fg-base">
         <div className="content-container flex h-20 w-full items-center gap-x-3 phone:gap-x-4 small:gap-x-5 text-base font-medium text-white">
           {/* Mobile hamburger — drives MobileMegaMenu's full overlay */}
           <div className="small:hidden flex h-full items-center">
@@ -236,21 +245,27 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
 
           {cartSlot}
         </div>
+        </div>
 
         {/* ROW 2 — audience nav, desktop-only, collapsible.
-            max-height instead of height so the value is known at parse time
-            (h-12 = 3rem). overflow-hidden clips the DesktopMegaMenu dropdown
-            panel as the row collapses — same behaviour as the previous
-            Framer Motion wrapper. */}
+            The OUTER slot keeps a constant 3rem flow height (transparent, so
+            page content shows through when condensed — visually identical to
+            the old collapsed state). Only the INNER dark bar animates, with
+            transform + opacity, so condensing never changes the document's
+            layout. pointer-events gate so the hidden bar can't catch clicks. */}
         <div
-          className="hidden small:block overflow-hidden"
+          className="hidden small:block h-12 overflow-hidden"
           aria-hidden={isCondensed}
-          style={{
-            maxHeight: isCondensed ? 0 : "3rem",
-            opacity: isCondensed ? 0 : 1,
-            transition: "max-height 0.22s ease-out, opacity 0.22s ease-out",
-          }}
         >
+          <div
+            className="h-12 w-full bg-ui-fg-base"
+            style={{
+              transform: isCondensed ? "translateY(-100%)" : undefined,
+              opacity: isCondensed ? 0 : 1,
+              pointerEvents: isCondensed ? "none" : undefined,
+              transition: "transform 0.22s ease-out, opacity 0.22s ease-out",
+            }}
+          >
           <div className="content-container flex h-12 w-full items-center">
             <DesktopMegaMenu audiences={audiences} />
 
@@ -281,6 +296,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
                 Best Sellers
               </LocalizedClientLink>
             </div>
+          </div>
           </div>
         </div>
       </header>

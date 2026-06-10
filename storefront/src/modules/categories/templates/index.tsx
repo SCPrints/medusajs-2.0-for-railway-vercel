@@ -167,7 +167,15 @@ export default function CategoryTemplate({
             <PaginatedProducts
               sortBy={sort}
               page={pageNumber}
-              categoryId={category.id}
+              // Parent + child category ids: products are only ever ASSIGNED
+              // to leaf categories (`mens-t-shirts`), never the audience
+              // parent (`mens`) — see resolveCategoryHandles in
+              // backend/src/lib/shop-categories.ts. Querying just the
+              // parent's id rendered audience landing pages with an EMPTY
+              // grid. Including the (already-fetched) children makes parent
+              // pages list their whole subtree. NOTE: the warm-cache route
+              // mirrors this construction — keep them in sync.
+              categoryIds={[category.id, ...children.map((c) => c.id)]}
               minPrice={minPrice}
               maxPrice={maxPrice}
               inStock={inStock}

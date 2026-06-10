@@ -142,7 +142,7 @@ export default async function BestSellersPage({
           </div>
         ) : (
           <ul className="grid list-none grid-cols-2 gap-4 p-0 phone:grid-cols-3 tablet:grid-cols-3 small:grid-cols-4">
-            {topSelling.map((product) => {
+            {topSelling.map((product, index) => {
               const pricedProduct = product.id
                 ? pricedMap.get(product.id)
                 : undefined
@@ -155,7 +155,11 @@ export default async function BestSellersPage({
               )
               return (
                 <li key={product.id}>
-                  <ProductListingCard {...data} />
+                  <ProductListingCard
+                    {...data}
+                    // First row = the LCP element; fetch eagerly, rest lazy.
+                    imagePriority={index < 4}
+                  />
                 </li>
               )
             })}

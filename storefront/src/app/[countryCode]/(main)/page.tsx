@@ -1,4 +1,5 @@
 import { Metadata } from "next"
+import { Suspense } from "react"
 import { HttpTypes } from "@medusajs/types"
 
 import {
@@ -14,7 +15,6 @@ import {
 import { getHomeSections } from "@lib/data/home-sections"
 import { listBundles, type Bundle } from "@lib/data/bundles"
 import { getRegion } from "@lib/data/regions"
-import { getProductionEta } from "@lib/data/production-eta"
 import { getLookbookHomeRail } from "@lib/data/lookbook"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
@@ -161,35 +161,40 @@ const WHY_STATS = [
   { value: "From 1", label: "Garment minimum", Icon: StackIcon },
 ]
 
-export default async function Home({
-  params,
-}: {
-  params: Promise<{ countryCode: string }>
-}) {
-  const { countryCode } = await params
-  const region = await getRegion(countryCode)
+// ————————————————————————————————————————————————————————————————————————
+// Streaming architecture: the page component itself awaits NOTHING but the
+// route params, so the hero + every zero-data section prerenders into the
+// static shell (PPR) and paints immediately — the LCP element no longer
+// waits for the slowest backend fetch. Each data-dependent section below is
+// its own async server component inside a <Suspense> whose fallback reserves
+// the section's real height (no skeleton→content reflow when it streams in).
+// ————————————————————————————————————————————————————————————————————————
 
+// A curated section entry is either a product or a bundle. Bundles are
+// referenced in the curated handle list with a `bundle:` prefix.
+const BUNDLE_PREFIX = "bundle:"
+type FeaturedItem =
+  | { kind: "product"; product: HttpTypes.StoreProduct }
+  | { kind: "bundle"; bundle: Bundle }
+type FeaturedSection = {
+  id: string
+  title: string
+  subtitle: string | null
+  items: FeaturedItem[]
+}
+
+/**
+ * Home product rails — staff-curated in admin (/app/home-sections). Each
+ * published section is a hand-picked, ordered list of products, rendered
+ * top-to-bottom in weight order. Products are referenced by handle so
+ * curation survives supplier re-imports. If no sections are curated yet,
+ * we fall back to the legacy "popular hoodies" logic so the page is never
+ * empty mid-rollout.
+ */
+async function HomeFeaturedSections({ countryCode }: { countryCode: string }) {
+  const region = await getRegion(countryCode)
   if (!region) {
     return null
-  }
-
-  // Home product rails are staff-curated in admin (/app/home-sections). Each
-  // published section is a hand-picked, ordered list of products, rendered
-  // top-to-bottom in weight order. Products are referenced by handle so
-  // curation survives supplier re-imports. If no sections are curated yet,
-  // we fall back to the legacy "popular hoodies" logic so the page is never
-  // empty mid-rollout.
-  // A curated section entry is either a product or a bundle. Bundles are
-  // referenced in the curated handle list with a `bundle:` prefix.
-  const BUNDLE_PREFIX = "bundle:"
-  type FeaturedItem =
-    | { kind: "product"; product: HttpTypes.StoreProduct }
-    | { kind: "bundle"; bundle: Bundle }
-  type FeaturedSection = {
-    id: string
-    title: string
-    subtitle: string | null
-    items: FeaturedItem[]
   }
 
   const curatedSections = await getHomeSections()
@@ -271,16 +276,134 @@ export default async function Home({
     ]
   }
 
-  // Independent feeds for the new home sections — fetch in parallel so they
-  // don't waterfall. Each degrades to empty/null on failure and its section
-  // self-hides (turnaround banner, lookbook rail).
-  const [instagramMedia, productionEta, lookbookItems] = await Promise.all([
-    getInstagramFeedMedia(),
-    getProductionEta(),
-    getLookbookHomeRail(8),
-  ])
-  const instagramProfileUrl = getInstagramProfileUrl()
-  const instagramHandle = getInstagramHandleDisplay()
+  return (
+    <>
+      {featuredSections.map((section, sectionIndex) => (
+        <section key={section.id} className="content-container py-12">
+          <FeaturedProductsCarousel
+            title={section.title}
+            subtitle={section.subtitle}
+            viewAllHref={sectionIndex === 0 ? "/store" : undefined}
+          >
+            {section.items.map((item, itemIndex) => {
+              if (item.kind === "bundle") {
+                return (
+                  <li
+                    key={item.bundle.id}
+                    className="w-[280px] shrink-0 snap-start"
+                  >
+                    <BundleCard bundle={item.bundle} />
+                  </li>
+                )
+              }
+              const product = item.product
+              const { cheapestPrice } = getProductPrice({ product })
+              const data = buildProductListingCardData(product, cheapestPrice)
+              return (
+                <li
+                  key={product.id}
+                  className="w-[280px] shrink-0 snap-start"
+                >
+                  <ProductListingCard
+                    {...data}
+                    // First visible cards of the FIRST rail can be the LCP
+                    // element on viewports where the hero is short — fetch
+                    // them eagerly; everything else stays lazy.
+                    imagePriority={sectionIndex === 0 && itemIndex < 3}
+                  />
+                </li>
+              )
+            })}
+          </FeaturedProductsCarousel>
+        </section>
+      ))}
+    </>
+  )
+}
+
+/** Height-true fallback for one featured rail (header row + 280px cards). */
+function FeaturedRailFallback() {
+  return (
+    <section className="content-container py-12" aria-hidden>
+      <div className="animate-pulse">
+        <div className="h-3 w-32 rounded bg-ui-bg-subtle" />
+        <div className="mt-3 h-7 w-72 rounded bg-ui-bg-subtle" />
+        <ul className="mt-6 flex list-none gap-4 overflow-hidden p-0">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <li key={i} className="w-[280px] shrink-0">
+              <div className="rounded-xl border border-ui-border-base bg-white p-4">
+                <div className="aspect-[1/1] w-full rounded-lg bg-ui-bg-subtle" />
+                <div className="mt-4 h-5 w-3/4 rounded bg-ui-bg-subtle" />
+                <div className="mt-2 h-4 w-1/2 rounded bg-ui-bg-subtle" />
+                <div className="mt-4 h-3 w-24 rounded bg-ui-bg-subtle" />
+                <div className="mt-2 flex gap-2">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <span
+                      key={j}
+                      className="h-5 w-5 rounded-full bg-ui-bg-subtle"
+                    />
+                  ))}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+/** "Our recent work" — streams independently; rotates over the cached pool. */
+async function HomeLookbookSection() {
+  const lookbookItems = await getLookbookHomeRail(8)
+  return <HomeLookbookRail items={lookbookItems} />
+}
+
+/** Height-true fallback mirroring HomeLookbookRail's section + 4/5 tiles. */
+function LookbookRailFallback() {
+  return (
+    <section
+      className="border-t border-ui-border-base bg-ui-bg-subtle py-12 small:py-16"
+      aria-hidden
+    >
+      <div className="content-container animate-pulse">
+        <div className="h-3 w-36 rounded bg-ui-bg-base" />
+        <div className="mt-3 h-7 w-64 rounded bg-ui-bg-base" />
+        <ul className="mt-2 grid list-none grid-cols-2 gap-3 p-0 phone:gap-4 tablet:grid-cols-3 small:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <li key={i}>
+              <div className="overflow-hidden rounded-lg border border-ui-border-base bg-white">
+                <div className="aspect-[4/5] bg-ui-bg-base" />
+                <div className="p-3">
+                  <div className="h-4 w-2/3 rounded bg-ui-bg-base" />
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
+/** Instagram strip — bottom of page; streams in behind everything else. */
+async function HomeInstagramSection() {
+  const instagramMedia = await getInstagramFeedMedia()
+  return (
+    <InstagramFeedStrip
+      items={instagramMedia}
+      profileUrl={getInstagramProfileUrl()}
+      handleDisplay={getInstagramHandleDisplay()}
+    />
+  )
+}
+
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ countryCode: string }>
+}) {
+  const { countryCode } = await params
 
   const homepagePath = `/${countryCode}`
   const homeStructuredData = {
@@ -312,9 +435,9 @@ export default async function Home({
             can be dropped in behind the content later (see home-hero.tsx). */}
         <HomeHero />
 
-        {/* 2. Live turnaround line — mirrors the production-ETA range already
-            shown on PDPs. Self-hides if the ETA service is unavailable. */}
-        <HomeTurnaroundBanner eta={productionEta} />
+        {/* 2. Turnaround line — static promise copy (the eta prop is unused
+            by the component, so the page no longer fetches the ETA at all). */}
+        <HomeTurnaroundBanner eta={null} />
 
         {/* 3. Trust strip — now reinforces below the hero rather than leading.
             Six signals: heritage, shipping, no minimum, live order tracking,
@@ -324,40 +447,11 @@ export default async function Home({
 
         {/* Featured products — staff-curated sections (see /app/home-sections),
             rendered top-to-bottom in weight order. Falls back to popular hoodies
-            when no sections are curated. */}
-        {featuredSections.map((section, sectionIndex) => (
-          <section key={section.id} className="content-container py-12">
-            <FeaturedProductsCarousel
-              title={section.title}
-              subtitle={section.subtitle}
-              viewAllHref={sectionIndex === 0 ? "/store" : undefined}
-            >
-              {section.items.map((item) => {
-                if (item.kind === "bundle") {
-                  return (
-                    <li
-                      key={item.bundle.id}
-                      className="w-[280px] shrink-0 snap-start"
-                    >
-                      <BundleCard bundle={item.bundle} />
-                    </li>
-                  )
-                }
-                const product = item.product
-                const { cheapestPrice } = getProductPrice({ product })
-                const data = buildProductListingCardData(product, cheapestPrice)
-                return (
-                  <li
-                    key={product.id}
-                    className="w-[280px] shrink-0 snap-start"
-                  >
-                    <ProductListingCard {...data} />
-                  </li>
-                )
-              })}
-            </FeaturedProductsCarousel>
-          </section>
-        ))}
+            when no sections are curated. Streams independently behind a
+            height-true fallback so the shell paints without waiting for it. */}
+        <Suspense fallback={<FeaturedRailFallback />}>
+          <HomeFeaturedSections countryCode={countryCode} />
+        </Suspense>
 
         {/* Tools rail — surfaces the built-but-buried Design Studio, DTF
             builder, BYO and Bundles, which had no home entry point before. */}
@@ -365,7 +459,9 @@ export default async function Home({
 
         {/* Our recent work — Lookbook social proof. Self-hides when no tiles
             are published. */}
-        <HomeLookbookRail items={lookbookItems} />
+        <Suspense fallback={<LookbookRailFallback />}>
+          <HomeLookbookSection />
+        </Suspense>
 
         {/* Shop by industry — routes segmented B2B buyers to the existing
             /industries landing pages. */}
@@ -454,12 +550,12 @@ export default async function Home({
           </div>
         </section>
 
-        {/* 8. Instagram — social proof near the bottom-of-funnel moment */}
-        <InstagramFeedStrip
-          items={instagramMedia}
-          profileUrl={instagramProfileUrl}
-          handleDisplay={instagramHandle}
-        />
+        {/* 8. Instagram — social proof near the bottom-of-funnel moment.
+            Last section above the footer; null fallback is fine (any shift on
+            stream-in only moves the footer, and only on slow connections). */}
+        <Suspense fallback={null}>
+          <HomeInstagramSection />
+        </Suspense>
       </div>
   )
 }

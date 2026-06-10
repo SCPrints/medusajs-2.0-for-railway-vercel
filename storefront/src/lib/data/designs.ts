@@ -21,9 +21,10 @@ export type SavedDesign = {
 
 const DESIGNS_TAG = "customer-designs"
 
-const designsCacheInit = {
-  next: { tags: [DESIGNS_TAG] as string[] },
-}
+// Per-customer data — deliberately uncached. (A previous version passed
+// `next: { tags }` inside `headers`, which the Medusa SDK coerces to a junk
+// HTTP header; it never did anything. DESIGNS_TAG is still used for
+// router-cache revalidation after mutations below.)
 
 export const listMyDesigns = cache(async function (
   options: { limit?: number; offset?: number } = {}
@@ -39,7 +40,7 @@ export const listMyDesigns = cache(async function (
         limit: options.limit ?? 50,
         offset: options.offset ?? 0,
       },
-      headers: { ...headers, ...designsCacheInit },
+      headers: { ...headers },
     })) as { designs?: SavedDesign[]; count?: number }
     return { designs: res.designs ?? [], count: res.count ?? 0 }
   } catch {
@@ -56,7 +57,7 @@ export const getMyDesign = cache(async function (
   }
   try {
     const res = (await sdk.client.fetch(`/store/customers/me/designs/${encodeURIComponent(id)}`, {
-      headers: { ...headers, ...designsCacheInit },
+      headers: { ...headers },
     })) as { design?: SavedDesign }
     return res.design ?? null
   } catch {

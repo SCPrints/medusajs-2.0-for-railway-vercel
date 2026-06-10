@@ -445,10 +445,19 @@ async function getListingViaSearch({
     if (Array.isArray(v)) return typeof v[0] === "string" ? v[0] : undefined
     return typeof v === "string" ? v : undefined
   }
+  const allOf = (v: unknown): string[] | undefined => {
+    if (Array.isArray(v)) {
+      const out = v.filter((s): s is string => typeof s === "string")
+      return out.length ? out : undefined
+    }
+    return typeof v === "string" ? [v] : undefined
+  }
 
   const result = await searchListing({
     scope: {
-      categoryId: firstOf(qp.category_id),
+      // ALL category ids, not just the first — audience landing pages pass
+      // parent + children (products are only assigned to leaf categories).
+      categoryIds: allOf(qp.category_id),
       collectionId: firstOf(qp.collection_id),
       brandHandle,
     },
@@ -492,10 +501,13 @@ async function getListingViaSearch({
 
 /**
  * Fetches products for list views.
- * - Default “Latest” (`created_at`) with no client filters: one Medusa page + API `count` so
- *   pagination matches the full catalog (not capped at 100 items / 9 pages).
- * - Price/title sort or brand-fabric-price-stock filters: loads catalog in batches (up to a cap),
- *   then filters/sorts/slices in memory.
+ * - With LISTING_VIA_SEARCH on (production): ALL sorts + filters go through
+ *   Meilisearch (sort/filter/paginate in the index, hydrate 12 IDs via the
+ *   slim field set). Falls back to the legacy paths below on any Meili miss.
+ * - Legacy default “Latest” (`created_at`) with no client filters: one Medusa
+ *   page + API `count` so pagination matches the full catalog.
+ * - Legacy price/title sort or brand-fabric-price-stock filters: loads the
+ *   catalog in batches (up to a cap), then filters/sorts/slices in memory.
  */
 export async function getProductsListWithSort({
   page = 1,
@@ -559,6 +571,37 @@ export async function getProductsListWithSort({
   }
   const useApiPagination = Boolean(API_SORT_ORDER[sortBy]) && !hasClientFilters
 
+  // Listing-via-search (flag-gated): Meili sorts/filters/paginates and we
+  // hydrate just the page's 12 IDs with the slim field set. Used for ALL
+  // sorts INCLUDING the default created_at view — the Medusa default-listing
+  // query (full variant price + inventory expansion + count) was the slowest
+  // query on the site (measured 14.5s cold on /categories/mens-t-shirts,
+  // 2026-06-10), while the Meili+hydrate path measures ~4s cold / sub-second
+  // warm. `id` queryParams = a Meili-search results page (bounded already) —
+  // leave those on the legacy paths. Any miss/error returns null and falls
+  // through to the legacy path below.
+  if (LISTING_VIA_SEARCH_ENABLED && !(queryParams as Record<string, unknown>)?.id) {
+    const viaSearch = await getListingViaSearch({
+      page: resolvedPage,
+      limit,
+      queryParams,
+      sortBy,
+      filters,
+      countryCode,
+      brandHandle,
+    })
+    if (viaSearch) {
+      // An EMPTY result on an unfiltered default view is ambiguous: genuinely
+      // empty category vs stale/partial index. Fall through to the API path
+      // there — it's cheap for column-backed sorts and authoritative. Filtered
+      // views keep the empty page (their fallback would be the full catalog
+      // scan, which is exactly what this path exists to avoid).
+      if (viaSearch.response.products.length > 0 || !useApiPagination) {
+        return viaSearch
+      }
+    }
+  }
+
   if (useApiPagination) {
     const { response } = await getProductsList({
       pageParam: resolvedPage,
@@ -578,24 +621,6 @@ export async function getProductsListWithSort({
       nextPage: hasMore ? resolvedPage + 1 : null,
       queryParams,
     }
-  }
-
-  // Listing-via-search (flag-gated): we only reach here when the legacy path
-  // would otherwise scan the whole catalog (price sort and/or client filters).
-  // Let Meili do the sort+filter+paginate and hydrate the page's IDs instead.
-  // `id` queryParams = a Meili-search results page (bounded already) — leave those
-  // on the scan path. Any miss/error returns null and falls through to the scan.
-  if (LISTING_VIA_SEARCH_ENABLED && !(queryParams as Record<string, unknown>)?.id) {
-    const viaSearch = await getListingViaSearch({
-      page: resolvedPage,
-      limit,
-      queryParams,
-      sortBy,
-      filters,
-      countryCode,
-      brandHandle,
-    })
-    if (viaSearch) return viaSearch
   }
 
   let products: HttpTypes.StoreProduct[] = []

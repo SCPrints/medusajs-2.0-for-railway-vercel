@@ -4,6 +4,7 @@ import { getProductsListWithSort } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { getCustomerTier } from "@lib/data/customer-tier"
 import { listStoreProductTags } from "@lib/data/catalog-facets"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ProductPreview from "@modules/products/components/product-preview"
 import { Pagination } from "@modules/store/components/pagination"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -16,6 +17,7 @@ export default async function PaginatedProducts({
   page,
   collectionId,
   categoryId,
+  categoryIds,
   brandHandle,
   productsIds,
   minPrice,
@@ -34,6 +36,12 @@ export default async function PaginatedProducts({
   page: number
   collectionId?: string
   categoryId?: string
+  /**
+   * Multiple category ids (parent + children) for audience landing pages —
+   * products are only assigned to LEAF categories, so a parent page must
+   * query its whole subtree. Takes precedence over `categoryId`.
+   */
+  categoryIds?: string[]
   /**
    * Brand handle for the dedicated brand-products endpoint. When set, the underlying
    * data layer fetches via `/store/brands/<handle>/products` (paginated, sales-channel
@@ -65,7 +73,9 @@ export default async function PaginatedProducts({
     queryParams.collection_id = [collectionId]
   }
 
-  if (categoryId) {
+  if (categoryIds?.length) {
+    queryParams.category_id = categoryIds
+  } else if (categoryId) {
     queryParams.category_id = [categoryId]
   }
 
@@ -136,13 +146,39 @@ export default async function PaginatedProducts({
 
   const totalPages = Math.ceil(count / PRODUCT_LIMIT)
 
+  // Explicit empty state: without it the 12-tile loading skeleton collapsed
+  // into a bare zero-height <ul>, yanking the footer up ~2 grid rows (the
+  // CLS measured on /categories/healthcare while it had no products).
+  if (products.length === 0) {
+    return (
+      <div
+        className="flex min-h-[24rem] flex-col items-center justify-center rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-10 text-center"
+        data-testid="products-list-empty"
+      >
+        <p className="text-base font-semibold text-ui-fg-base">
+          No products in this range yet.
+        </p>
+        <p className="mt-2 max-w-md text-sm text-ui-fg-subtle">
+          We&apos;re always adding new garments — browse the full catalogue or
+          get in touch and we&apos;ll source it for you.
+        </p>
+        <LocalizedClientLink
+          href="/store"
+          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+        >
+          Browse all products
+        </LocalizedClientLink>
+      </div>
+    )
+  }
+
   return (
     <>
       <ul
         className="grid grid-cols-2 w-full small:grid-cols-3 medium:grid-cols-4 gap-x-6 gap-y-10 medium:gap-x-8"
         data-testid="products-list"
       >
-        {products.map((p) => {
+        {products.map((p, index) => {
           return (
             <li key={p.id} className="h-full">
               <ProductPreview
@@ -150,6 +186,9 @@ export default async function PaginatedProducts({
                 region={region}
                 layout="boxed"
                 tier={tier}
+                // First row of the grid is the LCP element on listing pages —
+                // fetch those images eagerly; keep the rest lazy.
+                imagePriority={index < 4}
               />
             </li>
           )

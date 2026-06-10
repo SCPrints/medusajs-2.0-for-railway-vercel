@@ -15,8 +15,9 @@ export type CustomerPerks = {
   tags: Array<{ label: string; color: string | null }>
 }
 
-const PERKS_TAG = "customer-perks"
-
+// Per-customer data — deliberately uncached. (A previous version passed
+// `next: { tags }` inside `headers`, which the Medusa SDK coerces to a junk
+// HTTP header; it never did anything.)
 export const getCustomerPerks = cache(async function (): Promise<CustomerPerks> {
   const headers = await getAuthHeaders()
   if (!("authorization" in headers)) {
@@ -24,7 +25,7 @@ export const getCustomerPerks = cache(async function (): Promise<CustomerPerks> 
   }
   try {
     const res = (await sdk.client.fetch("/store/customers/me/perks", {
-      headers: { ...headers, next: { tags: [PERKS_TAG] as string[] } },
+      headers: { ...headers },
     })) as CustomerPerks
     return res
   } catch {

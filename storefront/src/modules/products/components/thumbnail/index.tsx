@@ -14,6 +14,8 @@ type ThumbnailProps = {
   isFeatured?: boolean
   /** Passed to `next/image` `sizes` — use a tight value for catalog grids to shrink srcset. */
   sizes?: string
+  /** Set for above-the-fold tiles so the image fetches eagerly with fetchpriority=high. */
+  priority?: boolean
   className?: string
   "data-testid"?: string
 }
@@ -28,6 +30,7 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
   size = "small",
   isFeatured,
   sizes,
+  priority,
   className,
   "data-testid": dataTestid,
 }) => {
@@ -57,6 +60,7 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
         image={initialImage}
         size={size}
         sizes={sizes ?? DEFAULT_SIZES}
+        priority={priority}
       />
     </Container>
   )
@@ -66,7 +70,12 @@ const ImageOrPlaceholder = ({
   image,
   size,
   sizes,
-}: Pick<ThumbnailProps, "size"> & { image?: string; sizes: string }) => {
+  priority,
+}: Pick<ThumbnailProps, "size"> & {
+  image?: string
+  sizes: string
+  priority?: boolean
+}) => {
   return image ? (
     <SafeImage
       src={image}
@@ -76,6 +85,7 @@ const ImageOrPlaceholder = ({
       quality={50}
       sizes={sizes}
       fill
+      priority={priority}
     />
   ) : (
     <div className="w-full h-full absolute inset-0 flex items-center justify-center">

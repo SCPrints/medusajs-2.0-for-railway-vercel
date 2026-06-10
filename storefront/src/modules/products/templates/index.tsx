@@ -68,6 +68,52 @@ type ProductTemplateProps = {
   customizerMode?: CustomizerMode
 }
 
+/**
+ * The customizer needs the customer tier (a cookies() read → forces dynamic
+ * rendering) and the resolved print profile. Awaiting them at the top of
+ * ProductTemplate used to block the ENTIRE product body — gallery, title,
+ * CTA — behind both lookups, which kept the PDP landing out of the PPR
+ * static shell and made the hero image stream seconds late (the measured
+ * CLS-0.39 skeleton swap). Resolving them inside this Suspense-wrapped slot
+ * lets the landing prerender; only the studio slot streams behind the data.
+ */
+async function StudioCustomizerContent({
+  product,
+  assemblyLayout,
+  variantPickersSlot,
+}: {
+  product: HttpTypes.StoreProduct
+  assemblyLayout?: boolean
+  variantPickersSlot: React.ReactNode
+}) {
+  const [tier, printProfile] = await Promise.all([
+    getCustomerTier(),
+    getPrintProfileForProduct(product),
+  ])
+  return (
+    <EmbeddedProductCustomizer
+      product={product}
+      assemblyLayout={assemblyLayout}
+      integratedPdpSlots={{
+        gallery: null,
+        variantPickers: variantPickersSlot,
+      }}
+      tier={tier}
+      printProfile={printProfile}
+    />
+  )
+}
+
+/** Shown if the studio overlay is opened before the slot finishes streaming
+ *  (deep-link auto-open on a cold cache) — normal clicks never see it. */
+function StudioSlotFallback() {
+  return (
+    <div className="flex min-h-[min(58vh,680px)] w-full items-center justify-center text-sm text-ui-fg-muted">
+      Loading the design studio…
+    </div>
+  )
+}
+
 const ProductTemplate: React.FC<ProductTemplateProps> = async ({
   product,
   region,
@@ -77,8 +123,6 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
   if (!product || !product.id) {
     return null
   }
-
-  const tier = await getCustomerTier()
 
   if (isDtfAutoBuilderProduct(product)) {
     return (
@@ -138,7 +182,6 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
   )
 
   const decorationMethods = getEnabledDecorationMethods(product)
-  const printProfile = await getPrintProfileForProduct(product)
 
   // Brand/audience tags, description, features. Title is rendered above the
   // customizer (split-tabs) or by StudioLauncher (studio), so it's hidden here.
@@ -197,16 +240,13 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
       <AssemblyLayoutGrid
         customizerSlot={
           <PdpCustomizerBoundary variant="studio">
-            <EmbeddedProductCustomizer
-              product={product}
-              assemblyLayout
-              integratedPdpSlots={{
-                gallery: null,
-                variantPickers: variantPickersSlot,
-              }}
-              tier={tier}
-              printProfile={printProfile}
-            />
+            <Suspense fallback={<StudioSlotFallback />}>
+              <StudioCustomizerContent
+                product={product}
+                assemblyLayout
+                variantPickersSlot={variantPickersSlot}
+              />
+            </Suspense>
           </PdpCustomizerBoundary>
         }
       />
@@ -306,15 +346,12 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                   <PdpLayoutGrid
                     customizerSlot={
                       <PdpCustomizerBoundary>
-                        <EmbeddedProductCustomizer
-                          product={product}
-                          integratedPdpSlots={{
-                            gallery: null,
-                            variantPickers: variantPickersSlot,
-                          }}
-                          tier={tier}
-                          printProfile={printProfile}
-                        />
+                        <Suspense fallback={<StudioSlotFallback />}>
+                          <StudioCustomizerContent
+                            product={product}
+                            variantPickersSlot={variantPickersSlot}
+                          />
+                        </Suspense>
                       </PdpCustomizerBoundary>
                     }
                   />

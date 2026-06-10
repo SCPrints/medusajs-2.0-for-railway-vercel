@@ -1,5 +1,5 @@
 import { sdk } from "@lib/config"
-import { cache } from "react"
+import { cacheLife, cacheTag } from "next/cache"
 
 export type HomeSection = {
   id: string
@@ -11,10 +11,21 @@ export type HomeSection = {
 
 const HOME_SECTIONS_TAG = "home-sections"
 
-const cacheInit = {
+/**
+ * Cached fetch, no error handling — errors must THROW here so a transient
+ * backend failure is never stored in the cache for the whole revalidate
+ * window. The public wrapper below catches.
+ */
+async function fetchHomeSections(): Promise<HomeSection[]> {
+  "use cache"
+  cacheTag(HOME_SECTIONS_TAG)
   // 5 minutes — staff curate these occasionally; live reads on every home
   // load would be wasteful. Backend writes can revalidate the tag faster.
-  next: { tags: [HOME_SECTIONS_TAG] as string[], revalidate: 300 },
+  cacheLife({ revalidate: 300, stale: 86400, expire: 86400 })
+  const data = (await sdk.client.fetch("/store/home-sections")) as {
+    sections?: HomeSection[]
+  }
+  return data.sections ?? []
 }
 
 /**
@@ -23,13 +34,10 @@ const cacheInit = {
  * products itself. Returns [] on any error so the home page falls back to its
  * default product logic rather than breaking.
  */
-export const getHomeSections = cache(async function (): Promise<HomeSection[]> {
+export async function getHomeSections(): Promise<HomeSection[]> {
   try {
-    const data = (await sdk.client.fetch("/store/home-sections", {
-      headers: { ...cacheInit },
-    })) as { sections?: HomeSection[] }
-    return data.sections ?? []
+    return await fetchHomeSections()
   } catch {
     return []
   }
-})
+}

@@ -42,7 +42,8 @@ const SORT_MAP: Record<SortOptions, string[]> = {
 }
 
 export type ListingScope = {
-  categoryId?: string
+  /** One or more category ids (parent + children for audience landing pages). */
+  categoryIds?: string[]
   collectionId?: string
   brandHandle?: string
 }
@@ -65,7 +66,12 @@ function quote(value: string): string {
 function buildFilter(scope: ListingScope, filters: ListingFilters): string[] {
   const clauses: string[] = []
 
-  if (scope.categoryId) clauses.push(`category_ids = ${quote(scope.categoryId)}`)
+  if (scope.categoryIds?.length) {
+    // OR across parent + child ids — `category_ids` is an array field, so any
+    // membership match qualifies the product.
+    const ors = scope.categoryIds.map((id) => `category_ids = ${quote(id)}`)
+    clauses.push(ors.length === 1 ? ors[0] : `(${ors.join(" OR ")})`)
+  }
   if (scope.collectionId) clauses.push(`collection_id = ${quote(scope.collectionId)}`)
   if (scope.brandHandle) clauses.push(`brand_handle = ${quote(scope.brandHandle)}`)
 

@@ -68,20 +68,27 @@ export default function FeaturedProductsCarousel({
         title={title}
         action={
           <div className="flex items-center gap-2">
-            {showArrows ? (
-              <div className="flex items-center gap-1.5">
-                <ArrowButton
-                  dir="left"
-                  disabled={!canLeft}
-                  onClick={() => scrollByCards(-1)}
-                />
-                <ArrowButton
-                  dir="right"
-                  disabled={!canRight}
-                  onClick={() => scrollByCards(1)}
-                />
-              </div>
-            ) : null}
+            {/* Always render the arrow slot — canLeft/canRight initialise
+                false, so a conditional render made the arrows pop in after
+                hydration and nudge the header row (small CLS per rail).
+                `invisible` reserves the space while staying non-interactive. */}
+            <div
+              className={`flex items-center gap-1.5 ${
+                showArrows ? "" : "invisible"
+              }`}
+              aria-hidden={!showArrows}
+            >
+              <ArrowButton
+                dir="left"
+                disabled={!canLeft}
+                onClick={() => scrollByCards(-1)}
+              />
+              <ArrowButton
+                dir="right"
+                disabled={!canRight}
+                onClick={() => scrollByCards(1)}
+              />
+            </div>
             {viewAllHref ? (
               <LocalizedClientLink
                 href={viewAllHref}

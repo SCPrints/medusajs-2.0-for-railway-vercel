@@ -206,23 +206,29 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
     notFound()
   }
 
-  const region = await getRegion(countryCode)
+  // Region, picker catalog, customer tier, and print profile are independent
+  // of one another — resolve them in parallel. The previous waterfall (region
+  // → 60-product picker → tier → print profile) pushed the hero image's
+  // preload discovery seconds later on every cold render.
+  const [region, pickerResult, tier, printProfile] = await Promise.all([
+    getRegion(countryCode),
+    // Catalog list for the in-customizer "Change product" picker.
+    getProductsList({
+      countryCode,
+      queryParams: {
+        limit: 60,
+        fields: "id,handle,title,thumbnail",
+      } as HttpTypes.StoreProductParams,
+    }).catch(() => ({ response: { products: [] as HttpTypes.StoreProduct[] } })),
+    getCustomerTier(),
+    getPrintProfileForProduct(customizerProduct),
+  ])
+
   if (!region) {
     notFound()
   }
 
-  // Catalog list for the in-customizer "Change product" picker.
-  const {
-    response: { products: catalogForPicker },
-  } = await getProductsList({
-    countryCode,
-    queryParams: {
-      limit: 60,
-      fields: "id,handle,title,thumbnail",
-    } as HttpTypes.StoreProductParams,
-  }).catch(() => ({ response: { products: [] as HttpTypes.StoreProduct[] } }))
-
-  const pickerProducts = catalogForPicker
+  const pickerProducts = pickerResult.response.products
     .map((p) => ({
       id: p.id,
       handle: p.handle ?? "",
@@ -230,9 +236,6 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
       thumbnail: p.thumbnail ?? null,
     }))
     .filter((p) => p.handle.length > 0)
-
-  const tier = await getCustomerTier()
-  const printProfile = await getPrintProfileForProduct(customizerProduct)
 
   // The colour/size variant pickers are server-rendered and handed to the
   // client customizer so the Assembly "Garment Colour" section reuses the

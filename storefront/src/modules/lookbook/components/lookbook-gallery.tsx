@@ -77,20 +77,24 @@ export default function LookbookGallery({ items }: Props) {
               aria-label={`Enlarge ${item.title}`}
               className="group block w-full cursor-zoom-in overflow-hidden rounded-xl border border-ui-border-base bg-white text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/60"
             >
-              <div className="overflow-hidden">
-                {/* next/image resamples server-side to roughly the column
-                    width, which removes the downscaling moiré that a raw
-                    full-res <img> showed on the small tiles (and cuts payload).
-                    width/height 0 + h-auto is the standard pattern for remote
-                    images of unknown aspect ratio — `sizes` matches the
-                    2/3/4-column masonry so the optimizer picks the right size. */}
+              <div className="relative aspect-[4/5] overflow-hidden">
+                {/* Fixed 4:5 crop so every tile reserves its exact height
+                    before the image loads. The previous width={0}/height={0} +
+                    h-auto pattern reserved ZERO space, so each image load
+                    re-balanced the CSS columns and shifted settled tiles —
+                    the lookbook's field CLS (0.154 p75). True variable-height
+                    masonry can come back once lookbook_item stores
+                    image_width/image_height (backend migration) and the
+                    aspect ratio is known server-side.
+                    First tiles load eagerly: every tile being lazy made the
+                    LCP image wait for hydration + IntersectionObserver. */}
                 <Image
                   src={item.image_url}
                   alt={item.title}
-                  width={0}
-                  height={0}
+                  fill
                   sizes="(min-width: 1440px) 25vw, (min-width: 1024px) 33vw, 50vw"
-                  className="block h-auto w-full transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+                  className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
+                  priority={i < 4}
                 />
               </div>
               <div className="p-4">

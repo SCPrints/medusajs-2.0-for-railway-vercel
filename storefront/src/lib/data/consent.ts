@@ -16,9 +16,10 @@ export type ConsentState = {
 
 const CONSENT_TAG = "customer-consent"
 
-const consentCacheInit = {
-  next: { tags: [CONSENT_TAG] as string[] },
-}
+// Per-customer data — deliberately uncached. (A previous version passed
+// `next: { tags }` inside `headers`, which the Medusa SDK coerces to a junk
+// HTTP header; it never did anything. CONSENT_TAG is still used for
+// router-cache revalidation after mutations below.)
 
 export const getConsent = cache(async function (): Promise<ConsentState | null> {
   const headers = await getAuthHeaders()
@@ -27,7 +28,7 @@ export const getConsent = cache(async function (): Promise<ConsentState | null> 
   }
   try {
     const res = (await sdk.client.fetch("/store/customers/me/consent", {
-      headers: { ...headers, ...consentCacheInit },
+      headers: { ...headers },
     })) as ConsentState
     return res
   } catch {

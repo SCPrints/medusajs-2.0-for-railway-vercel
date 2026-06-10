@@ -33,6 +33,13 @@ export type ProductListingInteraction = "bounce" | "tiltLift"
 export type ProductListingCardProps = ProductListingCardData & {
   className?: string
   interaction?: ProductListingInteraction
+  /**
+   * Set for above-the-fold cards (first row of a grid/rail) so the card image
+   * is eagerly fetched with fetchpriority=high instead of lazy-loading after
+   * hydration — the lazy default makes the grid image the field-LCP element
+   * on listing pages. Keep everything below the fold lazy.
+   */
+  imagePriority?: boolean
 }
 
 type CardPhase = "rest" | "enter" | "hold" | "leave"
@@ -92,9 +99,11 @@ function normalizeBias(nx: number, ny: number): { x: string; y: string } {
 function CardImage({
   imageUrl,
   title,
+  priority,
 }: {
   imageUrl: string | null
   title: string
+  priority?: boolean
 }) {
   const resolved = imageUrl
     ? remapStaleExternalGarmentUrl(imageUrl) ?? imageUrl
@@ -117,6 +126,7 @@ function CardImage({
           quality={50}
           sizes="(max-width: 576px) 50vw, (max-width: 1024px) 33vw, 260px"
           fill
+          priority={priority}
         />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
@@ -138,6 +148,7 @@ type ListingCardContentProps = {
   totalSwatchCount: number
   swatchPhotosActive: boolean
   setSwatchPhotosActive: (v: boolean) => void
+  imagePriority?: boolean
 }
 
 function ListingCardContent({
@@ -151,11 +162,16 @@ function ListingCardContent({
   totalSwatchCount,
   swatchPhotosActive,
   setSwatchPhotosActive,
+  imagePriority,
 }: ListingCardContentProps) {
   return (
     <>
       <LocalizedClientLink href={href} className="block min-w-0">
-        <CardImage imageUrl={previewUrl} title={title} />
+        <CardImage
+          imageUrl={previewUrl}
+          title={title}
+          priority={imagePriority}
+        />
         <h3
           className="mt-4 text-base font-semibold text-ui-fg-base"
           data-testid="product-title"
@@ -251,7 +267,10 @@ function useListingCardSwatchesObserver(
   }, [rootRef, setSwatchPhotosActive])
 }
 
-type ShellProps = ProductListingCardData & { className?: string }
+type ShellProps = ProductListingCardData & {
+  className?: string
+  imagePriority?: boolean
+}
 
 function ProductListingCardBounce({
   className,
@@ -262,6 +281,7 @@ function ProductListingCardBounce({
   defaultImageUrl,
   swatches,
   totalSwatchCount,
+  imagePriority,
 }: ShellProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
   const [phase, setPhase] = useState<CardPhase>("rest")
@@ -437,6 +457,7 @@ function ProductListingCardBounce({
         totalSwatchCount={totalSwatchCount}
         swatchPhotosActive={swatchPhotosActive}
         setSwatchPhotosActive={setSwatchPhotosActive}
+        imagePriority={imagePriority}
       />
     </article>
   )
@@ -451,6 +472,7 @@ function ProductListingCardTiltLift({
   defaultImageUrl,
   swatches,
   totalSwatchCount,
+  imagePriority,
 }: ShellProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
   const prefersReducedMotion = useSyncExternalStore(
@@ -496,6 +518,7 @@ function ProductListingCardTiltLift({
       totalSwatchCount={totalSwatchCount}
       swatchPhotosActive={swatchPhotosActive}
       setSwatchPhotosActive={setSwatchPhotosActive}
+      imagePriority={imagePriority}
     />
   )
 

@@ -676,7 +676,17 @@ export default function GangsheetBuilder({
             ref={canvasParentRef}
             className="max-h-[80vh] overflow-auto rounded-xl border border-ui-border-base bg-ui-bg-subtle p-3"
           >
-            <canvas key={initialVariantId} ref={htmlCanvasRef} className="block shadow-sm touch-none" />
+            {/* width/height are known synchronously from the variant, so set
+                them on the SSR'd element — without them the canvas paints at
+                the browser default 300×150 and jumps to full sheet size when
+                Fabric initialises post-hydration (the page's 0.26 CLS). */}
+            <canvas
+              key={initialVariantId}
+              ref={htmlCanvasRef}
+              width={widthPx > 0 ? widthPx : undefined}
+              height={heightPx > 0 ? heightPx : undefined}
+              className="block shadow-sm touch-none"
+            />
           </div>
         </div>
       </div>

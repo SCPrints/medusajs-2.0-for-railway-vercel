@@ -1,5 +1,4 @@
 import { Metadata } from "next"
-import { Suspense } from "react"
 
 import { listBrands } from "@lib/data/brands"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
@@ -62,27 +61,6 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-function BrandsPageSkeleton() {
-  return (
-    <div className="animate-pulse">
-      <section className="content-container py-12 small:py-16">
-        <div className="mx-auto max-w-3xl text-center space-y-4">
-          <div className="h-3 w-20 mx-auto rounded bg-ui-bg-component" />
-          <div className="h-9 w-80 mx-auto rounded-lg bg-ui-bg-component" />
-          <div className="h-4 w-[28rem] mx-auto rounded bg-ui-bg-component" />
-        </div>
-      </section>
-      <section className="content-container border-t border-ui-border-base py-16 small:py-20">
-        <ul className="mx-auto grid max-w-6xl grid-cols-2 gap-4 small:grid-cols-3 medium:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <li key={i} className="h-44 rounded-xl bg-ui-bg-component" />
-          ))}
-        </ul>
-      </section>
-    </div>
-  )
-}
-
 function formatStyleCount(count: number): string | null {
   if (!count || count <= 0) return null
   if (count === 1) return "1 style"
@@ -105,25 +83,7 @@ async function BrandsContent() {
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
-    <>
-      <section className="content-container py-12 small:py-16">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/80">
-            Brands
-          </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ui-fg-base small:text-4xl medium:text-5xl">
-            The brands we print and embroider for
-          </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-base text-ui-fg-subtle small:text-lg">
-            From premium fashion blanks to workwear, healthcare and corporate
-            uniforms, we partner with Australia&apos;s leading apparel suppliers
-            to deliver custom decoration on the garments your team already
-            trusts.
-          </p>
-        </div>
-      </section>
-
-      <section className="content-container border-t border-ui-border-base py-16 small:py-20">
+    <section className="content-container border-t border-ui-border-base py-16 small:py-20">
         <ul className="mx-auto grid max-w-6xl list-none grid-cols-2 gap-4 p-0 small:grid-cols-3 medium:grid-cols-4">
           {sortedBrands.map((b) => {
             const presentation = getBrandPresentation(b.handle)
@@ -146,7 +106,7 @@ async function BrandsContent() {
                         alt=""
                         style={presentation.logoFilterClass ? { filter: `${presentation.logoFilterClass} drop-shadow(0 1px 2px rgba(0,0,0,0.08))` } : { filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.08))" }}
                         className={presentation.logoClass ?? DEFAULT_LOGO_CLASS}
-                        loading="lazy"
+                        loading="eager"
                         decoding="async"
                       />
                     ) : (
@@ -206,14 +166,35 @@ async function BrandsContent() {
           </div>
         </div>
       </section>
-    </>
   )
 }
 
 export default function BrandsPage() {
+  // No Suspense boundary on purpose: listBrands() is `"use cache"` (10-min
+  // SWR, kept warm by /api/warm-cache), so the grid renders with the page
+  // instead of streaming in behind a skeleton. The old skeleton→content swap
+  // (8 fixed tiles replaced by 13 variable tiles + hero + CTA) was this
+  // page's CLS 0.404 — the worst on the site. The hero below is static and
+  // renders unconditionally either way.
   return (
-    <Suspense fallback={<BrandsPageSkeleton />}>
+    <>
+      <section className="content-container py-12 small:py-16">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/80">
+            Brands
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ui-fg-base small:text-4xl medium:text-5xl">
+            The brands we print and embroider for
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-base text-ui-fg-subtle small:text-lg">
+            From premium fashion blanks to workwear, healthcare and corporate
+            uniforms, we partner with Australia&apos;s leading apparel suppliers
+            to deliver custom decoration on the garments your team already
+            trusts.
+          </p>
+        </div>
+      </section>
       <BrandsContent />
-    </Suspense>
+    </>
   )
 }
