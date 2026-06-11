@@ -4,6 +4,8 @@ import {
   garmentUrlViewRank,
   getGarmentImageUrlForPrintSide,
   getPrimaryGarmentImageUrl,
+  getProductColorLabels,
+  urlMatchesColorAmongSiblings,
   urlMatchesColorLabelStrict,
 } from "./variant-options"
 
@@ -187,5 +189,131 @@ describe("garment front/back selection is token-aware and order-independent", ()
     expect(file).not.toContain("_BACK")
     expect(file).not.toContain("_SIDE_")
     expect(file).not.toContain("_TURN_")
+  })
+})
+
+/**
+ * Regression: 2026-06-11 — both swatches on the Staple Camo Tee rendered the
+ * BLACK CAMO garment. The product's colours are "CAMO" and "BLACK CAMO": one
+ * label is a substring of the other, so plain strict matching let "CAMO"
+ * claim the `_BLACK_CAMO_` files too, and the black camo front (earlier in
+ * `product.images`) won the frontish pick. Matching must be SIBLING-AWARE:
+ * a colour never claims a file owned by a more specific sibling colour.
+ *
+ * Fixture is the REAL as-colour-5001c-5001c image array in exact prod order
+ * (black camo files BEFORE green camo files — the trap).
+ */
+const CAMO_CDN = "https://cdn11.bigcommerce.com/s-lqiq2tqil5/products/431/images"
+
+const STAPLE_CAMO_5001C_IMAGES = [
+  "5001C_STAPLE_CAMO_TEE_CAMO_THUMB__59734.1590362849.1280.1280.jpg", // green thumb (alt view)
+  "5001C_STAPLE_TEE_BACK__45752.1713216606.1280.1280.jpg",
+  "5001C_STAPLE_CAMO_TEE_BLACK_CAMO__50796.1594588153.1280.1280.jpg", // black front BEFORE green front
+  "5001C_STAPLE_CAMO_TEE_BLACK_CAMO_BACK__30237.1594588157.1280.1280.jpg",
+  "5001C_STAPLE_CAMO_TEE_CAMO__87217.1590362848.1280.1280.jpg", // green front
+  "5001C_STAPLE_CAMO_TEE_CAMO_BACK__07119.1590362848.1280.1280.jpg",
+  "5001C_STAPLE_TEE_FRONT__82289.1713216597.1280.1280.jpg",
+  "5001C_STAPLE_TEE_MAIN__90230.1713216595.1280.1280.jpg",
+  "5001C_STAPLE_TEE_SIDE__81390.1713216602.1280.1280.jpg",
+  "5001C_STAPLE_TEE_TURN__54105.1713216598.1280.1280.jpg",
+].map((f) => `${CAMO_CDN}/${f}?c=1`)
+
+const CAMO_COLOURS = ["CAMO", "BLACK CAMO"]
+
+const buildCamoProduct = (
+  imageUrls: string[],
+  { optionValues = true }: { optionValues?: boolean } = {}
+): HttpTypes.StoreProduct =>
+  ({
+    id: "prod_5001c",
+    title: "Staple Camo Tee",
+    handle: "as-colour-5001c-5001c",
+    options: [
+      {
+        id: "opt_colour",
+        title: "Colour",
+        values: optionValues
+          ? CAMO_COLOURS.map((value, i) => ({ id: `optval_${i}`, value }))
+          : undefined,
+      },
+      { id: "opt_size", title: "Size" },
+    ],
+    variants: CAMO_COLOURS.map((colour) => buildVariant(colour)),
+    images: imageUrls.map((url, i) => ({ id: `img_${i}`, url })),
+  } as unknown as HttpTypes.StoreProduct)
+
+describe("colour matching is sibling-aware (CAMO vs BLACK CAMO)", () => {
+  const orderings: Array<[string, string[]]> = [
+    ["prod order (black camo first)", STAPLE_CAMO_5001C_IMAGES],
+    ["reversed order", [...STAPLE_CAMO_5001C_IMAGES].reverse()],
+  ]
+
+  describe.each(orderings)("%s", (_label, imageUrls) => {
+    const product = buildCamoProduct(imageUrls)
+
+    it("front view for CAMO is the green camo front, never a BLACK CAMO file", () => {
+      const file = fileOf(
+        getGarmentImageUrlForPrintSide(product, buildVariant("CAMO"), "front", null)
+      )
+      expect(file).toContain("_TEE_CAMO__")
+      expect(file).not.toContain("BLACK_CAMO")
+    })
+
+    it("back view for CAMO is the green camo back, never a BLACK CAMO file", () => {
+      const file = fileOf(
+        getGarmentImageUrlForPrintSide(product, buildVariant("CAMO"), "back", null)
+      )
+      expect(file).toContain("_TEE_CAMO_BACK")
+      expect(file).not.toContain("BLACK_CAMO")
+    })
+
+    it("front/back views for BLACK CAMO stay on the BLACK CAMO files", () => {
+      const front = fileOf(
+        getGarmentImageUrlForPrintSide(product, buildVariant("BLACK CAMO"), "front", null)
+      )
+      expect(front).toContain("_BLACK_CAMO__")
+      const back = fileOf(
+        getGarmentImageUrlForPrintSide(product, buildVariant("BLACK CAMO"), "back", null)
+      )
+      expect(back).toContain("_BLACK_CAMO_BACK")
+    })
+
+    it("primary garment image for CAMO is the green front (cart/canvas paths)", () => {
+      const file = fileOf(getPrimaryGarmentImageUrl(product, buildVariant("CAMO")))
+      expect(file).toContain("_TEE_CAMO__")
+      expect(file).not.toContain("BLACK_CAMO")
+    })
+
+    it("gallery hero for CAMO is the green front (sibling-aware filter + view-rank sort)", () => {
+      // Mirrors ImageGallery: sibling-aware colour filter, then view-rank sort.
+      const labels = getProductColorLabels(product)
+      const strict = imageUrls
+        .filter((u) => urlMatchesColorAmongSiblings(u, "CAMO", labels))
+        .sort((a, b) => garmentUrlViewRank(a) - garmentUrlViewRank(b))
+      expect(strict.length).toBeGreaterThan(0)
+      expect(strict.every((u) => !fileOf(u).includes("BLACK_CAMO"))).toBe(true)
+      expect(fileOf(strict[0])).toContain("_TEE_CAMO__")
+    })
+  })
+
+  it("colour labels fall back to variant option values when option.values is absent", () => {
+    const product = buildCamoProduct(STAPLE_CAMO_5001C_IMAGES, { optionValues: false })
+    expect(getProductColorLabels(product).map((l) => l.toUpperCase()).sort()).toEqual(
+      ["BLACK CAMO", "CAMO"]
+    )
+    // …and the sibling-aware pick still resolves green camo correctly.
+    const file = fileOf(getPrimaryGarmentImageUrl(product, buildVariant("CAMO")))
+    expect(file).toContain("_TEE_CAMO__")
+    expect(file).not.toContain("BLACK_CAMO")
+  })
+
+  it("degrades to plain strict matching when no sibling list is available", () => {
+    // Empty sibling list = old behaviour (still matches its own files).
+    expect(
+      urlMatchesColorAmongSiblings(STAPLE_CAMO_5001C_IMAGES[4], "CAMO", [])
+    ).toBe(true)
+    expect(
+      urlMatchesColorAmongSiblings(STAPLE_CAMO_5001C_IMAGES[2], "BLACK CAMO", [])
+    ).toBe(true)
   })
 })

@@ -13,10 +13,11 @@ import {
   findProductImageByVariantSku,
   garmentUrlViewRank,
   getGarmentImageUrlsFromMetadata,
+  getProductColorLabels,
   isColorOptionTitle,
   normalizeImageUrl,
   resolveVariantFromOptions,
-  urlMatchesColorLabelStrict,
+  urlMatchesColorAmongSiblings,
   urlMatchesColorNeedles,
 } from "@modules/products/lib/variant-options"
 import { PRODUCT_VIEW_IMAGE_META_KEYS_ORDERED } from "@lib/util/product-view-image-metadata"
@@ -69,12 +70,15 @@ const ImageGallery = ({
 
     const selectedVariant = resolveVariantFromOptions(product, effectiveOptions)
 
+    const allColorLabels = getProductColorLabels(product)
+
     const rawFromMetadata = getGarmentImageUrlsFromMetadata(
       (selectedVariant as any)?.metadata as Record<string, unknown> | undefined
     )
     const mappedVariantImages = filterGarmentImageUrlsForVariantColor(
       rawFromMetadata,
-      selectedColor
+      selectedColor,
+      allColorLabels
     )
 
     if (mappedVariantImages.length) {
@@ -95,8 +99,9 @@ const ImageGallery = ({
     }
 
     if (selectedColor) {
+      // Sibling-aware so e.g. "Camo" doesn't claim the "Black Camo" files.
       const strict = validImages.filter((image) =>
-        urlMatchesColorLabelStrict(image.url, selectedColor)
+        urlMatchesColorAmongSiblings(image.url, selectedColor, allColorLabels)
       )
       if (strict.length) {
         // Stable view-rank sort so the hero leads with the FRONT — array

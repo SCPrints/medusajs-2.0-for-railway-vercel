@@ -6,7 +6,7 @@ import {
   getGarmentSwatchImageUrlFromMetadata,
   getVariantOptionValue,
   toTitleSlug,
-  urlMatchesColorLabelStrict,
+  urlMatchesColorAmongSiblings,
   urlMatchesColorNeedles,
 } from "@modules/products/lib/variant-options"
 
@@ -23,6 +23,12 @@ export function getColorSwatchImageMap(
   if (!optionDef) {
     return swatchImageMap
   }
+
+  // Every colour on this option — sibling-aware matching needs the full list
+  // so "Camo" can't claim the "Black Camo" files (and vice-versa patterns).
+  const allColorLabels = (optionDef.values ?? [])
+    .map((v) => v.value ?? "")
+    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
 
   for (const optionValue of optionDef.values ?? []) {
     const rawValue = optionValue.value ?? ""
@@ -49,7 +55,7 @@ export function getColorSwatchImageMap(
       .filter((url): url is string => typeof url === "string" && url.length > 0)
 
     const strictMeta = metadataFromVariants.find((url) =>
-      urlMatchesColorLabelStrict(url, rawValue)
+      urlMatchesColorAmongSiblings(url, rawValue, allColorLabels)
     )
     const swatchFromMeta = strictMeta ?? metadataFromVariants[0]
 
@@ -62,7 +68,8 @@ export function getColorSwatchImageMap(
       .map((image) => image.url)
       .find(
         (url) =>
-          typeof url === "string" && urlMatchesColorLabelStrict(url, rawValue)
+          typeof url === "string" &&
+          urlMatchesColorAmongSiblings(url, rawValue, allColorLabels)
       )
 
     if (strictProduct) {

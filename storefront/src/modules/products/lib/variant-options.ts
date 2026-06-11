@@ -589,6 +589,89 @@ export const urlMatchesColorLabelStrict = (url: string, colorLabel: string): boo
 }
 
 /**
+ * All colour labels carried by a product — from the colour-like option's
+ * values, falling back to variant option values when the option payload has
+ * no `values` (depends on the fields the caller fetched). Used to make
+ * colour→image matching sibling-aware.
+ */
+export function getProductColorLabels(
+  product: HttpTypes.StoreProduct | undefined | null
+): string[] {
+  if (!product) {
+    return []
+  }
+  const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
+  if (!colorOption) {
+    return []
+  }
+  const bySlug = new Map<string, string>()
+  for (const optionValue of colorOption.values ?? []) {
+    const value = (optionValue as { value?: string | null })?.value
+    if (typeof value === "string" && value.trim()) {
+      const slug = toTitleSlug(value)
+      if (slug && !bySlug.has(slug)) {
+        bySlug.set(slug, value)
+      }
+    }
+  }
+  if (bySlug.size === 0 && colorOption.title) {
+    for (const variant of product.variants ?? []) {
+      const value = getVariantOptionValue(variant, colorOption.title, product)
+      if (typeof value === "string" && value.trim()) {
+        const slug = toTitleSlug(value)
+        if (slug && !bySlug.has(slug)) {
+          bySlug.set(slug, value)
+        }
+      }
+    }
+  }
+  return [...bySlug.values()]
+}
+
+/**
+ * Sibling-aware colour match for product images. True when the URL
+ * strict-matches `colorLabel` AND is not claimed by a MORE SPECIFIC sibling
+ * colour of the same product — one whose compact slug contains this colour's
+ * compact slug plus more, e.g. "Black Camo" vs "Camo", "Off White" vs "White",
+ * "Grey Marle" vs "Grey".
+ *
+ * Without this, picking "Camo" on a product that also sells "Black Camo"
+ * strict-matches the `_BLACK_CAMO_` files too, and whichever colour's front
+ * sits earlier in `product.images` wins (2026-06-11 Staple Camo Tee: both
+ * swatches rendered the black camo garment). With an empty `allColorLabels`
+ * this degrades to plain {@link urlMatchesColorLabelStrict}.
+ */
+export function urlMatchesColorAmongSiblings(
+  url: string,
+  colorLabel: string,
+  allColorLabels: string[]
+): boolean {
+  if (!urlMatchesColorLabelStrict(url, colorLabel)) {
+    return false
+  }
+  const wantSlug = toTitleSlug(colorLabel)
+  const wantCompact = wantSlug.replace(/\s/g, "")
+  if (!wantCompact) {
+    return true
+  }
+  for (const sibling of allColorLabels) {
+    const sibSlug = toTitleSlug(sibling)
+    if (!sibSlug || sibSlug === wantSlug) {
+      continue
+    }
+    const sibCompact = sibSlug.replace(/\s/g, "")
+    if (
+      sibCompact.length > wantCompact.length &&
+      sibCompact.includes(wantCompact) &&
+      urlMatchesColorLabelStrict(url, sibling)
+    ) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
  * Wholesaler / filename tokens that often stand in for a colour (when the label
  * is "Tan" but the file only contains `KHK_` or `blk`).
  */
@@ -645,12 +728,15 @@ export function buildColorNeedlesForRelaxedMatch(colorLabel: string): string[] {
  */
 export function filterGarmentImageUrlsForVariantColor(
   urls: string[],
-  selectedColor: string | undefined
+  selectedColor: string | undefined,
+  allColorLabels: string[] = []
 ): string[] {
   if (!selectedColor || urls.length === 0) {
     return urls
   }
-  const narrowed = urls.filter((url) => urlMatchesColorLabelStrict(url, selectedColor))
+  const narrowed = urls.filter((url) =>
+    urlMatchesColorAmongSiblings(url, selectedColor, allColorLabels)
+  )
   return narrowed.length > 0 ? narrowed : urls
 }
 
@@ -837,12 +923,15 @@ export function getPrimaryGarmentImageUrl(
     ? getVariantOptionValue(variant, colorTitle, product)
     : undefined
 
+  const allColorLabels = getProductColorLabels(product)
+
   const rawFromMetadata = getGarmentImageUrlsFromMetadata(
     (variant.metadata ?? {}) as Record<string, unknown>
   )
   const mappedVariantImages = filterGarmentImageUrlsForVariantColor(
     rawFromMetadata,
-    selectedColor
+    selectedColor,
+    allColorLabels
   )
 
   if (mappedVariantImages.length) {
@@ -857,7 +946,7 @@ export function getPrimaryGarmentImageUrl(
 
   if (selectedColor) {
     const strict = validImages.filter((image) =>
-      urlMatchesColorLabelStrict(image.url, selectedColor)
+      urlMatchesColorAmongSiblings(image.url, selectedColor, allColorLabels)
     )
     if (strict.length) {
       // Front-ish pick, NOT strict[0] — array order is not a contract (see
@@ -1041,8 +1130,9 @@ export function getGarmentImageUrlForPrintSide(
       ? getVariantOptionValue(variant, colorTitle, product)
       : undefined
 
+  const allColorLabels = getProductColorLabels(product)
   const matchesColor = (url: string) =>
-    !selectedColor || urlMatchesColorLabelStrict(url, selectedColor)
+    !selectedColor || urlMatchesColorAmongSiblings(url, selectedColor, allColorLabels)
 
   const meta = variant ? ((variant.metadata ?? {}) as Record<string, unknown>) : {}
   const parsed = parseGarmentImagesObject(meta.garment_images)
