@@ -1180,18 +1180,24 @@ export function getGarmentImageUrlForPrintSide(
   }
 
   const fromProductImages = validImages.map((i) => i.url).filter(matchesColor)
-  const backFromGallery =
-    fromProductImages.find(garmentUrlLooksLikeBack) ??
-    (validImages.length >= 2 ? validImages[1]?.url : undefined)
-
-  if (backFromGallery && garmentUrlLooksLikeBack(backFromGallery)) {
+  const backFromGallery = fromProductImages.find(garmentUrlLooksLikeBack)
+  if (backFromGallery) {
     return backFromGallery
+  }
+
+  // No colour-matched BACK photo exists (e.g. AS Colour totes ship ONE photo
+  // per colour). Reuse the colour's FRONT rather than guessing positionally —
+  // a tote looks the same front/back, and the same photo always beats another
+  // colour's bag (2026-06-11 Carrie Tote: CAMEL's back canvas rendered the
+  // ARMY bag because the positional fallback grabbed validImages[1]).
+  if (selectedColor && fromProductImages.length) {
+    return pickFrontishGarmentUrl(fromProductImages) ?? fromProductImages[0]
   }
 
   if (validImages.length >= 2) {
     const second = validImages[1]?.url
-    // Last resort: colour path already exhausted above; use the second gallery image
-    // unconditionally rather than falling back to the front.
+    // Last resort for colour-token-less galleries (e.g. AP filenames carry no
+    // colour words): the second gallery image is typically the flat back.
     if (second) {
       return second
     }

@@ -317,3 +317,110 @@ describe("colour matching is sibling-aware (CAMO vs BLACK CAMO)", () => {
     ).toBe(true)
   })
 })
+
+/**
+ * Regression: 2026-06-11 — the Carrie Tote's BACK canvas rendered the ARMY
+ * (green) bag while CAMEL was selected. The catalog ships ONE photo per tote
+ * colour (no `_BACK` shots at all), and the back-side resolver's positional
+ * fallback grabbed `validImages[1]` — another colour's front. When a colour
+ * has photos but no back shot, the back view must REUSE that colour's front
+ * (totes look the same both sides) — never another colour's photo.
+ *
+ * Fixture is the REAL as-colour-1001-1001 image array in exact prod order.
+ */
+const TOTE_CDN = "https://cdn11.bigcommerce.com/s-lqiq2tqil5/products/142/images"
+
+const CARRIE_TOTE_1001_IMAGES = [
+  "1001_CARRIE_TOTE_KHAKI_THUMB__81141.1748387706.1280.1280.jpg",
+  "1001_CARRIE_TOTE_ARMY__56291.1751581749.1280.1280.jpg", // [1] — the positional-fallback trap
+  "1001_CARRIE_TOTE_BLACK__20120.1751581749.1280.1280.jpg",
+  "1001_CARRIE_TOTE_BONE__40741.1692160387.1280.1280.jpg",
+  "1001_CARRIE_TOTE_CAMEL__96650.1749160365.1280.1280.jpg",
+  "1001_CARRIE_TOTE_COAL__30020.1751581750.1280.1280.jpg",
+  "1001_CARRIE_TOTE_CREAM__79163.1749160365.1280.1280.jpg",
+  "1001_CARRIE_TOTE_FRONT__56861.1712714165.1280.1280.jpg",
+  "1001_CARRIE_TOTE_KHAKI__63751.1751581749.1280.1280.jpg",
+  "1001_CARRIE_TOTE_MAIN__06426.1712714161.1280.1280.jpg",
+  "1001_CARRIE_TOTE_NAVY__81545.1749160365.1280.1280.jpg",
+  "1001_CARRIE_TOTE_PETROL_BLUE__77218.1749160365.1280.1280.jpg",
+  "1001_CARRIE_TOTE_PINK__50788.1749160365.1280.1280.jpg",
+  "1001_CARRIE_TOTE_WALNUT__12585.1751581749.1280.1280.jpg",
+].map((f) => `${TOTE_CDN}/${f}?c=1`)
+
+const TOTE_COLOURS = [
+  "ARMY",
+  "BLACK",
+  "BONE",
+  "CAMEL",
+  "COAL",
+  "CREAM",
+  "KHAKI",
+  "NAVY",
+  "PETROL BLUE",
+  "PINK",
+  "WALNUT",
+]
+
+const buildToteProduct = (imageUrls: string[]): HttpTypes.StoreProduct =>
+  ({
+    id: "prod_1001",
+    title: "Carrie Tote",
+    handle: "as-colour-1001-1001",
+    options: [
+      {
+        id: "opt_colour",
+        title: "Colour",
+        values: TOTE_COLOURS.map((value, i) => ({ id: `optval_${i}`, value })),
+      },
+      { id: "opt_size", title: "Size" },
+    ],
+    variants: TOTE_COLOURS.map((colour) => buildVariant(colour)),
+    images: imageUrls.map((url, i) => ({ id: `img_${i}`, url })),
+  } as unknown as HttpTypes.StoreProduct)
+
+describe("back view reuses the colour's front when no back photo exists (totes)", () => {
+  const orderings: Array<[string, string[]]> = [
+    ["prod order", CARRIE_TOTE_1001_IMAGES],
+    ["reversed order", [...CARRIE_TOTE_1001_IMAGES].reverse()],
+  ]
+
+  describe.each(orderings)("%s", (_label, imageUrls) => {
+    const product = buildToteProduct(imageUrls)
+
+    it.each(TOTE_COLOURS)(
+      "back view for %s is that colour's own photo, never another colour's",
+      (colour) => {
+        const file = fileOf(
+          getGarmentImageUrlForPrintSide(product, buildVariant(colour), "back", null)
+        )
+        const token = colourToken(colour)
+        expect(file).toContain(`_TOTE_${token}_`)
+        // No cross-colour bleed: the file must not carry any OTHER colour's token.
+        for (const other of TOTE_COLOURS) {
+          if (other === colour) continue
+          // KHAKI_THUMB is still KHAKI; only assert against non-matching colours.
+          expect(file).not.toContain(`_TOTE_${colourToken(other)}_`)
+        }
+      }
+    )
+
+    it.each(TOTE_COLOURS)("front and back resolve to the same colour for %s", (colour) => {
+      const front = fileOf(
+        getGarmentImageUrlForPrintSide(product, buildVariant(colour), "front", null)
+      )
+      const back = fileOf(
+        getGarmentImageUrlForPrintSide(product, buildVariant(colour), "back", null)
+      )
+      expect(front).toContain(`_TOTE_${colourToken(colour)}_`)
+      expect(back).toContain(`_TOTE_${colourToken(colour)}_`)
+    })
+
+    it("KHAKI back prefers the real photo over the THUMB alt view", () => {
+      const file = fileOf(
+        getGarmentImageUrlForPrintSide(product, buildVariant("KHAKI"), "back", null)
+      )
+      expect(file).toContain("_TOTE_KHAKI__")
+      expect(file).not.toContain("_THUMB")
+    })
+  })
+})
