@@ -1669,7 +1669,7 @@ The `medusajs-launch-utils` Railway helpers (`init-backend`, `await-backend`, `l
 1. `cd backend && pnpm install` — must complete without `ERR_PNPM_PATCH_NOT_APPLIED`.
 2. `cd backend && pnpm run build` — runs `npx medusa build && node src/scripts/postBuild.js`. **This is the production build path; do not substitute `pnpm exec medusa build` alone — that skips `postBuild.js` and won't catch all class-of-error.** Needs `DATABASE_URL` set (a placeholder works, no real DB connection happens during build).
 3. `cd backend && pnpm test` — known-failing tests are documented above; new failures = regressions.
-4. `cd storefront && pnpm install && pnpm run build` — catches Next.js / React server-only-import errors that `tsc --noEmit` cannot. The storefront's `next.config.js` has `typescript.ignoreBuildErrors: true`, so a successful Next build proves the runtime composition works (server/client component boundaries, dynamic imports, etc.).
+4. `cd storefront && pnpm install && pnpm run build` — catches Next.js / React server-only-import errors that `tsc --noEmit` cannot. The storefront's `next.config.js` has `typescript.ignoreBuildErrors: false` (since the Next 16 upgrade), so **type errors FAIL the Vercel deploy** — Jest (`@swc/jest`) does not type-check, so green tests are not enough. Run `cd storefront && npx tsc --noEmit` before pushing storefront changes (2026-06-11: an iterator spread `[...map.values()]` passed all 265 tests locally then broke two production deploys).
 5. **Sanity-check migrations against your prod schema** — if you have a staging environment, deploy there first and watch logs for `running migration <name>` lines.
 
 **During / after deploy:**
