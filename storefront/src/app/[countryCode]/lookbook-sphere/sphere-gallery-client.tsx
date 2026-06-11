@@ -26,16 +26,21 @@ import { LOOKBOOK_PROJECTS, type SphereProject } from "./projects"
 // ---------------------------------------------------------------------------
 
 const SPHERE_RADIUS = 30
-const COLS = 16 // tiles around the full 360°
-const ROWS = 5 // tile rows stacked vertically
-const THETA_STEP = (Math.PI * 2) / COLS
+const EQUATOR_COLS = 16 // tiles around the equator ring
 const PHI_STEP = THREE.MathUtils.degToRad(24)
-const TILE_THETA = THETA_STEP * 0.945 // gutter between columns
+// Rings from pole-ish to pole-ish. Each ring gets its own column count scaled
+// by cos(phi) so tiles stay evenly sized while the rings visibly converge —
+// the staggered seams + shrinking rings are what make it read as a SPHERE
+// instead of a column of aligned tiles.
+const ROW_PHIS_DEG = [-72, -48, -24, 0, 24, 48, 72]
+const colsForPhi = (phiRad: number) =>
+  Math.max(4, Math.round(EQUATOR_COLS * Math.cos(phiRad)))
+const TILE_FILL_THETA = 0.945 // gutter between columns (fraction of the step)
 const TILE_PHI = PHI_STEP * 0.93 // gutter between rows
 const BASE_FOV = 65
 const DETAIL_FOV = 40
 const DETAIL_DOLLY = 0.42 // fraction of radius the camera travels toward a card
-const PITCH_LIMIT = THREE.MathUtils.degToRad(44)
+const PITCH_LIMIT = THREE.MathUtils.degToRad(75)
 const SMOOTHING = 7.5 // larger = snappier follow of the drag target
 const INERTIA_DECAY = 2.2 // larger = momentum dies faster
 const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
@@ -370,13 +375,22 @@ export default function SphereGalleryClient() {
     const rowGeometries: THREE.BufferGeometry[] = []
     const tileMeshes: THREE.Mesh[] = []
     const tileMaterials: THREE.MeshBasicMaterial[] = []
-    const phiStart = -((ROWS - 1) / 2) * PHI_STEP
 
-    for (let row = 0; row < ROWS; row++) {
-      const phiCenter = phiStart + row * PHI_STEP
-      const geo = buildSphericalTile(SPHERE_RADIUS, TILE_THETA, phiCenter, TILE_PHI)
+    ROW_PHIS_DEG.forEach((phiDeg, row) => {
+      const phiCenter = THREE.MathUtils.degToRad(phiDeg)
+      const cols = colsForPhi(phiCenter)
+      const thetaStep = (Math.PI * 2) / cols
+      const geo = buildSphericalTile(
+        SPHERE_RADIUS,
+        thetaStep * TILE_FILL_THETA,
+        phiCenter,
+        TILE_PHI
+      )
       rowGeometries.push(geo)
-      for (let col = 0; col < COLS; col++) {
+      // Half-step phase shift on alternate rows so seams brick-stagger even
+      // where neighbouring rings share a column count.
+      const phase = (row % 2) * (thetaStep / 2)
+      for (let col = 0; col < cols; col++) {
         const projectIdx = (row * 5 + col) % LOOKBOOK_PROJECTS.length
         const mat = new THREE.MeshBasicMaterial({
           map: cardTextures[projectIdx].normal,
@@ -385,17 +399,18 @@ export default function SphereGalleryClient() {
           opacity: 0,
         })
         const mesh = new THREE.Mesh(geo, mat)
-        mesh.rotation.y = col * THETA_STEP
+        const thetaCenter = col * thetaStep + phase
+        mesh.rotation.y = thetaCenter
         mesh.userData = {
           projectIdx,
-          thetaCenter: col * THETA_STEP,
+          thetaCenter,
           phiCenter,
         }
         scene.add(mesh)
         tileMeshes.push(mesh)
         tileMaterials.push(mat)
       }
-    }
+    })
 
     // --- control state ---------------------------------------------------------
     const ctrl = {
