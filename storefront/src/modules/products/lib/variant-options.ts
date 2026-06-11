@@ -625,7 +625,7 @@ export function getProductColorLabels(
       }
     }
   }
-  return [...bySlug.values()]
+  return Array.from(bySlug.values())
 }
 
 /**
