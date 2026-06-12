@@ -1,20 +1,25 @@
 /**
- * Demo dataset for the spherical lookbook gallery. Images come from assets
- * already shipped in /public — swap for real lookbook entries when this
- * graduates from prototype to the live /lookbook experience.
+ * Card payload for the spherical lookbook gallery.
+ *
+ * The live page maps real lookbook entries (admin-curated, via
+ * `getLookbookPage`) into this shape server-side. The static list below is
+ * only the FALLBACK for when the backend returns nothing (local dev without
+ * a backend) — genuine past-job photos only, no product/blank shots.
  */
 export type SphereProject = {
   id: string
   brand: string
   title: string
+  /** Footer-left label. Empty string = omitted from the card. */
   category: string
   tags: string[]
+  /** Empty string = omitted from the card. */
   year: string
   image: string
   blurb: string
 }
 
-export const LOOKBOOK_PROJECTS: SphereProject[] = [
+export const FALLBACK_PROJECTS: SphereProject[] = [
   {
     id: "snip-society",
     brand: "Snip Society",
@@ -102,93 +107,5 @@ export const LOOKBOOK_PROJECTS: SphereProject[] = [
     image: "/images/services/screen-printing/restored-right.png",
     blurb:
       "A restoration outfit's first proper merch run. Single-colour discharge print, soft hand, zero cracking — the brief was 'make it feel vintage on day one'.",
-  },
-  {
-    id: "ramo-oversize",
-    brand: "Ramo",
-    title: "OVERSIZE HOODIE DROP",
-    category: "DTF",
-    tags: ["Hoodies", "Streetwear"],
-    year: "2026",
-    image: "/images/brands/ramo/oversize-hoodie.jpg",
-    blurb:
-      "A boxy 420gsm blank carrying a full-colour DTF back piece. Gang-sheeted and pressed in-house, with a matte finish so the print sits flat in photos.",
-  },
-  {
-    id: "ramo-kangaroo",
-    brand: "Ramo",
-    title: "KANGAROO POCKET SERIES",
-    category: "DTF",
-    tags: ["Hoodies"],
-    year: "2025",
-    image: "/images/brands/ramo/kangaroo-hoodie.jpg",
-    blurb:
-      "Pocket-aligned front prints are unforgiving — the artwork bridges the kangaroo pocket seam, so registration was checked garment-by-garment.",
-  },
-  {
-    id: "gildan-hammer",
-    brand: "Gildan",
-    title: "HAMMER TEE MERCH",
-    category: "Screen Print",
-    tags: ["Merch", "Band"],
-    year: "2025",
-    image: "/images/brands/gildan/hammer-tee.jpg",
-    blurb:
-      "Tour merch on the Hammer — a heavyweight stage-ready tee. Two plastisol hits with a flash between, built to outlast the band's third reunion.",
-  },
-  {
-    id: "comfort-colorblast",
-    brand: "Comfort Colors",
-    title: "COLORBLAST CAPSULE",
-    category: "DTF",
-    tags: ["Tees", "Capsule"],
-    year: "2026",
-    image: "/images/brands/comfort-colors/colorblast-tee.jpg",
-    blurb:
-      "Garment-dyed blanks with prints colour-matched to each dye lot. A small capsule where the shirt colour is half the design.",
-  },
-  {
-    id: "aa-relaxed",
-    brand: "American Apparel",
-    title: "RELAXED TEE RANGE",
-    category: "DTF",
-    tags: ["Tees", "Retail"],
-    year: "2025",
-    image: "/images/brands/american-apparel/tee-relaxed.jpg",
-    blurb:
-      "A boutique's house-label range on relaxed-fit AA blanks. Neck-label prints replace the sewn tag — retail-ready straight off the press.",
-  },
-  {
-    id: "ap-quarter-zip",
-    brand: "Aussie Pacific",
-    title: "QUARTER ZIP TEAMWEAR",
-    category: "Embroidery",
-    tags: ["Teamwear", "Club"],
-    year: "2025",
-    image: "/images/brands/aussie-pacific/quarter-zip.jpg",
-    blurb:
-      "Club quarter-zips with left-chest crests and sponsor sleeve hits. Sized from 6 to 5XL because a real club has every body in it.",
-  },
-  {
-    id: "ramo-tote",
-    brand: "Ramo",
-    title: "EVENT TOTE RUN",
-    category: "UV DTF",
-    tags: ["Totes", "Events"],
-    year: "2024",
-    image: "/images/brands/ramo/tote-bag.jpg",
-    blurb:
-      "Five hundred conference totes, UV DTF so the gloss artwork pops against raw canvas. Packed in fifties and delivered to the venue dock.",
-  },
-  {
-    id: "ascolour-club",
-    brand: "AS Colour",
-    title: "HEAVY TEE CLUB RUN",
-    category: "Screen Print",
-    tags: ["Tees", "Club"],
-    year: "2025",
-    image: "/images/brands/as-colour/ugc/ugc-1.png",
-    blurb:
-      "A run club's seasonal kit on the 5080 Heavy Tee. Puff-additive ink for the crest, flat ink for the back lockup — one garment, two textures.",
   },
 ]

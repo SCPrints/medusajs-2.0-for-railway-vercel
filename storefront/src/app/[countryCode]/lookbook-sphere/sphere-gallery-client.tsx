@@ -19,7 +19,7 @@ import * as THREE from "three"
 import gsap from "gsap"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { LOOKBOOK_PROJECTS, type SphereProject } from "./projects"
+import { type SphereProject } from "./projects"
 
 // ---------------------------------------------------------------------------
 // Tunables
@@ -40,7 +40,6 @@ const TILE_PHI = PHI_STEP * 0.93 // gutter between rows
 const BASE_FOV = 65
 const DETAIL_FOV = 40
 const DETAIL_DOLLY = 0.42 // fraction of radius the camera travels toward a card
-const PITCH_LIMIT = THREE.MathUtils.degToRad(75)
 const SMOOTHING = 7.5 // larger = snappier follow of the drag target
 const INERTIA_DECAY = 2.2 // larger = momentum dies faster
 const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
@@ -50,6 +49,18 @@ const TEX_W = 720
 const TEX_H = 768
 const MONO_STACK =
   '"SF Mono", "Menlo", "Roboto Mono", "Liberation Mono", monospace'
+
+/**
+ * Remote lookbook photos live on R2 (pub-*.r2.dev), which sends no CORS
+ * headers — drawing them straight into the texture canvas would taint it and
+ * the WebGL upload would throw. Route them through the same-origin
+ * /_next/image optimizer instead: no taint, downscaled WebP (the originals
+ * are multi-MB), and 60-day edge cache. Local /public assets load directly.
+ */
+const optimizedSrc = (src: string, width: 828 | 1080) =>
+  src.startsWith("/")
+    ? src
+    : `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=75`
 
 // ---------------------------------------------------------------------------
 // Card texture drawing (normal + hover/inverted states)
@@ -105,11 +116,12 @@ function drawCard(
   const pad = 34
 
   // --- header: brand left, project title right -----------------------------
+  // maxWidth args keep arbitrary admin-entered titles from colliding.
   ctx.textBaseline = "alphabetic"
   ctx.fillStyle = palette.brand
   ctx.font = `500 28px ${MONO_STACK}`
   ctx.textAlign = "left"
-  ctx.fillText(project.brand, pad, 62)
+  ctx.fillText(project.brand, pad, 62, TEX_W * 0.52)
 
   ctx.fillStyle = palette.title
   ctx.font = `400 17px ${MONO_STACK}`
@@ -119,7 +131,7 @@ function drawCard(
     ;(ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
       "2px"
   } catch {}
-  ctx.fillText(project.title, TEX_W - pad, 60)
+  ctx.fillText(project.title, TEX_W - pad, 60, TEX_W * 0.38)
   try {
     ;(ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
       "0px"
@@ -148,13 +160,17 @@ function drawCard(
   }
 
   // --- footer: category + tag pills left, year right ------------------------
+  // Real lookbook entries may carry no tags/year — skip empties gracefully.
   const footerBaseline = TEX_H - 56
   ctx.textAlign = "left"
-  ctx.font = `400 19px ${MONO_STACK}`
-  ctx.fillStyle = palette.meta
-  const category = project.category.toUpperCase()
-  ctx.fillText(category, pad, footerBaseline)
-  let cursorX = pad + ctx.measureText(category).width + 18
+  let cursorX = pad
+  if (project.category) {
+    ctx.font = `400 19px ${MONO_STACK}`
+    ctx.fillStyle = palette.meta
+    const category = project.category.toUpperCase()
+    ctx.fillText(category, pad, footerBaseline)
+    cursorX += ctx.measureText(category).width + 18
+  }
 
   const pillH = 40
   const pillR = 20
@@ -176,10 +192,12 @@ function drawCard(
     cursorX += pw + 10
   }
 
-  ctx.font = `400 19px ${MONO_STACK}`
-  ctx.fillStyle = palette.year
-  ctx.textAlign = "right"
-  ctx.fillText(project.year, TEX_W - pad, footerBaseline)
+  if (project.year) {
+    ctx.font = `400 19px ${MONO_STACK}`
+    ctx.fillStyle = palette.year
+    ctx.textAlign = "right"
+    ctx.fillText(project.year, TEX_W - pad, footerBaseline)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -191,7 +209,11 @@ function buildSphericalTile(
   thetaSpan: number,
   phiCenter: number,
   phiSpan: number,
-  segs = 10
+  segs = 10,
+  // 180°-rotated UVs: same patch silhouette, content rotated half a turn.
+  // Swapped in per-frame when a tile's screen-space "up" points down so the
+  // free-spinning ball never shows an upside-down photo or label.
+  flipped = false
 ): THREE.BufferGeometry {
   const positions: number[] = []
   const uvs: number[] = []
@@ -209,7 +231,11 @@ function buildSphericalTile(
         radius * Math.sin(phi),
         -radius * cosP * Math.cos(theta)
       )
-      uvs.push(u, v)
+      if (flipped) {
+        uvs.push(1 - u, 1 - v)
+      } else {
+        uvs.push(u, v)
+      }
     }
   }
   for (let iy = 0; iy < segs; iy++) {
@@ -228,14 +254,6 @@ function buildSphericalTile(
   geo.setIndex(indices)
   geo.computeVertexNormals()
   return geo
-}
-
-const shortestAngle = (a: number) => {
-  const tau = Math.PI * 2
-  let r = a % tau
-  if (r > Math.PI) r -= tau
-  if (r < -Math.PI) r += tau
-  return r
 }
 
 // ---------------------------------------------------------------------------
@@ -286,7 +304,11 @@ const ListIcon = ({ className }: { className?: string }) => (
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function SphereGalleryClient() {
+export default function SphereGalleryClient({
+  projects,
+}: {
+  projects: SphereProject[]
+}) {
   const mountRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const overlayContentRef = useRef<HTMLDivElement>(null)
@@ -326,7 +348,11 @@ export default function SphereGalleryClient() {
       0.1,
       SPHERE_RADIUS * 4
     )
-    camera.rotation.order = "YXZ"
+    // The camera never rotates — the SPHERE GROUP does (trackball-style
+    // quaternion), which is what allows free spinning in any direction with
+    // no pole lock or gimbal flip.
+    const sphereGroup = new THREE.Group()
+    scene.add(sphereGroup)
 
     // --- card textures (shared per project, normal + hover states) -----------
     type CardTex = {
@@ -335,7 +361,7 @@ export default function SphereGalleryClient() {
       normalCanvas: HTMLCanvasElement
       hoverCanvas: HTMLCanvasElement
     }
-    const cardTextures: CardTex[] = LOOKBOOK_PROJECTS.map((project) => {
+    const cardTextures: CardTex[] = projects.map((project) => {
       const normalCanvas = document.createElement("canvas")
       const hoverCanvas = document.createElement("canvas")
       drawCard(normalCanvas, project, null, PALETTE_NORMAL)
@@ -357,7 +383,7 @@ export default function SphereGalleryClient() {
 
     // Stream project photos in and re-draw both card states as they arrive.
     const loadedImages: HTMLImageElement[] = []
-    LOOKBOOK_PROJECTS.forEach((project, i) => {
+    projects.forEach((project, i) => {
       const img = new Image()
       img.decoding = "async"
       img.onload = () => {
@@ -367,7 +393,7 @@ export default function SphereGalleryClient() {
         tex.normal.needsUpdate = true
         tex.hover.needsUpdate = true
       }
-      img.src = project.image
+      img.src = optimizedSrc(project.image, 828)
       loadedImages.push(img)
     })
 
@@ -380,49 +406,84 @@ export default function SphereGalleryClient() {
       const phiCenter = THREE.MathUtils.degToRad(phiDeg)
       const cols = colsForPhi(phiCenter)
       const thetaStep = (Math.PI * 2) / cols
-      const geo = buildSphericalTile(
+      const geoUpright = buildSphericalTile(
         SPHERE_RADIUS,
         thetaStep * TILE_FILL_THETA,
         phiCenter,
         TILE_PHI
       )
-      rowGeometries.push(geo)
+      const geoFlipped = buildSphericalTile(
+        SPHERE_RADIUS,
+        thetaStep * TILE_FILL_THETA,
+        phiCenter,
+        TILE_PHI,
+        10,
+        true
+      )
+      rowGeometries.push(geoUpright, geoFlipped)
       // Half-step phase shift on alternate rows so seams brick-stagger even
       // where neighbouring rings share a column count.
       const phase = (row % 2) * (thetaStep / 2)
       for (let col = 0; col < cols; col++) {
-        const projectIdx = (row * 5 + col) % LOOKBOOK_PROJECTS.length
+        const projectIdx = (row * 5 + col) % projects.length
         const mat = new THREE.MeshBasicMaterial({
           map: cardTextures[projectIdx].normal,
           side: THREE.DoubleSide,
           transparent: true,
           opacity: 0,
         })
-        const mesh = new THREE.Mesh(geo, mat)
+        const mesh = new THREE.Mesh(geoUpright, mat)
         const thetaCenter = col * thetaStep + phase
         mesh.rotation.y = thetaCenter
+        const cosP = Math.cos(phiCenter)
+        const sinP = Math.sin(phiCenter)
         mesh.userData = {
           projectIdx,
           thetaCenter,
           phiCenter,
+          // Tile centre direction + "up" (d/dphi) in sphere-local space —
+          // used by the per-frame keep-upright flip and the detail zoom.
+          dirLocal: new THREE.Vector3(
+            cosP * Math.sin(thetaCenter),
+            sinP,
+            -cosP * Math.cos(thetaCenter)
+          ),
+          upLocal: new THREE.Vector3(
+            -sinP * Math.sin(thetaCenter),
+            cosP,
+            sinP * Math.cos(thetaCenter)
+          ),
+          geoUpright,
+          geoFlipped,
+          flipped: false,
         }
-        scene.add(mesh)
+        sphereGroup.add(mesh)
         tileMeshes.push(mesh)
         tileMaterials.push(mat)
       }
     })
 
-    // --- control state ---------------------------------------------------------
-    const ctrl = {
-      yaw: 0,
-      pitch: 0,
-      targetYaw: 0,
-      targetPitch: 0,
-      velYaw: 0,
-      velPitch: 0,
+    // --- control state: free trackball rotation --------------------------------
+    // `target` accumulates drag/wheel/inertia spins; `current` slerps toward it
+    // each frame (the lenis-style easing). Spins compose as small axis-angle
+    // rotations in the FIXED camera frame (premultiplied), so any drag
+    // direction — including over the poles — just keeps rotating the ball.
+    const rot = {
+      current: new THREE.Quaternion(),
+      target: new THREE.Quaternion(),
+      angVel: new THREE.Vector3(), // rad/s, view-space (x: vertical, y: horizontal)
+    }
+    const spinQuat = new THREE.Quaternion()
+    const spinAxis = new THREE.Vector3()
+    const upScratch = new THREE.Vector3()
+    const applyViewSpin = (rx: number, ry: number, q: THREE.Quaternion) => {
+      spinAxis.set(rx, ry, 0)
+      const angle = spinAxis.length()
+      if (angle < 1e-7) return
+      spinQuat.setFromAxisAngle(spinAxis.normalize(), angle)
+      q.premultiply(spinQuat)
     }
     const zoom = { fov: BASE_FOV, dolly: 0 }
-    const detailDir = new THREE.Vector3(0, 0, -1)
 
     const drag = {
       active: false,
@@ -455,9 +516,6 @@ export default function SphereGalleryClient() {
     const rotSpeed = () =>
       (camera.fov * (Math.PI / 180)) / Math.max(canvas.clientHeight, 1)
 
-    const clampPitch = (p: number) =>
-      Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, p))
-
     // --- pointer handlers --------------------------------------------------------
     const onPointerDown = (e: PointerEvent) => {
       if (detailOpenRef.current) return
@@ -467,8 +525,7 @@ export default function SphereGalleryClient() {
       drag.lastY = e.clientY
       drag.total = 0
       drag.samples = [{ t: performance.now(), x: e.clientX, y: e.clientY }]
-      ctrl.velYaw = 0
-      ctrl.velPitch = 0
+      rot.angVel.set(0, 0, 0)
       try {
         canvas.setPointerCapture(e.pointerId)
       } catch {}
@@ -488,8 +545,7 @@ export default function SphereGalleryClient() {
       drag.lastY = e.clientY
       drag.total += Math.abs(dx) + Math.abs(dy)
       const k = rotSpeed()
-      ctrl.targetYaw += dx * k
-      ctrl.targetPitch = clampPitch(ctrl.targetPitch + dy * k)
+      applyViewSpin(-dy * k, -dx * k, rot.target)
       const now = performance.now()
       drag.samples.push({ t: now, x: e.clientX, y: e.clientY })
       while (drag.samples.length > 2 && now - drag.samples[0].t > 110) {
@@ -522,8 +578,11 @@ export default function SphereGalleryClient() {
         const dt = (last.t - first.t) / 1000
         if (dt > 0.016) {
           const k = rotSpeed()
-          ctrl.velYaw = ((last.x - first.x) * k) / dt
-          ctrl.velPitch = ((last.y - first.y) * k) / dt
+          rot.angVel.set(
+            (-(last.y - first.y) * k) / dt,
+            (-(last.x - first.x) * k) / dt,
+            0
+          )
         }
       }
     }
@@ -532,8 +591,7 @@ export default function SphereGalleryClient() {
       if (detailOpenRef.current) return
       e.preventDefault()
       const k = rotSpeed() * 1.1
-      ctrl.targetYaw -= e.deltaX * k
-      ctrl.targetPitch = clampPitch(ctrl.targetPitch - e.deltaY * k)
+      applyViewSpin(e.deltaY * k, e.deltaX * k, rot.target)
     }
 
     canvas.addEventListener("pointerdown", onPointerDown)
@@ -546,7 +604,9 @@ export default function SphereGalleryClient() {
     const applyZoom = () => {
       camera.fov = zoom.fov
       camera.updateProjectionMatrix()
-      camera.position.copy(detailDir).multiplyScalar(SPHERE_RADIUS * DETAIL_DOLLY * zoom.dolly)
+      // The clicked card is rotated to dead-centre (-Z), so the dolly is a
+      // straight push along the view axis.
+      camera.position.set(0, 0, -SPHERE_RADIUS * DETAIL_DOLLY * zoom.dolly)
     }
 
     const openDetail = (mesh: THREE.Mesh) => {
@@ -554,19 +614,28 @@ export default function SphereGalleryClient() {
       detailOpenRef.current = true
       setHovered(null)
       canvas.style.cursor = "default"
-      ctrl.velYaw = 0
-      ctrl.velPitch = 0
+      rot.angVel.set(0, 0, 0)
 
-      const thetaC = mesh.userData.thetaCenter as number
-      const phiC = mesh.userData.phiCenter as number
-      detailDir.set(
-        Math.cos(phiC) * Math.sin(thetaC),
-        Math.sin(phiC),
-        -Math.cos(phiC) * Math.cos(thetaC)
+      // Rotate the ball so the card lands dead-centre…
+      const dirWorld = (mesh.userData.dirLocal as THREE.Vector3)
+        .clone()
+        .applyQuaternion(rot.target)
+        .normalize()
+      rot.target.premultiply(
+        spinQuat.setFromUnitVectors(dirWorld, new THREE.Vector3(0, 0, -1)).clone()
       )
-      // Centre the card: shortest-path yaw to -thetaC, pitch to phiC.
-      ctrl.targetYaw = ctrl.yaw + shortestAngle(-thetaC - ctrl.yaw)
-      ctrl.targetPitch = phiC
+      // …then roll about the view axis so the card sits upright on screen.
+      // A flipped tile shows its content rotated 180°, so its effective
+      // content-up is the negated local up.
+      const upWorld = (mesh.userData.upLocal as THREE.Vector3)
+        .clone()
+        .multiplyScalar(mesh.userData.flipped ? -1 : 1)
+        .applyQuaternion(rot.target)
+        .normalize()
+      const roll = Math.atan2(upWorld.x, upWorld.y)
+      rot.target.premultiply(
+        spinQuat.setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll).clone()
+      )
 
       gsap.to(zoom, {
         fov: DETAIL_FOV,
@@ -577,7 +646,7 @@ export default function SphereGalleryClient() {
       })
 
       const projectIdx = mesh.userData.projectIdx as number
-      setSelected(LOOKBOOK_PROJECTS[projectIdx])
+      setSelected(projects[projectIdx])
     }
 
     const closeDetail = () => {
@@ -629,22 +698,37 @@ export default function SphereGalleryClient() {
       const dt = Math.min((now - lastT) / 1000, 0.05)
       lastT = now
 
-      // Momentum after release
-      if (!drag.active && !detailOpenRef.current) {
-        if (Math.abs(ctrl.velYaw) > 0.0001 || Math.abs(ctrl.velPitch) > 0.0001) {
-          ctrl.targetYaw += ctrl.velYaw * dt
-          ctrl.targetPitch = clampPitch(ctrl.targetPitch + ctrl.velPitch * dt)
-          const decay = Math.exp(-dt * INERTIA_DECAY)
-          ctrl.velYaw *= decay
-          ctrl.velPitch *= decay
-        }
+      // Momentum after release — keeps spinning the ball along the fling axis
+      if (
+        !drag.active &&
+        !detailOpenRef.current &&
+        rot.angVel.lengthSq() > 1e-8
+      ) {
+        applyViewSpin(rot.angVel.x * dt, rot.angVel.y * dt, rot.target)
+        rot.angVel.multiplyScalar(Math.exp(-dt * INERTIA_DECAY))
       }
 
       // Lenis-style exponential smoothing toward the target rotation
       const s = 1 - Math.exp(-dt * SMOOTHING)
-      ctrl.yaw += (ctrl.targetYaw - ctrl.yaw) * s
-      ctrl.pitch += (ctrl.targetPitch - ctrl.pitch) * s
-      camera.rotation.set(ctrl.pitch, ctrl.yaw, 0)
+      rot.current.slerp(rot.target, s)
+      sphereGroup.quaternion.copy(rot.current)
+
+      // Keep-upright pass: when a tile's screen-space "up" tips past
+      // horizontal, swap to its 180°-rotated twin geometry so the photo and
+      // labels read upright from the far side of the ball too. Hysteresis
+      // (±0.12) stops it chattering while a tile hovers near sideways.
+      for (const tile of tileMeshes) {
+        const upY = upScratch
+          .copy(tile.userData.upLocal as THREE.Vector3)
+          .applyQuaternion(rot.current).y
+        if (!tile.userData.flipped && upY < -0.12) {
+          tile.userData.flipped = true
+          tile.geometry = tile.userData.geoFlipped as THREE.BufferGeometry
+        } else if (tile.userData.flipped && upY > 0.12) {
+          tile.userData.flipped = false
+          tile.geometry = tile.userData.geoUpright as THREE.BufferGeometry
+        }
+      }
 
       // Hover raycast (idle pointer only)
       if (!drag.active && !detailOpenRef.current && pointerNdc.x <= 1) {
@@ -692,7 +776,9 @@ export default function SphereGalleryClient() {
       if (canvas.parentElement === mount) mount.removeChild(canvas)
       apiRef.current = null
     }
-  }, [])
+    // Rebuild the whole scene if the project list changes (server-rendered
+    // prop — stable per page load, so this runs once in practice).
+  }, [projects])
 
   // --- detail overlay enter animation ------------------------------------------
   // useLayoutEffect so GSAP positions the overlay offscreen BEFORE first paint —
@@ -846,7 +932,7 @@ export default function SphereGalleryClient() {
                   Back to gallery
                 </button>
                 <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/40">
-                  {selected.brand}
+                  {selected.title}
                 </span>
               </div>
 
@@ -856,17 +942,19 @@ export default function SphereGalleryClient() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={selected.image}
+                  src={optimizedSrc(selected.image, 1080)}
                   alt={selected.title}
                   className="h-[42vh] w-full object-cover small:h-[56vh]"
                 />
               </div>
 
+              {/* brand carries the job name (lookbook item title); title is the
+                  studio/credit line — see the page.tsx mapping */}
               <h1
                 data-detail-item
                 className="mt-10 font-mono text-3xl font-medium uppercase leading-tight tracking-tight small:text-6xl"
               >
-                {selected.title}
+                {selected.brand}
               </h1>
 
               <div
