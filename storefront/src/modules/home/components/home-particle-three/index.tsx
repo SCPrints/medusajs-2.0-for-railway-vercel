@@ -562,7 +562,11 @@ function ParticleField({
         advectVelocityField(field, fieldScratch2, nm.fieldAdvection, dtMs)
         diffuseVelocityField(field, nm.fieldDiffusion, fieldScratch2)
         pressureProjectVelocityField(field, fieldScratchP, nm.fieldProjection, 1)
-        decayVelocityField(field, nm.fieldDecay, dtMs)
+        /** decayPerSec semantics: fraction removed per second, applied as
+         * (1-k)^dt — at k >= 1 that is 0^dt and the WHOLE field hard-zeros
+         * every frame (found live 2026-06-13: "deposits register, field
+         * max 0.0"). Clamp away from the cliff. */
+        decayVelocityField(field, Math.min(0.95, nm.fieldDecay), dtMs)
         /** Per-cell hygiene, one pass:
          *  - Deadband: zero near-silent cells so the Sobel projection's
          *    checkerboard mode can't breed out of numerical dust, keeping

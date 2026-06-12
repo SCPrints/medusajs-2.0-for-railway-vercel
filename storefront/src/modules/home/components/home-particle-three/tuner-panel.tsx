@@ -187,7 +187,10 @@ export const THREE_TUNING_DEFAULTS: ThreeTuning = {
   fieldAdvection: 0.7,
   fieldDiffusion: 0.05,
   fieldProjection: 0.7,
-  fieldDecay: 1.0,
+  /** Fraction of fluid energy removed per second. MUST stay < 1: the
+   * decay step applies (1-k)^dt, so k >= 1 hard-zeros the field every
+   * frame (the engine also clamps at 0.95 as a belt-and-braces). */
+  fieldDecay: 0.9,
   fieldRide: 0.1,
   fieldActivation: 4,
   fieldCellCap: 18,
@@ -456,11 +459,11 @@ const SLIDERS: SliderDef[] = [
     key: "fieldDecay",
     label: "Field decay",
     min: 0.05,
-    max: 2,
+    max: 0.95,
     step: 0.05,
     format: (v) => `${v.toFixed(2)} /s`,
     description:
-      "Fraction of fluid energy lost per second. Lower = the churn lingers longer after you stop stirring.",
+      "Fraction of fluid energy lost per second. Lower = the churn lingers longer after you stop stirring. Capped below 1.0 — at 1.0 the maths zeroes the whole field every frame.",
   },
   {
     key: "fieldRide",
