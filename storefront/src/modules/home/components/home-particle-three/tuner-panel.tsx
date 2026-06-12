@@ -89,6 +89,38 @@ export type ThreeTuning = {
   /** Wobble amplitude (world units) during the settle meander. Decays
    * linearly to 0 over `settleMs`. */
   settleWobbleAmp: number
+  /** FIELD MODE — the actual newmix mechanism. The cursor deposits
+   * velocity into a coarse Stam-style fluid grid (advection + pressure
+   * projection), and particles ride the FLUID instead of replaying cursor
+   * history. Replaces wake playback + settle while on. */
+  fieldMode: boolean
+  /** Deposit strength multiplier for each stroke splat. */
+  fieldStrength: number
+  /** Deposit splat radius (world px) — 1/r donut falloff. */
+  fieldRadius: number
+  /** Semi-Lagrangian self-advection strength (0..1) — energy travels in
+   * its own direction, forming the directional crescent wake. */
+  fieldAdvection: number
+  /** Lateral diffusion per frame (0..0.25) — energy seeps outward. */
+  fieldDiffusion: number
+  /** Pressure-projection strength (0..1) — removes divergence so vortices
+   * curl and persist instead of smearing radially. */
+  fieldProjection: number
+  /** Fraction of field energy removed per second of inactivity. */
+  fieldDecay: number
+  /** How strongly particles couple to the sampled field velocity. */
+  fieldRide: number
+  /** Local field magnitude (L1, world px/frame) above which a particle is
+   * "energized" — its home spring is suppressed so it rides the fluid. */
+  fieldActivation: number
+  /** Home spring constant (per frame at 60fps) when the local fluid is
+   * quiet. Higher = firmer, faster return. */
+  homeSpring: number
+  /** Multiplier on `homeSpring` while energized (0..1, small = the fluid
+   * owns the particle until the field dies down). */
+  energizedSpringScale: number
+  /** Per-frame velocity damping in field mode (0..1, lower = heavier). */
+  fieldFriction: number
 }
 
 /**
@@ -136,6 +168,25 @@ export const THREE_TUNING_DEFAULTS: ThreeTuning = {
   wakeCurlHz: 0.3,
   settleMs: 1800,
   settleWobbleAmp: 9,
+  /** Field mode ON — values anchored to the canvas lab's NEWMIX_PRESET
+   * (the closest match to newmixcoffee.com), adapted to this engine's
+   * world units, then pushed harder after the first capture round showed
+   * particles stirring in place instead of being CARRIED along the stroke
+   * like the reference: deposit + ride up, spring suppression down so the
+   * fluid owns energized particles, slower decay so the churn lingers.
+   * The wake-playback era is preserved as curated preset 6. */
+  fieldMode: true,
+  fieldStrength: 1.0,
+  fieldRadius: 80,
+  fieldAdvection: 0.7,
+  fieldDiffusion: 0.05,
+  fieldProjection: 0.7,
+  fieldDecay: 0.35,
+  fieldRide: 0.3,
+  fieldActivation: 0.3,
+  homeSpring: 0.012,
+  energizedSpringScale: 0.05,
+  fieldFriction: 0.62,
 }
 
 /** Keys of `ThreeTuning` whose value is a number — excludes booleans like
@@ -346,6 +397,115 @@ const SLIDERS: SliderDef[] = [
       "Wobble amplitude during the settle meander. Decays to 0 over the settle time.",
   },
   {
+    key: "fieldStrength",
+    label: "Field deposit",
+    min: 0,
+    max: 2,
+    step: 0.05,
+    format: (v) => v.toFixed(2),
+    description:
+      "How much velocity each stroke splat deposits into the fluid grid. The master energy knob for field mode.",
+  },
+  {
+    key: "fieldRadius",
+    label: "Field splat radius",
+    min: 15,
+    max: 200,
+    step: 5,
+    format: (v) => `${v.toFixed(0)} px`,
+    description:
+      "Deposit splat radius (1/r donut falloff). Larger = wider band of fluid stirred per stroke.",
+  },
+  {
+    key: "fieldAdvection",
+    label: "Field advection",
+    min: 0,
+    max: 1,
+    step: 0.05,
+    format: (v) => v.toFixed(2),
+    description:
+      "Velocity moves with itself (semi-Lagrangian). This is what makes deposited energy travel as a directional wake instead of staying put.",
+  },
+  {
+    key: "fieldProjection",
+    label: "Field projection",
+    min: 0,
+    max: 1,
+    step: 0.05,
+    format: (v) => v.toFixed(2),
+    description:
+      "Pressure projection — removes divergence so stirs curl into persistent vortices instead of smearing outward. The signature newmix ingredient.",
+  },
+  {
+    key: "fieldDiffusion",
+    label: "Field diffusion",
+    min: 0,
+    max: 0.25,
+    step: 0.01,
+    format: (v) => v.toFixed(2),
+    description: "Sideways energy seep per frame — softens the wake's edges.",
+  },
+  {
+    key: "fieldDecay",
+    label: "Field decay",
+    min: 0.05,
+    max: 2,
+    step: 0.05,
+    format: (v) => `${v.toFixed(2)} /s`,
+    description:
+      "Fraction of fluid energy lost per second. Lower = the churn lingers longer after you stop stirring.",
+  },
+  {
+    key: "fieldRide",
+    label: "Field ride",
+    min: 0,
+    max: 0.6,
+    step: 0.01,
+    format: (v) => v.toFixed(2),
+    description:
+      "How strongly particles couple to the local fluid velocity each frame.",
+  },
+  {
+    key: "fieldActivation",
+    label: "Field activation",
+    min: 0,
+    max: 4,
+    step: 0.1,
+    format: (v) => v.toFixed(1),
+    description:
+      "Local fluid magnitude above which a particle is energized (home spring suppressed, fluid owns it).",
+  },
+  {
+    key: "homeSpring",
+    label: "Home spring",
+    min: 0.001,
+    max: 0.06,
+    step: 0.001,
+    format: (v) => v.toFixed(3),
+    description:
+      "Return-to-wordmark spring once the local fluid quiets. Higher = firmer snap back.",
+  },
+  {
+    key: "energizedSpringScale",
+    label: "Energized spring",
+    min: 0,
+    max: 1,
+    step: 0.02,
+    format: (v) => v.toFixed(2),
+    description:
+      "Spring multiplier while energized. Small = particles surrender to the fluid until it dies down.",
+  },
+  {
+    key: "fieldFriction",
+    label: "Field friction",
+    min: 0.2,
+    max: 0.98,
+    step: 0.01,
+    format: (v) => v.toFixed(2),
+    description:
+      "Per-frame velocity damping in field mode. Lower = heavier fluid, motion dies quickly without re-energizing.",
+  },
+  {
     key: "pointSize",
     label: "Point size",
     min: 0.5,
@@ -356,9 +516,10 @@ const SLIDERS: SliderDef[] = [
   },
 ]
 
-/** v8: 2026-06-12 newmix pole pass — bumped so the retuned defaults land
- * even in browsers that stored the v7 payload from earlier lab visits. */
-const LS_KEY = "particle-threejs-tuning-v8"
+/** v9: 2026-06-12 field-mode port — the Stam velocity field (the actual
+ * newmix mechanism) replaces cursor-history wake playback as the default.
+ * Bumped so the new defaults land over stored v8 payloads. */
+const LS_KEY = "particle-threejs-tuning-v9"
 
 export function loadStoredTuning(): ThreeTuning {
   if (typeof window === "undefined") return THREE_TUNING_DEFAULTS
@@ -541,6 +702,20 @@ export default function ThreeTunerPanel({ tuning, onChange }: Props) {
               </p>
             ) : null}
           </div>
+
+          <label className="flex items-center justify-between rounded border border-white/15 bg-white/5 px-2 py-1.5">
+            <span className="text-[11px] font-semibold text-white/90">
+              Field mode (fluid sim)
+            </span>
+            <input
+              type="checkbox"
+              checked={tuning.fieldMode}
+              onChange={(e) =>
+                onChange({ ...tuning, fieldMode: e.target.checked })
+              }
+              className="h-3 w-3 accent-cyan-400"
+            />
+          </label>
 
           <label className="flex items-center justify-between rounded border border-white/15 bg-white/5 px-2 py-1.5">
             <span className="text-[11px] font-semibold text-white/90">

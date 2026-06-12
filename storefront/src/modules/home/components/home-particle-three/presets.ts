@@ -132,6 +132,7 @@ export const CURATED_PRESETS: Preset[] = [
     name: "5. Pre-pole defaults (pre 2026-06-12)",
     note: "Defaults as they stood before the newmix pole-tuning pass: narrower disk (98), visible cursor void (20), straight comb ribbon (no wake curl), beeline home return (no settle meander).",
     tuning: {
+      fieldMode: false,
       cursorRadius: 98,
       cursorDisplacement: 20,
       outBlend: 0.5,
@@ -143,6 +144,25 @@ export const CURATED_PRESETS: Preset[] = [
       wakeCurlHz: 0,
       settleMs: 0,
       settleWobbleAmp: 0,
+    },
+  },
+  {
+    id: "wake-playback-era-2026-06",
+    name: "6. Wake playback (pole-tuned, pre-field)",
+    note: "The 2026-06-12 pole-tuned defaults BEFORE the fluid-field port: cursor-history wake playback with curl + settle meander. Choreographed, not simulated — kept for comparison against field mode.",
+    tuning: {
+      fieldMode: false,
+      cursorRadius: 130,
+      cursorDisplacement: 6,
+      outBlend: 0.35,
+      trailFollowMs: 3200,
+      wakeBandSpreadBmp: 22,
+      wakeTimeOffsetMs: 1500,
+      carryLagBehind: 26,
+      sideSwirlForce: 9,
+      wakeCurlHz: 0.3,
+      settleMs: 1800,
+      settleWobbleAmp: 9,
     },
   },
 ]

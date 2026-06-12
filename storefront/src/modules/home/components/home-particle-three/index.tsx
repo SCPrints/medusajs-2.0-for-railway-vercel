@@ -9,26 +9,38 @@
  *   1. CARRY MODEL (in-disk) — particles inside the cursor disk (by
  *      current position) lerp toward an anchor slightly behind the cursor
  *      along −motion, with Newmix-style side swirl. Targets use current
- *      position, not home, so the whole captured blob travels with the pointer.
+ *      position, not home, so the whole captured blob travels with the
+ *      pointer — this builds the bright leading lobe under additive blend.
  *
- *   2. CURSOR-HISTORY WAKE — every frame the smooth cursor world position
- *      is appended to a ring buffer `{x, y, t}`. When a particle exits
- *      the disk, with probability `trailingProbability` it enters wake-
- *      playback: it reads the cursor-history buffer at a per-particle
- *      playhead time (offset by stagger, jittered by pace, scaled by
- *      `wakePace`) and renders along the historical path with along-
- *      tangent stretch and perpendicular band offset. This is what
- *      produces the visible comet TAIL — the geometry follows the
- *      cursor's past positions, not just its current location.
+ *   2. VELOCITY FIELD (default, `fieldMode`) — the actual newmix
+ *      mechanism. Cursor strokes deposit velocity into a coarse Stam-style
+ *      fluid grid (semi-Lagrangian advection + pressure projection +
+ *      decay, reusing the canvas hero's `velocity-field.ts`); particles
+ *      sample the grid bilinearly and ride the FLUID with a home spring
+ *      that's suppressed while the local field is energetic. Nothing
+ *      replays cursor history: a particle's journey starts when the moving
+ *      fluid (or the disk) reaches it, and recovery is the field decaying.
  *
- * This mirrors the design used by the Canvas-2D newmix engine in
- * `home-particle-logo-hero/index.tsx`, ported as the minimum-viable
- * subset (no curl noise, no diffusion wobble, no Bezier home-return).
+ *   3. CURSOR-HISTORY WAKE (legacy, `fieldMode` off) — released particles
+ *      replay the cursor's recorded path from the moment of interaction
+ *      (playhead clamped to release time) with band spread, curl
+ *      oscillation, and a post-wake settle meander. Choreographed rather
+ *      than simulated; kept selectable for comparison via preset 6.
  */
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
+import {
+  advectVelocityField,
+  clearVelocityField,
+  createVelocityField,
+  decayVelocityField,
+  diffuseVelocityField,
+  injectVelocity,
+  pressureProjectVelocityField,
+  sampleVelocityField,
+} from "../home-particle-logo-hero/velocity-field"
 import {
   sampleWordmarkStipple,
   type StipplePoint,
@@ -37,6 +49,22 @@ import ThreeTunerPanel, {
   loadStoredTuning,
   type ThreeTuning,
 } from "./tuner-panel"
+
+/** Velocity-field grid constants (field mode). The field covers the wordmark
+ * plus a margin so strokes approaching the letters push fluid ahead of the
+ * cursor before it arrives. Resolution = cells along the longer axis. */
+const FIELD_RESOLUTION = 120
+const FIELD_MARGIN_FRAC = 0.4
+/** Stroke deposit subdivision (world px) — fast flicks splat velocity at
+ * every step along the path instead of one blob per frame. */
+const FIELD_SUBDIV_PX = 6
+/** Hard cap on per-particle speed (world px/frame) — keeps a hot field from
+ * slingshotting grains across the canvas. */
+const FIELD_VEL_CAP = 55
+/** Field is considered live for this long after the last deposit. Beyond it
+ * the whole field branch (step + 140k bilinear samples) is skipped — by then
+ * decay has reduced the grid to noise. */
+const FIELD_LIVE_MS = 7000
 
 const VERTEX_SHADER = /* glsl */ `
   attribute vec3 aColor;
@@ -217,6 +245,13 @@ function ParticleField({
    * read this when they're in the trailing state to follow the cursor's
    * historical path. Trimmed every frame in useFrame. */
   const cursorHistory = useRef<CursorSample[]>([])
+  /** Wall-clock ms of the last field deposit — gates the whole field
+   * branch (grid step + per-particle sampling) when the fluid has died. */
+  const lastDepositRef = useRef(0)
+  /** Tracks the live→dead edge so the grid is flushed exactly once. */
+  const fieldWasLiveRef = useRef(false)
+  /** Reusable out-param for bilinear field samples (no per-particle alloc). */
+  const fieldSampleRef = useRef<[number, number]>([0, 0])
 
   /** Build BufferGeometry + ShaderMaterial + per-particle state arrays
    * once when stipple/count changes. */
@@ -298,6 +333,21 @@ function ParticleField({
     /** settleUntil[i] — wall-clock ms; while in the future the particle
      * meanders home (post-wake diffusive settle) instead of beelining. */
     const settleUntil = new Float32Array(count)
+    /** Per-particle velocity (world px/frame) — only integrated in field
+     * mode, where particles are fluid tracers instead of lerp targets. */
+    const velX = new Float32Array(count)
+    const velY = new Float32Array(count)
+
+    /** Velocity-field grid (field mode). World→field transform is a plain
+     * shift: fieldX = worldX + fieldHalfW, fieldY = worldY + fieldHalfH —
+     * no y-flip needed, the grid is orientation-agnostic as long as inject
+     * and sample share the mapping. */
+    const fieldMargin = width * FIELD_MARGIN_FRAC
+    const fieldW = width + fieldMargin * 2
+    const fieldH = height + fieldMargin * 2
+    const field = createVelocityField(fieldW, fieldH, FIELD_RESOLUTION)
+    const fieldScratch2 = new Float32Array(field.cols * field.rows * 2)
+    const fieldScratchP = new Float32Array(field.cols * field.rows)
 
     const geo = new THREE.BufferGeometry()
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3))
@@ -331,6 +381,13 @@ function ParticleField({
         wasInDisk,
         trailFlags,
         settleUntil,
+        velX,
+        velY,
+        field,
+        fieldScratch2,
+        fieldScratchP,
+        fieldHalfW: fieldW / 2,
+        fieldHalfH: fieldH / 2,
         count,
       },
     }
@@ -405,6 +462,13 @@ function ParticleField({
       wasInDisk,
       trailFlags,
       settleUntil,
+      velX,
+      velY,
+      field,
+      fieldScratch2,
+      fieldScratchP,
+      fieldHalfW,
+      fieldHalfH,
       count,
     } = state
     const nm = tuningRef.current
@@ -447,6 +511,74 @@ function ParticleField({
         motionSpeedRef.current *= 0.85
       }
     }
+    /** FIELD STEP — cursor stroke deposits velocity into the grid, then the
+     * grid runs one Stam tick: advect (energy travels in its own direction)
+     * → diffuse (seeps sideways) → pressure-project (divergence removed so
+     * vortices curl instead of smearing) → decay. Particles sample the
+     * result below. This is the actual newmix mechanism: the cursor stirs
+     * a fluid, and the FLUID moves the particles — nothing replays cursor
+     * history, so a particle's journey starts at the moment the moving
+     * fluid (or the disk) reaches it. */
+    const dtMs = dt * 1000
+    if (nm.fieldMode) {
+      if (smCur != null && smPrev != null) {
+        const sdx = smCur.x - smPrev.x
+        const sdy = smCur.y - smPrev.y
+        const strokeDist = Math.hypot(sdx, sdy)
+        if (strokeDist > 0.5) {
+          lastDepositRef.current = nowTick
+          /** Subdivide so fast flicks splat along the whole path — each
+           * step deposits FULL strength (a flick injects more total energy
+           * than a slow drag, matching the stirring metaphor). */
+          const steps = Math.max(1, Math.ceil(strokeDist / FIELD_SUBDIV_PX))
+          for (let s = 1; s <= steps; s++) {
+            const u = s / steps
+            injectVelocity(
+              field,
+              smPrev.x + sdx * u + fieldHalfW,
+              smPrev.y + sdy * u + fieldHalfH,
+              sdx,
+              sdy,
+              nm.fieldRadius,
+              nm.fieldStrength
+            )
+          }
+        }
+      }
+      if (nowTick - lastDepositRef.current < FIELD_LIVE_MS) {
+        advectVelocityField(field, fieldScratch2, nm.fieldAdvection, dtMs)
+        diffuseVelocityField(field, nm.fieldDiffusion, fieldScratch2)
+        pressureProjectVelocityField(field, fieldScratchP, nm.fieldProjection, 1)
+        decayVelocityField(field, nm.fieldDecay, dtMs)
+        /** Deadband — zero out near-silent cells every frame. The Sobel
+         * projection on a collocated grid can breed a creeping checkerboard
+         * mode out of numerical dust; killing sub-threshold cells starves
+         * it before it can spread and keeps the resting wordmark crisp. */
+        const fvx = field.vx
+        const fvy = field.vy
+        const cells = field.cols * field.rows
+        for (let ci = 0; ci < cells; ci++) {
+          if (
+            fvx[ci]! < 0.02 &&
+            fvx[ci]! > -0.02 &&
+            fvy[ci]! < 0.02 &&
+            fvy[ci]! > -0.02
+          ) {
+            fvx[ci] = 0
+            fvy[ci] = 0
+          }
+        }
+      }
+    }
+    const fieldLive =
+      nm.fieldMode && nowTick - lastDepositRef.current < FIELD_LIVE_MS
+    /** On the live→dead transition, flush the grid outright so no residue
+     * (numerical or otherwise) waits around for the next stroke. */
+    if (!fieldLive && fieldWasLiveRef.current) {
+      clearVelocityField(field)
+    }
+    fieldWasLiveRef.current = fieldLive
+
     if (smCur != null) {
       prevSmoothedCursor.current = { x: smCur.x, y: smCur.y }
     }
@@ -478,6 +610,19 @@ function ParticleField({
     const settleMs = nm.settleMs
     const settleWobbleAmp = nm.settleWobbleAmp
 
+    /** Field-mode per-frame factors, hoisted out of the 140k loop. dtF
+     * normalises to a 60fps reference frame so the integration is
+     * frame-rate independent. */
+    const fieldMode = nm.fieldMode
+    const dtF = dt * 60
+    const fieldRide = nm.fieldRide
+    const fieldActivation = nm.fieldActivation
+    const springBase = nm.homeSpring * dtF
+    const springEnergized = springBase * nm.energizedSpringScale
+    const frictionFactor = Math.pow(nm.fieldFriction, dtF)
+    const velCapSq = FIELD_VEL_CAP * FIELD_VEL_CAP
+    const fieldSampleOut = fieldSampleRef.current
+
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
       const hx = homes[i3]!
@@ -504,8 +649,16 @@ function ParticleField({
           const paceFactor = 1 + (rand01 * 2 - 1) * wakePaceJitter
           const particlePace = Math.max(0.05, wakePace * paceFactor)
           const timeOffset = rand4 * rand4 * wakeTimeOffsetMs
-          const playheadT =
+          /** Clamped to >= release: a particle's journey starts where the
+           * cursor was AT the moment it touched it — never earlier. Without
+           * the clamp, timeOffset pointed the playhead into history from
+           * BEFORE the interaction, so particles teleported back along the
+           * cursor's pre-contact path (e.g. toward where the mouse entered
+           * the canvas). The offset now acts as a hold-then-go delay. */
+          const playheadT = Math.max(
+            release,
             release + stagger + elapsed * particlePace - timeOffset
+          )
 
           const sample = lookupCursorHistoryAtTime(hist, playheadT)
           if (sample != null) {
@@ -646,6 +799,80 @@ function ParticleField({
             }
           }
         }
+      }
+
+      /** FIELD MODE — particles are fluid tracers. In-disk carry is kept
+       * (it builds the bright leading lobe under additive blending); the
+       * moment a particle is outside the disk its motion comes from the
+       * velocity field + a home spring that's suppressed while the local
+       * fluid is energetic. No cursor-history playback, no settle
+       * choreography — recovery is the field decaying. */
+      if (fieldMode) {
+        if (inDisk) {
+          const prevX = px
+          const prevY = py
+          px += (targetX - px) * inAlpha
+          py += (targetY - py) * inAlpha
+          /** Hand the carry motion off as momentum so disk-exit flows
+           * seamlessly into the fluid instead of stopping dead. */
+          velX[i] = px - prevX
+          velY[i] = py - prevY
+        } else {
+          let vx = velX[i]!
+          let vy = velY[i]!
+          let fmagL1 = 0
+          if (fieldLive) {
+            sampleVelocityField(
+              field,
+              px + fieldHalfW,
+              py + fieldHalfH,
+              fieldSampleOut
+            )
+            const fvx = fieldSampleOut[0]
+            const fvy = fieldSampleOut[1]
+            fmagL1 = Math.abs(fvx) + Math.abs(fvy)
+            vx += fvx * fieldRide
+            vy += fvy * fieldRide
+          }
+          const ddx = hx - px
+          const ddy = hy - py
+          /** Quiet + home + slow → snap and zero out. Keeps the resting
+           * wordmark pixel-crisp instead of hovering a fraction off home
+           * under the (deliberately soft) spring. */
+          if (
+            fmagL1 < 0.05 &&
+            vx < 0.05 && vx > -0.05 &&
+            vy < 0.05 && vy > -0.05 &&
+            ddx < 0.5 && ddx > -0.5 &&
+            ddy < 0.5 && ddy > -0.5
+          ) {
+            positions[i3] = hx
+            positions[i3 + 1] = hy
+            velX[i] = 0
+            velY[i] = 0
+            wasInDisk[i] = 0
+            continue
+          }
+          const springK = fmagL1 > fieldActivation ? springEnergized : springBase
+          vx += ddx * springK
+          vy += ddy * springK
+          vx *= frictionFactor
+          vy *= frictionFactor
+          const spSq = vx * vx + vy * vy
+          if (spSq > velCapSq) {
+            const s = FIELD_VEL_CAP / Math.sqrt(spSq)
+            vx *= s
+            vy *= s
+          }
+          px += vx * dtF
+          py += vy * dtF
+          velX[i] = vx
+          velY[i] = vy
+        }
+        wasInDisk[i] = inDisk ? 1 : 0
+        positions[i3] = px
+        positions[i3 + 1] = py
+        continue
       }
 
       if (inDisk) {
