@@ -492,6 +492,11 @@ export default function SphereGalleryClient({
           depthWrite: false,
         })
         const mesh = new THREE.Mesh(poleLogoGeo, mat)
+        // Tiles keep their pivot at the sphere origin, so the transparent
+        // sort draws them AFTER anything with real distance — painting over
+        // the wordmark. Render the logo last: it's strictly inside the
+        // sphere, so along any sight-line it's genuinely in front of tiles.
+        mesh.renderOrder = 1
         mesh.position.set(0, sign * POLE_LOGO_Y, 0)
         // YXZ: face the pole plane toward the centre first (±90° about X),
         // then the per-frame yaw billboard spins it about the world Y axis.
