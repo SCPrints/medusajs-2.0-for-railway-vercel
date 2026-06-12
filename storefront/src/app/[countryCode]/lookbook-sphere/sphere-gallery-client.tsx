@@ -15,11 +15,20 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import dynamic from "next/dynamic"
 import * as THREE from "three"
 import gsap from "gsap"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { sampleWordmarkStipple } from "@modules/home/components/home-particle-three/sample-wordmark"
+
+/** The fully interactive lab build (cursor carry + comet wake) — only
+ * loaded when a pole is clicked, so browsing the sphere doesn't pay for
+ * react-three-fiber. */
+const HomeParticleThree = dynamic(
+  () => import("@modules/home/components/home-particle-three"),
+  { ssr: false }
+)
 import {
   SPHERE_ROW_PHIS_DEG,
   sphereColsForPhiDeg,
@@ -75,6 +84,8 @@ const POLE_PARTICLE_COUNT = 7000
 const POLE_POINT_SIZE = 0.3
 // Backing disc: plane size + radial fade drawn into its texture.
 const POLE_DISC_SIZE = 9
+// Invisible click target over each pole mark (world units).
+const POLE_HIT_RADIUS = 3.4
 
 // Same gradient the /particle-threejs lab paints across the wordmark.
 const POLE_GRADIENT_STOPS: [number, number, number][] = [
@@ -395,14 +406,17 @@ export default function SphereGalleryClient({
   const mountRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const overlayContentRef = useRef<HTMLDivElement>(null)
+  const particleOverlayRef = useRef<HTMLDivElement>(null)
 
   const [selected, setSelected] = useState<SphereProject | null>(null)
+  const [particlePlayOpen, setParticlePlayOpen] = useState(false)
   const [introDone, setIntroDone] = useState(false)
 
   // Imperative bridge between React click-handlers and the WebGL effect.
   const apiRef = useRef<{
     openByMesh: (mesh: THREE.Mesh) => void
     close: () => void
+    closePole: () => void
   } | null>(null)
   const detailOpenRef = useRef(false)
 
@@ -530,6 +544,8 @@ export default function SphereGalleryClient({
     // legitimate, since along any sight-line the pole plane is hit before
     // the shell.
     const poleGroups: THREE.Group[] = []
+    // Invisible circles over the marks — raycast targets for click + hover.
+    const poleHitMeshes: THREE.Mesh[] = []
     let polePointsMat: THREE.ShaderMaterial | null = null
     const poleDispose: (() => void)[] = []
     let poleCancelled = false
@@ -615,6 +631,16 @@ export default function SphereGalleryClient({
         })
         const discGeo = new THREE.PlaneGeometry(POLE_DISC_SIZE, POLE_DISC_SIZE)
 
+        // Click target: opacity-0 (NOT visible:false — that would also hide
+        // it from the raycaster's perspective in render, while opacity 0
+        // keeps raycasting reliable across three versions).
+        const hitGeo = new THREE.CircleGeometry(POLE_HIT_RADIUS, 24)
+        const hitMat = new THREE.MeshBasicMaterial({
+          transparent: true,
+          opacity: 0,
+          depthWrite: false,
+        })
+
         for (const sign of [1, -1]) {
           const group = new THREE.Group()
           group.position.set(0, sign * POLE_LOGO_Y, 0)
@@ -626,10 +652,14 @@ export default function SphereGalleryClient({
           disc.renderOrder = 1
           const grains = new THREE.Points(pointsGeo, pointsMat)
           grains.renderOrder = 2
+          const hit = new THREE.Mesh(hitGeo, hitMat)
+          hit.userData.poleSign = sign
           group.add(disc)
           group.add(grains)
+          group.add(hit)
           scene.add(group)
           poleGroups.push(group)
+          poleHitMeshes.push(hit)
         }
 
         gsap.to(discMat, {
@@ -653,6 +683,8 @@ export default function SphereGalleryClient({
           discGeo.dispose()
           discMat.dispose()
           discTex.dispose()
+          hitGeo.dispose()
+          hitMat.dispose()
         })
       })
       .catch(() => {
@@ -753,8 +785,14 @@ export default function SphereGalleryClient({
       } catch {}
 
       if (drag.total < CLICK_DIST_PX && !detailOpenRef.current) {
-        // Click, not drag → open whatever card is under the pointer.
+        // Click, not drag → open whatever is under the pointer. The pole
+        // wordmarks render above the tiles in the cap zone, so they win.
         raycaster.setFromCamera(pointerNdc, camera)
+        const poleHits = raycaster.intersectObjects(poleHitMeshes, false)
+        if (poleHits.length > 0) {
+          openPole((poleHits[0]!.object.userData.poleSign as number) ?? 1)
+          return
+        }
         const hits = raycaster.intersectObjects(tileMeshes, false)
         if (hits.length > 0) {
           openDetail(hits[0].object as THREE.Mesh)
@@ -843,7 +881,50 @@ export default function SphereGalleryClient({
       })
     }
 
-    apiRef.current = { openByMesh: openDetail, close: closeDetail }
+    // --- pole playground open / close ------------------------------------------
+    // Same camera language as a card click: fly straight at the pole while
+    // the FOV tightens, then the React overlay slides over the top.
+    const openPole = (sign: number) => {
+      if (detailOpenRef.current) return
+      detailOpenRef.current = true
+      setHovered(null)
+      canvas.style.cursor = "default"
+      ctrl.velYaw = 0
+      ctrl.velPitch = 0
+
+      detailDir.set(0, sign, 0)
+      // Look straight at the pole — past the browse clamp on purpose; the
+      // close path eases the pitch back inside the stop.
+      ctrl.targetPitch = sign * (Math.PI / 2)
+
+      gsap.to(zoom, {
+        fov: DETAIL_FOV,
+        dolly: 1,
+        duration: 1.0,
+        ease: "power3.inOut",
+        onUpdate: applyZoom,
+      })
+
+      setParticlePlayOpen(true)
+    }
+
+    const closePole = () => {
+      gsap.to(zoom, {
+        fov: BASE_FOV,
+        dolly: 0,
+        duration: 0.95,
+        ease: "power3.inOut",
+        onUpdate: applyZoom,
+        onComplete: () => {
+          detailOpenRef.current = false
+          canvas.style.cursor = "grab"
+          // The pole sits beyond the pitch stop — ease back inside it.
+          ctrl.targetPitch = clampPitch(ctrl.pitch)
+        },
+      })
+    }
+
+    apiRef.current = { openByMesh: openDetail, close: closeDetail, closePole }
 
     // --- intro ---------------------------------------------------------------------
     const introZoom = { fov: 92 }
@@ -900,11 +981,22 @@ export default function SphereGalleryClient({
       for (const g of poleGroups) g.rotation.y = ctrl.yaw
       if (polePointsMat) polePointsMat.uniforms.uTime!.value = now / 1000
 
-      // Hover raycast (idle pointer only)
+      // Hover raycast (idle pointer only). Pole marks beat tiles, matching
+      // the click priority — they get a pointer cursor but no invert state.
       if (!drag.active && !detailOpenRef.current && pointerNdc.x <= 1) {
         raycaster.setFromCamera(pointerNdc, camera)
-        const hits = raycaster.intersectObjects(tileMeshes, false)
-        setHovered(hits.length > 0 ? (hits[0].object as THREE.Mesh) : null)
+        const overPole =
+          poleHitMeshes.length > 0 &&
+          raycaster.intersectObjects(poleHitMeshes, false).length > 0
+        if (overPole) {
+          setHovered(null)
+          if (canvas.style.cursor !== "pointer") canvas.style.cursor = "pointer"
+        } else {
+          const hits = raycaster.intersectObjects(tileMeshes, false)
+          setHovered(hits.length > 0 ? (hits[0].object as THREE.Mesh) : null)
+          const want = hovered ? "pointer" : "grab"
+          if (canvas.style.cursor !== want) canvas.style.cursor = want
+        }
       }
 
       renderer.render(scene, camera)
@@ -992,6 +1084,41 @@ export default function SphereGalleryClient({
       onComplete: () => {
         setSelected(null)
         apiRef.current?.close()
+      },
+    })
+  }, [])
+
+  // --- particle playground overlay (pole click) --------------------------------
+  // Same slide-up entrance as the card detail page.
+  useLayoutEffect(() => {
+    if (!particlePlayOpen) return
+    const overlay = particleOverlayRef.current
+    if (!overlay) return
+    const tl = gsap.timeline()
+    tl.fromTo(
+      overlay,
+      { yPercent: 100 },
+      { yPercent: 0, duration: 0.85, ease: "power4.inOut", delay: 0.25 }
+    )
+    return () => {
+      tl.kill()
+    }
+  }, [particlePlayOpen])
+
+  const handleParticleClose = useCallback(() => {
+    const overlay = particleOverlayRef.current
+    if (!overlay) {
+      setParticlePlayOpen(false)
+      apiRef.current?.closePole()
+      return
+    }
+    gsap.to(overlay, {
+      yPercent: 100,
+      duration: 0.7,
+      ease: "power4.in",
+      onComplete: () => {
+        setParticlePlayOpen(false)
+        apiRef.current?.closePole()
       },
     })
   }, [])
@@ -1173,6 +1300,39 @@ export default function SphereGalleryClient({
                 </LocalizedClientLink>
               </div>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ---------------- particle playground overlay (pole click) ---------------- */}
+      {particlePlayOpen ? (
+        <div
+          ref={particleOverlayRef}
+          className="absolute inset-0 z-30 bg-[#0d0d0d]"
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between px-6 py-4 small:px-10">
+              <button
+                onClick={handleParticleClose}
+                className="group flex min-h-11 items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-white/70 transition-colors hover:text-white"
+              >
+                <span className="transition-transform duration-300 group-hover:-translate-x-1">
+                  ←
+                </span>
+                Back to gallery
+              </button>
+              <span className="font-mono text-xs uppercase tracking-[0.18em] text-white/40">
+                SC Prints · Particle wordmark
+              </span>
+            </div>
+
+            <div className="min-h-0 flex-1">
+              <HomeParticleThree hideChrome heightClassName="h-full" />
+            </div>
+
+            <p className="px-6 pb-5 pt-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">
+              Move your cursor through the letters
+            </p>
           </div>
         </div>
       ) : null}

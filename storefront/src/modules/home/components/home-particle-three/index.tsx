@@ -198,7 +198,7 @@ function ParticleField({
   useImageColors = false,
 }: ParticleFieldProps) {
   const pointsRef = useRef<THREE.Points>(null)
-  const { size, camera } = useThree()
+  const { size, camera, gl } = useThree()
   const mouseWorld = useRef<{ x: number; y: number } | null>(null)
   /** Smoothed cursor position. Each onMove samples are smoothed
    * exponentially toward this ref so the history buffer doesn't carry
@@ -369,15 +369,18 @@ function ParticleField({
       mouseWorld.current = null
       smoothedCursor.current = null
     }
-    const dom = document.querySelector("canvas")
-    if (dom == null) return
+    // Use THIS scene's canvas — document.querySelector("canvas") grabbed the
+    // first canvas in the DOM, which is the wrong one when the particle
+    // field is embedded in a page that already renders WebGL (e.g. the
+    // lookbook sphere's pole-wordmark overlay).
+    const dom = gl.domElement
     dom.addEventListener("mousemove", onMove)
     dom.addEventListener("mouseleave", onLeave)
     return () => {
       dom.removeEventListener("mousemove", onMove)
       dom.removeEventListener("mouseleave", onLeave)
     }
-  }, [camera])
+  }, [camera, gl])
 
   useFrame((_, dtRaw) => {
     const dt = Math.min(0.05, dtRaw)
@@ -803,12 +806,21 @@ type Props = {
   /** When true, sample each particle's colour directly from the source image
    * instead of using the gradient. Ideal for photos. */
   useImageColors?: boolean
+  /** Hide the tuner panel + particle-count caption — for customer-facing
+   * embeds (e.g. the lookbook sphere's pole overlay) where dev chrome
+   * doesn't belong. Tuning still loads from storage/defaults. */
+  hideChrome?: boolean
+  /** Override the container height class (default: h-screen for cover,
+   * h-[80vh] for contain). Pass "h-full" to fill an embedding flex parent. */
+  heightClassName?: string
 }
 
 export default function HomeParticleThree({
   logoSrc = "/branding/sc-prints-logo-transparent.png",
   logoFit = "contain",
   useImageColors = false,
+  hideChrome = false,
+  heightClassName,
 }: Props) {
   const [stipple, setStipple] = useState<{
     points: StipplePoint[]
@@ -847,7 +859,11 @@ export default function HomeParticleThree({
   }
 
   return (
-    <div className={`relative w-full bg-black ${logoFit === "cover" ? "h-screen" : "h-[80vh]"}`}>
+    <div
+      className={`relative w-full bg-black ${
+        heightClassName ?? (logoFit === "cover" ? "h-screen" : "h-[80vh]")
+      }`}
+    >
       <Canvas
         camera={{ position: [0, 0, 1000], fov: 35, near: 1, far: 5000 }}
         gl={{ antialias: false, powerPreference: "high-performance" }}
@@ -867,10 +883,14 @@ export default function HomeParticleThree({
           )}
         </Suspense>
       </Canvas>
-      <ThreeTunerPanel tuning={tuning} onChange={setTuning} />
-      <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-ui-fg-subtle">
-        Three.js Points · {tuning.particleCount.toLocaleString()} particles
-      </div>
+      {!hideChrome && (
+        <>
+          <ThreeTunerPanel tuning={tuning} onChange={setTuning} />
+          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-ui-fg-subtle">
+            Three.js Points · {tuning.particleCount.toLocaleString()} particles
+          </div>
+        </>
+      )}
     </div>
   )
 }
