@@ -67,7 +67,10 @@ const FRAGMENT_SHADER = /* glsl */ `
   }
 `
 
-const WORDMARK_GRADIENT_STOPS: [number, number, number][] = [
+export type GradientStops = readonly [number, number, number][]
+
+/** Default rainbow — used when the embedder doesn't pass `gradientStops`. */
+const WORDMARK_GRADIENT_STOPS: GradientStops = [
   [255, 64, 64],
   [255, 165, 0],
   [255, 230, 0],
@@ -186,6 +189,7 @@ type ParticleFieldProps = {
   tuningRef: React.MutableRefObject<ThreeTuning>
   logoFit?: "contain" | "cover"
   useImageColors?: boolean
+  gradientStops?: GradientStops
 }
 
 function ParticleField({
@@ -196,6 +200,7 @@ function ParticleField({
   tuningRef,
   logoFit = "contain",
   useImageColors = false,
+  gradientStops,
 }: ParticleFieldProps) {
   const pointsRef = useRef<THREE.Points>(null)
   const { size, camera, gl } = useThree()
@@ -258,14 +263,15 @@ function ParticleField({
         colors[i3 + 1] = sp.g!
         colors[i3 + 2] = sp.b!
       } else {
+        const stops = gradientStops ?? WORDMARK_GRADIENT_STOPS
         const t = sp.u
-        const segCount = WORDMARK_GRADIENT_STOPS.length - 1
+        const segCount = stops.length - 1
         const segPos = t * segCount
         let segIdx = Math.floor(segPos)
         if (segIdx >= segCount) segIdx = segCount - 1
         const localT = segPos - segIdx
-        const c1 = WORDMARK_GRADIENT_STOPS[segIdx]!
-        const c2 = WORDMARK_GRADIENT_STOPS[segIdx + 1]!
+        const c1 = stops[segIdx]!
+        const c2 = stops[segIdx + 1]!
         colors[i3 + 0] = (c1[0] + (c2[0] - c1[0]) * localT) / 255
         colors[i3 + 1] = (c1[1] + (c2[1] - c1[1]) * localT) / 255
         colors[i3 + 2] = (c1[2] + (c2[2] - c1[2]) * localT) / 255
@@ -289,6 +295,9 @@ function ParticleField({
     const trailOffY = new Float32Array(count)
     const wasInDisk = new Uint8Array(count)
     const trailFlags = new Float32Array(count)
+    /** settleUntil[i] — wall-clock ms; while in the future the particle
+     * meanders home (post-wake diffusive settle) instead of beelining. */
+    const settleUntil = new Float32Array(count)
 
     const geo = new THREE.BufferGeometry()
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3))
@@ -321,10 +330,11 @@ function ParticleField({
         trailOffY,
         wasInDisk,
         trailFlags,
+        settleUntil,
         count,
       },
     }
-  }, [stipple, particleCount, width, height, tuningRef])
+  }, [stipple, particleCount, width, height, tuningRef, gradientStops, useImageColors])
 
   useEffect(() => {
     material.uniforms.uPixelRatio.value = Math.min(window.devicePixelRatio, 2)
@@ -394,6 +404,7 @@ function ParticleField({
       trailOffY,
       wasInDisk,
       trailFlags,
+      settleUntil,
       count,
     } = state
     const nm = tuningRef.current
@@ -463,6 +474,9 @@ function ParticleField({
     const wakeBandSpreadBmp = nm.wakeBandSpreadBmp
     const wakeReleaseStaggerMs = nm.wakeReleaseStaggerMs
     const trailingProbability = nm.trailingProbability
+    const wakeCurlHz = nm.wakeCurlHz
+    const settleMs = nm.settleMs
+    const settleWobbleAmp = nm.settleWobbleAmp
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
@@ -524,8 +538,21 @@ function ParticleField({
               ? 0.15 + rand2 * 0.5
               : 0.7 + rand2 * 0.6
 
+            /** Slow billow — the band offset oscillates across the path
+             * (per-particle phase) instead of holding one side, so the
+             * ribbon curls into tongues like the reference's wake rather
+             * than reading as a straight comb. wakeCurlHz=0 → cos of the
+             * phase alone, a fixed per-particle value ≈ the old look. */
+            const curl =
+              wakeCurlHz > 0
+                ? Math.cos(
+                    elapsed * 0.001 * wakeCurlHz * Math.PI * 2 +
+                      rand4 * Math.PI * 2
+                  )
+                : 1
+
             const bandAmp =
-              wakeBandSpreadBmp * swirlSide * magnitudeMul * taper
+              wakeBandSpreadBmp * swirlSide * magnitudeMul * taper * curl
             const stretchSign = rand01 * 2 - 1
             const stretchAmp = wakeAlongStretchBmp * stretchSign
 
@@ -559,9 +586,13 @@ function ParticleField({
         wasInDisk[i] = 0
         continue
       } else if (tUntil > 0) {
-        /** Trail just ended — clear the flag so next disk visit can re-arm. */
+        /** Trail just ended — clear the flag so next disk visit can re-arm,
+         * and start the settle meander so the particle drifts home along a
+         * wandering path instead of beelining (the reference's slow
+         * diffusive recovery). */
         trailUntil[i] = 0
         trailFlags[i] = 0
+        if (settleMs > 0) settleUntil[i] = nowTick + settleMs
       }
 
       /** CARRY MODEL — disk test uses current position so carried grains
@@ -615,6 +646,25 @@ function ParticleField({
             }
           }
         }
+      }
+
+      if (inDisk) {
+        /** Capture overrides settle — a re-grabbed particle is live again. */
+        settleUntil[i] = 0
+      } else if (settleUntil[i]! > nowTick) {
+        /** SETTLE — post-wake meander. The home target wobbles on a
+         * per-particle Lissajous (two incommensurate frequencies, phases
+         * from the hash) whose amplitude decays linearly over settleMs,
+         * so released particles wander back instead of converging in
+         * straight lines. */
+        const remain = (settleUntil[i]! - nowTick) / Math.max(1, settleMs)
+        const h = trailHash[i]!
+        const ph1 = ((h & 0xffff) / 0xffff) * Math.PI * 2
+        const ph2 = (((h >>> 10) & 0xffff) / 0xffff) * Math.PI * 2
+        const wob = settleWobbleAmp * remain
+        const tSec = nowTick * 0.001
+        targetX += Math.sin(tSec * 2.6 + ph1) * wob
+        targetY += Math.cos(tSec * 2.1 + ph2) * wob
       }
 
       const alpha = inDisk ? inAlpha : outAlpha
@@ -813,6 +863,10 @@ type Props = {
   /** Override the container height class (default: h-screen for cover,
    * h-[80vh] for contain). Pass "h-full" to fill an embedding flex parent. */
   heightClassName?: string
+  /** Override the gradient painted across the wordmark (left → right
+   * stops, 0-255 RGB). Defaults to the lab rainbow. The lookbook sphere
+   * passes a different palette per pole. */
+  gradientStops?: GradientStops
 }
 
 export default function HomeParticleThree({
@@ -821,6 +875,7 @@ export default function HomeParticleThree({
   useImageColors = false,
   hideChrome = false,
   heightClassName,
+  gradientStops,
 }: Props) {
   const [stipple, setStipple] = useState<{
     points: StipplePoint[]
@@ -879,6 +934,7 @@ export default function HomeParticleThree({
               tuningRef={tuningRef}
               logoFit={logoFit}
               useImageColors={useImageColors}
+              gradientStops={gradientStops}
             />
           )}
         </Suspense>

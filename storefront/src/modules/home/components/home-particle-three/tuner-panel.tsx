@@ -77,38 +77,65 @@ export type ThreeTuning = {
   motionGateSpeed: number
   /** `((R - dist) / R) ^ power` falloff for swirl/carry. */
   falloffPower: number
+  /** Slow billow frequency (Hz) of the wake band's perpendicular offset.
+   * 0 = fixed side per particle (straight comb ribbon); >0 = particles
+   * oscillate across the path so the wake curls into tongues, matching
+   * the newmixcoffee.com reference's billowing trail. */
+  wakeCurlHz: number
+  /** After a particle's wake playback ends it meanders home for this many
+   * ms instead of beelining — the reference's slow diffusive recovery.
+   * 0 disables the settle phase entirely. */
+  settleMs: number
+  /** Wobble amplitude (world units) during the settle meander. Decays
+   * linearly to 0 over `settleMs`. */
+  settleWobbleAmp: number
 }
 
+/**
+ * Defaults tuned 2026-06-12 against frame-by-frame captures of
+ * newmixcoffee.com responding to a scripted cursor flick (see the
+ * three-way GIF comparison in that session). The three gaps the pass
+ * targets: broader material grab (radius up, void down), a curling wake
+ * band instead of a straight comb (wakeCurlHz), and slow diffusive
+ * recovery after the wake ends (settleMs/settleWobbleAmp). The previous
+ * defaults are preserved as the "Pre-pole defaults" curated preset.
+ */
 export const THREE_TUNING_DEFAULTS: ThreeTuning = {
   particleCount: 140000,
-  cursorRadius: 98,
-  /** Void zone at cursor tip — keeps a clean hole at the very centre. */
-  cursorDisplacement: 20,
+  /** Broad disk — the reference disturbs a wide band of letter material
+   * per stroke, not a narrow channel. */
+  cursorRadius: 130,
+  /** Near-zero void — the reference shows a BRIGHT leading lobe where
+   * particles bunch under additive blending, not a clean hole. */
+  cursorDisplacement: 6,
   /** Pull from current position toward the behind-cursor anchor each frame. */
   carryStrength: 0.94,
   trailDisplacement: 35,
   trailSpeedCap: 300,
   /** Snappy in-disk follow so the whole disk moves with the cursor. */
   inBlend: 16,
-  /** outBlend=0.5 → alpha≈0.008/frame → ~2–3 s visible comet tail. */
-  outBlend: 0.5,
+  /** outBlend=0.35 → slower drift home = longer-lived disturbance. */
+  outBlend: 0.35,
   pointSize: 2.5,
   /** Every particle that leaves the disk enters wake playback. */
   trailingProbability: 1,
-  trailFollowMs: 2500,
+  trailFollowMs: 3200,
   wakePace: 0.48,
   wakePaceJitter: 0.35,
-  wakeTimeOffsetMs: 1200,
+  wakeTimeOffsetMs: 1500,
   wakeAlongStretchBmp: 22,
-  wakeBandSpreadBmp: 14,
+  wakeBandSpreadBmp: 22,
   wakeReleaseStaggerMs: 80,
   debugOverlay: false,
-  carryLagBehind: 22,
-  sideSwirlForce: 7.5,
+  carryLagBehind: 26,
+  sideSwirlForce: 9,
   frontPush: 3.5,
   backInward: 2.5,
   motionGateSpeed: 1.2,
   falloffPower: 1.4,
+  wakeCurlHz: 0.3,
+  settleMs: 1800,
+  settleWobbleAmp: 9,
 }
 
 /** Keys of `ThreeTuning` whose value is a number — excludes booleans like
@@ -289,6 +316,36 @@ const SLIDERS: SliderDef[] = [
       "Particle-by-particle delay before playback starts after release. Staggered staggers produce the comet-tail growth from the cursor outward.",
   },
   {
+    key: "wakeCurlHz",
+    label: "Wake curl",
+    min: 0,
+    max: 1.2,
+    step: 0.05,
+    format: (v) => `${v.toFixed(2)} Hz`,
+    description:
+      "Billow frequency of the wake band. 0 = straight comb ribbon; >0 = particles oscillate across the path so the trail curls into tongues (Newmix-style).",
+  },
+  {
+    key: "settleMs",
+    label: "Settle time",
+    min: 0,
+    max: 5000,
+    step: 100,
+    format: (v) => `${(v / 1000).toFixed(1)} s`,
+    description:
+      "After the wake ends, the particle meanders home for this long instead of beelining — the slow diffusive recovery the reference shows. 0 disables.",
+  },
+  {
+    key: "settleWobbleAmp",
+    label: "Settle wobble",
+    min: 0,
+    max: 30,
+    step: 1,
+    format: (v) => `${v.toFixed(0)} px`,
+    description:
+      "Wobble amplitude during the settle meander. Decays to 0 over the settle time.",
+  },
+  {
     key: "pointSize",
     label: "Point size",
     min: 0.5,
@@ -299,7 +356,9 @@ const SLIDERS: SliderDef[] = [
   },
 ]
 
-const LS_KEY = "particle-threejs-tuning-v7"
+/** v8: 2026-06-12 newmix pole pass — bumped so the retuned defaults land
+ * even in browsers that stored the v7 payload from earlier lab visits. */
+const LS_KEY = "particle-threejs-tuning-v8"
 
 export function loadStoredTuning(): ThreeTuning {
   if (typeof window === "undefined") return THREE_TUNING_DEFAULTS

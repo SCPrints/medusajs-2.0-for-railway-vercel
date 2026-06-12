@@ -67,10 +67,11 @@ const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
 // correction is needed.
 // Pole wordmarks — the particle build from /particle-threejs, embedded in the
 // sphere scene. The wordmark alpha is stippled into a point cloud
-// (sampleWordmarkStipple) and rendered as shader-animated grains with the
-// lab's rainbow gradient; a soft black disc behind each mark masks the card
-// header text that crowds the north cap rim (cards point their tops at the
-// north pole, so without the disc the titles bleed through the letter gaps).
+// (sampleWordmarkStipple) and rendered as shader-animated grains painted with
+// a per-pole gradient (north solar, south aurora — see POLE_GRADIENT_*); a
+// soft black disc behind each mark masks the card header text that crowds the
+// north cap rim (cards point their tops at the north pole, so without the
+// disc the titles bleed through the letter gaps).
 const POLE_LOGO_SRC = "/branding/sc-prints-logo-white-transparent.png"
 // Sized to the cap hole (the rings leave a ~10° opening) so the mark brands
 // the empty pole without blotting out the surrounding cards, and parked just
@@ -87,15 +88,25 @@ const POLE_DISC_SIZE = 9
 // Invisible click target over each pole mark (world units).
 const POLE_HIT_RADIUS = 3.4
 
-// Same gradient the /particle-threejs lab paints across the wordmark.
-const POLE_GRADIENT_STOPS: [number, number, number][] = [
-  [255, 64, 64],
-  [255, 165, 0],
-  [255, 230, 0],
-  [80, 220, 100],
-  [60, 170, 240],
-  [120, 90, 220],
-  [220, 80, 200],
+// Each pole gets its own palette — the wordmark stipple on the cap AND the
+// particle playground it opens into share the pole's gradient, so the colour
+// language carries through the click. North runs hot (solar ramp anchored on
+// the brand pink); south runs cold (aurora australis — fitting, since that's
+// the southern lights).
+const POLE_GRADIENT_NORTH: [number, number, number][] = [
+  [201, 24, 74],
+  [255, 46, 99],
+  [255, 122, 48],
+  [255, 183, 60],
+  [255, 226, 140],
+]
+const POLE_GRADIENT_SOUTH: [number, number, number][] = [
+  [16, 185, 129],
+  [45, 212, 191],
+  [34, 211, 238],
+  [56, 130, 246],
+  [129, 90, 230],
+  [192, 110, 255],
 ]
 
 const POLE_VERTEX_SHADER = /* glsl */ `
@@ -410,6 +421,8 @@ export default function SphereGalleryClient({
 
   const [selected, setSelected] = useState<SphereProject | null>(null)
   const [particlePlayOpen, setParticlePlayOpen] = useState(false)
+  /** Which pole the playground was opened from — picks its gradient. */
+  const [activePoleSign, setActivePoleSign] = useState<1 | -1>(1)
   const [introDone, setIntroDone] = useState(false)
 
   // Imperative bridge between React click-handlers and the WebGL effect.
@@ -565,34 +578,60 @@ export default function SphereGalleryClient({
         const count = Math.min(POLE_PARTICLE_COUNT, points.length)
         const scale = POLE_LOGO_WIDTH / width
         const positions = new Float32Array(count * 3)
-        const colors = new Float32Array(count * 3)
         const seeds = new Float32Array(count * 3)
-        const segCount = POLE_GRADIENT_STOPS.length - 1
+        /** Gradient coordinate (0..1 across the mark) per sampled grain —
+         * kept so each pole can paint the same stipple with its own
+         * palette without re-walking the sample set. */
+        const us = new Float32Array(count)
         for (let i = 0; i < count; i++) {
           const sp = points[indices[i]!]!
           const i3 = i * 3
           positions[i3] = (sp.x - width / 2) * scale
           positions[i3 + 1] = (height / 2 - sp.y) * scale
           positions[i3 + 2] = 0
-          const segPos = Math.min(sp.u, 0.9999) * segCount
-          const segIdx = Math.floor(segPos)
-          const localT = segPos - segIdx
-          const c1 = POLE_GRADIENT_STOPS[segIdx]!
-          const c2 = POLE_GRADIENT_STOPS[segIdx + 1]!
-          colors[i3] = (c1[0] + (c2[0] - c1[0]) * localT) / 255
-          colors[i3 + 1] = (c1[1] + (c2[1] - c1[1]) * localT) / 255
-          colors[i3 + 2] = (c1[2] + (c2[2] - c1[2]) * localT) / 255
+          us[i] = sp.u
           seeds[i3] = Math.random()
           seeds[i3 + 1] = Math.random()
           seeds[i3 + 2] = Math.random()
         }
-        const pointsGeo = new THREE.BufferGeometry()
-        pointsGeo.setAttribute(
-          "position",
-          new THREE.BufferAttribute(positions, 3)
-        )
-        pointsGeo.setAttribute("aColor", new THREE.BufferAttribute(colors, 3))
-        pointsGeo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 3))
+
+        const buildColors = (stops: [number, number, number][]) => {
+          const colors = new Float32Array(count * 3)
+          const segCount = stops.length - 1
+          for (let i = 0; i < count; i++) {
+            const i3 = i * 3
+            const segPos = Math.min(us[i]!, 0.9999) * segCount
+            const segIdx = Math.floor(segPos)
+            const localT = segPos - segIdx
+            const c1 = stops[segIdx]!
+            const c2 = stops[segIdx + 1]!
+            colors[i3] = (c1[0] + (c2[0] - c1[0]) * localT) / 255
+            colors[i3 + 1] = (c1[1] + (c2[1] - c1[1]) * localT) / 255
+            colors[i3 + 2] = (c1[2] + (c2[2] - c1[2]) * localT) / 255
+          }
+          return colors
+        }
+
+        /** One geometry per pole — positions/seeds share the same backing
+         * arrays (static, never mutated), only the colour attribute
+         * differs between north and south. */
+        const makePoleGeo = (stops: [number, number, number][]) => {
+          const geo = new THREE.BufferGeometry()
+          geo.setAttribute(
+            "position",
+            new THREE.BufferAttribute(positions, 3)
+          )
+          geo.setAttribute(
+            "aColor",
+            new THREE.BufferAttribute(buildColors(stops), 3)
+          )
+          geo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 3))
+          return geo
+        }
+        const poleGeoBySign = new Map<number, THREE.BufferGeometry>([
+          [1, makePoleGeo(POLE_GRADIENT_NORTH)],
+          [-1, makePoleGeo(POLE_GRADIENT_SOUTH)],
+        ])
 
         const pointsMat = new THREE.ShaderMaterial({
           vertexShader: POLE_VERTEX_SHADER,
@@ -650,7 +689,7 @@ export default function SphereGalleryClient({
           group.rotation.x = sign * (Math.PI / 2)
           const disc = new THREE.Mesh(discGeo, discMat)
           disc.renderOrder = 1
-          const grains = new THREE.Points(pointsGeo, pointsMat)
+          const grains = new THREE.Points(poleGeoBySign.get(sign)!, pointsMat)
           grains.renderOrder = 2
           const hit = new THREE.Mesh(hitGeo, hitMat)
           hit.userData.poleSign = sign
@@ -678,7 +717,7 @@ export default function SphereGalleryClient({
         poleDispose.push(() => {
           gsap.killTweensOf(discMat)
           gsap.killTweensOf(pointsMat.uniforms.uOpacity!)
-          pointsGeo.dispose()
+          poleGeoBySign.forEach((geo) => geo.dispose())
           pointsMat.dispose()
           discGeo.dispose()
           discMat.dispose()
@@ -905,6 +944,7 @@ export default function SphereGalleryClient({
         onUpdate: applyZoom,
       })
 
+      setActivePoleSign(sign > 0 ? 1 : -1)
       setParticlePlayOpen(true)
     }
 
@@ -1104,6 +1144,20 @@ export default function SphereGalleryClient({
       tl.kill()
     }
   }, [particlePlayOpen])
+
+  /** Deep link — `?pole=north|south` opens the particle playground directly,
+   * making each pole's palette shareable as a URL. Delayed a beat so the
+   * sphere intro reads first; a plain timeout (not the gsap intro flag) so
+   * the link still resolves when rAF-driven tweens are throttled. */
+  useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get("pole")
+    if (want !== "north" && want !== "south") return
+    const t = window.setTimeout(() => {
+      setActivePoleSign(want === "north" ? 1 : -1)
+      setParticlePlayOpen(true)
+    }, 1600)
+    return () => window.clearTimeout(t)
+  }, [])
 
   const handleParticleClose = useCallback(() => {
     const overlay = particleOverlayRef.current
@@ -1327,7 +1381,15 @@ export default function SphereGalleryClient({
             </div>
 
             <div className="min-h-0 flex-1">
-              <HomeParticleThree hideChrome heightClassName="h-full" />
+              <HomeParticleThree
+                hideChrome
+                heightClassName="h-full"
+                gradientStops={
+                  activePoleSign === 1
+                    ? POLE_GRADIENT_NORTH
+                    : POLE_GRADIENT_SOUTH
+                }
+              />
             </div>
 
             <p className="px-6 pb-5 pt-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-white/40">

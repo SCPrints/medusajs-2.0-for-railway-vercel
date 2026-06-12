@@ -127,6 +127,24 @@ export const CURATED_PRESETS: Preset[] = [
       inBlend: 16,
     },
   },
+  {
+    id: "pre-pole-defaults-2026-06",
+    name: "5. Pre-pole defaults (pre 2026-06-12)",
+    note: "Defaults as they stood before the newmix pole-tuning pass: narrower disk (98), visible cursor void (20), straight comb ribbon (no wake curl), beeline home return (no settle meander).",
+    tuning: {
+      cursorRadius: 98,
+      cursorDisplacement: 20,
+      outBlend: 0.5,
+      trailFollowMs: 2500,
+      wakeBandSpreadBmp: 14,
+      wakeTimeOffsetMs: 1200,
+      carryLagBehind: 22,
+      sideSwirlForce: 7.5,
+      wakeCurlHz: 0,
+      settleMs: 0,
+      settleWobbleAmp: 0,
+    },
+  },
 ]
 
 const USER_PRESETS_LS_KEY = "particle-threejs-user-presets-v1"
