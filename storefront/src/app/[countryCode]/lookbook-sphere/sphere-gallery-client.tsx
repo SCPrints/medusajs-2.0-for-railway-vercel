@@ -19,22 +19,26 @@ import * as THREE from "three"
 import gsap from "gsap"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import { type SphereProject } from "./projects"
+import {
+  SPHERE_ROW_PHIS_DEG,
+  sphereColsForPhiDeg,
+  type SphereProject,
+} from "./projects"
 
 // ---------------------------------------------------------------------------
 // Tunables
 // ---------------------------------------------------------------------------
 
 const SPHERE_RADIUS = 30
-const EQUATOR_COLS = 16 // tiles around the equator ring
-const PHI_STEP = THREE.MathUtils.degToRad(24)
-// Rings from pole-ish to pole-ish. Each ring gets its own column count scaled
-// by cos(phi) so tiles stay evenly sized while the rings visibly converge —
-// the staggered seams + shrinking rings are what make it read as a SPHERE
-// instead of a column of aligned tiles.
-const ROW_PHIS_DEG = [-72, -48, -24, 0, 24, 48, 72]
+const PHI_STEP = THREE.MathUtils.degToRad(19)
+// Rings from pole-ish to pole-ish (constants shared with page.tsx via
+// projects.ts). Each ring gets its own column count scaled by cos(phi) so
+// tiles stay evenly sized while the rings visibly converge — the staggered
+// seams + shrinking rings are what make it read as a SPHERE instead of a
+// column of aligned tiles.
+const ROW_PHIS_DEG = SPHERE_ROW_PHIS_DEG
 const colsForPhi = (phiRad: number) =>
-  Math.max(4, Math.round(EQUATOR_COLS * Math.cos(phiRad)))
+  sphereColsForPhiDeg((phiRad * 180) / Math.PI)
 const TILE_FILL_THETA = 0.945 // gutter between columns (fraction of the step)
 const TILE_PHI = PHI_STEP * 0.93 // gutter between rows
 const BASE_FOV = 65
@@ -47,9 +51,14 @@ const SMOOTHING = 7.5 // larger = snappier follow of the drag target
 const INERTIA_DECAY = 2.2 // larger = momentum dies faster
 const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
 
-// Card texture canvas size (≈0.94 aspect like the reference tiles)
+// Card texture LAYOUT space (≈0.94 aspect like the reference tiles). The
+// actual canvas is allocated at TEX_SCALE of this — with 122 tiles on the
+// ball each card renders small enough on screen that 0.75 is visually
+// lossless, and it keeps total GPU texture memory below the old 78-tile
+// build despite ~56% more cards.
 const TEX_W = 720
 const TEX_H = 768
+const TEX_SCALE = 0.75
 const MONO_STACK =
   '"SF Mono", "Menlo", "Roboto Mono", "Liberation Mono", monospace'
 
@@ -108,10 +117,12 @@ function drawCard(
   img: HTMLImageElement | null,
   palette: CardPalette
 ) {
-  canvas.width = TEX_W
-  canvas.height = TEX_H
+  canvas.width = Math.round(TEX_W * TEX_SCALE)
+  canvas.height = Math.round(TEX_H * TEX_SCALE)
   const ctx = canvas.getContext("2d")
   if (!ctx) return
+  // Draw in the full 720×768 layout space regardless of allocation size.
+  ctx.scale(TEX_SCALE, TEX_SCALE)
 
   ctx.fillStyle = palette.bg
   ctx.fillRect(0, 0, TEX_W, TEX_H)
@@ -400,6 +411,10 @@ export default function SphereGalleryClient({
     const rowGeometries: THREE.BufferGeometry[] = []
     const tileMeshes: THREE.Mesh[] = []
     const tileMaterials: THREE.MeshBasicMaterial[] = []
+    // Sequential assignment — every tile gets a distinct project as long as
+    // the pool is at least tile-count deep. (The old `row * 5 + col` formula
+    // collided across rows, repeating the same photo on multiple tiles.)
+    let tileIndex = 0
 
     ROW_PHIS_DEG.forEach((phiDeg, row) => {
       const phiCenter = THREE.MathUtils.degToRad(phiDeg)
@@ -416,7 +431,7 @@ export default function SphereGalleryClient({
       // where neighbouring rings share a column count.
       const phase = (row % 2) * (thetaStep / 2)
       for (let col = 0; col < cols; col++) {
-        const projectIdx = (row * 5 + col) % projects.length
+        const projectIdx = tileIndex++ % projects.length
         const mat = new THREE.MeshBasicMaterial({
           map: cardTextures[projectIdx].normal,
           side: THREE.DoubleSide,

@@ -6,6 +6,22 @@
  * only the FALLBACK for when the backend returns nothing (local dev without
  * a backend) — genuine past-job photos only, no product/blank shots.
  */
+/**
+ * Sphere ring layout — shared by the WebGL client (tile placement) and the
+ * server page (pool sizing). Lives here, NOT in the "use client" module:
+ * values imported from a client module into a server component become opaque
+ * client references, not numbers.
+ */
+export const SPHERE_EQUATOR_COLS = 20
+export const SPHERE_ROW_PHIS_DEG = [-76, -57, -38, -19, 0, 19, 38, 57, 76]
+export const sphereColsForPhiDeg = (deg: number) =>
+  Math.max(4, Math.round(SPHERE_EQUATOR_COLS * Math.cos((deg * Math.PI) / 180)))
+/** Total tiles on the ball (122 with the rings above). */
+export const SPHERE_TILE_COUNT = SPHERE_ROW_PHIS_DEG.reduce(
+  (n, deg) => n + sphereColsForPhiDeg(deg),
+  0
+)
+
 export type SphereProject = {
   id: string
   brand: string
