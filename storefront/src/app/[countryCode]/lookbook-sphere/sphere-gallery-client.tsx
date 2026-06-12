@@ -51,6 +51,14 @@ const SMOOTHING = 7.5 // larger = snappier follow of the drag target
 const INERTIA_DECAY = 2.2 // larger = momentum dies faster
 const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
 
+// Wordmark planes floating over the two pole caps (the rings stop at ±76°,
+// leaving a dark hole). Yaw-billboarded each frame so the mark reads upright
+// from any spin direction; pitch never flips past the poles so no other
+// correction is needed.
+const POLE_LOGO_SRC = "/branding/sc-prints-logo-white-transparent.png"
+const POLE_LOGO_WIDTH = 7.5
+const POLE_LOGO_Y = SPHERE_RADIUS * 0.95
+
 // Card texture LAYOUT space (≈0.94 aspect like the reference tiles). The
 // actual canvas is allocated at TEX_SCALE of this — with 122 tiles on the
 // ball each card renders small enough on screen that 0.75 is visually
@@ -452,6 +460,51 @@ export default function SphereGalleryClient({
       }
     })
 
+    // --- pole wordmarks ---------------------------------------------------------
+    // One plane per pole, slightly inside the sphere so it composites over the
+    // cap hole. Not in tileMeshes, so hover/click raycasts ignore them.
+    const poleLogoMeshes: THREE.Mesh[] = []
+    const poleLogoMaterials: THREE.MeshBasicMaterial[] = []
+    let poleLogoGeo: THREE.PlaneGeometry | null = null
+    let poleLogoTex: THREE.Texture | null = null
+    const poleLogoImg = new Image()
+    poleLogoImg.decoding = "async"
+    poleLogoImg.onload = () => {
+      const aspect =
+        poleLogoImg.naturalHeight / Math.max(poleLogoImg.naturalWidth, 1)
+      poleLogoTex = new THREE.Texture(poleLogoImg)
+      poleLogoTex.needsUpdate = true
+      poleLogoTex.colorSpace = THREE.SRGBColorSpace
+      poleLogoTex.anisotropy = Math.min(
+        8,
+        renderer.capabilities.getMaxAnisotropy()
+      )
+      poleLogoGeo = new THREE.PlaneGeometry(
+        POLE_LOGO_WIDTH,
+        POLE_LOGO_WIDTH * aspect
+      )
+      for (const sign of [1, -1]) {
+        const mat = new THREE.MeshBasicMaterial({
+          map: poleLogoTex,
+          transparent: true,
+          opacity: 0,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        })
+        const mesh = new THREE.Mesh(poleLogoGeo, mat)
+        mesh.position.set(0, sign * POLE_LOGO_Y, 0)
+        // YXZ: face the pole plane toward the centre first (±90° about X),
+        // then the per-frame yaw billboard spins it about the world Y axis.
+        mesh.rotation.order = "YXZ"
+        mesh.rotation.x = sign * (Math.PI / 2)
+        scene.add(mesh)
+        poleLogoMeshes.push(mesh)
+        poleLogoMaterials.push(mat)
+        gsap.to(mat, { opacity: 1, duration: 0.7, delay: 0.5, ease: "power2.out" })
+      }
+    }
+    poleLogoImg.src = POLE_LOGO_SRC
+
     // --- control state ---------------------------------------------------------
     const ctrl = {
       yaw: 0,
@@ -688,6 +741,9 @@ export default function SphereGalleryClient({
       ctrl.pitch += (ctrl.targetPitch - ctrl.pitch) * s
       camera.rotation.set(ctrl.pitch, ctrl.yaw, 0)
 
+      // Keep the pole wordmarks upright relative to the camera's spin.
+      for (const m of poleLogoMeshes) m.rotation.y = ctrl.yaw
+
       // Hover raycast (idle pointer only)
       if (!drag.active && !detailOpenRef.current && pointerNdc.x <= 1) {
         raycaster.setFromCamera(pointerNdc, camera)
@@ -724,6 +780,13 @@ export default function SphereGalleryClient({
       canvas.removeEventListener("pointercancel", endDrag)
       canvas.removeEventListener("wheel", onWheel)
       loadedImages.forEach((img) => (img.onload = null))
+      poleLogoImg.onload = null
+      poleLogoMaterials.forEach((m) => {
+        gsap.killTweensOf(m)
+        m.dispose()
+      })
+      poleLogoGeo?.dispose()
+      poleLogoTex?.dispose()
       tileMaterials.forEach((m) => m.dispose())
       rowGeometries.forEach((g) => g.dispose())
       cardTextures.forEach((t) => {
