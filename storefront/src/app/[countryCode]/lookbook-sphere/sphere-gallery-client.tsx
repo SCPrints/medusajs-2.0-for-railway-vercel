@@ -40,6 +40,9 @@ const TILE_PHI = PHI_STEP * 0.93 // gutter between rows
 const BASE_FOV = 65
 const DETAIL_FOV = 40
 const DETAIL_DOLLY = 0.42 // fraction of radius the camera travels toward a card
+// Pole stop: free trackball spin was tried (d7bb3833) and reverted — flipping
+// over the poles re-orients the photos too much. Pitch is clamped instead.
+const PITCH_LIMIT = THREE.MathUtils.degToRad(75)
 const SMOOTHING = 7.5 // larger = snappier follow of the drag target
 const INERTIA_DECAY = 2.2 // larger = momentum dies faster
 const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
@@ -209,11 +212,7 @@ function buildSphericalTile(
   thetaSpan: number,
   phiCenter: number,
   phiSpan: number,
-  segs = 10,
-  // 180°-rotated UVs: same patch silhouette, content rotated half a turn.
-  // Swapped in per-frame when a tile's screen-space "up" points down so the
-  // free-spinning ball never shows an upside-down photo or label.
-  flipped = false
+  segs = 10
 ): THREE.BufferGeometry {
   const positions: number[] = []
   const uvs: number[] = []
@@ -231,11 +230,7 @@ function buildSphericalTile(
         radius * Math.sin(phi),
         -radius * cosP * Math.cos(theta)
       )
-      if (flipped) {
-        uvs.push(1 - u, 1 - v)
-      } else {
-        uvs.push(u, v)
-      }
+      uvs.push(u, v)
     }
   }
   for (let iy = 0; iy < segs; iy++) {
@@ -254,6 +249,14 @@ function buildSphericalTile(
   geo.setIndex(indices)
   geo.computeVertexNormals()
   return geo
+}
+
+const shortestAngle = (a: number) => {
+  const tau = Math.PI * 2
+  let r = a % tau
+  if (r > Math.PI) r -= tau
+  if (r < -Math.PI) r += tau
+  return r
 }
 
 // ---------------------------------------------------------------------------
@@ -348,11 +351,7 @@ export default function SphereGalleryClient({
       0.1,
       SPHERE_RADIUS * 4
     )
-    // The camera never rotates — the SPHERE GROUP does (trackball-style
-    // quaternion), which is what allows free spinning in any direction with
-    // no pole lock or gimbal flip.
-    const sphereGroup = new THREE.Group()
-    scene.add(sphereGroup)
+    camera.rotation.order = "YXZ"
 
     // --- card textures (shared per project, normal + hover states) -----------
     type CardTex = {
@@ -406,21 +405,13 @@ export default function SphereGalleryClient({
       const phiCenter = THREE.MathUtils.degToRad(phiDeg)
       const cols = colsForPhi(phiCenter)
       const thetaStep = (Math.PI * 2) / cols
-      const geoUpright = buildSphericalTile(
+      const geo = buildSphericalTile(
         SPHERE_RADIUS,
         thetaStep * TILE_FILL_THETA,
         phiCenter,
         TILE_PHI
       )
-      const geoFlipped = buildSphericalTile(
-        SPHERE_RADIUS,
-        thetaStep * TILE_FILL_THETA,
-        phiCenter,
-        TILE_PHI,
-        10,
-        true
-      )
-      rowGeometries.push(geoUpright, geoFlipped)
+      rowGeometries.push(geo)
       // Half-step phase shift on alternate rows so seams brick-stagger even
       // where neighbouring rings share a column count.
       const phase = (row % 2) * (thetaStep / 2)
@@ -432,58 +423,31 @@ export default function SphereGalleryClient({
           transparent: true,
           opacity: 0,
         })
-        const mesh = new THREE.Mesh(geoUpright, mat)
+        const mesh = new THREE.Mesh(geo, mat)
         const thetaCenter = col * thetaStep + phase
         mesh.rotation.y = thetaCenter
-        const cosP = Math.cos(phiCenter)
-        const sinP = Math.sin(phiCenter)
         mesh.userData = {
           projectIdx,
           thetaCenter,
           phiCenter,
-          // Tile centre direction + "up" (d/dphi) in sphere-local space —
-          // used by the per-frame keep-upright flip and the detail zoom.
-          dirLocal: new THREE.Vector3(
-            cosP * Math.sin(thetaCenter),
-            sinP,
-            -cosP * Math.cos(thetaCenter)
-          ),
-          upLocal: new THREE.Vector3(
-            -sinP * Math.sin(thetaCenter),
-            cosP,
-            sinP * Math.cos(thetaCenter)
-          ),
-          geoUpright,
-          geoFlipped,
-          flipped: false,
         }
-        sphereGroup.add(mesh)
+        scene.add(mesh)
         tileMeshes.push(mesh)
         tileMaterials.push(mat)
       }
     })
 
-    // --- control state: free trackball rotation --------------------------------
-    // `target` accumulates drag/wheel/inertia spins; `current` slerps toward it
-    // each frame (the lenis-style easing). Spins compose as small axis-angle
-    // rotations in the FIXED camera frame (premultiplied), so any drag
-    // direction — including over the poles — just keeps rotating the ball.
-    const rot = {
-      current: new THREE.Quaternion(),
-      target: new THREE.Quaternion(),
-      angVel: new THREE.Vector3(), // rad/s, view-space (x: vertical, y: horizontal)
-    }
-    const spinQuat = new THREE.Quaternion()
-    const spinAxis = new THREE.Vector3()
-    const upScratch = new THREE.Vector3()
-    const applyViewSpin = (rx: number, ry: number, q: THREE.Quaternion) => {
-      spinAxis.set(rx, ry, 0)
-      const angle = spinAxis.length()
-      if (angle < 1e-7) return
-      spinQuat.setFromAxisAngle(spinAxis.normalize(), angle)
-      q.premultiply(spinQuat)
+    // --- control state ---------------------------------------------------------
+    const ctrl = {
+      yaw: 0,
+      pitch: 0,
+      targetYaw: 0,
+      targetPitch: 0,
+      velYaw: 0,
+      velPitch: 0,
     }
     const zoom = { fov: BASE_FOV, dolly: 0 }
+    const detailDir = new THREE.Vector3(0, 0, -1)
 
     const drag = {
       active: false,
@@ -516,6 +480,9 @@ export default function SphereGalleryClient({
     const rotSpeed = () =>
       (camera.fov * (Math.PI / 180)) / Math.max(canvas.clientHeight, 1)
 
+    const clampPitch = (p: number) =>
+      Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, p))
+
     // --- pointer handlers --------------------------------------------------------
     const onPointerDown = (e: PointerEvent) => {
       if (detailOpenRef.current) return
@@ -525,7 +492,8 @@ export default function SphereGalleryClient({
       drag.lastY = e.clientY
       drag.total = 0
       drag.samples = [{ t: performance.now(), x: e.clientX, y: e.clientY }]
-      rot.angVel.set(0, 0, 0)
+      ctrl.velYaw = 0
+      ctrl.velPitch = 0
       try {
         canvas.setPointerCapture(e.pointerId)
       } catch {}
@@ -545,7 +513,8 @@ export default function SphereGalleryClient({
       drag.lastY = e.clientY
       drag.total += Math.abs(dx) + Math.abs(dy)
       const k = rotSpeed()
-      applyViewSpin(-dy * k, -dx * k, rot.target)
+      ctrl.targetYaw += dx * k
+      ctrl.targetPitch = clampPitch(ctrl.targetPitch + dy * k)
       const now = performance.now()
       drag.samples.push({ t: now, x: e.clientX, y: e.clientY })
       while (drag.samples.length > 2 && now - drag.samples[0].t > 110) {
@@ -578,11 +547,8 @@ export default function SphereGalleryClient({
         const dt = (last.t - first.t) / 1000
         if (dt > 0.016) {
           const k = rotSpeed()
-          rot.angVel.set(
-            (-(last.y - first.y) * k) / dt,
-            (-(last.x - first.x) * k) / dt,
-            0
-          )
+          ctrl.velYaw = ((last.x - first.x) * k) / dt
+          ctrl.velPitch = ((last.y - first.y) * k) / dt
         }
       }
     }
@@ -591,7 +557,8 @@ export default function SphereGalleryClient({
       if (detailOpenRef.current) return
       e.preventDefault()
       const k = rotSpeed() * 1.1
-      applyViewSpin(e.deltaY * k, e.deltaX * k, rot.target)
+      ctrl.targetYaw -= e.deltaX * k
+      ctrl.targetPitch = clampPitch(ctrl.targetPitch - e.deltaY * k)
     }
 
     canvas.addEventListener("pointerdown", onPointerDown)
@@ -604,9 +571,9 @@ export default function SphereGalleryClient({
     const applyZoom = () => {
       camera.fov = zoom.fov
       camera.updateProjectionMatrix()
-      // The clicked card is rotated to dead-centre (-Z), so the dolly is a
-      // straight push along the view axis.
-      camera.position.set(0, 0, -SPHERE_RADIUS * DETAIL_DOLLY * zoom.dolly)
+      camera.position
+        .copy(detailDir)
+        .multiplyScalar(SPHERE_RADIUS * DETAIL_DOLLY * zoom.dolly)
     }
 
     const openDetail = (mesh: THREE.Mesh) => {
@@ -614,28 +581,19 @@ export default function SphereGalleryClient({
       detailOpenRef.current = true
       setHovered(null)
       canvas.style.cursor = "default"
-      rot.angVel.set(0, 0, 0)
+      ctrl.velYaw = 0
+      ctrl.velPitch = 0
 
-      // Rotate the ball so the card lands dead-centre…
-      const dirWorld = (mesh.userData.dirLocal as THREE.Vector3)
-        .clone()
-        .applyQuaternion(rot.target)
-        .normalize()
-      rot.target.premultiply(
-        spinQuat.setFromUnitVectors(dirWorld, new THREE.Vector3(0, 0, -1)).clone()
+      const thetaC = mesh.userData.thetaCenter as number
+      const phiC = mesh.userData.phiCenter as number
+      detailDir.set(
+        Math.cos(phiC) * Math.sin(thetaC),
+        Math.sin(phiC),
+        -Math.cos(phiC) * Math.cos(thetaC)
       )
-      // …then roll about the view axis so the card sits upright on screen.
-      // A flipped tile shows its content rotated 180°, so its effective
-      // content-up is the negated local up.
-      const upWorld = (mesh.userData.upLocal as THREE.Vector3)
-        .clone()
-        .multiplyScalar(mesh.userData.flipped ? -1 : 1)
-        .applyQuaternion(rot.target)
-        .normalize()
-      const roll = Math.atan2(upWorld.x, upWorld.y)
-      rot.target.premultiply(
-        spinQuat.setFromAxisAngle(new THREE.Vector3(0, 0, 1), roll).clone()
-      )
+      // Centre the card: shortest-path yaw to -thetaC, pitch to phiC.
+      ctrl.targetYaw = ctrl.yaw + shortestAngle(-thetaC - ctrl.yaw)
+      ctrl.targetPitch = phiC
 
       gsap.to(zoom, {
         fov: DETAIL_FOV,
@@ -698,37 +656,22 @@ export default function SphereGalleryClient({
       const dt = Math.min((now - lastT) / 1000, 0.05)
       lastT = now
 
-      // Momentum after release — keeps spinning the ball along the fling axis
-      if (
-        !drag.active &&
-        !detailOpenRef.current &&
-        rot.angVel.lengthSq() > 1e-8
-      ) {
-        applyViewSpin(rot.angVel.x * dt, rot.angVel.y * dt, rot.target)
-        rot.angVel.multiplyScalar(Math.exp(-dt * INERTIA_DECAY))
+      // Momentum after release
+      if (!drag.active && !detailOpenRef.current) {
+        if (Math.abs(ctrl.velYaw) > 0.0001 || Math.abs(ctrl.velPitch) > 0.0001) {
+          ctrl.targetYaw += ctrl.velYaw * dt
+          ctrl.targetPitch = clampPitch(ctrl.targetPitch + ctrl.velPitch * dt)
+          const decay = Math.exp(-dt * INERTIA_DECAY)
+          ctrl.velYaw *= decay
+          ctrl.velPitch *= decay
+        }
       }
 
       // Lenis-style exponential smoothing toward the target rotation
       const s = 1 - Math.exp(-dt * SMOOTHING)
-      rot.current.slerp(rot.target, s)
-      sphereGroup.quaternion.copy(rot.current)
-
-      // Keep-upright pass: when a tile's screen-space "up" tips past
-      // horizontal, swap to its 180°-rotated twin geometry so the photo and
-      // labels read upright from the far side of the ball too. Hysteresis
-      // (±0.12) stops it chattering while a tile hovers near sideways.
-      for (const tile of tileMeshes) {
-        const upY = upScratch
-          .copy(tile.userData.upLocal as THREE.Vector3)
-          .applyQuaternion(rot.current).y
-        if (!tile.userData.flipped && upY < -0.12) {
-          tile.userData.flipped = true
-          tile.geometry = tile.userData.geoFlipped as THREE.BufferGeometry
-        } else if (tile.userData.flipped && upY > 0.12) {
-          tile.userData.flipped = false
-          tile.geometry = tile.userData.geoUpright as THREE.BufferGeometry
-        }
-      }
+      ctrl.yaw += (ctrl.targetYaw - ctrl.yaw) * s
+      ctrl.pitch += (ctrl.targetPitch - ctrl.pitch) * s
+      camera.rotation.set(ctrl.pitch, ctrl.yaw, 0)
 
       // Hover raycast (idle pointer only)
       if (!drag.active && !detailOpenRef.current && pointerNdc.x <= 1) {
