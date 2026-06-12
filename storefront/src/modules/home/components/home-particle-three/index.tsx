@@ -40,6 +40,7 @@ import {
   injectVelocity,
   pressureProjectVelocityField,
   sampleVelocityField,
+  type VelocityField,
 } from "../home-particle-logo-hero/velocity-field"
 import {
   sampleWordmarkStipple,
@@ -65,6 +66,18 @@ const FIELD_VEL_CAP = 55
  * the whole field branch (step + 140k bilinear samples) is skipped — by then
  * decay has reduced the grid to noise. */
 const FIELD_LIVE_MS = 7000
+
+/** Live field diagnostics — written by the sim loop every frame while the
+ * debug overlay is on, read by the caption readout at 4Hz. Module-level
+ * mutable so the 60fps writes never touch React state. */
+export const FIELD_DEBUG_STATS = {
+  /** Largest |vx|+|vy| across the grid this frame. */
+  maxL1: 0,
+  /** % of cells whose L1 magnitude exceeds the activation threshold. */
+  activePct: 0,
+  /** ms since the last stroke deposit (-1 = never). */
+  msSinceDeposit: -1,
+}
 
 const VERTEX_SHADER = /* glsl */ `
   attribute vec3 aColor;
@@ -562,6 +575,8 @@ function ParticleField({
         const fvy = field.vy
         const cells = field.cols * field.rows
         const cellCap = nm.fieldCellCap
+        let dbgMax = 0
+        let dbgActive = 0
         for (let ci = 0; ci < cells; ci++) {
           const cvx = fvx[ci]!
           const cvy = fvy[ci]!
@@ -573,8 +588,17 @@ function ParticleField({
             else if (cvx < -cellCap) fvx[ci] = -cellCap
             if (cvy > cellCap) fvy[ci] = cellCap
             else if (cvy < -cellCap) fvy[ci] = -cellCap
+            const l1 =
+              (fvx[ci]! < 0 ? -fvx[ci]! : fvx[ci]!) +
+              (fvy[ci]! < 0 ? -fvy[ci]! : fvy[ci]!)
+            if (l1 > dbgMax) dbgMax = l1
+            if (l1 > nm.fieldActivation) dbgActive++
           }
         }
+        FIELD_DEBUG_STATS.maxL1 = dbgMax
+        FIELD_DEBUG_STATS.activePct = (dbgActive / cells) * 100
+        FIELD_DEBUG_STATS.msSinceDeposit =
+          lastDepositRef.current > 0 ? nowTick - lastDepositRef.current : -1
       }
     }
     const fieldLive =
@@ -583,6 +607,8 @@ function ParticleField({
      * (numerical or otherwise) waits around for the next stroke. */
     if (!fieldLive && fieldWasLiveRef.current) {
       clearVelocityField(field)
+      FIELD_DEBUG_STATS.maxL1 = 0
+      FIELD_DEBUG_STATS.activePct = 0
     }
     fieldWasLiveRef.current = fieldLive
 
@@ -957,8 +983,93 @@ function ParticleField({
         smoothedCursor={smoothedCursor}
         tuningRef={tuningRef}
       />
+      <DebugFieldGrid
+        field={state.field}
+        fieldHalfW={state.fieldHalfW}
+        fieldHalfH={state.fieldHalfH}
+        tuningRef={tuningRef}
+      />
     </>
   )
+}
+
+/** Velocity-grid visualizer — one line segment per non-silent cell, drawn
+ * from the cell centre along its velocity vector (×4 so direction reads at
+ * a glance). Only renders when BOTH the debug overlay and field mode are
+ * on; draw range collapses to zero otherwise so the idle cost is nil.
+ * This is the ground-truth view of the fluid: if a stroke deposits energy
+ * you SEE cyan vectors paint along the path, watch advection carry them,
+ * projection curl them, and decay eat them. If you see nothing here, the
+ * deposit chain is broken — no amount of particle-knob tuning will help. */
+function DebugFieldGrid({
+  field,
+  fieldHalfW,
+  fieldHalfH,
+  tuningRef,
+}: {
+  field: VelocityField
+  fieldHalfW: number
+  fieldHalfH: number
+  tuningRef: React.MutableRefObject<ThreeTuning>
+}) {
+  const cellCount = field.cols * field.rows
+  const positions = useMemo(
+    () => new Float32Array(cellCount * 6),
+    [cellCount]
+  )
+  const geo = useMemo(() => {
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.BufferAttribute(positions, 3))
+    g.setDrawRange(0, 0)
+    return g
+  }, [positions])
+  const mat = useMemo(
+    () =>
+      new THREE.LineBasicMaterial({
+        color: 0x2bffd0,
+        transparent: true,
+        opacity: 0.6,
+        depthTest: false,
+        depthWrite: false,
+      }),
+    []
+  )
+  const lineObject = useMemo(
+    () => new THREE.LineSegments(geo, mat),
+    [geo, mat]
+  )
+
+  useFrame(() => {
+    const nm = tuningRef.current
+    if (!nm.debugOverlay || !nm.fieldMode) {
+      geo.setDrawRange(0, 0)
+      return
+    }
+    const { cols, rows, cellW, cellH, vx, vy } = field
+    let seg = 0
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        const idx = j * cols + i
+        const u = vx[idx]!
+        const v = vy[idx]!
+        if (u * u + v * v < 0.04) continue
+        const cx = (i + 0.5) * cellW - fieldHalfW
+        const cy = (j + 0.5) * cellH - fieldHalfH
+        const o = seg * 6
+        positions[o] = cx
+        positions[o + 1] = cy
+        positions[o + 2] = 0.3
+        positions[o + 3] = cx + u * 4
+        positions[o + 4] = cy + v * 4
+        positions[o + 5] = 0.3
+        seg++
+      }
+    }
+    geo.setDrawRange(0, seg * 2)
+    geo.attributes.position!.needsUpdate = true
+  })
+
+  return <primitive object={lineObject} frustumCulled={false} />
 }
 
 /** Cursor-history visualizer. Draws a polyline along the recorded cursor
@@ -1083,6 +1194,34 @@ function DebugCursorHistory({
   )
 }
 
+/** 4Hz readout of the sim loop's field stats. Numbers, not vibes: max cell
+ * magnitude tells you whether strokes deposit energy at all, active% tells
+ * you how much of the grid exceeds the activation threshold (i.e. how much
+ * of the wordmark the fluid can grab), and the stroke age confirms the
+ * deposit path is seeing your mouse. */
+function FieldStatsReadout({ activation }: { activation: number }) {
+  const [stats, setStats] = useState({
+    maxL1: 0,
+    activePct: 0,
+    msSinceDeposit: -1,
+  })
+  useEffect(() => {
+    const iv = window.setInterval(() => {
+      setStats({ ...FIELD_DEBUG_STATS })
+    }, 250)
+    return () => window.clearInterval(iv)
+  }, [])
+  return (
+    <div className="mt-1 font-mono text-[11px] text-cyan-300">
+      field max {stats.maxL1.toFixed(1)} · above activation ({activation.toFixed(1)}):{" "}
+      {stats.activePct.toFixed(1)}% · last stroke{" "}
+      {stats.msSinceDeposit < 0
+        ? "never"
+        : `${(stats.msSinceDeposit / 1000).toFixed(1)}s ago`}
+    </div>
+  )
+}
+
 type Props = {
   logoSrc?: string
   particleCount?: number
@@ -1176,8 +1315,11 @@ export default function HomeParticleThree({
       {!hideChrome && (
         <>
           <ThreeTunerPanel tuning={tuning} onChange={setTuning} />
-          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-ui-fg-subtle">
+          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-center text-xs text-ui-fg-subtle">
             Three.js Points · {tuning.particleCount.toLocaleString()} particles
+            {tuning.debugOverlay && tuning.fieldMode ? (
+              <FieldStatsReadout activation={tuning.fieldActivation} />
+            ) : null}
           </div>
         </>
       )}
