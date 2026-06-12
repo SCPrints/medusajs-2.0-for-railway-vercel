@@ -111,8 +111,14 @@ export type ThreeTuning = {
   /** How strongly particles couple to the sampled field velocity. */
   fieldRide: number
   /** Local field magnitude (L1, world px/frame) above which a particle is
-   * "energized" — its home spring is suppressed so it rides the fluid. */
+   * "energized" — its home spring is suppressed so it rides the fluid.
+   * THE locality knob: low values let weak advected energy capture the
+   * whole wordmark (chain-reaction smear); high values confine motion to
+   * the hot corridor near the stroke, like the reference. */
   fieldActivation: number
+  /** Hard cap on per-cell fluid speed (world px/frame). Bounds the total
+   * energy a stroke can carry regardless of deposit stacking. */
+  fieldCellCap: number
   /** Home spring constant (per frame at 60fps) when the local fluid is
    * quiet. Higher = firmer, faster return. */
   homeSpring: number
@@ -176,17 +182,18 @@ export const THREE_TUNING_DEFAULTS: ThreeTuning = {
    * wake-playback model; the fluid sim stays available behind this
    * checkbox with detuned, cell-capped values for supervised tuning. */
   fieldMode: false,
-  fieldStrength: 0.25,
-  fieldRadius: 60,
+  fieldStrength: 0.15,
+  fieldRadius: 30,
   fieldAdvection: 0.7,
   fieldDiffusion: 0.05,
   fieldProjection: 0.7,
-  fieldDecay: 0.6,
-  fieldRide: 0.12,
-  fieldActivation: 0.8,
-  homeSpring: 0.014,
-  energizedSpringScale: 0.2,
-  fieldFriction: 0.5,
+  fieldDecay: 1.0,
+  fieldRide: 0.1,
+  fieldActivation: 4,
+  fieldCellCap: 18,
+  homeSpring: 0.02,
+  energizedSpringScale: 0.35,
+  fieldFriction: 0.45,
 }
 
 /** Keys of `ThreeTuning` whose value is a number — excludes booleans like
@@ -469,11 +476,21 @@ const SLIDERS: SliderDef[] = [
     key: "fieldActivation",
     label: "Field activation",
     min: 0,
-    max: 4,
+    max: 12,
     step: 0.1,
     format: (v) => v.toFixed(1),
     description:
-      "Local fluid magnitude above which a particle is energized (home spring suppressed, fluid owns it).",
+      "Local fluid magnitude above which a particle is energized (home spring suppressed, fluid owns it). THE locality knob — raise it until letters away from your stroke stop moving.",
+  },
+  {
+    key: "fieldCellCap",
+    label: "Field speed cap",
+    min: 5,
+    max: 40,
+    step: 1,
+    format: (v) => `${v.toFixed(0)} px/f`,
+    description:
+      "Hard ceiling on fluid speed per cell. Bounds how much energy a stroke can carry no matter how fast you flick.",
   },
   {
     key: "homeSpring",

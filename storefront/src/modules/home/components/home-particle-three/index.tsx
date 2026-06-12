@@ -561,7 +561,7 @@ function ParticleField({
         const fvx = field.vx
         const fvy = field.vy
         const cells = field.cols * field.rows
-        const CELL_CAP = 25
+        const cellCap = nm.fieldCellCap
         for (let ci = 0; ci < cells; ci++) {
           const cvx = fvx[ci]!
           const cvy = fvy[ci]!
@@ -569,10 +569,10 @@ function ParticleField({
             fvx[ci] = 0
             fvy[ci] = 0
           } else {
-            if (cvx > CELL_CAP) fvx[ci] = CELL_CAP
-            else if (cvx < -CELL_CAP) fvx[ci] = -CELL_CAP
-            if (cvy > CELL_CAP) fvy[ci] = CELL_CAP
-            else if (cvy < -CELL_CAP) fvy[ci] = -CELL_CAP
+            if (cvx > cellCap) fvx[ci] = cellCap
+            else if (cvx < -cellCap) fvx[ci] = -cellCap
+            if (cvy > cellCap) fvy[ci] = cellCap
+            else if (cvy < -cellCap) fvy[ci] = -cellCap
           }
         }
       }
