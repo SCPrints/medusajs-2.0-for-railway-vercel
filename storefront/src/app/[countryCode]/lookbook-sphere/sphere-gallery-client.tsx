@@ -56,8 +56,11 @@ const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
 // from any spin direction; pitch never flips past the poles so no other
 // correction is needed.
 const POLE_LOGO_SRC = "/branding/sc-prints-logo-white-transparent.png"
-const POLE_LOGO_WIDTH = 7.5
-const POLE_LOGO_Y = SPHERE_RADIUS * 0.95
+// Sized to the cap hole (the rings leave a ~10° opening) so the mark brands
+// the empty pole without blotting out the surrounding cards, and parked just
+// inside the shell so it doesn't parallax away from the hole at the pitch stop.
+const POLE_LOGO_WIDTH = 5
+const POLE_LOGO_Y = SPHERE_RADIUS * 0.975
 
 // Card texture LAYOUT space (≈0.94 aspect like the reference tiles). The
 // actual canvas is allocated at TEX_SCALE of this — with 122 tiles on the
