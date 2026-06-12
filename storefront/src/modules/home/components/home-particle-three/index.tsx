@@ -579,6 +579,8 @@ function ParticleField({
         const fvy = field.vy
         const cells = field.cols * field.rows
         const cellCap = nm.fieldCellCap
+        const fCols = field.cols
+        const fRows = field.rows
         let dbgMax = 0
         let dbgActive = 0
         for (let ci = 0; ci < cells; ci++) {
@@ -592,6 +594,16 @@ function ParticleField({
             else if (cvx < -cellCap) fvx[ci] = -cellCap
             if (cvy > cellCap) fvy[ci] = cellCap
             else if (cvy < -cellCap) fvy[ci] = -cellCap
+            /** Boundary drain — semi-Lagrangian advection clamps source
+             * coords at the walls, so outbound energy otherwise parks in
+             * the border cells and accumulates (visible as a picket of
+             * vectors along the field edge). Bleed the 2-cell border. */
+            const bi = ci % fCols
+            const bj = (ci / fCols) | 0
+            if (bi < 2 || bi >= fCols - 2 || bj < 2 || bj >= fRows - 2) {
+              fvx[ci]! *= 0.7
+              fvy[ci]! *= 0.7
+            }
             const l1 =
               (fvx[ci]! < 0 ? -fvx[ci]! : fvx[ci]!) +
               (fvy[ci]! < 0 ? -fvy[ci]! : fvy[ci]!)
@@ -1198,6 +1210,35 @@ function DebugCursorHistory({
   )
 }
 
+/** Full tuning dump rendered over the canvas (lab pages only) so any
+ * screenshot of the animation carries the complete slider state — no more
+ * guessing which knob a given behaviour was captured under. Generated
+ * straight from the tuning object, so new knobs appear automatically. */
+function TuningReadout({ tuning }: { tuning: ThreeTuning }) {
+  const entries = useMemo(() => {
+    const skip = new Set(["trailDisplacement", "trailSpeedCap"])
+    return Object.entries(tuning).filter(([k]) => !skip.has(k))
+  }, [tuning])
+  return (
+    <div className="pointer-events-none absolute left-3 top-3 z-10 grid w-[560px] grid-cols-3 gap-x-4 font-mono text-[10px] leading-[14px] text-white/50">
+      {entries.map(([k, v]) => (
+        <span key={k} className="whitespace-nowrap">
+          {k}{" "}
+          <span className="text-cyan-300/90">
+            {typeof v === "boolean"
+              ? v
+                ? "ON"
+                : "off"
+              : typeof v === "number"
+                ? String(parseFloat(v.toFixed(3)))
+                : String(v)}
+          </span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 /** 4Hz readout of the sim loop's field stats. Numbers, not vibes: max cell
  * magnitude tells you whether strokes deposit energy at all, active% tells
  * you how much of the grid exceeds the activation threshold (i.e. how much
@@ -1319,6 +1360,7 @@ export default function HomeParticleThree({
       {!hideChrome && (
         <>
           <ThreeTunerPanel tuning={tuning} onChange={setTuning} />
+          <TuningReadout tuning={tuning} />
           <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 text-center text-xs text-ui-fg-subtle">
             Three.js Points · {tuning.particleCount.toLocaleString()} particles
             {tuning.debugOverlay && tuning.fieldMode ? (
