@@ -1,17 +1,19 @@
 "use client"
 
 /**
- * Spherical lookbook gallery — phantom.land-style.
+ * Cubic lookbook gallery — the sphere prototype's sibling.
  *
- * You stand at the centre of a sphere whose inner surface is tiled with
+ * You stand at the centre of a cube whose six inner faces are tiled 5×5 with
  * project cards. Drag (or scroll) to look around with inertia + lenis-style
- * easing; hover inverts a card; click zooms the camera into the card and
- * slides a detail page over the top.
+ * easing; hover inverts a card; click flies the camera up to the card
+ * face-on and slides a detail page over the top.
  *
- * Everything WebGL lives in one big useEffect: tile textures are drawn on
- * offscreen canvases (so text labels live *inside* the 3D card), geometry is
- * a true spherical patch per row (the grid curves exactly like the inside of
- * a sphere), and GSAP drives the intro, zoom and overlay transitions.
+ * Everything WebGL lives in one big useEffect (same architecture as
+ * sphere-gallery-client.tsx): tile textures are drawn on offscreen canvases
+ * (so text labels live *inside* the 3D card), every tile is a flat plane on
+ * one of the six cube faces, and GSAP drives the intro, zoom and overlay
+ * transitions. The flat faces + visible 90° corners are what make it read as
+ * a CUBE instead of the sphere's curved patchwork.
  */
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
@@ -19,46 +21,39 @@ import * as THREE from "three"
 import gsap from "gsap"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
-import {
-  SPHERE_ROW_PHIS_DEG,
-  sphereColsForPhiDeg,
-  type SphereProject,
-} from "./projects"
+import { CUBE_GRID, type CubeProject } from "./projects"
 
 // ---------------------------------------------------------------------------
 // Tunables
 // ---------------------------------------------------------------------------
 
-const SPHERE_RADIUS = 30
-const PHI_STEP = THREE.MathUtils.degToRad(19)
-// Rings from pole-ish to pole-ish (constants shared with page.tsx via
-// projects.ts). Each ring gets its own column count scaled by cos(phi) so
-// tiles stay evenly sized while the rings visibly converge — the staggered
-// seams + shrinking rings are what make it read as a SPHERE instead of a
-// column of aligned tiles.
-const ROW_PHIS_DEG = SPHERE_ROW_PHIS_DEG
-const colsForPhi = (phiRad: number) =>
-  sphereColsForPhiDeg((phiRad * 180) / Math.PI)
-const TILE_FILL_THETA = 0.945 // gutter between columns (fraction of the step)
-const TILE_PHI = PHI_STEP * 0.93 // gutter between rows
+const CUBE_HALF = 30 // distance from the centre to each face
+const STEP = (CUBE_HALF * 2) / CUBE_GRID // tile pitch along a face
+const TILE_H = STEP * 0.93 // gutter between rows
 const BASE_FOV = 65
 const DETAIL_FOV = 40
-const DETAIL_DOLLY = 0.42 // fraction of radius the camera travels toward a card
-// Pole stop: free trackball spin was tried (d7bb3833) and reverted — flipping
-// over the poles re-orients the photos too much. Pitch is clamped instead.
+// On click the camera flies to a point this far off the wall along the
+// tile's normal — every card is viewed face-on, even corner tiles (the
+// sphere gets this for free because its tiles all face the centre).
+const DETAIL_VIEW_DIST = 19
+// Pole stop, same rationale as the sphere: flipping over the top re-orients
+// the photos too much. The ceiling/floor faces stay visible + clickable at
+// this clamp with the 65° FOV.
 const PITCH_LIMIT = THREE.MathUtils.degToRad(75)
 const SMOOTHING = 7.5 // larger = snappier follow of the drag target
 const INERTIA_DECAY = 2.2 // larger = momentum dies faster
 const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
 
 // Card texture LAYOUT space (≈0.94 aspect like the reference tiles). The
-// actual canvas is allocated at TEX_SCALE of this — with 122 tiles on the
-// ball each card renders small enough on screen that 0.75 is visually
-// lossless, and it keeps total GPU texture memory below the old 78-tile
-// build despite ~56% more cards.
+// actual canvas is allocated at TEX_SCALE of this — with up to 150 tiles on
+// the cube each card renders small enough on screen that 0.75 is visually
+// lossless. (Textures are per-project, so GPU memory scales with the photo
+// pool, not the tile count.)
 const TEX_W = 720
 const TEX_H = 768
 const TEX_SCALE = 0.75
+// Width follows the texture aspect so cards never look squished.
+const TILE_W = TILE_H * (TEX_W / TEX_H)
 const MONO_STACK =
   '"SF Mono", "Menlo", "Roboto Mono", "Liberation Mono", monospace'
 
@@ -113,7 +108,7 @@ const PALETTE_HOVER: CardPalette = {
 
 function drawCard(
   canvas: HTMLCanvasElement,
-  project: SphereProject,
+  project: CubeProject,
   img: HTMLImageElement | null,
   palette: CardPalette
 ) {
@@ -215,52 +210,21 @@ function drawCard(
 }
 
 // ---------------------------------------------------------------------------
-// Spherical tile geometry — a true patch of the sphere's inner surface
+// Cube face layout — six groups, each rotating local -z onto its face
 // ---------------------------------------------------------------------------
 
-function buildSphericalTile(
-  radius: number,
-  thetaSpan: number,
-  phiCenter: number,
-  phiSpan: number,
-  segs = 10
-): THREE.BufferGeometry {
-  const positions: number[] = []
-  const uvs: number[] = []
-  const indices: number[] = []
-
-  for (let iy = 0; iy <= segs; iy++) {
-    const v = iy / segs
-    const phi = phiCenter + (v - 0.5) * phiSpan
-    for (let ix = 0; ix <= segs; ix++) {
-      const u = ix / segs
-      const theta = (u - 0.5) * thetaSpan
-      const cosP = Math.cos(phi)
-      positions.push(
-        radius * cosP * Math.sin(theta),
-        radius * Math.sin(phi),
-        -radius * cosP * Math.cos(theta)
-      )
-      uvs.push(u, v)
-    }
-  }
-  for (let iy = 0; iy < segs; iy++) {
-    for (let ix = 0; ix < segs; ix++) {
-      const a = iy * (segs + 1) + ix
-      const b = a + 1
-      const c = a + (segs + 1)
-      const d = c + 1
-      indices.push(a, c, b, b, c, d)
-    }
-  }
-
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
-  geo.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2))
-  geo.setIndex(indices)
-  geo.computeVertexNormals()
-  return geo
-}
+// Each rotation maps the local frame so that local (0,0,-CUBE_HALF) lands on
+// the face: a default PlaneGeometry child (facing local +z) then faces the
+// centre of the cube. Ceiling/floor cards keep their "up" toward the back
+// wall — same rotate-to-read behaviour as the sphere's pole rings.
+const FACE_EULERS: THREE.Euler[] = [
+  new THREE.Euler(0, 0, 0), // front  (wall at -z)
+  new THREE.Euler(0, Math.PI, 0), // back   (+z)
+  new THREE.Euler(0, -Math.PI / 2, 0), // right  (+x)
+  new THREE.Euler(0, Math.PI / 2, 0), // left   (-x)
+  new THREE.Euler(Math.PI / 2, 0, 0), // top    (+y)
+  new THREE.Euler(-Math.PI / 2, 0, 0), // bottom (-y)
+]
 
 const shortestAngle = (a: number) => {
   const tau = Math.PI * 2
@@ -318,16 +282,16 @@ const ListIcon = ({ className }: { className?: string }) => (
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function SphereGalleryClient({
+export default function CubeGalleryClient({
   projects,
 }: {
-  projects: SphereProject[]
+  projects: CubeProject[]
 }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   const overlayContentRef = useRef<HTMLDivElement>(null)
 
-  const [selected, setSelected] = useState<SphereProject | null>(null)
+  const [selected, setSelected] = useState<CubeProject | null>(null)
   const [introDone, setIntroDone] = useState(false)
 
   // Imperative bridge between React click-handlers and the WebGL effect.
@@ -360,7 +324,7 @@ export default function SphereGalleryClient({
       BASE_FOV,
       mount.clientWidth / mount.clientHeight,
       0.1,
-      SPHERE_RADIUS * 4
+      CUBE_HALF * 6
     )
     camera.rotation.order = "YXZ"
 
@@ -408,47 +372,47 @@ export default function SphereGalleryClient({
     })
 
     // --- tile meshes ----------------------------------------------------------
-    const rowGeometries: THREE.BufferGeometry[] = []
+    // One shared plane — every tile on a cube is the same size (the sphere
+    // needed a geometry per ring).
+    const tileGeometry = new THREE.PlaneGeometry(TILE_W, TILE_H)
     const tileMeshes: THREE.Mesh[] = []
     const tileMaterials: THREE.MeshBasicMaterial[] = []
     // Sequential assignment — every tile gets a distinct project as long as
-    // the pool is at least tile-count deep. (The old `row * 5 + col` formula
-    // collided across rows, repeating the same photo on multiple tiles.)
+    // the pool is at least tile-count deep.
     let tileIndex = 0
+    const centerOffset = (CUBE_GRID - 1) / 2
 
-    ROW_PHIS_DEG.forEach((phiDeg, row) => {
-      const phiCenter = THREE.MathUtils.degToRad(phiDeg)
-      const cols = colsForPhi(phiCenter)
-      const thetaStep = (Math.PI * 2) / cols
-      const geo = buildSphericalTile(
-        SPHERE_RADIUS,
-        thetaStep * TILE_FILL_THETA,
-        phiCenter,
-        TILE_PHI
-      )
-      rowGeometries.push(geo)
-      // Half-step phase shift on alternate rows so seams brick-stagger even
-      // where neighbouring rings share a column count.
-      const phase = (row % 2) * (thetaStep / 2)
-      for (let col = 0; col < cols; col++) {
-        const projectIdx = tileIndex++ % projects.length
-        const mat = new THREE.MeshBasicMaterial({
-          map: cardTextures[projectIdx].normal,
-          side: THREE.DoubleSide,
-          transparent: true,
-          opacity: 0,
-        })
-        const mesh = new THREE.Mesh(geo, mat)
-        const thetaCenter = col * thetaStep + phase
-        mesh.rotation.y = thetaCenter
-        mesh.userData = {
-          projectIdx,
-          thetaCenter,
-          phiCenter,
+    FACE_EULERS.forEach((euler) => {
+      const group = new THREE.Group()
+      group.rotation.copy(euler)
+      scene.add(group)
+      // World-space face normal pointing back at the camera (cube centre).
+      const normal = new THREE.Vector3(0, 0, 1).applyEuler(euler)
+      for (let row = 0; row < CUBE_GRID; row++) {
+        for (let col = 0; col < CUBE_GRID; col++) {
+          const projectIdx = tileIndex++ % projects.length
+          const mat = new THREE.MeshBasicMaterial({
+            map: cardTextures[projectIdx].normal,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0,
+          })
+          const mesh = new THREE.Mesh(tileGeometry, mat)
+          const local = new THREE.Vector3(
+            (col - centerOffset) * STEP,
+            (row - centerOffset) * STEP,
+            -CUBE_HALF
+          )
+          mesh.position.copy(local)
+          mesh.userData = {
+            projectIdx,
+            worldPos: local.clone().applyEuler(euler),
+            normal,
+          }
+          group.add(mesh)
+          tileMeshes.push(mesh)
+          tileMaterials.push(mat)
         }
-        scene.add(mesh)
-        tileMeshes.push(mesh)
-        tileMaterials.push(mat)
       }
     })
 
@@ -461,8 +425,14 @@ export default function SphereGalleryClient({
       velYaw: 0,
       velPitch: 0,
     }
-    const zoom = { fov: BASE_FOV, dolly: 0 }
-    const detailDir = new THREE.Vector3(0, 0, -1)
+    // t: 0 = centre of the cube, 1 = parked in front of the clicked card.
+    // blend: 0 = free-look rotation, 1 = camera tracks the card centre.
+    const zoom = { t: 0, blend: 0, fov: BASE_FOV }
+    const camEnd = new THREE.Vector3()
+    const lookTarget = new THREE.Vector3()
+    const lookDir = new THREE.Vector3()
+    let zoomStartYaw = 0
+    let zoomStartPitch = 0
 
     const drag = {
       active: false,
@@ -583,12 +553,22 @@ export default function SphereGalleryClient({
     canvas.addEventListener("wheel", onWheel, { passive: false })
 
     // --- detail open / close ------------------------------------------------------
+    // The camera slides from the centre toward a point straight in front of
+    // the card while continuously looking AT the card (blended in from the
+    // user's current rotation) — so even an edge/corner tile stays centred
+    // through the flight and ends perfectly face-on.
     const applyZoom = () => {
       camera.fov = zoom.fov
       camera.updateProjectionMatrix()
-      camera.position
-        .copy(detailDir)
-        .multiplyScalar(SPHERE_RADIUS * DETAIL_DOLLY * zoom.dolly)
+      camera.position.copy(camEnd).multiplyScalar(zoom.t)
+      lookDir.copy(lookTarget).sub(camera.position).normalize()
+      const dYaw = Math.atan2(-lookDir.x, -lookDir.z)
+      const dPitch = Math.asin(THREE.MathUtils.clamp(lookDir.y, -1, 1))
+      // Write current AND target so the frame loop's smoothing doesn't fight.
+      ctrl.yaw = ctrl.targetYaw =
+        zoomStartYaw + shortestAngle(dYaw - zoomStartYaw) * zoom.blend
+      ctrl.pitch = ctrl.targetPitch =
+        zoomStartPitch + (dPitch - zoomStartPitch) * zoom.blend
     }
 
     const openDetail = (mesh: THREE.Mesh) => {
@@ -599,21 +579,18 @@ export default function SphereGalleryClient({
       ctrl.velYaw = 0
       ctrl.velPitch = 0
 
-      const thetaC = mesh.userData.thetaCenter as number
-      const phiC = mesh.userData.phiCenter as number
-      detailDir.set(
-        Math.cos(phiC) * Math.sin(thetaC),
-        Math.sin(phiC),
-        -Math.cos(phiC) * Math.cos(thetaC)
-      )
-      // Centre the card: shortest-path yaw to -thetaC, pitch to phiC.
-      ctrl.targetYaw = ctrl.yaw + shortestAngle(-thetaC - ctrl.yaw)
-      ctrl.targetPitch = phiC
+      const worldPos = mesh.userData.worldPos as THREE.Vector3
+      const normal = mesh.userData.normal as THREE.Vector3
+      lookTarget.copy(worldPos)
+      camEnd.copy(worldPos).addScaledVector(normal, DETAIL_VIEW_DIST)
+      zoomStartYaw = ctrl.yaw
+      zoomStartPitch = ctrl.pitch
 
       gsap.to(zoom, {
+        t: 1,
+        blend: 1,
         fov: DETAIL_FOV,
-        dolly: 1,
-        duration: 1.05,
+        duration: 1.1,
         ease: "power3.inOut",
         onUpdate: applyZoom,
       })
@@ -623,15 +600,20 @@ export default function SphereGalleryClient({
     }
 
     const closeDetail = () => {
+      // blend stays at 1 → the camera keeps tracking the card all the way
+      // home, so you end up at the centre looking at the card you just read.
       gsap.to(zoom, {
+        t: 0,
         fov: BASE_FOV,
-        dolly: 0,
         duration: 0.95,
         ease: "power3.inOut",
         onUpdate: applyZoom,
         onComplete: () => {
+          zoom.blend = 0
           detailOpenRef.current = false
           canvas.style.cursor = "grab"
+          // Ceiling/floor cards sit beyond the pitch stop — ease back inside.
+          ctrl.targetPitch = clampPitch(ctrl.pitch)
         },
       })
     }
@@ -725,7 +707,7 @@ export default function SphereGalleryClient({
       canvas.removeEventListener("wheel", onWheel)
       loadedImages.forEach((img) => (img.onload = null))
       tileMaterials.forEach((m) => m.dispose())
-      rowGeometries.forEach((g) => g.dispose())
+      tileGeometry.dispose()
       cardTextures.forEach((t) => {
         t.normal.dispose()
         t.hover.dispose()
@@ -850,10 +832,10 @@ export default function SphereGalleryClient({
             Work
           </span>
           <LocalizedClientLink
-            href="/lookbook-cube"
+            href="/lookbook-sphere"
             className="rounded-full px-3.5 py-2 text-xs font-medium !text-white/80 transition-colors hover:!text-white phone:px-5 phone:py-2.5 phone:text-sm"
           >
-            Cube
+            Sphere
           </LocalizedClientLink>
           <LocalizedClientLink
             href="/lookbook"
