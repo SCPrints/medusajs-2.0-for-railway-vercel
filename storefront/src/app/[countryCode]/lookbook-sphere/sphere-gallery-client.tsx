@@ -894,15 +894,17 @@ export default function SphereGalleryClient({
                 </span>
               </div>
 
+              {/* object-contain, not cover — lookbook shots are arbitrary
+                  aspect ratios and cover-cropping cut the artwork off */}
               <div
                 data-detail-item
-                className="overflow-hidden rounded-sm bg-[#161616]"
+                className="flex items-center justify-center overflow-hidden rounded-sm bg-[#161616]"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={optimizedSrc(selected.image, 1080)}
-                  alt={selected.title}
-                  className="h-[42vh] w-full object-cover small:h-[56vh]"
+                  alt={selected.brand}
+                  className="max-h-[55vh] w-auto max-w-full object-contain small:max-h-[62vh]"
                 />
               </div>
 
