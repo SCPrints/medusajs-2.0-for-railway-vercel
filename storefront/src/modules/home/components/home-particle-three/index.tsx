@@ -550,22 +550,29 @@ function ParticleField({
         diffuseVelocityField(field, nm.fieldDiffusion, fieldScratch2)
         pressureProjectVelocityField(field, fieldScratchP, nm.fieldProjection, 1)
         decayVelocityField(field, nm.fieldDecay, dtMs)
-        /** Deadband — zero out near-silent cells every frame. The Sobel
-         * projection on a collocated grid can breed a creeping checkerboard
-         * mode out of numerical dust; killing sub-threshold cells starves
-         * it before it can spread and keeps the resting wordmark crisp. */
+        /** Per-cell hygiene, one pass:
+         *  - Deadband: zero near-silent cells so the Sobel projection's
+         *    checkerboard mode can't breed out of numerical dust, keeping
+         *    the resting wordmark crisp.
+         *  - Hard cap: the inject falloff peaks at radius/4 × strength, so
+         *    stacked subdivided splats can push cells to hundreds of
+         *    px/frame — clamping at the grid bounds the worst-case energy
+         *    a stroke can put into the fluid (the 2026-06-13 wipeout). */
         const fvx = field.vx
         const fvy = field.vy
         const cells = field.cols * field.rows
+        const CELL_CAP = 25
         for (let ci = 0; ci < cells; ci++) {
-          if (
-            fvx[ci]! < 0.02 &&
-            fvx[ci]! > -0.02 &&
-            fvy[ci]! < 0.02 &&
-            fvy[ci]! > -0.02
-          ) {
+          const cvx = fvx[ci]!
+          const cvy = fvy[ci]!
+          if (cvx < 0.02 && cvx > -0.02 && cvy < 0.02 && cvy > -0.02) {
             fvx[ci] = 0
             fvy[ci] = 0
+          } else {
+            if (cvx > CELL_CAP) fvx[ci] = CELL_CAP
+            else if (cvx < -CELL_CAP) fvx[ci] = -CELL_CAP
+            if (cvy > CELL_CAP) fvy[ci] = CELL_CAP
+            else if (cvy < -CELL_CAP) fvy[ci] = -CELL_CAP
           }
         }
       }

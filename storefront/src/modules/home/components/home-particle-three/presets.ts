@@ -148,8 +148,8 @@ export const CURATED_PRESETS: Preset[] = [
   },
   {
     id: "wake-playback-era-2026-06",
-    name: "6. Wake playback (pole-tuned, pre-field)",
-    note: "The 2026-06-12 pole-tuned defaults BEFORE the fluid-field port: cursor-history wake playback with curl + settle meander. Choreographed, not simulated — kept for comparison against field mode.",
+    name: "6. Wake playback (pole-tuned — current default)",
+    note: "The 2026-06-12 pole-tuned wake-playback model: cursor-history playback with curl + settle meander. Reinstated as the shipping default on 2026-06-13 after the field-on defaults proved explosive; the fluid sim remains opt-in via the Field mode checkbox.",
     tuning: {
       fieldMode: false,
       cursorRadius: 130,

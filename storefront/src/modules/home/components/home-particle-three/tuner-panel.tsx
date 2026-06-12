@@ -168,25 +168,25 @@ export const THREE_TUNING_DEFAULTS: ThreeTuning = {
   wakeCurlHz: 0.3,
   settleMs: 1800,
   settleWobbleAmp: 9,
-  /** Field mode ON — values anchored to the canvas lab's NEWMIX_PRESET
-   * (the closest match to newmixcoffee.com), adapted to this engine's
-   * world units, then pushed harder after the first capture round showed
-   * particles stirring in place instead of being CARRIED along the stroke
-   * like the reference: deposit + ride up, spring suppression down so the
-   * fluid owns energized particles, slower decay so the churn lingers.
-   * The wake-playback era is preserved as curated preset 6. */
-  fieldMode: true,
-  fieldStrength: 1.0,
-  fieldRadius: 80,
+  /** Field mode OFF by default — the 2026-06-13 field-on defaults shipped
+   * with compounding magnitudes (deposit ×1.8 · radius ×1.3 · ride ×2 ·
+   * spring-suppression ×2.4, multiplied through the donut falloff's
+   * radius/4 peak) and a light stroke cascaded into a storm that stripped
+   * the whole wordmark. Default behaviour is back to the capture-verified
+   * wake-playback model; the fluid sim stays available behind this
+   * checkbox with detuned, cell-capped values for supervised tuning. */
+  fieldMode: false,
+  fieldStrength: 0.25,
+  fieldRadius: 60,
   fieldAdvection: 0.7,
   fieldDiffusion: 0.05,
   fieldProjection: 0.7,
-  fieldDecay: 0.35,
-  fieldRide: 0.3,
-  fieldActivation: 0.3,
-  homeSpring: 0.012,
-  energizedSpringScale: 0.05,
-  fieldFriction: 0.62,
+  fieldDecay: 0.6,
+  fieldRide: 0.12,
+  fieldActivation: 0.8,
+  homeSpring: 0.014,
+  energizedSpringScale: 0.2,
+  fieldFriction: 0.5,
 }
 
 /** Keys of `ThreeTuning` whose value is a number — excludes booleans like
@@ -516,10 +516,10 @@ const SLIDERS: SliderDef[] = [
   },
 ]
 
-/** v9: 2026-06-12 field-mode port — the Stam velocity field (the actual
- * newmix mechanism) replaces cursor-history wake playback as the default.
- * Bumped so the new defaults land over stored v8 payloads. */
-const LS_KEY = "particle-threejs-tuning-v9"
+/** v10: 2026-06-13 — field mode pulled back to opt-in after the field-on
+ * defaults proved explosive on the live site (chain-reaction wipeout from
+ * a light stroke). Bumped so fieldMode:false lands over stored v9. */
+const LS_KEY = "particle-threejs-tuning-v10"
 
 export function loadStoredTuning(): ThreeTuning {
   if (typeof window === "undefined") return THREE_TUNING_DEFAULTS
