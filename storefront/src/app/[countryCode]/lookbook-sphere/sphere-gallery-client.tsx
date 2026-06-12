@@ -19,6 +19,7 @@ import * as THREE from "three"
 import gsap from "gsap"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { sampleWordmarkStipple } from "@modules/home/components/home-particle-three/sample-wordmark"
 import {
   SPHERE_ROW_PHIS_DEG,
   sphereColsForPhiDeg,
@@ -55,12 +56,69 @@ const CLICK_DIST_PX = 7 // drag distance below which pointerup counts as a click
 // leaving a dark hole). Yaw-billboarded each frame so the mark reads upright
 // from any spin direction; pitch never flips past the poles so no other
 // correction is needed.
+// Pole wordmarks — the particle build from /particle-threejs, embedded in the
+// sphere scene. The wordmark alpha is stippled into a point cloud
+// (sampleWordmarkStipple) and rendered as shader-animated grains with the
+// lab's rainbow gradient; a soft black disc behind each mark masks the card
+// header text that crowds the north cap rim (cards point their tops at the
+// north pole, so without the disc the titles bleed through the letter gaps).
 const POLE_LOGO_SRC = "/branding/sc-prints-logo-white-transparent.png"
 // Sized to the cap hole (the rings leave a ~10° opening) so the mark brands
 // the empty pole without blotting out the surrounding cards, and parked just
 // inside the shell so it doesn't parallax away from the hole at the pitch stop.
 const POLE_LOGO_WIDTH = 5
 const POLE_LOGO_Y = SPHERE_RADIUS * 0.975
+// Stipple density: render size fed to the sampler (smaller = coarser grid)
+// and the cap on grains actually rendered per pole.
+const POLE_STIPPLE_RENDER_SIZE = 320
+const POLE_PARTICLE_COUNT = 7000
+const POLE_POINT_SIZE = 0.3
+// Backing disc: plane size + radial fade drawn into its texture.
+const POLE_DISC_SIZE = 9
+
+// Same gradient the /particle-threejs lab paints across the wordmark.
+const POLE_GRADIENT_STOPS: [number, number, number][] = [
+  [255, 64, 64],
+  [255, 165, 0],
+  [255, 230, 0],
+  [80, 220, 100],
+  [60, 170, 240],
+  [120, 90, 220],
+  [220, 80, 200],
+]
+
+const POLE_VERTEX_SHADER = /* glsl */ `
+  attribute vec3 aColor;
+  attribute vec3 aSeed;
+  uniform float uTime;
+  uniform float uPointSize;
+  uniform float uPixelRatio;
+  varying vec3 vColor;
+  void main() {
+    vColor = aColor;
+    vec3 p = position;
+    // Ambient shimmer — each grain wanders gently around its home position.
+    float amp = 0.018 + aSeed.z * 0.05;
+    p.x += sin(uTime * (0.6 + aSeed.y * 0.9) + aSeed.x * 6.2831) * amp;
+    p.y += cos(uTime * (0.5 + aSeed.x * 0.8) + aSeed.y * 6.2831) * amp;
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    float twinkle = 0.78 + 0.22 * sin(uTime * (1.0 + aSeed.z * 2.0) + aSeed.x * 12.566);
+    gl_PointSize = uPointSize * uPixelRatio * twinkle * (300.0 / -mv.z);
+    gl_Position = projectionMatrix * mv;
+  }
+`
+
+const POLE_FRAGMENT_SHADER = /* glsl */ `
+  uniform float uOpacity;
+  varying vec3 vColor;
+  void main() {
+    vec2 uv = gl_PointCoord - vec2(0.5);
+    float d = length(uv);
+    if (d > 0.5) discard;
+    float a = smoothstep(0.5, 0.2, d) * uOpacity;
+    gl_FragColor = vec4(vColor, a);
+  }
+`
 
 // Card texture LAYOUT space (≈0.94 aspect like the reference tiles). The
 // actual canvas is allocated at TEX_SCALE of this — with 122 tiles on the
@@ -463,55 +521,143 @@ export default function SphereGalleryClient({
       }
     })
 
-    // --- pole wordmarks ---------------------------------------------------------
-    // One plane per pole, slightly inside the sphere so it composites over the
-    // cap hole. Not in tileMeshes, so hover/click raycasts ignore them.
-    const poleLogoMeshes: THREE.Mesh[] = []
-    const poleLogoMaterials: THREE.MeshBasicMaterial[] = []
-    let poleLogoGeo: THREE.PlaneGeometry | null = null
-    let poleLogoTex: THREE.Texture | null = null
-    const poleLogoImg = new Image()
-    poleLogoImg.decoding = "async"
-    poleLogoImg.onload = () => {
-      const aspect =
-        poleLogoImg.naturalHeight / Math.max(poleLogoImg.naturalWidth, 1)
-      poleLogoTex = new THREE.Texture(poleLogoImg)
-      poleLogoTex.needsUpdate = true
-      poleLogoTex.colorSpace = THREE.SRGBColorSpace
-      poleLogoTex.anisotropy = Math.min(
-        8,
-        renderer.capabilities.getMaxAnisotropy()
-      )
-      poleLogoGeo = new THREE.PlaneGeometry(
-        POLE_LOGO_WIDTH,
-        POLE_LOGO_WIDTH * aspect
-      )
-      for (const sign of [1, -1]) {
-        const mat = new THREE.MeshBasicMaterial({
-          map: poleLogoTex,
+    // --- pole particle wordmarks ------------------------------------------------
+    // One group per pole (backing disc + point cloud), slightly inside the
+    // sphere so it composites over the cap hole. Not in tileMeshes, so
+    // hover/click raycasts ignore them. Tiles keep their pivot at the sphere
+    // origin, so the transparent sort draws them AFTER anything with real
+    // distance — renderOrder lifts the disc (1) and grains (2) above them;
+    // legitimate, since along any sight-line the pole plane is hit before
+    // the shell.
+    const poleGroups: THREE.Group[] = []
+    let polePointsMat: THREE.ShaderMaterial | null = null
+    const poleDispose: (() => void)[] = []
+    let poleCancelled = false
+    sampleWordmarkStipple(POLE_LOGO_SRC, POLE_STIPPLE_RENDER_SIZE)
+      .then(({ points, width, height }) => {
+        if (poleCancelled) return
+
+        // Shuffle so a capped count still samples the whole mark evenly.
+        const indices = new Uint32Array(points.length)
+        for (let i = 0; i < points.length; i++) indices[i] = i
+        for (let i = indices.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1))
+          const t = indices[i]!
+          indices[i] = indices[j]!
+          indices[j] = t
+        }
+        const count = Math.min(POLE_PARTICLE_COUNT, points.length)
+        const scale = POLE_LOGO_WIDTH / width
+        const positions = new Float32Array(count * 3)
+        const colors = new Float32Array(count * 3)
+        const seeds = new Float32Array(count * 3)
+        const segCount = POLE_GRADIENT_STOPS.length - 1
+        for (let i = 0; i < count; i++) {
+          const sp = points[indices[i]!]!
+          const i3 = i * 3
+          positions[i3] = (sp.x - width / 2) * scale
+          positions[i3 + 1] = (height / 2 - sp.y) * scale
+          positions[i3 + 2] = 0
+          const segPos = Math.min(sp.u, 0.9999) * segCount
+          const segIdx = Math.floor(segPos)
+          const localT = segPos - segIdx
+          const c1 = POLE_GRADIENT_STOPS[segIdx]!
+          const c2 = POLE_GRADIENT_STOPS[segIdx + 1]!
+          colors[i3] = (c1[0] + (c2[0] - c1[0]) * localT) / 255
+          colors[i3 + 1] = (c1[1] + (c2[1] - c1[1]) * localT) / 255
+          colors[i3 + 2] = (c1[2] + (c2[2] - c1[2]) * localT) / 255
+          seeds[i3] = Math.random()
+          seeds[i3 + 1] = Math.random()
+          seeds[i3 + 2] = Math.random()
+        }
+        const pointsGeo = new THREE.BufferGeometry()
+        pointsGeo.setAttribute(
+          "position",
+          new THREE.BufferAttribute(positions, 3)
+        )
+        pointsGeo.setAttribute("aColor", new THREE.BufferAttribute(colors, 3))
+        pointsGeo.setAttribute("aSeed", new THREE.BufferAttribute(seeds, 3))
+
+        const pointsMat = new THREE.ShaderMaterial({
+          vertexShader: POLE_VERTEX_SHADER,
+          fragmentShader: POLE_FRAGMENT_SHADER,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+          uniforms: {
+            uTime: { value: 0 },
+            uPointSize: { value: POLE_POINT_SIZE },
+            uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
+            uOpacity: { value: 0 },
+          },
+        })
+        polePointsMat = pointsMat
+
+        // Soft black backdrop — radial fade so it reads as a vignette
+        // around the mark, not a hard sticker over the cards.
+        const discCanvas = document.createElement("canvas")
+        discCanvas.width = discCanvas.height = 256
+        const dctx = discCanvas.getContext("2d")
+        if (dctx) {
+          const grad = dctx.createRadialGradient(128, 128, 0, 128, 128, 128)
+          grad.addColorStop(0, "rgba(0,0,0,0.95)")
+          grad.addColorStop(0.55, "rgba(0,0,0,0.88)")
+          grad.addColorStop(1, "rgba(0,0,0,0)")
+          dctx.fillStyle = grad
+          dctx.fillRect(0, 0, 256, 256)
+        }
+        const discTex = new THREE.CanvasTexture(discCanvas)
+        const discMat = new THREE.MeshBasicMaterial({
+          map: discTex,
           transparent: true,
           opacity: 0,
-          side: THREE.DoubleSide,
           depthWrite: false,
         })
-        const mesh = new THREE.Mesh(poleLogoGeo, mat)
-        // Tiles keep their pivot at the sphere origin, so the transparent
-        // sort draws them AFTER anything with real distance — painting over
-        // the wordmark. Render the logo last: it's strictly inside the
-        // sphere, so along any sight-line it's genuinely in front of tiles.
-        mesh.renderOrder = 1
-        mesh.position.set(0, sign * POLE_LOGO_Y, 0)
-        // YXZ: face the pole plane toward the centre first (±90° about X),
-        // then the per-frame yaw billboard spins it about the world Y axis.
-        mesh.rotation.order = "YXZ"
-        mesh.rotation.x = sign * (Math.PI / 2)
-        scene.add(mesh)
-        poleLogoMeshes.push(mesh)
-        poleLogoMaterials.push(mat)
-        gsap.to(mat, { opacity: 1, duration: 0.7, delay: 0.5, ease: "power2.out" })
-      }
-    }
-    poleLogoImg.src = POLE_LOGO_SRC
+        const discGeo = new THREE.PlaneGeometry(POLE_DISC_SIZE, POLE_DISC_SIZE)
+
+        for (const sign of [1, -1]) {
+          const group = new THREE.Group()
+          group.position.set(0, sign * POLE_LOGO_Y, 0)
+          // YXZ: face the pole plane toward the centre first (±90° about X),
+          // then the per-frame yaw billboard spins it about the world Y axis.
+          group.rotation.order = "YXZ"
+          group.rotation.x = sign * (Math.PI / 2)
+          const disc = new THREE.Mesh(discGeo, discMat)
+          disc.renderOrder = 1
+          const grains = new THREE.Points(pointsGeo, pointsMat)
+          grains.renderOrder = 2
+          group.add(disc)
+          group.add(grains)
+          scene.add(group)
+          poleGroups.push(group)
+        }
+
+        gsap.to(discMat, {
+          opacity: 1,
+          duration: 1.1,
+          delay: 0.35,
+          ease: "power2.out",
+        })
+        gsap.to(pointsMat.uniforms.uOpacity!, {
+          value: 1,
+          duration: 1.1,
+          delay: 0.45,
+          ease: "power2.out",
+        })
+
+        poleDispose.push(() => {
+          gsap.killTweensOf(discMat)
+          gsap.killTweensOf(pointsMat.uniforms.uOpacity!)
+          pointsGeo.dispose()
+          pointsMat.dispose()
+          discGeo.dispose()
+          discMat.dispose()
+          discTex.dispose()
+        })
+      })
+      .catch(() => {
+        // Decorative — a failed stipple just means bare poles.
+      })
 
     // --- control state ---------------------------------------------------------
     const ctrl = {
@@ -749,8 +895,10 @@ export default function SphereGalleryClient({
       ctrl.pitch += (ctrl.targetPitch - ctrl.pitch) * s
       camera.rotation.set(ctrl.pitch, ctrl.yaw, 0)
 
-      // Keep the pole wordmarks upright relative to the camera's spin.
-      for (const m of poleLogoMeshes) m.rotation.y = ctrl.yaw
+      // Keep the pole wordmarks upright relative to the camera's spin, and
+      // advance the grain-shimmer clock.
+      for (const g of poleGroups) g.rotation.y = ctrl.yaw
+      if (polePointsMat) polePointsMat.uniforms.uTime!.value = now / 1000
 
       // Hover raycast (idle pointer only)
       if (!drag.active && !detailOpenRef.current && pointerNdc.x <= 1) {
@@ -788,13 +936,8 @@ export default function SphereGalleryClient({
       canvas.removeEventListener("pointercancel", endDrag)
       canvas.removeEventListener("wheel", onWheel)
       loadedImages.forEach((img) => (img.onload = null))
-      poleLogoImg.onload = null
-      poleLogoMaterials.forEach((m) => {
-        gsap.killTweensOf(m)
-        m.dispose()
-      })
-      poleLogoGeo?.dispose()
-      poleLogoTex?.dispose()
+      poleCancelled = true
+      poleDispose.forEach((fn) => fn())
       tileMaterials.forEach((m) => m.dispose())
       rowGeometries.forEach((g) => g.dispose())
       cardTextures.forEach((t) => {
