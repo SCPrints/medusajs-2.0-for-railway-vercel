@@ -59,6 +59,19 @@ export default async function LookbookSpherePage() {
   )
   const items = pages.flatMap((p) => p.items)
 
+  // Staff upload many photos of one job (all sharing a title) but usually link
+  // the product to just one of them. Treat the link as job-wide: build
+  // title → first linked product handle, so every photo of that job deep-links
+  // even if only one was explicitly linked. An explicit per-tile link still
+  // wins; this only fills the gaps.
+  const handleByTitle = new Map<string, string>()
+  for (const item of items) {
+    const h = item.products[0]?.handle
+    if (!h) continue
+    const key = item.title.trim().toLowerCase()
+    if (!handleByTitle.has(key)) handleByTitle.set(key, h)
+  }
+
   // No repeats on the ball. Staff upload several photos of the same job
   // back-to-back (adjacent weights), so raw order floods one region of the
   // sphere with one job. Dedupe by image URL, group by job title, then place
@@ -105,7 +118,10 @@ export default async function LookbookSpherePage() {
       blurb:
         item.description ??
         "One of ours — designed, printed and pressed in-house at the SC Prints studio.",
-      productHandle: item.products[0]?.handle ?? null,
+      productHandle:
+        item.products[0]?.handle ??
+        handleByTitle.get(item.title.trim().toLowerCase()) ??
+        null,
     }))
 
   return (

@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { LOOKBOOK_MODULE } from "../../../../modules/lookbook"
 import type LookbookModuleService from "../../../../modules/lookbook/service"
+import { revalidateStorefrontTags } from "../../../../lib/storefront-revalidate"
 
 const MAX_BYTES = 8 * 1024 * 1024
 
@@ -83,6 +84,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const service = req.scope.resolve<LookbookModuleService>(LOOKBOOK_MODULE)
   await service.updateLookbookItems([update])
   const updated = await service.retrieveLookbookItem(id)
+
+  // Purge the storefront's cached lookbook page so edits (details, photo,
+  // product links, publish toggle) show up without waiting out cacheLife.
+  void revalidateStorefrontTags(["lookbook"])
+
   res.json({ item: updated })
 }
 
@@ -90,5 +96,6 @@ export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
   const id = req.params.id
   const service = req.scope.resolve<LookbookModuleService>(LOOKBOOK_MODULE)
   await service.deleteLookbookItems([id])
+  void revalidateStorefrontTags(["lookbook"])
   res.json({ ok: true })
 }

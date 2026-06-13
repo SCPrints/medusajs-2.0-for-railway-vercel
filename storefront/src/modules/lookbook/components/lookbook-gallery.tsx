@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { LookbookItem } from "@lib/data/lookbook"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
@@ -24,6 +24,20 @@ export default function LookbookGallery({ items }: Props) {
   const isOpen = openIndex !== null
   const current = isOpen ? items[openIndex] : null
   const closeBtnRef = useRef<HTMLButtonElement | null>(null)
+
+  // Treat a product link as job-wide: staff link the garment to one photo of a
+  // job (shared title) but expect every photo of that job to deep-link. Built
+  // from this page's loaded items; an explicit per-tile link still wins.
+  const handleByTitle = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const it of items) {
+      const h = it.products[0]?.handle
+      if (h && !m.has(it.title.trim().toLowerCase())) {
+        m.set(it.title.trim().toLowerCase(), h)
+      }
+    }
+    return m
+  }, [items])
 
   const close = useCallback(() => setOpenIndex(null), [])
   const next = useCallback(
@@ -221,21 +235,27 @@ export default function LookbookGallery({ items }: Props) {
                   ))}
                 </div>
               ) : null}
-              {current.products.length > 0 ? (
-                <div className="mt-5 flex justify-center">
-                  {/* Deep-links to the linked garment's PDP (the studio /
-                      customizer) so a visitor can start the same job. */}
-                  <LocalizedClientLink
-                    href={`/products/${current.products[0].handle}`}
-                    className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:scale-105"
-                  >
-                    Start a job like this
-                    <span className="transition-transform group-hover:translate-x-0.5">
-                      →
-                    </span>
-                  </LocalizedClientLink>
-                </div>
-              ) : null}
+              {(() => {
+                const ctaHandle =
+                  current.products[0]?.handle ??
+                  handleByTitle.get(current.title.trim().toLowerCase())
+                if (!ctaHandle) return null
+                return (
+                  <div className="mt-5 flex justify-center">
+                    {/* Deep-links to the linked garment's PDP (the studio /
+                        customizer) so a visitor can start the same job. */}
+                    <LocalizedClientLink
+                      href={`/products/${ctaHandle}`}
+                      className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:scale-105"
+                    >
+                      Start a job like this
+                      <span className="transition-transform group-hover:translate-x-0.5">
+                        →
+                      </span>
+                    </LocalizedClientLink>
+                  </div>
+                )
+              })()}
               {hasMany ? (
                 <p className="mt-3 text-xs font-medium text-white/40">
                   {openIndex! + 1} / {items.length}

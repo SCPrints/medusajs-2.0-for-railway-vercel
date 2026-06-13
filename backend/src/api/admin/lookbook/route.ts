@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { LOOKBOOK_MODULE } from "../../../modules/lookbook"
 import type LookbookModuleService from "../../../modules/lookbook/service"
+import { revalidateStorefrontTags } from "../../../lib/storefront-revalidate"
 
 const MAX_BYTES = 8 * 1024 * 1024
 
@@ -96,6 +97,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       created_by: (req as any).auth_context?.actor_id ?? null,
     },
   ])
+
+  // Purge the storefront's cached lookbook page so the new tile (and any linked
+  // products) show up without waiting out the 10-min cacheLife window.
+  void revalidateStorefrontTags(["lookbook"])
 
   res.status(201).json({ item: created })
 }

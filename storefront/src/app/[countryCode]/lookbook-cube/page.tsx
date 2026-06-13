@@ -59,6 +59,17 @@ export default async function LookbookCubePage() {
   )
   const items = pages.flatMap((p) => p.items)
 
+  // Treat a product link as job-wide: staff link the product to one photo of a
+  // job (shared title) but expect every photo of that job to deep-link. An
+  // explicit per-tile link still wins; this only fills the gaps.
+  const handleByTitle = new Map<string, string>()
+  for (const item of items) {
+    const h = item.products[0]?.handle
+    if (!h) continue
+    const key = item.title.trim().toLowerCase()
+    if (!handleByTitle.has(key)) handleByTitle.set(key, h)
+  }
+
   // No repeats on the cube. Staff upload several photos of the same job
   // back-to-back (adjacent weights), so raw order floods one face of the
   // cube with one job. Dedupe by image URL, group by job title, then place
@@ -105,7 +116,10 @@ export default async function LookbookCubePage() {
     blurb:
       item.description ??
       "One of ours — designed, printed and pressed in-house at the SC Prints studio.",
-    productHandle: item.products[0]?.handle ?? null,
+    productHandle:
+      item.products[0]?.handle ??
+      handleByTitle.get(item.title.trim().toLowerCase()) ??
+      null,
   }))
 
   return (
