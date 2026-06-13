@@ -2,6 +2,13 @@ import { sdk } from "@lib/config"
 import { cacheLife, cacheTag } from "next/cache"
 import { connection } from "next/server"
 
+/** A live product a lookbook tile links to (resolved by the store route). */
+export type LookbookProduct = {
+  handle: string
+  title: string
+  thumbnail: string | null
+}
+
 export type LookbookItem = {
   id: string
   title: string
@@ -9,7 +16,8 @@ export type LookbookItem = {
   image_url: string
   attribution: string | null
   tags: string[]
-  product_ids: string[]
+  /** Linked garments, staff-curated order; first is the primary CTA target. */
+  products: LookbookProduct[]
 }
 
 export type LookbookPage = {
@@ -43,13 +51,17 @@ async function fetchLookbookPage(
   const res = (await sdk.client.fetch("/store/lookbook", {
     query: { limit, offset },
   })) as {
-    items?: LookbookItem[]
+    items?: (Omit<LookbookItem, "products"> & {
+      products?: LookbookProduct[]
+    })[]
     count?: number
     limit?: number
     tags?: string[]
   }
   return {
-    items: res.items ?? [],
+    // Normalise `products` so consumers can safely read `products[0]` even if
+    // an older backend (pre product-linking) is still serving this route.
+    items: (res.items ?? []).map((i) => ({ ...i, products: i.products ?? [] })),
     count: res.count ?? 0,
     limit: res.limit ?? limit,
     tags: res.tags ?? [],

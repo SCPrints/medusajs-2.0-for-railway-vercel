@@ -20,7 +20,19 @@ const LookbookItem = model
     image_url: model.text(),
     /** Reference to the original order — soft pointer, no FK. */
     order_id: model.text().nullable(),
-    /** Product IDs the tile features (so clicks deep-link). */
+    /**
+     * Products the tile features, referenced BY HANDLE so the link survives
+     * supplier re-imports (same convention as bundles + home-sections). Stored
+     * as `{ handles: string[] }` (ordered — the first is the primary "Shop this
+     * garment" deep-link target). The storefront resolves these to live PDPs at
+     * read time; handles that no longer resolve are silently skipped.
+     */
+    product_handles: model.json().default({}),
+    /**
+     * @deprecated Legacy product-ID pointer from before handle-based linking.
+     * Never populated by the picker; kept so the column isn't dropped. Use
+     * `product_handles` instead.
+     */
     product_ids: model.json().default({}),
     tags: model.json().default({}),
     /** "Photo by ${attribution}" badge on the tile. */

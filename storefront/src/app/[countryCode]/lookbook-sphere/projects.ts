@@ -33,6 +33,10 @@ export type SphereProject = {
   year: string
   image: string
   blurb: string
+  /** Handle of the garment this job featured. When set, the detail CTA
+   * deep-links to its PDP ("Start a job like this"); null falls back to
+   * /contact. */
+  productHandle?: string | null
 }
 
 export const FALLBACK_PROJECTS: SphereProject[] = [

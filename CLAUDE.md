@@ -282,19 +282,21 @@ Admin curates bundles (e.g. "Coach Starter Pack"); storefront displays them at `
 **Key choice**: bundle items reference products by `handle`, not `product_id` — survives re-imports without manual relink. Unique constraint on bundle `handle`.
 
 ### Lookbook (social-proof gallery)
-Tag-filterable masonry grid of past client jobs at `/lookbook`. Staff curate via admin.
+Tag-filterable masonry grid of past client jobs at `/lookbook` (plus the prototype WebGL `/lookbook-sphere` + `/lookbook-cube` galleries). Staff curate via admin.
 
 | Component | Path |
 | --- | --- |
 | Module | [backend/src/modules/lookbook/](backend/src/modules/lookbook/) |
-| Migration | [backend/src/modules/lookbook/migrations/Migration20260623000000.ts](backend/src/modules/lookbook/migrations/Migration20260623000000.ts) |
+| Migration (table) | [backend/src/modules/lookbook/migrations/Migration20260623000000.ts](backend/src/modules/lookbook/migrations/Migration20260623000000.ts) |
+| Migration (`product_handles` column) | [backend/src/modules/lookbook/migrations/Migration20270710000000.ts](backend/src/modules/lookbook/migrations/Migration20270710000000.ts) |
 | Admin REST | [backend/src/api/admin/lookbook/](backend/src/api/admin/lookbook/) |
-| Store REST | [backend/src/api/store/lookbook/](backend/src/api/store/lookbook/) |
-| Admin CRUD page | [backend/src/admin/routes/lookbook/page.tsx](backend/src/admin/routes/lookbook/page.tsx) |
+| Store REST (resolves linked handles → live PDPs) | [backend/src/api/store/lookbook/route.ts](backend/src/api/store/lookbook/route.ts) |
+| Admin CRUD page (create **+ edit**) | [backend/src/admin/routes/lookbook/page.tsx](backend/src/admin/routes/lookbook/page.tsx) |
+| Product picker (handle-based, reorderable) | [backend/src/admin/components/lookbook/product-picker.tsx](backend/src/admin/components/lookbook/product-picker.tsx) |
 | Combined dashboard (studio + lookbook) | [backend/src/admin/routes/studio-and-lookbook/page.tsx](backend/src/admin/routes/studio-and-lookbook/page.tsx) |
-| Storefront page | [storefront/src/app/[countryCode]/(main)/lookbook/page.tsx](storefront/src/app/[countryCode]/(main)/lookbook/page.tsx) |
+| Storefront page + gallery lightbox | [storefront/src/app/[countryCode]/(main)/lookbook/page.tsx](storefront/src/app/[countryCode]/(main)/lookbook/page.tsx) + [lookbook-gallery.tsx](storefront/src/modules/lookbook/components/lookbook-gallery.tsx) |
 
-Sort by `weight` ascending; `is_published = false` hides from storefront.
+Sort by `weight` ascending; `is_published = false` hides from storefront. Each tile can be fully **edited** in admin (details, photo swap, weight) and **linked to the actual garment(s)** it features. Products are referenced **by handle** (`product_handles` jsonb `{ handles: string[] }`, ordered — same convention as bundles + home-sections, survives re-imports). The store route batch-resolves those handles to live published product summaries (`products: [{ handle, title, thumbnail }]`); the storefront "Start a job like this" CTA (gallery lightbox + sphere + cube detail) deep-links to the **first** linked product's PDP (the studio/customizer), falling back to `/contact` when none is linked. Handles that no longer resolve (deleted/draft/un-imported) are silently dropped — never a dead link. The legacy `product_ids` column is deprecated/unused.
 
 ### Home page sections (curated product rails)
 Staff curate any number of named product rails shown on the storefront home page from `/app/home-sections`. Each section has a title, optional subtitle (rendered as the eyebrow), a hand-picked **ordered** product list, a publish toggle, and a `weight` (lower = higher on the page). The home page renders every published section in weight order; "Popular products" is just section #1, curated by hand. Replaces the old hardcoded "popular hoodies" inference in `getHomeFeaturedRangeProducts` — which is now the **fallback** when no sections are curated (so the page is never empty mid-rollout).

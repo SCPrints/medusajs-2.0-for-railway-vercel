@@ -933,8 +933,15 @@ export default function CubeGalleryClient({
               </p>
 
               <div data-detail-item className="mt-12">
+                {/* Deep-link to the actual garment's PDP (the studio/customizer)
+                    when this tile is linked to a product; otherwise fall back to
+                    the contact form. */}
                 <LocalizedClientLink
-                  href="/contact"
+                  href={
+                    selected.productHandle
+                      ? `/products/${selected.productHandle}`
+                      : "/contact"
+                  }
                   className="inline-flex items-center gap-3 rounded-full bg-white px-7 py-3.5 text-sm font-semibold !text-black transition-transform duration-300 hover:scale-105"
                 >
                   Start a job like this →

@@ -105,6 +105,7 @@ export default async function LookbookSpherePage() {
       blurb:
         item.description ??
         "One of ours — designed, printed and pressed in-house at the SC Prints studio.",
+      productHandle: item.products[0]?.handle ?? null,
     }))
 
   return (

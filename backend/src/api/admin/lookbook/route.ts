@@ -18,6 +18,8 @@ const createSchema = z.object({
   image_mime_type: z.string().max(80).optional(),
   attribution: z.string().max(200).optional(),
   order_id: z.string().max(120).optional(),
+  /** Ordered product handles the tile links to (deep-link targets). */
+  product_handles: z.array(z.string().max(200)).max(20).optional(),
   product_ids: z.array(z.string()).max(20).optional(),
   tags: z.array(z.string().max(40)).max(20).optional(),
   is_published: z.boolean().optional(),
@@ -86,6 +88,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       image_url: imageUrl,
       attribution: body.attribution ?? null,
       order_id: body.order_id ?? null,
+      product_handles: { handles: body.product_handles ?? [] },
       product_ids: { ids: body.product_ids ?? [] },
       tags: { values: body.tags ?? [] },
       is_published: body.is_published ?? true,

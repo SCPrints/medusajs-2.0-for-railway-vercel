@@ -4,6 +4,7 @@ import Image from "next/image"
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import type { LookbookItem } from "@lib/data/lookbook"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 type Props = {
   items: LookbookItem[]
@@ -218,6 +219,21 @@ export default function LookbookGallery({ items }: Props) {
                       {t}
                     </span>
                   ))}
+                </div>
+              ) : null}
+              {current.products.length > 0 ? (
+                <div className="mt-5 flex justify-center">
+                  {/* Deep-links to the linked garment's PDP (the studio /
+                      customizer) so a visitor can start the same job. */}
+                  <LocalizedClientLink
+                    href={`/products/${current.products[0].handle}`}
+                    className="group inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-black transition hover:scale-105"
+                  >
+                    Start a job like this
+                    <span className="transition-transform group-hover:translate-x-0.5">
+                      →
+                    </span>
+                  </LocalizedClientLink>
                 </div>
               ) : null}
               {hasMany ? (
