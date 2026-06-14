@@ -3,6 +3,7 @@ import { Metadata } from "next"
 import { getLookbookPage } from "@lib/data/lookbook"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import LookbookGallery from "@modules/lookbook/components/lookbook-gallery"
+import EnterSphereButton from "@modules/lookbook/components/enter-sphere-button"
 
 const LOOKBOOK_PAGE_SIZE = 24
 
@@ -72,6 +73,9 @@ export default async function LookbookPage({ searchParams }: Params) {
           Real jobs from real teams. Browse for inspiration, or steal an idea
           for your next kit.
         </p>
+        <div className="flex justify-center">
+          <EnterSphereButton />
+        </div>
       </header>
 
       {tags.length > 0 ? (
