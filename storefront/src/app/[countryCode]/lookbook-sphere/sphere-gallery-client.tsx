@@ -388,23 +388,6 @@ function StudioClock() {
   )
 }
 
-const GridIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" className={className} aria-hidden>
-    <rect x="1" y="1" width="6" height="6" rx="1" />
-    <rect x="9" y="1" width="6" height="6" rx="1" />
-    <rect x="1" y="9" width="6" height="6" rx="1" />
-    <rect x="9" y="9" width="6" height="6" rx="1" />
-  </svg>
-)
-
-const ListIcon = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" className={className} aria-hidden>
-    <rect x="1" y="2" width="14" height="2.4" rx="1" />
-    <rect x="1" y="6.8" width="14" height="2.4" rx="1" />
-    <rect x="1" y="11.6" width="14" height="2.4" rx="1" />
-  </svg>
-)
-
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -1228,16 +1211,6 @@ export default function SphereGalleryClient({
           </LocalizedClientLink>
         </div>
 
-        {/* bottom-left view toggle (decorative) */}
-        <div className="absolute bottom-5 left-5 hidden items-center gap-1 rounded-full bg-white/10 p-1.5 backdrop-blur-sm tablet:flex small:bottom-7 small:left-8">
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-black">
-            <GridIcon />
-          </span>
-          <span className="flex h-8 w-8 items-center justify-center rounded-full text-white/60">
-            <ListIcon />
-          </span>
-        </div>
-
         {/* bottom-centre nav pills */}
         <nav className="pointer-events-auto absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center rounded-full bg-white/10 p-1.5 backdrop-blur-sm small:bottom-7">
           {/* !text-black: globals.css paints [class*=rounded-full][class*=text-xs] chips brand-pink */}
@@ -1263,13 +1236,6 @@ export default function SphereGalleryClient({
             Contact
           </LocalizedClientLink>
         </nav>
-
-        {/* bottom-right filter (decorative) */}
-        <div className="absolute bottom-5 right-4 small:bottom-7 small:right-8">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xs font-semibold !text-black phone:h-16 phone:w-16 phone:text-sm small:h-[72px] small:w-[72px]">
-            Filter
-          </span>
-        </div>
       </div>
 
       {/* ---------------- detail page overlay ---------------- */}
