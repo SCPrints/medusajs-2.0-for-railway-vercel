@@ -81,6 +81,28 @@ index 0377a7ffd0d505338789d64b9344c64b332dbff0..262abc544b0802391a9c7fcc2f898cdb
    return /* @__PURE__ */ jsx2(StatusCell, { color, children: text });
  };
  var ProductStatusHeader = () => {
+diff --git a/dist/login-7SAAVRE5.mjs b/dist/login-7SAAVRE5.mjs
+index e37087848c37c3e58cee72ebd14d792b2023a06e..0de009a88d440cc05cd0b58bc9c3c4fcfbb300e6 100644
+--- a/dist/login-7SAAVRE5.mjs
++++ b/dist/login-7SAAVRE5.mjs
+@@ -217,7 +217,16 @@ var Login = () => {
+           });
+         },
+         onSuccess: () => {
+-          navigate(from, { replace: true });
++          // SCP patch: hard navigation instead of the soft router navigate.
++          // navigate(from) raced the just-established session — the target
++          // route's auth guard could still read the pre-login (unauthenticated)
++          // state and bounce straight back to /login, so login "succeeded" yet
++          // the form re-rendered. A full document load re-reads the valid
++          // session every time, removing the race. Basename-safe: derive the
++          // admin mount path from the current /login URL so it works whether
++          // the admin is served under /app or at the site root.
++          const __scpAppBase = window.location.pathname.replace(/\/login\/?$/, "");
++          window.location.assign(__scpAppBase + from);
+         }
+       }
+     );
 diff --git a/dist/product-detail-ZF64CTWE.mjs b/dist/product-detail-ZF64CTWE.mjs
 index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a2da4568e 100644
 --- a/dist/product-detail-ZF64CTWE.mjs
