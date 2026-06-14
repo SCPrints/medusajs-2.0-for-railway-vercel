@@ -37,8 +37,9 @@ export async function generateMetadata({
   return {
     title: "Lookbook Sphere",
     description,
-    // Prototype route — keep out of the index until it replaces /lookbook.
-    robots: { index: false, follow: false },
+    // Indexable: the sphere is now the home page's primary lookbook entry
+    // (it replaced the paginated /lookbook in the "Our recent work" rail).
+    robots: { index: true, follow: true },
     alternates: {
       canonical: canonicalPath,
     },

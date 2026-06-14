@@ -16,10 +16,10 @@ const MAX_TILES = 8
 
 const ViewAllLink = () => (
   <LocalizedClientLink
-    href="/lookbook"
+    href="/lookbook-sphere"
     className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--brand-secondary)] transition hover:brightness-110"
   >
-    View the lookbook
+    Enter the sphere
     <svg
       width="16"
       height="16"
@@ -61,7 +61,7 @@ export default function HomeLookbookRail({
           {tiles.map((item) => (
             <li key={item.id}>
               <LocalizedClientLink
-                href="/lookbook"
+                href="/lookbook-sphere"
                 className="group block overflow-hidden rounded-lg border border-ui-border-base bg-white"
               >
                 <div className="relative aspect-[4/5] overflow-hidden bg-ui-bg-subtle">
