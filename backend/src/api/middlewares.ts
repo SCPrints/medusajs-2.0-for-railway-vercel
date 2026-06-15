@@ -35,6 +35,15 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
     },
     {
+      // Contact-form attachments — a single artwork file base64-encoded in the
+      // JSON body. The route caps the decoded file at 20MB; base64 inflates by
+      // ~1.33x so 32mb covers it. Without this the default ~100kb limit rejects
+      // every real artwork file with a generic 500.
+      matcher: "/store/contact/attachments",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: CUSTOMIZER_BODY_LIMIT },
+    },
+    {
       matcher: "/admin/orders/:id/revised-proof",
       methods: ["POST"],
       bodyParser: { sizeLimit: "12mb" },

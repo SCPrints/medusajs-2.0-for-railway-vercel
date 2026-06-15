@@ -1,7 +1,14 @@
-import { Hr, Section, Text } from "@react-email/components"
+import { Hr, Link, Section, Text } from "@react-email/components"
 import { Base, STYLES, NAVY, BG_SUBTLE } from "./base"
 
 export const CONTACT_SUBMISSION = "contact-submission"
+
+export interface ContactSubmissionAttachment {
+  url: string
+  fileName: string
+  mimeType?: string | null
+  bytes?: number | null
+}
 
 export interface ContactSubmissionEmailData {
   id: string
@@ -13,6 +20,15 @@ export interface ContactSubmissionEmailData {
   sourceOrigin?: string | null
   sourceIp?: string | null
   userAgent?: string | null
+  attachments?: ContactSubmissionAttachment[] | null
+}
+
+const formatBytes = (bytes?: number | null): string | null => {
+  if (typeof bytes !== "number" || !Number.isFinite(bytes) || bytes <= 0) return null
+  if (bytes < 1024) return `${bytes} B`
+  const kb = bytes / 1024
+  if (kb < 1024) return `${Math.round(kb)} KB`
+  return `${(kb / 1024).toFixed(1)} MB`
 }
 
 export interface ContactSubmissionEmailProps {
@@ -31,6 +47,7 @@ export const ContactSubmissionEmail = ({
   preview = "A new contact form submission was received.",
 }: ContactSubmissionEmailProps) => {
   const senderName = [submission.firstName, submission.lastName].filter(Boolean).join(" ").trim()
+  const attachments = (submission.attachments ?? []).filter((a) => a?.url)
 
   return (
     <Base preview={preview}>
@@ -75,6 +92,30 @@ export const ContactSubmissionEmail = ({
         </Text>
       </Section>
 
+      {attachments.length > 0 && (
+        <>
+          <Hr style={STYLES.divider} />
+          <Text style={STYLES.h2}>
+            {attachments.length === 1 ? "Attachment" : `Attachments (${attachments.length})`}
+          </Text>
+          <Section style={{ margin: "12px 0 0" }}>
+            {attachments.map((file, i) => {
+              const size = formatBytes(file.bytes)
+              return (
+                <Text key={i} style={{ ...STYLES.body, margin: i === 0 ? 0 : "8px 0 0" }}>
+                  <Link href={file.url} style={STYLES.link}>
+                    {file.fileName || "Download file"}
+                  </Link>
+                  {size ? (
+                    <span style={{ color: "#9ca3af" }}> &middot; {size}</span>
+                  ) : null}
+                </Text>
+              )
+            })}
+          </Section>
+        </>
+      )}
+
       <Hr style={STYLES.divider} />
 
       <Text style={{ ...STYLES.meta, margin: "0 0 4px" }}>
@@ -104,6 +145,20 @@ ContactSubmissionEmail.PreviewProps = {
     sourceOrigin: "https://www.scprints.com.au",
     sourceIp: "203.0.113.10",
     userAgent: "Mozilla/5.0",
+    attachments: [
+      {
+        url: "https://example.com/contact-team-logo.ai",
+        fileName: "team-logo.ai",
+        mimeType: "application/postscript",
+        bytes: 2_400_000,
+      },
+      {
+        url: "https://example.com/contact-back-print.png",
+        fileName: "back-print.png",
+        mimeType: "image/png",
+        bytes: 850_000,
+      },
+    ],
   },
   preview: "A new contact form submission was received.",
 } as ContactSubmissionEmailProps

@@ -3,7 +3,7 @@ import { INotificationModuleService } from "@medusajs/framework/types"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { Pool } from "pg"
 import { ulid } from "ulid"
-import { CONTACT_NOTIFICATION_EMAIL, DATABASE_URL } from "../../lib/constants"
+import { CONTACT_NOTIFICATION_EMAIL, DATABASE_URL, MINIO_PUBLIC_URL } from "../../lib/constants"
 import { isValidEmail } from "../../lib/email-validation"
 import { getPostHog } from "../../lib/posthog"
 import { getStorefrontOriginAllowlist } from "../../lib/storefront-origins"
@@ -15,6 +15,15 @@ const contactSubmissionPool = new Pool({
 
 let ensureContactSubmissionsTablePromise: Promise<void> | null = null
 
+const MAX_ATTACHMENTS = 3
+
+type ContactAttachment = {
+  url: string
+  fileName: string
+  mimeType: string | null
+  bytes: number | null
+}
+
 type ContactSubmissionInput = {
   id: string
   firstName: string | null
@@ -25,6 +34,36 @@ type ContactSubmissionInput = {
   sourceOrigin: string | null
   sourceIp: string | null
   userAgent: string | null
+  attachments: ContactAttachment[]
+}
+
+/**
+ * Accept only attachment URLs that point at OUR object storage — the URLs come
+ * from the client, so never echo an attacker-supplied arbitrary link into the
+ * staff notification email. (Uploads land via /store/contact/attachments, which
+ * returns MINIO_PUBLIC_URL-prefixed URLs.)
+ */
+function parseAttachments(raw: unknown): ContactAttachment[] {
+  if (!Array.isArray(raw)) return []
+  const publicBase = MINIO_PUBLIC_URL?.replace(/\/+$/, "") || null
+  const out: ContactAttachment[] = []
+  for (const item of raw) {
+    if (out.length >= MAX_ATTACHMENTS) break
+    if (!item || typeof item !== "object") continue
+    const a = item as Record<string, unknown>
+    const url = typeof a.url === "string" ? a.url.trim() : ""
+    const trusted = publicBase ? url.startsWith(`${publicBase}/`) : url.startsWith("https://")
+    if (!url || !trusted) continue
+    const fileName =
+      typeof a.fileName === "string" && a.fileName.trim()
+        ? a.fileName.trim().slice(0, 255)
+        : "attachment"
+    const mimeType = typeof a.mimeType === "string" ? a.mimeType.trim().slice(0, 150) || null : null
+    const bytes =
+      typeof a.bytes === "number" && Number.isFinite(a.bytes) ? Math.max(0, Math.floor(a.bytes)) : null
+    out.push({ url, fileName, mimeType, bytes })
+  }
+  return out
 }
 
 function getAllowedOrigins() {
@@ -59,9 +98,14 @@ async function ensureContactSubmissionsTable() {
           source_origin TEXT,
           source_ip TEXT,
           user_agent TEXT,
+          attachments JSONB,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `)
+      // Back-fill the column on databases whose table predates attachments.
+      await contactSubmissionPool.query(
+        `ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS attachments JSONB`
+      )
     })()
   }
 
@@ -82,8 +126,9 @@ async function createContactSubmission(input: ContactSubmissionInput) {
         message,
         source_origin,
         source_ip,
-        user_agent
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        user_agent,
+        attachments
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `,
     [
       input.id,
@@ -95,6 +140,7 @@ async function createContactSubmission(input: ContactSubmissionInput) {
       input.sourceOrigin,
       input.sourceIp,
       input.userAgent,
+      input.attachments.length ? JSON.stringify(input.attachments) : null,
     ]
   )
 }
@@ -113,6 +159,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
   const subject = typeof body.subject === "string" ? body.subject.trim() : null
   const message = typeof body.message === "string" ? body.message.trim() : ""
+  const attachments = parseAttachments(body.attachments)
 
   if (!email || !message) {
     return res.status(400).json({
@@ -147,6 +194,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       sourceOrigin,
       sourceIp,
       userAgent,
+      attachments,
     })
   } catch (error) {
     throw new MedusaError(
@@ -182,6 +230,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             sourceOrigin,
             sourceIp,
             userAgent,
+            attachments,
           },
           preview: "A new contact form submission was received.",
         },
@@ -202,6 +251,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       submission_id: submissionId,
       subject: subject ?? null,
       source_origin: sourceOrigin ?? null,
+      attachment_count: attachments.length,
       $set: { email },
     },
   })
