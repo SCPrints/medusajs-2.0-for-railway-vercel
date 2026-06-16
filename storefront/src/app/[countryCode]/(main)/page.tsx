@@ -429,10 +429,10 @@ export default async function Home({
           }}
         />
 
-        {/* 1. Hero — benefit headline + dual CTA (Start designing → /customizer,
-            Shop the range → /store) + value-prop badges. The first real H1 in
-            the home body. Image-free shell for now; a background image/canvas
-            can be dropped in behind the content later (see home-hero.tsx). */}
+        {/* 1. Hero — benefit headline + single CTA (Shop the range → /store) +
+            value-prop badges. The first real H1 in the home body. Image-free
+            shell for now; a background image/canvas can be dropped in behind the
+            content later (see home-hero.tsx). */}
         <HomeHero />
 
         {/* 2. Turnaround line — static promise copy (the eta prop is unused

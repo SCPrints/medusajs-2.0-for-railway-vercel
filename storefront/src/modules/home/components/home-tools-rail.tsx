@@ -5,17 +5,10 @@ import { iconBase } from "@modules/common/icons/icon-base"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 // Surfaces built-but-buried customer tools that previously had no home-page
-// entry point (Phase 1 S2): the Fabric.js Design Studio, the DTF gang-sheet
-// builder, BYO (bring-your-own garments) and curated Bundles. Each card is a
-// whole-card link to an existing route.
-
-const DesignStudioIcon = (props: SVGProps<SVGSVGElement>) => (
-  <svg {...iconBase} {...props}>
-    <path d="M5 27l4-1 14-14-3-3L6 23z" />
-    <path d="M19 9l3 3" />
-    <path d="M22 6l4 4-2 2-4-4z" />
-  </svg>
-)
+// entry point (Phase 1 S2): the DTF gang-sheet builder, BYO (bring-your-own
+// garments) and curated Bundles. Each card is a whole-card link to an existing
+// route. (The "Design Studio" → /customizer card was removed — that standalone
+// customizer is retired; designing now happens on the per-product PDP.)
 
 const DtfBuilderIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg {...iconBase} {...props}>
@@ -47,13 +40,6 @@ type Tool = {
 }
 
 const TOOLS: Tool[] = [
-  {
-    id: "design_studio",
-    title: "Design Studio",
-    description: "Add your logo or art to a garment online and see it instantly.",
-    href: "/customizer",
-    Icon: DesignStudioIcon,
-  },
   {
     id: "dtf_builder",
     title: "DTF Gang Sheet Builder",
@@ -102,7 +88,7 @@ export default function HomeToolsRail() {
         title="Tools to get you started"
       />
 
-      <ul className="mt-8 grid list-none grid-cols-1 gap-3 p-0 phone:grid-cols-2 phone:gap-4 small:grid-cols-4">
+      <ul className="mt-8 grid list-none grid-cols-1 gap-3 p-0 phone:grid-cols-2 phone:gap-4 small:grid-cols-3">
         {TOOLS.map((tool) => {
           const { Icon } = tool
           return (

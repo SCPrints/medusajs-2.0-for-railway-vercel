@@ -3,13 +3,12 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 
 // Home hero (Phase 1). Full-bleed product photo (a rack of blank garments)
 // behind the content, with a left-to-right white scrim so the dark headline +
-// dual CTA stay readable on the left while the garments show through on the
+// CTA stay readable on the left while the garments show through on the
 // right. The image is the LCP element (priority load).
-// Dual CTA: "Start designing" → /customizer (design-it-yourself) and
-// "Shop the range" → /store (browse-and-buy). No quote CTA — SC Prints sells
-// direct off the catalogue (bulk-tier pricing is on the cards), so a "get a
-// quote" path doesn't fit the model.
-// Keep the content (H1 + dual CTA + badges) untouched so SEO/conversion holds.
+// Single CTA: "Shop the range" → /store (browse-and-buy). The old "Start
+// designing" → /customizer CTA was removed — the standalone /customizer is the
+// retired legacy tool; designing now happens on the per-product PDP (Studio).
+// No quote CTA — SC Prints sells direct off the catalogue.
 
 const BADGES = [
   "No minimums — from 1 garment",
@@ -95,16 +94,8 @@ export default function HomeHero() {
 
           <div className="mt-8 flex flex-col gap-3 phone:flex-row phone:flex-wrap">
             <LocalizedClientLink
-              href="/customizer"
-              className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
-            >
-              Start designing
-              <ArrowIcon className="transition-transform group-hover:translate-x-0.5" />
-            </LocalizedClientLink>
-
-            <LocalizedClientLink
               href="/store"
-              className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-ui-border-base bg-white px-6 py-3 text-sm font-semibold text-ui-fg-base transition hover:border-[var(--brand-secondary)] hover:text-[var(--brand-secondary)]"
+              className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Shop the range
               <ArrowIcon className="transition-transform group-hover:translate-x-0.5" />
