@@ -2477,15 +2477,25 @@ export default function CustomizerTemplate({
       setUploadError(
         productIsHat
           ? "Hats only support one print on the front. Remove the existing print to add a different one."
-          : `Up to ${perSideCap} prints per location. Remove one before adding another.`
+          : `This location already has ${perSideCap} prints (the maximum). Tap a print on the garment (or its upload tile) to select it, then click "Remove selected".`
       )
       return
     }
 
     getObjectId(object)
+    // Cascade each additional print on this side by a small diagonal offset so
+    // duplicates never land perfectly on top of one another. Without this, a
+    // customer who re-taps the same artwork (common when it's low-contrast on a
+    // dark garment and the add looks like "nothing happened") builds an
+    // invisible stack of identical copies they can't see to remove — the studio
+    // then reports the location as decorated and the per-side cap blocks further
+    // edits, leaving them stuck. clampObjectToBounds (below) keeps the offset
+    // copy on the garment.
+    const STACK_OFFSET_PX = 22
+    const cascade = currentCount * STACK_OFFSET_PX
     object.set({
-      left: printArea.x + printArea.width / 2 - (object.getScaledWidth?.() ?? 80) / 2,
-      top: printArea.y + printArea.height / 2 - (object.getScaledHeight?.() ?? 40) / 2,
+      left: printArea.x + printArea.width / 2 - (object.getScaledWidth?.() ?? 80) / 2 + cascade,
+      top: printArea.y + printArea.height / 2 - (object.getScaledHeight?.() ?? 40) / 2 + cascade,
       // Mobile-friendly control styling. Setting these per-object reliably
       // works across Fabric v5/v6/v7 — the prototype path didn't take in v7.
       cornerSize: 16,
@@ -2752,6 +2762,28 @@ export default function CustomizerTemplate({
     }
 
     setUploadError(null)
+
+    // If this artwork is already on the current side, select that copy instead
+    // of silently adding another. Re-tapping a "My uploads" tile is almost
+    // always the customer trying to find art they can't see (low-contrast on a
+    // dark garment), not asking for a second copy — and piling invisible
+    // duplicates is exactly what gets them stuck against the per-side cap.
+    // Selecting the existing copy surfaces its (white) handles so they can see
+    // it's there and resize/remove it.
+    const canvas = fabricCanvasRef.current
+    const existing = canvas
+      ?.getObjects?.()
+      ?.find((o: any) => o?.customizerUploadId === uploadId)
+    if (canvas && existing) {
+      canvas.setActiveObject(existing)
+      canvas.requestRenderAll?.()
+      updateLayers()
+      setStatusMessage(
+        `“${asset.name}” is already on this location — selected it for you. Drag a corner to resize, or use “Remove selected” to take it off.`
+      )
+      return
+    }
+
     fireDesignStarted("reuse_upload")
     try {
       if (asset.type === "image/svg+xml") {
