@@ -712,6 +712,18 @@ export default function CustomizerTemplate({
   const posSessionIdFromUrl =
     initialVariantSearchParams?.get("pos_session") ?? null
   const isPOSMode = Boolean(posSessionIdFromUrl)
+
+  // Quote mode: customizer launched in a popup from the admin Quotes page
+  // (/app/quotes → "Design in Studio"). The add-to-cart button POSTs the
+  // rendered design back to /api/quote-bridge/items, keyed by the quote id +
+  // signed `qsig`, then closes the popup. No real cart line is created — the
+  // design lines attach to the quote and only become cart lines if/when the
+  // customer accepts the quote. `group` ties a multi-size design together so
+  // re-editing replaces it. Mirrors POS mode.
+  const quoteIdFromUrl = initialVariantSearchParams?.get("quote_id") ?? null
+  const quoteSigFromUrl = initialVariantSearchParams?.get("qsig") ?? null
+  const quoteGroupFromUrl = initialVariantSearchParams?.get("group") ?? null
+  const isQuoteMode = Boolean(quoteIdFromUrl && quoteSigFromUrl)
   const [pendingHydration, setPendingHydration] = useState<CustomizerMetadata | null>(null)
   const [hydrationApplied, setHydrationApplied] = useState(false)
   const [editingHydrated, setEditingHydrated] = useState(false)
@@ -2725,12 +2737,32 @@ export default function CustomizerTemplate({
     url: string
   }) => {
     setUploadError(null)
-    try {
-      const response = await fetch(design.url, { mode: "cors" })
-      if (!response.ok) {
-        throw new Error(`Could not fetch artwork (HTTP ${response.status})`)
+
+    // Two-step fetch (same strategy as bulk-order-grid's mockup compositor):
+    //   1. Try the artwork URL directly — works for hosts that send permissive
+    //      CORS headers.
+    //   2. On reject, retry via `/api/proxy-image`, which re-streams the same
+    //      bytes with `Access-Control-Allow-Origin: *`.
+    // The cart artwork lives on R2/MinIO public URLs (`pub-….r2.dev`), which do
+    // NOT send CORS headers, so a direct cross-origin fetch rejects with the
+    // native "Failed to fetch" TypeError — hence the proxy fallback.
+    const fetchArtworkBlob = async (): Promise<Blob> => {
+      try {
+        const direct = await fetch(design.url, { mode: "cors" })
+        if (!direct.ok) throw new Error(`HTTP ${direct.status}`)
+        return await direct.blob()
+      } catch {
+        const proxied = `/api/proxy-image?url=${encodeURIComponent(design.url)}`
+        const viaProxy = await fetch(proxied)
+        if (!viaProxy.ok) {
+          throw new Error(`Could not fetch artwork (HTTP ${viaProxy.status})`)
+        }
+        return await viaProxy.blob()
       }
-      const blob = await response.blob()
+    }
+
+    try {
+      const blob = await fetchArtworkBlob()
       // Infer a usable filename from the URL (strip query string + path).
       const urlPath = (() => {
         try {
@@ -4009,6 +4041,100 @@ export default function CustomizerTemplate({
           }
         } catch (err: any) {
           setUploadError(err?.message ?? "Failed to save to POS")
+        } finally {
+          setIsSubmitting(false)
+        }
+        return
+      }
+
+      // Quote mode: skip the cart and post the finished design back to the
+      // quote bridge. All (variant × size) lines for this design go in ONE
+      // request sharing a group_id so the backend can replace the group
+      // atomically on re-edit. The admin Quotes page polls the quote and
+      // surfaces the new lines. Like POS, we never touch the SCP cart routes /
+      // vectorization / router.refresh here.
+      if (isQuoteMode && quoteIdFromUrl && quoteSigFromUrl) {
+        try {
+          const groupId =
+            quoteGroupFromUrl ||
+            `qg_${Date.now().toString(36)}${Math.random()
+              .toString(36)
+              .slice(2, 8)}`
+          const lines = resolvedQuantities.map((quantityEntry) => {
+            const lineItemMetadata: CustomizerMetadata = {
+              ...metadataBase,
+              variantId: quantityEntry.variant.id,
+            }
+            const sanitized = sanitizeCustomizerDesignForCart(
+              lineItemMetadata,
+              dataUrlToHostedUrl
+            )
+            // Suggested per-unit price = the decorated price the operator saw
+            // in the pricing panel (pricing.discountedUnitPriceCents), falling
+            // back to the bare garment calculated_price. Staff confirm/adjust
+            // it on the quote before sending.
+            const unitCents = (() => {
+              // NOTE: despite the `Cents` suffix, discountedUnitPriceCents is in
+              // MAJOR units (decimal dollars) — see customizer/lib/pricing.ts.
+              // Convert to cents (× 100), matching the calculated_price fallback
+              // below; the backend divides unit_price_cents by 100.
+              const fromBreakdown = (pricing as any)?.discountedUnitPriceCents
+              if (Number.isFinite(fromBreakdown) && fromBreakdown > 0) {
+                return Math.round(fromBreakdown * 100)
+              }
+              const p = (quantityEntry.variant as any)?.calculated_price
+              const amount =
+                typeof p?.calculated_amount === "number"
+                  ? p.calculated_amount
+                  : Number(p?.calculated_amount ?? 0)
+              return Number.isFinite(amount) && amount > 0
+                ? Math.round(amount * 100)
+                : null
+            })()
+            return {
+              kind: "customizer" as const,
+              variant_id: quantityEntry.variant.id,
+              product_id: selectedProduct.id,
+              product_title: selectedProduct.title ?? "Custom design",
+              variant_title:
+                (quantityEntry.variant as any)?.title ?? quantityEntry.size,
+              quantity: quantityEntry.quantity,
+              unit_price_cents: unitCents,
+              metadata: {
+                customizerDesign: sanitized,
+                product_handle: selectedProduct.handle ?? undefined,
+                product_title: selectedProduct.title ?? undefined,
+                print_size_id: scpPrintSizeId,
+              },
+            }
+          })
+          const bridgeRes = await fetch("/api/quote-bridge/items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              quote_id: quoteIdFromUrl,
+              qsig: quoteSigFromUrl,
+              group_id: groupId,
+              lines,
+            }),
+          })
+          if (!bridgeRes.ok) {
+            const j = await bridgeRes.json().catch(() => ({}))
+            throw new Error(
+              (j as { error?: string })?.error ??
+                `Quote bridge failed (${bridgeRes.status})`
+            )
+          }
+          setStatusMessage(
+            "Saved to quote. You can close this window — the quote has been updated."
+          )
+          try {
+            window.close()
+          } catch {
+            /* noop */
+          }
+        } catch (err: any) {
+          setUploadError(err?.message ?? "Failed to save to quote")
         } finally {
           setIsSubmitting(false)
         }

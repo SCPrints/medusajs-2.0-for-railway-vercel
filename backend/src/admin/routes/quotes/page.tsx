@@ -1,10 +1,12 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { ChatBubbleLeftRight } from "@medusajs/icons"
+import { ChatBubbleLeftRight, Plus, Trash, PencilSquare, Sparkles } from "@medusajs/icons"
 import {
   Badge,
   Button,
   Container,
+  Drawer,
   Heading,
+  IconButton,
   Input,
   Label,
   Select,
@@ -12,9 +14,14 @@ import {
   Textarea,
   toast,
 } from "@medusajs/ui"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
+import {
+  ProductLinePicker,
+  type PickedProductLine,
+} from "../../components/quotes/product-line-picker"
+import { mergeServerRows } from "../../lib/quote-line-merge"
 
 type Quote = {
   id: string
@@ -31,11 +38,19 @@ type Quote = {
   total_estimate: number | string | null
   line_items: {
     items?: Array<{
+      id?: string
       title: string
       description?: string | null
       quantity?: number | null
       unit_price?: number | null
       total?: number | null
+      product_id?: string | null
+      variant_id?: string | null
+      product_handle?: string | null
+      thumbnail?: string | null
+      customizerDesign?: unknown | null
+      print_size_id?: string | null
+      group_id?: string | null
     }>
   }
   metadata?: Record<string, unknown> | null
@@ -50,6 +65,8 @@ type QuoteEvent = {
   body: Record<string, unknown>
   created_at: string
 }
+
+type Region = { id: string; name: string; currency_code: string }
 
 // Keyed by string (not Quote["status"]) so the transient "converting" status —
 // written briefly by the accept route's atomic claim, outside the model enum —
@@ -74,6 +91,489 @@ const STATUS_COLORS: Record<string, "blue" | "orange" | "green" | "red" | "grey"
 
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-AU")
 
+const genLineId = () =>
+  `ln_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+
+type QuoteLineItem = NonNullable<Quote["line_items"]["items"]>[number]
+
+// The line-items editor works in string-valued draft rows so the number
+// inputs can be cleared without coercing to 0; `draftToLineItems` converts
+// back to the persisted shape on save. Catalog linkage + the Studio design
+// payload ride along untouched so a qty/price edit never drops a design.
+type DraftLineItem = {
+  id: string
+  title: string
+  description: string
+  quantity: string
+  unit_price: string
+  product_id?: string | null
+  variant_id?: string | null
+  product_handle?: string | null
+  thumbnail?: string | null
+  customizerDesign?: unknown | null
+  print_size_id?: string | null
+  group_id?: string | null
+}
+
+const emptyLineItem = (): DraftLineItem => ({
+  id: genLineId(),
+  title: "",
+  description: "",
+  quantity: "",
+  unit_price: "",
+})
+
+function lineItemsToDraft(items?: Quote["line_items"]["items"]): DraftLineItem[] {
+  return (items ?? []).map((li) => ({
+    id: li.id || genLineId(),
+    title: li.title ?? "",
+    description: li.description ?? "",
+    quantity: li.quantity != null ? String(li.quantity) : "",
+    unit_price: li.unit_price != null ? String(li.unit_price) : "",
+    product_id: li.product_id ?? null,
+    variant_id: li.variant_id ?? null,
+    product_handle: li.product_handle ?? null,
+    thumbnail: li.thumbnail ?? null,
+    customizerDesign: li.customizerDesign ?? null,
+    print_size_id: li.print_size_id ?? null,
+    group_id: li.group_id ?? null,
+  }))
+}
+
+function draftToLineItems(rows: DraftLineItem[]): QuoteLineItem[] {
+  return rows
+    .filter((r) => r.title.trim())
+    .map((r) => {
+      const qtyNum = Number.parseInt(r.quantity, 10)
+      const unitNum = Number.parseFloat(r.unit_price)
+      const quantity = Number.isFinite(qtyNum) ? qtyNum : null
+      const unit_price = Number.isFinite(unitNum) ? unitNum : null
+      const total =
+        quantity != null && unit_price != null
+          ? Math.round(quantity * unit_price * 100) / 100
+          : null
+      return {
+        id: r.id,
+        title: r.title.trim(),
+        description: r.description.trim() || null,
+        quantity,
+        unit_price,
+        total,
+        product_id: r.product_id ?? null,
+        variant_id: r.variant_id ?? null,
+        product_handle: r.product_handle ?? null,
+        thumbnail: r.thumbnail ?? null,
+        customizerDesign: r.customizerDesign ?? null,
+        print_size_id: r.print_size_id ?? null,
+        group_id: r.group_id ?? null,
+      }
+    })
+}
+
+// A lightweight signature of the server-side line items so the Studio poller
+// only resets the local draft when the SERVER actually changed (a design
+// landed / was replaced) — in-progress local qty/price edits survive.
+function lineItemsSignature(items?: Quote["line_items"]["items"]): string {
+  return (items ?? [])
+    .map(
+      (li) =>
+        `${li.id ?? ""}:${li.quantity ?? ""}:${li.unit_price ?? ""}:${
+          li.group_id ?? ""
+        }:${li.thumbnail ?? ""}:${li.description ?? ""}`
+    )
+    .join("|")
+}
+
+function LineItemsEditor({
+  rows,
+  onChange,
+  regionId,
+  onDesignLine,
+  onAddDesign,
+}: {
+  rows: DraftLineItem[]
+  onChange: (rows: DraftLineItem[]) => void
+  regionId: string | null
+  /** Open the Studio to (re)design a row. Omit to hide Studio actions. */
+  onDesignLine?: (row: DraftLineItem) => void
+  /** Open the Studio with no preselected product. Omit to hide. */
+  onAddDesign?: () => void
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const setRow = (idx: number, patch: Partial<DraftLineItem>) =>
+    onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
+
+  const addPicked = (p: PickedProductLine) => {
+    onChange([
+      ...rows,
+      {
+        id: genLineId(),
+        title: p.title,
+        description: "",
+        quantity: "",
+        unit_price: p.unit_price != null ? String(p.unit_price) : "",
+        product_id: p.product_id,
+        variant_id: p.variant_id,
+        product_handle: p.product_handle,
+        thumbnail: p.thumbnail,
+        customizerDesign: null,
+        print_size_id: null,
+        group_id: null,
+      },
+    ])
+  }
+
+  return (
+    <div className="flex flex-col gap-y-3">
+      {rows.length === 0 ? (
+        <Text size="xsmall" className="text-ui-fg-muted">
+          No line items yet — add a catalog product, design one in the Studio,
+          or add a custom line.
+        </Text>
+      ) : (
+        rows.map((row, idx) => {
+          const hasDesign = Boolean(row.customizerDesign)
+          const isProduct = Boolean(row.variant_id)
+          return (
+            <div
+              key={row.id}
+              className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2"
+            >
+              <div className="flex items-start gap-x-2">
+                {row.thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={row.thumbnail}
+                    alt=""
+                    className="w-12 h-12 rounded object-cover bg-ui-bg-subtle shrink-0"
+                  />
+                ) : null}
+                <div className="flex-1 flex flex-col gap-y-1">
+                  <Input
+                    placeholder="Item title (e.g. Navy hoodie, front + back print)"
+                    value={row.title}
+                    onChange={(e) => setRow(idx, { title: e.target.value })}
+                  />
+                  <div className="flex flex-wrap items-center gap-1">
+                    {hasDesign ? (
+                      <Badge size="2xsmall" color="purple">
+                        Studio design
+                      </Badge>
+                    ) : null}
+                    {isProduct ? (
+                      <Badge size="2xsmall" color="green">
+                        Catalog product
+                      </Badge>
+                    ) : null}
+                    {!isProduct && !hasDesign ? (
+                      <Badge size="2xsmall" color="grey">
+                        Custom line
+                      </Badge>
+                    ) : null}
+                    {!isProduct ? (
+                      <span className="text-[11px] text-ui-fg-muted">
+                        No variant — won't add to cart on acceptance
+                      </span>
+                    ) : !row.unit_price.trim() ? (
+                      <span className="text-[11px] text-ui-tag-orange-text">
+                        No price set — falls back to catalog price on acceptance
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <IconButton
+                  variant="transparent"
+                  onClick={() => onChange(rows.filter((_, i) => i !== idx))}
+                  aria-label="Remove line item"
+                >
+                  <Trash />
+                </IconButton>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label size="xsmall">Qty</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={row.quantity}
+                    onChange={(e) => setRow(idx, { quantity: e.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label size="xsmall">Unit price</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={row.unit_price}
+                    onChange={(e) => setRow(idx, { unit_price: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label size="xsmall">Description</Label>
+                <Textarea
+                  rows={2}
+                  value={row.description}
+                  onChange={(e) => setRow(idx, { description: e.target.value })}
+                  placeholder="Optional — decoration method, sizes, colours…"
+                />
+              </div>
+              {hasDesign && onDesignLine ? (
+                <div>
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={() => onDesignLine(row)}
+                  >
+                    <PencilSquare /> Edit design in Studio
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          )
+        })
+      )}
+
+      {pickerOpen ? (
+        <ProductLinePicker
+          regionId={regionId}
+          onPick={addPicked}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="small"
+          variant="secondary"
+          onClick={() => setPickerOpen((v) => !v)}
+        >
+          <Plus /> Add product
+        </Button>
+        {onAddDesign ? (
+          <Button size="small" variant="secondary" onClick={onAddDesign}>
+            <Sparkles /> Design in Studio
+          </Button>
+        ) : null}
+        <Button
+          size="small"
+          variant="transparent"
+          onClick={() => onChange([...rows, emptyLineItem()])}
+        >
+          <Plus /> Add custom line
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function NewQuoteDrawer({
+  open,
+  onClose,
+  onCreated,
+  regionId,
+}: {
+  open: boolean
+  onClose: () => void
+  onCreated: (id: string) => void
+  regionId: string | null
+}) {
+  const blankForm = {
+    email: "",
+    contact_name: "",
+    company: "",
+    contact_phone: "",
+    subject: "",
+    message: "",
+    assigned_to: "",
+    total_estimate: "",
+  }
+  const [form, setForm] = useState(blankForm)
+  const [rows, setRows] = useState<DraftLineItem[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) {
+      setForm(blankForm)
+      setRows([])
+      setError(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  const set = (patch: Partial<typeof blankForm>) =>
+    setForm((f) => ({ ...f, ...patch }))
+
+  const submit = async () => {
+    if (!form.email.trim()) {
+      setError("Email is required.")
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const estimateNum = Number.parseFloat(form.total_estimate)
+      const payload: Record<string, unknown> = {
+        email: form.email.trim(),
+        contact_name: form.contact_name.trim() || undefined,
+        company: form.company.trim() || undefined,
+        contact_phone: form.contact_phone.trim() || undefined,
+        subject: form.subject.trim() || undefined,
+        message: form.message.trim() || undefined,
+        assigned_to: form.assigned_to.trim() || undefined,
+        total_estimate: Number.isFinite(estimateNum) ? estimateNum : undefined,
+        line_items: draftToLineItems(rows),
+      }
+      const res = await fetch("/admin/quotes", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.message ?? `HTTP ${res.status}`)
+      toast.success(`Quote ${json.quote?.public_id ?? ""} created`)
+      onCreated(json.quote.id)
+      onClose()
+    } catch (err: any) {
+      setError(err?.message ?? "Failed to create quote")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Drawer open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <Drawer.Content className="max-w-lg">
+        <Drawer.Header>
+          <Drawer.Title>New quote</Drawer.Title>
+          <Drawer.Description>
+            Create a quote on a customer's behalf. It lands in the pipeline as
+            New — set status to Quoted once you've sent them a price.
+          </Drawer.Description>
+        </Drawer.Header>
+
+        <Drawer.Body className="overflow-auto">
+          <div className="flex flex-col gap-y-4 p-1">
+            <div className="flex flex-col gap-y-1">
+              <Label size="xsmall">Email *</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => set({ email: e.target.value })}
+                placeholder="customer@example.com"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 small:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-y-1">
+                <Label size="xsmall">Contact name</Label>
+                <Input
+                  value={form.contact_name}
+                  onChange={(e) => set({ contact_name: e.target.value })}
+                  placeholder="Jane Smith"
+                />
+              </div>
+              <div className="flex flex-col gap-y-1">
+                <Label size="xsmall">Company</Label>
+                <Input
+                  value={form.company}
+                  onChange={(e) => set({ company: e.target.value })}
+                  placeholder="Acme Pty Ltd"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 small:grid-cols-2 gap-3">
+              <div className="flex flex-col gap-y-1">
+                <Label size="xsmall">Contact phone</Label>
+                <Input
+                  value={form.contact_phone}
+                  onChange={(e) => set({ contact_phone: e.target.value })}
+                  placeholder="04xx xxx xxx"
+                />
+              </div>
+              <div className="flex flex-col gap-y-1">
+                <Label size="xsmall">Assigned to (staff email)</Label>
+                <Input
+                  value={form.assigned_to}
+                  onChange={(e) => set({ assigned_to: e.target.value })}
+                  placeholder="you@scprints.com.au"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-y-1">
+              <Label size="xsmall">Subject</Label>
+              <Input
+                value={form.subject}
+                onChange={(e) => set({ subject: e.target.value })}
+                placeholder="e.g. 50 club hoodies — embroidered crest"
+              />
+            </div>
+
+            <div className="flex flex-col gap-y-1">
+              <Label size="xsmall">Message / brief</Label>
+              <Textarea
+                rows={4}
+                value={form.message}
+                onChange={(e) => set({ message: e.target.value })}
+                placeholder="What the customer is after — garments, decoration, deadline…"
+              />
+            </div>
+
+            <div className="flex flex-col gap-y-1">
+              <Label size="xsmall">Total estimate (AUD)</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={form.total_estimate}
+                onChange={(e) => set({ total_estimate: e.target.value })}
+                placeholder="Optional — leave blank to fill in later"
+              />
+            </div>
+
+            <div className="flex flex-col gap-y-1">
+              <Label size="xsmall">Line items</Label>
+              <Text size="xsmall" className="text-ui-fg-muted">
+                Add catalog products now; to design artwork in the Studio,
+                create the quote first then open it.
+              </Text>
+              <div className="mt-1">
+                <LineItemsEditor
+                  rows={rows}
+                  onChange={setRows}
+                  regionId={regionId}
+                />
+              </div>
+            </div>
+
+            {error ? (
+              <Text size="small" className="text-ui-tag-red-icon">
+                {error}
+              </Text>
+            ) : null}
+          </div>
+        </Drawer.Body>
+
+        <Drawer.Footer>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button onClick={submit} isLoading={saving}>
+            Create quote
+          </Button>
+        </Drawer.Footer>
+      </Drawer.Content>
+    </Drawer>
+  )
+}
+
 const QuotesPage = () => {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [statusFilter, setStatusFilter] = useState<string>("active")
@@ -82,6 +582,30 @@ const QuotesPage = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [events, setEvents] = useState<QuoteEvent[]>([])
+  const [createOpen, setCreateOpen] = useState(false)
+  const [regionId, setRegionId] = useState<string | null>(null)
+
+  // Resolve a region once so the product picker can show calculated prices.
+  // Prefer the AUD region (the catalog is AUD-only); fall back to the first.
+  useEffect(() => {
+    let cancelled = false
+    void fetch("/admin/regions?limit=50&fields=id,name,currency_code", {
+      credentials: "include",
+    })
+      .then((r) => (r.ok ? r.json() : { regions: [] }))
+      .then((j: { regions?: Region[] }) => {
+        if (cancelled) return
+        const regions = j.regions ?? []
+        const aud = regions.find(
+          (r) => String(r.currency_code).toLowerCase() === "aud"
+        )
+        setRegionId((aud ?? regions[0])?.id ?? null)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -158,16 +682,20 @@ const QuotesPage = () => {
               bullets: [
                 "New: just arrived. Triage and either start quoting or assign to staff.",
                 "Quoted: you've sent the customer a price. Waiting on them.",
-                "Accepted: customer agreed — convert to a real order via Draft Order or your usual flow.",
+                "Accepted: customer agreed — a cart is built from the quote's line items at their quoted prices, designs attached.",
                 "Lost / Expired: closed without conversion. Useful for win-rate reporting later.",
                 "Public ID (Q-XXXXX) is the customer-safe identifier — use it in emails so internal IDs stay private.",
-                "Assigned to: staff email. Drives the 'Quotes waiting on you' bucket on the Studio dashboard.",
-                "Line items + total estimate are operator-edited freeform JSON — used as the quote's working draft before it becomes a real order.",
+                "Add catalog products (with live prices) or design artwork in the Studio — both flow into the customer's cart on acceptance.",
               ],
             }}
           />
         </Heading>
-        <Badge color="blue">{quotes.length} shown</Badge>
+        <div className="flex items-center gap-x-3">
+          <Badge color="blue">{quotes.length} shown</Badge>
+          <Button size="small" variant="secondary" onClick={() => setCreateOpen(true)}>
+            <Plus /> New quote
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-3 px-6 py-4">
@@ -241,11 +769,24 @@ const QuotesPage = () => {
             <QuoteDetail
               quote={selectedQuote}
               events={events}
+              regionId={regionId}
               onUpdate={(patch) => patchQuote(selectedQuote.id, patch)}
+              onReload={() => loadDetail(selectedQuote.id)}
             />
           )}
         </div>
       </div>
+
+      <NewQuoteDrawer
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        regionId={regionId}
+        onCreated={(id) => {
+          setStatusFilter("active")
+          load()
+          setSelectedId(id)
+        }}
+      />
     </Container>
   )
 }
@@ -253,23 +794,117 @@ const QuotesPage = () => {
 function QuoteDetail({
   quote,
   events,
+  regionId,
   onUpdate,
+  onReload,
 }: {
   quote: Quote
   events: QuoteEvent[]
+  regionId: string | null
   onUpdate: (patch: Record<string, unknown>) => Promise<void> | void
+  onReload: () => Promise<void> | void
 }) {
   const [draftMessage, setDraftMessage] = useState(quote.message ?? "")
   const [draftAssigned, setDraftAssigned] = useState(quote.assigned_to ?? "")
   const [draftEstimate, setDraftEstimate] = useState(
     quote.total_estimate ? String(quote.total_estimate) : ""
   )
+  const [draftLineItems, setDraftLineItems] = useState<DraftLineItem[]>(
+    lineItemsToDraft(quote.line_items?.items)
+  )
+  // True while a Studio popup is open — used to disable "Save line items" so a
+  // full-array save can't clobber a design the popup posts back (lost-update
+  // race), and to show a hint instead.
+  const [studioOpen, setStudioOpen] = useState(false)
+
+  // Studio popup + polling. While a popup is open we poll the quote so the
+  // design lines the customiser posts back appear live (mirrors the POS page).
+  const popupRef = useRef<Window | null>(null)
+  const pollRef = useRef<number | null>(null)
+  const serverSig = useRef<string>(lineItemsSignature(quote.line_items?.items))
 
   useEffect(() => {
     setDraftMessage(quote.message ?? "")
     setDraftAssigned(quote.assigned_to ?? "")
     setDraftEstimate(quote.total_estimate ? String(quote.total_estimate) : "")
+    setDraftLineItems(lineItemsToDraft(quote.line_items?.items))
+    serverSig.current = lineItemsSignature(quote.line_items?.items)
+    setStudioOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quote.id])
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current != null) {
+      window.clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [])
+
+  // Clean up on unmount / quote switch.
+  useEffect(() => stopPolling, [stopPolling, quote.id])
+
+  const startPolling = useCallback(() => {
+    stopPolling()
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const res = await fetch(`/admin/quotes/${quote.id}`, {
+          credentials: "include",
+        })
+        if (res.ok) {
+          const json = (await res.json()) as { quote: Quote }
+          const items = json.quote?.line_items?.items
+          const sig = lineItemsSignature(items)
+          if (sig !== serverSig.current) {
+            serverSig.current = sig
+            const serverRows = lineItemsToDraft(items)
+            setDraftLineItems((prev) => mergeServerRows(prev, serverRows))
+            toast.success("Studio design added to the quote")
+          }
+        }
+      } catch {
+        /* keep polling */
+      }
+      // Stop shortly after the popup closes (one extra tick catches the last
+      // save), so we don't poll forever.
+      if (popupRef.current && popupRef.current.closed) {
+        popupRef.current = null
+        setStudioOpen(false)
+        stopPolling()
+        void onReload()
+      }
+    }, 2000)
+  }, [quote.id, stopPolling, onReload])
+
+  const openStudio = useCallback(
+    async (group: string | null, handle: string | null) => {
+      try {
+        const params = new URLSearchParams()
+        if (group) params.set("group", group)
+        if (handle) params.set("handle", handle)
+        const res = await fetch(
+          `/admin/quotes/${quote.id}/design-link?${params.toString()}`,
+          { credentials: "include" }
+        )
+        const json = (await res.json()) as { url?: string; error?: string }
+        if (!json.url) throw new Error(json.error ?? "No Studio URL returned")
+        const popup = window.open(
+          json.url,
+          "quote-customizer",
+          "width=1280,height=900,noopener=false"
+        )
+        if (!popup) {
+          toast.error("Popup blocked — allow popups for this site")
+          return
+        }
+        popupRef.current = popup
+        setStudioOpen(true)
+        startPolling()
+      } catch (err: any) {
+        toast.error(err?.message ?? "Failed to open the Studio")
+      }
+    },
+    [quote.id, startPolling]
+  )
 
   const copyAcceptLink = async () => {
     try {
@@ -394,32 +1029,47 @@ function QuoteDetail({
 
       <div>
         <Heading level="h3" className="text-base">Line items</Heading>
-        {(quote.line_items?.items ?? []).length === 0 ? (
-          <Text size="xsmall" className="text-ui-fg-muted mt-2">
-            No line items yet. Add them via the API when you're ready to formalise the quote.
-          </Text>
-        ) : (
-          <ul className="mt-2 divide-y">
-            {(quote.line_items?.items ?? []).map((li, idx) => (
-              <li key={idx} className="py-2">
-                <div className="flex items-center justify-between">
-                  <Text weight="plus">{li.title}</Text>
-                  <Text size="xsmall" className="text-ui-fg-muted">
-                    {li.quantity != null ? `qty ${li.quantity}` : ""}
-                    {li.unit_price != null
-                      ? ` · ${li.unit_price.toFixed(2)} ea`
-                      : ""}
-                  </Text>
-                </div>
-                {li.description ? (
-                  <Text size="xsmall" className="text-ui-fg-muted whitespace-pre-wrap">
-                    {li.description}
-                  </Text>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="mt-2">
+          <LineItemsEditor
+            rows={draftLineItems}
+            onChange={setDraftLineItems}
+            regionId={regionId}
+            onDesignLine={(row) =>
+              openStudio(row.group_id ?? null, row.product_handle ?? null)
+            }
+            onAddDesign={() => openStudio(null, null)}
+          />
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button
+            size="small"
+            variant="secondary"
+            disabled={studioOpen}
+            onClick={() => onUpdate({ line_items: draftToLineItems(draftLineItems) })}
+          >
+            Save line items
+          </Button>
+          <Button
+            size="small"
+            variant="transparent"
+            onClick={() => {
+              const sum = draftToLineItems(draftLineItems).reduce(
+                (acc, li) => acc + (li.total ?? 0),
+                0
+              )
+              const rounded = Math.round(sum * 100) / 100
+              setDraftEstimate(String(rounded))
+              onUpdate({ total_estimate: rounded })
+            }}
+          >
+            Sum line items → estimate
+          </Button>
+        </div>
+        <Text size="xsmall" className="text-ui-fg-muted mt-2">
+          {studioOpen
+            ? "Studio window open — finish or close it to save line-item edits. Designs save to the quote automatically."
+            : "Studio designs auto-save to the quote. Use “Save line items” after editing quantities, prices, or descriptions."}
+        </Text>
       </div>
 
       <div>

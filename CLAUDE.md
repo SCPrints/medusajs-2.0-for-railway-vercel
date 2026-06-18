@@ -345,7 +345,7 @@ Top-level grouping of customers. Members have a role (owner / purchaser / viewer
 **Handle**: auto-slugified (lowercased, non-alphanumeric → dashes, deduped). One customer can belong to multiple orgs.
 
 ### Quotes (sales pipeline)
-Lead capture from BYO + contact form + admin-created leads. Statuses: `new` → `quoted` → `accepted` / `lost` / `expired`. Line items live as JSON until acceptance, then convert to a real Medusa cart via an HMAC-signed customer link.
+Lead capture from BYO + contact form + admin-created leads. Statuses: `new` → `quoted` → `accepted` / `lost` / `expired`. Line items live as JSON until acceptance, then convert to a real Medusa cart via an HMAC-signed customer link. Staff build a quote's lines two ways: pick **real catalog products** (variant search with live region price) or **design artwork per line in the real Studio** (the storefront customiser opened in a popup — see "Studio quote mode" below). On acceptance each line is added to the customer's cart at the **quoted** `unit_price` (negotiation honoured) carrying its `customizerDesign`, so the resulting order line is a full customizer line (mockup PDF / downloads / print-details all work).
 
 | Component | Path |
 | --- | --- |
@@ -354,12 +354,24 @@ Lead capture from BYO + contact form + admin-created leads. Statuses: `new` → 
 | Admin REST | [backend/src/api/admin/quotes/](backend/src/api/admin/quotes/) |
 | Store submission | [backend/src/api/store/quotes/route.ts](backend/src/api/store/quotes/route.ts) |
 | Accept-link generator | [backend/src/api/admin/quotes/[id]/accept-link/route.ts](backend/src/api/admin/quotes/[id]/accept-link/route.ts) |
-| Signing helper | [backend/src/services/quote-accept/sign.ts](backend/src/services/quote-accept/sign.ts) |
-| Admin Kanban page | [backend/src/admin/routes/quotes/page.tsx](backend/src/admin/routes/quotes/page.tsx) |
+| Accept signing helper | [backend/src/services/quote-accept/sign.ts](backend/src/services/quote-accept/sign.ts) |
+| **Studio design-link generator** | [backend/src/api/admin/quotes/[id]/design-link/route.ts](backend/src/api/admin/quotes/[id]/design-link/route.ts) |
+| **Studio design relay (store)** | [backend/src/api/store/quotes/[id]/design-items/route.ts](backend/src/api/store/quotes/[id]/design-items/route.ts) |
+| **Studio design signing helper** | [backend/src/services/quote-design/sign.ts](backend/src/services/quote-design/sign.ts) |
+| **Storefront bridge** | [storefront/src/app/api/quote-bridge/items/route.ts](storefront/src/app/api/quote-bridge/items/route.ts) |
+| **Customiser quote-mode branch** | [storefront/src/modules/customizer/templates/index.tsx](storefront/src/modules/customizer/templates/index.tsx) — search `isQuoteMode` |
+| **Product+variant picker** | [backend/src/admin/components/quotes/product-line-picker.tsx](backend/src/admin/components/quotes/product-line-picker.tsx) |
+| **Poll-merge helper (pure, tested)** | [backend/src/admin/lib/quote-line-merge.ts](backend/src/admin/lib/quote-line-merge.ts) |
+| Admin Kanban page (picker + Studio popup/polling) | [backend/src/admin/routes/quotes/page.tsx](backend/src/admin/routes/quotes/page.tsx) |
+| Accept → cart (honours quoted price + carries design) | [backend/src/api/store/quotes/[id]/accept/route.ts](backend/src/api/store/quotes/[id]/accept/route.ts) |
 | Customer acceptance page | [storefront/src/app/[countryCode]/(main)/quote-accept/[id]/page.tsx](storefront/src/app/[countryCode]/(main)/quote-accept/[id]/page.tsx) |
 | Storefront accept form | [storefront/src/modules/quote-accept/](storefront/src/modules/quote-accept/) |
 
-**Event log**: every status change / assignment / message lands as a `quote_event` row — append-only audit. **Public ID**: ULID last-10 chars upper-cased for shareable refs. **Mood-board uploads**: base64 in POST, soft-fails if upload fails so the quote still creates. **Emails**: triggers `CONTACT_NOTIFICATION_EMAIL` on submission; `SUPPORT_REPLY_TO_EMAIL` is the reply-to. **Secret**: signs accept-links with `NPS_LINK_SECRET`.
+**Studio quote mode** (mirrors POS): admin "Design in Studio" → `design-link` mints a signed `…/customizer?quote_id=&qsig=&group=&handle=` URL → popup → the customiser's `isQuoteMode` add-to-cart branch POSTs one request (a `group_id` + array of per-size lines) to the storefront `quote-bridge`, which forwards to `/store/quotes/:id/design-items`. That route verifies the `qsig`, **replaces every line with the incoming `group_id`** then appends the new set (so re-editing a design cleanly replaces it, never duplicates), and persists to the `quote.line_items` JSON (no migration — the per-line shape just grew: `id, product_id, variant_id, product_handle, thumbnail, customizerDesign, print_size_id, group_id`). The admin page polls every 2s while the popup is open and merges via `mergeServerRows` (server owns design/linkage fields; local owns in-progress qty/price/title/description edits); "Save line items" is disabled while the popup is open to avoid a lost-update race.
+
+**Pricing gotchas**: the customiser's `discountedUnitPriceCents` is **major units (dollars)** despite the suffix — quote mode ×100s it to cents before posting (see comment in the `isQuoteMode` branch). Accept-route lines are stamped `metadata.quote_locked_price = true` so a later cart-wide SCP recompute (triggered when the customer edits their cart) can't re-tier the negotiated price — [recompute-scp-cart-pricing.ts](backend/src/lib/recompute-scp-cart-pricing.ts) `isLineEligible` skips locked lines. A line with a NULL `unit_price` falls back to catalog price on acceptance (not $0).
+
+**Event log**: every status change / assignment / message / design attach lands as a `quote_event` row — append-only audit (design saves reuse `line_items_updated`). **Public ID**: ULID last-10 chars upper-cased for shareable refs. **Mood-board uploads**: base64 in POST, soft-fails if upload fails so the quote still creates. **Emails**: triggers `CONTACT_NOTIFICATION_EMAIL` on submission; `SUPPORT_REPLY_TO_EMAIL` is the reply-to. **Secrets**: signs accept-links AND Studio design-links with `NPS_LINK_SECRET` (distinct message prefixes — `quote:` vs `quote-design:` — so the two tokens aren't interchangeable).
 
 ### Customer tiers, tax-exempt, applied perks (B2B pricing & invoicing)
 Tier system overrides the quantity-ladder with a flat rate via Medusa price-list rules. Tax-exempt + free-shipping perks are snapshotted onto the order at `order.placed` so historical invoices stay correct even if customer state changes later.

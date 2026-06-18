@@ -143,18 +143,24 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       fields: ["id", "currency_code"],
       pagination: { take: 50, skip: 0 },
     })
-    const region =
-      (regions as any[])?.find(
-        (r) =>
-          String(r.currency_code).toLowerCase() ===
-          String(quote.currency_code).toLowerCase()
-      ) ?? (regions as any[])?.[0]
+    // Only a currency-matching region is correct: the line unit_prices are bare
+    // numbers in the quote currency, so a region whose currency differs would
+    // mis-key tax/shipping. Fail loudly rather than silently fall back to a
+    // mismatched region (was `?? regions[0]`).
+    const region = (regions as any[])?.find(
+      (r) =>
+        String(r.currency_code).toLowerCase() ===
+        String(quote.currency_code).toLowerCase()
+    )
     regionId = region?.id ?? null
   } catch {
     /* fallthrough */
   }
   if (!regionId) {
-    return res.status(500).json({ error: "no_region_configured" })
+    return res.status(500).json({
+      error: "no_region_for_currency",
+      currency_code: quote.currency_code,
+    })
   }
   try {
     const { data: channels } = await query.graph({
@@ -196,6 +202,26 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   for (const li of addable) {
     try {
+      // Honour the QUOTED unit_price (what the customer agreed to) rather than
+      // re-pricing at catalog rate — addToCartWorkflow accepts a per-line
+      // unit_price natively (same lever the SCP customizer route uses). And
+      // carry the Studio design through as line metadata so the resulting
+      // order line is a full customizer line: mockup PDF, customizer downloads,
+      // and print-details widgets all work with no quote-specific branch.
+      // Honour an explicit quoted price (incl. a deliberate 0), but treat a
+      // NULL/blank price as "not set" → omit unit_price so the line falls back
+      // to catalog/region pricing rather than being coerced to $0 (Number(null)
+      // === 0, which would silently give the garment away for free).
+      const unitPrice = li.unit_price == null ? NaN : Number(li.unit_price)
+      // Every quote-accept line is the agreed price — lock it so a later
+      // cart-wide SCP recompute (triggered by the customer editing the cart)
+      // can't re-tier it to ladder pricing. See recompute-scp-cart-pricing.ts.
+      const lineMetadata: Record<string, unknown> = { quote_locked_price: true }
+      if (li.customizerDesign && typeof li.customizerDesign === "object") {
+        lineMetadata.customizerDesign = li.customizerDesign
+        if (li.product_handle) lineMetadata.product_handle = li.product_handle
+        if (li.print_size_id) lineMetadata.print_size_id = li.print_size_id
+      }
       await addToCartWorkflow(req.scope).run({
         input: {
           cart_id: cart.id,
@@ -203,6 +229,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             {
               variant_id: String(li.variant_id),
               quantity: Number(li.quantity ?? 1),
+              ...(Number.isFinite(unitPrice) && unitPrice >= 0
+                ? { unit_price: unitPrice }
+                : {}),
+              metadata: lineMetadata,
             },
           ],
         },

@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
+import { ulid } from "ulid"
 import { z } from "zod"
 
 import { QUOTE_MODULE } from "../../../../modules/quote"
@@ -21,11 +22,20 @@ const updateSchema = z.object({
   line_items: z
     .array(
       z.object({
+        id: z.string().max(80).optional(),
         title: z.string().max(200),
         description: z.string().max(500).nullable().optional(),
         quantity: z.coerce.number().int().min(0).nullable().optional(),
         unit_price: z.coerce.number().nullable().optional(),
         total: z.coerce.number().nullable().optional(),
+        // Catalog linkage + Studio design payload (carried verbatim).
+        product_id: z.string().max(80).nullable().optional(),
+        variant_id: z.string().max(80).nullable().optional(),
+        product_handle: z.string().max(200).nullable().optional(),
+        thumbnail: z.string().max(2000).nullable().optional(),
+        customizerDesign: z.any().nullable().optional(),
+        print_size_id: z.string().max(40).nullable().optional(),
+        group_id: z.string().max(80).nullable().optional(),
       })
     )
     .max(50)
@@ -114,8 +124,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     updatePayload.expires_at = body.expires_at ? new Date(body.expires_at) : null
   }
   if (body.line_items !== undefined) {
-    updatePayload.line_items = { items: body.line_items }
-    events.push({ type: "line_items_updated", body: { count: body.line_items.length } })
+    // Normalise: stamp a stable id on every line and keep `total` consistent
+    // with qty × unit_price. Catalog linkage + customizerDesign pass through
+    // verbatim so a plain qty/price edit never drops an attached design.
+    const items = body.line_items.map((li) => {
+      const quantity = li.quantity ?? null
+      const unit_price = li.unit_price ?? null
+      const total =
+        quantity != null && unit_price != null
+          ? Math.round(quantity * unit_price * 100) / 100
+          : li.total ?? null
+      return { ...li, id: li.id || ulid(), total }
+    })
+    updatePayload.line_items = { items }
+    events.push({ type: "line_items_updated", body: { count: items.length } })
   }
 
   if (Object.keys(updatePayload).length > 1) {

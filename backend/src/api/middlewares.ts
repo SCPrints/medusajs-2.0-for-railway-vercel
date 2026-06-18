@@ -82,6 +82,22 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "4mb" },
     },
     {
+      // Quote "Design in Studio" relay — the customiser posts one or more
+      // lines each carrying a (sanitised) customizerDesign payload. Same
+      // headroom as the per-line cart routes; data URLs are already swapped
+      // for hosted URLs client-side so real payloads stay small.
+      matcher: "/store/quotes/:id/design-items",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "4mb" },
+    },
+    {
+      // Admin quote update — "Save line items" can re-send several lines each
+      // carrying a customizerDesign payload, which blows the ~100kb default.
+      matcher: "/admin/quotes/:id",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "8mb" },
+    },
+    {
       // Gildan supplier xlsx upload — base64-encoded in the request body.
       // The 2026-01 file is ~600KB on disk → ~2.1MB base64; headroom up to
       // 32mb covers future catalog growth without further config changes.

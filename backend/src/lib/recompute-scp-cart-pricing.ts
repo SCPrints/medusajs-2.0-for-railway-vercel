@@ -116,6 +116,12 @@ const readScpServerBlock = (
 
 const isLineEligible = (line: CartLineForRecompute): boolean => {
   const variantMeta = line.variant?.metadata ?? null
+  // Negotiated quote price: a line materialised from an accepted quote carries
+  // the staff-agreed unit_price. It must NEVER be silently re-tiered by the
+  // bulk ladder if the customer later edits their cart (qty bump / remove line
+  // both trigger a cart-wide recompute), or we'd charge an amount they never
+  // agreed to. Stamped by the quote-accept route.
+  if ((line.metadata as any)?.quote_locked_price === true) return false
   // Opt-out applies regardless of metadata shape.
   if (variantMeta?.exclude_from_bulk_aggregation === true) return false
   // Path A: variant carries a bulk-pricing ladder → standard garment line.
