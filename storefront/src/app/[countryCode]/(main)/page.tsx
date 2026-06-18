@@ -1,6 +1,5 @@
 import { Metadata } from "next"
 import { Suspense } from "react"
-import { HttpTypes } from "@medusajs/types"
 
 import {
   getInstagramFeedMedia,
@@ -9,11 +8,13 @@ import {
 } from "@lib/data/instagram"
 import {
   getHomeFeaturedRangeProducts,
-  getProductsByHandle,
   getProductsById,
 } from "@lib/data/products"
-import { getHomeSections } from "@lib/data/home-sections"
-import { listBundles, type Bundle } from "@lib/data/bundles"
+import {
+  getHomeSections,
+  hydrateHomeSections,
+  type HydratedHomeSection,
+} from "@lib/data/home-sections"
 import { getRegion } from "@lib/data/regions"
 import { getLookbookHomeRail } from "@lib/data/lookbook"
 import { getProductPrice } from "@lib/util/get-product-price"
@@ -170,26 +171,14 @@ const WHY_STATS = [
 // the section's real height (no skeleton→content reflow when it streams in).
 // ————————————————————————————————————————————————————————————————————————
 
-// A curated section entry is either a product or a bundle. Bundles are
-// referenced in the curated handle list with a `bundle:` prefix.
-const BUNDLE_PREFIX = "bundle:"
-type FeaturedItem =
-  | { kind: "product"; product: HttpTypes.StoreProduct }
-  | { kind: "bundle"; bundle: Bundle }
-type FeaturedSection = {
-  id: string
-  title: string
-  subtitle: string | null
-  items: FeaturedItem[]
-}
-
 /**
  * Home product rails — staff-curated in admin (/app/home-sections). Each
  * published section is a hand-picked, ordered list of products, rendered
  * top-to-bottom in weight order. Products are referenced by handle so
  * curation survives supplier re-imports. If no sections are curated yet,
  * we fall back to the legacy "popular hoodies" logic so the page is never
- * empty mid-rollout.
+ * empty mid-rollout. Each rail's "View all products" deep-links to the
+ * section's own /collections/<handle> full grid (see that route).
  */
 async function HomeFeaturedSections({ countryCode }: { countryCode: string }) {
   const region = await getRegion(countryCode)
@@ -198,56 +187,12 @@ async function HomeFeaturedSections({ countryCode }: { countryCode: string }) {
   }
 
   const curatedSections = await getHomeSections()
-  let featuredSections: FeaturedSection[] = []
-
-  if (curatedSections.length > 0) {
-    const allHandles = Array.from(
-      new Set(curatedSections.flatMap((s) => s.product_handles))
-    )
-    const productHandles = allHandles.filter(
-      (h) => !h.startsWith(BUNDLE_PREFIX)
-    )
-    const hasBundles = allHandles.some((h) => h.startsWith(BUNDLE_PREFIX))
-
-    const pricedProducts = productHandles.length
-      ? await getProductsByHandle({
-          handles: productHandles,
-          regionId: region.id,
-        })
-      : []
-    const byHandle = new Map(
-      pricedProducts
-        .filter((p) => p.handle)
-        .map((p) => [p.handle as string, p])
-    )
-
-    // Bundles carry no region pricing on the card (item count only), so one
-    // unscoped listBundles() call hydrates every curated bundle.
-    const bundlesByHandle = new Map<string, Bundle>()
-    if (hasBundles) {
-      const allBundles = await listBundles()
-      for (const b of allBundles) bundlesByHandle.set(b.handle, b)
-    }
-
-    featuredSections = curatedSections
-      .map((s) => ({
-        id: s.id,
-        title: s.title,
-        subtitle: s.subtitle,
-        // preserve the staff-curated order; skip handles that no longer resolve
-        items: s.product_handles
-          .map((h): FeaturedItem | null => {
-            if (h.startsWith(BUNDLE_PREFIX)) {
-              const bundle = bundlesByHandle.get(h.slice(BUNDLE_PREFIX.length))
-              return bundle ? { kind: "bundle", bundle } : null
-            }
-            const product = byHandle.get(h)
-            return product ? { kind: "product", product } : null
-          })
-          .filter((i): i is FeaturedItem => Boolean(i)),
-      }))
-      .filter((s) => s.items.length > 0)
-  }
+  // Shared hydrator (also used by /collections/[handle]) so a section shows
+  // the same items on the rail and on its full-grid page.
+  let featuredSections: HydratedHomeSection[] = await hydrateHomeSections(
+    curatedSections,
+    region.id
+  )
 
   if (featuredSections.length === 0) {
     const products = await getHomeFeaturedRangeProducts({
@@ -266,6 +211,9 @@ async function HomeFeaturedSections({ countryCode }: { countryCode: string }) {
     featuredSections = [
       {
         id: "featured-fallback",
+        // No curated section behind the fallback rail → "View all" goes to the
+        // full catalogue rather than a (nonexistent) /collections page.
+        handle: null,
         title: "Popular garments to start your order",
         subtitle: "Featured range",
         items: (products ?? []).map((p) => ({
@@ -283,7 +231,11 @@ async function HomeFeaturedSections({ countryCode }: { countryCode: string }) {
           <FeaturedProductsCarousel
             title={section.title}
             subtitle={section.subtitle}
-            viewAllHref={sectionIndex === 0 ? "/store" : undefined}
+            // Every curated rail links to its own full grid; the legacy
+            // fallback rail (no handle) links to the whole catalogue.
+            viewAllHref={
+              section.handle ? `/collections/${section.handle}` : "/store"
+            }
           >
             {section.items.map((item, itemIndex) => {
               if (item.kind === "bundle") {
