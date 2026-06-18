@@ -29,3 +29,53 @@ index 872112ffeb63bc9007f3fe3725551ed166703e1f..fbb247f4aca869d61b43678d25522280
      numberOfExecutions: 1,
  };
  //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoibWVpbGlzZWFyY2gtcHJvZHVjdHMtaW5kZXguanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi8uLi8uLi9zcmMvam9icy9tZWlsaXNlYXJjaC1wcm9kdWN0cy1pbmRleC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7QUFpQkEsOENBU0M7QUF6QkQsMkRBQTBFO0FBRTFFLDhEQUFpRTtBQUVqRTs7OztHQUlHO0FBQ0gsTUFBTSx3QkFBd0IsR0FBRyxJQUFBLDhCQUFjLEVBQUMsNkJBQTZCLEVBQUUsR0FBRyxFQUFFO0lBQ2xGLE1BQU0sTUFBTSxHQUFHLG9DQUFvQixDQUFDLFNBQVMsQ0FBQztRQUM1QyxLQUFLLEVBQUUsRUFBRTtLQUNWLENBQUMsQ0FBQTtJQUNGLE9BQU8sSUFBSSxnQ0FBZ0IsQ0FBQyxNQUFNLENBQUMsQ0FBQTtBQUNyQyxDQUFDLENBQUMsQ0FBQTtBQUVhLEtBQUssVUFBVSwyQkFBMkIsQ0FBQyxTQUEwQjtJQUNsRixNQUFNLE1BQU0sR0FBRyxTQUFTLENBQUMsT0FBTyxDQUFDLFFBQVEsQ0FBQyxDQUFBO0lBQzFDLE1BQU0sQ0FBQyxJQUFJLENBQUMsOEJBQThCLENBQUMsQ0FBQTtJQUUzQyxNQUFNLEVBQ0osTUFBTSxFQUFFLEVBQUUsY0FBYyxFQUFFLFlBQVksRUFBRSxHQUN6QyxHQUFHLE1BQU0sd0JBQXdCLENBQUMsU0FBUyxDQUFDLENBQUMsR0FBRyxFQUFFLENBQUE7SUFFbkQsTUFBTSxDQUFDLElBQUksQ0FBQyx3QkFBd0IsY0FBYyx5QkFBeUIsWUFBWSxXQUFXLENBQUMsQ0FBQTtBQUNyRyxDQUFDO0FBRVksUUFBQSxNQUFNLEdBQWtCO0lBQ25DLElBQUksRUFBRSw0QkFBNEI7SUFDbEMsUUFBUSxFQUFFLFdBQVc7SUFDckIsa0JBQWtCLEVBQUUsQ0FBQztDQUN0QixDQUFBIn0=
+\ No newline at end of file
+diff --git a/.medusa/server/src/workflows/steps/sync-products.js b/.medusa/server/src/workflows/steps/sync-products.js
+index 14ecc0a6f567f6e8da26812d52cd7fe744cfaf72..f38dfe6603925f403ae3657ed6afd10106641e6f 100644
+--- a/.medusa/server/src/workflows/steps/sync-products.js
++++ b/.medusa/server/src/workflows/steps/sync-products.js
+@@ -38,6 +38,7 @@ exports.syncProductsStep = (0, workflows_sdk_1.createStep)('sync-products', asyn
+     }
+     const validProductIds = new Set(allProductIds);
+     const productsToDelete = new Set();
++    let indexedSeenCount = 0;
+     for (const index of productIndexes) {
+         let indexOffset = 0;
+         let hasMoreIndexed = true;
+@@ -53,6 +54,7 @@ exports.syncProductsStep = (0, workflows_sdk_1.createStep)('sync-products', asyn
+                 hasMoreIndexed = false;
+                 break;
+             }
++            indexedSeenCount += indexedResult.hits.length;
+             indexedResult.hits.forEach((hit) => {
+                 if (!validProductIds.has(hit.id)) {
+                     productsToDelete.add(hit.id);
+@@ -64,6 +66,28 @@ exports.syncProductsStep = (0, workflows_sdk_1.createStep)('sync-products', asyn
+             }
+         }
+     }
++    // SC Prints anti-gutting guard (2026-06-18 incident). This step deletes
++    // every indexed doc not present in `validProductIds`. If the heavy product
++    // graph query above truncated (timeout under DB load / colliding with the
++    // 03:00-06:00 UTC sync + tier-regen pile-up), `validProductIds` is tiny and
++    // `productsToDelete` is mostly REAL products. On 2026-06-02..05 a fetch
++    // returning ~9 of ~1352 products drove this to delete ~1000/day with a
++    // SUCCESS status, draining the prod index to ~105. Refuse to delete when
++    // the fetched set is implausibly small vs what's indexed — log + skip so a
++    // human reruns (or the next clean pass self-heals) rather than lose search.
++    const validCount = validProductIds.size;
++    const wouldGutIndex = productsToDelete.size > 0 &&
++        (validCount < 10 ||
++            (indexedSeenCount > 0 && validCount < indexedSeenCount * 0.5));
++    if (wouldGutIndex) {
++        const logger = container.resolve('logger');
++        logger.error(`[meilisearch sync-products] ABORTING orphan deletion: only ${validCount} valid products fetched but the index holds ~${indexedSeenCount}; would have deleted ${productsToDelete.size}. The source query likely truncated — refusing to gut the index.`);
++        return new workflows_sdk_1.StepResponse({
++            totalProcessed: allProductIds.length,
++            totalDeleted: 0,
++            skippedDeletion: true,
++        });
++    }
+     if (productsToDelete.size > 0) {
+         const orphanedIds = Array.from(productsToDelete);
+         for (let i = 0; i < orphanedIds.length; i += batchSize) {

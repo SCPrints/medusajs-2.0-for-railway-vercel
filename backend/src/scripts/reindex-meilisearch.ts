@@ -103,6 +103,7 @@ export default async function reindexMeilisearch({ container }: ExecArgs) {
 
       for (const idx of indexes) {
         const orphanIds: string[] = []
+        let indexedSeen = 0
         let sweepPage = 1
 
         while (true) {
@@ -119,11 +120,31 @@ export default async function reindexMeilisearch({ container }: ExecArgs) {
           if (result.hits.length === 0) break
 
           for (const hit of result.hits as Array<{ id: string }>) {
+            indexedSeen++
             if (!validIds.has(hit.id)) orphanIds.push(hit.id)
           }
 
           sweepPage += 1
           if (result.hits.length < batchSize) break
+        }
+
+        // Anti-gutting guard (2026-06-18 incident). The orphan sweep deletes
+        // every indexed doc we did NOT just push. If the add-phase graph query
+        // truncated (timeout under DB load), `validIds` is tiny and `orphanIds`
+        // is mostly REAL products — deleting them silently drained the prod
+        // index 1352 -> ~105 over several days. Refuse to delete when the
+        // fetched set is implausibly small vs what's already indexed; skip +
+        // log loudly so a human reruns rather than lose the index. The same
+        // guard lives in the meilisearch plugin's syncProductsStep patch.
+        if (
+          orphanIds.length > 0 &&
+          (validIds.size < 10 ||
+            (indexedSeen > 0 && validIds.size < indexedSeen * 0.5))
+        ) {
+          logger.error(
+            `[reindex-meilisearch] ${label}: ABORTING orphan deletion on "${idx}" — only ${validIds.size} valid docs fetched but the index holds ~${indexedSeen}; would have deleted ${orphanIds.length}. The source query likely truncated; refusing to gut the index. Re-run when the DB is quiet if the drift is real.`
+          )
+          continue
         }
 
         for (let i = 0; i < orphanIds.length; i += batchSize) {

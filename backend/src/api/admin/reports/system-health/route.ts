@@ -1,4 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import net from "node:net"
 import tls from "node:tls"
 import { Client as PgClient } from "pg"
@@ -9,6 +10,7 @@ import {
   DATABASE_URL,
   GOOGLE_SERVICE_ACCOUNT_JSON,
   MEILISEARCH_HOST,
+  MEILISEARCH_ADMIN_KEY,
   MINIO_ENDPOINT,
   PAYPAL_CLIENT_ID,
   PAYPAL_CLIENT_SECRET,
@@ -221,7 +223,91 @@ const checkRedis = async (): Promise<Check> => {
   })
 }
 
-export async function GET(_req: MedusaRequest, res: MedusaResponse) {
+// Meilisearch DRIFT check (distinct from the `/health` liveness ping below).
+// 2026-06-18 incident: the plugin's full-resync deleted ~1,200 real products
+// from the index after a truncated source query, draining it from 1,352 to ~105
+// docs. The listing path trusts Meili's result, so every category grid
+// undercounted with NO error and the liveness ping stayed green. This compares
+// indexed doc count to the published catalog and alarms on a meaningful gap so
+// the next gutting is caught in minutes, not by a customer.
+const checkMeilisearchIndex = async (req: MedusaRequest): Promise<Check> => {
+  if (!MEILISEARCH_HOST || !MEILISEARCH_ADMIN_KEY) {
+    return {
+      service: "Meilisearch index",
+      status: "unset",
+      latency_ms: null,
+      detail: "MEILISEARCH_HOST / MEILISEARCH_ADMIN_KEY missing",
+    }
+  }
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), TIMEOUT_MS)
+  const start = Date.now()
+  try {
+    const indexName = process.env.MEILISEARCH_PRODUCT_INDEX || "products"
+    const statsRes = await fetch(
+      `${MEILISEARCH_HOST.replace(/\/$/, "")}/indexes/${indexName}/stats`,
+      {
+        headers: { Authorization: `Bearer ${MEILISEARCH_ADMIN_KEY}` },
+        signal: ac.signal,
+      }
+    )
+    if (!statsRes.ok) {
+      return {
+        service: "Meilisearch index",
+        status: "degraded",
+        latency_ms: Date.now() - start,
+        detail: `stats HTTP ${statsRes.status}`,
+      }
+    }
+    const stats = (await statsRes.json()) as { numberOfDocuments?: number }
+    const indexed = Number(stats.numberOfDocuments ?? 0)
+
+    const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+    const { metadata } = await query.graph({
+      entity: "product",
+      fields: ["id"],
+      filters: { status: "published" },
+      pagination: { take: 1, skip: 0 },
+    })
+    const published = Number((metadata as { count?: number } | undefined)?.count ?? 0)
+    const latency = Date.now() - start
+    const detail = `${indexed} indexed / ${published} published`
+
+    // No catalog yet (fresh DB) — nothing to compare against.
+    if (published === 0) {
+      return { service: "Meilisearch index", status: "ok", latency_ms: latency, detail }
+    }
+    const ratio = indexed / published
+    if (ratio < 0.5) {
+      return {
+        service: "Meilisearch index",
+        status: "down",
+        latency_ms: latency,
+        detail: `${detail} — index gutted, run reindex-meilisearch`,
+      }
+    }
+    if (ratio < 0.9) {
+      return {
+        service: "Meilisearch index",
+        status: "degraded",
+        latency_ms: latency,
+        detail: `${detail} — drift, reindex may be needed`,
+      }
+    }
+    return { service: "Meilisearch index", status: "ok", latency_ms: latency, detail }
+  } catch (err: any) {
+    return {
+      service: "Meilisearch index",
+      status: "down",
+      latency_ms: Date.now() - start,
+      detail: err?.name === "AbortError" ? "timeout" : err?.message ?? String(err),
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // S3-compatible storage health URL: just hit the bucket root. Real MinIO
   // serves `/minio/health/live` but Cloudflare R2 (and other S3 hosts)
   // doesn't implement that path — it returns 400. We treat any HTTP
@@ -305,6 +391,7 @@ export async function GET(_req: MedusaRequest, res: MedusaResponse) {
         ? `${MEILISEARCH_HOST.replace(/\/$/, "")}/health`
         : undefined,
     }),
+    checkMeilisearchIndex(req),
     ping("PostHog", {
       configured: Boolean(POSTHOG_PERSONAL_API_KEY && POSTHOG_PROJECT_ID),
       url: `${posthogHost}/api/projects/${POSTHOG_PROJECT_ID}/`,
