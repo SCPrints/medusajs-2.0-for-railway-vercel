@@ -9,6 +9,7 @@ import {
   toTitleSlug,
 } from "@modules/products/lib/variant-options"
 import { catalogSwatchBackgroundImageUrl } from "@lib/util/catalog-image-url"
+import { getBrandPresentation } from "@modules/brands/data/brands"
 import { type ListingSummary, readListingSummary } from "@lib/listing-summary"
 import { getProductListingCardPriceLines } from "@lib/util/listing-card-price-text"
 import { convertToLocale } from "@lib/util/money"
@@ -35,6 +36,36 @@ export type ProductListingCardData = {
   swatches: ProductListingSwatch[]
   /** Full garment color count (may exceed `swatches.length`). */
   totalSwatchCount: number
+  /** Brand logo for the top-left watermark on the card. Null when unbranded. */
+  brandLogoUrl: string | null
+  /** Brand name for the watermark's alt text. */
+  brandName: string | null
+}
+
+/**
+ * Resolve the brand logo + name for the card watermark. Prefers the curated
+ * storefront presentation logo (grey-toned, sized for the site) keyed by brand
+ * handle, falling back to the brand row's own `logo_url`. Returns nulls when the
+ * product carries no brand.
+ */
+function resolveBrandBadge(product: HttpTypes.StoreProduct): {
+  brandLogoUrl: string | null
+  brandName: string | null
+} {
+  const brand = Array.isArray((product as any).brand)
+    ? (product as any).brand[0]
+    : (product as any).brand
+  if (!brand) {
+    return { brandLogoUrl: null, brandName: null }
+  }
+  const handle = String(brand.handle ?? "").trim().toLowerCase()
+  const presentationLogo = handle
+    ? getBrandPresentation(handle).logoSrc
+    : undefined
+  return {
+    brandLogoUrl: presentationLogo ?? brand.logo_url ?? null,
+    brandName: brand.name ?? null,
+  }
 }
 
 export const getColorValues = (product: HttpTypes.StoreProduct) => {
@@ -88,9 +119,11 @@ export function buildProductListingCardData(
   // customers on costless products, keep the fast-path.
   const useTierVariantRoute = !!tier && productHasTierableCost(product)
 
+  const brandBadge = resolveBrandBadge(product)
+
   const summary = readListingSummary(product)
   if (summary && !useTierVariantRoute) {
-    return buildFromListingSummary(handle, product.title, summary)
+    return buildFromListingSummary(handle, product.title, summary, brandBadge)
   }
 
   const rawColors = getColorValues(product)
@@ -137,6 +170,8 @@ export function buildProductListingCardData(
     defaultImageUrl,
     swatches,
     totalSwatchCount,
+    brandLogoUrl: brandBadge.brandLogoUrl,
+    brandName: brandBadge.brandName,
   }
 }
 
@@ -148,7 +183,8 @@ export function buildProductListingCardData(
 function buildFromListingSummary(
   handle: string,
   title: string | null | undefined,
-  summary: ListingSummary
+  summary: ListingSummary,
+  brandBadge: { brandLogoUrl: string | null; brandName: string | null }
 ): ProductListingCardData {
   const sortedValues =
     summary.colors.length > 0
@@ -197,5 +233,7 @@ function buildFromListingSummary(
     defaultImageUrl,
     swatches,
     totalSwatchCount,
+    brandLogoUrl: brandBadge.brandLogoUrl,
+    brandName: brandBadge.brandName,
   }
 }

@@ -100,10 +100,14 @@ function CardImage({
   imageUrl,
   title,
   priority,
+  brandLogoUrl,
+  brandName,
 }: {
   imageUrl: string | null
   title: string
   priority?: boolean
+  brandLogoUrl?: string | null
+  brandName?: string | null
 }) {
   const resolved = imageUrl
     ? remapStaleExternalGarmentUrl(imageUrl) ?? imageUrl
@@ -114,6 +118,21 @@ function CardImage({
         "relative w-full overflow-hidden p-4 bg-ui-bg-subtle shadow-elevation-card-rest rounded-large group-hover:shadow-elevation-card-hover transition-shadow ease-in-out duration-150 aspect-[1/1] rounded-lg"
       )}
     >
+      {brandLogoUrl ? (
+        <div className="pointer-events-none absolute left-2 top-2 z-10 flex h-6 max-w-[55%] items-center rounded-md bg-white/75 px-1.5 shadow-sm backdrop-blur-[2px]">
+          {/* Plain <img> (not next/image): brand `logo_url` can be an external
+              supplier CDN host that isn't in next.config's allowlist, which
+              would crash the Image component. Presentation logos are local. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={brandLogoUrl}
+            alt={brandName ? `${brandName} logo` : "Brand logo"}
+            className="h-full w-auto max-w-full object-contain opacity-80"
+            draggable={false}
+            loading="lazy"
+          />
+        </div>
+      ) : null}
       {resolved ? (
         <Image
           src={resolved}
@@ -149,6 +168,8 @@ type ListingCardContentProps = {
   swatchPhotosActive: boolean
   setSwatchPhotosActive: (v: boolean) => void
   imagePriority?: boolean
+  brandLogoUrl: string | null
+  brandName: string | null
 }
 
 function ListingCardContent({
@@ -163,6 +184,8 @@ function ListingCardContent({
   swatchPhotosActive,
   setSwatchPhotosActive,
   imagePriority,
+  brandLogoUrl,
+  brandName,
 }: ListingCardContentProps) {
   return (
     <>
@@ -171,6 +194,8 @@ function ListingCardContent({
           imageUrl={previewUrl}
           title={title}
           priority={imagePriority}
+          brandLogoUrl={brandLogoUrl}
+          brandName={brandName}
         />
         <h3
           className="mt-4 text-base font-semibold text-ui-fg-base"
@@ -282,6 +307,8 @@ function ProductListingCardBounce({
   swatches,
   totalSwatchCount,
   imagePriority,
+  brandLogoUrl,
+  brandName,
 }: ShellProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
   const [phase, setPhase] = useState<CardPhase>("rest")
@@ -458,6 +485,8 @@ function ProductListingCardBounce({
         swatchPhotosActive={swatchPhotosActive}
         setSwatchPhotosActive={setSwatchPhotosActive}
         imagePriority={imagePriority}
+        brandLogoUrl={brandLogoUrl}
+        brandName={brandName}
       />
     </article>
   )
@@ -473,6 +502,8 @@ function ProductListingCardTiltLift({
   swatches,
   totalSwatchCount,
   imagePriority,
+  brandLogoUrl,
+  brandName,
 }: ShellProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(defaultImageUrl)
   const prefersReducedMotion = useSyncExternalStore(
@@ -519,6 +550,8 @@ function ProductListingCardTiltLift({
       swatchPhotosActive={swatchPhotosActive}
       setSwatchPhotosActive={setSwatchPhotosActive}
       imagePriority={imagePriority}
+      brandLogoUrl={brandLogoUrl}
+      brandName={brandName}
     />
   )
 

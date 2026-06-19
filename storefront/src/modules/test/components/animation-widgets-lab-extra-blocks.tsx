@@ -15,6 +15,8 @@ const LAB_TILT_LISTING_CARD_DEMO: ProductListingCardData = {
   defaultImageUrl: null,
   swatches: [],
   totalSwatchCount: 0,
+  brandLogoUrl: null,
+  brandName: null,
 }
 
 const DEMO_ITEMS = ["Tee", "Hoodie", "Cap", "Tote", "Sticker", "Mug"]
