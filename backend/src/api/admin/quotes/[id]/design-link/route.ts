@@ -17,6 +17,12 @@ import { signQuoteDesign } from "../../../../../services/quote-design/sign"
  * - `handle` pre-selects a product by handle (the standalone customiser reads
  *   `?handle=`). Omit it to let staff pick the product inside the Studio.
  *
+ * Opens `/customizer-v2` — the NEW full-screen Studio (the same one the PDP
+ * renders), NOT the legacy `/customizer` split-tabs page. Quote mode is detected
+ * client-side from `quote_id`+`qsig` in the URL, so it activates on either route;
+ * v2 gives staff the real Studio. The StudioLauncher auto-opens the canvas when
+ * it sees `quote_id` (see DEEP_LINK_PARAMS).
+ *
  * Mirrors the POS `openCustomizer` URL build (same STOREFRONT_URL +
  * STOREFRONT_DEFAULT_COUNTRY_CODE env). The signature is deterministic.
  */
@@ -40,6 +46,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   if (group) params.set("group", group)
   if (handle) params.set("handle", handle)
 
-  const url = `${storefrontUrl}/${country}/customizer?${params.toString()}`
+  const url = `${storefrontUrl}/${country}/customizer-v2?${params.toString()}`
   res.json({ url })
 }

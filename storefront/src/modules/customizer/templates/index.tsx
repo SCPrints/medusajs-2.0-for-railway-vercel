@@ -5452,6 +5452,19 @@ export default function CustomizerTemplate({
             </div>
           ) : null}
 
+          {isQuoteMode ? (
+            <div className="space-y-2 rounded-xl border-2 border-violet-500 bg-violet-50 p-3 text-violet-900 shadow-[0_0_0_3px_rgba(139,92,246,0.18)]">
+              <p className="text-sm font-semibold">🎨 Designing for a quote</p>
+              <p className="text-xs rounded-md bg-violet-100 px-2 py-1.5 ring-1 ring-violet-200">
+                Set your print locations and artwork, choose sizes, then tap{" "}
+                <span className="font-semibold">Add design to quote</span>{" "}
+                below. This builds a mockup and saves it to the quote — the
+                customer will see it to approve. Close this window when you're
+                done.
+              </p>
+            </div>
+          ) : null}
+
           {editGroupId ? (
             <div className="space-y-2 rounded-xl border-2 border-amber-500 bg-amber-50 p-3 text-amber-900 shadow-[0_0_0_3px_rgba(245,158,11,0.18)]">
               <p className="text-sm font-semibold">
@@ -6315,8 +6328,24 @@ export default function CustomizerTemplate({
                 allowedPrintSizesBySide={allowedSizesBySide}
                 hidePrintSizeSelector
                 hideHeader
-                primaryCtaLabel={editLineItemId ? "Update cart" : undefined}
-                primaryCtaLoadingLabel={editLineItemId ? "Updating..." : undefined}
+                primaryCtaLabel={
+                  isQuoteMode
+                    ? "Add design to quote"
+                    : isPOSMode
+                    ? "Add to sale"
+                    : editLineItemId
+                    ? "Update cart"
+                    : undefined
+                }
+                primaryCtaLoadingLabel={
+                  isQuoteMode
+                    ? "Saving to quote…"
+                    : isPOSMode
+                    ? "Adding…"
+                    : editLineItemId
+                    ? "Updating..."
+                    : undefined
+                }
                 aggregatedCartQuantity={aggregatedCartQuantity}
                 stockBySize={stockBySize}
                 tier={tier}
