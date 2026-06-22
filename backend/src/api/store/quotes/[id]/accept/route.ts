@@ -12,6 +12,7 @@ import { z } from "zod"
 import { QUOTE_MODULE } from "../../../../../modules/quote"
 import type QuoteModuleService from "../../../../../modules/quote/service"
 import { getPostHog } from "../../../../../lib/posthog"
+import { notifyQuoteCustomerAction } from "../../../../../lib/notify-quote-action"
 import { verifyQuoteAccept } from "../../../../../services/quote-accept/sign"
 
 const schema = z.object({
@@ -316,6 +317,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       lines_added: addable.length,
       lines_skipped: skipped.length,
     },
+  })
+
+  // Email staff that the customer accepted — the cart is created and they've
+  // been sent to checkout; the job lands in Orders once they pay.
+  await notifyQuoteCustomerAction(req.scope, {
+    quote,
+    action: "quote_accepted",
+    comment: null,
   })
 
   return res.json({

@@ -6,6 +6,7 @@ import type QuoteModuleService from "../../../modules/quote/service"
 import { getPostHog } from "../../../lib/posthog"
 import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
+import { notifyQuoteCustomerAction } from "../../../lib/notify-quote-action"
 import { verifyQuoteApproval } from "../../../services/quote-approval/sign"
 
 const SIDE_LABELS: Record<string, string> = {
@@ -199,6 +200,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       approver_name: body.approver_name ?? null,
       has_comment: !!body.comment,
     },
+  })
+
+  // Email staff so a design decision doesn't sit unseen in the accepted queue.
+  await notifyQuoteCustomerAction(req.scope, {
+    quote,
+    action: body.approved ? "design_approved" : "design_changes_requested",
+    comment: body.comment ?? null,
   })
 
   res.json({ ok: true, status: nextStatus })
