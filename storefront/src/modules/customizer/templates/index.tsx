@@ -1992,6 +1992,20 @@ export default function CustomizerTemplate({
     }
     if (Array.isArray(pendingHydration.sizes) && pendingHydration.sizes.length > 0) {
       setSizeMatrix(pendingHydration.sizes)
+      // In the embedded / v2 Studio the size matrix is derived from the product-
+      // options context (sizeQuantities), so the size-matrix effect would zero
+      // the rehydrated quantities. Mirror them into the context so they survive.
+      if (embedded && productOptionsFromPdp) {
+        for (const sq of pendingHydration.sizes) {
+          if (
+            sq &&
+            typeof sq.size === "string" &&
+            typeof sq.quantity === "number"
+          ) {
+            productOptionsFromPdp.setSizeQuantity(sq.size, sq.quantity)
+          }
+        }
+      }
     }
     if (typeof pendingHydration.printNotes === "string" && pendingHydration.printNotes.length) {
       setPrintNotes(pendingHydration.printNotes)
@@ -2007,8 +2021,32 @@ export default function CustomizerTemplate({
       }
     }
     if (pendingHydration.variantId) {
-      const variantExists = product.variants?.some((v) => v.id === pendingHydration.variantId)
-      if (variantExists) setActiveVariantId(pendingHydration.variantId)
+      const variant = product.variants?.find(
+        (v) => v.id === pendingHydration.variantId
+      )
+      if (variant) {
+        setActiveVariantId(variant.id)
+        // In the embedded / v2 Studio the colour is driven by the product-
+        // options context (it resolves pdpSyncedVariantId AND renders the
+        // "Select Colour" panel). Setting activeVariantId alone isn't enough —
+        // the size-matrix effect re-forces pdpSyncedVariantId, snapping the
+        // garment back to the default colour and losing the saved one. Mirror
+        // the rehydrated variant's option values (colour + size) into the
+        // context so the picker + pdpSyncedVariantId follow the saved design.
+        if (embedded && productOptionsFromPdp) {
+          for (const vo of (variant.options ?? []) as Array<any>) {
+            const value = vo?.value
+            if (typeof value !== "string") continue
+            const optId = vo?.option_id ?? vo?.option?.id
+            const title =
+              vo?.option?.title ??
+              product.options?.find((o) => o.id === optId)?.title
+            if (typeof title === "string") {
+              productOptionsFromPdp.setOptionValue(title, value)
+            }
+          }
+        }
+      }
     }
 
     // Restore per-side decoration methods (v3 schema). v2 metadata has no
