@@ -1113,6 +1113,36 @@ function QuoteDetail({
     }
   }
 
+  const copyDesignApprovalLink = async () => {
+    try {
+      const res = await fetch(
+        `/admin/quotes/${quote.id}/design-approval-link`,
+        { credentials: "include" }
+      )
+      const json = (await res.json()) as { url?: string }
+      if (!json.url) throw new Error("Server returned no URL")
+      await navigator.clipboard.writeText(json.url)
+      toast.success("Design approval link copied — send it to the customer")
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to copy link")
+    }
+  }
+
+  // Customer's design sign-off state (mockup approval), stored on quote metadata
+  // by /store/quote-design-approval.
+  const designStatus =
+    typeof quote.metadata?.design_approval_status === "string"
+      ? (quote.metadata.design_approval_status as string)
+      : null
+  const designApproverName =
+    typeof quote.metadata?.design_approver_name === "string"
+      ? (quote.metadata.design_approver_name as string)
+      : null
+  const designChangesComment =
+    typeof quote.metadata?.design_changes_comment === "string"
+      ? (quote.metadata.design_changes_comment as string)
+      : null
+
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex items-center justify-between gap-x-2 flex-wrap">
@@ -1122,13 +1152,42 @@ function QuoteDetail({
             {quote.email} · created {fmtDate(quote.created_at)} · source {quote.source}
           </Text>
         </div>
-        <div className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2 flex-wrap">
+          <Button
+            size="small"
+            variant="secondary"
+            onClick={copyDesignApprovalLink}
+          >
+            Copy design approval link
+          </Button>
           <Button size="small" variant="secondary" onClick={copyAcceptLink}>
             Copy customer accept link
           </Button>
           <Badge color={STATUS_COLORS[quote.status]}>{STATUS_LABELS[quote.status]}</Badge>
         </div>
       </div>
+
+      {designStatus === "approved" || designStatus === "changes_requested" ? (
+        <div
+          className={`rounded-md border p-2.5 text-xs ${
+            designStatus === "approved"
+              ? "border-ui-tag-green-border bg-ui-tag-green-bg text-ui-tag-green-text"
+              : "border-ui-tag-orange-border bg-ui-tag-orange-bg text-ui-tag-orange-text"
+          }`}
+        >
+          {designStatus === "approved" ? (
+            <span>
+              ✓ Design approved by the customer
+              {designApproverName ? ` (${designApproverName})` : ""}.
+            </span>
+          ) : (
+            <span>
+              ✏️ Customer requested design changes
+              {designChangesComment ? `: “${designChangesComment}”` : "."}
+            </span>
+          )}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 small:grid-cols-2 gap-3">
         <div>
