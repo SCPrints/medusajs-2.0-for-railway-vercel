@@ -2,6 +2,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 
 import { QUOTE_MODULE } from "../../../../modules/quote"
 import type QuoteModuleService from "../../../../modules/quote/service"
+import { buildQuoteMockups } from "../../../../lib/quote-mockups"
 import { verifyQuoteAccept } from "../../../../services/quote-accept/sign"
 
 /**
@@ -59,6 +60,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       total: li?.total ?? null,
       variant_id: typeof li?.variant_id === "string" ? li.variant_id : null,
       thumbnail: typeof li?.thumbnail === "string" ? li.thumbnail : null,
+    })),
+    // ALL Studio mockups across the quote (every print position, e.g. front +
+    // back) so the accept page can show the customer exactly what they're
+    // agreeing to — not just the first thumbnail.
+    mockups: buildQuoteMockups(quote).map((m) => ({
+      side: m.side,
+      side_label: m.sideLabel,
+      url: m.url,
     })),
     expires_at: quote.expires_at,
   })

@@ -21,6 +21,12 @@ export type QuoteForAccept = {
     /** Mockup (or product) image so the customer sees what they're accepting. */
     thumbnail?: string | null
   }>
+  /** All Studio mockups across the quote (every print position) for the preview. */
+  mockups?: Array<{
+    side: string
+    side_label?: string | null
+    url: string
+  }>
   expires_at: string | null
   already_accepted?: boolean
 }

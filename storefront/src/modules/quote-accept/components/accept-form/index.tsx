@@ -73,6 +73,19 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
     })
   }
 
+  // Big preview: prefer the Studio mockups (every print position); fall back to
+  // per-line thumbnails for catalog-only quotes with no design.
+  const galleryImages =
+    quote.mockups && quote.mockups.length > 0
+      ? quote.mockups
+      : quote.line_items
+          .filter((li) => li.thumbnail)
+          .map((li) => ({
+            side: "item",
+            side_label: li.title ?? null,
+            url: li.thumbnail as string,
+          }))
+
   return (
     <div className="rounded-2xl border border-[rgba(26,26,46,0.1)] bg-white/95 p-6 shadow-[0_4px_40px_rgba(26,26,46,0.08)]">
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
@@ -89,6 +102,34 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
 
       <hr className="my-6 border-[rgba(26,26,46,0.08)]" />
 
+      {/* Large design preview — every print position (front, back, sleeves…) so
+          the customer can clearly see what they're agreeing to. */}
+      {galleryImages.length > 0 ? (
+        <div
+          className={`mb-6 grid gap-4 ${
+            galleryImages.length === 1
+              ? "grid-cols-1"
+              : "grid-cols-1 tablet:grid-cols-2"
+          }`}
+        >
+          {galleryImages.map((img, i) => (
+            <figure key={`${img.url}-${i}`} className="m-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={img.url}
+                alt={img.side_label ?? img.side}
+                className="w-full max-h-[480px] rounded-xl border border-[rgba(26,26,46,0.08)] bg-white object-contain"
+              />
+              {img.side_label ? (
+                <figcaption className="mt-1.5 text-center text-xs font-medium uppercase tracking-wide text-ui-fg-subtle">
+                  {img.side_label}
+                </figcaption>
+              ) : null}
+            </figure>
+          ))}
+        </div>
+      ) : null}
+
       {quote.line_items.length > 0 ? (
         <ul className="divide-y divide-[rgba(26,26,46,0.06)]">
           {quote.line_items.map((li, idx) => (
@@ -96,28 +137,18 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
               key={idx}
               className="py-3 flex items-start justify-between gap-3"
             >
-              <div className="flex items-start gap-3 min-w-0">
-                {li.thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={li.thumbnail}
-                    alt={li.title ?? "Item"}
-                    className="h-28 w-28 tablet:h-44 tablet:w-44 shrink-0 rounded-lg border border-[rgba(26,26,46,0.08)] bg-white object-contain"
-                  />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-[var(--brand-primary)]">
+                  {li.title ?? "Item"}
+                </p>
+                {li.description ? (
+                  <p className="text-xs text-ui-fg-subtle">{li.description}</p>
                 ) : null}
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--brand-primary)]">
-                    {li.title ?? "Item"}
+                {li.quantity ? (
+                  <p className="text-xs text-ui-fg-muted mt-0.5">
+                    Qty {li.quantity}
                   </p>
-                  {li.description ? (
-                    <p className="text-xs text-ui-fg-subtle">{li.description}</p>
-                  ) : null}
-                  {li.quantity ? (
-                    <p className="text-xs text-ui-fg-muted mt-0.5">
-                      Qty {li.quantity}
-                    </p>
-                  ) : null}
-                </div>
+                ) : null}
               </div>
               <span className="text-sm text-ui-fg-base whitespace-nowrap">
                 {fmtMoney(li.total ?? li.unit_price ?? null, quote.currency_code)}
