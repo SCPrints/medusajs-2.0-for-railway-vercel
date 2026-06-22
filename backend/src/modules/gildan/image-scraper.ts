@@ -144,6 +144,55 @@ export function normalizeGildanColourKey(name: string): string {
 }
 
 /**
+ * Equivalence groups for colours whose DATA-FILE name (the xlsx → the variant
+ * colour) differs from the WEBSITE swatch label (`data-color-name`, the image
+ * source). The two supplier feeds disagree on a handful of American Apparel
+ * shades, so a variant colour can't find its own photo without bridging:
+ *
+ *   xlsx "Navy"        ↔ website "True Navy"   (1301_TrueNavy_01.jpg)
+ *   xlsx "Royal Blue"  ↔ website "Royal"       (1301_Royal_01.jpg)
+ *
+ * Each group lists `normalizeGildanColourKey`-form keys that name the same
+ * physical colour. Add a group here when a new mis-named shade surfaces in an
+ * import log's "unmatched" list. Keep groups tight — over-broad aliases
+ * (e.g. collapsing every "*navy*") risk pulling a sibling colour's photo.
+ */
+const GILDAN_COLOUR_KEY_ALIAS_GROUPS: ReadonlyArray<ReadonlyArray<string>> = [
+  ["navy", "truenavy", "navyblue"],
+  ["royal", "royalblue", "trueroyal"],
+  // Supplier labels just "Cardinal"; the data file says "Cardinal Red".
+  ["cardinal", "cardinalred"],
+  // Supplier swatch is misspelled "Liuetenant" on the website (verified on the
+  // AA 1PQ page, 2026-06); the data file spells it "Lieutenant".
+  ["lieutenant", "liuetenant"],
+]
+
+const GILDAN_COLOUR_KEY_ALIASES: ReadonlyMap<string, ReadonlyArray<string>> =
+  (() => {
+    const map = new Map<string, string[]>()
+    for (const group of GILDAN_COLOUR_KEY_ALIAS_GROUPS) {
+      for (const key of group) {
+        const others = group.filter((k) => k !== key)
+        map.set(key, [...(map.get(key) ?? []), ...others])
+      }
+    }
+    return map
+  })()
+
+/**
+ * Candidate lookup keys for a colour name — the exact normalised key first,
+ * then any aliases from {@link GILDAN_COLOUR_KEY_ALIAS_GROUPS}. Use against the
+ * `urlByColour` map so a variant colour ("Navy" / "Royal Blue") still resolves
+ * the website's differently-named swatch ("True Navy" / "Royal"). Exact key
+ * always leads so a colour that DOES match its own label is never displaced.
+ */
+export function gildanColourKeyCandidates(name: string): string[] {
+  const key = normalizeGildanColourKey(name)
+  const aliases = GILDAN_COLOUR_KEY_ALIASES.get(key) ?? []
+  return aliases.length ? [key, ...aliases] : [key]
+}
+
+/**
  * Dedup key for a CDN image URL — the trailing filename, lower-cased and
  * query-stripped. The BigCommerce filename carries a unique hash, so this
  * collapses the same image across size buckets (`605x755` vs `1280w`) and

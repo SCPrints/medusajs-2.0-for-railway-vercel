@@ -21,8 +21,8 @@
 
 import { slugify, titleCase } from "../../utils/string-case"
 import {
+  gildanColourKeyCandidates,
   gildanGarmentView,
-  normalizeGildanColourKey,
   normalizeGildanFilenameKey,
 } from "./image-scraper"
 import type { GildanColour, GildanProduct, GildanRow } from "./types"
@@ -357,13 +357,19 @@ export function buildGildanGarmentImages(
   // The page's `data-color-name` swatch labels DO carry the colour name, so
   // look the colour up there when the filename path came up empty.
   if (ordered.length === 0 && urlByColour) {
-    const byColour = urlByColour.get(normalizeGildanColourKey(colour.name))
-    if (byColour) {
-      for (const url of byColour) {
-        if (!seen.has(url)) {
-          seen.add(url)
-          ordered.push(url)
+    // Try the colour's own key first, then any aliases — bridges data-file
+    // names that differ from the website swatch label ("Navy" ↔ "True Navy",
+    // "Royal Blue" ↔ "Royal"). First candidate with images wins.
+    for (const candidate of gildanColourKeyCandidates(colour.name)) {
+      const byColour = urlByColour.get(candidate)
+      if (byColour?.length) {
+        for (const url of byColour) {
+          if (!seen.has(url)) {
+            seen.add(url)
+            ordered.push(url)
+          }
         }
+        break
       }
     }
   }

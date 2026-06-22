@@ -11,6 +11,7 @@ import {
 import {
   extractColorImageMapFromGildanHtml,
   extractImageUrlsFromGildanHtml,
+  gildanColourKeyCandidates,
   gildanGarmentView,
   normalizeGildanColourKey,
   normalizeGildanFilenameKey,
@@ -446,6 +447,63 @@ describe("buildGildanGarmentImages", () => {
     expect(result.front).toContain("SF500B_CG7_A1")
   })
 
+  it("bridges a data-file colour name to the website swatch label via aliases (Navy → True Navy)", () => {
+    // The xlsx calls it "Navy"; gildanbrands.com.au labels the swatch
+    // "True Navy". Neither the filename nor the exact colour key resolves —
+    // only the alias does.
+    const colour: GildanColour = {
+      name: "Navy",
+      hex: null,
+      images: { hero: "1301_Navy_01.jpg", views: [] },
+      sizes: [],
+    }
+    const urlByColour = new Map<string, string[]>([
+      [
+        normalizeGildanColourKey("True Navy"),
+        [
+          "https://cdn11.bigcommerce.com/.../1301_TrueNavy_01__x.y.jpg",
+          "https://cdn11.bigcommerce.com/.../1301_TrueNavy_02__x.y.jpg",
+        ],
+      ],
+    ])
+    const result = buildGildanGarmentImages(colour, new Map(), urlByColour)
+    expect(result.front).toContain("1301_TrueNavy_01")
+    expect(result.back).toContain("1301_TrueNavy_02")
+    expect(result.all).toHaveLength(2)
+  })
+
+  it("bridges Royal Blue → Royal", () => {
+    const colour: GildanColour = {
+      name: "Royal Blue",
+      hex: null,
+      images: { hero: "1301_RoyalBlue_01.jpg", views: [] },
+      sizes: [],
+    }
+    const urlByColour = new Map<string, string[]>([
+      ["royal", ["https://cdn11.bigcommerce.com/.../1301_Royal_01__x.y.jpg"]],
+    ])
+    const result = buildGildanGarmentImages(colour, new Map(), urlByColour)
+    expect(result.front).toContain("1301_Royal_01")
+  })
+
+  it("does not invent images for a colour absent from the page (Orange → none)", () => {
+    // Orange is a phantom xlsx colour — no swatch on the AU supplier page.
+    // The alias bridge must not pull a sibling colour's photo.
+    const colour: GildanColour = {
+      name: "Orange",
+      hex: null,
+      images: { hero: "1301_Orange_01.jpg", views: [] },
+      sizes: [],
+    }
+    const urlByColour = new Map<string, string[]>([
+      ["truenavy", ["https://cdn11.bigcommerce.com/.../1301_TrueNavy_01__x.y.jpg"]],
+      ["royal", ["https://cdn11.bigcommerce.com/.../1301_Royal_01__x.y.jpg"]],
+    ])
+    const result = buildGildanGarmentImages(colour, new Map(), urlByColour)
+    expect(result.front).toBe("")
+    expect(result.all).toEqual([])
+  })
+
   it("prefers the filename path over the colour map when both could resolve", () => {
     const colour: GildanColour = {
       name: "Blush",
@@ -479,6 +537,46 @@ describe("normalizeGildanColourKey", () => {
   ]
   it.each(cases)("normalizes %s → %s", (input, expected) => {
     expect(normalizeGildanColourKey(input)).toBe(expected)
+  })
+})
+
+describe("gildanColourKeyCandidates", () => {
+  it("returns the exact key first, then aliases, for a mis-named colour", () => {
+    expect(gildanColourKeyCandidates("Navy")).toEqual([
+      "navy",
+      "truenavy",
+      "navyblue",
+    ])
+    expect(gildanColourKeyCandidates("Royal Blue")).toEqual([
+      "royalblue",
+      "royal",
+      "trueroyal",
+    ])
+  })
+  it("resolves from any member of a group back to the whole group (exact-first)", () => {
+    expect(gildanColourKeyCandidates("True Navy")).toEqual([
+      "truenavy",
+      "navy",
+      "navyblue",
+    ])
+  })
+  it("bridges 'Cardinal Red' to the supplier's 'Cardinal' label", () => {
+    expect(gildanColourKeyCandidates("Cardinal Red")).toEqual([
+      "cardinalred",
+      "cardinal",
+    ])
+  })
+  it("bridges the supplier's misspelled 'Liuetenant' swatch to 'Lieutenant'", () => {
+    expect(gildanColourKeyCandidates("Lieutenant")).toEqual([
+      "lieutenant",
+      "liuetenant",
+    ])
+  })
+  it("returns just the key for a colour with no alias", () => {
+    expect(gildanColourKeyCandidates("Blush")).toEqual(["blush"])
+    expect(gildanColourKeyCandidates("Sport Grey")).toEqual(["sportgrey"])
+    // 'Red' must NOT pull the Cardinal alias — only 'Cardinal Red' does.
+    expect(gildanColourKeyCandidates("Red")).toEqual(["red"])
   })
 })
 
