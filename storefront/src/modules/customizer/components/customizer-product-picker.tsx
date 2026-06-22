@@ -2,9 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 
 import { searchCustomizerProducts } from "@lib/data/customizer-product-search"
+
+// Mode/session params that must survive a "Change product" navigation so the
+// customiser stays in quote (or POS) mode on the new product. Per-product or
+// per-design params (design, reorder, edit, edit_group, variant, adminProof)
+// are intentionally NOT carried — they belong to the product we're leaving.
+const PRESERVE_ON_PRODUCT_CHANGE = [
+  "quote_id",
+  "qsig",
+  "group",
+  "pos_session",
+] as const
 
 export type CustomizerPickerProduct = {
   id: string
@@ -34,6 +45,7 @@ const SEARCH_DEBOUNCE_MS = 280
 
 const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, basePath = "/customizer" }: Props) => {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { countryCode } = useParams() as { countryCode: string }
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -136,7 +148,15 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
       return
     }
     setOpen(false)
-    router.push(`/${countryCode}${basePath}?handle=${encodeURIComponent(handle)}`)
+    // Preserve quote/POS mode params so switching products doesn't drop the
+    // customiser out of quote (or POS) mode.
+    const next = new URLSearchParams()
+    next.set("handle", handle)
+    for (const k of PRESERVE_ON_PRODUCT_CHANGE) {
+      const v = searchParams?.get(k)
+      if (v) next.set(k, v)
+    }
+    router.push(`/${countryCode}${basePath}?${next.toString()}`)
   }
 
   const trimmedQuery = query.trim()
@@ -160,7 +180,10 @@ const CustomizerProductPicker = ({ products, currentHandle, hasUnsavedDesign, ba
 
       {open && mounted && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-start justify-center bg-black/50 px-4 py-12 sm:py-20"
+          // z-[300] sits ABOVE the full-screen Studio overlay (z-[200] in
+          // studio-launcher) — at z-[100] the picker opened behind the Studio
+          // and looked like "Change product" did nothing.
+          className="fixed inset-0 z-[300] flex items-start justify-center bg-black/50 px-4 py-12 sm:py-20"
           role="dialog"
           aria-modal="true"
           aria-labelledby="customizer-product-picker-title"
