@@ -82,6 +82,11 @@ import {
   QuoteCustomerActionEmail,
   isQuoteCustomerActionData,
 } from './quote-customer-action'
+import {
+  QUOTE_DESIGN_APPROVAL_REQUEST,
+  QuoteDesignApprovalRequestEmail,
+  isQuoteDesignApprovalRequestData,
+} from './quote-design-approval-request'
 
 export const EmailTemplates = {
   INVITE_USER,
@@ -102,6 +107,7 @@ export const EmailTemplates = {
   STALE_ORDER_MANAGER_ESCALATION,
   FULFILLMENT_ORDER_PLACED,
   QUOTE_CUSTOMER_ACTION,
+  QUOTE_DESIGN_APPROVAL_REQUEST,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -270,6 +276,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
       }
       return <QuoteCustomerActionEmail {...data} />
 
+    case EmailTemplates.QUOTE_DESIGN_APPROVAL_REQUEST:
+      if (!isQuoteDesignApprovalRequestData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.QUOTE_DESIGN_APPROVAL_REQUEST}"`
+        )
+      }
+      return <QuoteDesignApprovalRequestEmail {...data} />
+
     default:
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
@@ -295,4 +310,5 @@ export {
   StaleOrderManagerEscalationEmail,
   FulfillmentOrderPlacedTemplate,
   QuoteCustomerActionEmail,
+  QuoteDesignApprovalRequestEmail,
 }

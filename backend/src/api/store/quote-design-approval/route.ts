@@ -7,17 +7,8 @@ import { getPostHog } from "../../../lib/posthog"
 import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
 import { notifyQuoteCustomerAction } from "../../../lib/notify-quote-action"
+import { buildQuoteMockups } from "../../../lib/quote-mockups"
 import { verifyQuoteApproval } from "../../../services/quote-approval/sign"
-
-const SIDE_LABELS: Record<string, string> = {
-  front: "Front",
-  back: "Back",
-  left_sleeve: "Left sleeve",
-  right_sleeve: "Right sleeve",
-  printed_tag: "Printed tag",
-  bottle_label: "Label",
-  bottle_back_label: "Back label",
-}
 
 type DesignApprovalStatus = "pending" | "approved" | "changes_requested"
 
@@ -44,39 +35,6 @@ const postSchema = z.object({
  * QuoteEvent + audit row, and emits a PostHog event. This is sign-off on the
  * DESIGN — distinct from accepting the quote price (quote-accept).
  */
-
-function buildMockups(quote: any): Array<{
-  side: string
-  side_label: string | null
-  url: string
-}> {
-  const lines = Array.isArray(quote?.line_items?.items)
-    ? (quote.line_items.items as Array<Record<string, any>>)
-    : []
-  const seen = new Set<string>()
-  const out: Array<{ side: string; side_label: string | null; url: string }> = []
-  for (const li of lines) {
-    const artifacts = Array.isArray(li?.customizerDesign?.artifacts)
-      ? li.customizerDesign.artifacts
-      : []
-    for (const a of artifacts) {
-      const url = a?.mockupUrl
-      if (typeof url !== "string" || !url || seen.has(url)) continue
-      seen.add(url)
-      const side = typeof a?.side === "string" ? a.side : "front"
-      const garment = typeof li?.title === "string" ? li.title : null
-      const sideLabel = SIDE_LABELS[side] ?? null
-      // Label = garment title (+ side when not the front) so the customer can
-      // tell which mockup is which on a multi-line quote.
-      const label =
-        garment && sideLabel && side !== "front"
-          ? `${garment} — ${sideLabel}`
-          : garment ?? sideLabel
-      out.push({ side, side_label: label, url })
-    }
-  }
-  return out
-}
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const quoteId = String((req.query?.quote as string) ?? "")
@@ -114,7 +72,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       typeof meta.design_changes_comment === "string"
         ? meta.design_changes_comment
         : null,
-    mockup_urls: buildMockups(quote),
+    mockup_urls: buildQuoteMockups(quote).map((m) => ({
+      side: m.side,
+      side_label: m.sideLabel,
+      url: m.url,
+    })),
   })
 }
 

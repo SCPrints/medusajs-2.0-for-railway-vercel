@@ -1128,6 +1128,31 @@ function QuoteDetail({
     }
   }
 
+  // Email the approval link straight to the customer (with the mockups) so staff
+  // don't have to copy-and-send.
+  const [sendingApproval, setSendingApproval] = useState(false)
+  const sendDesignApprovalLink = async () => {
+    setSendingApproval(true)
+    try {
+      const res = await fetch(
+        `/admin/quotes/${quote.id}/design-approval-link`,
+        { method: "POST", credentials: "include" }
+      )
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`)
+      toast.success(
+        `Design approval emailed to ${json.sent_to}${
+          json.has_mockups ? "" : " (no mockup attached yet)"
+        }`
+      )
+      onReload()
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to send approval email")
+    } finally {
+      setSendingApproval(false)
+    }
+  }
+
   // Customer's design sign-off state (mockup approval), stored on quote metadata
   // by /store/quote-design-approval.
   const designStatus =
@@ -1155,13 +1180,21 @@ function QuoteDetail({
         <div className="flex items-center gap-x-2 flex-wrap">
           <Button
             size="small"
+            variant="primary"
+            isLoading={sendingApproval}
+            onClick={sendDesignApprovalLink}
+          >
+            Email approval to customer
+          </Button>
+          <Button
+            size="small"
             variant="secondary"
             onClick={copyDesignApprovalLink}
           >
-            Copy design approval link
+            Copy approval link
           </Button>
           <Button size="small" variant="secondary" onClick={copyAcceptLink}>
-            Copy customer accept link
+            Copy accept link
           </Button>
           <Badge color={STATUS_COLORS[quote.status]}>{STATUS_LABELS[quote.status]}</Badge>
         </div>
