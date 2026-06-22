@@ -2,7 +2,11 @@ import { BetaAnalyticsDataClient } from "@google-analytics/data"
 import { google } from "googleapis"
 import type { analyticsdata_v1beta } from "googleapis"
 
-import { getImpersonationSubject, getServiceAccountKey } from "./google-auth"
+import {
+  buildGoogleJwt,
+  getImpersonationSubject,
+  getServiceAccountKey,
+} from "./google-auth"
 import { withTransientRetry } from "./retry"
 
 const SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
@@ -59,12 +63,10 @@ export function buildGa4Caller(): Ga4Caller {
   const subject = getImpersonationSubject()
 
   if (subject) {
-    const jwt = new google.auth.JWT({
-      email: key.client_email,
-      key: key.private_key,
-      scopes: [SCOPE],
-      subject,
-    })
+    // Shared, token-caching JWT (see google-auth.ts) — same scope+subject as
+    // GSC's webmasters client but a distinct scope set, so it gets its own
+    // cached instance. Reused across every GA4 report route.
+    const jwt = buildGoogleJwt([SCOPE])
     const analyticsdata = google.analyticsdata({ version: "v1beta", auth: jwt })
     return {
       async runReport(req) {
