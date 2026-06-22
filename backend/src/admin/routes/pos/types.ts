@@ -3,6 +3,8 @@
  * shape (see `backend/src/modules/pos-session/models/pos-session.ts`).
  */
 
+import type { VariantPriceRow } from "../../lib/variant-base-price"
+
 export type POSLineItem = {
   id: string
   kind: "standard" | "customizer"
@@ -52,7 +54,12 @@ export type POSProductVariant = {
   title: string
   sku: string | null
   inventory_quantity?: number
-  calculated_price?: { calculated_amount: number; currency_code: string } | null
+  /**
+   * Raw catalogue price rows (NOT `calculated_price`). See
+   * `pickVariantBasePrice` — requesting `calculated_price` on the admin
+   * `/admin/products` route 400s for lack of a pricing context.
+   */
+  prices?: VariantPriceRow[] | null
 }
 
 export type POSProduct = {

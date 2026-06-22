@@ -1,11 +1,19 @@
 import { Button, Input, Text } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
+import {
+  pickVariantBasePrice,
+  type VariantPriceRow,
+} from "../../lib/variant-base-price"
+
 /**
- * Catalog product + variant search for the Quotes line-item editor. Adapted
- * from the POS `ProductSearchPanel` — same `/admin/products` query with a
- * region context so `calculated_price` is populated. On variant click it hands
- * the parent a fully-resolved, priced line (no SKU typing, no free-text).
+ * Catalog product + variant search for the Quotes line-item editor. Queries
+ * `/admin/products` for RAW `variants.prices` and picks the AUD base tier
+ * (`pickVariantBasePrice`). It deliberately does NOT request `calculated_price`: the
+ * admin route strips `region_id`/`currency_code` from the query, so a
+ * calculated_price request with no pricing context throws INVALID_DATA → 400
+ * (the original "Search failed (400)" bug). On variant click it hands the
+ * parent a fully-resolved, priced line (no SKU typing, no free-text).
  */
 
 export type PickedProductLine = {
@@ -22,7 +30,12 @@ type PickerVariant = {
   id: string
   title: string
   sku: string | null
-  calculated_price?: { calculated_amount: number; currency_code: string } | null
+  /**
+   * Raw catalogue price rows (NOT `calculated_price`). See `pickVariantBasePrice`
+   * for why raw prices are read here — requesting `calculated_price` on the admin
+   * route 400s for lack of a pricing context.
+   */
+  prices?: VariantPriceRow[] | null
 }
 
 type PickerProduct = {
@@ -43,11 +56,15 @@ const fmtMoney = (major: number | null | undefined, currency = "AUD") => {
 }
 
 export function ProductLinePicker({
-  regionId,
   onPick,
   onClose,
 }: {
-  regionId: string | null
+  /**
+   * Accepted for call-site compatibility but no longer used — pricing comes
+   * from raw `variants.prices` (see `pickVariantBasePrice`), so no region/pricing
+   * context is needed and passing one to /admin/products would be stripped.
+   */
+  regionId?: string | null
   onPick: (line: PickedProductLine) => void
   onClose?: () => void
 }) {
@@ -61,7 +78,7 @@ export function ProductLinePicker({
     const t = setTimeout(() => void search(query), 250)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, regionId])
+  }, [query])
 
   const search = async (q: string) => {
     setLoading(true)
@@ -70,11 +87,15 @@ export function ProductLinePicker({
       const params = new URLSearchParams()
       if (q.trim()) params.set("q", q.trim())
       params.set("limit", "20")
+      // Request RAW prices, not `calculated_price`: the admin /admin/products
+      // route strips region_id/currency_code from the query, so asking for
+      // calculated_price with no pricing context makes the pricing module throw
+      // INVALID_DATA → HTTP 400 (the "Search failed (400)" bug). Raw prices need
+      // no pricing context. We pick the AUD base tier via pickVariantBasePrice().
       params.set(
         "fields",
-        "id,title,handle,thumbnail,variants.id,variants.title,variants.sku,variants.calculated_price.*"
+        "id,title,handle,thumbnail,variants.id,variants.title,variants.sku,variants.prices.*"
       )
-      if (regionId) params.set("region_id", regionId)
       const res = await fetch(`/admin/products?${params}`, {
         credentials: "include",
       })
@@ -89,9 +110,8 @@ export function ProductLinePicker({
   }
 
   const pick = (product: PickerProduct, variant: PickerVariant) => {
-    const unit_price = variant.calculated_price
-      ? variant.calculated_price.calculated_amount
-      : null
+    const base = pickVariantBasePrice(variant.prices)
+    const unit_price = base ? base.amount : null
     onPick({
       product_id: product.id,
       variant_id: variant.id,
@@ -118,11 +138,6 @@ export function ProductLinePicker({
         ) : null}
       </div>
 
-      {!regionId ? (
-        <Text size="xsmall" className="text-ui-fg-muted">
-          Loading region… prices will appear once it resolves.
-        </Text>
-      ) : null}
       {loading ? (
         <Text size="xsmall" className="text-ui-fg-muted">
           Searching…
@@ -144,6 +159,7 @@ export function ProductLinePicker({
             products.map((p) => {
               const oneVariant = (p.variants ?? []).length === 1
               const only = (p.variants ?? [])[0]
+              const onlyBase = only ? pickVariantBasePrice(only.prices) : null
               const isExpanded = expanded === p.id
               return (
                 <li key={p.id} className="py-1.5">
@@ -170,11 +186,11 @@ export function ProductLinePicker({
                       <Text size="small" className="truncate font-medium">
                         {p.title}
                       </Text>
-                      {oneVariant && only?.calculated_price ? (
+                      {oneVariant && onlyBase ? (
                         <Text size="xsmall" className="text-ui-fg-muted">
                           {fmtMoney(
-                            only.calculated_price.calculated_amount,
-                            only.calculated_price.currency_code.toUpperCase()
+                            onlyBase.amount,
+                            onlyBase.currency_code.toUpperCase()
                           )}
                         </Text>
                       ) : !oneVariant ? (
@@ -186,25 +202,28 @@ export function ProductLinePicker({
                   </button>
                   {isExpanded && !oneVariant ? (
                     <ul className="ml-12 mt-1 space-y-1">
-                      {(p.variants ?? []).map((v) => (
-                        <li key={v.id}>
-                          <button
-                            type="button"
-                            className="w-full text-left text-xs px-2 py-1 rounded hover:bg-ui-bg-base flex justify-between gap-2"
-                            onClick={() => pick(p, v)}
-                          >
-                            <span className="truncate">{v.title}</span>
-                            {v.calculated_price ? (
-                              <span className="text-ui-fg-muted shrink-0">
-                                {fmtMoney(
-                                  v.calculated_price.calculated_amount,
-                                  v.calculated_price.currency_code.toUpperCase()
-                                )}
-                              </span>
-                            ) : null}
-                          </button>
-                        </li>
-                      ))}
+                      {(p.variants ?? []).map((v) => {
+                        const vBase = pickVariantBasePrice(v.prices)
+                        return (
+                          <li key={v.id}>
+                            <button
+                              type="button"
+                              className="w-full text-left text-xs px-2 py-1 rounded hover:bg-ui-bg-base flex justify-between gap-2"
+                              onClick={() => pick(p, v)}
+                            >
+                              <span className="truncate">{v.title}</span>
+                              {vBase ? (
+                                <span className="text-ui-fg-muted shrink-0">
+                                  {fmtMoney(
+                                    vBase.amount,
+                                    vBase.currency_code.toUpperCase()
+                                  )}
+                                </span>
+                              ) : null}
+                            </button>
+                          </li>
+                        )
+                      })}
                     </ul>
                   ) : null}
                 </li>

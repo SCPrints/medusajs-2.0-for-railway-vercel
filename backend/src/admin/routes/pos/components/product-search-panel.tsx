@@ -1,6 +1,7 @@
 import { Button, Heading, Input, Text } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
+import { pickVariantBasePrice } from "../../../lib/variant-base-price"
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import type {
   POSLineItem,
@@ -44,12 +45,14 @@ export const ProductSearchPanel = ({
       const params = new URLSearchParams()
       if (q.trim()) params.set("q", q.trim())
       params.set("limit", "20")
+      // Request RAW prices, not `calculated_price`: the admin /admin/products
+      // route strips region_id/currency_code, so a calculated_price request
+      // with no pricing context throws INVALID_DATA → HTTP 400. Raw prices need
+      // no context; pickVariantBasePrice() picks the AUD base tier.
       params.set(
         "fields",
-        "id,title,handle,thumbnail,variants.id,variants.title,variants.sku,variants.calculated_price.*"
+        "id,title,handle,thumbnail,variants.id,variants.title,variants.sku,variants.prices.*"
       )
-      // Region context loads variants' calculated_price.
-      params.set("region_id", region.id)
 
       const res = await fetch(`/admin/products?${params}`, {
         credentials: "include",
@@ -67,9 +70,8 @@ export const ProductSearchPanel = ({
   }
 
   const addVariant = (product: POSProduct, variant: POSProductVariant) => {
-    const priceCents = variant.calculated_price
-      ? Math.round(variant.calculated_price.calculated_amount * 100)
-      : null
+    const base = pickVariantBasePrice(variant.prices)
+    const priceCents = base ? Math.round(base.amount * 100) : null
     const item: POSLineItem = {
       id: ulid(),
       kind: "standard",
@@ -151,6 +153,9 @@ export const ProductSearchPanel = ({
             const isExpanded = expanded === p.id
             const oneVariant = (p.variants ?? []).length === 1
             const variantToShow = (p.variants ?? [])[0]
+            const showBase = variantToShow
+              ? pickVariantBasePrice(variantToShow.prices)
+              : null
             return (
               <li key={p.id} className="py-2">
                 <button
@@ -177,14 +182,11 @@ export const ProductSearchPanel = ({
                     <Text size="small" className="truncate font-medium">
                       {p.title}
                     </Text>
-                    {oneVariant && variantToShow?.calculated_price && (
+                    {oneVariant && showBase && (
                       <Text size="xsmall" className="text-ui-fg-muted">
                         {formatMoney(
-                          Math.round(
-                            variantToShow.calculated_price.calculated_amount *
-                              100
-                          ),
-                          variantToShow.calculated_price.currency_code.toUpperCase()
+                          Math.round(showBase.amount * 100),
+                          showBase.currency_code.toUpperCase()
                         )}
                       </Text>
                     )}
@@ -193,26 +195,27 @@ export const ProductSearchPanel = ({
 
                 {isExpanded && !oneVariant && (
                   <ul className="ml-12 mt-1 space-y-1">
-                    {(p.variants ?? []).map((v) => (
-                      <li key={v.id}>
-                        <button
-                          className="w-full text-left text-xs px-2 py-1 rounded hover:bg-ui-bg-subtle flex justify-between"
-                          onClick={() => addVariant(p, v)}
-                        >
-                          <span>{v.title}</span>
-                          {v.calculated_price && (
-                            <span className="text-ui-fg-muted">
-                              {formatMoney(
-                                Math.round(
-                                  v.calculated_price.calculated_amount * 100
-                                ),
-                                v.calculated_price.currency_code.toUpperCase()
-                              )}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    ))}
+                    {(p.variants ?? []).map((v) => {
+                      const vBase = pickVariantBasePrice(v.prices)
+                      return (
+                        <li key={v.id}>
+                          <button
+                            className="w-full text-left text-xs px-2 py-1 rounded hover:bg-ui-bg-subtle flex justify-between"
+                            onClick={() => addVariant(p, v)}
+                          >
+                            <span>{v.title}</span>
+                            {vBase && (
+                              <span className="text-ui-fg-muted">
+                                {formatMoney(
+                                  Math.round(vBase.amount * 100),
+                                  vBase.currency_code.toUpperCase()
+                                )}
+                              </span>
+                            )}
+                          </button>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </li>
