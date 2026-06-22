@@ -1,5 +1,5 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { ChatBubbleLeftRight, Plus, Trash, PencilSquare, Sparkles } from "@medusajs/icons"
+import { ChatBubbleLeftRight, Plus, Trash, PencilSquare, Sparkles, Photo } from "@medusajs/icons"
 import {
   Badge,
   Button,
@@ -223,6 +223,62 @@ function LineItemsEditor({
     ])
   }
 
+  // --- Per-line mockup upload ---
+  // Lets staff attach a mockup image to any line without opening the full
+  // Studio. Uploads to R2 via Medusa's built-in /admin/uploads, then stores the
+  // URL as the line's `thumbnail` (rendered next to the line, same slot the
+  // Studio mockup uses). `rowsRef` keeps the apply step pinned to the latest
+  // rows so an add/remove during the upload can't write to the wrong line.
+  const rowsRef = useRef(rows)
+  rowsRef.current = rows
+  const mockupInputRef = useRef<HTMLInputElement | null>(null)
+  const mockupTargetId = useRef<string | null>(null)
+  const [uploadingId, setUploadingId] = useState<string | null>(null)
+
+  const triggerMockupUpload = (rowId: string) => {
+    mockupTargetId.current = rowId
+    mockupInputRef.current?.click()
+  }
+
+  const onMockupFile = async (file: File | undefined) => {
+    const rowId = mockupTargetId.current
+    mockupTargetId.current = null
+    if (mockupInputRef.current) mockupInputRef.current.value = ""
+    if (!rowId || !file) return
+    if (!file.type.startsWith("image/")) {
+      toast.error("Only image files can be attached as a mockup")
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Mockup exceeds the 10 MB limit")
+      return
+    }
+    setUploadingId(rowId)
+    try {
+      const fd = new FormData()
+      fd.append("files", file)
+      const res = await fetch("/admin/uploads", {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      })
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`)
+      const json = (await res.json()) as { files?: Array<{ url?: string }> }
+      const url = json?.files?.[0]?.url
+      if (!url) throw new Error("Upload returned no URL")
+      onChange(
+        rowsRef.current.map((r) =>
+          r.id === rowId ? { ...r, thumbnail: url } : r
+        )
+      )
+      toast.success("Mockup attached")
+    } catch (err: any) {
+      toast.error(err?.message ?? "Mockup upload failed")
+    } finally {
+      setUploadingId(null)
+    }
+  }
+
   return (
     <div className="flex flex-col gap-y-3">
       {rows.length === 0 ? (
@@ -233,7 +289,10 @@ function LineItemsEditor({
       ) : (
         rows.map((row, idx) => {
           const hasDesign = Boolean(row.customizerDesign)
-          const isProduct = Boolean(row.variant_id)
+          const hasVariant = Boolean(row.variant_id)
+          const isWholeProduct =
+            Boolean(row.product_id) && !hasVariant && !hasDesign
+          const isCustom = !hasVariant && !hasDesign && !isWholeProduct
           return (
             <div
               key={row.id}
@@ -260,21 +319,31 @@ function LineItemsEditor({
                         Studio design
                       </Badge>
                     ) : null}
-                    {isProduct ? (
+                    {hasVariant ? (
                       <Badge size="2xsmall" color="green">
                         Catalog product
                       </Badge>
                     ) : null}
-                    {!isProduct && !hasDesign ? (
+                    {isWholeProduct ? (
+                      <Badge size="2xsmall" color="blue">
+                        Whole product
+                      </Badge>
+                    ) : null}
+                    {isCustom ? (
                       <Badge size="2xsmall" color="grey">
                         Custom line
                       </Badge>
                     ) : null}
-                    {!isProduct ? (
+                    {isCustom ? (
                       <span className="text-[11px] text-ui-fg-muted">
-                        No variant — won't add to cart on acceptance
+                        No product — won't add to cart on acceptance
                       </span>
-                    ) : !row.unit_price.trim() ? (
+                    ) : isWholeProduct ? (
+                      <span className="text-[11px] text-ui-fg-muted">
+                        Size chosen at order time (a default size is added to the
+                        cart on acceptance)
+                      </span>
+                    ) : hasVariant && !row.unit_price.trim() ? (
                       <span className="text-[11px] text-ui-tag-orange-text">
                         No price set — falls back to catalog price on acceptance
                       </span>
@@ -321,8 +390,8 @@ function LineItemsEditor({
                   placeholder="Optional — decoration method, sizes, colours…"
                 />
               </div>
-              {hasDesign && onDesignLine ? (
-                <div>
+              <div className="flex flex-wrap items-center gap-2">
+                {hasDesign && onDesignLine ? (
                   <Button
                     size="small"
                     variant="secondary"
@@ -330,12 +399,37 @@ function LineItemsEditor({
                   >
                     <PencilSquare /> Edit design in Studio
                   </Button>
-                </div>
-              ) : null}
+                ) : null}
+                <Button
+                  size="small"
+                  variant="secondary"
+                  isLoading={uploadingId === row.id}
+                  onClick={() => triggerMockupUpload(row.id)}
+                >
+                  <Photo /> {row.thumbnail ? "Replace mockup" : "Attach mockup"}
+                </Button>
+                {row.thumbnail && !hasDesign ? (
+                  <Button
+                    size="small"
+                    variant="transparent"
+                    onClick={() => setRow(idx, { thumbnail: null })}
+                  >
+                    Remove mockup
+                  </Button>
+                ) : null}
+              </div>
             </div>
           )
         })
       )}
+
+      <input
+        ref={mockupInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => void onMockupFile(e.target.files?.[0])}
+      />
 
       {pickerOpen ? (
         <ProductLinePicker
@@ -378,7 +472,7 @@ function NewQuoteDrawer({
 }: {
   open: boolean
   onClose: () => void
-  onCreated: (id: string) => void
+  onCreated: (id: string, opts?: { studioPopup?: Window | null }) => void
   regionId: string | null
 }) {
   const blankForm = {
@@ -408,10 +502,12 @@ function NewQuoteDrawer({
   const set = (patch: Partial<typeof blankForm>) =>
     setForm((f) => ({ ...f, ...patch }))
 
-  const submit = async () => {
+  // POST the quote; returns the new id (or null on failure). Split out so the
+  // "Create" button and "Design in Studio" share one create path.
+  const createQuote = async (): Promise<string | null> => {
     if (!form.email.trim()) {
       setError("Email is required.")
-      return
+      return null
     }
     setSaving(true)
     setError(null)
@@ -437,13 +533,71 @@ function NewQuoteDrawer({
       const json = await res.json()
       if (!res.ok) throw new Error(json?.message ?? `HTTP ${res.status}`)
       toast.success(`Quote ${json.quote?.public_id ?? ""} created`)
-      onCreated(json.quote.id)
-      onClose()
+      return json.quote.id as string
     } catch (err: any) {
       setError(err?.message ?? "Failed to create quote")
+      return null
     } finally {
       setSaving(false)
     }
+  }
+
+  const submit = async () => {
+    const id = await createQuote()
+    if (!id) return
+    onCreated(id)
+    onClose()
+  }
+
+  // Create the quote, then open the Studio on it. The popup is opened
+  // SYNCHRONOUSLY here — inside the user's click — so the browser's popup
+  // blocker (which only allows window.open inside a gesture) lets it through;
+  // we then navigate it to the signed customiser URL once the quote exists and
+  // hand the window to the detail view, which polls for the design (same
+  // machinery as "Design in Studio" on an existing quote). If the popup is
+  // blocked we still create the quote so the work isn't lost.
+  const createAndDesign = async () => {
+    if (!form.email.trim()) {
+      setError("Email is required.")
+      return
+    }
+    const popup = window.open(
+      "",
+      "quote-customizer",
+      "width=1280,height=900,noopener=false"
+    )
+    if (!popup) {
+      toast.error(
+        "Popup blocked — allow popups, or use “Design in Studio” after creating."
+      )
+    } else {
+      popup.document.write(
+        "<p style='font:14px sans-serif;padding:24px;color:#666'>Opening the Studio…</p>"
+      )
+    }
+    const id = await createQuote()
+    if (!id) {
+      popup?.close()
+      return
+    }
+    if (popup) {
+      try {
+        const res = await fetch(`/admin/quotes/${id}/design-link`, {
+          credentials: "include",
+        })
+        const json = (await res.json()) as { url?: string; error?: string }
+        if (!json.url) throw new Error(json.error ?? "No Studio URL returned")
+        popup.location.href = json.url
+      } catch (err: any) {
+        popup.close()
+        toast.error(err?.message ?? "Failed to open the Studio")
+        onCreated(id)
+        onClose()
+        return
+      }
+    }
+    onCreated(id, { studioPopup: popup })
+    onClose()
   }
 
   return (
@@ -541,14 +695,16 @@ function NewQuoteDrawer({
             <div className="flex flex-col gap-y-1">
               <Label size="xsmall">Line items</Label>
               <Text size="xsmall" className="text-ui-fg-muted">
-                Add catalog products now; to design artwork in the Studio,
-                create the quote first then open it.
+                Add catalog products (a specific size or the whole product),
+                attach a mockup, or click “Design in Studio” — that saves the
+                quote and opens the customiser so you can set print locations.
               </Text>
               <div className="mt-1">
                 <LineItemsEditor
                   rows={rows}
                   onChange={setRows}
                   regionId={regionId}
+                  onAddDesign={createAndDesign}
                 />
               </div>
             </div>
@@ -584,6 +740,12 @@ const QuotesPage = () => {
   const [events, setEvents] = useState<QuoteEvent[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [regionId, setRegionId] = useState<string | null>(null)
+  // A Studio popup opened from the CREATE modal, handed to the detail view (once
+  // it has loaded the new quote) so its polling adopts it. See createAndDesign.
+  const [incomingStudio, setIncomingStudio] = useState<{
+    id: string
+    popup: Window | null
+  } | null>(null)
 
   // Resolve a region once so the product picker can show calculated prices.
   // Prefer the AUD region (the catalog is AUD-only); fall back to the first.
@@ -772,6 +934,12 @@ const QuotesPage = () => {
               regionId={regionId}
               onUpdate={(patch) => patchQuote(selectedQuote.id, patch)}
               onReload={() => loadDetail(selectedQuote.id)}
+              incomingStudioPopup={
+                incomingStudio && incomingStudio.id === selectedQuote.id
+                  ? incomingStudio.popup
+                  : null
+              }
+              onIncomingStudioConsumed={() => setIncomingStudio(null)}
             />
           )}
         </div>
@@ -781,10 +949,15 @@ const QuotesPage = () => {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         regionId={regionId}
-        onCreated={(id) => {
+        onCreated={(id, opts) => {
           setStatusFilter("active")
           load()
           setSelectedId(id)
+          // Only adopt when a popup actually opened (blocked → undefined/null →
+          // normal create; staff can use "Design in Studio" on the detail view).
+          if (opts?.studioPopup) {
+            setIncomingStudio({ id, popup: opts.studioPopup })
+          }
         }}
       />
     </Container>
@@ -797,12 +970,17 @@ function QuoteDetail({
   regionId,
   onUpdate,
   onReload,
+  incomingStudioPopup,
+  onIncomingStudioConsumed,
 }: {
   quote: Quote
   events: QuoteEvent[]
   regionId: string | null
   onUpdate: (patch: Record<string, unknown>) => Promise<void> | void
   onReload: () => Promise<void> | void
+  /** A Studio popup opened from the create modal, to adopt for live polling. */
+  incomingStudioPopup?: Window | null
+  onIncomingStudioConsumed?: () => void
 }) {
   const [draftMessage, setDraftMessage] = useState(quote.message ?? "")
   const [draftAssigned, setDraftAssigned] = useState(quote.assigned_to ?? "")
@@ -874,6 +1052,21 @@ function QuoteDetail({
       }
     }, 2000)
   }, [quote.id, stopPolling, onReload])
+
+  // Adopt a Studio popup opened from the CREATE modal (createAndDesign). The
+  // modal opened the window inside the user's click (popup-blocker safe) and
+  // navigated it to the customiser; now that this detail view has loaded the
+  // freshly-created quote, take over polling so the design lands live — exactly
+  // as if "Design in Studio" had been clicked here. Runs after the quote.id
+  // reset effect above, so studioOpen ends up true.
+  useEffect(() => {
+    if (!incomingStudioPopup) return
+    popupRef.current = incomingStudioPopup
+    setStudioOpen(true)
+    startPolling()
+    onIncomingStudioConsumed?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingStudioPopup])
 
   const openStudio = useCallback(
     async (group: string | null, handle: string | null) => {

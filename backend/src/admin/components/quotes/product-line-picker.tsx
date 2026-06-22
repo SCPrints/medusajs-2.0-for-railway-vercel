@@ -18,7 +18,12 @@ import {
 
 export type PickedProductLine = {
   product_id: string
-  variant_id: string
+  /**
+   * Null for a "whole product" line — staff add the product without committing
+   * to a size/colour. The accept route resolves a representative variant at
+   * order time (sizes can be adjusted in the cart).
+   */
+  variant_id: string | null
   product_handle: string | null
   thumbnail: string | null
   title: string
@@ -122,6 +127,32 @@ export function ProductLinePicker({
     })
   }
 
+  // Cheapest base price across a product's variants — the "from" price shown for
+  // a whole-product line (no specific size/colour committed yet).
+  const cheapestBase = (
+    product: PickerProduct
+  ): { amount: number; currency_code: string } | null => {
+    const bases = (product.variants ?? [])
+      .map((v) => pickVariantBasePrice(v.prices))
+      .filter((b): b is { amount: number; currency_code: string } => b != null)
+    if (bases.length === 0) return null
+    return bases.slice().sort((a, b) => a.amount - b.amount)[0]
+  }
+
+  // Add the whole product without committing to a size/colour. variant_id stays
+  // null; the accept route resolves a representative variant at order time.
+  const pickWholeProduct = (product: PickerProduct) => {
+    const from = cheapestBase(product)
+    onPick({
+      product_id: product.id,
+      variant_id: null,
+      product_handle: product.handle ?? null,
+      thumbnail: product.thumbnail ?? null,
+      title: product.title,
+      unit_price: from ? from.amount : null,
+    })
+  }
+
   return (
     <div className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2 bg-ui-bg-subtle">
       <div className="flex items-center gap-2">
@@ -202,6 +233,26 @@ export function ProductLinePicker({
                   </button>
                   {isExpanded && !oneVariant ? (
                     <ul className="ml-12 mt-1 space-y-1">
+                      <li>
+                        <button
+                          type="button"
+                          className="w-full text-left text-xs px-2 py-1 rounded hover:bg-ui-bg-base flex justify-between gap-2 text-ui-fg-interactive"
+                          onClick={() => pickWholeProduct(p)}
+                        >
+                          <span className="truncate">
+                            + Add whole product (choose sizes at order time)
+                          </span>
+                          {cheapestBase(p) ? (
+                            <span className="text-ui-fg-muted shrink-0">
+                              from{" "}
+                              {fmtMoney(
+                                cheapestBase(p)!.amount,
+                                cheapestBase(p)!.currency_code.toUpperCase()
+                              )}
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
                       {(p.variants ?? []).map((v) => {
                         const vBase = pickVariantBasePrice(v.prices)
                         return (

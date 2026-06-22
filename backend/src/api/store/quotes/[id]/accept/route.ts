@@ -29,8 +29,9 @@ const schema = z.object({
  * `cart_id` the storefront can redirect to checkout with.
  *
  * Line items must reference real `variant_id`s to be added to cart.
- * Anything missing a `variant_id` (placeholder draft items) is skipped
- * and reported back in `skipped_items` so staff can follow up.
+ * "Whole product" lines (a `product_id` but no `variant_id`) are resolved to a
+ * representative variant first. Anything still missing a `variant_id` (custom
+ * placeholder lines) is skipped and reported in `skipped_items`.
  */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const id = req.params.id
@@ -193,6 +194,46 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const lineItems = (quote.line_items as { items?: Array<Record<string, any>> })
     ?.items ?? []
+
+  // Resolve "whole product" lines (a product_id but no variant_id — staff added
+  // the product without committing to a size/colour) to a representative
+  // variant, so they convert to cart instead of being skipped. We pick the
+  // lowest-ranked (default) variant; the customer can adjust size in the cart
+  // at checkout. Failure to resolve leaves the line unresolved → reported in
+  // skipped_items, never blocks the rest of the acceptance.
+  const productOnly = lineItems.filter(
+    (li) =>
+      !li?.variant_id &&
+      typeof li?.product_id === "string" &&
+      Number(li?.quantity ?? 0) > 0
+  )
+  if (productOnly.length) {
+    try {
+      const productIds = [
+        ...new Set(productOnly.map((li) => String(li.product_id))),
+      ]
+      const { data: products } = await query.graph({
+        entity: "product",
+        fields: ["id", "variants.id", "variants.variant_rank"],
+        filters: { id: productIds },
+      })
+      const defaultVariantByProduct = new Map<string, string>()
+      for (const p of products as any[]) {
+        const variants = [...(p?.variants ?? [])].sort(
+          (a: any, b: any) => (a?.variant_rank ?? 0) - (b?.variant_rank ?? 0)
+        )
+        const vid = variants[0]?.id
+        if (vid) defaultVariantByProduct.set(String(p.id), String(vid))
+      }
+      for (const li of productOnly) {
+        const vid = defaultVariantByProduct.get(String(li.product_id))
+        if (vid) li.variant_id = vid
+      }
+    } catch {
+      /* leave unresolved → skipped below */
+    }
+  }
+
   const addable = lineItems.filter(
     (li) => typeof li?.variant_id === "string" && Number(li?.quantity ?? 0) > 0
   )
