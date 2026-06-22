@@ -92,19 +92,32 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
       {quote.line_items.length > 0 ? (
         <ul className="divide-y divide-[rgba(26,26,46,0.06)]">
           {quote.line_items.map((li, idx) => (
-            <li key={idx} className="py-3 flex items-start justify-between">
-              <div>
-                <p className="text-sm font-semibold text-[var(--brand-primary)]">
-                  {li.title ?? "Item"}
-                </p>
-                {li.description ? (
-                  <p className="text-xs text-ui-fg-subtle">{li.description}</p>
+            <li
+              key={idx}
+              className="py-3 flex items-start justify-between gap-3"
+            >
+              <div className="flex items-start gap-3 min-w-0">
+                {li.thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={li.thumbnail}
+                    alt={li.title ?? "Item"}
+                    className="h-16 w-16 shrink-0 rounded-md border border-[rgba(26,26,46,0.08)] bg-white object-contain"
+                  />
                 ) : null}
-                {li.quantity ? (
-                  <p className="text-xs text-ui-fg-muted mt-0.5">
-                    Qty {li.quantity}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[var(--brand-primary)]">
+                    {li.title ?? "Item"}
                   </p>
-                ) : null}
+                  {li.description ? (
+                    <p className="text-xs text-ui-fg-subtle">{li.description}</p>
+                  ) : null}
+                  {li.quantity ? (
+                    <p className="text-xs text-ui-fg-muted mt-0.5">
+                      Qty {li.quantity}
+                    </p>
+                  ) : null}
+                </div>
               </div>
               <span className="text-sm text-ui-fg-base whitespace-nowrap">
                 {fmtMoney(li.total ?? li.unit_price ?? null, quote.currency_code)}

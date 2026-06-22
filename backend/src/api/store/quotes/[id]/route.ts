@@ -46,8 +46,20 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     message: quote.message,
     currency_code: quote.currency_code,
     total_estimate: quote.total_estimate,
-    line_items:
-      (quote.line_items as { items?: Array<Record<string, unknown>> })?.items ?? [],
+    // Safe per-line subset for the customer: text + price + the mockup
+    // thumbnail (so they see the garment/design they're accepting). The full
+    // customizerDesign is deliberately NOT sent — it's large + internal.
+    line_items: (
+      (quote.line_items as { items?: Array<Record<string, any>> })?.items ?? []
+    ).map((li) => ({
+      title: typeof li?.title === "string" ? li.title : null,
+      description: typeof li?.description === "string" ? li.description : null,
+      quantity: li?.quantity ?? null,
+      unit_price: li?.unit_price ?? null,
+      total: li?.total ?? null,
+      variant_id: typeof li?.variant_id === "string" ? li.variant_id : null,
+      thumbnail: typeof li?.thumbnail === "string" ? li.thumbnail : null,
+    })),
     expires_at: quote.expires_at,
   })
 }

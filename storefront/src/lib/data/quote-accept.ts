@@ -18,6 +18,8 @@ export type QuoteForAccept = {
     unit_price?: number | null
     total?: number | null
     variant_id?: string
+    /** Mockup (or product) image so the customer sees what they're accepting. */
+    thumbnail?: string | null
   }>
   expires_at: string | null
   already_accepted?: boolean
