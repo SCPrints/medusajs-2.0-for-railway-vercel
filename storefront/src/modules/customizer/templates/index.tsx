@@ -3,6 +3,7 @@
 import { addScpLineItemToCartSafe, addScpLineItemsBatchSafe, addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart, updateScpDesignInCart } from "@lib/data/cart"
 import { createMyDesign, getMyDesign, updateMyDesign } from "@lib/data/designs"
 import { getOrderLineCustomizerMetadata } from "@lib/data/orders"
+import { getQuoteGroupDesign } from "@lib/data/quote-design"
 import CustomizerProductPicker, {
   type CustomizerPickerProduct,
 } from "@modules/customizer/components/customizer-product-picker"
@@ -1889,9 +1890,14 @@ export default function CustomizerTemplate({
   }, [editGroupId, editGroupHydrated])
 
   // Stage 1 of rehydration: fetch the saved metadata from either source.
+  // Quote "Edit design in Studio" is a third source — when a quote group is in
+  // the URL we load the design saved against it so colour + artwork come back.
+  const hasQuoteGroupToHydrate = Boolean(
+    quoteIdFromUrl && quoteSigFromUrl && quoteGroupFromUrl
+  )
   useEffect(() => {
     if (hydrationApplied || pendingHydration) return
-    if (!designIdFromUrl && !reorderRefFromUrl) return
+    if (!designIdFromUrl && !reorderRefFromUrl && !hasQuoteGroupToHydrate) return
     let cancelled = false
     ;(async () => {
       try {
@@ -1904,6 +1910,16 @@ export default function CustomizerTemplate({
           if (orderId && lineItemId) {
             meta = await getOrderLineCustomizerMetadata(orderId, lineItemId)
           }
+        } else if (
+          quoteIdFromUrl &&
+          quoteSigFromUrl &&
+          quoteGroupFromUrl
+        ) {
+          meta = await getQuoteGroupDesign(
+            quoteIdFromUrl,
+            quoteSigFromUrl,
+            quoteGroupFromUrl
+          )
         }
         if (cancelled) return
         if (meta) setPendingHydration(meta)
@@ -1914,7 +1930,16 @@ export default function CustomizerTemplate({
     return () => {
       cancelled = true
     }
-  }, [designIdFromUrl, reorderRefFromUrl, hydrationApplied, pendingHydration])
+  }, [
+    designIdFromUrl,
+    reorderRefFromUrl,
+    hasQuoteGroupToHydrate,
+    quoteIdFromUrl,
+    quoteSigFromUrl,
+    quoteGroupFromUrl,
+    hydrationApplied,
+    pendingHydration,
+  ])
 
   // Stage 2 of rehydration: replay the metadata once Fabric is up. canvasSize
   // is the readiness signal (set by syncSize() inside the canvas init effect).

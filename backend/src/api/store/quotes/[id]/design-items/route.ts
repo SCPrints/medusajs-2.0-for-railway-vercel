@@ -62,6 +62,39 @@ const TERMINAL_STATUSES = new Set([
   "expired",
 ])
 
+/**
+ * GET /store/quotes/:id/design-items?qsig=<sig>&group=<groupId>
+ *   → { customizerDesign }
+ *
+ * Returns the saved CustomizerMetadata for a quote design group so the Studio
+ * can REHYDRATE it on "Edit design in Studio" (colour + artwork per side). Same
+ * `qsig` capability as the POST. Null when the group has no design line yet.
+ */
+export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  const id = req.params.id
+  const qsig = typeof req.query.qsig === "string" ? req.query.qsig : ""
+  const group = typeof req.query.group === "string" ? req.query.group : ""
+  if (!verifyQuoteDesign(id, qsig)) {
+    return res.status(400).json({ error: "invalid_signature" })
+  }
+  if (!group) return res.status(400).json({ error: "group required" })
+
+  const service = req.scope.resolve<QuoteModuleService>(QUOTE_MODULE)
+  let quote: any
+  try {
+    quote = await service.retrieveQuote(id)
+  } catch {
+    return res.status(404).json({ error: "not_found" })
+  }
+  const items = Array.isArray(quote.line_items?.items)
+    ? (quote.line_items.items as Array<Record<string, any>>)
+    : []
+  const line = items.find(
+    (li) => li?.group_id === group && li?.customizerDesign
+  )
+  res.json({ customizerDesign: line?.customizerDesign ?? null })
+}
+
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const id = req.params.id
 
