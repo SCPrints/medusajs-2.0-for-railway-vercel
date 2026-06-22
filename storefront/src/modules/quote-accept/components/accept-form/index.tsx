@@ -102,7 +102,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
                   <img
                     src={li.thumbnail}
                     alt={li.title ?? "Item"}
-                    className="h-16 w-16 shrink-0 rounded-md border border-[rgba(26,26,46,0.08)] bg-white object-contain"
+                    className="h-28 w-28 tablet:h-44 tablet:w-44 shrink-0 rounded-lg border border-[rgba(26,26,46,0.08)] bg-white object-contain"
                   />
                 ) : null}
                 <div className="min-w-0">
