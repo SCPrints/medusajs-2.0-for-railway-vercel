@@ -6,6 +6,7 @@ import {
   buildGoogleJwt,
   isSeoConfigured,
 } from "../../../../services/seo-analytics/google-auth"
+import { withTransientRetry } from "../../../../services/seo-analytics/retry"
 import { parseDateRange } from "../../../../lib/reports/orders"
 
 /**
@@ -45,15 +46,19 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     ])
     const webmasters = google.webmasters({ version: "v3", auth })
     const fetchPeriod = async (startDate: string, endDate: string) => {
-      const r = await webmasters.searchanalytics.query({
-        siteUrl: GSC_SITE_URL,
-        requestBody: {
-          startDate,
-          endDate,
-          dimensions: ["query"],
-          rowLimit: 250,
-        },
-      })
+      // Retry transient undici "Premature close" flakes on the token/API fetch
+      // (see retry.ts). Read-only query — safe to retry.
+      const r = await withTransientRetry(() =>
+        webmasters.searchanalytics.query({
+          siteUrl: GSC_SITE_URL,
+          requestBody: {
+            startDate,
+            endDate,
+            dimensions: ["query"],
+            rowLimit: 250,
+          },
+        })
+      )
       return r.data.rows ?? []
     }
     const [current, prior] = await Promise.all([

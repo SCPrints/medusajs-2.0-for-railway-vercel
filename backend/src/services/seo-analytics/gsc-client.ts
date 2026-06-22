@@ -1,6 +1,7 @@
 import { google } from "googleapis"
 
 import { buildGoogleJwt } from "./google-auth"
+import { withTransientRetry } from "./retry"
 import type { GscRow, GscSummary } from "./types"
 
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
@@ -31,15 +32,17 @@ async function queryDimensions(
   dimensions: string[],
   rowLimit: number
 ): Promise<GscRow[]> {
-  const res = await searchconsole.searchanalytics.query({
-    siteUrl,
-    requestBody: {
-      startDate,
-      endDate,
-      dimensions,
-      rowLimit,
-    },
-  })
+  const res = await withTransientRetry(() =>
+    searchconsole.searchanalytics.query({
+      siteUrl,
+      requestBody: {
+        startDate,
+        endDate,
+        dimensions,
+        rowLimit,
+      },
+    })
+  )
   const rows = res.data.rows ?? []
   return rows.map((r) => ({
     key: (r.keys ?? []).join(" › "),

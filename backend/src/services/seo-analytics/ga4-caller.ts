@@ -3,6 +3,7 @@ import { google } from "googleapis"
 import type { analyticsdata_v1beta } from "googleapis"
 
 import { getImpersonationSubject, getServiceAccountKey } from "./google-auth"
+import { withTransientRetry } from "./retry"
 
 const SCOPE = "https://www.googleapis.com/auth/analytics.readonly"
 
@@ -68,13 +69,17 @@ export function buildGa4Caller(): Ga4Caller {
     return {
       async runReport(req) {
         const { property, limit, ...rest } = req
-        const res = await analyticsdata.properties.runReport({
-          property,
-          requestBody: {
-            ...rest,
-            limit: limit !== undefined ? String(limit) : undefined,
-          } as any,
-        })
+        // Retry transient undici "Premature close" flakes on the token/API
+        // fetch (see retry.ts). runReport is a read-only query — safe to retry.
+        const res = await withTransientRetry(() =>
+          analyticsdata.properties.runReport({
+            property,
+            requestBody: {
+              ...rest,
+              limit: limit !== undefined ? String(limit) : undefined,
+            } as any,
+          })
+        )
         return { rows: (res.data.rows ?? []) as Ga4Row[] }
       },
     }
@@ -88,7 +93,7 @@ export function buildGa4Caller(): Ga4Caller {
   })
   return {
     async runReport(req) {
-      const [res] = await client.runReport(req as any)
+      const [res] = await withTransientRetry(() => client.runReport(req as any))
       return { rows: (res.rows ?? []) as unknown as Ga4Row[] }
     },
   }
