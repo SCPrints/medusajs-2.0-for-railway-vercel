@@ -3,6 +3,7 @@ import { GA4_PROPERTY_ID, GSC_SITE_URL } from "../../lib/constants"
 import { fetchGa4Summary } from "./ga4-client"
 import { fetchGscSummary } from "./gsc-client"
 import { isSeoConfigured } from "./google-auth"
+import { withTransientRetry } from "./retry"
 import type { SeoSourceFailure, SeoSummary } from "./types"
 
 export const SEO_SUMMARY_DAYS = 28
@@ -45,7 +46,7 @@ export async function buildSeoSummary(days = SEO_SUMMARY_DAYS): Promise<SeoSumma
   }
 
   const gscPromise = GSC_SITE_URL
-    ? fetchGscSummary(GSC_SITE_URL, days).catch((err: any) => {
+    ? withTransientRetry(() => fetchGscSummary(GSC_SITE_URL, days)).catch((err: any) => {
         errors.push({
           source: "gsc",
           message: err?.message ?? String(err),
@@ -58,7 +59,7 @@ export async function buildSeoSummary(days = SEO_SUMMARY_DAYS): Promise<SeoSumma
       })
 
   const ga4Promise = GA4_PROPERTY_ID
-    ? fetchGa4Summary(GA4_PROPERTY_ID, days).catch((err: any) => {
+    ? withTransientRetry(() => fetchGa4Summary(GA4_PROPERTY_ID, days)).catch((err: any) => {
         errors.push({
           source: "ga4",
           message: err?.message ?? String(err),
