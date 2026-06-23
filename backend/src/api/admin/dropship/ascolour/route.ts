@@ -1,6 +1,9 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { ASCOLOUR_MODULE } from "../../../../modules/ascolour"
+import type AsColourService from "../../../../modules/ascolour/service"
+
 const LOOKBACK_DAYS = 90
 
 function isAsColourItem(li: any): boolean {
@@ -95,6 +98,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       customer: customerName,
       email: order.email ?? "",
       items: ascolourItems.map(formatItem),
+      // Surface the last failed-send reason so a stuck pending order explains
+      // itself in the queue (previously only the "sent" bucket carried this).
+      ascolour_last_error: meta.ascolour_last_error ?? null,
     }
 
     if (meta.ascolour_order_id) {
@@ -112,5 +118,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  return res.json({ pending, sent })
+  // Surface the configured default shipping method so the bulk page can
+  // pre-fill it (matching the per-order widget) — a send with no method set
+  // anywhere hard-fails before it ever reaches AS Colour.
+  let default_shipping_method: string | null = null
+  try {
+    const ascolour = req.scope.resolve(ASCOLOUR_MODULE) as AsColourService
+    default_shipping_method = ascolour.getOptions().default_shipping_method ?? null
+  } catch {
+    // AS Colour module not configured — leave null.
+  }
+
+  return res.json({ pending, sent, default_shipping_method })
 }

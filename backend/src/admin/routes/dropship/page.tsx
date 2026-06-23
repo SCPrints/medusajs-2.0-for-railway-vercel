@@ -31,6 +31,7 @@ type PendingOrder = {
   customer: string
   email: string
   items: OrderItem[]
+  ascolour_last_error?: string | null
 }
 
 type SentOrder = PendingOrder & {
@@ -45,6 +46,7 @@ type SentOrder = PendingOrder & {
 type DropshipData = {
   pending: PendingOrder[]
   sent: SentOrder[]
+  default_shipping_method?: string | null
 }
 
 type SendResult = {
@@ -91,11 +93,13 @@ type Settings = {
 const SettingsPanel = ({
   settings,
   onChange,
+  defaultOpen = false,
 }: {
   settings: Settings
   onChange: (s: Settings) => void
+  defaultOpen?: boolean
 }) => {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <Container className="p-0">
       <button
@@ -167,16 +171,19 @@ const SettingsPanel = ({
 const PendingTab = ({
   orders,
   onSendComplete,
+  defaultShippingMethod,
 }: {
   orders: PendingOrder[]
   onSendComplete: () => void
+  defaultShippingMethod?: string | null
 }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [settings, setSettings] = useState<Settings>({
-    shippingMethod: "",
+    shippingMethod: defaultShippingMethod ?? "",
     orderNotes: "",
     courierInstructions: "",
   })
+  const hasShippingMethod = settings.shippingMethod.trim().length > 0
   const [results, setResults] = useState<SendResult[]>([])
   const [sending, setSending] = useState(false)
   const abortRef = useRef(false)
@@ -278,7 +285,11 @@ const PendingTab = ({
 
   return (
     <div className="flex flex-col gap-y-4">
-      <SettingsPanel settings={settings} onChange={setSettings} />
+      <SettingsPanel
+        settings={settings}
+        onChange={setSettings}
+        defaultOpen={!hasShippingMethod}
+      />
 
       {/* Progress log */}
       {results.length > 0 && (
@@ -355,7 +366,7 @@ const PendingTab = ({
               />
               <div className="w-16 shrink-0">
                 <a
-                  href={`/orders/${order.order_id}`}
+                  href={`/app/orders/${order.order_id}`}
                   className="text-sm text-ui-fg-interactive hover:underline"
                   target="_blank"
                   rel="noreferrer"
@@ -375,6 +386,10 @@ const PendingTab = ({
                   <div className="text-ui-fg-error mt-0.5 text-xs">
                     {result.error}
                   </div>
+                ) : order.ascolour_last_error ? (
+                  <div className="text-ui-fg-error mt-0.5 text-xs">
+                    Previous attempt failed: {order.ascolour_last_error}
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -387,16 +402,23 @@ const PendingTab = ({
         <Text size="small" className="text-ui-fg-subtle">
           {selected.size} of {orders.length} order{orders.length !== 1 ? "s" : ""} selected
         </Text>
-        <Button
-          variant="primary"
-          disabled={selected.size === 0 || sending}
-          isLoading={sending}
-          onClick={handleSend}
-        >
-          {sending
-            ? "Sending…"
-            : `Send selected (${selected.size}) to AS Colour`}
-        </Button>
+        <div className="flex flex-col items-end gap-y-1">
+          <Button
+            variant="primary"
+            disabled={selected.size === 0 || sending || !hasShippingMethod}
+            isLoading={sending}
+            onClick={handleSend}
+          >
+            {sending
+              ? "Sending…"
+              : `Send selected (${selected.size}) to AS Colour`}
+          </Button>
+          {!hasShippingMethod ? (
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Set a shipping method in “Shared send settings” to enable sending.
+            </Text>
+          ) : null}
+        </div>
       </div>
     </div>
   )
@@ -438,7 +460,7 @@ const SentTab = ({ orders }: { orders: SentOrder[] }) => {
           >
             <div className="w-16 shrink-0">
               <a
-                href={`/orders/${order.order_id}`}
+                href={`/app/orders/${order.order_id}`}
                 className="text-sm text-ui-fg-interactive hover:underline"
                 target="_blank"
                 rel="noreferrer"
@@ -586,7 +608,7 @@ const AsColourDropshipPage = () => {
               ].join(" ")}
             >
               {tab === "pending" ? "Pending" : "Sent"}
-              {loading ? null : (
+              {loading && !data ? null : (
                 <span className="ml-2 rounded-full bg-ui-bg-subtle px-1.5 py-0.5 text-xs">
                   {count}
                 </span>
@@ -596,13 +618,19 @@ const AsColourDropshipPage = () => {
         })}
       </div>
 
-      {/* Tab content */}
-      {loading ? (
+      {/* Tab content. Only the *initial* load (no data yet) replaces the tab —
+          a post-send refresh keeps PendingTab mounted so its send-progress log
+          (and any error badges) survive instead of being wiped by the remount. */}
+      {loading && !data ? (
         <Container>
           <Text className="text-ui-fg-subtle">Loading…</Text>
         </Container>
       ) : activeTab === "pending" ? (
-        <PendingTab orders={pending} onSendComplete={load} />
+        <PendingTab
+          orders={pending}
+          onSendComplete={load}
+          defaultShippingMethod={data?.default_shipping_method ?? null}
+        />
       ) : (
         <SentTab orders={sent} />
       )}

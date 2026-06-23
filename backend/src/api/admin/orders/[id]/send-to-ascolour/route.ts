@@ -234,6 +234,7 @@ async function buildItems(
   ]
 
   const skuToInventoryRows = new Map<string, any[]>()
+  const skuToLookupError = new Map<string, string>()
   for (const sku of uniqueSkus) {
     try {
       const resp = await ascolour.getClient().getInventoryItems({ skuFilter: sku, pageSize: 50 })
@@ -242,8 +243,11 @@ async function buildItems(
         : (resp?.items ?? resp?.data ?? resp?.results ?? [])
       // Filter to exact SKU match in case skuFilter does prefix matching.
       skuToInventoryRows.set(sku, rows.filter((r: any) => r?.sku === sku))
-    } catch {
-      // Skip — caller may still pass overrideItems with explicit warehouse.
+    } catch (err: any) {
+      // Don't swallow silently — a failed lookup (auth, rate-limit, network)
+      // otherwise surfaces only as the generic "could not resolve a warehouse"
+      // below, hiding the real cause. Caller may still pass overrideItems.
+      skuToLookupError.set(sku, String(err?.message ?? err))
     }
   }
 
@@ -254,9 +258,12 @@ async function buildItems(
     const invRows = skuToInventoryRows.get(sku) ?? []
     const warehouse = ascolour.pickWarehouseFromInventoryList(invRows)
     if (!warehouse) {
+      const lookupErr = skuToLookupError.get(sku)
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        `Could not resolve an AS Colour warehouse for SKU ${sku}. Pass overrideItems with explicit warehouse codes.`
+        lookupErr
+          ? `Could not resolve an AS Colour warehouse for SKU ${sku}: inventory lookup failed — ${lookupErr}. Pass overrideItems with explicit warehouse codes.`
+          : `Could not resolve an AS Colour warehouse for SKU ${sku} (AS Colour returned no stock rows for it). Pass overrideItems with explicit warehouse codes.`
       )
     }
 

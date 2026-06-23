@@ -275,10 +275,19 @@ const OrderAsColourDropshipWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
                 rows={2}
               />
             </div>
-            <div className="flex justify-end">
-              <Button variant="primary" disabled={sending} onClick={sendOrder}>
+            <div className="flex flex-col items-end gap-y-1">
+              <Button
+                variant="primary"
+                disabled={sending || !shippingMethod.trim()}
+                onClick={sendOrder}
+              >
                 {sending ? "Sending…" : "Send to AS Colour"}
               </Button>
+              {!shippingMethod.trim() ? (
+                <Text size="xsmall" className="text-ui-fg-muted">
+                  Enter a shipping method to enable sending.
+                </Text>
+              ) : null}
             </div>
           </div>
         ) : null}
