@@ -1,7 +1,7 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
 import type { AdminOrder, DetailWidgetProps } from "@medusajs/framework/types"
-import { Badge, Button, Container, Heading, Select, Text } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Select, Text, Textarea } from "@medusajs/ui"
 import { ChevronDown, XMark } from "@medusajs/icons"
 import { useCallback, useEffect, useRef, useState } from "react"
 
@@ -66,6 +66,9 @@ function adminCustomizerDownloadPath(orderId: string) {
 }
 function adminProofPath(orderId: string) {
   return `/admin/orders/${orderId}/revised-proof`
+}
+function adminMockupNotePath(orderId: string) {
+  return `/admin/orders/${orderId}/mockup-note`
 }
 
 type ArtifactPayload = {
@@ -185,6 +188,9 @@ type SideProofCardProps = {
   displayId: string
   customerSlug: string
   garmentCode: string
+  /** Staff studio note shown under this side's mockup on the approval page. */
+  studioNote: string
+  onStudioNoteSaved: (note: string) => void
 }
 
 const SideProofCard = ({
@@ -198,8 +204,46 @@ const SideProofCard = ({
   displayId,
   customerSlug,
   garmentCode,
+  studioNote,
+  onStudioNoteSaved,
 }: SideProofCardProps) => {
   const key = sideKey(lineItemId, art.side)
+
+  // Studio note (per side) — shown to the customer under this mockup on the
+  // approval page. Persisted independently of revised proofs.
+  const [noteDraft, setNoteDraft] = useState<string>(studioNote)
+  const [noteSaving, setNoteSaving] = useState(false)
+  const [noteSaved, setNoteSaved] = useState(false)
+  const [noteError, setNoteError] = useState<string | null>(null)
+
+  // Re-sync the draft if the persisted note changes (e.g. after a reload).
+  useEffect(() => {
+    setNoteDraft(studioNote)
+  }, [studioNote])
+
+  const handleSaveNote = useCallback(async () => {
+    const next = noteDraft.trim()
+    setNoteSaving(true)
+    setNoteError(null)
+    setNoteSaved(false)
+    try {
+      const res = await fetch(adminMockupNotePath(orderId), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ line_item_id: lineItemId, side: art.side, note: next }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
+      onStudioNoteSaved(next)
+      setNoteSaved(true)
+      setTimeout(() => setNoteSaved(false), 2500)
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setNoteSaving(false)
+    }
+  }, [noteDraft, orderId, lineItemId, art.side, onStudioNoteSaved])
 
   // Default to latest proof, or "original"
   const [selected, setSelected] = useState<string>(
@@ -401,6 +445,40 @@ const SideProofCard = ({
           </div>
         ) : null}
       </div>
+
+      {/* Studio note — shown to the customer UNDER this mockup on the approval page */}
+      <div className="mt-3 border-t border-ui-border-base pt-3">
+        <Text size="xsmall" weight="plus">
+          Studio note for {art.side_label}
+        </Text>
+        <Text size="xsmall" className="text-ui-fg-subtle mt-0.5">
+          Shown to the customer under this mockup on the approval page (leave blank for none).
+        </Text>
+        <Textarea
+          value={noteDraft}
+          onChange={(e) => setNoteDraft(e.target.value)}
+          rows={2}
+          maxLength={500}
+          placeholder="e.g. Logo sits 8cm below the cuff — check placement before approving."
+          className="mt-2"
+        />
+        <div className="mt-2 flex items-center gap-x-2">
+          <Button
+            size="small"
+            variant="secondary"
+            disabled={noteSaving || noteDraft.trim() === studioNote.trim()}
+            onClick={handleSaveNote}
+          >
+            {noteSaving ? "Saving…" : "Save note"}
+          </Button>
+          {noteSaved ? (
+            <Text size="xsmall" className="text-ui-fg-subtle">Saved ✓</Text>
+          ) : null}
+          {noteError ? (
+            <Text size="xsmall" className="text-ui-fg-error">{noteError}</Text>
+          ) : null}
+        </div>
+      </div>
     </li>
   )
 }
@@ -467,6 +545,16 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
   const [allProofs, setAllProofs] = useState<RevisedProof[]>(() => {
     const meta = (data?.metadata ?? {}) as Record<string, unknown>
     return Array.isArray(meta.revised_proofs) ? (meta.revised_proofs as RevisedProof[]) : []
+  })
+
+  // Per-side studio notes, keyed `${lineItemId}:${side}` — shown under each
+  // mockup on the customer approval page.
+  const [studioNotes, setStudioNotes] = useState<Record<string, string>>(() => {
+    const meta = (data?.metadata ?? {}) as Record<string, unknown>
+    const raw = meta.mockup_studio_notes
+    return raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, string>)
+      : {}
   })
 
   // Storefront base URL + country code for building the customiser iframe URL
@@ -560,12 +648,16 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
     setLoading(true)
     setError(null)
     try {
-      const [artifactsRes, proofsRes] = await Promise.all([
+      const [artifactsRes, proofsRes, notesRes] = await Promise.all([
         fetch(adminCustomizerDownloadPath(orderId), {
           credentials: "include",
           headers: { Accept: "application/json" },
         }),
         fetch(adminProofPath(orderId), {
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        }),
+        fetch(adminMockupNotePath(orderId), {
           credentials: "include",
           headers: { Accept: "application/json" },
         }),
@@ -577,6 +669,11 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
       if (proofsRes.ok) {
         const proofsBody = await proofsRes.json().catch(() => ({})) as { proofs?: RevisedProof[] }
         setAllProofs(proofsBody.proofs ?? [])
+      }
+
+      if (notesRes.ok) {
+        const notesBody = await notesRes.json().catch(() => ({})) as { notes?: Record<string, string> }
+        setStudioNotes(notesBody.notes ?? {})
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load customizer assets")
@@ -785,6 +882,15 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                             displayId={displayId}
                             customerSlug={customerSlug}
                             garmentCode={garmentCode}
+                            studioNote={studioNotes[key] ?? ""}
+                            onStudioNoteSaved={(note) =>
+                              setStudioNotes((prev) => {
+                                const next = { ...prev }
+                                if (note) next[key] = note
+                                else delete next[key]
+                                return next
+                              })
+                            }
                           />
                         )
                       })}

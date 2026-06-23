@@ -74,9 +74,18 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const hasPerSideProofs = revisedProofs.some((p) => p.line_item_id)
 
+  // Staff-authored per-side "studio note" shown UNDER each mockup on the
+  // approval page. Keyed by `${line_item_id}:${side}` — same key the admin
+  // mockup-note route writes and `buildLineCustomizerExport` artifact sides use.
+  const rawStudioNotes = (meta as { mockup_studio_notes?: unknown }).mockup_studio_notes
+  const studioNotes: Record<string, string> =
+    rawStudioNotes && typeof rawStudioNotes === "object" && !Array.isArray(rawStudioNotes)
+      ? (rawStudioNotes as Record<string, string>)
+      : {}
+
   // Build mockup URL list, merging per-side revised proofs where available.
   // Backward compat: if proofs lack line_item_id, fall back to single-image behaviour.
-  let mockupUrls: Array<{ side: string; side_label: string | null; url: string }> = []
+  let mockupUrls: Array<{ side: string; side_label: string | null; url: string; note: string | null }> = []
   let legacyProofUrl: string | null = null
   let legacyProofNote: string | null = null
 
@@ -94,18 +103,30 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   if (hasPerSideProofs) {
     const latestBySideKey = new Map<string, string>()
+    const latestNoteBySideKey = new Map<string, string>()
     ;[...revisedProofs]
       .filter((p) => p.line_item_id && p.side && p.url)
       .sort((a, b) => ((a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1))
       .forEach((p) => {
         const k = `${p.line_item_id}:${p.side}`
-        if (!latestBySideKey.has(k)) latestBySideKey.set(k, p.url!)
+        if (!latestBySideKey.has(k)) {
+          latestBySideKey.set(k, p.url!)
+          // Capture the note from the SAME (latest) proof, if any.
+          if (typeof p.note === "string" && p.note.trim()) {
+            latestNoteBySideKey.set(k, p.note.trim())
+          }
+        }
       })
-    mockupUrls = rawArtifacts.map((a) => ({
-      side: a.side,
-      side_label: a.side_label,
-      url: latestBySideKey.get(`${a.lineItemId}:${a.side}`) ?? a.url,
-    }))
+    mockupUrls = rawArtifacts.map((a) => {
+      const k = `${a.lineItemId}:${a.side}`
+      return {
+        side: a.side,
+        side_label: a.side_label,
+        url: latestBySideKey.get(k) ?? a.url,
+        // Explicit studio note wins; else fall back to the latest proof's note.
+        note: studioNotes[k] ?? latestNoteBySideKey.get(k) ?? null,
+      }
+    })
   } else {
     const latestRevisedProof = revisedProofs
       .filter((p) => typeof p?.url === "string" && p.url!.length > 0)
@@ -115,11 +136,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       legacyProofUrl = latestRevisedProof.url
       legacyProofNote = latestRevisedProof.note ?? null
     } else {
-      mockupUrls = rawArtifacts.map((a) => ({
-        side: a.side,
-        side_label: a.side_label,
-        url: a.url,
-      }))
+      mockupUrls = rawArtifacts.map((a) => {
+        const k = `${a.lineItemId}:${a.side}`
+        return {
+          side: a.side,
+          side_label: a.side_label,
+          url: a.url,
+          note: studioNotes[k] ?? null,
+        }
+      })
     }
   }
 

@@ -68,6 +68,11 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
                 alt={img.side_label ?? img.side}
                 className="w-full rounded-lg border border-[rgba(26,26,46,0.08)]"
               />
+              {img.note ? (
+                <p className="mt-1.5 text-sm text-[var(--brand-primary)]">
+                  <span className="font-semibold">Studio note:</span> {img.note}
+                </p>
+              ) : null}
             </div>
           ))}
           <p className="text-xs text-ui-fg-subtle">

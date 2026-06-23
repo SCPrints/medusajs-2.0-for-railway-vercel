@@ -13,7 +13,13 @@ export type ArtworkApprovalState = {
   /** Non-null when latest_photo_url comes from a revised proof upload. */
   revised_proof_note?: string | null
   /** Auto-generated mockup images from line items. Empty when a revised proof exists (proof takes priority). */
-  mockup_urls: { side: string; side_label?: string | null; url: string }[]
+  mockup_urls: {
+    side: string
+    side_label?: string | null
+    url: string
+    /** Staff-authored "studio note" shown under this side's mockup. */
+    note?: string | null
+  }[]
 }
 
 export async function getArtworkApproval(
