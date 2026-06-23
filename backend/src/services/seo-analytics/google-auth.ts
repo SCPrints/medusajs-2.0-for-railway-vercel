@@ -103,6 +103,31 @@ export function buildGoogleJwt(scopes: string[]): GoogleJwt {
     scopes,
     subject,
   })
+  forceNativeFetchTransport(jwt)
   jwtCache.set(cacheKey, jwt)
   return jwt
+}
+
+/**
+ * Points gaxios at Node's native `fetch` (undici) instead of its bundled
+ * node-fetch transport.
+ *
+ * ROOT CAUSE of the "Invalid response body while trying to fetch
+ * https://www.googleapis.com/oauth2/v4/token: Premature close" failure that
+ * blanked the SEO + Acquisition report tabs: google.auth.JWT resolves to
+ * google-auth-library@9 → gaxios@6 → node-fetch@3.3.2, and node-fetch throws a
+ * spurious ERR_STREAM_PREMATURE_CLOSE on Node 22 (the Fly runtime) when the
+ * token endpoint closes the connection. It is deterministic — not a transient
+ * flake — so retries can't help. Verified on the live Fly machine: raw undici
+ * `fetch` and `https` to the same URL succeed every time while gaxios-via-
+ * node-fetch fails every time; swapping in native fetch makes the token fetch
+ * AND the GSC/GA4 data calls (which route authorized requests through this same
+ * transporter) succeed 3/3.
+ */
+function forceNativeFetchTransport(jwt: GoogleJwt): void {
+  const transporter = (jwt as any).transporter
+  if (!transporter) return
+  transporter.defaults = transporter.defaults || {}
+  transporter.defaults.fetchImplementation = (...args: any[]) =>
+    (globalThis as any).fetch(...args)
 }

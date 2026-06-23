@@ -35,4 +35,12 @@ describe("buildGoogleJwt token-sharing cache", () => {
     const { buildGoogleJwt } = require("../google-auth")
     expect(buildGoogleJwt([GSC_SCOPE])).not.toBe(buildGoogleJwt([GA4_SCOPE]))
   })
+
+  it("forces gaxios onto native fetch (the node-fetch Premature-close fix)", () => {
+    const { buildGoogleJwt } = require("../google-auth")
+    const jwt: any = buildGoogleJwt([GSC_SCOPE])
+    // Removing this wiring reintroduces the deterministic node-fetch
+    // ERR_STREAM_PREMATURE_CLOSE on Node 22 — guard it.
+    expect(typeof jwt.transporter.defaults.fetchImplementation).toBe("function")
+  })
 })
