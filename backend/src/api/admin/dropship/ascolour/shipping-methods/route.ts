@@ -28,36 +28,30 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   try {
-    // AS Colour wraps list responses in a PaginatedResponse ({ items|data|
-    // results }), not a bare array — every other AS Colour list call in the
-    // codebase unwraps the same way. Normalise key casing too, since we
-    // haven't seen this endpoint's exact item shape yet.
+    // AS Colour wraps the list in { data: [...] } (PaginatedResponse) and each
+    // entry is { shippingMethod, description }. The value createOrder expects is
+    // `shippingMethod` itself (e.g. "Standard Delivery", "Pickup") — there is no
+    // separate code, and a truncated label like "Standard" is rejected. Unwrap
+    // + normalise to the { code, name, description } shape the picker uses.
     const raw: any = await ascolour.getClient().getShippingMethods()
     const rawList: any[] = Array.isArray(raw)
       ? raw
-      : (raw?.items ?? raw?.data ?? raw?.results ?? [])
+      : (raw?.data ?? raw?.items ?? raw?.results ?? [])
     const methods = rawList
-      .map((m: any) => ({
-        code: String(m?.code ?? m?.Code ?? m?.value ?? m?.id ?? "").trim(),
-        name: String(
-          m?.name ?? m?.Name ?? m?.label ?? m?.description ?? m?.code ?? m?.Code ?? ""
-        ).trim(),
-        description: m?.description ?? m?.Description ?? undefined,
-      }))
+      .map((m: any) => {
+        const value = String(
+          m?.shippingMethod ?? m?.code ?? m?.Code ?? m?.value ?? m?.id ?? ""
+        ).trim()
+        return {
+          code: value,
+          name: value,
+          description: m?.description ?? m?.Description ?? undefined,
+        }
+      })
       .filter((m: { code: string }) => m.code.length > 0)
     return res.json({
       methods,
       default: ascolour.getOptions().default_shipping_method ?? null,
-      // Temporary diagnostic: the raw AS Colour shape, so an unexpected
-      // wrapper/casing is visible without another blind deploy. Remove once
-      // the dropdown is confirmed populated.
-      debug_raw: Array.isArray(raw)
-        ? raw.slice(0, 3)
-        : {
-            type: raw && typeof raw === "object" ? "object" : typeof raw,
-            topKeys: raw && typeof raw === "object" ? Object.keys(raw) : null,
-            sample: rawList.slice(0, 3),
-          },
     })
   } catch (err: any) {
     return res.json({

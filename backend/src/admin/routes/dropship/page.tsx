@@ -138,8 +138,8 @@ const SettingsPanel = ({
                   Select a method…
                 </option>
                 {methods.map((m) => (
-                  <option key={m.code} value={m.code}>
-                    {m.name} ({m.code})
+                  <option key={m.code} value={m.code} title={m.description}>
+                    {m.name}
                   </option>
                 ))}
               </select>
