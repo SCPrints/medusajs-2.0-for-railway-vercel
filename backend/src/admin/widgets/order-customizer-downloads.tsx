@@ -746,8 +746,20 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                         const proofsForSide = allProofs.filter(
                           (p) => p.line_item_id === line.line_item_id && p.side === art.side
                         )
+                        // The per-side artwork preview MUST be side-correct.
+                        // `customer_original_files` carries no side info (it's a
+                        // flat list of every upload referenced on the canvas),
+                        // so we only have an unambiguous file→side mapping when
+                        // there is exactly ONE uploaded file — it then applies to
+                        // whichever side(s) it's on. With multiple uploads we
+                        // can't tell which file belongs to this side, so we leave
+                        // it null and let SideProofCard fall back to this side's
+                        // own rendered print PNG (`art.print_url`). Previously
+                        // this used files[0] for every side, which showed the
+                        // BACK upload under the FRONT card on multi-file orders.
+                        const originalFiles = line.customer_original_files ?? []
                         const customerOriginalFileUrl =
-                          line.customer_original_files?.[0]?.url ?? null
+                          originalFiles.length === 1 ? (originalFiles[0]?.url ?? null) : null
                         const garmentCode = garmentCodeFromHandle(line.product_handle)
 
                         // Build customiser URL — requires storefront URL + product handle + variant ID
