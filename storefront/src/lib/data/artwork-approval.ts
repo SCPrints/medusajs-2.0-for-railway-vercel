@@ -29,6 +29,11 @@ export async function getArtworkApproval(
   try {
     return (await sdk.client.fetch("/store/artwork-approval", {
       query: { order: orderId, sig },
+      // Always fresh: this page reflects live staff edits (studio notes,
+      // revised proofs, approval stage). Without no-store the response is
+      // edge-cached (x-vercel-cache: HIT) and a just-saved note/proof can lag
+      // behind the cache for the stale-while-revalidate window.
+      cache: "no-store",
     })) as ArtworkApprovalState
   } catch {
     return null
