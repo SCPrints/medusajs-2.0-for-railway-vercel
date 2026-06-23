@@ -17,6 +17,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 type OrderItem = { sku: string; quantity: number; title: string }
 
+type ShippingMethod = { code: string; name: string; description?: string }
+
 type Shipment = {
   trackingNumber?: string
   trackingUrl?: string
@@ -94,10 +96,12 @@ const SettingsPanel = ({
   settings,
   onChange,
   defaultOpen = false,
+  methods = [],
 }: {
   settings: Settings
   onChange: (s: Settings) => void
   defaultOpen?: boolean
+  methods?: ShippingMethod[]
 }) => {
   const [open, setOpen] = useState(defaultOpen)
   return (
@@ -121,14 +125,34 @@ const SettingsPanel = ({
             <Label htmlFor="drop-shipping-method" className="text-xs">
               Shipping method
             </Label>
-            <Input
-              id="drop-shipping-method"
-              placeholder="e.g. Standard"
-              value={settings.shippingMethod}
-              onChange={(e) =>
-                onChange({ ...settings, shippingMethod: e.target.value })
-              }
-            />
+            {methods.length > 0 ? (
+              <select
+                id="drop-shipping-method"
+                className="w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-1.5 text-sm text-ui-fg-base focus:outline-none"
+                value={settings.shippingMethod}
+                onChange={(e) =>
+                  onChange({ ...settings, shippingMethod: e.target.value })
+                }
+              >
+                <option value="" disabled>
+                  Select a method…
+                </option>
+                {methods.map((m) => (
+                  <option key={m.code} value={m.code}>
+                    {m.name} ({m.code})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                id="drop-shipping-method"
+                placeholder="e.g. Standard"
+                value={settings.shippingMethod}
+                onChange={(e) =>
+                  onChange({ ...settings, shippingMethod: e.target.value })
+                }
+              />
+            )}
           </div>
 
           <div className="flex flex-col gap-y-1">
@@ -186,7 +210,29 @@ const PendingTab = ({
   const hasShippingMethod = settings.shippingMethod.trim().length > 0
   const [results, setResults] = useState<SendResult[]>([])
   const [sending, setSending] = useState(false)
+  const [methods, setMethods] = useState<ShippingMethod[]>([])
   const abortRef = useRef(false)
+
+  // AS Colour publishes valid shipping methods (code + name) — fetch them so
+  // the settings panel offers a picker that sends a real code.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch("/admin/dropship/ascolour/shipping-methods", {
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        })
+        const body = await res.json().catch(() => ({}))
+        if (!cancelled && Array.isArray(body?.methods)) setMethods(body.methods)
+      } catch {
+        // Leave empty — the panel falls back to a free-text input.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Reset selection when orders list changes (after a send completes)
   useEffect(() => {
@@ -289,6 +335,7 @@ const PendingTab = ({
         settings={settings}
         onChange={setSettings}
         defaultOpen={!hasShippingMethod}
+        methods={methods}
       />
 
       {/* Progress log */}

@@ -17,6 +17,8 @@ type Preview = {
   error?: string
 }
 
+type ShippingMethod = { code: string; name: string; description?: string }
+
 type Shipment = {
   trackingNumber?: string
   trackingUrl?: string
@@ -52,6 +54,36 @@ const OrderAsColourDropshipWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
   const [shippingMethod, setShippingMethod] = useState("")
   const [orderNotes, setOrderNotes] = useState("")
   const [courierInstructions, setCourierInstructions] = useState("")
+  const [methods, setMethods] = useState<ShippingMethod[]>([])
+  const [methodsError, setMethodsError] = useState<string | null>(null)
+
+  // AS Colour publishes the valid shipping methods (code + name). Fetch them so
+  // we offer a picker that sends a real `code` instead of a guessed label.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch("/admin/dropship/ascolour/shipping-methods", {
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        })
+        const body = await res.json().catch(() => ({}))
+        if (cancelled) return
+        const list: ShippingMethod[] = Array.isArray(body?.methods) ? body.methods : []
+        setMethods(list)
+        setMethodsError(body?.error ? String(body.error) : null)
+        const def: string | null = body?.default ?? null
+        if (def && list.some((m) => m.code === def)) {
+          setShippingMethod((cur) => cur || def)
+        }
+      } catch (e) {
+        if (!cancelled) setMethodsError(e instanceof Error ? e.message : "load failed")
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const load = useCallback(async () => {
     if (!orderId) return
@@ -248,12 +280,36 @@ const OrderAsColourDropshipWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
           <div className="flex flex-col gap-y-3">
             <div>
               <Label htmlFor="ascolour-shipping-method">Shipping method</Label>
-              <Input
-                id="ascolour-shipping-method"
-                placeholder={status?.preview?.defaultShippingMethod ?? "e.g. Standard"}
-                value={shippingMethod}
-                onChange={(e) => setShippingMethod(e.target.value)}
-              />
+              {methods.length > 0 ? (
+                <select
+                  id="ascolour-shipping-method"
+                  className="mt-1 w-full rounded-md border border-ui-border-base bg-ui-bg-field px-3 py-1.5 text-sm text-ui-fg-base focus:outline-none"
+                  value={shippingMethod}
+                  onChange={(e) => setShippingMethod(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Select a method…
+                  </option>
+                  {methods.map((m) => (
+                    <option key={m.code} value={m.code}>
+                      {m.name} ({m.code})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  id="ascolour-shipping-method"
+                  placeholder={status?.preview?.defaultShippingMethod ?? "e.g. Standard"}
+                  value={shippingMethod}
+                  onChange={(e) => setShippingMethod(e.target.value)}
+                />
+              )}
+              {methodsError ? (
+                <Text size="xsmall" className="text-ui-fg-muted mt-1">
+                  Couldn’t load AS Colour’s method list ({methodsError}). Type the
+                  code manually.
+                </Text>
+              ) : null}
             </div>
             <div>
               <Label htmlFor="ascolour-notes">Order notes</Label>
