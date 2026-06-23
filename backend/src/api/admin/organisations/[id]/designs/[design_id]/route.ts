@@ -60,11 +60,17 @@ async function uploadIfPresent(
 }
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  const id = req.params.id
   const designId = req.params.design_id
   const service =
     req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
   try {
     const design = await service.retrieveOrganisationDesign(designId)
+    // Scope the read to the org in the URL — a design id from another org
+    // must not be readable via this org's path (mirrors POST/DELETE below).
+    if (design.organisation_id !== id) {
+      return res.status(404).json({ error: "not_found" })
+    }
     res.json({ design })
   } catch {
     res.status(404).json({ error: "not_found" })

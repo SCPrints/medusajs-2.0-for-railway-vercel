@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import {
   ContainerRegistrationKeys,
+  Modules,
   OrderStatus,
 } from "@medusajs/framework/utils"
 import {
@@ -301,7 +302,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     items: lineItems,
   }
 
-  // --- Create draft + convert to pending
+  // --- Create draft + convert to pending.
+  // The two workflows don't share a transaction, so if the convert step
+  // fails after the draft is created we must delete the orphaned draft —
+  // otherwise a partial failure leaves a stray draft order behind.
   let orderId: string
   try {
     const draftResult = await createOrderWorkflow(req.scope).run({
@@ -311,9 +315,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     if (!draftId) {
       throw new Error("draft order creation returned no id")
     }
-    await convertDraftOrderWorkflow(req.scope).run({
-      input: { id: draftId },
-    })
+    try {
+      await convertDraftOrderWorkflow(req.scope).run({
+        input: { id: draftId },
+      })
+    } catch (convertErr) {
+      // Best-effort cleanup of the orphaned draft; never mask the real error.
+      try {
+        const orderModule = req.scope.resolve(Modules.ORDER) as any
+        await orderModule.deleteOrders([draftId])
+      } catch {
+        /* if deletion also fails, leave the draft for manual cleanup */
+      }
+      throw convertErr
+    }
     orderId = draftId
   } catch (err: any) {
     return res.status(500).json({

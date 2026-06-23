@@ -23,11 +23,17 @@ const updateSchema = z.object({
 })
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
+  const id = req.params.id
   const destId = req.params.destination_id
   const service =
     req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
   try {
     const destination = await service.retrieveOrganisationDestination(destId)
+    // Scope the read to the org in the URL — a destination id from another
+    // org must not be readable via this org's path (mirrors POST/DELETE).
+    if (destination.organisation_id !== id) {
+      return res.status(404).json({ error: "not_found" })
+    }
     res.json({ destination })
   } catch {
     res.status(404).json({ error: "not_found" })
