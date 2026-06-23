@@ -222,6 +222,34 @@ describe("groupRowsByStyle", () => {
     expect(black.images.views).toEqual(["102_Black_02.jpg"])
   })
 
+  it("folds case-variant colour names into one colour (the xlsx 3XL-row bug)", () => {
+    // Real Comfort Colors 1717 data: the S–2XL rows say "Neon Pink" but the
+    // 3XL row was typed "NEON PINK" — which used to split into two swatches.
+    const rows: GildanRow[] = [
+      row({ colourName: "Neon Pink", sizeCode: "S", vendorSkuChild: "17C32PASM0" }),
+      row({ colourName: "Neon Pink", sizeCode: "M", vendorSkuChild: "17C32PAMD0" }),
+      row({ colourName: "NEON PINK", sizeCode: "3XL", vendorSkuChild: "17C32PA3X0" }),
+    ]
+    const p = groupRowsByStyle(rows)[0]
+    expect(p.colours.length).toBe(1)
+    const c = p.colours[0]
+    // Canonical Title-Cased label, never the stray ALL-CAPS form.
+    expect(c.name).toBe("Neon Pink")
+    // All three sizes land on the single colour, in ladder order.
+    expect(c.sizes.map((s) => s.sizeCode)).toEqual(["S", "M", "3XL"])
+  })
+
+  it("does NOT merge genuinely-different colours that differ by more than case", () => {
+    // Misspellings are a separate value the importer can't safely fix — they
+    // stay split here (DB cleanup handles them via shared SKU stem).
+    const rows: GildanRow[] = [
+      row({ colourName: "Royal Caribe", sizeCode: "M", vendorSkuChild: "A" }),
+      row({ colourName: "Royal Carribe", sizeCode: "L", vendorSkuChild: "B" }),
+    ]
+    const p = groupRowsByStyle(rows)[0]
+    expect(p.colours.length).toBe(2)
+  })
+
   it("skips inactive status rows entirely", () => {
     const rows: GildanRow[] = [
       row({ status: "Active" }),

@@ -42,6 +42,21 @@ const num = (v: unknown): number | null => {
   return Number.isFinite(n) ? n : null
 }
 
+/**
+ * Case/whitespace-insensitive grouping key for a colour name. The Gildan xlsx
+ * types the SAME physical colour inconsistently across a style's size rows —
+ * e.g. "Neon Pink" on S–2XL but "NEON PINK" on the 3XL row. Keyed by the raw
+ * string, that splits one colour into two option values (two swatches; sizes
+ * scattered between them; a phantom swatch when the stray value picks up no
+ * variant). Collapsing on this key merges them; the display name is Title-Cased
+ * (`titleCase`) so the surviving label is canonical regardless of row order.
+ * NOTE: only fixes casing/whitespace — genuine misspellings (e.g. "Carribe"
+ * vs "Caribe") are a different value and must be cleaned in the DB by
+ * `dedupe-gildan-colour-variants.ts` (which also matches on shared SKU stem).
+ */
+export const canonicalColourKey = (name: string): string =>
+  name.trim().toLowerCase().replace(/\s+/g, " ")
+
 const LB_TO_G = 453.59237
 
 /**
@@ -147,10 +162,14 @@ export function groupRowsByStyle(
         costAcc =
           costAcc === null ? row.classicCost : Math.min(costAcc, row.classicCost)
       }
-      const existing = coloursMap.get(row.colourName)
+      // Key case-insensitively so "NEON PINK" (3XL row) folds into "Neon Pink"
+      // (S–2XL rows) instead of splitting the colour. Display name is the
+      // Title-Cased canonical. See canonicalColourKey above.
+      const colourKey = canonicalColourKey(row.colourName)
+      const existing = coloursMap.get(colourKey)
       if (!existing) {
-        coloursMap.set(row.colourName, {
-          name: row.colourName,
+        coloursMap.set(colourKey, {
+          name: titleCase(row.colourName),
           hex: row.hex,
           images: {
             hero: row.heroImageFilename,
