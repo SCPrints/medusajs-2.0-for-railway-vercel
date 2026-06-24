@@ -766,6 +766,9 @@ export default function CustomizerTemplate({
   const isAdminProofMode =
     !!adminProofOrderId && !!adminProofLineItemId && !!adminProofSide
   const adminProofAppliedRef = useRef(false)
+  // True once we've finished trying to load the order line's saved design (so
+  // the flat-image fallback knows the saved-layout path has had its chance).
+  const [adminProofMetaResolved, setAdminProofMetaResolved] = useState(false)
   const [adminProofSaving, setAdminProofSaving] = useState(false)
   const [adminProofError, setAdminProofError] = useState<string | null>(null)
 
@@ -1897,7 +1900,13 @@ export default function CustomizerTemplate({
   )
   useEffect(() => {
     if (hydrationApplied || pendingHydration) return
-    if (!designIdFromUrl && !reorderRefFromUrl && !hasQuoteGroupToHydrate) return
+    if (
+      !designIdFromUrl &&
+      !reorderRefFromUrl &&
+      !hasQuoteGroupToHydrate &&
+      !isAdminProofMode
+    )
+      return
     let cancelled = false
     ;(async () => {
       try {
@@ -1920,11 +1929,22 @@ export default function CustomizerTemplate({
             quoteSigFromUrl,
             quoteGroupFromUrl
           )
+        } else if (isAdminProofMode && adminProofOrderId && adminProofLineItemId) {
+          // Staff "Create revised proof" — replay the customer's saved design so
+          // the artwork comes back on every side at its real position (and the
+          // garment colour follows the ordered variant), instead of dropping a
+          // flat image fitted to the print area.
+          meta = await getOrderLineCustomizerMetadata(
+            adminProofOrderId,
+            adminProofLineItemId
+          )
         }
         if (cancelled) return
         if (meta) setPendingHydration(meta)
       } catch {
         // Best-effort; user can still build a fresh design.
+      } finally {
+        if (!cancelled && isAdminProofMode) setAdminProofMetaResolved(true)
       }
     })()
     return () => {
@@ -1937,6 +1957,9 @@ export default function CustomizerTemplate({
     quoteIdFromUrl,
     quoteSigFromUrl,
     quoteGroupFromUrl,
+    isAdminProofMode,
+    adminProofOrderId,
+    adminProofLineItemId,
     hydrationApplied,
     pendingHydration,
   ])
@@ -2100,27 +2123,67 @@ export default function CustomizerTemplate({
       setCurrentSide(savedSide)
     }
 
+    // In admin proof mode, always land on the exact side staff clicked
+    // ("Create revised proof" for Front vs Back) — not whichever side the
+    // customer happened to have active when they ordered.
+    if (
+      isAdminProofMode &&
+      (adminProofSide === "front" ||
+        adminProofSide === "back" ||
+        adminProofSide === "left_sleeve" ||
+        adminProofSide === "right_sleeve" ||
+        adminProofSide === "printed_tag")
+    ) {
+      sideToLoad = adminProofSide as GarmentSide
+      currentSideRef.current = adminProofSide as GarmentSide
+      setCurrentSide(adminProofSide as GarmentSide)
+    }
+
     void loadSide(sideToLoad)
     setHydrationApplied(true)
   }, [pendingHydration, hydrationApplied, canvasSize.width, canvasSize.height, product.variants])
 
-  // Admin proof mode: once the canvas is ready, switch to the target side and
-  // load the proof artwork image so staff can reposition before saving.
+  // Admin proof mode fallback: when the order has NO recoverable saved design
+  // for the target side, drop the flat proof artwork fitted to the print area
+  // so staff still have an image to position. The normal path is the
+  // rehydration pipeline above, which restores the artwork at its true saved
+  // position — this only runs when that produced nothing for the side.
   useEffect(() => {
     if (!isAdminProofMode || adminProofAppliedRef.current) return
     const canvas = fabricCanvasRef.current
     if (!canvas || canvasSize.width <= 0 || canvasSize.height <= 0) return
+    // Wait until we know whether a saved design exists. When one does, wait for
+    // stage 2 to finish replaying it so we can tell whether the target side was
+    // restored before deciding to drop the flat fallback image.
+    if (!adminProofMetaResolved) return
+    if (pendingHydration && !hydrationApplied) return
 
     adminProofAppliedRef.current = true
 
-    // Switch to the target side
     const targetSide = adminProofSide as GarmentSide
+
+    // The saved design already replayed real artwork onto this side at its true
+    // position — nothing to add. Objects whose image src was sanitized to the
+    // "[omitted-image-data]" placeholder (original upload not archived) don't
+    // count as visible artwork, so the flat proof image still gets dropped in
+    // that case rather than leaving a blank canvas.
+    const restoredVisible = (sideLayoutsRef.current[targetSide] ?? []).filter(
+      (obj: any) => {
+        const src = obj?.src
+        return !(typeof src === "string" && src.includes("[omitted-image-data]"))
+      }
+    )
+    if (restoredVisible.length > 0) return
+
+    // No recoverable saved layout for this side. Switch to it (loading its
+    // garment background) and drop the flat proof artwork so staff at least
+    // have the image to position.
     if (currentSideRef.current !== targetSide) {
       currentSideRef.current = targetSide
       setCurrentSide(targetSide)
+      void loadSide(targetSide)
     }
 
-    // Load the proof artwork image onto the canvas
     const artworkUrl = proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null
     if (!artworkUrl) return
 
@@ -2140,7 +2203,14 @@ export default function CustomizerTemplate({
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdminProofMode, canvasSize.width, canvasSize.height])
+  }, [
+    isAdminProofMode,
+    canvasSize.width,
+    canvasSize.height,
+    adminProofMetaResolved,
+    pendingHydration,
+    hydrationApplied,
+  ])
 
   useEffect(() => {
     if (typeof window === "undefined") {

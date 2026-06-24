@@ -703,7 +703,12 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
     if (!storefrontUrl || !line.product_handle || !line.variant_id) return null
     const base = `${storefrontUrl}/${countryCode}/customizer`
     const params: Record<string, string> = {
-      product: line.product_handle,
+      // The customizer page resolves the garment from `handle` (same param the
+      // reorder / saved-design / product-picker flows use). Passing `product`
+      // here was a silent bug — the page ignored it and fell back to the first
+      // shirt-like product in the catalog, so the proof opened on the wrong
+      // garment (and the wrong-colour, since `variant` couldn't match it).
+      handle: line.product_handle,
       variant: line.variant_id,
       adminProof: `${orderId}:${line.line_item_id}:${art.side}`,
     }

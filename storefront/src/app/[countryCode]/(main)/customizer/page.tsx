@@ -35,6 +35,8 @@ type CustomizerPageProps = {
   params: Promise<{ countryCode: string }>
   searchParams: Promise<{
     handle?: string | string[]
+    /** Alias for `handle` used by the admin "Create revised proof" widget. */
+    product?: string | string[]
     /** "<orderId>:<lineItemId>" — re-order from order history. */
     reorder?: string | string[]
     /** Saved-design id for the "Edit / re-order" link from /account/designs. */
@@ -153,7 +155,10 @@ export async function generateMetadata({ params }: MetadataProps): Promise<Metad
 export default async function CustomizerPage({ params, searchParams }: CustomizerPageProps) {
   const { countryCode } = await params
   const sp = await searchParams
-  const handleFromQuery = firstString(sp.handle)
+  // `product` is the param the admin "Create revised proof" widget sends; the
+  // rest of the app uses `handle`. Accept both so the proof opens on the right
+  // garment regardless of which side has deployed.
+  const handleFromQuery = firstString(sp.handle) ?? firstString(sp.product)
   const reorderRef = firstString(sp.reorder)
   const designId = firstString(sp.design)
 
