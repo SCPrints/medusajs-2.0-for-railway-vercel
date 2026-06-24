@@ -6,100 +6,6 @@ import sharp from "sharp"
 // Logo ink colour — black (the SC Prints wordmark renders black on the proof).
 const LOGO_COLOR = { r: 0, g: 0, b: 0 }
 
-/**
- * Remove the solid background (white OR black) from a mockup image so the
- * page watermark can show through behind the garment.
- *
- * Strategy: sample the four corners to detect the background colour, then run
- * an edge-connected flood fill from the image borders using that colour as the
- * predicate. Flood fill — NOT a global threshold — is essential for both
- * colours: it only clears background pixels actually reachable from the edges,
- * so it can never erase the garment interior.
- *   - White background: a white/near-white GARMENT (e.g. a white hoodie) is
- *     itself ≥ 220 on every channel, so a global "blast everything bright"
- *     threshold erases its body and leaves a ghost. The garment interior is
- *     enclosed by its darker silhouette/shadow edge, so the border flood fill
- *     stops at the silhouette and leaves the body intact.
- *   - Black background: designs often contain pure black (e.g. logo
- *     backgrounds) which a global threshold would destroy; the flood fill
- *     only touches the border-connected background black.
- *   - Mixed corners → no clear background colour, leave the image alone.
- */
-async function removeBackground(imgBuf: Buffer): Promise<Buffer> {
-  const { data, info } = await sharp(imgBuf)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-
-  const W = info.width
-  const H = info.height
-  const out = Buffer.from(data)
-
-  // Sample the 4 corners to detect background colour
-  const cornerPixelIdxs = [0, W - 1, (H - 1) * W, H * W - 1]
-  const isWhitish = (i: number) =>
-    data[i * 4] >= 220 && data[i * 4 + 1] >= 220 && data[i * 4 + 2] >= 220
-  const isBlackish = (i: number) =>
-    data[i * 4] <= 30 && data[i * 4 + 1] <= 30 && data[i * 4 + 2] <= 30
-
-  const whiteCorners = cornerPixelIdxs.filter(isWhitish).length
-  const blackCorners = cornerPixelIdxs.filter(isBlackish).length
-
-  // Pick the background predicate from the detected corner colour
-  const isBackground =
-    whiteCorners >= 3 ? isWhitish : blackCorners >= 3 ? isBlackish : null
-
-  if (isBackground) {
-    // Edge-connected flood fill from the borders (preserves garment interior
-    // AND design pixels — only border-reachable background is cleared)
-    const visited = new Uint8Array(W * H)
-    const queue: number[] = []
-    for (let x = 0; x < W; x++) {
-      const top = x
-      const bottom = (H - 1) * W + x
-      if (isBackground(top)) { visited[top] = 1; queue.push(top) }
-      if (isBackground(bottom)) { visited[bottom] = 1; queue.push(bottom) }
-    }
-    for (let y = 1; y < H - 1; y++) {
-      const left = y * W
-      const right = y * W + W - 1
-      if (isBackground(left)) { visited[left] = 1; queue.push(left) }
-      if (isBackground(right)) { visited[right] = 1; queue.push(right) }
-    }
-
-    // 8-directional BFS — diagonals so we don't stall at thin features
-    let qi = 0
-    while (qi < queue.length) {
-      const idx = queue[qi++]
-      out[idx * 4 + 3] = 0
-
-      const x = idx % W
-      const y = Math.floor(idx / W)
-      const neighbors = [
-        y > 0 ? idx - W : -1,
-        y < H - 1 ? idx + W : -1,
-        x > 0 ? idx - 1 : -1,
-        x < W - 1 ? idx + 1 : -1,
-        x > 0 && y > 0 ? idx - W - 1 : -1,
-        x < W - 1 && y > 0 ? idx - W + 1 : -1,
-        x > 0 && y < H - 1 ? idx + W - 1 : -1,
-        x < W - 1 && y < H - 1 ? idx + W + 1 : -1,
-      ]
-      for (const n of neighbors) {
-        if (n >= 0 && !visited[n] && isBackground(n)) {
-          visited[n] = 1
-          queue.push(n)
-        }
-      }
-    }
-  }
-  // else: mixed corners — no clear background colour, leave the image alone
-
-  return sharp(out, { raw: { width: W, height: H, channels: 4 } })
-    .png()
-    .toBuffer()
-}
-
 async function makeTintedLogo(
   logoBuf: Buffer,
   size: number,
@@ -412,14 +318,15 @@ export async function generateMockupPdf(
         sidesWithEffectiveUrls.map((a) => fetchImageBuffer(a.mockupUrl))
       )
 
-      // Strip solid background (white OR black) so the watermark shows
-      // through behind the garment
-      const processedBufs = await Promise.all(
-        rawBufs.map((buf) => (buf ? removeBackground(buf) : Promise.resolve(null)))
-      )
-
+      // Use the mockup exactly as rendered — do NOT strip its background. The
+      // garment photos sit on a near-white studio background, so a flood-fill
+      // background removal erodes white garments (a white hoodie is itself
+      // ≥220 on every channel, the same as the bg) and chews ragged holes in
+      // the body. The white background blends into the white PDF page anyway;
+      // the page watermark is painted ON TOP at low opacity (see buildPdf) so
+      // it still crosses the page without touching the garment pixels.
       const mockups = sidesWithEffectiveUrls
-        .map((a, i) => ({ side: a.side, buf: processedBufs[i] }))
+        .map((a, i) => ({ side: a.side, buf: rawBufs[i] }))
         .filter((m): m is { side: string; buf: Buffer } => m.buf !== null)
 
       return buildPageData(groupItems, mockups)
@@ -439,7 +346,9 @@ export async function generateMockupPdf(
 
   const [logoFull, logoWatermark] = await Promise.all([
     makeTintedLogo(rawLogoBuf, 100, 1.0),
-    makeTintedLogo(rawLogoBuf, 750, 0.10),
+    // Watermark sits on top of the mockups now, so keep it faint (a page wash,
+    // not marks on the garment).
+    makeTintedLogo(rawLogoBuf, 750, 0.07),
   ])
 
   return buildPdf({ jobNumber, customerName, orderDate, pages, regularFontBuf, boldFontBuf, logoFull, logoWatermark })
@@ -511,18 +420,11 @@ function buildPdf(params: {
       })
 
       // ── MOCKUP IMAGES ────────────────────────────────────────────────────────
-      const PH = 841.89
       const imgY = MT + 80
       // Total image band height (includes cell images + per-row labels)
       const imgBandH = 440
       // Two lines reserved under each image: side name + print dimension
       const labelH = 24
-
-      // Watermark: centred on the full A4 page (750pt bleeds past all edges)
-      const wmSize = 750
-      const wmX = (PW - wmSize) / 2
-      const wmY = (PH - wmSize) / 2
-      doc.image(logoWatermark, wmX, wmY, { width: wmSize, height: wmSize })
 
       if (mockups.length > 0) {
         const count = mockups.length
@@ -578,6 +480,18 @@ function buildPdf(params: {
             })
         }
       }
+
+      // ── WATERMARK ─────────────────────────────────────────────────────────────
+      // Painted ON TOP of the mockups (not behind) at low opacity. The garment
+      // photos sit on a near-white studio background, so a behind-the-garment
+      // watermark would need the background stripped — which erodes white
+      // garments. Drawing it over everything keeps each mockup pixel-accurate
+      // while the mark still crosses the whole page. 750pt bleeds past all edges.
+      const PH = 841.89
+      const wmSize = 750
+      const wmX = (PW - wmSize) / 2
+      const wmY = (PH - wmSize) / 2
+      doc.image(logoWatermark, wmX, wmY, { width: wmSize, height: wmSize })
 
       // ── SECTION DIVIDER ──────────────────────────────────────────────────────
       // Per-image dimensions are rendered directly under each mockup above,
