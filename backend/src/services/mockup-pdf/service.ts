@@ -10,15 +10,20 @@ const BRAND_MAGENTA = { r: 255, g: 46, b: 99 }
  * Remove the solid background (white OR black) from a mockup image so the
  * page watermark can show through behind the garment.
  *
- * Strategy: sample the four corners to detect the background colour:
- *   - If corners are near-white → apply a global threshold (R,G,B ≥ 220).
- *     Safe because coloured fabric always has at least one channel well below
- *     220, so we can blast everything bright in one pass.
- *   - If corners are near-black → edge-connected flood fill from the borders.
- *     We can't use a global threshold here because designs often contain pure
- *     black (e.g. logo backgrounds) which would be destroyed; flood fill only
- *     touches background pixels reachable from the image edges.
- *   - Otherwise → leave the image alone.
+ * Strategy: sample the four corners to detect the background colour, then run
+ * an edge-connected flood fill from the image borders using that colour as the
+ * predicate. Flood fill — NOT a global threshold — is essential for both
+ * colours: it only clears background pixels actually reachable from the edges,
+ * so it can never erase the garment interior.
+ *   - White background: a white/near-white GARMENT (e.g. a white hoodie) is
+ *     itself ≥ 220 on every channel, so a global "blast everything bright"
+ *     threshold erases its body and leaves a ghost. The garment interior is
+ *     enclosed by its darker silhouette/shadow edge, so the border flood fill
+ *     stops at the silhouette and leaves the body intact.
+ *   - Black background: designs often contain pure black (e.g. logo
+ *     backgrounds) which a global threshold would destroy; the flood fill
+ *     only touches the border-connected background black.
+ *   - Mixed corners → no clear background colour, leave the image alone.
  */
 async function removeBackground(imgBuf: Buffer): Promise<Buffer> {
   const { data, info } = await sharp(imgBuf)
@@ -32,44 +37,34 @@ async function removeBackground(imgBuf: Buffer): Promise<Buffer> {
 
   // Sample the 4 corners to detect background colour
   const cornerPixelIdxs = [0, W - 1, (H - 1) * W, H * W - 1]
-  const isWhitishCorner = (i: number) =>
+  const isWhitish = (i: number) =>
     data[i * 4] >= 220 && data[i * 4 + 1] >= 220 && data[i * 4 + 2] >= 220
-  const isBlackishCorner = (i: number) =>
+  const isBlackish = (i: number) =>
     data[i * 4] <= 30 && data[i * 4 + 1] <= 30 && data[i * 4 + 2] <= 30
 
-  const whiteCorners = cornerPixelIdxs.filter(isWhitishCorner).length
-  const blackCorners = cornerPixelIdxs.filter(isBlackishCorner).length
+  const whiteCorners = cornerPixelIdxs.filter(isWhitish).length
+  const blackCorners = cornerPixelIdxs.filter(isBlackish).length
 
-  if (whiteCorners >= 3) {
-    // Global threshold for near-white pixels
-    const pixels = W * H
-    for (let i = 0; i < pixels; i++) {
-      if (
-        data[i * 4 + 0] >= 220 &&
-        data[i * 4 + 1] >= 220 &&
-        data[i * 4 + 2] >= 220
-      ) {
-        out[i * 4 + 3] = 0
-      }
-    }
-  } else if (blackCorners >= 3) {
-    // Edge-connected flood fill for near-black background (preserve design black)
+  // Pick the background predicate from the detected corner colour
+  const isBackground =
+    whiteCorners >= 3 ? isWhitish : blackCorners >= 3 ? isBlackish : null
+
+  if (isBackground) {
+    // Edge-connected flood fill from the borders (preserves garment interior
+    // AND design pixels — only border-reachable background is cleared)
     const visited = new Uint8Array(W * H)
-    const isBlack = (i: number) =>
-      data[i * 4] <= 30 && data[i * 4 + 1] <= 30 && data[i * 4 + 2] <= 30
-
     const queue: number[] = []
     for (let x = 0; x < W; x++) {
       const top = x
       const bottom = (H - 1) * W + x
-      if (isBlack(top)) { visited[top] = 1; queue.push(top) }
-      if (isBlack(bottom)) { visited[bottom] = 1; queue.push(bottom) }
+      if (isBackground(top)) { visited[top] = 1; queue.push(top) }
+      if (isBackground(bottom)) { visited[bottom] = 1; queue.push(bottom) }
     }
     for (let y = 1; y < H - 1; y++) {
       const left = y * W
       const right = y * W + W - 1
-      if (isBlack(left)) { visited[left] = 1; queue.push(left) }
-      if (isBlack(right)) { visited[right] = 1; queue.push(right) }
+      if (isBackground(left)) { visited[left] = 1; queue.push(left) }
+      if (isBackground(right)) { visited[right] = 1; queue.push(right) }
     }
 
     // 8-directional BFS — diagonals so we don't stall at thin features
@@ -91,7 +86,7 @@ async function removeBackground(imgBuf: Buffer): Promise<Buffer> {
         x < W - 1 && y < H - 1 ? idx + W + 1 : -1,
       ]
       for (const n of neighbors) {
-        if (n >= 0 && !visited[n] && isBlack(n)) {
+        if (n >= 0 && !visited[n] && isBackground(n)) {
           visited[n] = 1
           queue.push(n)
         }
