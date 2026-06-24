@@ -3,8 +3,8 @@ import path from "path"
 import PDFDocument from "pdfkit"
 import sharp from "sharp"
 
-// Brand magenta: #ff2e63
-const BRAND_MAGENTA = { r: 255, g: 46, b: 99 }
+// Logo ink colour — black (the SC Prints wordmark renders black on the proof).
+const LOGO_COLOR = { r: 0, g: 0, b: 0 }
 
 /**
  * Remove the solid background (white OR black) from a mockup image so the
@@ -100,7 +100,7 @@ async function removeBackground(imgBuf: Buffer): Promise<Buffer> {
     .toBuffer()
 }
 
-async function makeMagentaLogo(
+async function makeTintedLogo(
   logoBuf: Buffer,
   size: number,
   opacity: number
@@ -118,9 +118,9 @@ async function makeMagentaLogo(
 
   for (let i = 0; i < pixels; i++) {
     const a = data[i * 4 + 3]
-    out[i * 4 + 0] = BRAND_MAGENTA.r
-    out[i * 4 + 1] = BRAND_MAGENTA.g
-    out[i * 4 + 2] = BRAND_MAGENTA.b
+    out[i * 4 + 0] = LOGO_COLOR.r
+    out[i * 4 + 1] = LOGO_COLOR.g
+    out[i * 4 + 2] = LOGO_COLOR.b
     out[i * 4 + 3] = Math.round(a * opacity)
   }
 
@@ -437,12 +437,12 @@ export async function generateMockupPdf(
     path.join(IMAGES_DIR, "sc-prints-logo.png")
   )
 
-  const [magentaLogoFull, magentaLogoWatermark] = await Promise.all([
-    makeMagentaLogo(rawLogoBuf, 100, 1.0),
-    makeMagentaLogo(rawLogoBuf, 750, 0.10),
+  const [logoFull, logoWatermark] = await Promise.all([
+    makeTintedLogo(rawLogoBuf, 100, 1.0),
+    makeTintedLogo(rawLogoBuf, 750, 0.10),
   ])
 
-  return buildPdf({ jobNumber, customerName, orderDate, pages, regularFontBuf, boldFontBuf, magentaLogoFull, magentaLogoWatermark })
+  return buildPdf({ jobNumber, customerName, orderDate, pages, regularFontBuf, boldFontBuf, logoFull, logoWatermark })
 }
 
 function buildPdf(params: {
@@ -452,11 +452,11 @@ function buildPdf(params: {
   pages: PageData[]
   regularFontBuf: Buffer
   boldFontBuf: Buffer
-  magentaLogoFull: Buffer
-  magentaLogoWatermark: Buffer
+  logoFull: Buffer
+  logoWatermark: Buffer
 }): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const { jobNumber, customerName, orderDate, pages, regularFontBuf, boldFontBuf, magentaLogoFull, magentaLogoWatermark } =
+    const { jobNumber, customerName, orderDate, pages, regularFontBuf, boldFontBuf, logoFull, logoWatermark } =
       params
 
     const doc = new PDFDocument({ size: "A4", autoFirstPage: false })
@@ -501,10 +501,10 @@ function buildPdf(params: {
         textY += 17
       }
 
-      // SC Prints logo — top right, magenta
+      // SC Prints logo — top right, black
       const logoW = 72
       const logoH = 72
-      doc.image(magentaLogoFull, PW - MR - logoW, MT, {
+      doc.image(logoFull, PW - MR - logoW, MT, {
         width: logoW,
         height: logoH,
         fit: [logoW, logoH],
@@ -522,7 +522,7 @@ function buildPdf(params: {
       const wmSize = 750
       const wmX = (PW - wmSize) / 2
       const wmY = (PH - wmSize) / 2
-      doc.image(magentaLogoWatermark, wmX, wmY, { width: wmSize, height: wmSize })
+      doc.image(logoWatermark, wmX, wmY, { width: wmSize, height: wmSize })
 
       if (mockups.length > 0) {
         const count = mockups.length
