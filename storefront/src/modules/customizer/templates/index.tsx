@@ -252,6 +252,42 @@ const getPrintArea = (
   }
 }
 
+/**
+ * Inverse of `getPrintArea` — recover the canvas dimensions a saved design was
+ * authored on, from the `printArea` + `scpPrintSizeId` stored in its metadata.
+ *
+ * Why: saved Fabric objects use ABSOLUTE canvas-pixel coordinates, but the
+ * customizer's canvas size is the live container size (see `syncSize`). So a
+ * design authored on a wide PDP canvas, then rehydrated into a smaller surface
+ * (the admin "revised proof" modal, a re-order on a different screen), lands its
+ * artwork at stale coordinates — off-position or off-canvas entirely (the
+ * garment always looks right because it's re-fit to the canvas every load).
+ * Knowing the authoring canvas size lets us rescale objects into the current
+ * one on rehydration. Returns null when the inputs are missing/inconsistent so
+ * the caller can skip normalization (legacy no-op behaviour).
+ *
+ * Derivation (from getPrintArea):
+ *   areaW = W·0.68·(refW/38)         x = (W − areaW)/2   ⇒  W = 2·x + areaW
+ *   areaH = H·0.72·(refH/48)                              ⇒  H = areaH / (0.72·refH/48)
+ */
+const inferCanvasSizeFromPrintArea = (
+  printArea: { x: number; y: number; width: number; height: number } | null | undefined,
+  sizeId: ScpPrintSizeId | null | undefined
+): { width: number; height: number } | null => {
+  if (!printArea || !sizeId) return null
+  const ref = SCP_PRINT_SIZE_CM[sizeId]
+  if (!ref) return null
+  const { x, width: areaW, height: areaH } = printArea
+  if (![x, areaW, areaH].every((n) => typeof n === "number" && isFinite(n)) || areaH <= 0) {
+    return null
+  }
+  const width = 2 * x + areaW
+  const scaleH = ref.h / SCP_BASE_REF.h
+  const height = areaH / (0.72 * scaleH)
+  if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) return null
+  return { width, height }
+}
+
 const productMetadataShowsDtfTierEstimator = (product: HttpTypes.StoreProduct) => {
   const m = product.metadata as Record<string, unknown> | undefined
   return m?.show_dtf_tier_estimator === true
@@ -1972,6 +2008,42 @@ export default function CustomizerTemplate({
     if (!canvas || canvasSize.width <= 0 || canvasSize.height <= 0) return
 
     if (Array.isArray(pendingHydration.sideLayouts)) {
+      // Saved objects use absolute canvas-pixel coordinates. The canvas size is
+      // the live container size, so a design authored on one surface (the PDP
+      // studio) rehydrated into another (the smaller admin "revised proof"
+      // modal, or a re-order on a different screen) would place its artwork at
+      // stale coords — off-position or off-canvas (the garment always looks
+      // right because it's re-fit to the canvas every load). Recover the
+      // authoring canvas from the saved printArea and rescale every side's
+      // objects into the current canvas so the artwork lands where the customer
+      // put it (proportionally). No-op when sizes match (legacy behaviour) or
+      // when the canvas can't be inferred.
+      const savedCanvas = inferCanvasSizeFromPrintArea(
+        (pendingHydration as { printArea?: { x: number; y: number; width: number; height: number } }).printArea,
+        (pendingHydration.scpPrintSizeId as ScpPrintSizeId | undefined) ?? null
+      )
+      const sx = savedCanvas ? canvasSize.width / savedCanvas.width : 1
+      const sy = savedCanvas ? canvasSize.height / savedCanvas.height : 1
+      const needsRescale =
+        !!savedCanvas && (Math.abs(sx - 1) > 0.01 || Math.abs(sy - 1) > 0.01)
+      const rescaleObject = (obj: any) => {
+        if (!needsRescale || !obj || typeof obj !== "object") return obj
+        const next = { ...obj }
+        if (typeof next.left === "number") next.left = next.left * sx
+        if (typeof next.top === "number") next.top = next.top * sy
+        if (typeof next.scaleX === "number") next.scaleX = next.scaleX * sx
+        if (typeof next.scaleY === "number") next.scaleY = next.scaleY * sy
+        return next
+      }
+      if (needsRescale && typeof window !== "undefined") {
+        console.info(
+          `[customizer] rescaling rehydrated artwork ${Math.round(
+            savedCanvas!.width
+          )}×${Math.round(savedCanvas!.height)} → ${Math.round(
+            canvasSize.width
+          )}×${Math.round(canvasSize.height)} (sx=${sx.toFixed(3)}, sy=${sy.toFixed(3)})`
+        )
+      }
       // Diagnostic — surfaces which sides got which object counts on
       // rehydration. Caught one production bug where a side's Fabric
       // image had a sanitized "[omitted-image-data]" src (the original
@@ -1982,7 +2054,9 @@ export default function CustomizerTemplate({
       const placeholders: string[] = []
       for (const sl of pendingHydration.sideLayouts) {
         if (sl?.side && Array.isArray(sl.objects)) {
-          sideLayoutsRef.current[sl.side] = sl.objects
+          sideLayoutsRef.current[sl.side] = needsRescale
+            ? sl.objects.map(rescaleObject)
+            : sl.objects
           const placeholderCount = sl.objects.reduce((acc, obj: any) => {
             const src = obj?.src
             if (
@@ -2189,7 +2263,13 @@ export default function CustomizerTemplate({
 
     void (async () => {
       try {
-        const imageObject = await FabricImage.fromURL(artworkUrl, { crossOrigin: "anonymous" })
+        // No forced crossOrigin: the artwork is hosted on R2's public dev URL,
+        // which sends NO Access-Control-Allow-Origin header — requesting
+        // crossOrigin:"anonymous" makes the browser reject the load outright, so
+        // the fallback rendered nothing. Loading without it taints the canvas,
+        // but that's harmless here: Save Proof composites server-side via an SVG
+        // (toSVG embeds the URL, no pixel read), never a client toDataURL.
+        const imageObject = await FabricImage.fromURL(artworkUrl)
         const { width: naturalW, height: naturalH } = imageObject.getOriginalSize()
         if (naturalW > 0 && naturalH > 0) {
           imageObject.set({ width: naturalW, height: naturalH, scaleX: 1, scaleY: 1 })
@@ -4801,7 +4881,11 @@ export default function CustomizerTemplate({
               </div>
 
               <div className={`flex flex-col lg:flex-row lg:items-stretch${assemblyLayout ? " flex-1 min-h-0" : ""}`}>
-                {!isAdminProofMode && !assemblyLayout && (
+                {/* InputPanel (upload / add text / remove artwork) also shows in
+                    admin proof mode so staff can add or replace artwork — e.g.
+                    when a customer emails a revised file — not just reposition
+                    the existing design. Still hidden in the v2 assembly layout. */}
+                {!assemblyLayout && (
                 <div
                   id="customizer-input-panel"
                   className="order-2 border-t border-ui-border-base bg-ui-bg-subtle/30 p-4 scroll-mt-20 lg:order-1 lg:w-[min(100%,280px)] lg:shrink-0 lg:border-r lg:border-t-0 lg:border-ui-border-base"
