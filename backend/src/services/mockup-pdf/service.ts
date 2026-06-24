@@ -340,18 +340,26 @@ export async function generateMockupPdf(
   const boldFontBuf = fs.readFileSync(
     path.join(FONTS_DIR, "PlusJakartaSans-Bold.woff")
   )
-  const rawLogoBuf = fs.readFileSync(
-    path.join(IMAGES_DIR, "sc-prints-logo.png")
-  )
+  // The logo is a vector (SVG), so it rasterises crisp at ANY size. Render it
+  // once at high resolution and reuse that sharp master for both the header
+  // logo and the full-bleed watermark — each is just a downscale of it. The old
+  // 946×1024 PNG had to be UPSCALED for the big watermark, which is exactly why
+  // it looked jagged and messy. Fall back to the PNG if SVG rasterisation ever
+  // fails so PDF generation can never break.
+  let rawLogoBuf: Buffer
+  try {
+    const logoSvg = fs.readFileSync(path.join(IMAGES_DIR, "sc-prints-logo.svg"))
+    rawLogoBuf = await sharp(logoSvg, { density: 1500 }).png().toBuffer()
+  } catch {
+    rawLogoBuf = fs.readFileSync(path.join(IMAGES_DIR, "sc-prints-logo.png"))
+  }
 
   const [logoFull, logoWatermark] = await Promise.all([
-    // Header logo is placed at 72pt (1 inch), so rasterise at 600px → ~600 DPI
-    // (well past print-standard 300) to keep the wordmark's edges crisp. The
-    // 946×1024 source has the resolution to spare; 100px looked pixelated.
+    // Header logo — solid black, placed at 72pt (1 inch).
     makeTintedLogo(rawLogoBuf, 600, 1.0),
-    // Watermark sits on top of the mockups now, so keep it faint (a page wash,
-    // not marks on the garment).
-    makeTintedLogo(rawLogoBuf, 750, 0.07),
+    // Watermark — faint page wash painted on top of the mockups, placed ~750pt
+    // (bleeds past the A4 edges). Crisp now that the source is vector.
+    makeTintedLogo(rawLogoBuf, 2600, 0.07),
   ])
 
   return buildPdf({ jobNumber, customerName, orderDate, pages, regularFontBuf, boldFontBuf, logoFull, logoWatermark })
