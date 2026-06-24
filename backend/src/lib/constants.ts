@@ -389,9 +389,66 @@ export const NPS_MAX_SENDS_PER_RUN = parseIntEnv(
  * Secret string mixed into the NPS capture URL signature so customers
  * can't forge scores by guessing other order IDs. Must be set in prod;
  * a placeholder is used in dev so the URL still verifies.
+ *
+ * This single secret keys every HMAC capability token in the app: NPS rating
+ * links, artwork-approval links, quote-accept links, and quote "Design in
+ * Studio" tokens. The quote design-items route persists a client-supplied
+ * `unit_price` after only verifying the signature, so a forgeable signature
+ * here would let anyone mint arbitrary-priced cart lines.
  */
+export const NPS_LINK_SECRET_DEV_FALLBACK = "nps-dev-secret-do-not-use-in-prod"
 export const NPS_LINK_SECRET =
-  process.env.NPS_LINK_SECRET || "nps-dev-secret-do-not-use-in-prod"
+  process.env.NPS_LINK_SECRET || NPS_LINK_SECRET_DEV_FALLBACK
+
+/**
+ * Are we running in a real deployment (vs. local dev / unit tests)? Used to
+ * decide whether the dev-placeholder link secret is a security hole.
+ *
+ * Deliberately narrower than `!IS_DEV`: Jest runs with `NODE_ENV=test` and the
+ * local `.env` injects `BACKEND_PUBLIC_URL=http://localhost:9000`, so neither
+ * of those may count as production — only a `production` NODE_ENV, a Fly app, or
+ * a non-localhost `BACKEND_PUBLIC_URL` does.
+ */
+function isRealDeployment(): boolean {
+  if (process.env.NODE_ENV === "production") return true
+  if (process.env.FLY_APP_NAME) return true
+  const url = process.env.BACKEND_PUBLIC_URL
+  if (url && !/localhost|127\.0\.0\.1|0\.0\.0\.0/.test(url)) return true
+  return false
+}
+
+/**
+ * True when the HMAC link-signing secret is unset (falls back to the
+ * repo-visible dev placeholder) while running in a real deployment — i.e. every
+ * capability token would be trivially forgeable by anyone who reads this file.
+ *
+ * The link verifiers (`verifyNpsRating`, `verifyArtworkApproval`,
+ * `verifyQuoteAccept`, `verifyQuoteDesign`) fail CLOSED in this state: they
+ * always return false, so a misconfigured deploy visibly breaks those features
+ * (legit links stop verifying) instead of silently accepting forged ones.
+ *
+ * We do NOT throw at module load — `constants.ts` is imported during
+ * `medusa build`, where `NPS_LINK_SECRET` isn't present, so throwing would
+ * break every production build. Failing closed at verify-time is the safe
+ * equivalent. Defence-in-depth: prod currently sets the secret as a Fly secret.
+ */
+export const LINK_SIGNING_SECRET_INSECURE =
+  isRealDeployment() &&
+  (!process.env.NPS_LINK_SECRET ||
+    process.env.NPS_LINK_SECRET === NPS_LINK_SECRET_DEV_FALLBACK)
+
+if (LINK_SIGNING_SECRET_INSECURE) {
+  // Loud, but non-fatal so `medusa build` (which has no runtime secrets) still
+  // succeeds. If you see this during a build/CI step it's expected — set
+  // NPS_LINK_SECRET on the running server, not the build environment.
+  // eslint-disable-next-line no-console
+  console.error(
+    "[security] NPS_LINK_SECRET is unset or the dev placeholder in a " +
+      "production environment. HMAC capability links (NPS, artwork approval, " +
+      "quote accept, quote design) will FAIL verification until a strong, " +
+      "random NPS_LINK_SECRET is set. This protects against forged signatures."
+  )
+}
 
 /**
  * PostHog cohort → customer_tag sync. Opt-in. Daily cron looks up the

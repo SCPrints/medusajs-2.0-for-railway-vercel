@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto"
 
-import { NPS_LINK_SECRET } from "../../lib/constants"
+import { LINK_SIGNING_SECRET_INSECURE, NPS_LINK_SECRET } from "../../lib/constants"
 
 /**
  * HMAC-signed quote accept URLs. Re-uses NPS_LINK_SECRET — same trust
@@ -13,6 +13,8 @@ export function signQuoteAccept(quoteId: string): string {
 }
 
 export function verifyQuoteAccept(quoteId: string, signature: string): boolean {
+  // Fail closed if the signing secret is the forgeable dev placeholder in prod.
+  if (LINK_SIGNING_SECRET_INSECURE) return false
   if (!quoteId || typeof signature !== "string" || signature.length === 0) {
     return false
   }
