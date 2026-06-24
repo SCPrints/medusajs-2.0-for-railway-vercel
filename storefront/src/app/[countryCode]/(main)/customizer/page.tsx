@@ -41,6 +41,12 @@ type CustomizerPageProps = {
     reorder?: string | string[]
     /** Saved-design id for the "Edit / re-order" link from /account/designs. */
     design?: string | string[]
+    /** Admin "Create revised proof": "<orderId>:<lineItemId>:<side>". When set,
+     *  the page renders a chromeless internal editor (no storefront nav/footer/
+     *  chat, no PDP gallery/info/tabs) so staff can adjust + Save Proof. */
+    adminProof?: string | string[]
+    proofArtwork?: string | string[]
+    variant?: string | string[]
   }>
 }
 
@@ -161,6 +167,9 @@ export default async function CustomizerPage({ params, searchParams }: Customize
   const handleFromQuery = firstString(sp.handle) ?? firstString(sp.product)
   const reorderRef = firstString(sp.reorder)
   const designId = firstString(sp.design)
+  // Proof mode = the admin "Create revised proof" iframe. Render a clean,
+  // internal-only editor (no storefront chrome / PDP content).
+  const isProofMode = !!firstString(sp.adminProof)
 
   const configuredHandle = getConfiguredCustomizerHandle()
 
@@ -287,6 +296,47 @@ export default async function CustomizerPage({ params, searchParams }: Customize
       />
     </Suspense>
   )
+
+  // ── Admin "Create revised proof": chromeless internal editor ──────────────
+  // A fixed full-viewport overlay covers the (main) layout's nav/footer/chat
+  // (which this page cannot unmount — they're rendered by an ancestor layout),
+  // and we skip the PDP wrappers (h1, Photos/gallery tabs, ProductInfo) so staff
+  // see ONLY the customizer. integratedPdpSlots is kept (gallery omitted) so the
+  // editor uses the same known-good wizard layout that already works in proof
+  // mode — just without the surrounding storefront page.
+  if (isProofMode) {
+    return (
+      <div
+        className="fixed inset-0 z-[9999] overflow-y-auto bg-ui-bg-base"
+        data-testid="customizer-proof-shell"
+      >
+        <div className="mx-auto max-w-[1400px] px-3 py-4">
+          <PrintPlacementProvider>
+            <ProductOptionsProvider product={customizerProduct}>
+              <CustomizeModeProvider>
+                <PdpLayoutGrid
+                  customizerSlot={
+                    <PdpCustomizerBoundary>
+                      <EmbeddedProductCustomizer
+                        product={customizerProduct}
+                        integratedPdpSlots={{
+                          gallery: null,
+                          variantPickers: variantPickersSlot,
+                        }}
+                        pickerProducts={pickerProducts}
+                        tier={tier}
+                        printProfile={printProfile}
+                      />
+                    </PdpCustomizerBoundary>
+                  }
+                />
+              </CustomizeModeProvider>
+            </ProductOptionsProvider>
+          </PrintPlacementProvider>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>

@@ -1016,6 +1016,23 @@ const garmentUrlLooksLikeAltView = (url: string) => {
 }
 
 /**
+ * Lifestyle/on-body MODEL shots — a person wearing the garment. Real photos but
+ * unusable as the customizer canvas base (you can't place a print on a slouched
+ * model). The customizer/proof was picking these because they carry no
+ * front/back/side token, so they scored "neutral" and won the first-neutral
+ * fallback. Gildan/Comfort-Colors lifestyle files are `_03/_04/_05` (adult) and
+ * `_c1` (youth); other suppliers use explicit model/lifestyle/worn tokens.
+ */
+const garmentUrlLooksLikeModel = (url: string) => {
+  const file = (url.split("?")[0].split("/").pop() ?? "").toLowerCase()
+  return (
+    /(^|[-_.])(model|lifestyle|worn|onbody|on-body)([-_.]|$)/.test(file) ||
+    /[-_.]0[345]([-_.]|$)/.test(file) ||
+    /[-_.]c1([-_.]|$)/.test(file)
+  )
+}
+
+/**
  * Order-independent front pick from a set of candidate URLs. AS Colour colour
  * fronts carry NO "front" token (`_BLACK__` is the front, `_BLACK_BACK` the
  * back), so "front" here means: an explicit front marker if present, else the
@@ -1027,7 +1044,14 @@ const garmentUrlLooksLikeAltView = (url: string) => {
  * repaired colour's canvas flipped to the back photo).
  */
 const pickFrontishGarmentUrl = (urls: string[]): string | undefined =>
+  urls.find((u) => garmentUrlLooksLikeFront(u) && !garmentUrlLooksLikeModel(u)) ??
   urls.find(garmentUrlLooksLikeFront) ??
+  urls.find(
+    (u) =>
+      !garmentUrlLooksLikeBack(u) &&
+      !garmentUrlLooksLikeAltView(u) &&
+      !garmentUrlLooksLikeModel(u)
+  ) ??
   urls.find((u) => !garmentUrlLooksLikeBack(u) && !garmentUrlLooksLikeAltView(u)) ??
   urls.find((u) => !garmentUrlLooksLikeBack(u))
 
@@ -1042,7 +1066,7 @@ export const garmentUrlViewRank = (url: string): number =>
     ? 0
     : garmentUrlLooksLikeBack(url)
     ? 3
-    : garmentUrlLooksLikeAltView(url)
+    : garmentUrlLooksLikeAltView(url) || garmentUrlLooksLikeModel(url)
     ? 2
     : 1
 
@@ -1147,10 +1171,14 @@ export function getGarmentImageUrlForPrintSide(
     if (selectedColor && !pool.length) {
       return primaryFallback
     }
+    // Use the order-independent, model-aware picker so the flat front wins over
+    // any lifestyle/on-body shot (which otherwise scored "neutral" and could be
+    // returned by a bare pool[0]). Final pool[0]/ordered[0] keep a result even
+    // for a product whose colourway only has model photos.
     const preferred =
-      pool.find((u) => garmentUrlLooksLikeFront(u)) ??
+      pickFrontishGarmentUrl(pool) ??
+      pickFrontishGarmentUrl(ordered) ??
       pool[0] ??
-      ordered.find((u) => garmentUrlLooksLikeFront(u)) ??
       ordered[0]
     return resolveToStoreUrl(preferred) ?? primaryFallback
   }

@@ -49,6 +49,7 @@ import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 import { replaceInlineRasterWithHostedUrls } from "@modules/customizer/lib/inline-raster-to-hosted"
+import { rewriteArtworkSrcs, toPublicArtworkUrl } from "@modules/customizer/lib/r2-public-url"
 import { extractCartDesigns, filterByKind } from "@lib/util/cart-decorations"
 import { sanitizeCartAddError } from "@lib/util/sanitize-cart-error"
 import {
@@ -613,7 +614,16 @@ export default function CustomizerTemplate({
   // gate — start it "done" so the Artwork/InputPanel and other features
   // aren't locked behind a "Customise this garment" click (that button is
   // removed in the studio). Legacy non-assembly wizard still starts false.
-  const [pdpStep1Done, setPdpStep1Done] = useState(assemblyLayout)
+  // Admin proof mode is known at first render from the URL (`adminProof=
+  // <orderId>:<lineItemId>:<side>`). The variant is fixed by `?variant=`, so
+  // wizard Step 1 (colour/variant) is already settled — seed pdpStep1Done=true
+  // so the editor (InputPanel / add text / replace artwork) is enabled
+  // immediately and the Step 2/3 auto-advance effects don't early-return.
+  // (`isAdminProofMode` is computed later, so parse the param inline here.)
+  const proofModeAtInit =
+    (initialVariantSearchParams?.get("adminProof") ?? "").split(":").filter(Boolean)
+      .length === 3
+  const [pdpStep1Done, setPdpStep1Done] = useState(assemblyLayout || proofModeAtInit)
   const [pdpStep2Done, setPdpStep2Done] = useState(false)
   // Assembly layout (/customizer-v2) free accordion: which section is expanded,
   // independent of the wizard's `pdpStep`. null = all collapsed. Only consulted
@@ -1643,11 +1653,14 @@ export default function CustomizerTemplate({
 
     // Auto-open the modal the first time the canvas crosses into "critical"
     // territory. Stays closed once dismissed; the customer can re-trigger by
-    // re-uploading a worse file (assessment changes again).
+    // re-uploading a worse file (assessment changes again). Suppressed in admin
+    // proof mode — the DPI upsell is customer-facing and would just interrupt
+    // staff repositioning the artwork.
     if (
       assessment.severity === "critical" &&
       !lowResModalDismissedRef.current &&
-      !vectorizationRequested
+      !vectorizationRequested &&
+      !isAdminProofMode
     ) {
       setLowResModalOpen(true)
     }
@@ -2054,9 +2067,12 @@ export default function CustomizerTemplate({
       const placeholders: string[] = []
       for (const sl of pendingHydration.sideLayouts) {
         if (sl?.side && Array.isArray(sl.objects)) {
-          sideLayoutsRef.current[sl.side] = needsRescale
-            ? sl.objects.map(rescaleObject)
-            : sl.objects
+          // Rescale (canvas-size normalize) AND rewrite private R2 srcs to
+          // public on the way into the ref, so loadSide + saveCurrentSide both
+          // see browser-loadable, correctly-placed artwork.
+          sideLayoutsRef.current[sl.side] = rewriteArtworkSrcs(
+            needsRescale ? sl.objects.map(rescaleObject) : sl.objects
+          )
           const placeholderCount = sl.objects.reduce((acc, obj: any) => {
             const src = obj?.src
             if (
@@ -2258,7 +2274,9 @@ export default function CustomizerTemplate({
       void loadSide(targetSide)
     }
 
-    const artworkUrl = proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null
+    const artworkUrl = proofArtworkParam
+      ? toPublicArtworkUrl(decodeURIComponent(proofArtworkParam))
+      : null
     if (!artworkUrl) return
 
     void (async () => {
@@ -2395,7 +2413,11 @@ export default function CustomizerTemplate({
       const loadVersion = ++sideLoadVersionRef.current
 
       canvas.clear()
-      const objects = sideLayoutsRef.current[side] ?? []
+      // Rewrite any private R2 S3-endpoint srcs to their public form before
+      // handing to Fabric — the private host 400s an anonymous browser fetch,
+      // which would blank the side (order #4). No-op for already-public /
+      // data: / supplier-CDN srcs.
+      const objects = rewriteArtworkSrcs(sideLayoutsRef.current[side] ?? [])
       const json = {
         version: "7.0.0",
         objects,
@@ -4813,13 +4835,13 @@ export default function CustomizerTemplate({
   )
   const inputPanelDisabledMessage = useMemo(
     () =>
-      pdpHasVariantOptions && !pdpStep1Done
+      !isAdminProofMode && pdpHasVariantOptions && !pdpStep1Done
         ? {
             title: "Customize first",
             body: 'Tap "Customise this garment" above to start.',
           }
         : undefined,
-    [pdpHasVariantOptions, pdpStep1Done]
+    [isAdminProofMode, pdpHasVariantOptions, pdpStep1Done]
   )
 
   const sideLabel =
@@ -4901,7 +4923,7 @@ export default function CustomizerTemplate({
                     onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
                     canRemoveImage={canRemoveImage}
                     onDeleteUpload={inputPanelProps.onDeleteUpload}
-                    enabled={!embedded || (!pdpHasVariantOptions || pdpStep1Done)}
+                    enabled={isAdminProofMode || !embedded || (!pdpHasVariantOptions || pdpStep1Done)}
                     disabledMessage={inputPanelDisabledMessage}
                     selectedText={selectedTextSnapshot}
                     onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}
@@ -6202,7 +6224,7 @@ export default function CustomizerTemplate({
                   onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
                   canRemoveImage={canRemoveImage}
                   onDeleteUpload={inputPanelProps.onDeleteUpload}
-                  enabled={!embedded || !pdpHasVariantOptions || pdpStep1Done}
+                  enabled={isAdminProofMode || !embedded || !pdpHasVariantOptions || pdpStep1Done}
                   disabledMessage={inputPanelDisabledMessage}
                   selectedText={selectedTextSnapshot}
                   onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}
