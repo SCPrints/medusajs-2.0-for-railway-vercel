@@ -357,9 +357,9 @@ export async function generateMockupPdf(
   const [logoFull, logoWatermark] = await Promise.all([
     // Header logo — solid black, placed at 72pt (1 inch).
     makeTintedLogo(rawLogoBuf, 600, 1.0),
-    // Watermark — faint page wash painted on top of the mockups, placed ~750pt
-    // (bleeds past the A4 edges). Crisp now that the source is vector.
-    makeTintedLogo(rawLogoBuf, 2600, 0.07),
+    // Watermark — a very faint page wash painted on top of the mockups, placed
+    // ~750pt (bleeds past the A4 edges). Crisp now that the source is vector.
+    makeTintedLogo(rawLogoBuf, 2600, 0.04),
   ])
 
   return buildPdf({ jobNumber, customerName, orderDate, pages, regularFontBuf, boldFontBuf, logoFull, logoWatermark })
@@ -523,7 +523,8 @@ function buildPdf(params: {
       const disclaimerH =
         doc.heightOfString(DISCLAIMER, { width: disclaimerTextW }) + boxPad * 2
 
-      doc.roundedRect(ML, disclaimerY, usableW, disclaimerH, 4).fill("#f0f0f0")
+      // No grey background box — keep the watermark visible behind the fine
+      // print. Text is drawn on top so it stays crisp.
       doc
         .font("PJS")
         .fontSize(8)
@@ -562,7 +563,8 @@ function buildPdf(params: {
       const qtyProductH = 16
       const qtyBoxH = qtyTitleH + qtyProductH + sizes.length * qtyLineH + boxPad * 2
 
-      doc.roundedRect(ML, qtyY, usableW, qtyBoxH, 4).fill("#f0f0f0")
+      // No grey background box — keep the watermark visible behind the
+      // quantities. Text is drawn on top so it stays crisp.
 
       let qy = qtyY + boxPad
       doc
