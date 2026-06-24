@@ -23,7 +23,9 @@ const OrderSummary = ({ order }: OrderSummaryProps) => {
       <div className="text-small-regular text-ui-fg-base my-2">
         <div className="flex items-center justify-between text-base-regular text-ui-fg-base mb-2">
           <span>Subtotal</span>
-          <span>{getAmount(order.subtotal)}</span>
+          {/* `order.subtotal` includes shipping in Medusa v2; use the items-only
+              figure so Subtotal + Shipping + Taxes reconciles to Total. */}
+          <span>{getAmount(order.item_subtotal)}</span>
         </div>
         <div className="flex flex-col gap-y-1">
           {order.discount_total > 0 && (
@@ -40,7 +42,9 @@ const OrderSummary = ({ order }: OrderSummaryProps) => {
           )}
           <div className="flex items-center justify-between">
             <span>Shipping</span>
-            <span>{getAmount(order.shipping_total)}</span>
+            {/* ex-GST: `shipping_total` is tax-inclusive once GST applies; GST is
+                shown on its own line below, so use the ex-tax figure here. */}
+            <span>{getAmount(order.shipping_subtotal)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span>Taxes</span>
