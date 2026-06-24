@@ -125,6 +125,9 @@ export default async function seedDemoData({ container }: ExecArgs) {
           name: "Australia",
           currency_code: "aud",
           countries: ["au"],
+          // Prices are stored ex-GST; let Medusa add 10% GST automatically at
+          // checkout (see the tax region's default_tax_rate below).
+          automatic_taxes: true,
           payment_providers: seedPaymentProviders(),
         },
       ],
@@ -139,6 +142,13 @@ export default async function seedDemoData({ container }: ExecArgs) {
       {
         country_code: "au",
         provider_id: "tp_system",
+        // 10% GST as the region's default rate. Without this the tax region
+        // exists but charges 0% — every order collects no GST.
+        default_tax_rate: {
+          name: "GST",
+          code: "GST",
+          rate: 10,
+        },
       },
     ],
   });
