@@ -345,7 +345,10 @@ export async function generateMockupPdf(
   )
 
   const [logoFull, logoWatermark] = await Promise.all([
-    makeTintedLogo(rawLogoBuf, 100, 1.0),
+    // Header logo is placed at 72pt (1 inch), so rasterise at 600px → ~600 DPI
+    // (well past print-standard 300) to keep the wordmark's edges crisp. The
+    // 946×1024 source has the resolution to spare; 100px looked pixelated.
+    makeTintedLogo(rawLogoBuf, 600, 1.0),
     // Watermark sits on top of the mockups now, so keep it faint (a page wash,
     // not marks on the garment).
     makeTintedLogo(rawLogoBuf, 750, 0.07),
