@@ -73,6 +73,16 @@ function adminMockupNotePath(orderId: string) {
 function adminPrintDimensionPath(orderId: string) {
   return `/admin/orders/${orderId}/print-dimension`
 }
+function adminProofNotesPath(orderId: string) {
+  return `/admin/orders/${orderId}/proof-notes`
+}
+
+/** Heuristic: does this text look like it contains a print size? Used only to
+ *  nudge staff when proof notes may contradict the structured dimension fields. */
+const SIZE_TOKEN_RE = /(\bA[3-6]\b|\d+\s*(?:mm|cm)\b|\d+\s*[x×*]\s*\d+)/i
+function looksLikeSize(text: string): boolean {
+  return SIZE_TOKEN_RE.test(text)
+}
 
 type ArtifactPayload = {
   side: string
@@ -601,6 +611,139 @@ const CustomiserModal = ({ src, onClose }: CustomiserModalProps) => (
   </div>
 )
 
+// ─── Per-line "Customer Notes shown on proof" editor ─────────────────────────
+
+type LineProofNotesEditorProps = {
+  orderId: string
+  lineItemId: string
+  /** Customer's original order-time notes — the default seed + reset target. */
+  originalNotes: string | null
+  /** Saved staff override for this line, or undefined when none (use original).
+   *  An empty string IS a valid override (means "show no notes box"). */
+  savedOverride: string | undefined
+  /** True when this line has any per-side print-dimension override set. */
+  hasDimensions: boolean
+  onSaved: (lineItemId: string, value: string) => void
+  onReset: (lineItemId: string) => void
+}
+
+const LineProofNotesEditor = ({
+  orderId,
+  lineItemId,
+  originalNotes,
+  savedOverride,
+  hasDimensions,
+  onSaved,
+  onReset,
+}: LineProofNotesEditorProps) => {
+  const hasOverride = savedOverride !== undefined
+  const effective = hasOverride ? (savedOverride as string) : originalNotes ?? ""
+  const [draft, setDraft] = useState<string>(effective)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Re-sync the draft when the persisted value changes (after save/reset/reload).
+  useEffect(() => {
+    setDraft(hasOverride ? (savedOverride as string) : originalNotes ?? "")
+  }, [savedOverride, originalNotes, hasOverride])
+
+  const dirty = draft !== effective
+
+  const handleSave = useCallback(async () => {
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      const res = await fetch(adminProofNotesPath(orderId), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ line_item_id: lineItemId, notes: draft }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
+      onSaved(lineItemId, draft.trim())
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setSaving(false)
+    }
+  }, [draft, orderId, lineItemId, onSaved])
+
+  const handleReset = useCallback(async () => {
+    setSaving(true)
+    setError(null)
+    setSaved(false)
+    try {
+      const res = await fetch(
+        `${adminProofNotesPath(orderId)}?line_item_id=${encodeURIComponent(lineItemId)}`,
+        { method: "DELETE", credentials: "include", headers: { Accept: "application/json" } }
+      )
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
+      onReset(lineItemId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Reset failed")
+    } finally {
+      setSaving(false)
+    }
+  }, [orderId, lineItemId, onReset])
+
+  const showContradiction = hasDimensions && looksLikeSize(draft)
+  const originalTrimmed = (originalNotes ?? "").trim()
+
+  return (
+    <div className="mt-3 rounded-md border border-ui-border-base bg-ui-bg-subtle px-3 py-2">
+      <Text size="xsmall" weight="plus">
+        Customer Notes (shown on proof PDF)
+      </Text>
+      <Text size="xsmall" className="text-ui-fg-subtle mt-0.5">
+        Seeded from what the customer typed at checkout. Edit what the proof shows — clear it to
+        show no notes, or reset to the customer&apos;s original.
+      </Text>
+
+      {showContradiction ? (
+        <div className="mt-2 rounded-md border border-orange-200 bg-orange-50 px-2.5 py-1.5">
+          <Text size="xsmall" className="text-orange-800">
+            ⚠ These notes mention a size and this line has print-dimension fields set. Check the
+            note doesn&apos;t contradict the dimensions shown under each garment.
+          </Text>
+        </div>
+      ) : null}
+
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={3}
+        maxLength={2000}
+        placeholder="Notes shown on the proof (e.g. placement, colour match). Leave blank for none."
+        className="mt-2"
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Button size="small" variant="secondary" disabled={saving || !dirty} onClick={handleSave}>
+          {saving ? "Saving…" : "Save"}
+        </Button>
+        {hasOverride ? (
+          <Button size="small" variant="transparent" disabled={saving} onClick={handleReset}>
+            Reset to customer&apos;s original
+          </Button>
+        ) : null}
+        {saved ? <Text size="xsmall" className="text-ui-fg-subtle">Saved ✓</Text> : null}
+        {error ? <Text size="xsmall" className="text-ui-fg-error">{error}</Text> : null}
+      </div>
+
+      {hasOverride && originalTrimmed && originalTrimmed !== (savedOverride as string).trim() ? (
+        <Text size="xsmall" className="text-ui-fg-muted mt-2 whitespace-pre-wrap">
+          Customer&apos;s original: {originalTrimmed}
+        </Text>
+      ) : null}
+    </div>
+  )
+}
+
 // ─── Main widget ─────────────────────────────────────────────────────────────
 
 const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
@@ -643,6 +786,17 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
   const [printDimensions, setPrintDimensions] = useState<Record<string, string>>(() => {
     const meta = (data?.metadata ?? {}) as Record<string, unknown>
     const raw = meta.mockup_print_dimensions
+    return raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, string>)
+      : {}
+  })
+
+  // Per-line Customer Notes overrides, keyed by line_item_id. Empty string is a
+  // valid value ("show no notes box"), so absence (not emptiness) means "use the
+  // customer's original" — keep this map's empty strings intact.
+  const [proofNotes, setProofNotes] = useState<Record<string, string>>(() => {
+    const meta = (data?.metadata ?? {}) as Record<string, unknown>
+    const raw = meta.mockup_proof_notes
     return raw && typeof raw === "object" && !Array.isArray(raw)
       ? (raw as Record<string, string>)
       : {}
@@ -739,7 +893,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
     setLoading(true)
     setError(null)
     try {
-      const [artifactsRes, proofsRes, notesRes, dimensionsRes] = await Promise.all([
+      const [artifactsRes, proofsRes, notesRes, dimensionsRes, proofNotesRes] = await Promise.all([
         fetch(adminCustomizerDownloadPath(orderId), {
           credentials: "include",
           headers: { Accept: "application/json" },
@@ -753,6 +907,10 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
           headers: { Accept: "application/json" },
         }),
         fetch(adminPrintDimensionPath(orderId), {
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        }),
+        fetch(adminProofNotesPath(orderId), {
           credentials: "include",
           headers: { Accept: "application/json" },
         }),
@@ -774,6 +932,11 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
       if (dimensionsRes.ok) {
         const dimensionsBody = await dimensionsRes.json().catch(() => ({})) as { dimensions?: Record<string, string> }
         setPrintDimensions(dimensionsBody.dimensions ?? {})
+      }
+
+      if (proofNotesRes.ok) {
+        const proofNotesBody = await proofNotesRes.json().catch(() => ({})) as { notes?: Record<string, string> }
+        setProofNotes(proofNotesBody.notes ?? {})
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load customizer assets")
@@ -942,6 +1105,30 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                         they don't show.
                       </Text>
                     ) : null}
+
+                    <LineProofNotesEditor
+                      orderId={orderId}
+                      lineItemId={line.line_item_id}
+                      originalNotes={line.print_notes ?? null}
+                      savedOverride={
+                        Object.prototype.hasOwnProperty.call(proofNotes, line.line_item_id)
+                          ? proofNotes[line.line_item_id]
+                          : undefined
+                      }
+                      hasDimensions={Object.keys(printDimensions).some((k) =>
+                        k.startsWith(`${line.line_item_id}:`)
+                      )}
+                      onSaved={(id, value) =>
+                        setProofNotes((prev) => ({ ...prev, [id]: value }))
+                      }
+                      onReset={(id) =>
+                        setProofNotes((prev) => {
+                          const next = { ...prev }
+                          delete next[id]
+                          return next
+                        })
+                      }
+                    />
 
                     <ul className="mt-2 flex flex-col gap-y-3 list-none p-0">
                       {line.artifacts.map((art) => {

@@ -183,10 +183,32 @@ function readPrintDimensionOverrides(
   return out
 }
 
+const PROOF_NOTES_META_KEY = "mockup_proof_notes"
+
+/**
+ * Staff-curated override of the "Customer Notes" box, keyed by `lineItemId`.
+ * Written by `POST /admin/orders/:id/proof-notes`. Unlike the dimension map,
+ * EMPTY STRINGS ARE PRESERVED: a present key (even "") means "use this on the
+ * proof" (empty → render no notes box), so staff can intentionally blank a
+ * stale note. An absent key falls back to the customer's original `printNotes`.
+ */
+function readProofNotesOverrides(
+  meta: Record<string, unknown> | null | undefined
+): Record<string, string> {
+  const raw = meta?.[PROOF_NOTES_META_KEY]
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string") out[k] = v
+  }
+  return out
+}
+
 function buildPageData(
   groupItems: OrderItem[],
   mockups: Array<{ side: string; buf: Buffer }>,
-  dimensionOverrides: Record<string, string> = {}
+  dimensionOverrides: Record<string, string> = {},
+  proofNotesOverrides: Record<string, string> = {}
 ): PageData {
   const canonical =
     groupItems.find(
@@ -223,9 +245,26 @@ function buildPageData(
     canonical?.product_title ?? canonical?.title ?? "Product"
   )
 
+  // Customer Notes box: a staff override on ANY line item in this product group
+  // wins (the group shares one page/notes box). A present key — even an empty
+  // string — is authoritative (empty → no notes box); only an absent key falls
+  // back to the customer's original `printNotes`.
+  let notesOverride: string | undefined
+  for (const it of groupItems) {
+    if (Object.prototype.hasOwnProperty.call(proofNotesOverrides, it.id)) {
+      notesOverride = proofNotesOverrides[it.id]
+      break
+    }
+  }
   const rawNotes = rawDesign?.printNotes
   const printNotes =
-    typeof rawNotes === "string" && rawNotes.trim() ? rawNotes.trim() : null
+    notesOverride !== undefined
+      ? notesOverride.trim()
+        ? notesOverride.trim()
+        : null
+      : typeof rawNotes === "string" && rawNotes.trim()
+        ? rawNotes.trim()
+        : null
 
   // Per-side print dimensions — from customizerDesign.prints[] (per-print pricing model)
   // with fallback to the legacy single scpPrintSizeId field.
@@ -298,6 +337,10 @@ export async function generateMockupPdf(
   // order-time print-size band.
   const dimensionOverrides = readPrintDimensionOverrides(order.metadata)
 
+  // Per-line Customer Notes overrides (staff-curated). Threaded into each page
+  // so a corrected/cleared note wins over the customer's frozen order-time text.
+  const proofNotesOverrides = readProofNotesOverrides(order.metadata)
+
   // Group items by product_id
   const items: OrderItem[] = order.items ?? []
   const grouped = new Map<string, OrderItem[]>()
@@ -367,7 +410,7 @@ export async function generateMockupPdf(
         .map((a, i) => ({ side: a.side, buf: rawBufs[i] }))
         .filter((m): m is { side: string; buf: Buffer } => m.buf !== null)
 
-      return buildPageData(groupItems, mockups, dimensionOverrides)
+      return buildPageData(groupItems, mockups, dimensionOverrides, proofNotesOverrides)
     })
   )
 
