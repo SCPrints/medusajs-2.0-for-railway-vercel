@@ -165,6 +165,14 @@ const CATEGORIES: Category[] = [
     description: "Widget, button, and micro-interaction experiments.",
     items: [
       {
+        href: "/sandbox/design-system",
+        label: "UI Design System",
+        description:
+          "Live reference of the storefront's design tokens — brand & semantic colours, greyscale, type scale, spacing, border radius, elevation and the shared components (buttons, cards, section headers, chips).",
+        status: "active",
+        tech: "Reference",
+      },
+      {
         href: "/test/animation-widgets",
         label: "Animation widgets lab",
         description:
