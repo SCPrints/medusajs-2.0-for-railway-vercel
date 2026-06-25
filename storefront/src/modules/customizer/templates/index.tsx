@@ -3338,6 +3338,18 @@ export default function CustomizerTemplate({
       saveCurrentSide()
       const side = currentSideRef.current
       const sideObjects = sideLayoutsRef.current[side] ?? []
+      // Load hosted artwork WITHOUT crossOrigin so the (tainted) canvas makes
+      // toSVG embed the hosted R2 URL instead of re-encoding the raster as a
+      // multi-MB lossless-PNG base64. That re-encode is what blows the render
+      // route's body limit ("Render failed (413)") on large photographic
+      // proofs even when the original upload is small. Same technique the
+      // flat-artwork fallback above relies on; local data: srcs are untouched
+      // (the inline-raster swap below still handles those).
+      const proofObjects = sideObjects.map((obj: any) =>
+        obj && typeof obj.src === "string" && /^https?:\/\//i.test(obj.src)
+          ? { ...obj, crossOrigin: null }
+          : obj
+      )
       const canvasDims = {
         width: Math.round(canvasSize.width),
         height: Math.round(canvasSize.height),
@@ -3349,7 +3361,7 @@ export default function CustomizerTemplate({
         width: canvasDims.width,
         height: canvasDims.height,
       })
-      await staticCanvas.loadFromJSON({ version: "7.0.0", objects: sideObjects })
+      await staticCanvas.loadFromJSON({ version: "7.0.0", objects: proofObjects })
       const rawArtworkSvg = staticCanvas.toSVG()
       staticCanvas.dispose()
 
