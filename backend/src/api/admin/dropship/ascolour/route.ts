@@ -13,8 +13,13 @@ function isAsColourItem(li: any): boolean {
   return !!(meta?.ascolour || meta?.source === "ascolour" || /^\d{3,5}-/.test(sku))
 }
 
-function formatItem(li: any): { sku: string; quantity: number; title: string } {
+function formatItem(
+  li: any
+): { line_item_id: string; sku: string; quantity: number; title: string } {
   return {
+    // Stable per-line identifier so the dropship UI can select/deselect
+    // individual lines before sending (robust against two lines sharing a SKU).
+    line_item_id: li.id ?? "",
     sku: li.variant_sku ?? li.metadata?.ascolour?.sku ?? "—",
     quantity: Number(li.quantity ?? 0),
     title: li.title ?? "",

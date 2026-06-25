@@ -18,6 +18,11 @@ const bodySchema = z
     shippingMethod: z.string().min(1).optional(),
     orderNotes: z.string().optional(),
     courierInstructions: z.string().optional(),
+    // Restrict the send to a subset of the order's AS Colour line items (by
+    // line-item id). Used by the dropship queue to hold back lines the studio
+    // already has in stock. Warehouse resolution still happens server-side for
+    // the included lines. Omitted/empty = send every AS Colour line (default).
+    includeLineItemIds: z.array(z.string().min(1)).optional(),
     overrideItems: z
       .array(
         z.object({
@@ -86,12 +91,17 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const opts = ascolour.getOptions()
-  const items: AsColourCreateOrderItem[] = body.overrideItems ?? (await buildItems(order, ascolour))
+  const items: AsColourCreateOrderItem[] =
+    body.overrideItems ??
+    (await buildItems(order, ascolour, body.includeLineItemIds))
 
   if (!items.length) {
+    const filtered = body.includeLineItemIds?.length
     throw new MedusaError(
       MedusaError.Types.INVALID_DATA,
-      "No AS Colour line items found on this order."
+      filtered
+        ? "None of the selected line items are AS Colour items to send."
+        : "No AS Colour line items found on this order."
     )
   }
 
@@ -205,13 +215,14 @@ async function buildOrderPreview({
 
 async function buildItems(
   order: any,
-  ascolour: AsColourService
+  ascolour: AsColourService,
+  includeLineItemIds?: string[]
 ): Promise<AsColourCreateOrderItem[]> {
   const lineItems: any[] = order.items ?? []
   if (!lineItems.length) return []
 
   // Identify AS Colour line items first so we only look up inventory for them.
-  const ascolourLineItems = lineItems.filter((li) => {
+  let ascolourLineItems = lineItems.filter((li) => {
     const sku: string | undefined = li.variant_sku ?? li.metadata?.ascolour?.sku
     if (!sku) return false
     const meta = li.metadata ?? {}
@@ -221,6 +232,13 @@ async function buildItems(
       (typeof sku === "string" && /^\d{3,5}-/.test(sku))
     )
   })
+
+  // Narrow to the explicitly-selected lines when the caller passes a filter —
+  // lets the dropship queue hold back lines the studio already stocks.
+  if (includeLineItemIds && includeLineItemIds.length) {
+    const include = new Set(includeLineItemIds)
+    ascolourLineItems = ascolourLineItems.filter((li) => include.has(li.id))
+  }
 
   // Inventory lookup per SKU using the list endpoint (same shape as the cron).
   // The real AS Colour API returns one row per (sku, location) — the single-item

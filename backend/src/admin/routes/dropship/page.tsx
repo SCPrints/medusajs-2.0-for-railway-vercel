@@ -15,7 +15,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type OrderItem = { sku: string; quantity: number; title: string }
+type OrderItem = {
+  line_item_id: string
+  sku: string
+  quantity: number
+  title: string
+}
 
 type ShippingMethod = { code: string; name: string; description?: string }
 
@@ -202,6 +207,14 @@ const PendingTab = ({
   defaultShippingMethod?: string | null
 }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Which order rows are expanded to reveal their per-line checkboxes.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // Per-order line selection. An order ABSENT from this map = all its lines
+  // selected (the default). Once the user unticks a line we store an explicit
+  // set for that order.
+  const [itemSelection, setItemSelection] = useState<Record<string, Set<string>>>(
+    {}
+  )
   const [settings, setSettings] = useState<Settings>({
     shippingMethod: defaultShippingMethod ?? "",
     orderNotes: "",
@@ -237,7 +250,32 @@ const PendingTab = ({
   // Reset selection when orders list changes (after a send completes)
   useEffect(() => {
     setSelected(new Set())
+    setItemSelection({})
+    setExpanded(new Set())
   }, [orders])
+
+  // All line ids for an order (the implicit "everything selected" default).
+  const allLineIds = (order: PendingOrder) =>
+    order.items.map((i) => i.line_item_id).filter(Boolean)
+
+  // The effective set of line ids that will be sent for this order.
+  const selectedLineIds = (order: PendingOrder): Set<string> =>
+    itemSelection[order.order_id] ?? new Set(allLineIds(order))
+
+  const toggleExpand = (id: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
+  const toggleItem = (order: PendingOrder, lineId: string) =>
+    setItemSelection((prev) => {
+      const current = prev[order.order_id] ?? new Set(allLineIds(order))
+      const next = new Set(current)
+      next.has(lineId) ? next.delete(lineId) : next.add(lineId)
+      return { ...prev, [order.order_id]: next }
+    })
 
   const allSelected = orders.length > 0 && selected.size === orders.length
   const toggleAll = () =>
@@ -272,6 +310,29 @@ const PendingTab = ({
       if (abortRef.current) break
       const order = selectedOrders[i]
 
+      // Resolve which lines to send. All ticked → omit the filter (full order,
+      // identical to legacy behaviour). A strict subset → pass the explicit
+      // ids. Nothing ticked → don't call the API; flag it so the operator sees
+      // they need to re-tick at least one line.
+      const included = selectedLineIds(order)
+      const totalLines = order.items.length
+      if (included.size === 0) {
+        setResults((prev) =>
+          prev.map((r) =>
+            r.order_id === order.order_id
+              ? {
+                  ...r,
+                  status: "error",
+                  error: "No line items ticked — nothing to send.",
+                }
+              : r
+          )
+        )
+        continue
+      }
+      const includeLineItemIds =
+        included.size < totalLines ? [...included] : undefined
+
       setResults((prev) =>
         prev.map((r) =>
           r.order_id === order.order_id ? { ...r, status: "sending" } : r
@@ -292,6 +353,7 @@ const PendingTab = ({
               shippingMethod: settings.shippingMethod || undefined,
               orderNotes: settings.orderNotes || undefined,
               courierInstructions: settings.courierInstructions || undefined,
+              includeLineItemIds,
             }),
           }
         )
@@ -375,6 +437,7 @@ const PendingTab = ({
       <Container className="p-0 overflow-hidden">
         {/* Header row */}
         <div className="flex items-center gap-x-3 px-4 py-2 border-b border-ui-border-base bg-ui-bg-subtle text-ui-fg-subtle text-xs font-medium uppercase tracking-wide">
+          <span className="w-4" aria-hidden />
           <input
             type="checkbox"
             checked={allSelected}
@@ -392,53 +455,121 @@ const PendingTab = ({
           const result = results.find((r) => r.order_id === order.order_id)
           const isSent = result?.status === "done"
           const isError = result?.status === "error"
+          const isExpanded = expanded.has(order.order_id)
+          const included = selectedLineIds(order)
+          const totalLines = order.items.length
+          const isSubset = included.size > 0 && included.size < totalLines
+          const noneSelected = included.size === 0
 
           return (
             <div
               key={order.order_id}
               className={[
-                "flex items-start gap-x-3 px-4 py-3 border-b border-ui-border-base last:border-b-0 transition",
+                "border-b border-ui-border-base last:border-b-0 transition",
                 isSelected ? "bg-ui-bg-highlight" : "hover:bg-ui-bg-subtle/30",
                 isSent ? "opacity-50" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
             >
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => toggleOne(order.order_id)}
-                disabled={isSent || sending}
-                className="mt-0.5 h-4 w-4 rounded cursor-pointer"
-              />
-              <div className="w-16 shrink-0">
-                <a
-                  href={`/app/orders/${order.order_id}`}
-                  className="text-sm text-ui-fg-interactive hover:underline"
-                  target="_blank"
-                  rel="noreferrer"
+              {/* Order summary row */}
+              <div className="flex items-start gap-x-3 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(order.order_id)}
+                  aria-label={isExpanded ? "Hide items" : "Show items"}
+                  aria-expanded={isExpanded}
+                  className="mt-0.5 h-4 w-4 shrink-0 flex items-center justify-center text-ui-fg-subtle hover:text-ui-fg-base"
                 >
-                  #{order.display_id}
-                </a>
+                  <span className="text-[10px] leading-none">
+                    {isExpanded ? "▼" : "▶"}
+                  </span>
+                </button>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleOne(order.order_id)}
+                  disabled={isSent || sending}
+                  className="mt-0.5 h-4 w-4 rounded cursor-pointer"
+                />
+                <div className="w-16 shrink-0">
+                  <a
+                    href={`/app/orders/${order.order_id}`}
+                    className="text-sm text-ui-fg-interactive hover:underline"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    #{order.display_id}
+                  </a>
+                </div>
+                <div className="w-24 shrink-0 text-sm text-ui-fg-subtle">
+                  {fmtDate(order.created_at)}
+                </div>
+                <div className="w-36 shrink-0 text-sm truncate">
+                  {order.customer || order.email || "—"}
+                </div>
+                <div className="flex-1 text-sm text-ui-fg-subtle break-all">
+                  {itemsSummary(order.items)}
+                  {isSubset ? (
+                    <Badge color="orange" size="2xsmall" className="ml-2 align-middle">
+                      {included.size}/{totalLines} lines → AS Colour
+                    </Badge>
+                  ) : null}
+                  {noneSelected ? (
+                    <Badge color="red" size="2xsmall" className="ml-2 align-middle">
+                      no lines selected
+                    </Badge>
+                  ) : null}
+                  {isError && result?.error ? (
+                    <div className="text-ui-fg-error mt-0.5 text-xs">
+                      {result.error}
+                    </div>
+                  ) : order.ascolour_last_error ? (
+                    <div className="text-ui-fg-error mt-0.5 text-xs">
+                      Previous attempt failed: {order.ascolour_last_error}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-              <div className="w-24 shrink-0 text-sm text-ui-fg-subtle">
-                {fmtDate(order.created_at)}
-              </div>
-              <div className="w-36 shrink-0 text-sm truncate">
-                {order.customer || order.email || "—"}
-              </div>
-              <div className="flex-1 text-sm text-ui-fg-subtle break-all">
-                {itemsSummary(order.items)}
-                {isError && result?.error ? (
-                  <div className="text-ui-fg-error mt-0.5 text-xs">
-                    {result.error}
-                  </div>
-                ) : order.ascolour_last_error ? (
-                  <div className="text-ui-fg-error mt-0.5 text-xs">
-                    Previous attempt failed: {order.ascolour_last_error}
-                  </div>
-                ) : null}
-              </div>
+
+              {/* Expanded per-line checklist */}
+              {isExpanded ? (
+                <div className="flex flex-col gap-y-1.5 border-t border-ui-border-base bg-ui-bg-subtle/40 px-4 py-3 pl-14">
+                  {order.items.map((item) => {
+                    const checked = included.has(item.line_item_id)
+                    return (
+                      <label
+                        key={item.line_item_id || item.sku}
+                        className={[
+                          "flex items-center gap-x-2 text-sm",
+                          isSent || sending
+                            ? "cursor-not-allowed opacity-60"
+                            : "cursor-pointer",
+                        ].join(" ")}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={isSent || sending || !item.line_item_id}
+                          onChange={() => toggleItem(order, item.line_item_id)}
+                          className="h-4 w-4 rounded cursor-pointer"
+                        />
+                        <span className="font-mono text-xs">{item.sku}</span>
+                        <span className="text-ui-fg-muted">×{item.quantity}</span>
+                        {item.title ? (
+                          <span className="text-ui-fg-subtle truncate">
+                            — {item.title}
+                          </span>
+                        ) : null}
+                      </label>
+                    )
+                  })}
+                  <Text size="xsmall" className="text-ui-fg-muted mt-1">
+                    Untick any line you'll fulfil from your own stock — only
+                    ticked lines are submitted to AS Colour.
+                  </Text>
+                </div>
+              ) : null}
             </div>
           )
         })}
