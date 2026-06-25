@@ -316,6 +316,11 @@ const medusaConfig = {
                     options: {
                       apiKey: STRIPE_API_KEY,
                       webhookSecret: STRIPE_WEBHOOK_SECRET,
+                      // Create PaymentIntents with capture_method: "automatic" so
+                      // Stripe captures funds on authorization instead of leaving
+                      // them "uncaptured" (pending manual capture). Without this the
+                      // provider defaults to capture_method: "manual".
+                      capture: true,
                     },
                   }]
                 : []),
