@@ -1,7 +1,7 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
 import type { AdminOrder, DetailWidgetProps } from "@medusajs/framework/types"
-import { Badge, Button, Container, Heading, Select, Text, Textarea } from "@medusajs/ui"
+import { Badge, Button, Container, Heading, Input, Select, Text, Textarea } from "@medusajs/ui"
 import { ChevronDown, XMark } from "@medusajs/icons"
 import { useCallback, useEffect, useRef, useState } from "react"
 
@@ -69,6 +69,9 @@ function adminProofPath(orderId: string) {
 }
 function adminMockupNotePath(orderId: string) {
   return `/admin/orders/${orderId}/mockup-note`
+}
+function adminPrintDimensionPath(orderId: string) {
+  return `/admin/orders/${orderId}/print-dimension`
 }
 
 type ArtifactPayload = {
@@ -191,6 +194,9 @@ type SideProofCardProps = {
   /** Staff studio note shown under this side's mockup on the approval page. */
   studioNote: string
   onStudioNoteSaved: (note: string) => void
+  /** Staff print-dimension override shown under this side's mockup (PDF + approval page). */
+  printDimension: string
+  onPrintDimensionSaved: (dimension: string) => void
 }
 
 const SideProofCard = ({
@@ -206,6 +212,8 @@ const SideProofCard = ({
   garmentCode,
   studioNote,
   onStudioNoteSaved,
+  printDimension,
+  onPrintDimensionSaved,
 }: SideProofCardProps) => {
   const key = sideKey(lineItemId, art.side)
 
@@ -244,6 +252,42 @@ const SideProofCard = ({
       setNoteSaving(false)
     }
   }, [noteDraft, orderId, lineItemId, art.side, onStudioNoteSaved])
+
+  // Print dimension (per side) — overrides the order-time print-size band on
+  // BOTH the Mockup PDF and the customer approval page. Free text so it can
+  // hold a measured size ("8.75×3.5cm") or a format note ("A3 format").
+  const [dimDraft, setDimDraft] = useState<string>(printDimension)
+  const [dimSaving, setDimSaving] = useState(false)
+  const [dimSaved, setDimSaved] = useState(false)
+  const [dimError, setDimError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setDimDraft(printDimension)
+  }, [printDimension])
+
+  const handleSaveDimension = useCallback(async () => {
+    const next = dimDraft.trim()
+    setDimSaving(true)
+    setDimError(null)
+    setDimSaved(false)
+    try {
+      const res = await fetch(adminPrintDimensionPath(orderId), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ line_item_id: lineItemId, side: art.side, dimension: next }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
+      onPrintDimensionSaved(next)
+      setDimSaved(true)
+      setTimeout(() => setDimSaved(false), 2500)
+    } catch (err) {
+      setDimError(err instanceof Error ? err.message : "Save failed")
+    } finally {
+      setDimSaving(false)
+    }
+  }, [dimDraft, orderId, lineItemId, art.side, onPrintDimensionSaved])
 
   // Default to latest proof, or "original"
   const [selected, setSelected] = useState<string>(
@@ -446,6 +490,43 @@ const SideProofCard = ({
         ) : null}
       </div>
 
+      {/* Print dimension — overrides the order-time size band on the Mockup PDF
+          AND the customer approval page. Leave blank to use the band. */}
+      <div className="mt-3 border-t border-ui-border-base pt-3">
+        <Text size="xsmall" weight="plus">
+          Print dimensions for {art.side_label}
+        </Text>
+        <Text size="xsmall" className="text-ui-fg-subtle mt-0.5">
+          Shown under this mockup on the proof PDF and customer approval page. Overrides the
+          order-time size. Leave blank to use the size the customer picked.
+        </Text>
+        <div className="mt-2 flex items-center gap-x-2">
+          <Input
+            value={dimDraft}
+            onChange={(e) => setDimDraft(e.target.value)}
+            maxLength={100}
+            placeholder="e.g. 8.75×3.5cm or A3 format"
+            className="flex-1"
+          />
+          <Button
+            size="small"
+            variant="secondary"
+            disabled={dimSaving || dimDraft.trim() === printDimension.trim()}
+            onClick={handleSaveDimension}
+          >
+            {dimSaving ? "Saving…" : "Save"}
+          </Button>
+        </div>
+        <div className="mt-1 flex items-center gap-x-2">
+          {dimSaved ? (
+            <Text size="xsmall" className="text-ui-fg-subtle">Saved ✓</Text>
+          ) : null}
+          {dimError ? (
+            <Text size="xsmall" className="text-ui-fg-error">{dimError}</Text>
+          ) : null}
+        </div>
+      </div>
+
       {/* Studio note — shown to the customer UNDER this mockup on the approval page */}
       <div className="mt-3 border-t border-ui-border-base pt-3">
         <Text size="xsmall" weight="plus">
@@ -557,6 +638,16 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
       : {}
   })
 
+  // Per-side print-dimension overrides, keyed `${lineItemId}:${side}` — shown
+  // under each mockup on the proof PDF and the customer approval page.
+  const [printDimensions, setPrintDimensions] = useState<Record<string, string>>(() => {
+    const meta = (data?.metadata ?? {}) as Record<string, unknown>
+    const raw = meta.mockup_print_dimensions
+    return raw && typeof raw === "object" && !Array.isArray(raw)
+      ? (raw as Record<string, string>)
+      : {}
+  })
+
   // Storefront base URL + country code for building the customiser iframe URL
   const [storefrontUrl, setStorefrontUrl] = useState<string | null>(null)
   const [countryCode, setCountryCode] = useState<string>("au")
@@ -648,7 +739,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
     setLoading(true)
     setError(null)
     try {
-      const [artifactsRes, proofsRes, notesRes] = await Promise.all([
+      const [artifactsRes, proofsRes, notesRes, dimensionsRes] = await Promise.all([
         fetch(adminCustomizerDownloadPath(orderId), {
           credentials: "include",
           headers: { Accept: "application/json" },
@@ -658,6 +749,10 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
           headers: { Accept: "application/json" },
         }),
         fetch(adminMockupNotePath(orderId), {
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        }),
+        fetch(adminPrintDimensionPath(orderId), {
           credentials: "include",
           headers: { Accept: "application/json" },
         }),
@@ -674,6 +769,11 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
       if (notesRes.ok) {
         const notesBody = await notesRes.json().catch(() => ({})) as { notes?: Record<string, string> }
         setStudioNotes(notesBody.notes ?? {})
+      }
+
+      if (dimensionsRes.ok) {
+        const dimensionsBody = await dimensionsRes.json().catch(() => ({})) as { dimensions?: Record<string, string> }
+        setPrintDimensions(dimensionsBody.dimensions ?? {})
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load customizer assets")
@@ -893,6 +993,15 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                               setStudioNotes((prev) => {
                                 const next = { ...prev }
                                 if (note) next[key] = note
+                                else delete next[key]
+                                return next
+                              })
+                            }
+                            printDimension={printDimensions[key] ?? ""}
+                            onPrintDimensionSaved={(dimension) =>
+                              setPrintDimensions((prev) => {
+                                const next = { ...prev }
+                                if (dimension) next[key] = dimension
                                 else delete next[key]
                                 return next
                               })

@@ -162,9 +162,31 @@ function sortSizes(sizes: SizeQuantity[]): SizeQuantity[] {
 // Largest print size wins when multiple prints exist for one side
 const PRINT_SIZE_PRIORITY = ["up_to_a6", "up_to_a4", "up_to_a3", "oversize"]
 
+const PRINT_DIMENSIONS_META_KEY = "mockup_print_dimensions"
+
+/**
+ * Staff-authored per-side print-dimension overrides, keyed `${lineItemId}:${side}`.
+ * Written by `POST /admin/orders/:id/print-dimension`. When present for a side,
+ * this free-text value (e.g. "8.75×3.5cm") wins over the order-time print-size
+ * band label — so the proof reflects the dimension staff verified during artwork
+ * review rather than the coarse pricing tier frozen at order placement.
+ */
+function readPrintDimensionOverrides(
+  meta: Record<string, unknown> | null | undefined
+): Record<string, string> {
+  const raw = meta?.[PRINT_DIMENSIONS_META_KEY]
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string" && v.trim()) out[k] = v.trim()
+  }
+  return out
+}
+
 function buildPageData(
   groupItems: OrderItem[],
-  mockups: Array<{ side: string; buf: Buffer }>
+  mockups: Array<{ side: string; buf: Buffer }>,
+  dimensionOverrides: Record<string, string> = {}
 ): PageData {
   const canonical =
     groupItems.find(
@@ -216,7 +238,7 @@ function buildPageData(
   const globalSizeId =
     typeof rawDesign?.scpPrintSizeId === "string" ? rawDesign.scpPrintSizeId : null
 
-  function sideLabel(side: string): string {
+  function bandLabel(side: string): string {
     const sidePrints = prints.filter((p) => p.side === side)
     if (sidePrints.length > 0) {
       const best = sidePrints.reduce((a, b) =>
@@ -225,6 +247,17 @@ function buildPageData(
       return PRINT_SIZE_LABELS[best.sizeId] ?? ""
     }
     return globalSizeId ? (PRINT_SIZE_LABELS[globalSizeId] ?? "") : ""
+  }
+
+  // A staff override on ANY line item in this product group wins for that side
+  // (the group shares one design, so the override applies regardless of which
+  // line it was written against). Falls back to the order-time band label.
+  function sideLabel(side: string): string {
+    for (const it of groupItems) {
+      const override = dimensionOverrides[`${it.id}:${side}`]
+      if (override) return override
+    }
+    return bandLabel(side)
   }
 
   return {
@@ -259,6 +292,11 @@ export async function generateMockupPdf(
   const customerName = company || contact || "Customer"
 
   const orderDate = order.created_at ? formatDate(order.created_at) : formatDate(new Date())
+
+  // Per-side print-dimension overrides (staff-authored, keyed lineItemId:side).
+  // Read once and threaded into each page so the proof prefers them over the
+  // order-time print-size band.
+  const dimensionOverrides = readPrintDimensionOverrides(order.metadata)
 
   // Group items by product_id
   const items: OrderItem[] = order.items ?? []
@@ -329,7 +367,7 @@ export async function generateMockupPdf(
         .map((a, i) => ({ side: a.side, buf: rawBufs[i] }))
         .filter((m): m is { side: string; buf: Buffer } => m.buf !== null)
 
-      return buildPageData(groupItems, mockups)
+      return buildPageData(groupItems, mockups, dimensionOverrides)
     })
   )
 

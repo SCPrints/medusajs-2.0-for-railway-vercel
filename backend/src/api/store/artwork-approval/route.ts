@@ -83,9 +83,25 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       ? (rawStudioNotes as Record<string, string>)
       : {}
 
+  // Staff-authored per-side print-dimension override (e.g. "8.75×3.5cm"), shown
+  // UNDER each mockup next to the studio note. Same `${line_item_id}:${side}`
+  // key as the admin print-dimension route writes. Falls back to nothing when
+  // unset — the page simply omits the dimension line.
+  const rawDimensions = (meta as { mockup_print_dimensions?: unknown }).mockup_print_dimensions
+  const printDimensions: Record<string, string> =
+    rawDimensions && typeof rawDimensions === "object" && !Array.isArray(rawDimensions)
+      ? (rawDimensions as Record<string, string>)
+      : {}
+
   // Build mockup URL list, merging per-side revised proofs where available.
   // Backward compat: if proofs lack line_item_id, fall back to single-image behaviour.
-  let mockupUrls: Array<{ side: string; side_label: string | null; url: string; note: string | null }> = []
+  let mockupUrls: Array<{
+    side: string
+    side_label: string | null
+    url: string
+    note: string | null
+    print_dimension: string | null
+  }> = []
   let legacyProofUrl: string | null = null
   let legacyProofNote: string | null = null
 
@@ -125,6 +141,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         url: latestBySideKey.get(k) ?? a.url,
         // Explicit studio note wins; else fall back to the latest proof's note.
         note: studioNotes[k] ?? latestNoteBySideKey.get(k) ?? null,
+        print_dimension: printDimensions[k] ?? null,
       }
     })
   } else {
@@ -143,6 +160,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           side_label: a.side_label,
           url: a.url,
           note: studioNotes[k] ?? null,
+          print_dimension: printDimensions[k] ?? null,
         }
       })
     }

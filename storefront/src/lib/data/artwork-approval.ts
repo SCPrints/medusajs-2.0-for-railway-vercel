@@ -19,6 +19,8 @@ export type ArtworkApprovalState = {
     url: string
     /** Staff-authored "studio note" shown under this side's mockup. */
     note?: string | null
+    /** Staff-authored print dimension (e.g. "8.75×3.5cm") shown under this side's mockup. */
+    print_dimension?: string | null
   }[]
 }
 

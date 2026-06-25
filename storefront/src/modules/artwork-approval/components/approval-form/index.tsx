@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 
 import {
   submitArtworkDecision,
@@ -19,6 +19,26 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
   const [status, setStatus] = useState<string | null>(initial.artwork_stage)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  // Tap/click-to-zoom: the garment shots are studio photos with a lot of
+  // surrounding whitespace, so the inline render reads as "small". A lightbox
+  // lets the customer open any mockup full-screen to check colours/placement.
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!zoomSrc) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomSrc(null)
+    }
+    document.addEventListener("keydown", onKey)
+    // Lock body scroll while the overlay is open.
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.removeEventListener("keydown", onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [zoomSrc])
 
   const alreadyApproved = status === "approved"
 
@@ -63,11 +83,30 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
                   {img.side_label}
                 </p>
               ) : null}
-              <img
-                src={img.url}
-                alt={img.side_label ?? img.side}
-                className="w-full rounded-lg border border-[rgba(26,26,46,0.08)]"
-              />
+              <button
+                type="button"
+                onClick={() => setZoomSrc(img.url)}
+                aria-label={`Enlarge ${img.side_label ?? img.side} mockup`}
+                className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg border border-[rgba(26,26,46,0.08)]"
+              >
+                <img
+                  src={img.url}
+                  alt={img.side_label ?? img.side}
+                  className="w-full transition-transform duration-200 group-hover:scale-[1.02]"
+                />
+                <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-90 backdrop-blur-sm">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
+                  </svg>
+                  Tap to enlarge
+                </span>
+              </button>
+              {img.print_dimension ? (
+                <p className="mt-1.5 text-sm text-[var(--brand-primary)]">
+                  <span className="font-semibold">Print size:</span> {img.print_dimension}
+                </p>
+              ) : null}
               {img.note ? (
                 <p className="mt-1.5 text-sm text-[var(--brand-primary)]">
                   <span className="font-semibold">Studio note:</span> {img.note}
@@ -76,20 +115,34 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             </div>
           ))}
           <p className="text-xs text-ui-fg-subtle">
-            Zoom in on a phone to check colours and placement.
+            Tap any image to enlarge it and check colours and placement.
           </p>
         </div>
       ) : initial.latest_photo_url ? (
         <div className="mt-6">
-          <img
-            src={initial.latest_photo_url}
-            alt="Proof preview"
-            className="w-full rounded-md border border-[rgba(26,26,46,0.08)]"
-          />
+          <button
+            type="button"
+            onClick={() => setZoomSrc(initial.latest_photo_url)}
+            aria-label="Enlarge proof preview"
+            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border border-[rgba(26,26,46,0.08)]"
+          >
+            <img
+              src={initial.latest_photo_url}
+              alt="Proof preview"
+              className="w-full transition-transform duration-200 group-hover:scale-[1.02]"
+            />
+            <span className="pointer-events-none absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white opacity-90 backdrop-blur-sm">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
+              </svg>
+              Tap to enlarge
+            </span>
+          </button>
           <p className="mt-2 text-xs text-ui-fg-subtle">
             {initial.revised_proof_note
               ? `Studio note: ${initial.revised_proof_note}`
-              : "Revised proof from our studio. Zoom in on a phone to check colours and placement."}
+              : "Revised proof from our studio. Tap the image to enlarge and check colours and placement."}
           </p>
         </div>
       ) : null}
@@ -174,6 +227,40 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
         This link is unique to your order. If you didn&apos;t expect this
         email, just ignore it.
       </p>
+
+      {/* Full-screen zoom lightbox — tap/click anywhere or press Escape to close.
+          The image is object-contain so the whole garment fits; on touch the
+          browser's native pinch-zoom works on top for fine detail. */}
+      {zoomSrc ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Enlarged artwork preview"
+          onClick={() => setZoomSrc(null)}
+          className="fixed inset-0 z-[200] flex cursor-zoom-out items-center justify-center bg-black/85 p-4"
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              setZoomSrc(null)
+            }}
+            aria-label="Close enlarged view"
+            className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:bg-white/25"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomSrc}
+            alt="Enlarged artwork preview"
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] max-w-[96vw] w-auto rounded-lg object-contain shadow-2xl"
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
