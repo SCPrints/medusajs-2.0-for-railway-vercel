@@ -49,6 +49,20 @@ const SIZE_LABELS: Record<string, string> = {
   oversize: "38×48 cm (Oversize)",
 }
 
+/** Short band labels for the at-a-glance summary chips. */
+const SIZE_SHORT: Record<string, string> = {
+  up_to_a6: "A6",
+  up_to_a4: "A4",
+  up_to_a3: "A3",
+  oversize: "Oversize",
+}
+
+/** Decoration method ("type") labels. v2 metadata has no method → "Print". */
+const METHOD_LABELS: Record<string, string> = {
+  print: "Print",
+  embroidery: "Embroidery",
+}
+
 const SIZE_PRIORITY = ["up_to_a6", "up_to_a4", "up_to_a3", "oversize"]
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -72,10 +86,20 @@ type PricingBreakdown = {
   totalPriceCents: number
 }
 
+type EmbroideryConfig = {
+  widthMm?: number
+  heightMm?: number
+  stitchCount?: number
+}
+
 type CustomizerDesign = {
   prints?: PrintSpec[]
   scpPrintSizeId?: string
   pricing?: PricingBreakdown
+  /** v3+: per-side decoration method. Absent (v2) → all sides "print". */
+  sideDecorationMethods?: Record<string, string>
+  /** v3+: embroidery dimensions per side (mm). */
+  sideEmbroideryConfigs?: Record<string, EmbroideryConfig>
   sideLayouts?: Array<{ side: string; objects: unknown[] }>
   /** Stamped by the storefront when bulk-adding a design across multiple
    *  variants. All cart lines in one group share this id, which means
@@ -164,8 +188,35 @@ function summariseSidesForDesign(design: CustomizerDesign) {
     const global = design.scpPrintSizeId ?? null
     const mismatch =
       snapped !== null && global !== null && snapped !== global
-    return { side, snapped, global, approxCm, mismatch }
+
+    const method =
+      design.sideDecorationMethods?.[side] === "embroidery"
+        ? "embroidery"
+        : "print"
+    const emb = design.sideEmbroideryConfigs?.[side]
+    const embroideryCm =
+      emb && (emb.widthMm || emb.heightMm)
+        ? {
+            width: Math.round((emb.widthMm ?? 0) / 10),
+            height: Math.round((emb.heightMm ?? 0) / 10),
+          }
+        : null
+
+    return { side, snapped, global, approxCm, mismatch, method, embroideryCm }
   })
+}
+
+type SideSummary = ReturnType<typeof summariseSidesForDesign>[number]
+
+/** Short size text for a summary chip — print band, or embroidery dimensions. */
+function sizeChipFor(row: SideSummary): string {
+  if (row.method === "embroidery") {
+    return row.embroideryCm
+      ? `${row.embroideryCm.width}×${row.embroideryCm.height} cm`
+      : "—"
+  }
+  const id = row.snapped ?? row.global
+  return id ? (SIZE_SHORT[id] ?? id) : "—"
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -204,11 +255,26 @@ const OrderCustomizerPrintDetailsWidget = ({
     return null
   }
 
+  // Pre-compute one entry per design group so the always-visible summary
+  // chips and the expandable detail table read off the same data.
+  const designEntries = Array.from(grouped.entries()).map(([key, groupItems]) => {
+    const canonical = groupItems.find((it) => getDesign(it)) ?? groupItems[0]
+    const design = getDesign(canonical)!
+    const sideSummaries = summariseSidesForDesign(design)
+    const totalQty = groupItems.reduce(
+      (acc, it) => acc + (Number(it.quantity) || 0),
+      0
+    )
+    const productTitle = canonical.product_title ?? canonical.title ?? "Product"
+    const variantCount = groupItems.length
+    return { key, groupItems, design, sideSummaries, totalQty, productTitle, variantCount }
+  })
+
   return (
     <Container className="p-0 border-t border-ui-border-base">
       <button
         type="button"
-        className="flex items-start gap-2 text-left w-full px-6 py-4"
+        className="flex items-start gap-2 text-left w-full px-6 pt-4 pb-2"
         onClick={() => setCollapsed((c) => !c)}
       >
         <ChevronDown
@@ -216,41 +282,73 @@ const OrderCustomizerPrintDetailsWidget = ({
         />
         <div className="flex-1">
           <Heading level="h2" className="flex items-center">
-            Print details &amp; cost breakdown
+            Print sizes &amp; type
             <HelpTooltip
               text={{
-                title: "Print details & cost breakdown",
-                body: "Per-line breakdown of print positions, physical dimensions from the customer's Step 3 size choice, and how each unit price splits between garment cost and print decoration.",
+                title: "Print sizes & type",
+                body: "At-a-glance print position, size, and decoration type (Print or Embroidery) per designed line. Expand for physical dimensions and the per-unit garment-vs-print cost split.",
                 bullets: [
-                  "Sizes come from the customer's Step 3 choice in the customizer (A6 / A4 / A3 / Oversize).",
-                  "The cost split is calculated from the product's bulk-pricing metadata — useful for quoting reprints.",
+                  "Sizes come from the customer's choice in the customizer (A6 / A4 / A3 / Oversize); embroidery shows stitched dimensions.",
+                  "Type is the decoration method per side — Print (DTF) or Embroidery.",
+                  "Expand for the cost split (garment vs print), useful for quoting reprints.",
                 ],
               }}
             />
           </Heading>
           <Text size="small" className="text-ui-fg-subtle mt-1">
-            Per-side print sizes the customer ended up with, and how each unit
-            price splits between garment cost and print decoration.
+            Print position, size, and decoration type per designed line.
           </Text>
         </div>
       </button>
 
-      {!collapsed && (
-      <div className="px-6 pb-5 flex flex-col gap-y-4">
-        {Array.from(grouped.entries()).map(([key, groupItems]) => {
-          const canonical =
-            groupItems.find((it) => getDesign(it)) ?? groupItems[0]
-          const design = getDesign(canonical)!
-          const sideSummaries = summariseSidesForDesign(design)
-          const totalQty = groupItems.reduce(
-            (acc, it) => acc + (Number(it.quantity) || 0),
-            0
-          )
-          const pricing = design.pricing
-          const productTitle =
-            canonical.product_title ?? canonical.title ?? "Product"
+      {/* Always-visible compact summary — one row per designed line so staff
+          can read the print size + type without expanding. */}
+      <div className="px-6 pb-4 flex flex-col gap-y-2.5">
+        {designEntries.map((e) => (
+          <div
+            key={e.key}
+            className="flex flex-wrap items-center gap-x-2 gap-y-1.5"
+          >
+            <Text size="small" weight="plus" className="mr-1">
+              {e.productTitle}
+            </Text>
+            {e.sideSummaries.length === 0 ? (
+              <Text size="xsmall" className="text-ui-fg-muted">
+                No decorated sides on record
+              </Text>
+            ) : (
+              e.sideSummaries.map((row) => (
+                <span
+                  key={row.side}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-ui-border-base bg-ui-bg-subtle px-2.5 py-0.5 text-xsmall"
+                >
+                  <span className="font-medium text-ui-fg-base">
+                    {SIDE_LABELS[row.side] ?? row.side}
+                  </span>
+                  <span className="text-ui-fg-muted">·</span>
+                  <span className="text-ui-fg-subtle">{sizeChipFor(row)}</span>
+                  <span className="text-ui-fg-muted">·</span>
+                  <span
+                    className={
+                      row.method === "embroidery"
+                        ? "text-purple-500"
+                        : "text-ui-fg-interactive"
+                    }
+                  >
+                    {METHOD_LABELS[row.method] ?? row.method}
+                  </span>
+                </span>
+              ))
+            )}
+          </div>
+        ))}
+      </div>
 
-          const variantCount = groupItems.length
+      {!collapsed && (
+      <div className="px-6 pb-5 pt-1 flex flex-col gap-y-4 border-t border-ui-border-base">
+        {designEntries.map((e) => {
+          const { key, design, sideSummaries, totalQty, productTitle, variantCount } = e
+          const pricing = design.pricing
           return (
             <div
               key={key}
@@ -290,6 +388,9 @@ const OrderCustomizerPrintDetailsWidget = ({
                             Side
                           </th>
                           <th className="text-left font-medium px-3 py-2">
+                            Type
+                          </th>
+                          <th className="text-left font-medium px-3 py-2">
                             Auto-snapped (per print)
                           </th>
                           <th className="text-left font-medium px-3 py-2">
@@ -308,6 +409,17 @@ const OrderCustomizerPrintDetailsWidget = ({
                           >
                             <td className="px-3 py-2">
                               {SIDE_LABELS[row.side] ?? row.side}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span
+                                className={
+                                  row.method === "embroidery"
+                                    ? "text-purple-500"
+                                    : "text-ui-fg-interactive"
+                                }
+                              >
+                                {METHOD_LABELS[row.method] ?? row.method}
+                              </span>
                             </td>
                             <td className="px-3 py-2">
                               {row.snapped ? (
