@@ -4962,7 +4962,7 @@ export default function CustomizerTemplate({
                         alt=""
                         aria-hidden
                         draggable={false}
-                        className="pointer-events-none absolute left-1/2 top-1/2 z-[2] h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.12]"
+                        className="pointer-events-none absolute left-1/2 top-1/2 z-[2] h-[108%] w-auto max-w-none -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.08]"
                       />
                     )}
                     {/* Brief "preparing" overlay while the Fabric canvas first
