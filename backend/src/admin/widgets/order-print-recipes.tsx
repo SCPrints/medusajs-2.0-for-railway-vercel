@@ -173,13 +173,10 @@ const OrderPrintRecipesWidget = ({ data: order }: { data: { id: string } }) => {
         </div>
       ) : null}
 
-      <div className="px-6 py-4">
+      {loading || linked.length > 0 ? (
+        <div className="px-6 py-4">
         {loading ? (
           <Text size="xsmall" className="text-ui-fg-muted">Loading…</Text>
-        ) : linked.length === 0 ? (
-          <Text size="xsmall" className="text-ui-fg-muted">
-            No recipes linked. Find or build one in <a href="/app/print-recipes" className="underline">Print recipes</a> then link it here so the work-order shows the operator settings.
-          </Text>
         ) : (
           <ul className="divide-y">
             {linked.map((r) => (
@@ -216,7 +213,8 @@ const OrderPrintRecipesWidget = ({ data: order }: { data: { id: string } }) => {
             ))}
           </ul>
         )}
-      </div>
+        </div>
+      ) : null}
     </Container>
   )
 }

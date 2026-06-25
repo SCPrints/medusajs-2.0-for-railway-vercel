@@ -92,8 +92,13 @@ const OrderBottleShopDropshipWidget = ({
 
   const previewItems = status?.preview?.items ?? []
   const previewShops = status?.preview?.shops ?? []
-  const noItems = !loading && previewItems.length === 0
   const itemsMissingShop = previewItems.filter((i) => !i.bottleShopId)
+
+  // Only render when there's something to act on — bottle lines to forward, an
+  // order already sent, or an error. Hides the card on orders with no bottle
+  // line items instead of an empty "no bottle line items" panel.
+  const hasContent =
+    Boolean(status?.sent) || previewItems.length > 0 || Boolean(error)
 
   const sendOrder = useCallback(
     async (force = false) => {
@@ -149,6 +154,10 @@ const OrderBottleShopDropshipWidget = ({
       </Text>
     )
   }, [status])
+
+  if (!hasContent) {
+    return null
+  }
 
   return (
     <Container className="divide-y p-0">
@@ -217,13 +226,6 @@ const OrderBottleShopDropshipWidget = ({
               {itemsMissingShop.length} line(s) have no `metadata.bottle_shop_id` set on their product. Set it via the Bottle setup widget on each product page, otherwise BOTTLE_SHOP_DEFAULT_EMAIL is used as a fallback.
             </Text>
           </div>
-        ) : null}
-
-        {noItems ? (
-          <Text size="small" className="text-ui-fg-subtle">
-            No bottle line items on this order. (Products need
-            <code> metadata.product_class = "bottle"</code>.)
-          </Text>
         ) : null}
 
         {previewItems.length > 0 ? (

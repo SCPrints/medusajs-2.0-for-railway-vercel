@@ -779,7 +779,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
               <Text size="small" className="text-ui-fg-subtle">Loading downloadable assets…</Text>
             ) : lines.length === 0 ? (
               <Text size="small" className="text-ui-fg-subtle">
-                No Fabric customizer (customizerDesign) metadata on this order line.
+                No custom-designed items on this order — nothing to download here.
               </Text>
             ) : (
               <ul className="flex flex-col gap-y-5 list-none p-0 m-0">
@@ -837,8 +837,9 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
 
                     {line.artifacts.length === 0 ? (
                       <Text size="xsmall" className="text-ui-fg-subtle mt-2">
-                        Customizer metadata present but no per-side artifacts (or render did not persist
-                        hosted URLs — check object storage).
+                        This design has no print or mockup files yet. They usually appear within a
+                        minute of the order being placed — refresh shortly, or re-save the design if
+                        they don't show.
                       </Text>
                     ) : null}
 

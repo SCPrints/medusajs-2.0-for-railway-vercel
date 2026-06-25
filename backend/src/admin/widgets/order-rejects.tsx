@@ -222,13 +222,10 @@ const OrderRejectsWidget = ({ data: order }: { data: { id: string } }) => {
         </div>
       ) : null}
 
-      <div className="px-6 py-4">
+      {loading || rejects.length > 0 ? (
+        <div className="px-6 py-4">
         {loading ? (
           <Text size="xsmall" className="text-ui-fg-muted">Loading…</Text>
-        ) : rejects.length === 0 ? (
-          <Text size="xsmall" className="text-ui-fg-muted">
-            No rejects logged for this order.
-          </Text>
         ) : (
           <ul className="divide-y">
             {rejects.map((r) => (
@@ -266,7 +263,8 @@ const OrderRejectsWidget = ({ data: order }: { data: { id: string } }) => {
             ))}
           </ul>
         )}
-      </div>
+        </div>
+      ) : null}
     </Container>
   )
 }

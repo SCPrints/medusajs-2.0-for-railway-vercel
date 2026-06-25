@@ -97,11 +97,15 @@ const OrderAussiePacificDropshipWidget = ({
   }, [load])
 
   const previewItems = status?.preview?.items ?? []
-  const noItems =
-    !loading &&
-    !status?.sent &&
-    previewItems.length === 0 &&
-    !status?.preview?.error
+
+  // Only render when there's something to act on — items to forward, an order
+  // already sent to Aussie Pacific, or an error. Hides the card on orders with
+  // no AP SKUs instead of showing an empty "no SKUs detected" panel.
+  const hasContent =
+    Boolean(status?.sent) ||
+    previewItems.length > 0 ||
+    Boolean(status?.preview?.error) ||
+    Boolean(error)
 
   const sendOrder = useCallback(async () => {
     if (!orderId) return
@@ -164,6 +168,10 @@ const OrderAussiePacificDropshipWidget = ({
       </Text>
     )
   }, [status])
+
+  if (!hasContent) {
+    return null
+  }
 
   return (
     <Container className="divide-y p-0">
@@ -261,12 +269,6 @@ const OrderAussiePacificDropshipWidget = ({
         {status?.preview?.error ? (
           <Text size="small" className="text-ui-fg-error">
             Preview problem: {status.preview.error}
-          </Text>
-        ) : null}
-
-        {noItems ? (
-          <Text size="small" className="text-ui-fg-subtle">
-            No Aussie Pacific SKUs detected on this order.
           </Text>
         ) : null}
 

@@ -113,7 +113,15 @@ const OrderAsColourDropshipWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
   }, [load])
 
   const previewItems = status?.preview?.items ?? []
-  const noItems = !loading && !status?.sent && previewItems.length === 0 && !status?.preview?.error
+
+  // Only render the card when there's something to act on — items to forward,
+  // an order already sent to AS Colour, or an error worth surfacing. On orders
+  // with no AS Colour SKUs this hides the card entirely instead of an empty one.
+  const hasContent =
+    Boolean(status?.sent) ||
+    previewItems.length > 0 ||
+    Boolean(status?.preview?.error) ||
+    Boolean(error)
 
   const sendOrder = useCallback(async () => {
     if (!orderId) return
@@ -174,6 +182,10 @@ const OrderAsColourDropshipWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
       </Text>
     )
   }, [status])
+
+  if (!hasContent) {
+    return null
+  }
 
   return (
     <Container className="divide-y p-0">
@@ -267,12 +279,6 @@ const OrderAsColourDropshipWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
         {status?.preview?.error ? (
           <Text size="small" className="text-ui-fg-error">
             Preview problem: {status.preview.error}
-          </Text>
-        ) : null}
-
-        {noItems ? (
-          <Text size="small" className="text-ui-fg-subtle">
-            No AS Colour SKUs detected on this order.
           </Text>
         ) : null}
 

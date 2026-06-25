@@ -60,6 +60,12 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
     return isShippingDecision(raw) ? raw : null
   }, [data?.metadata])
 
+  // Hide entirely on orders with no recorded shipping decision (POS, draft,
+  // admin-created, or pre-weight-model orders) instead of a dead empty card.
+  if (!decision) {
+    return null
+  }
+
   return (
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">

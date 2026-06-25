@@ -122,10 +122,31 @@ const OrderShipStationParcelsWidget = ({
     void refresh()
   }, [refresh])
 
-  const totalParcels = useMemo(
-    () => fulfillments.reduce((sum, f) => sum + parcelsForFulfillment(f).length, 0),
+  // Provider-gate: only show this card for orders fulfilled via ShipStation.
+  // The live model is the in-house weight-based provider, so most orders have
+  // no ShipStation fulfillments and shouldn't render an empty parcels card.
+  const shipStationFulfillments = useMemo(
+    () =>
+      fulfillments.filter(
+        (f) =>
+          typeof f.provider_id === "string" &&
+          f.provider_id.startsWith("shipstation_")
+      ),
     [fulfillments]
   )
+
+  const totalParcels = useMemo(
+    () =>
+      shipStationFulfillments.reduce(
+        (sum, f) => sum + parcelsForFulfillment(f).length,
+        0
+      ),
+    [shipStationFulfillments]
+  )
+
+  if (!loading && shipStationFulfillments.length === 0) {
+    return null
+  }
 
   return (
     <Container className="divide-y p-0">
@@ -159,16 +180,12 @@ const OrderShipStationParcelsWidget = ({
       ) : null}
 
       <div className="px-6 py-4 flex flex-col gap-y-6">
-        {loading && fulfillments.length === 0 ? (
+        {loading && shipStationFulfillments.length === 0 ? (
           <Text size="small" className="text-ui-fg-subtle">
             Loading fulfillments…
           </Text>
-        ) : fulfillments.length === 0 ? (
-          <Text size="small" className="text-ui-fg-subtle">
-            No fulfillments yet.
-          </Text>
         ) : (
-          fulfillments.map((f) => {
+          shipStationFulfillments.map((f) => {
             const parcels = parcelsForFulfillment(f)
             const shippedAt = formatTimestamp(f.shipped_at)
             const isShipStation =

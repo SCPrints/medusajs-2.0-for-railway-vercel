@@ -48,6 +48,7 @@ const OrderProductionPhotosWidget = ({
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [caption, setCaption] = useState("")
+  const [showUpload, setShowUpload] = useState(false)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   const load = useCallback(async () => {
@@ -144,12 +145,24 @@ const OrderProductionPhotosWidget = ({
             }}
           />
         </Heading>
-        <Badge color={photos.length > 0 ? "green" : "grey"}>
-          {photos.length} {photos.length === 1 ? "photo" : "photos"}
-        </Badge>
+        <div className="flex items-center gap-x-2">
+          <Badge color={photos.length > 0 ? "green" : "grey"}>
+            {photos.length} {photos.length === 1 ? "photo" : "photos"}
+          </Badge>
+          {photos.length === 0 ? (
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => setShowUpload((v) => !v)}
+            >
+              {showUpload ? "Cancel" : "+ Add photo"}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      <div className="px-6 pb-4 flex flex-col gap-y-4">
+      {showUpload || photos.length > 0 ? (
+        <div className="px-6 pb-4 flex flex-col gap-y-4">
         <div className="rounded-md border border-ui-border-base bg-ui-bg-subtle p-3 flex flex-col gap-y-2">
           <Input
             placeholder="Caption (optional) — included in the customer email"
@@ -176,13 +189,7 @@ const OrderProductionPhotosWidget = ({
           </div>
         </div>
 
-        {loading ? (
-          <Text size="xsmall" className="text-ui-fg-muted">Loading…</Text>
-        ) : photos.length === 0 ? (
-          <Text size="xsmall" className="text-ui-fg-muted">
-            No photos yet. Upload a shot of the job in production — the customer's next stage email will include it.
-          </Text>
-        ) : (
+        {photos.length > 0 ? (
           <ul className="grid grid-cols-2 small:grid-cols-3 gap-3">
             {photos.map((p) => (
               <li
@@ -222,8 +229,9 @@ const OrderProductionPhotosWidget = ({
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        ) : null}
+        </div>
+      ) : null}
     </Container>
   )
 }

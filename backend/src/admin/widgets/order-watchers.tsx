@@ -20,6 +20,7 @@ const OrderWatchersWidget = ({ data: order }: { data: { id: string } }) => {
   const [draft, setDraft] = useState("")
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
 
   const load = useCallback(async () => {
     if (!orderId) return
@@ -102,57 +103,64 @@ const OrderWatchersWidget = ({ data: order }: { data: { id: string } }) => {
             }}
           />
         </Heading>
-        <Badge color={watchers.length ? "blue" : "grey"}>
-          {watchers.length} / 5
-        </Badge>
-      </div>
-
-      <div className="px-6 pb-4 flex flex-col gap-y-3">
         <div className="flex items-center gap-x-2">
-          <Input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="email@example.com"
-            type="email"
-            disabled={busy || watchers.length >= 5}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") add()
-            }}
-          />
-          <Button
-            size="small"
-            onClick={add}
-            disabled={busy || !draft.trim() || watchers.length >= 5}
-          >
-            Add
-          </Button>
+          <Badge color={watchers.length ? "blue" : "grey"}>
+            {watchers.length} / 5
+          </Badge>
+          {watchers.length === 0 ? (
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => setShowAdd((v) => !v)}
+            >
+              {showAdd ? "Cancel" : "+ Add"}
+            </Button>
+          ) : null}
         </div>
-
-        {loading ? (
-          <Text size="xsmall" className="text-ui-fg-muted">Loading…</Text>
-        ) : watchers.length === 0 ? (
-          <Text size="xsmall" className="text-ui-fg-muted">
-            No watchers yet.
-          </Text>
-        ) : (
-          <ul className="divide-y">
-            {watchers.map((email) => (
-              <li key={email} className="py-2 flex items-center justify-between">
-                <Text size="small">{email}</Text>
-                <button
-                  type="button"
-                  onClick={() => remove(email)}
-                  className="text-ui-fg-muted hover:text-ui-tag-red-icon"
-                  aria-label="Remove watcher"
-                  disabled={busy}
-                >
-                  <Trash />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
+
+      {showAdd || watchers.length > 0 ? (
+        <div className="px-6 pb-4 flex flex-col gap-y-3">
+          <div className="flex items-center gap-x-2">
+            <Input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="email@example.com"
+              type="email"
+              disabled={busy || watchers.length >= 5}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") add()
+              }}
+            />
+            <Button
+              size="small"
+              onClick={add}
+              disabled={busy || !draft.trim() || watchers.length >= 5}
+            >
+              Add
+            </Button>
+          </div>
+
+          {watchers.length > 0 ? (
+            <ul className="divide-y">
+              {watchers.map((email) => (
+                <li key={email} className="py-2 flex items-center justify-between">
+                  <Text size="small">{email}</Text>
+                  <button
+                    type="button"
+                    onClick={() => remove(email)}
+                    className="text-ui-fg-muted hover:text-ui-tag-red-icon"
+                    aria-label="Remove watcher"
+                    disabled={busy}
+                  >
+                    <Trash />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
     </Container>
   )
 }

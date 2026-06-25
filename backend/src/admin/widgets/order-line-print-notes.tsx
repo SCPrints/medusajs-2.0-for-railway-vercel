@@ -93,6 +93,12 @@ const OrderLinePrintNotesWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
     return null
   }
 
+  // Hide on orders with no customer print notes (the common case) rather than
+  // showing an empty side-column card. Still renders if there's a load error.
+  if (rows.length === 0 && !error) {
+    return null
+  }
+
   return (
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
