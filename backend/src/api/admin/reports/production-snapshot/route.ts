@@ -77,7 +77,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "status",
         "metadata",
         "currency_code",
-        "total",
         "email",
         "customer_id",
         "region_id",
@@ -97,6 +96,29 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       error: "Failed to load orders",
       detail: String(err?.message ?? err),
     })
+  }
+
+  // Authoritative order totals come from a SEPARATE items-free query. Selecting
+  // `total` alongside any sparse `items.*` selection silently makes Medusa's
+  // totals engine compute item_total = 0, collapsing `total` to shipping-only
+  // (verified against prod: #41 read $20, #42 read $12). A query with no
+  // `items.*` returns the real total reliably. Map by id, default to 0.
+  const totalById = new Map<string, number>()
+  try {
+    const { data: totalsData } = await query.graph({
+      entity: "order",
+      fields: ["id", "total"],
+      filters: { id: orders.map((o: any) => o.id) },
+      pagination: { take: orders.length || 1, skip: 0 },
+    })
+    for (const o of (totalsData as any[]) ?? []) {
+      totalById.set(o.id, Number(o.total ?? 0))
+    }
+  } catch (err: any) {
+    logger.error?.(
+      `[production-snapshot] order totals query failed: ${err?.message ?? err}`
+    )
+    // Non-fatal — rows still render with total 0 rather than blocking the page.
   }
 
   // Best-effort customer name lookup. If this fails we still render rows
@@ -207,7 +229,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
             .filter(Boolean)
         )
       ),
-      total: Number(order.total ?? 0),
+      total: totalById.get(order.id) ?? 0,
       currency_code: String(order.currency_code ?? "aud"),
       days_at_stage: daysAtStage,
       days_since_received: dayCount(order.created_at),
