@@ -5,6 +5,5 @@ export {
   type CreatePaymentLinkInput,
   type CreatePaymentLinkResult,
   type Scenario,
-  type StripeSdk,
 } from "./create-link"
 export { handleCheckoutSessionCompleted } from "./handle-webhook"

@@ -856,27 +856,6 @@ export function resolveCategoryHandles(
   return Array.from(handles)
 }
 
-// Backwards-compat thin wrappers — old callers used the 3-arg signature.
-export function inferAudience(
-  title: string,
-  typeValue: string | null,
-  metadata?: Record<string, unknown> | null
-): AudienceKey[] {
-  return inferAudiences({ title, typeValue, metadata })
-}
-
-export function inferSubHandle(
-  typeValue: string | null,
-  metadata?: Record<string, unknown> | null
-): CategoryHandle | null {
-  const subs = inferSubsForAudience("mens", {
-    title: "",
-    typeValue,
-    metadata,
-  })
-  return subs[0] ?? null
-}
-
 // ============================================================
 // CATEGORY TREE PERSISTENCE
 // ============================================================

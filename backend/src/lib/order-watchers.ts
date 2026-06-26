@@ -5,10 +5,9 @@
  * the list is bounded (max 5) and only ever read alongside the order.
  */
 
-const MAX_WATCHERS = 5
+import { isValidEmail } from "./email-validation"
 
-const isValidEmail = (value: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+const MAX_WATCHERS = 5
 
 export function readWatchers(metadata: Record<string, unknown> | null | undefined): string[] {
   const raw = (metadata ?? {})?.watcher_emails

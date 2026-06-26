@@ -1,11 +1,9 @@
 import {
   decoratedLocationsFromLineMetadata,
   decoratedSidesFromLineMetadata,
-  decoratedSidesCountFromLineMetadata,
   resolveScpTierIndexForQuantity,
   scpPrintTotalMajorFromLocations,
   scpPrintTotalMajorPerGarmentForSides,
-  scpPrintTotalMajorPerGarment,
   scpPrintUnitMajorForTier,
 } from "../scp-dtf-print-pricing"
 
@@ -28,16 +26,6 @@ describe("scp-dtf-print-pricing", () => {
     expect(scpPrintUnitMajorForTier("up_to_a6", 4)).toBe(5)
   })
 
-  it("sums print fees across decorated sides", () => {
-    expect(
-      scpPrintTotalMajorPerGarment({
-        printSizeId: "up_to_a6",
-        tierIndex: 3,
-        decoratedSidesCount: 2,
-      })
-    ).toBe(11)
-  })
-
   it("forces only printed tag to A6; sleeves price by selected size", () => {
     // front + left_sleeve = oversize ($15 each); printed_tag forced A6 ($8.5).
     expect(
@@ -51,11 +39,11 @@ describe("scp-dtf-print-pricing", () => {
 
   it("counts decorated sides from customizerDesign artifacts", () => {
     expect(
-      decoratedSidesCountFromLineMetadata({
+      decoratedSidesFromLineMetadata({
         customizerDesign: {
           artifacts: [{ side: "front" }, { side: "back" }],
         },
-      })
+      }).length
     ).toBe(2)
   })
 
@@ -102,9 +90,9 @@ describe("scp-dtf-print-pricing", () => {
 
   it("falls back to one side when printPlacement is present without artifacts", () => {
     expect(
-      decoratedSidesCountFromLineMetadata({
+      decoratedSidesFromLineMetadata({
         printPlacement: { version: 1 },
-      })
+      }).length
     ).toBe(1)
   })
 

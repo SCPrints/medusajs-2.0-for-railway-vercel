@@ -110,6 +110,3 @@ export const computeCartWeight = (
     defaultItemWeightGrams: fallbackPerUnit,
   }
 }
-
-export const totalWeightGrams = (cart: WeightyCart | null | undefined): number =>
-  computeCartWeight(cart).totalWeightGrams

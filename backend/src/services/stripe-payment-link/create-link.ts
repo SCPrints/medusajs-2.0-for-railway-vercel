@@ -1,8 +1,6 @@
 import { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import Stripe from "stripe"
 
-import { BACKEND_URL } from "../../lib/constants"
 import StripePaymentLinkModuleService from "../../modules/stripe-payment-link/service"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 
@@ -190,15 +188,3 @@ export const deactivatePaymentLink = async (
     status: "deactivated",
   } as any)
 }
-
-export const buildAdminLinkUrl = (
-  orderId: string | null,
-  quoteId: string | null
-): string => {
-  const base = BACKEND_URL.replace(/\/$/, "")
-  if (orderId) return `${base}/app/orders/${orderId}`
-  if (quoteId) return `${base}/app/quotes/${quoteId}`
-  return base
-}
-
-export type StripeSdk = Stripe

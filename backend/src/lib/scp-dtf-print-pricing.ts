@@ -89,19 +89,6 @@ export function resolveScpPrintSizeForSide(side: string, selectedPrintSizeId: Sc
 }
 
 /**
- * Total SCP print dollars per garment (all decorated sides share one print size in v1).
- */
-export function scpPrintTotalMajorPerGarment(args: {
-  printSizeId: ScpPrintSizeId
-  tierIndex: number
-  decoratedSidesCount: number
-}): number {
-  const sides = Math.max(0, Math.floor(args.decoratedSidesCount || 0))
-  const unit = scpPrintUnitMajorForTier(args.printSizeId, args.tierIndex)
-  return Math.round(unit * sides * 100) / 100
-}
-
-/**
  * Per-side pricing with forced A6 for sleeves + printed_tag.
  */
 export function scpPrintTotalMajorPerGarmentForSides(args: {
@@ -200,10 +187,6 @@ export function decoratedSidesFromLineMetadata(
     }
   })
   return ordered
-}
-
-export function decoratedSidesCountFromLineMetadata(metadata: Record<string, unknown> | null | undefined): number {
-  return decoratedSidesFromLineMetadata(metadata).length
 }
 
 export function scpPrintTotalMajorFromLocations(args: {
