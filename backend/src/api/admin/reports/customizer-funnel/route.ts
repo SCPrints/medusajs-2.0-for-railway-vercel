@@ -5,8 +5,8 @@ import { GA4_PROPERTY_ID } from "../../../../lib/constants"
 import { isSeoConfigured } from "../../../../services/seo-analytics/google-auth"
 import { buildGa4Caller } from "../../../../services/seo-analytics/ga4-caller"
 import {
-  fetchOrdersForReports,
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -33,18 +33,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
   // ---- Step 4 (purchased) — read from Medusa orders ----------------
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(
-      `[customizer-funnel] order fetch failed: ${err?.message ?? err}`
-    )
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "customizer-funnel")
+  if (!orders) return
 
   let purchasedOrders = 0
   let purchasedRevenue = 0

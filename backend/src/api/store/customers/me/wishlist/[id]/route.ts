@@ -6,14 +6,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 
 import { WISHLIST_MODULE } from "../../../../../../modules/wishlist"
 import type WishlistModuleService from "../../../../../../modules/wishlist/service"
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
+import { requireCustomer } from "../../../../../../lib/require-customer"
 
 export async function DELETE(
   req: AuthenticatedMedusaRequest,

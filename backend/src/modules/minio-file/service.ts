@@ -11,6 +11,21 @@ import { Client } from 'minio';
 import path from 'path';
 import { ulid } from 'ulid';
 import { Readable } from 'stream';
+import { buffer as streamToBuffer } from 'node:stream/consumers';
+
+const publicReadPolicy = (bucket: string): string =>
+  JSON.stringify({
+    Version: '2012-10-17',
+    Statement: [
+      {
+        Sid: 'PublicRead',
+        Effect: 'Allow',
+        Principal: '*',
+        Action: ['s3:GetObject'],
+        Resource: [`arn:aws:s3:::${bucket}/*`],
+      },
+    ],
+  });
 
 type InjectedDependencies = {
   logger: Logger
@@ -130,40 +145,14 @@ class MinioFileProviderService extends AbstractFileProviderService {
         await this.client.makeBucket(this.bucket)
         this.logger_.info(`Created bucket: ${this.bucket}`)
 
-        // Set bucket policy to allow public read access
-        const policy = {
-          Version: '2012-10-17',
-          Statement: [
-            {
-              Sid: 'PublicRead',
-              Effect: 'Allow',
-              Principal: '*',
-              Action: ['s3:GetObject'],
-              Resource: [`arn:aws:s3:::${this.bucket}/*`]
-            }
-          ]
-        }
-
-        await this.client.setBucketPolicy(this.bucket, JSON.stringify(policy))
+        await this.client.setBucketPolicy(this.bucket, publicReadPolicy(this.bucket))
         this.logger_.info(`Set public read policy for bucket: ${this.bucket}`)
       } else {
         this.logger_.info(`Using existing bucket: ${this.bucket}`)
         
         // Verify/update policy on existing bucket
         try {
-          const policy = {
-            Version: '2012-10-17',
-            Statement: [
-              {
-                Sid: 'PublicRead',
-                Effect: 'Allow',
-                Principal: '*',
-                Action: ['s3:GetObject'],
-                Resource: [`arn:aws:s3:::${this.bucket}/*`]
-              }
-            ]
-          }
-          await this.client.setBucketPolicy(this.bucket, JSON.stringify(policy))
+          await this.client.setBucketPolicy(this.bucket, publicReadPolicy(this.bucket))
           this.logger_.info(`Updated public read policy for existing bucket: ${this.bucket}`)
         } catch (policyError) {
           this.logger_.warn(`Failed to update policy for existing bucket: ${policyError.message}`)
@@ -345,13 +334,7 @@ class MinioFileProviderService extends AbstractFileProviderService {
 
     try {
       const stream = await this.client.getObject(this.bucket, fileData.fileKey)
-      const buffer = await new Promise<Buffer>((resolve, reject) => {
-        const chunks: Buffer[] = []
-
-        stream.on('data', (chunk: Buffer) => chunks.push(chunk))
-        stream.on('end', () => resolve(Buffer.concat(chunks)))
-        stream.on('error', reject)
-      })
+      const buffer = await streamToBuffer(stream)
 
       this.logger_.info(`Retrieved buffer for file ${fileData.fileKey}`)
       return buffer

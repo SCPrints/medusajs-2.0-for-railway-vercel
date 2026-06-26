@@ -25,38 +25,12 @@ import {
 } from "../../lib/constants"
 import { ShipStationClient } from "./client"
 import { GetShippingRatesResponse, Rate, ShipStationAddress } from "./types"
-
-const coerceWeightGrams = (raw: unknown): number => {
-  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
-    return raw
-  }
-  if (typeof raw === "string" && raw.trim()) {
-    const parsed = Number.parseFloat(raw)
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed
-    }
-  }
-  return 0
-}
+import { lineItemWeightGrams } from "../../lib/cart-weight"
 
 /** Medusa often stores ISO codes lowercase (`au`); ShipStation compares uppercase (`AU`). */
 function normalizeCountryCode(code: string | undefined | null): string {
   const raw = typeof code === "string" ? code.trim() : ""
   return raw ? raw.toUpperCase() : ""
-}
-
-const lineItemWeightGrams = (item: any): number => {
-  const fromMetadata = item?.metadata
-    ? coerceWeightGrams(item.metadata.weight_grams)
-    : 0
-  if (fromMetadata) {
-    return fromMetadata
-  }
-  const variantWeight = coerceWeightGrams(item?.variant?.weight)
-  if (variantWeight) {
-    return variantWeight
-  }
-  return coerceWeightGrams(item?.variant?.product?.weight ?? item?.product?.weight)
 }
 
 type InjectedDependencies = {
@@ -227,11 +201,11 @@ class ShipStationProviderService extends AbstractFulfillmentProviderService {
 
     // Σ(item weight × quantity) in grams, then add packaging overhead, then convert to kg.
     const itemsWithoutWeight = items.filter(
-      (item) => lineItemWeightGrams(item) <= 0
+      (item) => lineItemWeightGrams(item as any) <= 0
     )
     const itemsWeightGrams = items.reduce((sum, item) => {
       const qty = (item as any)?.quantity ?? 1
-      return sum + lineItemWeightGrams(item) * (typeof qty === "number" && qty > 0 ? qty : 1)
+      return sum + lineItemWeightGrams(item as any) * (typeof qty === "number" && qty > 0 ? qty : 1)
     }, 0)
     const totalWeightGrams = itemsWeightGrams + (SHIPPING_PACKAGING_OVERHEAD_GRAMS || 0)
     if (itemsWithoutWeight.length) {

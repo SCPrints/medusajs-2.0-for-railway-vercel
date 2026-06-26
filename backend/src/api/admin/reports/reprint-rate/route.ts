@@ -6,9 +6,9 @@ import {
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
-  fetchOrdersForReports,
   inRange,
   itemMethod,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -39,16 +39,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[reprint-rate] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "reprint-rate")
+  if (!orders) return
 
   type RollbackEvent = {
     order_id: string

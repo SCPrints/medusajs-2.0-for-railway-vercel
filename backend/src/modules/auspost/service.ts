@@ -38,29 +38,7 @@ import {
   AusPostPriceOption,
   AusPostShipmentItem,
 } from "./types"
-
-const coerceWeightGrams = (raw: unknown): number => {
-  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
-    return raw
-  }
-  if (typeof raw === "string" && raw.trim()) {
-    const parsed = Number.parseFloat(raw)
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed
-    }
-  }
-  return 0
-}
-
-const lineItemWeightGrams = (item: any): number => {
-  const fromMetadata = item?.metadata
-    ? coerceWeightGrams(item.metadata.weight_grams)
-    : 0
-  if (fromMetadata) return fromMetadata
-  const variantWeight = coerceWeightGrams(item?.variant?.weight)
-  if (variantWeight) return variantWeight
-  return coerceWeightGrams(item?.variant?.product?.weight ?? item?.product?.weight)
-}
+import { lineItemWeightGrams } from "../../lib/cart-weight"
 
 type InjectedDependencies = {
   logger: Logger
@@ -191,7 +169,7 @@ class AusPostProviderService extends AbstractFulfillmentProviderService {
     const itemsWeightGrams = items.reduce((sum, item) => {
       const qty = (item as any)?.quantity ?? 1
       const safeQty = typeof qty === "number" && qty > 0 ? qty : 1
-      return sum + lineItemWeightGrams(item) * safeQty
+      return sum + lineItemWeightGrams(item as any) * safeQty
     }, 0)
     const totalGrams = itemsWeightGrams + (SHIPPING_PACKAGING_OVERHEAD_GRAMS || 0)
     // AusPost rejects 0 weight — fall back to 100g for digital edge cases.

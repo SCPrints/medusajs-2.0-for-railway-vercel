@@ -2,8 +2,8 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  fetchOrdersForReports,
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -33,18 +33,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(
-      `[order-time-heatmap] order fetch failed: ${err?.message ?? err}`
-    )
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "order-time-heatmap")
+  if (!orders) return
 
   // Initialise 7×24 matrix (rows: Sun=0..Sat=6, cols: 0-23)
   const matrix: number[][] = Array.from({ length: 7 }, () =>

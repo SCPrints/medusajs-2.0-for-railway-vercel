@@ -9,6 +9,7 @@ import {
   generateReceiptPdf,
   type ReceiptOrder,
 } from "../../../../../../../services/order-receipt-pdf/service"
+import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 /**
  * GET /store/customers/me/orders/:id/receipt-pdf
@@ -21,10 +22,7 @@ export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
-  const customerId = req.auth_context?.actor_id
-  if (!customerId) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
+  const customerId = requireCustomer(req)
 
   const orderId = req.params.id
   if (!orderId) {

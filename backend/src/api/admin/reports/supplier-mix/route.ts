@@ -2,8 +2,8 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  fetchOrdersForReports,
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -37,16 +37,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
   const { from: priorFrom, to: priorTo } = priorRange(from, to)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[supplier-mix] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "supplier-mix")
+  if (!orders) return
 
   let ascolourOrders = 0
   let otherOrders = 0

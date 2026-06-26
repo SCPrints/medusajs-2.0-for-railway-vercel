@@ -6,7 +6,7 @@ import {
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
-  fetchOrdersForReports,
+  loadOrdersOr500,
   matchesRegion,
   parseRegionFilter,
 } from "../../../../lib/reports/orders"
@@ -63,16 +63,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const logger = (req.scope as any).resolve?.("logger") ?? console
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[blanks-forecast] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "blanks-forecast")
+  if (!orders) return
 
   type OrderDemand = {
     order_id: string

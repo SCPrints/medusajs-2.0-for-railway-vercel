@@ -3,9 +3,9 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   buildWeekBuckets,
-  fetchOrdersForReports,
   inRange,
   itemMethod,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -29,16 +29,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[on-time-delivery] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "on-time-delivery")
+  if (!orders) return
 
   const { buckets, findBucket } = buildWeekBuckets(from, to)
   const trendBuckets = buckets.map(() => ({ on_time: 0, late: 0 }))

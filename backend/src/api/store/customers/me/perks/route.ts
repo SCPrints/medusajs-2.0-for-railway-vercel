@@ -2,21 +2,14 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { FREE_SHIPPING_TAGS } from "../../../../../lib/constants"
+import { requireCustomer } from "../../../../../lib/require-customer"
 
 type ActivePerk = {
   perk: "free_shipping"
   granted_by_tag: string
-}
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
 }
 
 /**

@@ -43,14 +43,8 @@ export const AI_DESC_PRODUCT_FIELDS = [
   "brand.handle",
 ] as const
 
-/** Length keys the bulk generator exposes; map to the draft labels the prompt emits. */
+/** Length keys the bulk generator exposes; match the draft labels the prompt emits. */
 export type DescriptionLength = "short" | "standard" | "detailed"
-
-const LENGTH_TO_LABEL: Record<DescriptionLength, string> = {
-  short: "short",
-  standard: "standard",
-  detailed: "detailed",
-}
 
 /**
  * True when the configured AI provider has its API key set. Lets a caller
@@ -121,7 +115,7 @@ export function pickDraftByLength(
   length: DescriptionLength
 ): string | null {
   if (!Array.isArray(drafts) || drafts.length === 0) return null
-  const want = LENGTH_TO_LABEL[length]
+  const want = length
   const match = drafts.find((d) =>
     (d.label ?? "").toLowerCase().includes(want)
   )

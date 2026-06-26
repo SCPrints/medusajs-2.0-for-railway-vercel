@@ -3,8 +3,8 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   buildWeekBuckets,
-  fetchOrdersForReports,
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -34,16 +34,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[sales-overview] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "sales-overview")
+  if (!orders) return
 
   // Region lookup — orders carry region_id but not region.name in the
   // graph response. Fetch region metadata separately so the frontend

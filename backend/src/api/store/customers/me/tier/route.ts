@@ -2,9 +2,10 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { ContainerRegistrationKeys, MedusaError } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { tierForCustomer, type CustomerGroupLike } from "../../../../../lib/customer-tiers"
+import { requireCustomer } from "../../../../../lib/require-customer"
 
 /**
  * Returns the logged-in customer's resolved tier (or null).
@@ -22,10 +23,7 @@ export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
-  const customerId = req.auth_context?.actor_id
-  if (!customerId) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
+  const customerId = requireCustomer(req)
 
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const { data: groups } = await query.graph({

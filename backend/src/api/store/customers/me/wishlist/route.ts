@@ -2,12 +2,12 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { WISHLIST_MODULE } from "../../../../../modules/wishlist"
 import type WishlistModuleService from "../../../../../modules/wishlist/service"
 import { getPostHog } from "../../../../../lib/posthog"
+import { requireCustomer } from "../../../../../lib/require-customer"
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).optional(),
@@ -19,14 +19,6 @@ const createBodySchema = z.object({
   variant_id: z.string().min(1).optional(),
   note: z.string().max(500).optional(),
 })
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
 
 export async function GET(
   req: AuthenticatedMedusaRequest,

@@ -2,7 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  fetchOrdersForReports,
+  loadOrdersOr500,
   matchesRegion,
   parseRegionFilter,
 } from "../../../../lib/reports/orders"
@@ -50,16 +50,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[today] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "today")
+  if (!orders) return
 
   // DIAGNOSTIC — remove after confirming total unit
   if (orders.length > 0) {

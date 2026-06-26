@@ -2,9 +2,9 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  fetchOrdersForReports,
   inRange,
   itemHasReorderSource,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -33,16 +33,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
   const { from: priorFrom, to: priorTo } = priorRange(from, to)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[reorder-rate] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "reorder-rate")
+  if (!orders) return
 
   type Aggregates = {
     ordersByCustomer: Map<string, number>

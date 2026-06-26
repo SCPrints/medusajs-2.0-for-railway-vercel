@@ -2,12 +2,12 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { DESIGNS_MODULE } from "../../../../../modules/designs"
 import type DesignsModuleService from "../../../../../modules/designs/service"
 import { getPostHog } from "../../../../../lib/posthog"
+import { requireCustomer } from "../../../../../lib/require-customer"
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
@@ -21,14 +21,6 @@ const createBodySchema = z.object({
   base_variant_id: z.string().min(1).optional(),
   customizer_metadata: z.record(z.string(), z.unknown()),
 })
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
 
 export async function GET(
   req: AuthenticatedMedusaRequest,

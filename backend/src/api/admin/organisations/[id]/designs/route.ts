@@ -1,12 +1,10 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
 import { revalidateOrgTags } from "../../../../../lib/storefront-revalidate"
-
-const MAX_BYTES = 8 * 1024 * 1024 // 8 MB ceiling for thumbnail + print file
+import { uploadOrgDesignFile } from "../../../../../lib/org-design-upload"
 
 const uploadShape = z
   .object({
@@ -29,39 +27,6 @@ const createSchema = z.object({
 })
 
 type CreatePayload = z.infer<typeof createSchema>
-
-const fileService = (req: MedusaRequest) =>
-  req.scope.resolve(Modules.FILE) as unknown as {
-    createFiles: (
-      data: { filename: string; mimeType: string; content: string }[]
-    ) => Promise<Array<{ id: string; url: string }>>
-  }
-
-async function uploadIfPresent(
-  req: MedusaRequest,
-  upload: NonNullable<CreatePayload["thumbnail_upload"]>,
-  pathPrefix: string
-): Promise<string> {
-  const base64 = upload.data_base64.replace(/^data:[^;]+;base64,/, "")
-  const buffer = Buffer.from(base64, "base64")
-  if (buffer.byteLength === 0) {
-    throw new Error("Empty upload payload")
-  }
-  if (buffer.byteLength > MAX_BYTES) {
-    throw new Error("File exceeds 8 MB limit")
-  }
-  const safeName = `${pathPrefix}/${Date.now()}-${upload.filename.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-  const uploaded = await fileService(req).createFiles([
-    {
-      filename: safeName,
-      mimeType: upload.mime_type,
-      content: base64,
-    },
-  ])
-  const url = uploaded?.[0]?.url
-  if (!url) throw new Error("Upload returned no URL")
-  return url
-}
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const id = req.params.id
@@ -116,14 +81,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   try {
     if (body.thumbnail_upload) {
-      thumbnailUrl = await uploadIfPresent(
+      thumbnailUrl = await uploadOrgDesignFile(
         req,
         body.thumbnail_upload,
         `organisation-designs/${id}/thumbnails`
       )
     }
     if (body.print_file_upload) {
-      printFileUrl = await uploadIfPresent(
+      printFileUrl = await uploadOrgDesignFile(
         req,
         body.print_file_upload,
         `organisation-designs/${id}/print-files`

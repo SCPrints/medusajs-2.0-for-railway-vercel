@@ -14,6 +14,7 @@ import {
 import { GROUP_ORDER_MODULE } from "../../../../../../../modules/group-order"
 import type GroupOrderModuleService from "../../../../../../../modules/group-order/service"
 import { getPostHog } from "../../../../../../../lib/posthog"
+import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 type ParticipantLine = {
   participant_id: string
@@ -23,14 +24,6 @@ type ParticipantLine = {
   variant_id: string | null
   matched: boolean
   reason?: string
-}
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
 }
 
 /**

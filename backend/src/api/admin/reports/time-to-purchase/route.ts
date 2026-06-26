@@ -2,7 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  fetchOrdersForReports,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -58,16 +58,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[time-to-purchase] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "time-to-purchase")
+  if (!orders) return
 
   const valid = orders.filter(
     (o) => o?.status !== "canceled" && matchesRegion(o, regionFilter)

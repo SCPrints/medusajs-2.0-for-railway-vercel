@@ -11,16 +11,9 @@ import {
   readWatchers,
   removeWatcher,
 } from "../../../../../../../lib/order-watchers"
+import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 const addSchema = z.object({ email: z.string().min(3).max(200) })
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
 
 async function loadOwnedOrder(
   req: AuthenticatedMedusaRequest,

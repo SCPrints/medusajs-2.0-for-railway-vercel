@@ -292,6 +292,41 @@ const percentile = (sortedAsc: number[], p: number): number => {
  * order count grows unexpectedly. Reports should consider this their
  * working set — for higher volumes we'd materialise a view.
  */
+/**
+ * Fetch orders for a report, but on failure send the standard
+ * `500 { error: "Failed to load orders" }` and return null — so a route
+ * collapses the repeated try/catch to:
+ *   `const orders = await loadOrdersOr500(query, res, logger, "tag"); if (!orders) return`
+ * An empty array is a valid (truthy) success. Pass `fields` for routes that
+ * need a non-default graph selection (e.g. `refunds.*`).
+ */
+export const loadOrdersOr500 = async (
+  query: any,
+  res: any,
+  logger: any,
+  tag: string,
+  fields?: readonly string[]
+): Promise<any[] | null> => {
+  try {
+    if (fields) {
+      const { data } = await query.graph({
+        entity: "order",
+        fields: fields as string[],
+        pagination: { take: 5000, skip: 0 },
+      })
+      return (data as any[]) ?? []
+    }
+    return await fetchOrdersForReports(query)
+  } catch (err: any) {
+    logger?.error?.(`[${tag}] order fetch failed: ${err?.message ?? err}`)
+    res.status(500).json({
+      error: "Failed to load orders",
+      detail: String(err?.message ?? err),
+    })
+    return null
+  }
+}
+
 export const fetchOrdersForReports = async (
   query: any,
   options: { take?: number } = {}

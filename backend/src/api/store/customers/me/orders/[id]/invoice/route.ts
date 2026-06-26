@@ -9,6 +9,7 @@ import {
   CONTACT_NOTIFICATION_EMAIL,
   SUPPORT_REPLY_TO_EMAIL,
 } from "../../../../../../../lib/constants"
+import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 const INVOICE_BRAND = {
   siteName: "SC PRINTS",
@@ -58,10 +59,7 @@ export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
-  const customerId = req.auth_context?.actor_id
-  if (!customerId) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
+  const customerId = requireCustomer(req)
   const orderId = req.params.id
   if (!orderId) {
     return res.status(400).json({ error: "id required" })

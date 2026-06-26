@@ -10,6 +10,7 @@ import {
   type ProductionStageChangedEvent,
 } from "../lib/production-stage"
 import { runRulesForEvent } from "../services/automation-rules/evaluate"
+import { getCustomerLtv } from "../services/customer-ltv/get-ltv"
 
 /**
  * Phase 10 — listens on the existing PRODUCTION_STAGE_EVENT but only
@@ -38,26 +39,16 @@ export default async function automationOnOrderDelivered({
     return
   }
 
-  // Best-effort LTV + order count from a quick aggregate on the
-  // customer's order history. Mirrors automation-on-order-placed.
+  // Best-effort LTV + order count — shares getCustomerLtv with
+  // automation-on-order-placed so both triggers compute it identically.
   let lifetimeValue = 0
   let orderCount = 0
   const customerId = order?.customer_id ?? null
   if (customerId) {
     try {
-      const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
-      const { data: rows } = await query.graph({
-        entity: "order",
-        fields: ["id", "total", "status"],
-        filters: { customer_id: customerId },
-        pagination: { take: 1000 },
-      })
-      for (const r of (rows as any[]) ?? []) {
-        if (r.status === "cancelled") continue
-        orderCount += 1
-        const t = Number.parseFloat(String(r.total ?? "0"))
-        if (Number.isFinite(t)) lifetimeValue += t
-      }
+      const ltv = await getCustomerLtv(container, customerId)
+      lifetimeValue = ltv.lifetime_value
+      orderCount = ltv.order_count
     } catch {
       /* soft fail — conditions on these fields just won't match */
     }

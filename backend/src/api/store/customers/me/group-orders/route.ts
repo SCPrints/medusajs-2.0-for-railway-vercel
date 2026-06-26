@@ -2,18 +2,9 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
-
 import { GROUP_ORDER_MODULE } from "../../../../../modules/group-order"
 import type GroupOrderModuleService from "../../../../../modules/group-order/service"
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
+import { requireCustomer } from "../../../../../lib/require-customer"
 
 export async function GET(
   req: AuthenticatedMedusaRequest,

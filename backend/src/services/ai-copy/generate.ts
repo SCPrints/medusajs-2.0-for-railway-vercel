@@ -12,6 +12,7 @@ import {
   parseDescriptionResponse,
   type ProductContext,
 } from "./prompt"
+import { isAiCopyConfigured } from "./context"
 
 export type GenerationResult =
   | {
@@ -25,12 +26,6 @@ export type GenerationResult =
       error: "not_configured" | "timeout" | "rate_limited" | "upstream" | "empty"
       detail?: string
     }
-
-const isConfigured = (): boolean => {
-  if (AI_PROVIDER === "openai") return Boolean(OPENAI_API_KEY)
-  if (AI_PROVIDER === "anthropic") return Boolean(ANTHROPIC_API_KEY)
-  return false
-}
 
 const withTimeout = async <T>(p: Promise<T>, ms: number): Promise<T> => {
   let timeoutHandle: ReturnType<typeof setTimeout> | undefined
@@ -137,7 +132,7 @@ const callAnthropic = async (
 export async function generateProductDescriptions(
   ctx: ProductContext
 ): Promise<GenerationResult> {
-  if (!isConfigured()) {
+  if (!isAiCopyConfigured()) {
     return { ok: false, error: "not_configured" }
   }
 

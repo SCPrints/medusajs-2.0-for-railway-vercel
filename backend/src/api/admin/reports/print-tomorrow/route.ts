@@ -7,8 +7,8 @@ import {
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
-  fetchOrdersForReports,
   itemMethod,
+  loadOrdersOr500,
   matchesRegion,
   parseRegionFilter,
   type DecorationMethod,
@@ -38,18 +38,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   })()
   const format = req.query.format === "html" ? "html" : "json"
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(
-      `[print-tomorrow] order fetch failed: ${err?.message ?? err}`
-    )
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "print-tomorrow")
+  if (!orders) return
 
   type Item = {
     title: string

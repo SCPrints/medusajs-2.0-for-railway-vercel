@@ -3,8 +3,8 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   buildWeekBuckets,
-  fetchOrdersForReports,
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -31,16 +31,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
   const { from: priorFrom, to: priorTo } = priorRange(from, to)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[new-vs-returning] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "new-vs-returning")
+  if (!orders) return
 
   const valid = orders.filter(
     (o) => o?.status !== "canceled" && matchesRegion(o, regionFilter)

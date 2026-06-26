@@ -6,14 +6,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 
 import { DESIGNS_MODULE } from "../../../../../../../modules/designs"
 import type DesignsModuleService from "../../../../../../../modules/designs/service"
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
+import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 /**
  * GET /store/customers/me/designs/:id/versions

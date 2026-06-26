@@ -7,6 +7,7 @@ import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { getPostHog } from "../../../../../lib/posthog"
+import { requireCustomer } from "../../../../../lib/require-customer"
 
 const CONSENT_KEYS = [
   "marketing_consent_email",
@@ -21,14 +22,6 @@ const updateBodySchema = z.object({
   marketing_consent_sms: z.boolean().optional(),
   marketing_consent_retargeting: z.boolean().optional(),
 })
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
 
 function readConsentFromMetadata(metadata: Record<string, unknown> | null | undefined) {
   const m = metadata ?? {}

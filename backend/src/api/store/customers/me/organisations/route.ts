@@ -2,19 +2,15 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
-
 import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
+import { requireCustomer } from "../../../../../lib/require-customer"
 
 export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
-  const customerId = req.auth_context?.actor_id
-  if (!customerId) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
+  const customerId = requireCustomer(req)
   const service = req.scope.resolve<OrganisationModuleService>(ORGANISATION_MODULE)
   const memberships = await service.listOrganisationMembers(
     { customer_id: customerId },

@@ -3,9 +3,9 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   DECORATION_METHODS,
-  fetchOrdersForReports,
   inRange,
   itemMethod,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -36,18 +36,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
   const { from: priorFrom, to: priorTo } = priorRange(from, to)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(
-      `[decoration-mix] order fetch failed: ${err?.message ?? err}`
-    )
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "decoration-mix")
+  if (!orders) return
 
   const newCounter = () =>
     Object.fromEntries(ALL_KEYS.map((k) => [k, 0])) as Record<

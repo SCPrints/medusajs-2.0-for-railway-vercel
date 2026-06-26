@@ -5,6 +5,7 @@ import {
   buildWeekBuckets,
   inRange,
   itemMethod,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -28,36 +29,23 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    const { data } = await query.graph({
-      entity: "order",
-      fields: [
-        "id",
-        "display_id",
-        "created_at",
-        "status",
-        "total",
-        "currency_code",
-        "region_id",
-        "email",
-        "items.id",
-        "items.metadata",
-        "refunds.id",
-        "refunds.amount",
-        "refunds.created_at",
-        "refunds.note",
-      ],
-      pagination: { take: 5000, skip: 0 },
-    })
-    orders = (data as any[]) ?? []
-  } catch (err: any) {
-    logger.error?.(`[refund-rate] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "refund-rate", [
+    "id",
+    "display_id",
+    "created_at",
+    "status",
+    "total",
+    "currency_code",
+    "region_id",
+    "email",
+    "items.id",
+    "items.metadata",
+    "refunds.id",
+    "refunds.amount",
+    "refunds.created_at",
+    "refunds.note",
+  ])
+  if (!orders) return
 
   let totalOrdersInWindow = 0
   let refundedOrders = 0

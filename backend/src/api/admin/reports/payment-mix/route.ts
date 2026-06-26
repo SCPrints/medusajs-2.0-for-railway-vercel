@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -68,33 +69,20 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    const { data } = await query.graph({
-      entity: "order",
-      fields: [
-        "id",
-        "created_at",
-        "status",
-        "total",
-        "currency_code",
-        "region_id",
-        "payment_collections.payments.id",
-        "payment_collections.payments.amount",
-        "payment_collections.payments.provider_id",
-        "payment_collections.payments.data",
-        "payment_collections.payments.metadata",
-      ],
-      pagination: { take: 5000, skip: 0 },
-    })
-    orders = (data as any[]) ?? []
-  } catch (err: any) {
-    logger.warn?.(`[payment-mix] order graph failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "payment-mix", [
+    "id",
+    "created_at",
+    "status",
+    "total",
+    "currency_code",
+    "region_id",
+    "payment_collections.payments.id",
+    "payment_collections.payments.amount",
+    "payment_collections.payments.provider_id",
+    "payment_collections.payments.data",
+    "payment_collections.payments.metadata",
+  ])
+  if (!orders) return
 
   type GatewayStat = {
     gateway: string

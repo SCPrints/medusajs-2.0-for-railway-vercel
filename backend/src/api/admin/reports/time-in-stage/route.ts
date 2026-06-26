@@ -4,9 +4,9 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { PRODUCTION_STAGES } from "../../../../lib/production-stage"
 import {
   computeStageDwellDays,
-  fetchOrdersForReports,
   inRange,
   itemMethod,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -43,16 +43,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       )
     : null
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[time-in-stage] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "time-in-stage")
+  if (!orders) return
 
   // Bucket: stage -> [dwell_days_for_each_completed_pass]
   const buckets = new Map<string, number[]>()

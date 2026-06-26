@@ -5,8 +5,8 @@ import { PRODUCTION_STAGES, STAGE_SLA_DAYS } from "../../../../lib/production-st
 import {
   buildWeekBuckets,
   computeStageDwellDays,
-  fetchOrdersForReports,
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -39,16 +39,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    orders = await fetchOrdersForReports(query)
-  } catch (err: any) {
-    logger.error?.(`[stage-dwell-heatmap] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "stage-dwell-heatmap")
+  if (!orders) return
 
   const { buckets, findBucket } = buildWeekBuckets(from, to)
 

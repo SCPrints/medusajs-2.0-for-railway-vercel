@@ -7,18 +7,11 @@ import { z } from "zod"
 
 import { GROUP_ORDER_MODULE } from "../../../../../../../modules/group-order"
 import type GroupOrderModuleService from "../../../../../../../modules/group-order/service"
+import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 const schema = z.object({
   status: z.enum(["open", "closed", "converted"]),
 })
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
 
 export async function POST(
   req: AuthenticatedMedusaRequest,

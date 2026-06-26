@@ -8,6 +8,7 @@ import { z } from "zod"
 import { DESIGNS_MODULE } from "../../../../../../modules/designs"
 import type DesignsModuleService from "../../../../../../modules/designs/service"
 import { getPostHog } from "../../../../../../lib/posthog"
+import { requireCustomer } from "../../../../../../lib/require-customer"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -24,14 +25,6 @@ const updateBodySchema = z
       v.customizer_metadata !== undefined,
     { message: "Provide at least one field to update." }
   )
-
-function requireCustomer(req: AuthenticatedMedusaRequest): string {
-  const id = req.auth_context?.actor_id
-  if (!id) {
-    throw new MedusaError(MedusaError.Types.UNAUTHORIZED, "Not authenticated.")
-  }
-  return id
-}
 
 async function loadOwnedDesign(
   req: AuthenticatedMedusaRequest,

@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   inRange,
+  loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -27,34 +28,21 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const { from, to } = parseDateRange(req.query as Record<string, unknown>)
   const regionFilter = parseRegionFilter(req.query as Record<string, unknown>)
 
-  let orders: any[] = []
-  try {
-    const { data } = await query.graph({
-      entity: "order",
-      fields: [
-        "id",
-        "created_at",
-        "status",
-        "total",
-        "currency_code",
-        "region_id",
-        "customer_id",
-        "email",
-        "shipping_address.postal_code",
-        "shipping_address.city",
-        "shipping_address.province",
-        "shipping_address.country_code",
-      ],
-      pagination: { take: 5000, skip: 0 },
-    })
-    orders = (data as any[]) ?? []
-  } catch (err: any) {
-    logger.error?.(`[geo-heatmap] order fetch failed: ${err?.message ?? err}`)
-    return res.status(500).json({
-      error: "Failed to load orders",
-      detail: String(err?.message ?? err),
-    })
-  }
+  const orders = await loadOrdersOr500(query, res, logger, "geo-heatmap", [
+    "id",
+    "created_at",
+    "status",
+    "total",
+    "currency_code",
+    "region_id",
+    "customer_id",
+    "email",
+    "shipping_address.postal_code",
+    "shipping_address.city",
+    "shipping_address.province",
+    "shipping_address.country_code",
+  ])
+  if (!orders) return
 
   type Stat = {
     postal_code: string
