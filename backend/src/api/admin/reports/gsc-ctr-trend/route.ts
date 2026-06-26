@@ -7,7 +7,7 @@ import {
   isSeoConfigured,
 } from "../../../../services/seo-analytics/google-auth"
 import { withTransientRetry } from "../../../../services/seo-analytics/retry"
-import { parseDateRange } from "../../../../lib/reports/orders"
+import { parseDateRange, pctDelta, priorRange } from "../../../../lib/reports/orders"
 
 /**
  * GET /admin/reports/gsc-ctr-trend
@@ -35,9 +35,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
-  const periodMs = to.getTime() - from.getTime()
-  const priorTo = new Date(from)
-  const priorFrom = new Date(from.getTime() - periodMs)
+  const { from: priorFrom, to: priorTo } = priorRange(from, to)
   const dateOnly = (d: Date) => d.toISOString().slice(0, 10)
 
   try {
@@ -106,10 +104,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       }
       const ctrNow = Number(r.ctr ?? 0)
       const ctrPrior = priorRow.ctr
-      const delta =
-        ctrPrior > 0
-          ? Math.round(((ctrNow - ctrPrior) / ctrPrior) * 1000) / 10
-          : null
+      const delta = pctDelta(ctrNow, ctrPrior)
       return {
         query: q,
         impressions_now: Number(r.impressions ?? 0),

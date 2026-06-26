@@ -67,7 +67,6 @@ export async function notifyStaleOrders(
 ): Promise<NotifyResult> {
   const now = options.now ?? new Date()
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
-  const orderService = container.resolve(Modules.ORDER) as any
   const taskService = container.resolve(TASK_MODULE) as any
 
   let tasksCreated = 0

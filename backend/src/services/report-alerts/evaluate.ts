@@ -6,7 +6,6 @@ import {
   BLANKS_STAGES,
   DOWNSTREAM_STAGES,
   DOWNSTREAM_STAGE_SLA_DAYS,
-  PRODUCTION_STAGES,
   STAGE_SLA_DAYS,
   resolveTracksFromMeta,
   type ProductionStage,
@@ -43,8 +42,6 @@ export const METRIC_LABELS: Record<MetricKey, string> = {
 }
 
 export type MetricSnapshot = Record<MetricKey, number>
-
-const NON_TERMINAL = PRODUCTION_STAGES.filter((s) => s !== "delivered")
 
 /**
  * Resolve a stage value to its position WITHIN ITS OWN TRACK (normalising

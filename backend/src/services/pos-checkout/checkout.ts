@@ -70,9 +70,6 @@ export type POSCheckoutResult = {
   }
 }
 
-const isCashAllowed = (input: POSCheckoutInput): boolean =>
-  input.payment_method === "cash"
-
 /**
  * The studio's own address. Used as both billing AND shipping on POS
  * draft orders so Medusa's tax engine has a country/region/postal code
@@ -211,7 +208,7 @@ export const checkoutPOSSession = async (
   if (!order) throw new Error("order not found after draft conversion")
 
   // 4. Apply payment.
-  if (isCashAllowed(input)) {
+  if (input.payment_method === "cash") {
     const paymentModule = container.resolve(Modules.PAYMENT) as any
     const remoteLink = container.resolve(
       ContainerRegistrationKeys.REMOTE_LINK

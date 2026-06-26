@@ -42,4 +42,4 @@ export async function smartSearchVariantIds(
   return result.rows.map((row) => row.variant_id)
 }
 
-export { buildSearchSql, tokenize, DEFAULT_CANDIDATE_LIMIT }
+export { buildSearchSql, tokenize }

@@ -8,6 +8,7 @@ import {
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
+  priorRange,
 } from "../../../../lib/reports/orders"
 
 /**
@@ -68,9 +69,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   // Prior-period comparison so the KPI tile can show "vs last X days".
-  const periodMs = to.getTime() - from.getTime()
-  const priorTo = new Date(from)
-  const priorFrom = new Date(from.getTime() - periodMs)
+  const { from: priorFrom, to: priorTo } = priorRange(from, to)
   let priorTotal = 0
   let priorCustomized = 0
   for (const order of orders) {

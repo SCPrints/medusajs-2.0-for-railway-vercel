@@ -11,7 +11,6 @@ export type TimelineEntry = {
     | "nps_sent"
     | "nps_response"
     | "tax_exempt_stamped"
-    | "watcher_added"
   at: string
   actor: string | null
   /** Short headline rendered as the row title. */

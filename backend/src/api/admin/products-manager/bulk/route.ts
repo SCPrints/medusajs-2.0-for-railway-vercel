@@ -128,6 +128,24 @@ type BulkResult = {
   failed: Array<{ id: string; error: string }>
 }
 
+/** Run `fn` per id, collecting succeeded/failed — the shared loop the pure-update handlers use. */
+async function forEachProduct(
+  ids: string[],
+  fn: (id: string) => Promise<unknown>
+): Promise<BulkResult> {
+  const succeeded: string[] = []
+  const failed: Array<{ id: string; error: string }> = []
+  for (const id of ids) {
+    try {
+      await fn(id)
+      succeeded.push(id)
+    } catch (err: any) {
+      failed.push({ id, error: err?.message ?? String(err) })
+    }
+  }
+  return { succeeded, failed }
+}
+
 const BATCH_DELETE_SIZE = 50
 const CACHE_TAGS_HARD_CAP = 500
 
@@ -213,17 +231,9 @@ async function handleChangeStatus(
   ids: string[],
   status: string
 ): Promise<BulkResult> {
-  const succeeded: string[] = []
-  const failed: Array<{ id: string; error: string }> = []
-  for (const id of ids) {
-    try {
-      await productModule.updateProducts(id, { status })
-      succeeded.push(id)
-    } catch (err: any) {
-      failed.push({ id, error: err?.message ?? String(err) })
-    }
-  }
-  return { succeeded, failed }
+  return forEachProduct(ids, (id) =>
+    productModule.updateProducts(id, { status })
+  )
 }
 
 async function handleDelete(
@@ -306,17 +316,9 @@ async function handleSetType(
   ids: string[],
   type_id: string | null
 ): Promise<BulkResult> {
-  const succeeded: string[] = []
-  const failed: Array<{ id: string; error: string }> = []
-  for (const id of ids) {
-    try {
-      await productModule.updateProducts(id, { type_id })
-      succeeded.push(id)
-    } catch (err: any) {
-      failed.push({ id, error: err?.message ?? String(err) })
-    }
-  }
-  return { succeeded, failed }
+  return forEachProduct(ids, (id) =>
+    productModule.updateProducts(id, { type_id })
+  )
 }
 
 async function handleSetTags(
@@ -426,17 +428,9 @@ async function handleSetCollection(
   ids: string[],
   collection_id: string | null
 ): Promise<BulkResult> {
-  const succeeded: string[] = []
-  const failed: Array<{ id: string; error: string }> = []
-  for (const id of ids) {
-    try {
-      await productModule.updateProducts(id, { collection_id })
-      succeeded.push(id)
-    } catch (err: any) {
-      failed.push({ id, error: err?.message ?? String(err) })
-    }
-  }
-  return { succeeded, failed }
+  return forEachProduct(ids, (id) =>
+    productModule.updateProducts(id, { collection_id })
+  )
 }
 
 async function handleSetPrintProfile(

@@ -8,6 +8,8 @@ import {
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
+  pctDelta,
+  priorRange,
 } from "../../../../lib/reports/orders"
 
 /**
@@ -63,8 +65,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   // Period + prior-period bookkeeping.
   const periodMs = to.getTime() - from.getTime()
-  const priorTo = new Date(from)
-  const priorFrom = new Date(from.getTime() - periodMs)
+  const { from: priorFrom, to: priorTo } = priorRange(from, to)
   // Year-on-year window: same window 365 days earlier. Used for the
   // overlay line on the time-series chart so the operator can see
   // "this Tuesday vs Tuesday last year" rather than just rolling 30d.
@@ -244,18 +245,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       prior_revenue: prior.revenue,
       prior_aov: prior.aov,
       prior_distinct_customers: prior.distinct_customers,
-      orders_delta_pct:
-        prior.orders > 0
-          ? Math.round(((period.orders - prior.orders) / prior.orders) * 1000) / 10
-          : null,
-      revenue_delta_pct:
-        prior.revenue > 0
-          ? Math.round(((period.revenue - prior.revenue) / prior.revenue) * 1000) / 10
-          : null,
-      aov_delta_pct:
-        prior.aov > 0
-          ? Math.round(((period.aov - prior.aov) / prior.aov) * 1000) / 10
-          : null,
+      orders_delta_pct: pctDelta(period.orders, prior.orders),
+      revenue_delta_pct: pctDelta(period.revenue, prior.revenue),
+      aov_delta_pct: pctDelta(period.aov, prior.aov),
     },
     series,
     top_regions: topRegions,

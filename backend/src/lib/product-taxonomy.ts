@@ -1026,28 +1026,30 @@ export function classifyAussiePacificProduct(
   >,
   unknownLog?: string[]
 ): { productType: string | null; tags: string[] } {
-  // Demographic tokens that should NEVER become a productType, even though
-  // some of them ("kids") are also in PRODUCT_TYPE_ALIASES.
-  const DEMOGRAPHIC_KEYS = new Set([
-    "ladies",
-    "lady",
-    "women",
-    "womens",
-    "woman",
-    "mens",
-    "men",
-    "kids",
-    "kid",
-    "youth",
-    "youths",
-    "children",
-    "child",
-    "boys",
-    "boy",
-    "girls",
-    "girl",
-    "unisex",
-  ])
+  // Map AP demographic tokens → canonical tags. DEMOGRAPHIC_KEYS — the tokens
+  // that must NEVER become a productType even though e.g. "kids" is also in
+  // PRODUCT_TYPE_ALIASES — is exactly this map's key set.
+  const DEMOGRAPHIC_TO_TAG: Record<string, string> = {
+    ladies: "Women",
+    lady: "Women",
+    women: "Women",
+    womens: "Women",
+    woman: "Women",
+    mens: "Men",
+    men: "Men",
+    kids: "Kids",
+    kid: "Kids",
+    youth: "Kids",
+    youths: "Kids",
+    children: "Kids",
+    child: "Kids",
+    boys: "Kids",
+    boy: "Kids",
+    girls: "Kids",
+    girl: "Kids",
+    unisex: "Unisex",
+  }
+  const DEMOGRAPHIC_KEYS = new Set(Object.keys(DEMOGRAPHIC_TO_TAG))
 
   // Lookup a productType from a raw string. First try exact alias; if that
   // fails, split into tokens and return the first GARMENT (non-demographic)
@@ -1088,26 +1090,6 @@ export function classifyAussiePacificProduct(
   // resolve to the productType it's usually a garment-type variant
   // ("Long Sleeve Shirts") that adds noise; the title already conveys
   // shape.
-  const DEMOGRAPHIC_TO_TAG: Record<string, string> = {
-    ladies: "Women",
-    lady: "Women",
-    women: "Women",
-    womens: "Women",
-    woman: "Women",
-    mens: "Men",
-    men: "Men",
-    kids: "Kids",
-    kid: "Kids",
-    youth: "Kids",
-    youths: "Kids",
-    children: "Kids",
-    child: "Kids",
-    boys: "Kids",
-    boy: "Kids",
-    girls: "Kids",
-    girl: "Kids",
-    unisex: "Unisex",
-  }
   const tags: string[] = []
   const seenTags = new Set<string>()
   // Look for demographic tokens in BOTH main_category and sub_category.
@@ -1182,26 +1164,6 @@ export function classifyRamoProduct(
   row: Record<string, string>,
   unknownLog?: string[]
 ): { productType: string | null; tags: string[] } {
-  const RAMO_DEMOGRAPHIC_KEYS = new Set([
-    "ladies",
-    "lady",
-    "women",
-    "womens",
-    "woman",
-    "mens",
-    "men",
-    "kids",
-    "kid",
-    "youth",
-    "youths",
-    "children",
-    "child",
-    "boys",
-    "boy",
-    "girls",
-    "girl",
-    "unisex",
-  ])
   const RAMO_DEMOGRAPHIC_TO_TAG: Record<string, string> = {
     ladies: "Women",
     lady: "Women",
@@ -1222,6 +1184,7 @@ export function classifyRamoProduct(
     girl: "Kids",
     unisex: "Unisex",
   }
+  const RAMO_DEMOGRAPHIC_KEYS = new Set(Object.keys(RAMO_DEMOGRAPHIC_TO_TAG))
 
   // Token-aware type resolver. Accepts a comma-separated value (Ramo's
   // attribute_type sometimes carries "Jacket,Hoodie" / "Fleece,Hoodie").

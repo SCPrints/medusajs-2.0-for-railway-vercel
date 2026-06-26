@@ -1,13 +1,7 @@
 import { Client } from "minio"
 import { ulid } from "ulid"
 
-import {
-  MINIO_ACCESS_KEY,
-  MINIO_BUCKET,
-  MINIO_ENDPOINT,
-  MINIO_PUBLIC_URL,
-  MINIO_SECRET_KEY,
-} from "../../lib/constants"
+import { getMinioConfig } from "./service"
 
 const MAX_BYTES = 8 * 1024 * 1024
 
@@ -15,43 +9,6 @@ const MIME_TO_EXT: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
   "image/svg+xml": ".svg",
-}
-
-function parseMinioConfig() {
-  if (!MINIO_ENDPOINT || !MINIO_ACCESS_KEY || !MINIO_SECRET_KEY) {
-    return null
-  }
-
-  let endPoint = MINIO_ENDPOINT
-  let useSSL = true
-  let port = 443
-
-  if (endPoint.startsWith("https://")) {
-    endPoint = endPoint.replace("https://", "")
-    useSSL = true
-    port = 443
-  } else if (endPoint.startsWith("http://")) {
-    endPoint = endPoint.replace("http://", "")
-    useSSL = false
-    port = 80
-  }
-
-  endPoint = endPoint.replace(/\/$/, "")
-  const portMatch = endPoint.match(/:(\d+)$/)
-  if (portMatch) {
-    port = parseInt(portMatch[1], 10)
-    endPoint = endPoint.replace(/:(\d+)$/, "")
-  }
-
-  return {
-    endPoint,
-    useSSL,
-    port,
-    accessKey: MINIO_ACCESS_KEY,
-    secretKey: MINIO_SECRET_KEY,
-    bucket: MINIO_BUCKET || "medusa-media",
-    publicUrl: MINIO_PUBLIC_URL?.replace(/\/$/, "") || null,
-  }
 }
 
 /**
@@ -66,7 +23,7 @@ export async function uploadCustomerOriginalFile(
     throw new Error(`File size must be between 1 byte and ${MAX_BYTES} bytes.`)
   }
 
-  const config = parseMinioConfig()
+  const config = getMinioConfig()
   if (!config) {
     return null
   }

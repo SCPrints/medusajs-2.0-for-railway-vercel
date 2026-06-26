@@ -29,16 +29,12 @@ export type PriceLadder = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-export const buildPriceLadder = (
-  cost: number,
-  baseMultiplier = 2.2
-): PriceLadder => {
+export const buildPriceLadder = (cost: number): PriceLadder => {
   const tier100PlusVal = cost * 1.1 * 1.5
   const standard = tier100PlusVal / 0.75
-  const baseVal = (standard * baseMultiplier) / 2.2
 
   return {
-    base: round2(baseVal),
+    base: round2(standard),
     tier10to19: round2(standard * 0.9),
     tier20to49: round2(standard * 0.85),
     tier50to99: round2(standard * 0.8),

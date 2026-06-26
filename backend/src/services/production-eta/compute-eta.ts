@@ -90,7 +90,7 @@ export type EtaResult = {
   congested_stages: DownstreamStageKey[]
 }
 
-const STAGE_KEYS: DownstreamStageKey[] = [
+export const STAGE_KEYS: DownstreamStageKey[] = [
   "received",
   "art_review",
   "awaiting_approval",

@@ -4,21 +4,11 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import {
   computeProductionEta,
   DEFAULT_PRODUCTION_ETA_CONFIG,
+  STAGE_KEYS,
   type DownstreamStageKey,
   type EtaResult,
   type StageCounts,
 } from "./compute-eta"
-
-const STAGE_KEYS: DownstreamStageKey[] = [
-  "received",
-  "art_review",
-  "awaiting_approval",
-  "approved",
-  "blanks_ordered",
-  "blanks_arrived",
-  "in_production",
-  "quality_check",
-]
 
 /**
  * Reads every order whose `metadata.production_stage` matches one of
