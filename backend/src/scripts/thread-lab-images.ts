@@ -1,6 +1,6 @@
 /**
- * Thread Lab image fetching — shared by the importer (import-thread-lab.ts)
- * and the one-off repair (fix-thread-lab-images.ts).
+ * Thread Lab image fetching — shared by the importer (import-thread-lab.ts).
+ * (The one-off fix-thread-lab-images.ts repair has been retired to scripts.archive/.)
  *
  * THE COLOUR-MAPPING RULE (load-bearing):
  *   Thread Lab's Shopify store assigns exactly ONE image per colour via
