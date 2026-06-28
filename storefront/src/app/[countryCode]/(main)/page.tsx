@@ -22,6 +22,7 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import HomeHero from "@modules/home/components/home-hero"
 import HomeTurnaroundBanner from "@modules/home/components/home-turnaround-banner"
+import HomeMovingBanner from "@modules/home/components/home-moving-banner"
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HomeTrustStrip from "@modules/home/components/home-trust-strip"
 import HomeToolsRail from "@modules/home/components/home-tools-rail"
@@ -390,6 +391,10 @@ export default async function Home({
         {/* 2. Turnaround line — static promise copy (the eta prop is unused
             by the component, so the page no longer fetches the ETA at all). */}
         <HomeTurnaroundBanner eta={null} />
+
+        {/* Floating "we're moving" announcement — dismissible, auto-retires
+            after the move date (edit the MOVE block in the component). */}
+        <HomeMovingBanner />
 
         {/* 3. Trust strip — now reinforces below the hero rather than leading.
             Six signals: heritage, shipping, no minimum, live order tracking,

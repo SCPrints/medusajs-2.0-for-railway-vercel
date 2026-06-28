@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react"
 
+// New studio: 7 Epic Place, Villawood NSW 2163. Query-based embed so there's
+// no hand-maintained coordinate string — Google geocodes the address.
 const MAP_EMBED_URL =
-  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d26545.626463999554!2d150.91617260565882!3d-33.89602410887372!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6b12beabf0b5d84b%3A0x5017d681632ad40!2sCabramatta%20NSW%202166!5e0!3m2!1sen!2sau!4v1713259868726!5m2!1sen!2sau"
+  "https://www.google.com/maps?q=7+Epic+Place,+Villawood+NSW+2163&output=embed"
 
 const ContactMap = () => {
   const [isMapLoaded, setIsMapLoaded] = useState(false)
