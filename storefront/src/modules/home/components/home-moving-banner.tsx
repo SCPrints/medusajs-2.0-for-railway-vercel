@@ -21,6 +21,18 @@ const COOLDOWN_DAYS = 7
 /** Keep showing this many days past the move date, then retire for good. */
 const GRACE_DAYS = 10
 
+// Animated moving-box icon: the box hops/rocks while trailing motion lines
+// pulse behind it. Gated behind prefers-reduced-motion so it holds still for
+// users who ask for less motion.
+const MOVING_BOX_CSS = `
+@media (prefers-reduced-motion: no-preference){
+  .scp-mvbox{animation:scp-mvbox 1.8s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+  .scp-mvlines{animation:scp-mvlines 1.8s ease-in-out infinite;transform-box:fill-box}
+}
+@keyframes scp-mvbox{0%,100%{transform:translate(0,0) rotate(0)}35%{transform:translate(1px,-2px) rotate(-4deg)}70%{transform:translate(0,0) rotate(2deg)}}
+@keyframes scp-mvlines{0%,100%{opacity:.2;transform:translateX(0)}50%{opacity:.65;transform:translateX(-2px)}}
+`
+
 /** Pure visibility rule — unit-tested in home-moving-banner.spec.ts. */
 export function movingBannerVisible(opts: {
   now: number
@@ -83,6 +95,7 @@ export default function HomeMovingBanner() {
             animateIn ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
           }`}
         >
+          <style>{MOVING_BOX_CSS}</style>
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-secondary)]/[0.08]">
               <svg
@@ -97,8 +110,16 @@ export default function HomeMovingBanner() {
                 className="text-[var(--brand-secondary)]"
                 aria-hidden
               >
-                <path d="M12 21s-6-5.686-6-10a6 6 0 0 1 12 0c0 4.314-6 10-6 10z" />
-                <circle cx="12" cy="11" r="2.5" />
+                <g className="scp-mvbox">
+                  <path d="M21 8.5 12 13 3 8.5 12 4z" />
+                  <path d="M3 8.5v7L12 20l9-4.5v-7" />
+                  <path d="M12 13v7" />
+                  <path d="M7.5 6.25 16.5 10.75" />
+                </g>
+                <g className="scp-mvlines">
+                  <path d="M3.5 12.5H1.5" />
+                  <path d="M3 15H0.5" />
+                </g>
               </svg>
             </div>
             <div className="min-w-0 flex-1">
