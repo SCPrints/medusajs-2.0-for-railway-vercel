@@ -76,21 +76,18 @@ export default function HomeMovingBanner() {
   const place = MOVE.suburb ? `in ${MOVE.suburb}, NSW` : "in NSW"
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 pointer-events-none small:inset-x-auto small:right-4 small:bottom-4">
-      <div
-        className="pointer-events-auto mx-auto max-w-md px-3 pb-3 small:mx-0 small:max-w-sm small:px-0 small:pb-0"
-        style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
-      >
+    <div className="fixed inset-x-0 top-[5.5rem] z-40 pointer-events-none small:inset-x-auto small:right-5 small:top-[8.5rem]">
+      <div className="pointer-events-auto mx-auto max-w-lg px-3 small:mx-0 small:max-w-md small:px-0">
         <div
-          className={`rounded-2xl border border-ui-border-base bg-white p-4 shadow-2xl transition-all duration-300 ease-out ${
-            animateIn ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+          className={`rounded-2xl border-2 border-[var(--brand-secondary)]/20 bg-white p-5 shadow-2xl transition-all duration-300 ease-out ${
+            animateIn ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0"
           }`}
         >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-secondary)]/[0.08]">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-secondary)]/[0.08]">
               <svg
-                width="22"
-                height="22"
+                width="26"
+                height="26"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -105,17 +102,17 @@ export default function HomeMovingBanner() {
               </svg>
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-ui-fg-base">
+              <p className="text-base font-semibold text-ui-fg-base phone:text-lg">
                 We&rsquo;re moving studios
               </p>
-              <p className="mt-0.5 text-xs text-ui-fg-subtle">
+              <p className="mt-1 text-sm leading-relaxed text-ui-fg-subtle">
                 From {dateLabel} we&rsquo;ll be printing from a new studio {place}{" "}
                 — same team, same turnaround, your orders ship as normal.
               </p>
               <LocalizedClientLink
                 href={MOVE.newAddressHref}
                 onClick={dismiss}
-                className="mt-3 inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--brand-secondary)] px-4 py-2 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
+                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
               >
                 See our new address
               </LocalizedClientLink>
