@@ -5,7 +5,7 @@ import ProductTemplate from "@modules/products/templates"
 import { getRegion } from "@lib/data/regions"
 import { getProductByHandle } from "@lib/data/products"
 import { getProductPrice } from "@lib/util/get-product-price"
-import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import { buildAbsoluteUrl, metaDescription, SEO } from "@lib/util/seo"
 import { safeJsonLd } from "@lib/util/json-ld"
 
 type Props = {
@@ -45,19 +45,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
+  const description = metaDescription(
+    product.description,
+    `${product.title} — custom printing & embroidery from SC PRINTS.`
+  )
+
   return {
     title: product.title,
-    description: `${product.title}`,
+    description,
     alternates: { canonical: `/${normalizedCountryCode}/products/${product.handle}` },
     openGraph: {
       url: buildAbsoluteUrl(`/${normalizedCountryCode}/products/${product.handle}`),
       title: `${product.title} | ${SEO.siteName}`,
-      description: `${product.title}`,
+      description,
       images: product.thumbnail ? [product.thumbnail] : [],
     },
     twitter: {
       title: `${product.title} | ${SEO.siteName}`,
-      description: `${product.title}`,
+      description,
       images: product.thumbnail ? [product.thumbnail] : [SEO.ogImage],
     },
   }

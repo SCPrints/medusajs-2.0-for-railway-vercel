@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { getCategoryByHandle } from "@lib/data/categories"
-import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import { buildAbsoluteUrl, metaDescription, SEO } from "@lib/util/seo"
 import { StoreProductCategory } from "@medusajs/types"
 import CategoryTemplate from "@modules/categories/templates"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -55,9 +55,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       .map((category: StoreProductCategory) => category.name)
       .join(" | ")
 
-    const description =
-      product_categories[product_categories.length - 1].description ??
-      `${title} category.`
+    const leaf = product_categories[product_categories.length - 1]
+    const description = metaDescription(
+      leaf.description,
+      `Custom printed & embroidered ${leaf.name} — bulk apparel from SC PRINTS.`
+    )
 
     return {
       title,
