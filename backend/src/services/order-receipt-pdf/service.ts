@@ -2,8 +2,11 @@ import fs from "fs"
 import path from "path"
 import PDFDocument from "pdfkit"
 import sharp from "sharp"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import type { MedusaContainer } from "@medusajs/framework/types"
+import { Modules } from "@medusajs/framework/utils"
+import type {
+  MedusaContainer,
+  IOrderModuleService,
+} from "@medusajs/framework/types"
 
 import { SCP_COMPANY_ABN } from "../../lib/constants"
 
@@ -78,53 +81,73 @@ export type ReceiptOrder = {
   shipping_methods?: ShippingMethod[] | null
 }
 
-const RECEIPT_ORDER_FIELDS = [
-  "id",
-  "display_id",
-  "created_at",
-  "email",
-  "customer_id",
-  "currency_code",
-  "metadata",
-  "item_subtotal",
-  "shipping_subtotal",
-  "subtotal",
-  "shipping_total",
-  "tax_total",
-  "total",
-  "items.id",
-  "items.title",
-  "items.product_title",
-  "items.variant_title",
-  "items.variant_sku",
-  "items.quantity",
-  "items.unit_price",
-  "items.total",
-  "items.metadata",
-  "shipping_address.*",
-  "billing_address.*",
-  "shipping_methods.name",
-  "shipping_methods.amount",
-]
+/**
+ * Computes the invoice totals from an order's line items, shipping methods and
+ * summary — the fields `retrieveOrder` reliably returns. Split out as a pure
+ * function so it can be unit-tested without the DB.
+ *
+ * Why not read `order.item_subtotal` / `order.tax_total` directly?
+ *  - `retrieveOrder` leaves the order-level aggregate totals at 0.
+ *  - `query.graph` returns them undecorated (line-item quantity/unit_price come
+ *    back as 0 too — it renders a $0 invoice).
+ * The line items, `shipping_methods[].amount`, and `summary.raw_current_order_total`
+ * ARE decorated correctly, so we derive the breakdown from them. GST is
+ * tax-EXCLUSIVE here (added on top), so `unit_price` and shipping amounts are
+ * ex-GST and lines reconcile: item_subtotal + shipping_subtotal + tax_total = total.
+ */
+export function computeReceiptTotals(raw: any): ReceiptOrder {
+  const items = ((raw?.items ?? []) as OrderItem[]).map((it) => {
+    const qty = toNumber(it.quantity)
+    const unit = toNumber(it.unit_price)
+    // Ex-GST line total (unit_price is ex-GST) so every line above the GST row
+    // reconciles against the separate GST line.
+    return { ...it, quantity: qty, unit_price: unit, total: unit * qty }
+  })
+
+  const itemSubtotal = items.reduce((sum, it) => sum + toNumber(it.total), 0)
+  const shippingSubtotal = ((raw?.shipping_methods ?? []) as ShippingMethod[]).reduce(
+    (sum, m) => sum + toNumber(m.amount),
+    0
+  )
+  const summaryTotal = toNumber(raw?.summary?.raw_current_order_total?.value)
+  const grandTotal = summaryTotal || toNumber(raw?.total) || itemSubtotal + shippingSubtotal
+  const taxTotal = Math.max(0, grandTotal - itemSubtotal - shippingSubtotal)
+
+  return {
+    ...raw,
+    items,
+    item_subtotal: itemSubtotal,
+    shipping_subtotal: shippingSubtotal,
+    tax_total: taxTotal,
+    total: grandTotal,
+  }
+}
 
 /**
- * Loads an order shaped for the invoice/receipt PDF **with computed
- * order-level totals**. The order module's `retrieveOrder` returns line-item
- * totals but leaves `item_subtotal` / `tax_total` / `total` unpopulated (they
- * render as $0) — the query graph computes them. Every invoice surface (email
- * subscriber, admin re-send, account download) must load through this.
+ * Loads an order shaped for the invoice/receipt PDF with reconciled totals.
+ * Every invoice surface (email subscriber, admin re-send/preview, account
+ * download) must load through this so they render identical numbers.
  */
 export async function loadReceiptOrder(
   container: MedusaContainer,
   orderId: string
 ): Promise<ReceiptOrder | null> {
-  const query = container.resolve(ContainerRegistrationKeys.QUERY)
-  const { data } = await query.graph({
-    entity: "order",
-    fields: RECEIPT_ORDER_FIELDS,
-    filters: { id: orderId },
-  })
-  return (data?.[0] as unknown as ReceiptOrder) ?? null
+  const orderModule = container.resolve(Modules.ORDER) as IOrderModuleService
+  let raw: any
+  try {
+    raw = await orderModule.retrieveOrder(orderId, {
+      relations: [
+        "items",
+        "summary",
+        "shipping_address",
+        "billing_address",
+        "shipping_methods",
+      ],
+    })
+  } catch {
+    return null
+  }
+  return computeReceiptTotals(raw)
 }
 
 function toNumber(value: number | string | null | undefined): number {
