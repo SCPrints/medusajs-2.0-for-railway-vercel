@@ -2,6 +2,10 @@ import fs from "fs"
 import path from "path"
 import PDFDocument from "pdfkit"
 import sharp from "sharp"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import type { MedusaContainer } from "@medusajs/framework/types"
+
+import { SCP_COMPANY_ABN } from "../../lib/constants"
 
 const ASSETS_DIR = path.join(__dirname, "../../assets")
 const FONTS_DIR = path.join(ASSETS_DIR, "fonts")
@@ -56,7 +60,13 @@ export type ReceiptOrder = {
   display_id?: number | string | null
   created_at?: Date | string | null
   email?: string | null
+  customer_id?: string | null
   currency_code?: string | null
+  /** Items only, ex-GST. Preferred for the "Subtotal (ex GST)" line —
+   *  `subtotal` includes shipping on this deployment, so don't use it. */
+  item_subtotal?: number | string | null
+  /** Shipping ex-GST. `shipping_total` is tax-inclusive once GST applies. */
+  shipping_subtotal?: number | string | null
   subtotal?: number | string | null
   shipping_total?: number | string | null
   tax_total?: number | string | null
@@ -66,6 +76,55 @@ export type ReceiptOrder = {
   billing_address?: Address | null
   items?: OrderItem[] | null
   shipping_methods?: ShippingMethod[] | null
+}
+
+const RECEIPT_ORDER_FIELDS = [
+  "id",
+  "display_id",
+  "created_at",
+  "email",
+  "customer_id",
+  "currency_code",
+  "metadata",
+  "item_subtotal",
+  "shipping_subtotal",
+  "subtotal",
+  "shipping_total",
+  "tax_total",
+  "total",
+  "items.id",
+  "items.title",
+  "items.product_title",
+  "items.variant_title",
+  "items.variant_sku",
+  "items.quantity",
+  "items.unit_price",
+  "items.total",
+  "items.metadata",
+  "shipping_address.*",
+  "billing_address.*",
+  "shipping_methods.name",
+  "shipping_methods.amount",
+]
+
+/**
+ * Loads an order shaped for the invoice/receipt PDF **with computed
+ * order-level totals**. The order module's `retrieveOrder` returns line-item
+ * totals but leaves `item_subtotal` / `tax_total` / `total` unpopulated (they
+ * render as $0) — the query graph computes them. Every invoice surface (email
+ * subscriber, admin re-send, account download) must load through this.
+ */
+export async function loadReceiptOrder(
+  container: MedusaContainer,
+  orderId: string
+): Promise<ReceiptOrder | null> {
+  const query = container.resolve(ContainerRegistrationKeys.QUERY)
+  const { data } = await query.graph({
+    entity: "order",
+    fields: RECEIPT_ORDER_FIELDS,
+    filters: { id: orderId },
+  })
+  return (data?.[0] as unknown as ReceiptOrder) ?? null
 }
 
 function toNumber(value: number | string | null | undefined): number {
@@ -221,15 +280,26 @@ function buildPdf(params: {
       .fillColor(TEXT_MUTED)
       .text("scprints.com.au", ML, 86, { width: usableW, align: "right" })
 
+    if (SCP_COMPANY_ABN) {
+      doc
+        .font("PJS")
+        .fontSize(9)
+        .fillColor(TEXT_MUTED)
+        .text(`ABN ${SCP_COMPANY_ABN}`, ML, 100, {
+          width: usableW,
+          align: "right",
+        })
+    }
+
     if (taxExempt) {
       doc
-        .roundedRect(PW - MR - 150, 104, 150, 18, 9)
+        .roundedRect(PW - MR - 150, 120, 150, 18, 9)
         .fill("#fef3c7")
       doc
         .font("PJS-Bold")
         .fontSize(9)
         .fillColor("#92400e")
-        .text("No-GST · Tax exempt", PW - MR - 150, 109, {
+        .text("No-GST · Tax exempt", PW - MR - 150, 125, {
           width: 150,
           align: "center",
         })
@@ -350,11 +420,6 @@ function buildPdf(params: {
         currency
       )
       const pricing = getCustomizerPricing(item)
-      const hasSplit =
-        pricing &&
-        typeof pricing.baseUnitPriceCents === "number" &&
-        typeof pricing.sideSurchargePerUnitCents === "number" &&
-        pricing.sideSurchargePerUnitCents > 0
 
       const itemColX = ML
       const itemColW = usableW * 0.55 - 8
@@ -396,37 +461,6 @@ function buildPdf(params: {
         detailY += 12
       }
 
-      if (hasSplit) {
-        const garmentMajor = pricing!.baseUnitPriceCents! / 100
-        const printMajor = pricing!.sideSurchargePerUnitCents! / 100
-        const labelX = itemColX + 8
-        const amountX = itemColX + itemColW - 60
-
-        doc.font("PJS").fontSize(9).fillColor(TEXT_MUTED)
-        doc.text("Garment / unit", labelX, detailY, { width: 120 })
-        doc
-          .font("PJS")
-          .fontSize(9)
-          .fillColor(BRAND_PRIMARY)
-          .text(formatMoney(garmentMajor, currency), amountX, detailY, {
-            width: 60,
-            align: "right",
-          })
-        detailY += 12
-
-        doc.font("PJS").fontSize(9).fillColor(TEXT_MUTED)
-        doc.text("Print / unit", labelX, detailY, { width: 120 })
-        doc
-          .font("PJS")
-          .fontSize(9)
-          .fillColor(BRAND_PRIMARY)
-          .text(formatMoney(printMajor, currency), amountX, detailY, {
-            width: 60,
-            align: "right",
-          })
-        detailY += 12
-      }
-
       // Right-side qty / unit / total — vertically aligned to title row
       doc
         .font("PJS")
@@ -463,8 +497,8 @@ function buildPdf(params: {
       rowY = 48
     }
 
-    const totalsX = ML + usableW * 0.55
-    const totalsLabelW = usableW * 0.25
+    const totalsX = ML + usableW * 0.45
+    const totalsLabelW = usableW * 0.35
     const totalsAmountW = usableW * 0.2
     let totalsY = rowY + 6
 
@@ -497,11 +531,16 @@ function buildPdf(params: {
       totalsY += opts.bold ? 22 : 18
     }
 
-    const subtotalLabel = "Subtotal (excl. shipping and GST)"
-    writeTotalRow(subtotalLabel, formatMoney(order.subtotal, currency))
+    // Use item_subtotal / shipping_subtotal (both ex-GST) so the lines
+    // reconcile against the separate GST line: item_subtotal +
+    // shipping_subtotal + tax_total = total. `subtotal` includes shipping and
+    // `shipping_total` is tax-inclusive once GST applies — don't use them here.
+    const itemsSubtotal = order.item_subtotal ?? order.subtotal
+    writeTotalRow("Subtotal (ex GST)", formatMoney(itemsSubtotal, currency))
 
-    if (toNumber(order.shipping_total) > 0) {
-      writeTotalRow("Shipping", formatMoney(order.shipping_total, currency))
+    const shippingSubtotal = toNumber(order.shipping_subtotal ?? order.shipping_total)
+    if (shippingSubtotal > 0) {
+      writeTotalRow("Shipping (ex GST)", formatMoney(shippingSubtotal, currency))
     }
 
     if (taxExempt) {

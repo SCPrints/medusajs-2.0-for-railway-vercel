@@ -580,6 +580,13 @@ export const ASCOLOUR_WORKSHOP_EMAIL = process.env.ASCOLOUR_WORKSHOP_EMAIL
 export const ASCOLOUR_WORKSHOP_PHONE = process.env.ASCOLOUR_WORKSHOP_PHONE
 
 /**
+ * SC Prints' own ABN, printed on tax invoices (emailed PDF + downloadable
+ * HTML/PDF). The ATO requires the supplier's ABN on a tax invoice ≥ $82.50.
+ * Leave unset if not GST-registered — the ABN line simply doesn't render.
+ */
+export const SCP_COMPANY_ABN = process.env.SCP_COMPANY_ABN || "19 608 129 318"
+
+/**
  * FashionBiz Public API v3 (Biz Collection, Biz Care, Biz Corporates, Syzmik,
  * Good-Mates). Token issued per-customer by FashionBiz; branch is the country
  * shorthand (au/nz/ca). When the token is missing the module simply isn't

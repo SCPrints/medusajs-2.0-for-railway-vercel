@@ -87,6 +87,11 @@ import {
   QuoteDesignApprovalRequestEmail,
   isQuoteDesignApprovalRequestData,
 } from './quote-design-approval-request'
+import {
+  TAX_INVOICE,
+  TaxInvoiceEmail,
+  isTaxInvoiceData,
+} from './tax-invoice'
 
 export const EmailTemplates = {
   INVITE_USER,
@@ -108,6 +113,7 @@ export const EmailTemplates = {
   FULFILLMENT_ORDER_PLACED,
   QUOTE_CUSTOMER_ACTION,
   QUOTE_DESIGN_APPROVAL_REQUEST,
+  TAX_INVOICE,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -285,6 +291,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
       }
       return <QuoteDesignApprovalRequestEmail {...data} />
 
+    case EmailTemplates.TAX_INVOICE:
+      if (!isTaxInvoiceData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.TAX_INVOICE}"`
+        )
+      }
+      return <TaxInvoiceEmail {...data} />
+
     default:
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
@@ -311,4 +326,5 @@ export {
   FulfillmentOrderPlacedTemplate,
   QuoteCustomerActionEmail,
   QuoteDesignApprovalRequestEmail,
+  TaxInvoiceEmail,
 }

@@ -2,19 +2,21 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import type { IOrderModuleService } from "@medusajs/framework/types"
-import { MedusaError, Modules } from "@medusajs/framework/utils"
+import { MedusaError } from "@medusajs/framework/utils"
 
 import {
   CONTACT_NOTIFICATION_EMAIL,
+  SCP_COMPANY_ABN,
   SUPPORT_REPLY_TO_EMAIL,
 } from "../../../../../../../lib/constants"
+import { loadReceiptOrder } from "../../../../../../../services/order-receipt-pdf/service"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
 
 const INVOICE_BRAND = {
   siteName: "SC PRINTS",
   contactEmail:
     SUPPORT_REPLY_TO_EMAIL ?? CONTACT_NOTIFICATION_EMAIL ?? "info@scprints.com.au",
+  abn: SCP_COMPANY_ABN,
 }
 
 /**
@@ -65,16 +67,8 @@ export async function GET(
     return res.status(400).json({ error: "id required" })
   }
 
-  const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER)
-  let order: any
-  try {
-    order = await orderModuleService.retrieveOrder(orderId, {
-      relations: ["items", "shipping_address", "billing_address"],
-    })
-  } catch {
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
-  }
-  if (order?.customer_id !== customerId) {
+  const order = (await loadReceiptOrder(req.scope, orderId)) as any
+  if (!order || order.customer_id !== customerId) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
   }
 
@@ -108,8 +102,13 @@ export async function GET(
     })
     .join("")
 
-  const subtotal = formatMoney(order.subtotal, currency)
-  const shippingTotal = formatMoney(order.shipping_total, currency)
+  // item_subtotal / shipping_subtotal are ex-GST and reconcile against the
+  // separate GST line; `subtotal` includes shipping and `shipping_total` is
+  // tax-inclusive once GST applies, so don't use them here.
+  const itemsSubtotalValue = order.item_subtotal ?? order.subtotal
+  const shippingSubtotalValue = order.shipping_subtotal ?? order.shipping_total
+  const subtotal = formatMoney(itemsSubtotalValue, currency)
+  const shippingTotal = formatMoney(shippingSubtotalValue, currency)
   const taxTotal = taxExempt ? formatMoney(0, currency) : formatMoney(order.tax_total, currency)
   const grandTotal = taxExempt
     ? formatMoney(
@@ -157,6 +156,7 @@ export async function GET(
     <div style="text-align:right;">
       <div style="font-size:14px;font-weight:700;">${escape(INVOICE_BRAND.siteName)}</div>
       ${INVOICE_BRAND.contactEmail ? `<div class="muted">${escape(INVOICE_BRAND.contactEmail)}</div>` : ""}
+      ${INVOICE_BRAND.abn ? `<div class="muted">ABN ${escape(INVOICE_BRAND.abn)}</div>` : ""}
       ${taxExempt ? `<div style="margin-top:6px;"><span class="badge">No-GST invoice (tax-exempt)</span></div>` : ""}
     </div>
   </div>
@@ -194,8 +194,8 @@ export async function GET(
   </table>
 
   <table class="totals">
-    <tr><td>Subtotal</td><td class="amount">${subtotal}</td></tr>
-    ${Number(order.shipping_total ?? 0) > 0 ? `<tr><td>Shipping</td><td class="amount">${shippingTotal}</td></tr>` : ""}
+    <tr><td>Subtotal (ex GST)</td><td class="amount">${subtotal}</td></tr>
+    ${Number(shippingSubtotalValue ?? 0) > 0 ? `<tr><td>Shipping (ex GST)</td><td class="amount">${shippingTotal}</td></tr>` : ""}
     <tr>
       <td>${taxExempt ? "GST (exempt)" : "GST"}</td>
       <td class="amount">${taxTotal}</td>

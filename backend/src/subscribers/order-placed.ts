@@ -18,6 +18,10 @@ import { getPostHog } from "../lib/posthog"
 import { ORGANISATION_MODULE } from "../modules/organisation"
 import type OrganisationModuleService from "../modules/organisation/service"
 import { EmailTemplates } from "../modules/email-notifications/templates"
+import {
+  generateReceiptPdf,
+  loadReceiptOrder,
+} from "../services/order-receipt-pdf/service"
 
 export default async function orderPlacedHandler({
   event: { data },
@@ -30,7 +34,13 @@ export default async function orderPlacedHandler({
   const orderModuleService: IOrderModuleService = container.resolve(Modules.ORDER)
 
   const order = await orderModuleService.retrieveOrder(data.id, {
-    relations: ["items", "summary", "shipping_address"],
+    relations: [
+      "items",
+      "summary",
+      "shipping_address",
+      "billing_address",
+      "shipping_methods",
+    ],
   })
 
   const shippingAddress = order.shipping_address
@@ -213,12 +223,51 @@ export default async function orderPlacedHandler({
     ORDER_NOTIFICATION_EMAIL || CONTACT_NOTIFICATION_EMAIL
   )
 
+  // Generate the tax-invoice PDF once and reuse it for both the order
+  // confirmation attachment (A) and the dedicated tax-invoice email (B).
+  // A PDF failure must never block the confirmation — it degrades to a
+  // no-attachment confirmation and skips the dedicated invoice email.
+  let invoiceAttachments:
+    | Array<{
+        filename: string
+        content: string
+        content_type: string
+        disposition: "attachment"
+      }>
+    | undefined
+  if (order.email) {
+    try {
+      // Reload with computed order-level totals — the event's order (from
+      // retrieveOrder) has $0 subtotal/tax/total, which would render a $0
+      // invoice. loadReceiptOrder pulls the graph-computed totals.
+      const receiptOrder = await loadReceiptOrder(container, data.id)
+      if (receiptOrder) {
+        const pdf = await generateReceiptPdf(receiptOrder)
+        invoiceAttachments = [
+          {
+            filename: `tax-invoice-${displayId}.pdf`,
+            content: pdf.toString("base64"),
+            content_type: "application/pdf",
+            disposition: "attachment",
+          },
+        ]
+      }
+    } catch (error) {
+      logger.error(
+        `order.placed: tax-invoice PDF generation failed for order ${data.id}: ${
+          (error as Error).message
+        }`
+      )
+    }
+  }
+
   if (order.email) {
     try {
       await notificationModuleService.createNotifications({
         to: order.email,
         channel: "email",
         template: EmailTemplates.ORDER_PLACED,
+        ...(invoiceAttachments ? { attachments: invoiceAttachments } : {}),
         data: {
           emailOptions: {
             replyTo: replyToSupport,
@@ -236,6 +285,49 @@ export default async function orderPlacedHandler({
           (error as Error).message
         }`
       )
+    }
+
+    // Dedicated tax-invoice email (B). Only sent when the PDF actually
+    // generated — the cover copy says "attached", so no attachment = no email.
+    if (invoiceAttachments) {
+      const currency = String(order.currency_code ?? "AUD").toUpperCase()
+      const totalValue =
+        (order as any).summary?.raw_current_order_total?.value ??
+        (order as any).total ??
+        0
+      const orderTotalFormatted = new Intl.NumberFormat("en-AU", {
+        style: "currency",
+        currency,
+      }).format(Number(totalValue))
+      const orderDateFormatted = new Date(order.created_at).toLocaleDateString(
+        "en-AU",
+        { day: "numeric", month: "short", year: "numeric" }
+      )
+      try {
+        await notificationModuleService.createNotifications({
+          to: order.email,
+          channel: "email",
+          template: EmailTemplates.TAX_INVOICE,
+          attachments: invoiceAttachments,
+          data: {
+            emailOptions: {
+              replyTo: replyToSupport,
+              subject: `Tax invoice for order #${displayId}`,
+            },
+            customerFirstName: shippingAddress.first_name ?? null,
+            orderDisplayId: displayId,
+            orderDateFormatted,
+            orderTotalFormatted,
+            preview: `Your tax invoice for order #${displayId} (PDF attached).`,
+          },
+        })
+      } catch (error) {
+        logger.error(
+          `order.placed: tax-invoice email failed for order ${data.id}: ${
+            (error as Error).message
+          }`
+        )
+      }
     }
   } else {
     logger.warn(

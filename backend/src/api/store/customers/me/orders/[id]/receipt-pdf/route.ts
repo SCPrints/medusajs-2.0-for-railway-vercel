@@ -2,12 +2,11 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import type { IOrderModuleService } from "@medusajs/framework/types"
-import { MedusaError, Modules } from "@medusajs/framework/utils"
+import { MedusaError } from "@medusajs/framework/utils"
 
 import {
   generateReceiptPdf,
-  type ReceiptOrder,
+  loadReceiptOrder,
 } from "../../../../../../../services/order-receipt-pdf/service"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
 
@@ -29,26 +28,8 @@ export async function GET(
     return res.status(400).json({ error: "id required" })
   }
 
-  const orderModuleService: IOrderModuleService = req.scope.resolve(
-    Modules.ORDER
-  )
-
-  let order: ReceiptOrder
-  try {
-    const raw = await orderModuleService.retrieveOrder(orderId, {
-      relations: [
-        "items",
-        "shipping_address",
-        "billing_address",
-        "shipping_methods",
-      ],
-    })
-    order = raw as unknown as ReceiptOrder
-  } catch {
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
-  }
-
-  if ((order as unknown as { customer_id?: string })?.customer_id !== customerId) {
+  const order = await loadReceiptOrder(req.scope, orderId)
+  if (!order || order.customer_id !== customerId) {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, "Order not found.")
   }
 
