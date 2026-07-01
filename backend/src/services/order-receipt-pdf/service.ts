@@ -601,22 +601,17 @@ function buildPdf(params: {
         { bold: true, rule: true }
       )
     } else if (gstIncluded) {
-      // Total already includes GST — show the total, then note the embedded 1/11.
-      writeTotalRow(`Total ${currency}`, formatMoney(order.total, currency), {
-        bold: true,
-        rule: true,
-      })
-      doc
-        .font("PJS")
-        .fontSize(9)
-        .fillColor(TEXT_MUTED)
-        .text(
-          `Includes GST of ${formatMoney(order.tax_total, currency)} (1/11)`,
-          totalsX,
-          totalsY,
-          { width: totalsLabelW + totalsAmountW, align: "right" }
-        )
-      totalsY += 14
+      // Total already includes GST — label it inc. GST and itemise the
+      // embedded 1/11 as a full totals row (standard AU receipt presentation).
+      writeTotalRow(
+        `Total ${currency} (inc. GST)`,
+        formatMoney(order.total, currency),
+        { bold: true, rule: true }
+      )
+      writeTotalRow(
+        "GST included (1/11)",
+        formatMoney(order.tax_total, currency)
+      )
     } else {
       writeTotalRow("GST", formatMoney(order.tax_total, currency))
       writeTotalRow(`Total ${currency}`, formatMoney(order.total, currency), {

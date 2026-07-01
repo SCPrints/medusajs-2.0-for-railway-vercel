@@ -119,8 +119,8 @@ export async function GET(
     ? `<tr><td>GST (exempt)</td><td class="amount">${formatMoney(0, currency)}</td></tr>
     <tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(Number(order.total ?? 0) - Number(order.tax_total ?? 0), currency)}</td></tr>`
     : gstIncluded
-      ? `<tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>
-    <tr><td colspan="2" style="text-align:right;color:#777;font-size:11px;padding-top:4px;">Includes GST of ${gstAmount} (1/11)</td></tr>`
+      ? `<tr class="grand"><td>Total ${currency} (inc. GST)</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>
+    <tr><td>GST included (1/11)</td><td class="amount">${gstAmount}</td></tr>`
       : `<tr><td>GST</td><td class="amount">${gstAmount}</td></tr>
     <tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>`
 
