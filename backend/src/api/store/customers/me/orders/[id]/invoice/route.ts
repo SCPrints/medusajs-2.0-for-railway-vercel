@@ -105,17 +105,24 @@ export async function GET(
   // item_subtotal / shipping_subtotal are ex-GST and reconcile against the
   // separate GST line; `subtotal` includes shipping and `shipping_total` is
   // tax-inclusive once GST applies, so don't use them here.
+  // GST-included (embedded 1/11) for taxable orders with no itemised GST;
+  // GST added on top otherwise.
+  const gstIncluded = order.gst_included === true && !taxExempt
+  const exLabel = gstIncluded ? "" : " (ex GST)"
   const itemsSubtotalValue = order.item_subtotal ?? order.subtotal
   const shippingSubtotalValue = order.shipping_subtotal ?? order.shipping_total
   const subtotal = formatMoney(itemsSubtotalValue, currency)
   const shippingTotal = formatMoney(shippingSubtotalValue, currency)
-  const taxTotal = taxExempt ? formatMoney(0, currency) : formatMoney(order.tax_total, currency)
-  const grandTotal = taxExempt
-    ? formatMoney(
-        (Number(order.total ?? 0) - Number(order.tax_total ?? 0)),
-        currency
-      )
-    : formatMoney(order.total, currency)
+  const gstAmount = formatMoney(order.tax_total, currency)
+
+  const taxAndTotalRows = taxExempt
+    ? `<tr><td>GST (exempt)</td><td class="amount">${formatMoney(0, currency)}</td></tr>
+    <tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(Number(order.total ?? 0) - Number(order.tax_total ?? 0), currency)}</td></tr>`
+    : gstIncluded
+      ? `<tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>
+    <tr><td colspan="2" style="text-align:right;color:#777;font-size:11px;padding-top:4px;">Includes GST of ${gstAmount} (1/11)</td></tr>`
+      : `<tr><td>GST</td><td class="amount">${gstAmount}</td></tr>
+    <tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>`
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -194,13 +201,9 @@ export async function GET(
   </table>
 
   <table class="totals">
-    <tr><td>Subtotal (ex GST)</td><td class="amount">${subtotal}</td></tr>
-    ${Number(shippingSubtotalValue ?? 0) > 0 ? `<tr><td>Shipping (ex GST)</td><td class="amount">${shippingTotal}</td></tr>` : ""}
-    <tr>
-      <td>${taxExempt ? "GST (exempt)" : "GST"}</td>
-      <td class="amount">${taxTotal}</td>
-    </tr>
-    <tr class="grand"><td>Total ${currency}</td><td class="amount">${grandTotal}</td></tr>
+    <tr><td>Subtotal${exLabel}</td><td class="amount">${subtotal}</td></tr>
+    ${Number(shippingSubtotalValue ?? 0) > 0 ? `<tr><td>Shipping${exLabel}</td><td class="amount">${shippingTotal}</td></tr>` : ""}
+    ${taxAndTotalRows}
   </table>
 
   ${taxExempt

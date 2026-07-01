@@ -74,6 +74,9 @@ export type ReceiptOrder = {
   shipping_total?: number | string | null
   tax_total?: number | string | null
   total?: number | string | null
+  /** True when `tax_total` is GST embedded in the total (1/11) rather than
+   *  added on top — i.e. the order was placed before GST was itemised. */
+  gst_included?: boolean
   metadata?: Record<string, unknown> | null
   shipping_address?: Address | null
   billing_address?: Address | null
@@ -111,7 +114,27 @@ export function computeReceiptTotals(raw: any): ReceiptOrder {
   )
   const summaryTotal = toNumber(raw?.summary?.raw_current_order_total?.value)
   const grandTotal = summaryTotal || toNumber(raw?.total) || itemSubtotal + shippingSubtotal
-  const taxTotal = Math.max(0, grandTotal - itemSubtotal - shippingSubtotal)
+
+  const taxExempt = (raw?.metadata as Record<string, unknown> | undefined)?.tax_exempt === true
+  // GST added on top (post-2026-06-24 orders — the config is tax-EXCLUSIVE).
+  const addedGst = round2(grandTotal - itemSubtotal - shippingSubtotal)
+
+  let taxTotal: number
+  let gstIncluded: boolean
+  if (taxExempt) {
+    taxTotal = 0
+    gstIncluded = false
+  } else if (addedGst > 0.005) {
+    // GST was itemised on top of the ex-GST lines.
+    taxTotal = addedGst
+    gstIncluded = false
+  } else {
+    // No GST line (order placed before GST was configured). A GST-registered
+    // AU business's consideration is GST-inclusive by law, so the total already
+    // contains 1/11 GST — surface it as embedded rather than showing $0.
+    taxTotal = round2(grandTotal / 11)
+    gstIncluded = true
+  }
 
   return {
     ...raw,
@@ -120,6 +143,7 @@ export function computeReceiptTotals(raw: any): ReceiptOrder {
     shipping_subtotal: shippingSubtotal,
     tax_total: taxTotal,
     total: grandTotal,
+    gst_included: gstIncluded,
   }
 }
 
@@ -158,6 +182,8 @@ function toNumber(value: number | string | null | undefined): number {
   }
   return 0
 }
+
+const round2 = (n: number): number => Math.round(n * 100) / 100
 
 function formatMoney(
   value: number | string | null | undefined,
@@ -554,31 +580,50 @@ function buildPdf(params: {
       totalsY += opts.bold ? 22 : 18
     }
 
-    // Use item_subtotal / shipping_subtotal (both ex-GST) so the lines
-    // reconcile against the separate GST line: item_subtotal +
-    // shipping_subtotal + tax_total = total. `subtotal` includes shipping and
-    // `shipping_total` is tax-inclusive once GST applies — don't use them here.
+    // GST-inclusive (embedded) when the order carries no itemised GST but is a
+    // taxable sale; GST-exclusive (added on top) when the order itemised it.
+    const gstIncluded = (order.gst_included ?? false) && !taxExempt
+    const exLabel = gstIncluded ? "" : " (ex GST)"
+
     const itemsSubtotal = order.item_subtotal ?? order.subtotal
-    writeTotalRow("Subtotal (ex GST)", formatMoney(itemsSubtotal, currency))
+    writeTotalRow(`Subtotal${exLabel}`, formatMoney(itemsSubtotal, currency))
 
     const shippingSubtotal = toNumber(order.shipping_subtotal ?? order.shipping_total)
     if (shippingSubtotal > 0) {
-      writeTotalRow("Shipping (ex GST)", formatMoney(shippingSubtotal, currency))
+      writeTotalRow(`Shipping${exLabel}`, formatMoney(shippingSubtotal, currency))
     }
 
     if (taxExempt) {
       writeTotalRow("GST (exempt)", formatMoney(0, currency))
+      writeTotalRow(
+        `Total ${currency}`,
+        formatMoney(toNumber(order.total) - toNumber(order.tax_total), currency),
+        { bold: true, rule: true }
+      )
+    } else if (gstIncluded) {
+      // Total already includes GST — show the total, then note the embedded 1/11.
+      writeTotalRow(`Total ${currency}`, formatMoney(order.total, currency), {
+        bold: true,
+        rule: true,
+      })
+      doc
+        .font("PJS")
+        .fontSize(9)
+        .fillColor(TEXT_MUTED)
+        .text(
+          `Includes GST of ${formatMoney(order.tax_total, currency)} (1/11)`,
+          totalsX,
+          totalsY,
+          { width: totalsLabelW + totalsAmountW, align: "right" }
+        )
+      totalsY += 14
     } else {
       writeTotalRow("GST", formatMoney(order.tax_total, currency))
+      writeTotalRow(`Total ${currency}`, formatMoney(order.total, currency), {
+        bold: true,
+        rule: true,
+      })
     }
-
-    const grandTotal = taxExempt
-      ? toNumber(order.total) - toNumber(order.tax_total)
-      : toNumber(order.total)
-    writeTotalRow(`Total ${currency}`, formatMoney(grandTotal, currency), {
-      bold: true,
-      rule: true,
-    })
 
     // ── DELIVERY ───────────────────────────────────────────────────────────
     const methods = order.shipping_methods ?? []
