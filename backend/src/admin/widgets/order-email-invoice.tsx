@@ -16,6 +16,15 @@ const OrderEmailInvoiceWidget = ({ data: order }: { data: Order }) => {
   const [email, setEmail] = useState(order?.email ?? "")
   const [sending, setSending] = useState(false)
 
+  const viewInvoice = () => {
+    if (!orderId) return
+    window.open(
+      `/admin/orders/${orderId}/invoice-pdf`,
+      "_blank",
+      "noopener,noreferrer"
+    )
+  }
+
   const send = async () => {
     if (!orderId) return
     setSending(true)
@@ -60,6 +69,9 @@ const OrderEmailInvoiceWidget = ({ data: order }: { data: Order }) => {
       </div>
 
       <div className="px-6 pb-4 flex flex-col gap-y-2">
+        <Button variant="secondary" onClick={viewInvoice} disabled={sending}>
+          View invoice (PDF)
+        </Button>
         <Input
           type="email"
           value={email}
@@ -68,7 +80,7 @@ const OrderEmailInvoiceWidget = ({ data: order }: { data: Order }) => {
           disabled={sending}
         />
         <Button
-          variant="secondary"
+          variant="primary"
           onClick={send}
           isLoading={sending}
           disabled={sending}
