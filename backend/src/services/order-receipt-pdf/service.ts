@@ -600,24 +600,16 @@ function buildPdf(params: {
         formatMoney(toNumber(order.total) - toNumber(order.tax_total), currency),
         { bold: true, rule: true }
       )
-    } else if (gstIncluded) {
-      // Total already includes GST — label it inc. GST and itemise the
-      // embedded 1/11 as a full totals row (standard AU receipt presentation).
+    } else {
+      // GST sits between Shipping and Total either way. When GST is embedded
+      // (pre-config orders) the lines above are GST-inclusive, so the total is
+      // labelled "(inc. GST)" rather than summing ex-GST lines + GST.
+      writeTotalRow("GST", formatMoney(order.tax_total, currency))
       writeTotalRow(
-        `Total ${currency} (inc. GST)`,
+        `Total ${currency}${gstIncluded ? " (inc. GST)" : ""}`,
         formatMoney(order.total, currency),
         { bold: true, rule: true }
       )
-      writeTotalRow(
-        "GST included (1/11)",
-        formatMoney(order.tax_total, currency)
-      )
-    } else {
-      writeTotalRow("GST", formatMoney(order.tax_total, currency))
-      writeTotalRow(`Total ${currency}`, formatMoney(order.total, currency), {
-        bold: true,
-        rule: true,
-      })
     }
 
     // ── DELIVERY ───────────────────────────────────────────────────────────

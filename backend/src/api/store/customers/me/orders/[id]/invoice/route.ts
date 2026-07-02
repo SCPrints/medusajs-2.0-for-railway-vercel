@@ -118,11 +118,8 @@ export async function GET(
   const taxAndTotalRows = taxExempt
     ? `<tr><td>GST (exempt)</td><td class="amount">${formatMoney(0, currency)}</td></tr>
     <tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(Number(order.total ?? 0) - Number(order.tax_total ?? 0), currency)}</td></tr>`
-    : gstIncluded
-      ? `<tr class="grand"><td>Total ${currency} (inc. GST)</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>
-    <tr><td>GST included (1/11)</td><td class="amount">${gstAmount}</td></tr>`
-      : `<tr><td>GST</td><td class="amount">${gstAmount}</td></tr>
-    <tr class="grand"><td>Total ${currency}</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>`
+    : `<tr><td>GST</td><td class="amount">${gstAmount}</td></tr>
+    <tr class="grand"><td>Total ${currency}${gstIncluded ? " (inc. GST)" : ""}</td><td class="amount">${formatMoney(order.total, currency)}</td></tr>`
 
   const html = `<!DOCTYPE html>
 <html lang="en">
