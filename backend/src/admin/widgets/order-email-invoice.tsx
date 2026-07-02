@@ -36,11 +36,19 @@ const OrderEmailInvoiceWidget = ({ data: order }: { data: Order }) => {
         body: JSON.stringify(email.trim() ? { email: email.trim() } : {}),
       })
       const json = (await res.json().catch(() => ({}))) as {
-        to?: string
+        to?: string[]
+        failed?: Array<{ to: string; error: string }>
         error?: string
       }
       if (!res.ok) throw new Error(json.error ?? "Failed to send")
-      toast.success(`Tax invoice emailed to ${json.to ?? email}`)
+      const sentTo = json.to?.join(", ") ?? email
+      if (json.failed && json.failed.length > 0) {
+        toast.warning(
+          `Sent to ${sentTo} — failed for ${json.failed.map((f) => f.to).join(", ")}`
+        )
+      } else {
+        toast.success(`Tax invoice emailed to ${sentTo}`)
+      }
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to send invoice")
     } finally {
@@ -61,6 +69,7 @@ const OrderEmailInvoiceWidget = ({ data: order }: { data: Order }) => {
               body: "Re-sends the branded tax-invoice PDF to the customer. The same invoice is also attached to the order-placed confirmation automatically — use this when they never received it, gave the wrong address, or need another copy.",
               bullets: [
                 "Defaults to the order's email; edit the field to send elsewhere.",
+                "Multiple recipients: separate addresses with commas.",
                 "Every send is logged on the order's activity/audit trail.",
               ],
             }}
@@ -73,9 +82,9 @@ const OrderEmailInvoiceWidget = ({ data: order }: { data: Order }) => {
           View invoice (PDF)
         </Button>
         <Input
-          type="email"
+          type="text"
           value={email}
-          placeholder="customer@example.com"
+          placeholder="customer@example.com, accounts@example.com"
           onChange={(e) => setEmail(e.target.value)}
           disabled={sending}
         />
