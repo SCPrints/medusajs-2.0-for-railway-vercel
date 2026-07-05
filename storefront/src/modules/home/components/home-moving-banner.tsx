@@ -3,14 +3,12 @@
 import { useEffect, useState } from "react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
-// Floating "we're moving" announcement card. Same dismiss-and-cooldown pattern
-// as add-to-home-banner. Edit the MOVE block when the relocation is confirmed —
-// it's the only place that needs touching, and the card auto-retires GRACE_DAYS
-// after the move date so a stale notice never lingers in production.
+// Floating "we have moved" announcement card. Same dismiss-and-cooldown pattern
+// as add-to-home-banner. The card auto-retires GRACE_DAYS after the move date
+// so a stale notice never lingers in production.
 const MOVE = {
-  // ponytail: the three values to set once the move is locked in.
   dateMs: Date.parse("2026-07-01T00:00:00+10:00"), // move-in date, AEST
-  suburb: "Villawood", // new studio: 7 Epic Place, Villawood NSW 2163
+  address: "7 Epic Place, Villawood NSW 2163",
   newAddressHref: "/contact", // where "See our new address" points
 }
 
@@ -19,7 +17,7 @@ const DAY = 24 * 60 * 60 * 1000
 /** Re-show this long after a dismissal so people still get reminded pre-move. */
 const COOLDOWN_DAYS = 7
 /** Keep showing this many days past the move date, then retire for good. */
-const GRACE_DAYS = 10
+const GRACE_DAYS = 31
 
 // Animated moving-box icon: the box hops/rocks while trailing motion lines
 // pulse behind it. Gated behind prefers-reduced-motion so it holds still for
@@ -81,12 +79,6 @@ export default function HomeMovingBanner() {
     window.setTimeout(() => setShown(false), 250)
   }
 
-  const dateLabel = new Date(MOVE.dateMs).toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "long",
-  })
-  const place = MOVE.suburb ? `in ${MOVE.suburb}, NSW` : "in NSW"
-
   return (
     <div className="fixed inset-x-0 top-[5.5rem] z-40 pointer-events-none small:inset-x-auto small:right-5 small:top-[8.5rem]">
       <div className="pointer-events-auto mx-auto max-w-lg px-3 small:mx-0 small:max-w-md small:px-0">
@@ -124,11 +116,11 @@ export default function HomeMovingBanner() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-base font-semibold text-ui-fg-base phone:text-lg">
-                We&rsquo;re moving studios
+                We have moved!
               </p>
               <p className="mt-1 text-sm leading-relaxed text-ui-fg-subtle">
-                From {dateLabel} we&rsquo;ll be printing from a new studio {place}{" "}
-                — same team, same turnaround, your orders ship as normal.
+                We&rsquo;re now printing from our new studio at {MOVE.address} —
+                same team, same turnaround, your orders ship as normal.
               </p>
               <LocalizedClientLink
                 href={MOVE.newAddressHref}
