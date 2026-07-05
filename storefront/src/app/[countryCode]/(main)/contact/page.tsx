@@ -183,7 +183,7 @@ export default async function ContactPage({
                     Monday &ndash; Friday
                   </h3>
                   <p className="mt-1 text-sm text-ui-fg-subtle">
-                    9:00am &ndash; 5:00pm AEST
+                    9:00am &ndash; 4:00pm AEST
                   </p>
                 </div>
               </div>
