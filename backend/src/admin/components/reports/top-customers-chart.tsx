@@ -1,9 +1,10 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
+import { formatCurrency } from "../../lib/reports/format"
 
 type Customer = {
   customer_id: string | null
@@ -27,18 +28,6 @@ type Response = {
   customers: Customer[]
 }
 
-const formatCurrency = (n: number) => {
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      maximumFractionDigits: 0,
-    }).format(n)
-  } catch {
-    return `$${Math.round(n)}`
-  }
-}
-
 const formatDate = (iso: string) => {
   try {
     return new Date(iso).toLocaleDateString("en-AU", {
@@ -59,36 +48,12 @@ regionId,
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/top-customers", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/top-customers?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
 
   const sharePct = data ? (data.summary.top10_revenue_share * 100).toFixed(1) : "0.0"
   const concentrationBand =

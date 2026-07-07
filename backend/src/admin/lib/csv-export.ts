@@ -1,31 +1,6 @@
 const PAGE_SIZE = 100
 
-export const escapeCsvCell = (value: string): string => {
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`
-  }
-  return value
-}
-
-export const buildCsv = (header: string[], rows: string[][]): string => {
-  const lines = [
-    header.map(escapeCsvCell).join(","),
-    ...rows.map((row) => row.map(escapeCsvCell).join(",")),
-  ]
-  return lines.join("\n") + "\n"
-}
-
-export const downloadCsv = (filename: string, csvBody: string) => {
-  const blob = new Blob([csvBody], { type: "text/csv;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-type ListRow = { id: string; value: string }
+export { buildCsv, downloadCsv } from "./reports/csv"
 
 export async function fetchAllProductTags(
   listFn: (q: { limit: number; offset: number }) => Promise<{

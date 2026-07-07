@@ -16,7 +16,6 @@ import {
 import { ArrowPath, Trash, PencilSquare, Plus } from "@medusajs/icons"
 import { useCallback, useEffect, useState } from "react"
 
-import { PALETTE } from "../../lib/reports/palette"
 import { HelpTooltip } from "../../components/reports/help-tooltip"
 
 /* ---------- types --------------------------------------------------------- */
@@ -939,38 +938,6 @@ const AutomationRulesPage = () => {
           ))}
         </Container>
       ) : null}
-
-      {/* Info card */}
-      <Container
-        className="p-4"
-        style={{ background: `${PALETTE.stone100}`, borderColor: PALETTE.stone300 }}
-      >
-        <Heading level="h3" className="mb-2">
-          How rules work
-        </Heading>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-          <div>
-            <Text size="small" className="font-medium">Triggers</Text>
-            <Text size="xsmall" className="text-ui-fg-subtle">
-              <strong>Order placed</strong> — fires immediately when a new order is
-              created. Payload includes total, currency, line count.
-            </Text>
-            <Text size="xsmall" className="text-ui-fg-subtle mt-1">
-              <strong>Stage changed</strong> — fires each time an order moves to a
-              new production stage. Payload includes from_stage, to_stage, changed_by.
-            </Text>
-          </div>
-          <div>
-            <Text size="small" className="font-medium">Available actions</Text>
-            <ul className="text-ui-fg-subtle text-xs mt-1 space-y-0.5 list-disc list-inside">
-              <li>Tag customer — adds a label to the customer record</li>
-              <li>Post order comment — creates a note visible to staff</li>
-              <li>Send alert email — sends an email to any address</li>
-              <li>Set production stage — auto-advances the order stage</li>
-            </ul>
-          </div>
-        </div>
-      </Container>
 
       {/* Create / Edit drawer */}
       <RuleFormDrawer

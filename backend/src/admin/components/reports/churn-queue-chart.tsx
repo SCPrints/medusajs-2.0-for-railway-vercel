@@ -1,9 +1,11 @@
 import { Text, Button } from "@medusajs/ui"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
+import { formatCurrency } from "../../lib/reports/format"
 
 type Candidate = {
   customer_id: string | null
@@ -47,50 +49,14 @@ const SEVERITY_LABEL: Record<Candidate["severity"], string> = {
   lost: "Lost",
 }
 
-const formatCurrency = (n: number) => {
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      maximumFractionDigits: 0,
-    }).format(n)
-  } catch {
-    return `$${Math.round(n)}`
-  }
-}
-
 export const ChurnQueueChart = () => {
   // The churn queue is point-in-time and not period-bound, so the standard
   // date-range filter doesn't apply.
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/churn-queue")
   const [refreshNonce, setRefreshNonce] = useState(0)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [actionRunning, setActionRunning] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetch(`/admin/reports/churn-queue`, { credentials: "include" })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [refreshNonce])
 
   const runAction = async (mode: "dry_run" | "send") => {
     if (mode === "send") {

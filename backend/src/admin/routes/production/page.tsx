@@ -39,6 +39,7 @@ import PrintQueuePage from "../print-queue/page"
 import PrintRecipesPage from "../print-recipes/page"
 import ProductionRejectsPage from "../production-rejects/page"
 import ProductionCalendarPage from "../production-calendar/page"
+import { formatCurrency } from "../../lib/reports/format"
 
 /* ---------- types mirrored from /admin/reports/production-snapshot ------- */
 
@@ -127,22 +128,6 @@ const ALL_METHODS: DecorationMethod[] = [
 
 /* ---------- formatting helpers ----------------------------------------- */
 
-const formatCurrency = (cents: number, currency: string) => {
-  // Medusa stores as decimal in major units (per the storefront's
-  // normalizeOrderUnits no-op — see lib/data/orders.ts comment), so the
-  // value is already in dollars-with-cents.
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: currency.toUpperCase() || "AUD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(cents)
-  } catch {
-    return `$${cents.toFixed(0)}`
-  }
-}
-
 const formatRelative = (iso: string) => {
   const t = Date.parse(iso)
   if (!Number.isFinite(t)) return iso
@@ -161,14 +146,6 @@ const formatRelative = (iso: string) => {
  * drill-through — actually filter the page on landing.
  */
 const readInitialFilters = () => {
-  if (typeof window === "undefined") {
-    return {
-      methods: new Set<DecorationMethod>(ALL_METHODS),
-      supplier: "all" as const,
-      stuckOnly: false,
-      drillStage: null as string | null,
-    }
-  }
   const params = new URLSearchParams(window.location.search)
   const rawMethod = params.get("method")
   let methods = new Set<DecorationMethod>(ALL_METHODS)

@@ -1,9 +1,11 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
+import { formatCurrency } from "../../lib/reports/format"
 
 type Customer = {
   customer_id: string | null
@@ -32,18 +34,6 @@ type Response = {
   to: string
   total_customers: number
   segments: Segment[]
-}
-
-const formatCurrency = (n: number) => {
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      maximumFractionDigits: 0,
-    }).format(n)
-  } catch {
-    return `$${Math.round(n)}`
-  }
 }
 
 const SEGMENT_COLORS: Record<string, string> = {
@@ -81,35 +71,13 @@ export const RfmChart = ({
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/rfm", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
   const [openSegment, setOpenSegment] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/rfm?${params.toString()}`, { credentials: "include" })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
 
   const segments = data?.segments ?? []
   const maxCount = useMemo(

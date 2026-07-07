@@ -1,9 +1,11 @@
 import { Select, Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
+import { formatCurrency } from "../../lib/reports/format"
 
 type ProductRow = {
   title: string
@@ -22,18 +24,6 @@ type Response = {
   by_revenue: ProductRow[]
 }
 
-const formatCurrency = (n: number, currency: string) => {
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: currency.toUpperCase() || "AUD",
-      maximumFractionDigits: 0,
-    }).format(n)
-  } catch {
-    return `$${Math.round(n)}`
-  }
-}
-
 export const TopProductsChart = ({
   fromIso,
   toIso,
@@ -43,37 +33,13 @@ regionId,
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/top-products", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
   const [sortBy, setSortBy] = useState<"units" | "revenue">("units")
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/top-products?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
 
   const rows = sortBy === "units" ? data?.by_units ?? [] : data?.by_revenue ?? []
   const max = sortBy === "units" ? rows[0]?.units ?? 1 : rows[0]?.revenue ?? 1

@@ -1,23 +1,11 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { EmptyState } from "./empty-state"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
-
-const STAGE_LABELS: Record<string, string> = {
-  received: "Received",
-  art_review: "Art review",
-  awaiting_approval: "Awaiting approval",
-  approved: "Approved",
-  blanks_ordered: "Blanks ordered",
-  blanks_arrived: "Blanks received",
-  in_production: "In production",
-  quality_check: "Quality check",
-  shipped: "Shipped",
-  delivered: "Delivered",
-}
+import { useReportData } from "../../lib/reports/use-report-data"
+import { STAGE_LABELS } from "../../lib/reports/stage-labels"
 
 type Order = {
   order_id: string
@@ -51,40 +39,11 @@ export const OrderEditFrequencyChart = ({
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loadedAt, setLoadedAt] = useState<number | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/order-edit-frequency?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) {
-          setData(j as Response)
-          setLoadedAt(Date.now())
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
+  const { data, loading, error, loadedAt } = useReportData<Response>("/admin/reports/order-edit-frequency", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
 
   const summary = data?.summary
   const distribution = data?.distribution ?? []

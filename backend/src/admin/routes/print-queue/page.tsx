@@ -1,9 +1,8 @@
-import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { Adjustments } from "@medusajs/icons"
 import { Badge, Container, Heading, Text, toast } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { METHOD_LABELS as SHARED_METHOD_LABELS } from "../../lib/print-recipe-methods"
 
 type Job = {
   order_id: string
@@ -29,14 +28,8 @@ type Bucket = {
 }
 
 const METHOD_LABELS: Record<string, string> = {
-  screen_print: "Screen print",
-  dtf: "DTF",
-  embroidery: "Embroidery",
-  uv: "UV",
-  digital_transfer: "Digital transfer",
-  vinyl: "Vinyl",
+  ...SHARED_METHOD_LABELS,
   unspecified: "Unspecified (review)",
-  other: "Other",
 }
 
 const PrintQueuePage = () => {

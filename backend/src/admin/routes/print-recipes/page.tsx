@@ -1,5 +1,3 @@
-import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { Tools } from "@medusajs/icons"
 import {
   Badge,
   Button,
@@ -15,6 +13,7 @@ import {
 import { useCallback, useEffect, useState } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { METHOD_LABELS } from "../../lib/print-recipe-methods"
 
 type Recipe = {
   id: string
@@ -28,16 +27,6 @@ type Recipe = {
   is_archived: boolean
   last_used_at: string | null
   created_at: string
-}
-
-const METHOD_LABELS: Record<string, string> = {
-  screen_print: "Screen print",
-  dtf: "DTF",
-  embroidery: "Embroidery",
-  uv: "UV",
-  digital_transfer: "Digital transfer",
-  vinyl: "Vinyl",
-  other: "Other",
 }
 
 const METHODS = Object.keys(METHOD_LABELS)

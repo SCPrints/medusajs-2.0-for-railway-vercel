@@ -8,7 +8,7 @@ import { PALETTE } from "../../lib/reports/palette"
  * Inline `?` tooltip for any metric / KPI / column header. Removes the
  * "what does this mean?" tax for new staff and external viewers.
  *
- * Pass either a plain string, a ReactNode, or a structured shape:
+ * Pass either a plain string or a structured shape:
  *   {
  *     title?: string                 // bold caption at the top
  *     body?: ReactNode               // paragraph(s) — string or JSX
@@ -29,25 +29,11 @@ import { PALETTE } from "../../lib/reports/palette"
 
 export type HelpContent =
   | string
-  | ReactNode
   | {
       title?: string
       body?: ReactNode
       bullets?: string[]
     }
-
-const isStructured = (
-  value: HelpContent
-): value is { title?: string; body?: ReactNode; bullets?: string[] } => {
-  if (!value || typeof value !== "object") return false
-  if (Array.isArray(value)) return false
-  // ReactNodes (JSX elements) have a $$typeof — treat them as nodes, not content shape
-  if ((value as { $$typeof?: symbol }).$$typeof) return false
-  const candidate = value as Record<string, unknown>
-  return (
-    "title" in candidate || "body" in candidate || "bullets" in candidate
-  )
-}
 
 const HelpBody = ({ content }: { content: HelpContent }) => {
   if (typeof content === "string") {
@@ -65,62 +51,57 @@ const HelpBody = ({ content }: { content: HelpContent }) => {
     )
   }
 
-  if (isStructured(content)) {
-    const { title, body, bullets } = content
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          fontSize: 13.5,
-          lineHeight: 1.55,
-          color: "rgb(228, 228, 231)",
-        }}
-      >
-        {title ? (
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-              color: "rgb(212, 212, 216)",
-            }}
-          >
-            {title}
-          </div>
-        ) : null}
-        {body ? (
-          typeof body === "string" ? (
-            <p style={{ margin: 0 }}>{body}</p>
-          ) : (
-            <div>{body}</div>
-          )
-        ) : null}
-        {bullets && bullets.length > 0 ? (
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: 18,
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            {bullets.map((bullet, i) => (
-              <li key={i} style={{ listStyle: "disc" }}>
-                {bullet}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    )
-  }
-
-  // Bare ReactNode
-  return <>{content}</>
+  const { title, body, bullets } = content
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        fontSize: 13.5,
+        lineHeight: 1.55,
+        color: "rgb(228, 228, 231)",
+      }}
+    >
+      {title ? (
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+            color: "rgb(212, 212, 216)",
+          }}
+        >
+          {title}
+        </div>
+      ) : null}
+      {body ? (
+        typeof body === "string" ? (
+          <p style={{ margin: 0 }}>{body}</p>
+        ) : (
+          <div>{body}</div>
+        )
+      ) : null}
+      {bullets && bullets.length > 0 ? (
+        <ul
+          style={{
+            margin: 0,
+            paddingLeft: 18,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          {bullets.map((bullet, i) => (
+            <li key={i} style={{ listStyle: "disc" }}>
+              {bullet}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
 }
 
 export const HelpTooltip = ({

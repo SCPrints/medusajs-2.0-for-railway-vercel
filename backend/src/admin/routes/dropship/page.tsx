@@ -11,7 +11,7 @@ import {
   Textarea,
 } from "@medusajs/ui"
 import { ArrowPath } from "@medusajs/icons"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -224,7 +224,6 @@ const PendingTab = ({
   const [results, setResults] = useState<SendResult[]>([])
   const [sending, setSending] = useState(false)
   const [methods, setMethods] = useState<ShippingMethod[]>([])
-  const abortRef = useRef(false)
 
   // AS Colour publishes valid shipping methods (code + name) — fetch them so
   // the settings panel offers a picker that sends a real code.
@@ -296,7 +295,6 @@ const PendingTab = ({
 
   const handleSend = async () => {
     if (!selectedOrders.length) return
-    abortRef.current = false
     setSending(true)
 
     const initial: SendResult[] = selectedOrders.map((o) => ({
@@ -307,7 +305,6 @@ const PendingTab = ({
     setResults(initial)
 
     for (let i = 0; i < selectedOrders.length; i++) {
-      if (abortRef.current) break
       const order = selectedOrders[i]
 
       // Resolve which lines to send. All ticked → omit the filter (full order,

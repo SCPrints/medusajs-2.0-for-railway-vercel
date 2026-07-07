@@ -14,6 +14,9 @@ import {
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { COLOR_HEX_BY_KEY } from "./annotations-manager"
+import { formatCurrency } from "../../lib/reports/format"
+import { KpiTile } from "./kpi-tile"
+import { useReportData } from "../../lib/reports/use-report-data"
 
 type Annotation = {
   id: string
@@ -64,51 +67,6 @@ const STATUS_COLORS: Record<string, string> = {
   requires_action: PALETTE.amber600,
 }
 
-const formatCurrency = (n: number, currency: string) => {
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: currency.toUpperCase() || "AUD",
-      maximumFractionDigits: 0,
-    }).format(n)
-  } catch {
-    return `$${Math.round(n)}`
-  }
-}
-
-const KpiTile = ({
-  label,
-  value,
-  delta,
-}: {
-  label: string
-  value: string
-  delta?: number | null
-}) => {
-  const positive = (delta ?? 0) >= 0
-  return (
-    <div className="flex flex-col gap-y-0.5 px-3 py-3 rounded-md bg-ui-bg-subtle/50">
-      <Text size="xsmall" className="text-ui-fg-subtle">
-        {label}
-      </Text>
-      <Text className="text-2xl font-semibold tabular-nums">{value}</Text>
-      {delta != null ? (
-        <Text
-          size="xsmall"
-          style={{ color: positive ? PALETTE.emerald600 : PALETTE.rose600 }}
-        >
-          {positive ? "+" : ""}
-          {delta.toFixed(1)}% vs prior
-        </Text>
-      ) : (
-        <Text size="xsmall" className="text-ui-fg-muted">
-          no prior data
-        </Text>
-      )}
-    </div>
-  )
-}
-
 export const SalesOverviewTab = ({
   fromIso,
   toIso,
@@ -118,37 +76,12 @@ regionId,
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/sales-overview", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
   const [annotations, setAnnotations] = useState<Annotation[]>([])
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/sales-overview?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
 
   // Annotations overlay — fetched in parallel and best-effort: failure
   // here just means no overlay, the chart still renders normally.
@@ -200,21 +133,25 @@ regionId,
       {/* KPI tiles row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiTile
+          noPrior="no prior data"
           label="Total orders"
           value={String(summary?.orders ?? 0)}
           delta={summary?.orders_delta_pct ?? null}
         />
         <KpiTile
+          noPrior="no prior data"
           label="Total sales"
           value={formatCurrency(summary?.revenue ?? 0, currency)}
           delta={summary?.revenue_delta_pct ?? null}
         />
         <KpiTile
+          noPrior="no prior data"
           label="Average order value"
           value={formatCurrency(summary?.aov ?? 0, currency)}
           delta={summary?.aov_delta_pct ?? null}
         />
         <KpiTile
+          noPrior="no prior data"
           label="Distinct customers"
           value={String(summary?.distinct_customers ?? 0)}
         />

@@ -6,6 +6,7 @@ import { useState } from "react"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
 
 import { HelpTooltip } from "../components/reports/help-tooltip"
+import { SIDE_LABELS } from "../../lib/print-profile"
 
 /**
  * Per-order widget that surfaces — for every line item carrying
@@ -33,14 +34,6 @@ const SIDE_ORDER = [
   "right_sleeve",
   "printed_tag",
 ] as const
-
-const SIDE_LABELS: Record<string, string> = {
-  front: "Front",
-  back: "Back",
-  left_sleeve: "Left Sleeve",
-  right_sleeve: "Right Sleeve",
-  printed_tag: "Tag",
-}
 
 const SIZE_LABELS: Record<string, string> = {
   up_to_a6: "10×15 cm (A6)",

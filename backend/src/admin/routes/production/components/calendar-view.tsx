@@ -23,6 +23,8 @@ import { useCallback, useMemo, useState } from "react"
 import { CapacityChart } from "../../../components/reports/capacity-chart"
 import { SlaBreachChart } from "../../../components/reports/sla-breach-chart"
 import { TimeInStageChart } from "../../../components/reports/time-in-stage-chart"
+import { formatCurrency } from "../../../lib/reports/format"
+import { STAGE_LABELS } from "../../../lib/reports/stage-labels"
 import {
   DECORATION_METHOD_COLORS,
   DECORATION_METHOD_LABELS,
@@ -144,19 +146,6 @@ const getMonthGrid = (anchor: Date): Date[] => {
   return days
 }
 
-const formatCurrency = (cents: number, currency: string) => {
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: currency.toUpperCase() || "AUD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(cents)
-  } catch {
-    return `$${cents.toFixed(0)}`
-  }
-}
-
 /* ---------- CalendarCard (visual only — no DnD hooks) --------------------- */
 
 const CalendarCard = ({
@@ -221,19 +210,6 @@ const CalendarCard = ({
       </div>
     </div>
   )
-}
-
-const STAGE_LABELS: Record<string, string> = {
-  received: "Received",
-  art_review: "Art review",
-  awaiting_approval: "Awaiting approval",
-  approved: "Approved",
-  blanks_ordered: "Blanks ordered",
-  blanks_arrived: "Blanks received",
-  in_production: "In production",
-  quality_check: "Quality check",
-  shipped: "Shipped",
-  delivered: "Delivered",
 }
 
 /* ---------- DraggableCard ------------------------------------------------- */

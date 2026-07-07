@@ -1,20 +1,13 @@
-import { useEffect, useState } from "react"
 import { Text } from "@medusajs/ui"
 
 import { ReportCard } from "./report-card"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
+import { STAGE_LABELS as SHARED_STAGE_LABELS } from "../../lib/reports/stage-labels"
 
 const STAGE_LABELS: Record<string, string> = {
-  received: "Received",
-  art_review: "Art review",
-  awaiting_approval: "Awaiting approval",
-  approved: "Approved",
-  blanks_ordered: "Blanks ordered",
-  blanks_arrived: "Blanks received",
-  in_production: "In production",
-  quality_check: "QC",
-  shipped: "Shipped",
-  delivered: "Delivered",
+  ...SHARED_STAGE_LABELS,
+  quality_check: "QC", // heatmap columns are narrow
 }
 
 type Health = "ok" | "warn" | "breach" | "none"
@@ -81,28 +74,11 @@ export const StageDwellHeatmapChart = ({
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/stage-dwell-heatmap?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => { if (!cancelled) setData(j as Response) })
-      .catch((e) => { if (!cancelled) setError(e?.message ?? String(e)) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [fromIso, toIso, regionId])
+  const { data, loading, error } = useReportData<Response>("/admin/reports/stage-dwell-heatmap", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
 
   const hasData =
     !loading &&

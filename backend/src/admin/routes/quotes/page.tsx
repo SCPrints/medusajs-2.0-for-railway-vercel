@@ -433,7 +433,6 @@ function LineItemsEditor({
 
       {pickerOpen ? (
         <ProductLinePicker
-          regionId={regionId}
           onPick={addPicked}
           onClose={() => setPickerOpen(false)}
         />

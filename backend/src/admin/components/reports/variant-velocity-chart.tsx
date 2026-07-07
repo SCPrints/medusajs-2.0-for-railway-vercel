@@ -1,11 +1,12 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { EmptyState } from "./empty-state"
 import { Sparkline } from "./sparkline"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
 
 type Row = {
   variant_id: string
@@ -55,42 +56,11 @@ export const VariantVelocityChart = ({
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loadedAt, setLoadedAt] = useState<number | null>(null)
+  const { data, loading, error, loadedAt } = useReportData<Response>("/admin/reports/variant-velocity", {
+    region_id: regionId,
+  })
   const [filter, setFilter] = useState<"all" | "hot" | "cold">("all")
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams()
-    if (regionId) params.set("region_id", regionId)
-    fetch(
-      `/admin/reports/variant-velocity${params.toString() ? `?${params}` : ""}`,
-      { credentials: "include" }
-    )
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) {
-          setData(j as Response)
-          setLoadedAt(Date.now())
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [regionId])
 
   const rows = (data?.rows ?? []).filter((r) =>
     filter === "all"

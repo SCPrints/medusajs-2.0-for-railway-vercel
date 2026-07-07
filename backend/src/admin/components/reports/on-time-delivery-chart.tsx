@@ -1,5 +1,4 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
 import {
   Bar,
   BarChart,
@@ -16,6 +15,7 @@ import {
 import { ReportCard } from "./report-card"
 import { buildCsv } from "../../lib/reports/csv"
 import { DECORATION_METHOD_LABELS, PALETTE } from "../../lib/reports/palette"
+import { useReportData } from "../../lib/reports/use-report-data"
 
 type TrendRow = {
   week: string
@@ -61,36 +61,12 @@ export const OnTimeDeliveryChart = ({
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/on-time-delivery", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/on-time-delivery?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
 
   const rateDisplay =
     data?.overall_rate != null ? `${data.overall_rate}%` : "—"

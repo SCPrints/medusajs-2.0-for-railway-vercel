@@ -379,16 +379,6 @@ const OrganisationsPage = () => {
     </div>
   )
 
-  const renderPlaceholder = (tab: DetailTab) => (
-    <Container className="flex flex-col items-center gap-y-2 py-12 bg-ui-bg-subtle/40">
-      <Text className="text-ui-fg-muted text-sm">
-        {TAB_LABELS[tab]} management coming soon.
-      </Text>
-      <Text size="xsmall" className="text-ui-fg-muted">
-        This tab is reserved for the customer fulfillment service Phase 1 build.
-      </Text>
-    </Container>
-  )
 
   const renderTabContent = () => {
     if (!selected) return null

@@ -1,9 +1,9 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
 
 type Bucket = {
   name: "fresh" | "slowing" | "aging" | "dead" | "never"
@@ -59,32 +59,8 @@ export const AgingInventoryChart = ({
   // Aging inventory is point-in-time (current stock × full sales history),
   // not period-bound. The date-range / region filters are accepted to
   // match the shared component signature but aren't passed to the route.
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/aging-inventory")
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetch(`/admin/reports/aging-inventory`, { credentials: "include" })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const buckets = data?.buckets ?? []
   const totalUnits = buckets.reduce((s, b) => s + b.total_stock_units, 0)

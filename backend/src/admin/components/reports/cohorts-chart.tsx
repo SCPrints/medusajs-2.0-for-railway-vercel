@@ -1,9 +1,9 @@
 import { Text, Tooltip } from "@medusajs/ui"
-import { useEffect, useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
 
 type Cell = { month_offset: number; revenue: number; orders: number } | null
 
@@ -30,36 +30,11 @@ const formatCurrency = (n: number) => {
  * the largest cell so the eye can spot which cohorts kept spending.
  */
 export const CohortsChart = ({ regionId }: { regionId: string | null }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/cohorts", {
+    months: "12",
+    region_id: regionId,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ months: "12" })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/cohorts?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [regionId])
 
   const cohorts = data?.cohorts ?? []
   const maxRevenue = Math.max(

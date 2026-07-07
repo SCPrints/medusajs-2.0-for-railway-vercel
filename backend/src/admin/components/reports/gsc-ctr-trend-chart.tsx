@@ -1,10 +1,10 @@
-import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { EmptyState } from "./empty-state"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
 
 type Row = {
   query: string
@@ -36,40 +36,12 @@ export const GscCtrTrendChart = ({
   fromIso: string
   toIso: string
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [loadedAt, setLoadedAt] = useState<number | null>(null)
+  const { data, loading, error, loadedAt } = useReportData<Response>("/admin/reports/gsc-ctr-trend", {
+    from: fromIso,
+    to: toIso,
+  })
   const [filter, setFilter] = useState<"all" | "losing" | "winning">("losing")
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    fetch(`/admin/reports/gsc-ctr-trend?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) {
-          setData(j as Response)
-          setLoadedAt(Date.now())
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso])
 
   if (data && !data.configured) {
     return (

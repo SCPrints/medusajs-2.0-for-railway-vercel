@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { PALETTE } from "../../lib/reports/palette"
 import { HelpTooltip } from "./help-tooltip"
 import { Sparkline } from "./sparkline"
+import { formatCurrency } from "../../lib/reports/format"
+import { KpiTile } from "./kpi-tile"
 
 type Response = {
   today: {
@@ -33,18 +35,6 @@ type Response = {
   }
   milestones: Array<{ kind: string; label: string }>
   generated_at: string
-}
-
-const formatCurrency = (n: number) => {
-  try {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      maximumFractionDigits: 0,
-    }).format(n)
-  } catch {
-    return `$${Math.round(n)}`
-  }
 }
 
 const greeting = (now: Date, firstName: string | null): string => {
@@ -84,32 +74,6 @@ const compareSentence = (
   const pct = Math.abs(revDelta ?? 0)
   return `${todayOrders} order${todayOrders === 1 ? "" : "s"}, ${formatCurrency(todayRev)} so far. ${pct}% ${direction} same weekday last week.`
 }
-
-const KpiTile = ({
-  label,
-  value,
-  delta,
-  deltaColor,
-}: {
-  label: string
-  value: string
-  delta?: string | null
-  deltaColor?: string
-}) => (
-  <div className="flex flex-col gap-y-0.5 px-3 py-2 rounded-md bg-ui-bg-subtle/50">
-    <Text size="xsmall" className="text-ui-fg-subtle">
-      {label}
-    </Text>
-    <div className="flex items-baseline gap-x-2">
-      <Text className="text-2xl font-semibold tabular-nums">{value}</Text>
-      {delta ? (
-        <Text size="xsmall" style={deltaColor ? { color: deltaColor } : undefined}>
-          {delta}
-        </Text>
-      ) : null}
-    </div>
-  </div>
-)
 
 export const TodayWidget = ({
   firstName,

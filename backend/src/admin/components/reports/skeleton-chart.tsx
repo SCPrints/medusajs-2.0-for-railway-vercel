@@ -29,22 +29,3 @@ export const SkeletonBars = ({ height = 192 }: { height?: number }) => {
   )
 }
 
-export const SkeletonRows = ({ rows = 8 }: { rows?: number }) => (
-  <div
-    className="flex flex-col gap-y-2"
-    role="status"
-    aria-label="Loading rows"
-  >
-    {Array.from({ length: rows }).map((_, i) => (
-      <div
-        key={i}
-        className="h-6 rounded animate-pulse"
-        style={{
-          background: PALETTE.stone200,
-          opacity: 1 - i * 0.05,
-          animationDelay: `${i * 50}ms`,
-        }}
-      />
-    ))}
-  </div>
-)

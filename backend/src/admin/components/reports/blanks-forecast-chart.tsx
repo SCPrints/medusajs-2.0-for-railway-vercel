@@ -1,9 +1,10 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { useReportData } from "../../lib/reports/use-report-data"
 
 type ForecastRow = {
   variant_id: string
@@ -43,38 +44,11 @@ export const BlanksForecastChart = ({
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/blanks-forecast", {
+    region_id: regionId,
+  })
   const [showAll, setShowAll] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams()
-    if (regionId) params.set("region_id", regionId)
-    fetch(
-      `/admin/reports/blanks-forecast${params.toString() ? `?${params}` : ""}`,
-      { credentials: "include" }
-    )
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [regionId])
 
   const rowsToShow = (data?.rows ?? []).filter((r) =>
     showAll ? true : r.deficit > 0

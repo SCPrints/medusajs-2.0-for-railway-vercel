@@ -1,5 +1,4 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
 import {
   Bar,
   BarChart,
@@ -12,6 +11,8 @@ import {
 
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
+import { useReportData } from "../../lib/reports/use-report-data"
+import { KpiTile } from "./kpi-tile"
 
 type Response = {
   from: string
@@ -29,28 +30,6 @@ type Response = {
   histogram: Array<{ bucket: string; count: number }>
 }
 
-const KpiTile = ({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: string
-  color?: string
-}) => (
-  <div className="flex flex-col gap-y-0.5 px-3 py-2 rounded-md bg-ui-bg-subtle/50">
-    <Text size="xsmall" className="text-ui-fg-subtle">
-      {label}
-    </Text>
-    <Text
-      className="text-2xl font-semibold tabular-nums"
-      style={color ? { color } : undefined}
-    >
-      {value}
-    </Text>
-  </div>
-)
-
 export const AsColourThroughputChart = ({
   fromIso,
   toIso,
@@ -60,36 +39,12 @@ regionId,
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/ascolour-throughput", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/ascolour-throughput?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
 
   const summary = data?.summary
   const failurePct = summary ? (summary.failure_rate * 100).toFixed(1) : "0.0"

@@ -5,6 +5,7 @@ import { Trash, Plus, PinTackSolid } from "@medusajs/icons"
 import { useEffect, useState } from "react"
 
 import { PALETTE } from "../lib/reports/palette"
+import { COLOR_HEX_BY_KEY } from "../components/reports/annotations-manager"
 
 type Tag = {
   id: string
@@ -29,14 +30,6 @@ const COLOR_OPTIONS = [
   { value: "rose", label: "Rose", hex: PALETTE.rose600 },
   { value: "emerald", label: "Emerald", hex: PALETTE.emerald600 },
 ] as const
-
-const COLOR_HEX: Record<string, string> = {
-  slate: PALETTE.slate700,
-  teal: PALETTE.teal700,
-  amber: PALETTE.amber600,
-  rose: PALETTE.rose600,
-  emerald: PALETTE.emerald600,
-}
 
 const formatRelative = (iso: string): string => {
   const ms = Date.parse(iso ?? "")
@@ -213,7 +206,7 @@ const CustomerTagsNotesWidget = ({ data: customer }: { data: { id: string } }) =
               <span
                 key={t.id}
                 className="inline-flex items-center gap-x-1.5 px-2 py-1 rounded-md text-white text-xs"
-                style={{ background: COLOR_HEX[t.color] ?? PALETTE.slate700 }}
+                style={{ background: COLOR_HEX_BY_KEY[t.color] ?? PALETTE.slate700 }}
               >
                 {t.label}
                 <button

@@ -3,7 +3,6 @@ import { withWidgetBoundary } from "../components/widget-error-boundary"
 import { toast } from "@medusajs/ui"
 import { useEffect, useRef, useState } from "react"
 
-import { PALETTE } from "../lib/reports/palette"
 
 /**
  * Background "new orders" pinger. Polls the recent-arrivals endpoint
@@ -253,5 +252,3 @@ export const config = defineWidgetConfig({
 export default withWidgetBoundary(OrderArrivalWatcher, "order-arrival-watcher")
 
 // Export named utilities for the prefs panel to read/write.
-export { STORAGE_ENABLED, STORAGE_SOUND, STORAGE_LAST_SEEN }
-export const ARRIVAL_PALETTE = PALETTE

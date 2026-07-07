@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
+import { KpiTile } from "./kpi-tile"
 
 type VariantRow = {
   variant_id: string
@@ -26,28 +27,6 @@ type Response = {
   data_available: boolean
   error?: string
 }
-
-const KpiTile = ({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: string
-  color?: string
-}) => (
-  <div className="flex flex-col gap-y-0.5 px-3 py-2 rounded-md bg-ui-bg-subtle/50">
-    <Text size="xsmall" className="text-ui-fg-subtle">
-      {label}
-    </Text>
-    <Text
-      className="text-2xl font-semibold tabular-nums"
-      style={color ? { color } : undefined}
-    >
-      {value}
-    </Text>
-  </div>
-)
 
 const VariantList = ({
   rows,

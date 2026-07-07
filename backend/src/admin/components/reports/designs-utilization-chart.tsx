@@ -1,7 +1,8 @@
 import { Text } from "@medusajs/ui"
-import { useEffect, useState } from "react"
 
 import { ReportCard } from "./report-card"
+import { useReportData } from "../../lib/reports/use-report-data"
+import { KpiTile } from "./kpi-tile"
 
 type Response = {
   from: string
@@ -16,15 +17,6 @@ type Response = {
   module_available: boolean
 }
 
-const KpiTile = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex flex-col gap-y-0.5 px-3 py-2 rounded-md bg-ui-bg-subtle/50">
-    <Text size="xsmall" className="text-ui-fg-subtle">
-      {label}
-    </Text>
-    <Text className="text-2xl font-semibold tabular-nums">{value}</Text>
-  </div>
-)
-
 export const DesignsUtilizationChart = ({
   fromIso,
   toIso,
@@ -34,36 +26,12 @@ regionId,
   toIso: string
   regionId: string | null
 }) => {
-  const [data, setData] = useState<Response | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error } = useReportData<Response>("/admin/reports/designs-utilization", {
+    from: fromIso,
+    to: toIso,
+    region_id: regionId,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    const params = new URLSearchParams({ from: fromIso, to: toIso })
-    if (regionId) params.set("region_id", regionId)
-    fetch(`/admin/reports/designs-utilization?${params.toString()}`, {
-      credentials: "include",
-    })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((j) => {
-        if (!cancelled) setData(j as Response)
-      })
-      .catch((e) => {
-        if (!cancelled) setError(e?.message ?? String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [fromIso, toIso, regionId])
 
   const summary = data?.summary
   const reusePct = summary ? (summary.reuse_rate * 100).toFixed(1) : "0.0"

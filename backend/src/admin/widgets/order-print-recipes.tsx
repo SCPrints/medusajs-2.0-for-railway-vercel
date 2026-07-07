@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react"
 
 import { HelpTooltip } from "../components/reports/help-tooltip"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
+import { METHOD_LABELS } from "../lib/print-recipe-methods"
 
 type Recipe = {
   id: string
@@ -21,16 +22,6 @@ type Recipe = {
   description: string | null
   notes: string | null
   recipe_json: Record<string, unknown>
-}
-
-const METHOD_LABELS: Record<string, string> = {
-  screen_print: "Screen print",
-  dtf: "DTF",
-  embroidery: "Embroidery",
-  uv: "UV",
-  digital_transfer: "Digital transfer",
-  vinyl: "Vinyl",
-  other: "Other",
 }
 
 const OrderPrintRecipesWidget = ({ data: order }: { data: { id: string } }) => {

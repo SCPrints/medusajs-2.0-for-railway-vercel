@@ -27,7 +27,6 @@ type BrandPickerProps = {
    * Whether to render an "(None)" option that maps to a null id.
    */
   allowNone?: boolean
-  size?: "small" | "base" | "large"
 }
 
 let cachedBrandsPromise: Promise<BrandOption[]> | null = null
@@ -61,7 +60,6 @@ export function BrandPicker({
   excludeId,
   topLevelOnly,
   allowNone,
-  size = "base",
 }: BrandPickerProps) {
   const [brands, setBrands] = useState<BrandOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,7 +107,7 @@ export function BrandPicker({
       onValueChange={(v) => onChange(v === NONE_VALUE ? null : v)}
       disabled={disabled || loading}
     >
-      <Select.Trigger size={size === "small" ? "small" : "base"}>
+      <Select.Trigger>
         <Select.Value placeholder={placeholder ?? (loading ? "Loading…" : "Select brand…")} />
       </Select.Trigger>
       <Select.Content>

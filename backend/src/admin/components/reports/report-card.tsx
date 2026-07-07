@@ -19,7 +19,6 @@ import { SkeletonBars } from "./skeleton-chart"
  * Other optional props:
  *   - `help`        — text rendered as a `?` tooltip next to the title
  *   - `loadedAt`    — ms timestamp; renders "Updated 12s ago" in the header
- *   - `skeleton`    — when `loading`, render skeleton bars instead of "Loading…"
  *   - `exportPng`   — function called to export the chart as PNG (handler should grab the DOM node itself)
  */
 export const ReportCard = ({
@@ -32,7 +31,6 @@ export const ReportCard = ({
   csv,
   help,
   loadedAt = null,
-  skeleton = true,
 }: {
   title: string
   caption?: string
@@ -50,7 +48,6 @@ export const ReportCard = ({
   }
   help?: HelpContent
   loadedAt?: number | null
-  skeleton?: boolean
 }) => {
   return (
     <Container className="flex flex-col gap-y-3 p-4">
@@ -99,17 +96,7 @@ export const ReportCard = ({
           {error}
         </Text>
       ) : null}
-      {loading && !error ? (
-        skeleton ? (
-          <SkeletonBars />
-        ) : (
-          <div className="h-48 flex items-center justify-center">
-            <Text size="small" className="text-ui-fg-muted">
-              Loading…
-            </Text>
-          </div>
-        )
-      ) : null}
+      {loading && !error ? <SkeletonBars /> : null}
       {!loading && !error ? children : null}
     </Container>
   )

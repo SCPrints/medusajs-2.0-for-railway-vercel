@@ -99,6 +99,7 @@ const ReportsPage = () => {
   const fromIso = useMemo(() => range.from.toISOString(), [range.from])
   const toIso = useMemo(() => range.to.toISOString(), [range.to])
   const activeRegionId = regionId === ALL_REGIONS_VALUE ? null : regionId
+  const chartProps = { fromIso, toIso, regionId: activeRegionId }
 
   // Fetch regions once on mount.
   useEffect(() => {
@@ -223,62 +224,18 @@ const ReportsPage = () => {
         </Container>
 
         <Tabs.Content value="sales">
-          <SalesOverviewTab
-            fromIso={fromIso}
-            toIso={toIso}
-            regionId={activeRegionId}
-          />
+          <SalesOverviewTab {...chartProps} />
           <div className="grid grid-cols-1 gap-3 mt-3">
-            <CartConversionChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <TimeToPurchaseChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <DiscountProfitabilityChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <RefundRateChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <FirstOrderAffinityChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <GeoHeatmapChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <OrderTimeHeatmapChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <PdpConversionChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <PaymentMixChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <OrderEditFrequencyChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <CartConversionChart {...chartProps} />
+            <TimeToPurchaseChart {...chartProps} />
+            <DiscountProfitabilityChart {...chartProps} />
+            <RefundRateChart {...chartProps} />
+            <FirstOrderAffinityChart {...chartProps} />
+            <GeoHeatmapChart {...chartProps} />
+            <OrderTimeHeatmapChart {...chartProps} />
+            <PdpConversionChart {...chartProps} />
+            <PaymentMixChart {...chartProps} />
+            <OrderEditFrequencyChart {...chartProps} />
           </div>
         </Tabs.Content>
 
@@ -294,180 +251,54 @@ const ReportsPage = () => {
 
         <Tabs.Content value="production">
           <div className="grid grid-cols-1 gap-3">
-            <CapacityChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <OnTimeDeliveryChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <SlaBreachChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <ApprovalTurnaroundChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <ReprintRateChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <BlanksForecastChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <EmbroideryStitchesChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <CapacityChart {...chartProps} />
+            <OnTimeDeliveryChart {...chartProps} />
+            <SlaBreachChart {...chartProps} />
+            <ApprovalTurnaroundChart {...chartProps} />
+            <ReprintRateChart {...chartProps} />
+            <BlanksForecastChart {...chartProps} />
+            <EmbroideryStitchesChart {...chartProps} />
             <TimeInStageChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
+              {...chartProps}
               methodCsv={null}
             />
-            <AsColourThroughputChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <AovByMethodChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <VectorizationFunnelChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <ReturnsChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <StaffThroughputChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <SupplierLeadTimeChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <FlowTimeChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <StageDwellHeatmapChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <AsColourThroughputChart {...chartProps} />
+            <AovByMethodChart {...chartProps} />
+            <VectorizationFunnelChart {...chartProps} />
+            <ReturnsChart {...chartProps} />
+            <StaffThroughputChart {...chartProps} />
+            <SupplierLeadTimeChart {...chartProps} />
+            <FlowTimeChart {...chartProps} />
+            <StageDwellHeatmapChart {...chartProps} />
           </div>
         </Tabs.Content>
 
         <Tabs.Content value="customers">
           <div className="grid grid-cols-1 gap-3">
-            <RfmChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <CohortLtvChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <RfmChart {...chartProps} />
+            <CohortLtvChart {...chartProps} />
             <ChurnQueueChart />
-            <NewVsReturningChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <NewVsReturningChart {...chartProps} />
             <CohortsChart regionId={activeRegionId} />
-            <CustomizerAdoptionChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <CustomizerFunnelChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <CustomizerAdoptionChart {...chartProps} />
+            <CustomizerFunnelChart {...chartProps} />
             <CustomizerIterationChart fromIso={fromIso} toIso={toIso} />
-            <ReorderRateChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <TopCustomersChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <DesignsUtilizationChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <SavedDesignConversionChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <ReorderRateChart {...chartProps} />
+            <TopCustomersChart {...chartProps} />
+            <DesignsUtilizationChart {...chartProps} />
+            <SavedDesignConversionChart {...chartProps} />
           </div>
         </Tabs.Content>
 
         <Tabs.Content value="catalog">
           <div className="grid grid-cols-1 gap-3">
-            <TopProductsChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <DecorationMixChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <SupplierMixChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <SiteSearchChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <InventoryStatusChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <AgingInventoryChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
-            <VariantVelocityChart
-              fromIso={fromIso}
-              toIso={toIso}
-              regionId={activeRegionId}
-            />
+            <TopProductsChart {...chartProps} />
+            <DecorationMixChart {...chartProps} />
+            <SupplierMixChart {...chartProps} />
+            <SiteSearchChart {...chartProps} />
+            <InventoryStatusChart {...chartProps} />
+            <AgingInventoryChart {...chartProps} />
+            <VariantVelocityChart {...chartProps} />
           </div>
         </Tabs.Content>
 

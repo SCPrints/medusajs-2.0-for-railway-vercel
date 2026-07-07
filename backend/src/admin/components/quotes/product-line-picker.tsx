@@ -64,12 +64,6 @@ export function ProductLinePicker({
   onPick,
   onClose,
 }: {
-  /**
-   * Accepted for call-site compatibility but no longer used — pricing comes
-   * from raw `variants.prices` (see `pickVariantBasePrice`), so no region/pricing
-   * context is needed and passing one to /admin/products would be stripped.
-   */
-  regionId?: string | null
   onPick: (line: PickedProductLine) => void
   onClose?: () => void
 }) {

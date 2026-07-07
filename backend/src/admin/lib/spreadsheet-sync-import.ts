@@ -45,23 +45,21 @@ export function slugifyCollectionHandle(title: string): string {
 
 /**
  * Stamp `product collection id` on each row so batch create assigns products to that collection.
- * When `onlyIfEmpty` is true (default), rows that already have a collection id keep it.
+ * Rows that already have a collection id keep it.
  */
 export function applyDefaultCollectionIdToParsedCsv(
   parsed: ParsedCsv,
-  collectionId: string,
-  opts?: { onlyIfEmpty?: boolean }
+  collectionId: string
 ): ParsedCsv {
   const id = collectionId.trim()
   if (!id) {
     return parsed
   }
-  const onlyIfEmpty = opts?.onlyIfEmpty !== false
   return {
     ...parsed,
     rows: parsed.rows.map((row) => {
       const cur = (row["product collection id"] ?? "").trim()
-      if (onlyIfEmpty && cur) {
+      if (cur) {
         return row
       }
       return { ...row, "product collection id": id }
@@ -71,23 +69,21 @@ export function applyDefaultCollectionIdToParsedCsv(
 
 /**
  * Stamp `shipping profile id` on each row so batch create can assign a profile.
- * When `onlyIfEmpty` is true (default), rows that already have a profile id keep it.
+ * Rows that already have a profile id keep it.
  */
 export function applyDefaultShippingProfileIdToParsedCsv(
   parsed: ParsedCsv,
-  shippingProfileId: string,
-  opts?: { onlyIfEmpty?: boolean }
+  shippingProfileId: string
 ): ParsedCsv {
   const id = shippingProfileId.trim()
   if (!id) {
     return parsed
   }
-  const onlyIfEmpty = opts?.onlyIfEmpty !== false
   return {
     ...parsed,
     rows: parsed.rows.map((row) => {
       const cur = (row["shipping profile id"] ?? "").trim()
-      if (onlyIfEmpty && cur) {
+      if (cur) {
         return row
       }
       return { ...row, "shipping profile id": id }
