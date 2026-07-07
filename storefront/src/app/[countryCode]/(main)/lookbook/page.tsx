@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 
 import { getLookbookPage } from "@lib/data/lookbook"
+import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import LookbookGallery from "@modules/lookbook/components/lookbook-gallery"
 import EnterSphereButton from "@modules/lookbook/components/enter-sphere-button"
@@ -12,9 +13,28 @@ type Params = {
   searchParams: Promise<{ page?: string }>
 }
 
-export const metadata: Metadata = {
-  title: "Lookbook",
-  description: "Real SC PRINTS jobs in the wild — see what we make.",
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
+  const { countryCode } = await params
+  const canonicalPath = `/${countryCode}/lookbook`
+  const description =
+    "Real SC PRINTS jobs in the wild — custom printed & embroidered apparel we've made for Australian teams, clubs and businesses."
+
+  return {
+    title: "Lookbook",
+    description,
+    alternates: { canonical: canonicalPath },
+    openGraph: {
+      url: buildAbsoluteUrl(canonicalPath),
+      title: `Lookbook | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+    twitter: {
+      title: `Lookbook | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
+  }
 }
 
 /** Compact pager model: [1, "…", 4, 5, 6, "…", 20]. */

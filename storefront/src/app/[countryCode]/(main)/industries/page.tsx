@@ -33,6 +33,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       images: [SEO.ogImage],
     },
+    twitter: {
+      title: `${title} | ${SEO.siteName}`,
+      description,
+      images: [SEO.ogImage],
+    },
   }
 }
 

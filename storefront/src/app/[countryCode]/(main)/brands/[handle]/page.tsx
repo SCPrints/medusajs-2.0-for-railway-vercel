@@ -46,6 +46,11 @@ export async function generateMetadata({
       description,
       images: brand.logo_url ? [{ url: brand.logo_url }] : [SEO.ogImage],
     },
+    twitter: {
+      title: `${brand.name} | ${SEO.siteName}`,
+      description,
+      images: brand.logo_url ? [brand.logo_url] : [SEO.ogImage],
+    },
   }
 }
 

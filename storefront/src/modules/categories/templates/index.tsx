@@ -8,6 +8,8 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 import { ProductFilters } from "@modules/store/components/refinement-list/types"
 import PaginatedProducts from "@modules/store/templates/paginated-products"
 import { HttpTypes } from "@medusajs/types"
+import { buildAbsoluteUrl } from "@lib/util/seo"
+import { safeJsonLd } from "@lib/util/json-ld"
 
 export default function CategoryTemplate({
   categories,
@@ -76,8 +78,50 @@ export default function CategoryTemplate({
 
   if (!category || !countryCode) notFound()
 
+  // BreadcrumbList structured data: Home → audience → leaf. Uses the URL
+  // ancestor chain when present (multi-segment paths), else the leaf's
+  // parent_category (single-segment handles like `mens-polos`).
+  const parentCategory = (
+    category as {
+      parent_category?: { name?: string | null; handle?: string | null } | null
+    }
+  ).parent_category
+  const crumbChain: HttpTypes.StoreProductCategory[] =
+    parents.length > 0
+      ? parents
+      : parentCategory?.name && parentCategory?.handle
+        ? [parentCategory as HttpTypes.StoreProductCategory]
+        : []
+  const breadcrumbItems = [
+    { name: "Home", path: `/${countryCode}` },
+    ...crumbChain
+      .filter((c) => c?.name && c?.handle)
+      .map((c) => ({
+        name: c.name,
+        path: `/${countryCode}/categories/${c.handle}`,
+      })),
+    {
+      name: category.name,
+      path: `/${countryCode}/categories/${category.handle}`,
+    },
+  ]
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbItems.map((b, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: b.name,
+      item: buildAbsoluteUrl(b.path),
+    })),
+  }
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
+      />
       <section
         className="content-container border-b border-ui-border-base py-10 small:py-14"
         data-testid="category-hero"

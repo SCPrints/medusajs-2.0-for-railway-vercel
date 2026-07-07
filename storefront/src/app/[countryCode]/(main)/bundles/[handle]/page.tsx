@@ -30,6 +30,11 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
         ? [{ url: bundle.thumbnail_url }]
         : [SEO.ogImage],
     },
+    twitter: {
+      title: `${bundle.title} | ${SEO.siteName}`,
+      description,
+      images: bundle.thumbnail_url ? [bundle.thumbnail_url] : [SEO.ogImage],
+    },
   }
 }
 

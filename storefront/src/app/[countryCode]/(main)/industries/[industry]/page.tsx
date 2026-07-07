@@ -36,6 +36,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: industry.description,
       images: [SEO.ogImage],
     },
+    twitter: {
+      title: `${industry.title} | ${SEO.siteName}`,
+      description: industry.description,
+      images: [SEO.ogImage],
+    },
   }
 }
 
