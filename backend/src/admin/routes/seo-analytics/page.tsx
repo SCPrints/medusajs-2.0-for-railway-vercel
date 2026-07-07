@@ -3,6 +3,8 @@ import { Button, Container, Heading, Table, Text } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 
 import { HelpTooltip, type HelpContent } from "../../components/reports/help-tooltip"
+import { PALETTE } from "../../lib/reports/palette"
+import { pctTrend, type Trend } from "./trend"
 
 type GscRow = {
   key: string
@@ -24,6 +26,7 @@ type SeoSummary = {
   range: { days: number; start: string; end: string }
   gsc: {
     totals: { clicks: number; impressions: number; ctr: number; position: number }
+    previousTotals?: { clicks: number; impressions: number; ctr: number; position: number }
     topQueries: GscRow[]
     topPages: GscRow[]
     byDay: Array<{ date: string; clicks: number; impressions: number }>
@@ -64,16 +67,33 @@ const formatDateTime = (iso: string) => {
   return d.toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })
 }
 
+const TrendLine = ({ trend }: { trend: Trend }) => {
+  const arrow = trend.dir === "up" ? "▲" : trend.dir === "down" ? "▼" : "•"
+  const color =
+    trend.dir === "flat" ? undefined : trend.good ? PALETTE.emerald600 : PALETTE.rose600
+  return (
+    <Text
+      size="xsmall"
+      className={trend.dir === "flat" ? "text-ui-fg-muted" : undefined}
+      style={color ? { color } : undefined}
+    >
+      {arrow} {trend.text} vs prior 28d
+    </Text>
+  )
+}
+
 const Kpi = ({
   label,
   value,
   hint,
   help,
+  trend,
 }: {
   label: string
   value: string
   hint?: string
   help?: HelpContent
+  trend?: Trend | null
 }) => (
   <div className="flex flex-col gap-1 rounded-md border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
     <Text
@@ -86,6 +106,7 @@ const Kpi = ({
     <Text size="large" weight="plus">
       {value}
     </Text>
+    {trend ? <TrendLine trend={trend} /> : null}
     {hint ? (
       <Text size="xsmall" className="text-ui-fg-muted">
         {hint}
@@ -282,22 +303,33 @@ const SeoAnalyticsPage = () => {
               label="Clicks"
               value={formatInt(summary.gsc.totals.clicks)}
               help={HELP_GSC_CLICKS}
+              trend={pctTrend(summary.gsc.totals.clicks, summary.gsc.previousTotals?.clicks)}
             />
             <Kpi
               label="Impressions"
               value={formatInt(summary.gsc.totals.impressions)}
               help={HELP_GSC_IMPRESSIONS}
+              trend={pctTrend(
+                summary.gsc.totals.impressions,
+                summary.gsc.previousTotals?.impressions
+              )}
             />
             <Kpi
               label="CTR"
               value={formatPct(summary.gsc.totals.ctr)}
               help={HELP_GSC_CTR}
+              trend={pctTrend(summary.gsc.totals.ctr, summary.gsc.previousTotals?.ctr)}
             />
             <Kpi
               label="Avg position"
               value={formatPosition(summary.gsc.totals.position)}
               hint="lower is better"
               help={HELP_GSC_POSITION}
+              trend={pctTrend(
+                summary.gsc.totals.position,
+                summary.gsc.previousTotals?.position,
+                false
+              )}
             />
           </div>
         </Container>

@@ -53,9 +53,26 @@ async function queryDimensions(
   }))
 }
 
+// Impression-weighted totals from date-dimensioned rows (each row's `position`
+// is itself impression-weighted within that day, so this is a correct rollup).
+function totalsFromDateRows(rows: GscRow[]): GscSummary["totals"] {
+  let clicks = 0
+  let impressions = 0
+  let positionWeighted = 0
+  for (const r of rows) {
+    clicks += r.clicks
+    impressions += r.impressions
+    positionWeighted += r.position * r.impressions
+  }
+  const ctr = impressions > 0 ? clicks / impressions : 0
+  const position = impressions > 0 ? positionWeighted / impressions : 0
+  return { clicks, impressions, ctr, position }
+}
+
 /**
  * Pulls a 28-day (or `days`) window of GSC Search Analytics for a single site.
- * Returns top queries, top pages, daily totals, and overall totals in one shape.
+ * Returns top queries, top pages, daily totals, and overall totals — plus the
+ * immediately-preceding window's totals so the dashboard can show trend arrows.
  */
 export async function fetchGscSummary(
   siteUrl: string,
@@ -64,30 +81,24 @@ export async function fetchGscSummary(
   const searchconsole = buildClient()
   const endDate = todayIso()
   const startDate = isoDaysAgo(days)
+  // Prior window: the `days` immediately before the current one, no overlap.
+  const prevEndDate = isoDaysAgo(days + 1)
+  const prevStartDate = isoDaysAgo(days * 2)
 
-  const [topQueries, topPages, byDayRaw] = await Promise.all([
+  const [topQueries, topPages, byDayRaw, prevByDayRaw] = await Promise.all([
     queryDimensions(searchconsole, siteUrl, startDate, endDate, ["query"], TOP_ROW_LIMIT),
     queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TOP_ROW_LIMIT),
     queryDimensions(searchconsole, siteUrl, startDate, endDate, ["date"], days + 5),
+    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["date"], days + 5),
   ])
 
   const byDay = byDayRaw
     .map((r) => ({ date: r.key, clicks: r.clicks, impressions: r.impressions }))
     .sort((a, b) => a.date.localeCompare(b.date))
 
-  let clicks = 0
-  let impressions = 0
-  let positionWeighted = 0
-  for (const r of byDayRaw) {
-    clicks += r.clicks
-    impressions += r.impressions
-    positionWeighted += r.position * r.impressions
-  }
-  const ctr = impressions > 0 ? clicks / impressions : 0
-  const position = impressions > 0 ? positionWeighted / impressions : 0
-
   return {
-    totals: { clicks, impressions, ctr, position },
+    totals: totalsFromDateRows(byDayRaw),
+    previousTotals: totalsFromDateRows(prevByDayRaw),
     topQueries,
     topPages,
     byDay,

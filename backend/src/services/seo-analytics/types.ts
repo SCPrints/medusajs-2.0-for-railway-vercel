@@ -21,6 +21,15 @@ export type GscSummary = {
     ctr: number
     position: number
   }
+  // Totals for the immediately-preceding window of equal length — drives the
+  // dashboard trend arrows. Optional so cache entries written before this
+  // existed still deserialise (no trend shown until the next refresh).
+  previousTotals?: {
+    clicks: number
+    impressions: number
+    ctr: number
+    position: number
+  }
   topQueries: GscRow[]
   topPages: GscRow[]
   byDay: GscByDay[]
