@@ -296,6 +296,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
                             size="square"
                             sizes="(max-width: 639px) 48px, (max-width: 1024px) 40vw, 280px"
                             className="group h-12 w-12 sm:h-full sm:w-full"
+                            alt={hit.title}
                           />
                           <div className="flex flex-col justify-between group">
                             <Text

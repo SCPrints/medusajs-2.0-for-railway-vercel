@@ -16,6 +16,8 @@ type ThumbnailProps = {
   sizes?: string
   /** Set for above-the-fold tiles so the image fetches eagerly with fetchpriority=high. */
   priority?: boolean
+  /** Alt text — pass the product title on catalog tiles for image-search + a11y. */
+  alt?: string
   className?: string
   "data-testid"?: string
 }
@@ -31,6 +33,7 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
   isFeatured,
   sizes,
   priority,
+  alt,
   className,
   "data-testid": dataTestid,
 }) => {
@@ -61,6 +64,7 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
         size={size}
         sizes={sizes ?? DEFAULT_SIZES}
         priority={priority}
+        alt={alt}
       />
     </Container>
   )
@@ -71,15 +75,17 @@ const ImageOrPlaceholder = ({
   size,
   sizes,
   priority,
+  alt,
 }: Pick<ThumbnailProps, "size"> & {
   image?: string
   sizes: string
   priority?: boolean
+  alt?: string
 }) => {
   return image ? (
     <SafeImage
       src={image}
-      alt="Thumbnail"
+      alt={alt || "Product image"}
       className="absolute inset-0 object-cover object-center"
       draggable={false}
       quality={50}

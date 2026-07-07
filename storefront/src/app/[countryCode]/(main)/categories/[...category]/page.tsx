@@ -3,7 +3,6 @@ import { notFound } from "next/navigation"
 
 import { getCategoryByHandle } from "@lib/data/categories"
 import { buildAbsoluteUrl, metaDescription, SEO } from "@lib/util/seo"
-import { StoreProductCategory } from "@medusajs/types"
 import CategoryTemplate from "@modules/categories/templates"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 
@@ -51,14 +50,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { category, countryCode } = await params
     const { product_categories } = await getCategoryByHandle(category)
 
-    const title = product_categories
-      .map((category: StoreProductCategory) => category.name)
-      .join(" | ")
-
     const leaf = product_categories[product_categories.length - 1]
+
+    // Prefix the audience so sibling sub-categories (mens-polos vs
+    // womens-polos) get distinct, keyword-rich titles instead of both
+    // collapsing to "Polos". Top-level audience pages have no parent, so
+    // they fall back to just the leaf name.
+    const parentName = leaf.parent_category?.name
+    const label =
+      parentName &&
+      !leaf.name.toLowerCase().startsWith(parentName.toLowerCase())
+        ? `${parentName} ${leaf.name}`
+        : leaf.name
+
+    const title = `Custom ${label} — Printing & Embroidery`
+
     const description = metaDescription(
       leaf.description,
-      `Custom printed & embroidered ${leaf.name} — bulk apparel from SC PRINTS.`
+      `Custom ${label} printed & embroidered by SC PRINTS — screen print, DTF and embroidery with bulk pricing and fast Australian turnaround.`
     )
 
     return {

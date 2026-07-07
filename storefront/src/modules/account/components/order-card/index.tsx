@@ -75,6 +75,7 @@ const OrderCard = ({ order }: OrderCardProps) => {
                   images={[]}
                   size="full"
                   sizes="(max-width: 768px) 45vw, 200px"
+                  alt={i.title}
                 />
               )}
               <div className="flex items-center text-small-regular text-ui-fg-base">

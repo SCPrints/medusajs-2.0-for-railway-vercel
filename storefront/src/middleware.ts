@@ -167,6 +167,9 @@ export const config = {
     // them with /{countryCode}/ and 307-redirect them — that broke the Shaka
     // Wear hero <video> (the .mp4 was redirected to /au/images/... so the
     // <source> couldn't load and the poster showed as a static frame).
-    "/((?!api|_next/|offline\\.html|sw\\.js|manifest\\.webmanifest|favicon.ico|animation-lab/|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg|.*\\.riv|.*\\.webp|.*\\.mp4|.*\\.webm|.*\\.mov).*)",
+    // `robots.txt` + `sitemap.xml` excluded so crawlers get the real files —
+    // country-prefixing them 307'd Google to /au/robots.txt, which renders
+    // HTML (no crawl rules, sitemap never discovered).
+    "/((?!api|_next/|offline\\.html|sw\\.js|manifest\\.webmanifest|favicon.ico|robots\\.txt|sitemap\\.xml|animation-lab/|.*\\.png|.*\\.jpg|.*\\.gif|.*\\.svg|.*\\.riv|.*\\.webp|.*\\.mp4|.*\\.webm|.*\\.mov).*)",
   ],
 }

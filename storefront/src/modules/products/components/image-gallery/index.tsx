@@ -47,6 +47,10 @@ const ImageGallery = ({
   const { options } = useProductOptions()
   const colorHoverPreview = useColorHover()
 
+  // Product-specific alt text for image search + accessibility (was a generic
+  // "Product image N" on every gallery shot).
+  const altBase = product.title || "Product"
+
   const effectiveOptions = useMemo(() => {
     const colorOption = product.options?.find((o) => isColorOptionTitle(o.title))
     const t = colorOption?.title
@@ -235,7 +239,7 @@ const ImageGallery = ({
             <Image
               key={heroImage.url}
               src={heroImage.url}
-              alt={`Product image ${activeIndex + 1}`}
+              alt={`${altBase} — view ${activeIndex + 1}`}
               fill
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
@@ -274,7 +278,7 @@ const ImageGallery = ({
               >
                 <Image
                   src={image.url}
-                  alt={`Thumbnail ${index + 1}`}
+                  alt={`${altBase} thumbnail ${index + 1}`}
                   fill
                   sizes="64px"
                   className="object-cover"
@@ -312,7 +316,7 @@ const ImageGallery = ({
               src={image.url}
               priority={index <= 2 ? true : false}
               className="absolute inset-0 rounded-rounded"
-              alt={`Product image ${index + 1}`}
+              alt={`${altBase} — view ${index + 1}`}
               fill
               sizes="(max-width: 576px) 50vw, (max-width: 992px) 25vw, 400px"
               style={{

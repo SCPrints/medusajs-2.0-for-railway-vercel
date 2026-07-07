@@ -327,6 +327,47 @@ export async function getProductsList({
   }
 }
 
+/**
+ * All in-channel product handles for the sitemap. Minimal field set (handle +
+ * updated_at) so a full-catalog walk (~1400 products) stays cheap. Cached
+ * hourly. Resilient: returns whatever it gathered before a mid-pagination
+ * backend failure, so a blip yields a shorter sitemap rather than an empty one.
+ */
+export async function listAllProductHandles(): Promise<
+  { handle: string; updated_at?: string }[]
+> {
+  "use cache"
+  cacheTag("products")
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+
+  const limit = 200
+  const handles: { handle: string; updated_at?: string }[] = []
+  try {
+    // ponytail: hard page ceiling (100 pages / 20k products) as a runaway guard.
+    for (let offset = 0; offset < 20000; offset += limit) {
+      const { products, count } = await sdk.store.product.list({
+        limit,
+        offset,
+        fields: "handle,updated_at",
+      })
+      for (const p of products) {
+        if (p.handle) {
+          handles.push({ handle: p.handle, updated_at: (p as any).updated_at })
+        }
+      }
+      if (products.length === 0 || offset + limit >= count) {
+        break
+      }
+    }
+  } catch (error) {
+    console.warn(
+      "[listAllProductHandles] backend fetch failed; returning partial list",
+      (error as Error).message
+    )
+  }
+  return handles
+}
+
 const HOME_FEATURED_LIMIT = 12
 const HOME_FEATURED_SEARCH_FETCH = 48
 const HOME_FEATURED_CATALOG_BATCH = 100
