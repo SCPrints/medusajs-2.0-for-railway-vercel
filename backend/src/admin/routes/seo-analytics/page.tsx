@@ -68,10 +68,12 @@ const formatDateTime = (iso: string) => {
   return d.toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })
 }
 
+const trendColor = (dir: Trend["dir"]) =>
+  dir === "up" ? PALETTE.emerald600 : dir === "down" ? PALETTE.rose600 : undefined
+
 const TrendLine = ({ trend }: { trend: Trend }) => {
   const arrow = trend.dir === "up" ? "▲" : trend.dir === "down" ? "▼" : "•"
-  const color =
-    trend.dir === "flat" ? undefined : trend.good ? PALETTE.emerald600 : PALETTE.rose600
+  const color = trendColor(trend.dir)
   return (
     <Text
       size="xsmall"
@@ -86,21 +88,13 @@ const TrendLine = ({ trend }: { trend: Trend }) => {
 // Compact per-table-cell trend: a small coloured arrow with the % in the
 // tooltip. Nothing renders when there's no comparable prior or the move is flat,
 // so tables only light up where a metric genuinely shifted.
-const CellDelta = ({
-  curr,
-  prior,
-  goodWhenUp = true,
-}: {
-  curr: number
-  prior?: number
-  goodWhenUp?: boolean
-}) => {
-  const t = pctTrend(curr, prior, goodWhenUp)
+const CellDelta = ({ curr, prior }: { curr: number; prior?: number }) => {
+  const t = pctTrend(curr, prior)
   if (!t || t.dir === "flat") return null
   return (
     <span
       className="ml-1 text-xs"
-      style={{ color: t.good ? PALETTE.emerald600 : PALETTE.rose600 }}
+      style={{ color: trendColor(t.dir) }}
       title={`${t.dir === "up" ? "up" : "down"} ${t.text} vs prior 28d`}
     >
       {t.dir === "up" ? "▲" : "▼"}
@@ -351,11 +345,7 @@ const SeoAnalyticsPage = () => {
               value={formatPosition(summary.gsc.totals.position)}
               hint="lower is better"
               help={HELP_GSC_POSITION}
-              trend={pctTrend(
-                summary.gsc.totals.position,
-                summary.gsc.previousTotals?.position,
-                false
-              )}
+              trend={pctTrend(summary.gsc.totals.position, summary.gsc.previousTotals?.position)}
             />
           </div>
         </Container>
@@ -480,7 +470,7 @@ const SeoAnalyticsPage = () => {
                   </Table.Cell>
                   <Table.Cell className="text-right">
                     {formatPosition(row.position)}
-                    <CellDelta curr={row.position} prior={row.previous?.position} goodWhenUp={false} />
+                    <CellDelta curr={row.position} prior={row.previous?.position} />
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -542,7 +532,7 @@ const SeoAnalyticsPage = () => {
                   </Table.Cell>
                   <Table.Cell className="text-right">
                     {formatPosition(row.position)}
-                    <CellDelta curr={row.position} prior={row.previous?.position} goodWhenUp={false} />
+                    <CellDelta curr={row.position} prior={row.previous?.position} />
                   </Table.Cell>
                 </Table.Row>
               ))}
