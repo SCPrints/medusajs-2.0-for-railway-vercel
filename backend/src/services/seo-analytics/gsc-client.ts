@@ -1,11 +1,15 @@
 import { google } from "googleapis"
 
 import { buildGoogleJwt } from "./google-auth"
+import { attachPrevious } from "./join-previous"
 import { withTransientRetry } from "./retry"
 import type { GscRow, GscSummary } from "./types"
 
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 const TOP_ROW_LIMIT = 25
+// Wider net for the prior window so most current top-25 keys find a match to
+// trend against; unmatched keys just show no arrow.
+const PREV_MATCH_LIMIT = 250
 
 function isoDaysAgo(days: number): string {
   const d = new Date()
@@ -85,12 +89,15 @@ export async function fetchGscSummary(
   const prevEndDate = isoDaysAgo(days + 1)
   const prevStartDate = isoDaysAgo(days * 2)
 
-  const [topQueries, topPages, byDayRaw, prevByDayRaw] = await Promise.all([
-    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["query"], TOP_ROW_LIMIT),
-    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TOP_ROW_LIMIT),
-    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["date"], days + 5),
-    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["date"], days + 5),
-  ])
+  const [topQueries, topPages, byDayRaw, prevByDayRaw, prevQueries, prevPages] =
+    await Promise.all([
+      queryDimensions(searchconsole, siteUrl, startDate, endDate, ["query"], TOP_ROW_LIMIT),
+      queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TOP_ROW_LIMIT),
+      queryDimensions(searchconsole, siteUrl, startDate, endDate, ["date"], days + 5),
+      queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["date"], days + 5),
+      queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["query"], PREV_MATCH_LIMIT),
+      queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["page"], PREV_MATCH_LIMIT),
+    ])
 
   const byDay = byDayRaw
     .map((r) => ({ date: r.key, clicks: r.clicks, impressions: r.impressions }))
@@ -99,8 +106,8 @@ export async function fetchGscSummary(
   return {
     totals: totalsFromDateRows(byDayRaw),
     previousTotals: totalsFromDateRows(prevByDayRaw),
-    topQueries,
-    topPages,
+    topQueries: attachPrevious(topQueries, prevQueries),
+    topPages: attachPrevious(topPages, prevPages),
     byDay,
   }
 }

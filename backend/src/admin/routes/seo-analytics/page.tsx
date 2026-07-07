@@ -12,6 +12,7 @@ type GscRow = {
   impressions: number
   ctr: number
   position: number
+  previous?: { clicks: number; impressions: number; ctr: number; position: number }
 }
 
 type Ga4PageRow = {
@@ -79,6 +80,31 @@ const TrendLine = ({ trend }: { trend: Trend }) => {
     >
       {arrow} {trend.text} vs prior 28d
     </Text>
+  )
+}
+
+// Compact per-table-cell trend: a small coloured arrow with the % in the
+// tooltip. Nothing renders when there's no comparable prior or the move is flat,
+// so tables only light up where a metric genuinely shifted.
+const CellDelta = ({
+  curr,
+  prior,
+  goodWhenUp = true,
+}: {
+  curr: number
+  prior?: number
+  goodWhenUp?: boolean
+}) => {
+  const t = pctTrend(curr, prior, goodWhenUp)
+  if (!t || t.dir === "flat") return null
+  return (
+    <span
+      className="ml-1 text-xs"
+      style={{ color: t.good ? PALETTE.emerald600 : PALETTE.rose600 }}
+      title={`${t.dir === "up" ? "up" : "down"} ${t.text} vs prior 28d`}
+    >
+      {t.dir === "up" ? "▲" : "▼"}
+    </span>
   )
 }
 
@@ -440,10 +466,22 @@ const SeoAnalyticsPage = () => {
               {summary.gsc.topQueries.map((row, i) => (
                 <Table.Row key={`${row.key}-${i}`}>
                   <Table.Cell>{row.key || "(unknown)"}</Table.Cell>
-                  <Table.Cell className="text-right">{formatInt(row.clicks)}</Table.Cell>
-                  <Table.Cell className="text-right">{formatInt(row.impressions)}</Table.Cell>
-                  <Table.Cell className="text-right">{formatPct(row.ctr)}</Table.Cell>
-                  <Table.Cell className="text-right">{formatPosition(row.position)}</Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatInt(row.clicks)}
+                    <CellDelta curr={row.clicks} prior={row.previous?.clicks} />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatInt(row.impressions)}
+                    <CellDelta curr={row.impressions} prior={row.previous?.impressions} />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatPct(row.ctr)}
+                    <CellDelta curr={row.ctr} prior={row.previous?.ctr} />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatPosition(row.position)}
+                    <CellDelta curr={row.position} prior={row.previous?.position} goodWhenUp={false} />
+                  </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>
@@ -490,10 +528,22 @@ const SeoAnalyticsPage = () => {
                   <Table.Cell className="max-w-[40ch] truncate" title={row.key}>
                     {row.key || "(unknown)"}
                   </Table.Cell>
-                  <Table.Cell className="text-right">{formatInt(row.clicks)}</Table.Cell>
-                  <Table.Cell className="text-right">{formatInt(row.impressions)}</Table.Cell>
-                  <Table.Cell className="text-right">{formatPct(row.ctr)}</Table.Cell>
-                  <Table.Cell className="text-right">{formatPosition(row.position)}</Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatInt(row.clicks)}
+                    <CellDelta curr={row.clicks} prior={row.previous?.clicks} />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatInt(row.impressions)}
+                    <CellDelta curr={row.impressions} prior={row.previous?.impressions} />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatPct(row.ctr)}
+                    <CellDelta curr={row.ctr} prior={row.previous?.ctr} />
+                  </Table.Cell>
+                  <Table.Cell className="text-right">
+                    {formatPosition(row.position)}
+                    <CellDelta curr={row.position} prior={row.previous?.position} goodWhenUp={false} />
+                  </Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

@@ -6,6 +6,14 @@ export type GscRow = {
   impressions: number
   ctr: number
   position: number
+  // Same query/page's metrics in the prior window (matched by key). Absent when
+  // the row is new this window — the UI then shows no trend arrow.
+  previous?: {
+    clicks: number
+    impressions: number
+    ctr: number
+    position: number
+  }
 }
 
 export type GscByDay = {
