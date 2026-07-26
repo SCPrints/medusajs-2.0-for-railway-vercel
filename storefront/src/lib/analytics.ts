@@ -13,6 +13,8 @@ declare global {
   interface Window {
     dataLayer?: any[]
     gtag?: (...args: any[]) => void
+    fbq?: (...args: any[]) => void
+    _fbq?: any
   }
 }
 
@@ -42,13 +44,58 @@ const fire = (name: string, params: Record<string, any>) => {
   }
 }
 
+/**
+ * Fires a Meta Pixel standard event. No-op when the pixel isn't loaded
+ * (env var unset, ad-blocker) — same defensive contract as `fire`.
+ * `options.eventID` lets a client event share an id with its server-side
+ * Conversions API twin so Meta deduplicates the pair.
+ */
+const fireMeta = (
+  name: string,
+  params: Record<string, any>,
+  options?: { eventID?: string }
+) => {
+  if (!isClient()) return
+  const fbq = window.fbq
+  if (typeof fbq !== "function") return
+  try {
+    if (options?.eventID) fbq("track", name, params, options)
+    else fbq("track", name, params)
+  } catch {
+    // never throw from analytics
+  }
+}
+
+/** Meta content payload derived from GA4 items — reused across events. */
+const metaContents = (items: AnalyticsItem[]) => ({
+  content_ids: items.map((i) => i.item_id),
+  content_type: "product" as const,
+  contents: items.map((i) => ({ id: i.item_id, quantity: i.quantity ?? 1 })),
+})
+
+/**
+ * Deterministic Purchase event id shared by the browser pixel and the
+ * server-side Conversions API call (see /api/meta-capi + PurchaseTracker)
+ * so Meta dedups the two into one conversion.
+ */
+export const metaPurchaseEventId = (transactionId: string) =>
+  `purchase_${transactionId}`
+
 /* ---------- catalog events --------------------------------------- */
 
 export const trackViewItem = (item: AnalyticsItem, currency = "AUD") => {
+  const value = (item.price ?? 0) * (item.quantity ?? 1)
   fire("view_item", {
     currency,
-    value: (item.price ?? 0) * (item.quantity ?? 1),
+    value,
     items: [item],
+  })
+  fireMeta("ViewContent", {
+    content_ids: [item.item_id],
+    content_type: "product",
+    content_name: item.item_name,
+    value,
+    currency,
   })
 }
 
@@ -91,6 +138,7 @@ export const trackAddToCart = (
     value,
     items,
   })
+  fireMeta("AddToCart", { ...metaContents(items), value, currency })
 }
 
 export const trackRemoveFromCart = (
@@ -136,6 +184,13 @@ export const trackBeginCheckout = (
     value,
     items,
     coupon,
+  })
+  fireMeta("InitiateCheckout", {
+    ...metaContents(items),
+    value,
+    currency,
+    num_items: items.reduce((sum, it) => sum + (it.quantity ?? 1), 0),
+    ...(coupon ? { coupon } : {}),
   })
 }
 
@@ -209,6 +264,15 @@ export const trackPurchase = (input: PurchaseInput) => {
     coupon: input.coupon,
     items: input.items,
   })
+  fireMeta(
+    "Purchase",
+    {
+      ...metaContents(input.items),
+      value: input.value,
+      currency: input.currency,
+    },
+    { eventID: metaPurchaseEventId(input.transaction_id) }
+  )
 }
 
 /* ---------- search ----------------------------------------------- */
@@ -218,6 +282,7 @@ export const trackSearch = (searchTerm: string, resultsCount?: number) => {
     search_term: searchTerm,
     results_count: resultsCount,
   })
+  fireMeta("Search", { search_string: searchTerm })
 }
 
 /* ---------- vectorization upsell funnel -------------------------- */

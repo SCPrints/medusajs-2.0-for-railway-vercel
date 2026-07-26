@@ -6,6 +6,7 @@ import "styles/globals.css"
 import { ViewTransitions } from "next-view-transitions"
 import ConditionalCursorDot from "@modules/layout/components/conditional-cursor-dot"
 import { Ga4Script } from "@modules/common/components/ga4-script"
+import { MetaPixel } from "@modules/common/components/meta-pixel"
 import { PostHogProvider } from "@modules/common/components/posthog-provider"
 import AddToHomeBanner from "@modules/common/components/add-to-home-banner"
 import ServiceWorkerRegister from "@modules/common/components/service-worker-register"
@@ -147,6 +148,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         className={`${plusJakartaSans.className} antialiased selection:bg-[#FF2E63] selection:text-[#EEEEEE]`}
       >
         <Ga4Script />
+        <MetaPixel />
         <PostHogProvider>
           <Suspense fallback={null}>
             <ConditionalCursorDot />
