@@ -53,10 +53,15 @@ Always use the `.medusa/server` path on the server image — other forms fail. S
 
 Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack is cheaper, Australian-resident, and split into single-purpose services. See [Docs/HOSTING.md](Docs/HOSTING.md) for the full migration playbook.
 
+**LIVE domains (cut over 2026-07-09 — the site is public and selling):**
+- **Storefront/shop**: `https://scprints.com.au` (and `www.`), served by Vercel Sydney. This is the real, customer-facing shop — a Medusa Next.js storefront, NOT a separate marketing site. The old `medusajs-2-0-for-railway-vercel.vercel.app` now **301-redirects** here.
+- **Backend + admin**: `https://api.scprints.com.au` (Fly app `sc-prints-backend`, syd). Admin SPA at `/app`. The old `sc-prints-backend.fly.dev` still resolves but `api.scprints.com.au` is canonical.
+- There is **no** Webflow marketing site and **no** `shop.` subdomain any more — it's one unified domain. When reasoning about SEO, ads, or customer journey, assume `scprints.com.au` is where everything lives. Do not describe the shop as being on a `.vercel.app` URL.
+
 | Service | Provider | Region | Address / app | Cost |
 | --- | --- | --- | --- | --- |
-| Backend (Medusa server + admin SPA) | Fly.io | Sydney (`syd`) | `sc-prints-backend.fly.dev` | shared-cpu-4x · 4GB · ~$22/mo |
-| Storefront (Next.js) | Vercel | global (Sydney edge) | `medusajs-2-0-for-railway-vercel.vercel.app` (custom domain TBD) | **Pro plan** (NOT Hobby — unrestricted cron schedules + usage-billed image optimization apply) |
+| Backend (Medusa server + admin SPA) | Fly.io | Sydney (`syd`) | `api.scprints.com.au` (Fly app `sc-prints-backend`; `.fly.dev` still resolves) | shared-cpu-4x · 4GB · ~$22/mo |
+| Storefront (Next.js) | Vercel | global (Sydney edge) | `scprints.com.au` + `www.` (live; old `.vercel.app` 301s here) | **Pro plan** (NOT Hobby — unrestricted cron schedules + usage-billed image optimization apply) |
 | Postgres 16 | DigitalOcean Managed Postgres | SYD1 | `sc-prints-db-do-user-37546044-0.i.db.ondigitalocean.com:25060` | ~$15/mo |
 | File storage (S3-compatible) | Cloudflare R2 | Oceania | bucket `sc-prints-media`, public dev URL `https://pub-4b98c1b8d55d4d9597ff5cfac6aa611a.r2.dev` | free tier |
 | Search index | self-hosted Meilisearch v1.10 | Fly.io Sydney | `sc-prints-search.fly.dev` (separate Fly app, see [meilisearch/fly.toml](meilisearch/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
@@ -66,7 +71,7 @@ Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack
 | Analytics | PostHog Cloud US, GA4, Google Search Console | — | reads via service account (DWD impersonates `info@scprints.com.au`) | free / per-event |
 
 **Deploy pipeline:**
-- **Backend**: `cd backend && fly deploy --app sc-prints-backend` from a clean working tree. The Dockerfile bakes `BACKEND_PUBLIC_URL=https://sc-prints-backend.fly.dev` into the admin SPA at build time so the SPA hits the right backend from the browser. fly.toml's `release_command` runs `db:migrate` + `db:sync-links` once per deploy (not on every boot). `min_machines_running = 1` keeps it warm.
+- **Backend**: `cd backend && fly deploy --app sc-prints-backend` from a clean working tree. The Dockerfile bakes `BACKEND_PUBLIC_URL=https://api.scprints.com.au` into the admin SPA at build time so the SPA hits the right backend from the browser. fly.toml's `release_command` runs `db:migrate` + `db:sync-links` once per deploy (not on every boot). `min_machines_running = 1` keeps it warm.
 - **Storefront**: `git push origin master` — Vercel auto-deploys.
 - **Meilisearch**: `cd meilisearch && fly deploy --app sc-prints-search`. Image-only deploy (no Dockerfile), pulls `getmeili/meilisearch:v1.10`.
 
@@ -873,7 +878,7 @@ All other env vars (Medusa core, AS Colour, Stripe, etc.) are documented in [bac
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_MEDUSA_BACKEND_URL` | Required. Public origin of the Medusa backend, e.g. `https://sc-prints-backend.fly.dev`. Both server-side fetchers and the InstantSearch modal read this. |
+| `NEXT_PUBLIC_MEDUSA_BACKEND_URL` | Required. Public origin of the Medusa backend, e.g. `https://api.scprints.com.au`. Both server-side fetchers and the InstantSearch modal read this. |
 | `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` | Required. Medusa store API publishable key (`pk_…`); scopes responses to the storefront's sales channel. |
 | `NEXT_PUBLIC_DEFAULT_REGION` | Optional. Country code (e.g. `au`) used as fallback when the URL has no country prefix and the `x-vercel-ip-country` header is missing. Defaults to `us`. |
 | `NEXT_PUBLIC_SEARCH_ENDPOINT` | Required. Origin of the Meilisearch instance. Production: `https://sc-prints-search.fly.dev` (the self-hosted Fly Meili). Used by both the server `search()` action and the client `<InstantSearch>` modal — must be the SAME Meili the backend writes to, otherwise the storefront returns IDs that no longer exist in Medusa. |
