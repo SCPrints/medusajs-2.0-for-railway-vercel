@@ -9,11 +9,18 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({
+  params,
   searchParams,
 }: {
+  params: Promise<{ countryCode: string }>
   searchParams: Promise<{ brand?: string }>
 }): Promise<Metadata> {
+  const { countryCode } = await params
   const { brand } = await searchParams
+  // Self-canonical WITHOUT the query string: sortBy/page/minPrice/brand/fabric/
+  // tag/type multiply into effectively unlimited URLs that all render the same
+  // catalog. They consolidate onto the bare /store.
+  const alternates = { canonical: `/${countryCode}/store` }
   /**
    * Brand-specific landing copy now lives at `/brands/[handle]` (server-rendered from the
    * Brand row). For deep-linked `/store?brand=…` filters, fall back to a generic store title;
@@ -23,11 +30,13 @@ export async function generateMetadata({
     return {
       title: `${brand} — Store`,
       description: `Browse ${brand} products from our catalog.`,
+      alternates,
     }
   }
   return {
     title: "Store",
     description: "Explore all of our products.",
+    alternates,
   }
 }
 

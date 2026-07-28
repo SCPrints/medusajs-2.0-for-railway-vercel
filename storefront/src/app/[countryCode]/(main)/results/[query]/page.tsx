@@ -7,6 +7,9 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 export const metadata: Metadata = {
   title: "Search",
   description: "Explore all of our products.",
+  // Internal search results — Google's guidance is to keep these out of the
+  // index. Follow so the product links are still discovered.
+  robots: { index: false, follow: true },
 }
 
 type Params = {

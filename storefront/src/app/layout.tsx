@@ -39,9 +39,13 @@ export const metadata: Metadata = {
   icons: {
     apple: "/branding/scp-vector.svg",
   },
-  alternates: {
-    canonical: "/",
-  },
+  // ponytail: NO `alternates.canonical` here. Next.js inherits metadata down
+  // the segment tree, so a root canonical of "/" was emitted verbatim on every
+  // page that didn't set its own — telling Google that /au/store, the search
+  // results, and every token page were all duplicates of the homepage. That is
+  // exactly the "Alternative page with proper canonical tag" / "Duplicate,
+  // Google chose different canonical" exclusion. Each page sets its own
+  // self-referencing canonical; pages without one self-canonicalise.
   keywords: [
     "custom apparel Australia",
     "screen printing",
