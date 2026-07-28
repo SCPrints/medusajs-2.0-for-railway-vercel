@@ -5,11 +5,36 @@ export const SEO = {
   siteDescription:
     "Premium custom apparel, transfers, embroidery, and branding solutions for Australian businesses and teams.",
   contactEmail: "info@scprints.com.au",
-  contactPhone: "+61390000000",
+  contactPhone: "+61404776649",
   locale: "en_AU",
   country: "AU",
   ogImage: "/branding/sc-prints-logo-transparent.png",
 }
+
+/**
+ * Physical studio details — the "NAP" (name, address, phone) that local SEO
+ * runs on. These MUST match the Google Business Profile character for
+ * character; Google cross-checks the listing against on-site markup and
+ * inconsistent NAP suppresses local pack ranking.
+ *
+ * Single source of truth so the LocalBusiness schema on every suburb page,
+ * the contact page and the footer can never drift apart.
+ */
+export const STUDIO = {
+  legalName: "SC Prints",
+  streetAddress: "7 Epic Place",
+  suburb: "Villawood",
+  state: "NSW",
+  postcode: "2163",
+  country: "AU",
+  /** Google Business Profile categorises us here. */
+  gbpCategory: "Screen printer",
+  // TODO: replace with the exact pin from the Google Business Profile once the
+  // listing is moved to Villawood — these are suburb-centre approximations.
+  latitude: -33.8729,
+  longitude: 150.9757,
+  openingHours: "Mo-Fr 09:00-16:00",
+} as const
 
 export const buildAbsoluteUrl = (path = "/") => new URL(path, getBaseURL()).toString()
 

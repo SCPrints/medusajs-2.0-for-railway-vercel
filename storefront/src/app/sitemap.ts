@@ -6,6 +6,7 @@ import { listCategories } from "@lib/data/categories"
 import { listAllProductHandles } from "@lib/data/products"
 import { getBaseURL } from "@lib/util/env"
 import { industries } from "@modules/industries/data/industries"
+import { locations } from "@modules/locations/data/locations"
 import { services } from "@modules/services/data"
 
 const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_REGION || "au"
@@ -26,6 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     `/${cc}/brands`,
     `/${cc}/services`,
     `/${cc}/industries`,
+    `/${cc}/locations`,
     `/${cc}/best-sellers`,
     `/${cc}/bundles`,
     `/${cc}/lookbook`,
@@ -43,6 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const servicePaths = services.map((s) => `/${cc}/services/${s.slug}`)
   const industryPaths = industries.map((i) => `/${cc}/industries/${i.slug}`)
+  const locationPaths = locations.map((l) => `/${cc}/locations/${l.slug}`)
 
   // Dynamic sets. Every helper already swallows backend errors → [] so one
   // slow/failing set never empties the whole sitemap.
@@ -57,6 +60,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...staticPaths,
     ...servicePaths,
     ...industryPaths,
+    ...locationPaths,
   ].map((path) => ({
     url: toAbsoluteUrl(path),
     lastModified: now,
