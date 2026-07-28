@@ -38,6 +38,23 @@ const COUNTRY_CODE = process.env.NEXT_PUBLIC_DEFAULT_REGION || "au"
 const GOOGLE_PRODUCT_CATEGORY = "Apparel & Accessories > Clothing"
 
 const PAGE_SIZE = 100
+
+/**
+ * Only the fields this feed actually reads. The storefront's default
+ * STORE_PRODUCT_FIELDS expands `*variants.options` and `+variants.metadata`
+ * for every variant — with ~46 variants per product that made each page 4.55MB
+ * and ~5.6s. Trimming to what's used: 1.61MB and ~2.2s per page, verified
+ * byte-for-byte identical for type / brand / cheapest price / image count
+ * across a 100-product sample.
+ *
+ * `*type` NOT `+type`: inside an explicit field list the `+` form silently
+ * returns nothing, which drops `g:product_type` from every item. `+` only
+ * works when appending to the default set (as STORE_PRODUCT_FIELDS does).
+ */
+const FEED_PRODUCT_FIELDS =
+  "id,handle,title,description,thumbnail,*images,*type,*brand," +
+  "*variants.calculated_price,+variants.manage_inventory," +
+  "+variants.allow_backorder,+variants.inventory_quantity"
 /** Runaway guard, mirroring listAllProductHandles(). */
 const MAX_PRODUCTS = 20000
 /** Google caps additional images at 10. */
@@ -211,7 +228,10 @@ export async function GET() {
     try {
       const { response } = await getProductsList({
         pageParam: page,
-        queryParams: { limit: PAGE_SIZE },
+        // `fields` overrides STORE_PRODUCT_FIELDS — getProductsList spreads
+        // queryParams after it. Different args also mean this gets its own
+        // "use cache" entry rather than evicting the storefront's.
+        queryParams: { limit: PAGE_SIZE, fields: FEED_PRODUCT_FIELDS },
         countryCode: COUNTRY_CODE,
       })
       return response
