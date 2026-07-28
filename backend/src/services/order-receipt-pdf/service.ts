@@ -112,8 +112,27 @@ export function computeReceiptTotals(raw: any): ReceiptOrder {
     (sum, m) => sum + toNumber(m.amount),
     0
   )
-  const summaryTotal = toNumber(raw?.summary?.raw_current_order_total?.value)
-  const grandTotal = summaryTotal || toNumber(raw?.total) || itemSubtotal + shippingSubtotal
+  // A tax invoice documents the sale AS PLACED (goods + shipping + GST).
+  // On a FULLY-refunded order both original_order_total AND current_order_total
+  // collapse to 0 — probed on prod order #43: original=0, current=0,
+  // paid_total=168.30. The old current-only source therefore fell through to the
+  // ex-GST line sum and under-stated the invoice ($153 / GST $13.91 instead of
+  // $168.30 / $15.30). Chain: order-total → paid_total (gross captured, survives
+  // a refund) → top-level total → ex-GST line sum. On non-refunded orders
+  // original_order_total is populated (probed #42: 219.659) so paid_total is
+  // never consulted there.
+  // ponytail: no partial-refund order exists in prod yet — if one appears and
+  // original collapses only partially, re-probe before trusting paid_total here.
+  const summary = (raw?.summary ?? {}) as Record<string, any>
+  const summaryTotal =
+    toNumber(summary.raw_original_order_total?.value) ||
+    toNumber(summary.original_order_total) ||
+    toNumber(summary.raw_current_order_total?.value) ||
+    toNumber(summary.current_order_total) ||
+    toNumber(summary.raw_paid_total?.value) ||
+    toNumber(summary.paid_total) ||
+    toNumber(raw?.total)
+  const grandTotal = summaryTotal || itemSubtotal + shippingSubtotal
 
   const taxExempt = (raw?.metadata as Record<string, unknown> | undefined)?.tax_exempt === true
   // GST added on top (post-2026-06-24 orders — the config is tax-EXCLUSIVE).

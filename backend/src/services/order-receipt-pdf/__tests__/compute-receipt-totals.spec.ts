@@ -25,11 +25,16 @@ describe("computeReceiptTotals", () => {
   })
 
   it("shows GST added-on-top for a post-24-Jun order (probe: $168.30 order)", () => {
+    // Real retrieveOrder shape (probed order #43): top-level total undecorated,
+    // total lives in summary.raw_*_order_total, current === original when unrefunded.
     const out = computeReceiptTotals({
       id: "oGST",
       items: [{ id: "a", unit_price: 142, quantity: 1 }],
       shipping_methods: [{ amount: 11 }],
-      summary: { raw_current_order_total: { value: 168.3 } },
+      summary: {
+        raw_current_order_total: { value: 168.3 },
+        raw_original_order_total: { value: 168.3 },
+      },
     })
     expect(out.gst_included).toBe(false)
     expect(out.item_subtotal).toBeCloseTo(142, 2)
@@ -40,6 +45,29 @@ describe("computeReceiptTotals", () => {
     expect(
       Number(out.item_subtotal) + Number(out.shipping_subtotal) + Number(out.tax_total)
     ).toBeCloseTo(Number(out.total), 2)
+  })
+
+  it("invoices the SALE total via paid_total for a fully-refunded order (#43)", () => {
+    // Real probed shape of prod #43: original_order_total AND current_order_total
+    // BOTH collapse to 0 on a full refund; paid_total (gross captured) still
+    // carries the placed $168.30. The invoice must show that, not the ex-GST $153.
+    const out = computeReceiptTotals({
+      id: "oRefunded",
+      items: [{ id: "a", unit_price: 71, quantity: 2 }],
+      shipping_methods: [{ amount: 11 }],
+      summary: {
+        raw_original_order_total: { value: 0 },
+        original_order_total: 0,
+        raw_current_order_total: { value: 0 },
+        current_order_total: 0,
+        raw_paid_total: { value: 168.3 },
+        paid_total: 168.3,
+        refunded_total: 168.3,
+      },
+    })
+    expect(out.total).toBeCloseTo(168.3, 2)
+    expect(out.tax_total).toBeCloseTo(15.3, 2)
+    expect(out.gst_included).toBe(false)
   })
 
   it("keeps a tax-exempt order at $0 GST", () => {

@@ -44,7 +44,7 @@ const bodySchema = z.object({
   company: z.string().max(120).optional(),
   subject: z.string().max(200).optional(),
   message: z.string().min(1).max(8000),
-  source: z.enum(["byo", "contact"]).optional(),
+  source: z.enum(["byo", "contact", "custom_hats"]).optional(),
   line_items: z
     .array(
       z.object({
