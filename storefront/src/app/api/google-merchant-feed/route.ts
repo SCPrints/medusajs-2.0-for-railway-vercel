@@ -1,4 +1,5 @@
 import { HttpTypes } from "@medusajs/types"
+import { connection } from "next/server"
 
 import { getProductsList } from "@lib/data/products"
 import { getBaseURL } from "@lib/util/env"
@@ -26,6 +27,9 @@ import { garmentUrlViewRank } from "@modules/products/lib/variant-options"
  * Prints ever targets those countries, this has to become variant-level with
  * `item_group_id` grouping the variants of a product.
  */
+
+/** ~130s cold catalog walk; Vercel's default function cap would clip it. */
+export const maxDuration = 300
 
 const COUNTRY_CODE = process.env.NEXT_PUBLIC_DEFAULT_REGION || "au"
 
@@ -174,6 +178,15 @@ const buildItem = (product: HttpTypes.StoreProduct, baseUrl: string): string | n
 }
 
 export async function GET() {
+  // Build-time prerender is fatal here: Next statically evaluates route
+  // handlers during `next build` and Vercel caps that at 60s per route, but a
+  // full catalog walk takes ~130s — the export failed 3× and killed the deploy.
+  // `connection()` marks this request-time (the segment config `dynamic` is
+  // rejected under nextConfig.cacheComponents). Freshness and cost stay with
+  // the layers that own them: getProductsList is `"use cache"` tagged
+  // "products", and the response carries s-maxage=3600 for the CDN.
+  await connection()
+
   const baseUrl = getBaseURL()
   const items: string[] = []
 
