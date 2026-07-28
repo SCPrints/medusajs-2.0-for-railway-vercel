@@ -177,7 +177,15 @@ const buildItem = (product: HttpTypes.StoreProduct, baseUrl: string): string | n
   ].join("\n")
 }
 
+/**
+ * Stop walking and emit what we have once this much wall-clock has passed.
+ * Well under `maxDuration` so there's room to serialise and respond.
+ */
+const WALK_BUDGET_MS = 120_000
+
 export async function GET() {
+  const startedAt = Date.now()
+
   // Build-time prerender is fatal here: Next statically evaluates route
   // handlers during `next build` and Vercel caps that at 60s per route, but a
   // full catalog walk takes ~130s — the export failed 3× and killed the deploy.
@@ -190,32 +198,71 @@ export async function GET() {
   const baseUrl = getBaseURL()
   const items: string[] = []
 
-  // Walk the catalog page by page. getProductsList is `"use cache"` with
-  // cacheTag("products"), so this reuses whatever the storefront already
-  // cached and is invalidated by the existing backend revalidate hook.
-  // Partial-failure tolerant: a mid-walk backend blip yields a shorter feed
-  // rather than a 500 — Merchant Center treats a failed fetch as "keep the
-  // previous feed", but a short feed is still better than no refresh.
-  try {
-    for (let page = 1; items.length < MAX_PRODUCTS; page++) {
-      const { response, nextPage } = await getProductsList({
+  // Page 1 first — its `count` tells us how many pages exist so the rest can
+  // be fetched concurrently. Walking all ~12 pages sequentially took ~123s and
+  // then blew the 300s ceiling entirely, which is why Merchant Center imported
+  // 0 products: it was fetching a timed-out error page, not a feed.
+  //
+  // getProductsList is `"use cache"` (tagged "products", invalidated by the
+  // backend revalidate hook), so warm instances skip the backend entirely.
+  // Partial-failure tolerant: a page that throws is dropped rather than
+  // failing the whole feed.
+  const fetchPage = async (page: number) => {
+    try {
+      const { response } = await getProductsList({
         pageParam: page,
         queryParams: { limit: PAGE_SIZE },
         countryCode: COUNTRY_CODE,
       })
-
-      for (const product of response.products) {
-        const item = buildItem(product, baseUrl)
-        if (item) items.push(item)
-      }
-
-      if (!nextPage || response.products.length === 0) break
+      return response
+    } catch (error) {
+      console.error(
+        `[google-merchant-feed] page ${page} failed`,
+        (error as Error).message
+      )
+      return { products: [] as HttpTypes.StoreProduct[], count: 0 }
     }
-  } catch (error) {
-    console.error(
-      "[google-merchant-feed] catalog walk failed",
-      (error as Error).message
-    )
+  }
+
+  const collect = (products: HttpTypes.StoreProduct[]) => {
+    for (const product of products) {
+      const item = buildItem(product, baseUrl)
+      if (item) items.push(item)
+    }
+  }
+
+  const first = await fetchPage(1)
+  collect(first.products)
+
+  const totalPages = Math.min(
+    Math.ceil((first.count || 0) / PAGE_SIZE),
+    Math.ceil(MAX_PRODUCTS / PAGE_SIZE)
+  )
+
+  // ponytail: fixed concurrency of 6 — a page of 100 products takes ~6s from
+  // the backend, so 14 pages collapse from ~84s sequential into ~3 waves
+  // (~20s) without stampeding Medusa. Raise only if the backend is
+  // demonstrably idle during the fetch.
+  const CONCURRENCY = 6
+  for (let start = 2; start <= totalPages; start += CONCURRENCY) {
+    // Emit a partial feed rather than nothing if the backend turns slow. The
+    // first deploy of this route blew maxDuration entirely and Merchant Center
+    // imported 0 products from the resulting error page — a short feed is far
+    // better than a timeout, and Google keeps prior items it doesn't see again
+    // within its grace window.
+    if (Date.now() - startedAt > WALK_BUDGET_MS) {
+      console.warn(
+        `[google-merchant-feed] walk budget hit after page ${start - 1}/${totalPages}; emitting ${items.length} items`
+      )
+      break
+    }
+
+    const batch = []
+    for (let page = start; page < start + CONCURRENCY && page <= totalPages; page++) {
+      batch.push(fetchPage(page))
+    }
+    const results = await Promise.all(batch)
+    for (const result of results) collect(result.products)
   }
 
   const body = [
