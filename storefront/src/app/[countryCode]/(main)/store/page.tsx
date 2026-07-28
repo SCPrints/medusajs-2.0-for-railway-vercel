@@ -8,35 +8,28 @@ export async function generateStaticParams() {
   return [{ countryCode: "au" }]
 }
 
+/**
+ * Deliberately does NOT read `searchParams`. Touching it makes the whole
+ * metadata dynamic, which under PPR keeps <title> and <link rel="canonical">
+ * out of the prerendered <head> entirely — they only arrive in the streamed
+ * body, where a canonical is unreliable. Params-only keeps the head static.
+ *
+ * Cost: `/store?brand=Foo` no longer gets a brand-specific tab title. That URL
+ * canonicalises to the bare /store anyway, and brand landing copy lives at
+ * `/brands/[handle]`, so the title never reached a search result.
+ */
 export async function generateMetadata({
   params,
-  searchParams,
 }: {
   params: Promise<{ countryCode: string }>
-  searchParams: Promise<{ brand?: string }>
 }): Promise<Metadata> {
   const { countryCode } = await params
-  const { brand } = await searchParams
-  // Self-canonical WITHOUT the query string: sortBy/page/minPrice/brand/fabric/
-  // tag/type multiply into effectively unlimited URLs that all render the same
-  // catalog. They consolidate onto the bare /store.
-  const alternates = { canonical: `/${countryCode}/store` }
-  /**
-   * Brand-specific landing copy now lives at `/brands/[handle]` (server-rendered from the
-   * Brand row). For deep-linked `/store?brand=…` filters, fall back to a generic store title;
-   * the URL doesn't carry a brand handle so we'd need an extra fetch just to title the page.
-   */
-  if (brand) {
-    return {
-      title: `${brand} — Store`,
-      description: `Browse ${brand} products from our catalog.`,
-      alternates,
-    }
-  }
   return {
     title: "Store",
     description: "Explore all of our products.",
-    alternates,
+    // Query string stripped: sortBy/page/minPrice/brand/fabric/tag/type
+    // multiply into effectively unlimited URLs rendering the same catalog.
+    alternates: { canonical: `/${countryCode}/store` },
   }
 }
 
