@@ -1,7 +1,8 @@
 import { HttpTypes } from "@medusajs/types"
 import { connection } from "next/server"
 
-import { getProductsList } from "@lib/data/products"
+import { sdk } from "@lib/config"
+import { getRegion } from "@lib/data/regions"
 import { getBaseURL } from "@lib/util/env"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { SEO } from "@lib/util/seo"
@@ -224,17 +225,33 @@ export async function GET() {
   // backend revalidate hook), so warm instances skip the backend entirely.
   // Partial-failure tolerant: a page that throws is dropped rather than
   // failing the whole feed.
+  const region = await getRegion(COUNTRY_CODE)
+  if (!region) {
+    console.error("[google-merchant-feed] no region for", COUNTRY_CODE)
+    return new Response("region unavailable", { status: 503 })
+  }
+
+  /**
+   * Deliberately calls the SDK directly rather than `getProductsList`.
+   *
+   * That helper is `"use cache"` keyed per page with `expire: 86400`, so each
+   * offset page is cached at a different moment. Offsets shift whenever the
+   * catalog grows, so a page cached before an import sitting next to one cached
+   * after it silently drops the products that straddle the boundary. That cost
+   * 164 of 1352 products (12%) — spread across every supplier, invisible in
+   * Merchant Center because a short feed is a valid feed.
+   *
+   * A bulk export needs ONE consistent snapshot. The route's own
+   * `s-maxage=3600` is the right cache boundary for a feed Google pulls daily.
+   */
   const fetchPage = async (page: number) => {
     try {
-      const { response } = await getProductsList({
-        pageParam: page,
-        // `fields` overrides STORE_PRODUCT_FIELDS — getProductsList spreads
-        // queryParams after it. Different args also mean this gets its own
-        // "use cache" entry rather than evicting the storefront's.
-        queryParams: { limit: PAGE_SIZE, fields: FEED_PRODUCT_FIELDS },
-        countryCode: COUNTRY_CODE,
+      return await sdk.store.product.list({
+        limit: PAGE_SIZE,
+        offset: (page - 1) * PAGE_SIZE,
+        region_id: region.id,
+        fields: FEED_PRODUCT_FIELDS,
       })
-      return response
     } catch (error) {
       console.error(
         `[google-merchant-feed] page ${page} failed`,
@@ -244,10 +261,20 @@ export async function GET() {
     }
   }
 
+  // Offset pagination against a live catalog can still repeat a product if an
+  // import lands mid-walk. Duplicate g:id disapproves the item in Merchant
+  // Center, so dedupe rather than trust the offsets.
+  const seen = new Set<string>()
+  let skipped = 0
   const collect = (products: HttpTypes.StoreProduct[]) => {
     for (const product of products) {
+      if (product.id) {
+        if (seen.has(product.id)) continue
+        seen.add(product.id)
+      }
       const item = buildItem(product, baseUrl)
       if (item) items.push(item)
+      else skipped++
     }
   }
 
@@ -283,6 +310,17 @@ export async function GET() {
     }
     const results = await Promise.all(batch)
     for (const result of results) collect(result.products)
+  }
+
+  // A short feed is a VALID feed — Merchant Center reports "no issues found"
+  // either way, which is how a 12% shortfall went unnoticed. Say it out loud.
+  const expected = first.count || 0
+  if (items.length + skipped < expected) {
+    console.warn(
+      `[google-merchant-feed] coverage shortfall: catalog=${expected} ` +
+        `fetched=${items.length + skipped} emitted=${items.length} ` +
+        `(${skipped} lacked a price or image)`
+    )
   }
 
   const body = [
