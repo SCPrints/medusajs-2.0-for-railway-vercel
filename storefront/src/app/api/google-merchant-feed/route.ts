@@ -281,6 +281,14 @@ export async function GET() {
   // Center, so dedupe rather than trust the offsets.
   const seen = new Set<string>()
   let skipped = 0
+  /**
+   * Products that came back with variants but no usable price. Medusa's
+   * variant-pricing cap is per REQUEST, so one 259-variant product can blow the
+   * budget for its whole page and take its page-mates down with it — no page
+   * size is small enough to guarantee this away. Re-fetched individually below,
+   * where the cap can't bite.
+   */
+  const repair: string[] = []
   const collect = (products: HttpTypes.StoreProduct[]) => {
     for (const product of products) {
       if (product.id) {
@@ -288,8 +296,16 @@ export async function GET() {
         seen.add(product.id)
       }
       const item = buildItem(product, baseUrl)
-      if (item) items.push(item)
-      else skipped++
+      if (item) {
+        items.push(item)
+        continue
+      }
+      skipped++
+      // Zero-variant products are genuinely unsellable; only retry the ones
+      // that have variants, since those are the pricing-cap casualties.
+      if (product.handle && (product.variants?.length ?? 0) > 0) {
+        repair.push(product.handle)
+      }
     }
   }
 
@@ -325,6 +341,47 @@ export async function GET() {
     }
     const results = await Promise.all(batch)
     for (const result of results) collect(result.products)
+  }
+
+  /**
+   * Repair pass: re-fetch the pricing-cap casualties one at a time. A single
+   * product never trips the per-request variant cap, so this recovers products
+   * whose price exists but didn't survive a batched fetch. Verified on prod:
+   * dnc-3458 (259 variants) returns 259/259 priced by handle and 0/259 inside a
+   * page. Capped so a systemic pricing outage degrades to a short feed instead
+   * of fanning out into one request per product.
+   */
+  const REPAIR_CAP = 120
+  if (repair.length && Date.now() - startedAt < WALK_BUDGET_MS) {
+    const targets = repair.slice(0, REPAIR_CAP)
+    if (repair.length > targets.length) {
+      console.warn(
+        `[google-merchant-feed] ${repair.length} unpriced; repairing first ${targets.length}`
+      )
+    }
+    for (let i = 0; i < targets.length; i += CONCURRENCY) {
+      if (Date.now() - startedAt > WALK_BUDGET_MS) break
+      const batch = targets.slice(i, i + CONCURRENCY).map(async (handle) => {
+        try {
+          const { products } = await sdk.store.product.list({
+            handle,
+            region_id: region.id,
+            fields: FEED_PRODUCT_FIELDS,
+          })
+          return products?.[0]
+        } catch {
+          return undefined
+        }
+      })
+      for (const product of await Promise.all(batch)) {
+        if (!product) continue
+        const item = buildItem(product, baseUrl)
+        if (item) {
+          items.push(item)
+          skipped--
+        }
+      }
+    }
   }
 
   // A short feed is a VALID feed — Merchant Center reports "no issues found"
