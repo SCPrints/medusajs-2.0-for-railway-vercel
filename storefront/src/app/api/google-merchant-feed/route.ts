@@ -38,7 +38,22 @@ const COUNTRY_CODE = process.env.NEXT_PUBLIC_DEFAULT_REGION || "au"
  *  stating it avoids mis-categorised bids on a mixed catalog. */
 const GOOGLE_PRODUCT_CATEGORY = "Apparel & Accessories > Clothing"
 
-const PAGE_SIZE = 100
+/**
+ * 25, NOT 100. Medusa silently omits `calculated_price` from some products when
+ * a single request has to price too many variants at once — no error, no
+ * warning, the field is just absent. This catalog averages ~40 variants per
+ * product, so a page of 100 asks it to price ~4000 at once and it drops a
+ * handful every page.
+ *
+ * `buildItem` then treats "no price" as "not sellable" and skips the product,
+ * so 160 of 1352 products (12%) silently vanished from the feed while both the
+ * PDP and a by-handle API call showed a perfectly good price. Measured against
+ * prod on the same 100-product window: limit=100 → 3 unpriced, limit=50/25/10
+ * → 0. Full catalog walk at 25 emits 1348 vs 100's 1188.
+ *
+ * Raising this trades ad coverage for a few seconds of walk time. Don't.
+ */
+const PAGE_SIZE = 25
 
 /**
  * Only the fields this feed actually reads. The storefront's default
@@ -286,10 +301,10 @@ export async function GET() {
     Math.ceil(MAX_PRODUCTS / PAGE_SIZE)
   )
 
-  // ponytail: fixed concurrency of 6 — a page of 100 products takes ~6s from
-  // the backend, so 14 pages collapse from ~84s sequential into ~3 waves
-  // (~20s) without stampeding Medusa. Raise only if the backend is
-  // demonstrably idle during the fetch.
+  // ponytail: fixed concurrency of 6. At PAGE_SIZE 25 the catalog is ~55 pages;
+  // measured sequentially against prod that's ~51s, so 6-wide lands ~10s — well
+  // inside WALK_BUDGET_MS — without stampeding Medusa. Raise only if the
+  // backend is demonstrably idle during the fetch.
   const CONCURRENCY = 6
   for (let start = 2; start <= totalPages; start += CONCURRENCY) {
     // Emit a partial feed rather than nothing if the backend turns slow. The
