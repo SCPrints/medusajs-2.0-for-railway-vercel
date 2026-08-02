@@ -32,37 +32,44 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
     gift_card_total,
   } = totals
 
-  // ⚠️ Medusa's `subtotal` INCLUDES shipping (subtotal = item_subtotal +
-  // shipping_subtotal — see @medusajs/types cart common.d.ts + verified against
-  // the live cart). It must NOT back a line labelled "excl. shipping", or the
-  // shipping amount gets folded into the subtotal AND shown again on its own
-  // line, so Total (= items + shipping) reads as if shipping were dropped.
-  // `item_subtotal` is the items-only, ex-tax figure and matches the sum of the
-  // visible line items. Fall back to stripping shipping off `subtotal` for any
-  // caller that doesn't hydrate `item_subtotal`.
-  const itemsSubtotal =
-    item_subtotal ?? Math.max(0, (subtotal ?? 0) - (shipping_total ?? 0))
+  // INC-GST display (HOLD cutover, Docs/GST_INC_PRICING_SCOPE.md): every row
+  // shows tax-inclusive figures so the summary matches the inc-GST unit prices
+  // on the line items, and the GST row is informational ("Includes GST"), not
+  // additive. Rows reconcile for the customer as:
+  //   subtotal − discount + shipping − gift card = Total.
+  //
+  // The items figure is DERIVED (total − shipping + discount + gift card)
+  // rather than read from a field because it's the only expression that is
+  // exact in BOTH tax regimes — it equals items-incl-their-GST pre-discount
+  // whether Medusa is adding GST on top (pre-cutover carts) or extracting it
+  // (post-cutover). `item_subtotal` is ex-GST and would sit visibly below the
+  // line items it claims to sum; Medusa's `subtotal` additionally INCLUDES
+  // shipping (see @medusajs/types cart common.d.ts) — avoid both.
+  const itemsIncGst = Math.max(
+    0,
+    (total ?? 0) -
+      (shipping_total ?? 0) +
+      (discount_total ?? 0) +
+      (gift_card_total ?? 0)
+  )
 
-  // Once GST is applied, Medusa's `shipping_total` is tax-INCLUSIVE (e.g. $22 =
-  // $20 + $2 GST) while `shipping_subtotal` is ex-tax ($20). The GST is already
-  // surfaced on its own line, and the option is labelled "ex GST", so show the
-  // ex-tax figure here — otherwise the shipping GST is double-counted and the
-  // lines don't sum to Total. Falls back to `shipping_total` pre-GST (identical).
-  const shippingExTax = shipping_subtotal ?? shipping_total ?? 0
+  // `shipping_total` is the tax-inclusive shipping figure in both regimes —
+  // matches the "inc GST" label on the shipping option at checkout.
+  const shippingIncGst = shipping_total ?? shipping_subtotal ?? 0
 
   const isAud = currency_code?.toLowerCase() === "aud"
-  const taxLabel = isAud ? "GST" : "Taxes"
+  const taxLabel = isAud ? "Includes GST" : "Includes taxes"
   const subtotalLabel = isAud
-    ? "Subtotal (excl. shipping and GST)"
-    : "Subtotal (excl. shipping and taxes)"
+    ? "Subtotal (inc GST, excl. shipping)"
+    : "Subtotal (incl. taxes, excl. shipping)"
 
   return (
     <div>
       <div className="flex flex-col gap-y-2 txt-medium text-ui-fg-subtle ">
         <div className="flex items-center justify-between">
           <span className="flex gap-x-1 items-center">{subtotalLabel}</span>
-          <span data-testid="cart-subtotal" data-value={itemsSubtotal || 0}>
-            {convertMinorToLocale({ amount: itemsSubtotal, currency_code })}
+          <span data-testid="cart-subtotal" data-value={itemsIncGst || 0}>
+            {convertMinorToLocale({ amount: itemsIncGst, currency_code })}
           </span>
         </div>
         {!!discount_total && (
@@ -80,8 +87,8 @@ const CartTotals: React.FC<CartTotalsProps> = ({ totals }) => {
         )}
         <div className="flex items-center justify-between">
           <span>Shipping</span>
-          <span data-testid="cart-shipping" data-value={shippingExTax || 0}>
-            {convertMinorToLocale({ amount: shippingExTax, currency_code })}
+          <span data-testid="cart-shipping" data-value={shippingIncGst || 0}>
+            {convertMinorToLocale({ amount: shippingIncGst, currency_code })}
           </span>
         </div>
         <div className="flex justify-between">

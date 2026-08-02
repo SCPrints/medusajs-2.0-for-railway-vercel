@@ -27,7 +27,7 @@ export type Breakdown = {
   setupTotal: number
   /** Rush surcharge applied at order level. */
   rushSurcharge: number
-  /** Sum of all components, ex-GST. */
+  /** Sum of all components — inc-GST since the HOLD cutover (see lib/gst.ts). */
   subtotalExGst: number
   /** 10% AU GST on subtotalExGst. */
   gst: number

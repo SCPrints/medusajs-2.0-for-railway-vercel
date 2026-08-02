@@ -80,10 +80,11 @@ class ScpShippingProviderService extends AbstractFulfillmentProviderService {
 
     return {
       calculated_amount: computeShippingAmount(totalWeightGrams),
-      // Price is ex-GST; Medusa applies the AU region's GST on top, matching
-      // the "ex GST" label the storefront shows next to the rate (same as the
-      // previous flat options).
-      is_calculated_price_tax_inclusive: false,
+      // Price is GST-INCLUSIVE (HOLD cutover, Docs/GST_INC_PRICING_SCOPE.md):
+      // the customer pays exactly the band amount ($11 stays $11 all-in) and
+      // Medusa backs the GST out of it (÷11) for tax lines. Was `false` when
+      // the storefront labelled rates "ex GST" and Medusa added 10% on top.
+      is_calculated_price_tax_inclusive: true,
     }
   }
 

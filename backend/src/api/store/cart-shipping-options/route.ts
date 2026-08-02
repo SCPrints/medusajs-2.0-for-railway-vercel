@@ -82,7 +82,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // Admin "Shipping decision" panel can render the weight breakdown post-
   // checkout. Idempotent — the latest storefront poll wins. `tier` stays
   // "flat" so the existing admin widget keeps rendering; `model` records the
-  // real mechanism. `amount_aud` is the quoted rate (ex-GST) the provider
+  // real mechanism. `amount_aud` is the quoted rate (inc-GST) the provider
   // would compute for this weight.
   const shippingDecision = {
     tier: "flat" as const,

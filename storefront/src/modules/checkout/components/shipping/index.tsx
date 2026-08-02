@@ -167,7 +167,7 @@ const Shipping: React.FC<ShippingProps> = ({
                           )
                         : "Unavailable"}
                       <span className="ml-1 text-xs font-normal text-ui-fg-subtle">
-                        {hasPrice ? "ex GST" : ""}
+                        {hasPrice ? "inc GST" : ""}
                       </span>
                     </span>
                   </RadioGroup.Option>
@@ -207,7 +207,7 @@ const Shipping: React.FC<ShippingProps> = ({
                     selectedShippingMethod,
                     cart?.currency_code
                   )}{" "}
-                  <span className="text-xs">ex GST</span>
+                  <span className="text-xs">inc GST</span>
                 </Text>
               </div>
             )}

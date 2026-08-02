@@ -15,9 +15,10 @@
  *   7  bronze       1.40
  *   8  member       1.45   (entry — closest to the public ladder floor)
  *
- * The multiplier is applied to ex-GST cost and produces a GST-inclusive
- * selling price. The same convention as `bulk-price-ladder.ts`'s 1.65 floor
- * (cost × 1.1 GST × 1.5 markup = cost × 1.65 inc-GST).
+ * The multiplier is applied to ex-GST supplier cost and produces an EX-GST
+ * selling price — Medusa adds 10% sales GST at checkout. Same convention as
+ * `bulk-price-ladder.ts`'s 1.65 floor, where the embedded 1.1 covers the GST
+ * we PAY the supplier (margin on our cash cost), not GST on the sale.
  *
  * Anonymous visitors and customers not in a tier group see the standard 5-band
  * quantity ladder (cost × 1.65 at qty 100+ up to cost × 2.2 at qty 1-9).

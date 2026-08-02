@@ -187,8 +187,13 @@ const EmbroideryPanel: React.FC<EmbroideryPanelProps> = ({
           decorationSubtotal: design.pricing.decorationSubtotal,
           setupTotal: design.pricing.digitizingFee,
           rushSurcharge: 0,
-          subtotalExGst: design.pricing.total,
-          gst: 0,
+          // Rate-card totals are GST-INCLUSIVE (HOLD cutover) — extract the
+          // embedded GST (÷11) like decoration's splitGst, instead of the old
+          // hand-built { gst: 0 } that mislabelled an unsplit figure.
+          subtotalExGst:
+            Math.round((design.pricing.total - design.pricing.total / 11) * 100) /
+            100,
+          gst: Math.round((design.pricing.total / 11) * 100) / 100,
           totalIncGst: design.pricing.total,
           belowMinimum: design.pricing.belowMinimum,
           rushTier: "standard",

@@ -28,9 +28,9 @@ const MAX_SWATCHES_DISPLAY = 6
 export type ProductListingCardData = {
   href: string
   title: string
-  /** e.g. `From A$12.00 * ex GST` */
+  /** e.g. `From A$12.00 * inc GST` */
   priceFromLine: string
-  /** e.g. `100+ A$8.00 ex GST` when bulk_pricing has a tier covering qty 100 */
+  /** e.g. `100+ A$8.00 inc GST` when bulk_pricing has a tier covering qty 100 */
   priceHundredPlusLine: string | null
   defaultImageUrl: string | null
   swatches: ProductListingSwatch[]
@@ -215,14 +215,14 @@ function buildFromListingSummary(
   const priceFromLine = `From ${convertToLocale({
     amount: summary.cheapest_amount,
     currency_code: summary.currency_code,
-  })} * ex GST`
+  })} * inc GST`
 
   const priceHundredPlusLine =
     summary.hundred_plus_amount !== null
       ? `100+ ${convertToLocale({
           amount: summary.hundred_plus_amount,
           currency_code: summary.currency_code,
-        })} ex GST`
+        })} inc GST`
       : null
 
   return {

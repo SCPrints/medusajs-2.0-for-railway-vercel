@@ -5,9 +5,12 @@
  * (incl. packaging overhead + the default-garment-weight fallback for items
  * with no real weight — see computeCartWeight + SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS).
  *
- * Amounts are AUD DOLLARS (major units), ex-GST — matching the repo's
- * fulfillment-provider convention (calculatePrice returns major units, see the
- * ShipStation/AusPost providers) and how the storefront formats prices.
+ * Amounts are AUD DOLLARS (major units), GST-INCLUSIVE — the customer pays
+ * exactly the band amount; the scp provider marks the rate tax-inclusive so
+ * Medusa extracts the embedded GST (÷11) rather than adding 10% on top.
+ * (Was ex-GST before the 2026-07 HOLD cutover; the numbers were deliberately
+ * kept — $11 charged became $11.00 instead of $12.10. Major units matches the
+ * repo's fulfillment-provider convention, see ShipStation/AusPost providers.)
  *
  * ============================ TUNE THE NUMBERS HERE ============================
  * Garment counts in the comments assume ~300 g/garment + 150 g packaging, so
@@ -20,7 +23,7 @@
 export type ShippingWeightBand = {
   /** inclusive upper bound, grams */
   maxGrams: number
-  /** price in AUD dollars (major units, ex-GST) */
+  /** price in AUD dollars (major units, GST-inclusive) */
   amount: number
 }
 

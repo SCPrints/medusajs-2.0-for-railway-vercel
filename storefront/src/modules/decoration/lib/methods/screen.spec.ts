@@ -10,7 +10,11 @@ describe("calculateScreenPrice", () => {
     expect(r.unitPrice).toBe(5.5)
     expect(r.decorationSubtotal).toBe(275)
     expect(r.setupTotal).toBe(SCREEN_PER_SCREEN_FEE * 2)
-    expect(r.subtotalExGst).toBe(375)
+    // HOLD cutover: rate-card sum ($275 + $100 setup = $375) is the inc-GST
+    // total; GST is extracted (÷11), not added on top.
+    expect(r.totalIncGst).toBe(375)
+    expect(r.gst).toBe(34.09)
+    expect(r.subtotalExGst).toBe(340.91)
   })
 
   it("bumps colour count when dark garment is selected", () => {

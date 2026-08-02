@@ -42,7 +42,7 @@ const DecorationEstimator: React.FC<Props> = ({ methods, initialMethod }) => {
       <div>
         <h3 className="text-lg font-semibold text-ui-fg-base">Decoration estimator</h3>
         <p className="text-sm text-ui-fg-subtle">
-          Pick a method and we'll estimate your decoration cost. All prices ex-GST; final pricing
+          Pick a method and we'll estimate your decoration cost. All prices include GST; final pricing
           confirmed before production.
         </p>
       </div>

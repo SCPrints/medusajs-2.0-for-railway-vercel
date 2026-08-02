@@ -128,7 +128,7 @@ function getCheapestVariant(
 }
 
 /**
- * `From $X * ex GST` (cheapest / “from” display) and optional `100+ $Y ex GST` when
+ * `From $X * inc GST` (cheapest / “from” display) and optional `100+ $Y inc GST` when
  * bulk_pricing has a tier whose range includes quantity 100.
  */
 export function getProductListingCardPriceLines(
@@ -147,7 +147,7 @@ export function getProductListingCardPriceLines(
     }
   }
 
-  const fromLine = `From ${cheapestPrice.calculated_price} * ex GST`
+  const fromLine = `From ${cheapestPrice.calculated_price} * inc GST`
 
   // Tier customers pay a single flat price — the quantity ladder ("100+ …")
   // doesn't apply to them, so suppress it.
@@ -209,7 +209,7 @@ export function getProductListingCardPriceLines(
     currency_code: currencyCode,
   })
 
-  const hundredPlusLine = `100+ ${hundredFormatted} ex GST`
+  const hundredPlusLine = `100+ ${hundredFormatted} inc GST`
 
   return { fromLine, hundredPlusLine }
 }

@@ -22,10 +22,22 @@ const OrderSummary = ({ order }: OrderSummaryProps) => {
       <h2 className="text-base-semi">Order Summary</h2>
       <div className="text-small-regular text-ui-fg-base my-2">
         <div className="flex items-center justify-between text-base-regular text-ui-fg-base mb-2">
-          <span>Subtotal</span>
-          {/* `order.subtotal` includes shipping in Medusa v2; use the items-only
-              figure so Subtotal + Shipping + Taxes reconciles to Total. */}
-          <span>{getAmount(order.item_subtotal)}</span>
+          <span>Subtotal (inc GST)</span>
+          {/* INC-GST display (HOLD cutover): derived items-inc figure — the only
+              expression exact in both tax regimes. `item_subtotal` is ex-GST and
+              would sit below the inc-GST line items; `order.subtotal` includes
+              shipping in Medusa v2. Mirrors cart-totals/index.tsx. */}
+          <span>
+            {getAmount(
+              Math.max(
+                0,
+                (order.total ?? 0) -
+                  (order.shipping_total ?? 0) +
+                  (order.discount_total ?? 0) +
+                  (order.gift_card_total ?? 0)
+              )
+            )}
+          </span>
         </div>
         <div className="flex flex-col gap-y-1">
           {order.discount_total > 0 && (
@@ -42,12 +54,11 @@ const OrderSummary = ({ order }: OrderSummaryProps) => {
           )}
           <div className="flex items-center justify-between">
             <span>Shipping</span>
-            {/* ex-GST: `shipping_total` is tax-inclusive once GST applies; GST is
-                shown on its own line below, so use the ex-tax figure here. */}
-            <span>{getAmount(order.shipping_subtotal)}</span>
+            {/* inc-GST: matches the "inc GST" shipping label at checkout. */}
+            <span>{getAmount(order.shipping_total)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span>Taxes</span>
+            <span>Includes GST</span>
             <span>{getAmount(order.tax_total)}</span>
           </div>
         </div>

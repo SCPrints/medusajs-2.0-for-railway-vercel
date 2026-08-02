@@ -37,7 +37,17 @@ const CartDropdown = ({
       return acc + item.quantity
     }, 0) || 0
 
-  const subtotal = cartState?.subtotal ?? 0
+  // INC-GST display (HOLD cutover): show the items figure incl. GST so the
+  // mini-cart matches the inc-GST line prices below it. Derived (total minus
+  // shipping plus discounts) because it's exact in both tax regimes; at the
+  // mini-cart stage shipping is usually 0 so this is ≈ cart.total.
+  const subtotal = Math.max(
+    0,
+    (cartState?.total ?? 0) -
+      (cartState?.shipping_total ?? 0) +
+      (cartState?.discount_total ?? 0) +
+      (cartState?.gift_card_total ?? 0)
+  )
   const itemRef = useRef<number>(totalItems || 0)
 
   const timedOpen = () => {
@@ -236,7 +246,7 @@ const CartDropdown = ({
                   <div className="flex items-center justify-between">
                     <span className="text-ui-fg-base font-semibold">
                       Subtotal{" "}
-                      <span className="font-normal">(excl. taxes)</span>
+                      <span className="font-normal">(inc GST)</span>
                     </span>
                     <span
                       className="text-large-semi"

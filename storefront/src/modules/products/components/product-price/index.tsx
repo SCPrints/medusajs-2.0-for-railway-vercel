@@ -198,7 +198,10 @@ export default function ProductPrice({
           data-value={activeUnitAmount}
         >
           {activeUnitPrice}
-        </span>
+        </span>{" "}
+        {/* ACL s48: the headline consumer price must be the GST-inclusive
+            total — label it so (tiles carry the same label). */}
+        <span className="text-xs font-normal text-ui-fg-subtle">inc GST</span>
       </span>
       {tierAppliesToVariant ? (
         <span className="text-xs text-ui-fg-interactive font-medium">

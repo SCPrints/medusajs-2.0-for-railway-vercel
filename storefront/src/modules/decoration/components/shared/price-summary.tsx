@@ -25,12 +25,13 @@ const PriceSummary: React.FC<Props> = ({ breakdown, showAllInPerPiece }) => {
       {breakdown.rushSurcharge > 0 && (
         <Row label="Priority/Express" value={fmt(breakdown.rushSurcharge)} />
       )}
-      <Row label="Subtotal (ex-GST)" value={fmt(breakdown.subtotalExGst)} />
-      <Row label="GST (10%)" value={fmt(breakdown.gst)} />
-      <Row label="Total (inc-GST)" value={fmt(breakdown.totalIncGst)} bold />
+      {/* HOLD cutover: rate cards are inc-GST, so the rows above already sum
+          to the inc total — GST is informational, not additive. */}
+      <Row label="Total (inc GST)" value={fmt(breakdown.totalIncGst)} bold />
+      <Row label="Includes GST" value={fmt(breakdown.gst)} />
       {allIn !== null && breakdown.quantity > 0 && (
         <div className="mt-2 border-t border-ui-border-base pt-2 text-xs text-ui-fg-subtle">
-          All-in per piece (incl. setup, ex-GST):{" "}
+          All-in per piece (incl. setup, inc GST):{" "}
           <span className="font-medium text-ui-fg-base">{fmt(allIn)}</span>
         </div>
       )}

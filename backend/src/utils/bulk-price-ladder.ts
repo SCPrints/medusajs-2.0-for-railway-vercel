@@ -4,7 +4,12 @@
  * retail ladder (qty 1-9 / 10-19 / 20-49 / 50-99 / 100+).
  *
  *   cost     = supplier trade price (ex GST), AUD major units (dollars)
- *   100+     = cost * 1.10 * 1.5  (= cost * 1.65, GST-inclusive floor)
+ *   100+     = cost * 1.10 * 1.5  (= cost * 1.65)
+ *              — the 1.10 is the GST we PAY the supplier (their invoice adds
+ *              GST to the trade price), so 1.5 is margin on our CASH cost.
+ *              The output is an EX-GST sell price; Medusa adds 10% sales GST
+ *              at checkout. It is NOT a GST-inclusive sell price — a 2026-07
+ *              review misread it that way and concluded GST was charged twice.
  *   standard = 100+ / 0.75        (= cost * 2.20)
  *   10-19    = standard * 0.90
  *   20-49    = standard * 0.85

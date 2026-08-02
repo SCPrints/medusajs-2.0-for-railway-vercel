@@ -1142,7 +1142,7 @@ The storefront checkout shows **one** shipping option — "Standard Shipping (AU
 | Provider registration (`id: "scp"`, unconditional) | [backend/medusa-config.js](backend/medusa-config.js) |
 | Prod migration script | [backend/src/scripts/reconfigure-shipping-weight-based.ts](backend/src/scripts/reconfigure-shipping-weight-based.ts) |
 
-**The no-weights conundrum, solved by a default:** `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` (default `300`) is the per-unit fallback applied to any line item with no real weight (no `variant.weight` / `product.weight` / `metadata.weight_grams`). So weight scales with quantity *today* even though ~nothing has a weight set; the moment a real weight is entered it overrides the default automatically. `calculatePrice` returns **dollars (major units), ex-GST** (repo convention — the storefront adds the "ex GST" label; Medusa applies region GST). The ladder lives in code (not env) on purpose: shipping prices are business numbers that belong in code review.
+**The no-weights conundrum, solved by a default:** `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` (default `300`) is the per-unit fallback applied to any line item with no real weight (no `variant.weight` / `product.weight` / `metadata.weight_grams`). So weight scales with quantity *today* even though ~nothing has a weight set; the moment a real weight is entered it overrides the default automatically. `calculatePrice` returns **dollars (major units), GST-INCLUSIVE** since the 2026-07 HOLD cutover — the customer pays exactly the band amount; the provider marks the rate tax-inclusive and Medusa extracts the embedded GST (÷11). The ladder lives in code (not env) on purpose: shipping prices are business numbers that belong in code review.
 
 **Cutover runbook (existing prod DB):** (1) `cd backend && fly deploy` (registers the `scp_scp` provider); (2) `cd /app/.medusa/server && DRY_RUN=1 npx medusa exec src/scripts/reconfigure-shipping-weight-based.js` to preview, then re-run without `DRY_RUN` (creates the one weight-based option, soft-deletes Express + flat + live-quote options); (3) `git push origin master` for the storefront banner/display changes. The custom route filters to `scp_*` with a fallback to the unfiltered list, so checkout never dead-ends if the option isn't created yet. The ShipStation/AusPost providers below stay registered but are **not** surfaced at checkout under this model — they remain the future live-rate upgrade path (flip the route filter + create calculated options) once real weights + AusPost creds land.
 
@@ -1475,6 +1475,12 @@ Tests written for the four-phase work:
 - [backend/src/api/admin/orders/[id]/production-stage/__tests__/route.spec.ts](backend/src/api/admin/orders/[id]/production-stage/__tests__/route.spec.ts) — Stage-update route handler (mocked scope)
 
 ## Key conventions
+
+### GST: prices are GST-INCLUSIVE (HOLD cutover, 2026-07-31)
+
+**Every retail amount in the system is inc-GST**: variant price rows, tier price lists, `bulk_pricing` metadata, shipping bands, decoration/embroidery rate cards, quote line prices, POS overrides. The AUD price preference is `is_tax_inclusive: true` — Medusa extracts the embedded GST (÷11) for tax lines instead of adding 10% on top. Supplier **costs stay ex-GST** (`cost_price_ex_gst_minor`); the ladder's `cost × 1.10` converts the supplier's ex-GST trade price into the GST-inclusive cash SC Prints pays (their invoice adds GST) before the margin is applied — it is NOT sales GST.
+
+Rules: staff enter **inc-GST** numbers everywhere (admin prices, POS, quotes, spreadsheet price columns). Storefront labels say "inc GST"; totals components show inclusive figures with an informational "Includes GST" row — never add tax on top of a displayed price. Cutover script (idempotent, `ROLLBACK=1` supported): [backend/src/scripts/set-aud-prices-tax-inclusive.ts](backend/src/scripts/set-aud-prices-tax-inclusive.ts). Full scope/rationale: [Docs/GST_INC_PRICING_SCOPE.md](Docs/GST_INC_PRICING_SCOPE.md). (Supplier-importer docs elsewhere in this file that mention ex-GST refer to COSTS — still correct.)
 
 ### Production-stage sync (Phase 1)
 Backend = canonical. Edit `backend/src/lib/production-stage.ts` first, then mirror to `storefront/src/modules/order/lib/production-stage.ts`. Run `pnpm check-production-stage-sync` to validate. Wire the script into CI to enforce.
