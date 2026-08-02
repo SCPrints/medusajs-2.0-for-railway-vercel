@@ -1,6 +1,6 @@
 # Ex-GST → Inc-GST Pricing: Scope & Decision Document
 
-**Date:** 2026-07-31 · **Status:** awaiting business decision (§1) · **Evidence:** full-codebase sweep (3 parallel investigations, file:line refs throughout)
+**Date:** 2026-07-31 · **Status:** EXECUTED — HOLD, cutover 2026-08-01 (preference flipped via admin UI; labels + shipping shipped same day) · **Evidence:** full-codebase sweep (3 parallel investigations, file:line refs throughout)
 
 Drivers: (a) ACL s48 component pricing — consumer-facing prices must show the GST-inclusive total; (b) Google Merchant Center requires AU feed prices inc-GST and crawls the PDP to verify. Confirm (a) with the accountant before executing.
 
