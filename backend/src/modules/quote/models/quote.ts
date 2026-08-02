@@ -24,7 +24,9 @@ const Quote = model
       "lost",
       "expired",
     ]).default("new"),
-    source: model.enum(["byo", "contact", "admin"]).default("byo"),
+    // "custom_hats" = the hat brief builder's quote submissions. Column is
+    // plain text in the DB (no constraint) — extending this enum is app-level.
+    source: model.enum(["byo", "contact", "admin", "custom_hats"]).default("byo"),
     customer_id: model.text().nullable(),
     email: model.text(),
     contact_name: model.text().nullable(),
