@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { CheckCircle } from "@medusajs/icons"
 import {
@@ -374,7 +375,8 @@ const TasksPage = () => {
 
 export const config = defineRouteConfig({
   label: "My tasks",
-  icon: CheckCircle,
+  icon: tinted(CheckCircle, NAV_COLOR.tasks),
+  rank: 0,
 })
 
 export default TasksPage

@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Sparkles } from "@medusajs/icons"
 import { Container, Tabs } from "@medusajs/ui"
@@ -33,7 +34,8 @@ const StudioAndLookbookPage = () => {
 
 export const config = defineRouteConfig({
   label: "Studio & Lookbook",
-  icon: Sparkles,
+  icon: tinted(Sparkles, NAV_COLOR.storefront),
+  rank: 42,
 })
 
 export default StudioAndLookbookPage

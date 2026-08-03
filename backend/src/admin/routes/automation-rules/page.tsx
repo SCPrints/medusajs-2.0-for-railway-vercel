@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import {
   Badge,
@@ -955,7 +956,8 @@ const AutomationRulesPage = () => {
 
 export const config = defineRouteConfig({
   label: "Automation Rules",
-  icon: ArrowPath,
+  icon: tinted(ArrowPath, NAV_COLOR.crm),
+  rank: 52,
 })
 
 export default AutomationRulesPage

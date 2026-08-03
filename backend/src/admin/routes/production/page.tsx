@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import {
   Badge,
@@ -971,7 +972,8 @@ const ProductionPage = () => (
 
 export const config = defineRouteConfig({
   label: "Production",
-  icon: Clock,
+  icon: tinted(Clock, NAV_COLOR.production),
+  rank: 20,
 })
 
 export default ProductionPage

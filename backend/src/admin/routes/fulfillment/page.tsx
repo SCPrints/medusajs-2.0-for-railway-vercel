@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ShoppingBag } from "@medusajs/icons"
 import {
@@ -167,7 +168,8 @@ const FulfillmentOrdersPage = () => {
 
 export const config = defineRouteConfig({
   label: "Fulfillment",
-  icon: ShoppingBag,
+  icon: tinted(ShoppingBag, NAV_COLOR.production),
+  rank: 21,
 })
 
 export default FulfillmentOrdersPage

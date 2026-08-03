@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import {
   Container,
@@ -312,7 +313,8 @@ const ReportsPage = () => {
 
 export const config = defineRouteConfig({
   label: "Reports",
-  icon: ChartBar,
+  icon: tinted(ChartBar, NAV_COLOR.reports),
+  rank: 5,
 })
 
 export default ReportsPage

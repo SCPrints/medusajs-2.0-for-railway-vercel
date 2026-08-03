@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ChatBubbleLeftRight, Plus, Trash, PencilSquare, Sparkles, Photo } from "@medusajs/icons"
 import {
@@ -1391,7 +1392,8 @@ function QuoteDetail({
 
 export const config = defineRouteConfig({
   label: "Quotes",
-  icon: ChatBubbleLeftRight,
+  icon: tinted(ChatBubbleLeftRight, NAV_COLOR.sales),
+  rank: 11,
 })
 
 export default QuotesPage

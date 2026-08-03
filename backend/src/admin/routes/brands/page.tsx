@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { HelpTooltip } from "../../components/reports/help-tooltip"
 import {
@@ -466,7 +467,8 @@ const BrandsPage = () => {
 
 export const config = defineRouteConfig({
   label: "Brands",
-  icon: Tag,
+  icon: tinted(Tag, NAV_COLOR.catalog),
+  rank: 31,
 })
 
 export default BrandsPage

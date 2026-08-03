@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { BuildingStorefront } from "@medusajs/icons"
 import {
@@ -1209,7 +1210,8 @@ const SummaryTile = ({
 
 export const config = defineRouteConfig({
   label: "Shop categories",
-  icon: BuildingStorefront,
+  icon: tinted(BuildingStorefront, NAV_COLOR.catalog),
+  rank: 32,
 })
 
 export default ShopCategoriesPage

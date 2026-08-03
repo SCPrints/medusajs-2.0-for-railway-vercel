@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ShoppingCart } from "@medusajs/icons"
 import { Heading, Text, toast } from "@medusajs/ui"
@@ -554,7 +555,8 @@ const POSPage = () => {
 
 export const config = defineRouteConfig({
   label: "POS",
-  icon: ShoppingCart,
+  icon: tinted(ShoppingCart, NAV_COLOR.sales),
+  rank: 10,
 })
 
 export default POSPage

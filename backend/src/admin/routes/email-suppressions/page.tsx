@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { EnvelopeSolid } from "@medusajs/icons"
 import {
@@ -341,7 +342,8 @@ const EmailSuppressionsPage = () => {
 
 export const config = defineRouteConfig({
   label: "Email suppressions",
-  icon: EnvelopeSolid,
+  icon: tinted(EnvelopeSolid, NAV_COLOR.crm),
+  rank: 53,
 })
 
 export default EmailSuppressionsPage

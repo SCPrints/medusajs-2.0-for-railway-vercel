@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { HelpTooltip } from "../../components/reports/help-tooltip"
 import {
@@ -815,7 +816,8 @@ const AsColourDropshipPage = () => {
 
 export const config = defineRouteConfig({
   label: "AS Colour Orders",
-  icon: ArrowPath,
+  icon: tinted(ArrowPath, NAV_COLOR.production),
+  rank: 22,
 })
 
 export default AsColourDropshipPage

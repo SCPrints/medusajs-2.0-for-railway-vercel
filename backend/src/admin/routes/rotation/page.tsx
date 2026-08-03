@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Users } from "@medusajs/icons"
 import {
@@ -236,7 +237,8 @@ const RotationPage = () => {
 
 export const config = defineRouteConfig({
   label: "Owner rotation",
-  icon: Users,
+  icon: tinted(Users, NAV_COLOR.crm),
+  rank: 51,
 })
 
 export default RotationPage

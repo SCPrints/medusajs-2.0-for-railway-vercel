@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { BuildingStorefront } from "@medusajs/icons"
 import {
@@ -591,7 +592,8 @@ const OrganisationsPage = () => {
 
 export const config = defineRouteConfig({
   label: "Organisations",
-  icon: BuildingStorefront,
+  icon: tinted(BuildingStorefront, NAV_COLOR.crm),
+  rank: 50,
 })
 
 export default OrganisationsPage

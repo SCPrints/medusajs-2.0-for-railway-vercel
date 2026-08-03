@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import {
   Badge,
@@ -430,7 +431,8 @@ const PrintProfilesPage = () => {
 
 export const config = defineRouteConfig({
   label: "Print profiles",
-  icon: Swatch,
+  icon: tinted(Swatch, NAV_COLOR.catalog),
+  rank: 33,
 })
 
 export default PrintProfilesPage

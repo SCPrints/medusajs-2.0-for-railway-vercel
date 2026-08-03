@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import {
   Badge,
@@ -637,7 +638,8 @@ const BundlesPage = () => {
 
 export const config = defineRouteConfig({
   label: "Bundles",
-  icon: ShoppingCart,
+  icon: tinted(ShoppingCart, NAV_COLOR.storefront),
+  rank: 41,
 })
 
 export default BundlesPage

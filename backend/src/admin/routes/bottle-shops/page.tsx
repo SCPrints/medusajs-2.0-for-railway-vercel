@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { HelpTooltip } from "../../components/reports/help-tooltip"
 import {
@@ -411,7 +412,8 @@ const BottleShopsPage = () => {
 
 export const config = defineRouteConfig({
   label: "Bottle shops",
-  icon: BuildingStorefront,
+  icon: tinted(BuildingStorefront, NAV_COLOR.sales),
+  rank: 12,
 })
 
 export default BottleShopsPage

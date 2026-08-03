@@ -1041,6 +1041,7 @@ const HelpPage = () => {
 export const config = defineRouteConfig({
   label: "Help & guide",
   icon: QuestionMarkCircle,
+  rank: 90,
 })
 
 export default HelpPage

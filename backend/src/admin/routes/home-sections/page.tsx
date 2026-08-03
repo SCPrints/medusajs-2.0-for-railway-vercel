@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { SquaresPlus } from "@medusajs/icons"
 import {
@@ -331,7 +332,8 @@ const HomeSectionsPage = () => {
 
 export const config = defineRouteConfig({
   label: "Home Sections",
-  icon: SquaresPlus,
+  icon: tinted(SquaresPlus, NAV_COLOR.storefront),
+  rank: 40,
 })
 
 export default HomeSectionsPage

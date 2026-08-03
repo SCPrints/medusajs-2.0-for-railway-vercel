@@ -1,3 +1,4 @@
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Container, Heading, Tabs, Text } from "@medusajs/ui"
 import { CogSixTooth } from "@medusajs/icons"
@@ -161,7 +162,8 @@ const ProductDataPage = () => {
 
 export const config = defineRouteConfig({
   label: "Product data",
-  icon: CogSixTooth,
+  icon: tinted(CogSixTooth, NAV_COLOR.catalog),
+  rank: 30,
 })
 
 export default ProductDataPage
