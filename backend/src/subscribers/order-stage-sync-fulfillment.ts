@@ -66,11 +66,15 @@ export default async function orderStageSyncFulfillmentHandler({
 
   const orderModule = container.resolve(Modules.ORDER) as any
   const inventoryModule = container.resolve(Modules.INVENTORY) as any
+  const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
 
   let order: any
   try {
+    // Items only. Fulfillments are a module link, not an ORM relation —
+    // asking retrieveOrder for them throws "Entity 'Order' does not have
+    // property 'fulfillments'". They come from the graph instead.
     order = await orderModule.retrieveOrder(data.order_id, {
-      relations: ["items", "fulfillments"],
+      relations: ["items"],
     })
   } catch (err: any) {
     logger.warn(
@@ -80,15 +84,12 @@ export default async function orderStageSyncFulfillmentHandler({
   }
 
   const items: any[] = order?.items ?? []
-  const live: any[] = (order?.fulfillments ?? []).filter(
-    (f: any) => !f?.canceled_at
-  )
 
   // ------------------------------------------------------ 1. fulfil
   const outstanding: FulfillableItem[] = items
     .map((i) => {
-      const fulfilled = Number(i?.detail?.fulfilled_quantity ?? 0)
-      const qty = Number(i?.quantity ?? 0) - fulfilled
+      const fulfilled = toNum(i?.detail?.fulfilled_quantity)
+      const qty = toNum(i?.quantity) - fulfilled
       return qty > 0 ? { id: i.id as string, quantity: qty } : null
     })
     .filter((i): i is FulfillableItem => i !== null)
@@ -125,15 +126,13 @@ export default async function orderStageSyncFulfillmentHandler({
     }
   }
 
-  // Re-read so we pick up whatever we just created.
-  let fulfillments: any[] = live
+  // Read after creating, so we pick up whatever we just made.
+  let fulfillments: any[] = []
   try {
-    const fresh = await orderModule.retrieveOrder(order.id, {
-      relations: ["items", "fulfillments"],
-    })
-    fulfillments = (fresh?.fulfillments ?? []).filter((f: any) => !f?.canceled_at)
-  } catch {
-    // fall back to the pre-create list
+    fulfillments = await loadFulfillments(query, order.id)
+  } catch (err: any) {
+    logger.warn(`${tag}: fulfillment lookup failed: ${err?.message ?? err}`)
+    return
   }
 
   if (!fulfillments.length) {
@@ -145,7 +144,7 @@ export default async function orderStageSyncFulfillmentHandler({
   for (const f of fulfillments) {
     const shipItems: FulfillableItem[] = (f?.items ?? []).map((fi: any) => ({
       id: fi.line_item_id ?? fi.id,
-      quantity: Number(fi.quantity ?? 1),
+      quantity: toNum(fi.quantity, 1),
     }))
 
     if (stage === "shipped" && !f.shipped_at) {
@@ -202,6 +201,41 @@ export default async function orderStageSyncFulfillmentHandler({
       }
     }
   }
+}
+
+/**
+ * Graph values arrive undecorated, so a quantity can be a plain number
+ * or a raw BigNumber-ish `{ value: "1" }`. Normalise both.
+ */
+export function toNum(v: unknown, fallback = 0): number {
+  if (typeof v === "number" && Number.isFinite(v)) return v
+  const raw =
+    v && typeof v === "object" && "value" in (v as any) ? (v as any).value : v
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : fallback
+}
+
+/**
+ * Order↔Fulfillment is a module link rather than an ORM relation, so it
+ * is only reachable through the graph — `retrieveOrder` throws
+ * "Entity 'Order' does not have property 'fulfillments'".
+ */
+async function loadFulfillments(query: any, orderId: string): Promise<any[]> {
+  const { data } = await query.graph({
+    entity: "order",
+    fields: [
+      "id",
+      "fulfillments.id",
+      "fulfillments.canceled_at",
+      "fulfillments.shipped_at",
+      "fulfillments.delivered_at",
+      "fulfillments.items.line_item_id",
+      "fulfillments.items.quantity",
+    ],
+    filters: { id: orderId },
+  })
+  const rows = ((data ?? []) as any[])[0]?.fulfillments ?? []
+  return (rows as any[]).filter((f) => !f?.canceled_at)
 }
 
 /**
