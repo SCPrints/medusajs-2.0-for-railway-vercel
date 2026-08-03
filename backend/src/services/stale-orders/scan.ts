@@ -33,6 +33,35 @@ export type ScanResult = {
   notify?: NotifyResult
 }
 
+export type StaleAction = "flag" | "clear" | "none"
+
+/**
+ * Pure per-order decision, extracted so the terminal-stage case can be
+ * unit-tested without a container.
+ *
+ * Terminal stages are never *flagged* stale — but an order that was
+ * flagged at an earlier stage and has since reached shipped/delivered
+ * MUST be cleared. Nothing else in the codebase clears `is_stale`, so
+ * the pre-2026-08 behaviour (skipping terminal stages outright, before
+ * the clear branch) left the red "Stale" badge stuck permanently on
+ * delivered orders — and the badge renders the *current* stage against
+ * the *old* stale_since date, producing nonsense like "hasn't moved in
+ * from delivered 35 day(s)".
+ */
+export function decideStaleAction(input: {
+  stage: string | null
+  flagged: boolean
+  ageMs: number | null
+  thresholdMs: number
+}): StaleAction {
+  const { stage, flagged, ageMs, thresholdMs } = input
+  if (!stage) return "none"
+  if (TERMINAL_STAGES.has(stage)) return flagged ? "clear" : "none"
+  if (ageMs === null || !Number.isFinite(ageMs)) return "none"
+  if (ageMs >= thresholdMs) return flagged ? "none" : "flag"
+  return flagged ? "clear" : "none"
+}
+
 /**
  * Walks every in-flight order (not delivered, not shipped, not
  * cancelled) and stamps `metadata.is_stale` based on whether the
@@ -72,7 +101,27 @@ export async function scanStaleOrders(
     if ((o?.status ?? "").toLowerCase() === "canceled") continue
     const meta = (o?.metadata as Record<string, unknown> | undefined) ?? {}
     const stage = typeof meta.production_stage === "string" ? meta.production_stage : null
-    if (!stage || TERMINAL_STAGES.has(stage)) continue
+    const wasMarkedStale = meta.is_stale === true
+
+    const clearStale = async () => {
+      try {
+        const cleanMeta = { ...meta }
+        delete (cleanMeta as any).is_stale
+        delete (cleanMeta as any).stale_since
+        await orderModuleService.updateOrders(o.id, { metadata: cleanMeta })
+        cleared += 1
+      } catch {
+        // best-effort
+      }
+    }
+
+    // Terminal stages: never flagged, but a flag carried in from an
+    // earlier stage has to be released here or it sticks forever.
+    if (stage && TERMINAL_STAGES.has(stage)) {
+      if (wasMarkedStale) await clearStale()
+      continue
+    }
+    if (!stage) continue
     considered += 1
 
     const changedAtRaw =
@@ -84,7 +133,6 @@ export async function scanStaleOrders(
       continue
     }
     const ageMs = now.getTime() - changedMs
-    const wasMarkedStale = meta.is_stale === true
     const isStaleNow = ageMs >= thresholdMs
 
     // Manager-escalation candidates: any still-stale order aged past
@@ -126,15 +174,7 @@ export async function scanStaleOrders(
         )
       }
     } else if (!isStaleNow && wasMarkedStale) {
-      try {
-        const cleanMeta = { ...meta }
-        delete (cleanMeta as any).is_stale
-        delete (cleanMeta as any).stale_since
-        await orderModuleService.updateOrders(o.id, { metadata: cleanMeta })
-        cleared += 1
-      } catch {
-        // best-effort
-      }
+      await clearStale()
     }
   }
 
