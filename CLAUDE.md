@@ -178,7 +178,7 @@ Staff updates each order's stage in the admin; the customer sees a Domino's-Pizz
 
 **Customer milestones** (collapsed for the storefront stepper): `received` → `artwork` → `production` → `shipped` → `delivered`
 
-**Stages that email the customer**: `awaiting_approval`, `in_production`. (`shipped` is intentionally excluded — Medusa core's `order.shipment_created` already sends a tracking email.)
+**Stages that email the customer**: `awaiting_approval`, `in_production`. `shipped` is intentionally excluded — the tracking email is delegated to `shipment.created` instead. **Caveat**: nothing created a shipment until the fulfilment bridge landed on 2026-08-03, so that email had never actually fired. It's now reachable but still gated off behind `FULFILLMENT_BRIDGE_NOTIFY` — see "Fulfilment: stock locations, and why the production stage drives it".
 
 ### 2. Saved designs ("My Designs")
 
@@ -821,6 +821,8 @@ Every reminder/digest job is gated behind an `*_ENABLED` flag so accidental boot
 | `SHIPSTATION_PACKAGE_LENGTH_CM` / `_WIDTH_CM` / `_HEIGHT_CM` | Default package dimensions for rate quotes. | unset |
 | `SHIPPING_PACKAGING_OVERHEAD_GRAMS` | Added to item weight for accurate rates. | `150` |
 | `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` | Per-unit fallback weight for line items with no real weight (no variant/product weight, no `metadata.weight_grams`). Makes the weight-based "Standard Shipping" rate scale with order size before products have weights set. Bump toward 350 for a hoodie-heavy mix. See "Customer-facing rate" above + [shipping-rate.ts](backend/src/lib/shipping-rate.ts). | `300` |
+| `FULFILLMENT_BRIDGE_ENABLED` | Gates the subscriber that creates the Medusa fulfillment when the production stage reaches `shipped` / `delivered`, so staff don't maintain two systems by hand. On by default — closing this loop is the desired behaviour. See "Fulfilment: stock locations…" below. | `true` |
+| `FULFILLMENT_BRIDGE_NOTIFY` | Lets that bridge email customers. **Off by default.** The ORDER_SHIPPED email is delegated to `shipment.created` and has never fired in production, so switching it on while back-filling historical orders would tell customers about parcels they received weeks ago. Turn on only once the backlog is reconciled. | `false` |
 
 #### File storage (S3-compatible)
 
@@ -1146,6 +1148,34 @@ The storefront checkout shows **one** shipping option — "Standard Shipping (AU
 
 **Cutover runbook (existing prod DB):** (1) `cd backend && fly deploy` (registers the `scp_scp` provider); (2) `cd /app/.medusa/server && DRY_RUN=1 npx medusa exec src/scripts/reconfigure-shipping-weight-based.js` to preview, then re-run without `DRY_RUN` (creates the one weight-based option, soft-deletes Express + flat + live-quote options); (3) `git push origin master` for the storefront banner/display changes. The custom route filters to `scp_*` with a fallback to the unfiltered list, so checkout never dead-ends if the option isn't created yet. The ShipStation/AusPost providers below stay registered but are **not** surfaced at checkout under this model — they remain the future live-rate upgrade path (flip the route filter + create calculated options) once real weights + AusPost creds land.
 
+### Fulfilment: stock locations, and why the production stage drives it
+
+**Every inventory level lives at a location that cannot ship.** Supplier importers create their own stock location and put all levels there — AS Colour 7,272, FashionBiz 11,008, Aussie Pacific 8,279 (~26.5k). Only `Australian Warehouse` carries a fulfillment set (via [seed.ts](backend/src/scripts/seed.ts) — the `"Australian Warehouse delivery"` set owns the `"Australia"` service zone and therefore `Standard Shipping (AU)`), and it holds **5** levels. No location has both stock and a shipping option, so until 2026-08-03 *no order in the system could be fulfilled* — the admin modal always failed with `Inventory level for item … and location … not found`.
+
+**The fix is `location_id`, passed explicitly.** `createOrderFulfillmentWorkflow` accepts a `location_id` and does **not** require that location to have a shipping option — the location↔shipping-option coupling is a constraint of the admin modal's dropdown, not of the workflow. So fulfilment happens at the supplier warehouse where the stock actually is.
+
+**Two fixes that look right and are not — do not re-propose:**
+- *Backfill levels onto Australian Warehouse.* Reservations are created at the supplier location, so fulfilling elsewhere strands them (`reserved_quantity` leaks), and the nightly supplier syncs only maintain the supplier locations, so the copies go stale immediately.
+- *Share one fulfillment set across locations.* **Impossible, not merely fragile.** Medusa's link layer rejects it with `Cannot create multiple links between 'stock_location' and 'fulfillment'` — a fulfillment set belongs to exactly one location (`FulfillmentSet.location` is singular; `StockLocation.fulfillment_sets` is a list).
+
+**The bridge**: staff used to maintain the production tracker *and* Medusa's `fulfillment_status` by hand — and since nothing in the codebase ever created a fulfillment, orders sat on "Not fulfilled" forever. [order-stage-sync-fulfillment.ts](backend/src/subscribers/order-stage-sync-fulfillment.ts) now derives fulfilment from the stage: `shipped` creates the fulfillment + shipment, `delivered` also marks it delivered. One dropdown, both systems. It never rethrows — a bridge failure must not break the stage change staff already committed to.
+
+| Component | Path |
+| --- | --- |
+| Bridge subscriber (`order.production_stage_changed`) | [backend/src/subscribers/order-stage-sync-fulfillment.ts](backend/src/subscribers/order-stage-sync-fulfillment.ts) |
+| Read-only diagnostic (levels + sets per location, per-order reservations) | [backend/src/scripts/diagnose-fulfillment-locations.ts](backend/src/scripts/diagnose-fulfillment-locations.ts) |
+
+**Location resolution is 3-tier, and tier 2 is the common path**: reservations → any location holding levels for the order's SKUs → Medusa's default. Tier 2 is not redundant — **a dropshipped order releases its reservations once the supplier ships it** (order #41: stock present at AS Colour Warehouse, `reserved 0`, no reservation rows). Most volume is dropship, so tier 2 carries it; without it those orders fall through to Medusa's default, which is always the shipping option's location — i.e. Australian Warehouse, the one without the stock.
+
+**Env**: `FULFILLMENT_BRIDGE_ENABLED` (default on; `=false` disables). `FULFILLMENT_BRIDGE_NOTIFY` (default **off**) — the ORDER_SHIPPED email is deliberately delegated to `shipment.created` rather than sent by the stage subscriber (see `DOWNSTREAM_STAGES_THAT_EMAIL` in [production-stage.ts](backend/src/lib/production-stage.ts)), so it has **never fired** in production. Turning it on while back-filling old orders would email customers about parcels they received weeks ago.
+
+**Debugging any "can't fulfil" report**: run the diagnostic first — `ORDER_ID=order_… npx medusa exec src/scripts/diagnose-fulfillment-locations.js`. It writes nothing and shows exactly which location has the stock and where the reservations sit.
+
+**Medusa gotchas this cost us:**
+- `Order↔Fulfillment` is a **module link**, not an ORM relation. `retrieveOrder(id, { relations: ["fulfillments"] })` throws `Entity 'Order' does not have property 'fulfillments'` — read them via `query.graph`. Graph values arrive **undecorated**, so normalise quantities before use.
+- `markOrderFulfillmentAsDeliveredWorkflow` takes **camelCase** `{ orderId, fulfillmentId }`; its sibling fulfilment workflows take snake_case.
+- Import core workflows from `@medusajs/medusa/core-flows`, **never** `@medusajs/core-flows` — the latter type-checks in the IDE and throws at runtime, because pnpm strict mode hides transitive deps (same trap as the module-provider note in the Redis section).
+
 ### ShipStation fulfillment provider (being deprecated)
 Real-time rate calculation, label purchase, and shipment tracking via ShipStation API v2. **Slated for removal** once the AusPost direct integration (below) clears 50+ live parcels — driven by ShipStation's ~US$50/mo API tier vs AusPost's free direct API on the same MyPost Business charge account.
 
@@ -1287,6 +1317,7 @@ Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, ShipS
 | [order-shipment-created.ts](backend/src/subscribers/order-shipment-created.ts) | `order.shipment_created` | Dispatch ORDER_SHIPPED email with tracking parcels |
 | [order-production-stage-changed.ts](backend/src/subscribers/order-production-stage-changed.ts) | `production_stage_changed` | Dispatch milestone email (Phase 1) |
 | [order-stage-audit.ts](backend/src/subscribers/order-stage-audit.ts) | `production_stage_changed` | Append stage change to audit log + production_stage_history metadata |
+| [order-stage-sync-fulfillment.ts](backend/src/subscribers/order-stage-sync-fulfillment.ts) | `production_stage_changed` | Create the Medusa fulfillment + shipment so `fulfillment_status` follows the stage (see "Fulfilment" above) |
 | [order-artwork-stage-changed.ts](backend/src/subscribers/order-artwork-stage-changed.ts) | `artwork_stage_changed` | Build mockup PDF + email customer the HMAC-signed approval link |
 | [automation-on-order-placed.ts](backend/src/subscribers/automation-on-order-placed.ts) | `order.placed` | Hydrate LTV + order count, evaluate automation rules |
 | [automation-on-stage-changed.ts](backend/src/subscribers/automation-on-stage-changed.ts) | `production_stage_changed` | Evaluate stage-triggered automation rules |
