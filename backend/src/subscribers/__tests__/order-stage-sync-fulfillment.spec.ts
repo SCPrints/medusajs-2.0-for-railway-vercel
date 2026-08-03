@@ -1,4 +1,36 @@
-import { toNum } from "../order-stage-sync-fulfillment"
+import { pickBestLocation, toNum } from "../order-stage-sync-fulfillment"
+
+describe("pickBestLocation", () => {
+  it("returns undefined when there is nothing to pick", () => {
+    expect(pickBestLocation([])).toBeUndefined()
+    expect(pickBestLocation([{ location_id: null }])).toBeUndefined()
+  })
+
+  it("picks the location covering the most items", () => {
+    expect(
+      pickBestLocation([
+        { location_id: "sloc_au" },
+        { location_id: "sloc_ascolour" },
+        { location_id: "sloc_ascolour" },
+      ])
+    ).toBe("sloc_ascolour")
+  })
+
+  // Order #41: the only level is at the supplier warehouse, and its
+  // reservations were released when AS Colour shipped it.
+  it("picks the single supplier location when it is the only one", () => {
+    expect(pickBestLocation([{ location_id: "sloc_ascolour" }])).toBe(
+      "sloc_ascolour"
+    )
+  })
+
+  it("breaks ties deterministically rather than by row order", () => {
+    const a = pickBestLocation([{ location_id: "sloc_b" }, { location_id: "sloc_a" }])
+    const b = pickBestLocation([{ location_id: "sloc_a" }, { location_id: "sloc_b" }])
+    expect(a).toBe("sloc_a")
+    expect(a).toBe(b)
+  })
+})
 
 describe("toNum", () => {
   it("passes plain numbers through", () => {

@@ -97,7 +97,8 @@ export default async function orderStageSyncFulfillmentHandler({
   if (outstanding.length > 0) {
     const locationId = await resolveLocationId(
       inventoryModule,
-      items.map((i) => i.id),
+      query,
+      items,
       logger,
       tag
     )
@@ -239,26 +240,81 @@ async function loadFulfillments(query: any, orderId: string): Promise<any[]> {
 }
 
 /**
- * The location the order's stock is actually reserved at. Returns
- * undefined when there are no reservations, letting Medusa fall back to
- * the shipping option's location.
+ * Picks the location covering the most of the order's inventory items.
+ * Ties break on location id so the choice is stable across runs rather
+ * than dependent on row order.
+ */
+export function pickBestLocation(
+  levels: Array<{ location_id?: string | null }>
+): string | undefined {
+  const tally = new Map<string, number>()
+  for (const l of levels ?? []) {
+    const id = l?.location_id
+    if (typeof id !== "string" || !id) continue
+    tally.set(id, (tally.get(id) ?? 0) + 1)
+  }
+  return [...tally.entries()].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+  )[0]?.[0]
+}
+
+/**
+ * Where to fulfil from, in order of authority:
+ *
+ *   1. The order's reservations — stock is already committed there.
+ *   2. Any location that actually holds a level for these items.
+ *   3. undefined, letting Medusa fall back to the shipping option's
+ *      location.
+ *
+ * Step 2 is not redundant: a dropshipped order releases its reservations
+ * once the supplier ships (confirmed on order #41 — stock present at AS
+ * Colour Warehouse, reserved 0, no reservation rows). Without it those
+ * orders fall through to step 3, which always resolves to Australian
+ * Warehouse and throws "Inventory level for item … not found".
  */
 async function resolveLocationId(
   inventoryModule: any,
-  lineItemIds: string[],
+  query: any,
+  items: any[],
   logger: any,
   tag: string
 ): Promise<string | undefined> {
-  if (!lineItemIds.length) return undefined
+  const lineItemIds = items.map((i) => i?.id).filter(Boolean)
+  if (lineItemIds.length) {
+    try {
+      const reservations: any[] = await inventoryModule.listReservationItems(
+        { line_item_id: lineItemIds },
+        { take: 100 }
+      )
+      const locationId = reservations?.find((r) => r?.location_id)?.location_id
+      if (typeof locationId === "string" && locationId) return locationId
+    } catch (err: any) {
+      logger.warn(`${tag}: reservation lookup failed: ${err?.message ?? err}`)
+    }
+  }
+
+  const skus = items
+    .map((i) => i?.variant_sku)
+    .filter((s: unknown): s is string => typeof s === "string" && s.length > 0)
+  if (!skus.length) return undefined
+
   try {
-    const reservations: any[] = await inventoryModule.listReservationItems(
-      { line_item_id: lineItemIds },
-      { take: 100 }
-    )
-    const locationId = reservations?.find((r) => r?.location_id)?.location_id
-    return typeof locationId === "string" ? locationId : undefined
+    const { data: invItems } = await query.graph({
+      entity: "inventory_item",
+      fields: ["id"],
+      filters: { sku: skus },
+    })
+    const ids = ((invItems ?? []) as any[]).map((i) => i.id).filter(Boolean)
+    if (!ids.length) return undefined
+
+    const { data: levels } = await query.graph({
+      entity: "inventory_level",
+      fields: ["location_id", "inventory_item_id"],
+      filters: { inventory_item_id: ids },
+    })
+    return pickBestLocation((levels ?? []) as any[])
   } catch (err: any) {
-    logger.warn(`${tag}: reservation lookup failed: ${err?.message ?? err}`)
+    logger.warn(`${tag}: inventory level lookup failed: ${err?.message ?? err}`)
     return undefined
   }
 }
