@@ -57,6 +57,8 @@ export const AUDIT_ACTION = {
   EMAIL_BOUNCED: "email_bounced",
   EMAIL_SUPPRESSED: "email_suppressed",
   PAYMENT_LINK_CLICKED: "payment_link_clicked",
+  // Offline payments (bank transfer / cash) recorded by staff on an order
+  PAYMENT_RECORDED: "payment_recorded",
   // Product bulk edits (Products Manager tab in /app/product-data)
   BULK_STATUS_CHANGED: "bulk_status_changed",
   BULK_DELETED: "bulk_deleted",

@@ -2,13 +2,18 @@ import fs from "fs"
 import path from "path"
 import PDFDocument from "pdfkit"
 import sharp from "sharp"
-import { Modules } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import type {
   MedusaContainer,
   IOrderModuleService,
 } from "@medusajs/framework/types"
 
-import { SCP_COMPANY_ABN } from "../../lib/constants"
+import {
+  SCP_BANK_ACCOUNT_NAME,
+  SCP_BANK_ACCOUNT_NUMBER,
+  SCP_BANK_BSB,
+  SCP_COMPANY_ABN,
+} from "../../lib/constants"
 
 const ASSETS_DIR = path.join(__dirname, "../../assets")
 const FONTS_DIR = path.join(ASSETS_DIR, "fonts")
@@ -77,6 +82,13 @@ export type ReceiptOrder = {
   /** True when `tax_total` is GST embedded in the total (1/11) rather than
    *  added on top — i.e. the order was placed before GST was itemised. */
   gst_included?: boolean
+  /** Σ payment rows against the order. null = unknown (payments query failed)
+   *  — the PDF then omits the payment block rather than guessing. */
+  paid_total?: number | null
+  /** total − paid_total, floored at 0. null when paid_total is null. */
+  balance_due?: number | null
+  /** ISO due date from `metadata.balance_due_at` (deposit widget sets it). */
+  due_at?: string | null
   metadata?: Record<string, unknown> | null
   shipping_address?: Address | null
   billing_address?: Address | null
@@ -98,7 +110,10 @@ export type ReceiptOrder = {
  * tax-EXCLUSIVE here (added on top), so `unit_price` and shipping amounts are
  * ex-GST and lines reconcile: item_subtotal + shipping_subtotal + tax_total = total.
  */
-export function computeReceiptTotals(raw: any): ReceiptOrder {
+export function computeReceiptTotals(
+  raw: any,
+  paidTotal?: number | null
+): ReceiptOrder {
   const items = ((raw?.items ?? []) as OrderItem[]).map((it) => {
     const qty = toNumber(it.quantity)
     const unit = toNumber(it.unit_price)
@@ -155,6 +170,17 @@ export function computeReceiptTotals(raw: any): ReceiptOrder {
     gstIncluded = true
   }
 
+  // Payment state. paid_total comes from real Payment rows (Stripe checkout,
+  // payment links, POS mark-paid, record-payment) — so a draft/on-account
+  // order with no payments shows the full balance due.
+  // ponytail: counts authorized-not-yet-captured payments as paid; every
+  // current flow auto-captures. Refunds ignored — the invoice documents the
+  // sale as placed.
+  const paid = typeof paidTotal === "number" ? round2(paidTotal) : null
+  const balanceDue = paid === null ? null : round2(Math.max(0, grandTotal - paid))
+  const meta = (raw?.metadata ?? {}) as Record<string, unknown>
+  const dueAt = typeof meta.balance_due_at === "string" ? meta.balance_due_at : null
+
   return {
     ...raw,
     items,
@@ -163,6 +189,9 @@ export function computeReceiptTotals(raw: any): ReceiptOrder {
     tax_total: taxTotal,
     total: grandTotal,
     gst_included: gstIncluded,
+    paid_total: paid,
+    balance_due: balanceDue,
+    due_at: dueAt,
   }
 }
 
@@ -190,7 +219,33 @@ export async function loadReceiptOrder(
   } catch {
     return null
   }
-  return computeReceiptTotals(raw)
+
+  // Order↔PaymentCollection is a module link — read via query.graph (same
+  // pattern as payment-mix report; payment.amount is a stored column, not a
+  // decorated aggregate, so graph returns it correctly).
+  let paidTotal: number | null = null
+  try {
+    const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
+    const { data } = await query.graph({
+      entity: "order",
+      filters: { id: orderId },
+      fields: ["id", "payment_collections.payments.amount"],
+    })
+    const collections = (data?.[0]?.payment_collections ?? []) as any[]
+    paidTotal = collections.reduce(
+      (sum: number, c: any) =>
+        sum +
+        ((c?.payments ?? []) as any[]).reduce(
+          (s: number, p: any) => s + toNumber(p?.amount),
+          0
+        ),
+      0
+    )
+  } catch {
+    // unknown payment state → PDF omits the paid/balance block
+  }
+
+  return computeReceiptTotals(raw, paidTotal)
 }
 
 function toNumber(value: number | string | null | undefined): number {
@@ -629,6 +684,59 @@ function buildPdf(params: {
         formatMoney(order.total, currency),
         { bold: true, rule: true }
       )
+    }
+
+    // ── PAYMENT STATE ──────────────────────────────────────────────────────
+    // Rendered only when the payments query succeeded. Paid orders get a
+    // "PAID" badge; orders carrying a balance get the amount owing, the due
+    // date (deposit widget's balance_due_at), and bank-transfer details.
+    const paidTotal = order.paid_total
+    const balanceDue = order.balance_due
+    if (typeof paidTotal === "number" && typeof balanceDue === "number") {
+      writeTotalRow("Amount paid", formatMoney(paidTotal, currency))
+      if (balanceDue <= 0.005) {
+        doc.roundedRect(PW - MR - 90, totalsY, 90, 20, 10).fill("#dcfce7")
+        doc
+          .font("PJS-Bold")
+          .fontSize(10)
+          .fillColor("#166534")
+          .text("PAID", PW - MR - 90, totalsY + 5, {
+            width: 90,
+            align: "center",
+          })
+        totalsY += 28
+      } else {
+        writeTotalRow("Balance due", formatMoney(balanceDue, currency), {
+          bold: true,
+        })
+
+        totalsY += 4
+        doc
+          .font("PJS-Bold")
+          .fontSize(9)
+          .fillColor(TEXT_MUTED)
+          .text("PAYMENT", ML, totalsY, { characterSpacing: 0.6 })
+        totalsY += 14
+        doc.font("PJS").fontSize(10).fillColor(BRAND_PRIMARY)
+        if (order.due_at) {
+          doc
+            .font("PJS-Bold")
+            .text(`Due by ${formatDate(order.due_at)}`, ML, totalsY)
+          doc.font("PJS")
+          totalsY += 14
+        }
+        if (SCP_BANK_BSB && SCP_BANK_ACCOUNT_NUMBER) {
+          const bankLines = [
+            `Pay by bank transfer to: ${SCP_BANK_ACCOUNT_NAME}`,
+            `BSB ${SCP_BANK_BSB}  ·  Account ${SCP_BANK_ACCOUNT_NUMBER}`,
+            `Reference: Order #${displayId}`,
+          ]
+          for (const line of bankLines) {
+            doc.text(line, ML, totalsY)
+            totalsY += 14
+          }
+        }
+      }
     }
 
     // ── DELIVERY ───────────────────────────────────────────────────────────

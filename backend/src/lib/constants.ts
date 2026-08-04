@@ -587,6 +587,17 @@ export const ASCOLOUR_WORKSHOP_PHONE = process.env.ASCOLOUR_WORKSHOP_PHONE
 export const SCP_COMPANY_ABN = process.env.SCP_COMPANY_ABN || "19 608 129 318"
 
 /**
+ * Bank-transfer details printed on tax invoices that carry a balance due
+ * (B2B on-account billing — schools/clubs paying by EFT). All three must be
+ * set (Fly secrets) or the "Pay by bank transfer" block simply doesn't
+ * render; prepaid web orders never show it either way.
+ */
+export const SCP_BANK_ACCOUNT_NAME =
+  process.env.SCP_BANK_ACCOUNT_NAME || "SC Prints"
+export const SCP_BANK_BSB = process.env.SCP_BANK_BSB || ""
+export const SCP_BANK_ACCOUNT_NUMBER = process.env.SCP_BANK_ACCOUNT_NUMBER || ""
+
+/**
  * FashionBiz Public API v3 (Biz Collection, Biz Care, Biz Corporates, Syzmik,
  * Good-Mates). Token issued per-customer by FashionBiz; branch is the country
  * shorthand (au/nz/ca). When the token is missing the module simply isn't

@@ -70,6 +70,31 @@ describe("computeReceiptTotals", () => {
     expect(out.gst_included).toBe(false)
   })
 
+  it("derives paid/balance from the payments sum", () => {
+    const base = {
+      id: "oPartial",
+      metadata: { balance_due_at: "2026-08-20T00:00:00.000Z" },
+      items: [{ id: "a", unit_price: 100, quantity: 2 }],
+      summary: { raw_current_order_total: { value: 220 } },
+    }
+    // deposit paid, balance owing
+    const partial = computeReceiptTotals(base, 100)
+    expect(partial.paid_total).toBeCloseTo(100, 2)
+    expect(partial.balance_due).toBeCloseTo(120, 2)
+    expect(partial.due_at).toBe("2026-08-20T00:00:00.000Z")
+    // fully paid (overpay clamps to 0, never negative)
+    const paid = computeReceiptTotals(base, 220.004)
+    expect(paid.balance_due).toBe(0)
+    // unknown payment state → nulls, PDF omits the block
+    const unknown = computeReceiptTotals(base)
+    expect(unknown.paid_total).toBeNull()
+    expect(unknown.balance_due).toBeNull()
+    // no payments at all (draft / on-account order) → full balance due
+    const unpaid = computeReceiptTotals(base, 0)
+    expect(unpaid.paid_total).toBe(0)
+    expect(unpaid.balance_due).toBeCloseTo(220, 2)
+  })
+
   it("keeps a tax-exempt order at $0 GST", () => {
     const out = computeReceiptTotals({
       id: "oExempt",
