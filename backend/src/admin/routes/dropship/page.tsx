@@ -51,9 +51,15 @@ type SentOrder = PendingOrder & {
   ascolour_last_error: string | null
 }
 
+type InHouseOrder = PendingOrder & {
+  ascolour_in_house_at: string | null
+  ascolour_in_house_note: string | null
+}
+
 type DropshipData = {
   pending: PendingOrder[]
   sent: SentOrder[]
+  in_house: InHouseOrder[]
   default_shipping_method?: string | null
 }
 
@@ -76,6 +82,21 @@ const fmtDateTime = (iso: string | null | undefined) => {
   if (!iso) return "—"
   const t = Date.parse(iso)
   return Number.isFinite(t) ? new Date(t).toLocaleString() : "—"
+}
+
+/**
+ * Flag an order as fulfilled from our own stock (or undo it). Keeps orders we
+ * never send to AS Colour from sitting in the pending queue forever.
+ */
+const markInHouse = async (orderId: string, undo = false, note?: string) => {
+  const res = await fetch("/admin/dropship/ascolour/in-house", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ order_id: orderId, undo, ...(note ? { note } : {}) }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error((body as any)?.message || `HTTP ${res.status}`)
 }
 
 const itemsSummary = (items: OrderItem[]) =>
@@ -225,6 +246,25 @@ const PendingTab = ({
   const [results, setResults] = useState<SendResult[]>([])
   const [sending, setSending] = useState(false)
   const [methods, setMethods] = useState<ShippingMethod[]>([])
+  const [markingId, setMarkingId] = useState<string | null>(null)
+
+  const handleMarkInHouse = async (order: PendingOrder) => {
+    // Cancel aborts; OK with an empty field proceeds without a note.
+    const note = window.prompt(
+      `Fulfil #${order.display_id} from your own stock — optional note (e.g. "had 20 navy tees on the shelf"):`,
+      ""
+    )
+    if (note === null) return
+    setMarkingId(order.order_id)
+    try {
+      await markInHouse(order.order_id, false, note.trim() || undefined)
+      onSendComplete()
+    } catch (err: any) {
+      alert(`Could not mark #${order.display_id} as in-house: ${err?.message ?? err}`)
+    } finally {
+      setMarkingId(null)
+    }
+  }
 
   // AS Colour publishes valid shipping methods (code + name) — fetch them so
   // the settings panel offers a picker that sends a real code.
@@ -528,6 +568,18 @@ const PendingTab = ({
                     </div>
                   ) : null}
                 </div>
+                <div className="shrink-0">
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    disabled={sending || markingId === order.order_id}
+                    isLoading={markingId === order.order_id}
+                    onClick={() => handleMarkInHouse(order)}
+                    title="Fulfilling this from our own stock — don't send it to AS Colour."
+                  >
+                    Fulfil from stock
+                  </Button>
+                </div>
               </div>
 
               {/* Expanded per-line checklist */}
@@ -695,13 +747,104 @@ const SentTab = ({ orders }: { orders: SentOrder[] }) => {
   )
 }
 
+// ─── In-house tab ─────────────────────────────────────────────────────────────
+
+const InHouseTab = ({
+  orders,
+  onChange,
+}: {
+  orders: InHouseOrder[]
+  onChange: () => void
+}) => {
+  const [undoingId, setUndoingId] = useState<string | null>(null)
+
+  if (orders.length === 0) {
+    return (
+      <Container className="flex flex-col items-center gap-y-3 py-12">
+        <Text className="text-ui-fg-muted">
+          Nothing marked as fulfilled from your own stock.
+        </Text>
+      </Container>
+    )
+  }
+
+  const handleUndo = async (order: InHouseOrder) => {
+    setUndoingId(order.order_id)
+    try {
+      await markInHouse(order.order_id, true)
+      onChange()
+    } catch (err: any) {
+      alert(`Could not move #${order.display_id} back: ${err?.message ?? err}`)
+    } finally {
+      setUndoingId(null)
+    }
+  }
+
+  return (
+    <Container className="p-0 overflow-hidden">
+      <div className="flex items-center gap-x-3 px-4 py-2 border-b border-ui-border-base bg-ui-bg-subtle text-ui-fg-subtle text-xs font-medium uppercase tracking-wide">
+        <span className="w-16">Order #</span>
+        <span className="w-24">Marked</span>
+        <span className="w-36">Customer</span>
+        <span className="flex-1">Items</span>
+        <span className="w-28" />
+      </div>
+
+      {orders.map((order) => (
+        <div
+          key={order.order_id}
+          className="flex items-start gap-x-3 px-4 py-3 border-b border-ui-border-base last:border-b-0 hover:bg-ui-bg-subtle/30 transition"
+        >
+          <div className="w-16 shrink-0">
+            <a
+              href={`/app/orders/${order.order_id}`}
+              className="text-sm text-ui-fg-interactive hover:underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              #{order.display_id}
+            </a>
+          </div>
+          <div className="w-24 shrink-0 text-sm text-ui-fg-subtle">
+            {fmtDate(order.ascolour_in_house_at)}
+          </div>
+          <div className="w-36 shrink-0 text-sm truncate">
+            {order.customer || order.email || "—"}
+          </div>
+          <div className="flex-1 text-sm text-ui-fg-subtle break-all">
+            {itemsSummary(order.items)}
+            {order.ascolour_in_house_note ? (
+              <div className="text-xs text-ui-fg-muted italic mt-1">
+                {order.ascolour_in_house_note}
+              </div>
+            ) : null}
+          </div>
+          <div className="w-28 shrink-0 flex justify-end">
+            <Button
+              size="small"
+              variant="transparent"
+              disabled={undoingId === order.order_id}
+              isLoading={undoingId === order.order_id}
+              onClick={() => handleUndo(order)}
+            >
+              Undo
+            </Button>
+          </div>
+        </div>
+      ))}
+    </Container>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const AsColourDropshipPage = () => {
   const [data, setData] = useState<DropshipData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<"pending" | "sent">("pending")
+  const [activeTab, setActiveTab] = useState<"pending" | "sent" | "in_house">(
+    "pending"
+  )
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -727,6 +870,7 @@ const AsColourDropshipPage = () => {
 
   const pending = data?.pending ?? []
   const sent = data?.sent ?? []
+  const inHouse = data?.in_house ?? []
 
   return (
     <div className="flex flex-col gap-y-4">
@@ -742,6 +886,7 @@ const AsColourDropshipPage = () => {
                 bullets: [
                   "Select one or more pending orders and click 'Send to AS Colour' to submit them for fulfilment.",
                   "Use Shared send settings to set a default shipping method, order notes, and courier instructions applied to every send in this session.",
+                  "Fulfilling an order from your own stock? Click 'Fulfil from stock' to clear it out of Pending — it moves to the 'Fulfilled from stock' tab and can be undone.",
                   "Refresh pulls the latest status from AS Colour — tracking numbers appear here once AS Colour ships.",
                   "Only orders with AS Colour line items appear here; orders with mixed suppliers need manual split-fulfilment.",
                 ],
@@ -768,8 +913,13 @@ const AsColourDropshipPage = () => {
 
       {/* Tabs */}
       <div className="flex gap-x-1 border-b border-ui-border-base px-1">
-        {(["pending", "sent"] as const).map((tab) => {
-          const count = tab === "pending" ? pending.length : sent.length
+        {(["pending", "sent", "in_house"] as const).map((tab) => {
+          const count =
+            tab === "pending"
+              ? pending.length
+              : tab === "sent"
+                ? sent.length
+                : inHouse.length
           const active = activeTab === tab
           return (
             <button
@@ -783,7 +933,11 @@ const AsColourDropshipPage = () => {
                   : "border-transparent text-ui-fg-subtle hover:text-ui-fg-base",
               ].join(" ")}
             >
-              {tab === "pending" ? "Pending" : "Sent"}
+              {tab === "pending"
+                ? "Pending"
+                : tab === "sent"
+                  ? "Sent"
+                  : "Fulfilled from stock"}
               {loading && !data ? null : (
                 <span className="ml-2 rounded-full bg-ui-bg-subtle px-1.5 py-0.5 text-xs">
                   {count}
@@ -807,8 +961,10 @@ const AsColourDropshipPage = () => {
           onSendComplete={load}
           defaultShippingMethod={data?.default_shipping_method ?? null}
         />
-      ) : (
+      ) : activeTab === "sent" ? (
         <SentTab orders={sent} />
+      ) : (
+        <InHouseTab orders={inHouse} onChange={load} />
       )}
     </div>
   )

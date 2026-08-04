@@ -76,6 +76,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const pending: any[] = []
   const sent: any[] = []
+  // Fulfilled from SC Prints' own stock — never submitted to AS Colour, but
+  // kept visible (and reversible) rather than silently disappearing.
+  const in_house: any[] = []
 
   for (const order of orders) {
     // Only last 90 days
@@ -118,6 +121,12 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         ascolour_last_synced_at: meta.ascolour_last_synced_at ?? null,
         ascolour_last_error: meta.ascolour_last_error ?? null,
       })
+    } else if (meta.ascolour_in_house_at) {
+      in_house.push({
+        ...base,
+        ascolour_in_house_at: meta.ascolour_in_house_at,
+        ascolour_in_house_note: meta.ascolour_in_house_note ?? null,
+      })
     } else {
       pending.push(base)
     }
@@ -134,5 +143,5 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // AS Colour module not configured — leave null.
   }
 
-  return res.json({ pending, sent, default_shipping_method })
+  return res.json({ pending, sent, in_house, default_shipping_method })
 }
