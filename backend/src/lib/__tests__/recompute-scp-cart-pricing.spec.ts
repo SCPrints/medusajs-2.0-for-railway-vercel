@@ -285,6 +285,92 @@ describe("recomputeScpCartPricingPure", () => {
     expect(result.prices.get("line_cap")).toBe(17.55)
   })
 
+  it("keeps the embroidery charge on embroidered customizer lines (order #44 regression)", () => {
+    // Order #44 shape: front side decorated with EMBROIDERY, not print.
+    // Add-time price = garment + embroidery (stitch price + digitizing/qty).
+    // The old recompute re-priced the front as an A6 DTF print and dropped
+    // the embroidery entirely (46.40 → 24.40).
+    const embroideredLineMeta = {
+      customizerDesign: {
+        artifacts: [{ side: "front", print_size_id: "up_to_a6" }],
+        sideDecorationMethods: { front: "embroidery" },
+        sideEmbroideryConfigs: { front: { stitchCount: 1760, includeDigitizingFee: true } },
+        pricing: {
+          server: {
+            mode: "scp_dtf_mixed",
+            print_size_id: "up_to_a6",
+            decorated_sides: 1,
+            decorated_side_keys: ["front"],
+            print_side_keys: [],
+            embroidery_side_keys: ["front"],
+            garment_unit_major: 15.9,
+          },
+        },
+      },
+    }
+    const lines = [
+      {
+        id: "line_embroidered",
+        quantity: 3,
+        unit_price: 46.4, // add-time price: 15.9 garment + 10.5 stitch + 60/3 digitizing
+        variant: { id: "var_polo", metadata: {} },
+        metadata: embroideredLineMeta,
+      },
+    ]
+    const result = recomputeScpCartPricingPure(lines)
+    // Must reproduce the add-time price exactly (idempotent, no DTF surcharge):
+    // 15.9 + (10.5 + 60/3) = 46.4
+    expect(result.prices.get("line_embroidered")).toBe(46.4)
+  })
+
+  it("prices mixed print + embroidery sides with each method's own rate", () => {
+    const mixedLineMeta = {
+      customizerDesign: {
+        artifacts: [
+          { side: "front", print_size_id: "up_to_a6" },
+          { side: "back", print_size_id: "up_to_a6" },
+        ],
+        sideDecorationMethods: { front: "embroidery", back: "print" },
+        sideEmbroideryConfigs: { front: { stitchCount: 3000, includeDigitizingFee: false } },
+        pricing: {
+          server: {
+            print_size_id: "up_to_a6",
+            decorated_sides: 2,
+            decorated_side_keys: ["front", "back"],
+            garment_unit_major: 15.9,
+          },
+        },
+      },
+    }
+    const lines = [
+      {
+        id: "line_mixed",
+        quantity: 5,
+        unit_price: 999, // stale
+        variant: { id: "var_polo", metadata: {} },
+        metadata: mixedLineMeta,
+      },
+    ]
+    const result = recomputeScpCartPricingPure(lines)
+    // Garment 15.9 + back A6 print tier 0 (8.5) + front embroidery 3000st tier "1–25" (10.5, no digitizing)
+    expect(result.prices.get("line_mixed")).toBe(34.9)
+  })
+
+  it("excludes standalone embroidery-panel lines (decorationDesign) from re-pricing", () => {
+    const lines = [
+      {
+        id: "line_flowA",
+        quantity: 10,
+        unit_price: 38.5, // garment + embroidery baked in at add time
+        variant: { id: "var_A", metadata: VARIANT_A_TIERS },
+        metadata: { decorationDesign: { serverPricing: { unit_price_major: 38.5 } } },
+      },
+    ]
+    const result = recomputeScpCartPricingPure(lines)
+    expect(result.prices.has("line_flowA")).toBe(false)
+    expect(result.excluded_line_ids).toEqual(["line_flowA"])
+  })
+
   it("blends plain and customizer lines: plain garments get garment-only aggregated tier", () => {
     const lines = [
       {

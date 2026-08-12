@@ -5,6 +5,7 @@ import {
   scpPrintTotalMajorPerGarmentForSides,
   scpPrintUnitMajorForTier,
 } from "./scp-dtf-print-pricing"
+import { calculatePrice as calculateEmbroideryPrice } from "@modules/embroidery/lib/pricing"
 import { BulkPricingTier, PricingBreakdown, PricingInput } from "./types"
 
 /**
@@ -64,15 +65,30 @@ const resolveBulkTierForQuantity = (tiers: BulkPricingTier[], quantity: number) 
 export const calculatePricing = ({
   basePriceCents,
   decoratedSidesCount,
-  decoratedSides,
+  decoratedSides: decoratedSidesInput,
   totalQuantity,
   bulkPricingTiers,
   scpPrint,
-  prints,
+  prints: printsInput,
   tierUnitCents,
+  embroidery,
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
-  const decoratedSidesResolved = Math.max(0, Math.floor(decoratedSidesCount || 0))
+
+  // Embroidered sides are priced by stitch count, never the DTF print matrix.
+  // Strip them from every print-pricing input here (the chokepoint) so no
+  // caller can accidentally double-price or mis-price an embroidery side.
+  const embroiderySideSet = new Set((embroidery ?? []).map((e) => e.side))
+  const decoratedSides = embroiderySideSet.size
+    ? decoratedSidesInput?.filter((side) => !embroiderySideSet.has(side))
+    : decoratedSidesInput
+  const prints = embroiderySideSet.size
+    ? printsInput?.filter((p) => !embroiderySideSet.has(p.side))
+    : printsInput
+  const decoratedSidesResolved = Math.max(
+    0,
+    Math.floor(decoratedSidesCount || 0) - embroiderySideSet.size
+  )
   let sideSurchargePerUnit =
     decoratedSidesResolved > 0 ? round2(decoratedSidesResolved * SIDE_SURCHARGE) : 0
 
@@ -136,9 +152,37 @@ export const calculatePricing = ({
     tierActive || normalizedTiers.length
       ? beforeDiscountUnit
       : beforeDiscountUnit * (1 - quantityDiscountRate)
-  const discountedUnitPriceCents = round2(preciseDiscountedUnit)
+
+  // Embroidery add-on: stitch-tier price + digitizing fee amortised over the
+  // quantity. Added AFTER the quantity discount, mirroring the backend charge
+  // (computeScpLineDescriptor never discounts decoration). Sides above the
+  // auto-priced stitch cap contribute $0 and are flagged for the quote path.
+  let embroideryPerUnit = 0
+  const embroideryRows: NonNullable<PricingBreakdown["embroideryRows"]> = []
+  for (const spec of embroidery ?? []) {
+    const stitchCount = Math.max(0, Math.floor(spec.stitchCount || 0))
+    if (stitchCount <= 0) continue
+    const breakdown = calculateEmbroideryPrice({
+      stitchCount,
+      quantity: safeQuantity,
+      includeDigitizing: spec.includeDigitizingFee !== false,
+    })
+    const unit = breakdown.requiresQuote
+      ? 0
+      : round2(breakdown.unitDecorationPrice + breakdown.digitizingFee / safeQuantity)
+    embroideryPerUnit = round2(embroideryPerUnit + unit)
+    embroideryRows.push({
+      side: spec.side,
+      stitchCount,
+      unitPriceCents: unit,
+      requiresQuote: breakdown.requiresQuote,
+    })
+  }
+
+  const preciseUnitWithEmbroidery = preciseDiscountedUnit + embroideryPerUnit
+  const discountedUnitPriceCents = round2(preciseUnitWithEmbroidery)
   const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
-  const totalPriceCents = round2(preciseDiscountedUnit * safeQuantity)
+  const totalPriceCents = round2(preciseUnitWithEmbroidery * safeQuantity)
 
   return {
     baseUnitPriceCents: baseUnit,
@@ -151,5 +195,7 @@ export const calculatePricing = ({
     discountedUnitPriceCents,
     totalPriceCents,
     tierPriceApplied: tierActive,
+    embroideryPerUnitCents: embroideryPerUnit,
+    embroideryRows: embroideryRows.length ? embroideryRows : undefined,
   }
 }

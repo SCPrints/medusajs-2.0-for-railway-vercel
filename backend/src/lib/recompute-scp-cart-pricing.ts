@@ -18,6 +18,10 @@ import {
   decoratedLocationsFromLineMetadata,
   decoratedSidesFromLineMetadata,
 } from "./scp-dtf-print-pricing"
+import {
+  MAX_AUTO_PRICED_STITCHES,
+  calculateEmbroideryUnitPriceMajor,
+} from "./embroidery-pricing"
 
 /**
  * Cross-cart bulk-tier aggregation.
@@ -81,6 +85,8 @@ const aggregationDisabled = (): boolean => {
   return normalized === "false" || normalized === "0" || normalized === "no"
 }
 
+type SideEmbroideryConfig = { stitchCount?: number; includeDigitizingFee?: boolean }
+
 const readScpServerBlock = (
   metadata: Record<string, unknown> | null | undefined
 ): {
@@ -88,6 +94,8 @@ const readScpServerBlock = (
   decoratedLocations: DecoratedLocation[]
   decoratedSides: string[]
   storedGarmentMajor: number | null
+  sideDecorationMethods: Record<string, string>
+  sideEmbroideryConfigs: Record<string, SideEmbroideryConfig>
 } | null => {
   if (!metadata || typeof metadata !== "object") return null
   const customizerDesign = metadata.customizerDesign as Record<string, unknown> | undefined
@@ -111,7 +119,27 @@ const readScpServerBlock = (
   const decoratedLocations = decoratedLocationsFromLineMetadata(metadata)
   const decoratedSides = decoratedSidesFromLineMetadata(metadata)
 
-  return { printSizeId, decoratedLocations, decoratedSides, storedGarmentMajor }
+  // v3 schema: per-side decoration methods. v2 metadata has no entries, so
+  // every side defaults to "print" — same convention as computeScpLineDescriptor.
+  const sideDecorationMethods =
+    typeof customizerDesign.sideDecorationMethods === "object" &&
+    customizerDesign.sideDecorationMethods !== null
+      ? (customizerDesign.sideDecorationMethods as Record<string, string>)
+      : {}
+  const sideEmbroideryConfigs =
+    typeof customizerDesign.sideEmbroideryConfigs === "object" &&
+    customizerDesign.sideEmbroideryConfigs !== null
+      ? (customizerDesign.sideEmbroideryConfigs as Record<string, SideEmbroideryConfig>)
+      : {}
+
+  return {
+    printSizeId,
+    decoratedLocations,
+    decoratedSides,
+    storedGarmentMajor,
+    sideDecorationMethods,
+    sideEmbroideryConfigs,
+  }
 }
 
 const isLineEligible = (line: CartLineForRecompute): boolean => {
@@ -122,6 +150,12 @@ const isLineEligible = (line: CartLineForRecompute): boolean => {
   // both trigger a cart-wide recompute), or we'd charge an amount they never
   // agreed to. Stamped by the quote-accept route.
   if ((line.metadata as any)?.quote_locked_price === true) return false
+  // Standalone embroidery-panel line (`embroidery-line-items` route): its
+  // unit_price bakes in a stitch-priced embroidery add-on that this helper
+  // can't reconstruct (breakdown lives on `metadata.decorationDesign`, not
+  // the customizerDesign server block). Re-tiering it here would strip the
+  // embroidery charge down to bare garment — keep the add-time price.
+  if ((line.metadata as any)?.decorationDesign) return false
   // Opt-out applies regardless of metadata shape.
   if (variantMeta?.exclude_from_bulk_aggregation === true) return false
   // Path A: variant carries a bulk-pricing ladder → standard garment line.
@@ -165,23 +199,58 @@ const computeNewUnitPriceMajor = (
     return round2(Math.max(0, garmentMajor))
   }
 
+  // Split sides by decoration method — embroidered sides must NOT be priced
+  // through the DTF print matrix. Mirrors computeScpLineDescriptor exactly;
+  // order #44 shipped garment-only because this recompute (which runs right
+  // after every add) re-priced the embroidered side as an A6 print and
+  // dropped the embroidery charge entirely.
+  const methods = scpBlock.sideDecorationMethods
+  const printLocations = scpBlock.decoratedLocations.filter(
+    (loc) => !loc.side || (methods[loc.side] ?? "print") === "print"
+  )
+  const printSides = scpBlock.decoratedSides.filter(
+    (side) => (methods[side] ?? "print") === "print"
+  )
+  const embroiderySides = scpBlock.decoratedSides.filter(
+    (side) => methods[side] === "embroidery"
+  )
+
   const tierIndex = resolveScpTierIndexForQuantity(aggregatedQty)
   const printTotalMajor =
-    scpBlock.decoratedLocations.length > 0
+    printLocations.length > 0
       ? scpPrintTotalMajorFromLocations({
           selectedPrintSizeId: scpBlock.printSizeId,
           tierIndex,
-          locations: scpBlock.decoratedLocations,
+          locations: printLocations,
         })
-      : scpBlock.decoratedSides.length > 0
+      : printSides.length > 0
       ? scpPrintTotalMajorPerGarmentForSides({
           selectedPrintSizeId: scpBlock.printSizeId,
           tierIndex,
-          decoratedSides: scpBlock.decoratedSides,
+          decoratedSides: printSides,
         })
       : 0
 
-  return round2(Math.max(0, garmentMajor) + Math.max(0, printTotalMajor))
+  // Embroidery re-prices on the line's OWN quantity (not the aggregated cart
+  // qty) so this recompute reproduces the add-time price bit-for-bit — the
+  // digitizing fee is amortised per line, and add/update both pass line qty.
+  let embroideryTotalMajor = 0
+  for (const side of embroiderySides) {
+    const cfg = scpBlock.sideEmbroideryConfigs[side]
+    const stitchCount = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
+    if (stitchCount <= 0 || stitchCount > MAX_AUTO_PRICED_STITCHES) continue
+    embroideryTotalMajor += calculateEmbroideryUnitPriceMajor({
+      stitchCount,
+      quantity: Math.max(1, Math.floor(line.quantity || 1)),
+      includeDigitizing: cfg?.includeDigitizingFee !== false,
+    }).unitPriceMajor
+  }
+
+  return round2(
+    Math.max(0, garmentMajor) +
+      Math.max(0, printTotalMajor) +
+      Math.max(0, embroideryTotalMajor)
+  )
 }
 
 const buildUpdatedServerBlock = (

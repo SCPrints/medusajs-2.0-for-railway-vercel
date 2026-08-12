@@ -151,4 +151,64 @@ describe("calculatePricing", () => {
     expect(pricing.tierPriceApplied).toBe(false)
     expect(pricing.quantityDiscountRate).toBe(0.15)
   })
+
+  it("prices embroidered sides by stitch count, not the DTF print matrix (order #44 regression)", () => {
+    // Front decorated with embroidery only. The old code priced the front's
+    // artwork as an A6 DTF print and never showed an embroidery charge.
+    const pricing = calculatePricing({
+      basePriceCents: 15.9,
+      decoratedSidesCount: 1,
+      decoratedSides: ["front"],
+      totalQuantity: 3,
+      bulkPricingTiers: [{ minQuantity: 1, maxQuantity: 9, amountCents: 15.9 }],
+      scpPrint: { printSizeId: "up_to_a6" },
+      prints: [{ side: "front", sizeId: "up_to_a6" }],
+      embroidery: [{ side: "front", stitchCount: 1760, includeDigitizingFee: true }],
+    })
+
+    // No print surcharge — the only decorated side is embroidered.
+    expect(pricing.sideSurchargePerUnitCents).toBe(0)
+    // 1,760 stitches → ≤3k tier @ qty 1–25 = $10.50 + $60/3 digitizing = $30.50
+    expect(pricing.embroideryPerUnitCents).toBe(30.5)
+    // Unit = garment 15.90 + embroidery 30.50 = 46.40 (matches backend charge)
+    expect(pricing.discountedUnitPriceCents).toBe(46.4)
+    expect(pricing.totalPriceCents).toBeCloseTo(139.2, 2)
+    expect(pricing.embroideryRows).toEqual([
+      { side: "front", stitchCount: 1760, unitPriceCents: 30.5, requiresQuote: false },
+    ])
+  })
+
+  it("mixes print and embroidery sides with each method's own rate", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 15.9,
+      decoratedSidesCount: 2,
+      decoratedSides: ["front", "back"],
+      totalQuantity: 5,
+      bulkPricingTiers: [{ minQuantity: 1, maxQuantity: 9, amountCents: 15.9 }],
+      scpPrint: { printSizeId: "up_to_a6" },
+      prints: [
+        { side: "front", sizeId: "up_to_a6" },
+        { side: "back", sizeId: "up_to_a6" },
+      ],
+      embroidery: [{ side: "front", stitchCount: 3000, includeDigitizingFee: false }],
+    })
+
+    // Back A6 print at tier 0 = $8.50; front is embroidery-only.
+    expect(pricing.sideSurchargePerUnitCents).toBe(8.5)
+    // 3,000 stitches @ 1–25 = $10.50, no digitizing
+    expect(pricing.embroideryPerUnitCents).toBe(10.5)
+    expect(pricing.discountedUnitPriceCents).toBe(34.9)
+  })
+
+  it("flags embroidery above the auto-priced stitch cap as quote-required at $0", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 1,
+      decoratedSides: ["front"],
+      totalQuantity: 10,
+      embroidery: [{ side: "front", stitchCount: 15000 }],
+    })
+    expect(pricing.embroideryPerUnitCents).toBe(0)
+    expect(pricing.embroideryRows?.[0]?.requiresQuote).toBe(true)
+  })
 })

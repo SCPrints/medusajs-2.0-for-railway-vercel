@@ -278,6 +278,7 @@ export default function BottleCustomizer({
           hasBulkPricing: false,
           discountedUnitPriceCents: Math.round(variantPriceMajor * 100),
           totalPriceCents: Math.round(variantPriceMajor * 100) * quantity,
+          embroideryPerUnitCents: 0,
         },
         activeSide,
       })

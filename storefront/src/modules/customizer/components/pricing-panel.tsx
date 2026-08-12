@@ -516,7 +516,7 @@ function PricingPanel({
 
       <details
         className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/50"
-        open={pricing.sideSurchargePerUnitCents > 0}
+        open={pricing.sideSurchargePerUnitCents > 0 || pricing.embroideryPerUnitCents > 0}
       >
         <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
@@ -618,6 +618,32 @@ function PricingPanel({
               <span>{formatMoney(pricing.sideSurchargePerUnitCents, currencyCode)}</span>
             </p>
           )}
+          {pricing.embroideryRows && pricing.embroideryRows.length > 0 ? (
+            <div className="space-y-1">
+              <p className="flex justify-between font-medium">
+                <span>Embroidery / garment</span>
+                <span>{formatMoney(pricing.embroideryPerUnitCents, currencyCode)}</span>
+              </p>
+              <ul className="space-y-1 pl-2 text-[11px]">
+                {pricing.embroideryRows.map((row) => (
+                  <li
+                    key={`emb-${row.side}`}
+                    className="flex items-center justify-between gap-2 text-ui-fg-subtle"
+                  >
+                    <span className="capitalize">
+                      {row.side.replace(/_/g, " ")} · ~
+                      {row.stitchCount.toLocaleString()} stitches
+                    </span>
+                    <span className="font-medium text-ui-fg-base">
+                      {row.requiresQuote
+                        ? "Quote required"
+                        : formatMoney(row.unitPriceCents, currencyCode)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <p className="flex justify-between">
             <span>Discount</span>
             <span>{Math.round(pricing.quantityDiscountRate * 100)}%</span>

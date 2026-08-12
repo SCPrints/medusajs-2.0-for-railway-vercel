@@ -1414,6 +1414,37 @@ export default function CustomizerTemplate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutVersion, canvasSize.width, canvasSize.height, selectedProduct?.id])
 
+  /**
+   * Embroidered sides priced by stitch count. Fed into calculatePricing so
+   * (a) their artwork is EXCLUDED from the DTF print matrix and (b) the
+   * embroidery add-on (stitch tier + digitizing/qty) lands in the displayed
+   * unit price — matching what the backend actually charges at cart-add.
+   */
+  const embroiderySpecs = useMemo(
+    () =>
+      decoratedSides
+        .filter((side) => sideDecorationMethods[side] === "embroidery")
+        .map((side) => ({
+          side,
+          stitchCount: sideEmbroideryConfigs[side]?.stitchCount ?? 0,
+          includeDigitizingFee:
+            sideEmbroideryConfigs[side]?.includeDigitizingFee !== false,
+        })),
+    [decoratedSides, sideDecorationMethods, sideEmbroideryConfigs]
+  )
+
+  // Print rows shown in the pricing panel — embroidery sides render as
+  // embroidery rows instead, so drop them from the per-print list.
+  const printSpecsForDisplay = useMemo(
+    () =>
+      embroiderySpecs.length
+        ? printSpecs.filter(
+            (p) => sideDecorationMethods[p.side] !== "embroidery"
+          )
+        : printSpecs,
+    [printSpecs, embroiderySpecs, sideDecorationMethods]
+  )
+
   // Memoised so the object identity is stable for the memoised <PricingPanel/>.
   // The deps cover every input to calculatePricing — a missing one would show a
   // stale price, so this list must stay complete if the call args change.
@@ -1428,6 +1459,7 @@ export default function CustomizerTemplate({
         scpPrint: { printSizeId: scpPrintSizeId },
         prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
         tierUnitCents,
+        embroidery: embroiderySpecs,
       }),
     [
       basePriceCents,
@@ -1438,6 +1470,7 @@ export default function CustomizerTemplate({
       scpPrintSizeId,
       printSpecs,
       tierUnitCents,
+      embroiderySpecs,
     ]
   )
 
@@ -4747,6 +4780,7 @@ export default function CustomizerTemplate({
         scpPrint: { printSizeId: scpPrintSizeId },
         prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
         tierUnitCents,
+        embroidery: embroiderySpecs,
       })
       const activeTier = breakdown.activeBulkTier
       // calculatePricing's `*Cents` fields are misnamed — Medusa 2.x stores
@@ -6574,7 +6608,7 @@ export default function CustomizerTemplate({
                 scpPrintSizeId={scpPrintSizeId}
                 onScpPrintSizeIdChange={stableOnScpPrintSizeIdChange}
                 decoratedSides={decoratedSides}
-                prints={printSpecs}
+                prints={printSpecsForDisplay}
                 onChangePrintSize={stableOnChangePrintSize}
                 allowedPrintSizesBySide={allowedSizesBySide}
                 hidePrintSizeSelector

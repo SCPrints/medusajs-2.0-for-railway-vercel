@@ -45,6 +45,21 @@ export type PricingInput = {
    * legacy path because they don't carry `prints`.
    */
   prints?: PrintPricingSpec[]
+  /**
+   * Sides decorated with EMBROIDERY instead of print. Their artwork must NOT
+   * be priced through the DTF print matrix — calculatePricing excludes these
+   * sides from `prints`/`decoratedSides` and adds a stitch-priced embroidery
+   * unit (incl. digitizing amortised over quantity) instead, mirroring the
+   * backend `computeScpLineDescriptor` charge.
+   */
+  embroidery?: EmbroideryPricingSpec[]
+}
+
+/** Pricing-only view of one embroidered side. */
+export type EmbroideryPricingSpec = {
+  side: GarmentSide
+  stitchCount: number
+  includeDigitizingFee?: boolean
 }
 
 /** Pricing-only view of a single logical print (one heat-press transfer). */
@@ -71,6 +86,15 @@ export type PricingBreakdown = {
   totalPriceCents: number
   /** True when the flat customer-tier garment price replaced the bulk ladder. */
   tierPriceApplied?: boolean
+  /** Per-garment embroidery add-on (stitch price + digitizing/qty), major units. */
+  embroideryPerUnitCents: number
+  /** Per-side embroidery rows for the price-breakdown display. */
+  embroideryRows?: Array<{
+    side: GarmentSide
+    stitchCount: number
+    unitPriceCents: number
+    requiresQuote: boolean
+  }>
 }
 
 export type RenderPlacement = {

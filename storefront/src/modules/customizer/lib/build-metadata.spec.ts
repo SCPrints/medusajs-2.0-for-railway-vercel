@@ -9,6 +9,7 @@ const basePricing: PricingBreakdown = {
   hasBulkPricing: false,
   discountedUnitPriceCents: 25,
   totalPriceCents: 25,
+  embroideryPerUnitCents: 0,
 }
 
 const baseInput = {
