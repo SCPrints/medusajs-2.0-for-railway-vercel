@@ -2,6 +2,7 @@ import { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import regenerateTierPriceLists from "../scripts/regenerate-tier-price-lists"
+import auditBelowCostPricing from "../scripts/audit-below-cost-pricing"
 
 /**
  * Daily regen of the 8 customer-tier PriceLists from canonical variant cost.
@@ -28,6 +29,16 @@ export default async function regenerateTierPricesJob(container: MedusaContainer
   } catch (err: any) {
     logger.error(
       `[regenerate-tier-prices] failed — ${err?.message ?? err}\n${err?.stack ?? ""}`
+    )
+  }
+  // Below-cost audit rides the same schedule — cost metadata is freshest
+  // right after the regen. Stamps product.metadata.pricing_audit for the
+  // "Below cost" data-quality flag in /app/product-data.
+  try {
+    await auditBelowCostPricing({ container } as any)
+  } catch (err: any) {
+    logger.error(
+      `[audit-below-cost-pricing] failed — ${err?.message ?? err}\n${err?.stack ?? ""}`
     )
   }
 }

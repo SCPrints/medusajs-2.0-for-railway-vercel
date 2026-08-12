@@ -54,6 +54,13 @@ const adminFetchPath = (path: string) => {
 }
 
 type TierApplyResult = { variant_id: string; ok: boolean; message?: string }
+type TierViolation = {
+  variant_id: string
+  sku: string | null
+  cost_ex_gst_minor: number
+  cash_cost_minor: number
+  t100_plus_minor: number
+}
 
 /** Used only to preview wholesale expansion counts before the user pastes a real shipping profile id. */
 const PREVIEW_ONLY_SHIPPING_PROFILE_ID = "sp__spreadsheet_sync_preview_only"
@@ -71,6 +78,11 @@ const SpreadsheetSyncPage = () => {
   const [syncing, setSyncing] = useState(false)
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [tierResults, setTierResults] = useState<TierApplyResult[] | null>(null)
+  // Below-cost override for apply-variant-tier-prices. The backend blocks any
+  // batch whose 100+ tier prices under a variant's stamped cash cost (the
+  // DNC cost-as-retail inversion signature). Only tick after reviewing the
+  // violations it logs.
+  const [forceBelowCost, setForceBelowCost] = useState(false)
   /**
    * Handles the staff have unchecked in the per-product preview list — these are filtered out
    * before the batch create call so the products never enter Medusa. Defaults to whatever
@@ -610,7 +622,7 @@ const SpreadsheetSyncPage = () => {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ items: tchunk }),
+            body: JSON.stringify({ items: tchunk, force_below_cost: forceBelowCost }),
           })
 
           if (!res.ok) {
@@ -619,7 +631,30 @@ const SpreadsheetSyncPage = () => {
             continue
           }
 
-          const body = (await res.json()) as { results?: TierApplyResult[] }
+          const body = (await res.json()) as {
+            results?: TierApplyResult[]
+            blocked?: boolean
+            violations?: TierViolation[]
+            message?: string
+          }
+          if (body.blocked) {
+            // Below-cost guard fired — the batch was refused wholesale, and
+            // the remaining chunks would refuse identically. Stop here so the
+            // operator reviews before anything half-applies.
+            log.push(`⛔ Tier batch ${tc} BLOCKED — ${body.message ?? "prices below cost"}`)
+            for (const v of (body.violations ?? []).slice(0, 10)) {
+              log.push(
+                `  ${v.sku ?? v.variant_id}: proposed 100+ $${(v.t100_plus_minor / 100).toFixed(2)} < cash cost $${(v.cash_cost_minor / 100).toFixed(2)} (supplier cost $${(v.cost_ex_gst_minor / 100).toFixed(2)} ex-GST)`
+              )
+            }
+            if ((body.violations?.length ?? 0) > 10) {
+              log.push(`  …and ${(body.violations?.length ?? 0) - 10} more.`)
+            }
+            log.push(
+              `No tier prices were applied. Check the price column — it should be your RETAIL 100+ price, not the supplier cost. If these prices are genuinely intentional, tick "Force apply below-cost prices" and re-run.`
+            )
+            break
+          }
           const results = body.results ?? []
           allTierResults.push(...results)
 
@@ -658,6 +693,7 @@ const SpreadsheetSyncPage = () => {
     newCollectionHandle,
     importFormat,
     skippedHandles,
+    forceBelowCost,
   ])
 
   const wholesaleNeedsShipping =
@@ -918,6 +954,25 @@ const SpreadsheetSyncPage = () => {
                     Tier pricing rules (explicit tier columns or derived from Variant Price AUD):{" "}
                     <strong>{preview.tierRuleCount}</strong>
                   </Text>
+                  <Text size="small" className="text-ui-fg-muted">
+                    ⚠ <strong>Variant Price AUD = your RETAIL 100+ price (inc GST)</strong> — never
+                    the supplier cost. Ladders priced below a variant&apos;s recorded cost are
+                    blocked automatically.
+                  </Text>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={forceBelowCost}
+                      onChange={(e) => setForceBelowCost(e.target.checked)}
+                    />
+                    <span>
+                      Force apply below-cost prices{" "}
+                      <span className="text-ui-fg-muted">
+                        (only after reviewing the blocked-price log — this is how the 2026-08 DNC
+                        pricing inversion happened)
+                      </span>
+                    </span>
+                  </label>
 
                   {buildPreviewErrors.length > 0 && preview.validationErrors.length === 0 ? (
                     <div className="mt-3 rounded-md border border-ui-border-error bg-ui-bg-error p-3">

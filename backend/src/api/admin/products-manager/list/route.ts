@@ -21,6 +21,7 @@ import { z } from "zod"
 const QualityFlag = z.enum([
   "image",
   "broken_image",
+  "below_cost",
   "description",
   "type",
   "tags",
@@ -146,9 +147,14 @@ function computeQuality(p: RawProduct) {
   // field is populated but the URL HEAD-checks dead. Distinct from
   // has_image (which only knows the field is non-empty).
   const brokenImage = p.metadata?.image_audit?.status === "broken"
+  // Set by the below-cost pricing audit ([scripts/audit-below-cost-pricing]):
+  // some variant's bulk_pricing 100+ tier sits below its cash cost — the
+  // signature of the 2026-08 DNC cost-as-retail inversion.
+  const belowCost = p.metadata?.pricing_audit?.status === "below_cost"
   return {
     has_image: thumb.length > 0,
     broken_image: brokenImage,
+    below_cost: belowCost,
     has_description: desc.length > 0,
     has_type: !!p.type?.id,
     has_tags: Array.isArray(p.tags) && p.tags.length > 0,
@@ -398,6 +404,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       // Inverted polarity vs the "missing X" flags: keep only products
       // the audit marked broken (thumbnail present but the URL is dead).
       if (flags.has("broken_image") && !q.broken_image) return false
+      if (flags.has("below_cost") && !q.below_cost) return false
       if (flags.has("description") && q.has_description) return false
       if (flags.has("type") && q.has_type) return false
       if (flags.has("tags") && q.has_tags) return false

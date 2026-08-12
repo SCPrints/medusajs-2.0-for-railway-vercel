@@ -56,6 +56,7 @@ const STATUS_OPTIONS = [
 const QUALITY_FLAGS = [
   { value: "image", label: "Missing image" },
   { value: "broken_image", label: "Broken image" },
+  { value: "below_cost", label: "Below cost" },
   { value: "description", label: "Missing description" },
   { value: "type", label: "Missing type" },
   { value: "tags", label: "Missing tags" },
@@ -101,6 +102,8 @@ type SortKey =
 // QUALITY_KEYS and is rendered/handled on its own.
 type Quality = Record<(typeof QUALITY_KEYS)[number], boolean> & {
   broken_image?: boolean
+  // Some variant's 100+ tier prices below its cash cost (pricing audit stamp).
+  below_cost?: boolean
 }
 
 type Product = {
@@ -1007,6 +1010,7 @@ const FilterBar = (props: FilterBarProps) => {
                 bullets: [
                   "Missing image: no thumbnail set at all.",
                   "Broken image: thumbnail IS set but its URL is dead (404/unreachable) — renders a broken icon. Populated by the periodic image scan, not computed live. Click \"Scan images\" to refresh, or combine with a Brand filter to sweep one supplier's range.",
+                  "Below cost: a variant's 100+ tier price sits below its supplier cash cost (cost × 1.1) — usually means a spreadsheet fed COST prices in as retail. Populated by the daily pricing audit.",
                 ],
               }}
             />
@@ -1368,7 +1372,8 @@ const QualityCell = ({ quality }: { quality: Quality }) => {
     }
   }
   const broken = !!quality.broken_image
-  if (missing.length === 0 && !broken) {
+  const belowCost = !!quality.below_cost
+  if (missing.length === 0 && !broken && !belowCost) {
     return (
       <Badge size="2xsmall" color="green">
         Complete
@@ -1376,11 +1381,19 @@ const QualityCell = ({ quality }: { quality: Quality }) => {
     )
   }
   const titleParts = [
+    ...(belowCost
+      ? ["Below cost (a variant's 100+ tier prices under its supplier cash cost — check the ladder)"]
+      : []),
     ...(broken ? ["Broken image (thumbnail URL doesn't load)"] : []),
     ...(missing.length ? [`Missing: ${missing.map((m) => m.label).join(", ")}`] : []),
   ]
   return (
     <div className="flex flex-wrap gap-1" title={titleParts.join(" · ")}>
+      {belowCost ? (
+        <Badge size="2xsmall" color="red">
+          Below cost
+        </Badge>
+      ) : null}
       {broken ? (
         <Badge size="2xsmall" color="orange">
           Broken image
