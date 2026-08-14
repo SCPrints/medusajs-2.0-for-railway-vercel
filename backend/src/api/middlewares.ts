@@ -12,7 +12,7 @@ const CUSTOMIZER_BODY_LIMIT = "32mb"
 export default defineMiddlewares({
   routes: [
     {
-      // Multi-term smart variant search: turns "staple black" into a
+      // Smart variant search: turns "staple black" or "dnc-4232" into a
       // matching variant-id filter so staff don't have to type SKUs to find
       // the variant they want. See ./middlewares/smart-variant-search.ts.
       matcher: "/admin/product-variants",

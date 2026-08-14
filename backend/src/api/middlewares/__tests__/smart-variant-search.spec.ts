@@ -34,16 +34,19 @@ describe("smartVariantSearchMiddleware", () => {
     fakeLogger.warn.mockClear()
   })
 
-  it("passes through single-token queries to Medusa's default search", async () => {
-    const query: Query = { q: "staple" }
+  it("runs the smart search for single-token queries (core q can't match product handle/title)", async () => {
+    fakePg.raw.mockResolvedValue({ rows: [{ variant_id: "v_1" }] })
+    const query: Query = { q: "dnc-4232" }
     const req = buildReq(query, fakePg)
 
     await smartVariantSearchMiddleware(req, {} as any, next)
 
+    expect(fakePg.raw).toHaveBeenCalledTimes(1)
+    const [, bindings] = fakePg.raw.mock.calls[0]
+    expect(bindings).toMatchObject({ token0: "%dnc-4232%" })
+    expect(query.id).toEqual(["v_1"])
+    expect(query.q).toBeUndefined()
     expect(next).toHaveBeenCalledTimes(1)
-    expect(fakePg.raw).not.toHaveBeenCalled()
-    expect(query.q).toBe("staple")
-    expect(query.id).toBeUndefined()
   })
 
   it("passes through queries with no q", async () => {

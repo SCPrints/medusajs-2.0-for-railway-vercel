@@ -25,14 +25,13 @@ function pickString(value: unknown): string | undefined {
 }
 
 /**
- * Intercept `GET /admin/product-variants?q=...` when the query has two or more
- * tokens and rewrite it into an `id[]` filter built from a richer multi-field
- * AND search (product title/handle/description, brand, options, tags, type,
- * variant title/SKU).
+ * Intercept `GET /admin/product-variants?q=...` and rewrite it into an `id[]`
+ * filter built from a richer multi-field AND search (product title/handle/
+ * description, brand, options, tags, type, variant title/SKU).
  *
- * Single-token queries pass through to Medusa's default ILIKE handling so the
- * common "search by SKU" / "search by product title" path stays on the
- * existing fast path.
+ * Single-token queries go through the smart search too: Medusa core's variant
+ * `q` only matches variant title/sku/barcode/ean/upc, so a product handle
+ * ("dnc-4232") or product-title word found nothing on the core path.
  *
  * Existing `id` filters are respected — callers that have already narrowed by
  * ID get the intersection they asked for, not an override.
@@ -59,10 +58,7 @@ export async function smartVariantSearchMiddleware(
   }
 
   const tokens = tokenize(q)
-  if (tokens.length < 2) {
-    logger.info(
-      `[smart-variant-search] passthrough single-token q="${q}" (tokens=${tokens.length})`
-    )
+  if (tokens.length === 0) {
     return next()
   }
 
