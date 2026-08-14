@@ -77,7 +77,7 @@ export type POSCheckoutResult = {
  * tax rules typically require an address context. The customer never
  * sees this address; it's stamped on the order solely for tax math.
  */
-const buildStudioAddress = () => ({
+export const buildStudioAddress = () => ({
   first_name: ASCOLOUR_WORKSHOP_FIRST_NAME ?? "Walk-in",
   last_name: ASCOLOUR_WORKSHOP_LAST_NAME ?? "Customer",
   company: ASCOLOUR_WORKSHOP_COMPANY,

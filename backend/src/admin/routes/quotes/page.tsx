@@ -1099,6 +1099,43 @@ function QuoteDetail({
     [quote.id, startPolling]
   )
 
+  // Staff-side conversion: quote → real unpaid order (no customer checkout).
+  const [converting, setConverting] = useState(false)
+  const convertedOrderId =
+    typeof quote.metadata?.order_id === "string"
+      ? (quote.metadata.order_id as string)
+      : null
+  const convertedDisplayId = quote.metadata?.order_display_id ?? null
+  const convertToOrder = async () => {
+    if (
+      !window.confirm(
+        "Convert this quote to an order? The customer is emailed the tax invoice (balance due + bank details) and the job enters production tracking."
+      )
+    ) {
+      return
+    }
+    setConverting(true)
+    try {
+      const res = await fetch(`/admin/quotes/${quote.id}/convert-to-order`, {
+        method: "POST",
+        credentials: "include",
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((json as any)?.error ?? `HTTP ${res.status}`)
+      const skipped = (json as any)?.skipped_items?.length ?? 0
+      toast.success(
+        `Order #${(json as any)?.display_id ?? "created"} — ${(json as any)?.lines_added ?? 0} line(s)${
+          skipped ? `, ${skipped} skipped (no product/variant)` : ""
+        }`
+      )
+      onReload()
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to convert quote")
+    } finally {
+      setConverting(false)
+    }
+  }
+
   const copyAcceptLink = async () => {
     try {
       const res = await fetch(`/admin/quotes/${quote.id}/accept-link`, {
@@ -1196,6 +1233,28 @@ function QuoteDetail({
           <Button size="small" variant="secondary" onClick={copyAcceptLink}>
             Copy accept link
           </Button>
+          {convertedOrderId ? (
+            <Button size="small" variant="secondary" asChild>
+              <a
+                href={`/app/orders/${convertedOrderId}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View order{convertedDisplayId ? ` #${convertedDisplayId}` : ""}
+              </a>
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              variant="secondary"
+              isLoading={converting}
+              disabled={converting}
+              onClick={convertToOrder}
+              title="Create a real (unpaid) order from this quote — no customer checkout needed. Invoice with bank details is emailed automatically."
+            >
+              Convert to order
+            </Button>
+          )}
           <Badge color={STATUS_COLORS[quote.status]}>{STATUS_LABELS[quote.status]}</Badge>
         </div>
       </div>
