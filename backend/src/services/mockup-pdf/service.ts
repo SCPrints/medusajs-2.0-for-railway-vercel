@@ -204,6 +204,59 @@ function readProofNotesOverrides(
   return out
 }
 
+type RevisedProofRow = {
+  line_item_id?: string
+  side?: string
+  url?: string
+  uploaded_at?: string
+}
+
+/**
+ * Merge staff-revised mockups (order.metadata.revised_proofs, written by
+ * POST /admin/orders/:id/revised-proof and the admin proof studio) into the
+ * artifact-derived side list for one product group. A revised mockup is what
+ * the customer approval page shows for that (line, side), so the downloadable
+ * approval PDF must prefer it over the order-time artifact mockup. Latest
+ * upload wins per side; sides that only exist as revised proofs (e.g. a line
+ * added by an order edit with no customizerDesign) are appended.
+ */
+export function resolveMockupSides(
+  artifactSides: Array<{ side: string; mockupUrl: string }>,
+  meta: Record<string, unknown> | null | undefined,
+  groupItemIds: string[]
+): Array<{ side: string; mockupUrl: string }> {
+  const raw = meta?.revised_proofs
+  const rows: RevisedProofRow[] = Array.isArray(raw) ? (raw as RevisedProofRow[]) : []
+  const ids = new Set(groupItemIds)
+  const bySide = new Map<string, { url: string; at: string }>()
+  for (const p of rows) {
+    if (!p.line_item_id || !ids.has(p.line_item_id)) continue
+    if (typeof p.side !== "string" || typeof p.url !== "string" || !p.url.startsWith("http")) {
+      continue
+    }
+    const at = typeof p.uploaded_at === "string" ? p.uploaded_at : ""
+    const prev = bySide.get(p.side)
+    if (!prev || at >= prev.at) bySide.set(p.side, { url: p.url, at })
+  }
+  if (bySide.size === 0) return artifactSides
+
+  const out: Array<{ side: string; mockupUrl: string }> = artifactSides.map((a) =>
+    bySide.has(a.side) ? { ...a, mockupUrl: bySide.get(a.side)!.url } : a
+  )
+  const have = new Set(artifactSides.map((a) => a.side))
+  for (const [side, v] of bySide) {
+    if (!have.has(side)) out.push({ side, mockupUrl: v.url })
+  }
+  return out.sort((a, b) => {
+    const ai = SIDE_ORDER.indexOf(a.side)
+    const bi = SIDE_ORDER.indexOf(b.side)
+    if (ai !== -1 && bi !== -1) return ai - bi
+    if (ai !== -1) return -1
+    if (bi !== -1) return 1
+    return 0
+  })
+}
+
 function buildPageData(
   groupItems: OrderItem[],
   mockups: Array<{ side: string; buf: Buffer }>,
@@ -395,8 +448,16 @@ export async function generateMockupPdf(
           : a
       )
 
+      // Staff-revised mockups win over the order-time artifact mockups —
+      // matching what the customer sees on the approval page.
+      const finalSides = resolveMockupSides(
+        sidesWithEffectiveUrls,
+        order.metadata,
+        groupItems.map((it) => it.id)
+      )
+
       const rawBufs = await Promise.all(
-        sidesWithEffectiveUrls.map((a) => fetchImageBuffer(a.mockupUrl))
+        finalSides.map((a) => fetchImageBuffer(a.mockupUrl))
       )
 
       // Use the mockup exactly as rendered — do NOT strip its background. The
@@ -406,7 +467,7 @@ export async function generateMockupPdf(
       // the body. The white background blends into the white PDF page anyway;
       // the page watermark is painted ON TOP at low opacity (see buildPdf) so
       // it still crosses the page without touching the garment pixels.
-      const mockups = sidesWithEffectiveUrls
+      const mockups = finalSides
         .map((a, i) => ({ side: a.side, buf: rawBufs[i] }))
         .filter((m): m is { side: string; buf: Buffer } => m.buf !== null)
 
