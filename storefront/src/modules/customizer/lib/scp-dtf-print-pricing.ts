@@ -32,12 +32,15 @@ export const SCP_PRINT_SIZE_OPTIONS: Array<{
   { id: "oversize", label: "Oversize", dimensionsLabel: "38×48 cm" },
 ]
 
+// 2026-08 repricing: anchored to true channel costs (DSP $38/lm roll or
+// Supacolour transfer + press labour) so every cell clears its cost floor —
+// the old card sold A3/Oversize below bought-in transfer cost.
 export const SCP_PRINT_UNIT_MATRIX: Record<ScpPrintSizeId, readonly [number, number, number, number, number]> =
   {
-    up_to_a6: [8.5, 7.5, 6.5, 5.5, 5],
-    up_to_a4: [11, 9.5, 8.5, 7.5, 7],
-    up_to_a3: [12.5, 10.5, 9.5, 8.5, 8],
-    oversize: [15, 13.5, 12.5, 11.5, 11],
+    up_to_a6: [8.5, 7.5, 6.5, 6, 5.5],
+    up_to_a4: [11.5, 10.5, 9.5, 9.5, 9],
+    up_to_a3: [16, 15, 14.5, 14.5, 14.5],
+    oversize: [18, 17, 16.5, 16, 16],
   }
 
 export const DEFAULT_SCP_PRINT_SIZE_ID: ScpPrintSizeId = "up_to_a6"

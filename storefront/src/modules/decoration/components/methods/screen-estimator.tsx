@@ -10,12 +10,14 @@ import RushSelector from "../shared/rush-selector"
 const ScreenEstimator: React.FC = () => {
   const [colours, setColours] = useState(2)
   const [darkGarment, setDarkGarment] = useState(false)
+  const [heavyGarment, setHeavyGarment] = useState(false)
   const [quantity, setQuantity] = useState(50)
   const [rushTier, setRushTier] = useState<RushTier>("standard")
+  const [reorder, setReorder] = useState(false)
 
   const breakdown = useMemo(
-    () => calculateScreenPrice({ colours, darkGarment, quantity, rushTier }),
-    [colours, darkGarment, quantity, rushTier]
+    () => calculateScreenPrice({ colours, darkGarment, heavyGarment, quantity, rushTier, reorder }),
+    [colours, darkGarment, heavyGarment, quantity, rushTier, reorder]
   )
 
   // Dark garment uses one of your colour slots — show effective max in the selector.
@@ -48,6 +50,22 @@ const ScreenEstimator: React.FC = () => {
             onChange={(e) => setDarkGarment(e.target.checked)}
           />
           <span>Dark garment (adds white underbase as one of the 6 screens)</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={heavyGarment}
+            onChange={(e) => setHeavyGarment(e.target.checked)}
+          />
+          <span>Hoodies / fleece / poly garments (+$1.00 per print)</span>
+        </label>
+        <label className="flex items-center gap-2 text-sm sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={reorder}
+            onChange={(e) => setReorder(e.target.checked)}
+          />
+          <span>Repeat order — same design within 6 months (reduced screen setup)</span>
         </label>
       </div>
 

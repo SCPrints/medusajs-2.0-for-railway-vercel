@@ -3,8 +3,8 @@ import { calculateDtfPrice, DTF_ARTWORK_SETUP_FEE, DTF_UNDER_MIN_FEE } from "./d
 describe("calculateDtfPrice", () => {
   it("uses the existing SCP unit matrix and tier index", () => {
     const r = calculateDtfPrice({ sizeId: "up_to_a4", quantity: 25 })
-    // qty 25 → tier 20–49 (index 2) → A4 = $8.50
-    expect(r.unitPrice).toBe(8.5)
+    // qty 25 → tier 20–49 (index 2) → A4 = $9.50
+    expect(r.unitPrice).toBe(9.5)
   })
 
   it("applies under-minimum fee below 10 units", () => {

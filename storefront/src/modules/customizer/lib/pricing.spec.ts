@@ -33,8 +33,8 @@ describe("calculatePricing", () => {
       scpPrint: { printSizeId: "up_to_a6" },
     })
 
-    // Qty 50 → tier index 3 → $5.5 per location × 2 sides = $11/garment
-    expect(pricing.sideSurchargePerUnitCents).toBe(11)
+    // Qty 50 → tier index 3 → A6 $6.00 per location × 2 sides = $12/garment
+    expect(pricing.sideSurchargePerUnitCents).toBe(12)
   })
 
   it("forces only printed_tag to A6 tier price; sleeves take selected size", () => {
@@ -46,13 +46,13 @@ describe("calculatePricing", () => {
       scpPrint: { printSizeId: "up_to_a3" },
     })
 
-    // Qty 10 => tier 1: A3 front $10.5 + A3 sleeve $10.5 + A6 printed tag $7.5 = $28.5
-    expect(pricing.sideSurchargePerUnitCents).toBe(28.5)
+    // Qty 10 => tier 1: A3 front $15 + A3 sleeve $15 + A6 printed tag $7.5 = $37.5
+    expect(pricing.sideSurchargePerUnitCents).toBe(37.5)
   })
 
   it("sums per-print pricing when prints[] is supplied (Phase B)", () => {
     // Two A6s on the front + one A4 on the back at qty 1 (tier 0).
-    // A6 tier-0 = $8.50, A4 tier-0 = $11. Total = 8.5 + 8.5 + 11 = $28.
+    // A6 tier-0 = $8.50, A4 tier-0 = $11.50. Total = 8.5 + 8.5 + 11.5 = $28.50.
     const pricing = calculatePricing({
       basePriceCents: 25,
       decoratedSidesCount: 2,
@@ -66,7 +66,7 @@ describe("calculatePricing", () => {
       ],
     })
 
-    expect(pricing.sideSurchargePerUnitCents).toBeCloseTo(28, 2)
+    expect(pricing.sideSurchargePerUnitCents).toBeCloseTo(28.5, 2)
   })
 
   it("forces printed_tag prints to A6 even when prints[] requests larger", () => {
@@ -94,7 +94,8 @@ describe("calculatePricing", () => {
       prints: [],
     })
 
-    expect(pricing.sideSurchargePerUnitCents).toBe(11)
+    // A4 tier-0 = $11.50 side-level fallback.
+    expect(pricing.sideSurchargePerUnitCents).toBe(11.5)
   })
 
   it("uses bulk tiers as base unit pricing when provided", () => {

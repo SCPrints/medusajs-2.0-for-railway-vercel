@@ -16,9 +16,9 @@ describe("customer-tiers constants", () => {
     expect(TIER_SLUGS).toHaveLength(8)
   })
 
-  it("has ascending multipliers from 1.10 to 1.45 in 0.05 steps", () => {
+  it("has ascending multipliers from 1.30 to 1.65 in 0.05 steps", () => {
     expect(TIERS.map((t) => t.multiplier)).toEqual([
-      1.10, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40, 1.45,
+      1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60, 1.65,
     ])
   })
 
@@ -44,9 +44,9 @@ describe("customer-tiers constants", () => {
 
 describe("getTierBySlug / getTierByName", () => {
   it("resolves by slug", () => {
-    expect(getTierBySlug("gold")?.multiplier).toBe(1.20)
-    expect(getTierBySlug("member")?.multiplier).toBe(1.45)
-    expect(getTierBySlug("platinum")?.multiplier).toBe(1.10)
+    expect(getTierBySlug("gold")?.multiplier).toBe(1.40)
+    expect(getTierBySlug("member")?.multiplier).toBe(1.65)
+    expect(getTierBySlug("platinum")?.multiplier).toBe(1.30)
   })
 
   it("returns null for unknown slug", () => {
@@ -106,7 +106,7 @@ describe("tierForCustomer", () => {
   })
 
   it("picks the highest-margin tier when in multiple tier groups", () => {
-    // platinum (rank 1, 1.10x) wins over bronze (rank 7, 1.40x).
+    // platinum (rank 1, 1.30x) wins over bronze (rank 7, 1.60x).
     const t = tierForCustomer({
       groups: [
         { name: "Tier: Bronze", metadata: { tier_slug: "bronze" } },
@@ -129,21 +129,21 @@ describe("tierForCustomer", () => {
 
 describe("applyTierMultiplier", () => {
   it("multiplies cost in minor units and rounds to integer cents", () => {
-    // $5.40 cost ex-GST = 540 minor units. Gold tier (1.20x) → 648 minor units.
+    // $5.40 cost ex-GST = 540 minor units. Gold tier (1.40x) → 756 minor units.
     const gold = getTierBySlug("gold")!
-    expect(applyTierMultiplier(540, gold)).toBe(648)
+    expect(applyTierMultiplier(540, gold)).toBe(756)
   })
 
   it("handles fractional results via banker's rounding", () => {
-    // 633 × 1.15 = 727.95 → rounds to 728.
+    // 633 × 1.35 = 854.55 → rounds to 855.
     const goldPlus = getTierBySlug("gold_plus")!
-    expect(applyTierMultiplier(633, goldPlus)).toBe(728)
+    expect(applyTierMultiplier(633, goldPlus)).toBe(855)
   })
 
   it("returns expected values for every tier on a known cost", () => {
-    // 1000 minor unit cost, multipliers 1.10 → 1100, 1.45 → 1450, etc.
-    expect(applyTierMultiplier(1000, getTierBySlug("platinum")!)).toBe(1100)
-    expect(applyTierMultiplier(1000, getTierBySlug("gold")!)).toBe(1200)
-    expect(applyTierMultiplier(1000, getTierBySlug("member")!)).toBe(1450)
+    // 1000 minor unit cost, multipliers 1.30 → 1300, 1.65 → 1650, etc.
+    expect(applyTierMultiplier(1000, getTierBySlug("platinum")!)).toBe(1300)
+    expect(applyTierMultiplier(1000, getTierBySlug("gold")!)).toBe(1400)
+    expect(applyTierMultiplier(1000, getTierBySlug("member")!)).toBe(1650)
   })
 })

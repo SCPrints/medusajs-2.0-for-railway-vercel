@@ -12,7 +12,7 @@ import { recomputeScpCartPricingPure } from "../recompute-scp-cart-pricing"
  * charge. Decoration (print/embroidery) surcharges are NOT tiered.
  */
 
-const platinum = getTierBySlug("platinum")! // 1.10×
+const platinum = getTierBySlug("platinum")! // 1.30×
 
 const bulkMeta = (extra: Record<string, unknown> = {}) => ({
   bulk_pricing: {
@@ -27,12 +27,12 @@ const bulkMeta = (extra: Record<string, unknown> = {}) => ({
 
 describe("garmentMajorWithTier", () => {
   it("returns the flat tier price (cost × mult / 100) overriding the bulk ladder", () => {
-    // round(1265 × 1.10) = 1392 cents -> 13.92 major
-    expect(garmentMajorWithTier(bulkMeta({ cost_price_ex_gst_minor: 1265 }), 12, platinum)).toBe(13.92)
+    // round(1265 × 1.30) = 1645 cents -> 16.45 major
+    expect(garmentMajorWithTier(bulkMeta({ cost_price_ex_gst_minor: 1265 }), 12, platinum)).toBe(16.45)
   })
 
   it("is quantity-independent — the flat price beats even the 100+ band", () => {
-    expect(garmentMajorWithTier(bulkMeta({ cost_price_ex_gst_minor: 1265 }), 500, platinum)).toBe(13.92)
+    expect(garmentMajorWithTier(bulkMeta({ cost_price_ex_gst_minor: 1265 }), 500, platinum)).toBe(16.45)
   })
 
   it("falls back to the bulk ladder when the variant has no cost", () => {
@@ -72,7 +72,7 @@ describe("resolveGarmentUnitAmountMajor with a tier", () => {
       cart,
       tier: platinum,
     })
-    expect(amount).toBe(13.92)
+    expect(amount).toBe(16.45)
   })
 })
 
@@ -88,7 +88,7 @@ describe("recomputeScpCartPricingPure with a tier", () => {
 
   it("prices the garment flat at the tier price even when the aggregated qty would hit the 100+ band", () => {
     const res = recomputeScpCartPricingPure([garmentLine("l1", 200)], platinum)
-    expect(res.prices.get("l1")).toBe(13.92)
+    expect(res.prices.get("l1")).toBe(16.45)
   })
 
   it("without a tier, the same line uses the aggregated bulk band (100+ -> 20)", () => {

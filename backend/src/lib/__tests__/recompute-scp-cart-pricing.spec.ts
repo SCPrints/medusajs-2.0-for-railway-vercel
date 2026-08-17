@@ -157,9 +157,9 @@ describe("recomputeScpCartPricingPure", () => {
 
   it("re-prices customizer lines with the aggregated SCP print tier", () => {
     // 20 + 30 customizer lines: aggregated qty 50 → tier index 3.
-    // up_to_a6 tier 3 = 5.5 per print. Each line has 1 print.
+    // up_to_a6 tier 3 = 6.0 per print. Each line has 1 print.
     // Variant A 50-99 tier = $20 garment.
-    // Expected unit_price = 20 + 5.5 = 25.5
+    // Expected unit_price = 20 + 6 = 26
     const lines = [
       {
         id: "line_cust_A",
@@ -178,10 +178,10 @@ describe("recomputeScpCartPricingPure", () => {
     ]
     const result = recomputeScpCartPricingPure(lines)
     expect(result.aggregated_quantity).toBe(50)
-    // A: 20 (garment 50-99) + 5.5 (a6 tier3) = 25.5
-    expect(result.prices.get("line_cust_A")).toBe(25.5)
-    // B: 32 (garment 50-99) + 5.5 = 37.5
-    expect(result.prices.get("line_cust_B")).toBe(37.5)
+    // A: 20 (garment 50-99) + 6 (a6 tier3) = 26
+    expect(result.prices.get("line_cust_A")).toBe(26)
+    // B: 32 (garment 50-99) + 6 = 38
+    expect(result.prices.get("line_cust_B")).toBe(38)
   })
 
   it("treats zero-quantity lines safely", () => {
@@ -279,10 +279,10 @@ describe("recomputeScpCartPricingPure", () => {
     const result = recomputeScpCartPricingPure(lines)
     // 45 + 5 = 50 → 50-99 tier (index 3)
     expect(result.aggregated_quantity).toBe(50)
-    // Polo: variant 50-99 tier ($20) + A6 print at tier 3 ($5.50) = $25.50
-    expect(result.prices.get("line_polo")).toBe(25.5)
-    // Cap: stored garment ($12.05) + A6 print at tier 3 ($5.50) = $17.55
-    expect(result.prices.get("line_cap")).toBe(17.55)
+    // Polo: variant 50-99 tier ($20) + A6 print at tier 3 ($6.00) = $26.00
+    expect(result.prices.get("line_polo")).toBe(26)
+    // Cap: stored garment ($12.05) + A6 print at tier 3 ($6.00) = $18.05
+    expect(result.prices.get("line_cap")).toBe(18.05)
   })
 
   it("keeps the embroidery charge on embroidered customizer lines (order #44 regression)", () => {
@@ -392,7 +392,7 @@ describe("recomputeScpCartPricingPure", () => {
     expect(result.aggregated_quantity).toBe(50)
     // Plain garment: just 50-99 garment tier = $20, no print
     expect(result.prices.get("line_plain")).toBe(20)
-    // Customizer: 20 + 5.5 print = 25.5
-    expect(result.prices.get("line_cust")).toBe(25.5)
+    // Customizer: 20 + 6 print = 26
+    expect(result.prices.get("line_cust")).toBe(26)
   })
 })

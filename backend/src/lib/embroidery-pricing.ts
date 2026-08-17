@@ -28,11 +28,14 @@ const STITCH_TIERS: Array<{ maxStitches: number; prices: number[] }> = [
   { maxStitches: 5000, prices: [11.0, 10.0, 8.0, 6.0, 5.0, 4.0] },
   { maxStitches: 6000, prices: [11.25, 10.25, 8.25, 6.25, 5.25, 4.25] },
   { maxStitches: 7000, prices: [11.5, 10.5, 8.5, 6.5, 5.5, 4.5] },
-  { maxStitches: 8000, prices: [11.75, 10.75, 8.75, 6.75, 5.75, 4.75] },
-  { maxStitches: 9000, prices: [12.0, 11.0, 9.0, 7.0, 6.0, 5.0] },
-  { maxStitches: 10000, prices: [12.25, 11.25, 9.25, 7.25, 6.25, 5.25] },
-  { maxStitches: 11000, prices: [12.5, 11.5, 9.5, 7.5, 6.5, 5.5] },
-  { maxStitches: 12000, prices: [12.75, 11.75, 9.75, 7.75, 6.75, 5.75] },
+  // 2026-08 repricing: 8k+ rows lifted — at measured machine throughput
+  // (600 spm, 3 heads/operator) the old 10k-12k prices were below in-house
+  // cost. Rows ≤7k unchanged.
+  { maxStitches: 8000, prices: [12.5, 11.5, 9.5, 7.5, 6.5, 5.5] },
+  { maxStitches: 9000, prices: [13.5, 12.5, 10.5, 8.5, 7.5, 6.5] },
+  { maxStitches: 10000, prices: [14.5, 13.5, 11.5, 9.5, 8.5, 7.5] },
+  { maxStitches: 11000, prices: [15.5, 14.5, 12.5, 10.5, 9.5, 8.5] },
+  { maxStitches: 12000, prices: [16.5, 15.5, 13.5, 11.5, 10.5, 9.5] },
 ]
 
 const DIGITIZING_FEE_MAJOR = 60

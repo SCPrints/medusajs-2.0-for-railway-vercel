@@ -49,8 +49,31 @@ const RushSelector: React.FC<Props> = ({ method, value, onChange }) => {
     <div className="flex flex-col gap-2">
       <div className="text-sm font-medium text-ui-fg-base">Turnaround</div>
       <Row tier="standard" label="Standard" note={turnaround.standard} fee={0} />
-      {turnaround.priority && (
-        <Row tier="priority" label="Priority" note={turnaround.priority} fee={fees.priority} />
+      {turnaround.priority && method === "screen" ? (
+        // Screen rush is percentage-based (outsourced run, supplier charges +30%).
+        <label
+          className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
+            value === "priority" ? "border-[var(--brand-primary,#002a5c)] bg-ui-bg-subtle" : "border-ui-border-base"
+          } cursor-pointer`}
+        >
+          <span className="flex items-center gap-2">
+            <input
+              type="radio"
+              name={`rush-${method}`}
+              checked={value === "priority"}
+              onChange={() => onChange("priority")}
+            />
+            <span>
+              <span className="font-medium text-ui-fg-base">Priority</span>{" "}
+              <span className="text-ui-fg-subtle">{turnaround.priority}</span>
+            </span>
+          </span>
+          <span className="tabular-nums text-ui-fg-subtle">+30%</span>
+        </label>
+      ) : (
+        turnaround.priority && (
+          <Row tier="priority" label="Priority" note={turnaround.priority} fee={fees.priority} />
+        )
       )}
       {turnaround.express && (
         <Row

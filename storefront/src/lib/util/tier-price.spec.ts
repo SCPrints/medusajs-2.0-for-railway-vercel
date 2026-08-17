@@ -36,10 +36,10 @@ describe("getTierUnitMajorForVariant", () => {
     expect(getTierUnitMajorForVariant(variant(undefined), platinum)).toBeNull()
   })
   it("computes cost × multiplier in MAJOR units, matching the backend price-list formula", () => {
-    // round(1265 × 1.10) = 1392 cents -> 13.92 major
-    expect(getTierUnitMajorForVariant(variant(1265), platinum)).toBeCloseTo(13.92, 2)
-    // round(1265 × 1.45) = 1834 cents -> 18.34 major
-    expect(getTierUnitMajorForVariant(variant(1265), member)).toBeCloseTo(18.34, 2)
+    // round(1265 × 1.30) = 1645 cents -> 16.45 major
+    expect(getTierUnitMajorForVariant(variant(1265), platinum)).toBeCloseTo(16.45, 2)
+    // round(1265 × 1.65) = 2087 cents -> 20.87 major
+    expect(getTierUnitMajorForVariant(variant(1265), member)).toBeCloseTo(20.87, 2)
   })
   it("is the same rounding the backend regen uses: round(cost_minor × mult) / 100", () => {
     const cost = 999

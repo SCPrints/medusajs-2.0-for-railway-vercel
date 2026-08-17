@@ -22,19 +22,19 @@ describe("scp-dtf-print-pricing", () => {
 
   it("returns SCP matrix units per tier for up_to_a6", () => {
     expect(scpPrintUnitMajorForTier("up_to_a6", 0)).toBe(8.5)
-    expect(scpPrintUnitMajorForTier("up_to_a6", 3)).toBe(5.5)
-    expect(scpPrintUnitMajorForTier("up_to_a6", 4)).toBe(5)
+    expect(scpPrintUnitMajorForTier("up_to_a6", 3)).toBe(6)
+    expect(scpPrintUnitMajorForTier("up_to_a6", 4)).toBe(5.5)
   })
 
   it("forces only printed tag to A6; sleeves price by selected size", () => {
-    // front + left_sleeve = oversize ($15 each); printed_tag forced A6 ($8.5).
+    // front + left_sleeve = oversize ($18 each); printed_tag forced A6 ($8.5).
     expect(
       scpPrintTotalMajorPerGarmentForSides({
         selectedPrintSizeId: "oversize",
         tierIndex: 0,
         decoratedSides: ["front", "left_sleeve", "printed_tag"],
       })
-    ).toBe(38.5)
+    ).toBe(44.5)
   })
 
   it("counts decorated sides from customizerDesign artifacts", () => {
@@ -74,7 +74,7 @@ describe("scp-dtf-print-pricing", () => {
   })
 
   it("uses per-location print size ids; only printed tag forced to A6", () => {
-    // front=A3 ($12.5) + left_sleeve=oversize ($15) + printed_tag forced A6 ($8.5).
+    // front=A3 ($16) + left_sleeve=oversize ($18) + printed_tag forced A6 ($8.5).
     expect(
       scpPrintTotalMajorFromLocations({
         selectedPrintSizeId: "oversize",
@@ -85,7 +85,7 @@ describe("scp-dtf-print-pricing", () => {
           { side: "printed_tag", printSizeId: "oversize" },
         ],
       })
-    ).toBe(36)
+    ).toBe(42.5)
   })
 
   it("falls back to one side when printPlacement is present without artifacts", () => {

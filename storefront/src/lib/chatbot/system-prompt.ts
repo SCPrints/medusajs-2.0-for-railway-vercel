@@ -29,6 +29,7 @@ import {
   SCREEN_MIN_QUANTITY,
   SCREEN_OVER_MAX_QUANTITY,
   SCREEN_PER_SCREEN_FEE,
+  SCREEN_REPEAT_SCREEN_FEE,
 } from "@modules/decoration/lib/methods/screen"
 import {
   UVDTF_SHEET_PER_METRE,
@@ -82,8 +83,11 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 - Maximum ${SCREEN_MAX_COLOURS} colours total. On dark garments, the white underbase counts as one of those ${SCREEN_MAX_COLOURS} — so a 4-colour design on a dark garment is priced as 5 colours.
 - Quantity matrix from ${SCREEN_MIN_QUANTITY} to ${SCREEN_OVER_MAX_QUANTITY} pieces. Above ${SCREEN_OVER_MAX_QUANTITY}: manual quote.
 - Minimum ${SCREEN_MIN_QUANTITY} pieces.
-- $${SCREEN_PER_SCREEN_FEE} per screen setup, charged on EVERY order — we don't keep screens, including for reorders. Make this clear when relevant.
-- Standard turnaround: ${t.screen.standard}. Priority +$${r.screen.priority} (${t.screen.priority}). Express not available for screen printing — bumping the queue isn't practical.
+- $${SCREEN_PER_SCREEN_FEE} per screen (colour) setup. Repeating the same design within 6 months: $${SCREEN_REPEAT_SCREEN_FEE} per screen instead.
+- Hoodies, sweats, fleece and polyester garments: +$1.00 per print.
+- Metallic, glitter or puff inks: +$1.00 per print (glitter also needs a special screen — manual quote).
+- Oversize prints (bigger than 40×40cm): +30%.
+- Standard turnaround: ${t.screen.standard}. Priority +30% of the order (${t.screen.priority}). Express not available for screen printing — bumping the queue isn't practical.
 
 ## UVDTF Gang Sheets
 - $${UVDTF_SHEET_PER_METRE} per metre + $${UVDTF_SHEET_SETUP_FEE} setup fee.
