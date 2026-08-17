@@ -59,6 +59,8 @@ export const AUDIT_ACTION = {
   PAYMENT_LINK_CLICKED: "payment_link_clicked",
   // Offline payments (bank transfer / cash) recorded by staff on an order
   PAYMENT_RECORDED: "payment_recorded",
+  // Customizer design copied to the replacement line after an order-edit garment swap
+  DESIGN_CARRIED_OVER: "design_carried_over",
   // Product bulk edits (Products Manager tab in /app/product-data)
   BULK_STATUS_CHANGED: "bulk_status_changed",
   BULK_DELETED: "bulk_deleted",
