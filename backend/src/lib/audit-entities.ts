@@ -81,6 +81,9 @@ export const AUDIT_ACTION = {
   STOCK_ADJUSTED_DOWN: "stock_adjusted_down",
   FULFILLMENT_ORDER_CREATED: "fulfillment_order_created",
   FULFILLMENT_ORDER_CANCELLED: "fulfillment_order_cancelled",
+
+  // Screen printing
+  SCREEN_REPRICED: "screen_repriced",
   DESIGN_CREATED: "design_created",
   DESIGN_UPDATED: "design_updated",
   DESIGN_DEACTIVATED: "design_deactivated",

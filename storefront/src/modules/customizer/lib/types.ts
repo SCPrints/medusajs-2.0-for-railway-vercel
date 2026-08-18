@@ -172,6 +172,19 @@ export type ScreenConfig = {
   colours: number
   /** Dark garment needs a white underbase — one extra screen + colour slot. */
   darkGarment?: boolean
+  /**
+   * True while `colours` tracks the automatic artwork estimate; flips false
+   * the moment the customer picks a count manually (their choice then wins).
+   */
+  coloursAuto?: boolean
+  /** Spot colours the artwork analyser detected — advisory, drives the mismatch check. */
+  detectedColours?: number
+  /**
+   * Customer explicitly confirmed printing with FEWER colours than detected
+   * ("collapse my art to N colours"). Cleared whenever detection changes.
+   * Lands in order metadata as the audit trail for invoice disputes.
+   */
+  mismatchConfirmed?: boolean
 }
 
 /**

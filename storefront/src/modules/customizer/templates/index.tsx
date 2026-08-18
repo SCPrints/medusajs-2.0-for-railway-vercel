@@ -82,6 +82,11 @@ import {
   SCREEN_MIN_QUANTITY,
 } from "@modules/customizer/lib/scp-screen-print-pricing"
 import {
+  estimateScreenColoursFromDataUrl,
+  isDarkGarmentColourName,
+  type ScreenColourEstimate,
+} from "@modules/customizer/lib/estimate-screen-colours"
+import {
   canvasPxToApproxCm,
   printSpecsToPricingSpecs,
   snapSizeForBoundingCm,
@@ -487,6 +492,24 @@ export default function CustomizerTemplate({
     }
   }
 
+  /**
+   * Whole-canvas variant of the resolver above — screen colour analysis needs
+   * EVERY object on the side (all of them print with the same screens), not
+   * just the active/first one. The Fabric canvas is transparent-backed (the
+   * garment photo is a sibling <img>), so this captures artwork only.
+   */
+  const getCurrentSideFullArtworkDataUrl = (): { dataUrl: string; mediaType: string } | null => {
+    const canvas = fabricCanvasRef.current
+    if (!canvas || typeof canvas.toDataURL !== "function") return null
+    try {
+      if (!canvas.getObjects?.()?.length) return null
+      const dataUrl = canvas.toDataURL({ format: "png", multiplier: 1 }) as string
+      return dataUrl ? { dataUrl, mediaType: "image/png" } : null
+    } catch {
+      return null
+    }
+  }
+
   useLayoutEffect(() => {
     const host = fabricContainerRef.current
     if (!host) {
@@ -671,6 +694,14 @@ export default function CustomizerTemplate({
    */
   const [sideScreenConfigs, setSideScreenConfigs] = useState<
     Partial<Record<GarmentSide, ScreenConfig>>
+  >({})
+  /**
+   * Deterministic artwork colour estimate per screen-printed side. Recomputed
+   * whenever the side's artwork changes; advisory input to the colour-count
+   * default + the add-to-cart mismatch check.
+   */
+  const [sideScreenEstimates, setSideScreenEstimates] = useState<
+    Partial<Record<GarmentSide, ScreenColourEstimate>>
   >({})
   // showSideNudge: brief banner when switching to an empty side in embedded mode
   const [showSideNudge, setShowSideNudge] = useState(false)
@@ -1181,6 +1212,64 @@ export default function CustomizerTemplate({
       setSizingDoneSides((prev) => ({ ...prev, [currentSide]: true }))
     }
   }, [availableMethodsForCurrentSide, currentSide, sideDecorationMethods])
+
+  /**
+   * Screen colour detection: re-analyse the current side's composed artwork
+   * whenever it changes (layoutVersion bumps on every canvas edit) while the
+   * side's method is "screen". Purely client-side, ~ms per run.
+   */
+  useEffect(() => {
+    if (sideDecorationMethods[currentSide] !== "screen") return
+    const artwork = getCurrentSideFullArtworkDataUrl()
+    if (!artwork) {
+      setSideScreenEstimates((prev) => {
+        if (!(currentSide in prev)) return prev
+        const next = { ...prev }
+        delete next[currentSide]
+        return next
+      })
+      return
+    }
+    let cancelled = false
+    void estimateScreenColoursFromDataUrl(artwork.dataUrl).then((est) => {
+      if (cancelled || !est) return
+      setSideScreenEstimates((prev) => ({ ...prev, [currentSide]: est }))
+    })
+    return () => {
+      cancelled = true
+    }
+    // getCurrentSideFullArtworkDataUrl reads refs; layoutVersion is the change signal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutVersion, currentSide, sideDecorationMethods])
+
+  /**
+   * Sync the estimate into the side's screen config: auto-default the colour
+   * count while the customer hasn't chosen manually, record detectedColours
+   * for the add-to-cart mismatch check, and invalidate a stale mismatch
+   * confirmation whenever detection changes.
+   */
+  useEffect(() => {
+    const est = sideScreenEstimates[currentSide]
+    if (!est) return
+    if (sideDecorationMethods[currentSide] !== "screen") return
+    setSideScreenConfigs((prev) => {
+      const cfg = prev[currentSide]
+      if (!cfg) return prev
+      const detectionChanged = cfg.detectedColours !== est.colours
+      const autoColours =
+        cfg.coloursAuto !== false && est.printable ? est.colours : cfg.colours
+      if (!detectionChanged && autoColours === cfg.colours) return prev
+      return {
+        ...prev,
+        [currentSide]: {
+          ...cfg,
+          colours: autoColours,
+          detectedColours: est.colours,
+          ...(detectionChanged ? { mismatchConfirmed: false } : {}),
+        },
+      }
+    })
+  }, [sideScreenEstimates, currentSide, sideDecorationMethods])
   const showPdpLabeledOptionsStep = Boolean(integratedPdpSlots) && pdpHasVariantOptions
   const embedPdpQuantityStepNumber = showPdpLabeledOptionsStep ? 3 : 2
 
@@ -1269,6 +1358,28 @@ export default function CustomizerTemplate({
   // the PDP swatch, but the backend render endpoint requires a strict #RRGGBB hex).
   const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
   const variantTintHexForRender = HEX_COLOR_RE.test(variantTintHex ?? "") ? variantTintHex : null
+
+  /**
+   * Dark-garment default for screen printing (white underbase needed).
+   * Name-based heuristic first, hex luminance as backup. Advisory — seeds the
+   * checkbox on method switch; the customer can untick and staff verify at
+   * art review.
+   */
+  const garmentIsDark = useMemo(() => {
+    if (!selectedProduct || !selectedVariant) return false
+    const colorOption = selectedProduct.options?.find((o) => isColorOptionTitle(o.title))
+    const label = colorOption?.title
+      ? getVariantOptionValue(selectedVariant, colorOption.title, selectedProduct)
+      : null
+    if (isDarkGarmentColourName(label)) return true
+    if (variantTintHexForRender) {
+      const r = parseInt(variantTintHexForRender.slice(1, 3), 16)
+      const g = parseInt(variantTintHexForRender.slice(3, 5), 16)
+      const b = parseInt(variantTintHexForRender.slice(5, 7), 16)
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128
+    }
+    return false
+  }, [selectedProduct, selectedVariant, variantTintHexForRender])
 
   const nonSizeOptions = useMemo(
     () => (selectedProduct ? getNonSizeOptions(selectedProduct) : []),
@@ -3947,6 +4058,27 @@ export default function CustomizerTemplate({
       return
     }
 
+    // Colour-count mismatch gate: the artwork analyser found MORE colours
+    // than the customer declared, and they haven't explicitly confirmed the
+    // reduction — block so the invoice can't silently undercount screens.
+    if (hasScreenSides) {
+      for (const side of decoratedSides) {
+        if (sideDecorationMethods[side] !== "screen") continue
+        const cfg = sideScreenConfigs[side]
+        const declared = Math.max(1, cfg?.colours ?? 1)
+        const detected = cfg?.detectedColours ?? 0
+        if (detected > declared && cfg?.mismatchConfirmed !== true) {
+          const sideLabel = side.replace(/_/g, " ")
+          setUploadError(
+            `Your ${sideLabel} artwork looks like ~${detected} colours but ${declared} ${
+              declared > 1 ? "are" : "is"
+            } selected. Update the ink colour count in the Screen Print settings, or tick "print it anyway" there to confirm.`
+          )
+          return
+        }
+      }
+    }
+
     if (printArea.width < MIN_PRINT_AREA_PX || printArea.height < MIN_PRINT_AREA_PX) {
       setUploadError(
         "The design preview is still loading. Wait a moment or resize the window, then try adding to cart again."
@@ -5518,7 +5650,12 @@ export default function CustomizerTemplate({
                   if (method === "screen" && !sideScreenConfigs[side]) {
                     setSideScreenConfigs((prev) => ({
                       ...prev,
-                      [side]: { side, colours: 1, darkGarment: false },
+                      [side]: {
+                        side,
+                        colours: 1,
+                        coloursAuto: true,
+                        darkGarment: garmentIsDark,
+                      },
                     }))
                   }
                 } else {
@@ -5549,7 +5686,7 @@ export default function CustomizerTemplate({
             />
           ) : sideDecorationMethods[currentSide] === "screen" ? (
             <ScreenSideConfig
-              // Remount per side — same seeding contract as EmbroiderySideConfig.
+              // Remount per side so preview/AI request state resets cleanly.
               key={currentSide}
               side={currentSide}
               value={sideScreenConfigs[currentSide]}
@@ -5558,6 +5695,8 @@ export default function CustomizerTemplate({
               }}
               totalQuantity={totalQty}
               heavyGarment={screenHeavyGarment}
+              estimate={sideScreenEstimates[currentSide] ?? null}
+              getArtworkDataUrl={getCurrentSideFullArtworkDataUrl}
             />
           ) : allowedSizesForCurrentSide.length === 1 &&
             allowedSizesForCurrentSide[0] === "up_to_a6" ? (
