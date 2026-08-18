@@ -258,7 +258,7 @@ const ScreenSideConfig: React.FC<Props> = ({
       </div>
       <div className="text-[11px] text-ui-fg-subtle">
         Size your artwork freely — screen prints are priced per colour, not by
-        size. Standard area up to 40×40 cm; larger prints are quoted separately.
+        size. Standard area up to 40 cm wide × 50 cm tall; larger prints are quoted separately.
       </div>
       {belowMin ? (
         <div className="text-xs font-medium text-ui-fg-error">

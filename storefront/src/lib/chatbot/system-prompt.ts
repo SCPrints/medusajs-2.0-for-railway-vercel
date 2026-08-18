@@ -86,7 +86,7 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 - $${SCREEN_PER_SCREEN_FEE} per screen (colour) setup. Repeating the same design within 6 months: $${SCREEN_REPEAT_SCREEN_FEE} per screen instead.
 - Hoodies, sweats, fleece and polyester garments: +$1.00 per print.
 - Metallic, glitter or puff inks: +$1.00 per print (glitter also needs a special screen — manual quote).
-- Oversize prints (bigger than 40×40cm): +30%.
+- Oversize prints (bigger than 40cm wide × 50cm tall): +30%.
 - Standard turnaround: ${t.screen.standard}. Priority +30% of the order (${t.screen.priority}). Express not available for screen printing — bumping the queue isn't practical.
 
 ## UVDTF Gang Sheets
