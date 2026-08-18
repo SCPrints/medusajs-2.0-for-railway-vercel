@@ -23,6 +23,8 @@ export const SCREEN_SETUP_PER_SCREEN_MAJOR = 99
 export const SCREEN_REPEAT_SETUP_PER_SCREEN_MAJOR = 39
 /** Hoodies / sweats / fleece / poly — per print, flagged per product via metadata.screen_heavy. */
 export const SCREEN_HEAVY_GARMENT_SURCHARGE_MAJOR = 1
+/** Largest STANDARD screen-print area (cm) — bigger prints carry the supplier's +30% oversize surcharge and are quoted manually. */
+export const SCREEN_MAX_STANDARD_PRINT_CM = { width: 40, height: 40 } as const
 
 export type ScreenQuantityTier = {
   label: string

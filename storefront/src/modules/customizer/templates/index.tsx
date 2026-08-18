@@ -79,6 +79,7 @@ import EmbroiderySideConfig from "@modules/customizer/components/embroidery-side
 import ScreenSideConfig from "@modules/customizer/components/screen-side-config"
 import {
   SCREEN_MAX_COLOURS,
+  SCREEN_MAX_STANDARD_PRINT_CM,
   SCREEN_MIN_QUANTITY,
 } from "@modules/customizer/lib/scp-screen-print-pricing"
 import {
@@ -703,6 +704,8 @@ export default function CustomizerTemplate({
   const [sideScreenEstimates, setSideScreenEstimates] = useState<
     Partial<Record<GarmentSide, ScreenColourEstimate>>
   >({})
+  /** Oversize notice for screen sides (artwork bigger than the 40×40cm standard area). */
+  const [screenSizeWarning, setScreenSizeWarning] = useState<string | null>(null)
   // showSideNudge: brief banner when switching to an empty side in embedded mode
   const [showSideNudge, setShowSideNudge] = useState(false)
   // "Edit existing cart line" mode: when present, the customizer pre-fills from
@@ -1224,7 +1227,50 @@ export default function CustomizerTemplate({
    * side's method is "screen". Purely client-side, ~ms per run.
    */
   useEffect(() => {
-    if (sideDecorationMethods[currentSide] !== "screen") return
+    if (sideDecorationMethods[currentSide] !== "screen") {
+      setScreenSizeWarning(null)
+      return
+    }
+    // Oversize check: screen artwork resizes freely, but prints beyond the
+    // supplier's 40×40cm standard area carry a +30% surcharge — warn (not
+    // block) so the customer knows before staff quote the oversize.
+    const canvasForSize = fabricCanvasRef.current
+    const sizeObjects = canvasForSize?.getObjects?.() ?? []
+    let sizeWarn: string | null = null
+    if (sizeObjects.length && canvasSize.width > 0 && canvasSize.height > 0) {
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      for (const obj of sizeObjects) {
+        const rect = (obj as any).getBoundingRect?.(true, true)
+        if (!rect) continue
+        minX = Math.min(minX, rect.left)
+        minY = Math.min(minY, rect.top)
+        maxX = Math.max(maxX, rect.left + rect.width)
+        maxY = Math.max(maxY, rect.top + rect.height)
+      }
+      if (Number.isFinite(minX) && maxX > minX && maxY > minY) {
+        const cm = canvasPxToApproxCm(
+          maxX - minX,
+          maxY - minY,
+          canvasSize.width,
+          canvasSize.height
+        )
+        if (
+          cm.width > SCREEN_MAX_STANDARD_PRINT_CM.width ||
+          cm.height > SCREEN_MAX_STANDARD_PRINT_CM.height
+        ) {
+          sizeWarn = `Screen print ~${Math.round(cm.width)}×${Math.round(
+            cm.height
+          )} cm — larger than our standard ${SCREEN_MAX_STANDARD_PRINT_CM.width}×${
+            SCREEN_MAX_STANDARD_PRINT_CM.height
+          } cm screen area. We'll confirm an oversize quote before printing.`
+        }
+      }
+    }
+    setScreenSizeWarning(sizeWarn)
+
     const artwork = getCurrentSideFullArtworkDataUrl()
     if (!artwork) {
       setSideScreenEstimates((prev) => {
@@ -1245,7 +1291,7 @@ export default function CustomizerTemplate({
     }
     // getCurrentSideFullArtworkDataUrl reads refs; layoutVersion is the change signal.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutVersion, currentSide, sideDecorationMethods])
+  }, [layoutVersion, currentSide, sideDecorationMethods, canvasSize.width, canvasSize.height])
 
   /**
    * Sync the estimate into the side's screen config: auto-default the colour
@@ -5319,6 +5365,7 @@ export default function CustomizerTemplate({
                       printArea={printArea}
                       outOfBoundsWarning={outOfBoundsWarning}
                       dpiWarning={dpiWarning}
+                      sizeWarning={screenSizeWarning}
                       fabricContainerRef={fabricContainerRef}
                       frameClassName={
                         assemblyLayout

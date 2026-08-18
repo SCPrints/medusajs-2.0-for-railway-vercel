@@ -18,6 +18,8 @@ type CanvasStageProps = {
   printArea: RenderPlacement
   outOfBoundsWarning: string | null
   dpiWarning: string | null
+  /** Screen-print oversize notice — same slot as the DPI warning. */
+  sizeWarning?: string | null
   /** Empty mount node; parent creates the canvas imperatively so Fabric can wrap the canvas without breaking React’s sibling tree. */
   fabricContainerRef: RefObject<HTMLDivElement | null>
   /** Hex colour sampled from the variant photo, used to tint the sleeve placeholder line drawing. */
@@ -39,6 +41,7 @@ function CanvasStage({
   printArea,
   outOfBoundsWarning,
   dpiWarning,
+  sizeWarning = null,
   fabricContainerRef,
   tintColor,
   frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
@@ -176,10 +179,11 @@ function CanvasStage({
         aria-hidden
       />
 
-      {(outOfBoundsWarning || dpiWarning) && (
+      {(outOfBoundsWarning || dpiWarning || sizeWarning) && (
         <div className="absolute bottom-3 left-3 right-3 space-y-1 rounded-md bg-ui-bg-base/90 p-2 text-xs shadow">
           {outOfBoundsWarning && <p className="text-rose-600">{outOfBoundsWarning}</p>}
           {dpiWarning && <p className="text-amber-700">{dpiWarning}</p>}
+          {sizeWarning && <p className="text-amber-700">{sizeWarning}</p>}
         </div>
       )}
     </div>
