@@ -6,6 +6,7 @@ import {
   scpPrintUnitMajorForTier,
 } from "./scp-dtf-print-pricing"
 import { calculatePrice as calculateEmbroideryPrice } from "@modules/embroidery/lib/pricing"
+import { SCREEN_MIN_QUANTITY, screenUnitMajor } from "./scp-screen-print-pricing"
 import { BulkPricingTier, PricingBreakdown, PricingInput } from "./types"
 
 /**
@@ -72,22 +73,28 @@ export const calculatePricing = ({
   prints: printsInput,
   tierUnitCents,
   embroidery,
+  screen,
+  screenHeavyGarment,
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
 
-  // Embroidered sides are priced by stitch count, never the DTF print matrix.
-  // Strip them from every print-pricing input here (the chokepoint) so no
-  // caller can accidentally double-price or mis-price an embroidery side.
-  const embroiderySideSet = new Set((embroidery ?? []).map((e) => e.side))
-  const decoratedSides = embroiderySideSet.size
-    ? decoratedSidesInput?.filter((side) => !embroiderySideSet.has(side))
+  // Embroidered and screen-printed sides are priced by their own rate cards,
+  // never the DTF print matrix. Strip them from every print-pricing input
+  // here (the chokepoint) so no caller can accidentally double-price or
+  // mis-price a non-DTF side.
+  const nonDtfSideSet = new Set([
+    ...(embroidery ?? []).map((e) => e.side),
+    ...(screen ?? []).map((s) => s.side),
+  ])
+  const decoratedSides = nonDtfSideSet.size
+    ? decoratedSidesInput?.filter((side) => !nonDtfSideSet.has(side))
     : decoratedSidesInput
-  const prints = embroiderySideSet.size
-    ? printsInput?.filter((p) => !embroiderySideSet.has(p.side))
+  const prints = nonDtfSideSet.size
+    ? printsInput?.filter((p) => !nonDtfSideSet.has(p.side))
     : printsInput
   const decoratedSidesResolved = Math.max(
     0,
-    Math.floor(decoratedSidesCount || 0) - embroiderySideSet.size
+    Math.floor(decoratedSidesCount || 0) - nonDtfSideSet.size
   )
   let sideSurchargePerUnit =
     decoratedSidesResolved > 0 ? round2(decoratedSidesResolved * SIDE_SURCHARGE) : 0
@@ -179,7 +186,29 @@ export const calculatePricing = ({
     })
   }
 
-  const preciseUnitWithEmbroidery = preciseDiscountedUnit + embroideryPerUnit
+  // Screen-print add-on: colour-tier unit per screen side, added AFTER the
+  // quantity discount like embroidery. Setup fees are deliberately excluded —
+  // they're a separate cart line (one per screen), not a per-unit charge.
+  let screenPerUnit = 0
+  const screenRows: NonNullable<PricingBreakdown["screenRows"]> = []
+  for (const spec of screen ?? []) {
+    const { unitMajor, effectiveColours } = screenUnitMajor({
+      quantity: safeQuantity,
+      colours: spec.colours,
+      darkGarment: spec.darkGarment,
+      heavyGarment: screenHeavyGarment,
+    })
+    screenPerUnit = round2(screenPerUnit + unitMajor)
+    screenRows.push({
+      side: spec.side,
+      colours: Math.max(1, Math.round(spec.colours || 1)),
+      effectiveColours,
+      unitPriceCents: unitMajor,
+    })
+  }
+  const screenBelowMinimum = screenRows.length > 0 && safeQuantity < SCREEN_MIN_QUANTITY
+
+  const preciseUnitWithEmbroidery = preciseDiscountedUnit + embroideryPerUnit + screenPerUnit
   const discountedUnitPriceCents = round2(preciseUnitWithEmbroidery)
   const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
   const totalPriceCents = round2(preciseUnitWithEmbroidery * safeQuantity)
@@ -197,5 +226,8 @@ export const calculatePricing = ({
     tierPriceApplied: tierActive,
     embroideryPerUnitCents: embroideryPerUnit,
     embroideryRows: embroideryRows.length ? embroideryRows : undefined,
+    screenPerUnitCents: screenPerUnit,
+    screenRows: screenRows.length ? screenRows : undefined,
+    screenBelowMinimum: screenBelowMinimum || undefined,
   }
 }

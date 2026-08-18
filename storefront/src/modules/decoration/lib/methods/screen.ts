@@ -1,35 +1,29 @@
 import { splitGst } from "../gst"
 import type { Breakdown, RushTier } from "../types"
 
-export const SCREEN_MIN_QUANTITY = 25
-export const SCREEN_MAX_COLOURS = 6
-export const SCREEN_PER_SCREEN_FEE = 99
-export const SCREEN_REPEAT_SCREEN_FEE = 39
-export const SCREEN_HEAVY_GARMENT_SURCHARGE = 1
+// Single source of truth: the shared screen rate card (mirrored to the
+// backend and validated by check-screen-pricing-sync). This file re-exports
+// under its legacy names so the estimator + chatbot imports stay stable.
+import {
+  SCP_SCREEN_QUANTITY_TIERS,
+  SCREEN_HEAVY_GARMENT_SURCHARGE_MAJOR,
+  SCREEN_MAX_COLOURS,
+  SCREEN_MAX_QUANTITY,
+  SCREEN_MIN_QUANTITY,
+  SCREEN_REPEAT_SETUP_PER_SCREEN_MAJOR,
+  SCREEN_SETUP_PER_SCREEN_MAJOR,
+  type ScreenQuantityTier,
+} from "@modules/customizer/lib/scp-screen-print-pricing"
+
+export { SCREEN_MAX_COLOURS, SCREEN_MIN_QUANTITY }
+export type { ScreenQuantityTier }
+export const SCREEN_PER_SCREEN_FEE = SCREEN_SETUP_PER_SCREEN_MAJOR
+export const SCREEN_REPEAT_SCREEN_FEE = SCREEN_REPEAT_SETUP_PER_SCREEN_MAJOR
+export const SCREEN_HEAVY_GARMENT_SURCHARGE = SCREEN_HEAVY_GARMENT_SURCHARGE_MAJOR
+export const SCREEN_QUANTITY_TIERS = SCP_SCREEN_QUANTITY_TIERS
+export const SCREEN_OVER_MAX_QUANTITY = SCREEN_MAX_QUANTITY
 /** Rush (priority) = 30% of decoration + setup, mirroring the supplier's rush terms. */
 export const SCREEN_RUSH_RATE = 0.3
-
-export type ScreenQuantityTier = {
-  label: string
-  minQuantity: number
-  maxQuantity: number
-  /** Per-piece price for 1..6 colours. */
-  prices: [number, number, number, number, number, number]
-}
-
-/**
- * 2026-08 repricing: bands mirror the supplier's (DSP 1 Mar 2024 list) with a
- * tapering margin. Rows beyond 999 are intentionally omitted — quote manually.
- */
-export const SCREEN_QUANTITY_TIERS: ScreenQuantityTier[] = [
-  { label: "25–49", minQuantity: 25, maxQuantity: 49, prices: [8.6, 10.5, 12.45, 14.35, 16.25, 18.35] },
-  { label: "50–99", minQuantity: 50, maxQuantity: 99, prices: [5.15, 5.7, 6.55, 7.4, 8.3, 9.25] },
-  { label: "100–199", minQuantity: 100, maxQuantity: 199, prices: [4.0, 4.7, 5.1, 5.5, 5.95, 6.6] },
-  { label: "200–499", minQuantity: 200, maxQuantity: 499, prices: [3.2, 3.65, 3.95, 4.15, 4.35, 4.5] },
-  { label: "500–999", minQuantity: 500, maxQuantity: 999, prices: [2.15, 2.35, 2.55, 2.75, 2.9, 3.0] },
-]
-
-export const SCREEN_OVER_MAX_QUANTITY = 999
 
 export type ScreenInput = {
   /** 1–6, dark-garment auto-bumps via `darkGarment` flag. */

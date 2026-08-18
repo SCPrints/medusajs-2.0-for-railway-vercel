@@ -9,6 +9,7 @@ import {
   type PrintSpec,
   type RenderArtifact,
   type RenderPlacement,
+  type ScreenConfig,
   type SizeQuantity,
 } from "./types"
 
@@ -53,6 +54,11 @@ export type BuildCustomizerMetadataInput = {
    */
   sideEmbroideryConfigs?: Partial<Record<GarmentSide, EmbroideryConfig>>
   /**
+   * v3+: per-side screen-print config (colour count, dark-garment flag).
+   * Carry only sides whose method is "screen".
+   */
+  sideScreenConfigs?: Partial<Record<GarmentSide, ScreenConfig>>
+  /**
    * Stable identifier for the design-group this line belongs to. See
    * `CustomizerMetadata.group_id`. Caller passes a single id for all
    * lines produced by one addCustomizedToCart invocation.
@@ -82,19 +88,25 @@ export function buildCustomizerMetadataBase(
       ? input.customerOriginalFiles
       : null
 
-  // If any side is configured for embroidery, bump the metadata version to 3
-  // so downstream code knows to look for sideDecorationMethods. v2 carts
-  // continue to write version: 2 (print-only) for cleaner audit trails.
-  const hasEmbroidery =
+  // If any side uses a non-print method, bump the metadata version to 3 so
+  // downstream code knows to look for sideDecorationMethods (screen reuses
+  // the v3 schema — it's an additive optional field). v2 carts continue to
+  // write version: 2 (print-only) for cleaner audit trails.
+  const hasNonPrintMethod =
     input.sideDecorationMethods &&
-    Object.values(input.sideDecorationMethods).some((m) => m === "embroidery")
-  const version: 2 | 3 = hasEmbroidery ? 3 : 2
+    Object.values(input.sideDecorationMethods).some(
+      (m) => m === "embroidery" || m === "screen"
+    )
+  const version: 2 | 3 = hasNonPrintMethod ? 3 : 2
 
   const methodEntries = input.sideDecorationMethods
     ? Object.entries(input.sideDecorationMethods).filter(([, v]) => Boolean(v))
     : []
   const embroideryEntries = input.sideEmbroideryConfigs
     ? Object.entries(input.sideEmbroideryConfigs).filter(([, v]) => Boolean(v))
+    : []
+  const screenEntries = input.sideScreenConfigs
+    ? Object.entries(input.sideScreenConfigs).filter(([, v]) => Boolean(v))
     : []
 
   return {
@@ -125,6 +137,9 @@ export function buildCustomizerMetadataBase(
       : {}),
     ...(embroideryEntries.length > 0
       ? { sideEmbroideryConfigs: Object.fromEntries(embroideryEntries) as Partial<Record<GarmentSide, EmbroideryConfig>> }
+      : {}),
+    ...(screenEntries.length > 0
+      ? { sideScreenConfigs: Object.fromEntries(screenEntries) as Partial<Record<GarmentSide, ScreenConfig>> }
       : {}),
     ...(input.groupId ? { group_id: input.groupId } : {}),
     ...(typeof input.groupSize === "number" && input.groupSize > 0

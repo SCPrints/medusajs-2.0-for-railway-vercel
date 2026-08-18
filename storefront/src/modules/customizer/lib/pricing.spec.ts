@@ -84,6 +84,42 @@ describe("calculatePricing", () => {
     expect(pricing.sideSurchargePerUnitCents).toBeCloseTo(8.5, 2)
   })
 
+  it("prices screen sides by colour tier and excludes them from the DTF matrix", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 2,
+      decoratedSides: ["front", "back"],
+      totalQuantity: 100,
+      scpPrint: { printSizeId: "up_to_a4" },
+      prints: [
+        { side: "front", sizeId: "up_to_a4" },
+        { side: "back", sizeId: "up_to_a4" },
+      ],
+      screen: [{ side: "back", colours: 2 }],
+    })
+    // Front stays DTF (A4 @ 100+ = $9); back is screen (2-col @ 100-199 = $4.70).
+    expect(pricing.sideSurchargePerUnitCents).toBe(9)
+    expect(pricing.screenPerUnitCents).toBeCloseTo(4.7, 2)
+    expect(pricing.screenRows?.[0]?.effectiveColours).toBe(2)
+    expect(pricing.screenBelowMinimum).toBeUndefined()
+  })
+
+  it("adds heavy-garment surcharge and flags below-minimum screen quantities", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 1,
+      decoratedSides: ["front"],
+      totalQuantity: 10,
+      screen: [{ side: "front", colours: 1, darkGarment: true }],
+      screenHeavyGarment: true,
+    })
+    // Below min → tier 0 (25-49): 2 effective colours $10.50 + $1 heavy = $11.50.
+    expect(pricing.screenPerUnitCents).toBeCloseTo(11.5, 2)
+    expect(pricing.screenBelowMinimum).toBe(true)
+    // No DTF component — the only decorated side is screen.
+    expect(pricing.sideSurchargePerUnitCents).toBe(0)
+  })
+
   it("ignores prints[] when empty and falls back to side-level pricing", () => {
     const pricing = calculatePricing({
       basePriceCents: 25,

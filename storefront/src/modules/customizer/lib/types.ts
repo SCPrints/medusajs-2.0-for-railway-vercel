@@ -53,6 +53,23 @@ export type PricingInput = {
    * backend `computeScpLineDescriptor` charge.
    */
   embroidery?: EmbroideryPricingSpec[]
+  /**
+   * Sides decorated with SCREEN PRINT. Priced by colour count × quantity band
+   * (scp-screen-print-pricing matrix), never the DTF matrix — excluded from
+   * `prints`/`decoratedSides` like embroidery. Setup fees are NOT part of the
+   * unit price; they land as a separate cart line (one per screen).
+   */
+  screen?: ScreenPricingSpec[]
+  /** Product-level metadata.screen_heavy — hoodies/fleece/poly add $1/print on screen sides. */
+  screenHeavyGarment?: boolean
+}
+
+/** Pricing-only view of one screen-printed side. */
+export type ScreenPricingSpec = {
+  side: GarmentSide
+  /** Design colours 1..6 (underbase added automatically for dark garments). */
+  colours: number
+  darkGarment?: boolean
 }
 
 /** Pricing-only view of one embroidered side. */
@@ -95,6 +112,17 @@ export type PricingBreakdown = {
     unitPriceCents: number
     requiresQuote: boolean
   }>
+  /** Per-garment screen-print add-on (colour-tier unit × screen sides), major units. Excludes setup fees. */
+  screenPerUnitCents?: number
+  /** Per-side screen rows for the price-breakdown display. */
+  screenRows?: Array<{
+    side: GarmentSide
+    colours: number
+    effectiveColours: number
+    unitPriceCents: number
+  }>
+  /** True when screen sides exist but quantity is under the 25-piece minimum. */
+  screenBelowMinimum?: boolean
 }
 
 export type RenderPlacement = {
@@ -131,7 +159,20 @@ export type CustomerOriginalFileRef = {
  * Decoration method per garment side. Default is "print" for backwards
  * compatibility with v2 metadata (no method specified).
  */
-export type DecorationMethod = "print" | "embroidery"
+export type DecorationMethod = "print" | "embroidery" | "screen"
+
+/**
+ * Screen-print configuration for a single side. Captured when a side's
+ * decoration method is "screen" — colour count drives per-unit pricing and
+ * the number of setup screens (one screen per colour per position).
+ */
+export type ScreenConfig = {
+  side: GarmentSide
+  /** Design colours 1..6 (before any underbase). */
+  colours: number
+  /** Dark garment needs a white underbase — one extra screen + colour slot. */
+  darkGarment?: boolean
+}
 
 /**
  * Embroidery configuration for a single side. Captured when a side's
@@ -203,6 +244,12 @@ export type CustomizerMetadata = {
    * dimensions on each entry drive backend pricing for embroidery costs.
    */
   sideEmbroideryConfigs?: Partial<Record<GarmentSide, EmbroideryConfig>>
+  /**
+   * v3+: screen-print configuration for sides whose method is "screen".
+   * Keyed by side. Colour count drives backend pricing and the setup-fee
+   * line quantity (one screen per colour per position).
+   */
+  sideScreenConfigs?: Partial<Record<GarmentSide, ScreenConfig>>
   /**
    * Stable identifier for a "design group" — the set of cart lines that
    * share this same design across multiple (colour × size) variants.

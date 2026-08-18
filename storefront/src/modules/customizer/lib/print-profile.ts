@@ -13,7 +13,11 @@
 import type { GarmentSide } from "./types"
 import type { ScpPrintSizeId } from "./scp-dtf-print-pricing"
 
-export type PrintMethod = "print" | "embroidery"
+// "screen" never arrives from profile data (the backend vocabulary is
+// print/embroidery) — the customizer derives screen availability from print
+// availability and injects it client-side. It's in the union so method
+// arrays that include the injected value still type-check.
+export type PrintMethod = "print" | "embroidery" | "screen"
 
 export type PrintProfileArea = {
   key: string

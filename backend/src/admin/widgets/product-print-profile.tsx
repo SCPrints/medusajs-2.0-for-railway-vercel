@@ -46,6 +46,7 @@ type LoadState = {
   profile_handle: string | null
   is_custom: boolean
   methods: string[] | null
+  screen_heavy?: boolean
   custom_areas: Area[]
   resolved_areas: Area[] | null
   profiles: ProfileOption[]
@@ -58,6 +59,8 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
   const [customAreas, setCustomAreas] = useState<Area[]>([])
   const [methods, setMethods] = useState<string[]>(ALL_METHODS)
   const [initialMethods, setInitialMethods] = useState<string[]>(ALL_METHODS)
+  const [screenHeavy, setScreenHeavy] = useState(false)
+  const [initialScreenHeavy, setInitialScreenHeavy] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -97,6 +100,8 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
       const initM = json.methods?.length ? json.methods : unionMethods(profileAreas)
       setMethods(initM.length ? initM : ALL_METHODS)
       setInitialMethods(initM.length ? initM : ALL_METHODS)
+      setScreenHeavy(json.screen_heavy === true)
+      setInitialScreenHeavy(json.screen_heavy === true)
     } catch (err: any) {
       setError(err?.message ?? String(err))
     } finally {
@@ -121,7 +126,9 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
   }, [state, selected, customAreas, methods])
 
   const methodsChanged = isProfileMode && !setEq(methods, initialMethods)
-  const dirty = selected !== initialSelected || selected === CUSTOM || methodsChanged
+  const screenHeavyChanged = screenHeavy !== initialScreenHeavy
+  const dirty =
+    selected !== initialSelected || selected === CUSTOM || methodsChanged || screenHeavyChanged
 
   const save = async () => {
     if (!productId) return
@@ -151,6 +158,9 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
           state?.profiles.find((p) => p.handle === selected)?.areas ?? []
         const union = unionMethods(profileAreas)
         body.methods = setEq(methods, union) ? null : methods
+      }
+      if (screenHeavyChanged) {
+        body.screen_heavy = screenHeavy
       }
       const res = await fetch(`/admin/products/${productId}/print-profile`, {
         method: "POST",
@@ -279,6 +289,22 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
             </Text>
           </div>
         )}
+
+        <div className="flex flex-col gap-y-1 border-t pt-3">
+          <label className="flex items-center gap-x-2 text-sm">
+            <Checkbox
+              checked={screenHeavy}
+              disabled={loading || saving}
+              onCheckedChange={() => setScreenHeavy((v) => !v)}
+            />
+            Heavy garment — screen printing +$1.00/print
+          </label>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            Tick for hoodies, sweats, fleece and polyester garments. The
+            supplier charges extra to screen print these; the customizer passes
+            it through on screen-printed sides only (DTF is unaffected).
+          </Text>
+        </div>
 
         <div className="flex items-center justify-between">
           <Text size="xsmall" className="text-ui-fg-muted">

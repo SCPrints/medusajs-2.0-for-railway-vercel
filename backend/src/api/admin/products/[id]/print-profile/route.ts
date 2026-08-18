@@ -45,14 +45,22 @@ const postSchema = z
      * or null clears it (defer to the profile). Only meaningful in profile mode.
      */
     methods: z.array(z.enum(PRINT_METHODS)).nullable().optional(),
+    /**
+     * Heavy-garment flag for SCREEN pricing (hoodies/sweats/fleece/poly —
+     * the supplier charges +$0.60/print, we pass through +$1.00). Staff-
+     * controlled per product; independent of profile/methods handling.
+     * true = set metadata.screen_heavy, false/null = clear.
+     */
+    screen_heavy: z.boolean().nullable().optional(),
   })
   .refine(
     (b) =>
       b.profile_handle !== undefined ||
       b.areas !== undefined ||
-      b.methods !== undefined,
+      b.methods !== undefined ||
+      b.screen_heavy !== undefined,
     {
-      message: "Provide profile_handle, areas, or methods.",
+      message: "Provide profile_handle, areas, methods, or screen_heavy.",
     }
   )
 
@@ -116,6 +124,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     profile_handle: handle,
     is_custom: isCustom,
     methods: methodFilter,
+    screen_heavy: meta.screen_heavy === true,
     custom_areas: isCustom ? sanitizeAreas(meta.print_config) : [],
     resolved_areas: resolvedFiltered,
     profiles: profiles.map((p) => ({
@@ -196,6 +205,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         delete meta.print_methods
       }
     }
+  }
+
+  // Heavy-garment flag is orthogonal to the profile branches above — it's a
+  // screen-pricing property, not a print-location property. Handle it outside
+  // the chain so a profile change never silently rewrites it.
+  if (body.screen_heavy !== undefined) {
+    if (body.screen_heavy === true) meta.screen_heavy = true
+    else delete meta.screen_heavy
   }
 
   await productModule.updateProducts(id, { metadata: meta })

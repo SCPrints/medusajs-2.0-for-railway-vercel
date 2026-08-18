@@ -14,11 +14,13 @@ type Props = {
 const METHOD_LABEL: Record<DecorationMethod, string> = {
   print: "Print",
   embroidery: "Embroidery",
+  screen: "Screen Print",
 }
 
 const METHOD_HINT: Record<DecorationMethod, string> = {
   print: "Digital print (DTF). Larger images, photo-realistic.",
   embroidery: "Stitched thread. Smaller logos, premium finish.",
+  screen: "Classic ink prints. Best value at 25+ pieces, up to 6 colours.",
 }
 
 /**
@@ -34,13 +36,19 @@ const DecorationMethodPicker: React.FC<Props> = ({
 }) => {
   // When only one method is available (e.g. embroidery-only for beanies),
   // render full-width single-column so the card doesn't look squashed.
-  const isSingleMethod = availableMethods.length === 1
+  // Three methods stack vertically — three squeezed columns are unreadable.
+  const gridClass =
+    availableMethods.length === 1
+      ? "grid grid-cols-1 gap-2"
+      : availableMethods.length >= 3
+      ? "grid grid-cols-1 gap-2"
+      : "grid grid-cols-2 gap-2"
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-[11px] font-semibold uppercase tracking-wide text-ui-fg-subtle">
         Method
       </span>
-      <div className={isSingleMethod ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"}>
+      <div className={gridClass}>
         {availableMethods.map((method) => {
           const selected = value === method
           return (

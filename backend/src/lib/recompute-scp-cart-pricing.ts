@@ -22,6 +22,7 @@ import {
   MAX_AUTO_PRICED_STITCHES,
   calculateEmbroideryUnitPriceMajor,
 } from "./embroidery-pricing"
+import { screenUnitMajor } from "./scp-screen-print-pricing"
 
 /**
  * Cross-cart bulk-tier aggregation.
@@ -86,6 +87,7 @@ const aggregationDisabled = (): boolean => {
 }
 
 type SideEmbroideryConfig = { stitchCount?: number; includeDigitizingFee?: boolean }
+type SideScreenConfig = { colours?: number; darkGarment?: boolean }
 
 const readScpServerBlock = (
   metadata: Record<string, unknown> | null | undefined
@@ -96,6 +98,8 @@ const readScpServerBlock = (
   storedGarmentMajor: number | null
   sideDecorationMethods: Record<string, string>
   sideEmbroideryConfigs: Record<string, SideEmbroideryConfig>
+  sideScreenConfigs: Record<string, SideScreenConfig>
+  screenHeavyGarment: boolean
 } | null => {
   if (!metadata || typeof metadata !== "object") return null
   const customizerDesign = metadata.customizerDesign as Record<string, unknown> | undefined
@@ -131,6 +135,20 @@ const readScpServerBlock = (
     customizerDesign.sideEmbroideryConfigs !== null
       ? (customizerDesign.sideEmbroideryConfigs as Record<string, SideEmbroideryConfig>)
       : {}
+  const sideScreenConfigs =
+    typeof customizerDesign.sideScreenConfigs === "object" &&
+    customizerDesign.sideScreenConfigs !== null
+      ? (customizerDesign.sideScreenConfigs as Record<string, SideScreenConfig>)
+      : {}
+  // Heavy-garment surcharge as resolved server-side at add time (from
+  // product.metadata.screen_heavy) — reuse the stamped breakdown so the
+  // recompute doesn't need another product lookup.
+  const screenBreakdownRaw = server.screen_breakdown
+  const screenHeavyGarment =
+    Array.isArray(screenBreakdownRaw) &&
+    screenBreakdownRaw.some(
+      (entry) => (entry as { heavyGarment?: unknown })?.heavyGarment === true
+    )
 
   return {
     printSizeId,
@@ -139,6 +157,8 @@ const readScpServerBlock = (
     storedGarmentMajor,
     sideDecorationMethods,
     sideEmbroideryConfigs,
+    sideScreenConfigs,
+    screenHeavyGarment,
   }
 }
 
@@ -214,6 +234,9 @@ const computeNewUnitPriceMajor = (
   const embroiderySides = scpBlock.decoratedSides.filter(
     (side) => methods[side] === "embroidery"
   )
+  const screenSides = scpBlock.decoratedSides.filter(
+    (side) => methods[side] === "screen"
+  )
 
   const tierIndex = resolveScpTierIndexForQuantity(aggregatedQty)
   const printTotalMajor =
@@ -246,10 +269,28 @@ const computeNewUnitPriceMajor = (
     }).unitPriceMajor
   }
 
+  // Screen sides re-tier on the aggregated cart quantity like DTF prints —
+  // a screen run's per-piece price falls as the job grows. Heavy-garment
+  // surcharge reuses the server-resolved flag stamped at add time.
+  let screenTotalMajor = 0
+  for (const side of screenSides) {
+    const cfg = scpBlock.sideScreenConfigs[side]
+    screenTotalMajor = round2(
+      screenTotalMajor +
+        screenUnitMajor({
+          quantity: aggregatedQty,
+          colours: Math.max(1, Math.floor(cfg?.colours ?? 1)),
+          darkGarment: cfg?.darkGarment === true,
+          heavyGarment: scpBlock.screenHeavyGarment,
+        }).unitMajor
+    )
+  }
+
   return round2(
     Math.max(0, garmentMajor) +
       Math.max(0, printTotalMajor) +
-      Math.max(0, embroideryTotalMajor)
+      Math.max(0, embroideryTotalMajor) +
+      Math.max(0, screenTotalMajor)
   )
 }
 

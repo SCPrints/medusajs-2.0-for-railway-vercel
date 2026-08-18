@@ -28,6 +28,10 @@ import {
   calculateEmbroideryUnitPriceMajor,
 } from "./embroidery-pricing"
 import {
+  SCP_SCREEN_PRICING_VERSION,
+  screenUnitMajor,
+} from "./scp-screen-print-pricing"
+import {
   RemoteJoinerGraphLike,
   resolveGarmentUnitAmountMajor,
 } from "./scp-resolve-garment-unit-price"
@@ -50,6 +54,15 @@ export type EmbroideryBreakdownEntry = {
   requiresQuote: boolean
 }
 
+export type ScreenBreakdownEntry = {
+  side: string
+  colours: number
+  effectiveColours: number
+  darkGarment: boolean
+  heavyGarment: boolean
+  unitPriceMajor: number
+}
+
 export type ScpLineDescriptor = {
   variantId: string
   quantity: number
@@ -61,6 +74,8 @@ export type ScpLineDescriptor = {
   printSides: string[]
   embroiderySides: string[]
   embroideryBreakdown: EmbroideryBreakdownEntry[]
+  screenSides: string[]
+  screenBreakdown: ScreenBreakdownEntry[]
 }
 
 export type ScpLineDescriptorInput = {
@@ -129,12 +144,23 @@ export async function computeScpLineDescriptor(
           { stitchCount?: number; includeDigitizingFee?: boolean }
         >)
       : {}
+  const sideScreenConfigs =
+    typeof customizerDesignForMethods.sideScreenConfigs === "object" &&
+    customizerDesignForMethods.sideScreenConfigs !== null
+      ? (customizerDesignForMethods.sideScreenConfigs as Record<
+          string,
+          { colours?: number; darkGarment?: boolean }
+        >)
+      : {}
 
   const printSides = decoratedSides.filter(
     (side) => (sideDecorationMethods[side] ?? "print") === "print"
   )
   const embroiderySides = decoratedSides.filter(
     (side) => sideDecorationMethods[side] === "embroidery"
+  )
+  const screenSides = decoratedSides.filter(
+    (side) => sideDecorationMethods[side] === "screen"
   )
 
   const printLocations = decoratedLocations.filter((loc) => {
@@ -189,6 +215,49 @@ export async function computeScpLineDescriptor(
     })
   }
 
+  // Screen-printed sides: colour-tier unit per side. The heavy-garment
+  // surcharge is a PRODUCT property (metadata.screen_heavy, staff-controlled)
+  // — read server-side so the client can't omit it to shave the price.
+  let screenTotalMajor = 0
+  const screenBreakdown: ScreenBreakdownEntry[] = []
+  if (screenSides.length > 0) {
+    let heavyGarment = false
+    try {
+      const { data: variantRows } = await query.graph({
+        entity: "variant",
+        fields: ["id", "product.metadata"],
+        filters: { id: variantId },
+      })
+      const productMeta = (variantRows?.[0] as any)?.product?.metadata as
+        | Record<string, unknown>
+        | undefined
+      heavyGarment = productMeta?.screen_heavy === true
+    } catch {
+      // Metadata lookup is best-effort — missing lookup prices without the
+      // surcharge rather than failing the cart add.
+    }
+    for (const side of screenSides) {
+      const cfg = sideScreenConfigs[side]
+      const colours = Math.max(1, Math.floor(cfg?.colours ?? 1))
+      const darkGarment = cfg?.darkGarment === true
+      const result = screenUnitMajor({
+        quantity,
+        colours,
+        darkGarment,
+        heavyGarment,
+      })
+      screenTotalMajor = round2(screenTotalMajor + result.unitMajor)
+      screenBreakdown.push({
+        side,
+        colours,
+        effectiveColours: result.effectiveColours,
+        darkGarment,
+        heavyGarment,
+        unitPriceMajor: result.unitMajor,
+      })
+    }
+  }
+
   const garmentMajor = await resolveGarmentUnitAmountMajor({
     query,
     variantId,
@@ -200,7 +269,8 @@ export async function computeScpLineDescriptor(
   const unitPriceMajor = round2(
     Math.max(0, garmentMajor) +
       Math.max(0, printTotalMajor) +
-      Math.max(0, embroideryTotalMajor)
+      Math.max(0, embroideryTotalMajor) +
+      Math.max(0, screenTotalMajor)
   )
 
   const customizerDesignRaw = mergedMetadata.customizerDesign
@@ -220,10 +290,15 @@ export async function computeScpLineDescriptor(
     pricing: {
       ...pricingExisting,
       server: {
-        mode: embroiderySides.length > 0 ? "scp_dtf_mixed" : "scp_dtf",
+        mode:
+          embroiderySides.length > 0 || screenSides.length > 0
+            ? "scp_dtf_mixed"
+            : "scp_dtf",
         version: SCP_PRINT_PRICING_VERSION,
         embroidery_version:
           embroiderySides.length > 0 ? EMBROIDERY_PRICING_VERSION : undefined,
+        screen_version:
+          screenSides.length > 0 ? SCP_SCREEN_PRICING_VERSION : undefined,
         print_size_id: printSizeId,
         tier_index: tierIndex,
         quantity_tier_label: SCP_BLANK_ALIGNED_QUANTITY_TIERS[tierIndex]?.label ?? null,
@@ -232,10 +307,13 @@ export async function computeScpLineDescriptor(
         decorated_locations: decoratedLocations,
         print_side_keys: printSides,
         embroidery_side_keys: embroiderySides,
+        screen_side_keys: screenSides,
         garment_unit_major: garmentMajor,
         print_total_major_per_garment: printTotalMajor,
         embroidery_total_major_per_garment: embroideryTotalMajor,
         embroidery_breakdown: embroideryBreakdown,
+        screen_total_major_per_garment: screenTotalMajor,
+        screen_breakdown: screenBreakdown,
         unit_price_major: unitPriceMajor,
       },
     },
@@ -254,5 +332,7 @@ export async function computeScpLineDescriptor(
     printSides,
     embroiderySides,
     embroideryBreakdown,
+    screenSides,
+    screenBreakdown,
   }
 }

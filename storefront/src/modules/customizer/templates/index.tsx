@@ -64,6 +64,7 @@ import {
   EmbroideryConfig,
   GarmentSide,
   PrintSpec,
+  ScreenConfig,
   SizeQuantity,
 } from "@modules/customizer/lib/types"
 import {
@@ -75,6 +76,11 @@ import {
 } from "@modules/customizer/lib/print-profile"
 import DecorationMethodPicker from "@modules/customizer/components/decoration-method-picker"
 import EmbroiderySideConfig from "@modules/customizer/components/embroidery-side-config"
+import ScreenSideConfig from "@modules/customizer/components/screen-side-config"
+import {
+  SCREEN_MAX_COLOURS,
+  SCREEN_MIN_QUANTITY,
+} from "@modules/customizer/lib/scp-screen-print-pricing"
 import {
   canvasPxToApproxCm,
   printSpecsToPricingSpecs,
@@ -658,6 +664,14 @@ export default function CustomizerTemplate({
   const [sideEmbroideryConfigs, setSideEmbroideryConfigs] = useState<
     Partial<Record<GarmentSide, EmbroideryConfig>>
   >({})
+  /**
+   * Per-side screen-print config (colour count + dark-garment flag). Only
+   * populated for sides whose method is "screen". v3 schema field — see
+   * CustomizerMetadata.sideScreenConfigs.
+   */
+  const [sideScreenConfigs, setSideScreenConfigs] = useState<
+    Partial<Record<GarmentSide, ScreenConfig>>
+  >({})
   // showSideNudge: brief banner when switching to an empty side in embedded mode
   const [showSideNudge, setShowSideNudge] = useState(false)
   // "Edit existing cart line" mode: when present, the customizer pre-fills from
@@ -972,6 +986,15 @@ export default function CustomizerTemplate({
     [selectedProduct]
   )
   /**
+   * Staff-controlled per-product flag (admin product print-profile widget,
+   * metadata.screen_heavy): hoodies/sweats/fleece/poly cost +$1/print on
+   * SCREEN sides only — mirrors the supplier's heavy-garment surcharge.
+   */
+  const screenHeavyGarment = useMemo(
+    () => (selectedProduct?.metadata as Record<string, unknown> | undefined)?.screen_heavy === true,
+    [selectedProduct]
+  )
+  /**
    * Sides the customer can print on for this product. Hats: front only —
    * the curved crown is the single realistic transfer location. Bottom-
    * half garments and accessories (pants, totes, bags, beanies, aprons,
@@ -1049,11 +1072,21 @@ export default function CustomizerTemplate({
    * both print and embroidery.
    */
   const availableMethodsForCurrentSide = useMemo<PrintMethod[]>(() => {
+    // Screen availability is derived, not profile-stored: any side that can
+    // take a DTF print can take a screen print (same flat print areas). The
+    // profile vocabulary stays print/embroidery; screen is injected here.
+    // Sleeves/tags are excluded — screen runs are chest/back placements.
+    const withScreen = (methods: PrintMethod[]): PrintMethod[] =>
+      methods.includes("print") && (currentSide === "front" || currentSide === "back")
+        ? [...methods.filter((m) => m !== "screen"), "screen"]
+        : methods
     if (printProfile) {
       const fromProfile = profileMethodsForSide(printProfile, currentSide)
-      if (fromProfile.length) return fromProfile
+      if (fromProfile.length) return withScreen(fromProfile)
     }
-    return productIsBeanie || productIsPuffer ? ["embroidery"] : ["print", "embroidery"]
+    return productIsBeanie || productIsPuffer
+      ? ["embroidery"]
+      : withScreen(["print", "embroidery"])
   }, [printProfile, currentSide, productIsBeanie, productIsPuffer])
 
   /**
@@ -1433,16 +1466,35 @@ export default function CustomizerTemplate({
     [decoratedSides, sideDecorationMethods, sideEmbroideryConfigs]
   )
 
-  // Print rows shown in the pricing panel — embroidery sides render as
-  // embroidery rows instead, so drop them from the per-print list.
+  /**
+   * Screen-printed sides priced by colour count. Same contract as
+   * embroiderySpecs: feeding these into calculatePricing excludes the sides
+   * from the DTF matrix and adds the colour-tier unit instead.
+   */
+  const screenSpecs = useMemo(
+    () =>
+      decoratedSides
+        .filter((side) => sideDecorationMethods[side] === "screen")
+        .map((side) => ({
+          side,
+          colours: sideScreenConfigs[side]?.colours ?? 1,
+          darkGarment: sideScreenConfigs[side]?.darkGarment === true,
+        })),
+    [decoratedSides, sideDecorationMethods, sideScreenConfigs]
+  )
+
+  // Print rows shown in the pricing panel — embroidery/screen sides render
+  // as their own rows instead, so drop them from the per-print list.
   const printSpecsForDisplay = useMemo(
     () =>
-      embroiderySpecs.length
+      embroiderySpecs.length || screenSpecs.length
         ? printSpecs.filter(
-            (p) => sideDecorationMethods[p.side] !== "embroidery"
+            (p) =>
+              sideDecorationMethods[p.side] !== "embroidery" &&
+              sideDecorationMethods[p.side] !== "screen"
           )
         : printSpecs,
-    [printSpecs, embroiderySpecs, sideDecorationMethods]
+    [printSpecs, embroiderySpecs, screenSpecs, sideDecorationMethods]
   )
 
   // Memoised so the object identity is stable for the memoised <PricingPanel/>.
@@ -1460,6 +1512,8 @@ export default function CustomizerTemplate({
         prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
         tierUnitCents,
         embroidery: embroiderySpecs,
+        screen: screenSpecs,
+        screenHeavyGarment,
       }),
     [
       basePriceCents,
@@ -1471,6 +1525,8 @@ export default function CustomizerTemplate({
       printSpecs,
       tierUnitCents,
       embroiderySpecs,
+      screenSpecs,
+      screenHeavyGarment,
     ]
   )
 
@@ -2203,6 +2259,9 @@ export default function CustomizerTemplate({
     }
     if (pendingHydration.sideEmbroideryConfigs) {
       setSideEmbroideryConfigs(pendingHydration.sideEmbroideryConfigs)
+    }
+    if (pendingHydration.sideScreenConfigs) {
+      setSideScreenConfigs(pendingHydration.sideScreenConfigs)
     }
 
     // Restore manual size overrides so a re-edit of a saved/ordered design
@@ -3696,6 +3755,7 @@ export default function CustomizerTemplate({
           prints: printSpecs,
           sideDecorationMethods,
           sideEmbroideryConfigs,
+          sideScreenConfigs,
         }),
         variantId: selectedVariant.id,
       }
@@ -3768,6 +3828,67 @@ export default function CustomizerTemplate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /**
+   * Screen-setup fee line: one hidden service variant (env
+   * NEXT_PUBLIC_SCREEN_SETUP_VARIANT_ID), quantity = number of screens
+   * (colours incl. underbase, summed over screen-printed positions), keyed
+   * to the design group via metadata so re-edits update instead of
+   * duplicating. Soft-fails — staff add the fee at art review if the
+   * automatic add doesn't land. Returns false when a follow-up is needed.
+   */
+  const syncScreenSetupLine = async (
+    groupId: string,
+    screensNeeded: number
+  ): Promise<boolean> => {
+    const screenSetupVariantId =
+      process.env.NEXT_PUBLIC_SCREEN_SETUP_VARIANT_ID?.trim()
+    if (!screenSetupVariantId) return screensNeeded === 0
+    try {
+      const existingCart = await retrieveCart()
+      const existing = (existingCart?.items ?? []).filter((line: any) => {
+        const meta = (line?.metadata ?? {}) as Record<string, unknown>
+        return meta.screen_setup_for_group === groupId
+      })
+      const currentScreens = existing.reduce(
+        (sum: number, line: any) => sum + (line.quantity || 0),
+        0
+      )
+      if (currentScreens === screensNeeded) return true
+      for (const line of existing) {
+        await deleteLineItem((line as any).id)
+      }
+      if (screensNeeded > 0) {
+        const result = await addToCartSafe({
+          variantId: screenSetupVariantId,
+          quantity: screensNeeded,
+          countryCode,
+          metadata: {
+            screen_setup_for_order: true,
+            screen_setup_for_group: groupId,
+          },
+        })
+        return result.ok
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /** Screens needed for the current design: colours (+ underbase) per screen side. */
+  const countScreensForSides = (sides: GarmentSide[]): number =>
+    sides.reduce((sum, side) => {
+      if (sideDecorationMethods[side] !== "screen") return sum
+      const cfg = sideScreenConfigs[side]
+      const colours = Math.max(
+        1,
+        Math.min(SCREEN_MAX_COLOURS, Math.round(cfg?.colours ?? 1))
+      )
+      return (
+        sum + Math.min(SCREEN_MAX_COLOURS, colours + (cfg?.darkGarment ? 1 : 0))
+      )
+    }, 0)
+
   const addCustomizedToCart = async (
     bulkCells?: Array<{
       variant: HttpTypes.StoreProductVariant
@@ -3810,6 +3931,19 @@ export default function CustomizerTemplate({
     const decoratedSides = DESIGN_SIDES.filter((side) => (sideLayoutsRef.current[side] ?? []).length > 0)
     if (!decoratedSides.length) {
       setUploadError("Add at least one design element before checkout.")
+      return
+    }
+
+    // Screen printing has a hard 25-piece minimum (the supplier's run
+    // minimum) — block the add rather than silently pricing at the 25-49
+    // tier for a quantity we can't actually produce.
+    const hasScreenSides = decoratedSides.some(
+      (side) => sideDecorationMethods[side] === "screen"
+    )
+    if (hasScreenSides && totalQuantity < SCREEN_MIN_QUANTITY) {
+      setUploadError(
+        `Screen printing needs at least ${SCREEN_MIN_QUANTITY} pieces. Increase the quantity, or switch the screen-printed side(s) to Print (DTF) for small runs.`
+      )
       return
     }
 
@@ -4081,6 +4215,7 @@ export default function CustomizerTemplate({
         prints: printSpecs,
         sideDecorationMethods,
         sideEmbroideryConfigs,
+        sideScreenConfigs,
         groupId: groupIdForThisAdd,
         groupSize: groupSizeForThisAdd,
       })
@@ -4149,6 +4284,16 @@ export default function CustomizerTemplate({
               metadata: { vectorization_for_order: true },
             })
           }
+        }
+
+        // Screen-setup fee: re-sync on every design edit (colour count may
+        // have changed, or screen sides removed entirely — 0 clears the line).
+        const editScreens = countScreensForSides(decoratedSides)
+        const editSetupOk = await syncScreenSetupLine(groupIdForThisAdd, editScreens)
+        if (!editSetupOk) {
+          setStatusMessage(
+            "Design updated, but the screen setup fee couldn't be updated automatically — our team will correct it during artwork review."
+          )
         }
 
         trackCustomizerFunnel("design_updated_in_cart", {
@@ -4639,6 +4784,17 @@ export default function CustomizerTemplate({
         }
       }
 
+      // Screen-setup fee line (one per design group, qty = screens needed).
+      const screensNeeded = countScreensForSides(decoratedSides)
+      if (screensNeeded > 0) {
+        const setupOk = await syncScreenSetupLine(groupIdForThisAdd, screensNeeded)
+        if (!setupOk) {
+          setStatusMessage(
+            "Items were added, but the screen setup fee couldn't be added automatically — our team will add it during artwork review."
+          )
+        }
+      }
+
       // Edit-from-cart: replace the original line(s) by deleting after the
       // new line(s) have been added successfully. Three paths:
       // - Group-edit (?edit_group=<id>, bulk grid): delete every line
@@ -4781,6 +4937,8 @@ export default function CustomizerTemplate({
         prints: printSpecs.length > 0 ? printSpecsToPricingSpecs(printSpecs) : undefined,
         tierUnitCents,
         embroidery: embroiderySpecs,
+        screen: screenSpecs,
+        screenHeavyGarment,
       })
       const activeTier = breakdown.activeBulkTier
       // calculatePricing's `*Cents` fields are misnamed — Medusa 2.x stores
@@ -5339,14 +5497,31 @@ export default function CustomizerTemplate({
               availableMethods={availableMethodsForCurrentSide}
               onChange={(side, method) => {
                 setSideDecorationMethods((prev) => ({ ...prev, [side]: method }))
-                if (method === "embroidery") {
-                  setSizingDoneSides((prev) => ({ ...prev, [side]: true }))
-                } else {
+                if (method !== "embroidery") {
                   setSideEmbroideryConfigs((prev) => {
                     const next = { ...prev }
                     delete next[side]
                     return next
                   })
+                }
+                if (method !== "screen") {
+                  setSideScreenConfigs((prev) => {
+                    const next = { ...prev }
+                    delete next[side]
+                    return next
+                  })
+                }
+                if (method === "embroidery" || method === "screen") {
+                  // Neither method uses the DTF print-size step — mark the
+                  // side sized so the upload panel + Step 3 unlock.
+                  setSizingDoneSides((prev) => ({ ...prev, [side]: true }))
+                  if (method === "screen" && !sideScreenConfigs[side]) {
+                    setSideScreenConfigs((prev) => ({
+                      ...prev,
+                      [side]: { side, colours: 1, darkGarment: false },
+                    }))
+                  }
+                } else {
                   setSizingDoneSides((prev) => {
                     const next = { ...prev }
                     delete next[side]
@@ -5372,6 +5547,18 @@ export default function CustomizerTemplate({
               }}
               getArtworkDataUrl={getCurrentSideArtworkDataUrl}
             />
+          ) : sideDecorationMethods[currentSide] === "screen" ? (
+            <ScreenSideConfig
+              // Remount per side — same seeding contract as EmbroiderySideConfig.
+              key={currentSide}
+              side={currentSide}
+              value={sideScreenConfigs[currentSide]}
+              onChange={(side, next) => {
+                setSideScreenConfigs((prev) => ({ ...prev, [side]: next }))
+              }}
+              totalQuantity={totalQty}
+              heavyGarment={screenHeavyGarment}
+            />
           ) : allowedSizesForCurrentSide.length === 1 &&
             allowedSizesForCurrentSide[0] === "up_to_a6" ? (
             <p className="rounded-md bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
@@ -5385,7 +5572,8 @@ export default function CustomizerTemplate({
               long-sleeve garments can go up to A3 (29×42 cm).
             </p>
           ) : null}
-          {sideDecorationMethods[currentSide] === "embroidery" ? null : (
+          {sideDecorationMethods[currentSide] === "embroidery" ||
+          sideDecorationMethods[currentSide] === "screen" ? null : (
             <div className="grid grid-cols-2 gap-2">
               {SCP_PRINT_SIZE_OPTIONS.filter((opt) =>
                 allowedSizesForCurrentSide.includes(opt.id)

@@ -516,7 +516,11 @@ function PricingPanel({
 
       <details
         className="group rounded-lg border border-ui-border-base bg-ui-bg-subtle/50"
-        open={pricing.sideSurchargePerUnitCents > 0 || pricing.embroideryPerUnitCents > 0}
+        open={
+          pricing.sideSurchargePerUnitCents > 0 ||
+          pricing.embroideryPerUnitCents > 0 ||
+          (pricing.screenPerUnitCents ?? 0) > 0
+        }
       >
         <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold text-ui-fg-base marker:hidden [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
@@ -642,6 +646,39 @@ function PricingPanel({
                   </li>
                 ))}
               </ul>
+            </div>
+          ) : null}
+          {pricing.screenRows && pricing.screenRows.length > 0 ? (
+            <div className="space-y-1">
+              <p className="flex justify-between font-medium">
+                <span>Screen print / garment</span>
+                <span>{formatMoney(pricing.screenPerUnitCents ?? 0, currencyCode)}</span>
+              </p>
+              <ul className="space-y-1 pl-2 text-[11px]">
+                {pricing.screenRows.map((row) => (
+                  <li
+                    key={`scr-${row.side}`}
+                    className="flex items-center justify-between gap-2 text-ui-fg-subtle"
+                  >
+                    <span className="capitalize">
+                      {row.side.replace(/_/g, " ")} · {row.effectiveColours} colour
+                      {row.effectiveColours > 1 ? "s" : ""}
+                      {row.effectiveColours > row.colours ? " (incl. underbase)" : ""}
+                    </span>
+                    <span className="font-medium text-ui-fg-base">
+                      {formatMoney(row.unitPriceCents, currencyCode)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-ui-fg-subtle">
+                + screen setup added as its own cart line ($99 per screen, one screen per colour).
+              </p>
+              {pricing.screenBelowMinimum ? (
+                <p className="text-[11px] font-medium text-ui-fg-error">
+                  Screen printing needs 25+ pieces — increase quantity or switch to Print (DTF).
+                </p>
+              ) : null}
             </div>
           ) : null}
           <p className="flex justify-between">
