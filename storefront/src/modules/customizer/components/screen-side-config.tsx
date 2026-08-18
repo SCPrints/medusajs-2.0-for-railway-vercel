@@ -256,6 +256,10 @@ const ScreenSideConfig: React.FC<Props> = ({
         {screens > 1 ? "s" : ""} × ${SCREEN_SETUP_PER_SCREEN_MAJOR} setup added at checkout
         {heavyGarment ? " · incl. $1.00 heavy-garment surcharge" : ""}
       </div>
+      <div className="text-[11px] text-ui-fg-subtle">
+        Size your artwork freely — screen prints are priced per colour, not by
+        size. Standard area up to 40×40 cm; larger prints are quoted separately.
+      </div>
       {belowMin ? (
         <div className="text-xs font-medium text-ui-fg-error">
           Screen printing needs at least {SCREEN_MIN_QUANTITY} pieces — increase the quantity

@@ -869,9 +869,14 @@ export default function CustomizerTemplate({
 
   // Per-side effective print size (sleeves & printed tag are forced to A6 in
   // pricing, so the visible print area mirrors that constraint too).
-  const effectivePrintSizeIdForArea = resolveScpPrintSizeForSide(
-    currentSide,
-    scpPrintSizeId
+  // SCREEN sides are not DTF-size-tiered — pricing is per colour, and the
+  // supplier's standard area (40×40cm) is close to the full footprint — so
+  // unlock the full "oversize" area instead of inheriting the DTF tile
+  // (which defaults to A6 and would lock artwork small).
+  const effectivePrintSizeIdForArea = (
+    sideDecorationMethods[currentSide] === "screen"
+      ? "oversize"
+      : resolveScpPrintSizeForSide(currentSide, scpPrintSizeId)
   ) as ScpPrintSizeId
   const printArea = useMemo(
     () =>
