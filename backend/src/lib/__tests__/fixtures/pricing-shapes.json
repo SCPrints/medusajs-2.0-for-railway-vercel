@@ -1,0 +1,1509 @@
+{
+ "cases": [
+  {
+   "name": "prod_01_423234912",
+   "source": "prod-order-line",
+   "quantity": "2",
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6",
+      "approxCm": {
+       "width": 5.4,
+       "height": 1.3
+      },
+      "objectId": "obj_rienjqrr",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": {
+     "front": "embroidery"
+    },
+    "sideEmbroideryConfigs": {
+     "front": {
+      "side": "front",
+      "aiNotes": "Simple 2-colour logo with outlined text and solid fill. Density 80–200 stitches/cm² for outline-predominant design with minimal solid areas.",
+      "widthMm": 80,
+      "heightMm": 80,
+      "stitchCount": 2240,
+      "digitizingFee": 60,
+      "includeDigitizingFee": true
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 17.5,
+     "unit_price_major": 26,
+     "print_total_major_per_garment": 0,
+     "embroidery_total_major_per_garment": 40.5,
+     "aggregated_quantity": 9
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 40.04,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 36.04,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 34.03,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 32.03,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 30.03,
+       "min_quantity": 100
+      }
+     ],
+     "source": "ladder-repair",
+     "ladder_note": "Rebuilt 2026-08-12 from trade cost 18.20 ex-GST (spreadsheet-sync had inverted the ladder: sheet held the trade price but was treated as the retail 100+ tier).",
+     "currency_code": "aud",
+     "base_sale_price": 40.04,
+     "tier_100_plus_price": 30.03,
+     "tier_10_to_19_price": 36.04,
+     "tier_20_to_49_price": 34.03,
+     "tier_50_to_99_price": 32.03
+    },
+    "cost_price_ex_gst_minor": 1820
+   }
+  },
+  {
+   "name": "prod_02_525810012",
+   "source": "prod-order-line",
+   "quantity": "3",
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6",
+      "approxCm": {
+       "width": 4.5,
+       "height": 1.1
+      },
+      "objectId": "obj_a33htjmb",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": {
+     "front": "embroidery"
+    },
+    "sideEmbroideryConfigs": {
+     "front": {
+      "side": "front",
+      "aiNotes": "Simple 2-colour logo with minimal fills and clean outlines. Narrow letterforms may need slight adjustment for thread passage at this scale.",
+      "widthMm": 80,
+      "heightMm": 80,
+      "stitchCount": 1760,
+      "digitizingFee": 60,
+      "includeDigitizingFee": true
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 15.9,
+     "unit_price_major": 24.4,
+     "print_total_major_per_garment": 0,
+     "embroidery_total_major_per_garment": 30.5,
+     "aggregated_quantity": 8
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 27.94,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 25.15,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 23.75,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 22.35,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 20.96,
+       "min_quantity": 100
+      }
+     ],
+     "source": "ladder-repair",
+     "ladder_note": "Rebuilt 2026-08-12 from trade cost 12.70 ex-GST (spreadsheet-sync had inverted the ladder: sheet held the trade price but was treated as the retail 100+ tier).",
+     "currency_code": "aud",
+     "base_sale_price": 27.94,
+     "tier_100_plus_price": 20.96,
+     "tier_10_to_19_price": 25.15,
+     "tier_20_to_49_price": 23.75,
+     "tier_50_to_99_price": 22.35
+    },
+    "cost_price_ex_gst_minor": 1270
+   }
+  },
+  {
+   "name": "prod_03_33542002092",
+   "source": "prod-order-line",
+   "quantity": "2",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a4",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a4",
+      "approxCm": {
+       "width": 9.5,
+       "height": 12.8
+      },
+      "objectId": "obj_uyqnncpt",
+      "manualSize": false
+     },
+     {
+      "side": "front",
+      "sizeId": "up_to_a4",
+      "approxCm": {
+       "width": 9.7,
+       "height": 13
+      },
+      "objectId": "obj_s7qsf8m3",
+      "manualSize": false
+     },
+     {
+      "side": "front",
+      "sizeId": "up_to_a6",
+      "approxCm": {
+       "width": 6.1,
+       "height": 8.3
+      },
+      "objectId": "obj_b5vwefnn",
+      "manualSize": false
+     },
+     {
+      "side": "front",
+      "sizeId": "up_to_a6",
+      "approxCm": {
+       "width": 6.2,
+       "height": 8.3
+      },
+      "objectId": "obj_4mdrze04",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a4",
+     "garment_unit_major": 32,
+     "unit_price_major": 71,
+     "print_total_major_per_garment": 39,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 56.32,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 50.69,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 47.87,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 45.06,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 42.24,
+       "min_quantity": 100
+      }
+     ],
+     "source": "ladder-repair",
+     "ladder_note": "Rebuilt 2026-08-12 from trade cost 25.60 ex-GST (spreadsheet-sync had inverted the ladder: sheet held the trade price but was treated as the retail 100+ tier).",
+     "currency_code": "aud",
+     "base_sale_price": 56.32,
+     "tier_100_plus_price": 42.24,
+     "tier_10_to_19_price": 50.69,
+     "tier_20_to_49_price": 47.87,
+     "tier_50_to_99_price": 45.06
+    },
+    "cost_price_ex_gst_minor": 2560
+   }
+  },
+  {
+   "name": "prod_04_5162BLACKHM",
+   "source": "prod-order-line",
+   "quantity": "1",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a4",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a4",
+      "approxCm": {
+       "width": 11.7,
+       "height": 11.2
+      },
+      "objectId": "obj_01mfgooe",
+      "manualSize": false
+     },
+     {
+      "side": "front",
+      "sizeId": "up_to_a6",
+      "approxCm": {
+       "width": 6.8,
+       "height": 11.5
+      },
+      "objectId": "obj_n6bli50l",
+      "manualSize": false
+     },
+     {
+      "side": "back",
+      "sizeId": "oversize",
+      "approxCm": {
+       "width": 27.9,
+       "height": 17.8
+      },
+      "objectId": "obj_wgvhyiq4",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a4",
+     "garment_unit_major": 67.1,
+     "unit_price_major": 101.6,
+     "print_total_major_per_garment": 34.5,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 67.1,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 60.39,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 57.04,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 53.68,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 50.33,
+       "min_quantity": 100
+      }
+     ],
+     "source": "ascolour-api",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": null
+   }
+  },
+  {
+   "name": "prod_05_5161BLACKL3XL",
+   "source": "prod-order-line",
+   "quantity": "1",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "oversize",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "oversize",
+      "approxCm": {
+       "width": 22.6,
+       "height": 21.5
+      },
+      "objectId": "obj_eaidv8ih",
+      "manualSize": false
+     },
+     {
+      "side": "back",
+      "sizeId": "oversize",
+      "approxCm": {
+       "width": 27.8,
+       "height": 39.7
+      },
+      "objectId": "obj_t80mbqi0",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "oversize",
+     "garment_unit_major": 57.09,
+     "unit_price_major": 87.09,
+     "print_total_major_per_garment": 30,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 57.09,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 51.38,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 48.53,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 45.67,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 42.82,
+       "min_quantity": 100
+      }
+     ],
+     "source": "ascolour-api",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": null
+   }
+  },
+  {
+   "name": "prod_06_5161WHITEHM",
+   "source": "prod-order-line",
+   "quantity": "10",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a4",
+      "approxCm": {
+       "width": 8,
+       "height": 3.5
+      },
+      "objectId": "obj_54fi5zaa",
+      "manualSize": false
+     },
+     {
+      "side": "back",
+      "sizeId": "up_to_a3",
+      "approxCm": {
+       "width": 19,
+       "height": 13.9
+      },
+      "objectId": "obj_dqvmb6do",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 51.38,
+     "unit_price_major": 71.38,
+     "print_total_major_per_garment": 20,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 57.09,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 51.38,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 48.53,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 45.67,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 42.82,
+       "min_quantity": 100
+      }
+     ],
+     "source": "ascolour-api",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": null
+   }
+  },
+  {
+   "name": "prod_07_S11220012",
+   "source": "prod-order-line",
+   "quantity": "1",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6",
+      "approxCm": {
+       "width": 7.9,
+       "height": 8.5
+      },
+      "objectId": "obj_3f2h5tsa",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 3.7,
+     "unit_price_major": 12.2,
+     "print_total_major_per_garment": 8.5,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 6.6,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 5.94,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 5.61,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 5.28,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 4.95,
+       "min_quantity": 100
+      }
+     ],
+     "source": "ladder-repair",
+     "ladder_note": "Rebuilt 2026-08-12 from trade cost 3.00 ex-GST (spreadsheet-sync had inverted the ladder: sheet held the trade price but was treated as the retail 100+ tier).",
+     "currency_code": "aud",
+     "base_sale_price": 6.6,
+     "tier_100_plus_price": 4.95,
+     "tier_10_to_19_price": 5.94,
+     "tier_20_to_49_price": 5.61,
+     "tier_50_to_99_price": 5.28
+    },
+    "cost_price_ex_gst_minor": 300
+   }
+  },
+  {
+   "name": "prod_08_9401042721679",
+   "source": "prod-order-line",
+   "quantity": "2",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a3",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6",
+      "approxCm": {
+       "width": 7.7,
+       "height": 4.9
+      },
+      "objectId": "obj_b3yen0aq",
+      "manualSize": false
+     },
+     {
+      "side": "back",
+      "sizeId": "up_to_a3",
+      "approxCm": {
+       "width": 18.2,
+       "height": 11.6
+      },
+      "objectId": "obj_6naqs7ez",
+      "manualSize": false
+     }
+    ],
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a3",
+     "garment_unit_major": 98.54,
+     "unit_price_major": 119.54,
+     "print_total_major_per_garment": 21,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 98.54,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 88.69,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 83.76,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 78.83,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 73.91,
+       "min_quantity": 100
+      }
+     ],
+     "source": "fashionbiz-api",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": null
+   }
+  },
+  {
+   "name": "prod_09_SW10M005BLACK2XL",
+   "source": "prod-order-line",
+   "quantity": "5",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": null,
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 32.89,
+     "unit_price_major": 37.1,
+     "print_total_major_per_garment": 8.5,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": 10
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 32.89,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 29.6,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 27.96,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 26.31,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 24.67,
+       "min_quantity": 100
+      }
+     ],
+     "source": "shaka-wear",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": 1495
+   }
+  },
+  {
+   "name": "prod_10_SW10M002DENIM2XL",
+   "source": "prod-order-line",
+   "quantity": "4",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a3",
+    "prints": null,
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a3",
+     "garment_unit_major": 35.31,
+     "unit_price_major": 52.78,
+     "print_total_major_per_garment": 25,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": 12
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 35.31,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 31.78,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 30.01,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 28.25,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 26.48,
+       "min_quantity": 100
+      }
+     ],
+     "source": "shaka-wear",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": 1605
+   }
+  },
+  {
+   "name": "prod_11_024193ASM0",
+   "source": "prod-order-line",
+   "quantity": "4",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": null,
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": {
+     "front": "print"
+    },
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 17.49,
+     "unit_price_major": 23.24,
+     "print_total_major_per_garment": 8.5,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": 12
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 17.49,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 15.74,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 14.87,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 13.99,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 13.12,
+       "min_quantity": 100
+      }
+     ],
+     "source": "gildan-xlsx",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": 795
+   }
+  },
+  {
+   "name": "prod_12_SW10M001DARKGREYS",
+   "source": "prod-order-line",
+   "quantity": "5",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "oversize",
+    "prints": null,
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "oversize",
+     "garment_unit_major": 25.3,
+     "unit_price_major": 49.77,
+     "print_total_major_per_garment": 30,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": 15
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 25.3,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 22.77,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 21.51,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 20.24,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 18.98,
+       "min_quantity": 100
+      }
+     ],
+     "source": "shaka-wear",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": 1150
+   }
+  },
+  {
+   "name": "prod_13_3307105",
+   "source": "prod-order-line",
+   "quantity": "1",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a3",
+    "prints": null,
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a3",
+     "garment_unit_major": 24.09,
+     "unit_price_major": 49.09,
+     "print_total_major_per_garment": 25,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 24.09,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 21.68,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 20.48,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 19.27,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 18.07,
+       "min_quantity": 100
+      }
+     ],
+     "source": "aussiepacific-api",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": null
+   }
+  },
+  {
+   "name": "prod_14_3307101",
+   "source": "prod-order-line",
+   "quantity": "10",
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a3",
+    "prints": null,
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": null
+     },
+     {
+      "side": "back",
+      "print_size_id": null
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a3",
+     "garment_unit_major": 24.09,
+     "unit_price_major": 49.09,
+     "print_total_major_per_garment": 25,
+     "embroidery_total_major_per_garment": 0,
+     "aggregated_quantity": null
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "amount": 24.09,
+       "max_quantity": 9,
+       "min_quantity": 1
+      },
+      {
+       "amount": 21.68,
+       "max_quantity": 19,
+       "min_quantity": 10
+      },
+      {
+       "amount": 20.48,
+       "max_quantity": 49,
+       "min_quantity": 20
+      },
+      {
+       "amount": 19.27,
+       "max_quantity": 99,
+       "min_quantity": 50
+      },
+      {
+       "amount": 18.07,
+       "min_quantity": 100
+      }
+     ],
+     "source": "aussiepacific-api",
+     "ladder_note": "Spreadsheet column Variant Price AUD = 100+ qty tier (20% off list); other tiers derived from list.",
+     "currency_code": "aud"
+    },
+    "cost_price_ex_gst_minor": null
+   }
+  },
+  {
+   "name": "synth_cap_no_ladder_stored_garment",
+   "quantity": 7,
+   "design": {
+    "version": 2,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": null,
+    "artifacts": [
+     {
+      "side": "front",
+      "print_size_id": "up_to_a6"
+     }
+    ],
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 12.05
+    }
+   },
+   "variant": {
+    "bulk_pricing": null,
+    "cost_price_ex_gst_minor": null
+   }
+  },
+  {
+   "name": "synth_mixed_print_emb_two_sides",
+   "quantity": 5,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a4",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6"
+     },
+     {
+      "side": "back",
+      "sizeId": "up_to_a4"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "embroidery",
+     "back": "print"
+    },
+    "sideEmbroideryConfigs": {
+     "front": {
+      "stitchCount": 5200,
+      "includeDigitizingFee": true
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a4",
+     "garment_unit_major": 30.8
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_poa_over_12k_stitches",
+   "quantity": 3,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "embroidery"
+    },
+    "sideEmbroideryConfigs": {
+     "front": {
+      "stitchCount": 15000,
+      "includeDigitizingFee": true
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 30.8
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_emb_zero_stitch_config",
+   "quantity": 4,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "embroidery"
+    },
+    "sideEmbroideryConfigs": {},
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 30.8
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_emb_no_digitizing",
+   "quantity": 26,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "embroidery"
+    },
+    "sideEmbroideryConfigs": {
+     "front": {
+      "stitchCount": 3000,
+      "includeDigitizingFee": false
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 26.18
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_printed_tag_a6_clamp",
+   "quantity": 12,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a3",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a3"
+     },
+     {
+      "side": "printed_tag",
+      "sizeId": "up_to_a3"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a3",
+     "garment_unit_major": 27.72
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_qty100_top_tier",
+   "quantity": 120,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "oversize",
+    "prints": [
+     {
+      "side": "back",
+      "sizeId": "oversize"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "oversize",
+     "garment_unit_major": 23.1
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_legacy_print_placement_only",
+   "quantity": 2,
+   "design": {
+    "version": 1,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": null,
+    "artifacts": null,
+    "sideDecorationMethods": null,
+    "sideEmbroideryConfigs": null,
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 20
+    },
+    "printPlacement": {
+     "side": "front"
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  }
+ ]
+}

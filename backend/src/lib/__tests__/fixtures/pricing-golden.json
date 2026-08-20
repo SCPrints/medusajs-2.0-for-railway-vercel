@@ -1,0 +1,383 @@
+{
+ "prod_01_423234912": {
+  "descriptor": {
+   "unitPriceMajor": 58,
+   "tierIndex": 0,
+   "printSides": [],
+   "embroiderySides": [
+    "front"
+   ],
+   "embroideryBreakdown": [
+    {
+     "side": "front",
+     "stitchCount": 2240,
+     "unitPriceMajor": 40.5,
+     "digitizingFeeMajor": 60,
+     "requiresQuote": false
+    }
+   ]
+  },
+  "recompute": {
+   "price": 80.54,
+   "excluded": false
+  }
+ },
+ "prod_02_525810012": {
+  "descriptor": {
+   "unitPriceMajor": 46.4,
+   "tierIndex": 0,
+   "printSides": [],
+   "embroiderySides": [
+    "front"
+   ],
+   "embroideryBreakdown": [
+    {
+     "side": "front",
+     "stitchCount": 1760,
+     "unitPriceMajor": 30.5,
+     "digitizingFeeMajor": 60,
+     "requiresQuote": false
+    }
+   ]
+  },
+  "recompute": {
+   "price": 58.44,
+   "excluded": false
+  }
+ },
+ "prod_03_33542002092": {
+  "descriptor": {
+   "unitPriceMajor": 72,
+   "tierIndex": 0,
+   "printSides": [
+    "front"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 96.32,
+   "excluded": false
+  }
+ },
+ "prod_04_5162BLACKHM": {
+  "descriptor": {
+   "unitPriceMajor": 105.1,
+   "tierIndex": 0,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 105.1,
+   "excluded": false
+  }
+ },
+ "prod_05_5161BLACKL3XL": {
+  "descriptor": {
+   "unitPriceMajor": 93.09,
+   "tierIndex": 0,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 93.09,
+   "excluded": false
+  }
+ },
+ "prod_06_5161WHITEHM": {
+  "descriptor": {
+   "unitPriceMajor": 76.88,
+   "tierIndex": 1,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 76.88,
+   "excluded": false
+  }
+ },
+ "prod_07_S11220012": {
+  "descriptor": {
+   "unitPriceMajor": 12.2,
+   "tierIndex": 0,
+   "printSides": [
+    "front"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 15.1,
+   "excluded": false
+  }
+ },
+ "prod_08_9401042721679": {
+  "descriptor": {
+   "unitPriceMajor": 123.04,
+   "tierIndex": 0,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 123.04,
+   "excluded": false
+  }
+ },
+ "prod_09_SW10M005BLACK2XL": {
+  "descriptor": {
+   "unitPriceMajor": 41.39,
+   "tierIndex": 0,
+   "printSides": [
+    "front"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 41.39,
+   "excluded": false
+  }
+ },
+ "prod_10_SW10M002DENIM2XL": {
+  "descriptor": {
+   "unitPriceMajor": 67.31,
+   "tierIndex": 0,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 67.31,
+   "excluded": false
+  }
+ },
+ "prod_11_024193ASM0": {
+  "descriptor": {
+   "unitPriceMajor": 25.99,
+   "tierIndex": 0,
+   "printSides": [
+    "front"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 25.99,
+   "excluded": false
+  }
+ },
+ "prod_12_SW10M001DARKGREYS": {
+  "descriptor": {
+   "unitPriceMajor": 61.3,
+   "tierIndex": 0,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 61.3,
+   "excluded": false
+  }
+ },
+ "prod_13_3307105": {
+  "descriptor": {
+   "unitPriceMajor": 56.09,
+   "tierIndex": 0,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 56.09,
+   "excluded": false
+  }
+ },
+ "prod_14_3307101": {
+  "descriptor": {
+   "unitPriceMajor": 54.09,
+   "tierIndex": 1,
+   "printSides": [
+    "front",
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 51.68,
+   "excluded": false
+  }
+ },
+ "synth_cap_no_ladder_stored_garment": {
+  "descriptor": {
+   "unitPriceMajor": 20.55,
+   "tierIndex": 0,
+   "printSides": [
+    "front"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 20.55,
+   "excluded": false
+  }
+ },
+ "synth_mixed_print_emb_two_sides": {
+  "descriptor": {
+   "unitPriceMajor": 65.55,
+   "tierIndex": 0,
+   "printSides": [
+    "back"
+   ],
+   "embroiderySides": [
+    "front"
+   ],
+   "embroideryBreakdown": [
+    {
+     "side": "front",
+     "stitchCount": 5200,
+     "unitPriceMajor": 23.25,
+     "digitizingFeeMajor": 60,
+     "requiresQuote": false
+    }
+   ]
+  },
+  "recompute": {
+   "price": 65.55,
+   "excluded": false
+  }
+ },
+ "synth_poa_over_12k_stitches": {
+  "descriptor": {
+   "unitPriceMajor": 30.8,
+   "tierIndex": 0,
+   "printSides": [],
+   "embroiderySides": [
+    "front"
+   ],
+   "embroideryBreakdown": [
+    {
+     "side": "front",
+     "stitchCount": 15000,
+     "unitPriceMajor": 0,
+     "digitizingFeeMajor": 0,
+     "requiresQuote": true
+    }
+   ]
+  },
+  "recompute": {
+   "price": 30.8,
+   "excluded": false
+  }
+ },
+ "synth_emb_zero_stitch_config": {
+  "descriptor": {
+   "unitPriceMajor": 30.8,
+   "tierIndex": 0,
+   "printSides": [],
+   "embroiderySides": [
+    "front"
+   ],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 30.8,
+   "excluded": false
+  }
+ },
+ "synth_emb_no_digitizing": {
+  "descriptor": {
+   "unitPriceMajor": 35.68,
+   "tierIndex": 2,
+   "printSides": [],
+   "embroiderySides": [
+    "front"
+   ],
+   "embroideryBreakdown": [
+    {
+     "side": "front",
+     "stitchCount": 3000,
+     "unitPriceMajor": 9.5,
+     "digitizingFeeMajor": 0,
+     "requiresQuote": false
+    }
+   ]
+  },
+  "recompute": {
+   "price": 35.68,
+   "excluded": false
+  }
+ },
+ "synth_printed_tag_a6_clamp": {
+  "descriptor": {
+   "unitPriceMajor": 50.22,
+   "tierIndex": 1,
+   "printSides": [
+    "front",
+    "printed_tag"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 50.22,
+   "excluded": false
+  }
+ },
+ "synth_qty100_top_tier": {
+  "descriptor": {
+   "unitPriceMajor": 39.1,
+   "tierIndex": 4,
+   "printSides": [
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 39.1,
+   "excluded": false
+  }
+ },
+ "synth_legacy_print_placement_only": {
+  "descriptor": {
+   "unitPriceMajor": 28.5,
+   "tierIndex": 0,
+   "printSides": [
+    "front"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": []
+  },
+  "recompute": {
+   "price": 39.3,
+   "excluded": false
+  }
+ }
+}
