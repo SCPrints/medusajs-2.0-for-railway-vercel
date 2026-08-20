@@ -27,7 +27,9 @@ import {
 import { resolveTierForCartCustomer } from "../lib/scp-resolve-garment-unit-price"
 import { getPostHog } from "../lib/posthog"
 
-const WINDOW_HOURS = 48
+// Default 48h; WINDOW_HOURS env override for manual backtests (older orders
+// may predate rate-card changes — expect legitimate-looking flags there).
+const WINDOW_HOURS = Number(process.env.WINDOW_HOURS) > 0 ? Number(process.env.WINDOW_HOURS) : 48
 const PAGE_SIZE = 50
 
 export default async function auditOrderPricing({ container }: ExecArgs) {
