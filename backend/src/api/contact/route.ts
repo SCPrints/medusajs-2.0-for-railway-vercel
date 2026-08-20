@@ -29,6 +29,7 @@ type ContactSubmissionInput = {
   firstName: string | null
   lastName: string | null
   email: string
+  phone: string
   subject: string | null
   message: string
   sourceOrigin: string | null
@@ -93,6 +94,7 @@ async function ensureContactSubmissionsTable() {
           first_name TEXT,
           last_name TEXT,
           email TEXT NOT NULL,
+          phone TEXT,
           subject TEXT,
           message TEXT NOT NULL,
           source_origin TEXT,
@@ -105,6 +107,9 @@ async function ensureContactSubmissionsTable() {
       // Back-fill the column on databases whose table predates attachments.
       await contactSubmissionPool.query(
         `ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS attachments JSONB`
+      )
+      await contactSubmissionPool.query(
+        `ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS phone TEXT`
       )
     })()
   }
@@ -122,19 +127,21 @@ async function createContactSubmission(input: ContactSubmissionInput) {
         first_name,
         last_name,
         email,
+        phone,
         subject,
         message,
         source_origin,
         source_ip,
         user_agent,
         attachments
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     `,
     [
       input.id,
       input.firstName,
       input.lastName,
       input.email,
+      input.phone,
       input.subject,
       input.message,
       input.sourceOrigin,
@@ -157,6 +164,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const firstName = typeof body.first_name === "string" ? body.first_name.trim() : null
   const lastName = typeof body.last_name === "string" ? body.last_name.trim() : null
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
+  const phone = typeof body.phone === "string" ? body.phone.trim().slice(0, 40) : ""
   const subject = typeof body.subject === "string" ? body.subject.trim() : null
   const message = typeof body.message === "string" ? body.message.trim() : ""
   const attachments = parseAttachments(body.attachments)
@@ -175,6 +183,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
+  // ponytail: digit count only — international formats vary too much to regex.
+  if ((phone.match(/\d/g)?.length ?? 0) < 8) {
+    return res.status(400).json({
+      success: false,
+      message: "Please enter a valid phone number.",
+    })
+  }
+
   const submissionId = ulid()
   const sourceIpHeader = req.headers["x-forwarded-for"]
   const sourceIp = Array.isArray(sourceIpHeader)
@@ -189,6 +205,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       firstName,
       lastName,
       email,
+      phone,
       subject,
       message,
       sourceOrigin,
@@ -225,6 +242,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             firstName,
             lastName,
             email,
+            phone,
             subject,
             message,
             sourceOrigin,

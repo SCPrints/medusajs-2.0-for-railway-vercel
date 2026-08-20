@@ -15,6 +15,7 @@ export interface ContactSubmissionEmailData {
   firstName?: string | null
   lastName?: string | null
   email: string
+  phone?: string | null
   subject?: string | null
   message: string
   sourceOrigin?: string | null
@@ -61,6 +62,10 @@ export const ContactSubmissionEmail = ({
         </Text>
         <Text style={{ ...STYLES.body, margin: "4px 0 0" }}>
           <strong style={{ color: NAVY }}>Email:</strong> {submission.email}
+        </Text>
+        <Text style={{ ...STYLES.body, margin: "4px 0 0" }}>
+          <strong style={{ color: NAVY }}>Phone:</strong>{" "}
+          {submission.phone || "Not provided"}
         </Text>
         <Text style={{ ...STYLES.body, margin: "4px 0 0" }}>
           <strong style={{ color: NAVY }}>Subject:</strong>{" "}
@@ -140,6 +145,7 @@ ContactSubmissionEmail.PreviewProps = {
     firstName: "Jane",
     lastName: "Doe",
     email: "jane@example.com",
+    phone: "0412 345 678",
     subject: "Order question",
     message: "Hi team,\nI need help with my latest order.",
     sourceOrigin: "https://www.scprints.com.au",

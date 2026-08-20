@@ -130,6 +130,7 @@ export default function ContactForm() {
       first_name: formData.get("first-name"),
       last_name: formData.get("last-name"),
       email: formData.get("email"),
+      phone: formData.get("phone"),
       subject: formData.get("subject"),
       message: formData.get("message"),
       attachments: attachments
@@ -244,6 +245,30 @@ export default function ContactForm() {
             type="email"
             autoComplete="email"
             required
+            className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="phone"
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Phone
+          </label>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            required
+            // ponytail: native pattern validation — at least 8 digits/format
+            // chars. Parens MUST stay escaped: browsers compile `pattern` with
+            // the regex `v` flag, where a bare ( or ) in a character class is a
+            // syntax error and silently disables validation entirely.
+            pattern="[0-9+\(\)\s.\-]{8,20}"
+            title="Please enter a valid phone number (at least 8 digits)"
+            placeholder="04XX XXX XXX"
             className="w-full rounded-lg border border-gray-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
           />
         </div>
