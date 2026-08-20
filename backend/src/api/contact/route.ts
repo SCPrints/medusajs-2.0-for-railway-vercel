@@ -1,42 +1,18 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { INotificationModuleService } from "@medusajs/framework/types"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
-import { Pool } from "pg"
 import { ulid } from "ulid"
-import { CONTACT_NOTIFICATION_EMAIL, DATABASE_URL, MINIO_PUBLIC_URL } from "../../lib/constants"
+import { CONTACT_NOTIFICATION_EMAIL, MINIO_PUBLIC_URL } from "../../lib/constants"
+import {
+  createContactSubmission,
+  type ContactAttachment,
+} from "../../lib/contact-submissions"
 import { isValidEmail } from "../../lib/email-validation"
 import { getPostHog } from "../../lib/posthog"
 import { getStorefrontOriginAllowlist } from "../../lib/storefront-origins"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
 
-const contactSubmissionPool = new Pool({
-  connectionString: DATABASE_URL,
-})
-
-let ensureContactSubmissionsTablePromise: Promise<void> | null = null
-
 const MAX_ATTACHMENTS = 3
-
-type ContactAttachment = {
-  url: string
-  fileName: string
-  mimeType: string | null
-  bytes: number | null
-}
-
-type ContactSubmissionInput = {
-  id: string
-  firstName: string | null
-  lastName: string | null
-  email: string
-  phone: string
-  subject: string | null
-  message: string
-  sourceOrigin: string | null
-  sourceIp: string | null
-  userAgent: string | null
-  attachments: ContactAttachment[]
-}
 
 /**
  * Accept only attachment URLs that point at OUR object storage — the URLs come
@@ -83,73 +59,6 @@ function setManualCors(req: MedusaRequest, res: MedusaResponse) {
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS")
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key")
   res.setHeader("Access-Control-Allow-Credentials", "true")
-}
-
-async function ensureContactSubmissionsTable() {
-  if (!ensureContactSubmissionsTablePromise) {
-    ensureContactSubmissionsTablePromise = (async () => {
-      await contactSubmissionPool.query(`
-        CREATE TABLE IF NOT EXISTS contact_submissions (
-          id TEXT PRIMARY KEY,
-          first_name TEXT,
-          last_name TEXT,
-          email TEXT NOT NULL,
-          phone TEXT,
-          subject TEXT,
-          message TEXT NOT NULL,
-          source_origin TEXT,
-          source_ip TEXT,
-          user_agent TEXT,
-          attachments JSONB,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `)
-      // Back-fill the column on databases whose table predates attachments.
-      await contactSubmissionPool.query(
-        `ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS attachments JSONB`
-      )
-      await contactSubmissionPool.query(
-        `ALTER TABLE contact_submissions ADD COLUMN IF NOT EXISTS phone TEXT`
-      )
-    })()
-  }
-
-  await ensureContactSubmissionsTablePromise
-}
-
-async function createContactSubmission(input: ContactSubmissionInput) {
-  await ensureContactSubmissionsTable()
-
-  await contactSubmissionPool.query(
-    `
-      INSERT INTO contact_submissions (
-        id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        subject,
-        message,
-        source_origin,
-        source_ip,
-        user_agent,
-        attachments
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `,
-    [
-      input.id,
-      input.firstName,
-      input.lastName,
-      input.email,
-      input.phone,
-      input.subject,
-      input.message,
-      input.sourceOrigin,
-      input.sourceIp,
-      input.userAgent,
-      input.attachments.length ? JSON.stringify(input.attachments) : null,
-    ]
-  )
 }
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
