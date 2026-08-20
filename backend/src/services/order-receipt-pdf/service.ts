@@ -127,23 +127,24 @@ export function computeReceiptTotals(
     (sum, m) => sum + toNumber(m.amount),
     0
   )
-  // A tax invoice documents the sale AS PLACED (goods + shipping + GST).
-  // On a FULLY-refunded order both original_order_total AND current_order_total
-  // collapse to 0 — probed on prod order #43: original=0, current=0,
-  // paid_total=168.30. The old current-only source therefore fell through to the
-  // ex-GST line sum and under-stated the invoice ($153 / GST $13.91 instead of
-  // $168.30 / $15.30). Chain: order-total → paid_total (gross captured, survives
-  // a refund) → top-level total → ex-GST line sum. On non-refunded orders
-  // original_order_total is populated (probed #42: 219.659) so paid_total is
-  // never consulted there.
+  // A tax invoice documents the sale as it STANDS — order edits (added
+  // charges, swapped items) legitimately change what's owed, so CURRENT
+  // total comes first. Probed on prod order #44 (two confirmed edits):
+  // current=238.28 (right), original=168.28 (stale mid-edit value) — the old
+  // original-first chain printed an invoice missing a $70 added line.
+  // On a FULLY-refunded order both current AND original collapse to 0 —
+  // probed on prod order #43: original=0, current=0, paid_total=168.30 —
+  // so the refund case falls through to paid_total (gross captured,
+  // survives a refund) exactly as before, then top-level total, then the
+  // ex-GST line sum.
   // ponytail: no partial-refund order exists in prod yet — if one appears and
-  // original collapses only partially, re-probe before trusting paid_total here.
+  // current collapses only partially, re-probe before trusting paid_total here.
   const summary = (raw?.summary ?? {}) as Record<string, any>
   const summaryTotal =
-    toNumber(summary.raw_original_order_total?.value) ||
-    toNumber(summary.original_order_total) ||
     toNumber(summary.raw_current_order_total?.value) ||
     toNumber(summary.current_order_total) ||
+    toNumber(summary.raw_original_order_total?.value) ||
+    toNumber(summary.original_order_total) ||
     toNumber(summary.raw_paid_total?.value) ||
     toNumber(summary.paid_total) ||
     toNumber(raw?.total)

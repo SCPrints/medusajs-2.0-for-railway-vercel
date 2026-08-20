@@ -95,6 +95,35 @@ describe("computeReceiptTotals", () => {
     expect(unpaid.balance_due).toBeCloseTo(220, 2)
   })
 
+  it("invoices the CURRENT total after order edits (order #44 regression)", () => {
+    // Real probed shape of prod #44 after two confirmed order edits (shirt
+    // swap + added $70 embroidery line): current=238.28 is what's owed;
+    // original=168.28 is a stale mid-edit value. The old original-first
+    // chain printed balance due $28.08 and silently dropped the $70 line.
+    const out = computeReceiptTotals(
+      {
+        id: "oEdited",
+        items: [
+          { id: "polos", unit_price: 66.55 / 3, quantity: 3 },
+          { id: "shirts", unit_price: 36.4, quantity: 2 },
+          { id: "emb", unit_price: 63.64, quantity: 1 },
+        ],
+        shipping_methods: [{ amount: 13.64 }],
+        summary: {
+          raw_current_order_total: { value: 238.28 },
+          current_order_total: 238.28,
+          raw_original_order_total: { value: 168.28 },
+          original_order_total: 168.28,
+          raw_paid_total: { value: 140.2 },
+          paid_total: 140.2,
+        },
+      },
+      140.2
+    )
+    expect(out.total).toBeCloseTo(238.28, 2)
+    expect(out.balance_due).toBeCloseTo(98.08, 2)
+  })
+
   it("keeps a tax-exempt order at $0 GST", () => {
     const out = computeReceiptTotals({
       id: "oExempt",
