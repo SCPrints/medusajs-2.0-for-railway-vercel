@@ -1,6 +1,7 @@
 import { defineMiddlewares } from "@medusajs/framework/http"
 
 import { smartVariantSearchMiddleware } from "./middlewares/smart-variant-search"
+import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-invariant"
 
 /**
  * Default Express JSON limit is ~100kb; customizer render payloads include
@@ -18,6 +19,13 @@ export default defineMiddlewares({
       matcher: "/admin/product-variants",
       methods: ["GET"],
       middlewares: [smartVariantSearchMiddleware],
+    },
+    {
+      // Pricing invariant — last gate before a cart becomes an order.
+      // Default mode "alert" only observes; see PRICING_INVARIANT_MODE.
+      matcher: "/store/carts/:id/complete",
+      methods: ["POST"],
+      middlewares: [checkoutPriceInvariantMiddleware],
     },
     {
       matcher: "/store/customizer/render-print",

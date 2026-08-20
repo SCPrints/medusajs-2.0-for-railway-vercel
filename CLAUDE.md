@@ -761,6 +761,7 @@ Always returns 204 so failures never break UX. Query length validated 1-500 char
 | `QUOTE_CONVERSION_ENABLED` | Master switch for the quote-on-order-placed / quote-on-order-cancelled subscribers (Phase 11). ON by default — closing the quote loop is the desired behaviour in production. Set to `false` to disable the loop closure without removing the subscribers. | `true` |
 | `STALE_ORDER_ESCALATION_DAYS` | How many days an order stays in `metadata.is_stale = true` before the manager-escalation path fires (Phase 11). Distinct from `STALE_ORDER_THRESHOLD_DAYS` (which controls when "stale" is flagged in the first place). | `3` |
 | `STALE_ORDER_MANAGER_EMAIL` | Comma-separated inboxes that get the manager escalation when an order has been stale longer than `STALE_ORDER_ESCALATION_DAYS`. Unset = no escalation (the owner task + audit still fire). | unset |
+| `PRICING_INVARIANT_MODE` | Checkout pricing invariant ([backend/src/lib/checkout-price-invariant.ts](backend/src/lib/checkout-price-invariant.ts)) — middleware on `POST /store/carts/:id/complete` re-derives every line's expected price via the canonical decoration pricing and flags mismatches, $0-decoration lines, POA embroidery, and below-cost lines. `off` = never runs; `alert` = log + PostHog only (shadow mode); `block` = 409 the checkout on block-severity findings (flip only after a clean shadow run). Exempt: `quote_locked_price`, `decorationDesign`, `metadata.price_override` lines. Fail-open on internal errors. | `alert` |
 
 #### Customer-lifecycle send-gate flags (CRM)
 
