@@ -55,6 +55,7 @@ type ShapeCase = {
       string,
       { stitchCount?: number; includeDigitizingFee?: boolean }
     > | null
+    sideScreenConfigs?: Record<string, { colours?: number; darkGarment?: boolean }> | null
     server: Record<string, unknown>
     printPlacement?: Record<string, unknown>
   }
@@ -79,6 +80,8 @@ function lineMetadataFor(c: ShapeCase): Record<string, unknown> {
     customizerDesign.sideDecorationMethods = c.design.sideDecorationMethods
   if (c.design.sideEmbroideryConfigs)
     customizerDesign.sideEmbroideryConfigs = c.design.sideEmbroideryConfigs
+  if (c.design.sideScreenConfigs)
+    customizerDesign.sideScreenConfigs = c.design.sideScreenConfigs
   const metadata: Record<string, unknown> = { customizerDesign }
   // Legacy pre-artifacts payloads carry printPlacement at metadata top level.
   if (c.design.printPlacement) metadata.printPlacement = c.design.printPlacement
@@ -119,6 +122,18 @@ async function runDescriptor(c: ShapeCase) {
       unitPriceMajor: round2(b.unitPriceMajor),
       digitizingFeeMajor: b.digitizingFeeMajor,
       requiresQuote: b.requiresQuote,
+    })),
+    // Screen: harness has no DB, so the descriptor's product-metadata lookup
+    // fails closed → heavyGarment=false here. The stored-flag path is
+    // exercised through the recompute cases instead.
+    screenSides: d.screenSides,
+    screenBreakdown: d.screenBreakdown.map((b) => ({
+      side: b.side,
+      colours: b.colours,
+      effectiveColours: b.effectiveColours,
+      darkGarment: b.darkGarment,
+      heavyGarment: b.heavyGarment,
+      unitPriceMajor: round2(b.unitPriceMajor),
     })),
   }
 }

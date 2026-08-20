@@ -1504,6 +1504,195 @@
     },
     "cost_price_ex_gst_minor": 1400
    }
+  },
+  {
+   "name": "synth_screen_3col_dark_qty60",
+   "quantity": 60,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a4",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a4"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "screen"
+    },
+    "sideEmbroideryConfigs": null,
+    "sideScreenConfigs": {
+     "front": {
+      "colours": 3,
+      "darkGarment": true
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a4",
+     "garment_unit_major": 24.64
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_screen_heavy_stored_qty120",
+   "quantity": 120,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a4",
+    "prints": [
+     {
+      "side": "back",
+      "sizeId": "up_to_a4"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "back": "screen"
+    },
+    "sideEmbroideryConfigs": null,
+    "sideScreenConfigs": {
+     "back": {
+      "colours": 2
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a4",
+     "garment_unit_major": 23.1,
+     "screen_breakdown": [
+      {
+       "side": "back",
+       "heavyGarment": true
+      }
+     ]
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_screen_plus_print_mixed_qty30",
+   "quantity": 30,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a4"
+     },
+     {
+      "side": "back",
+      "sizeId": "up_to_a6"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "screen",
+     "back": "print"
+    },
+    "sideEmbroideryConfigs": null,
+    "sideScreenConfigs": {
+     "front": {
+      "colours": 1
+     }
+    },
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 26.18
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
   }
  ]
 }

@@ -15,7 +15,9 @@
      "digitizingFeeMajor": 60,
      "requiresQuote": false
     }
-   ]
+   ],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 80.54,
@@ -38,7 +40,9 @@
      "digitizingFeeMajor": 60,
      "requiresQuote": false
     }
-   ]
+   ],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 58.44,
@@ -53,7 +57,9 @@
     "front"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 96.32,
@@ -69,7 +75,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 105.1,
@@ -85,7 +93,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 93.09,
@@ -101,7 +111,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 76.88,
@@ -116,7 +128,9 @@
     "front"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 15.1,
@@ -132,7 +146,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 123.04,
@@ -147,7 +163,9 @@
     "front"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 41.39,
@@ -163,7 +181,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 67.31,
@@ -178,7 +198,9 @@
     "front"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 25.99,
@@ -194,7 +216,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 61.3,
@@ -210,7 +234,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 56.09,
@@ -226,7 +252,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 51.68,
@@ -241,7 +269,9 @@
     "front"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 20.55,
@@ -266,7 +296,9 @@
      "digitizingFeeMajor": 60,
      "requiresQuote": false
     }
-   ]
+   ],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 65.55,
@@ -289,7 +321,9 @@
      "digitizingFeeMajor": 0,
      "requiresQuote": true
     }
-   ]
+   ],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 30.8,
@@ -304,7 +338,9 @@
    "embroiderySides": [
     "front"
    ],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 30.8,
@@ -327,7 +363,9 @@
      "digitizingFeeMajor": 0,
      "requiresQuote": false
     }
-   ]
+   ],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 35.68,
@@ -343,7 +381,9 @@
     "printed_tag"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 50.22,
@@ -358,7 +398,9 @@
     "back"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 39.1,
@@ -373,10 +415,92 @@
     "front"
    ],
    "embroiderySides": [],
-   "embroideryBreakdown": []
+   "embroideryBreakdown": [],
+   "screenSides": [],
+   "screenBreakdown": []
   },
   "recompute": {
    "price": 39.3,
+   "excluded": false
+  }
+ },
+ "synth_screen_3col_dark_qty60": {
+  "descriptor": {
+   "unitPriceMajor": 32.04,
+   "tierIndex": 3,
+   "printSides": [],
+   "embroiderySides": [],
+   "embroideryBreakdown": [],
+   "screenSides": [
+    "front"
+   ],
+   "screenBreakdown": [
+    {
+     "side": "front",
+     "colours": 3,
+     "effectiveColours": 4,
+     "darkGarment": true,
+     "heavyGarment": false,
+     "unitPriceMajor": 7.4
+    }
+   ]
+  },
+  "recompute": {
+   "price": 32.04,
+   "excluded": false
+  }
+ },
+ "synth_screen_heavy_stored_qty120": {
+  "descriptor": {
+   "unitPriceMajor": 27.8,
+   "tierIndex": 4,
+   "printSides": [],
+   "embroiderySides": [],
+   "embroideryBreakdown": [],
+   "screenSides": [
+    "back"
+   ],
+   "screenBreakdown": [
+    {
+     "side": "back",
+     "colours": 2,
+     "effectiveColours": 2,
+     "darkGarment": false,
+     "heavyGarment": false,
+     "unitPriceMajor": 4.7
+    }
+   ]
+  },
+  "recompute": {
+   "price": 28.8,
+   "excluded": false
+  }
+ },
+ "synth_screen_plus_print_mixed_qty30": {
+  "descriptor": {
+   "unitPriceMajor": 41.28,
+   "tierIndex": 2,
+   "printSides": [
+    "back"
+   ],
+   "embroiderySides": [],
+   "embroideryBreakdown": [],
+   "screenSides": [
+    "front"
+   ],
+   "screenBreakdown": [
+    {
+     "side": "front",
+     "colours": 1,
+     "effectiveColours": 1,
+     "darkGarment": false,
+     "heavyGarment": false,
+     "unitPriceMajor": 8.6
+    }
+   ]
+  },
+  "recompute": {
+   "price": 41.28,
    "excluded": false
   }
  }

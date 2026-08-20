@@ -18,24 +18,23 @@ import {
   decoratedSidesFromLineMetadata,
   isScpPrintSizeId,
   resolveScpTierIndexForQuantity,
-  scpPrintTotalMajorFromLocations,
-  scpPrintTotalMajorPerGarmentForSides,
   type ScpPrintSizeId,
 } from "./scp-dtf-print-pricing"
+import { EMBROIDERY_PRICING_VERSION } from "./embroidery-pricing"
+import { SCP_SCREEN_PRICING_VERSION } from "./scp-screen-print-pricing"
 import {
-  EMBROIDERY_PRICING_VERSION,
-  MAX_AUTO_PRICED_STITCHES,
-  calculateEmbroideryUnitPriceMajor,
-} from "./embroidery-pricing"
-import {
-  SCP_SCREEN_PRICING_VERSION,
-  screenUnitMajor,
-} from "./scp-screen-print-pricing"
+  computeDecorationTotals,
+  resolveScreenHeavyGarment,
+  type EmbroideryBreakdownEntry,
+  type ScreenBreakdownEntry,
+} from "./scp-decoration-pricing"
 import {
   RemoteJoinerGraphLike,
   resolveGarmentUnitAmountMajor,
 } from "./scp-resolve-garment-unit-price"
 import type { Tier } from "./customer-tiers"
+
+export type { EmbroideryBreakdownEntry, ScreenBreakdownEntry }
 
 export type CartForLineDescriptor = {
   id?: string
@@ -43,24 +42,6 @@ export type CartForLineDescriptor = {
   region_id?: string | null
   sales_channel_id?: string | null
   region?: { currency_code?: string | null } | null
-}
-
-export type EmbroideryBreakdownEntry = {
-  side: string
-  stitchCount: number
-  unitDecorationMajor: number
-  digitizingFeeMajor: number
-  unitPriceMajor: number
-  requiresQuote: boolean
-}
-
-export type ScreenBreakdownEntry = {
-  side: string
-  colours: number
-  effectiveColours: number
-  darkGarment: boolean
-  heavyGarment: boolean
-  unitPriceMajor: number
 }
 
 export type ScpLineDescriptor = {
@@ -124,139 +105,41 @@ export async function computeScpLineDescriptor(
   const tierIndex = resolveScpTierIndexForQuantity(quantity)
   const decoratedLocations = decoratedLocationsFromLineMetadata(mergedMetadata)
 
-  // Read per-side decoration methods (v3 schema). v2 metadata has no entries,
-  // so all sides default to "print" — preserves legacy behaviour.
-  const customizerDesignForMethods =
-    typeof mergedMetadata.customizerDesign === "object" &&
-    mergedMetadata.customizerDesign !== null
-      ? (mergedMetadata.customizerDesign as Record<string, unknown>)
-      : {}
-  const sideDecorationMethods =
-    typeof customizerDesignForMethods.sideDecorationMethods === "object" &&
-    customizerDesignForMethods.sideDecorationMethods !== null
-      ? (customizerDesignForMethods.sideDecorationMethods as Record<string, string>)
-      : {}
-  const sideEmbroideryConfigs =
-    typeof customizerDesignForMethods.sideEmbroideryConfigs === "object" &&
-    customizerDesignForMethods.sideEmbroideryConfigs !== null
-      ? (customizerDesignForMethods.sideEmbroideryConfigs as Record<
-          string,
-          { stitchCount?: number; includeDigitizingFee?: boolean }
-        >)
-      : {}
-  const sideScreenConfigs =
-    typeof customizerDesignForMethods.sideScreenConfigs === "object" &&
-    customizerDesignForMethods.sideScreenConfigs !== null
-      ? (customizerDesignForMethods.sideScreenConfigs as Record<
-          string,
-          { colours?: number; darkGarment?: boolean }
-        >)
-      : {}
-
-  const printSides = decoratedSides.filter(
-    (side) => (sideDecorationMethods[side] ?? "print") === "print"
-  )
-  const embroiderySides = decoratedSides.filter(
-    (side) => sideDecorationMethods[side] === "embroidery"
-  )
-  const screenSides = decoratedSides.filter(
-    (side) => sideDecorationMethods[side] === "screen"
-  )
-
-  const printLocations = decoratedLocations.filter((loc) => {
-    const side = (loc as { side?: string }).side
-    return !side || (sideDecorationMethods[side] ?? "print") === "print"
+  // Canonical decoration math — shared with the update-design route and the
+  // cart-wide recompute (see scp-decoration-pricing.ts). Add-path semantics:
+  // every quantity is the line's own quantity.
+  let totals = computeDecorationTotals({
+    metadata: mergedMetadata,
+    printSizeId,
+    printTierQuantity: quantity,
+    embroideryQuantity: quantity,
+    screenHeavyGarment: false,
   })
-  const printTotalMajor =
-    printSides.length === 0
-      ? 0
-      : printLocations.length > 0
-      ? scpPrintTotalMajorFromLocations({
-          selectedPrintSizeId: printSizeId,
-          tierIndex,
-          locations: printLocations,
-        })
-      : scpPrintTotalMajorPerGarmentForSides({
-          selectedPrintSizeId: printSizeId,
-          tierIndex,
-          decoratedSides: printSides,
-        })
-
-  let embroideryTotalMajor = 0
-  const embroideryBreakdown: EmbroideryBreakdownEntry[] = []
-  for (const side of embroiderySides) {
-    const cfg = sideEmbroideryConfigs[side]
-    const stitchCount = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
-    if (stitchCount <= 0) continue
-    if (stitchCount > MAX_AUTO_PRICED_STITCHES) {
-      embroideryBreakdown.push({
-        side,
-        stitchCount,
-        unitDecorationMajor: 0,
-        digitizingFeeMajor: 0,
-        unitPriceMajor: 0,
-        requiresQuote: true,
-      })
-      continue
-    }
-    const result = calculateEmbroideryUnitPriceMajor({
-      stitchCount,
-      quantity,
-      includeDigitizing: cfg?.includeDigitizingFee !== false,
-    })
-    embroideryTotalMajor += result.unitPriceMajor
-    embroideryBreakdown.push({
-      side,
-      stitchCount,
-      unitDecorationMajor: result.unitDecorationMajor,
-      digitizingFeeMajor: result.digitizingFeeMajor,
-      unitPriceMajor: result.unitPriceMajor,
-      requiresQuote: false,
-    })
-  }
-
-  // Screen-printed sides: colour-tier unit per side. The heavy-garment
-  // surcharge is a PRODUCT property (metadata.screen_heavy, staff-controlled)
-  // — read server-side so the client can't omit it to shave the price.
-  let screenTotalMajor = 0
-  const screenBreakdown: ScreenBreakdownEntry[] = []
-  if (screenSides.length > 0) {
-    let heavyGarment = false
-    try {
-      const { data: variantRows } = await query.graph({
-        entity: "variant",
-        fields: ["id", "product.metadata"],
-        filters: { id: variantId },
-      })
-      const productMeta = (variantRows?.[0] as any)?.product?.metadata as
-        | Record<string, unknown>
-        | undefined
-      heavyGarment = productMeta?.screen_heavy === true
-    } catch {
-      // Metadata lookup is best-effort — missing lookup prices without the
-      // surcharge rather than failing the cart add.
-    }
-    for (const side of screenSides) {
-      const cfg = sideScreenConfigs[side]
-      const colours = Math.max(1, Math.floor(cfg?.colours ?? 1))
-      const darkGarment = cfg?.darkGarment === true
-      const result = screenUnitMajor({
-        quantity,
-        colours,
-        darkGarment,
-        heavyGarment,
-      })
-      screenTotalMajor = round2(screenTotalMajor + result.unitMajor)
-      screenBreakdown.push({
-        side,
-        colours,
-        effectiveColours: result.effectiveColours,
-        darkGarment,
-        heavyGarment,
-        unitPriceMajor: result.unitMajor,
+  // The heavy-garment surcharge is a PRODUCT property (metadata.screen_heavy,
+  // staff-controlled) — resolved server-side so the client can't omit it to
+  // shave the price. Only looked up when a screen side actually exists.
+  if (totals.screenSides.length > 0) {
+    const heavyGarment = await resolveScreenHeavyGarment(query, variantId)
+    if (heavyGarment) {
+      totals = computeDecorationTotals({
+        metadata: mergedMetadata,
+        printSizeId,
+        printTierQuantity: quantity,
+        embroideryQuantity: quantity,
+        screenHeavyGarment: true,
       })
     }
   }
+  const {
+    printSides,
+    embroiderySides,
+    screenSides,
+    printTotalMajor,
+    embroideryTotalMajor,
+    embroideryBreakdown,
+    screenTotalMajor,
+    screenBreakdown,
+  } = totals
 
   const garmentMajor = await resolveGarmentUnitAmountMajor({
     query,

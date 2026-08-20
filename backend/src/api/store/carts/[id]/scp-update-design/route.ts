@@ -13,15 +13,14 @@ import {
   decoratedSidesFromLineMetadata,
   isScpPrintSizeId,
   resolveScpTierIndexForQuantity,
-  scpPrintTotalMajorFromLocations,
-  scpPrintTotalMajorPerGarmentForSides,
   type ScpPrintSizeId,
 } from "../../../../../lib/scp-dtf-print-pricing"
+import { EMBROIDERY_PRICING_VERSION } from "../../../../../lib/embroidery-pricing"
+import { SCP_SCREEN_PRICING_VERSION } from "../../../../../lib/scp-screen-print-pricing"
 import {
-  EMBROIDERY_PRICING_VERSION,
-  MAX_AUTO_PRICED_STITCHES,
-  calculateEmbroideryUnitPriceMajor,
-} from "../../../../../lib/embroidery-pricing"
+  computeDecorationTotals,
+  resolveScreenHeavyGarment,
+} from "../../../../../lib/scp-decoration-pricing"
 import {
   RemoteJoinerGraphLike,
   resolveGarmentUnitAmountMajor,
@@ -255,43 +254,22 @@ async function scpUpdateDesignPostHandler(
   const decoratedLocations =
     decoratedLocationsFromLineMetadata(designMetadataAsLine)
 
-  const sideDecorationMethods =
-    typeof (newCustomizerDesign as Record<string, unknown>)
-      .sideDecorationMethods === "object" &&
-    (newCustomizerDesign as Record<string, unknown>).sideDecorationMethods !==
-      null
-      ? ((newCustomizerDesign as Record<string, unknown>)
-          .sideDecorationMethods as Record<string, string>)
-      : {}
-  const sideEmbroideryConfigs =
-    typeof (newCustomizerDesign as Record<string, unknown>)
-      .sideEmbroideryConfigs === "object" &&
-    (newCustomizerDesign as Record<string, unknown>).sideEmbroideryConfigs !==
-      null
-      ? ((newCustomizerDesign as Record<string, unknown>)
-          .sideEmbroideryConfigs as Record<
-          string,
-          { stitchCount?: number; includeDigitizingFee?: boolean }
-        >)
-      : {}
-
-  const printSides = decoratedSides.filter(
-    (side) => (sideDecorationMethods[side] ?? "print") === "print"
-  )
-  const embroiderySides = decoratedSides.filter(
-    (side) => sideDecorationMethods[side] === "embroidery"
-  )
-
   const round2 = (n: number) => Math.round(n * 100) / 100
 
   const updatedLineIds: string[] = []
   const skippedLineIds: string[] = []
 
   // Per-line update: recompute unit_price from the line's own quantity +
-  // the new design, then write metadata + unit_price via the core workflow.
-  // Each call hits a distinct line, so they're safe to fan out — but we
-  // keep them sequential for simpler error reporting; recompute below
+  // the new design via the canonical decoration math (scp-decoration-pricing
+  // — shared with the add descriptor and the cart-wide recompute; this route
+  // previously carried its own copy, which missed screen printing entirely
+  // when it shipped and dropped the heavy-garment surcharge on every design
+  // edit). Each call hits a distinct line, so they're safe to fan out — but
+  // we keep them sequential for simpler error reporting; recompute below
   // re-prices everything in a single parallel pass anyway.
+  // Heavy-garment lookups are cached per variant — every targeted line
+  // usually shares one product.
+  const heavyByVariant = new Map<string, boolean>()
   for (const lineId of lineIds) {
     const line = cartItemsById.get(lineId)
     if (!line || !line.variant_id || line.quantity <= 0) {
@@ -301,64 +279,39 @@ async function scpUpdateDesignPostHandler(
 
     const tierIndex = resolveScpTierIndexForQuantity(line.quantity)
 
-    const printLocations = decoratedLocations.filter((loc) => {
-      const side = (loc as { side?: string }).side
-      return !side || (sideDecorationMethods[side] ?? "print") === "print"
+    let totals = computeDecorationTotals({
+      metadata: designMetadataAsLine,
+      printSizeId,
+      printTierQuantity: line.quantity,
+      embroideryQuantity: line.quantity,
+      screenHeavyGarment: false,
     })
-    const printTotalMajor =
-      printSides.length === 0
-        ? 0
-        : printLocations.length > 0
-        ? scpPrintTotalMajorFromLocations({
-            selectedPrintSizeId: printSizeId,
-            tierIndex,
-            locations: printLocations,
-          })
-        : scpPrintTotalMajorPerGarmentForSides({
-            selectedPrintSizeId: printSizeId,
-            tierIndex,
-            decoratedSides: printSides,
-          })
-
-    let embroideryTotalMajor = 0
-    const embroideryBreakdown: Array<{
-      side: string
-      stitchCount: number
-      unitDecorationMajor: number
-      digitizingFeeMajor: number
-      unitPriceMajor: number
-      requiresQuote: boolean
-    }> = []
-    for (const side of embroiderySides) {
-      const cfg = sideEmbroideryConfigs[side]
-      const stitchCount = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
-      if (stitchCount <= 0) continue
-      if (stitchCount > MAX_AUTO_PRICED_STITCHES) {
-        embroideryBreakdown.push({
-          side,
-          stitchCount,
-          unitDecorationMajor: 0,
-          digitizingFeeMajor: 0,
-          unitPriceMajor: 0,
-          requiresQuote: true,
-        })
-        continue
+    if (totals.screenSides.length > 0) {
+      let heavy = heavyByVariant.get(line.variant_id)
+      if (heavy === undefined) {
+        heavy = await resolveScreenHeavyGarment(query, line.variant_id)
+        heavyByVariant.set(line.variant_id, heavy)
       }
-      const result = calculateEmbroideryUnitPriceMajor({
-        stitchCount,
-        quantity: line.quantity,
-        includeDigitizing: cfg?.includeDigitizingFee !== false,
-      })
-      embroideryTotalMajor += result.unitPriceMajor
-      embroideryBreakdown.push({
-        side,
-        stitchCount,
-        unitDecorationMajor: result.unitDecorationMajor,
-        digitizingFeeMajor: result.digitizingFeeMajor,
-        unitPriceMajor: result.unitPriceMajor,
-        requiresQuote: false,
-      })
+      if (heavy) {
+        totals = computeDecorationTotals({
+          metadata: designMetadataAsLine,
+          printSizeId,
+          printTierQuantity: line.quantity,
+          embroideryQuantity: line.quantity,
+          screenHeavyGarment: true,
+        })
+      }
     }
+    const {
+      printSides,
+      embroiderySides,
+      screenSides,
+      printTotalMajor,
+      embroideryTotalMajor,
+      embroideryBreakdown,
+      screenTotalMajor,
+      screenBreakdown,
+    } = totals
 
     const garmentMajor = await resolveGarmentUnitAmountMajor({
       query,
@@ -376,8 +329,9 @@ async function scpUpdateDesignPostHandler(
 
     const unitPriceMajor = round2(
       Math.max(0, garmentMajor) +
-        Math.max(0, printTotalMajor) +
-        Math.max(0, embroideryTotalMajor)
+        printTotalMajor +
+        embroideryTotalMajor +
+        screenTotalMajor
     )
 
     const newPricingExisting =
@@ -395,12 +349,17 @@ async function scpUpdateDesignPostHandler(
       pricing: {
         ...newPricingExisting,
         server: {
-          mode: embroiderySides.length > 0 ? "scp_dtf_mixed" : "scp_dtf",
+          mode:
+            embroiderySides.length > 0 || screenSides.length > 0
+              ? "scp_dtf_mixed"
+              : "scp_dtf",
           version: SCP_PRINT_PRICING_VERSION,
           embroidery_version:
             embroiderySides.length > 0
               ? EMBROIDERY_PRICING_VERSION
               : undefined,
+          screen_version:
+            screenSides.length > 0 ? SCP_SCREEN_PRICING_VERSION : undefined,
           print_size_id: printSizeId,
           tier_index: tierIndex,
           quantity_tier_label:
@@ -410,10 +369,13 @@ async function scpUpdateDesignPostHandler(
           decorated_locations: decoratedLocations,
           print_side_keys: printSides,
           embroidery_side_keys: embroiderySides,
+          screen_side_keys: screenSides,
           garment_unit_major: garmentMajor,
           print_total_major_per_garment: printTotalMajor,
           embroidery_total_major_per_garment: embroideryTotalMajor,
           embroidery_breakdown: embroideryBreakdown,
+          screen_total_major_per_garment: screenTotalMajor,
+          screen_breakdown: screenBreakdown,
           unit_price_major: unitPriceMajor,
         },
       },
