@@ -2,6 +2,9 @@
  "prod_01_423234912": {
   "descriptor": {
    "unitPriceMajor": 58,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 40.5,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [],
    "embroiderySides": [
@@ -27,6 +30,9 @@
  "prod_02_525810012": {
   "descriptor": {
    "unitPriceMajor": 46.4,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 30.5,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [],
    "embroiderySides": [
@@ -52,6 +58,9 @@
  "prod_03_33542002092": {
   "descriptor": {
    "unitPriceMajor": 72,
+   "printTotalMajor": 40,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front"
@@ -69,6 +78,9 @@
  "prod_04_5162BLACKHM": {
   "descriptor": {
    "unitPriceMajor": 105.1,
+   "printTotalMajor": 38,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front",
@@ -87,6 +99,9 @@
  "prod_05_5161BLACKL3XL": {
   "descriptor": {
    "unitPriceMajor": 93.09,
+   "printTotalMajor": 36,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front",
@@ -105,6 +120,9 @@
  "prod_06_5161WHITEHM": {
   "descriptor": {
    "unitPriceMajor": 76.88,
+   "printTotalMajor": 25.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 1,
    "printSides": [
     "front",
@@ -123,6 +141,9 @@
  "prod_07_S11220012": {
   "descriptor": {
    "unitPriceMajor": 12.2,
+   "printTotalMajor": 8.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front"
@@ -140,6 +161,9 @@
  "prod_08_9401042721679": {
   "descriptor": {
    "unitPriceMajor": 123.04,
+   "printTotalMajor": 24.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front",
@@ -158,6 +182,9 @@
  "prod_09_SW10M005BLACK2XL": {
   "descriptor": {
    "unitPriceMajor": 41.39,
+   "printTotalMajor": 8.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front"
@@ -175,6 +202,9 @@
  "prod_10_SW10M002DENIM2XL": {
   "descriptor": {
    "unitPriceMajor": 67.31,
+   "printTotalMajor": 32,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front",
@@ -193,6 +223,9 @@
  "prod_11_024193ASM0": {
   "descriptor": {
    "unitPriceMajor": 25.99,
+   "printTotalMajor": 8.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front"
@@ -210,6 +243,9 @@
  "prod_12_SW10M001DARKGREYS": {
   "descriptor": {
    "unitPriceMajor": 61.3,
+   "printTotalMajor": 36,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front",
@@ -228,6 +264,9 @@
  "prod_13_3307105": {
   "descriptor": {
    "unitPriceMajor": 56.09,
+   "printTotalMajor": 32,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front",
@@ -246,6 +285,9 @@
  "prod_14_3307101": {
   "descriptor": {
    "unitPriceMajor": 54.09,
+   "printTotalMajor": 30,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 1,
    "printSides": [
     "front",
@@ -264,6 +306,9 @@
  "synth_cap_no_ladder_stored_garment": {
   "descriptor": {
    "unitPriceMajor": 20.55,
+   "printTotalMajor": 8.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front"
@@ -281,6 +326,9 @@
  "synth_mixed_print_emb_two_sides": {
   "descriptor": {
    "unitPriceMajor": 65.55,
+   "printTotalMajor": 11.5,
+   "embroideryTotalMajor": 23.25,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "back"
@@ -308,6 +356,9 @@
  "synth_poa_over_12k_stitches": {
   "descriptor": {
    "unitPriceMajor": 30.8,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [],
    "embroiderySides": [
@@ -333,6 +384,9 @@
  "synth_emb_zero_stitch_config": {
   "descriptor": {
    "unitPriceMajor": 30.8,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [],
    "embroiderySides": [
@@ -350,6 +404,9 @@
  "synth_emb_no_digitizing": {
   "descriptor": {
    "unitPriceMajor": 35.68,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 9.5,
+   "screenTotalMajor": 0,
    "tierIndex": 2,
    "printSides": [],
    "embroiderySides": [
@@ -375,6 +432,9 @@
  "synth_printed_tag_a6_clamp": {
   "descriptor": {
    "unitPriceMajor": 50.22,
+   "printTotalMajor": 22.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 1,
    "printSides": [
     "front",
@@ -393,6 +453,9 @@
  "synth_qty100_top_tier": {
   "descriptor": {
    "unitPriceMajor": 39.1,
+   "printTotalMajor": 16,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 4,
    "printSides": [
     "back"
@@ -410,6 +473,9 @@
  "synth_legacy_print_placement_only": {
   "descriptor": {
    "unitPriceMajor": 28.5,
+   "printTotalMajor": 8.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 0,
    "tierIndex": 0,
    "printSides": [
     "front"
@@ -427,6 +493,9 @@
  "synth_screen_3col_dark_qty60": {
   "descriptor": {
    "unitPriceMajor": 32.04,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 7.4,
    "tierIndex": 3,
    "printSides": [],
    "embroiderySides": [],
@@ -453,6 +522,9 @@
  "synth_screen_heavy_stored_qty120": {
   "descriptor": {
    "unitPriceMajor": 27.8,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 4.7,
    "tierIndex": 4,
    "printSides": [],
    "embroiderySides": [],
@@ -479,6 +551,9 @@
  "synth_screen_plus_print_mixed_qty30": {
   "descriptor": {
    "unitPriceMajor": 41.28,
+   "printTotalMajor": 6.5,
+   "embroideryTotalMajor": 0,
+   "screenTotalMajor": 8.6,
    "tierIndex": 2,
    "printSides": [
     "back"

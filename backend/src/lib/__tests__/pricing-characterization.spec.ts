@@ -111,8 +111,17 @@ async function runDescriptor(c: ShapeCase) {
     query: {} as never,
     tier: null,
   })
+  const stampedServer = ((d.metadata.customizerDesign as any)?.pricing?.server ?? {}) as Record<
+    string,
+    unknown
+  >
   return {
     unitPriceMajor: round2(d.unitPriceMajor),
+    // Per-method decoration totals (from the stamped server block) — the
+    // storefront mirror spec compares its displayed components against these.
+    printTotalMajor: round2(Number(stampedServer.print_total_major_per_garment ?? 0)),
+    embroideryTotalMajor: round2(Number(stampedServer.embroidery_total_major_per_garment ?? 0)),
+    screenTotalMajor: round2(Number(stampedServer.screen_total_major_per_garment ?? 0)),
     tierIndex: d.tierIndex,
     printSides: d.printSides,
     embroiderySides: d.embroiderySides,
