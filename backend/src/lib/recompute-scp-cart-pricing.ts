@@ -14,8 +14,11 @@ import {
   type ScpPrintSizeId,
 } from "./scp-dtf-print-pricing"
 import {
+  clusterDigitizingEntries,
   computeDecorationTotals,
+  embroideryDigitizingUnits,
   screenHeavyFromStoredBreakdown,
+  type DigitizingUnitEntry,
 } from "./scp-decoration-pricing"
 
 /**
@@ -143,10 +146,61 @@ const isLineEligible = (line: CartLineForRecompute): boolean => {
   return Boolean(scpBlock && scpBlock.printSizeId)
 }
 
+/**
+ * Cart-wide digitizing amortisation. Digitizing is charged per distinct
+ * FILE (artwork + size within the ~5% resize tolerance) — the same logo at
+ * the same size across a size fan-out or across different garments shares
+ * ONE fee, amortised over every garment that carries it; the same logo
+ * resized beyond tolerance is a new file and a new fee. Returns, per line,
+ * the amortisation base for each of that line's digitizing-unit keys.
+ */
+const buildDigitizingAmortByLine = (
+  lines: CartLineForRecompute[]
+): Map<string, Map<string, number>> => {
+  const tagged: Array<{ entry: DigitizingUnitEntry; lineId: string; qty: number }> = []
+  for (const line of lines) {
+    if (!line?.id) continue
+    const qty = Math.max(0, Math.floor(line.quantity || 0))
+    for (const entry of embroideryDigitizingUnits(line.metadata, line.id)) {
+      tagged.push({ entry, lineId: line.id, qty })
+    }
+  }
+  if (!tagged.length) return new Map()
+
+  const clustersByKey = clusterDigitizingEntries(tagged.map((t) => t.entry))
+  const taggedByEntry = new Map(tagged.map((t) => [t.entry, t]))
+
+  // Sum quantities per cluster — each LINE counts once even if two of its
+  // sides share the cluster (the garments are the same physical units).
+  const clusterQty = new Map<DigitizingUnitEntry[], number>()
+  for (const cluster of new Set(clustersByKey.values())) {
+    const seenLines = new Set<string>()
+    let qty = 0
+    for (const member of cluster) {
+      const t = taggedByEntry.get(member)
+      if (!t || seenLines.has(t.lineId)) continue
+      seenLines.add(t.lineId)
+      qty += t.qty
+    }
+    clusterQty.set(cluster, Math.max(1, qty))
+  }
+
+  const byLine = new Map<string, Map<string, number>>()
+  for (const t of tagged) {
+    const cluster = clustersByKey.get(t.entry.key)
+    if (!cluster) continue
+    const amort = clusterQty.get(cluster) ?? Math.max(1, t.qty)
+    if (!byLine.has(t.lineId)) byLine.set(t.lineId, new Map())
+    byLine.get(t.lineId)!.set(t.entry.key, amort)
+  }
+  return byLine
+}
+
 const computeNewUnitPriceMajor = (
   line: CartLineForRecompute,
   aggregatedQty: number,
-  tier?: Tier | null
+  tier?: Tier | null,
+  digitizingAmortQtyByKey?: Map<string, number>
 ): number | null => {
   const variantMeta = line.variant?.metadata ?? null
   // Tier customers get a flat garment price (cost × multiplier), quantity-
@@ -185,6 +239,7 @@ const computeNewUnitPriceMajor = (
     printTierQuantity: aggregatedQty,
     embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
     screenHeavyGarment: scpBlock.screenHeavyGarment,
+    digitizingAmortQtyByKey,
   })
 
   return round2(
@@ -364,10 +419,16 @@ export async function recomputeScpCartPricing(
     updated_metadata: Record<string, unknown> | null
   }
 
+  const digitizingAmortByLine = buildDigitizingAmortByLine(eligible)
   const pending: PendingUpdate[] = []
   for (const line of eligible) {
     const oldUnitPrice = bnLikeToMajorAmount(line.unit_price) ?? 0
-    const newUnitPriceMajor = computeNewUnitPriceMajor(line, effectiveQty, tier)
+    const newUnitPriceMajor = computeNewUnitPriceMajor(
+      line,
+      effectiveQty,
+      tier,
+      digitizingAmortByLine.get(line.id)
+    )
     if (newUnitPriceMajor === null) continue
     if (round2(oldUnitPrice) === round2(newUnitPriceMajor)) continue
 
@@ -443,8 +504,14 @@ export function recomputeScpCartPricingPure(
   )
   const effectiveQty = Math.max(1, aggregatedQty)
 
+  const digitizingAmortByLine = buildDigitizingAmortByLine(eligible)
   for (const line of eligible) {
-    const major = computeNewUnitPriceMajor(line, effectiveQty, tier)
+    const major = computeNewUnitPriceMajor(
+      line,
+      effectiveQty,
+      tier,
+      digitizingAmortByLine.get(line.id)
+    )
     if (major !== null) prices.set(line.id, major)
   }
 

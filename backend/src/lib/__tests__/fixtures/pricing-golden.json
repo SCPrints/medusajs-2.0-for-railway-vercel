@@ -578,5 +578,77 @@
    "price": 41.28,
    "excluded": false
   }
+ },
+ "synth_digitizing_two_sides_one_file": {
+  "descriptor": {
+   "unitPriceMajor": 50.18,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 24,
+   "screenTotalMajor": 0,
+   "tierIndex": 2,
+   "printSides": [],
+   "embroiderySides": [
+    "front",
+    "back"
+   ],
+   "embroideryBreakdown": [
+    {
+     "side": "front",
+     "stitchCount": 3000,
+     "unitPriceMajor": 13.5,
+     "digitizingFeeMajor": 60,
+     "requiresQuote": false
+    },
+    {
+     "side": "back",
+     "stitchCount": 3000,
+     "unitPriceMajor": 10.5,
+     "digitizingFeeMajor": 0,
+     "requiresQuote": false
+    }
+   ],
+   "screenSides": [],
+   "screenBreakdown": []
+  },
+  "recompute": {
+   "price": 50.18,
+   "excluded": false
+  }
+ },
+ "synth_digitizing_back_resized_new_file": {
+  "descriptor": {
+   "unitPriceMajor": 56.18,
+   "printTotalMajor": 0,
+   "embroideryTotalMajor": 30,
+   "screenTotalMajor": 0,
+   "tierIndex": 2,
+   "printSides": [],
+   "embroiderySides": [
+    "front",
+    "back"
+   ],
+   "embroideryBreakdown": [
+    {
+     "side": "front",
+     "stitchCount": 3000,
+     "unitPriceMajor": 13.5,
+     "digitizingFeeMajor": 60,
+     "requiresQuote": false
+    },
+    {
+     "side": "back",
+     "stitchCount": 9000,
+     "unitPriceMajor": 16.5,
+     "digitizingFeeMajor": 60,
+     "requiresQuote": false
+    }
+   ],
+   "screenSides": [],
+   "screenBreakdown": []
+  },
+  "recompute": {
+   "price": 56.18,
+   "excluded": false
+  }
  }
 }

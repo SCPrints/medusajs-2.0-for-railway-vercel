@@ -32,6 +32,7 @@
  * stored fallback in the recompute) and is summed by the caller.
  */
 import {
+  DIGITIZING_FEE_MAJOR,
   MAX_AUTO_PRICED_STITCHES,
   calculateEmbroideryUnitPriceMajor,
 } from "./embroidery-pricing"
@@ -66,6 +67,131 @@ export type ScreenBreakdownEntry = {
 export type SideEmbroideryConfig = {
   stitchCount?: number
   includeDigitizingFee?: boolean
+  widthMm?: number
+  heightMm?: number
+}
+
+/**
+ * One embroidery side's claim on a digitized file. Digitizing is charged per
+ * DISTINCT FILE, not per side or per line: the same artwork at the same size
+ * (within the ~5% resize tolerance the machines allow) reuses one file no
+ * matter how many sides/garments it lands on; the same artwork resized
+ * beyond that needs a fresh digitization and a fresh fee.
+ */
+export type DigitizingUnitEntry = {
+  side: string
+  /**
+   * Identity of the artwork: sorted image-object sources on the side (the
+   * customer-original upload URLs are stable per upload). Falls back to text
+   * content for text-only embroidery. Non-fingerprintable sides get a
+   * scope-token key so they NEVER merge across lines (fail toward charging).
+   */
+  artworkKey: string
+  fingerprintable: boolean
+  widthMm: number
+  heightMm: number
+  includeFee: boolean
+  /** Exact per-line lookup key — stable for map lookups after clustering. */
+  key: string
+}
+
+/** ~5% resize tolerance: beyond this the design must be re-digitized. */
+export const DIGITIZING_RESIZE_TOLERANCE = 0.05
+
+const dimsWithinTolerance = (a: DigitizingUnitEntry, b: DigitizingUnitEntry): boolean => {
+  const close = (x: number, y: number) =>
+    x === y || (x > 0 && y > 0 && Math.abs(x - y) / Math.max(x, y) <= DIGITIZING_RESIZE_TOLERANCE)
+  return close(a.widthMm, b.widthMm) && close(a.heightMm, b.heightMm)
+}
+
+/**
+ * Extract the digitizing-unit entries for a line's embroidery sides.
+ * `scopeToken` namespaces non-fingerprintable sides (pass the line id) so
+ * they can't accidentally merge across lines.
+ */
+export function embroideryDigitizingUnits(
+  metadata: Record<string, unknown> | null | undefined,
+  scopeToken: string
+): DigitizingUnitEntry[] {
+  const customizerDesign = objectOrEmpty<Record<string, unknown>>(
+    (metadata ?? {}).customizerDesign
+  )
+  const sideDecorationMethods = objectOrEmpty<Record<string, string>>(
+    customizerDesign.sideDecorationMethods
+  )
+  const sideEmbroideryConfigs = objectOrEmpty<Record<string, SideEmbroideryConfig>>(
+    customizerDesign.sideEmbroideryConfigs
+  )
+  const sideLayoutsRaw = customizerDesign.sideLayouts
+  const layoutBySide = new Map<string, unknown[]>()
+  if (Array.isArray(sideLayoutsRaw)) {
+    for (const entry of sideLayoutsRaw) {
+      const side = (entry as { side?: unknown })?.side
+      const objects = (entry as { objects?: unknown })?.objects
+      if (typeof side === "string" && Array.isArray(objects)) {
+        layoutBySide.set(side, objects)
+      }
+    }
+  }
+
+  const entries: DigitizingUnitEntry[] = []
+  for (const side of decoratedSidesFromLineMetadata(metadata ?? {})) {
+    if (sideDecorationMethods[side] !== "embroidery") continue
+    const cfg = sideEmbroideryConfigs[side]
+    const stitchCount = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
+    if (stitchCount <= 0 || stitchCount > MAX_AUTO_PRICED_STITCHES) continue
+
+    const objects = layoutBySide.get(side) ?? []
+    const sources: string[] = []
+    for (const raw of objects) {
+      const obj = raw as { src?: unknown; text?: unknown }
+      if (typeof obj.src === "string" && obj.src.length > 0) sources.push(obj.src)
+      else if (typeof obj.text === "string" && obj.text.trim().length > 0)
+        sources.push(`text:${obj.text.trim()}`)
+    }
+    const fingerprintable = sources.length > 0
+    const artworkKey = fingerprintable
+      ? sources.sort().join("|")
+      : `unfingerprinted:${scopeToken}:${side}`
+    const widthMm = Number(cfg?.widthMm) > 0 ? Number(cfg?.widthMm) : 0
+    const heightMm = Number(cfg?.heightMm) > 0 ? Number(cfg?.heightMm) : 0
+    entries.push({
+      side,
+      artworkKey,
+      fingerprintable,
+      widthMm,
+      heightMm,
+      includeFee: cfg?.includeDigitizingFee !== false,
+      key: `${artworkKey}::${widthMm}x${heightMm}`,
+    })
+  }
+  return entries
+}
+
+/**
+ * Cluster digitizing entries (from one or many lines) into distinct files:
+ * same artworkKey + dimensions within the resize tolerance = one file.
+ * Returns, for each entry's exact `key`, the cluster it belongs to — the
+ * caller sums quantities per cluster to derive the amortisation base.
+ */
+export function clusterDigitizingEntries(
+  entries: DigitizingUnitEntry[]
+): Map<string, DigitizingUnitEntry[]> {
+  const clusters: Array<{ rep: DigitizingUnitEntry; members: DigitizingUnitEntry[] }> = []
+  for (const entry of entries) {
+    const match = clusters.find(
+      (c) => c.rep.artworkKey === entry.artworkKey && dimsWithinTolerance(c.rep, entry)
+    )
+    if (match) match.members.push(entry)
+    else clusters.push({ rep: entry, members: [entry] })
+  }
+  const byKey = new Map<string, DigitizingUnitEntry[]>()
+  for (const cluster of clusters) {
+    for (const member of cluster.members) {
+      byKey.set(member.key, cluster.members)
+    }
+  }
+  return byKey
 }
 
 export type SideScreenConfig = {
@@ -104,6 +230,14 @@ export function computeDecorationTotals(args: {
   printTierQuantity: number
   embroideryQuantity: number
   screenHeavyGarment: boolean
+  /**
+   * Cart-wide digitizing amortisation: per exact entry `key`, the TOTAL
+   * quantity of garments (across all cart lines) sharing that digitized
+   * file. The recompute supplies this after clustering the whole cart;
+   * absent (add/update paths), each unit amortises over embroideryQuantity
+   * — the recompute settles it to the cart-wide base moments later.
+   */
+  digitizingAmortQtyByKey?: Map<string, number>
 }): DecorationTotals {
   const metadata = args.metadata ?? {}
 
@@ -156,6 +290,17 @@ export function computeDecorationTotals(args: {
           decoratedSides: printSides,
         })
 
+  // Digitizing is charged per DISTINCT FILE (artwork + size within the ~5%
+  // resize tolerance), not per side: two sides of one garment carrying the
+  // same logo at the same size share one fee. Cross-line sharing (same file
+  // across a size fan-out or across different garments in the cart) arrives
+  // via digitizingAmortQtyByKey from the recompute.
+  const embroideryQty = Math.max(1, Math.floor(args.embroideryQuantity || 1))
+  const digitizingEntries = embroideryDigitizingUnits(metadata, "line")
+  const clustersByKey = clusterDigitizingEntries(digitizingEntries)
+  const entryBySide = new Map(digitizingEntries.map((e) => [e.side, e]))
+  const feeChargedClusters = new Set<DigitizingUnitEntry[]>()
+
   let embroideryTotalMajor = 0
   const embroideryBreakdown: EmbroideryBreakdownEntry[] = []
   for (const side of embroiderySides) {
@@ -173,18 +318,39 @@ export function computeDecorationTotals(args: {
       })
       continue
     }
-    const result = calculateEmbroideryUnitPriceMajor({
+    const decoration = calculateEmbroideryUnitPriceMajor({
       stitchCount,
-      quantity: Math.max(1, Math.floor(args.embroideryQuantity || 1)),
-      includeDigitizing: cfg?.includeDigitizingFee !== false,
+      quantity: embroideryQty,
+      includeDigitizing: false,
     })
-    embroideryTotalMajor += result.unitPriceMajor
+
+    // Fee attribution: charged once per cluster (on its first-seen side),
+    // when any member of the cluster accepted the fee.
+    let digitizingFeeMajor = 0
+    let feeShareMajor = 0
+    const entry = entryBySide.get(side)
+    const cluster = entry ? clustersByKey.get(entry.key) : undefined
+    if (entry && cluster && !feeChargedClusters.has(cluster)) {
+      feeChargedClusters.add(cluster)
+      const clusterWantsFee = cluster.some((m) => m.includeFee)
+      if (clusterWantsFee) {
+        digitizingFeeMajor = DIGITIZING_FEE_MAJOR
+        const amortQty = Math.max(
+          1,
+          Math.floor(args.digitizingAmortQtyByKey?.get(entry.key) ?? embroideryQty)
+        )
+        feeShareMajor = digitizingFeeMajor / amortQty
+      }
+    }
+
+    const unitPriceMajor = round2(decoration.unitDecorationMajor + feeShareMajor)
+    embroideryTotalMajor += unitPriceMajor
     embroideryBreakdown.push({
       side,
       stitchCount,
-      unitDecorationMajor: result.unitDecorationMajor,
-      digitizingFeeMajor: result.digitizingFeeMajor,
-      unitPriceMajor: result.unitPriceMajor,
+      unitDecorationMajor: decoration.unitDecorationMajor,
+      digitizingFeeMajor,
+      unitPriceMajor,
       requiresQuote: false,
     })
   }

@@ -113,14 +113,30 @@ describe("storefront pricing mirrors the backend charge (shared golden vectors)"
         ? [c.design.printPlacement.side as GarmentSide]
         : []
 
+      // Artwork identity + dimensions drive the per-file digitizing dedup —
+      // same derivation the customizer template uses (sorted image srcs).
+      const layoutBySide = new Map<string, Array<{ src?: string; text?: string }>>(
+        ((c.design as { sideLayouts?: Array<{ side: string; objects?: unknown[] }> })
+          .sideLayouts ?? []).map((l) => [l.side, (l.objects ?? []) as never])
+      )
       const embroidery: EmbroideryPricingSpec[] = decoratedSides
         .filter((side) => methods[side] === "embroidery")
-        .map((side) => ({
-          side,
-          stitchCount: c.design.sideEmbroideryConfigs?.[side]?.stitchCount ?? 0,
-          includeDigitizingFee:
-            c.design.sideEmbroideryConfigs?.[side]?.includeDigitizingFee !== false,
-        }))
+        .map((side) => {
+          const cfg = c.design.sideEmbroideryConfigs?.[side] as
+            | { stitchCount?: number; includeDigitizingFee?: boolean; widthMm?: number; heightMm?: number }
+            | undefined
+          const sources = (layoutBySide.get(side) ?? [])
+            .map((o) => (typeof o.src === "string" && o.src ? o.src : null))
+            .filter((s): s is string => !!s)
+          return {
+            side,
+            stitchCount: cfg?.stitchCount ?? 0,
+            includeDigitizingFee: cfg?.includeDigitizingFee !== false,
+            widthMm: cfg?.widthMm,
+            heightMm: cfg?.heightMm,
+            artworkKey: sources.length ? sources.sort().join("|") : undefined,
+          }
+        })
 
       const screen: ScreenPricingSpec[] = decoratedSides
         .filter((side) => methods[side] === "screen")

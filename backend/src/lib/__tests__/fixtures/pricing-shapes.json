@@ -1693,6 +1693,190 @@
     },
     "cost_price_ex_gst_minor": 1400
    }
+  },
+  {
+   "name": "synth_digitizing_two_sides_one_file",
+   "quantity": 20,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6"
+     },
+     {
+      "side": "back",
+      "sizeId": "up_to_a6"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "embroidery",
+     "back": "embroidery"
+    },
+    "sideEmbroideryConfigs": {
+     "front": {
+      "stitchCount": 3000,
+      "includeDigitizingFee": true,
+      "widthMm": 80,
+      "heightMm": 80
+     },
+     "back": {
+      "stitchCount": 3000,
+      "includeDigitizingFee": true,
+      "widthMm": 80,
+      "heightMm": 80
+     }
+    },
+    "sideLayouts": [
+     {
+      "side": "front",
+      "objects": [
+       {
+        "type": "Image",
+        "src": "https://r2/logo-a"
+       }
+      ]
+     },
+     {
+      "side": "back",
+      "objects": [
+       {
+        "type": "Image",
+        "src": "https://r2/logo-a"
+       }
+      ]
+     }
+    ],
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 26.18
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
+  },
+  {
+   "name": "synth_digitizing_back_resized_new_file",
+   "quantity": 20,
+   "design": {
+    "version": 3,
+    "scpPrintSizeId": "up_to_a6",
+    "prints": [
+     {
+      "side": "front",
+      "sizeId": "up_to_a6"
+     },
+     {
+      "side": "back",
+      "sizeId": "up_to_a6"
+     }
+    ],
+    "artifacts": null,
+    "sideDecorationMethods": {
+     "front": "embroidery",
+     "back": "embroidery"
+    },
+    "sideEmbroideryConfigs": {
+     "front": {
+      "stitchCount": 3000,
+      "includeDigitizingFee": true,
+      "widthMm": 80,
+      "heightMm": 80
+     },
+     "back": {
+      "stitchCount": 9000,
+      "includeDigitizingFee": true,
+      "widthMm": 250,
+      "heightMm": 250
+     }
+    },
+    "sideLayouts": [
+     {
+      "side": "front",
+      "objects": [
+       {
+        "type": "Image",
+        "src": "https://r2/logo-a"
+       }
+      ]
+     },
+     {
+      "side": "back",
+      "objects": [
+       {
+        "type": "Image",
+        "src": "https://r2/logo-a"
+       }
+      ]
+     }
+    ],
+    "server": {
+     "print_size_id": "up_to_a6",
+     "garment_unit_major": 26.18
+    }
+   },
+   "variant": {
+    "bulk_pricing": {
+     "tiers": [
+      {
+       "min_quantity": 1,
+       "max_quantity": 9,
+       "amount": 30.8
+      },
+      {
+       "min_quantity": 10,
+       "max_quantity": 19,
+       "amount": 27.72
+      },
+      {
+       "min_quantity": 20,
+       "max_quantity": 49,
+       "amount": 26.18
+      },
+      {
+       "min_quantity": 50,
+       "max_quantity": 99,
+       "amount": 24.64
+      },
+      {
+       "min_quantity": 100,
+       "amount": 23.1
+      }
+     ]
+    },
+    "cost_price_ex_gst_minor": 1400
+   }
   }
  ]
 }

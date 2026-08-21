@@ -77,6 +77,15 @@ export type EmbroideryPricingSpec = {
   side: GarmentSide
   stitchCount: number
   includeDigitizingFee?: boolean
+  /** Embroidery dimensions — drive the per-FILE digitizing dedup (±5% resize tolerance). */
+  widthMm?: number
+  heightMm?: number
+  /**
+   * Artwork identity (sorted image sources on the side). Sides sharing the
+   * same key + size reuse one digitized file → one setup fee. Absent = not
+   * fingerprintable → the side is its own file (never undercharges).
+   */
+  artworkKey?: string
 }
 
 /** Pricing-only view of a single logical print (one heat-press transfer). */

@@ -160,10 +160,20 @@ export const calculatePricing = ({
       ? beforeDiscountUnit
       : beforeDiscountUnit * (1 - quantityDiscountRate)
 
-  // Embroidery add-on: stitch-tier price + digitizing fee amortised over the
+  // Embroidery add-on: stitch-tier price + digitizing amortised over the
   // quantity. Added AFTER the quantity discount, mirroring the backend charge
   // (computeScpLineDescriptor never discounts decoration). Sides above the
   // auto-priced stitch cap contribute $0 and are flagged for the quote path.
+  //
+  // Digitizing is charged per DISTINCT FILE, not per side: the same artwork
+  // at the same size (within the ~5% machine resize tolerance) shares one
+  // digitized file across sides, so one $60 fee — a >5% resize is a new file
+  // and a new fee. Mirrors clusterDigitizingEntries in
+  // backend/src/lib/scp-decoration-pricing.ts (locked by pricing-mirror.spec).
+  const dimsClose = (a: number, b: number) =>
+    a === b || (a > 0 && b > 0 && Math.abs(a - b) / Math.max(a, b) <= 0.05)
+  type EmbCluster = { artworkKey: string; widthMm: number; heightMm: number; feeCharged: boolean }
+  const embClusters: EmbCluster[] = []
   let embroideryPerUnit = 0
   const embroideryRows: NonNullable<PricingBreakdown["embroideryRows"]> = []
   for (const spec of embroidery ?? []) {
@@ -174,9 +184,41 @@ export const calculatePricing = ({
       quantity: safeQuantity,
       includeDigitizing: spec.includeDigitizingFee !== false,
     })
-    const unit = breakdown.requiresQuote
-      ? 0
-      : round2(breakdown.unitDecorationPrice + breakdown.digitizingFee / safeQuantity)
+
+    let unit = 0
+    if (!breakdown.requiresQuote) {
+      // Attribute the digitizing fee once per distinct file. Sides with no
+      // artwork key never cluster together (each is its own file — fail
+      // toward charging, same as the backend).
+      let feeMajor = 0
+      if (breakdown.digitizingFee > 0) {
+        const widthMm = Math.max(0, spec.widthMm ?? 0)
+        const heightMm = Math.max(0, spec.heightMm ?? 0)
+        const cluster = spec.artworkKey
+          ? embClusters.find(
+              (c) =>
+                c.artworkKey === spec.artworkKey &&
+                dimsClose(c.widthMm, widthMm) &&
+                dimsClose(c.heightMm, heightMm)
+            )
+          : undefined
+        if (cluster) {
+          if (!cluster.feeCharged) {
+            cluster.feeCharged = true
+            feeMajor = breakdown.digitizingFee
+          }
+        } else {
+          embClusters.push({
+            artworkKey: spec.artworkKey ?? `side:${spec.side}`,
+            widthMm,
+            heightMm,
+            feeCharged: true,
+          })
+          feeMajor = breakdown.digitizingFee
+        }
+      }
+      unit = round2(breakdown.unitDecorationPrice + feeMajor / safeQuantity)
+    }
     embroideryPerUnit = round2(embroideryPerUnit + unit)
     embroideryRows.push({
       side: spec.side,

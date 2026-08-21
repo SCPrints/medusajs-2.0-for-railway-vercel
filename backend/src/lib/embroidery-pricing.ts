@@ -38,7 +38,7 @@ const STITCH_TIERS: Array<{ maxStitches: number; prices: number[] }> = [
   { maxStitches: 12000, prices: [16.5, 15.5, 13.5, 11.5, 10.5, 9.5] },
 ]
 
-const DIGITIZING_FEE_MAJOR = 60
+export const DIGITIZING_FEE_MAJOR = 60
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 

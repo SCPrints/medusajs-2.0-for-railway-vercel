@@ -82,6 +82,8 @@ function lineMetadataFor(c: ShapeCase): Record<string, unknown> {
     customizerDesign.sideEmbroideryConfigs = c.design.sideEmbroideryConfigs
   if (c.design.sideScreenConfigs)
     customizerDesign.sideScreenConfigs = c.design.sideScreenConfigs
+  if ((c.design as { sideLayouts?: unknown }).sideLayouts)
+    customizerDesign.sideLayouts = (c.design as { sideLayouts?: unknown }).sideLayouts
   const metadata: Record<string, unknown> = { customizerDesign }
   // Legacy pre-artifacts payloads carry printPlacement at metadata top level.
   if (c.design.printPlacement) metadata.printPlacement = c.design.printPlacement

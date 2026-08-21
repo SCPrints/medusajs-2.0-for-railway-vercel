@@ -1619,12 +1619,31 @@ export default function CustomizerTemplate({
     () =>
       decoratedSides
         .filter((side) => sideDecorationMethods[side] === "embroidery")
-        .map((side) => ({
-          side,
-          stitchCount: sideEmbroideryConfigs[side]?.stitchCount ?? 0,
-          includeDigitizingFee:
-            sideEmbroideryConfigs[side]?.includeDigitizingFee !== false,
-        })),
+        .map((side) => {
+          // Artwork identity for the per-FILE digitizing dedup: sorted image
+          // sources (text objects fall back to their content). Sides sharing
+          // the same artwork at the same size (±5%) reuse one digitized file
+          // → one setup fee. Mirrors embroideryDigitizingUnits server-side.
+          const sources: string[] = []
+          for (const raw of sideLayoutsRef.current[side] ?? []) {
+            const obj = raw as Record<string, any>
+            if (typeof obj.src === "string" && obj.src.length > 0) sources.push(obj.src)
+            else if (typeof obj.text === "string" && obj.text.trim().length > 0)
+              sources.push(`text:${obj.text.trim()}`)
+          }
+          return {
+            side,
+            stitchCount: sideEmbroideryConfigs[side]?.stitchCount ?? 0,
+            includeDigitizingFee:
+              sideEmbroideryConfigs[side]?.includeDigitizingFee !== false,
+            widthMm: sideEmbroideryConfigs[side]?.widthMm,
+            heightMm: sideEmbroideryConfigs[side]?.heightMm,
+            artworkKey: sources.length ? sources.sort().join("|") : undefined,
+          }
+        }),
+    // sideLayoutsRef is a ref (always current); decoratedSides already bumps
+    // on every canvas change via layoutVersion, so the artwork keys refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [decoratedSides, sideDecorationMethods, sideEmbroideryConfigs]
   )
 
