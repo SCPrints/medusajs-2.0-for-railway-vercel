@@ -15,7 +15,10 @@ import {
   resolveScpTierIndexForQuantity,
   type ScpPrintSizeId,
 } from "../../../../../lib/scp-dtf-print-pricing"
-import { EMBROIDERY_PRICING_VERSION } from "../../../../../lib/embroidery-pricing"
+import {
+  EMBROIDERY_PRICING_VERSION,
+  MAX_AUTO_PRICED_STITCHES,
+} from "../../../../../lib/embroidery-pricing"
 import { SCP_SCREEN_PRICING_VERSION } from "../../../../../lib/scp-screen-print-pricing"
 import {
   computeDecorationTotals,
@@ -320,6 +323,19 @@ async function scpUpdateDesignPostHandler(
         MedusaError.Types.INVALID_DATA,
         `Embroidery size not confirmed for: ${totals.unconfiguredEmbroiderySides.join(", ")}. ` +
           `Confirm the embroidery size for each embroidered position before saving.`
+      )
+    }
+
+    // Same POA guard as the add path (scp-line-descriptor.ts) — an over-cap
+    // embroidery side prices at $0 and must not be saved onto a cart line.
+    const poaSides = embroideryBreakdown
+      .filter((b) => b.requiresQuote)
+      .map((b) => b.side.replace(/_/g, " "))
+    if (poaSides.length > 0) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        `Embroidery on ${poaSides.join(", ")} is over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — ` +
+          `priced on application. Request a quote instead.`
       )
     }
 

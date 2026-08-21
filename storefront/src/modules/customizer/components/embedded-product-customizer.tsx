@@ -28,6 +28,8 @@ type Props = {
   assemblyLayout?: boolean
   /** Logged-in customer's tier, resolved by the server parent. */
   tier?: Tier | null
+  /** Logged-in customer's email (POA quote prefill), resolved server-side. */
+  customerEmail?: string | null
   /**
    * Optional product list for the in-canvas "Change garment" picker. Used by the
    * standalone /customizer page so customers can swap garments without going
@@ -50,6 +52,7 @@ export default function EmbeddedProductCustomizer({
   product,
   integratedPdpSlots,
   tier = null,
+  customerEmail = null,
   pickerProducts,
   printProfile = null,
   assemblyLayout = false,
@@ -93,6 +96,7 @@ export default function EmbeddedProductCustomizer({
       product={product}
       pickerProducts={pickerProducts}
       tier={tier}
+      customerEmail={customerEmail}
       printProfile={printProfile}
     />
   )

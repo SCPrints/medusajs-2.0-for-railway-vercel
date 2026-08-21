@@ -1,10 +1,13 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { ulid } from "ulid"
 import { z } from "zod"
 
 import { QUOTE_MODULE } from "../../../../../modules/quote"
 import type QuoteModuleService from "../../../../../modules/quote/service"
 import { getPostHog } from "../../../../../lib/posthog"
+import {
+  mapQuoteDesignLines,
+  quoteDesignLineSchema,
+} from "../../../../../lib/quote-design-lines"
 import { verifyQuoteDesign } from "../../../../../services/quote-design/sign"
 
 /**
@@ -30,28 +33,7 @@ import { verifyQuoteDesign } from "../../../../../services/quote-design/sign"
 const schema = z.object({
   qsig: z.string().min(8).max(64),
   group_id: z.string().min(1).max(80),
-  lines: z
-    .array(
-      z.object({
-        line_id: z.string().max(80).optional(),
-        kind: z.enum(["standard", "customizer"]).default("customizer"),
-        variant_id: z.string().nullable(),
-        product_id: z.string(),
-        product_title: z.string().max(300),
-        variant_title: z.string().max(300).nullable().optional(),
-        quantity: z.number().int().min(1).max(100_000),
-        unit_price_cents: z
-          .number()
-          .int()
-          .min(0)
-          .max(100_000_000)
-          .nullable()
-          .optional(),
-        metadata: z.record(z.string(), z.unknown()).default({}),
-      })
-    )
-    .min(1)
-    .max(100),
+  lines: z.array(quoteDesignLineSchema).min(1).max(100),
 })
 
 const TERMINAL_STATUSES = new Set([
@@ -122,53 +104,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       .json({ error: "quote_not_editable", status: quote.status })
   }
 
-  const newLines = body.lines.map((l) => {
-    const md = (l.metadata ?? {}) as Record<string, any>
-    const unit_price =
-      typeof l.unit_price_cents === "number"
-        ? Math.round(l.unit_price_cents) / 100
-        : null
-    const quantity = l.quantity
-    const total =
-      unit_price != null && quantity != null
-        ? Math.round(unit_price * quantity * 100) / 100
-        : null
-    const title = `${l.product_title}${
-      l.variant_title ? ` — ${l.variant_title}` : ""
-    }`
-    const design =
-      md.customizerDesign && typeof md.customizerDesign === "object"
-        ? md.customizerDesign
-        : null
-    // Prefer a rendered mockup as the admin thumbnail so the quote line shows
-    // what the customer designed, not the blank garment.
-    const thumbnail =
-      (Array.isArray(design?.artifacts)
-        ? design.artifacts.find((a: any) => a?.mockupUrl)?.mockupUrl
-        : null) ?? null
-
-    return {
-      id: l.line_id || ulid(),
-      title,
-      description: null,
-      quantity,
-      unit_price,
-      total,
-      product_id: l.product_id,
-      variant_id: l.variant_id,
-      product_handle:
-        typeof md.product_handle === "string" ? md.product_handle : null,
-      thumbnail,
-      customizerDesign: design,
-      print_size_id:
-        typeof md.print_size_id === "string" ? md.print_size_id : null,
-      group_id: body.group_id,
-      // NOTE: `kind` is intentionally NOT persisted — nothing reads it on a
-      // quote, and the admin save round-trip (DraftLineItem) doesn't carry it,
-      // so storing it here would make it vanish on the first edit. Keep the
-      // persisted line shape consistent across both write paths.
-    }
-  })
+  // Shared with /store/quotes/poa-request — keep the persisted line shape
+  // identical across both write paths (see lib/quote-design-lines.ts).
+  const newLines = mapQuoteDesignLines(body.lines, body.group_id)
 
   const existing = Array.isArray(quote.line_items?.items)
     ? (quote.line_items.items as Array<Record<string, any>>).filter(

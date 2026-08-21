@@ -28,7 +28,7 @@ type Quote = {
   id: string
   public_id: string
   status: "new" | "quoted" | "accepted" | "lost" | "expired"
-  source: "byo" | "contact" | "admin"
+  source: "byo" | "contact" | "admin" | "custom_hats" | "customizer_poa"
   email: string
   contact_name: string | null
   company: string | null

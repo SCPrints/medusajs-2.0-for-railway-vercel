@@ -8,6 +8,8 @@ import CustomizerProductPicker, {
   type CustomizerPickerProduct,
 } from "@modules/customizer/components/customizer-product-picker"
 import LowResolutionModal from "@modules/customizer/components/low-resolution-modal"
+import PoaQuoteModal from "@modules/customizer/components/poa-quote-modal"
+import { MAX_AUTO_PRICED_STITCHES } from "@modules/embroidery/lib/pricing"
 import { buildCustomizerMetadataBase } from "@modules/customizer/lib/build-metadata"
 import {
   DPI_CRITICAL_THRESHOLD,
@@ -218,6 +220,11 @@ type CustomizerTemplateProps = {
    * can pick. `null` falls back to the legacy title/tag heuristics.
    */
   printProfile?: ResolvedPrintProfile | null
+  /**
+   * Logged-in customer's email, resolved server-side. Prefills the POA
+   * quote-request modal (>12k-stitch embroidery); guests type theirs.
+   */
+  customerEmail?: string | null
 }
 
 // Visual-only dimensions used to scale the dashed print-area guide on the
@@ -444,6 +451,7 @@ export default function CustomizerTemplate({
   pickerProducts,
   tier = null,
   printProfile = null,
+  customerEmail = null,
 }: CustomizerTemplateProps) {
   const params = useParams()
   const router = useRouter()
@@ -819,6 +827,23 @@ export default function CustomizerTemplate({
   const quoteSigFromUrl = initialVariantSearchParams?.get("qsig") ?? null
   const quoteGroupFromUrl = initialVariantSearchParams?.get("group") ?? null
   const isQuoteMode = Boolean(quoteIdFromUrl && quoteSigFromUrl)
+
+  // POA auto-quote: embroidery over the auto-priced stitch cap can't be added
+  // to cart. The add-to-cart gate opens a quote-request modal; on submit the
+  // flow re-runs and diverts the finished design to /api/quote-bridge/poa
+  // (creating a quote in the staff Kanban) instead of the cart routes.
+  const [poaModalOpen, setPoaModalOpen] = useState(false)
+  const poaContactRef = useRef<{
+    email: string
+    name?: string
+    note?: string
+  } | null>(null)
+  const poaPendingCellsRef = useRef<Array<{
+    variant: HttpTypes.StoreProductVariant
+    size: string
+    quantity: number
+    mockupDataUrl?: string
+  }> | null>(null)
   const [pendingHydration, setPendingHydration] = useState<CustomizerMetadata | null>(null)
   const [hydrationApplied, setHydrationApplied] = useState(false)
   const [editingHydrated, setEditingHydrated] = useState(false)
@@ -4149,6 +4174,37 @@ export default function CustomizerTemplate({
       return
     }
 
+    // POA gate: embroidery over the auto-priced stitch cap prices at $0 and
+    // the backend cart routes reject it — divert to the auto-quote flow
+    // instead. Staff quote mode passes through (staff price the quote anyway).
+    const poaEmbroiderySides = decoratedSides.filter(
+      (side) =>
+        sideDecorationMethods[side] === "embroidery" &&
+        (sideEmbroideryConfigs[side]?.stitchCount ?? 0) > MAX_AUTO_PRICED_STITCHES
+    )
+    if (poaEmbroiderySides.length && !isQuoteMode) {
+      const labels = poaEmbroiderySides
+        .map((s) => s.replace(/_/g, " "))
+        .join(", ")
+      if (isPOSMode) {
+        setUploadError(
+          `Embroidery on ${labels} is over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — priced on application. Create a quote for this design instead of a POS sale.`
+        )
+        return
+      }
+      if (editGroupId || editLineItemId) {
+        setUploadError(
+          `Embroidery on ${labels} is over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — priced on application, so it can't be saved to the cart. Reduce the stitch count, or start a new design and request a quote.`
+        )
+        return
+      }
+      if (!poaContactRef.current) {
+        poaPendingCellsRef.current = bulkCells ?? null
+        setPoaModalOpen(true)
+        return
+      }
+    }
+
     // Colour-count mismatch gate: the artwork analyser found MORE colours
     // than the customer declared, and they haven't explicitly confirmed the
     // reduction — block so the invoice can't silently undercount screens.
@@ -4783,6 +4839,93 @@ export default function CustomizerTemplate({
           }
         } catch (err: any) {
           setUploadError(err?.message ?? "Failed to save to quote")
+        } finally {
+          setIsSubmitting(false)
+        }
+        return
+      }
+
+      // POA divert: instead of the cart, post the finished design to the POA
+      // auto-quote bridge. Mirrors the quote-mode branch (same line shape,
+      // fresh group_id so staff "Edit design in Studio" replaces cleanly) but
+      // with null prices — staff set them when they price the quote.
+      if (poaEmbroiderySides.length && poaContactRef.current) {
+        try {
+          const contact = poaContactRef.current
+          const groupId = `qg_${Date.now().toString(36)}${Math.random()
+            .toString(36)
+            .slice(2, 8)}`
+          const lines = resolvedQuantities.map((quantityEntry) => {
+            const lineItemMetadata: CustomizerMetadata = {
+              ...metadataBase,
+              variantId: quantityEntry.variant.id,
+            }
+            const sanitized = sanitizeCustomizerDesignForCart(
+              lineItemMetadata,
+              dataUrlToHostedUrl
+            )
+            return {
+              kind: "customizer" as const,
+              variant_id: quantityEntry.variant.id,
+              product_id: selectedProduct.id,
+              product_title: selectedProduct.title ?? "Custom design",
+              variant_title:
+                (quantityEntry.variant as any)?.title ?? quantityEntry.size,
+              quantity: quantityEntry.quantity,
+              unit_price_cents: null,
+              metadata: {
+                customizerDesign: sanitized,
+                product_handle: selectedProduct.handle ?? undefined,
+                product_title: selectedProduct.title ?? undefined,
+                print_size_id: scpPrintSizeId,
+              },
+            }
+          })
+          const bridgeRes = await fetch("/api/quote-bridge/poa", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: contact.email,
+              contact_name: contact.name || undefined,
+              note: contact.note || undefined,
+              group_id: groupId,
+              product_title: selectedProduct.title ?? undefined,
+              poa_sides: poaEmbroiderySides.map((side) => ({
+                side,
+                stitch_count: sideEmbroideryConfigs[side]?.stitchCount ?? 0,
+              })),
+              lines,
+            }),
+          })
+          const j = (await bridgeRes.json().catch(() => ({}))) as {
+            message?: string
+            error?: string
+            public_id?: string
+          }
+          if (!bridgeRes.ok) {
+            throw new Error(
+              j?.message ?? j?.error ?? `Quote request failed (${bridgeRes.status})`
+            )
+          }
+          setStatusMessage(
+            `Quote request${j.public_id ? ` ${j.public_id}` : ""} sent! Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches is priced individually — we'll email ${contact.email} with a price, usually within 1 business day.`
+          )
+          // If the request came from the bulk grid, close it so the success
+          // message (rendered in the main layout) is actually visible.
+          setBulkMode(false)
+          phCapture("customizer_poa_quote_requested", {
+            product_id: selectedProduct.id,
+            quote_public_id: j.public_id ?? null,
+            total_quantity: totalQuantity,
+            max_stitch_count: Math.max(
+              0,
+              ...poaEmbroiderySides.map(
+                (s) => sideEmbroideryConfigs[s]?.stitchCount ?? 0
+              )
+            ),
+          })
+        } catch (err: any) {
+          setUploadError(err?.message ?? "Failed to send the quote request")
         } finally {
           setIsSubmitting(false)
         }
@@ -5902,6 +6045,32 @@ export default function CustomizerTemplate({
     // exactly where they were. The grid produces one (variant × size) cell
     // per filled qty; each becomes its own cart line via the existing
     // `addCustomizedToCart` path with the `bulkCells` argument.
+    // POA quote modal — shared between the main layout and the bulk-grid
+    // overlay (the bulk branch returns early, so the modal must render there
+    // too or the gate would open it into nothing).
+    const poaSidesForDisplay = decoratedSides.filter(
+      (side) =>
+        sideDecorationMethods[side] === "embroidery" &&
+        (sideEmbroideryConfigs[side]?.stitchCount ?? 0) >
+          MAX_AUTO_PRICED_STITCHES
+    )
+    const poaQuoteModalNode = (
+      <PoaQuoteModal
+        open={poaModalOpen}
+        initialEmail={customerEmail}
+        poaSides={poaSidesForDisplay.map((side) => ({
+          side,
+          stitchCount: sideEmbroideryConfigs[side]?.stitchCount ?? 0,
+        }))}
+        onClose={() => setPoaModalOpen(false)}
+        onSubmit={(contact) => {
+          poaContactRef.current = contact
+          setPoaModalOpen(false)
+          void addCustomizedToCart(poaPendingCellsRef.current ?? undefined)
+        }}
+      />
+    )
+
     if (bulkMode && selectedProduct && selectedVariant) {
       // Prop-building consts are lifted to the component top level (see
       // bulkPrintThumbSources / stableHandleBulkSubmit etc.) so they have
@@ -5937,6 +6106,7 @@ export default function CustomizerTemplate({
               0
             )}
           />
+          {poaQuoteModalNode}
         </div>
       )
     }
@@ -6986,6 +7156,17 @@ export default function CustomizerTemplate({
                     </div>
                   )
                 })()}
+                {poaSidesForDisplay.length > 0 && !isQuoteMode && (
+                  <div className="mt-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
+                    <p>
+                      <span className="font-semibold">Custom quote needed</span> — embroidery on{" "}
+                      {poaSidesForDisplay.map((s) => s.replace(/_/g, " ")).join(", ")} is over{" "}
+                      {MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches, which we price
+                      individually. The button below sends your design to our team for a quote
+                      instead of adding it to cart.
+                    </p>
+                  </div>
+                )}
               </div>
               {(() => {
                 const colourOption = selectedProduct.options?.find((option) =>
@@ -7060,6 +7241,8 @@ export default function CustomizerTemplate({
                     ? "Add to sale"
                     : editLineItemId
                     ? "Update cart"
+                    : poaSidesForDisplay.length > 0
+                    ? "Request a quote"
                     : undefined
                 }
                 primaryCtaLoadingLabel={
@@ -7069,6 +7252,8 @@ export default function CustomizerTemplate({
                     ? "Adding…"
                     : editLineItemId
                     ? "Updating..."
+                    : poaSidesForDisplay.length > 0
+                    ? "Sending…"
                     : undefined
                 }
                 aggregatedCartQuantity={aggregatedCartQuantity}
@@ -7147,6 +7332,7 @@ export default function CustomizerTemplate({
             )
           }}
         />
+        {poaQuoteModalNode}
       </div>
     )
   }

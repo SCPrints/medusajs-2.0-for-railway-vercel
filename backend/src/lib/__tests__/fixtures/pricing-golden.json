@@ -355,26 +355,7 @@
  },
  "synth_poa_over_12k_stitches": {
   "descriptor": {
-   "unitPriceMajor": 30.8,
-   "printTotalMajor": 0,
-   "embroideryTotalMajor": 0,
-   "screenTotalMajor": 0,
-   "tierIndex": 0,
-   "printSides": [],
-   "embroiderySides": [
-    "front"
-   ],
-   "embroideryBreakdown": [
-    {
-     "side": "front",
-     "stitchCount": 15000,
-     "unitPriceMajor": 0,
-     "digitizingFeeMajor": 0,
-     "requiresQuote": true
-    }
-   ],
-   "screenSides": [],
-   "screenBreakdown": []
+   "error": "Embroidery on front is over 12,000 stitches — priced on application. Request a quote instead of adding to cart."
   },
   "recompute": {
    "price": 30.8,

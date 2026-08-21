@@ -99,6 +99,13 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "4mb" },
     },
     {
+      // Customer POA auto-quote — same payload shape as the design-items relay
+      // (lines carrying sanitised customizerDesign), same headroom.
+      matcher: "/store/quotes/poa-request",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "4mb" },
+    },
+    {
       // Admin quote update — "Save line items" can re-send several lines each
       // carrying a customizerDesign payload, which blows the ~100kb default.
       matcher: "/admin/quotes/:id",

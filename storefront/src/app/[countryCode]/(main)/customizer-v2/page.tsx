@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { Suspense } from "react"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomerTier } from "@lib/data/customer-tier"
+import { getCustomer } from "@lib/data/customer"
 import { getMyDesign } from "@lib/data/designs"
 import { retrieveOrder } from "@lib/data/orders"
 import { getProductsList } from "@lib/data/products"
@@ -210,7 +211,7 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
   // of one another — resolve them in parallel. The previous waterfall (region
   // → 60-product picker → tier → print profile) pushed the hero image's
   // preload discovery seconds later on every cold render.
-  const [region, pickerResult, tier, printProfile] = await Promise.all([
+  const [region, pickerResult, tier, printProfile, customer] = await Promise.all([
     getRegion(countryCode),
     // Catalog list for the in-customizer "Change product" picker.
     getProductsList({
@@ -222,6 +223,7 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
     }).catch(() => ({ response: { products: [] as HttpTypes.StoreProduct[] } })),
     getCustomerTier(),
     getPrintProfileForProduct(customizerProduct),
+    getCustomer(),
   ])
 
   if (!region) {
@@ -285,6 +287,7 @@ export default async function CustomizerV2Page({ params, searchParams }: Customi
             }}
             pickerProducts={pickerProducts}
             tier={tier}
+            customerEmail={customer?.email ?? null}
             printProfile={printProfile}
           />
         </PdpCustomizerBoundary>
