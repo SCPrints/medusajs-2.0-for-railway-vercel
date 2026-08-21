@@ -383,18 +383,7 @@
  },
  "synth_emb_zero_stitch_config": {
   "descriptor": {
-   "unitPriceMajor": 30.8,
-   "printTotalMajor": 0,
-   "embroideryTotalMajor": 0,
-   "screenTotalMajor": 0,
-   "tierIndex": 0,
-   "printSides": [],
-   "embroiderySides": [
-    "front"
-   ],
-   "embroideryBreakdown": [],
-   "screenSides": [],
-   "screenBreakdown": []
+   "error": "Embroidery size not confirmed for: front. Open the embroidery settings for each embroidered position and confirm the size before adding to cart."
   },
   "recompute": {
    "price": 30.8,

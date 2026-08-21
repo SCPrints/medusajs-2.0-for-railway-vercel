@@ -60,9 +60,11 @@ type ShapeCase = {
 
 type GoldenCase = {
   descriptor: {
-    printTotalMajor: number
-    embroideryTotalMajor: number
-    screenTotalMajor: number
+    printTotalMajor?: number
+    embroideryTotalMajor?: number
+    screenTotalMajor?: number
+    /** The backend REJECTS this design at add time (e.g. unconfirmed embroidery). */
+    error?: string
   }
 }
 
@@ -80,6 +82,11 @@ describe("storefront pricing mirrors the backend charge (shared golden vectors)"
     it(c.name, () => {
       const g = golden[c.name]
       expect(g).toBeDefined()
+      if (g.descriptor.error) {
+        // The backend rejects this design at add time — nothing to mirror.
+        // (The storefront blocks it before the request via its own gate.)
+        return
+      }
 
       const selectedSize = (c.design.scpPrintSizeId ??
         (c.design.server.print_size_id as string | null) ??

@@ -313,6 +313,16 @@ async function scpUpdateDesignPostHandler(
       screenBreakdown,
     } = totals
 
+    // Same guard as the add path: never accept a design whose embroidery
+    // sides have no confirmed stitch count ($0 decoration).
+    if (totals.unconfiguredEmbroiderySides.length > 0) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        `Embroidery size not confirmed for: ${totals.unconfiguredEmbroiderySides.join(", ")}. ` +
+          `Confirm the embroidery size for each embroidered position before saving.`
+      )
+    }
+
     const garmentMajor = await resolveGarmentUnitAmountMajor({
       query,
       variantId: line.variant_id,

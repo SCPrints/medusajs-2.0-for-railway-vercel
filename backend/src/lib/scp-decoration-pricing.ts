@@ -205,6 +205,14 @@ export type DecorationTotals = {
   printSides: string[]
   embroiderySides: string[]
   screenSides: string[]
+  /**
+   * Embroidery sides with NO usable stitch count — they price at $0
+   * decoration. The add/update routes REJECT lines carrying these (the
+   * storefront forces the config panel before add-to-cart); the recompute
+   * tolerates them for already-in-cart legacy lines, and the checkout
+   * invariant flags them as free_decoration.
+   */
+  unconfiguredEmbroiderySides: string[]
   /** DTF print tier index actually used (from printTierQuantity). */
   printTierIndex: number
   printTotalMajor: number
@@ -303,10 +311,14 @@ export function computeDecorationTotals(args: {
 
   let embroideryTotalMajor = 0
   const embroideryBreakdown: EmbroideryBreakdownEntry[] = []
+  const unconfiguredEmbroiderySides: string[] = []
   for (const side of embroiderySides) {
     const cfg = sideEmbroideryConfigs[side]
     const stitchCount = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
-    if (stitchCount <= 0) continue
+    if (stitchCount <= 0) {
+      unconfiguredEmbroiderySides.push(side)
+      continue
+    }
     if (stitchCount > MAX_AUTO_PRICED_STITCHES) {
       embroideryBreakdown.push({
         side,
@@ -383,6 +395,7 @@ export function computeDecorationTotals(args: {
     printSides,
     embroiderySides,
     screenSides,
+    unconfiguredEmbroiderySides,
     printTierIndex,
     printTotalMajor: Math.max(0, printTotalMajor),
     embroideryTotalMajor: Math.max(0, embroideryTotalMajor),

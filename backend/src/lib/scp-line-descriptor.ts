@@ -141,6 +141,18 @@ export async function computeScpLineDescriptor(
     screenBreakdown,
   } = totals
 
+  // An embroidery side with no stitch count would price its decoration at
+  // $0 — reject rather than sell free embroidery. The customizer forces the
+  // embroidery config panel before enabling add-to-cart, so a customer only
+  // sees this if the client-side gate was bypassed.
+  if (totals.unconfiguredEmbroiderySides.length > 0) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      `Embroidery size not confirmed for: ${totals.unconfiguredEmbroiderySides.join(", ")}. ` +
+        `Open the embroidery settings for each embroidered position and confirm the size before adding to cart.`
+    )
+  }
+
   const garmentMajor = await resolveGarmentUnitAmountMajor({
     query,
     variantId,

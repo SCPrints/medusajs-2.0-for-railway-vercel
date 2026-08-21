@@ -92,6 +92,11 @@ import {
   TaxInvoiceEmail,
   isTaxInvoiceData,
 } from './tax-invoice'
+import {
+  PRICING_AUDIT_DIGEST,
+  PricingAuditDigestEmail,
+  isPricingAuditDigestData,
+} from './pricing-audit-digest'
 
 export const EmailTemplates = {
   INVITE_USER,
@@ -114,6 +119,7 @@ export const EmailTemplates = {
   QUOTE_CUSTOMER_ACTION,
   QUOTE_DESIGN_APPROVAL_REQUEST,
   TAX_INVOICE,
+  PRICING_AUDIT_DIGEST,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -299,6 +305,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
         )
       }
       return <TaxInvoiceEmail {...data} />
+
+    case EmailTemplates.PRICING_AUDIT_DIGEST:
+      if (!isPricingAuditDigestData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.PRICING_AUDIT_DIGEST}"`
+        )
+      }
+      return <PricingAuditDigestEmail {...data} />
 
     default:
       throw new MedusaError(

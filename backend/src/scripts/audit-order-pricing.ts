@@ -26,6 +26,14 @@ import {
 } from "../lib/checkout-price-invariant"
 import { resolveTierForCartCustomer } from "../lib/scp-resolve-garment-unit-price"
 import { getPostHog } from "../lib/posthog"
+import { EmailTemplates } from "../modules/email-notifications/templates"
+import {
+  ADMIN_PUBLIC_URL,
+  BACKEND_URL,
+  CONTACT_NOTIFICATION_EMAIL,
+  ORDER_NOTIFICATION_EMAIL,
+  SUPPORT_REPLY_TO_EMAIL,
+} from "../lib/constants"
 
 // Default 48h; WINDOW_HOURS env override for manual backtests (older orders
 // may predate rate-card changes — expect legitimate-looking flags there).
@@ -48,6 +56,14 @@ export default async function auditOrderPricing({ container }: ExecArgs) {
   let flagged = 0
   let cleared = 0
   const sample: string[] = []
+  // Every order currently flagged in the window (new or repeat) — the email
+  // digest repeats daily until each is fixed or stamped with price_override.
+  const digestOrders: Array<{
+    display_id: number | string
+    order_id: string
+    verdict: string
+    findings: Array<{ kind: string; detail: string }>
+  }> = []
 
   for (;;) {
     const { data } = await query.graph({
@@ -137,6 +153,16 @@ export default async function auditOrderPricing({ container }: ExecArgs) {
         (order.metadata?.pricing_audit as { status?: string } | undefined)?.status ===
         "mismatch"
       const isFlagged = result.verdict !== "ok"
+      if (isFlagged) {
+        digestOrders.push({
+          display_id: order.display_id ?? order.id,
+          order_id: order.id,
+          verdict: result.verdict,
+          findings: result.findings
+            .slice(0, 5)
+            .map((f) => ({ kind: f.kind, detail: f.detail })),
+        })
+      }
       if (isFlagged === wasFlagged) continue
 
       if (isFlagged) {
@@ -187,7 +213,38 @@ export default async function auditOrderPricing({ container }: ExecArgs) {
   }
 
   logger.info(
-    `[audit-order-pricing] ${dryRun ? "DRY RUN " : ""}scanned ${scanned} orders (last ${WINDOW_HOURS}h) — newly flagged: ${flagged}, cleared: ${cleared}`
+    `[audit-order-pricing] ${dryRun ? "DRY RUN " : ""}scanned ${scanned} orders (last ${WINDOW_HOURS}h) — newly flagged: ${flagged}, cleared: ${cleared}, in digest: ${digestOrders.length}`
   )
   for (const line of sample) logger.warn(`[audit-order-pricing] ${line}`)
+
+  // Email digest — repeats daily while any order in the window stays flagged
+  // (fix the price or stamp metadata.price_override to clear it). Silent when
+  // everything's clean; skipped in dry runs and when no inbox is configured.
+  const digestRecipient = CONTACT_NOTIFICATION_EMAIL || ORDER_NOTIFICATION_EMAIL
+  if (!dryRun && digestOrders.length && digestRecipient) {
+    try {
+      const notificationModuleService = container.resolve(Modules.NOTIFICATION) as unknown as {
+        createNotifications: (data: Record<string, unknown>) => Promise<unknown>
+      }
+      await notificationModuleService.createNotifications({
+        to: digestRecipient,
+        channel: "email",
+        template: EmailTemplates.PRICING_AUDIT_DIGEST,
+        data: {
+          emailOptions: {
+            replyTo: SUPPORT_REPLY_TO_EMAIL,
+            subject: `⚠ Pricing audit: ${digestOrders.length} order${digestOrders.length === 1 ? "" : "s"} flagged`,
+          },
+          digest: {
+            windowLabel: `last ${WINDOW_HOURS}h`,
+            orders: digestOrders,
+            adminUrl: ADMIN_PUBLIC_URL || BACKEND_URL || null,
+          },
+        },
+      })
+      logger.info(`[audit-order-pricing] digest emailed to ${digestRecipient}`)
+    } catch (err: any) {
+      logger.error(`[audit-order-pricing] digest email failed — ${err?.message ?? err}`)
+    }
+  }
 }

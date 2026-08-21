@@ -192,8 +192,13 @@ describe("pricing characterization (golden vectors)", () => {
 
   for (const c of shapes.cases) {
     it(c.name, async () => {
+      // A rejected add (e.g. unconfirmed embroidery) is itself golden
+      // behavior — record the error message instead of a price.
+      const descriptor = await runDescriptor(c).catch((e: Error) => ({
+        error: e.message,
+      }))
       const actual = {
-        descriptor: await runDescriptor(c),
+        descriptor,
         recompute: runRecompute(c),
       }
       if (updateMode) {

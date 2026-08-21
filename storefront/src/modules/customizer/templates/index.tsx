@@ -4128,6 +4128,27 @@ export default function CustomizerTemplate({
       return
     }
 
+    // Embroidered sides must have a confirmed size/stitch estimate before
+    // checkout — an unconfirmed side would price its embroidery at $0 (the
+    // backend rejects it too; this gate just catches it with a friendlier
+    // message). Matches the "Embroidery settings" panel per side.
+    const unconfirmedEmbroiderySides = decoratedSides.filter(
+      (side) =>
+        sideDecorationMethods[side] === "embroidery" &&
+        !((sideEmbroideryConfigs[side]?.stitchCount ?? 0) > 0)
+    )
+    if (unconfirmedEmbroiderySides.length) {
+      const labels = unconfirmedEmbroiderySides
+        .map((s) => s.replace(/_/g, " "))
+        .join(", ")
+      setUploadError(
+        `Confirm the embroidery size for: ${labels}. Open the embroidery settings on ${
+          unconfirmedEmbroiderySides.length === 1 ? "that position" : "each position"
+        } and confirm the size (this sets the stitch count your price is based on).`
+      )
+      return
+    }
+
     // Colour-count mismatch gate: the artwork analyser found MORE colours
     // than the customer declared, and they haven't explicitly confirmed the
     // reduction — block so the invoice can't silently undercount screens.
@@ -6942,6 +6963,27 @@ export default function CustomizerTemplate({
                       ))}
                       <span className="text-ui-fg-subtle"> · {printSizeLabel} each</span>
                     </p>
+                  )
+                })()}
+                {(() => {
+                  // Embroidered sides whose size/stitch estimate was never
+                  // confirmed — checkout is blocked until they are (the
+                  // price depends on the stitch count).
+                  const unconfirmed = decoratedSides.filter(
+                    (side) =>
+                      sideDecorationMethods[side] === "embroidery" &&
+                      !((sideEmbroideryConfigs[side]?.stitchCount ?? 0) > 0)
+                  )
+                  if (!unconfirmed.length) return null
+                  return (
+                    <div className="mt-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
+                      <p>
+                        <span className="font-semibold">Embroidery size not confirmed</span> for{" "}
+                        {unconfirmed.map((s) => s.replace(/_/g, " ")).join(", ")} — open the
+                        embroidery settings on {unconfirmed.length === 1 ? "that position" : "each position"}{" "}
+                        and confirm the size before checkout. Your price is based on the stitch count.
+                      </p>
+                    </div>
                   )
                 })()}
               </div>
