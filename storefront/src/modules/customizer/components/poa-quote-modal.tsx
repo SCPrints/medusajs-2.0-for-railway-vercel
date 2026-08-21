@@ -61,9 +61,12 @@ export default function PoaQuoteModal({
     })
   }
 
+  // z-[230]: must sit above the PDP studio overlay (z-200) and the
+  // fly-to-cart thumb (z-210) — the modal portals to <body>, so it needs to
+  // out-stack them explicitly.
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[230] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Request an embroidery quote"
