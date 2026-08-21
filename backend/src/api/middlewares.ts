@@ -1,4 +1,4 @@
-import { defineMiddlewares } from "@medusajs/framework/http"
+import { authenticate, defineMiddlewares } from "@medusajs/framework/http"
 
 import { smartVariantSearchMiddleware } from "./middlewares/smart-variant-search"
 import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-invariant"
@@ -100,9 +100,16 @@ export default defineMiddlewares({
     },
     {
       // Customer POA auto-quote — same payload shape as the design-items relay
-      // (lines carrying sanitised customizerDesign), same headroom.
+      // (lines carrying sanitised customizerDesign), same headroom. Optional
+      // customer auth: a logged-in customer's forwarded bearer token stamps
+      // quote.customer_id (guests pass through unauthenticated).
       matcher: "/store/quotes/poa-request",
       methods: ["POST"],
+      middlewares: [
+        authenticate("customer", ["session", "bearer"], {
+          allowUnauthenticated: true,
+        }),
+      ],
       bodyParser: { sizeLimit: "4mb" },
     },
     {

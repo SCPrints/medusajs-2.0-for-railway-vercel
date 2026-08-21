@@ -67,6 +67,10 @@ export async function POST(req: NextRequest) {
   }
   const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
   if (publishableKey) headers["x-publishable-api-key"] = publishableKey
+  // Forward the logged-in customer's JWT (if any) so the backend's optional
+  // auth stamps quote.customer_id. Guests simply have no cookie.
+  const jwt = req.cookies.get("_medusa_jwt")?.value
+  if (jwt) headers["authorization"] = `Bearer ${jwt}`
 
   try {
     const res = await fetch(`${backendBaseUrl}/store/quotes/poa-request`, {

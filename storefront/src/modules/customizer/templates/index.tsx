@@ -9,6 +9,7 @@ import CustomizerProductPicker, {
 } from "@modules/customizer/components/customizer-product-picker"
 import LowResolutionModal from "@modules/customizer/components/low-resolution-modal"
 import PoaQuoteModal from "@modules/customizer/components/poa-quote-modal"
+import type { CustomerContact } from "@modules/customizer/lib/customer-contact"
 import { MAX_AUTO_PRICED_STITCHES } from "@modules/embroidery/lib/pricing"
 import { buildCustomizerMetadataBase } from "@modules/customizer/lib/build-metadata"
 import {
@@ -221,10 +222,10 @@ type CustomizerTemplateProps = {
    */
   printProfile?: ResolvedPrintProfile | null
   /**
-   * Logged-in customer's email, resolved server-side. Prefills the POA
-   * quote-request modal (>12k-stitch embroidery); guests type theirs.
+   * Logged-in customer's contact details, resolved server-side. Prefills the
+   * POA quote-request modal (>12k-stitch embroidery); guests type theirs.
    */
-  customerEmail?: string | null
+  customerContact?: CustomerContact | null
 }
 
 // Visual-only dimensions used to scale the dashed print-area guide on the
@@ -451,7 +452,7 @@ export default function CustomizerTemplate({
   pickerProducts,
   tier = null,
   printProfile = null,
-  customerEmail = null,
+  customerContact = null,
 }: CustomizerTemplateProps) {
   const params = useParams()
   const router = useRouter()
@@ -6059,7 +6060,9 @@ export default function CustomizerTemplate({
     const poaQuoteModalNode = (
       <PoaQuoteModal
         open={poaModalOpen}
-        initialEmail={customerEmail}
+        initialEmail={customerContact?.email}
+        initialName={customerContact?.name}
+        initialPhone={customerContact?.phone}
         poaSides={poaSidesForDisplay.map((side) => ({
           side,
           stitchCount: sideEmbroideryConfigs[side]?.stitchCount ?? 0,

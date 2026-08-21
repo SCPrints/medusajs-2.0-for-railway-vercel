@@ -7,8 +7,10 @@ import { MAX_AUTO_PRICED_STITCHES } from "@modules/embroidery/lib/pricing"
 
 type PoaQuoteModalProps = {
   open: boolean
-  /** Logged-in customer's email — prefills the field (still editable). */
+  /** Logged-in customer's details — prefill the fields (still editable). */
   initialEmail?: string | null
+  initialName?: string | null
+  initialPhone?: string | null
   /** Over-cap embroidery sides, for the summary list. */
   poaSides: Array<{ side: string; stitchCount: number }>
   submitting?: boolean
@@ -34,23 +36,27 @@ type PoaQuoteModalProps = {
 export default function PoaQuoteModal({
   open,
   initialEmail,
+  initialName,
+  initialPhone,
   poaSides,
   submitting = false,
   onClose,
   onSubmit,
 }: PoaQuoteModalProps) {
   const [email, setEmail] = useState(initialEmail ?? "")
-  const [phone, setPhone] = useState("")
-  const [name, setName] = useState("")
+  const [phone, setPhone] = useState(initialPhone ?? "")
+  const [name, setName] = useState(initialName ?? "")
   const [note, setNote] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       setEmail((prev) => prev || initialEmail || "")
+      setPhone((prev) => prev || initialPhone || "")
+      setName((prev) => prev || initialName || "")
       setError(null)
     }
-  }, [open, initialEmail])
+  }, [open, initialEmail, initialName, initialPhone])
 
   if (!open || typeof document === "undefined") return null
 

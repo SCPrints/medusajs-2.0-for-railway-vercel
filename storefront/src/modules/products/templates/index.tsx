@@ -13,6 +13,7 @@ import ProductActionsWrapper from "./product-actions-wrapper"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import { getCustomerTier } from "@lib/data/customer-tier"
 import { getCustomer } from "@lib/data/customer"
+import { toCustomerContact } from "@modules/customizer/lib/customer-contact"
 import { getPrintProfileForProduct } from "@lib/data/print-profiles"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
@@ -101,7 +102,7 @@ async function StudioCustomizerContent({
         variantPickers: variantPickersSlot,
       }}
       tier={tier}
-      customerEmail={customer?.email ?? null}
+      customerContact={toCustomerContact(customer)}
       printProfile={printProfile}
     />
   )

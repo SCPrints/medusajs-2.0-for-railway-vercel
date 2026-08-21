@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomerTier } from "@lib/data/customer-tier"
 import { getCustomer } from "@lib/data/customer"
+import { toCustomerContact } from "@modules/customizer/lib/customer-contact"
 import { getMyDesign } from "@lib/data/designs"
 import { retrieveOrder } from "@lib/data/orders"
 import { getProductsList } from "@lib/data/products"
@@ -327,7 +328,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
                         }}
                         pickerProducts={pickerProducts}
                         tier={tier}
-                        customerEmail={customer?.email ?? null}
+                        customerContact={toCustomerContact(customer)}
                         printProfile={printProfile}
                       />
                     </PdpCustomizerBoundary>
@@ -375,7 +376,7 @@ export default async function CustomizerPage({ params, searchParams }: Customize
                         }}
                         pickerProducts={pickerProducts}
                         tier={tier}
-                        customerEmail={customer?.email ?? null}
+                        customerContact={toCustomerContact(customer)}
                         printProfile={printProfile}
                       />
                     </PdpCustomizerBoundary>

@@ -78,6 +78,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const quoteService = req.scope.resolve<QuoteModuleService>(QUOTE_MODULE)
   const publicId = `Q-${ulid().slice(-10).toUpperCase()}`
 
+  // Logged-in customer (optional-auth middleware, see middlewares.ts): stamp
+  // the quote onto their record and backfill name/phone from the profile when
+  // the modal left them blank. The token is the proof of identity — a body
+  // field would let anyone attach quotes to arbitrary customers.
+  const customerId =
+    (req as { auth_context?: { actor_id?: string } }).auth_context?.actor_id ??
+    null
+  let contactName = parsed.contact_name?.trim() || null
+  let contactPhone = parsed.contact_phone?.trim() || null
+  if (customerId && (!contactName || !contactPhone)) {
+    try {
+      const customerModule = req.scope.resolve(Modules.CUSTOMER) as any
+      const cust = await customerModule.retrieveCustomer(customerId)
+      contactName =
+        contactName ||
+        [cust?.first_name, cust?.last_name].filter(Boolean).join(" ") ||
+        null
+      contactPhone = contactPhone || cust?.phone || null
+    } catch {
+      // Profile lookup is best-effort — the quote still creates.
+    }
+  }
+
   // POA lines carry no trusted price — staff set unit_price on the quote.
   const newLines = mapQuoteDesignLines(
     parsed.lines.map((l) => ({ ...l, unit_price_cents: null })),
@@ -108,8 +131,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       status: "new",
       source: "customizer_poa",
       email,
-      contact_name: parsed.contact_name?.trim() || null,
-      contact_phone: parsed.contact_phone?.trim() || null,
+      customer_id: customerId,
+      contact_name: contactName,
+      contact_phone: contactPhone,
       subject: `Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — ${productTitle}`,
       message,
       line_items: { items: newLines },
@@ -150,10 +174,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           },
           submission: {
             id: quote.id,
-            firstName: parsed.contact_name ?? null,
+            firstName: contactName,
             lastName: null,
             email,
-            phone: parsed.contact_phone ?? null,
+            phone: contactPhone,
             subject: `Embroidery POA — ${productTitle}`,
             message,
             sourceOrigin: req.headers.origin ?? null,
@@ -175,6 +199,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       quote_id: quote.id,
       public_id: publicId,
       source: "customizer_poa",
+      customer_id: customerId,
       line_count: newLines.length,
       total_quantity: totalQuantity,
       max_stitch_count: Math.max(

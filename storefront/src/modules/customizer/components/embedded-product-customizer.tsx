@@ -8,6 +8,7 @@ import { useProductOptionsOptional } from "@modules/products/context/product-opt
 import { isColorOptionTitle, resolveVariantFromOptions } from "@modules/products/lib/variant-options"
 import CustomizerTemplate from "@modules/customizer/templates"
 import type { Tier } from "@lib/customer-tiers"
+import type { CustomerContact } from "@modules/customizer/lib/customer-contact"
 import type { ResolvedPrintProfile } from "@modules/customizer/lib/print-profile"
 
 type Props = {
@@ -28,8 +29,9 @@ type Props = {
   assemblyLayout?: boolean
   /** Logged-in customer's tier, resolved by the server parent. */
   tier?: Tier | null
-  /** Logged-in customer's email (POA quote prefill), resolved server-side. */
-  customerEmail?: string | null
+  /** Logged-in customer's contact details (POA quote prefill), resolved
+   *  server-side via toCustomerContact(). */
+  customerContact?: CustomerContact | null
   /**
    * Optional product list for the in-canvas "Change garment" picker. Used by the
    * standalone /customizer page so customers can swap garments without going
@@ -52,7 +54,7 @@ export default function EmbeddedProductCustomizer({
   product,
   integratedPdpSlots,
   tier = null,
-  customerEmail = null,
+  customerContact = null,
   pickerProducts,
   printProfile = null,
   assemblyLayout = false,
@@ -96,7 +98,7 @@ export default function EmbeddedProductCustomizer({
       product={product}
       pickerProducts={pickerProducts}
       tier={tier}
-      customerEmail={customerEmail}
+      customerContact={customerContact}
       printProfile={printProfile}
     />
   )
