@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { isNotProceeding } from "../../../lib/reports/orders"
 
 type CalendarEntry = {
   order_id: string
@@ -35,6 +36,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "currency_code",
       "total",
       "status",
+      "payment_status",
       "created_at",
       "metadata",
     ],
@@ -43,7 +45,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const entries: CalendarEntry[] = []
   for (const o of (orders as any[]) ?? []) {
-    if ((o?.status ?? "").toLowerCase() === "canceled") continue
+    if (isNotProceeding(o)) continue
     const meta = (o?.metadata as Record<string, unknown> | undefined) ?? {}
     const stage = typeof meta.production_stage === "string" ? meta.production_stage : null
     if (stage === "delivered") continue

@@ -2,14 +2,15 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  DOWNSTREAM_STAGES,
   DOWNSTREAM_STAGE_SLA_DAYS,
+  DOWNSTREAM_STAGES,
   PRODUCTION_STAGES,
-  STAGE_SLA_DAYS,
   resolveTracksFromMeta,
+  STAGE_SLA_DAYS,
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
+  isNotProceeding,
   itemMethod,
   loadOrdersOr500,
   matchesRegion,
@@ -93,7 +94,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
-    if (order?.status === "canceled") continue
+    if (isNotProceeding(order)) continue
     const meta = (order?.metadata ?? {}) as Record<string, unknown>
     const rawCurrent = meta.production_stage
     const currentStage =

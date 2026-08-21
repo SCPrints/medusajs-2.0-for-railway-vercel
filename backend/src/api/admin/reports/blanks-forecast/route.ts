@@ -6,6 +6,7 @@ import {
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
+  isNotProceeding,
   loadOrdersOr500,
   matchesRegion,
   parseRegionFilter,
@@ -85,7 +86,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (o?.status === "canceled") continue
+    if (isNotProceeding(o)) continue
     const meta = (o?.metadata ?? {}) as Record<string, unknown>
     // If AS Colour PO already placed for this order, demand is fulfilled
     // outside our stock — exclude from forecast.

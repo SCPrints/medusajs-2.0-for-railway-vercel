@@ -54,6 +54,33 @@ describe("decideStaleAction", () => {
     }
   )
 
+  // Neither cancelling nor refunding touches production_stage, so a dead
+  // order sat at "received" forever and kept its Stale badge + its slot
+  // in every production report.
+  it("clears a flag carried into a cancellation or full refund", () => {
+    expect(
+      decideStaleAction({
+        stage: "received",
+        flagged: true,
+        ageMs: 80 * DAY,
+        thresholdMs: threshold,
+        notProceeding: true,
+      })
+    ).toBe("clear")
+  })
+
+  it("never flags a cancelled or fully-refunded order", () => {
+    expect(
+      decideStaleAction({
+        stage: "received",
+        flagged: false,
+        ageMs: 80 * DAY,
+        thresholdMs: threshold,
+        notProceeding: true,
+      })
+    ).toBe("none")
+  })
+
   it.each(["shipped", "delivered"])("never flags terminal stage %s", (stage) => {
     expect(
       decideStaleAction({

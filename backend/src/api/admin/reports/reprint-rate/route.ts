@@ -7,6 +7,7 @@ import {
 } from "../../../../lib/production-stage"
 import {
   inRange,
+  isNotProceeding,
   itemMethod,
   loadOrdersOr500,
   matchesRegion,
@@ -59,6 +60,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // recorded in the window (i.e. were actively worked on).
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
+    if (isNotProceeding(order)) continue
     const meta = (order?.metadata ?? {}) as Record<string, unknown>
     const rawHistory = meta.production_stage_history
     if (!Array.isArray(rawHistory) || rawHistory.length < 2) continue

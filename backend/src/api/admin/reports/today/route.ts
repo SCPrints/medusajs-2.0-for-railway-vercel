@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
+  isNotProceeding,
   loadOrdersOr500,
   matchesRegion,
   parseRegionFilter,
@@ -117,7 +118,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (o?.status === "canceled") continue
+    if (isNotProceeding(o)) continue
     const created = Date.parse(o?.created_at ?? "")
     if (!Number.isFinite(created)) continue
     const total = Number(o.total ?? 0)
@@ -192,7 +193,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   let shipsToday = 0
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (o?.status === "canceled") continue
+    if (isNotProceeding(o)) continue
     const meta = (o?.metadata ?? {}) as Record<string, unknown>
     const stage = meta.production_stage as ProductionStage | undefined
     if (!stage || stage === "delivered") continue

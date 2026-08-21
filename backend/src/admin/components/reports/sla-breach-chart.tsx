@@ -249,12 +249,16 @@ export const SlaBreachChart = ({
             <Text size="small" className="font-medium">
               Currently breaching ({data.currently_breaching_total})
             </Text>
-            <a
-              className="text-xs underline text-ui-fg-subtle"
-              href="/app/production?stuck=1"
-            >
-              Open in Production →
-            </a>
+            {/* This chart also renders inside the Production page's summary
+                strip, where the deep link just reloads the page you're on. */}
+            {!window.location.pathname.startsWith("/app/production") ? (
+              <a
+                className="text-xs underline text-ui-fg-subtle"
+                href="/app/production?stuck=1"
+              >
+                Open in Production →
+              </a>
+            ) : null}
           </div>
           <div className="overflow-auto max-h-[240px]">
             <table className="w-full text-xs">

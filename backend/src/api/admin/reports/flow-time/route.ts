@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   inRange,
+  isNotProceeding,
   loadOrdersOr500,
   matchesRegion,
   parseDateRange,
@@ -44,6 +45,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
+    if (isNotProceeding(order)) continue
 
     const meta = (order.metadata ?? {}) as Record<string, unknown>
     const rawHistory = meta.production_stage_history

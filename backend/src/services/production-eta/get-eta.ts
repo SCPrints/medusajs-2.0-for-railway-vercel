@@ -9,6 +9,7 @@ import {
   type EtaResult,
   type StageCounts,
 } from "./compute-eta"
+import { isNotProceeding } from "../../lib/reports/orders"
 
 /**
  * Reads every order whose `metadata.production_stage` matches one of
@@ -23,13 +24,13 @@ export async function getProductionEta(
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
   const { data: orders } = await query.graph({
     entity: "order",
-    fields: ["id", "metadata", "status"],
+    fields: ["id", "metadata", "status", "payment_status"],
     pagination: { take: 5000, skip: 0 },
   })
 
   const counts: StageCounts = {}
   for (const order of (orders as any[]) ?? []) {
-    if ((order?.status ?? "").toLowerCase() === "canceled") continue
+    if (isNotProceeding(order)) continue
     const meta = (order?.metadata as Record<string, unknown> | undefined) ?? {}
     const stage = meta.production_stage
     if (typeof stage !== "string") continue

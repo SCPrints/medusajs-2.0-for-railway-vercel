@@ -7,6 +7,7 @@ import {
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
+  isNotProceeding,
   itemMethod,
   loadOrdersOr500,
   matchesRegion,
@@ -67,7 +68,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const open: Row[] = []
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (o?.status === "canceled") continue
+    if (isNotProceeding(o)) continue
     const meta = (o?.metadata ?? {}) as Record<string, unknown>
     const stage = meta.production_stage as ProductionStage | undefined
     if (!stage || stage === "delivered" || stage === "shipped") continue

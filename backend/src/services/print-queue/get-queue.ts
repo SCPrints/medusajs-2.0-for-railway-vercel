@@ -2,6 +2,7 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { buildPrintQueue, type PrintBucket, type PrintJobInput } from "./build"
+import { isNotProceeding } from "../../lib/reports/orders"
 
 const QUEUED_STAGES = new Set([
   "received",
@@ -91,6 +92,7 @@ export async function getPrintQueue(
       "display_id",
       "email",
       "status",
+      "payment_status",
       "created_at",
       "metadata",
       "items.id",
@@ -103,7 +105,7 @@ export async function getPrintQueue(
   const jobs: PrintJobInput[] = []
   for (const order of (orders as any[]) ?? []) {
     if (!order) continue
-    if ((order.status ?? "").toLowerCase() === "canceled") continue
+    if (isNotProceeding(order)) continue
     const meta = (order.metadata as Record<string, unknown> | undefined) ?? {}
     const stage = typeof meta.production_stage === "string" ? meta.production_stage : null
     if (!stage || !QUEUED_STAGES.has(stage)) continue

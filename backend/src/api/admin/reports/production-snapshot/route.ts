@@ -2,16 +2,17 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
+  isProductionStage,
   PRODUCTION_STAGES,
   STAGE_SLA_DAYS,
   type ProductionStage,
-  isProductionStage,
 } from "../../../../lib/production-stage"
 import {
   DECORATION_METHODS,
-  type DecorationMethod,
   isDecorationMethodOrBlank,
+  isNotProceeding,
   itemMethod,
+  type DecorationMethod,
 } from "../../../../lib/reports/orders"
 
 /**
@@ -75,6 +76,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "display_id",
         "created_at",
         "status",
+        "payment_status",
         "metadata",
         "currency_code",
         "email",
@@ -173,7 +175,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   ) as Record<ProductionStage, OrderSummary[]>
 
   for (const order of orders ?? []) {
-    if (!includeDone && order.status === "canceled") continue
+    if (!includeDone && isNotProceeding(order)) continue
     if (regionFilter && order.region_id !== regionFilter) continue
 
     const meta = (order.metadata ?? {}) as Record<string, unknown>

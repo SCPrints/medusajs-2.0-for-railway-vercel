@@ -4,15 +4,16 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { PRODUCTION_STAGES } from "../../../../lib/production-stage"
 import {
   computeStageDwellDays,
+  type DecorationMethod,
   inRange,
+  isNotProceeding,
+  isDecorationMethodOrBlank,
   itemMethod,
   loadOrdersOr500,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
   summarise,
-  isDecorationMethodOrBlank,
-  type DecorationMethod,
 } from "../../../../lib/reports/orders"
 
 /**
@@ -52,6 +53,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
+    if (isNotProceeding(order)) continue
     if (methodFilter && methodFilter.size) {
       const lineMethods = (order.items ?? []).map((it: any) => itemMethod(it))
       const matches = lineMethods.some((m: DecorationMethod) => methodFilter.has(m))

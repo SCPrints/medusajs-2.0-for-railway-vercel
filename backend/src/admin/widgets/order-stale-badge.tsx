@@ -7,10 +7,17 @@ import { withWidgetBoundary } from "../components/widget-error-boundary"
 const OrderStaleBadgeWidget = ({
   data: order,
 }: {
-  data: { id: string; metadata?: Record<string, unknown> | null }
+  data: {
+    id: string
+    status?: string | null
+    metadata?: Record<string, unknown> | null
+  }
 }) => {
   const meta = (order?.metadata ?? {}) as Record<string, unknown>
   if (meta.is_stale !== true) return null
+  // A cancelled order isn't stale, it's done. The cron clears the flag on
+  // its next run, but only if it's enabled — don't wait on that to hide it.
+  if (String(order?.status ?? "").toLowerCase() === "canceled") return null
 
   const since = typeof meta.stale_since === "string" ? meta.stale_since : null
   const stage = typeof meta.production_stage === "string" ? meta.production_stage : null

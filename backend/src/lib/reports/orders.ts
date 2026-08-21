@@ -162,6 +162,28 @@ export const matchesRegion = (order: any, regionId: string | null): boolean => {
 }
 
 /**
+ * True when an order is dead — no one is ever going to produce it. Two
+ * ways an order dies:
+ *
+ *   - cancelled outright (`status = "canceled"`)
+ *   - fully refunded (`payment_status = "refunded"`), e.g. the blanks
+ *     turned out to be unavailable. The order status stays "pending"
+ *     forever, so it looks live to anything that only checks `status`.
+ *
+ * Neither path touches `metadata.production_stage`, so a dead order keeps
+ * whatever stage it died at and shows up in every stage-based surface
+ * (SLA breach, dwell times, calendar, print queue, stale scan) as if it
+ * were work in progress. Every production surface must skip these.
+ *
+ * `partially_refunded` is NOT dead — part of that job is still real work.
+ */
+export const isNotProceeding = (order: any): boolean => {
+  const status = String(order?.status ?? "").toLowerCase()
+  if (status === "canceled") return true
+  return String(order?.payment_status ?? "").toLowerCase() === "refunded"
+}
+
+/**
  * Compute a percent delta safely (returns null if prior is zero —
  * frontend should render "no prior data" rather than ∞%).
  */
@@ -339,6 +361,7 @@ export const fetchOrdersForReports = async (
       "display_id",
       "created_at",
       "status",
+      "payment_status",
       "metadata",
       "currency_code",
       "total",

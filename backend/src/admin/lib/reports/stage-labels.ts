@@ -5,6 +5,16 @@
  * customer-facing ("Awaiting your approval") and spans the three-track model.
  */
 export const STAGE_LABELS: Record<string, string> = {
+  // Three-track stage values (ARTWORK_STAGES / BLANKS_STAGES). Without these
+  // the charts fell through to the raw key and rendered "in_review",
+  // "not_started", "ordered". Track-prefixed because "ordered"/"arrived"
+  // mean the same thing as the legacy blanks_* keys below and both appear.
+  pending: "Artwork: not started",
+  in_review: "Artwork: in review",
+  not_started: "Blanks: not ordered",
+  ordered: "Blanks: ordered",
+  arrived: "Blanks: received",
+
   received: "Received",
   art_review: "Art review",
   awaiting_approval: "Awaiting approval",

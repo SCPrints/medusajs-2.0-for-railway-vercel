@@ -14,6 +14,7 @@ import {
   notifyStaleOrders,
   type NotifyResult,
 } from "./notify"
+import { isNotProceeding } from "../../lib/reports/orders"
 
 const TERMINAL_STAGES = new Set(["shipped", "delivered"])
 
@@ -53,8 +54,13 @@ export function decideStaleAction(input: {
   flagged: boolean
   ageMs: number | null
   thresholdMs: number
+  notProceeding?: boolean
 }): StaleAction {
-  const { stage, flagged, ageMs, thresholdMs } = input
+  const { stage, flagged, ageMs, thresholdMs, notProceeding } = input
+  // Same shape as the terminal-stage case: an order that's cancelled or
+  // fully refunded is not work in progress, and a flag stamped before it
+  // died must be released.
+  if (notProceeding) return flagged ? "clear" : "none"
   if (!stage) return "none"
   if (TERMINAL_STAGES.has(stage)) return flagged ? "clear" : "none"
   if (ageMs === null || !Number.isFinite(ageMs)) return "none"
@@ -88,7 +94,15 @@ export async function scanStaleOrders(
 
   const { data: orders } = await query.graph({
     entity: "order",
-    fields: ["id", "display_id", "email", "customer_id", "status", "metadata"],
+    fields: [
+      "id",
+      "display_id",
+      "email",
+      "customer_id",
+      "status",
+      "payment_status",
+      "metadata",
+    ],
     pagination: { take: 5000, skip: 0 },
   })
 
@@ -98,7 +112,6 @@ export async function scanStaleOrders(
   let cleared = 0
 
   for (const o of (orders as any[]) ?? []) {
-    if ((o?.status ?? "").toLowerCase() === "canceled") continue
     const meta = (o?.metadata as Record<string, unknown> | undefined) ?? {}
     const stage = typeof meta.production_stage === "string" ? meta.production_stage : null
     const wasMarkedStale = meta.is_stale === true
@@ -113,6 +126,14 @@ export async function scanStaleOrders(
       } catch {
         // best-effort
       }
+    }
+
+    // Cancelled or fully-refunded orders aren't work in progress. Same
+    // rule as terminal stages: never flagged, and any flag stamped before
+    // the order died has to be released or it shows "Stale" forever.
+    if (isNotProceeding(o)) {
+      if (wasMarkedStale) await clearStale()
+      continue
     }
 
     // Terminal stages: never flagged, but a flag carried in from an
