@@ -835,6 +835,7 @@ export default function CustomizerTemplate({
   const [poaModalOpen, setPoaModalOpen] = useState(false)
   const poaContactRef = useRef<{
     email: string
+    phone: string
     name?: string
     note?: string
   } | null>(null)
@@ -4886,6 +4887,7 @@ export default function CustomizerTemplate({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email: contact.email,
+              contact_phone: contact.phone,
               contact_name: contact.name || undefined,
               note: contact.note || undefined,
               group_id: groupId,

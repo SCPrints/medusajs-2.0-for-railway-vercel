@@ -38,6 +38,10 @@ import type QuoteModuleService from "../../../../modules/quote/service"
  */
 const bodySchema = z.object({
   email: z.string().min(3).max(320),
+  // Required in the storefront modal; optional here so a deploy-order skew
+  // (old storefront, new backend) can never drop a POA lead over a missing
+  // field. Server-side clients should still send it.
+  contact_phone: z.string().max(40).optional(),
   contact_name: z.string().max(120).optional(),
   note: z.string().max(2000).optional(),
   group_id: z.string().min(1).max(80),
@@ -105,6 +109,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       source: "customizer_poa",
       email,
       contact_name: parsed.contact_name?.trim() || null,
+      contact_phone: parsed.contact_phone?.trim() || null,
       subject: `Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — ${productTitle}`,
       message,
       line_items: { items: newLines },
@@ -148,6 +153,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             firstName: parsed.contact_name ?? null,
             lastName: null,
             email,
+            phone: parsed.contact_phone ?? null,
             subject: `Embroidery POA — ${productTitle}`,
             message,
             sourceOrigin: req.headers.origin ?? null,

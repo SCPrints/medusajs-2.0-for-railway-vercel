@@ -13,7 +13,12 @@ type PoaQuoteModalProps = {
   poaSides: Array<{ side: string; stitchCount: number }>
   submitting?: boolean
   onClose: () => void
-  onSubmit: (contact: { email: string; name?: string; note?: string }) => void
+  onSubmit: (contact: {
+    email: string
+    phone: string
+    name?: string
+    note?: string
+  }) => void
 }
 
 /**
@@ -35,6 +40,7 @@ export default function PoaQuoteModal({
   onSubmit,
 }: PoaQuoteModalProps) {
   const [email, setEmail] = useState(initialEmail ?? "")
+  const [phone, setPhone] = useState("")
   const [name, setName] = useState("")
   const [note, setNote] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -54,8 +60,14 @@ export default function PoaQuoteModal({
       setError("Please enter a valid email address.")
       return
     }
+    const phoneTrimmed = phone.trim()
+    if (phoneTrimmed.replace(/\D/g, "").length < 8) {
+      setError("Please enter a valid phone number.")
+      return
+    }
     onSubmit({
       email: trimmed,
+      phone: phoneTrimmed,
       name: name.trim() || undefined,
       note: note.trim() || undefined,
     })
@@ -110,6 +122,23 @@ export default function PoaQuoteModal({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               autoComplete="email"
+              className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-none"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="poa-quote-phone"
+              className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle"
+            >
+              Phone *
+            </label>
+            <input
+              id="poa-quote-phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="0412 345 678"
+              autoComplete="tel"
               className="mt-1 w-full rounded-lg border border-ui-border-base px-3 py-2 text-sm focus:border-ui-fg-base focus:outline-none"
             />
           </div>
