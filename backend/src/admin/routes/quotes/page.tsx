@@ -301,12 +301,20 @@ function LineItemsEditor({
             >
               <div className="flex items-start gap-x-2">
                 {row.thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={row.thumbnail}
-                    alt=""
-                    className="w-12 h-12 rounded object-cover bg-ui-bg-subtle shrink-0"
-                  />
+                  <a
+                    href={row.thumbnail}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="View mockup full size"
+                    className="shrink-0"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={row.thumbnail}
+                      alt=""
+                      className="w-12 h-12 rounded object-cover bg-ui-bg-subtle cursor-zoom-in"
+                    />
+                  </a>
                 ) : null}
                 <div className="flex-1 flex flex-col gap-y-1">
                   <Input
@@ -399,6 +407,13 @@ function LineItemsEditor({
                     onClick={() => onDesignLine(row)}
                   >
                     <PencilSquare /> Edit design in Studio
+                  </Button>
+                ) : null}
+                {row.thumbnail ? (
+                  <Button size="small" variant="secondary" asChild>
+                    <a href={row.thumbnail} target="_blank" rel="noreferrer">
+                      View mockup
+                    </a>
                   </Button>
                 ) : null}
                 <Button
