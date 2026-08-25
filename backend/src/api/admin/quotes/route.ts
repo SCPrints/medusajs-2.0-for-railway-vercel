@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { isValidEmail } from "../../../lib/email-validation"
 import { getPostHog } from "../../../lib/posthog"
+import { slimQuoteForAdmin } from "../../../lib/quote-admin-slim"
 import { QUOTE_MODULE } from "../../../modules/quote"
 import type QuoteModuleService from "../../../modules/quote/service"
 
@@ -92,7 +93,12 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     count = total as number
   }
 
-  return res.json({ quotes, count, limit, offset })
+  return res.json({
+    quotes: quotes.map((q) => slimQuoteForAdmin(q)),
+    count,
+    limit,
+    offset,
+  })
 }
 
 /**
@@ -184,5 +190,5 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     },
   })
 
-  return res.status(201).json({ quote })
+  return res.status(201).json({ quote: slimQuoteForAdmin(quote) })
 }

@@ -50,6 +50,7 @@ type Quote = {
       product_handle?: string | null
       thumbnail?: string | null
       customizerDesign?: unknown | null
+      mockup_urls?: Array<{ side?: string | null; url: string }> | null
       print_size_id?: string | null
       group_id?: string | null
     }>
@@ -112,6 +113,9 @@ type DraftLineItem = {
   product_handle?: string | null
   thumbnail?: string | null
   customizerDesign?: unknown | null
+  // Derived server-side from design.artifacts (see lib/quote-admin-slim.ts);
+  // display-only, never sent back on save.
+  mockup_urls?: Array<{ side?: string | null; url: string }> | null
   print_size_id?: string | null
   group_id?: string | null
 }
@@ -136,6 +140,7 @@ function lineItemsToDraft(items?: Quote["line_items"]["items"]): DraftLineItem[]
     product_handle: li.product_handle ?? null,
     thumbnail: li.thumbnail ?? null,
     customizerDesign: li.customizerDesign ?? null,
+    mockup_urls: li.mockup_urls ?? null,
     print_size_id: li.print_size_id ?? null,
     group_id: li.group_id ?? null,
   }))
@@ -409,13 +414,19 @@ function LineItemsEditor({
                     <PencilSquare /> Edit design in Studio
                   </Button>
                 ) : null}
-                {row.thumbnail ? (
-                  <Button size="small" variant="secondary" asChild>
-                    <a href={row.thumbnail} target="_blank" rel="noreferrer">
-                      View mockup
+                {(row.mockup_urls?.length
+                  ? row.mockup_urls
+                  : row.thumbnail
+                    ? [{ side: null as string | null, url: row.thumbnail }]
+                    : []
+                ).map((m, i) => (
+                  <Button key={i} size="small" variant="secondary" asChild>
+                    <a href={m.url} target="_blank" rel="noreferrer">
+                      View{" "}
+                      {m.side ? String(m.side).replace(/_/g, " ") : "mockup"}
                     </a>
                   </Button>
-                ) : null}
+                ))}
                 <Button
                   size="small"
                   variant="secondary"

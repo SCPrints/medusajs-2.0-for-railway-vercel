@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { QUOTE_MODULE } from "../../../../modules/quote"
 import type QuoteModuleService from "../../../../modules/quote/service"
+import { slimQuoteForAdmin } from "../../../../lib/quote-admin-slim"
 
 const VALID_STATUSES = ["new", "quoted", "accepted", "lost", "expired"] as const
 type QuoteStatus = (typeof VALID_STATUSES)[number]
@@ -63,7 +64,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     { quote_id: id },
     { order: { created_at: "DESC" }, take: 200 }
   )
-  return res.json({ quote, events })
+  return res.json({ quote: slimQuoteForAdmin(quote), events })
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -125,8 +126,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
   if (body.line_items !== undefined) {
     // Normalise: stamp a stable id on every line and keep `total` consistent
-    // with qty × unit_price. Catalog linkage + customizerDesign pass through
-    // verbatim so a plain qty/price edit never drops an attached design.
+    // with qty × unit_price. The admin receives SLIMMED lines (design replaced
+    // with `true` — see lib/quote-admin-slim.ts) and echoes them back, so
+    // restore the STORED design for any incoming line whose design isn't a
+    // real object — a qty/price edit must never drop an attached design.
+    const storedById = new Map<string, Record<string, any>>(
+      (Array.isArray(current.line_items?.items)
+        ? (current.line_items.items as Array<Record<string, any>>)
+        : []
+      )
+        .filter((li) => li?.id)
+        .map((li) => [String(li.id), li])
+    )
     const items = body.line_items.map((li) => {
       const quantity = li.quantity ?? null
       const unit_price = li.unit_price ?? null
@@ -134,7 +145,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         quantity != null && unit_price != null
           ? Math.round(quantity * unit_price * 100) / 100
           : li.total ?? null
-      return { ...li, id: li.id || ulid(), total }
+      const customizerDesign =
+        li.customizerDesign && typeof li.customizerDesign === "object"
+          ? li.customizerDesign
+          : li.customizerDesign
+            ? storedById.get(String(li.id))?.customizerDesign ?? null
+            : null
+      return { ...li, id: li.id || ulid(), total, customizerDesign }
     })
     updatePayload.line_items = { items }
     events.push({ type: "line_items_updated", body: { count: items.length } })
@@ -151,7 +168,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const updated = await quoteService.retrieveQuote(id)
-  return res.json({ quote: updated })
+  return res.json({ quote: slimQuoteForAdmin(updated) })
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
