@@ -143,11 +143,28 @@ export const convertQuoteToOrder = async (
   const addable = lineItems.filter(
     (li) => typeof li?.variant_id === "string" && Number(li?.quantity ?? 0) > 0
   )
-  const skipped = lineItems.filter((li) => !addable.includes(li))
-  if (addable.length === 0) {
+  // Custom fee lines (screen setup, artwork redraw, colour change…) have no
+  // variant but a title + priced quantity. A draft order accepts variant-less
+  // lines (the POS manual-discount line is exactly this shape), so carry them
+  // onto the order instead of silently dropping billable amounts. The
+  // customer accept-link path can't do this (carts require variants) — that
+  // remains a documented limitation of the checkout flow.
+  const customAddable = lineItems.filter(
+    (li) =>
+      !addable.includes(li) &&
+      typeof li?.title === "string" &&
+      li.title.trim() &&
+      Number(li?.quantity ?? 0) > 0 &&
+      li?.unit_price != null &&
+      Number.isFinite(Number(li.unit_price))
+  )
+  const skipped = lineItems.filter(
+    (li) => !addable.includes(li) && !customAddable.includes(li)
+  )
+  if (addable.length === 0 && customAddable.length === 0) {
     throw new MedusaError(
       MedusaError.Types.NOT_ALLOWED,
-      "Quote has no convertible line items — every line needs a product/variant."
+      "Quote has no convertible line items — every line needs a product/variant or a title + price."
     )
   }
 
@@ -171,6 +188,18 @@ export const convertQuoteToOrder = async (
       metadata: lineMetadata,
     }
   })
+
+  const customItemPayloads = customAddable.map((li) => ({
+    title: String(li.title),
+    quantity: Number(li.quantity ?? 1),
+    unit_price: Number(li.unit_price),
+    metadata: {
+      quote_locked_price: true,
+      quote_custom_line: true,
+      ...(li.description ? { description: String(li.description) } : {}),
+    },
+  }))
+  itemPayloads.push(...(customItemPayloads as any[]))
 
   // ── Payer: addresses + payment terms ─────────────────────────────────────
   // Geo fields default to the studio address so the tax engine computes AU
@@ -320,13 +349,13 @@ export const convertQuoteToOrder = async (
     entity_id: quote.id,
     action: AUDIT_ACTION.CONVERTED,
     actor_id: args.actorId,
-    details: { order_id: orderId, display_id: displayId, lines: addable.length },
+    details: { order_id: orderId, display_id: displayId, lines: itemPayloads.length },
   })
   try {
     captureEvent(args.actorId ?? "system", "quote_converted_to_order", {
       quote_id: quote.id,
       order_id: orderId,
-      lines_added: addable.length,
+      lines_added: itemPayloads.length,
       lines_skipped: skipped.length,
       has_terms: !!balanceDueAt,
     })
@@ -337,7 +366,7 @@ export const convertQuoteToOrder = async (
   return {
     order_id: orderId,
     display_id: displayId,
-    lines_added: addable.length,
+    lines_added: itemPayloads.length,
     skipped_items: skipped,
   }
 }

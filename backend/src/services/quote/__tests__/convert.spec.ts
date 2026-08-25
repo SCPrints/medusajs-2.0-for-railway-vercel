@@ -108,22 +108,31 @@ describe("convertQuoteToOrder", () => {
     expect(input.billing_address.first_name).toBe("Jane")
   })
 
-  it("resolves product-only lines to the default variant and skips unresolvable", async () => {
+  it("resolves product-only lines, carries priced custom lines, skips unpriced", async () => {
     const scope = buildScope({
       ...baseQuote,
       line_items: {
         items: [
           { product_id: "prod_1", quantity: 3, unit_price: 20, title: "Polo" },
-          { title: "Custom placeholder", quantity: 1, unit_price: 50 },
+          { title: "Screen setup", quantity: 5, unit_price: 99 },
+          { title: "No price yet", quantity: 1, unit_price: null },
         ],
       },
     })
     const result = await convertQuoteToOrder(scope, { quoteId: "qt_1", actorId: null })
-    expect(result.lines_added).toBe(1)
+    expect(result.lines_added).toBe(2)
     expect(result.skipped_items).toHaveLength(1)
     const input = (createOrderRun.mock.calls[0] as any)[0].input
     // lowest variant_rank wins
     expect(input.items[0].variant_id).toBe("var_rank0")
+    // custom fee line converts variant-less at its quoted price
+    expect(input.items[1]).toMatchObject({
+      title: "Screen setup",
+      quantity: 5,
+      unit_price: 99,
+    })
+    expect(input.items[1].variant_id).toBeUndefined()
+    expect(input.items[1].metadata.quote_custom_line).toBe(true)
   })
 
   it("stamps balance_due_at from the customer's payment terms", async () => {
