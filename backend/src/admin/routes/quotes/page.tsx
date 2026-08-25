@@ -915,7 +915,7 @@ const QuotesPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-0">
-        <div className="border-r border-ui-border-base">
+        <div className="border-r border-ui-border-base min-w-0">
           {loading ? (
             <Text className="p-6 text-ui-fg-muted text-sm">Loading…</Text>
           ) : quotes.length === 0 ? (
@@ -948,7 +948,10 @@ const QuotesPage = () => {
           )}
         </div>
 
-        <div className="p-6">
+        {/* min-w-0: a grid track's default min-width is its content's
+            min-content — one long unbreakable line (e.g. a timeline event
+            body) would otherwise blow the column past the viewport. */}
+        <div className="p-6 min-w-0">
           {!selectedQuote ? (
             <Text className="text-ui-fg-muted text-sm">
               Pick a quote on the left to view and edit.
@@ -1473,7 +1476,7 @@ function QuoteDetail({
                   {e.actor ? `by ${e.actor}` : "system"}
                 </Text>
                 {Object.keys(e.body || {}).length > 0 ? (
-                  <pre className="mt-1 text-xs bg-ui-bg-subtle p-2 rounded overflow-x-auto">
+                  <pre className="mt-1 text-xs bg-ui-bg-subtle p-2 rounded whitespace-pre-wrap break-words">
                     {JSON.stringify(e.body, null, 2)}
                   </pre>
                 ) : null}
