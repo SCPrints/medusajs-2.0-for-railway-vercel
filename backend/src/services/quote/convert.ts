@@ -193,6 +193,11 @@ export const convertQuoteToOrder = async (
     title: String(li.title),
     quantity: Number(li.quantity ?? 1),
     unit_price: Number(li.unit_price),
+    // Quoted prices are GST-INCLUSIVE (HOLD). Variant lines inherit this from
+    // the AUD price preference, but variant-less lines don't — without the
+    // flag the tax engine adds 10% on top (order #78 showed $3,007.50 in
+    // admin instead of $2,943 until the flags were repaired).
+    is_tax_inclusive: true,
     metadata: {
       quote_locked_price: true,
       quote_custom_line: true,
