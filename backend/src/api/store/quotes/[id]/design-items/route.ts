@@ -33,6 +33,12 @@ import { verifyQuoteDesign } from "../../../../../services/quote-design/sign"
 const schema = z.object({
   qsig: z.string().min(8).max(64),
   group_id: z.string().min(1).max(80),
+  // The shared CustomizerMetadata for the whole group, sent ONCE. The design
+  // is identical across size lines (only variantId differs), and duplicating
+  // it per line blew past the bridge/body caps (413) for heavy vector artwork.
+  // Older payloads instead carry metadata.customizerDesign per line — both
+  // shapes are accepted.
+  design: z.record(z.string(), z.unknown()).nullable().optional(),
   lines: z.array(quoteDesignLineSchema).min(1).max(100),
 })
 
@@ -104,9 +110,30 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       .json({ error: "quote_not_editable", status: quote.status })
   }
 
+  // Fan the shared design back out onto each line (accept-route + admin +
+  // print files all read customizerDesign per line), stamping the line's own
+  // variantId. Per-line customizerDesign in metadata (legacy shape) wins if
+  // present.
+  const lines = body.design
+    ? body.lines.map((l) =>
+        l.metadata?.customizerDesign
+          ? l
+          : {
+              ...l,
+              metadata: {
+                ...l.metadata,
+                customizerDesign: {
+                  ...(body.design as Record<string, unknown>),
+                  ...(l.variant_id ? { variantId: l.variant_id } : {}),
+                },
+              },
+            }
+      )
+    : body.lines
+
   // Shared with /store/quotes/poa-request — keep the persisted line shape
   // identical across both write paths (see lib/quote-design-lines.ts).
-  const newLines = mapQuoteDesignLines(body.lines, body.group_id)
+  const newLines = mapQuoteDesignLines(lines, body.group_id)
 
   const existing = Array.isArray(quote.line_items?.items)
     ? (quote.line_items.items as Array<Record<string, any>>).filter(

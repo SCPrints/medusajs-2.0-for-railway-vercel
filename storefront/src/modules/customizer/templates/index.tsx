@@ -4766,15 +4766,17 @@ export default function CustomizerTemplate({
             `qg_${Date.now().toString(36)}${Math.random()
               .toString(36)
               .slice(2, 8)}`
+          // The design is identical across every size line (only variantId
+          // differs), so sanitize ONCE and post it at the top level — the
+          // backend fans it back out per line. Duplicating it per line blew
+          // past the bridge/backend body caps (413) for heavy vector artwork:
+          // Fabric path data isn't a data: URL, so the sanitizer can't shrink
+          // it, and 5 sizes meant 5 full copies in one request.
+          const sanitizedDesign = sanitizeCustomizerDesignForCart(
+            metadataBase,
+            dataUrlToHostedUrl
+          )
           const lines = resolvedQuantities.map((quantityEntry) => {
-            const lineItemMetadata: CustomizerMetadata = {
-              ...metadataBase,
-              variantId: quantityEntry.variant.id,
-            }
-            const sanitized = sanitizeCustomizerDesignForCart(
-              lineItemMetadata,
-              dataUrlToHostedUrl
-            )
             // Suggested per-unit price = the decorated price the operator saw
             // in the pricing panel (pricing.discountedUnitPriceCents), falling
             // back to the bare garment calculated_price. Staff confirm/adjust
@@ -4807,7 +4809,6 @@ export default function CustomizerTemplate({
               quantity: quantityEntry.quantity,
               unit_price_cents: unitCents,
               metadata: {
-                customizerDesign: sanitized,
                 product_handle: selectedProduct.handle ?? undefined,
                 product_title: selectedProduct.title ?? undefined,
                 print_size_id: scpPrintSizeId,
@@ -4821,6 +4822,7 @@ export default function CustomizerTemplate({
               quote_id: quoteIdFromUrl,
               qsig: quoteSigFromUrl,
               group_id: groupId,
+              design: sanitizedDesign,
               lines,
             }),
           })

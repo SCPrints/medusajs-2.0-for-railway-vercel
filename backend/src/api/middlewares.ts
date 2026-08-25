@@ -90,13 +90,15 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "4mb" },
     },
     {
-      // Quote "Design in Studio" relay — the customiser posts one or more
-      // lines each carrying a (sanitised) customizerDesign payload. Same
-      // headroom as the per-line cart routes; data URLs are already swapped
-      // for hosted URLs client-side so real payloads stay small.
+      // Quote "Design in Studio" relay — the customiser posts the shared
+      // (sanitised) customizerDesign once plus one small row per size. Vector
+      // artwork serialises as Fabric path data (not a data: URL, so the
+      // client-side sanitizer can't shrink it) and can run to a few MB on its
+      // own — 8mb gives headroom while the Vercel bridge (~4.5mb platform cap)
+      // bounds what actually arrives.
       matcher: "/store/quotes/:id/design-items",
       methods: ["POST"],
-      bodyParser: { sizeLimit: "4mb" },
+      bodyParser: { sizeLimit: "8mb" },
     },
     {
       // Customer POA auto-quote — same payload shape as the design-items relay
