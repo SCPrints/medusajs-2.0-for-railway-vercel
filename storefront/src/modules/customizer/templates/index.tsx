@@ -4815,17 +4815,44 @@ export default function CustomizerTemplate({
               },
             }
           })
-          const bridgeRes = await fetch("/api/quote-bridge/items", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              quote_id: quoteIdFromUrl,
-              qsig: quoteSigFromUrl,
-              group_id: groupId,
-              design: sanitizedDesign,
-              lines,
-            }),
+          // Post DIRECT to the backend (Fly) — the Vercel bridge sits behind a
+          // hard ~4.5MB platform request cap, and one copy of a heavy vector
+          // design (Fabric path data) can exceed it on its own. The backend
+          // route is the authority on qsig either way; CORS allows the
+          // storefront origin. Bridge kept as fallback for env/CORS surprises.
+          const payload = JSON.stringify({
+            quote_id: quoteIdFromUrl,
+            qsig: quoteSigFromUrl,
+            group_id: groupId,
+            design: sanitizedDesign,
+            lines,
           })
+          const backendBase = (
+            process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ?? ""
+          ).replace(/\/+$/, "")
+          const directHeaders: Record<string, string> = {
+            "Content-Type": "application/json",
+          }
+          if (process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY) {
+            directHeaders["x-publishable-api-key"] =
+              process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+          }
+          let bridgeRes: Response
+          try {
+            if (!backendBase) throw new Error("no backend url")
+            bridgeRes = await fetch(
+              `${backendBase}/store/quotes/${encodeURIComponent(
+                quoteIdFromUrl
+              )}/design-items`,
+              { method: "POST", headers: directHeaders, body: payload }
+            )
+          } catch {
+            bridgeRes = await fetch("/api/quote-bridge/items", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: payload,
+            })
+          }
           if (!bridgeRes.ok) {
             const j = await bridgeRes.json().catch(() => ({}))
             throw new Error(

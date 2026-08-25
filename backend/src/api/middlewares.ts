@@ -98,7 +98,7 @@ export default defineMiddlewares({
       // bounds what actually arrives.
       matcher: "/store/quotes/:id/design-items",
       methods: ["POST"],
-      bodyParser: { sizeLimit: "8mb" },
+      bodyParser: { sizeLimit: "16mb" },
     },
     {
       // Customer POA auto-quote — same payload shape as the design-items relay
