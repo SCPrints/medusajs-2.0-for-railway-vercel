@@ -294,9 +294,22 @@ function buildPageData(
     if (metaSizes.length > 0) sizes = metaSizes
   }
 
-  const productTitle = String(
+  let productTitle = String(
     canonical?.product_title ?? canonical?.title ?? "Product"
   )
+  // Multiple colourway pages of the same product need distinguishing — append
+  // the shared variant prefix (e.g. "ORANGE" from "ORANGE / S") when every
+  // item in the group agrees on it.
+  const colourPrefixes = new Set(
+    groupItems.map((it) => {
+      const parts = String(it.variant_title ?? "").split("/")
+      return parts.length > 1 ? parts.slice(0, -1).join("/").trim() : ""
+    })
+  )
+  const colour = colourPrefixes.size === 1 ? [...colourPrefixes][0] : ""
+  if (colour && !productTitle.toLowerCase().includes(colour.toLowerCase())) {
+    productTitle = `${productTitle} — ${colour}`
+  }
 
   // Customer Notes box: a staff override on ANY line item in this product group
   // wins (the group shares one page/notes box). A present key — even an empty
@@ -394,11 +407,19 @@ export async function generateMockupPdf(
   // so a corrected/cleared note wins over the customer's frozen order-time text.
   const proofNotesOverrides = readProofNotesOverrides(order.metadata)
 
-  // Group items by product_id
-  const items: OrderItem[] = order.items ?? []
+  // Group items by DESIGN group first, then product. A converted quote can
+  // carry several colourways of the same product, each with its own design
+  // (order #78: orange/pink/black Staple Tees) — product-only grouping merged
+  // them into one page showing only the first design with all colourways'
+  // sizes summed. Quote fee lines (screen setup, redraw…) have nothing to
+  // approve, so they're excluded rather than rendered as blank pages.
+  const items: OrderItem[] = (order.items ?? []).filter(
+    (it) => it.metadata?.quote_custom_line !== true
+  )
   const grouped = new Map<string, OrderItem[]>()
   for (const item of items) {
-    const key = String(item.product_id ?? item.id)
+    const designGroup = (item.metadata?.customizerDesign as any)?.group_id
+    const key = String(designGroup ?? item.product_id ?? item.id)
     if (!grouped.has(key)) grouped.set(key, [])
     grouped.get(key)!.push(item)
   }
