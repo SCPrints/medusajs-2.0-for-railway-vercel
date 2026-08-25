@@ -4144,11 +4144,14 @@ export default function CustomizerTemplate({
 
     // Screen printing has a hard 25-piece minimum (the supplier's run
     // minimum) — block the add rather than silently pricing at the 25-49
-    // tier for a quantity we can't actually produce.
+    // tier for a quantity we can't actually produce. Quote mode is exempt:
+    // staff legitimately quote a small colourway that piggybacks a larger
+    // run's screens (billed as a colour change), and they confirm the unit
+    // price on the quote anyway.
     const hasScreenSides = decoratedSides.some(
       (side) => sideDecorationMethods[side] === "screen"
     )
-    if (hasScreenSides && totalQuantity < SCREEN_MIN_QUANTITY) {
+    if (hasScreenSides && totalQuantity < SCREEN_MIN_QUANTITY && !isQuoteMode) {
       setUploadError(
         `Screen printing needs at least ${SCREEN_MIN_QUANTITY} pieces. Increase the quantity, or switch the screen-printed side(s) to Print (DTF) for small runs.`
       )
