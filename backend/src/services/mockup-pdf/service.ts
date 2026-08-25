@@ -334,7 +334,11 @@ function buildPageData(
 
   // Per-side print dimensions — from customizerDesign.prints[] (per-print pricing model)
   // with fallback to the legacy single scpPrintSizeId field.
-  type PrintSpecRaw = { side: string; sizeId: string }
+  type PrintSpecRaw = {
+    side: string
+    sizeId: string
+    approxCm?: { width?: number; height?: number }
+  }
   const prints = Array.isArray(rawDesign?.prints)
     ? (rawDesign!.prints as PrintSpecRaw[]).filter(
         (p) => typeof p.side === "string" && typeof p.sizeId === "string"
@@ -346,6 +350,26 @@ function buildPageData(
   function bandLabel(side: string): string {
     const sidePrints = prints.filter((p) => p.side === side)
     if (sidePrints.length > 0) {
+      // Prefer the MEASURED artwork size (prints[].approxCm) — it matches what
+      // the customer sees on the mockup. The size-band maximum misleads:
+      // "21×30 cm" under a 7.8cm chest logo reads as the logo being A4, and
+      // on screen jobs the band is just a leftover from the DTF picker.
+      const measured = sidePrints
+        .map((p) => p.approxCm)
+        .filter(
+          (d): d is { width: number; height: number } =>
+            !!d &&
+            Number.isFinite(d.width) &&
+            Number.isFinite(d.height) &&
+            (d.width as number) > 0 &&
+            (d.height as number) > 0
+        )
+      if (measured.length > 0) {
+        const r1 = (n: number) => Math.round(n * 10) / 10
+        return measured
+          .map((d) => `${r1(d.width)}×${r1(d.height)} cm`)
+          .join(" + ")
+      }
       const best = sidePrints.reduce((a, b) =>
         PRINT_SIZE_PRIORITY.indexOf(b.sizeId) > PRINT_SIZE_PRIORITY.indexOf(a.sizeId) ? b : a
       )
