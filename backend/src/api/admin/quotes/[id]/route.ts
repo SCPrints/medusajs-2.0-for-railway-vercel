@@ -167,8 +167,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     )
   }
 
-  const updated = await quoteService.retrieveQuote(id)
-  return res.json({ quote: slimQuoteForAdmin(updated) })
+  // Merge in-memory rather than re-retrieving — the row can be tens of MB
+  // with Studio designs, and this response is slimmed anyway.
+  return res.json({ quote: slimQuoteForAdmin({ ...current, ...updatePayload }) })
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {

@@ -59,6 +59,35 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const quoteService = req.scope.resolve<QuoteModuleService>(QUOTE_MODULE)
 
+  // The Kanban cards never render line_items, and Studio design lines make
+  // that column enormous (a single quote with vector designs measured 19MB) —
+  // selecting it here made every board load read+parse all of it server-side.
+  // The detail view fetches /admin/quotes/:id separately and gets the full
+  // (slimmed) line set there.
+  const LIST_FIELDS = [
+    "id",
+    "public_id",
+    "status",
+    "source",
+    "customer_id",
+    "email",
+    "contact_name",
+    "contact_phone",
+    "company",
+    "subject",
+    "message",
+    "assigned_to",
+    "currency_code",
+    "total_estimate",
+    "metadata",
+    "expires_at",
+    "quoted_at",
+    "accepted_at",
+    "lost_at",
+    "created_at",
+    "updated_at",
+  ]
+
   let quotes: any[]
   let count: number
   if (q) {
@@ -66,6 +95,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       take: 500,
       skip: 0,
       order: { created_at: "DESC" },
+      select: LIST_FIELDS,
     })
     const term = q.toLowerCase()
     const matched = (all as any[]).filter((quote) => {
@@ -88,6 +118,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       take: limit,
       skip: offset,
       order: { created_at: "DESC" },
+      select: LIST_FIELDS,
     })
     quotes = list as any[]
     count = total as number

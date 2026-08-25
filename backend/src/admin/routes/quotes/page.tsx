@@ -1020,6 +1020,9 @@ function QuoteDetail({
   // full-array save can't clobber a design the popup posts back (lost-update
   // race), and to show a hint instead.
   const [studioOpen, setStudioOpen] = useState(false)
+  // Spinner state for "Save line items" — the save round-trip can take a
+  // moment on design-heavy quotes, and a dead-looking button reads as broken.
+  const [savingLines, setSavingLines] = useState(false)
 
   // Studio popup + polling. While a popup is open we poll the quote so the
   // design lines the customiser posts back appear live (mirrors the POS page).
@@ -1254,10 +1257,10 @@ function QuoteDetail({
             variant="secondary"
             onClick={copyDesignApprovalLink}
           >
-            Copy approval link
+            Copy design-approval link
           </Button>
           <Button size="small" variant="secondary" onClick={copyAcceptLink}>
-            Copy accept link
+            Copy quote-accept link
           </Button>
           {convertedOrderId ? (
             <Button size="small" variant="secondary" asChild>
@@ -1415,7 +1418,15 @@ function QuoteDetail({
             size="small"
             variant="secondary"
             disabled={studioOpen}
-            onClick={() => onUpdate({ line_items: draftToLineItems(draftLineItems) })}
+            isLoading={savingLines}
+            onClick={async () => {
+              setSavingLines(true)
+              try {
+                await onUpdate({ line_items: draftToLineItems(draftLineItems) })
+              } finally {
+                setSavingLines(false)
+              }
+            }}
           >
             Save line items
           </Button>
