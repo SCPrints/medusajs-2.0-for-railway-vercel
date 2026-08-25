@@ -199,7 +199,14 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
             <Column
               style={{ padding: '10px 12px', fontSize: '14px', color: SLATE }}
             >
-              {item.product_title}
+              {/* product + variant (colour/size) so multi-colourway orders are
+                  legible; variant-less custom lines (e.g. quote fees) fall
+                  back to the line title instead of rendering blank. */}
+              {item.product_title
+                ? `${item.product_title}${
+                    item.variant_title ? ` — ${item.variant_title}` : ''
+                  }`
+                : item.title}
             </Column>
             <Column
               style={{
