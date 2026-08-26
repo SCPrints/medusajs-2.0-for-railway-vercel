@@ -1,5 +1,4 @@
 import { HttpTypes } from "@medusajs/types"
-import { notFound } from "next/navigation"
 import { NextRequest, NextResponse } from "next/server"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
@@ -18,31 +17,47 @@ async function getRegionMap() {
     !regionMap.keys().next().value ||
     regionMapUpdated < Date.now() - 3600 * 1000
   ) {
-    // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
-    const regionFetchRes = await fetch(`${BACKEND_URL}/store/regions`, {
-      headers: {
-        "x-publishable-api-key": PUBLISHABLE_API_KEY!,
-      },
-      next: {
-        revalidate: 3600,
-        tags: ["regions"],
-      },
-    })
-
-    const { regions } = await regionFetchRes.json()
-
-    if (!regions?.length) {
-      notFound()
-    }
-
-    // Create a map of country codes to regions.
-    regions.forEach((region: HttpTypes.StoreRegion) => {
-      region.countries?.forEach((c) => {
-        regionMapCache.regionMap.set(c.iso_2 ?? "", region)
+    // This runs on EVERY request, so it must never throw: an unguarded fetch/parse
+    // here turns a backend restart (Fly runs a single machine + a migrate release
+    // command) into a site-wide HTTP 500, which is what Search Console reported as
+    // "Server error (5xx)" on 2026-08-24. On failure we keep serving the stale map;
+    // `regionMapUpdated` is deliberately left untouched so the next request retries.
+    try {
+      // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
+      const regionFetchRes = await fetch(`${BACKEND_URL}/store/regions`, {
+        headers: {
+          "x-publishable-api-key": PUBLISHABLE_API_KEY!,
+        },
+        signal: AbortSignal.timeout(5000),
+        next: {
+          revalidate: 3600,
+          tags: ["regions"],
+        },
       })
-    })
 
-    regionMapCache.regionMapUpdated = Date.now()
+      const { regions } = await regionFetchRes.json()
+
+      if (regions?.length) {
+        // Create a map of country codes to regions.
+        regions.forEach((region: HttpTypes.StoreRegion) => {
+          region.countries?.forEach((c) => {
+            regionMapCache.regionMap.set(c.iso_2 ?? "", region)
+          })
+        })
+
+        regionMapCache.regionMapUpdated = Date.now()
+      }
+    } catch (error) {
+      console.error("middleware: /store/regions fetch failed", error)
+    }
+  }
+
+  if (!regionMapCache.regionMap.size) {
+    // Cold instance + backend down: serve a minimal map so the request proceeds to
+    // the page (whose own error boundary handles it). Returning an empty map would
+    // make the redirect below target the same URL — an infinite 307 loop.
+    // ponytail: not cached, so a healthy backend repopulates on the next request.
+    return new Map([[DEFAULT_REGION, {} as HttpTypes.StoreRegion]])
   }
 
   return regionMapCache.regionMap
