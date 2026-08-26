@@ -6,7 +6,10 @@ import {
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { SUPPORT_REPLY_TO_EMAIL } from "../lib/constants"
 import { tagUrl } from "../lib/email-utm"
-import { buildLineCustomizerExport } from "../lib/customizer-order-artifacts"
+import {
+  buildLineCustomizerExport,
+  lineMockupGroupKey,
+} from "../lib/customizer-order-artifacts"
 import { EmailTemplates } from "../modules/email-notifications/templates"
 import {
   ARTWORK_STAGE_EVENT,
@@ -102,9 +105,12 @@ export default async function orderArtworkStageChangedHandler({
   // parallel createNotifications calls race at the DB level — exactly one
   // INSERT wins, the other hits the unique constraint and the notification
   // module silently skips it. No locks, no metadata stamps, no race window.
-  // Key is per-(order, stage, channel) so a future legit re-send (e.g. on a
-  // manual rewind) needs the prior notification row removed first.
-  const idempotencyKey = `artwork-email:${data.order_id}:${toStage}`
+  // Key includes the transition's changed_at so redelivery of the SAME event
+  // dedupes, but a deliberate rewind → re-advance (revised proof re-send)
+  // is a new transition with a new timestamp and emails again.
+  const idempotencyKey = `artwork-email:${data.order_id}:${toStage}${
+    data.changed_at ? `:${data.changed_at}` : ""
+  }`
 
   const revisedProofs = Array.isArray(orderMeta.revised_proofs)
     ? (orderMeta.revised_proofs as Array<{
@@ -133,32 +139,48 @@ export default async function orderArtworkStageChangedHandler({
   const mockupImages =
     toStage === "awaiting_approval"
       ? (() => {
+          // One mockup per (design group, colourway, side): the same design
+          // ordered across N size lines repeats identical mockups otherwise
+          // (a 24-image email for one front + one back).
+          const groupKeyOfLine = new Map<string, string>()
+          for (const line of order.items ?? []) {
+            groupKeyOfLine.set(line.id as string, lineMockupGroupKey(line))
+          }
+          const seen = new Set<string>()
           const rawArtifacts = (order.items ?? []).flatMap((line: any) => {
             const exp = buildLineCustomizerExport(line)
             return (exp?.artifacts ?? [])
               .filter((a: any) => a.mockup_url && !a.mockup_url_inline_omitted)
               .map((a: any) => ({
-                lineItemId: line.id as string,
+                groupKey: groupKeyOfLine.get(line.id) as string,
                 url: a.mockup_url as string,
                 side: a.side as string,
                 sideLabel: a.side_label ?? null,
               }))
+              .filter((a: any) => {
+                const k = `${a.groupKey}:${a.side}`
+                if (seen.has(k)) return false
+                seen.add(k)
+                return true
+              })
           })
           if (rawArtifacts.length === 0) return null
 
           if (hasPerSideProofs) {
-            // Build map: `${line_item_id}:${side}` → latest proof url
+            // Latest proof per `${groupKey}:${side}` — a proof uploaded
+            // against ANY line in the group applies to the kept image.
             const latestBySideKey = new Map<string, string>()
             ;[...revisedProofs]
               .filter((p) => p.line_item_id && p.side && p.url)
               .sort((a, b) => ((a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1))
               .forEach((p) => {
-                const k = `${p.line_item_id}:${p.side}`
+                const gk = groupKeyOfLine.get(p.line_item_id!) ?? p.line_item_id!
+                const k = `${gk}:${p.side}`
                 if (!latestBySideKey.has(k)) latestBySideKey.set(k, p.url!)
               })
 
             return rawArtifacts.map((a) => ({
-              url: latestBySideKey.get(`${a.lineItemId}:${a.side}`) ?? a.url,
+              url: latestBySideKey.get(`${a.groupKey}:${a.side}`) ?? a.url,
               side: a.side,
               sideLabel: a.sideLabel,
             }))

@@ -10,7 +10,10 @@ import {
   type ProductionStageChangedEvent,
 } from "../../../lib/production-stage"
 import { getPostHog } from "../../../lib/posthog"
-import { buildLineCustomizerExport } from "../../../lib/customizer-order-artifacts"
+import {
+  buildLineCustomizerExport,
+  lineMockupGroupKey,
+} from "../../../lib/customizer-order-artifacts"
 import { verifyArtworkApproval } from "../../../services/artwork-approval/sign"
 
 const schema = z.object({
@@ -105,16 +108,46 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   let legacyProofUrl: string | null = null
   let legacyProofNote: string | null = null
 
+  // One mockup per (design group, colourway, side): the same design ordered
+  // across N size lines repeats identical mockups otherwise. Notes, print
+  // dimensions, and proofs are stored keyed by `${line_item_id}:${side}`, so
+  // translate line ids to group keys — an entry on ANY line in the group
+  // applies to the kept representative image.
+  const groupKeyOfLine = new Map<string, string>()
+  for (const line of order.items ?? []) {
+    groupKeyOfLine.set(line.id as string, lineMockupGroupKey(line))
+  }
+  const toGroupKeyed = (rec: Record<string, string>) => {
+    const out = new Map<string, string>()
+    for (const [k, v] of Object.entries(rec)) {
+      const idx = k.indexOf(":")
+      if (idx === -1) continue
+      const gk = groupKeyOfLine.get(k.slice(0, idx)) ?? k.slice(0, idx)
+      const nk = `${gk}:${k.slice(idx + 1)}`
+      if (!out.has(nk)) out.set(nk, v)
+    }
+    return out
+  }
+  const groupStudioNotes = toGroupKeyed(studioNotes)
+  const groupPrintDimensions = toGroupKeyed(printDimensions)
+
+  const seen = new Set<string>()
   const rawArtifacts = (order.items ?? []).flatMap((line: any) => {
     const exp = buildLineCustomizerExport(line)
     return (exp?.artifacts ?? [])
       .filter((a: any) => a.mockup_url && !a.mockup_url_inline_omitted)
       .map((a: any) => ({
-        lineItemId: line.id as string,
+        groupKey: groupKeyOfLine.get(line.id) as string,
         side: a.side as string,
         side_label: a.side_label as string | null,
         url: a.mockup_url as string,
       }))
+      .filter((a: any) => {
+        const k = `${a.groupKey}:${a.side}`
+        if (seen.has(k)) return false
+        seen.add(k)
+        return true
+      })
   })
 
   if (hasPerSideProofs) {
@@ -124,7 +157,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       .filter((p) => p.line_item_id && p.side && p.url)
       .sort((a, b) => ((a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1))
       .forEach((p) => {
-        const k = `${p.line_item_id}:${p.side}`
+        const gk = groupKeyOfLine.get(p.line_item_id!) ?? p.line_item_id!
+        const k = `${gk}:${p.side}`
         if (!latestBySideKey.has(k)) {
           latestBySideKey.set(k, p.url!)
           // Capture the note from the SAME (latest) proof, if any.
@@ -134,14 +168,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         }
       })
     mockupUrls = rawArtifacts.map((a) => {
-      const k = `${a.lineItemId}:${a.side}`
+      const k = `${a.groupKey}:${a.side}`
       return {
         side: a.side,
         side_label: a.side_label,
         url: latestBySideKey.get(k) ?? a.url,
         // Explicit studio note wins; else fall back to the latest proof's note.
-        note: studioNotes[k] ?? latestNoteBySideKey.get(k) ?? null,
-        print_dimension: printDimensions[k] ?? null,
+        note: groupStudioNotes.get(k) ?? latestNoteBySideKey.get(k) ?? null,
+        print_dimension: groupPrintDimensions.get(k) ?? null,
       }
     })
   } else {
@@ -154,13 +188,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       legacyProofNote = latestRevisedProof.note ?? null
     } else {
       mockupUrls = rawArtifacts.map((a) => {
-        const k = `${a.lineItemId}:${a.side}`
+        const k = `${a.groupKey}:${a.side}`
         return {
           side: a.side,
           side_label: a.side_label,
           url: a.url,
-          note: studioNotes[k] ?? null,
-          print_dimension: printDimensions[k] ?? null,
+          note: groupStudioNotes.get(k) ?? null,
+          print_dimension: groupPrintDimensions.get(k) ?? null,
         }
       })
     }

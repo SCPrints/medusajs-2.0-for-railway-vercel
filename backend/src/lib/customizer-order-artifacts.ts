@@ -65,6 +65,33 @@ export type OrderLineCustomizerExport = {
   customer_original_files: CustomerOriginalFileExport[]
 }
 
+/**
+ * Dedupe key for a line's mockups on customer-facing approval surfaces (the
+ * artwork-approval email + page). One design ordered across N size lines
+ * carries N identical mockup sets — collapse to one per
+ * (design group, colourway). Colour stays in the key because bulk-grid cells
+ * carry colour-composited mockups (an orange tee's mockup ≠ the black tee's).
+ * Group convention mirrors the mockup-pdf service: `customizerDesign.group_id`
+ * → `product_id` → line id. Colour = the variant-title prefix before the last
+ * "/" (Medusa joins options as "COLOUR / SIZE"); size-only titles yield "".
+ */
+export function lineMockupGroupKey(line: {
+  id: string
+  product_id?: string | null
+  variant_title?: string | null
+  metadata?: Record<string, unknown> | null
+}): string {
+  const rawDesign = line.metadata?.customizerDesign
+  const groupId =
+    rawDesign && typeof rawDesign === "object" && !Array.isArray(rawDesign)
+      ? (rawDesign as { group_id?: unknown }).group_id
+      : null
+  const group = String(groupId ?? line.product_id ?? line.id)
+  const parts = String(line.variant_title ?? "").split("/")
+  const colour = parts.length > 1 ? parts.slice(0, -1).join("/").trim() : ""
+  return colour ? `${group}:${colour}` : group
+}
+
 export function buildLineCustomizerExport(line: {
   id: string
   title?: string | null
