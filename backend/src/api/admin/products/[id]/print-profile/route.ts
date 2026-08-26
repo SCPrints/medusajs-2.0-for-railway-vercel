@@ -21,6 +21,10 @@ import {
   revalidateStorefrontTags,
   tagsForProduct,
 } from "../../../../../lib/storefront-revalidate"
+import {
+  DECORATION_PRICING_CLASSES,
+  parseDecorationPricingClass,
+} from "../../../../../lib/scp-supacolour-pricing"
 import { captureEvent } from "../../../../../lib/posthog"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
@@ -52,15 +56,23 @@ const postSchema = z
      * true = set metadata.screen_heavy, false/null = clear.
      */
     screen_heavy: z.boolean().nullable().optional(),
+    /**
+     * Full-colour pricing class: "supacolour" = poly/blend garment priced on
+     * the premium transfer card; "quote_only" = softshell/technical (kept off
+     * self-serve full-colour). null clears (standard DTF card).
+     */
+    decoration_pricing_class: z.enum(DECORATION_PRICING_CLASSES).nullable().optional(),
   })
   .refine(
     (b) =>
       b.profile_handle !== undefined ||
       b.areas !== undefined ||
       b.methods !== undefined ||
-      b.screen_heavy !== undefined,
+      b.screen_heavy !== undefined ||
+      b.decoration_pricing_class !== undefined,
     {
-      message: "Provide profile_handle, areas, methods, or screen_heavy.",
+      message:
+        "Provide profile_handle, areas, methods, screen_heavy, or decoration_pricing_class.",
     }
   )
 
@@ -125,6 +137,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     is_custom: isCustom,
     methods: methodFilter,
     screen_heavy: meta.screen_heavy === true,
+    decoration_pricing_class: parseDecorationPricingClass(meta.decoration_pricing_class),
     custom_areas: isCustom ? sanitizeAreas(meta.print_config) : [],
     resolved_areas: resolvedFiltered,
     profiles: profiles.map((p) => ({
@@ -213,6 +226,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   if (body.screen_heavy !== undefined) {
     if (body.screen_heavy === true) meta.screen_heavy = true
     else delete meta.screen_heavy
+  }
+  if (body.decoration_pricing_class !== undefined) {
+    const cls = parseDecorationPricingClass(body.decoration_pricing_class)
+    if (cls) meta.decoration_pricing_class = cls
+    else delete meta.decoration_pricing_class
   }
 
   await productModule.updateProducts(id, { metadata: meta })

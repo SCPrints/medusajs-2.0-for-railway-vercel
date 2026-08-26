@@ -84,6 +84,36 @@ describe("calculatePricing", () => {
     expect(pricing.sideSurchargePerUnitCents).toBeCloseTo(8.5, 2)
   })
 
+  it("prices full-colour prints off the supacolour card when set", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 1,
+      decoratedSides: ["front"],
+      totalQuantity: 100,
+      scpPrint: { printSizeId: "up_to_a4" },
+      prints: [{ side: "front", sizeId: "up_to_a4" }],
+      fullColourCard: "supacolour",
+    })
+    // A4 @ 100+ on the premium card = $12.50 (DTF would be $9).
+    expect(pricing.sideSurchargePerUnitCents).toBe(12.5)
+    expect(pricing.fullColourCard).toBe("supacolour")
+    expect(pricing.supacolourQuoteRequired).toBeUndefined()
+  })
+
+  it("flags oversize prints on supacolour garments as quote-required", () => {
+    const pricing = calculatePricing({
+      basePriceCents: 20,
+      decoratedSidesCount: 1,
+      decoratedSides: ["front"],
+      totalQuantity: 20,
+      scpPrint: { printSizeId: "oversize" },
+      prints: [{ side: "front", sizeId: "oversize" }],
+      fullColourCard: "supacolour",
+    })
+    expect(pricing.sideSurchargePerUnitCents).toBe(0)
+    expect(pricing.supacolourQuoteRequired).toBe(true)
+  })
+
   it("prices screen sides by colour tier and excludes them from the DTF matrix", () => {
     const pricing = calculatePricing({
       basePriceCents: 20,

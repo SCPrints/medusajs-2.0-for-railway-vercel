@@ -36,6 +36,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { recomputeScpCartPricingPure } from "./recompute-scp-cart-pricing"
 import {
   computeDecorationTotals,
+  fullColourCardFromStoredServer,
   screenHeavyFromStoredBreakdown,
 } from "./scp-decoration-pricing"
 import { isScpPrintSizeId, type ScpPrintSizeId } from "./scp-dtf-print-pricing"
@@ -157,6 +158,7 @@ export function evaluateCartPricing(
         printTierQuantity: aggregatedQty,
         embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
         screenHeavyGarment: screenHeavyFromStoredBreakdown(server),
+        fullColourCard: fullColourCardFromStoredServer(server),
       })
 
       // 2a. Decorated sides that carry zero decoration charge — the

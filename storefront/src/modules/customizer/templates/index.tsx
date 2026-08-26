@@ -91,6 +91,12 @@ import {
   type ScreenColourEstimate,
 } from "@modules/customizer/lib/estimate-screen-colours"
 import {
+  SCP_SUPACOLOUR_UNIT_MATRIX,
+  SUPACOLOUR_QUOTE_ONLY_SIZES,
+  SUPACOLOUR_SETUP_MAJOR,
+  parseDecorationPricingClass,
+} from "@modules/customizer/lib/scp-supacolour-pricing"
+import {
   canvasPxToApproxCm,
   printSpecsToPricingSpecs,
   snapSizeForBoundingCm,
@@ -1061,6 +1067,21 @@ export default function CustomizerTemplate({
     [selectedProduct]
   )
   /**
+   * Staff-controlled decoration pricing class (admin product widget /
+   * backfill, metadata.decoration_pricing_class). "supacolour" = poly/blend
+   * garment (≥65% poly) — full-colour prints price off the premium
+   * Supacolour card instead of the DTF matrix, with a $69/design setup line.
+   */
+  const decorationPricingClass = useMemo(
+    () =>
+      parseDecorationPricingClass(
+        (selectedProduct?.metadata as Record<string, unknown> | undefined)
+          ?.decoration_pricing_class
+      ),
+    [selectedProduct]
+  )
+  const isSupacolourGarment = decorationPricingClass === "supacolour"
+  /**
    * Sides the customer can print on for this product. Hats: front only —
    * the curved crown is the single realistic transfer location. Bottom-
    * half garments and accessories (pants, totes, bags, beanies, aprons,
@@ -1722,6 +1743,7 @@ export default function CustomizerTemplate({
         embroidery: embroiderySpecs,
         screen: screenSpecs,
         screenHeavyGarment,
+        fullColourCard: isSupacolourGarment ? "supacolour" : undefined,
       }),
     [
       basePriceCents,
@@ -1735,6 +1757,7 @@ export default function CustomizerTemplate({
       embroiderySpecs,
       screenSpecs,
       screenHeavyGarment,
+      isSupacolourGarment,
     ]
   )
 
@@ -4097,6 +4120,56 @@ export default function CustomizerTemplate({
       )
     }, 0)
 
+  /**
+   * Supacolour setup-fee line — same group-keyed pattern as the screen setup.
+   * One setup per DESIGN (full-colour transfer, not per colour): quantity =
+   * number of full-colour print positions on a Supacolour-flagged garment.
+   */
+  const syncSupacolourSetupLine = async (
+    groupId: string,
+    designsNeeded: number
+  ): Promise<boolean> => {
+    const setupVariantId =
+      process.env.NEXT_PUBLIC_SUPACOLOUR_SETUP_VARIANT_ID?.trim()
+    if (!setupVariantId) return designsNeeded === 0
+    try {
+      const existingCart = await retrieveCart()
+      const existing = (existingCart?.items ?? []).filter((line: any) => {
+        const meta = (line?.metadata ?? {}) as Record<string, unknown>
+        return meta.supacolour_setup_for_group === groupId
+      })
+      const current = existing.reduce(
+        (sum: number, line: any) => sum + (line.quantity || 0),
+        0
+      )
+      if (current === designsNeeded) return true
+      for (const line of existing) {
+        await deleteLineItem((line as any).id)
+      }
+      if (designsNeeded > 0) {
+        const result = await addToCartSafe({
+          variantId: setupVariantId,
+          quantity: designsNeeded,
+          countryCode,
+          metadata: {
+            supacolour_setup_for_order: true,
+            supacolour_setup_for_group: groupId,
+          },
+        })
+        return result.ok
+      }
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /** Full-colour print positions on the current design (Supacolour setup count). */
+  const countSupacolourDesignsForSides = (sides: GarmentSide[]): number =>
+    isSupacolourGarment
+      ? sides.filter((side) => (sideDecorationMethods[side] ?? "print") === "print").length
+      : 0
+
   const addCustomizedToCart = async (
     bulkCells?: Array<{
       variant: HttpTypes.StoreProductVariant
@@ -4208,6 +4281,16 @@ export default function CustomizerTemplate({
         setPoaModalOpen(true)
         return
       }
+    }
+
+    // Supacolour garments have no transfer size above A3 — an oversize
+    // full-colour print can't be auto-priced. The size tile is disabled in
+    // the UI; this is the belt-and-braces server of the same rule.
+    if (isSupacolourGarment && pricing.supacolourQuoteRequired) {
+      setUploadError(
+        "Oversize prints aren't available on this fabric through the site — choose up to A3, or contact us for an oversize quote."
+      )
+      return
     }
 
     // Colour-count mismatch gate: the artwork analyser found MORE colours
@@ -4577,6 +4660,13 @@ export default function CustomizerTemplate({
         if (!editSetupOk) {
           setStatusMessage(
             "Design updated, but the screen setup fee couldn't be updated automatically — our team will correct it during artwork review."
+          )
+        }
+        const editSupaDesigns = countSupacolourDesignsForSides(decoratedSides)
+        const editSupaOk = await syncSupacolourSetupLine(groupIdForThisAdd, editSupaDesigns)
+        if (!editSupaOk) {
+          setStatusMessage(
+            "Design updated, but the transfer setup fee couldn't be updated automatically — our team will correct it during artwork review."
           )
         }
 
@@ -5196,6 +5286,17 @@ export default function CustomizerTemplate({
         }
       }
 
+      // Supacolour setup-fee line (one per design/position on flagged garments).
+      const supaDesignsNeeded = countSupacolourDesignsForSides(decoratedSides)
+      if (supaDesignsNeeded > 0) {
+        const supaOk = await syncSupacolourSetupLine(groupIdForThisAdd, supaDesignsNeeded)
+        if (!supaOk) {
+          setStatusMessage(
+            "Items were added, but the transfer setup fee couldn't be added automatically — our team will add it during artwork review."
+          )
+        }
+      }
+
       // Edit-from-cart: replace the original line(s) by deleting after the
       // new line(s) have been added successfully. Three paths:
       // - Group-edit (?edit_group=<id>, bulk grid): delete every line
@@ -5340,6 +5441,7 @@ export default function CustomizerTemplate({
         embroidery: embroiderySpecs,
         screen: screenSpecs,
         screenHeavyGarment,
+        fullColourCard: isSupacolourGarment ? "supacolour" : undefined,
       })
       const activeTier = breakdown.activeBulkTier
       // calculatePricing's `*Cents` fields are misnamed — Medusa 2.x stores
@@ -5983,6 +6085,15 @@ export default function CustomizerTemplate({
           ) : null}
           {sideDecorationMethods[currentSide] === "embroidery" ||
           sideDecorationMethods[currentSide] === "screen" ? null : (
+            <>
+            {isSupacolourGarment ? (
+              <p className="rounded-md border border-ui-border-base bg-ui-bg-subtle/70 px-2.5 py-1.5 text-xs text-ui-fg-subtle">
+                <span className="font-semibold text-ui-fg-base">Premium transfer fabric:</span>{" "}
+                polyester needs our dye-blocking Supacolour transfer — standard prints
+                bleed on this fabric. Pricing below reflects the premium process, plus a
+                ${SUPACOLOUR_SETUP_MAJOR} setup per design at checkout.
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-2">
               {SCP_PRINT_SIZE_OPTIONS.filter((opt) =>
                 allowedSizesForCurrentSide.includes(opt.id)
@@ -5992,12 +6103,31 @@ export default function CustomizerTemplate({
                 // not the cheapest 100+ tier. The bulk discount drops it
                 // further at higher qty, communicated via the bulk-tier
                 // panel below.
-                const matrixRow = SCP_PRINT_UNIT_MATRIX[opt.id]
+                const supaRow = isSupacolourGarment
+                  ? SCP_SUPACOLOUR_UNIT_MATRIX[opt.id] ?? null
+                  : null
+                const supaQuoteOnly =
+                  isSupacolourGarment && SUPACOLOUR_QUOTE_ONLY_SIZES.has(opt.id)
+                const matrixRow = supaRow ?? SCP_PRINT_UNIT_MATRIX[opt.id]
                 const tierIdx = resolveScpTierIndexForQuantity(totalQty)
                 const currentPrice = matrixRow[tierIdx]
                 const bestPrice = matrixRow[matrixRow.length - 1]
                 const showsDiscountHint = currentPrice > bestPrice
                 const selected = scpPrintSizeChosen && scpPrintSizeId === opt.id
+                if (supaQuoteOnly) {
+                  return (
+                    <div
+                      key={opt.id}
+                      className="relative flex flex-col items-start gap-0.5 rounded-lg border border-dashed border-ui-border-base bg-ui-bg-subtle/50 p-2.5 text-left opacity-70"
+                    >
+                      <span className="text-sm font-semibold text-ui-fg-base">{opt.label}</span>
+                      <span className="text-[11px] text-ui-fg-subtle">{opt.dimensionsLabel}</span>
+                      <span className="text-[11px] text-ui-fg-muted">
+                        Quote only on this fabric — contact us
+                      </span>
+                    </div>
+                  )
+                }
                 return (
                   <button
                     key={opt.id}
@@ -6053,6 +6183,7 @@ export default function CustomizerTemplate({
                 )
               })}
             </div>
+            </>
           )}
         </>
       ) : (
@@ -6066,9 +6197,11 @@ export default function CustomizerTemplate({
             </div>
             <p className="shrink-0 text-sm font-semibold text-ui-fg-base">
               $
-              {SCP_PRINT_UNIT_MATRIX[scpPrintSizeId][
-                resolveScpTierIndexForQuantity(totalQty)
-              ].toFixed(2)}{" "}
+              {(
+                (isSupacolourGarment
+                  ? SCP_SUPACOLOUR_UNIT_MATRIX[scpPrintSizeId]
+                  : undefined) ?? SCP_PRINT_UNIT_MATRIX[scpPrintSizeId]
+              )[resolveScpTierIndexForQuantity(totalQty)].toFixed(2)}{" "}
               <span className="text-[11px] font-normal text-ui-fg-subtle">ea / location</span>
             </p>
           </div>

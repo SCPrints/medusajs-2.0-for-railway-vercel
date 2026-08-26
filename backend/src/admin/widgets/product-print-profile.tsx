@@ -47,6 +47,7 @@ type LoadState = {
   is_custom: boolean
   methods: string[] | null
   screen_heavy?: boolean
+  decoration_pricing_class?: "supacolour" | "quote_only" | null
   custom_areas: Area[]
   resolved_areas: Area[] | null
   profiles: ProfileOption[]
@@ -61,6 +62,8 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
   const [initialMethods, setInitialMethods] = useState<string[]>(ALL_METHODS)
   const [screenHeavy, setScreenHeavy] = useState(false)
   const [initialScreenHeavy, setInitialScreenHeavy] = useState(false)
+  const [pricingClass, setPricingClass] = useState<string>("standard")
+  const [initialPricingClass, setInitialPricingClass] = useState<string>("standard")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -102,6 +105,9 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
       setInitialMethods(initM.length ? initM : ALL_METHODS)
       setScreenHeavy(json.screen_heavy === true)
       setInitialScreenHeavy(json.screen_heavy === true)
+      const cls = json.decoration_pricing_class ?? "standard"
+      setPricingClass(cls)
+      setInitialPricingClass(cls)
     } catch (err: any) {
       setError(err?.message ?? String(err))
     } finally {
@@ -127,8 +133,13 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
 
   const methodsChanged = isProfileMode && !setEq(methods, initialMethods)
   const screenHeavyChanged = screenHeavy !== initialScreenHeavy
+  const pricingClassChanged = pricingClass !== initialPricingClass
   const dirty =
-    selected !== initialSelected || selected === CUSTOM || methodsChanged || screenHeavyChanged
+    selected !== initialSelected ||
+    selected === CUSTOM ||
+    methodsChanged ||
+    screenHeavyChanged ||
+    pricingClassChanged
 
   const save = async () => {
     if (!productId) return
@@ -161,6 +172,10 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
       }
       if (screenHeavyChanged) {
         body.screen_heavy = screenHeavy
+      }
+      if (pricingClassChanged) {
+        body.decoration_pricing_class =
+          pricingClass === "standard" ? null : pricingClass
       }
       const res = await fetch(`/admin/products/${productId}/print-profile`, {
         method: "POST",
@@ -303,6 +318,31 @@ const ProductPrintProfileWidget = ({ data }: DetailWidgetProps<AdminProduct>) =>
             Tick for hoodies, sweats, fleece and polyester garments. The
             supplier charges extra to screen print these; the customizer passes
             it through on screen-printed sides only (DTF is unaffected).
+          </Text>
+        </div>
+
+        <div className="flex flex-col gap-y-1">
+          <Label className="text-xs">Full-colour pricing card</Label>
+          <Select
+            value={pricingClass}
+            onValueChange={setPricingClass}
+            disabled={loading || saving}
+          >
+            <Select.Trigger>
+              <Select.Value />
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="standard">Standard (DTF card)</Select.Item>
+              <Select.Item value="supacolour">
+                Supacolour required (poly/blend — premium card)
+              </Select.Item>
+              <Select.Item value="quote_only">Quote only (softshell/technical)</Select.Item>
+            </Select.Content>
+          </Select>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            Supacolour: full-colour prints price off the premium transfer card
+            (dye-blocking, ≥65% poly rule) + $69/design setup. Screen and
+            embroidery are unaffected.
           </Text>
         </div>
 

@@ -17,6 +17,7 @@ import {
   clusterDigitizingEntries,
   computeDecorationTotals,
   embroideryDigitizingUnits,
+  fullColourCardFromStoredServer,
   screenHeavyFromStoredBreakdown,
   type DigitizingUnitEntry,
 } from "./scp-decoration-pricing"
@@ -89,6 +90,7 @@ const readScpServerBlock = (
   printSizeId: ScpPrintSizeId | null
   storedGarmentMajor: number | null
   screenHeavyGarment: boolean
+  fullColourCard: "dtf" | "supacolour"
 } | null => {
   if (!metadata || typeof metadata !== "object") return null
   const customizerDesign = metadata.customizerDesign as Record<string, unknown> | undefined
@@ -113,8 +115,9 @@ const readScpServerBlock = (
   // product.metadata.screen_heavy) — reuse the stamped breakdown so the
   // recompute doesn't need another product lookup.
   const screenHeavyGarment = screenHeavyFromStoredBreakdown(server)
+  const fullColourCard = fullColourCardFromStoredServer(server)
 
-  return { printSizeId, storedGarmentMajor, screenHeavyGarment }
+  return { printSizeId, storedGarmentMajor, screenHeavyGarment, fullColourCard }
 }
 
 const isLineEligible = (line: CartLineForRecompute): boolean => {
@@ -239,6 +242,7 @@ const computeNewUnitPriceMajor = (
     printTierQuantity: aggregatedQty,
     embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
     screenHeavyGarment: scpBlock.screenHeavyGarment,
+    fullColourCard: scpBlock.fullColourCard,
     digitizingAmortQtyByKey,
   })
 

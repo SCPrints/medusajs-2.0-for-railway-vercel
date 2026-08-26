@@ -38,8 +38,15 @@ import {
 } from "./embroidery-pricing"
 import { screenUnitMajor } from "./scp-screen-print-pricing"
 import {
+  SUPACOLOUR_QUOTE_ONLY_SIZES,
+  parseDecorationPricingClass,
+  supacolourUnitMajorForTier,
+  type DecorationPricingClass,
+} from "./scp-supacolour-pricing"
+import {
   decoratedLocationsFromLineMetadata,
   decoratedSidesFromLineMetadata,
+  resolveScpPrintSizeForSide,
   resolveScpTierIndexForQuantity,
   scpPrintTotalMajorFromLocations,
   scpPrintTotalMajorPerGarmentForSides,
@@ -215,6 +222,12 @@ export type DecorationTotals = {
   unconfiguredEmbroiderySides: string[]
   /** DTF print tier index actually used (from printTierQuantity). */
   printTierIndex: number
+  /**
+   * Full-colour print sides on a Supacolour garment whose size has no
+   * Supacolour equivalent (oversize) — price $0, quote-only. Add/update
+   * routes reject these; the invariant flags them.
+   */
+  supacolourQuoteSides: string[]
   printTotalMajor: number
   embroideryTotalMajor: number
   embroideryBreakdown: EmbroideryBreakdownEntry[]
@@ -238,6 +251,14 @@ export function computeDecorationTotals(args: {
   printTierQuantity: number
   embroideryQuantity: number
   screenHeavyGarment: boolean
+  /**
+   * Which full-colour card prices the print sides: absent/"dtf" = the DTF
+   * matrix; "supacolour" = the premium transfer matrix (poly/blend garments,
+   * product.metadata.decoration_pricing_class). The add/update paths resolve
+   * it live from the product; the recompute + invariant reuse the
+   * `full_colour_card` stamped in the line's server block at add time.
+   */
+  fullColourCard?: "dtf" | "supacolour"
   /**
    * Cart-wide digitizing amortisation: per exact entry `key`, the TOTAL
    * quantity of garments (across all cart lines) sharing that digitized
@@ -283,20 +304,49 @@ export function computeDecorationTotals(args: {
   })
 
   const printTierIndex = resolveScpTierIndexForQuantity(args.printTierQuantity)
-  const printTotalMajor =
-    printSides.length === 0
-      ? 0
-      : printLocations.length > 0
-      ? scpPrintTotalMajorFromLocations({
-          selectedPrintSizeId: args.printSizeId,
-          tierIndex: printTierIndex,
-          locations: printLocations,
-        })
-      : scpPrintTotalMajorPerGarmentForSides({
-          selectedPrintSizeId: args.printSizeId,
-          tierIndex: printTierIndex,
-          decoratedSides: printSides,
-        })
+  const supacolour = args.fullColourCard === "supacolour"
+  const supacolourQuoteSides: string[] = []
+  let printTotalMajor = 0
+  if (printSides.length === 0) {
+    printTotalMajor = 0
+  } else if (supacolour) {
+    // Premium transfer card. Same per-location shape as the DTF paths, with
+    // the Supacolour matrix; oversize has no Supacolour size — $0 + flagged.
+    const unitFor = (side: string, requested: ScpPrintSizeId): number => {
+      const sizeId = resolveScpPrintSizeForSide(side, requested)
+      if (SUPACOLOUR_QUOTE_ONLY_SIZES.has(sizeId)) {
+        supacolourQuoteSides.push(side)
+        return 0
+      }
+      return supacolourUnitMajorForTier(sizeId, printTierIndex) ?? 0
+    }
+    printTotalMajor =
+      printLocations.length > 0
+        ? round2(
+            printLocations.reduce((sum, loc) => {
+              const side = (loc as { side?: string }).side ?? "front"
+              const requested =
+                (loc as { printSizeId?: ScpPrintSizeId }).printSizeId ?? args.printSizeId
+              return sum + unitFor(side, requested)
+            }, 0)
+          )
+        : round2(
+            printSides.reduce((sum, side) => sum + unitFor(side, args.printSizeId), 0)
+          )
+  } else {
+    printTotalMajor =
+      printLocations.length > 0
+        ? scpPrintTotalMajorFromLocations({
+            selectedPrintSizeId: args.printSizeId,
+            tierIndex: printTierIndex,
+            locations: printLocations,
+          })
+        : scpPrintTotalMajorPerGarmentForSides({
+            selectedPrintSizeId: args.printSizeId,
+            tierIndex: printTierIndex,
+            decoratedSides: printSides,
+          })
+  }
 
   // Digitizing is charged per DISTINCT FILE (artwork + size within the ~5%
   // resize tolerance), not per side: two sides of one garment carrying the
@@ -397,6 +447,7 @@ export function computeDecorationTotals(args: {
     screenSides,
     unconfiguredEmbroiderySides,
     printTierIndex,
+    supacolourQuoteSides,
     printTotalMajor: Math.max(0, printTotalMajor),
     embroideryTotalMajor: Math.max(0, embroideryTotalMajor),
     embroideryBreakdown,
@@ -430,6 +481,25 @@ export async function resolveScreenHeavyGarment(
   query: { graph: (q: Record<string, unknown>) => Promise<{ data?: unknown[] }> },
   variantId: string
 ): Promise<boolean> {
+  return (await resolveDecorationProductFlags(query, variantId)).screenHeavy
+}
+
+export type DecorationProductFlags = {
+  screenHeavy: boolean
+  /** null = standard DTF card. */
+  decorationPricingClass: DecorationPricingClass | null
+}
+
+/**
+ * One product-metadata lookup serving every decoration flag: the screen
+ * heavy-garment surcharge AND the full-colour pricing class (Supacolour /
+ * quote-only). Best-effort — a failed lookup prices as a standard cotton
+ * garment rather than failing the cart operation.
+ */
+export async function resolveDecorationProductFlags(
+  query: { graph: (q: Record<string, unknown>) => Promise<{ data?: unknown[] }> },
+  variantId: string
+): Promise<DecorationProductFlags> {
   try {
     const { data: variantRows } = await query.graph({
       entity: "variant",
@@ -439,8 +509,24 @@ export async function resolveScreenHeavyGarment(
     const productMeta = (variantRows?.[0] as any)?.product?.metadata as
       | Record<string, unknown>
       | undefined
-    return productMeta?.screen_heavy === true
+    return {
+      screenHeavy: productMeta?.screen_heavy === true,
+      decorationPricingClass: parseDecorationPricingClass(
+        productMeta?.decoration_pricing_class
+      ),
+    }
   } catch {
-    return false
+    return { screenHeavy: false, decorationPricingClass: null }
   }
+}
+
+/**
+ * The full-colour card stamped in a line's server block at add time — the
+ * recompute + checkout invariant's lookup-free source (mirrors the
+ * screenHeavyFromStoredBreakdown pattern).
+ */
+export function fullColourCardFromStoredServer(
+  server: Record<string, unknown> | null | undefined
+): "dtf" | "supacolour" {
+  return server?.full_colour_card === "supacolour" ? "supacolour" : "dtf"
 }

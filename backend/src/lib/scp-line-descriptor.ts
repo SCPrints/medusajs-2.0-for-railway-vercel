@@ -25,9 +25,10 @@ import {
   MAX_AUTO_PRICED_STITCHES,
 } from "./embroidery-pricing"
 import { SCP_SCREEN_PRICING_VERSION } from "./scp-screen-print-pricing"
+import { SCP_SUPACOLOUR_PRICING_VERSION } from "./scp-supacolour-pricing"
 import {
   computeDecorationTotals,
-  resolveScreenHeavyGarment,
+  resolveDecorationProductFlags,
   type EmbroideryBreakdownEntry,
   type ScreenBreakdownEntry,
 } from "./scp-decoration-pricing"
@@ -118,20 +119,37 @@ export async function computeScpLineDescriptor(
     embroideryQuantity: quantity,
     screenHeavyGarment: false,
   })
-  // The heavy-garment surcharge is a PRODUCT property (metadata.screen_heavy,
-  // staff-controlled) — resolved server-side so the client can't omit it to
-  // shave the price. Only looked up when a screen side actually exists.
-  if (totals.screenSides.length > 0) {
-    const heavyGarment = await resolveScreenHeavyGarment(query, variantId)
-    if (heavyGarment) {
+  // Product-level pricing flags (metadata.screen_heavy + the full-colour
+  // pricing class) are staff-controlled and resolved SERVER-SIDE so the
+  // client can't omit them to shave the price. One lookup covers both; only
+  // needed when a side actually prices through screen or the print matrix.
+  let fullColourCard: "dtf" | "supacolour" = "dtf"
+  if (totals.screenSides.length > 0 || totals.printSides.length > 0) {
+    const flags = await resolveDecorationProductFlags(query, variantId)
+    fullColourCard =
+      flags.decorationPricingClass === "supacolour" ? "supacolour" : "dtf"
+    if (flags.screenHeavy || fullColourCard === "supacolour") {
       totals = computeDecorationTotals({
         metadata: mergedMetadata,
         printSizeId,
         printTierQuantity: quantity,
         embroideryQuantity: quantity,
-        screenHeavyGarment: true,
+        screenHeavyGarment: flags.screenHeavy,
+        fullColourCard,
       })
     }
+  }
+
+  // A Supacolour garment carrying an oversize full-colour print has no
+  // auto-price (no Supacolour size that big) — reject rather than sell the
+  // print at $0. The storefront disables the oversize tile on these garments.
+  if (totals.supacolourQuoteSides.length > 0) {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      `Oversize prints aren't available on this fabric — ${totals.supacolourQuoteSides
+        .map((s) => s.replace(/_/g, " "))
+        .join(", ")} needs a manual quote. Choose up to A3 or contact us.`
+    )
   }
   const {
     printSides,
@@ -211,6 +229,9 @@ export async function computeScpLineDescriptor(
           embroiderySides.length > 0 ? EMBROIDERY_PRICING_VERSION : undefined,
         screen_version:
           screenSides.length > 0 ? SCP_SCREEN_PRICING_VERSION : undefined,
+        full_colour_card: fullColourCard === "supacolour" ? "supacolour" : undefined,
+        supacolour_version:
+          fullColourCard === "supacolour" ? SCP_SUPACOLOUR_PRICING_VERSION : undefined,
         print_size_id: printSizeId,
         tier_index: tierIndex,
         quantity_tier_label: SCP_BLANK_ALIGNED_QUANTITY_TIERS[tierIndex]?.label ?? null,

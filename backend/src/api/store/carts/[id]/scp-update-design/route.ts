@@ -20,9 +20,11 @@ import {
   MAX_AUTO_PRICED_STITCHES,
 } from "../../../../../lib/embroidery-pricing"
 import { SCP_SCREEN_PRICING_VERSION } from "../../../../../lib/scp-screen-print-pricing"
+import { SCP_SUPACOLOUR_PRICING_VERSION } from "../../../../../lib/scp-supacolour-pricing"
 import {
   computeDecorationTotals,
-  resolveScreenHeavyGarment,
+  resolveDecorationProductFlags,
+  type DecorationProductFlags,
 } from "../../../../../lib/scp-decoration-pricing"
 import {
   RemoteJoinerGraphLike,
@@ -270,9 +272,9 @@ async function scpUpdateDesignPostHandler(
   // edit). Each call hits a distinct line, so they're safe to fan out — but
   // we keep them sequential for simpler error reporting; recompute below
   // re-prices everything in a single parallel pass anyway.
-  // Heavy-garment lookups are cached per variant — every targeted line
-  // usually shares one product.
-  const heavyByVariant = new Map<string, boolean>()
+  // Product pricing-flag lookups (heavy garment + full-colour card) are
+  // cached per variant — every targeted line usually shares one product.
+  const flagsByVariant = new Map<string, DecorationProductFlags>()
   for (const lineId of lineIds) {
     const line = cartItemsById.get(lineId)
     if (!line || !line.variant_id || line.quantity <= 0) {
@@ -289,21 +291,35 @@ async function scpUpdateDesignPostHandler(
       embroideryQuantity: line.quantity,
       screenHeavyGarment: false,
     })
-    if (totals.screenSides.length > 0) {
-      let heavy = heavyByVariant.get(line.variant_id)
-      if (heavy === undefined) {
-        heavy = await resolveScreenHeavyGarment(query, line.variant_id)
-        heavyByVariant.set(line.variant_id, heavy)
+    let fullColourCard: "dtf" | "supacolour" = "dtf"
+    if (totals.screenSides.length > 0 || totals.printSides.length > 0) {
+      let flags = flagsByVariant.get(line.variant_id)
+      if (flags === undefined) {
+        flags = await resolveDecorationProductFlags(query, line.variant_id)
+        flagsByVariant.set(line.variant_id, flags)
       }
-      if (heavy) {
+      fullColourCard =
+        flags.decorationPricingClass === "supacolour" ? "supacolour" : "dtf"
+      if (flags.screenHeavy || fullColourCard === "supacolour") {
         totals = computeDecorationTotals({
           metadata: designMetadataAsLine,
           printSizeId,
           printTierQuantity: line.quantity,
           embroideryQuantity: line.quantity,
-          screenHeavyGarment: true,
+          screenHeavyGarment: flags.screenHeavy,
+          fullColourCard,
         })
       }
+    }
+    // Same guard as the add path: an oversize full-colour print on a
+    // Supacolour garment has no auto-price.
+    if (totals.supacolourQuoteSides.length > 0) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        `Oversize prints aren't available on this fabric — ${totals.supacolourQuoteSides
+          .map((sd) => sd.replace(/_/g, " "))
+          .join(", ")} needs a manual quote. Choose up to A3 or contact us.`
+      )
     }
     const {
       printSides,
@@ -386,6 +402,12 @@ async function scpUpdateDesignPostHandler(
               : undefined,
           screen_version:
             screenSides.length > 0 ? SCP_SCREEN_PRICING_VERSION : undefined,
+          full_colour_card:
+            fullColourCard === "supacolour" ? "supacolour" : undefined,
+          supacolour_version:
+            fullColourCard === "supacolour"
+              ? SCP_SUPACOLOUR_PRICING_VERSION
+              : undefined,
           print_size_id: printSizeId,
           tier_index: tierIndex,
           quantity_tier_label:

@@ -78,6 +78,7 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 - Minimum ${DTF_MIN_QUANTITY} units, otherwise a $${DTF_UNDER_MIN_FEE} under-minimum fee applies.
 - $${DTF_ARTWORK_SETUP_FEE} artwork setup, waived on reorders.
 - Standard turnaround: ${t.dtf.standard}. Priority +$${r.dtf.priority} (${t.dtf.priority}). Express +$${r.dtf.express} (${t.dtf.express}).
+- Polyester and poly-blend garments (≥65% poly — most sportswear) need our premium dye-blocking Supacolour transfer instead of standard DTF: higher per-print pricing shown on those product pages (A6 $12→$9.50, A4 $16→$12.50, A3 $22→$16.50 by quantity) + $69 setup per design. Oversize isn't available on these fabrics — manual quote.
 
 ## Screen Print
 - Maximum ${SCREEN_MAX_COLOURS} colours total. On dark garments, the white underbase counts as one of those ${SCREEN_MAX_COLOURS} — so a 4-colour design on a dark garment is priced as 5 colours.

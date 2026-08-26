@@ -6,7 +6,7 @@
     "check-customer-tiers-sync": "node scripts/check-customer-tiers-sync.mjs",
     "check-dtf-pricing-sync": "node scripts/check-dtf-pricing-sync.mjs",
     "check-embroidery-pricing-sync": "node scripts/check-embroidery-pricing-sync.mjs",
-    "check-sync": "node scripts/check-production-stage-sync.mjs && node scripts/check-customer-tiers-sync.mjs && node scripts/check-dtf-pricing-sync.mjs && node scripts/check-embroidery-pricing-sync.mjs && node scripts/check-screen-pricing-sync.mjs"
+    "check-sync": "node scripts/check-production-stage-sync.mjs && node scripts/check-customer-tiers-sync.mjs && node scripts/check-dtf-pricing-sync.mjs && node scripts/check-embroidery-pricing-sync.mjs && node scripts/check-screen-pricing-sync.mjs && node scripts/check-supacolour-pricing-sync.mjs"
   },
   "dependencies": {
     "d3-force": "^3.0.0",

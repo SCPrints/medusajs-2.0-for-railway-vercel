@@ -7,6 +7,10 @@ import {
 } from "./scp-dtf-print-pricing"
 import { calculatePrice as calculateEmbroideryPrice } from "@modules/embroidery/lib/pricing"
 import { SCREEN_MIN_QUANTITY, screenUnitMajor } from "./scp-screen-print-pricing"
+import {
+  SUPACOLOUR_QUOTE_ONLY_SIZES,
+  supacolourUnitMajorForTier,
+} from "./scp-supacolour-pricing"
 import { BulkPricingTier, PricingBreakdown, PricingInput } from "./types"
 
 /**
@@ -75,8 +79,27 @@ export const calculatePricing = ({
   embroidery,
   screen,
   screenHeavyGarment,
+  fullColourCard,
 }: PricingInput): PricingBreakdown => {
   const safeQuantity = Math.max(1, Math.floor(totalQuantity || 1))
+
+  // Card-aware full-colour unit: standard garments price prints off the DTF
+  // matrix; Supacolour-flagged garments (poly/blend, dye-migration risk) off
+  // the premium transfer matrix. Oversize has no Supacolour equivalent —
+  // returns 0 and raises the quote flag (the UI disables that tile anyway).
+  const supacolour = fullColourCard === "supacolour"
+  let supacolourQuoteRequired = false
+  const fullColourUnitMajor = (
+    sizeId: Parameters<typeof scpPrintUnitMajorForTier>[0],
+    tierIndex: number
+  ): number => {
+    if (!supacolour) return scpPrintUnitMajorForTier(sizeId, tierIndex)
+    if (SUPACOLOUR_QUOTE_ONLY_SIZES.has(sizeId)) {
+      supacolourQuoteRequired = true
+      return 0
+    }
+    return supacolourUnitMajorForTier(sizeId, tierIndex) ?? 0
+  }
 
   // Embroidered and screen-printed sides are priced by their own rate cards,
   // never the DTF print matrix. Strip them from every print-pricing input
@@ -101,17 +124,36 @@ export const calculatePricing = ({
 
   if (scpPrint && decoratedSidesResolved > 0) {
     const tierIndex = resolveScpTierIndexForQuantity(safeQuantity)
-    sideSurchargePerUnit = Array.isArray(decoratedSides) && decoratedSides.length
-      ? scpPrintTotalMajorPerGarmentForSides({
-          selectedPrintSizeId: scpPrint.printSizeId,
-          tierIndex,
-          decoratedSides,
-        })
-      : scpPrintTotalMajorPerGarment({
-          printSizeId: scpPrint.printSizeId,
-          tierIndex,
-          decoratedSidesCount: decoratedSidesResolved,
-        })
+    if (supacolour) {
+      // Card-aware side-level path (legacy payloads without prints[]).
+      const sides =
+        Array.isArray(decoratedSides) && decoratedSides.length
+          ? decoratedSides
+          : Array.from({ length: decoratedSidesResolved }, () => "front")
+      sideSurchargePerUnit = round2(
+        sides.reduce(
+          (sum, side) =>
+            sum +
+            fullColourUnitMajor(
+              resolveScpPrintSizeForSide(side, scpPrint.printSizeId),
+              tierIndex
+            ),
+          0
+        )
+      )
+    } else {
+      sideSurchargePerUnit = Array.isArray(decoratedSides) && decoratedSides.length
+        ? scpPrintTotalMajorPerGarmentForSides({
+            selectedPrintSizeId: scpPrint.printSizeId,
+            tierIndex,
+            decoratedSides,
+          })
+        : scpPrintTotalMajorPerGarment({
+            printSizeId: scpPrint.printSizeId,
+            tierIndex,
+            decoratedSidesCount: decoratedSidesResolved,
+          })
+    }
   }
   // Per-print pricing takes precedence whenever the customizer hands us a
   // populated `prints` list. Each entry is one transfer charged at its own
@@ -123,7 +165,7 @@ export const calculatePricing = ({
     sideSurchargePerUnit = round2(
       prints.reduce((sum, print) => {
         const sizeId = resolveScpPrintSizeForSide(print.side, print.sizeId)
-        return sum + scpPrintUnitMajorForTier(sizeId, tierIndex)
+        return sum + fullColourUnitMajor(sizeId, tierIndex)
       }, 0)
     )
   }
@@ -271,5 +313,7 @@ export const calculatePricing = ({
     screenPerUnitCents: screenPerUnit,
     screenRows: screenRows.length ? screenRows : undefined,
     screenBelowMinimum: screenBelowMinimum || undefined,
+    fullColourCard: supacolour ? "supacolour" : undefined,
+    supacolourQuoteRequired: supacolourQuoteRequired || undefined,
   }
 }

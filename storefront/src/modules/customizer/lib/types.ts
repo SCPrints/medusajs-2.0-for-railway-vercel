@@ -62,6 +62,13 @@ export type PricingInput = {
   screen?: ScreenPricingSpec[]
   /** Product-level metadata.screen_heavy — hoodies/fleece/poly add $1/print on screen sides. */
   screenHeavyGarment?: boolean
+  /**
+   * Which full-colour rate card prices the print sides. "supacolour" for
+   * garments flagged metadata.decoration_pricing_class = "supacolour"
+   * (≥65% poly — dye-blocking premium transfer); absent/"dtf" = standard
+   * DTF matrix. Embroidery/screen sides are unaffected.
+   */
+  fullColourCard?: "dtf" | "supacolour"
 }
 
 /** Pricing-only view of one screen-printed side. */
@@ -132,6 +139,10 @@ export type PricingBreakdown = {
   }>
   /** True when screen sides exist but quantity is under the 25-piece minimum. */
   screenBelowMinimum?: boolean
+  /** Which full-colour card priced the print sides ("supacolour" when the premium card applied). */
+  fullColourCard?: "supacolour"
+  /** True when a Supacolour garment carries an oversize print — no Supacolour size that big, quote-only. */
+  supacolourQuoteRequired?: boolean
 }
 
 export type RenderPlacement = {
