@@ -2932,8 +2932,12 @@ export default function CustomizerTemplate({
     fabricCanvasRef.current = canvas
 
     const syncSize = () => {
-      const width = resizeTarget.clientWidth
-      const height = resizeTarget.clientHeight
+      // Read the LIVE container — CanvasStage can remount (tab swaps, modal
+      // load reflow), replacing the node captured at init.
+      const target = fabricContainerRef.current ?? htmlCanvas.parentElement
+      if (!target) return
+      const width = target.clientWidth
+      const height = target.clientHeight
       // Ignore transient 0×0 reports — happens when the wizard subtree
       // is briefly hidden or unmounted (e.g. opening the bulk-order
       // overlay, or the Photos/Customise tab swap). Propagating 0×0
@@ -2942,6 +2946,12 @@ export default function CustomizerTemplate({
       // verify the design is ready — leading to a spurious "design
       // preview is still loading" error on Add-to-cart.
       if (width < MIN_PRINT_AREA_PX || height < MIN_PRINT_AREA_PX) {
+        return
+      }
+      if (
+        Math.round(canvas.getWidth()) === width &&
+        Math.round(canvas.getHeight()) === height
+      ) {
         return
       }
       canvas.setDimensions({ width, height })
@@ -3013,9 +3023,18 @@ export default function CustomizerTemplate({
 
     const observer = new ResizeObserver(syncSize)
     observer.observe(resizeTarget)
+    // The observed node can be REPLACED when CanvasStage remounts — the RO
+    // then watches a detached div and never fires again, freezing the Fabric
+    // canvas at its old size while the responsive garment img keeps resizing
+    // under it. Artwork placed on that desynced view saves at the wrong
+    // coordinates (the admin-proof misplacement bug on order #78). A slow
+    // poll against the live container converges any missed resize; the
+    // unchanged-dims guard in syncSize makes idle ticks free.
+    const pollId = window.setInterval(syncSize, 500)
 
     return () => {
       observer.disconnect()
+      window.clearInterval(pollId)
       canvas.dispose()
       fabricCanvasRef.current = null
     }
