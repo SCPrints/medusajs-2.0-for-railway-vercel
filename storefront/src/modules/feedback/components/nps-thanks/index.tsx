@@ -10,6 +10,8 @@ type Props = {
   sig: string
 }
 
+const GOOGLE_REVIEW_URL = "https://g.page/r/Cd2FxzgXoOyhEBM/review"
+
 const HEADLINE: Record<number, string> = {
   1: "We're sorry — that's not the SC Prints experience we want.",
   2: "Sorry that wasn't great. We'd really like to know what went wrong.",
@@ -58,6 +60,26 @@ const NpsThanks = ({ order, score, sig }: Props) => {
         </p>
       ) : (
         <p className="mt-3 text-sm text-ui-fg-subtle">Recording your rating…</p>
+      )}
+
+      {score >= 4 && (
+        <div className="mt-5 rounded-xl border border-[rgba(26,26,46,0.08)] bg-[rgba(26,26,46,0.03)] p-4">
+          <p className="text-sm font-semibold text-[var(--brand-primary)]">
+            Mind sharing that on Google?
+          </p>
+          <p className="mt-1 text-sm text-ui-fg-subtle">
+            A quick Google review helps other local teams and clubs find us — it
+            takes about 30 seconds.
+          </p>
+          <a
+            href={GOOGLE_REVIEW_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center justify-center rounded-md bg-[var(--brand-secondary)] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+          >
+            Leave a Google review
+          </a>
+        </div>
       )}
 
       <hr className="my-6 border-[rgba(26,26,46,0.08)]" />
