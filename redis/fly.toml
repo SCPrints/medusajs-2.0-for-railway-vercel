@@ -5,7 +5,10 @@ primary_region = 'syd'
   image = 'redis:7-alpine'
 
 [experimental]
-  cmd = ["sh", "-c", "exec redis-server --appendonly yes --dir /data --requirepass \"$REDIS_PASSWORD\" --maxmemory 400mb --maxmemory-policy noeviction"]
+  # 800mb cap on a 1GB machine — upsized 2026-08-27 after the catalog-wide
+  # freight-in reprice flooded the event bus (450k queued jobs) and OOM'd the
+  # old 512MB/400mb config twice mid-run.
+  cmd = ["sh", "-c", "exec redis-server --appendonly yes --dir /data --requirepass \"$REDIS_PASSWORD\" --maxmemory 800mb --maxmemory-policy noeviction"]
 
 [[mounts]]
   source = 'redis_data'
@@ -24,6 +27,6 @@ primary_region = 'syd'
     grace_period = '15s'
 
 [[vm]]
-  memory = '512mb'
+  memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
