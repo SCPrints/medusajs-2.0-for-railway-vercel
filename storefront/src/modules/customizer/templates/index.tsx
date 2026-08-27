@@ -2443,10 +2443,42 @@ export default function CustomizerTemplate({
     if (typeof pendingHydration.printNotes === "string" && pendingHydration.printNotes.length) {
       setPrintNotes(pendingHydration.printNotes)
     }
-    if (pendingHydration.scpPrintSizeId) {
-      const sid = pendingHydration.scpPrintSizeId
-      if (sid === "up_to_a6" || sid === "up_to_a4" || sid === "up_to_a3" || sid === "oversize") {
-        setScpPrintSizeId(sid as ScpPrintSizeId)
+    // Restore the print size PER SIDE. `prints[]` records the size each side
+    // actually ordered at; the legacy `scpPrintSizeId` is a single global value
+    // and only ever landed on whichever side happened to be current when this
+    // ran — every other side fell back to the A6 default, so a Back ordered at
+    // Oversize re-opened with a small print area (the shrink effect scaled the
+    // saved artwork down, and it couldn't be scaled back up).
+    {
+      const isSize = (v: unknown): v is ScpPrintSizeId =>
+        v === "up_to_a6" || v === "up_to_a4" || v === "up_to_a3" || v === "oversize"
+      const rank: Record<ScpPrintSizeId, number> = {
+        up_to_a6: 0,
+        up_to_a4: 1,
+        up_to_a3: 2,
+        oversize: 3,
+      }
+      const global = isSize(pendingHydration.scpPrintSizeId)
+        ? (pendingHydration.scpPrintSizeId as ScpPrintSizeId)
+        : null
+      const bySide: Partial<Record<GarmentSide, ScpPrintSizeId>> = {}
+      if (Array.isArray(pendingHydration.prints)) {
+        for (const p of pendingHydration.prints) {
+          if (!p || !isSize(p.sizeId) || typeof p.side !== "string") continue
+          const side = p.side as GarmentSide
+          const cur = bySide[side]
+          // A side with several prints takes the largest — that's the area the
+          // biggest one needs.
+          if (!cur || rank[p.sizeId] > rank[cur]) bySide[side] = p.sizeId
+        }
+      }
+      if (global) {
+        for (const side of DESIGN_SIDES) {
+          if (!bySide[side]) bySide[side] = global
+        }
+      }
+      if (Object.keys(bySide).length > 0) {
+        setScpPrintSizeBySide((prev) => ({ ...prev, ...bySide }))
         setScpPrintSizeChosen(true)
         // Mark all sides as sized so the wizard doesn't re-prompt for print
         // size when re-opening a previously saved/ordered design.
