@@ -260,34 +260,38 @@ const RefinementList = ({
               ))}
             </FacetSelect>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Text className="txt-compact-small text-ui-fg-muted">Type</Text>
-            <FacetSelect
-              value={typeIdInput}
-              onChange={(event) => setTypeIdInput(event.target.value)}
-              placeholder="All types"
-            >
-              {facetOptions.types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </FacetSelect>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Text className="txt-compact-small text-ui-fg-muted">Tag</Text>
-            <FacetSelect
-              value={tagIdInput}
-              onChange={(event) => setTagIdInput(event.target.value)}
-              placeholder="All tags"
-            >
-              {facetOptions.tags.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </FacetSelect>
-          </div>
+          {facetOptions.types.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <Text className="txt-compact-small text-ui-fg-muted">Type</Text>
+              <FacetSelect
+                value={typeIdInput}
+                onChange={(event) => setTypeIdInput(event.target.value)}
+                placeholder="All types"
+              >
+                {facetOptions.types.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </FacetSelect>
+            </div>
+          ) : null}
+          {facetOptions.tags.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <Text className="txt-compact-small text-ui-fg-muted">Tag</Text>
+              <FacetSelect
+                value={tagIdInput}
+                onChange={(event) => setTagIdInput(event.target.value)}
+                placeholder="All tags"
+              >
+                {facetOptions.tags.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </FacetSelect>
+            </div>
+          ) : null}
         </>
       ) : (
         <Input

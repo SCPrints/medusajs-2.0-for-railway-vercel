@@ -1,17 +1,21 @@
 import { notFound } from "next/navigation"
 import { Suspense } from "react"
 
+import { listBrands } from "@lib/data/brands"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import SkeletonProductGrid from "@modules/skeletons/templates/skeleton-product-grid"
 import RefinementList from "@modules/store/components/refinement-list"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
-import { ProductFilters } from "@modules/store/components/refinement-list/types"
+import {
+  CatalogFacetOptions,
+  ProductFilters,
+} from "@modules/store/components/refinement-list/types"
 import PaginatedProducts from "@modules/store/templates/paginated-products"
 import { HttpTypes } from "@medusajs/types"
 import { buildAbsoluteUrl } from "@lib/util/seo"
 import { safeJsonLd } from "@lib/util/json-ld"
 
-export default function CategoryTemplate({
+export default async function CategoryTemplate({
   categories,
   sortBy,
   page,
@@ -34,6 +38,16 @@ export default function CategoryTemplate({
 }) {
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
+
+  // Brand facet for the sidebar — same list the store page shows, so shoppers
+  // can filter by brand without knowing brand names (supplier feedback,
+  // 2026-08-27). Types/tags stay empty: category pages are already type-scoped.
+  const brands = await listBrands()
+  const facetOptions: CatalogFacetOptions = {
+    brands: brands.map((b) => ({ id: b.handle, label: b.name })),
+    types: [],
+    tags: [],
+  }
 
   const category = categories[categories.length - 1]
   const parents = categories.slice(0, categories.length - 1)
@@ -189,6 +203,7 @@ export default function CategoryTemplate({
       >
         <RefinementList
           sortBy={sort}
+          facetOptions={facetOptions}
           filters={
             {
               minPrice,
