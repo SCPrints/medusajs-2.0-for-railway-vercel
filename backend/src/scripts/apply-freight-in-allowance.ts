@@ -18,6 +18,11 @@
  * and variants with no bulk_pricing at all (services, decoration products —
  * freight doesn't apply).
  *
+ * Drift repair: a stamped variant whose AUD price rows don't match its
+ * metadata tiers (metadata committed but the price-set step failed — happened
+ * when Redis OOM'd mid-run on 2026-08-27) gets its price rows rewritten from
+ * the metadata. Metadata is untouched, so this is safe to re-run.
+ *
  * After a real run: reindex Meilisearch (min_price_aud) + purge the
  * storefront product cache.
  *
@@ -62,6 +67,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
   let productsTouched = 0
   let variantsBumped = 0
   let alreadyStamped = 0
+  let driftRepaired = 0
   let noBulkPricing = 0
   let noTiersArray = 0
   let badTierAmounts = 0
@@ -77,7 +83,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
     id: string
     variants: Array<{
       id: string
-      metadata: Record<string, unknown>
+      metadata?: Record<string, unknown>
       prices: PriceBand[]
     }>
   }
@@ -97,7 +103,16 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
   outer: for (;;) {
     const { data } = await query.graph({
       entity: "product",
-      fields: ["id", "handle", "variants.id", "variants.sku", "variants.metadata"],
+      fields: [
+        "id",
+        "handle",
+        "variants.id",
+        "variants.sku",
+        "variants.metadata",
+        "variants.prices.amount",
+        "variants.prices.currency_code",
+        "variants.prices.min_quantity",
+      ],
       pagination: { skip, take: PAGE_SIZE },
     })
     const products = (data ?? []) as Array<{
@@ -107,6 +122,11 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
         id: string
         sku: string | null
         metadata: Record<string, unknown> | null
+        prices?: Array<{
+          amount: unknown
+          currency_code: string | null
+          min_quantity: unknown
+        }> | null
       }>
     }>
     if (!products.length) break
@@ -121,11 +141,60 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
           noBulkPricing++
           continue
         }
+        const tiers = bulk.tiers as Array<Record<string, unknown>> | undefined
         if (toFinite(bulk.freight_in_aud) !== null) {
           alreadyStamped++
+          // Drift repair: metadata already carries the allowance, but the
+          // price-set write may have failed mid-run. If the AUD rows don't
+          // match the metadata tiers, rewrite the rows (metadata untouched).
+          if (Array.isArray(tiers) && tiers.length) {
+            const currency =
+              typeof bulk.currency_code === "string" && bulk.currency_code
+                ? bulk.currency_code
+                : "aud"
+            const rows = (variant.prices ?? []).filter(
+              (p) => (p.currency_code ?? "aud").toLowerCase() === currency
+            )
+            const rowByMin = new Map<number, number>()
+            for (const p of rows) {
+              const minQty = toFinite(p.min_quantity) ?? 1
+              const amount = toFinite(p.amount)
+              if (amount !== null) rowByMin.set(minQty, amount)
+            }
+            const drifted = tiers.some((tier) => {
+              const minQty = toFinite(tier.min_quantity)
+              const amount = toFinite(tier.amount)
+              if (minQty === null || amount === null) return false
+              const row = rowByMin.get(minQty)
+              return row === undefined || Math.abs(row - amount) > 0.005
+            })
+            if (drifted) {
+              const prices: PriceBand[] = []
+              for (const tier of tiers) {
+                const minQty = toFinite(tier.min_quantity)
+                const amount = toFinite(tier.amount)
+                if (minQty === null || amount === null) continue
+                const maxQty = toFinite(tier.max_quantity)
+                prices.push({
+                  currency_code: currency,
+                  amount,
+                  min_quantity: minQty,
+                  ...(maxQty !== null ? { max_quantity: maxQty } : {}),
+                })
+              }
+              if (prices.length) {
+                variantPayloads.push({ id: variant.id, prices })
+                driftRepaired++
+                if (sampleLines.length < 10) {
+                  sampleLines.push(
+                    `${product.handle} ${variant.sku ?? variant.id}: drift-repaired price rows (1-9 row $${rowByMin.get(1) ?? "?"} → $${toFinite(tiers[0]?.amount)})`
+                  )
+                }
+              }
+            }
+          }
           continue
         }
-        const tiers = bulk.tiers as Array<Record<string, unknown>> | undefined
         if (!Array.isArray(tiers) || !tiers.length) {
           noTiersArray++
           continue
@@ -213,6 +282,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
   logger.info(`products touched:       ${productsTouched}`)
   logger.info(`variants bumped:        ${variantsBumped}`)
   logger.info(`already stamped:        ${alreadyStamped} (skipped)`)
+  logger.info(`drift repaired:         ${driftRepaired} (price rows rewritten from metadata)`)
   logger.info(`no bulk_pricing:        ${noBulkPricing} (skipped — services/decoration)`)
   logger.info(`bulk_pricing w/o tiers: ${noTiersArray} (skipped — inspect if > 0)`)
   logger.info(`unparseable tiers:      ${badTierAmounts} (skipped — inspect if > 0)`)
