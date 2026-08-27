@@ -18,7 +18,7 @@
  */
 
 import { ExecArgs } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { writeProductImages } from "../lib/safe-product-images"
 import { revalidateStorefrontTags } from "../lib/storefront-revalidate"
 
@@ -244,6 +244,42 @@ export default async function run({ container }: ExecArgs) {
         (result.abortReason ? ` ABORTED: ${result.abortReason}` : "")
     )
     for (const r of result.rejected) logger.warn(`  rejected ${r.url}: ${r.reason}`)
+
+    // The PDP gallery + customizer read variant metadata.garment_images FIRST
+    // (see variant-options.ts) — the seed stamped Shopify URLs there, so the
+    // product.images swap alone leaves the storefront on the old images.
+    // Rewrite each variant's block from the manifest, keyed by garment_color.
+    const { data: variants } = await query.graph({
+      entity: "product_variant",
+      fields: ["id", "metadata"],
+      filters: { product_id: product.id },
+    })
+    const productModule = container.resolve(Modules.PRODUCT) as any
+    let variantUpdates = 0
+    for (const variant of variants ?? []) {
+      const meta = ((variant as any).metadata ?? {}) as Record<string, unknown>
+      const colourName = typeof meta.garment_color === "string" ? meta.garment_color : null
+      const urls = colourName ? colours[colourName] : undefined
+      if (!urls?.length) continue
+      const garment_images = {
+        front: urls[0],
+        ...(urls[1] ? { back: urls[1] } : {}),
+        ...(urls[2] ? { model_image: urls[2] } : {}),
+        all: urls,
+      }
+      if (JSON.stringify(meta.garment_images) === JSON.stringify(garment_images)) continue
+      if (!dryRun) {
+        // read-modify-write: Medusa metadata updates REPLACE the whole jsonb
+        await productModule.updateProductVariants((variant as any).id, {
+          metadata: { ...meta, garment_images },
+        })
+      }
+      variantUpdates++
+    }
+    if (variantUpdates > 0) wrote = wrote || !dryRun
+    logger.info(
+      `shaka-pe-images ${handle}${dryRun ? " (dry-run)" : ""}: garment_images rewritten on ${variantUpdates}/${(variants ?? []).length} variants`
+    )
   }
 
   if (wrote) {
