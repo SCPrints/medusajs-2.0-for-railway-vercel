@@ -48,8 +48,8 @@ describe("priceLadderFromAussiePacific", () => {
   it("produces a ladder where standard ≈ cost × 2.20 (sanity check on shared formula)", () => {
     const cost = 10
     const ladder = priceLadderFromAussiePacific(cost, 1.0)!
-    // 10 × 1.1 × 1.5 / 0.75 = 22.00
-    expect(ladder.standard).toBeCloseTo(22, 1)
-    expect(ladder.tier100Plus).toBeCloseTo(16.5, 1)
+    // 10 × 1.1 × 1.5 / 0.75 = 22.00 + $15 freight-in
+    expect(ladder.standard).toBeCloseTo(37, 1)
+    expect(ladder.tier100Plus).toBeCloseTo(16.65, 1)
   })
 })

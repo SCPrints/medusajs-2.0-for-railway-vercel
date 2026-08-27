@@ -1,4 +1,10 @@
-import { buildPriceLadder, buildBulkPricingMetadata, toMinorAud } from "../bulk-price-ladder"
+import {
+  buildPriceLadder,
+  buildBulkPricingMetadata,
+  toMinorAud,
+  freightInPerUnit,
+  FREIGHT_IN_ALLOWANCE_AUD,
+} from "../bulk-price-ladder"
 
 describe("bulk-price-ladder", () => {
   describe("buildPriceLadder", () => {
@@ -8,30 +14,41 @@ describe("bulk-price-ladder", () => {
      * any change to the math needs both importers and storefront tier
      * display to be updated in lockstep.
      */
-    it("matches the canonical $6.95 cost ladder", () => {
+    it("matches the canonical $6.95 cost ladder (+ freight-in allowance)", () => {
       const ladder = buildPriceLadder(6.95)
-      // tier100Plus = 6.95 * 1.65 = 11.4675 → 11.47
-      expect(ladder.tier100Plus).toBe(11.47)
-      // standard = 11.4675 / 0.75 = 15.29
-      expect(ladder.standard).toBe(15.29)
-      // base = standard (default baseMultiplier=2.2)
-      expect(ladder.base).toBe(15.29)
-      // tiers (15.29 * 0.85 = 12.9965 → rounds to 13.00)
-      expect(ladder.tier10to19).toBe(13.76)
-      expect(ladder.tier20to49).toBe(13)
-      expect(ladder.tier50to99).toBe(12.23)
+      // tier100Plus = 6.95 * 1.65 = 11.4675 + 15/100 → 11.62
+      expect(ladder.tier100Plus).toBe(11.62)
+      // standard = 11.4675 / 0.75 = 15.29 + full $15 freight → 30.29
+      expect(ladder.standard).toBe(30.29)
+      expect(ladder.base).toBe(30.29)
+      // 15.29 * 0.9 = 13.761 + 15/10 → 15.26
+      expect(ladder.tier10to19).toBe(15.26)
+      // 15.29 * 0.85 = 12.9965 + 15/20 → 13.75
+      expect(ladder.tier20to49).toBe(13.75)
+      // 15.29 * 0.8 = 12.232 + 15/50 → 12.53
+      expect(ladder.tier50to99).toBe(12.53)
     })
 
-    it("matches the $10.50 FashionBiz P400MS 1-99 tier", () => {
+    it("matches the $10.50 FashionBiz P400MS 1-99 tier (+ freight-in)", () => {
       const ladder = buildPriceLadder(10.5)
-      // tier100Plus = 10.5 * 1.65 = 17.325 → 17.33
-      expect(ladder.tier100Plus).toBe(17.33)
-      // standard = 17.325 / 0.75 = 23.1
-      expect(ladder.standard).toBe(23.1)
-      expect(ladder.base).toBe(23.1)
-      expect(ladder.tier10to19).toBe(20.79)
-      expect(ladder.tier20to49).toBe(19.64)
-      expect(ladder.tier50to99).toBe(18.48)
+      // tier100Plus = 10.5 * 1.65 = 17.325 + 0.15 → 17.48
+      expect(ladder.tier100Plus).toBe(17.48)
+      // standard = 17.325 / 0.75 = 23.1 + 15 → 38.10
+      expect(ladder.standard).toBe(38.1)
+      expect(ladder.base).toBe(38.1)
+      expect(ladder.tier10to19).toBe(22.29)
+      expect(ladder.tier20to49).toBe(20.39)
+      expect(ladder.tier50to99).toBe(18.78)
+    })
+
+    it("amortizes the freight-in allowance over each band's minimum quantity", () => {
+      expect(freightInPerUnit(1)).toBe(FREIGHT_IN_ALLOWANCE_AUD)
+      expect(freightInPerUnit(10)).toBe(1.5)
+      expect(freightInPerUnit(20)).toBe(0.75)
+      expect(freightInPerUnit(50)).toBe(0.3)
+      expect(freightInPerUnit(100)).toBe(0.15)
+      // qty 0 / negative clamp to 1 (full freight)
+      expect(freightInPerUnit(0)).toBe(FREIGHT_IN_ALLOWANCE_AUD)
     })
 
     it("rounds all outputs to 2dp", () => {
@@ -51,11 +68,12 @@ describe("bulk-price-ladder", () => {
       // are the legacy contract; the tiers array is the modern one. Both
       // ship together for backwards compat.
       expect(meta).toMatchObject({
-        base_sale_price: 15.29,
-        tier_10_to_19_price: 13.76,
-        tier_20_to_49_price: 13,
-        tier_50_to_99_price: 12.23,
-        tier_100_plus_price: 11.47,
+        freight_in_aud: FREIGHT_IN_ALLOWANCE_AUD,
+        base_sale_price: 30.29,
+        tier_10_to_19_price: 15.26,
+        tier_20_to_49_price: 13.75,
+        tier_50_to_99_price: 12.53,
+        tier_100_plus_price: 11.62,
       })
     })
 
@@ -67,11 +85,11 @@ describe("bulk-price-ladder", () => {
       expect(meta.tiers[0]).toMatchObject({
         min_quantity: 1,
         max_quantity: 9,
-        amount: 15.29,
+        amount: 30.29,
       })
       expect(meta.tiers[4]).toMatchObject({
         min_quantity: 100,
-        amount: 11.47,
+        amount: 11.62,
       })
     })
   })

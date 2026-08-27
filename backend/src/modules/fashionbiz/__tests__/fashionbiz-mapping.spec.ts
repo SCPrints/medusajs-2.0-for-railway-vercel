@@ -174,16 +174,16 @@ describe("priceLadderFromFashionBiz", () => {
       { tier: "500", price: 10.3 },
     ])
     expect(ladder).not.toBeNull()
-    // Mirrors the buildPriceLadder regression test.
-    expect(ladder!.tier100Plus).toBe(17.33)
-    expect(ladder!.base).toBe(23.1)
+    // Mirrors the buildPriceLadder regression test (incl. freight-in).
+    expect(ladder!.tier100Plus).toBe(17.48)
+    expect(ladder!.base).toBe(38.1)
   })
 
   it("falls back to the first tier when 1-99 is absent", () => {
     const ladder = priceLadderFromFashionBiz([{ tier: "Gold", price: 8.0 }])
     expect(ladder).not.toBeNull()
-    // 8 * 1.65 = 13.2
-    expect(ladder!.tier100Plus).toBe(13.2)
+    // 8 * 1.65 = 13.2 + 15/100 freight-in
+    expect(ladder!.tier100Plus).toBe(13.35)
   })
 
   it("returns null for empty or unparseable prices", () => {
@@ -202,12 +202,11 @@ describe("priceLadderFromFashionBiz", () => {
         1.15
       )
       expect(ladder).not.toBeNull()
-      // 12.075 * 1.65 = 19.92375 → round2 = 19.92
-      expect(ladder!.tier100Plus).toBe(19.92)
-      // standard = 19.92375 / 0.75 = 26.565 → 26.57 (1.65/0.75 = 2.2 exactly,
-      // so standard is cost*2.2 = 12.075*2.2 = 26.565)
-      expect(ladder!.standard).toBe(26.57)
-      expect(ladder!.base).toBe(26.57)
+      // 12.075 * 1.65 = 19.92375 + 0.15 freight-in → 20.07
+      expect(ladder!.tier100Plus).toBe(20.07)
+      // standard = 19.92375 / 0.75 = 26.565 + $15 freight-in → 41.57
+      expect(ladder!.standard).toBe(41.57)
+      expect(ladder!.base).toBe(41.57)
     })
 
     it("treats explicit 1.0 the same as no adjustment", () => {
