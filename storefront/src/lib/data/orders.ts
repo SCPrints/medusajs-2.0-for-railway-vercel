@@ -49,6 +49,32 @@ export const getOrderLineCustomizerMetadata = cache(async function (
     if (!raw || typeof raw !== "object") return null
     const candidate = raw as Partial<CustomizerMetadata>
     if (candidate.type !== "fabric_customizer") return null
+    // Heavy vector designs store sideLayouts in R2 instead of inline (backend
+    // write-time archiving). Re-inline here (server-side, so no CORS) so
+    // reorder / revised-proof rehydration replays the full canvas.
+    if (
+      (!Array.isArray(candidate.sideLayouts) ||
+        candidate.sideLayouts.length === 0) &&
+      typeof candidate.sideLayouts_archived_url === "string"
+    ) {
+      try {
+        const resp = await fetch(candidate.sideLayouts_archived_url, {
+          signal: AbortSignal.timeout(15_000),
+        })
+        if (resp.ok) {
+          const parsed: unknown = await resp.json()
+          const layouts = Array.isArray(parsed)
+            ? parsed
+            : (parsed as { sideLayouts?: unknown })?.sideLayouts
+          if (Array.isArray(layouts)) {
+            candidate.sideLayouts = layouts as CustomizerMetadata["sideLayouts"]
+          }
+        }
+      } catch {
+        // Soft-fail: rehydration proceeds without layouts (blank canvas)
+        // rather than breaking the page.
+      }
+    }
     return candidate as CustomizerMetadata
   } catch {
     return null

@@ -235,6 +235,12 @@ export type CustomizerMetadata = {
   productId: string
   variantId: string
   sideLayouts: SideLayout[]
+  /**
+   * When the serialized sideLayouts exceeded the backend's archive threshold
+   * (heavy vector artwork), the backend strips them inline and stores the JSON
+   * at this R2 URL instead. Rehydration paths re-inline from it server-side.
+   */
+  sideLayouts_archived_url?: string
   printArea: RenderPlacement
   sizes: SizeQuantity[]
   pricing: PricingBreakdown

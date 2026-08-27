@@ -15,6 +15,7 @@ import {
   mapQuoteDesignLines,
   quoteDesignLineSchema,
 } from "../../../../lib/quote-design-lines"
+import { archiveLineDesigns } from "../../../../lib/side-layouts-archive"
 import { EmailTemplates } from "../../../../modules/email-notifications/templates"
 import { QUOTE_MODULE } from "../../../../modules/quote"
 import type QuoteModuleService from "../../../../modules/quote/service"
@@ -106,6 +107,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     parsed.lines.map((l) => ({ ...l, unit_price_cents: null })),
     parsed.group_id
   )
+  // Heavy vector sideLayouts → R2, deduped across size lines (see lib).
+  await archiveLineDesigns(req.scope, newLines, `poa-${publicId}`)
 
   const totalQuantity = newLines.reduce((sum, l) => sum + (l.quantity ?? 0), 0)
   const sideSummary = parsed.poa_sides

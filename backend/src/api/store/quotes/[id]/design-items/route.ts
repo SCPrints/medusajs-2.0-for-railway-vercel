@@ -8,6 +8,11 @@ import {
   mapQuoteDesignLines,
   quoteDesignLineSchema,
 } from "../../../../../lib/quote-design-lines"
+import {
+  archiveLineDesigns,
+  archiveSideLayoutsIfLarge,
+  restoreSideLayouts,
+} from "../../../../../lib/side-layouts-archive"
 import { verifyQuoteDesign } from "../../../../../services/quote-design/sign"
 
 /**
@@ -80,7 +85,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const line = items.find(
     (li) => li?.group_id === group && li?.customizerDesign
   )
-  res.json({ customizerDesign: line?.customizerDesign ?? null })
+  // Re-inline archived sideLayouts so the Studio re-edit gets a full canvas.
+  const design = line?.customizerDesign
+    ? await restoreSideLayouts(line.customizerDesign)
+    : null
+  res.json({ customizerDesign: design })
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -110,11 +119,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       .json({ error: "quote_not_editable", status: quote.status })
   }
 
+  // Archive heavy sideLayouts to R2 BEFORE fanning out, so every size line
+  // shares one archived URL instead of N inline multi-MB copies (the 19MB
+  // quote-row / backend-OOM failure mode).
+  const sharedDesign = body.design
+    ? await archiveSideLayoutsIfLarge(req.scope, body.design, `quote-${id}`)
+    : null
+
   // Fan the shared design back out onto each line (accept-route + admin +
   // print files all read customizerDesign per line), stamping the line's own
   // variantId. Per-line customizerDesign in metadata (legacy shape) wins if
   // present.
-  const lines = body.design
+  const lines = sharedDesign
     ? body.lines.map((l) =>
         l.metadata?.customizerDesign
           ? l
@@ -123,7 +139,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
               metadata: {
                 ...l.metadata,
                 customizerDesign: {
-                  ...(body.design as Record<string, unknown>),
+                  ...sharedDesign,
                   ...(l.variant_id ? { variantId: l.variant_id } : {}),
                 },
               },
@@ -134,6 +150,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // Shared with /store/quotes/poa-request — keep the persisted line shape
   // identical across both write paths (see lib/quote-design-lines.ts).
   const newLines = mapQuoteDesignLines(lines, body.group_id)
+  // Legacy per-line designs bypass the shared-design archive above.
+  await archiveLineDesigns(req.scope, newLines, `quote-${id}`)
 
   const existing = Array.isArray(quote.line_items?.items)
     ? (quote.line_items.items as Array<Record<string, any>>).filter(
