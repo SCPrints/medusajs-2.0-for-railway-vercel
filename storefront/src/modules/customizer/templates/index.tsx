@@ -2690,7 +2690,9 @@ export default function CustomizerTemplate({
               ? (entry as any).originalStorageUrl
               : undefined,
         }))
-        .filter((entry) => entry.id && entry.dataUrl)
+        // Archived entries persist without their (multi-MB) dataUrl — the
+        // hosted original stands in for previews, re-add, and cart-add.
+        .filter((entry) => entry.id && (entry.dataUrl || entry.originalStorageUrl))
       setSessionUploads(hydrated)
     } catch {
       // Ignore invalid persisted uploads and continue with an empty tray.
@@ -2702,7 +2704,17 @@ export default function CustomizerTemplate({
       return
     }
     try {
-      window.sessionStorage.setItem(SESSION_UPLOADS_KEY, JSON.stringify(sessionUploads))
+      // Persist WITHOUT inline dataUrls once the original is archived to R2.
+      // Raw base64 uploads are multi-MB each and sessionStorage caps at ~5MB;
+      // the old full-fat write hit the quota silently (swallowed below), the
+      // tray came back empty next load, and cart-add could no longer resolve
+      // the canvas objects' uploadIds → customer originals silently missing
+      // from the order (order #79). Hosted-URL entries are a few hundred
+      // bytes, so the tray survives any number of uploads.
+      const slim = sessionUploads.map((entry) =>
+        entry.originalStorageUrl ? { ...entry, dataUrl: "" } : entry
+      )
+      window.sessionStorage.setItem(SESSION_UPLOADS_KEY, JSON.stringify(slim))
     } catch {
       // Ignore persistence errors; tray still works in-memory.
     }
@@ -3301,7 +3313,13 @@ export default function CustomizerTemplate({
         const originalStorageUrl = await originalPromise
         const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
         const nextAsset: SessionUploadAsset = {
-          id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          // Re-uploading the identical file keeps its existing tray id —
+          // canvas objects are stamped with customizerUploadId, and minting
+          // a fresh id while the dedupe below removes the old entry orphans
+          // those stamps (cart-add then can't attach the original).
+          id:
+            sessionUploads.find((entry) => entry.dataUrl === dataUrl)?.id ??
+            `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
           name: file.name || "SVG",
           type: file.type,
           dataUrl,
@@ -3326,7 +3344,10 @@ export default function CustomizerTemplate({
       const dataUrl = await normalizeRasterDataUrl(file, rawDataUrl)
       const originalStorageUrl = await originalPromise
       const nextAsset: SessionUploadAsset = {
-        id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        // Same-file re-upload keeps its existing tray id (see SVG branch).
+        id:
+          sessionUploads.find((entry) => entry.dataUrl === dataUrl)?.id ??
+          `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         name: file.name || "Image",
         // Normalisation re-encodes to PNG, so the type stored alongside
         // the canvas-bound data URL must match. The MinIO archive still
@@ -3452,7 +3473,12 @@ export default function CustomizerTemplate({
       if (asset.type === "image/svg+xml") {
         const prefix = "data:image/svg+xml;charset=utf-8,"
         const encoded = asset.dataUrl.startsWith(prefix) ? asset.dataUrl.slice(prefix.length) : ""
-        const svgText = encoded ? decodeURIComponent(encoded) : ""
+        let svgText = encoded ? decodeURIComponent(encoded) : ""
+        // Hydrated tray entries persist without the inline dataUrl (quota
+        // safety) — pull the markup from the archived original instead.
+        if (!svgText && asset.originalStorageUrl) {
+          svgText = await (await fetch(asset.originalStorageUrl)).text()
+        }
         await addUploadedAssetToCanvas({
           name: asset.name,
           type: asset.type,
@@ -3464,7 +3490,9 @@ export default function CustomizerTemplate({
       await addUploadedAssetToCanvas({
         name: asset.name,
         type: asset.type,
-        dataUrl: asset.dataUrl,
+        // Hosted R2 URL works as a FabricImage source (same as reorder
+        // rehydration) when the inline copy wasn't persisted.
+        dataUrl: asset.dataUrl || asset.originalStorageUrl,
         uploadId: asset.id,
       })
     } catch (error) {
@@ -4430,6 +4458,26 @@ export default function CustomizerTemplate({
           "We couldn't save your uploaded artwork to our servers — please check your connection, remove the file in “My uploads”, and upload it again before checking out."
         )
         return
+      }
+
+      // Canvas objects referencing an uploadId the tray no longer knows —
+      // the design still renders (objects carry their own srcs), but the
+      // customer's original can't be attached to the order for that upload.
+      // Don't block (rehydrated designs from another session legitimately
+      // reference foreign tray ids) — surface it so staff see the gap
+      // instead of discovering a missing original at print time (order #79).
+      const unresolvedUploadIds = Array.from(referencedUploadsCheck).filter(
+        (id) => !sessionUploads.some((u) => u.id === id)
+      )
+      if (unresolvedUploadIds.length > 0) {
+        console.warn(
+          "[customizer] add-to-cart: referenced uploads not in tray — originals will be missing from the order",
+          unresolvedUploadIds
+        )
+        phCapture("customizer_originals_unresolved", {
+          upload_ids: unresolvedUploadIds,
+          product_id: selectedProduct?.id ?? null,
+        })
       }
 
       const renderedArtifacts = await Promise.all(
@@ -5610,7 +5658,7 @@ export default function CustomizerTemplate({
       sessionUploads.map((entry) => ({
         id: entry.id,
         name: entry.name,
-        previewUrl: entry.dataUrl,
+        previewUrl: entry.dataUrl || entry.originalStorageUrl || "",
         type: entry.type,
       })),
     [sessionUploads]
