@@ -248,10 +248,28 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const nextStage: "approved" | "in_review" = body.approved ? "approved" : "in_review"
 
+  // Append to the same history the admin stage widget renders — without this
+  // the customer's decision flipped `artwork_stage` invisibly and staff saw
+  // "Artwork approved" with no history row explaining who/when.
+  const priorHistory = Array.isArray(meta.production_stage_history)
+    ? meta.production_stage_history
+    : []
+  const historyEntry = {
+    stage: nextStage,
+    changed_at: now,
+    changed_by: body.approver_name ? `Customer: ${body.approver_name}` : "Customer",
+    note: body.approved
+      ? (body.comment ?? "Approved via customer approval page")
+      : (body.comment ?? "Changes requested via customer approval page"),
+    track: "artwork" as const,
+  }
+
   const updates: Record<string, unknown> = {
     ...meta,
     artwork_stage: nextStage,
     artwork_stage_changed_at: now,
+    production_stage_history:
+      previousStage !== nextStage ? [...priorHistory, historyEntry] : priorHistory,
   }
   if (body.approved) {
     if (typeof meta.artwork_approved_at !== "string") {
