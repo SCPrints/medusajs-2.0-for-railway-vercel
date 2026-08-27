@@ -173,6 +173,12 @@ export type CustomerOriginalFileRef = {
   url: string
   fileName: string
   mimeType: string
+  /**
+   * Garment sides whose canvas references this upload (e.g. ["back"]).
+   * Lets the admin per-side artwork cards link the right original instead of
+   * guessing. Absent on designs saved before this field existed.
+   */
+  sides?: string[]
 }
 
 /**

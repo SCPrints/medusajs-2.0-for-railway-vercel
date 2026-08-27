@@ -3211,6 +3211,28 @@ export default function CustomizerTemplate({
    * showed up as confusing "Customer upload" downloads on the admin
    * order page.
    */
+  /**
+   * uploadId → which sides reference it. Stamped as `sides` on each
+   * `customerOriginalFiles` entry so the admin per-side artwork cards can
+   * link the right original (front card → front upload, back card → back
+   * SVG) instead of guessing from a flat list.
+   */
+  const collectReferencedUploadSides = (): Map<string, string[]> => {
+    const bySide = new Map<string, string[]>()
+    DESIGN_SIDES.forEach((side) => {
+      const objects = sideLayoutsRef.current[side] ?? []
+      objects.forEach((raw) => {
+        const id = (raw as Record<string, unknown>).customizerUploadId
+        if (typeof id === "string" && id.length > 0) {
+          const sides = bySide.get(id) ?? []
+          if (!sides.includes(side)) sides.push(side)
+          bySide.set(id, sides)
+        }
+      })
+    })
+    return bySide
+  }
+
   const collectReferencedUploadIds = (): Set<string> => {
     const seen = new Set<string>()
     DESIGN_SIDES.forEach((side) => {
@@ -4024,13 +4046,14 @@ export default function CustomizerTemplate({
           // every entry would dump unrelated artwork into the saved
           // design's metadata.
           customerOriginalFiles: (() => {
-            const referenced = collectReferencedUploadIds()
+            const referencedSides = collectReferencedUploadSides()
             return sessionUploads
-              .filter((u) => u.originalStorageUrl && referenced.has(u.id))
+              .filter((u) => u.originalStorageUrl && referencedSides.has(u.id))
               .map((u) => ({
                 url: u.originalStorageUrl!,
                 fileName: u.name,
                 mimeType: u.type,
+                sides: referencedSides.get(u.id)!,
               }))
           })(),
           activeSide: currentSideRef.current,
@@ -4498,13 +4521,14 @@ export default function CustomizerTemplate({
       // would attach every prior upload too, which then showed up as
       // confusing customer-upload downloads on unrelated orders in the
       // admin.
-      const referencedUploadIdsForCart = collectReferencedUploadIds()
+      const referencedUploadSidesForCart = collectReferencedUploadSides()
       const originalFilesPayload = sessionUploads
-        .filter((u) => u.originalStorageUrl && referencedUploadIdsForCart.has(u.id))
+        .filter((u) => u.originalStorageUrl && referencedUploadSidesForCart.has(u.id))
         .map((u) => ({
           url: u.originalStorageUrl!,
           fileName: u.name,
           mimeType: u.type,
+          sides: referencedUploadSidesForCart.get(u.id)!,
         }))
 
       // Design-group fan-out:

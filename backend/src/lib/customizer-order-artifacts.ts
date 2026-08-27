@@ -51,6 +51,8 @@ export type CustomerOriginalFileExport = {
   url: string
   file_name: string
   mime_type: string
+  /** Sides whose canvas references this upload; absent on pre-field orders. */
+  sides?: string[]
 }
 
 export type OrderLineCustomizerExport = {
@@ -149,11 +151,16 @@ export function buildLineCustomizerExport(line: {
         }
         const fn = (f as { fileName?: unknown }).fileName
         const mt = (f as { mimeType?: unknown }).mimeType
+        const rawSides = (f as { sides?: unknown }).sides
+        const sides = Array.isArray(rawSides)
+          ? rawSides.filter((s): s is string => typeof s === "string" && s.length > 0)
+          : null
         customerOriginalFiles.push({
           url,
           file_name: typeof fn === "string" && fn.trim() ? fn.trim() : "upload",
           mime_type:
             typeof mt === "string" && mt.trim() ? mt.trim() : "application/octet-stream",
+          ...(sides && sides.length > 0 ? { sides } : {}),
         })
       }
     }

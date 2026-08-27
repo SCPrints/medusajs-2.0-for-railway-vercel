@@ -106,6 +106,7 @@ type LinePayload = {
     url: string
     file_name: string
     mime_type: string
+    sides?: string[]
   }>
   product_handle?: string | null
   variant_id?: string | null
@@ -168,6 +169,20 @@ function buildFileName({
   const parts = [displayId, customerSlug, side, garmentCode]
   if (suffix) parts.push(suffix)
   return `${parts.join("-")}.${ext}`
+}
+
+/**
+ * File extension matching what the href actually serves — the artwork slot can
+ * hold the customer's original (svg/jpg/png) or a rendered print PNG, and a
+ * download saved as `.png` that's really SVG markup won't open anywhere.
+ */
+function extFromArtworkUrl(url: string | null | undefined, mimeType?: string | null): string {
+  if (mimeType === "image/svg+xml") return "svg"
+  if (mimeType === "image/jpeg") return "jpg"
+  const path = (url ?? "").split("?")[0].toLowerCase()
+  if (path.endsWith(".svg")) return "svg"
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) return "jpg"
+  return "png"
 }
 
 function sideKey(lineItemId: string, side: string) {
@@ -388,7 +403,11 @@ const SideProofCard = ({
           )}
           <div className="border-t border-ui-border-base px-3 py-2 flex flex-col gap-y-2 flex-1">
             <Text size="xsmall" className="text-ui-fg-subtle">
-              {selected === "original" ? "Customer artwork / print file" : "Proof artwork"}
+              {selected === "original"
+                ? customerOriginalFileUrl
+                  ? `Customer original file (${extFromArtworkUrl(customerOriginalFileUrl).toUpperCase()})`
+                  : "Rendered print file (PNG)"
+                : "Proof artwork"}
             </Text>
             {displayedArtworkUrl && (
               <DownloadLink
@@ -399,7 +418,7 @@ const SideProofCard = ({
                   side: art.side,
                   garmentCode,
                   suffix: selected === "original" ? undefined : "proof",
-                  ext: "png",
+                  ext: extFromArtworkUrl(displayedArtworkUrl),
                 })}
                 label="Download artwork"
               />
@@ -1137,19 +1156,30 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                           (p) => p.line_item_id === line.line_item_id && p.side === art.side
                         )
                         // The per-side artwork preview MUST be side-correct.
-                        // `customer_original_files` carries no side info (it's a
-                        // flat list of every upload referenced on the canvas),
-                        // so we only have an unambiguous file→side mapping when
-                        // there is exactly ONE uploaded file — it then applies to
-                        // whichever side(s) it's on. With multiple uploads we
-                        // can't tell which file belongs to this side, so we leave
-                        // it null and let SideProofCard fall back to this side's
-                        // own rendered print PNG (`art.print_url`). Previously
-                        // this used files[0] for every side, which showed the
-                        // BACK upload under the FRONT card on multi-file orders.
+                        // Newer orders stamp `sides` on each original (which
+                        // canvas side(s) reference that upload), so prefer the
+                        // original attributed to THIS side. Older orders have
+                        // no side info — there the mapping is only unambiguous
+                        // with exactly ONE uploaded file and ONE decorated
+                        // side. When ambiguous, leave null so SideProofCard
+                        // falls back to this side's own rendered print PNG
+                        // (`art.print_url`), which is always side-correct —
+                        // the flat list above ("Customer upload") still links
+                        // every original. Previously the single file was shown
+                        // under EVERY side, which made staff read the BACK
+                        // upload as the FRONT's artwork on multi-side orders.
                         const originalFiles = line.customer_original_files ?? []
+                        const sideOriginals = originalFiles.filter((f) =>
+                          f.sides?.includes(art.side)
+                        )
                         const customerOriginalFileUrl =
-                          originalFiles.length === 1 ? (originalFiles[0]?.url ?? null) : null
+                          sideOriginals.length === 1
+                            ? sideOriginals[0].url
+                            : originalFiles.length === 1 &&
+                                line.artifacts.length === 1 &&
+                                !originalFiles[0].sides
+                              ? originalFiles[0].url
+                              : null
                         const garmentCode = garmentCodeFromHandle(line.product_handle)
 
                         // Build customiser URL — requires storefront URL + product handle + variant ID
