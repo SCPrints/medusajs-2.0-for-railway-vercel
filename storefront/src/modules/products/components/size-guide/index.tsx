@@ -3,6 +3,8 @@ import { HttpTypes } from "@medusajs/types"
 export type SizeGuideMetadata = {
   images?: string[]
   tips?: string[]
+  /** Measurements table, e.g. FashionBiz size_charts: header = ["", "S", "M", …], one row per measurement. */
+  table?: { header: string[]; rows: string[][] }
 }
 
 /**
@@ -26,8 +28,20 @@ export function getSizeGuide(
         (t): t is string => typeof t === "string" && t.trim().length > 0
       )
     : []
-  if (!images.length && !tips.length) return null
-  return { images, tips }
+  const rawTable = (raw as SizeGuideMetadata).table
+  const table =
+    rawTable &&
+    Array.isArray(rawTable.header) &&
+    Array.isArray(rawTable.rows) &&
+    rawTable.header.every((c) => typeof c === "string") &&
+    rawTable.rows.every(
+      (r) => Array.isArray(r) && r.every((c) => typeof c === "string")
+    ) &&
+    rawTable.rows.length > 0
+      ? { header: rawTable.header, rows: rawTable.rows }
+      : undefined
+  if (!images.length && !tips.length && !table) return null
+  return { images, tips, table }
 }
 
 /**
@@ -59,6 +73,39 @@ const SizeGuide = ({ product }: { product: HttpTypes.StoreProduct }) => {
               <li key={tip}>{tip}</li>
             ))}
           </ul>
+        ) : null}
+        {guide.table ? (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-max text-left text-sm">
+              <thead>
+                <tr className="border-b border-ui-border-base text-xs uppercase tracking-wide text-ui-fg-muted">
+                  {guide.table.header.map((cell, i) => (
+                    <th key={i} className="px-3 py-2 font-medium">
+                      {cell}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {guide.table.rows.map((row, ri) => (
+                  <tr key={ri} className="border-b border-ui-border-base last:border-0">
+                    {row.map((cell, ci) => (
+                      <td
+                        key={ci}
+                        className={
+                          ci === 0
+                            ? "px-3 py-2 font-medium text-ui-fg-base"
+                            : "px-3 py-2 text-ui-fg-subtle"
+                        }
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : null}
         {guide.images!.map((url) => (
           // ponytail: plain lazy <img> — charts live inside a collapsed
