@@ -3,6 +3,7 @@ import { Heading, Text } from "@medusajs/ui"
 import sanitizeHtml from "sanitize-html"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ProductTags from "@modules/products/components/product-tags"
+import SizeGuide from "@modules/products/components/size-guide"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
 
 type ProductInfoProps = {
@@ -114,6 +115,8 @@ const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
           </Text>
         )
       ) : null}
+
+      <SizeGuide product={product} />
     </header>
   )
 }
