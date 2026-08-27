@@ -91,4 +91,32 @@ describe("planImageWrite — the never-wipe guard", () => {
     expect(p.removed.sort()).toEqual([A, C].sort())
     expect(p.forceKept).toEqual([B])
   })
+
+  test("EXPLICIT: an operator-named live URL may be removed when replaced", () => {
+    const p = planImageWrite([A, B], [B, C], L({ [A]: "live", [C]: "live" }), {
+      allowRepairRemovals: false,
+      explicitRemovalKeys: new Set([imageKey(A)]),
+    })
+    expect(p.final).toEqual([B, C])
+    expect(p.removed).toEqual([A])
+    expect(p.forceKept).toEqual([])
+  })
+
+  test("EXPLICIT: an omitted live URL NOT named for removal is still protected", () => {
+    const p = planImageWrite([A, B], [C], L({ [A]: "live", [B]: "live", [C]: "live" }), {
+      allowRepairRemovals: false,
+      explicitRemovalKeys: new Set([imageKey(A)]),
+    })
+    expect(p.final).toEqual([B, C]) // B force-kept; only A (named) removed
+    expect(p.removed).toEqual([A])
+    expect(p.forceKept).toEqual([B])
+  })
+
+  test("EXPLICIT: naming every current URL with all additions rejected leaves final empty — caller aborts", () => {
+    const p = planImageWrite([A, B], [C], L({ [C]: "unknown" }), {
+      allowRepairRemovals: false,
+      explicitRemovalKeys: new Set([imageKey(A), imageKey(B)]),
+    })
+    expect(p.final).toEqual([]) // writeProductImages refuses to write []
+  })
 })

@@ -57,7 +57,17 @@ export function planImageWrite(
   current: string[],
   desired: string[],
   liveness: Map<string, Liveness>,
-  opts: { allowRepairRemovals: boolean }
+  opts: {
+    allowRepairRemovals: boolean
+    /**
+     * OPERATOR-SANCTIONED REPLACEMENT: image keys (see {@link imageKey}) the
+     * caller explicitly names for removal even though they are live — e.g.
+     * swapping seeded supplier hotlinks for self-hosted replacements. Each URL
+     * must be named individually; rule 3 (never empty a gallery) still applies
+     * and additions are still validated. NOT for supplier-API-driven writes.
+     */
+    explicitRemovalKeys?: Set<string>
+  }
 ): ImageWritePlan {
   const currentByKey = new Map<string, string>()
   for (const u of current) {
@@ -93,6 +103,8 @@ export function planImageWrite(
     const status = liveness.get(k) ?? "unknown"
     if (opts.allowRepairRemovals && status === "dead") {
       removed.push(u) // only a confirmed-dead image may be removed, only in repair mode
+    } else if (opts.explicitRemovalKeys?.has(k)) {
+      removed.push(u) // operator named this exact URL for replacement
     } else {
       push(u) // PROTECT — never drop a live or unverified image
       forceKept.push(u)
@@ -169,6 +181,8 @@ export async function writeProductImages(
   opts: {
     thumbnail?: string
     allowRepairRemovals?: boolean
+    /** URLs (exact) the operator explicitly sanctions removing even though live. See planImageWrite. */
+    explicitRemovals?: string[]
     currentUrls?: string[]
     knownLiveness?: Map<string, Liveness>
     timeoutMs?: number
@@ -214,7 +228,12 @@ export async function writeProductImages(
     liveness.set(k, res.ok ? "live" : res.status === 404 || res.status === 410 ? "dead" : "unknown")
   })
 
-  const plan = planImageWrite(currentUrls, desiredUrls, liveness, { allowRepairRemovals })
+  const plan = planImageWrite(currentUrls, desiredUrls, liveness, {
+    allowRepairRemovals,
+    explicitRemovalKeys: opts.explicitRemovals?.length
+      ? new Set(opts.explicitRemovals.map(imageKey))
+      : undefined,
+  })
 
   const result: WriteImagesResult = {
     productId,
