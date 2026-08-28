@@ -122,6 +122,12 @@ const UPSTREAM_TIMEOUT_MS = 10_000
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get("url")
+  // `as=text` re-serves the bytes as text/plain (never image/svg+xml), which is
+  // what the customizer needs to re-add an archived SVG from "My uploads".
+  // Serving SVG as an image from our own origin is the stored-XSS footgun the
+  // type allowlist below guards against; text/plain + nosniff + attachment is
+  // inert, so this mode can accept it.
+  const asText = req.nextUrl.searchParams.get("as") === "text"
   if (!url) {
     return NextResponse.json(
       { message: "Missing required `url` query parameter." },
@@ -185,7 +191,7 @@ export async function GET(req: NextRequest) {
       .split(";")[0]
       .trim()
       .toLowerCase()
-    if (!RASTER_IMAGE_TYPES.has(baseType)) {
+    if (!RASTER_IMAGE_TYPES.has(baseType) && !(asText && baseType === "image/svg+xml")) {
       return NextResponse.json(
         { message: `Upstream returned unsupported content type (${baseType || "unknown"}).` },
         { status: 415 }
@@ -215,7 +221,8 @@ export async function GET(req: NextRequest) {
       })
     )
     const headers = new Headers()
-    headers.set("content-type", baseType)
+    headers.set("content-type", asText ? "text/plain; charset=utf-8" : baseType)
+    if (asText) headers.set("content-disposition", "attachment")
     if (upstreamLength) headers.set("content-length", upstreamLength)
     headers.set("access-control-allow-origin", "*")
     // Defense-in-depth: never let a browser content-sniff this into something

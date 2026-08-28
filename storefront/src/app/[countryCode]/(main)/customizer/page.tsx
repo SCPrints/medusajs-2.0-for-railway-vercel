@@ -310,7 +310,12 @@ export default async function CustomizerPage({ params, searchParams }: Customize
   if (isProofMode) {
     return (
       <div
-        className="fixed inset-0 z-[9999] overflow-y-auto bg-ui-bg-base"
+        // z-70: above the storefront chrome this shell has to cover (nav/footer/
+        // chat top out at z-50) but BELOW every customizer overlay, which portals
+        // to document.body and therefore stacks as a sibling of this shell — at
+        // z-9999 the shell painted over the delete-upload confirm, the product
+        // picker, the POA + low-res modals, so staff saw "nothing happens".
+        className="fixed inset-0 z-[70] overflow-y-auto bg-ui-bg-base"
         data-testid="customizer-proof-shell"
       >
         <div className="mx-auto max-w-[1400px] px-3 py-4">

@@ -413,6 +413,31 @@ type SessionUploadAsset = {
   originalStorageUrl?: string
 }
 
+/**
+ * Reads a hosted artwork file as text (SVG markup). Same two-step as the
+ * cart-artwork blob fetch: archived originals live on R2's public URL, which
+ * sends NO `Access-Control-Allow-Origin` header, so the direct cross-origin
+ * fetch rejects with the native "Failed to fetch" TypeError — that's what
+ * staff saw when re-adding an SVG from "My uploads" after a page reload (the
+ * tray persists hosted-URL-only entries, no inline dataUrl). `/api/proxy-image`
+ * re-streams the same bytes same-origin.
+ */
+const fetchArtworkText = async (url: string): Promise<string> => {
+  try {
+    const direct = await fetch(url, { mode: "cors" })
+    if (!direct.ok) throw new Error(`HTTP ${direct.status}`)
+    return await direct.text()
+  } catch {
+    const viaProxy = await fetch(
+      `/api/proxy-image?as=text&url=${encodeURIComponent(url)}`
+    )
+    if (!viaProxy.ok) {
+      throw new Error(`Could not fetch artwork (HTTP ${viaProxy.status})`)
+    }
+    return await viaProxy.text()
+  }
+}
+
 const ExpandCollapsePlus = () => (
   <span className="relative h-5 w-5">
     <span className="absolute inset-y-[31.75%] left-[48%] right-1/2 w-[1.5px] rounded-full bg-ui-fg-subtle transition-all duration-300 group-open:rotate-90" />
@@ -2669,6 +2694,13 @@ export default function CustomizerTemplate({
     if (typeof window === "undefined") {
       return
     }
+    // Admin proof mode starts with an EMPTY tray. The tray is per-browser-tab,
+    // not per-order, so staff opening proof after proof in the same admin tab
+    // saw every earlier job's artwork listed here — one mis-click away from
+    // putting another customer's logo on a proof.
+    if (isAdminProofMode) {
+      return
+    }
     try {
       const raw = window.sessionStorage.getItem(SESSION_UPLOADS_KEY)
       if (!raw) {
@@ -2697,10 +2729,16 @@ export default function CustomizerTemplate({
     } catch {
       // Ignore invalid persisted uploads and continue with an empty tray.
     }
-  }, [])
+    // isAdminProofMode is URL-derived and constant for the component's life,
+    // so this still runs once.
+  }, [isAdminProofMode])
 
   useEffect(() => {
     if (typeof window === "undefined") {
+      return
+    }
+    // Proof-mode uploads stay in-memory — never leak into the customer tray.
+    if (isAdminProofMode) {
       return
     }
     try {
@@ -2718,7 +2756,7 @@ export default function CustomizerTemplate({
     } catch {
       // Ignore persistence errors; tray still works in-memory.
     }
-  }, [sessionUploads])
+  }, [sessionUploads, isAdminProofMode])
 
   const saveCurrentSide = () => {
     if (suppressFabricPersistenceRef.current) {
@@ -3477,7 +3515,7 @@ export default function CustomizerTemplate({
         // Hydrated tray entries persist without the inline dataUrl (quota
         // safety) — pull the markup from the archived original instead.
         if (!svgText && asset.originalStorageUrl) {
-          svgText = await (await fetch(asset.originalStorageUrl)).text()
+          svgText = await fetchArtworkText(asset.originalStorageUrl)
         }
         await addUploadedAssetToCanvas({
           name: asset.name,
