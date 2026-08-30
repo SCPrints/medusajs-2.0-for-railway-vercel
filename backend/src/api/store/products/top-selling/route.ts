@@ -104,9 +104,12 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     return
   }
 
+  // Overfetch so hidden service products (setup fees — metadata.internal_service,
+  // present on many orders so they'd otherwise rank) can be dropped post-fetch
+  // while still filling `limit` slots with real garments.
   const rankedProductIds = Array.from(qtyByProductId.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, q.limit)
+    .slice(0, q.limit + 8)
     .map(([id]) => id)
 
   // Fetch full product data with region-aware pricing. Mirrors the pattern in
@@ -157,7 +160,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       entity: "product",
       fields: STORE_PRODUCT_FIELDS,
       filters,
-      pagination: { take: q.limit, skip: 0 },
+      pagination: { take: rankedProductIds.length, skip: 0 },
       context,
     })
     products = result.data ?? []
@@ -179,6 +182,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const ordered = rankedProductIds
     .map((id) => productsById.get(id))
     .filter((p): p is NonNullable<typeof p> => p != null)
+    .filter((p) => (p as any)?.metadata?.internal_service !== true)
+    .slice(0, q.limit)
 
   res.json({
     products: ordered,

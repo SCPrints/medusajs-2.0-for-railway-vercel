@@ -163,6 +163,10 @@ const meiliTransformProduct = (product) => {
     fabric,
     material_text,
     in_stock: inStock,
+    // Hidden service products (setup fees etc.) — storefront queries filter
+    // `internal_service != true` so these never surface in search/listings
+    // while staying published (add-to-cart rejects unpublished variants).
+    internal_service: meta.internal_service === true,
   };
   // Omit when unknown so price-less products sink to the end of a price sort
   // (Meili places docs missing a sortable attribute last).
@@ -574,7 +578,7 @@ const medusaConfig = {
                 // request), so listing reads stay cheap.
                 fields: [
                   'id', 'title', 'description', 'handle', 'thumbnail', 'created_at',
-                  'collection_id', 'material',
+                  'collection_id', 'material', 'metadata',
                   'categories.id',
                   'type.id', 'type.value',
                   'tags.id', 'tags.value',
@@ -594,6 +598,7 @@ const medusaConfig = {
                   filterableAttributes: [
                     'id', 'handle', 'category_ids', 'collection_id', 'type_id',
                     'tag_ids', 'brand_handle', 'brand_name', 'fabric', 'in_stock', 'min_price_aud',
+                    'internal_service',
                   ],
                   sortableAttributes: ['min_price_aud', 'created_at_ts', 'title'],
                   // Default maxTotalHits (1000) silently capped BOTH search

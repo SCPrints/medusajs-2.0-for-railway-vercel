@@ -64,7 +64,9 @@ function quote(value: string): string {
 }
 
 function buildFilter(scope: ListingScope, filters: ListingFilters): string[] {
-  const clauses: string[] = []
+  // Hidden service products (setup fees) — indexed with internal_service=true;
+  // `!=` also matches docs missing the field, so pre-reindex docs still show.
+  const clauses: string[] = ["internal_service != true"]
 
   if (scope.categoryIds?.length) {
     // OR across parent + child ids — `category_ids` is an array field, so any

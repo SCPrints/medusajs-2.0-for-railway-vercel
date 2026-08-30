@@ -139,6 +139,8 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
           "attributesToRetrieve",
           "id,title,handle,thumbnail"
         )
+        // Hide internal service products (setup-fee lines) from search.
+        url.searchParams.set("filter", "internal_service != true")
 
         const response = await fetch(url.toString(), {
           signal: controller.signal,

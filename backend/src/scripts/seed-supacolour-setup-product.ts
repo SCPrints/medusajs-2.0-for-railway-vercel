@@ -39,13 +39,6 @@ export default async function seedSupacolourSetupProduct({ container }: ExecArgs
     return
   }
 
-  const { data: channels } = await query.graph({
-    entity: "sales_channel",
-    fields: ["id", "name"],
-    filters: {},
-  })
-  const channelIds = (channels as Array<{ id: string }>).map((c) => c.id)
-
   const { result } = await createProductsWorkflow(container as any).run({
     input: {
       products: [
@@ -57,8 +50,10 @@ export default async function seedSupacolourSetupProduct({ container }: ExecArgs
           // into any category/collection so it never renders in listings.
           description:
             "Supacolour setup fee — one setup per artwork design per position. Added automatically for premium-transfer (poly/blend) garments.",
+          // No sales channels on purpose — keeps the product out of every
+          // publishable-key-scoped store listing; add-to-cart by variant id
+          // doesn't check channel membership.
           options: [{ title: "Type", values: ["Standard"] }],
-          sales_channels: channelIds.map((id) => ({ id })),
           variants: [
             {
               title: "Standard",

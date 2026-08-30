@@ -1,6 +1,6 @@
 "use server"
 
-import { SEARCH_INDEX_NAME, createSearchClient } from "@lib/search-client"
+import { SEARCH_INDEX_NAME } from "@lib/search-client"
 
 interface Hits {
   readonly objectID?: string
@@ -18,26 +18,38 @@ const SEARCH_TIMEOUT_MS = 8000
  * @param {string} query - search query
  */
 export async function search(query: string): Promise<Hits[]> {
-  // Fresh client per request. The previous module-level singleton survived
-  // across reused Fluid Compute invocations and could get wedged into a stuck
-  // state — symptom was /results/<q> hanging until Vercel returned 504. The
-  // client-side modal already moved to per-mount construction (commit
-  // fd6fdf42); the server action was missed.
-  const client = createSearchClient()
-  const queries = [{ params: { query }, indexName: SEARCH_INDEX_NAME }]
+  // Raw Meilisearch fetch (same pattern as the client search overlay). The
+  // instant-meilisearch adapter this used previously could wedge across reused
+  // Fluid Compute invocations AND its filter translation only supports
+  // equality — we need `internal_service != true` to hide service products.
+  const endpoint = process.env.NEXT_PUBLIC_SEARCH_ENDPOINT
+  if (!endpoint) return []
+  const apiKey = process.env.NEXT_PUBLIC_SEARCH_API_KEY || ""
 
   let hits: Hits[] = []
   try {
-    const { results } = (await Promise.race([
-      client.search(queries),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error(`search timeout after ${SEARCH_TIMEOUT_MS}ms`)),
-          SEARCH_TIMEOUT_MS
-        )
-      ),
-    ])) as Record<string, any>
-    hits = (results?.[0]?.hits ?? []) as Hits[]
+    const response = await fetch(
+      new URL(`/indexes/${SEARCH_INDEX_NAME}/search`, endpoint).toString(),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          q: query,
+          limit: 50,
+          // Hide internal service products (setup-fee lines) from results.
+          filter: "internal_service != true",
+        }),
+        signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+      }
+    )
+    if (!response.ok) {
+      throw new Error(`search responded ${response.status}`)
+    }
+    const data = (await response.json()) as { hits?: Hits[] }
+    hits = data.hits ?? []
   } catch (error) {
     console.warn("[search] meilisearch query failed:", (error as Error).message)
     // Fall through with empty hits so the page renders "No results" instead
