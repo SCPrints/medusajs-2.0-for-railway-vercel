@@ -4,11 +4,18 @@
  * These products must stay PUBLISHED (add-to-cart rejects unpublished
  * variants) but should never appear in listings or search. Hiding works on
  * two axes:
- *   1. Sales channels — this script dismisses every product↔sales_channel
- *      link, which removes them from all publishable-key-scoped store API
- *      listings (All Products page, PDP by handle, sitemap). Add-to-cart by
- *      variant id does NOT validate channel membership, so the customizer's
- *      automatic setup lines keep working.
+ *   1. Sales channels — this script moves them to a dedicated "Internal
+ *      Services" channel (created if missing) and dismisses every other
+ *      product↔sales_channel link, which removes them from all
+ *      publishable-key-scoped store API listings (All Products page, PDP by
+ *      handle, sitemap). Add-to-cart by variant id does NOT validate channel
+ *      membership, so the customizer's automatic setup lines keep working.
+ *      NOTE: Medusa only applies channel scoping on /store/products when the
+ *      store has MORE THAN ONE sales channel (single-channel stores skip the
+ *      link-filter join entirely — see applyMaybeLinkFilterIfNecessary in
+ *      @medusajs/medusa store products middlewares). The Internal Services
+ *      channel therefore does double duty: it holds the hidden products AND
+ *      flips that optimization off so scoping actually runs.
  *   2. Meilisearch — stamps metadata.internal_service = true, which the
  *      config transformer indexes and every storefront search/listing query
  *      filters out (`internal_service != true`).
@@ -73,6 +80,25 @@ export default async function hideInternalServiceProducts({
     return
   }
 
+  // Dedicated channel for hidden service products. Its existence also makes
+  // the store multi-channel, which is what activates Medusa's channel scoping
+  // on /store/products (single-channel stores skip it — see header).
+  const INTERNAL_CHANNEL_NAME = "Internal Services"
+  const salesChannelModule = container.resolve(Modules.SALES_CHANNEL)
+  let internalChannel = (
+    await salesChannelModule.listSalesChannels({ name: INTERNAL_CHANNEL_NAME })
+  )[0]
+  if (!internalChannel && !dryRun) {
+    internalChannel = await salesChannelModule.createSalesChannels({
+      name: INTERNAL_CHANNEL_NAME,
+      description:
+        "Hidden service products (setup fees). Not linked to any publishable key — never storefront-visible.",
+    })
+    logger.info(
+      `[hide-internal-service] created sales channel "${INTERNAL_CHANNEL_NAME}" (${internalChannel.id})`
+    )
+  }
+
   for (const p of targets) {
     const channels = (p.sales_channels ?? []).filter(Boolean)
     logger.info(
@@ -101,11 +127,25 @@ export default async function hideInternalServiceProducts({
     }
 
     for (const c of channels) {
+      if (internalChannel && c.id === internalChannel.id) continue
       await link.dismiss({
         [Modules.PRODUCT]: { product_id: p.id },
         [Modules.SALES_CHANNEL]: { sales_channel_id: c.id },
       })
       logger.info(`[hide-internal-service]   removed from channel "${c.name}"`)
+    }
+
+    if (
+      internalChannel &&
+      !channels.some((c: any) => c.id === internalChannel.id)
+    ) {
+      await link.create({
+        [Modules.PRODUCT]: { product_id: p.id },
+        [Modules.SALES_CHANNEL]: { sales_channel_id: internalChannel.id },
+      })
+      logger.info(
+        `[hide-internal-service]   linked to "${INTERNAL_CHANNEL_NAME}"`
+      )
     }
   }
 
