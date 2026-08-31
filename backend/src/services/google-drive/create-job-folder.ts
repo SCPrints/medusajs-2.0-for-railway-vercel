@@ -20,6 +20,10 @@ export type JobFolder = {
   files_id: string
 }
 
+function getDrive() {
+  return google.drive({ version: "v3", auth: buildGoogleJwt([SCOPE]) })
+}
+
 export function isDriveConfigured(): boolean {
   return Boolean(GOOGLE_DRIVE_JOBS_FOLDER_ID && GOOGLE_SERVICE_ACCOUNT_JSON)
 }
@@ -36,7 +40,7 @@ export async function createJobFolder(name: string): Promise<JobFolder> {
     )
   }
 
-  const drive = google.drive({ version: "v3", auth: buildGoogleJwt([SCOPE]) })
+  const drive = getDrive()
 
   const folder = await drive.files.create({
     requestBody: {
@@ -70,4 +74,35 @@ export async function createJobFolder(name: string): Promise<JobFolder> {
       `https://drive.google.com/drive/folders/${folderId}`,
     files_id: files.data.id ?? "",
   }
+}
+
+/**
+ * Streams a remote file (R2 artwork/mockup URL) into a Drive folder. Only
+ * http(s) URLs — inline data: URLs are the caller's job to skip. Throws on
+ * failure; the caller decides whether one bad file fails the batch.
+ */
+export async function uploadUrlToFolder(
+  folderId: string,
+  name: string,
+  url: string,
+  mimeType?: string
+): Promise<void> {
+  const res = await fetch(url)
+  if (!res.ok || !res.body) {
+    throw new Error(`fetch ${res.status} for ${name}`)
+  }
+  const { Readable } = await import("stream")
+  const drive = getDrive()
+  await drive.files.create({
+    requestBody: { name, parents: [folderId] },
+    media: {
+      mimeType:
+        mimeType ??
+        res.headers.get("content-type") ??
+        "application/octet-stream",
+      body: Readable.fromWeb(res.body as any),
+    },
+    fields: "id",
+    supportsAllDrives: true,
+  })
 }

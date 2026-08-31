@@ -17,14 +17,16 @@ type Status = {
   configured: boolean
   folder: StoredFolder | null
   suggested_name: string
+  pending_files: number
 }
 
 const OrderDriveFolderWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
   const orderId = data?.id
   const [status, setStatus] = useState<Status | null>(null)
   const [name, setName] = useState("")
-  const [creating, setCreating] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   useEffect(() => {
     if (!orderId) return
@@ -48,9 +50,10 @@ const OrderDriveFolderWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
     return null
   }
 
-  const createFolder = async () => {
-    setCreating(true)
+  const run = async () => {
+    setBusy(true)
     setError(null)
+    setNotice(null)
     try {
       const res = await fetch(`/admin/orders/${orderId}/drive-folder`, {
         method: "POST",
@@ -60,13 +63,22 @@ const OrderDriveFolderWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
       })
       const json = await res.json()
       if (!res.ok) {
-        throw new Error(json?.detail || json?.error || "Failed to create folder")
+        throw new Error(json?.detail || json?.error || "Request failed")
       }
-      setStatus((s) => (s ? { ...s, folder: json.folder } : s))
+      setStatus((s) =>
+        s ? { ...s, folder: json.folder, pending_files: json.failed?.length ?? 0 } : s
+      )
+      const parts: string[] = []
+      if (json.uploaded > 0) parts.push(`${json.uploaded} file${json.uploaded === 1 ? "" : "s"} uploaded`)
+      if (json.failed?.length) parts.push(`${json.failed.length} failed`)
+      setNotice(parts.length ? parts.join(", ") : "Up to date — nothing new to upload")
+      if (json.failed?.length) {
+        setError(json.failed.map((f: any) => `${f.name}: ${f.error}`).join("; "))
+      }
     } catch (err: any) {
       setError(String(err?.message ?? err))
     } finally {
-      setCreating(false)
+      setBusy(false)
     }
   }
 
@@ -78,18 +90,18 @@ const OrderDriveFolderWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
           <HelpTooltip
             text={{
               title: "Google Drive job folder",
-              body: "Creates the job folder in the shared Jobs folder on Google Drive, with a 'Files' subfolder for artwork — same structure as the manually created ones.",
+              body: "Creates the job folder in the shared Jobs folder on Google Drive, with a 'Files' subfolder containing the customer's uploaded artwork and the design mockups.",
               bullets: [
                 "The name is prefilled as Company | Customer | Order # — tidy it before creating if needed.",
-                "Once created, this shows a link instead — one folder per order.",
-                "Drop artwork and job files into the 'Files' subfolder as usual.",
+                "Once created, this shows a link plus a Sync button — one folder per order.",
+                "Sync pushes any files that arrived after the folder was created (re-uploads, new mockups).",
               ],
             }}
           />
         </Heading>
 
         {status.folder ? (
-          <div className="mt-2">
+          <div className="mt-2 flex flex-col gap-y-2">
             <a
               href={status.folder.url}
               target="_blank"
@@ -98,9 +110,10 @@ const OrderDriveFolderWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
             >
               {status.folder.name || "Open job folder"} ↗
             </a>
-            <Text size="xsmall" className="text-ui-fg-subtle mt-1">
-              Artwork goes in the "Files" subfolder.
-            </Text>
+            <Button size="small" variant="secondary" onClick={run} isLoading={busy}>
+              Sync files to Drive
+              {status.pending_files > 0 ? ` (${status.pending_files} new)` : ""}
+            </Button>
           </div>
         ) : (
           <div className="mt-3 flex flex-col gap-y-2">
@@ -108,23 +121,30 @@ const OrderDriveFolderWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Company | Customer | Order #"
-              disabled={creating}
+              disabled={busy}
             />
             <Button
               size="small"
               variant="secondary"
-              onClick={createFolder}
-              isLoading={creating}
+              onClick={run}
+              isLoading={busy}
               disabled={!name.trim()}
             >
               Create job folder in Drive
+              {status.pending_files > 0 ? ` (+${status.pending_files} files)` : ""}
             </Button>
-            {error && (
-              <Text size="xsmall" className="text-ui-fg-error">
-                {error}
-              </Text>
-            )}
           </div>
+        )}
+
+        {notice && (
+          <Text size="xsmall" className="text-ui-fg-subtle mt-2">
+            {notice}
+          </Text>
+        )}
+        {error && (
+          <Text size="xsmall" className="text-ui-fg-error mt-1">
+            {error}
+          </Text>
         )}
       </div>
     </Container>
