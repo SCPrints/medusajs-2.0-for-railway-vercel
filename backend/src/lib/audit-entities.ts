@@ -94,5 +94,8 @@ export const AUDIT_ACTION = {
   INVENTORY_ROW_UPDATED: "inventory_row_updated",
   INVENTORY_ROW_DEACTIVATED: "inventory_row_deactivated",
   ORGANISATION_PRIMARY_CONTACT_SET: "organisation_primary_contact_set",
+
+  // Google Drive job folder
+  DRIVE_FOLDER_CREATED: "drive_folder_created",
 } as const
 export type AuditAction = (typeof AUDIT_ACTION)[keyof typeof AUDIT_ACTION]

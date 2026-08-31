@@ -710,6 +710,15 @@ export const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID
 export const SEO_IMPERSONATION_USER = process.env.SEO_IMPERSONATION_USER
 
 /**
+ * Google Drive job folders. ID of the parent "Jobs" folder in Drive that
+ * per-order job folders are created inside (the part of the folder URL after
+ * /folders/). Reuses GOOGLE_SERVICE_ACCOUNT_JSON + SEO_IMPERSONATION_USER
+ * (DWD) for auth — the DWD entry needs the https://www.googleapis.com/auth/drive
+ * scope authorized. Unset = the "Create job folder" order widget hides itself.
+ */
+export const GOOGLE_DRIVE_JOBS_FOLDER_ID = process.env.GOOGLE_DRIVE_JOBS_FOLDER_ID
+
+/**
  * PostHog — read access for the operational tile.
  *
  * Two different keys are used:
