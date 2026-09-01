@@ -63,11 +63,12 @@ describe("collectOrderDriveFiles", () => {
       { id: "li_1", product_title: "Heavy Tee", metadata: design() },
     ])
     expect(files).toEqual([
-      { url: "https://r2.example/logo.svg", name: "logo.svg", mime: "image/svg+xml" },
+      { url: "https://r2.example/logo.svg", name: "logo.svg", mime: "image/svg+xml", target: "files" },
       {
         url: "https://r2.example/mock-front.png",
         name: "Mockup - Heavy Tee - Front.png",
         mime: "image/png",
+        target: "mockups",
       },
     ])
   })

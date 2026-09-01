@@ -12,6 +12,7 @@ import {
 import { getPostHog } from "../../../../../lib/posthog"
 import {
   createJobFolder,
+  createSubfolder,
   isDriveConfigured,
   uploadUrlToFolder,
   type JobFolder,
@@ -45,6 +46,8 @@ export type DriveUploadCandidate = {
   url: string
   name: string
   mime?: string
+  /** Which subfolder this belongs in. Originals → "files"; mockups + revised proofs → "mockups". */
+  target: "files" | "mockups"
 }
 
 function readStoredFolder(meta: Record<string, unknown>): StoredFolder | null {
@@ -120,6 +123,7 @@ export function collectOrderDriveFiles(
         url: f.url,
         name: uniqueName(f.file_name),
         mime: f.mime_type,
+        target: "files",
       })
     }
 
@@ -136,6 +140,7 @@ export function collectOrderDriveFiles(
         url,
         name: uniqueName(`Mockup - ${product} - ${art.side_label}.png`),
         mime: "image/png",
+        target: "mockups",
       })
     }
   }
@@ -153,6 +158,7 @@ export function collectOrderDriveFiles(
       url,
       name: uniqueName(`Revised proof - ${side} - ${base}`),
       mime: typeof p.mime_type === "string" ? p.mime_type : undefined,
+      target: "mockups",
     })
   }
 
@@ -245,17 +251,33 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     createdNow = true
   }
 
-  // Upload any files not yet synced into the "Files" subfolder.
+  // Upload any files not yet synced. Originals → "Files"; mockups +
+  // revised proofs → "Mockups".
   const uploadedUrls = new Set(stored.uploaded_urls ?? [])
-  const targetFolderId = stored.files_id || stored.id
+  const filesFolderId = stored.files_id || stored.id
   const candidates = collectOrderDriveFiles(
     order.items ?? [],
     readRevisedProofs(meta)
   ).filter((c) => !uploadedUrls.has(c.url))
+
+  // Job folders created before the Mockups subfolder existed get it added
+  // lazily on their next sync; falls back to Files if creation fails.
+  let mockupsFolderId = stored.mockups_id
+  if (!mockupsFolderId && candidates.some((c) => c.target === "mockups")) {
+    try {
+      mockupsFolderId = await createSubfolder(stored.id, "Mockups")
+      stored = { ...stored, mockups_id: mockupsFolderId }
+    } catch {
+      mockupsFolderId = undefined
+    }
+  }
+
   const failed: Array<{ name: string; error: string }> = []
   for (const c of candidates) {
+    const target =
+      c.target === "mockups" && mockupsFolderId ? mockupsFolderId : filesFolderId
     try {
-      await uploadUrlToFolder(targetFolderId, c.name, c.url, c.mime)
+      await uploadUrlToFolder(target, c.name, c.url, c.mime)
       uploadedUrls.add(c.url)
     } catch (err: any) {
       failed.push({ name: c.name, error: String(err?.message ?? err) })

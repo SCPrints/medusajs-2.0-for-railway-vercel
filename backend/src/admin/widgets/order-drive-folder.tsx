@@ -90,7 +90,7 @@ const OrderDriveFolderWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
           <HelpTooltip
             text={{
               title: "Google Drive job folder",
-              body: "Creates the job folder in the shared Jobs folder on Google Drive, with a 'Files' subfolder containing the customer's uploaded artwork and the design mockups.",
+              body: "Creates the job folder in the shared Jobs folder on Google Drive, with a 'Files' subfolder (customer's uploaded artwork) and a 'Mockups' subfolder (design mockups + revised proofs).",
               bullets: [
                 "The name is prefilled as Company | Customer | Order # — tidy it before creating if needed.",
                 "Once created, this shows a link plus a Sync button — one folder per order.",

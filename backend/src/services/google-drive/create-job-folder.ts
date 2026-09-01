@@ -18,10 +18,26 @@ export type JobFolder = {
   id: string
   url: string
   files_id: string
+  mockups_id?: string
 }
 
 function getDrive() {
   return google.drive({ version: "v3", auth: buildGoogleJwt([SCOPE]) })
+}
+
+/** Creates one subfolder and returns its id. Also used to lazily add the
+ *  "Mockups" folder to job folders created before it existed. */
+export async function createSubfolder(
+  parentId: string,
+  name: string
+): Promise<string> {
+  const res = await getDrive().files.create({
+    requestBody: { name, mimeType: FOLDER_MIME, parents: [parentId] },
+    fields: "id",
+    supportsAllDrives: true,
+  })
+  if (!res.data.id) throw new Error(`Drive subfolder "${name}" returned no id`)
+  return res.data.id
 }
 
 export function isDriveConfigured(): boolean {
@@ -57,22 +73,16 @@ export async function createJobFolder(name: string): Promise<JobFolder> {
     throw new Error("Drive folder create returned no id")
   }
 
-  const files = await drive.files.create({
-    requestBody: {
-      name: "Files",
-      mimeType: FOLDER_MIME,
-      parents: [folderId],
-    },
-    fields: "id",
-    supportsAllDrives: true,
-  })
+  const files_id = await createSubfolder(folderId, "Files")
+  const mockups_id = await createSubfolder(folderId, "Mockups")
 
   return {
     id: folderId,
     url:
       folder.data.webViewLink ??
       `https://drive.google.com/drive/folders/${folderId}`,
-    files_id: files.data.id ?? "",
+    files_id,
+    mockups_id,
   }
 }
 
