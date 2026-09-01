@@ -128,6 +128,15 @@ function forceNativeFetchTransport(jwt: GoogleJwt): void {
   const transporter = (jwt as any).transporter
   if (!transporter) return
   transporter.defaults = transporter.defaults || {}
-  transporter.defaults.fetchImplementation = (...args: any[]) =>
-    (globalThis as any).fetch(...args)
+  // Non-string bodies (streams / async iterables — e.g. Drive media uploads)
+  // require `duplex: "half"` on native fetch or undici throws "RequestInit:
+  // duplex option is required when sending a body". Harmless for the
+  // string/URLSearchParams bodies of token + report requests.
+  transporter.defaults.fetchImplementation = (url: any, init?: any) => {
+    const patched =
+      init?.body && typeof init.body !== "string"
+        ? { ...init, duplex: init.duplex ?? "half" }
+        : init
+    return (globalThis as any).fetch(url, patched)
+  }
 }
