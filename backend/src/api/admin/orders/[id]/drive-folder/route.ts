@@ -67,11 +67,19 @@ function isHttpUrl(u: string): boolean {
   return u.startsWith("http://") || u.startsWith("https://")
 }
 
+type RevisedProofLike = {
+  side?: string
+  url?: string
+  filename?: string
+  mime_type?: string
+}
+
 /**
  * Collects the order's uploadable files: customer original uploads (deduped
- * by URL — one design across N size lines repeats them) and per-side mockups
+ * by URL — one design across N size lines repeats them), per-side mockups
  * (deduped by design-group/colour via lineMockupGroupKey, same convention as
- * the artwork-approval surfaces). Inline data: URLs are skipped — only real
+ * the artwork-approval surfaces), and admin-created revised proofs from
+ * `order.metadata.revised_proofs`. Inline data: URLs are skipped — only real
  * R2/http URLs upload. Name collisions get a " (n)" suffix.
  */
 export function collectOrderDriveFiles(
@@ -83,7 +91,8 @@ export function collectOrderDriveFiles(
     product_id?: string | null
     quantity?: unknown
     metadata?: Record<string, unknown> | null
-  }>
+  }>,
+  revisedProofs: RevisedProofLike[] = []
 ): DriveUploadCandidate[] {
   const out: DriveUploadCandidate[] = []
   const seenUrls = new Set<string>()
@@ -131,7 +140,28 @@ export function collectOrderDriveFiles(
     }
   }
 
+  for (const p of revisedProofs) {
+    const url = typeof p?.url === "string" ? p.url : ""
+    if (!url || !isHttpUrl(url) || seenUrls.has(url)) continue
+    seenUrls.add(url)
+    const side = typeof p.side === "string" && p.side ? p.side : "proof"
+    const base =
+      typeof p.filename === "string" && p.filename.trim()
+        ? p.filename.trim()
+        : `Revised proof - ${side}.png`
+    out.push({
+      url,
+      name: uniqueName(`Revised proof - ${side} - ${base}`),
+      mime: typeof p.mime_type === "string" ? p.mime_type : undefined,
+    })
+  }
+
   return out
+}
+
+function readRevisedProofs(meta: Record<string, unknown>): RevisedProofLike[] {
+  const raw = meta.revised_proofs
+  return Array.isArray(raw) ? (raw as RevisedProofLike[]) : []
 }
 
 async function loadOrder(req: MedusaRequest): Promise<any | null> {
@@ -153,7 +183,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const meta = (order.metadata ?? {}) as Record<string, unknown>
   const folder = readStoredFolder(meta)
   const uploaded = new Set(folder?.uploaded_urls ?? [])
-  const candidates = collectOrderDriveFiles(order.items ?? [])
+  const candidates = collectOrderDriveFiles(order.items ?? [], readRevisedProofs(meta))
 
   return res.json({
     configured: isDriveConfigured(),
@@ -218,9 +248,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // Upload any files not yet synced into the "Files" subfolder.
   const uploadedUrls = new Set(stored.uploaded_urls ?? [])
   const targetFolderId = stored.files_id || stored.id
-  const candidates = collectOrderDriveFiles(order.items ?? []).filter(
-    (c) => !uploadedUrls.has(c.url)
-  )
+  const candidates = collectOrderDriveFiles(
+    order.items ?? [],
+    readRevisedProofs(meta)
+  ).filter((c) => !uploadedUrls.has(c.url))
   const failed: Array<{ name: string; error: string }> = []
   for (const c of candidates) {
     try {

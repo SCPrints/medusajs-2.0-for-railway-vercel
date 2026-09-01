@@ -112,4 +112,22 @@ describe("collectOrderDriveFiles", () => {
     ])
     expect(files.map((f) => f.name)).toContain("logo (2).svg")
   })
+
+  it("includes revised proofs and dedupes against artifact URLs", () => {
+    const files = collectOrderDriveFiles(
+      [{ id: "li_1", product_title: "Tee", metadata: design() }],
+      [
+        {
+          side: "front",
+          url: "https://r2.example/proof-front.png",
+          filename: "proof.png",
+          mime_type: "image/png",
+        },
+        // Same URL as the line's own mockup — must not upload twice.
+        { side: "front", url: "https://r2.example/mock-front.png" },
+      ]
+    )
+    expect(files.map((f) => f.name)).toContain("Revised proof - front - proof.png")
+    expect(files.filter((f) => f.url === "https://r2.example/mock-front.png")).toHaveLength(1)
+  })
 })
