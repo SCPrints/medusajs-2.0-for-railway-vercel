@@ -110,11 +110,11 @@ export const locations: Location[] = [
     postcode: "2170",
     region: "South West Sydney",
     travel: "about 15 minutes from our Villawood studio",
-    title: "T-Shirt Printing Liverpool",
+    title: "Custom Logo Embroidery & Printed Uniforms Liverpool",
     description:
-      "Custom t-shirt printing, embroidery and workwear in Liverpool NSW. Screen print, DTF and embroidery from one garment. Local South West Sydney studio.",
+      "Custom logo embroidery and printed uniforms for Liverpool NSW. Work polos, hi-vis, scrubs and business shirts, embroidered in-house. From one garment.",
     intro:
-      "We print for Liverpool businesses out of our Villawood studio, a straight run down the Hume Highway. Close enough that you can drop in, check a sample on the bench and pick your order up the same trip — no freight, no waiting on a courier from interstate.",
+      "We embroider and print uniforms for Liverpool businesses out of our Villawood studio, a straight run down the Hume Highway. Your logo is digitised once and kept on file, so the first run and every top-up after it stitch out the same. Close enough that you can drop in, check a sample on the bench and pick your order up the same trip.",
     serving:
       "Liverpool is the commercial heart of South West Sydney, and the work reflects it: trade teams running out of the industrial pockets off Newbridge Road, allied-health and medical practices around the hospital precinct, and retail and food businesses through Westfield and the Macquarie Street mall.",
     useCases: [
@@ -134,16 +134,74 @@ export const locations: Location[] = [
     nearby: ["Casula", "Moorebank", "Warwick Farm", "Chipping Norton", "Prestons"],
   },
   {
+    slug: "prestons",
+    suburb: "Prestons",
+    postcode: "2170",
+    region: "South West Sydney",
+    travel: "about 18 minutes from our Villawood studio",
+    title: "Custom Printed Uniforms Prestons",
+    description:
+      "Custom printed and embroidered uniforms for Prestons NSW. Work polos, hi-vis, warehouse tees and embroidered jackets from a local South West Sydney studio.",
+    intro:
+      "Prestons sits at the M7 and M5 interchange, and most of what we send out here goes to the businesses built around that: warehousing and distribution along Bernera Road and Yarrunga Street, transport operators and the trades that service them. It's a short run down the Hume from our Villawood studio, so samples and pickup are a quick errand rather than a courier booking.",
+    serving:
+      "Uniform work in Prestons is mostly about crews. A depot or warehouse needs everyone in the same polo or hi-vis, in a spread of sizes, with a re-order path that doesn't involve re-supplying artwork or explaining the job again six months later.",
+    useCases: [
+      {
+        heading: "Warehouse and logistics crews",
+        body: "Printed tees and polos for pick-and-pack and dispatch teams, hi-vis for the yard. Sized runs with a few spares, and your artwork held on file so a new starter's shirt matches the rest of the floor.",
+      },
+      {
+        heading: "Transport and fleet",
+        body: "Embroidered work shirts and jackets for drivers, with a company name that survives daily wear and hot washes. Embroidery is the better choice here — print on a jacket that lives in a truck cab fades faster than the vehicle does.",
+      },
+      {
+        heading: "Trades around the estate",
+        body: "Work polos, drill shirts and hi-vis in Syzmik, Bisley, Hard Yakka and JB's Wear for the electricians, mechanics and fit-out crews servicing the industrial blocks. From a single garment, bulk pricing as the run grows.",
+      },
+    ],
+    nearby: ["Edmondson Park", "Hoxton Park", "Lurnea", "Casula", "Miller"],
+  },
+  {
+    slug: "chipping-norton",
+    suburb: "Chipping Norton",
+    postcode: "2170",
+    region: "South West Sydney",
+    travel: "about 12 minutes from our Villawood studio",
+    title: "Custom Uniforms & Embroidery Chipping Norton",
+    description:
+      "Custom designed uniforms, embroidery and printing for Chipping Norton NSW. Staff polos, club kit and workwear. Villawood studio, from a single garment.",
+    intro:
+      "Chipping Norton is one of the closest suburbs to our Villawood studio — across the Georges River and a few minutes down Newbridge Road. Jobs here tend to be smaller and more personal than the industrial estates further west: a family business, a local club, a school group, a café on the water.",
+    serving:
+      "The suburb is mostly residential around the lakes, with a working pocket along Governor Macquarie Drive and the businesses that front Newbridge Road. That mix shows up in what we make: embroidered polos for a handful of staff, playing kit for junior teams that train at the local ovals, and printed tees for community events by the river.",
+    useCases: [
+      {
+        heading: "Design a uniform from scratch",
+        body: "If you don't have a uniform yet, we'll help you build one — pick the garment, choose print or embroidery, set logo size and placement, and see a sample before you commit. Most small businesses arrive with a logo on a phone and nothing else, and that's a fine starting point.",
+      },
+      {
+        heading: "Clubs and junior sport",
+        body: "Training tees, hoodies and playing kit with sponsor logos and player numbers. We hold the artwork season to season so next year's order matches this year's without anyone digging out old files.",
+      },
+      {
+        heading: "Small teams, small runs",
+        body: "A café, a clinic or a tradie with two apprentices doesn't need to order twenty of anything. We print and embroider from one garment, so you can add a shirt for a new hire instead of carrying stock in sizes nobody wears.",
+      },
+    ],
+    nearby: ["Moorebank", "Liverpool", "Warwick Farm", "Lansvale", "Milperra"],
+  },
+  {
     slug: "bankstown",
     suburb: "Bankstown",
     postcode: "2200",
     region: "South West Sydney",
     travel: "about 12 minutes from our Villawood studio",
-    title: "T-Shirt Printing Bankstown",
+    title: "Custom Printed Uniforms & Embroidery Bankstown",
     description:
-      "Custom t-shirt printing and embroidery in Bankstown NSW. Club kit, staff uniforms, event merch and workwear. Local studio 12 minutes away, no minimums.",
+      "Custom printed uniforms and logo embroidery for Bankstown NSW. Staff polos, business shirts, club kit and workwear. Studio 12 minutes away, no minimums.",
     intro:
-      "Bankstown is one of our closest markets — a short run across from Villawood — so pickup is usually easier than freight, and a sample can be in your hands the same day you ask for one.",
+      "Bankstown is one of our closest markets — a short run across from Villawood — so a printed or embroidered uniform order is usually a pickup rather than a freight job, and a sample can be in your hands the same day you ask for one.",
     serving:
       "Between the sporting precinct, the airport and industrial pockets, and the CBD's professional and retail businesses, Bankstown jobs range from fifty-shirt club runs to a dozen embroidered polos for an office.",
     useCases: [
