@@ -52,11 +52,6 @@ export type MonthlyDigestPayload = {
     severe_breaches: number
     currently_breaching: number
   }
-  inventory: {
-    dead_units: number
-    aging_units: number
-    out_of_stock_variants: number
-  }
   highlights: string[]
   currency_code: string
 }
@@ -328,60 +323,9 @@ export async function buildMonthlyDigest(
     }
   }
 
-  // ---- Inventory: lightweight dead-stock + OOS counts -----------------
-  let deadUnits = 0
-  let agingUnits = 0
-  let oosVariants = 0
-  try {
-    const { data: variants } = await query.graph({
-      entity: "product_variant",
-      fields: [
-        "id",
-        "manage_inventory",
-        "inventory_items.inventory.location_levels.stocked_quantity",
-        "inventory_items.inventory.location_levels.reserved_quantity",
-      ],
-      filters: { manage_inventory: true },
-      pagination: { take: 5000, skip: 0 },
-    })
-    const lastSoldByVariant = new Map<string, number>()
-    for (const o of orders) {
-      if (o?.status === "canceled") continue
-      const created = Date.parse(o?.created_at ?? "")
-      if (!Number.isFinite(created)) continue
-      for (const it of (o.items ?? []) as any[]) {
-        const vid = it?.variant_id
-        if (typeof vid !== "string") continue
-        const prev = lastSoldByVariant.get(vid) ?? 0
-        if (created > prev) lastSoldByVariant.set(vid, created)
-      }
-    }
-    for (const v of (variants as any[]) ?? []) {
-      let stocked = 0
-      let reserved = 0
-      for (const ii of v.inventory_items ?? []) {
-        for (const lvl of ii?.inventory?.location_levels ?? []) {
-          stocked += Number(lvl?.stocked_quantity ?? 0)
-          reserved += Number(lvl?.reserved_quantity ?? 0)
-        }
-      }
-      const inStock = stocked - reserved
-      if (inStock <= 0) {
-        oosVariants += 1
-        continue
-      }
-      const lastSold = lastSoldByVariant.get(v.id) ?? null
-      if (lastSold === null) {
-        deadUnits += inStock
-        continue
-      }
-      const days = (nowMs - lastSold) / 86_400_000
-      if (days > 180) deadUnits += inStock
-      else if (days > 90) agingUnits += inStock
-    }
-  } catch {
-    // Inventory graph can shift between Medusa minors; defensive empty.
-  }
+  // ponytail: no inventory section. Every stocked level is a supplier feed
+  // or a 1,000,000-unit placeholder (Aug 2026 digest reported 7.79M "dead
+  // units"). Re-add only if SC Prints starts holding real stock.
 
   // ---- Highlights — short, derived bullets for the email top --------
   const highlights: string[] = []
@@ -407,12 +351,6 @@ export async function buildMonthlyDigest(
       `${currentlyBreachingCount} order${currentlyBreachingCount === 1 ? " is" : "s are"} currently past SLA.`
     )
   }
-  if (deadUnits > 0) {
-    highlights.push(
-      `${deadUnits} unit${deadUnits === 1 ? "" : "s"} of stock haven't sold in 180+ days.`
-    )
-  }
-
   return {
     period: {
       from: period.from.toISOString(),
@@ -460,11 +398,6 @@ export async function buildMonthlyDigest(
         transitions > 0 ? Math.round((breaches / transitions) * 1000) / 10 : 0,
       severe_breaches: severeBreaches,
       currently_breaching: currentlyBreachingCount,
-    },
-    inventory: {
-      dead_units: deadUnits,
-      aging_units: agingUnits,
-      out_of_stock_variants: oosVariants,
     },
     highlights,
     currency_code: currency,

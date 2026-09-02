@@ -185,7 +185,6 @@ const dispatchAction = async (
             top_products: [],
             rfm_movers: { champions: 0, at_risk: 0, hibernating: 0, new_customer: 0 },
             production: { transitions: 0, breaches: 0, breach_pct: 0, severe_breaches: 0, currently_breaching: 0 },
-            inventory: { dead_units: 0, aging_units: 0, out_of_stock_variants: 0 },
             highlights: [action.params.body ?? action.params.subject],
             currency_code: "AUD",
           },

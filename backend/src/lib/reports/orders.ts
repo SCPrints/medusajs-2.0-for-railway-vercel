@@ -376,8 +376,21 @@ export const fetchOrdersForReports = async (
       "items.product_id",
       "items.variant_id",
       "items.metadata",
+      // Without `items.detail.*` the graph leaves `items.quantity` undefined
+      // and `total` = shipping only (probed prod 2026-09-03: Aug revenue
+      // read as $26 instead of $3,216). `summary.current_order_total` is the
+      // figure the order-placed email + invoices use, correct in both the
+      // GST-exclusive (pre 2026-08) and GST-inclusive eras; the decorated
+      // `total` re-adds 10% on inc-GST lines, so we override it.
+      "items.detail.quantity",
+      "summary.*",
     ],
     pagination: { take, skip: 0 },
   })
-  return (data as any[]) ?? []
+  const orders = (data as any[]) ?? []
+  for (const o of orders) {
+    const cur = o?.summary?.current_order_total
+    if (cur != null && Number.isFinite(Number(cur))) o.total = Number(cur)
+  }
+  return orders
 }

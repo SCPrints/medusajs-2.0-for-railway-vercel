@@ -308,30 +308,6 @@ export const MonthlyDigestEmail = ({
           </Text>
         ) : null}
 
-        <Hr style={{ margin: "20px 0", borderColor: "#e5e5e5" }} />
-
-        <Text
-          style={{
-            margin: "0 0 8px 0",
-            fontSize: "14px",
-            fontWeight: 600,
-            color: NAVY,
-          }}
-        >
-          Inventory
-        </Text>
-        <Text
-          style={{
-            margin: "0 0 4px 0",
-            fontSize: "13px",
-            color: "#1f2937",
-          }}
-        >
-          Out of stock: <strong>{digest.inventory.out_of_stock_variants}</strong> variants ·
-          Aging (90-180d): <strong>{digest.inventory.aging_units}</strong> units ·
-          Dead (180d+): <strong>{digest.inventory.dead_units}</strong> units
-        </Text>
-
         {adminUrl ? (
           <>
             <Hr style={{ margin: "20px 0", borderColor: "#e5e5e5" }} />
