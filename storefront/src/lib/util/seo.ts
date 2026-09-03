@@ -29,10 +29,9 @@ export const STUDIO = {
   country: "AU",
   /** Google Business Profile categorises us here. */
   gbpCategory: "Screen printer",
-  // TODO: replace with the exact pin from the Google Business Profile once the
-  // listing is moved to Villawood — these are suburb-centre approximations.
-  latitude: -33.8729,
-  longitude: 150.9757,
+  // Exact pin from the Google Business Profile (maps place /g/11q2xtqvg8).
+  latitude: -33.8791765,
+  longitude: 150.9925359,
   openingHours: "Mo-Fr 09:00-16:00",
 } as const
 
