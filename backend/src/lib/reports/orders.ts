@@ -371,6 +371,7 @@ export const fetchOrdersForReports = async (
       "region_id",
       "items.id",
       "items.title",
+      "items.product_title",
       "items.quantity",
       "items.unit_price",
       "items.product_id",

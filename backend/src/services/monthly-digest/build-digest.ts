@@ -155,9 +155,11 @@ export async function buildMonthlyDigest(
           (it?.id as string) ||
           ""
         if (!id) continue
+        // Aggregated per product, so label with the product title — `title`
+        // is the variant line ("Staple Tee — ORANGE / S").
         const title =
-          (it?.title as string) ||
           (it?.product_title as string) ||
+          (it?.title as string) ||
           "(unknown)"
         const qty = Number(it?.quantity ?? 0)
         const lineRevenue = Number(it?.unit_price ?? 0) * qty
