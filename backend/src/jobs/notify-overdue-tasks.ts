@@ -66,7 +66,7 @@ export default async function notifyOverdueTasksJob(container: MedusaContainer) 
     const task = candidates.find((r) => r.id === id) as any
     if (!task) continue
     try {
-      await service.updateTasks(id, { last_overdue_notified_at: now })
+      await service.updateTasks({ id, last_overdue_notified_at: now })
 
       // Audit on every anchored entity so each entity's timeline shows
       // the overdue notification.

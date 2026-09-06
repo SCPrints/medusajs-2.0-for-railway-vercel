@@ -78,7 +78,8 @@ export async function setOwner(input: SetOwnerInput): Promise<void> {
   let assignmentId = existingAssignmentId
   if (assignmentId) {
     try {
-      await ws.updateCrmOwnerAssignments(assignmentId, {
+      await ws.updateCrmOwnerAssignments({
+        id: assignmentId,
         user_id,
         assigned_at: new Date(),
         assigned_by: actor ?? null,

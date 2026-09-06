@@ -74,7 +74,7 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     return res.json({ task: previous, noop: true })
   }
 
-  const updated = await service.updateTasks(id, update)
+  const updated = await service.updateTasks({ id, ...update })
 
   if (body.status === "done") {
     try {
