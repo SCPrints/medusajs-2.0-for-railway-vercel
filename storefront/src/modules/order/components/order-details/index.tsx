@@ -45,11 +45,17 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
 
       {showStatus && (
         <>
-          <Row label="Order status">
-            <span data-testid="order-status">
-              {formatStatus((order as any).fulfillment_status ?? "not_fulfilled")}
-            </span>
-          </Row>
+          {/* ponytail: fulfilment status is only created when the production
+              stage reaches "shipped", so "Not fulfilled" next to an "In
+              production" tracker reads as a contradiction. The tracker owns
+              progress; hide this row whenever a stage exists. */}
+          {!order.metadata?.production_stage && (
+            <Row label="Order status">
+              <span data-testid="order-status">
+                {formatStatus((order as any).fulfillment_status ?? "not_fulfilled")}
+              </span>
+            </Row>
+          )}
           <Row label="Payment status">
             <span data-testid="order-payment-status">
               {formatStatus((order as any).payment_status ?? "not_paid")}
