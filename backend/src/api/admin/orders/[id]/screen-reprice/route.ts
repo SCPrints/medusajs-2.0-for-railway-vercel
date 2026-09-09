@@ -12,6 +12,7 @@ import {
   SCREEN_MAX_COLOURS,
   screenUnitMajor,
 } from "../../../../../lib/scp-screen-print-pricing"
+import { screenJobQuantityByLine } from "../../../../../lib/scp-decoration-pricing"
 import { writeAudit } from "../../../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
 
@@ -102,6 +103,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // Rebuild the screen portion with the corrected colour counts; every other
   // component (garment, DTF print, embroidery) keeps its stamped value.
   const quantity = Math.max(1, Math.floor(line.quantity || 1))
+  // Screen tier = the supplier JOB quantity (every line of this design
+  // group), not just this size/colour line's count.
+  const screenJobQty =
+    screenJobQuantityByLine(
+      (order.items ?? []).map((i) => ({ id: i.id, quantity: i.quantity, metadata: i.metadata }))
+    ).get(line.id) ?? quantity
   let newScreenTotal = 0
   let oldScreenTotal = 0
   const newBreakdown = breakdown.map((entry) => {
@@ -109,7 +116,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const corrected = body.colours_by_side[entry.side]
     const colours = corrected ?? entry.colours
     const result = screenUnitMajor({
-      quantity,
+      quantity: screenJobQty,
       colours,
       darkGarment: entry.darkGarment === true,
       heavyGarment: entry.heavyGarment === true,

@@ -127,9 +127,9 @@ describe("calculatePricing", () => {
       ],
       screen: [{ side: "back", colours: 2 }],
     })
-    // Front stays DTF (A4 @ 100+ = $9); back is screen (2-col @ 100-199 = $4.70).
+    // Front stays DTF (A4 @ 100+ = $9); back is screen (2-col @ 100-199 = $5.35).
     expect(pricing.sideSurchargePerUnitCents).toBe(9)
-    expect(pricing.screenPerUnitCents).toBeCloseTo(4.7, 2)
+    expect(pricing.screenPerUnitCents).toBeCloseTo(5.35, 2)
     expect(pricing.screenRows?.[0]?.effectiveColours).toBe(2)
     expect(pricing.screenBelowMinimum).toBeUndefined()
   })
@@ -143,8 +143,8 @@ describe("calculatePricing", () => {
       screen: [{ side: "front", colours: 1, darkGarment: true }],
       screenHeavyGarment: true,
     })
-    // Below min → tier 0 (25-49): 2 effective colours $10.50 + $1 heavy = $11.50.
-    expect(pricing.screenPerUnitCents).toBeCloseTo(11.5, 2)
+    // Below min → tier 0 (25-49): 2 effective colours $11.60 + $1 heavy = $12.60.
+    expect(pricing.screenPerUnitCents).toBeCloseTo(12.6, 2)
     expect(pricing.screenBelowMinimum).toBe(true)
     // No DTF component — the only decorated side is screen.
     expect(pricing.sideSurchargePerUnitCents).toBe(0)

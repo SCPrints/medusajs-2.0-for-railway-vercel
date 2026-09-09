@@ -323,6 +323,64 @@ describe("recomputeScpCartPricingPure", () => {
     expect(result.prices.get("line_embroidered")).toBe(46.4)
   })
 
+  // Screen-printed front, 1 colour, garment stamped at add-time (no ladder).
+  const screenLineMeta = (groupId: string) => ({
+    customizerDesign: {
+      group_id: groupId,
+      artifacts: [{ side: "front", print_size_id: "up_to_a6" }],
+      sideDecorationMethods: { front: "screen" },
+      sideScreenConfigs: { front: { colours: 1 } },
+      pricing: {
+        server: {
+          print_size_id: "up_to_a6",
+          decorated_sides: 1,
+          decorated_side_keys: ["front"],
+          garment_unit_major: 15.9,
+        },
+      },
+    },
+  })
+
+  it("tiers screen print on the design-group (supplier job) quantity, not the cart aggregate", () => {
+    // 30 screen tees + 40 unrelated plain garments. DSP bills the tee run as a
+    // 30-piece job (25-49 band, $9.50/print), so the cart's 70 must not lift
+    // it into the 50-99 band ($5.90/print). Garment stamped 15.9.
+    const lines = [
+      {
+        id: "line_screen",
+        quantity: 30,
+        unit_price: 999,
+        variant: { id: "var_tee", metadata: {} },
+        metadata: screenLineMeta("grp_tees"),
+      },
+      {
+        id: "line_plain",
+        quantity: 40,
+        unit_price: 25,
+        variant: { id: "var_A", metadata: VARIANT_A_TIERS },
+        metadata: {},
+      },
+    ]
+    const result = recomputeScpCartPricingPure(lines)
+    expect(result.aggregated_quantity).toBe(70)
+    expect(result.prices.get("line_screen")).toBe(25.4) // 15.9 + 9.5
+    expect(result.prices.get("line_plain")).toBe(20) // garment still aggregates
+  })
+
+  it("sums a design group's colour/size fan-out into one screen job; other designs stay separate", () => {
+    const lines = [
+      // One design fanned out to two size lines = one 60-piece job → 50-99 band.
+      { id: "grp1_s", quantity: 30, unit_price: 999, variant: { id: "v", metadata: {} }, metadata: screenLineMeta("grp1") },
+      { id: "grp1_m", quantity: 30, unit_price: 999, variant: { id: "v", metadata: {} }, metadata: screenLineMeta("grp1") },
+      // A different design in the same cart = its own 30-piece job → 25-49 band.
+      { id: "grp2", quantity: 30, unit_price: 999, variant: { id: "v", metadata: {} }, metadata: screenLineMeta("grp2") },
+    ]
+    const result = recomputeScpCartPricingPure(lines)
+    expect(result.prices.get("grp1_s")).toBe(21.8) // 15.9 + 5.9
+    expect(result.prices.get("grp1_m")).toBe(21.8)
+    expect(result.prices.get("grp2")).toBe(25.4) // 15.9 + 9.5
+  })
+
   it("prices mixed print + embroidery sides with each method's own rate", () => {
     const mixedLineMeta = {
       customizerDesign: {

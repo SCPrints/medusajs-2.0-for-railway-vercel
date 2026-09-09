@@ -26,15 +26,15 @@ describe("scp-screen-print-pricing", () => {
   })
 
   it("prices by colour count and quantity band", () => {
-    // 1-colour at 100-199 = $4.00; 6-colour at 25-49 = $18.35
-    expect(screenUnitMajor({ quantity: 100, colours: 1 }).unitMajor).toBe(4.0)
-    expect(screenUnitMajor({ quantity: 25, colours: 6 }).unitMajor).toBe(18.35)
+    // 1-colour at 100-199 = $4.60; 6-colour at 25-49 = $20.25
+    expect(screenUnitMajor({ quantity: 100, colours: 1 }).unitMajor).toBe(4.6)
+    expect(screenUnitMajor({ quantity: 25, colours: 6 }).unitMajor).toBe(20.25)
   })
 
   it("adds the underbase colour on dark garments, capped at 6", () => {
     const dark = screenUnitMajor({ quantity: 100, colours: 4, darkGarment: true })
     expect(dark.effectiveColours).toBe(5)
-    expect(dark.unitMajor).toBe(5.95)
+    expect(dark.unitMajor).toBe(6.8)
     const maxed = screenUnitMajor({
       quantity: 100,
       colours: SCREEN_MAX_COLOURS,
@@ -46,7 +46,7 @@ describe("scp-screen-print-pricing", () => {
   it("adds the heavy-garment surcharge per print", () => {
     const tee = screenUnitMajor({ quantity: 200, colours: 2 })
     const hoodie = screenUnitMajor({ quantity: 200, colours: 2, heavyGarment: true })
-    expect(tee.unitMajor).toBe(3.65)
-    expect(hoodie.unitMajor).toBe(4.65)
+    expect(tee.unitMajor).toBe(4.2)
+    expect(hoodie.unitMajor).toBe(5.2)
   })
 })

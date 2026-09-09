@@ -13,11 +13,17 @@
  *
  * The quantity semantics differ BY DESIGN across call sites and are explicit
  * parameters, not baked in:
- *   - printTierQuantity: drives the DTF print-size tier AND the screen
- *     colour tier. Add/update paths pass the line's own quantity; the
- *     cart-wide recompute passes the aggregated bulk-eligible quantity
- *     (cross-line tier aggregation — a screen run's per-piece price falls
- *     as the whole job grows).
+ *   - printTierQuantity: drives the DTF print-size tier. Add/update paths
+ *     pass the line's own quantity; the cart-wide recompute passes the
+ *     aggregated bulk-eligible quantity (cross-line tier aggregation — DTF
+ *     gangs across the whole cart).
+ *   - screenTierQuantity: drives the screen colour tier. The supplier
+ *     (Dynamic Screen Print) prices each JOB — same garment + same artwork
+ *     — by that job's own quantity, so this is the design-group quantity
+ *     (`screenJobQuantityByLine`), NEVER the cart-wide aggregate: 30 screen
+ *     tees + 40 unrelated hoodies is a 25-49 job, not a 50-99 one. Defaults
+ *     to printTierQuantity for single-line callers (add/update), where the
+ *     line's own quantity is the job quantity until the recompute settles it.
  *   - embroideryQuantity: drives the embroidery quantity tier AND the
  *     digitizing-fee amortisation (fee ÷ qty baked into the unit price).
  *     Every path passes the line's own quantity — digitizing is per-line
@@ -250,6 +256,8 @@ export function computeDecorationTotals(args: {
   printSizeId: ScpPrintSizeId
   printTierQuantity: number
   embroideryQuantity: number
+  /** Screen JOB quantity (design group). Defaults to printTierQuantity — see header. */
+  screenTierQuantity?: number
   screenHeavyGarment: boolean
   /**
    * Which full-colour card prices the print sides: absent/"dtf" = the DTF
@@ -424,7 +432,7 @@ export function computeDecorationTotals(args: {
     const colours = Math.max(1, Math.floor(cfg?.colours ?? 1))
     const darkGarment = cfg?.darkGarment === true
     const result = screenUnitMajor({
-      quantity: args.printTierQuantity,
+      quantity: args.screenTierQuantity ?? args.printTierQuantity,
       colours,
       darkGarment,
       heavyGarment: args.screenHeavyGarment,
@@ -454,6 +462,27 @@ export function computeDecorationTotals(args: {
     screenTotalMajor: Math.max(0, screenTotalMajor),
     screenBreakdown,
   }
+}
+
+/**
+ * Screen JOB quantity per line: the summed quantity of every line sharing
+ * the same `customizerDesign.group_id` (one design fanned out over colour ×
+ * size lines = one supplier job). Lines without a group id are their own
+ * job. Feed the result into `computeDecorationTotals.screenTierQuantity`.
+ */
+export function screenJobQuantityByLine(
+  lines: Array<{ id: string; quantity: number; metadata?: Record<string, unknown> | null }>
+): Map<string, number> {
+  const groupOf = (line: { id: string; metadata?: Record<string, unknown> | null }) => {
+    const gid = objectOrEmpty<Record<string, unknown>>(line.metadata?.customizerDesign).group_id
+    return typeof gid === "string" && gid ? gid : `line:${line.id}`
+  }
+  const byGroup = new Map<string, number>()
+  for (const line of lines) {
+    const key = groupOf(line)
+    byGroup.set(key, (byGroup.get(key) ?? 0) + Math.max(0, Math.floor(line.quantity || 0)))
+  }
+  return new Map(lines.map((line) => [line.id, Math.max(1, byGroup.get(groupOf(line)) ?? 0)]))
 }
 
 /**

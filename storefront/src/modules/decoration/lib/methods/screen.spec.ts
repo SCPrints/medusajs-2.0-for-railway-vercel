@@ -21,17 +21,17 @@ describe("calculateScreenPrice", () => {
   it("bumps colour count when dark garment is selected", () => {
     const light = calculateScreenPrice({ colours: 4, quantity: 100 })
     const dark = calculateScreenPrice({ colours: 4, quantity: 100, darkGarment: true })
-    // 100 falls in 100–199 tier; 4 col $5.50, 5 col $5.95
-    expect(light.unitPrice).toBe(5.5)
-    expect(dark.unitPrice).toBe(5.95)
+    // 100 falls in 100–199 tier; 4 col $6.30, 5 col $6.80
+    expect(light.unitPrice).toBe(6.3)
+    expect(dark.unitPrice).toBe(6.8)
     expect(dark.setupTotal).toBeGreaterThan(light.setupTotal)
   })
 
   it("adds the heavy-garment surcharge per print", () => {
     const tee = calculateScreenPrice({ colours: 1, quantity: 100 })
     const hoodie = calculateScreenPrice({ colours: 1, quantity: 100, heavyGarment: true })
-    expect(tee.unitPrice).toBe(4.0)
-    expect(hoodie.unitPrice).toBe(5.0)
+    expect(tee.unitPrice).toBe(4.6)
+    expect(hoodie.unitPrice).toBe(5.6)
   })
 
   it("uses the repeat screen fee on reorders", () => {
@@ -50,8 +50,8 @@ describe("calculateScreenPrice", () => {
 
   it("prices priority rush at 30% of print + setup, no express", () => {
     const priority = calculateScreenPrice({ colours: 1, quantity: 100, rushTier: "priority" })
-    // decoration $400 + setup $99 = $499 → rush $149.70
-    expect(priority.rushSurcharge).toBe(149.7)
+    // decoration $460 + setup $99 = $559 → rush $167.70
+    expect(priority.rushSurcharge).toBe(167.7)
     const express = calculateScreenPrice({ colours: 1, quantity: 100, rushTier: "express" })
     expect(express.rushSurcharge).toBe(0)
   })

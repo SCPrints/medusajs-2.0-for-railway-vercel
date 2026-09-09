@@ -462,10 +462,10 @@
  },
  "synth_screen_3col_dark_qty60": {
   "descriptor": {
-   "unitPriceMajor": 32.04,
+   "unitPriceMajor": 33.09,
    "printTotalMajor": 0,
    "embroideryTotalMajor": 0,
-   "screenTotalMajor": 7.4,
+   "screenTotalMajor": 8.45,
    "tierIndex": 3,
    "printSides": [],
    "embroiderySides": [],
@@ -480,21 +480,21 @@
      "effectiveColours": 4,
      "darkGarment": true,
      "heavyGarment": false,
-     "unitPriceMajor": 7.4
+     "unitPriceMajor": 8.45
     }
    ]
   },
   "recompute": {
-   "price": 32.04,
+   "price": 33.09,
    "excluded": false
   }
  },
  "synth_screen_heavy_stored_qty120": {
   "descriptor": {
-   "unitPriceMajor": 27.8,
+   "unitPriceMajor": 28.45,
    "printTotalMajor": 0,
    "embroideryTotalMajor": 0,
-   "screenTotalMajor": 4.7,
+   "screenTotalMajor": 5.35,
    "tierIndex": 4,
    "printSides": [],
    "embroiderySides": [],
@@ -509,21 +509,21 @@
      "effectiveColours": 2,
      "darkGarment": false,
      "heavyGarment": false,
-     "unitPriceMajor": 4.7
+     "unitPriceMajor": 5.35
     }
    ]
   },
   "recompute": {
-   "price": 28.8,
+   "price": 29.45,
    "excluded": false
   }
  },
  "synth_screen_plus_print_mixed_qty30": {
   "descriptor": {
-   "unitPriceMajor": 41.28,
+   "unitPriceMajor": 42.18,
    "printTotalMajor": 6.5,
    "embroideryTotalMajor": 0,
-   "screenTotalMajor": 8.6,
+   "screenTotalMajor": 9.5,
    "tierIndex": 2,
    "printSides": [
     "back"
@@ -540,12 +540,12 @@
      "effectiveColours": 1,
      "darkGarment": false,
      "heavyGarment": false,
-     "unitPriceMajor": 8.6
+     "unitPriceMajor": 9.5
     }
    ]
   },
   "recompute": {
-   "price": 41.28,
+   "price": 42.18,
    "excluded": false
   }
  },

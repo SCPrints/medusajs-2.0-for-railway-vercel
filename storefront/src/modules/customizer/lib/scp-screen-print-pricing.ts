@@ -3,7 +3,7 @@
  * customizer pricing panel, cart pricing, and the backend recompute.
  *
  * 2026-08 repricing: bands mirror the supplier's (DSP price list 1 Mar 2024)
- * with a tapering margin (1.45 → 1.25). The supplier does the entire print
+ * with a tapering margin (1.6 → 1.45 — the cost-model workbook dials, 2026-09-10; retail = (DSP cost + $0.30 handling) × dial × 1.1 GST, rounded to 5c). The supplier does the entire print
  * run; SC Prints' costs are handling + coordination, so margins are pure
  * contribution. Setup is charged per SCREEN (one screen per colour per
  * position) as a separate cart line — see NEXT_PUBLIC_SCREEN_SETUP_VARIANT_ID.
@@ -13,7 +13,7 @@
  * Validated by `scripts/check-screen-pricing-sync.mjs` (`pnpm check-sync`).
  */
 
-export const SCP_SCREEN_PRICING_VERSION = 1 as const
+export const SCP_SCREEN_PRICING_VERSION = 2 as const
 
 export const SCREEN_MIN_QUANTITY = 25
 export const SCREEN_MAX_QUANTITY = 999
@@ -35,11 +35,11 @@ export type ScreenQuantityTier = {
 }
 
 export const SCP_SCREEN_QUANTITY_TIERS: ScreenQuantityTier[] = [
-  { label: "25–49", minQuantity: 25, maxQuantity: 49, prices: [8.6, 10.5, 12.45, 14.35, 16.25, 18.35] },
-  { label: "50–99", minQuantity: 50, maxQuantity: 99, prices: [5.15, 5.7, 6.55, 7.4, 8.3, 9.25] },
-  { label: "100–199", minQuantity: 100, maxQuantity: 199, prices: [4.0, 4.7, 5.1, 5.5, 5.95, 6.6] },
-  { label: "200–499", minQuantity: 200, maxQuantity: 499, prices: [3.2, 3.65, 3.95, 4.15, 4.35, 4.5] },
-  { label: "500–999", minQuantity: 500, maxQuantity: 999, prices: [2.15, 2.35, 2.55, 2.75, 2.9, 3.0] },
+  { label: "25–49", minQuantity: 25, maxQuantity: 49, prices: [9.5, 11.6, 13.75, 15.85, 17.95, 20.25] },
+  { label: "50–99", minQuantity: 50, maxQuantity: 99, prices: [5.9, 6.5, 7.5, 8.45, 9.5, 10.55] },
+  { label: "100–199", minQuantity: 100, maxQuantity: 199, prices: [4.6, 5.35, 5.9, 6.3, 6.8, 7.6] },
+  { label: "200–499", minQuantity: 200, maxQuantity: 499, prices: [3.7, 4.2, 4.55, 4.8, 5.05, 5.2] },
+  { label: "500–999", minQuantity: 500, maxQuantity: 999, prices: [2.45, 2.7, 2.95, 3.2, 3.35, 3.5] },
 ]
 
 /**

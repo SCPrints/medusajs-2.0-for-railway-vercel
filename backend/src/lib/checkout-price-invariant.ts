@@ -38,6 +38,7 @@ import {
   computeDecorationTotals,
   fullColourCardFromStoredServer,
   screenHeavyFromStoredBreakdown,
+  screenJobQuantityByLine,
 } from "./scp-decoration-pricing"
 import { isScpPrintSizeId, type ScpPrintSizeId } from "./scp-dtf-print-pricing"
 import {
@@ -123,6 +124,7 @@ export function evaluateCartPricing(
     tier
   )
   const aggregatedQty = Math.max(1, aggregated_quantity)
+  const screenJobQtyByLine = screenJobQuantityByLine(evaluable)
 
   for (const line of evaluable) {
     const actual = bnLikeToMajorAmount(line.unit_price)
@@ -156,6 +158,7 @@ export function evaluateCartPricing(
         metadata: line.metadata,
         printSizeId,
         printTierQuantity: aggregatedQty,
+        screenTierQuantity: screenJobQtyByLine.get(line.id),
         embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
         screenHeavyGarment: screenHeavyFromStoredBreakdown(server),
         fullColourCard: fullColourCardFromStoredServer(server),

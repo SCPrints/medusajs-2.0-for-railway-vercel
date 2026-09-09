@@ -19,6 +19,7 @@ import {
   embroideryDigitizingUnits,
   fullColourCardFromStoredServer,
   screenHeavyFromStoredBreakdown,
+  screenJobQuantityByLine,
   type DigitizingUnitEntry,
 } from "./scp-decoration-pricing"
 
@@ -202,6 +203,7 @@ const buildDigitizingAmortByLine = (
 const computeNewUnitPriceMajor = (
   line: CartLineForRecompute,
   aggregatedQty: number,
+  screenJobQty: number,
   tier?: Tier | null,
   digitizingAmortQtyByKey?: Map<string, number>
 ): number | null => {
@@ -230,16 +232,20 @@ const computeNewUnitPriceMajor = (
 
   // Canonical decoration math — shared with the add descriptor and the
   // update-design route (see scp-decoration-pricing.ts). Recompute
-  // semantics: DTF print and screen tiers use the AGGREGATED cart quantity
-  // (cross-line tier aggregation — per-piece decoration falls as the whole
-  // job grows); embroidery uses the line's OWN quantity so this recompute
-  // reproduces the add-time price bit-for-bit (the digitizing fee is
-  // amortised per line). Order #44 shipped garment-only because an earlier
-  // copy of this math dropped the embroidery term entirely.
+  // semantics: the DTF print tier uses the AGGREGATED cart quantity
+  // (cross-line tier aggregation — gang sheets fall as the whole cart
+  // grows); the screen tier uses the design-group (supplier JOB) quantity —
+  // DSP prices each job by its own count, so unrelated cart lines must not
+  // lift a 30-piece screen run into the 50-99 band; embroidery uses the
+  // line's OWN quantity so this recompute reproduces the add-time price
+  // bit-for-bit (the digitizing fee is amortised per line). Order #44
+  // shipped garment-only because an earlier copy of this math dropped the
+  // embroidery term entirely.
   const totals = computeDecorationTotals({
     metadata: line.metadata,
     printSizeId: scpBlock.printSizeId,
     printTierQuantity: aggregatedQty,
+    screenTierQuantity: screenJobQty,
     embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
     screenHeavyGarment: scpBlock.screenHeavyGarment,
     fullColourCard: scpBlock.fullColourCard,
@@ -257,7 +263,8 @@ const computeNewUnitPriceMajor = (
 const buildUpdatedServerBlock = (
   existingMetadata: Record<string, unknown> | null | undefined,
   newUnitPriceMajor: number,
-  aggregatedQty: number
+  aggregatedQty: number,
+  screenJobQty: number
 ): Record<string, unknown> | null => {
   if (!existingMetadata || typeof existingMetadata !== "object") return null
   const customizerDesign = existingMetadata.customizerDesign as
@@ -274,6 +281,9 @@ const buildUpdatedServerBlock = (
     unit_price_major: newUnitPriceMajor,
     aggregated_quantity: aggregatedQty,
     tier_index: resolveScpTierIndexForQuantity(aggregatedQty),
+    // Screen job (design-group) quantity the screen tier was priced at —
+    // what DSP will bill this run on, so staff can reconcile the invoice.
+    screen_job_quantity: screenJobQty,
   }
   return {
     ...existingMetadata,
@@ -424,12 +434,15 @@ export async function recomputeScpCartPricing(
   }
 
   const digitizingAmortByLine = buildDigitizingAmortByLine(eligible)
+  const screenJobQtyByLine = screenJobQuantityByLine(eligible)
   const pending: PendingUpdate[] = []
   for (const line of eligible) {
     const oldUnitPrice = bnLikeToMajorAmount(line.unit_price) ?? 0
+    const screenJobQty = screenJobQtyByLine.get(line.id) ?? Math.max(1, line.quantity)
     const newUnitPriceMajor = computeNewUnitPriceMajor(
       line,
       effectiveQty,
+      screenJobQty,
       tier,
       digitizingAmortByLine.get(line.id)
     )
@@ -443,7 +456,8 @@ export async function recomputeScpCartPricing(
       updated_metadata: buildUpdatedServerBlock(
         line.metadata,
         newUnitPriceMajor,
-        effectiveQty
+        effectiveQty,
+        screenJobQty
       ),
     })
   }
@@ -509,10 +523,12 @@ export function recomputeScpCartPricingPure(
   const effectiveQty = Math.max(1, aggregatedQty)
 
   const digitizingAmortByLine = buildDigitizingAmortByLine(eligible)
+  const screenJobQtyByLine = screenJobQuantityByLine(eligible)
   for (const line of eligible) {
     const major = computeNewUnitPriceMajor(
       line,
       effectiveQty,
+      screenJobQtyByLine.get(line.id) ?? Math.max(1, line.quantity),
       tier,
       digitizingAmortByLine.get(line.id)
     )
