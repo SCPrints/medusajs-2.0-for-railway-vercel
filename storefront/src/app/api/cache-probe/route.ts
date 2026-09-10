@@ -95,8 +95,32 @@ export async function GET(request: Request) {
     timed(probeG),
   ])
 
+  // Runtime introspection: which cache handlers are registered, whether the
+  // Vercel remote cache env is present (names only, never values), draft mode,
+  // and a per-instance id so consecutive calls can be told apart by instance.
+  const g = globalThis as Record<PropertyKey, unknown>
+  const instanceKey = "__scpCacheProbeInstance"
+  g[instanceKey] ??= Math.random().toString(36).slice(2, 8)
+  const handlersSym = Symbol.for("@next/cache-handlers")
+  const handlersMapSym = Symbol.for("@next/cache-handlers-map")
+  const handlers = g[handlersSym] as Record<string, unknown> | undefined
+  const handlersMap = g[handlersMapSym] as Map<string, unknown> | undefined
+  const { draftMode } = await import("next/headers")
+  const dm = await draftMode()
+  const envKeys = Object.keys(process.env)
+    .filter((k) => /CACHE|SUSPENSE|VERCEL_(ENV|REGION|DEPLOYMENT_ID)|NEXT_RUNTIME|NEXT_PRIVATE/i.test(k))
+    .sort()
+
   return NextResponse.json({
     now: Date.now(),
+    runtime: {
+      instance: g[instanceKey],
+      node: process.version,
+      draftMode: dm.isEnabled,
+      cacheHandlers: handlers ? Object.keys(handlers) : null,
+      cacheHandlersMap: handlersMap ? Array.from(handlersMap.keys()) : null,
+      envKeys,
+    },
     handle,
     real: {
       byHandle: {
