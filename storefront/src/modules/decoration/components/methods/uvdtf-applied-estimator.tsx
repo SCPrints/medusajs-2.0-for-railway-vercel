@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react"
 import {
   calculateUvdtfAppliedPrice,
+  UVDTF_APPLIED_SETUP_FEE,
   UVDTF_APPLIED_SUBSTRATES,
   type UvdtfAppliedSubstrate,
 } from "../../lib/methods/uvdtf-applied"
@@ -48,7 +49,7 @@ const UvdtfAppliedEstimator: React.FC = () => {
         </label>
         <label className="flex items-center gap-2 text-sm sm:col-span-2">
           <input type="checkbox" checked={reorder} onChange={(e) => setReorder(e.target.checked)} />
-          <span>This is a reorder (waives $30 setup)</span>
+          <span>This is a reorder (waives ${UVDTF_APPLIED_SETUP_FEE} setup)</span>
         </label>
       </div>
 

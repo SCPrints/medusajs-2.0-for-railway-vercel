@@ -17,7 +17,7 @@ const ETA_TAG = "production-eta"
  * window. The public wrapper below catches.
  */
 async function fetchProductionEta(): Promise<ProductionEta> {
-  "use cache"
+  "use cache: remote"
   cacheTag(ETA_TAG)
   // 15 minutes — ETA changes slowly and live reads on every PDP load
   // would hammer the order table for no real freshness gain.

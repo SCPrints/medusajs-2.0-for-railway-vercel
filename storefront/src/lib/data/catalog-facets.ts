@@ -33,7 +33,7 @@ const FACET_FIELDS = "id,value"
 export async function listStoreProductTypes(): Promise<
   HttpTypes.StoreProductType[]
 > {
-  "use cache"
+  "use cache: remote"
   cacheTag("catalog-facets", "product-types")
   cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   try {
@@ -52,7 +52,7 @@ export async function listStoreProductTypes(): Promise<
 export async function listStoreProductTags(): Promise<
   HttpTypes.StoreProductTag[]
 > {
-  "use cache"
+  "use cache: remote"
   cacheTag("catalog-facets", "product-tags")
   cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   try {

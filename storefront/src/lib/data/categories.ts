@@ -2,7 +2,7 @@ import { sdk } from "@lib/config"
 import { cacheLife, cacheTag } from "next/cache"
 
 export async function listCategories() {
-  "use cache"
+  "use cache: remote"
   cacheTag("categories")
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.category
@@ -14,7 +14,7 @@ export async function getCategoriesList(
   offset: number = 0,
   limit: number = 100
 ) {
-  "use cache"
+  "use cache: remote"
   cacheTag("categories")
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.category.list(
@@ -24,7 +24,7 @@ export async function getCategoriesList(
 }
 
 export async function getCategoryByHandle(categoryHandle: string[]) {
-  "use cache"
+  "use cache: remote"
   cacheTag("categories", `category-${categoryHandle.join("/")}`)
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   // `+category_children` includes the immediate sub-category list so the

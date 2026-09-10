@@ -39,7 +39,7 @@ function brandHeaders(): HeadersInit {
 }
 
 export async function listBrands(): Promise<StorefrontBrand[]> {
-  "use cache"
+  "use cache: remote"
   cacheTag("brands")
   // `stale: 86400` (vs the previous `stale: 600` = `revalidate`) enables true
   // stale-while-revalidate: after 10 min the cached list is considered stale
@@ -65,7 +65,7 @@ export async function retrieveBrandByHandle(handle: string): Promise<{
   brand: StorefrontBrand | null
   children: StorefrontBrand[]
 }> {
-  "use cache"
+  "use cache: remote"
   cacheTag("brands", `brand-${handle}`)
   // Brand entities are touched rarely (admin edits); bump revalidate to 1h
   // and stale window to a full day so brand pages NEVER block on a fresh
@@ -118,7 +118,7 @@ export async function getBrandProducts(
   handle: string,
   params: BrandProductsParams
 ): Promise<{ products: HttpTypes.StoreProduct[]; count: number }> {
-  "use cache"
+  "use cache: remote"
   cacheTag("brands", `brand-${handle}`, "products")
   // Product data changes more often than brand entities (nightly imports,
   // inventory sync), so revalidate stays at 2 min — but bump stale to a day

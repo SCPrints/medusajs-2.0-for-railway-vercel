@@ -108,7 +108,7 @@ export async function getProductsById({
   ids: string[]
   regionId: string
 }) {
-  "use cache"
+  "use cache: remote"
   cacheTag("products")
   // stale-while-revalidate: serve immediately + refresh in background.
   // expire=86400 (was 600) prevents the cache from being fully evicted
@@ -151,7 +151,7 @@ export async function getProductsByHandle({
   handles: string[]
   regionId: string
 }) {
-  "use cache"
+  "use cache: remote"
   cacheTag("products")
   cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
   if (!handles.length) {
@@ -189,7 +189,7 @@ export async function getProductsByIdForListing({
   ids: string[]
   regionId: string
 }) {
-  "use cache"
+  "use cache: remote"
   cacheTag("products")
   cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
   try {
@@ -212,7 +212,7 @@ export async function getProductByHandle(
   handle: string,
   regionId?: string | null
 ) {
-  "use cache"
+  "use cache: remote"
   cacheTag("products", `product-${String(handle ?? "").trim().toLowerCase()}`)
   // stale-while-revalidate: serve immediately + refresh in background.
   // expire=86400 (was 600) prevents the cache from being fully evicted
@@ -291,7 +291,7 @@ export async function getProductsList({
   nextPage: number | null
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
 }> {
-  "use cache"
+  "use cache: remote"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
   // stale-while-revalidate: serve immediately + refresh in background.
   // expire=86400 (was 600) prevents the cache from being fully evicted
@@ -370,7 +370,7 @@ export async function getProductsList({
 export async function listAllProductHandles(): Promise<
   { handle: string; updated_at?: string }[]
 > {
-  "use cache"
+  "use cache: remote"
   cacheTag("products")
   cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
 
@@ -418,7 +418,7 @@ export async function getHomeFeaturedRangeProducts({
   countryCode: string
   limit?: number
 }): Promise<HttpTypes.StoreProduct[]> {
-  "use cache"
+  "use cache: remote"
   cacheTag("products", "home-featured")
   cacheLife({ revalidate: 300, stale: 300, expire: 600 })
   const region = await getRegion(countryCode)
@@ -603,7 +603,7 @@ export async function getProductsListWithSort({
   nextPage: number | null
   queryParams?: HttpTypes.FindParams & HttpTypes.StoreProductParams
 }> {
-  "use cache"
+  "use cache: remote"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
   // stale-while-revalidate: serve immediately + refresh in background.
   // expire=86400 (was 600) prevents the cache from being fully evicted

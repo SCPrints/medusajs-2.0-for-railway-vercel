@@ -49,7 +49,7 @@ function menuHeaders(): HeadersInit {
 }
 
 export async function listShopCategoriesMenu(): Promise<MenuAudience[]> {
-  "use cache"
+  "use cache: remote"
   cacheTag("categories", "shop-categories-menu")
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   try {

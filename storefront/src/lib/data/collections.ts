@@ -4,7 +4,7 @@ import { getProductsList } from "./products"
 import { HttpTypes } from "@medusajs/types"
 
 export async function retrieveCollection(id: string) {
-  "use cache"
+  "use cache: remote"
   cacheTag("collections", `collection-${id}`)
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.collection
@@ -16,7 +16,7 @@ export async function getCollectionsList(
   offset: number = 0,
   limit: number = 100
 ): Promise<{ collections: HttpTypes.StoreCollection[]; count: number }> {
-  "use cache"
+  "use cache: remote"
   cacheTag("collections")
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.collection
@@ -27,7 +27,7 @@ export async function getCollectionsList(
 export async function getCollectionByHandle(
   handle: string
 ): Promise<HttpTypes.StoreCollection> {
-  "use cache"
+  "use cache: remote"
   cacheTag("collections", `collection-${handle}`)
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.collection

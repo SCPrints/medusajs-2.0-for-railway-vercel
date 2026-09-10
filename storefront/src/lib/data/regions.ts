@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache"
 import { HttpTypes } from "@medusajs/types"
 
 export async function listRegions() {
-  "use cache"
+  "use cache: remote"
   cacheTag("regions")
   cacheLife({ revalidate: 3600, stale: 3600, expire: 86400 })
   return sdk.store.region
@@ -14,7 +14,7 @@ export async function listRegions() {
 }
 
 export async function retrieveRegion(id: string) {
-  "use cache"
+  "use cache: remote"
   cacheTag("regions", `region-${id}`)
   cacheLife({ revalidate: 3600, stale: 3600, expire: 86400 })
   return sdk.store.region

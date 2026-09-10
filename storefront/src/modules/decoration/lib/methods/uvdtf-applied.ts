@@ -1,8 +1,10 @@
 import { splitGst } from "../gst"
 import { getRushSurcharge } from "../rush"
 import type { Breakdown, RushTier } from "../types"
+import { uvdtfSheetRate } from "./uvdtf-sheet"
 
-export const UVDTF_APPLIED_PER_METRE = 30
+/** Added on top of the gang-sheet rate: we peel + apply the stickers to the customer's items. */
+export const UVDTF_APPLICATION_PER_METRE = 30
 export const UVDTF_APPLIED_SETUP_FEE = 30
 export const UVDTF_APPLIED_MIN_METRES = 1
 export const UVDTF_APPLIED_SHEET_WIDTH_MM = 580
@@ -24,13 +26,17 @@ export type UvdtfAppliedInput = {
   reorder?: boolean
 }
 
+export const uvdtfAppliedRate = (metres: number): number =>
+  uvdtfSheetRate(metres) + UVDTF_APPLICATION_PER_METRE
+
 export const calculateUvdtfAppliedPrice = ({
   metres,
   rushTier = "standard",
   reorder = false,
 }: UvdtfAppliedInput): Breakdown => {
   const wholeMetres = Math.max(UVDTF_APPLIED_MIN_METRES, Math.floor(metres))
-  const decorationSubtotal = round2(wholeMetres * UVDTF_APPLIED_PER_METRE)
+  const unitPrice = uvdtfAppliedRate(wholeMetres)
+  const decorationSubtotal = round2(wholeMetres * unitPrice)
   const setupTotal = reorder ? 0 : UVDTF_APPLIED_SETUP_FEE
   const rushSurcharge = getRushSurcharge("uvdtf_applied", rushTier)
   const subtotalExGst = round2(decorationSubtotal + setupTotal + rushSurcharge)
@@ -38,12 +44,12 @@ export const calculateUvdtfAppliedPrice = ({
 
   const notes = [
     "Applied to hard surfaces — hard plastics, glass, metal, wood. Whole metres only.",
-    `$${UVDTF_APPLIED_SETUP_FEE} setup fee${reorder ? " (waived on reorders)" : ""}.`,
+    `Gang-sheet rate + $${UVDTF_APPLICATION_PER_METRE}/m application. $${UVDTF_APPLIED_SETUP_FEE} setup fee${reorder ? " (waived on reorders)" : ""}.`,
   ]
 
   return {
     method: "uvdtf_applied",
-    unitPrice: UVDTF_APPLIED_PER_METRE,
+    unitPrice,
     quantity: wholeMetres,
     decorationSubtotal,
     setupTotal,

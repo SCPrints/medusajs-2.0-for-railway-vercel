@@ -40,7 +40,7 @@ const HOME_SECTIONS_TAG = "home-sections"
  * window. The public wrapper below catches.
  */
 async function fetchHomeSections(): Promise<HomeSection[]> {
-  "use cache"
+  "use cache: remote"
   cacheTag(HOME_SECTIONS_TAG)
   // 5 minutes — staff curate these occasionally; live reads on every home
   // load would be wasteful. Backend writes can revalidate the tag faster.

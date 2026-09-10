@@ -43,7 +43,7 @@ async function fetchLookbookPage(
   page: number,
   limit: number
 ): Promise<LookbookPage> {
-  "use cache"
+  "use cache: remote"
   cacheTag("lookbook")
   cacheLife({ revalidate: 600, stale: 86400, expire: 86400 })
   const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1

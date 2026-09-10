@@ -22,7 +22,7 @@ type GraphMediaNode = {
  * @see https://developers.facebook.com/docs/instagram-api/guides/content-publishing
  */
 export async function getInstagramFeedMedia(): Promise<InstagramMediaItem[]> {
-  "use cache"
+  "use cache: remote"
   cacheTag("instagram")
   cacheLife({ revalidate: 3600, stale: 3600, expire: 86400 })
   const token = process.env.INSTAGRAM_ACCESS_TOKEN

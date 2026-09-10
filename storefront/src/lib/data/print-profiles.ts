@@ -39,7 +39,7 @@ export function printProfilesEnabled(): boolean {
 
 /** Cached catalog of print profiles. Small, slow-moving; aggressively cached. */
 export async function listPrintProfiles(): Promise<CatalogProfile[]> {
-  "use cache"
+  "use cache: remote"
   cacheTag("print-profiles")
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   try {
