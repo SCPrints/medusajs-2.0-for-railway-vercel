@@ -29,7 +29,12 @@ import type { Tier } from "@lib/customer-tiers"
 import { HttpTypes } from "@medusajs/types"
 
 type ProductActionsProps = {
-  product: HttpTypes.StoreProduct
+  /**
+   * Optional — defaults to the product on ProductOptionsContext. The PDP omits
+   * it so the pickers (a dynamic Suspense slot) don't re-serialise the whole
+   * product; standalone pages that render outside a matching provider pass it.
+   */
+  product?: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   disabled?: boolean
   hideInlinePurchaseControls?: boolean
@@ -60,12 +65,14 @@ const variantHasConfiguredPrice = (variant?: HttpTypes.StoreProductVariant) => {
 }
 
 export default function ProductActions({
-  product,
+  product: productProp,
   region,
   disabled,
   hideInlinePurchaseControls = false,
   tier = null,
 }: ProductActionsProps) {
+  const productOptionsContext = useProductOptions()
+  const product = productProp ?? productOptionsContext.product
   const [isAdding, setIsAdding] = useState(false)
   const [quantity, setQuantity] = useState(1)
   const [pdpGuideExpanded, setPdpGuideExpanded] = useState(true)
@@ -83,7 +90,7 @@ export default function ProductActions({
     removeSelectionsForSide,
     setSelectionPrintSize,
   } = usePrintPlacement()
-  const { options, setOptionValue } = useProductOptions()
+  const { options, setOptionValue } = productOptionsContext
   const scpPrintSizeId = activeSelection?.printSizeId ?? DEFAULT_SCP_PRINT_SIZE_ID
 
   const selectedVariant = useMemo(

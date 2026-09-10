@@ -10,7 +10,7 @@ import ProductInfo from "@modules/products/templates/product-info"
 import SkeletonRelatedProducts from "@modules/skeletons/templates/skeleton-related-products"
 import SkeletonProductionEtaStrip from "@modules/skeletons/components/skeleton-production-eta-strip"
 import ProductActionsWrapper from "./product-actions-wrapper"
-import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
+import StudioFromContext from "@modules/customizer/components/studio-from-context"
 import { getCustomerTier } from "@lib/data/customer-tier"
 import { getCustomer } from "@lib/data/customer"
 import { toCustomerContact } from "@modules/customizer/lib/customer-contact"
@@ -94,9 +94,10 @@ async function StudioCustomizerContent({
     getPrintProfileForProduct(product),
     getCustomer(),
   ])
+  // `product` is only used server-side here (print profile). The studio reads
+  // it from ProductOptionsContext so this dynamic slot doesn't re-serialise it.
   return (
-    <EmbeddedProductCustomizer
-      product={product}
+    <StudioFromContext
       assemblyLayout={assemblyLayout}
       integratedPdpSlots={{
         gallery: null,
@@ -179,14 +180,12 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
       fallback={
         <ProductActions
           disabled={true}
-          product={clientProduct}
           region={region}
           hideInlinePurchaseControls
         />
       }
     >
       <ProductActionsWrapper
-        id={product.id}
         region={region}
         hideInlinePurchaseControls
       />

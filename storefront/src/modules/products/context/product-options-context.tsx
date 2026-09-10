@@ -42,6 +42,13 @@ const buildEmptySizeQuantities = (product: HttpTypes.StoreProduct): Record<strin
 }
 
 type ProductOptionsContextValue = {
+  /**
+   * The (client-slimmed) product this provider was mounted with. Consumers
+   * rendered inside a dynamic Suspense slot (pickers, studio) read it from
+   * here instead of taking a `product` prop, so the server doesn't serialise
+   * the 500-variant product once per slot on top of the provider's copy.
+   */
+  product: HttpTypes.StoreProduct
   options: Record<string, string | undefined>
   setOptionValue: (title: string, value: string) => void
   /**
@@ -116,13 +123,14 @@ export const ProductOptionsProvider = ({
 
   const value = useMemo<ProductOptionsContextValue>(
     () => ({
+      product,
       options,
       setOptionValue,
       setColorHoverPreview,
       sizeQuantities,
       setSizeQuantity,
     }),
-    [options, setOptionValue, setColorHoverPreview, sizeQuantities, setSizeQuantity]
+    [product, options, setOptionValue, setColorHoverPreview, sizeQuantities, setSizeQuantity]
   )
 
   // Separate value object so only ColorHoverContext consumers (the gallery)
