@@ -234,6 +234,14 @@ export async function getProductByHandle(
     console.log(
       `[getProductByHandle] miss handle=${normalizedHandle} variants=${product?.variants?.length ?? 0} ms=${Date.now() - startedAt}`
     )
+    if (product) {
+      // Stamped INSIDE the cached body, so a cache hit returns the ORIGINAL
+      // timestamp and a miss returns a fresh one. products/[handle]/page.tsx
+      // prints it as a <meta> so `curl` can tell hit from miss without
+      // relying on (lossy) runtime logs. Remove once the cache is verified.
+      ;(product as HttpTypes.StoreProduct & { __fetchedAt?: number }).__fetchedAt =
+        Date.now()
+    }
     return product
   } catch (error) {
     console.log(
