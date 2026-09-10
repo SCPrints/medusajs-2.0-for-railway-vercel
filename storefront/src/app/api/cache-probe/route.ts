@@ -1,51 +1,118 @@
 import { NextResponse } from "next/server"
+import { cacheLife, cacheTag } from "next/cache"
 
+import { sdk } from "@lib/config"
 import { getCategoryByHandle } from "@lib/data/categories"
 import { getProductByHandle, getProductsById } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 
 /**
- * TEMPORARY diagnostic (2026-09-10). Calls the same `"use cache"` functions
- * the PDP uses, from a route handler, and reports wall time + the fetch
- * timestamp getProductByHandle stamps inside its cached body. Hit it twice:
- * equal `fetchedAt` / ~0ms on the second call = the entry is served from
- * cache in this context; a fresh timestamp each time = it never persists.
- * Read-only; remove once the use-cache miss is resolved.
+ * TEMPORARY diagnostic (2026-09-10). Isolates why product-tagged "use cache"
+ * entries never hit on prod while category ones do. Each probe below differs
+ * from its neighbour in exactly one property. A probe whose `t` changes on
+ * every call is not persisting. Read-only; remove once resolved.
  */
+
+// A: tag "products", revalidate 120 — same directives as getProductByHandle.
+async function probeA() {
+  "use cache"
+  cacheTag("products")
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  return Date.now()
+}
+
+// B: tag "categories", revalidate 600 — same as getCategoryByHandle (works).
+async function probeB() {
+  "use cache"
+  cacheTag("categories")
+  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
+  return Date.now()
+}
+
+// E: tag "products", revalidate 600 — isolates the tag from the lifetime.
+async function probeE() {
+  "use cache"
+  cacheTag("products")
+  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
+  return Date.now()
+}
+
+// F: tag "categories", revalidate 120 — the mirror of E.
+async function probeF() {
+  "use cache"
+  cacheTag("categories")
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  return Date.now()
+}
+
+// C: the real Medusa product call, but with the category directives.
+async function probeC(handle: string, regionId: string) {
+  "use cache"
+  cacheTag("categories")
+  cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
+  const { products } = await sdk.store.product.list({
+    handle,
+    region_id: regionId,
+    fields: "id,title,+variants.calculated_price",
+  } as never)
+  return { t: Date.now(), variants: products[0]?.variants?.length ?? 0 }
+}
+
+// G: no tag at all, default lifetime.
+async function probeG() {
+  "use cache"
+  return Date.now()
+}
+
+async function timed<T>(fn: () => Promise<T>): Promise<{ ms: number; value: T }> {
+  const t0 = Date.now()
+  const value = await fn()
+  return { ms: Date.now() - t0, value }
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const handle = (url.searchParams.get("handle") ?? "as-colour-1000-1000").toLowerCase()
   const category = url.searchParams.get("category") ?? "mens-polos"
 
-  const t0 = Date.now()
   const region = await getRegion("au")
-  const tRegion = Date.now() - t0
   if (!region) return NextResponse.json({ error: "no region" }, { status: 500 })
 
-  const t1 = Date.now()
-  const product = await getProductByHandle(handle, region.id)
-  const tByHandle = Date.now() - t1
+  const byHandle = await timed(() => getProductByHandle(handle, region.id))
+  const byId = await timed(() =>
+    byHandle.value?.id
+      ? getProductsById({ ids: [byHandle.value!.id], regionId: region.id })
+      : Promise.resolve([])
+  )
+  const cat = await timed(() => getCategoryByHandle([category]))
 
-  const t2 = Date.now()
-  const byId = product?.id
-    ? await getProductsById({ ids: [product.id], regionId: region.id })
-    : []
-  const tById = Date.now() - t2
-
-  const t3 = Date.now()
-  const cat = await getCategoryByHandle([category])
-  const tCategory = Date.now() - t3
+  const [a, b, e, f, c, g] = await Promise.all([
+    timed(probeA),
+    timed(probeB),
+    timed(probeE),
+    timed(probeF),
+    timed(() => probeC(handle, region.id)),
+    timed(probeG),
+  ])
 
   return NextResponse.json({
     now: Date.now(),
     handle,
-    region: { id: region.id, ms: tRegion },
-    byHandle: {
-      ms: tByHandle,
-      variants: product?.variants?.length ?? 0,
-      fetchedAt: (product as { __fetchedAt?: number } | null)?.__fetchedAt ?? null,
+    real: {
+      byHandle: {
+        ms: byHandle.ms,
+        fetchedAt: (byHandle.value as { __fetchedAt?: number } | null)?.__fetchedAt ?? null,
+      },
+      byId: { ms: byId.ms, count: byId.value.length },
+      category: { ms: cat.ms, found: cat.value.product_categories?.length ?? 0 },
     },
-    byId: { ms: tById, count: byId.length },
-    category: { ms: tCategory, found: cat.product_categories?.length ?? 0 },
+    probes: {
+      A_products_120: a,
+      B_categories_600: b,
+      E_products_600: e,
+      F_categories_120: f,
+      C_sdkProduct_categories_600: c,
+      G_untagged_default: g,
+    },
   })
 }
