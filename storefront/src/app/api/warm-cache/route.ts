@@ -10,6 +10,7 @@ import { getHomeSections } from "@lib/data/home-sections"
 import { getLookbookPool } from "@lib/data/lookbook"
 import { getProductionEta } from "@lib/data/production-eta"
 import {
+  getProductByHandle,
   getProductsByHandle,
   getProductsListWithSort,
 } from "@lib/data/products"
@@ -66,6 +67,39 @@ const DEFAULT_WARM_CATEGORY_HANDLES = [
 ]
 
 const PRODUCT_LIMIT = 12 // mirror PaginatedProducts
+
+/**
+ * PDPs to keep warm — the `getProductByHandle` entry each product page reads.
+ * Chosen from PostHog web-vitals volume (28d to 2026-09-10); the 70-colour
+ * AS Colour styles are the ones whose cold fetch costs 1.5-2s. Override with
+ * WARM_CACHE_PRODUCT_HANDLES (comma-separated).
+ */
+const DEFAULT_WARM_PRODUCT_HANDLES = [
+  "as-colour-5001-5001",
+  "as-colour-5080-5080",
+  "as-colour-5146-5146",
+  "shaka-wear-max-heavyweight-tee",
+  "shaka-wear-max-heavyweight-oversized-tee",
+  "shaka-wear-garment-dye-drop-shoulder-tee",
+  "thread-lab-premium-tee",
+]
+
+function warmProductHandles(): string[] {
+  const raw = process.env.WARM_CACHE_PRODUCT_HANDLES
+  if (!raw) return DEFAULT_WARM_PRODUCT_HANDLES
+  return raw
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+/** Warm one PDP's product entry — same args as products/[handle]/page.tsx. */
+async function warmProduct(handle: string, countryCode: string) {
+  const region = await getRegion(countryCode)
+  if (!region) throw new Error("region did not resolve")
+  const product = await getProductByHandle(handle, region.id)
+  return product?.variants?.length ?? 0
+}
 
 function warmCountryCode(): string {
   return (process.env.NEXT_PUBLIC_DEFAULT_REGION || "au").toLowerCase()
@@ -150,6 +184,7 @@ export async function GET(request: Request) {
 
   const countryCode = warmCountryCode()
   const categoryHandles = warmCategoryHandles()
+  const productHandles = warmProductHandles()
   const start = Date.now()
 
   const facetResults = await Promise.allSettled([
@@ -165,6 +200,10 @@ export async function GET(request: Request) {
     getLookbookPool(),
     ...categoryHandles.map((h) => warmCategoryListing(h, countryCode)),
   ])
+
+  const productResults = await Promise.allSettled(
+    productHandles.map((h) => warmProduct(h, countryCode))
+  )
 
   const settledValue = (r: PromiseSettledResult<unknown>) =>
     r.status === "fulfilled"
@@ -185,7 +224,10 @@ export async function GET(request: Request) {
     categories: Object.fromEntries(
       categoryHandles.map((h, i) => [h, settledValue(pageResults[i + 3])])
     ),
-    errors: [...facetResults, ...pageResults]
+    products: Object.fromEntries(
+      productHandles.map((h, i) => [h, settledValue(productResults[i])])
+    ),
+    errors: [...facetResults, ...pageResults, ...productResults]
       .map((r, i) => (r.status === "rejected" ? `${i}: ${r.reason}` : null))
       .filter(Boolean),
   }

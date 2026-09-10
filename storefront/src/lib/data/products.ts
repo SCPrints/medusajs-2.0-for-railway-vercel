@@ -220,14 +220,25 @@ export async function getProductByHandle(
     return null
   }
 
+  // Only runs on a cache MISS (a hit never enters the body). Prod probes on
+  // 2026-09-10 showed one backend fetch per PDP request even seconds apart —
+  // this line makes that visible in Vercel runtime logs so we can tell a
+  // rejected cache write from a stale-while-revalidate refresh.
+  const startedAt = Date.now()
   try {
     const { products } = await sdk.store.product.list({
       ...baseParams,
       region_id: regionId,
     })
-
-    return products[0] ?? null
-  } catch {
+    const product = products[0] ?? null
+    console.log(
+      `[getProductByHandle] miss handle=${normalizedHandle} variants=${product?.variants?.length ?? 0} ms=${Date.now() - startedAt}`
+    )
+    return product
+  } catch (error) {
+    console.log(
+      `[getProductByHandle] miss+error handle=${normalizedHandle} ms=${Date.now() - startedAt} ${(error as Error)?.message ?? ""}`
+    )
     return null
   }
 }
