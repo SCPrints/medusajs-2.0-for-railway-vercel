@@ -95,8 +95,8 @@ const PDP_PRODUCT_FIELDS = `${STORE_PRODUCT_FIELDS},+weight,+variants.weight`
  * durable backing. Every cached function re-executed on every request; the
  * 570-variant Staple Tee paid a 1.5s backend fetch on each view. The REMOTE
  * handler (Vercel Data Cache) persisted across requests and instances in
- * ~10ms. Probe history: storefront/src/app/api/cache-probe (removed once
- * verified) — untagged Date.now() functions showed the same split.
+ * ~10ms (verified after the switch: PDP hero 2s → 0.4s). The diagnostic probe
+ * route used to prove it lived at storefront/src/app/api/cache-probe (removed).
  *
  * Keep the directive as `"use cache: remote"` for anything that must survive
  * across requests. Tags + revalidateTag(..., "max") work the same way.
@@ -235,33 +235,13 @@ export async function getProductByHandle(
     return null
   }
 
-  // Only runs on a cache MISS (a hit never enters the body). Prod probes on
-  // 2026-09-10 showed one backend fetch per PDP request even seconds apart —
-  // this line makes that visible in Vercel runtime logs so we can tell a
-  // rejected cache write from a stale-while-revalidate refresh.
-  const startedAt = Date.now()
   try {
     const { products } = await sdk.store.product.list({
       ...baseParams,
       region_id: regionId,
     })
-    const product = products[0] ?? null
-    console.log(
-      `[getProductByHandle] miss handle=${normalizedHandle} variants=${product?.variants?.length ?? 0} ms=${Date.now() - startedAt}`
-    )
-    if (product) {
-      // Stamped INSIDE the cached body, so a cache hit returns the ORIGINAL
-      // timestamp and a miss returns a fresh one. products/[handle]/page.tsx
-      // prints it as a <meta> so `curl` can tell hit from miss without
-      // relying on (lossy) runtime logs. Remove once the cache is verified.
-      ;(product as HttpTypes.StoreProduct & { __fetchedAt?: number }).__fetchedAt =
-        Date.now()
-    }
-    return product
-  } catch (error) {
-    console.log(
-      `[getProductByHandle] miss+error handle=${normalizedHandle} ms=${Date.now() - startedAt} ${(error as Error)?.message ?? ""}`
-    )
+    return products[0] ?? null
+  } catch {
     return null
   }
 }

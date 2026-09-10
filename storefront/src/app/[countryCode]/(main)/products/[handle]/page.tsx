@@ -53,13 +53,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: product.title,
     description,
-    // Cache probe (see getProductByHandle): the timestamp the cached entry was
-    // fetched at, as seen from generateMetadata's call.
-    other: {
-      "x-pdp-meta-fetched-at": String(
-        (product as { __fetchedAt?: number }).__fetchedAt ?? 0
-      ),
-    },
     alternates: { canonical: `/${normalizedCountryCode}/products/${product.handle}` },
     openGraph: {
       url: buildAbsoluteUrl(`/${normalizedCountryCode}/products/${product.handle}`),
@@ -152,15 +145,6 @@ export default async function ProductPage({ params }: Props) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(productStructuredData) }}
-      />
-      {/* Cache probe: timestamp of the cached entry as seen by the page render
-          (vs generateMetadata's in <head>). Same value on repeat requests =
-          cache hit; a new value every request = the write isn't persisting. */}
-      <meta
-        name="x-pdp-body-fetched-at"
-        content={String(
-          (pricedProduct as { __fetchedAt?: number }).__fetchedAt ?? 0
-        )}
       />
       <ProductTemplate
         product={pricedProduct}

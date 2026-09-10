@@ -1,5 +1,16 @@
 # Site Speed Remediation Plan — LCP + CLS (field data 5–10 June 2026)
 
+> **2026-09-10 addendum — the premise below was wrong.** The storefront never had a working
+> data cache in production: plain `"use cache"` routes to Next's DEFAULT cache handler, which on
+> this Vercel deployment is inert (`VERCEL_CACHE_HANDLER_MEMORY_CACHE=0`, no durable backing).
+> Every cached function re-executed on every request — even an untagged `Date.now()`. "Warm"
+> measurements in this document were CDN shell hits, and the 15-min warmer warmed nothing.
+> Fix: every data-layer directive is now `"use cache: remote"` (Vercel Data Cache), commit
+> 2bef62dc. Verified: product lookup hit ≈60ms; Staple Tee PDP hero 2s → 0.4s, warm page 0.5s.
+> Also shipped the same day: PDP client payload 3.9MB → 1.3MB (`toClientProduct`, context-fed
+> pickers/studio). **Any new `"use cache"` must be `"use cache: remote"` or it silently won't cache.**
+
+
 Investigation date: 2026-06-10. All root causes below are grounded in code reads + live production probes
 (curl against `medusajs-2-0-for-railway-vercel.vercel.app`, served-HTML inspection, stream-timing measurement).
 Confidence is marked where a claim is inferred rather than measured.
