@@ -11,6 +11,7 @@ import { getProductsList } from "@lib/data/products"
 import { getPrintProfileForProduct } from "@lib/data/print-profiles"
 import { getRegion } from "@lib/data/regions"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
+import { toClientProduct } from "@lib/util/client-product"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import EmbeddedProductCustomizer from "@modules/customizer/components/embedded-product-customizer"
 import ImageGallery from "@modules/products/components/image-gallery"
@@ -233,6 +234,11 @@ export default async function CustomizerPage({ params, searchParams }: Customize
   if (!customizerProduct) {
     notFound()
   }
+
+  // Everything below hands `customizerProduct` to client components (gallery,
+  // pickers, the studio itself). Slim the per-variant payload once here — the
+  // full StoreProduct is ~2.6KB/variant and a 70-colour tee has 570 of them.
+  customizerProduct = toClientProduct(customizerProduct)
 
   // Region, picker catalog, customer tier, and print profile are independent
   // of one another — resolve them in parallel. The previous waterfall (region

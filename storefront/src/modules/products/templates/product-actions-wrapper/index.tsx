@@ -1,5 +1,6 @@
 import { getProductsById } from "@lib/data/products"
 import { getCustomerTier } from "@lib/data/customer-tier"
+import { toClientProduct } from "@lib/util/client-product"
 import { HttpTypes } from "@medusajs/types"
 import ProductActions from "@modules/products/components/product-actions"
 
@@ -29,7 +30,9 @@ export default async function ProductActionsWrapper({
 
   return (
     <ProductActions
-      product={product}
+      // ProductActions is a client component — slim the variants before they
+      // cross the boundary (see toClientProduct).
+      product={toClientProduct(product)}
       region={region}
       hideInlinePurchaseControls={hideInlinePurchaseControls}
       tier={tier}

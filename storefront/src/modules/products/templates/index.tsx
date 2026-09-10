@@ -15,6 +15,7 @@ import { getCustomerTier } from "@lib/data/customer-tier"
 import { getCustomer } from "@lib/data/customer"
 import { toCustomerContact } from "@modules/customizer/lib/customer-contact"
 import { getPrintProfileForProduct } from "@lib/data/print-profiles"
+import { toClientProduct } from "@lib/util/client-product"
 import CartEditBanner from "@modules/customizer/components/cart-edit-banner"
 import PdpCustomizerBoundary from "@modules/products/components/pdp-customizer-boundary"
 import PdpSplitTabs from "@modules/products/components/pdp-split-tabs"
@@ -151,14 +152,21 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
   const mode: CustomizerMode =
     customizerMode ?? (PDP_STUDIO_ENABLED ? "studio" : "split-tabs")
 
+  // One slimmed copy for every CLIENT boundary below (gallery, pickers, option
+  // context, colour selector, tracker, studio). Server components (ProductInfo,
+  // ProductTabs, cross-sell, related) keep the full `product`. One shared
+  // reference also lets React Flight dedupe it within a render instead of
+  // serialising the variants array once per client prop.
+  const clientProduct = toClientProduct(product)
+
   // Blank garments cannot be ordered directly — `hideInlinePurchaseControls`
   // swaps the size/qty/add-to-cart row inside ProductActions for a "Customize
   // this product" CTA that scrolls to the embedded customizer below.
   const gallerySlot = (
     <ImageGallery
-      product={product}
-      images={product?.images || []}
-      thumbnail={product?.thumbnail || null}
+      product={clientProduct}
+      images={clientProduct.images || []}
+      thumbnail={clientProduct.thumbnail || null}
       heroLayout
       // Cap the hero so the thumbnail strip sits above the fold on
       // standard laptop viewports. The aspect ratio still drives the
@@ -171,7 +179,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
       fallback={
         <ProductActions
           disabled={true}
-          product={product}
+          product={clientProduct}
           region={region}
           hideInlinePurchaseControls
         />
@@ -205,7 +213,8 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
         ) : null}
       </div>
       <div>
-        <ProductTabs product={product} />
+        {/* Client component; reads root fields only (material, weight, dims). */}
+        <ProductTabs product={clientProduct} />
       </div>
     </div>
   )
@@ -246,7 +255,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
           <PdpCustomizerBoundary variant="studio">
             <Suspense fallback={<StudioSlotFallback />}>
               <StudioCustomizerContent
-                product={product}
+                product={clientProduct}
                 assemblyLayout
                 variantPickersSlot={variantPickersSlot}
               />
@@ -258,11 +267,11 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
 
     return (
       <>
-        <ViewItemTracker product={product} />
+        <ViewItemTracker product={clientProduct} />
         <CartEditBanner />
         <div className="content-container py-6" data-testid="product-container">
           <PrintPlacementProvider>
-            <ProductOptionsProvider product={product}>
+            <ProductOptionsProvider product={clientProduct}>
               <CustomizeModeProvider>
                 {/* Photo-first landing; the design studio opens as a
                     full-screen overlay. StudioLauncher renders the product
@@ -274,7 +283,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                   // studio so the canvas mounts and rehydrates — handled inside
                   // StudioLauncher via the URL params, so nothing extra here.
                   gallery={gallerySlot}
-                  colourSelector={<LandingColourSelector product={product} />}
+                  colourSelector={<LandingColourSelector product={clientProduct} />}
                   cartButton={
                     <Suspense
                       fallback={
@@ -313,11 +322,11 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
   // Legacy split-tabs PDP (Photos | Customise this garment).
   return (
     <>
-      <ViewItemTracker product={product} />
+      <ViewItemTracker product={clientProduct} />
       <CartEditBanner />
       <div className="content-container py-6 relative" data-testid="product-container">
         <PrintPlacementProvider>
-          <ProductOptionsProvider product={product}>
+          <ProductOptionsProvider product={clientProduct}>
             <CustomizeModeProvider>
               {/* Just the garment name above the customizer so the
                   customer always has a clear page title without the
@@ -352,7 +361,7 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                       <PdpCustomizerBoundary>
                         <Suspense fallback={<StudioSlotFallback />}>
                           <StudioCustomizerContent
-                            product={product}
+                            product={clientProduct}
                             variantPickersSlot={variantPickersSlot}
                           />
                         </Suspense>
