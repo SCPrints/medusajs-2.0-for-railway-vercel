@@ -32,11 +32,11 @@ import {
   SCREEN_REPEAT_SCREEN_FEE,
 } from "@modules/decoration/lib/methods/screen"
 import {
-  UVDTF_SHEET_RATE_BANDS,
+  UVDTF_SHEET_PER_METRE,
   UVDTF_SHEET_SETUP_FEE,
 } from "@modules/decoration/lib/methods/uvdtf-sheet"
 import {
-  UVDTF_APPLICATION_PER_METRE,
+  UVDTF_APPLIED_PER_METRE,
   UVDTF_APPLIED_SETUP_FEE,
 } from "@modules/decoration/lib/methods/uvdtf-applied"
 import { RUSH_FEES, TURNAROUNDS } from "@modules/decoration/lib/rush"
@@ -56,12 +56,6 @@ const dtfSizesLine = SCP_PRINT_SIZE_OPTIONS.map((s) => {
 const dtfTiersLine = SCP_BLANK_ALIGNED_QUANTITY_TIERS.map((t) =>
   t.label.replace(/^Qty /, "")
 ).join(", ")
-
-// Build the UVDTF per-metre ladder line: "1 m $65/m, 2–4 m $58/m, …"
-const uvdtfBandsLine = [...UVDTF_SHEET_RATE_BANDS]
-  .reverse()
-  .map((b) => `${b.label} $${b.perMetre}/m`)
-  .join(", ")
 
 const t = TURNAROUNDS
 const r = RUSH_FEES
@@ -97,13 +91,13 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 - Standard turnaround: ${t.screen.standard}. Priority +30% of the order (${t.screen.priority}). Express not available for screen printing — bumping the queue isn't practical.
 
 ## UVDTF Gang Sheets
-- Priced per lineal metre of 580mm-wide sheet, cheaper the longer the run: ${uvdtfBandsLine}. Plus $${UVDTF_SHEET_SETUP_FEE} setup fee, waived on reorders.
+- $${UVDTF_SHEET_PER_METRE} per metre + $${UVDTF_SHEET_SETUP_FEE} setup fee.
 - Whole metres only. Sheets are 580mm wide.
 - Customers can lay out designs themselves using the gang sheet builder on the website (linked from the UVDTF estimator and at /dtf-builder).
 - Standard turnaround: ${t.uvdtf_sheet.standard}. Priority +$${r.uvdtf_sheet.priority} (${t.uvdtf_sheet.priority}). Express +$${r.uvdtf_sheet.express} (${t.uvdtf_sheet.express}).
 
 ## UVDTF Applied
-- Gang-sheet per-metre rate above + $${UVDTF_APPLICATION_PER_METRE} per metre for us to peel and apply the stickers to the customer's items, + $${UVDTF_APPLIED_SETUP_FEE} setup fee. Whole metres only.
+- $${UVDTF_APPLIED_PER_METRE} per metre + $${UVDTF_APPLIED_SETUP_FEE} setup fee. Whole metres only.
 - Substrates: hard surfaces, glass, metal, wood, hard plastics.
 - Standard turnaround: ${t.uvdtf_applied.standard}. Priority +$${r.uvdtf_applied.priority} (${t.uvdtf_applied.priority}). Express +$${r.uvdtf_applied.express} (${t.uvdtf_applied.express}).
 
