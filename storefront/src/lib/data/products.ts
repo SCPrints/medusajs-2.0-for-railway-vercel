@@ -86,6 +86,21 @@ const LISTING_PRODUCT_FIELDS =
  */
 const PDP_PRODUCT_FIELDS = `${STORE_PRODUCT_FIELDS},+weight,+variants.weight`
 
+/**
+ * WHY `"use cache: remote"` (not plain `"use cache"`) across lib/data:
+ *
+ * Measured on prod 2026-09-10: plain `"use cache"` routes to Next's DEFAULT
+ * cache handler, which on this Vercel deployment is inert — its in-memory
+ * layer is disabled (VERCEL_CACHE_HANDLER_MEMORY_CACHE=0) and it has no
+ * durable backing. Every cached function re-executed on every request; the
+ * 570-variant Staple Tee paid a 1.5s backend fetch on each view. The REMOTE
+ * handler (Vercel Data Cache) persisted across requests and instances in
+ * ~10ms. Probe history: storefront/src/app/api/cache-probe (removed once
+ * verified) — untagged Date.now() functions showed the same split.
+ *
+ * Keep the directive as `"use cache: remote"` for anything that must survive
+ * across requests. Tags + revalidateTag(..., "max") work the same way.
+ */
 export async function getProductsById({
   ids,
   regionId,
