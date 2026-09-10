@@ -111,6 +111,63 @@ export async function GET(request: Request) {
     .filter((k) => /CACHE|SUSPENSE|VERCEL_(ENV|REGION|DEPLOYMENT_ID)|NEXT_RUNTIME|NEXT_PRIVATE/i.test(k))
     .sort()
 
+  // Direct handler plumbing test. `?op=set` writes a tiny entry into every
+  // registered handler; `?op=get` (a later request) reads it back. Tells us
+  // whether set/get work at all, independent of the "use cache" wrapper.
+  type Handler = {
+    get: (key: string, implicitTags?: string[]) => Promise<unknown>
+    set: (key: string, pending: Promise<unknown>) => Promise<void>
+  }
+  const op = url.searchParams.get("op")
+  const probeKey = "scp-cache-probe-v1"
+  const handlerTest: Record<string, unknown> = {}
+  if (handlersMap && (op === "set" || op === "get")) {
+    for (const [name, h] of Array.from(handlersMap.entries())) {
+      const handler = h as Handler
+      try {
+        if (op === "set") {
+          const bytes = new TextEncoder().encode(String(Date.now()))
+          await handler.set(
+            probeKey,
+            Promise.resolve({
+              value: new ReadableStream({
+                start(c) {
+                  c.enqueue(bytes)
+                  c.close()
+                },
+              }),
+              tags: [],
+              stale: 300,
+              timestamp: Date.now(),
+              expire: 86400,
+              revalidate: 600,
+            })
+          )
+          handlerTest[name] = "set ok"
+        } else {
+          const entry = (await handler.get(probeKey, [])) as
+            | { timestamp?: number; value?: ReadableStream }
+            | undefined
+          if (!entry) {
+            handlerTest[name] = "get -> undefined"
+          } else {
+            let text = ""
+            try {
+              const reader = entry.value?.getReader()
+              const { value } = (await reader?.read()) ?? {}
+              text = value ? new TextDecoder().decode(value) : ""
+            } catch (e) {
+              text = `read err ${(e as Error).message}`
+            }
+            handlerTest[name] = { timestamp: entry.timestamp, storedAt: text }
+          }
+        }
+      } catch (e) {
+        handlerTest[name] = `${op} err ${(e as Error).message}`
+      }
+    }
+  }
+
   return NextResponse.json({
     now: Date.now(),
     runtime: {
@@ -120,6 +177,11 @@ export async function GET(request: Request) {
       cacheHandlers: handlers ? Object.keys(handlers) : null,
       cacheHandlersMap: handlersMap ? Array.from(handlersMap.keys()) : null,
       envKeys,
+      envFlags: {
+        VERCEL_CACHE_HANDLER_MEMORY_CACHE: process.env.VERCEL_CACHE_HANDLER_MEMORY_CACHE ?? null,
+        VERCEL_VDC_REMOTE_CACHE_ENABLED: process.env.VERCEL_VDC_REMOTE_CACHE_ENABLED ?? null,
+      },
+      handlerTest,
     },
     handle,
     real: {
