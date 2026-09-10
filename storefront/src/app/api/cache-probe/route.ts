@@ -64,6 +64,21 @@ async function probeG() {
   return Date.now()
 }
 
+// H: the REMOTE handler, untagged — Vercel's data cache (the probe's direct
+// set/get showed it persists across instances while "default" does not).
+async function probeH() {
+  "use cache: remote"
+  return Date.now()
+}
+
+// I: remote + the exact directives getProductByHandle uses.
+async function probeI() {
+  "use cache: remote"
+  cacheTag("products")
+  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  return Date.now()
+}
+
 async function timed<T>(fn: () => Promise<T>): Promise<{ ms: number; value: T }> {
   const t0 = Date.now()
   const value = await fn()
@@ -86,13 +101,15 @@ export async function GET(request: Request) {
   )
   const cat = await timed(() => getCategoryByHandle([category]))
 
-  const [a, b, e, f, c, g] = await Promise.all([
+  const [a, b, e, f, c, g, hh, ii] = await Promise.all([
     timed(probeA),
     timed(probeB),
     timed(probeE),
     timed(probeF),
     timed(() => probeC(handle, region.id)),
     timed(probeG),
+    timed(probeH),
+    timed(probeI),
   ])
 
   // Runtime introspection: which cache handlers are registered, whether the
@@ -199,6 +216,8 @@ export async function GET(request: Request) {
       F_categories_120: f,
       C_sdkProduct_categories_600: c,
       G_untagged_default: g,
+      H_remote_untagged: hh,
+      I_remote_products_120: ii,
     },
   })
 }
