@@ -8,6 +8,7 @@ import MarketingHero from "@modules/common/components/marketing-hero"
 import SectionHeader from "@modules/common/components/section-header"
 import { iconBase } from "@modules/common/icons/icon-base"
 import { getServiceBySlug } from "@modules/services/data"
+import AreasWeServe from "@modules/locations/components/areas-we-serve"
 
 const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
   "digital-transfers": Array(3).fill("/placeholders/services/digital-transfers.svg"),
@@ -133,7 +134,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${service.title} Service`,
+    // City in the title: "screen printing sydney" / "embroidery sydney" had
+    // no page to land on and fell to the homepage at position ~50.
+    title: `${service.title} Sydney`,
     description: service.shortDescription,
     alternates: {
       canonical: `/${countryCode}/services/${service.slug}`,
@@ -382,6 +385,12 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           <p className="mt-2 text-sm text-ui-fg-subtle">{service.typicalTurnaround}</p>
         </article>
       </section>
+
+      <AreasWeServe
+        className="mt-16 border-t border-ui-border-base pt-8"
+        heading={`${service.title} across South West Sydney`}
+        intro="We print and embroider from our Villawood studio for businesses, clubs and schools in these suburbs — drop in to check a sample, or order online and collect."
+      />
     </div>
   )
 }

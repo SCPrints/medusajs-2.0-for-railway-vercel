@@ -4,6 +4,7 @@ import { Text, clx } from "@medusajs/ui"
 import Image from "next/image"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import AreasWeServe from "@modules/locations/components/areas-we-serve"
 import NewsletterSignup from "./newsletter-signup"
 
 // Captured at build time so Cache Components can prerender the static shell.
@@ -131,6 +132,8 @@ export default async function Footer() {
             <NewsletterSignup />
           </div>
         </div>
+
+        <AreasWeServe className="border-t border-ui-border-base py-8" />
 
         {collections && collections.length > 0 && (
           <div className="border-t border-ui-border-base py-8">

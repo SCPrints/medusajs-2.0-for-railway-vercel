@@ -54,7 +54,7 @@ export const locations: Location[] = [
     travel: "our home suburb — walk-ins welcome",
     title: "Screen Printing & Embroidery Villawood",
     description:
-      "SC Prints is a Villawood screen printer at 7 Epic Place. Screen print, DTF, DTG and embroidery in-house. Walk in, check a sample, collect in person.",
+      "Screen printing, DTF and embroidery in Villawood, from 1 garment with no minimum. Walk in to 7 Epic Place, check a sample, collect in person.",
     intro:
       "This is our own patch. The studio is at 7 Epic Place, Villawood — a working print shop rather than a shopfront, so you can see the presses running, feel the difference between garment weights and check a print before committing to a full run.",
     serving:
@@ -83,7 +83,7 @@ export const locations: Location[] = [
     travel: "about 8 minutes from our Villawood studio",
     title: "Custom T-Shirt Printing Fairfield",
     description:
-      "Screen printing, DTF and embroidery in Fairfield NSW. Team kits, club merch, uniforms and event tees from one garment. Local studio, no minimum order.",
+      "Custom t-shirt printing and embroidery 8 min from Fairfield. From 1 garment, no minimum, free design proof, pickup from our Villawood studio.",
     intro:
       "Our studio is a short run down Woodville Road from Fairfield, so these jobs are genuinely local — same-day quotes, real samples you can handle before you commit, and pickup rather than postage.",
     serving:
@@ -112,23 +112,23 @@ export const locations: Location[] = [
     travel: "about 15 minutes from our Villawood studio",
     title: "Custom Logo Embroidery & Printed Uniforms Liverpool",
     description:
-      "Custom logo embroidery and printed uniforms for Liverpool NSW. Work polos, hi-vis, scrubs and business shirts, embroidered in-house. From one garment.",
+      "Logo embroidery and printed uniforms for Liverpool, 15 min from our Villawood studio. From 1 garment, no minimum. Digitised once, re-orders match.",
     intro:
       "We embroider and print uniforms for Liverpool businesses out of our Villawood studio, a straight run down the Hume Highway. Your logo is digitised once and kept on file, so the first run and every top-up after it stitch out the same. Close enough that you can drop in, check a sample on the bench and pick your order up the same trip.",
     serving:
       "Liverpool is the commercial heart of South West Sydney, and the work reflects it: trade teams running out of the industrial pockets off Newbridge Road, allied-health and medical practices around the hospital precinct, and retail and food businesses through Westfield and the Macquarie Street mall.",
     useCases: [
       {
-        heading: "Trade and construction crews",
-        body: "Hi-vis polos, drill shirts and embroidered jackets in Syzmik, Bisley, Hard Yakka and JB's Wear. Logo embroidery holds up to site work and industrial laundering, and we keep your artwork on file so re-orders for new starters take one phone call.",
+        heading: "Logo embroidery, start to finish",
+        body: "Send the logo you have — a PDF, a phone photo, an old shirt. We digitise it once, stitch a sample you approve before the run, and keep the file so every future top-up matches. Standard turnaround is 5–7 business days, from a single polo up to a whole crew, with bulk pricing as the run grows.",
       },
       {
-        heading: "Medical and allied health",
-        body: "Embroidered scrubs, polos and tunics for practices around the Liverpool Hospital precinct. Discreet left-chest logos, staff names, and colour-coded tops so patients can tell roles apart at a glance.",
+        heading: "Trade, construction and medical",
+        body: "Hi-vis polos, drill shirts and embroidered jackets in Syzmik, Bisley, Hard Yakka and JB's Wear for site crews; embroidered scrubs, polos and tunics for practices around the Liverpool Hospital precinct. Embroidery outlasts print through industrial laundering, and re-orders for new starters take one phone call.",
       },
       {
         heading: "Cafés, retail and hospitality",
-        body: "Branded tees, aprons and caps for Liverpool CBD venues. Small runs are fine — we'll print from a single garment, so a new hire doesn't mean ordering another box of twenty.",
+        body: "Branded tees, aprons and caps for Liverpool CBD venues. Small runs are fine — we'll print or embroider from a single garment, so a new hire doesn't mean ordering another box of twenty.",
       },
     ],
     nearby: ["Casula", "Moorebank", "Warwick Farm", "Chipping Norton", "Prestons"],
@@ -141,7 +141,7 @@ export const locations: Location[] = [
     travel: "about 18 minutes from our Villawood studio",
     title: "Custom Printed Uniforms Prestons",
     description:
-      "Custom printed and embroidered uniforms for Prestons NSW. Work polos, hi-vis, warehouse tees and embroidered jackets from a local South West Sydney studio.",
+      "Printed and embroidered uniforms for Prestons businesses. From 1 garment, no minimum, bulk pricing as the run grows. Pickup 18 min away in Villawood.",
     intro:
       "Prestons sits at the M7 and M5 interchange, and most of what we send out here goes to the businesses built around that: warehousing and distribution along Bernera Road and Yarrunga Street, transport operators and the trades that service them. It's a short run down the Hume from our Villawood studio, so samples and pickup are a quick errand rather than a courier booking.",
     serving:
@@ -170,7 +170,7 @@ export const locations: Location[] = [
     travel: "about 12 minutes from our Villawood studio",
     title: "Custom Uniforms & Embroidery Chipping Norton",
     description:
-      "Custom designed uniforms, embroidery and printing for Chipping Norton NSW. Staff polos, club kit and workwear. Villawood studio, from a single garment.",
+      "Custom uniforms, embroidery and printing 12 min from Chipping Norton. From 1 garment, no minimum, free design proof, pickup from Villawood.",
     intro:
       "Chipping Norton is one of the closest suburbs to our Villawood studio — across the Georges River and a few minutes down Newbridge Road. Jobs here tend to be smaller and more personal than the industrial estates further west: a family business, a local club, a school group, a café on the water.",
     serving:
@@ -199,7 +199,7 @@ export const locations: Location[] = [
     travel: "about 12 minutes from our Villawood studio",
     title: "Custom Printed Uniforms & Embroidery Bankstown",
     description:
-      "Custom printed uniforms and logo embroidery for Bankstown NSW. Staff polos, business shirts, club kit and workwear. Studio 12 minutes away, no minimums.",
+      "Custom printed uniforms and embroidery 12 min from Bankstown. From 1 garment, no minimum, free design proof, same-day samples, pickup from Villawood.",
     intro:
       "Bankstown is one of our closest markets — a short run across from Villawood — so a printed or embroidered uniform order is usually a pickup rather than a freight job, and a sample can be in your hands the same day you ask for one.",
     serving:
@@ -228,7 +228,7 @@ export const locations: Location[] = [
     travel: "about 12 minutes from our Villawood studio",
     title: "T-Shirt Printing & Embroidery Cabramatta",
     description:
-      "Custom printing and embroidery for Cabramatta NSW. Restaurant uniforms, aprons, retail staff tees and event merch. Local studio, from a single unit.",
+      "Restaurant uniforms, aprons and staff tees printed 12 min from Cabramatta. From 1 garment, no minimum, free design proof, pickup from Villawood.",
     intro:
       "Cabramatta is a short drive from our Villawood studio, and it's one of the areas we print for most. Most jobs here start with a quick conversation about what the garment actually has to survive — heat, grease, long shifts and constant washing.",
     serving:
@@ -257,7 +257,7 @@ export const locations: Location[] = [
     travel: "about 17 minutes from our Villawood studio",
     title: "Custom Workwear & Uniforms Wetherill Park",
     description:
-      "Custom workwear, hi-vis and embroidered uniforms for Wetherill Park NSW. Syzmik, Bisley, Hard Yakka, JB's Wear. Bulk pricing, fast local turnaround.",
+      "Hi-vis, workwear and embroidered uniforms for Wetherill Park. Syzmik, Bisley, Hard Yakka. From 1 garment, bulk pricing, pickup 17 min away in Villawood.",
     intro:
       "Wetherill Park and the surrounding industrial estate is workwear country, and that's most of what we send out here — hi-vis, drill shirts and embroidered jackets for businesses that need staff kitted out properly rather than cheaply.",
     serving:
@@ -286,7 +286,7 @@ export const locations: Location[] = [
     travel: "about 20 minutes from our Villawood studio",
     title: "Corporate Uniforms & Custom Printing Parramatta",
     description:
-      "Embroidered corporate uniforms and custom printing for Parramatta NSW. Business shirts, polos, event merch. Western Sydney studio, Australia-wide shipping.",
+      "Embroidered corporate uniforms and custom printing for Parramatta. From 1 garment, no minimum, free design proof, 20 min from our Villawood studio.",
     intro:
       "Parramatta is Sydney's second CBD and the work has a different shape to our South West jobs — more corporate uniform programs, more conference and event merch, and more brands that need everything to stay consistent across multiple offices.",
     serving:
