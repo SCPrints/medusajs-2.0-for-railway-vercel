@@ -10,6 +10,15 @@ const TOP_ROW_LIMIT = 25
 // Wider net for the prior window so most current top-25 keys find a match to
 // trend against; unmatched keys just show no arrow.
 const PREV_MATCH_LIMIT = 250
+// Local-SEO tracking pulls a deep list so every /locations/* page and every
+// suburb/uniform/embroidery query is caught, not just the top 25.
+const TRACK_ROW_LIMIT = 1000
+const LOCAL_PAGE_PATTERN = /\/locations(\/|$)/
+/** Queries the local-SEO work targets: services × catchment suburbs + Sydney. */
+export const TRACKED_QUERY_PATTERN =
+  /\b(embroider|uniform|workwear|hi[- ]?vis|screen print|dtf|t[- ]?shirt print)/i
+const TRACKED_PLACE_PATTERN =
+  /\b(liverpool|bankstown|prestons|chipping norton|fairfield|cabramatta|villawood|parramatta|wetherill|sydney|near me)\b/i
 
 function isoDaysAgo(days: number): string {
   const d = new Date()
@@ -89,19 +98,45 @@ export async function fetchGscSummary(
   const prevEndDate = isoDaysAgo(days + 1)
   const prevStartDate = isoDaysAgo(days * 2)
 
-  const [topQueries, topPages, byDayRaw, prevByDayRaw, prevQueries, prevPages] =
-    await Promise.all([
-      queryDimensions(searchconsole, siteUrl, startDate, endDate, ["query"], TOP_ROW_LIMIT),
-      queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TOP_ROW_LIMIT),
-      queryDimensions(searchconsole, siteUrl, startDate, endDate, ["date"], days + 5),
-      queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["date"], days + 5),
-      queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["query"], PREV_MATCH_LIMIT),
-      queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["page"], PREV_MATCH_LIMIT),
-    ])
+  const [
+    topQueries,
+    topPages,
+    byDayRaw,
+    prevByDayRaw,
+    prevQueries,
+    prevPages,
+    allQueries,
+    allPages,
+    prevAllQueries,
+    prevAllPages,
+  ] = await Promise.all([
+    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["query"], TOP_ROW_LIMIT),
+    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TOP_ROW_LIMIT),
+    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["date"], days + 5),
+    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["date"], days + 5),
+    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["query"], PREV_MATCH_LIMIT),
+    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["page"], PREV_MATCH_LIMIT),
+    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["query"], TRACK_ROW_LIMIT),
+    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TRACK_ROW_LIMIT),
+    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["query"], TRACK_ROW_LIMIT),
+    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["page"], TRACK_ROW_LIMIT),
+  ])
 
   const byDay = byDayRaw
     .map((r) => ({ date: r.key, clicks: r.clicks, impressions: r.impressions }))
     .sort((a, b) => a.date.localeCompare(b.date))
+
+  const byImpressions = (a: GscRow, b: GscRow) => b.impressions - a.impressions
+  const isTracked = (q: string) =>
+    TRACKED_QUERY_PATTERN.test(q) && TRACKED_PLACE_PATTERN.test(q)
+
+  // Pages that dropped out this window still matter (a suburb page losing all
+  // impressions is the signal) — so union prior-window-only pages in as zero rows.
+  const localCurrent = allPages.filter((r) => LOCAL_PAGE_PATTERN.test(r.key))
+  const seen = new Set(localCurrent.map((r) => r.key))
+  const localDropped = prevAllPages
+    .filter((r) => LOCAL_PAGE_PATTERN.test(r.key) && !seen.has(r.key))
+    .map((r) => ({ key: r.key, clicks: 0, impressions: 0, ctr: 0, position: 0 }))
 
   return {
     totals: totalsFromDateRows(byDayRaw),
@@ -109,5 +144,14 @@ export async function fetchGscSummary(
     topQueries: attachPrevious(topQueries, prevQueries),
     topPages: attachPrevious(topPages, prevPages),
     byDay,
+    localPages: attachPrevious([...localCurrent, ...localDropped], prevAllPages).sort(
+      byImpressions
+    ),
+    trackedQueries: attachPrevious(
+      allQueries.filter((r) => isTracked(r.key)),
+      prevAllQueries
+    )
+      .sort(byImpressions)
+      .slice(0, 40),
   }
 }

@@ -31,6 +31,8 @@ type SeoSummary = {
     topQueries: GscRow[]
     topPages: GscRow[]
     byDay: Array<{ date: string; clicks: number; impressions: number }>
+    localPages?: GscRow[]
+    trackedQueries?: GscRow[]
   } | null
   ga4: {
     totals: {
@@ -42,7 +44,8 @@ type SeoSummary = {
     topPages: Ga4PageRow[]
     byDay: Array<{ date: string; sessions: number }>
   } | null
-  errors: Array<{ source: "gsc" | "ga4"; message: string }>
+  webVitals?: Array<{ section: string; samples: number; lcpP75: number; lcpP90: number }> | null
+  errors: Array<{ source: "gsc" | "ga4" | "posthog"; message: string }>
 }
 
 type Envelope = { status: SeoSummary["status"]; summary: SeoSummary | null }
@@ -183,6 +186,62 @@ const HELP_GSC_IMPRESSIONS: HelpContent = {
     "Falling impressions = lost rankings or fewer searches in the topic. Check Google Trends for the latter before assuming a SEO problem.",
   ],
 }
+
+/** Query/page rows with prior-window deltas — used by the Local SEO tables. */
+const GscRowsTable = ({
+  rows,
+  firstColumn,
+  stripOrigin = false,
+}: {
+  rows: GscRow[]
+  firstColumn: string
+  stripOrigin?: boolean
+}) => (
+  <Table>
+    <Table.Header>
+      <Table.Row>
+        <Table.HeaderCell>{firstColumn}</Table.HeaderCell>
+        <Table.HeaderCell className="text-right">
+          <ColumnHeader help={HELP_GSC_CLICKS}>Clicks</ColumnHeader>
+        </Table.HeaderCell>
+        <Table.HeaderCell className="text-right">
+          <ColumnHeader help={HELP_GSC_IMPRESSIONS}>Impressions</ColumnHeader>
+        </Table.HeaderCell>
+        <Table.HeaderCell className="text-right">
+          <ColumnHeader help={HELP_GSC_CTR}>CTR</ColumnHeader>
+        </Table.HeaderCell>
+        <Table.HeaderCell className="text-right">
+          <ColumnHeader help={HELP_GSC_POSITION}>Position</ColumnHeader>
+        </Table.HeaderCell>
+      </Table.Row>
+    </Table.Header>
+    <Table.Body>
+      {rows.map((row, i) => (
+        <Table.Row key={`${row.key}-${i}`}>
+          <Table.Cell className="max-w-[44ch] truncate" title={row.key}>
+            {(stripOrigin ? row.key.replace(/^https?:\/\/[^/]+/, "") : row.key) || "(unknown)"}
+          </Table.Cell>
+          <Table.Cell className="text-right">
+            {formatInt(row.clicks)}
+            <CellDelta curr={row.clicks} prior={row.previous?.clicks} />
+          </Table.Cell>
+          <Table.Cell className="text-right">
+            {formatInt(row.impressions)}
+            <CellDelta curr={row.impressions} prior={row.previous?.impressions} />
+          </Table.Cell>
+          <Table.Cell className="text-right">
+            {formatPct(row.ctr)}
+            <CellDelta curr={row.ctr} prior={row.previous?.ctr} />
+          </Table.Cell>
+          <Table.Cell className="text-right">
+            {formatPosition(row.position)}
+            <CellDelta curr={row.position} prior={row.previous?.position} />
+          </Table.Cell>
+        </Table.Row>
+      ))}
+    </Table.Body>
+  </Table>
+)
 
 const SeoAnalyticsPage = () => {
   const [envelope, setEnvelope] = useState<Envelope | null>(null)
@@ -590,6 +649,88 @@ const SeoAnalyticsPage = () => {
                   </Table.Cell>
                   <Table.Cell className="text-right">{formatInt(row.sessions)}</Table.Cell>
                   <Table.Cell className="text-right">{formatInt(row.conversions)}</Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+        </Container>
+      ) : null}
+
+      {summary?.gsc?.localPages?.length ? (
+        <Container className="flex flex-col gap-3 p-6">
+          <SectionHeading
+            help={{
+              title: "Local SEO — suburb pages",
+              body: "Every /locations/* page, this window vs the previous one. This is the fortnightly check on the suburb landing-page work: are the targeted pages gaining impressions and climbing, and are the untouched ones sliding?",
+              bullets: [
+                "Position ≤10 is page 1. Impressions rising while position also rises (worse) usually means the page is now matching broader queries — check the tracked queries below to see which.",
+                "A page at position 1–5 with zero clicks has a snippet problem, not a ranking problem — rewrite its title/description to earn the click.",
+                "A page whose impressions drop to zero has been pushed out — it needs internal links or fresher content.",
+                "Search Console data lags ~2 days; rankings take 4–8 weeks to settle after a change. Read this fortnightly, not daily.",
+              ],
+            }}
+          >
+            Local SEO — suburb pages
+          </SectionHeading>
+          <GscRowsTable rows={summary.gsc.localPages} firstColumn="Page" stripOrigin />
+        </Container>
+      ) : null}
+
+      {summary?.gsc?.trackedQueries?.length ? (
+        <Container className="flex flex-col gap-3 p-6">
+          <SectionHeading
+            help={{
+              title: "Local SEO — tracked queries",
+              body: "Search queries that combine a service we sell (embroidery, uniforms, workwear, hi-vis, screen print, DTF, t-shirt printing) with a suburb in our catchment or 'Sydney' / 'near me'. These are the queries the location and service pages exist to win.",
+              bullets: [
+                "Sorted by impressions. New rows with no arrow weren't visible last window at all — a new page or title starting to rank.",
+                "Watch position first, clicks second: at these volumes clicks are noisy, position is the leading indicator.",
+                "If a suburb query ranks on the index page (/locations) instead of its own suburb page, the suburb page doesn't say the keyword strongly enough.",
+              ],
+            }}
+          >
+            Local SEO — tracked queries
+          </SectionHeading>
+          <GscRowsTable rows={summary.gsc.trackedQueries} firstColumn="Query" />
+        </Container>
+      ) : null}
+
+      {summary?.webVitals?.length ? (
+        <Container className="flex flex-col gap-3 p-6">
+          <SectionHeading
+            help={{
+              title: "Page speed — LCP by section (7 days)",
+              body: "Largest Contentful Paint from real visitors (PostHog web vitals), grouped by the first part of the URL. Google's 'good' threshold is 2.5s at the 75th percentile; it's a ranking input and a bounce driver.",
+              bullets: [
+                "p75 = three-quarters of visitors saw the main content by then; p90 = the slow tail (old phones, cold caches).",
+                "Product pages carry the most data per page — they're the section to watch after any catalog or checkout change.",
+                "Small sample counts (<20) swing wildly; treat them as a hint, not a verdict.",
+              ],
+            }}
+          >
+            Page speed — LCP by section (7 days)
+          </SectionHeading>
+          <Table>
+            <Table.Header>
+              <Table.Row>
+                <Table.HeaderCell>Section</Table.HeaderCell>
+                <Table.HeaderCell className="text-right">Samples</Table.HeaderCell>
+                <Table.HeaderCell className="text-right">LCP p75</Table.HeaderCell>
+                <Table.HeaderCell className="text-right">LCP p90</Table.HeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {summary.webVitals.map((row) => (
+                <Table.Row key={row.section}>
+                  <Table.Cell>{row.section || "(unknown)"}</Table.Cell>
+                  <Table.Cell className="text-right">{formatInt(row.samples)}</Table.Cell>
+                  <Table.Cell
+                    className="text-right"
+                    style={{ color: row.lcpP75 > 2500 ? PALETTE.rose600 : PALETTE.emerald600 }}
+                  >
+                    {(row.lcpP75 / 1000).toFixed(2)}s
+                  </Table.Cell>
+                  <Table.Cell className="text-right">{(row.lcpP90 / 1000).toFixed(2)}s</Table.Cell>
                 </Table.Row>
               ))}
             </Table.Body>

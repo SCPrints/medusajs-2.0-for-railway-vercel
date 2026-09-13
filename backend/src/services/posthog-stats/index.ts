@@ -33,7 +33,11 @@ function hostBase(): string {
   return host.replace(/\/$/, "")
 }
 
-async function runHogQL<T>(query: string): Promise<T[][]> {
+export function isPostHogStatsConfigured(): boolean {
+  return Boolean(POSTHOG_PERSONAL_API_KEY && POSTHOG_PROJECT_ID)
+}
+
+export async function runHogQL<T>(query: string): Promise<T[][]> {
   const url = `${hostBase()}/api/projects/${POSTHOG_PROJECT_ID}/query/`
   const res = await fetch(url, {
     method: "POST",

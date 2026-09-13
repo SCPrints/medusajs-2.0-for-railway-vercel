@@ -1,9 +1,11 @@
 import { GA4_PROPERTY_ID, GSC_SITE_URL } from "../../lib/constants"
 
+import { isPostHogStatsConfigured } from "../posthog-stats"
 import { fetchGa4Summary } from "./ga4-client"
 import { fetchGscSummary } from "./gsc-client"
 import { isSeoConfigured } from "./google-auth"
 import type { SeoSourceFailure, SeoSummary } from "./types"
+import { fetchWebVitalsBySection } from "./web-vitals"
 
 export const SEO_SUMMARY_DAYS = 28
 
@@ -70,7 +72,16 @@ export async function buildSeoSummary(days = SEO_SUMMARY_DAYS): Promise<SeoSumma
         return null
       })
 
-  const [gsc, ga4] = await Promise.all([gscPromise, ga4Promise])
+  // Page speed is a bonus signal — never affects `status`, never blocks the
+  // Google sources; PostHog being unconfigured just leaves it null.
+  const webVitalsPromise = isPostHogStatsConfigured()
+    ? fetchWebVitalsBySection(7).catch((err: any) => {
+        errors.push({ source: "posthog", message: err?.message ?? String(err) })
+        return null
+      })
+    : Promise.resolve(null)
+
+  const [gsc, ga4, webVitals] = await Promise.all([gscPromise, ga4Promise, webVitalsPromise])
 
   let status: SeoSummary["status"]
   if (gsc && ga4) status = "ok"
@@ -83,6 +94,7 @@ export async function buildSeoSummary(days = SEO_SUMMARY_DAYS): Promise<SeoSumma
     range,
     gsc,
     ga4,
+    webVitals,
     errors,
   }
 }

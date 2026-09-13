@@ -41,6 +41,20 @@ export type GscSummary = {
   topQueries: GscRow[]
   topPages: GscRow[]
   byDay: GscByDay[]
+  // Local-SEO tracking (added 2026-09-14). Every /locations/* page, and the
+  // queries matching TRACKED_QUERY_PATTERN, each with prior-window trend —
+  // the fortnightly "did the suburb work move?" review without opening GSC.
+  // Optional so cache entries written before this existed still deserialise.
+  localPages?: GscRow[]
+  trackedQueries?: GscRow[]
+}
+
+export type WebVitalsRow = {
+  /** Path prefix, e.g. "/au/products". */
+  section: string
+  samples: number
+  lcpP75: number
+  lcpP90: number
 }
 
 export type Ga4PageRow = {
@@ -66,7 +80,7 @@ export type Ga4Summary = {
 }
 
 export type SeoSourceFailure = {
-  source: "gsc" | "ga4"
+  source: "gsc" | "ga4" | "posthog"
   message: string
 }
 
@@ -76,5 +90,7 @@ export type SeoSummary = {
   range: { days: number; start: string; end: string }
   gsc: GscSummary | null
   ga4: Ga4Summary | null
+  /** PostHog $web_vitals LCP by section, last 7 days. Null when PostHog isn't configured. */
+  webVitals?: WebVitalsRow[] | null
   errors: SeoSourceFailure[]
 }
