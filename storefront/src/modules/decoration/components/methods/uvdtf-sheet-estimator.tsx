@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import {
   calculateUvdtfSheetPrice,
+  UVDTF_SHEET_SETUP_FEE,
   UVDTF_SHEET_WIDTH_MM,
 } from "../../lib/methods/uvdtf-sheet"
 import type { RushTier } from "../../lib/types"
@@ -34,7 +35,7 @@ const UvdtfSheetEstimator: React.FC = () => {
         />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={reorder} onChange={(e) => setReorder(e.target.checked)} />
-          <span>This is a reorder (waives $25 setup)</span>
+          <span>This is a reorder (waives ${UVDTF_SHEET_SETUP_FEE} setup)</span>
         </label>
       </div>
 

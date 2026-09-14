@@ -96,7 +96,7 @@ export const services: ServiceItem[] = [
     shortDescription:
       "Full-colour UV transfers for hard goods and curved surfaces — bottles, tumblers, helmets, signage, and more.",
     heroDescription:
-      "UV DTF pairs the colour fidelity of UV printing with the flexibility of a transfer. We print your artwork onto a clear UV-cured film that's then applied to almost any hard surface — including the curves direct UV printing struggles with. Perfect for branded drinkware, signage accents, and promo runs where shape gets in the way.",
+      "UV DTF pairs the colour fidelity of UV printing with the flexibility of a transfer. We print your artwork onto a clear UV-cured film that you then apply to almost any hard surface — including the curves direct UV printing struggles with. Perfect for branded drinkware, signage accents, and promo runs where shape gets in the way.",
     bulletPoints: [
       "Wraps around curved surfaces — bottles, tumblers, helmets, mugs",
       "High-resolution full-colour artwork including gradients and white",

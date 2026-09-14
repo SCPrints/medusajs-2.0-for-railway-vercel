@@ -11,7 +11,6 @@ export const RUSH_FEES: Record<DecorationMethod, RushFee> = {
   dtf: { priority: 15, express: 35 },
   screen: { priority: 40, express: null },
   uvdtf_sheet: { priority: 20, express: 40 },
-  uvdtf_applied: { priority: 20, express: 40 },
   uv: { priority: 0, express: null },
 }
 
@@ -33,11 +32,6 @@ export const TURNAROUNDS: Record<DecorationMethod, Turnaround> = {
   uvdtf_sheet: {
     standard: "3–5 business days",
     priority: "2–3 business days",
-    express: "Next business day",
-  },
-  uvdtf_applied: {
-    standard: "5–7 business days",
-    priority: "3–4 business days",
     express: "Next business day",
   },
   uv: { standard: "Quote on request" },

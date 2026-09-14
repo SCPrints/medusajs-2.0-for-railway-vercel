@@ -9,7 +9,6 @@
  *   - DTF print method      → @modules/decoration/lib/methods/dtf
  *   - Screen print method   → @modules/decoration/lib/methods/screen
  *   - UVDTF sheet method    → @modules/decoration/lib/methods/uvdtf-sheet
- *   - UVDTF applied method  → @modules/decoration/lib/methods/uvdtf-applied
  *   - Rush + turnarounds    → @modules/decoration/lib/rush
  *   - DTF print sizes/tiers → @modules/customizer/lib/scp-dtf-print-pricing
  *
@@ -32,13 +31,9 @@ import {
   SCREEN_REPEAT_SCREEN_FEE,
 } from "@modules/decoration/lib/methods/screen"
 import {
-  UVDTF_SHEET_PER_METRE,
+  UVDTF_SHEET_RATE_BANDS,
   UVDTF_SHEET_SETUP_FEE,
 } from "@modules/decoration/lib/methods/uvdtf-sheet"
-import {
-  UVDTF_APPLIED_PER_METRE,
-  UVDTF_APPLIED_SETUP_FEE,
-} from "@modules/decoration/lib/methods/uvdtf-applied"
 import { RUSH_FEES, TURNAROUNDS } from "@modules/decoration/lib/rush"
 import {
   SCP_BLANK_ALIGNED_QUANTITY_TIERS,
@@ -64,7 +59,7 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 
 ## About SC Prints
 - Australian business (AU only). All prices INCLUDE GST — the price shown is the price paid.
-- Decoration methods offered: embroidery, DTF print, screen print, UVDTF (gang sheets and applied to hard surfaces), UV print (pricing TBD — refer to manual quote).
+- Decoration methods offered: embroidery, DTF print, screen print, UVDTF gang sheets (print only — customer applies), UV print (pricing TBD — refer to manual quote).
 - Customers can request a manual quote at info@scprints.com.au if their job falls outside the standard estimators.
 
 ## Embroidery
@@ -90,16 +85,12 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 - Oversize prints (bigger than 40cm wide × 50cm tall): +30%.
 - Standard turnaround: ${t.screen.standard}. Priority +30% of the order (${t.screen.priority}). Express not available for screen printing — bumping the queue isn't practical.
 
-## UVDTF Gang Sheets
-- $${UVDTF_SHEET_PER_METRE} per metre + $${UVDTF_SHEET_SETUP_FEE} setup fee.
+## UVDTF Gang Sheets (print only)
+- We print the transfer sheets; the customer applies the stickers to their own items (hard surfaces: glass, metal, wood, hard plastics, drinkware). We do NOT offer an application service.
+- Priced per lineal metre of 580mm-wide sheet, cheaper the longer the run: ${[...UVDTF_SHEET_RATE_BANDS].reverse().map((b) => `${b.label} $${b.perMetre}/m`).join(", ")}. Every metre in an order is charged at the rate for its total length. Plus $${UVDTF_SHEET_SETUP_FEE} setup fee, waived on reorders.
 - Whole metres only. Sheets are 580mm wide.
 - Customers can lay out designs themselves using the gang sheet builder on the website (linked from the UVDTF estimator and at /dtf-builder).
 - Standard turnaround: ${t.uvdtf_sheet.standard}. Priority +$${r.uvdtf_sheet.priority} (${t.uvdtf_sheet.priority}). Express +$${r.uvdtf_sheet.express} (${t.uvdtf_sheet.express}).
-
-## UVDTF Applied
-- $${UVDTF_APPLIED_PER_METRE} per metre + $${UVDTF_APPLIED_SETUP_FEE} setup fee. Whole metres only.
-- Substrates: hard surfaces, glass, metal, wood, hard plastics.
-- Standard turnaround: ${t.uvdtf_applied.standard}. Priority +$${r.uvdtf_applied.priority} (${t.uvdtf_applied.priority}). Express +$${r.uvdtf_applied.express} (${t.uvdtf_applied.express}).
 
 ## UV Print
 - Pricing is being finalised. Direct customers to email info@scprints.com.au for a manual quote.

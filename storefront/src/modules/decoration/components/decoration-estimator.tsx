@@ -6,7 +6,6 @@ import { DECORATION_METHOD_LABELS, type DecorationMethod } from "../lib/types"
 import DtfEstimator from "./methods/dtf-estimator"
 import ScreenEstimator from "./methods/screen-estimator"
 import UvdtfSheetEstimator from "./methods/uvdtf-sheet-estimator"
-import UvdtfAppliedEstimator from "./methods/uvdtf-applied-estimator"
 import UvPlaceholder from "./methods/uv-placeholder"
 
 type Props = {
@@ -24,8 +23,6 @@ const renderMethod = (method: DecorationMethod) => {
       return <ScreenEstimator />
     case "uvdtf_sheet":
       return <UvdtfSheetEstimator />
-    case "uvdtf_applied":
-      return <UvdtfAppliedEstimator />
     case "uv":
       return <UvPlaceholder />
   }

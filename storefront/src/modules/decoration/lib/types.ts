@@ -3,7 +3,6 @@ export type DecorationMethod =
   | "dtf"
   | "screen"
   | "uvdtf_sheet"
-  | "uvdtf_applied"
   | "uv"
 
 export type RushTier = "standard" | "priority" | "express"
@@ -72,7 +71,6 @@ export type DecorationDesign = {
     | { method: "dtf"; design: DtfDesign }
     | { method: "screen"; design: ScreenDesign }
     | { method: "uvdtf_sheet"; design: UvdtfDesign }
-    | { method: "uvdtf_applied"; design: UvdtfDesign }
     | { method: "uv" }
 }
 
@@ -81,6 +79,5 @@ export const DECORATION_METHOD_LABELS: Record<DecorationMethod, string> = {
   dtf: "DTF print",
   screen: "Screen print",
   uvdtf_sheet: "UVDTF gang sheet",
-  uvdtf_applied: "UVDTF applied",
   uv: "UV print",
 }

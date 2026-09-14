@@ -7,7 +7,6 @@ const ALL_METHODS: DecorationMethod[] = [
   "dtf",
   "screen",
   "uvdtf_sheet",
-  "uvdtf_applied",
   "uv",
 ]
 
