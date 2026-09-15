@@ -11,3 +11,5 @@ backend/logs/
 
 # Claude Code worktrees and session metadata
 .claude/worktrees/
+
+.DS_Store
