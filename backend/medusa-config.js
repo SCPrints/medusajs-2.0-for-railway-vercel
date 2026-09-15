@@ -577,7 +577,10 @@ const medusaConfig = {
                 // Each path costs a JOIN at index time only (not per storefront
                 // request), so listing reads stay cheap.
                 fields: [
-                  'id', 'title', 'description', 'handle', 'thumbnail', 'created_at',
+                  // `status` is load-bearing: the plugin's upsert step only DELETES a doc
+                  // when `product.status !== 'published'`; without it fetched, drafts get
+                  // re-indexed on every product.updated and never leave search/listings.
+                  'id', 'status', 'title', 'description', 'handle', 'thumbnail', 'created_at',
                   'collection_id', 'material', 'metadata',
                   'categories.id',
                   'type.id', 'type.value',
