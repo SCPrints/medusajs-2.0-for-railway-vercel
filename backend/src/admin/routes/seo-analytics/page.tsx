@@ -74,16 +74,20 @@ const formatDateTime = (iso: string) => {
 const trendColor = (dir: Trend["dir"]) =>
   dir === "up" ? PALETTE.emerald600 : dir === "down" ? PALETTE.rose600 : undefined
 
-const TrendLine = ({ trend }: { trend: Trend }) => {
-  const arrow = trend.dir === "up" ? "▲" : trend.dir === "down" ? "▼" : "•"
-  const color = trendColor(trend.dir)
+const TrendLine = ({ trend, lowerIsBetter = false }: { trend: Trend; lowerIsBetter?: boolean }) => {
+  // For rank-style metrics (average position) a FALLING number is the good
+  // outcome, so colour + arrow follow "better / worse", not raw direction.
+  const better = lowerIsBetter ? trend.dir === "down" : trend.dir === "up"
+  const arrow = trend.dir === "flat" ? "•" : better ? "▲" : "▼"
+  const color = trend.dir === "flat" ? undefined : trendColor(better ? "up" : "down")
+  const verb = lowerIsBetter && trend.dir !== "flat" ? (better ? "better " : "worse ") : ""
   return (
     <Text
       size="xsmall"
       className={trend.dir === "flat" ? "text-ui-fg-muted" : undefined}
       style={color ? { color } : undefined}
     >
-      {arrow} {trend.text} vs prior 28d
+      {arrow} {verb}{trend.text} vs prior 28d
     </Text>
   )
 }
@@ -91,16 +95,25 @@ const TrendLine = ({ trend }: { trend: Trend }) => {
 // Compact per-table-cell trend: a small coloured arrow with the % in the
 // tooltip. Nothing renders when there's no comparable prior or the move is flat,
 // so tables only light up where a metric genuinely shifted.
-const CellDelta = ({ curr, prior }: { curr: number; prior?: number }) => {
+const CellDelta = ({
+  curr,
+  prior,
+  lowerIsBetter = false,
+}: {
+  curr: number
+  prior?: number
+  /** Position columns: a smaller number is an improvement (moved up the page). */
+  lowerIsBetter?: boolean
+}) => {
   const t = pctTrend(curr, prior)
   if (!t || t.dir === "flat") return null
+  const better = lowerIsBetter ? t.dir === "down" : t.dir === "up"
+  const label = lowerIsBetter
+    ? `${better ? "improved" : "worsened"} ${t.text} vs prior 28d (was ${prior?.toFixed(1)})`
+    : `${t.dir === "up" ? "up" : "down"} ${t.text} vs prior 28d`
   return (
-    <span
-      className="ml-1 text-xs"
-      style={{ color: trendColor(t.dir) }}
-      title={`${t.dir === "up" ? "up" : "down"} ${t.text} vs prior 28d`}
-    >
-      {t.dir === "up" ? "▲" : "▼"}
+    <span className="ml-1 text-xs" style={{ color: trendColor(better ? "up" : "down") }} title={label}>
+      {better ? "▲" : "▼"}
     </span>
   )
 }
@@ -111,12 +124,14 @@ const Kpi = ({
   hint,
   help,
   trend,
+  lowerIsBetter = false,
 }: {
   label: string
   value: string
   hint?: string
   help?: HelpContent
   trend?: Trend | null
+  lowerIsBetter?: boolean
 }) => (
   <div className="flex flex-col gap-1 rounded-md border border-ui-border-base bg-ui-bg-subtle px-4 py-3">
     <Text
@@ -129,7 +144,7 @@ const Kpi = ({
     <Text size="large" weight="plus">
       {value}
     </Text>
-    {trend ? <TrendLine trend={trend} /> : null}
+    {trend ? <TrendLine trend={trend} lowerIsBetter={lowerIsBetter} /> : null}
     {hint ? (
       <Text size="xsmall" className="text-ui-fg-muted">
         {hint}
@@ -235,7 +250,7 @@ const GscRowsTable = ({
           </Table.Cell>
           <Table.Cell className="text-right">
             {formatPosition(row.position)}
-            <CellDelta curr={row.position} prior={row.previous?.position} />
+            <CellDelta curr={row.position} prior={row.previous?.position} lowerIsBetter />
           </Table.Cell>
         </Table.Row>
       ))}
@@ -405,6 +420,7 @@ const SeoAnalyticsPage = () => {
               hint="lower is better"
               help={HELP_GSC_POSITION}
               trend={pctTrend(summary.gsc.totals.position, summary.gsc.previousTotals?.position)}
+              lowerIsBetter
             />
           </div>
         </Container>
@@ -529,7 +545,7 @@ const SeoAnalyticsPage = () => {
                   </Table.Cell>
                   <Table.Cell className="text-right">
                     {formatPosition(row.position)}
-                    <CellDelta curr={row.position} prior={row.previous?.position} />
+                    <CellDelta curr={row.position} prior={row.previous?.position} lowerIsBetter />
                   </Table.Cell>
                 </Table.Row>
               ))}
@@ -591,7 +607,7 @@ const SeoAnalyticsPage = () => {
                   </Table.Cell>
                   <Table.Cell className="text-right">
                     {formatPosition(row.position)}
-                    <CellDelta curr={row.position} prior={row.previous?.position} />
+                    <CellDelta curr={row.position} prior={row.previous?.position} lowerIsBetter />
                   </Table.Cell>
                 </Table.Row>
               ))}
