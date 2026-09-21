@@ -40,7 +40,17 @@ export default async function productCacheInvalidateHandler({
     }
   }
 
-  await revalidateStorefrontTags(tagsForProduct(handle), logger)
+  // An update purges ONLY that product's PDP tag. The global `products` tag
+  // sits on every listing + every PDP fetcher, so purging it per update
+  // rewrote the whole catalog cache on each edit/sync/metadata stamp (4.6M
+  // Vercel runtime-cache writes/month, Sep 2026). Listings pick the change up
+  // on their own cacheLife window (≤120s). Create/delete still purge globally
+  // since they change listing membership.
+  const h = handle?.trim().toLowerCase()
+  const tags =
+    name === "product.updated" && h ? [`product-${h}`] : tagsForProduct(handle)
+
+  await revalidateStorefrontTags(tags, logger)
 }
 
 export const config: SubscriberConfig = {
