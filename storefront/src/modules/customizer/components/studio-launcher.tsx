@@ -3,6 +3,7 @@
 import Image from "next/image"
 import { useSearchParams } from "next/navigation"
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import NoMinimumBadge from "@modules/common/components/no-minimum-badge"
 
 /**
  * URL params that signal "the customer arrived to design/edit, not browse" —
@@ -202,6 +203,9 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
             mobile (image-first). */}
         <div className="order-2 flex flex-col gap-5 lg:order-none lg:col-span-5">
           <div className="flex flex-col gap-3">
+            <div>
+              <NoMinimumBadge />
+            </div>
             <h1 className="text-2xl font-semibold leading-tight text-ui-fg-base lg:text-3xl">
               {title}
             </h1>

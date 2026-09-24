@@ -7,6 +7,7 @@ import ProductionEtaStrip from "@modules/products/components/production-eta-stri
 import ProductTabs from "@modules/products/components/product-tabs"
 import RelatedProducts from "@modules/products/components/related-products"
 import ProductInfo from "@modules/products/templates/product-info"
+import NoMinimumBadge from "@modules/common/components/no-minimum-badge"
 import SkeletonRelatedProducts from "@modules/skeletons/templates/skeleton-related-products"
 import SkeletonProductionEtaStrip from "@modules/skeletons/components/skeleton-production-eta-strip"
 import ProductActionsWrapper from "./product-actions-wrapper"
@@ -332,6 +333,9 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                   full tag/description block pushing the design surface
                   down. Tags + description live in the ProductInfo
                   block below. */}
+              <div className="mb-3">
+                <NoMinimumBadge />
+              </div>
               <h1
                 className="mb-4 text-3xl font-semibold leading-tight text-ui-fg-base lg:text-4xl"
                 data-testid="product-title"
