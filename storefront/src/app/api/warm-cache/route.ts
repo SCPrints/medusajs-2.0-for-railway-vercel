@@ -82,6 +82,10 @@ const DEFAULT_WARM_PRODUCT_HANDLES = [
   "shaka-wear-max-heavyweight-oversized-tee",
   "shaka-wear-garment-dye-drop-shoulder-tee",
   "thread-lab-premium-tee",
+  // Largest variant counts in the catalog — cold render measured 18s LCP /
+  // 13.7s FCP (PostHog, Sep 2026). Warm them so no visitor pays that.
+  "gildan-5000",
+  "gildan-2000b",
 ]
 
 function warmProductHandles(): string[] {
