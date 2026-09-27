@@ -121,11 +121,11 @@ export async function getBrandProducts(
   "use cache: remote"
   cacheTag("brands", `brand-${handle}`, "products")
   // Product data changes more often than brand entities (nightly imports,
-  // inventory sync), so revalidate stays at 2 min — but bump stale to a day
-  // so users get an instant response and the refresh happens in background.
+  // inventory sync). Revalidate is 1h (was 2 min): Runtime Cache bills per
+  // 8KB written and a 2-min window rewrote ~2MB listing payloads constantly.
   // Backend webhook hits `revalidateTag("products")` on imports for immediate
   // invalidation when staff need it.
-  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   const search = new URLSearchParams()
   if (typeof params.limit === "number") search.set("limit", String(params.limit))
   if (typeof params.offset === "number") search.set("offset", String(params.offset))

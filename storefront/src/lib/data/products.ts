@@ -115,7 +115,7 @@ export async function getProductsById({
   // every 10 min, which was forcing cold-cache 4-second waits on the
   // next user. `revalidateTag("products")` (called from the backend on
   // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   // Build-time prerender resilience: if the backend hiccups (503 under
   // concurrent build load), return [] instead of throwing so the entire
   // build doesn't fail over a single transient request. At runtime the
@@ -153,7 +153,7 @@ export async function getProductsByHandle({
 }) {
   "use cache: remote"
   cacheTag("products")
-  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   if (!handles.length) {
     return []
   }
@@ -189,9 +189,9 @@ export async function getProductsByIdForListing({
   ids: string[]
   regionId: string
 }) {
-  "use cache: remote"
-  cacheTag("products")
-  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  // ponytail: deliberately NOT cached. Its only caller (getListingViaSearch →
+  // getProductsListWithSort) is already "use cache: remote", so caching here
+  // stored the same ~2MB payload twice — Runtime Cache bills per 8KB written.
   try {
     const { products } = await sdk.store.product.list({
       id: ids,
@@ -219,7 +219,7 @@ export async function getProductByHandle(
   // every 10 min, which was forcing cold-cache 4-second waits on the
   // next user. `revalidateTag("products")` (called from the backend on
   // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
   if (!normalizedHandle) {
     return null
@@ -278,7 +278,7 @@ export async function getProductsList({
   // every 10 min, which was forcing cold-cache 4-second waits on the
   // next user. `revalidateTag("products")` (called from the backend on
   // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   const limit = queryParams?.limit || 12
   const validPageParam = Math.max(pageParam, 1);
   const offset = (validPageParam - 1) * limit
@@ -590,7 +590,7 @@ export async function getProductsListWithSort({
   // every 10 min, which was forcing cold-cache 4-second waits on the
   // next user. `revalidateTag("products")` (called from the backend on
   // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 120, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
   const limit = queryParams?.limit || 12
   const resolvedPage = !page || page < 1 ? 1 : page
 
