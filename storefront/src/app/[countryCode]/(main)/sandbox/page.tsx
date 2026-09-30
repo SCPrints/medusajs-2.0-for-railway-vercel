@@ -82,6 +82,14 @@ const CATEGORIES: Category[] = [
         tech: "Custom fluid sim",
       },
       {
+        href: "/particle-fluid",
+        label: "Particle logo — fluid grid",
+        description:
+          "Cursor stirs a coarse velocity grid; particles ride it with a speed-gated home spring. No tuner — fixed constants. Powers the lookbook sphere poles.",
+        status: "active",
+        tech: "Three.js",
+      },
+      {
         href: "/particle-threejs",
         label: "Particle logo — Three.js GPU",
         description:

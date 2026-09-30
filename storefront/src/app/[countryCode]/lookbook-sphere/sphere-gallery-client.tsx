@@ -22,11 +22,10 @@ import gsap from "gsap"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { sampleWordmarkStipple } from "@modules/home/components/home-particle-three/sample-wordmark"
 
-/** The fully interactive lab build (cursor carry + comet wake) — only
- * loaded when a pole is clicked, so browsing the sphere doesn't pay for
- * react-three-fiber. */
-const HomeParticleThree = dynamic(
-  () => import("@modules/home/components/home-particle-three"),
+/** The stirrable fluid wordmark — only loaded when a pole is clicked, so
+ * browsing the sphere doesn't pay for its sampling + sim setup. */
+const FluidWordmark = dynamic(
+  () => import("@modules/home/components/fluid-wordmark"),
   { ssr: false }
 )
 import {
@@ -1354,9 +1353,7 @@ export default function SphereGalleryClient({
             </div>
 
             <div className="min-h-0 flex-1">
-              <HomeParticleThree
-                hideChrome
-                heightClassName="h-full"
+              <FluidWordmark
                 gradientStops={
                   activePoleSign === 1
                     ? POLE_GRADIENT_NORTH
