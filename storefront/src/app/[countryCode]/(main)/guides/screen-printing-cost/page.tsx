@@ -32,6 +32,13 @@ const SETUP = SCREEN_SETUP_PER_SCREEN_MAJOR
 const REPEAT = SCREEN_REPEAT_SETUP_PER_SCREEN_MAJOR
 const MIN = SCREEN_MIN_QUANTITY
 const RUSH_PERCENT = Math.round(SCREEN_RUSH_RATE * 100)
+// The full rate grid is deliberately NOT published here (Sean, 2026-10-01 —
+// same rule the chatbot follows). Show how the price moves, the lowest rate
+// and worked examples; the designer gives the exact figure per job.
+const LOWEST_PRINT = Math.min(...SCP_SCREEN_QUANTITY_TIERS.map((t) => t.prices[0]))
+const BAND_STARTS = new Intl.ListFormat("en-AU", { type: "conjunction" }).format(
+  SCP_SCREEN_QUANTITY_TIERS.slice(1).map((t) => String(t.minQuantity))
+)
 
 const aud = (n: number) =>
   new Intl.NumberFormat("en-AU", {
@@ -42,7 +49,7 @@ const aud = (n: number) =>
 
 const PATH = "/guides/screen-printing-cost"
 const TITLE = "Screen Printing Cost: Setup Fees, Minimums & Prices"
-const DESCRIPTION = `Screen printing prices explained: ${aud(SETUP)} per screen setup, ${MIN}-piece minimum, per-print rates by quantity and colour count, and when DTF is cheaper.`
+const DESCRIPTION = `Screen printing prices explained: ${aud(SETUP)} per screen setup, ${MIN}-piece minimum, how the per-print rate falls with quantity, and when DTF is cheaper.`
 
 export async function generateStaticParams() {
   return [{ countryCode: "au" }]
@@ -233,38 +240,31 @@ export default function ScreenPrintingCostGuidePage() {
           {SCREEN_MAX_STANDARD_PRINT_CM.height} cm. Prices are per print
           position, include GST and exclude the garment.
         </p>
-        <div className={tableWrap}>
-          <table className="w-full min-w-[560px] border-collapse">
-            <thead className="border-b border-ui-border-base bg-ui-bg-subtle">
-              <tr>
-                <th className={th}>Pieces</th>
-                {firstBand.prices.map((_, i) => (
-                  <th key={i} className={th}>
-                    {i + 1} colour{i ? "s" : ""}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {SCP_SCREEN_QUANTITY_TIERS.map((tier) => (
-                <tr key={tier.label} className="border-b border-ui-border-base last:border-0">
-                  <td className={`${td} font-semibold`}>{tier.label}</td>
-                  {tier.prices.map((p, i) => (
-                    <td key={i} className={td}>
-                      {aud(p)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 max-w-3xl text-sm text-ui-fg-muted">
-          On a dark garment, read one column to the right (the underbase).
-          Hoodies, fleece and polyester garments add{" "}
-          {aud(SCREEN_HEAVY_GARMENT_SURCHARGE_MAJOR)} per print. Prints larger
-          than {SCREEN_MAX_STANDARD_PRINT_CM.width} ×{" "}
-          {SCREEN_MAX_STANDARD_PRINT_CM.height} cm are quoted.
+        <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-base text-ui-fg-subtle">
+          <li>
+            <strong className="text-ui-fg-base">More pieces, lower rate.</strong>{" "}
+            The rate steps down at {BAND_STARTS} pieces, to as little as{" "}
+            {aud(LOWEST_PRINT)} per print for one colour on the largest runs.
+          </li>
+          <li>
+            <strong className="text-ui-fg-base">More colours, higher rate.</strong>{" "}
+            Each colour is another pass on the press. A dark garment is priced
+            as one more colour because of the underbase.
+          </li>
+          <li>
+            <strong className="text-ui-fg-base">Heavier garments cost a little more.</strong>{" "}
+            Hoodies, fleece and polyester add{" "}
+            {aud(SCREEN_HEAVY_GARMENT_SURCHARGE_MAJOR)} per print.
+          </li>
+          <li>
+            <strong className="text-ui-fg-base">Very large prints are quoted.</strong>{" "}
+            Anything bigger than {SCREEN_MAX_STANDARD_PRINT_CM.width} ×{" "}
+            {SCREEN_MAX_STANDARD_PRINT_CM.height} cm.
+          </li>
+        </ul>
+        <p className={prose}>
+          The designer on every product page shows the exact rate for your
+          quantity and colour count before you order.
         </p>
       </section>
 
@@ -379,8 +379,7 @@ export default function ScreenPrintingCostGuidePage() {
         <ul className="mt-4 max-w-3xl list-disc space-y-2 pl-5 text-base text-ui-fg-subtle">
           <li>
             <strong className="text-ui-fg-base">Drop a colour.</strong> Each one
-            removes a {aud(SETUP)} screen and moves you a column left in the
-            price table.
+            removes a {aud(SETUP)} screen and lowers the per-print rate.
           </li>
           <li>
             <strong className="text-ui-fg-base">Print on a light garment.</strong>{" "}
