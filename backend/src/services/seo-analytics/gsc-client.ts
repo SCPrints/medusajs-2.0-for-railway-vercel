@@ -18,7 +18,7 @@ const LOCAL_PAGE_PATTERN = /\/locations(\/|$)/
 export const TRACKED_QUERY_PATTERN =
   /\b(embroider|uniform|workwear|hi[- ]?vis|screen print|dtf|t[- ]?shirt print)/i
 const TRACKED_PLACE_PATTERN =
-  /\b(liverpool|bankstown|prestons|chipping norton|fairfield|cabramatta|villawood|parramatta|wetherill|sydney|near me)\b/i
+  /\b(liverpool|bankstown|prestons|chipping norton|fairfield|cabramatta|villawood|parramatta|wetherill|sydney|melbourne|brisbane|perth|adelaide|canberra|hobart|darwin|newcastle|wollongong|central coast|gold coast|sunshine coast|geelong|townsville|cairns|near me)\b/i
 
 function isoDaysAgo(days: number): string {
   const d = new Date()

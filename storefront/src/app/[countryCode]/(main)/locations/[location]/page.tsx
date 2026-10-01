@@ -87,7 +87,7 @@ export default async function LocationPage({ params }: Props) {
     openingHours: STUDIO.openingHours,
     areaServed: [location.suburb, ...location.nearby].map((name) => ({
       "@type": "Place",
-      name: `${name}, ${STUDIO.state}`,
+      name: `${name}, ${location.state ?? STUDIO.state}`,
     })),
   }
 

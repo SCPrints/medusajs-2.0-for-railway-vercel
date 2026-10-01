@@ -6,10 +6,10 @@ import { locations } from "@modules/locations/data/locations"
 
 // Root layout applies `template: "%s | SC PRINTS"` to `title`, so TITLE stays
 // bare; og/twitter don't get the template and spell the site name out.
-const TITLE = "Printing & Embroidery Across Sydney"
+const TITLE = "Custom Printing & Embroidery — Sydney & Australia-Wide"
 const SOCIAL_TITLE = `${TITLE} | ${SEO.siteName}`
 const DESCRIPTION =
-  "SC Prints is a South West Sydney studio printing custom apparel, workwear and uniforms for Liverpool, Fairfield, Cabramatta, Bankstown and beyond."
+  "SC Prints is a Sydney studio printing custom apparel, workwear and uniforms. Pick up locally or shipped to Melbourne, Brisbane, Perth and Australia-wide."
 
 export async function generateMetadata({
   params,
@@ -37,6 +37,9 @@ export async function generateMetadata({
   }
 }
 
+const cities = locations.filter((l) => l.kind === "city")
+const suburbs = locations.filter((l) => l.kind !== "city")
+
 export default function LocationsPage() {
   return (
     <div className="content-container py-10 small:py-16">
@@ -45,38 +48,49 @@ export default function LocationsPage() {
           Where we print
         </p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ui-fg-base small:text-4xl">
-          Custom printing across Sydney
+          Custom printing across Sydney and Australia
         </h1>
         <p className="mt-4 text-base text-ui-fg-subtle small:text-lg">
           Our studio is at {STUDIO.streetAddress}, {STUDIO.suburb}{" "}
           {STUDIO.state} {STUDIO.postcode} — screen printing, DTF, DTG and
-          embroidery all under one roof. We ship Australia-wide, but if you&apos;re
-          local you can drop in, check a sample and collect in person.
+          embroidery all under one roof. We ship Australia-wide, but if
+          you&apos;re local you can drop in, check a sample and collect in
+          person.
         </p>
       </section>
 
-      <section className="mt-12 grid gap-5 small:grid-cols-2 medium:grid-cols-3">
-        {locations.map((location) => (
-          <LocalizedClientLink
-            key={location.slug}
-            href={`/locations/${location.slug}`}
-            className="group rounded-2xl border border-ui-border-base bg-white p-6 transition-shadow hover:shadow-md"
-          >
-            <p className="text-xs uppercase tracking-[0.14em] text-ui-fg-muted">
-              {location.region}
-            </p>
-            <h2 className="mt-2 text-lg font-semibold text-ui-fg-base">
-              {location.suburb}
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-ui-fg-subtle">
-              {location.description}
-            </p>
-            <span className="mt-4 inline-block text-sm font-medium text-[var(--brand-secondary)]">
-              View {location.suburb} →
-            </span>
-          </LocalizedClientLink>
-        ))}
-      </section>
+      {[
+        { heading: "Cities we ship to", items: cities },
+        { heading: "Close to the studio", items: suburbs },
+      ].map(({ heading, items }) => (
+        <section key={heading} className="mt-12">
+          <h2 className="text-xl font-semibold tracking-tight text-ui-fg-base">
+            {heading}
+          </h2>
+          <div className="mt-6 grid gap-5 small:grid-cols-2 medium:grid-cols-3">
+            {items.map((location) => (
+              <LocalizedClientLink
+                key={location.slug}
+                href={`/locations/${location.slug}`}
+                className="group rounded-2xl border border-ui-border-base bg-white p-6 transition-shadow hover:shadow-md"
+              >
+                <p className="text-xs uppercase tracking-[0.14em] text-ui-fg-muted">
+                  {location.region}
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-ui-fg-base">
+                  {location.suburb}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-ui-fg-subtle">
+                  {location.description}
+                </p>
+                <span className="mt-4 inline-block text-sm font-medium text-[var(--brand-secondary)]">
+                  View {location.suburb} →
+                </span>
+              </LocalizedClientLink>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }
