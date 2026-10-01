@@ -388,12 +388,12 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
 
       {service.slug === "screen-printing" ? (
         <p className="mt-8 text-sm text-ui-fg-subtle">
-          Working out a budget?{" "}
+          Wondering about setup fees?{" "}
           <LocalizedClientLink
             href="/guides/screen-printing-cost"
             className="font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
           >
-            See what screen printing costs: setup fees, minimums and prices
+            Why screen printing has setup costs and a minimum order
           </LocalizedClientLink>
         </p>
       ) : null}
