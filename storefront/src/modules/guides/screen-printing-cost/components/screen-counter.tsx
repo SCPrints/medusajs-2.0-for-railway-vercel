@@ -26,19 +26,21 @@ const segment = (active: boolean) =>
       : "border-ui-border-base bg-white text-ui-fg-base hover:border-[var(--brand-secondary)]/50"
   }`
 
+// Mini screen: timber frame, yellow mesh, a block of that screen's ink.
 const Frame = ({ fill, underbase }: { fill: string; underbase?: boolean }) => (
-  <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden>
-    <rect x="2" y="2" width="40" height="40" rx="5" fill="#fff" stroke="var(--brand-primary)" strokeWidth="2.5" />
+  <svg width="38" height="48" viewBox="0 0 38 48" aria-hidden>
+    <rect x="1.5" y="1.5" width="35" height="45" rx="2.5" fill="#d9b07c" stroke="var(--brand-primary)" strokeWidth="2" />
+    <rect x="6.5" y="6.5" width="25" height="35" fill="#f4e7a1" stroke="var(--brand-primary)" strokeWidth="1" />
     <rect
-      x="9"
-      y="9"
-      width="26"
-      height="26"
-      rx="2"
+      x="10.5"
+      y="12"
+      width="17"
+      height="24"
+      rx="1.5"
       fill={fill}
       stroke={underbase ? "var(--brand-primary)" : "none"}
       strokeDasharray={underbase ? "3 3" : undefined}
-      strokeOpacity="0.5"
+      strokeOpacity="0.6"
     />
   </svg>
 )

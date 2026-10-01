@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react"
+import type { CSSProperties, ReactNode } from "react"
 
 const NAVY = "var(--brand-primary)"
 const PINK = "var(--brand-secondary)"
@@ -39,10 +39,57 @@ const Bars = ({ x, y, s }: { x: number; y: number; s: number }) => (
   </g>
 )
 
+// A screen as it looks on the bench: timber frame with mitred corners, yellow
+// mesh, a block of emulsion with the design open in it, and a squeegee resting
+// on a bead of that screen's ink.
+const WOOD = "#d9b07c"
+const WOOD_DARK = "#b9854a"
+const MESH = "#f4e7a1"
+const EMULSION = "#a797e0"
+const W = 96
+const H = 150
+const F = 9 // frame thickness
+
+const Screen = ({
+  x,
+  y,
+  ink,
+  label,
+  children,
+}: {
+  x: number
+  y: number
+  ink: string
+  label: string
+  children: ReactNode
+}) => (
+  <>
+    <rect x={x} y={y} width={W} height={H} rx="3" fill={WOOD} stroke={NAVY} strokeWidth="2.5" />
+    <path
+      d={`M${x} ${y}l${F} ${F}M${x + W} ${y}l${-F} ${F}M${x} ${y + H}l${F} ${-F}M${x + W} ${y + H}l${-F} ${-F}`}
+      stroke={NAVY}
+      strokeOpacity="0.45"
+      strokeWidth="1.5"
+    />
+    <rect x={x + F} y={y + F} width={W - 2 * F} height={H - 2 * F} fill={MESH} stroke={NAVY} strokeWidth="1.5" />
+    <rect x={x + F} y={y + F} width={W - 2 * F} height={H - 2 * F} fill="url(#sp-mesh)" />
+    <rect x={x + F + 7} y={y + F + 8} width={W - 2 * F - 14} height={H - 2 * F - 16} rx="2" fill={EMULSION} />
+    <rect x={x + F + 7} y={y + F + 8} width={W - 2 * F - 14} height={H - 2 * F - 16} rx="2" fill="url(#sp-mesh)" opacity="0.7" />
+    {children}
+    {/* squeegee: handle, rubber blade, ink bead */}
+    <rect x={x + 20} y={y + 24} width={W - 40} height="9" rx="2" fill={WOOD_DARK} stroke={NAVY} strokeWidth="1.5" />
+    <rect x={x + 22} y={y + 33} width={W - 44} height="4" fill={NAVY} />
+    <rect x={x + 22} y={y + 37} width={W - 44} height="4.5" rx="2.25" fill={ink} />
+    <text x={x + W / 2} y={y + H + 16} textAnchor="middle" fontSize="11" fontWeight="600" fill={NAVY} fillOpacity="0.65">
+      {label}
+    </text>
+  </>
+)
+
 const SCREENS = [
-  { x: 14, y: 22, label: "Screen 1", shape: (cx: number, cy: number) => <Circle cx={cx} cy={cy} r={24} /> },
-  { x: 62, y: 96, label: "Screen 2", shape: (cx: number, cy: number) => <Bolt x={cx} y={cy} s={1.4} /> },
-  { x: 110, y: 170, label: "Screen 3", shape: (cx: number, cy: number) => <Bars x={cx} y={cy - 8} s={1.3} /> },
+  { x: 6, y: 34, ink: TEAL, label: "Screen 1", shape: (cx: number, cy: number) => <Circle cx={cx} cy={cy} r={17} /> },
+  { x: 108, y: 64, ink: PINK, label: "Screen 2", shape: (cx: number, cy: number) => <Bolt x={cx} y={cy} s={0.95} /> },
+  { x: 210, y: 94, ink: NAVY, label: "Screen 3", shape: (cx: number, cy: number) => <Bars x={cx} y={cy - 6} s={0.95} /> },
 ]
 
 /** Hero illustration: three screens, one per colour, building one print. */
@@ -51,26 +98,22 @@ export default function SeparationIllustration() {
     <figure className="m-0">
       <style>{CSS}</style>
       <svg
-        viewBox="0 0 520 330"
+        viewBox="0 22 540 248"
         role="img"
-        aria-label="Three screens, one for each ink colour, combine to print a single three-colour design on a t-shirt."
+        aria-label="Three screen printing frames, each with a squeegee and one ink colour, combine to print a single three-colour design on a t-shirt."
         className="h-auto w-full"
       >
         <defs>
-          <pattern id="sp-mesh" width="6" height="6" patternUnits="userSpaceOnUse">
-            <path d="M0 0H6M0 0V6" stroke={NAVY} strokeOpacity="0.14" strokeWidth="1" />
+          <pattern id="sp-mesh" width="4" height="4" patternUnits="userSpaceOnUse">
+            <path d="M0 0H4M0 0V4" stroke={NAVY} strokeOpacity="0.2" strokeWidth="0.75" />
           </pattern>
         </defs>
 
         {SCREENS.map((s, i) => (
           <g key={s.label} className="sp-slide" style={delay(0.1 + i * 0.2)}>
-            <rect x={s.x} y={s.y} width="140" height="128" rx="8" fill="#fff" stroke={NAVY} strokeWidth="3" />
-            <rect x={s.x + 12} y={s.y + 12} width="116" height="104" rx="3" fill="url(#sp-mesh)" />
-            <rect x={s.x + 12} y={s.y + 12} width="116" height="104" rx="3" fill="none" stroke={NAVY} strokeOpacity="0.25" />
-            {s.shape(s.x + 70, s.y + 64)}
-            <text x={s.x + 16} y={s.y + 28} fontSize="11" fontWeight="600" fill={NAVY} fillOpacity="0.6">
-              {s.label}
-            </text>
+            <Screen x={s.x} y={s.y} ink={s.ink} label={s.label}>
+              {s.shape(s.x + W / 2, s.y + 92)}
+            </Screen>
           </g>
         ))}
 
@@ -83,15 +126,15 @@ export default function SeparationIllustration() {
           strokeLinejoin="round"
           fill="none"
         >
-          <path d="M270 165h36" />
-          <path d="M294 153l12 12-12 12" />
+          <path d="M322 165h30" />
+          <path d="M341 154l11 11-11 11" />
         </g>
 
         {/* Tee — same silhouette as the site's garment icon, scaled up. */}
         <g className="sp-slide" style={delay(0.75)}>
           <path
             d="M11 5l-5 3v6h4v12h12V14h4V8l-5-3-3 2.5a4 4 0 01-4 0z"
-            transform="translate(318 62) scale(6.2)"
+            transform="translate(364 62) scale(6.2)"
             fill="#fff"
             stroke={NAVY}
             strokeWidth="3"
@@ -102,13 +145,13 @@ export default function SeparationIllustration() {
 
         {/* Printed one colour at a time, in screen order. */}
         <g className="sp-pop" style={delay(1.0)}>
-          <Circle cx={417} cy={162} r={21} />
+          <Circle cx={463} cy={162} r={21} />
         </g>
         <g className="sp-pop" style={delay(1.3)}>
-          <Bolt x={417} y={162} s={1.15} />
+          <Bolt x={463} y={162} s={1.15} />
         </g>
         <g className="sp-pop" style={delay(1.6)}>
-          <Bars x={417} y={192} s={0.95} />
+          <Bars x={463} y={192} s={0.95} />
         </g>
       </svg>
       <figcaption className="mt-2 text-center text-xs text-ui-fg-muted">
