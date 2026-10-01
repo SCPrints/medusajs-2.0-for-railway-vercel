@@ -7,6 +7,7 @@ import StoreTemplate from "@modules/store/templates"
 import BrandHero from "@modules/brands/components/brand-hero"
 import BrandGallery from "@modules/brands/components/brand-gallery"
 import { getBrandPresentation } from "@modules/brands/data/brands"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 type Params = {
   params: Promise<{ countryCode: string; handle: string }>
@@ -60,6 +61,14 @@ const parsePositiveNumber = (value?: string) => {
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined
 }
 
+/** Brand handle → its long-form guide, linked under the hero so the guide isn't an orphan. */
+const BRAND_GUIDES: Record<string, { href: string; label: string }> = {
+  "shaka-wear": {
+    href: "/guides/shaka-wear",
+    label: "New to Shaka Wear? Read the fit, weight and size guide",
+  },
+}
+
 export default async function BrandLandingPage({ params, searchParams }: Params){const { countryCode, handle } = await params
   const sp = await searchParams
   const { brand, children } = await retrieveBrandByHandle(handle)
@@ -83,6 +92,17 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         heroVariant={presentation.heroVariant ?? null}
         heroProductSrc={presentation.heroProductSrc ?? null}
       />
+
+      {BRAND_GUIDES[brand.handle] ? (
+        <div className="content-container pt-6">
+          <LocalizedClientLink
+            href={BRAND_GUIDES[brand.handle].href}
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold !text-ui-fg-base underline underline-offset-4 hover:!text-[var(--brand-secondary)]"
+          >
+            {BRAND_GUIDES[brand.handle].label} →
+          </LocalizedClientLink>
+        </div>
+      ) : null}
 
       {galleryImages.length > 0 ? (
         <BrandGallery brandName={brand.name} images={galleryImages} />
