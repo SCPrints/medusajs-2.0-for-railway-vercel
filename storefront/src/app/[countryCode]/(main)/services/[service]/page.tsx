@@ -386,7 +386,20 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         </article>
       </section>
 
+      {service.slug === "screen-printing" ? (
+        <p className="mt-8 text-sm text-ui-fg-subtle">
+          Working out a budget?{" "}
+          <LocalizedClientLink
+            href="/guides/screen-printing-cost"
+            className="font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
+          >
+            See what screen printing costs: setup fees, minimums and prices
+          </LocalizedClientLink>
+        </p>
+      ) : null}
+
       <AreasWeServe
+        suburbsOnly
         className="mt-16 border-t border-ui-border-base pt-8"
         heading={`${service.title} across South West Sydney`}
         intro="We print and embroider from our Villawood studio for businesses, clubs and schools in these suburbs — drop in to check a sample, or order online and collect."

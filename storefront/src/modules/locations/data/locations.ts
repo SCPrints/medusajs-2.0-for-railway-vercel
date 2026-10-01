@@ -334,7 +334,7 @@ export const locations: Location[] = [
     intro:
       "We're a working Sydney print studio at 7 Epic Place, Villawood, with screen printing, DTF transfers, embroidery and UV DTF under one roof. Design it online and have it delivered anywhere in Sydney, or come out to the studio, handle the garments and collect in person.",
     serving:
-      "Sydney jobs cover the whole range: a single printed tee for a birthday, twenty embroidered polos for a new café in the Inner West, a few hundred screen-printed shirts for a festival crew, or a staged uniform rollout across several sites. There's no minimum on print or embroidery; screen printing starts at fifty units, which is where it becomes the cheapest option per shirt.",
+      "Sydney jobs cover the whole range: a single printed tee for a birthday, twenty embroidered polos for a new café in the Inner West, a few hundred screen-printed shirts for a festival crew, or a staged uniform rollout across several sites. There's no minimum on DTF print or embroidery; screen printing starts at 25 pieces and gets cheaper per shirt as the run grows.",
     useCases: [
       {
         heading: "Business uniforms and workwear",
