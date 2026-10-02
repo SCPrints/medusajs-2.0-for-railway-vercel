@@ -3,6 +3,7 @@ import { listBrands } from "@lib/data/brands"
 import { getCollectionsList } from "@lib/data/collections"
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { GUIDES, guideHref } from "@modules/guides/guides"
 import { services } from "@modules/services/data"
 
 
@@ -77,7 +78,8 @@ const STATIC_GROUPS: LinkGroup[] = [
       { href: "/cart", label: "Cart" },
       { href: "/contact", label: "Contact us" },
       { href: "/faq", label: "FAQ" },
-      { href: "/guides/cmyk-dtf", label: "CMYK guide for DTF" },
+      { href: "/guides", label: "All guides" },
+      ...GUIDES.map((g) => ({ href: guideHref(g), label: g.title })),
     ],
   },
   {

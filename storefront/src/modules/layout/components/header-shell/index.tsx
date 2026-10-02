@@ -38,7 +38,7 @@ import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
  *       collapsed by scrolling.
  *   ROW 2 (h-12, desktop-only, collapsible):
  *     [Mens · Womens · Kids · Workwear · Corporates · Healthcare · Accessories]
- *     · · · [Brands · Services · Best Sellers]
+ *     · · · [Brands · Services · Guides · Best Sellers]
  *
  * Scroll behaviour (desktop only — mobile never shows row 2):
  *   - scrollY < 10                  → expanded (force)
@@ -269,27 +269,36 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           <div className="content-container flex h-12 w-full items-center">
             <DesktopMegaMenu audiences={audiences} />
 
+            {/* Four links here: padding is tightened below `medium` (1280) so
+                the row still fits beside the seven audiences at 1024px. */}
             {/* Supplementary nav — direct links (no dropdowns). Sits on
                 the right end of row 2, sharing the audience trigger
                 styling so the whole row reads as one nav bar. */}
             <div className="flex-1" />
             <div className="flex items-center gap-x-1">
               <LocalizedClientLink
-                className="inline-flex items-center px-3 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
                 href="/brands"
                 data-testid="nav-brands-link"
               >
                 Brands
               </LocalizedClientLink>
               <LocalizedClientLink
-                className="inline-flex items-center px-3 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
                 href="/services"
                 data-testid="nav-services-link"
               >
                 Services
               </LocalizedClientLink>
               <LocalizedClientLink
-                className="inline-flex items-center px-3 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
+                href="/guides"
+                data-testid="nav-guides-link"
+              >
+                Guides
+              </LocalizedClientLink>
+              <LocalizedClientLink
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
                 href="/best-sellers"
                 data-testid="nav-best-sellers-link"
               >

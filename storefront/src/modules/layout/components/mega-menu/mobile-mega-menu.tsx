@@ -97,6 +97,9 @@ const MobileMegaMenu = ({ audiences }: Props) => {
                 <MobileTopLink href="/services" onClick={close}>
                   Services
                 </MobileTopLink>
+                <MobileTopLink href="/guides" onClick={close}>
+                  Guides
+                </MobileTopLink>
                 <MobileTopLink href="/industries" onClick={close}>
                   Industries
                 </MobileTopLink>

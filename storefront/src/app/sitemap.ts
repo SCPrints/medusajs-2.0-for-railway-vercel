@@ -7,6 +7,7 @@ import { listAllProductHandles } from "@lib/data/products"
 import { getBaseURL } from "@lib/util/env"
 import { industries } from "@modules/industries/data/industries"
 import { locations } from "@modules/locations/data/locations"
+import { GUIDES, guideHref } from "@modules/guides/guides"
 import { services } from "@modules/services/data"
 
 const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_REGION || "au"
@@ -36,11 +37,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     `/${cc}/spirits`,
     `/${cc}/contact`,
     `/${cc}/faq`,
-    `/${cc}/guides/cmyk-dtf`,
-    `/${cc}/guides/screen-printing-cost`,
-    `/${cc}/guides/shaka-wear`,
-    `/${cc}/guides/as-colour`,
-    `/${cc}/guides/dtf-vs-screen-printing-vs-embroidery`,
+    `/${cc}/guides`,
+    ...GUIDES.map((g) => `/${cc}${guideHref(g)}`),
     `/${cc}/sitemap`,
     `/${cc}/shipping-policy`,
     `/${cc}/returns-policy`,

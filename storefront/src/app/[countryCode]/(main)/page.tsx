@@ -26,6 +26,7 @@ import HomeMovingBanner from "@modules/home/components/home-moving-banner"
 import HomeCoreServicesLordicons from "@modules/home/components/home-core-services-lordicons"
 import HomeTrustStrip from "@modules/home/components/home-trust-strip"
 import HomeToolsRail from "@modules/home/components/home-tools-rail"
+import HomeGuidesRail from "@modules/home/components/home-guides-rail"
 import HomeLookbookRail from "@modules/home/components/home-lookbook-rail"
 import HomeIndustryGrid from "@modules/home/components/home-industry-grid"
 import HomeGuaranteeBlock from "@modules/home/components/home-guarantee-block"
@@ -435,6 +436,10 @@ export default async function Home({
           />
           <HomeCoreServicesLordicons />
         </section>
+
+        {/* Guides — the home entry point to /guides, right after the
+            services they explain. */}
+        <HomeGuidesRail />
 
         {/* 6. How to order — once the customer has seen what's available */}
         <HowOrderWorksSection />
