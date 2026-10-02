@@ -67,6 +67,10 @@ const BRAND_GUIDES: Record<string, { href: string; label: string }> = {
     href: "/guides/shaka-wear",
     label: "New to Shaka Wear? Read the fit, weight and size guide",
   },
+  "as-colour": {
+    href: "/guides/as-colour",
+    label: "New to AS Colour? Read the guide to the range, weights and names",
+  },
 }
 
 export default async function BrandLandingPage({ params, searchParams }: Params){const { countryCode, handle } = await params

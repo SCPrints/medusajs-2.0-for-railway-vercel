@@ -39,6 +39,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     `/${cc}/guides/cmyk-dtf`,
     `/${cc}/guides/screen-printing-cost`,
     `/${cc}/guides/shaka-wear`,
+    `/${cc}/guides/as-colour`,
+    `/${cc}/guides/dtf-vs-screen-printing-vs-embroidery`,
     `/${cc}/sitemap`,
     `/${cc}/shipping-policy`,
     `/${cc}/returns-policy`,

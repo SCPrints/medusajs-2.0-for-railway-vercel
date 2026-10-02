@@ -176,6 +176,44 @@ export async function getProductsByHandle({
 }
 
 /**
+ * Display-only product summaries for content pages (guides): titles, thumbnail,
+ * material, metadata, type and option values — NO variants and NO prices, so
+ * no region is needed and a 76-colour style costs kilobytes instead of
+ * megabytes. Pass `images: true` only for the one product whose gallery you
+ * actually render. Never use this for anything that has to add to cart.
+ */
+export async function getProductSummariesByHandle({
+  handles,
+  images = false,
+}: {
+  handles: string[]
+  images?: boolean
+}) {
+  "use cache: remote"
+  cacheTag("products")
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  if (!handles.length) {
+    return []
+  }
+  try {
+    const { products } = await sdk.store.product.list({
+      handle: handles,
+      fields: `id,handle,title,thumbnail,material,metadata,*type,*options,*options.values${
+        images ? ",*images" : ""
+      }`,
+      limit: handles.length,
+    } as HttpTypes.FindParams & HttpTypes.StoreProductParams)
+    return products
+  } catch (error) {
+    console.warn(
+      "[getProductSummariesByHandle] backend fetch failed; returning empty array",
+      (error as Error).message
+    )
+    return []
+  }
+}
+
+/**
  * Slimmer hydration path used by `getListingViaSearch`. Drops the inventory
  * fields and a few extras that the PLP listing card doesn't render — Meili
  * has already filtered by `in_stock` so re-checking server-side is wasted

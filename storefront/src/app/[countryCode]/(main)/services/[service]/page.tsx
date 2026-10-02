@@ -357,6 +357,12 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
             Request service quote
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
           </LocalizedClientLink>
+          <LocalizedClientLink
+            href="/guides/dtf-vs-screen-printing-vs-embroidery"
+            className="mt-4 flex min-h-11 items-center text-sm font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
+          >
+            Compare DTF, screen printing and embroidery
+          </LocalizedClientLink>
         </aside>
       </section>
 

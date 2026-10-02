@@ -566,7 +566,15 @@ export default function ScreenPrintingCostGuidePage() {
         </div>
         <p className={prose}>
           Not sure? Set the job up both ways in the customiser. It prices each
-          method for your exact quantity, so you can compare them directly.
+          method for your exact quantity, so you can compare them directly. For
+          logos on polos, caps and jackets, embroidery is the third option:{" "}
+          <LocalizedClientLink
+            href="/guides/dtf-vs-screen-printing-vs-embroidery"
+            className="font-medium !text-[var(--brand-secondary)] underline underline-offset-4"
+          >
+            compare all three methods
+          </LocalizedClientLink>
+          .
         </p>
       </section>
 
