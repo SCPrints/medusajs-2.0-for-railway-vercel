@@ -111,11 +111,12 @@ export async function getProductsById({
   "use cache: remote"
   cacheTag("products")
   // stale-while-revalidate: serve immediately + refresh in background.
-  // expire=86400 (was 600) prevents the cache from being fully evicted
-  // every 10 min, which was forcing cold-cache 4-second waits on the
-  // next user. `revalidateTag("products")` (called from the backend on
-  // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  // revalidate=86400 (was 3600, Oct 2026): crawlers walk the long tail of
+  // the catalog, and every hourly refresh of a bot-touched entry is a billed
+  // Vercel runtime-cache write (~190k/day). Staff edits still purge instantly
+  // via `revalidateTag("products")` from the backend; the only thing that
+  // can now lag a day is on-page stock from the nightly supplier syncs.
+  cacheLife({ revalidate: 86400, stale: 86400, expire: 86400 })
   // Build-time prerender resilience: if the backend hiccups (503 under
   // concurrent build load), return [] instead of throwing so the entire
   // build doesn't fail over a single transient request. At runtime the
@@ -153,7 +154,7 @@ export async function getProductsByHandle({
 }) {
   "use cache: remote"
   cacheTag("products")
-  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 86400, stale: 86400, expire: 86400 })
   if (!handles.length) {
     return []
   }
@@ -191,7 +192,7 @@ export async function getProductSummariesByHandle({
 }) {
   "use cache: remote"
   cacheTag("products")
-  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 86400, stale: 86400, expire: 86400 })
   if (!handles.length) {
     return []
   }
@@ -253,11 +254,12 @@ export async function getProductByHandle(
   "use cache: remote"
   cacheTag("products", `product-${String(handle ?? "").trim().toLowerCase()}`)
   // stale-while-revalidate: serve immediately + refresh in background.
-  // expire=86400 (was 600) prevents the cache from being fully evicted
-  // every 10 min, which was forcing cold-cache 4-second waits on the
-  // next user. `revalidateTag("products")` (called from the backend on
-  // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  // revalidate=86400 (was 3600, Oct 2026): crawlers walk the long tail of
+  // the catalog, and every hourly refresh of a bot-touched entry is a billed
+  // Vercel runtime-cache write (~190k/day). Staff edits still purge instantly
+  // via `revalidateTag("products")` from the backend; the only thing that
+  // can now lag a day is on-page stock from the nightly supplier syncs.
+  cacheLife({ revalidate: 86400, stale: 86400, expire: 86400 })
   const normalizedHandle = decodeURIComponent(String(handle ?? "")).trim().toLowerCase()
   if (!normalizedHandle) {
     return null
@@ -312,11 +314,12 @@ export async function getProductsList({
   "use cache: remote"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
   // stale-while-revalidate: serve immediately + refresh in background.
-  // expire=86400 (was 600) prevents the cache from being fully evicted
-  // every 10 min, which was forcing cold-cache 4-second waits on the
-  // next user. `revalidateTag("products")` (called from the backend on
-  // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  // revalidate=86400 (was 3600, Oct 2026): crawlers walk the long tail of
+  // the catalog, and every hourly refresh of a bot-touched entry is a billed
+  // Vercel runtime-cache write (~190k/day). Staff edits still purge instantly
+  // via `revalidateTag("products")` from the backend; the only thing that
+  // can now lag a day is on-page stock from the nightly supplier syncs.
+  cacheLife({ revalidate: 86400, stale: 86400, expire: 86400 })
   const limit = queryParams?.limit || 12
   const validPageParam = Math.max(pageParam, 1);
   const offset = (validPageParam - 1) * limit
@@ -390,7 +393,7 @@ export async function listAllProductHandles(): Promise<
 > {
   "use cache: remote"
   cacheTag("products")
-  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  cacheLife({ revalidate: 86400, stale: 86400, expire: 86400 })
 
   const limit = 200
   const handles: { handle: string; updated_at?: string }[] = []
@@ -624,11 +627,12 @@ export async function getProductsListWithSort({
   "use cache: remote"
   cacheTag("products", ...(brandHandle ? [`brand-${brandHandle}`] : []))
   // stale-while-revalidate: serve immediately + refresh in background.
-  // expire=86400 (was 600) prevents the cache from being fully evicted
-  // every 10 min, which was forcing cold-cache 4-second waits on the
-  // next user. `revalidateTag("products")` (called from the backend on
-  // product writes) invalidates faster when staff need it.
-  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
+  // revalidate=86400 (was 3600, Oct 2026): crawlers walk the long tail of
+  // the catalog, and every hourly refresh of a bot-touched entry is a billed
+  // Vercel runtime-cache write (~190k/day). Staff edits still purge instantly
+  // via `revalidateTag("products")` from the backend; the only thing that
+  // can now lag a day is on-page stock from the nightly supplier syncs.
+  cacheLife({ revalidate: 86400, stale: 86400, expire: 86400 })
   const limit = queryParams?.limit || 12
   const resolvedPage = !page || page < 1 ? 1 : page
 
