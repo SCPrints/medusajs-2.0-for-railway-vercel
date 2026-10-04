@@ -8,14 +8,15 @@ import {
 describe("calculateScreenPrice", () => {
   it("prices a 2-colour 50-piece job with screen setup", () => {
     const r = calculateScreenPrice({ colours: 2, quantity: 50 })
-    expect(r.unitPrice).toBe(5.7)
-    expect(r.decorationSubtotal).toBe(285)
+    // 2026-09-10 repricing: 2-colour, 50–99 tier = $6.50/print.
+    expect(r.unitPrice).toBe(6.5)
+    expect(r.decorationSubtotal).toBe(325)
     expect(r.setupTotal).toBe(SCREEN_PER_SCREEN_FEE * 2)
-    // HOLD cutover: rate-card sum ($285 + $198 setup = $483) is the inc-GST
+    // HOLD cutover: rate-card sum ($325 + $198 setup = $523) is the inc-GST
     // total; GST is extracted (÷11), not added on top.
-    expect(r.totalIncGst).toBe(483)
-    expect(r.gst).toBe(43.91)
-    expect(r.subtotalExGst).toBe(439.09)
+    expect(r.totalIncGst).toBe(523)
+    expect(r.gst).toBe(47.55)
+    expect(r.subtotalExGst).toBe(475.45)
   })
 
   it("bumps colour count when dark garment is selected", () => {
