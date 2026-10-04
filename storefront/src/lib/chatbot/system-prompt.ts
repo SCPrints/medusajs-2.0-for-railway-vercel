@@ -19,11 +19,6 @@
 
 import { STANDARD_CONFIG as EMBROIDERY_PRICING } from "@modules/embroidery/lib/pricing"
 import {
-  DTF_ARTWORK_SETUP_FEE,
-  DTF_MIN_QUANTITY,
-  DTF_UNDER_MIN_FEE,
-} from "@modules/decoration/lib/methods/dtf"
-import {
   SCREEN_MAX_COLOURS,
   SCREEN_MIN_QUANTITY,
   SCREEN_OVER_MAX_QUANTITY,
@@ -70,8 +65,7 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 ## DTF Print
 - Sizes: ${dtfSizesLine}.
 - Quantity tiers: ${dtfTiersLine}.
-- Minimum ${DTF_MIN_QUANTITY} units, otherwise a $${DTF_UNDER_MIN_FEE} under-minimum fee applies.
-- $${DTF_ARTWORK_SETUP_FEE} artwork setup, waived on reorders.
+- No minimum order (from 1 piece) and no separate artwork setup fee on website orders — the price per print by size and quantity tier is all-in.
 - Standard turnaround: ${t.dtf.standard}. Priority +$${r.dtf.priority} (${t.dtf.priority}). Express +$${r.dtf.express} (${t.dtf.express}).
 - Polyester and poly-blend garments (≥65% poly — most sportswear) need our premium dye-blocking Supacolour transfer instead of standard DTF: higher per-print pricing shown on those product pages (A6 $12→$9.50, A4 $16→$12.50, A3 $22→$16.50 by quantity) + $69 setup per design. Oversize isn't available on these fabrics — manual quote.
 

@@ -1,4 +1,4 @@
-import { calculateDtfPrice, DTF_ARTWORK_SETUP_FEE, DTF_UNDER_MIN_FEE } from "./dtf"
+import { calculateDtfPrice } from "./dtf"
 
 describe("calculateDtfPrice", () => {
   it("uses the existing SCP unit matrix and tier index", () => {
@@ -7,14 +7,10 @@ describe("calculateDtfPrice", () => {
     expect(r.unitPrice).toBe(9.5)
   })
 
-  it("applies under-minimum fee below 10 units", () => {
-    const r = calculateDtfPrice({ sizeId: "up_to_a6", quantity: 5 })
-    expect(r.belowMinimum).toBe(true)
-    expect(r.setupTotal).toBe(DTF_ARTWORK_SETUP_FEE + DTF_UNDER_MIN_FEE)
-  })
-
-  it("waives artwork setup on reorders", () => {
-    const r = calculateDtfPrice({ sizeId: "up_to_a6", quantity: 50, reorder: true })
+  it("has no minimum and no setup fee — from 1 piece", () => {
+    const r = calculateDtfPrice({ sizeId: "up_to_a6", quantity: 1 })
+    expect(r.belowMinimum).toBe(false)
     expect(r.setupTotal).toBe(0)
+    expect(r.totalIncGst).toBe(r.unitPrice)
   })
 })

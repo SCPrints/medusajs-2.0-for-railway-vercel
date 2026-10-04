@@ -107,7 +107,7 @@ const METHODS: MethodInfo[] = [
     limits: [
       `There is a ${SCREEN_MIN_QUANTITY}-piece minimum, and a setup for every colour.`,
       "It prints solid colours only, so photos and gradients are out.",
-      "It has the longest turnaround of the three.",
+      "Along with embroidery, it has the longest turnaround of the three.",
     ],
   },
   {

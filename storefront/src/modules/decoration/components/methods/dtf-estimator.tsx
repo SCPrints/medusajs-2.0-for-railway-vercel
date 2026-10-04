@@ -12,11 +12,10 @@ const DtfEstimator: React.FC = () => {
   const [sizeId, setSizeId] = useState<ScpPrintSizeId>("up_to_a4")
   const [quantity, setQuantity] = useState(25)
   const [rushTier, setRushTier] = useState<RushTier>("standard")
-  const [reorder, setReorder] = useState(false)
 
   const breakdown = useMemo(
-    () => calculateDtfPrice({ sizeId, quantity, rushTier, reorder }),
-    [sizeId, quantity, rushTier, reorder]
+    () => calculateDtfPrice({ sizeId, quantity, rushTier }),
+    [sizeId, quantity, rushTier]
   )
 
   return (
@@ -37,10 +36,6 @@ const DtfEstimator: React.FC = () => {
           </select>
         </label>
         <QuantityInput value={quantity} onChange={setQuantity} />
-        <label className="flex items-center gap-2 text-sm sm:col-span-2">
-          <input type="checkbox" checked={reorder} onChange={(e) => setReorder(e.target.checked)} />
-          <span>This is a reorder (waives $25 artwork setup)</span>
-        </label>
       </div>
 
       <RushSelector method="dtf" value={rushTier} onChange={setRushTier} />

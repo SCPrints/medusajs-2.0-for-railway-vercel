@@ -1,10 +1,10 @@
 import type { ProductionEta } from "@lib/data/production-eta"
 import NoMinimumBadge from "@modules/common/components/no-minimum-badge"
 
-// Turnaround line (Phase 1 P4). Fixed promise — custom orders currently ship
-// within 7 business days (most go out same/next day), so we state that directly
-// rather than surfacing the queue-depth ETA range. The `eta` prop is kept for
-// compatibility with the home page but is intentionally unused.
+// Turnaround line (Phase 1 P4). Fixed promise matching TURNAROUNDS in
+// @modules/decoration/lib/rush (DTF 3–5, embroidery + screen 7–10), stated
+// directly rather than surfacing the queue-depth ETA range. The `eta` prop is
+// kept for compatibility with the home page but is intentionally unused.
 
 export default function HomeTurnaroundBanner({
   eta: _eta,
@@ -21,11 +21,15 @@ export default function HomeTurnaroundBanner({
             className="inline-block size-2 shrink-0 rounded-full bg-[var(--brand-secondary)] motion-safe:animate-pulse"
           />
           <span>
-            Custom orders are currently going out{" "}
+            DTF prints ship in{" "}
             <span className="font-semibold text-[var(--brand-secondary)]">
-              within 7 business days
-            </span>{" "}
-            from our NSW studio.
+              3–5 business days
+            </span>
+            , embroidery and screen printing in{" "}
+            <span className="font-semibold text-[var(--brand-secondary)]">
+              7–10
+            </span>
+            , from our NSW studio.
           </span>
         </p>
       </div>

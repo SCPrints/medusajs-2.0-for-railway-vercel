@@ -68,7 +68,7 @@ export const services: ServiceItem[] = [
     notIdealFor:
       "Very large repeat runs where traditional screen printing is usually more cost-effective per unit.",
     typicalTurnaround:
-      "Often 5-8 business days after artwork sign-off, depending on garment supply and print complexity.",
+      "Typically 3-5 business days after artwork sign-off, depending on garment supply and print complexity.",
   },
   {
     slug: "uv-printing",

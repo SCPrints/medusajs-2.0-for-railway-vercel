@@ -16,8 +16,8 @@ export const RUSH_FEES: Record<DecorationMethod, RushFee> = {
 
 export const TURNAROUNDS: Record<DecorationMethod, Turnaround> = {
   embroidery: {
-    standard: "5–7 business days",
-    priority: "3–4 business days",
+    standard: "7–10 business days",
+    priority: "5–7 business days",
     express: "Next business day",
   },
   dtf: {

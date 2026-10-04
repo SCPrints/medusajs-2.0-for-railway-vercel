@@ -123,7 +123,9 @@ const ShippingInfoTab = ({ product }: ProductTabsProps) => {
   // Beanies are embroidery-only (knit pull-on cap; print isn't a real
   // option). Other products go through the print/decoration flow. Both
   // share the same blank-arrival timing, so only the leading word changes.
-  const decorationNoun = isBeanie ? "embroidery" : "prints"
+  const timing = isBeanie
+    ? "Custom embroidery is made to order — most orders ship within 7–10 business days of artwork approval."
+    : "Custom prints are made to order — DTF orders usually ship within 3–5 business days of artwork approval, embroidery and screen printing within 7–10."
   return (
     <div className="text-small-regular pt-6">
       <div className="grid grid-cols-1 gap-y-8">
@@ -132,9 +134,8 @@ const ShippingInfoTab = ({ product }: ProductTabsProps) => {
           <div>
             <span className="font-semibold">Production &amp; delivery</span>
             <p className="max-w-sm">
-              Custom {decorationNoun} are made to order — most orders ship
-              within 3–5 business days of artwork approval. If blanks need to
-              be ordered in, allow an extra 2–4 business days. Need it sooner?
+              {timing} If blanks need to be ordered in, allow an extra 2–4
+              business days. Need it sooner?
               Priority and express options are available at checkout.
             </p>
           </div>

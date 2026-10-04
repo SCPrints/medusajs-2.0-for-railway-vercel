@@ -125,7 +125,7 @@ export const locations: Location[] = [
     useCases: [
       {
         heading: "Logo embroidery, start to finish",
-        body: "Send the logo you have — a PDF, a phone photo, an old shirt. We digitise it once, stitch a sample you approve before the run, and keep the file so every future top-up matches. Standard turnaround is 5–7 business days, from a single polo up to a whole crew, with bulk pricing as the run grows.",
+        body: "Send the logo you have — a PDF, a phone photo, an old shirt. We digitise it once, stitch a sample you approve before the run, and keep the file so every future top-up matches. Standard turnaround is 7–10 business days, from a single polo up to a whole crew, with bulk pricing as the run grows.",
       },
       {
         heading: "Trade, construction and medical",
