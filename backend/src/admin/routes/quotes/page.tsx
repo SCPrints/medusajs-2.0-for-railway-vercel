@@ -22,6 +22,8 @@ import {
   ProductLinePicker,
   type PickedProductLine,
 } from "../../components/quotes/product-line-picker"
+import { JobPricer } from "../../components/quotes/job-pricer"
+import type { QuotePricingLine } from "../../../api/admin/quote-pricing/route"
 import { mergeServerRows } from "../../lib/quote-line-merge"
 
 type Quote = {
@@ -29,6 +31,7 @@ type Quote = {
   public_id: string
   status: "new" | "quoted" | "accepted" | "lost" | "expired"
   source: "byo" | "contact" | "admin" | "custom_hats" | "customizer_poa"
+  customer_id?: string | null
   email: string
   contact_name: string | null
   company: string | null
@@ -196,6 +199,7 @@ function LineItemsEditor({
   regionId,
   onDesignLine,
   onAddDesign,
+  customerId,
 }: {
   rows: DraftLineItem[]
   onChange: (rows: DraftLineItem[]) => void
@@ -204,10 +208,38 @@ function LineItemsEditor({
   onDesignLine?: (row: DraftLineItem) => void
   /** Open the Studio with no preselected product. Omit to hide. */
   onAddDesign?: () => void
+  /** Quote's customer — the job pricer prices the garment at their tier. */
+  customerId?: string | null
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [pricerOpen, setPricerOpen] = useState(false)
   const setRow = (idx: number, patch: Partial<DraftLineItem>) =>
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
+
+  // Lines from the job pricer land as ordinary rows: a priced catalog line
+  // (or a custom line for supplied garments) + setup-fee lines on the hidden
+  // service products, all editable before save.
+  const addPricedLines = (lines: QuotePricingLine[]) => {
+    onChange([
+      ...rows,
+      ...lines.map((l) => ({
+        id: genLineId(),
+        title: l.title,
+        description: l.description ?? "",
+        quantity: String(l.quantity),
+        unit_price: String(l.unit_price),
+        product_id: l.product_id,
+        variant_id: l.variant_id,
+        product_handle: l.product_handle,
+        thumbnail: l.thumbnail,
+        customizerDesign: null,
+        print_size_id: null,
+        group_id: null,
+      })),
+    ])
+    setPricerOpen(false)
+    toast.success(`${lines.length} priced line${lines.length === 1 ? "" : "s"} added — save line items to keep them`)
+  }
 
   const addPicked = (p: PickedProductLine) => {
     onChange([
@@ -465,7 +497,22 @@ function LineItemsEditor({
         />
       ) : null}
 
+      {pricerOpen ? (
+        <JobPricer
+          customerId={customerId ?? null}
+          onAdd={addPricedLines}
+          onClose={() => setPricerOpen(false)}
+        />
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
+        <Button
+          size="small"
+          variant="secondary"
+          onClick={() => setPricerOpen((v) => !v)}
+        >
+          <Plus /> Price a job
+        </Button>
         <Button
           size="small"
           variant="secondary"
@@ -1410,6 +1457,7 @@ function QuoteDetail({
             rows={draftLineItems}
             onChange={setDraftLineItems}
             regionId={regionId}
+            customerId={quote.customer_id ?? null}
             onDesignLine={(row) =>
               openStudio(row.group_id ?? null, row.product_handle ?? null)
             }
