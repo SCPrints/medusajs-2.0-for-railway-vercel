@@ -110,7 +110,10 @@ type JobGroup = {
   supplied: boolean
   rows: GroupRow[]
   positions: UiPosition[]
+  /** Negotiated all-in unit sell for the group ("" = computed). */
+  unitOverride?: string
 }
+type JobExtra = { id: string; label: string; qty: string; unitSell: string; unitCost: string }
 /** Persisted on the quote as `metadata.job_pricer.state` and as the browser draft. */
 type JobState = {
   version: 2
@@ -119,7 +122,20 @@ type JobState = {
   groups: JobGroup[]
   uvMetres: string
   uvReorder: boolean
+  extras?: JobExtra[]
+  waivedKeys?: string[]
+  roundUnitTo?: "" | "0.05" | "0.5" | "1"
+  discountKind?: "percent" | "amount"
+  discountValue?: string
 }
+
+/** Quick-add extras with workbook-backed numbers (inc GST sell / ex GST cost). Staff edit freely. */
+const EXTRA_PRESETS: Array<{ label: string; unitSell: string; unitCost: string }> = [
+  { label: "Colour change / screen wash", unitSell: "45", unitCost: "35" },
+  { label: "Artwork setup / vectorising", unitSell: "60", unitCost: "0" },
+  { label: "Pre-production sample", unitSell: "", unitCost: "" },
+  { label: "Freight to customer", unitSell: "", unitCost: "" },
+]
 
 type ServiceProduct = { product_id: string; variant_id: string; handle: string | null; title: string }
 type SetupKey = NonNullable<QuotePriceComponent["setupProduct"]>
@@ -674,11 +690,26 @@ function QuotePricerPage() {
         title: g.supplied ? "Customer-supplied garments" : g.product?.title ?? "Garment",
         rows: override?.groupId === g.id ? specRows(g, override.garmentTierQty, override) : specRows(g, override?.garmentTierQty ?? jobQuantity),
         positions: g.positions.map((p) => toPositionSpec(p, g.supplied)),
+        unitSellOverrideMajor: g.unitOverride?.trim() ? Number(g.unitOverride) : null,
       })),
       uvdtf: Number(state.uvMetres) > 0 ? { metres: Number(state.uvMetres), reorder: state.uvReorder } : undefined,
+      extras: (state.extras ?? []).map((x) => ({ id: x.id, label: x.label, quantity: Number(x.qty) || 0, unitSellMajor: Number(x.unitSell) || 0, unitCostExMajor: x.unitCost.trim() ? Number(x.unitCost) || 0 : null })),
+      waivedKeys: state.waivedKeys ?? [],
+      roundUnitTo: state.roundUnitTo ? Number(state.roundUnitTo) : null,
+      discount: state.discountValue && Number(state.discountValue) > 0 ? { kind: state.discountKind ?? "percent", value: Number(state.discountValue) } : null,
     }),
     [state, specRows, jobQuantity]
   )
+  const toggleWaived = (key: string) => {
+    const cur = new Set(state.waivedKeys ?? [])
+    if (cur.has(key)) cur.delete(key)
+    else cur.add(key)
+    patch({ waivedKeys: Array.from(cur) })
+  }
+  const addExtra = (preset?: { label: string; unitSell: string; unitCost: string }) =>
+    patch({ extras: [...(state.extras ?? []), { id: genId("x"), label: preset?.label ?? "", qty: "1", unitSell: preset?.unitSell ?? "", unitCost: preset?.unitCost ?? "" }] })
+  const patchExtra = (id: string, p: Partial<JobExtra>) => patch({ extras: (state.extras ?? []).map((x) => (x.id === id ? { ...x, ...p } : x)) })
+  const removeExtra = (id: string) => patch({ extras: (state.extras ?? []).filter((x) => x.id !== id) })
   const priced = useMemo(() => priceGroupedJob(buildJob()), [buildJob])
 
   // Band table: "this group at each band" = its first row's first cell at the
@@ -746,6 +777,8 @@ function QuotePricerPage() {
       }
     }
     for (const c of priced.extras) {
+      // Waived setups don't go on the quote — nothing to charge.
+      if ((state.waivedKeys ?? []).includes(c.key)) continue
       const svc = c.setupProduct ? setups[c.setupProduct] : null
       lines.push({
         id: `jp_x_${c.key}`,
@@ -756,6 +789,19 @@ function QuotePricerPage() {
         product_id: svc?.product_id ?? null,
         variant_id: svc?.variant_id ?? null,
         product_handle: svc?.handle ?? null,
+        thumbnail: null,
+      })
+    }
+    if (priced.totals.discountMajor > 0) {
+      lines.push({
+        id: "jp_discount",
+        title: `Discount${state.discountKind === "percent" ? ` (${Number(state.discountValue)}%)` : ""}`,
+        description: null,
+        quantity: 1,
+        unit_price: -priced.totals.discountMajor,
+        product_id: null,
+        variant_id: null,
+        product_handle: null,
         thumbnail: null,
       })
     }
@@ -923,6 +969,10 @@ function QuotePricerPage() {
                   <span className="text-ui-fg-muted">garment {money(resolved?.unitSellMajor ?? 0)} + deco {money(gp?.decorationUnitMajor ?? 0)} =</span>
                   <span className="font-medium text-sm">
                     {gp && gp.unitSellMin !== gp.unitSellMax ? `${money(gp.unitSellMin)}–${money(gp.unitSellMax)}` : money(gp?.unitSellMajor ?? 0)}/unit
+                  </span>
+                  <span className="flex items-center gap-1" title="Negotiated all-in unit price for this group — replaces the computed unit; margin recomputes">
+                    <Input size="small" type="number" min={0} step="0.01" className="w-24" placeholder="override" value={g.unitOverride ?? ""} onChange={(e) => patchGroup(g.id, { unitOverride: e.target.value })} />
+                    {g.unitOverride?.trim() ? <Badge size="2xsmall" color="orange">override</Badge> : null}
                   </span>
                   <span className="text-ui-fg-muted">cost {money(firstRow?.unitCostExMajor)}</span>
                   {gp?.marginPct != null ? <Badge size="2xsmall" color={marginTone(gp.marginPct)}>{gp.marginPct}%</Badge> : null}
@@ -1109,31 +1159,97 @@ function QuotePricerPage() {
         <div className="flex flex-col gap-y-3">
           <div className="rounded-md border border-ui-border-base">
             <div className="px-3 py-2 bg-ui-bg-subtle text-xs text-ui-fg-muted font-medium">Setup fees &amp; extras (once per job, per design)</div>
-            {priced.extras.length === 0 ? (
+            {priced.extras.filter((c) => !c.key.startsWith("extra-")).length === 0 ? (
               <Text size="xsmall" className="text-ui-fg-muted px-3 py-2">None.</Text>
             ) : (
               <table className="w-full text-sm">
                 <tbody className="divide-y divide-ui-border-base">
-                  {priced.extras.map((c) => (
-                    <tr key={c.key}>
-                      <td className="px-3 py-1.5">
-                        {c.label}
-                        {c.notes?.[0] ? <div className="text-[11px] text-ui-fg-muted">{c.notes[0]}</div> : null}
-                        {c.setupProduct && !setups[c.setupProduct] ? <div className="text-[11px] text-ui-tag-orange-text">custom line — setup product not found</div> : null}
-                      </td>
-                      <td className="px-3 py-1.5 text-right whitespace-nowrap">{c.quantity} × {money(c.unitSellMajor)}</td>
-                      <td className="px-3 py-1.5 text-right whitespace-nowrap">
-                        {money(c.sellTotalMajor)}
-                        {c.marginPct != null ? <Badge size="2xsmall" color={marginTone(c.marginPct)} className="ml-1">{c.marginPct}%</Badge> : null}
-                      </td>
-                    </tr>
-                  ))}
+                  {priced.extras.filter((c) => !c.key.startsWith("extra-")).map((c) => {
+                    const waived = (state.waivedKeys ?? []).includes(c.key)
+                    return (
+                      <tr key={c.key} className={waived ? "opacity-60" : undefined}>
+                        <td className="px-3 py-1.5">
+                          {c.label}
+                          {c.notes?.[0] ? <div className="text-[11px] text-ui-fg-muted">{c.notes[0]}</div> : null}
+                          {!waived && c.setupProduct && !setups[c.setupProduct] ? <div className="text-[11px] text-ui-tag-orange-text">custom line — setup product not found</div> : null}
+                        </td>
+                        <td className="px-3 py-1.5 text-right whitespace-nowrap">{c.quantity} × {money(c.unitSellMajor)}</td>
+                        <td className="px-3 py-1.5 text-right whitespace-nowrap">
+                          {money(c.sellTotalMajor)}
+                          {c.marginPct != null ? <Badge size="2xsmall" color={marginTone(c.marginPct)} className="ml-1">{c.marginPct}%</Badge> : null}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <label className="flex items-center gap-1 text-[11px] text-ui-fg-muted" title="Waive this fee — listed at $0, its cost still counts against margin"><Checkbox checked={waived} onCheckedChange={() => toggleWaived(c.key)} /> waive</label>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}
           </div>
 
+          <div className="rounded-md border border-ui-border-base">
+            <div className="px-3 py-2 bg-ui-bg-subtle text-xs text-ui-fg-muted font-medium flex items-center justify-between">
+              <span>Extras (colour change, sample, freight, artwork…)</span>
+              <Select value="" onValueChange={(v) => addExtra(v === "__blank" ? undefined : EXTRA_PRESETS.find((p) => p.label === v))}>
+                <Select.Trigger className="h-7 w-44"><Select.Value placeholder="+ Add extra" /></Select.Trigger>
+                <Select.Content>
+                  {EXTRA_PRESETS.map((p) => <Select.Item key={p.label} value={p.label}>{p.label}{p.unitSell ? ` — $${p.unitSell}` : ""}</Select.Item>)}
+                  <Select.Item value="__blank">Blank extra</Select.Item>
+                </Select.Content>
+              </Select>
+            </div>
+            {(state.extras ?? []).length === 0 ? (
+              <Text size="xsmall" className="text-ui-fg-muted px-3 py-2">None.</Text>
+            ) : (
+              <div className="px-3 py-2 flex flex-col gap-y-1.5">
+                <div className="grid grid-cols-[1fr_4rem_5.5rem_5.5rem_1.5rem] gap-1 text-[11px] text-ui-fg-muted"><span>Label</span><span>Qty</span><span>Sell inc</span><span>Cost ex</span><span /></div>
+                {(state.extras ?? []).map((x) => (
+                  <div key={x.id} className="grid grid-cols-[1fr_4rem_5.5rem_5.5rem_1.5rem] gap-1 items-center">
+                    <Input size="small" value={x.label} onChange={(e) => patchExtra(x.id, { label: e.target.value })} placeholder="What for" />
+                    <Input size="small" type="number" min={0} value={x.qty} onChange={(e) => patchExtra(x.id, { qty: e.target.value })} />
+                    <Input size="small" type="number" min={0} step="0.01" value={x.unitSell} onChange={(e) => patchExtra(x.id, { unitSell: e.target.value })} placeholder="0.00" />
+                    <Input size="small" type="number" min={0} step="0.01" value={x.unitCost} onChange={(e) => patchExtra(x.id, { unitCost: e.target.value })} placeholder="—" />
+                    <Button size="small" variant="transparent" onClick={() => removeExtra(x.id)} aria-label="Remove extra"><XMark /></Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="rounded-md border border-ui-border-strong p-3 flex flex-col gap-y-1">
+            <div className="flex flex-wrap items-center gap-3 text-xs mb-1">
+              <span className="flex items-center gap-1">
+                <Label size="xsmall">Round units up to</Label>
+                <Select value={state.roundUnitTo ?? ""} onValueChange={(v) => patch({ roundUnitTo: v === "__none" ? "" : (v as JobState["roundUnitTo"]) })}>
+                  <Select.Trigger className="h-7 w-24"><Select.Value placeholder="none" /></Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="__none">none</Select.Item>
+                    <Select.Item value="0.05">$0.05</Select.Item>
+                    <Select.Item value="0.5">$0.50</Select.Item>
+                    <Select.Item value="1">$1.00</Select.Item>
+                  </Select.Content>
+                </Select>
+              </span>
+              <span className="flex items-center gap-1">
+                <Label size="xsmall">Discount</Label>
+                <Input size="small" type="number" min={0} step="0.01" className="w-20" value={state.discountValue ?? ""} onChange={(e) => patch({ discountValue: e.target.value })} placeholder="0" />
+                <Select value={state.discountKind ?? "percent"} onValueChange={(v) => patch({ discountKind: v as "percent" | "amount" })}>
+                  <Select.Trigger className="h-7 w-16"><Select.Value /></Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="percent">%</Select.Item>
+                    <Select.Item value="amount">$</Select.Item>
+                  </Select.Content>
+                </Select>
+              </span>
+            </div>
+            {priced.totals.discountMajor > 0 ? (
+              <>
+                <div className="flex items-baseline justify-between"><Text size="small" className="text-ui-fg-muted">Subtotal (inc GST)</Text><Text>{money(priced.totals.subtotalIncMajor)}</Text></div>
+                <div className="flex items-baseline justify-between"><Text size="small" className="text-ui-fg-muted">Discount</Text><Text>−{money(priced.totals.discountMajor)}</Text></div>
+              </>
+            ) : null}
             <div className="flex items-baseline justify-between"><Text size="small" className="text-ui-fg-muted">Sell (inc GST)</Text><Text weight="plus" className="text-lg">{money(priced.totals.sellIncMajor)}</Text></div>
             <div className="flex items-baseline justify-between"><Text size="small" className="text-ui-fg-muted">Cost (ex GST)</Text><Text>{money(priced.totals.costExMajor)}</Text></div>
             <div className="flex items-baseline justify-between">

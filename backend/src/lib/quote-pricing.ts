@@ -580,14 +580,30 @@ export type JobGroupSpec = {
   title: string
   rows: JobRowSpec[]
   positions: JobPositionSpec[]
+  /**
+   * Negotiated all-in unit sell (garment + decoration, inc GST) for every
+   * row of the group — replaces the computed unit; cost is unchanged so the
+   * margin shows what the deal actually leaves.
+   */
+  unitSellOverrideMajor?: number | null
 }
 
 export type JobDesignSpec = { id: string; label: string; repeat?: boolean }
+
+/** A free-form charge inside the job (colour change, sample, freight, artwork…). */
+export type JobExtraSpec = { id: string; label: string; quantity: number; unitSellMajor: number; unitCostExMajor?: number | null }
 
 export type JobSpec = {
   groups: JobGroupSpec[]
   designs: JobDesignSpec[]
   uvdtf?: { metres: number; reorder?: boolean }
+  extras?: JobExtraSpec[]
+  /** Setup / extra component keys to waive (listed at $0, cost still counted). */
+  waivedKeys?: string[]
+  /** Round every row's unit sell UP to this step (0.05 / 0.5 / 1) before totals. */
+  roundUnitTo?: number | null
+  /** Whole-of-job discount, applied after everything else. */
+  discount?: { kind: "percent" | "amount"; value: number } | null
 }
 
 export type RowPrice = {
@@ -596,6 +612,9 @@ export type RowPrice = {
   quantity: number
   /** Per-garment components for this row: the garment itself + one per position. */
   components: QuotePriceComponent[]
+  /** What the components add up to before any override / rounding. */
+  computedUnitSellMajor: number
+  /** The unit actually charged (override or rounding applied). */
   unitSellMajor: number
   unitCostExMajor: number | null
   sellTotalMajor: number
@@ -627,6 +646,10 @@ export type JobPrice = {
   garmentQuantity: number
   printTierIndex: number
   totals: {
+    /** Groups + extras before the job discount. */
+    subtotalIncMajor: number
+    discountMajor: number
+    /** What the customer pays. */
     sellIncMajor: number
     costExMajor: number | null
     marginExMajor: number | null
@@ -634,6 +657,9 @@ export type JobPrice = {
     unknownCostCount: number
   }
 }
+
+const roundUpTo = (n: number, step: number | null | undefined) =>
+  step && step > 0 ? round2(Math.ceil(n / step - 1e-9) * step) : n
 
 /**
  * Dark-garment heuristic from a colour name — dark garments need a white
@@ -799,12 +825,15 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
         )
       })
 
-      const unitSellMajor = round2(components.reduce((s, c) => s + c.unitSellMajor, 0))
+      const computedUnitSellMajor = round2(components.reduce((s, c) => s + c.unitSellMajor, 0))
+      const override = g.unitSellOverrideMajor
+      const unitSellMajor =
+        override != null && Number.isFinite(override) && override >= 0 ? round2(override) : roundUpTo(computedUnitSellMajor, job.roundUnitTo)
       const costKnown = components.every((c) => c.unitCostExMajor != null)
       const unitCostExMajor = costKnown ? round2(components.reduce((s, c) => s + (c.unitCostExMajor ?? 0), 0)) : null
       const sellTotalMajor = round2(unitSellMajor * qty)
       const costTotalExMajor = unitCostExMajor == null ? null : round2(unitCostExMajor * qty)
-      return { rowId: row.id, label: row.label, quantity: qty, components, unitSellMajor, unitCostExMajor, sellTotalMajor, costTotalExMajor }
+      return { rowId: row.id, label: row.label, quantity: qty, components, computedUnitSellMajor, unitSellMajor, unitCostExMajor, sellTotalMajor, costTotalExMajor }
     })
 
     const withQty = rows.filter((r) => r.quantity > 0)
@@ -888,15 +917,40 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
     }
   }
 
+  // Free-form extras (colour change, sample, freight, artwork…) — inside the
+  // job so they're in the totals and transfer to the quote.
+  for (const x of job.extras ?? []) {
+    const qty = Math.max(0, Math.floor(x.quantity || 0))
+    if (qty <= 0 && !x.label.trim()) continue
+    extras.push(component({ key: `extra-${x.id}`, label: x.label.trim() || "Extra", kind: "setup", quantity: qty, unitSellMajor: Math.max(0, x.unitSellMajor || 0), unitCostExMajor: x.unitCostExMajor ?? null, setupProduct: null }))
+  }
+
+  // Waived setups / extras: listed at $0 (cost still counted), so a "we'll
+  // throw in the screens" deal shows what it costs.
+  const waived = new Set(job.waivedKeys ?? [])
+  for (let i = 0; i < extras.length; i++) {
+    const c = extras[i]
+    if (!waived.has(c.key)) continue
+    extras[i] = component({ ...c, label: `${c.label} — waived`, unitSellMajor: 0 })
+  }
+
   const costedGroups = groups.filter((g) => g.costTotalExMajor != null)
   const costedExtras = extras.filter((c) => c.costTotalExMajor != null)
-  const sellIncMajor = round2(groups.reduce((s, g) => s + g.sellTotalMajor, 0) + extras.reduce((s, c) => s + c.sellTotalMajor, 0))
-  const costedSellEx = exGst(costedGroups.reduce((s, g) => s + g.sellTotalMajor, 0) + costedExtras.reduce((s, c) => s + c.sellTotalMajor, 0))
+  const subtotalIncMajor = round2(groups.reduce((s, g) => s + g.sellTotalMajor, 0) + extras.reduce((s, c) => s + c.sellTotalMajor, 0))
+  const discountMajor =
+    job.discount && job.discount.value > 0
+      ? round2(Math.min(subtotalIncMajor, job.discount.kind === "percent" ? (subtotalIncMajor * job.discount.value) / 100 : job.discount.value))
+      : 0
+  const sellIncMajor = round2(subtotalIncMajor - discountMajor)
+  // The discount comes off everything pro rata, so margin is measured on the
+  // costed share of the DISCOUNTED sell.
+  const costedShare = subtotalIncMajor > 0 ? (costedGroups.reduce((s, g) => s + g.sellTotalMajor, 0) + costedExtras.reduce((s, c) => s + c.sellTotalMajor, 0)) / subtotalIncMajor : 0
+  const costedSellEx = exGst(sellIncMajor * costedShare)
   const anyCosted = costedGroups.length + costedExtras.length > 0
   const costExMajor = anyCosted ? round2(costedGroups.reduce((s, g) => s + (g.costTotalExMajor ?? 0), 0) + costedExtras.reduce((s, c) => s + (c.costTotalExMajor ?? 0), 0)) : null
   const marginExMajor = costExMajor == null ? null : round2(costedSellEx - costExMajor)
   const marginPct = marginExMajor == null || costedSellEx <= 0 ? null : Math.round((marginExMajor / costedSellEx) * 1000) / 10
   const unknownCostCount = groups.length - costedGroups.length + (extras.length - costedExtras.length)
 
-  return { groups, extras, warnings: Array.from(new Set(warnings)), garmentQuantity, printTierIndex, totals: { sellIncMajor, costExMajor, marginExMajor, marginPct, unknownCostCount } }
+  return { groups, extras, warnings: Array.from(new Set(warnings)), garmentQuantity, printTierIndex, totals: { subtotalIncMajor, discountMajor, sellIncMajor, costExMajor, marginExMajor, marginPct, unknownCostCount } }
 }

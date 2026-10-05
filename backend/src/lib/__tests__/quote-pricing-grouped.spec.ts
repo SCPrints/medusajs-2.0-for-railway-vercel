@@ -123,6 +123,53 @@ describe("priceGroupedJob", () => {
   })
 })
 
+describe("priceGroupedJob negotiation tools", () => {
+  const base = priceGroupedJob(job)
+
+  it("unit override replaces the computed unit for every row; cost unchanged", () => {
+    const r = priceGroupedJob({ ...job, groups: job.groups.map((g) => (g.id === "tees" ? { ...g, unitSellOverrideMajor: 30 } : g)) })
+    const tees = r.groups.find((g) => g.groupId === "tees")!
+    expect(tees.rows.map((x) => x.unitSellMajor)).toEqual([30, 30])
+    expect(tees.rows[0].computedUnitSellMajor).toBe(34.5)
+    expect(tees.rows[0].unitCostExMajor).toBe(base.groups.find((g) => g.groupId === "tees")!.rows[0].unitCostExMajor)
+    expect(tees.sellTotalMajor).toBe(1500)
+  })
+
+  it("rounds unit sells UP to the step", () => {
+    const r = priceGroupedJob({ ...job, roundUnitTo: 0.5 })
+    expect(r.groups.find((g) => g.groupId === "tees")!.rows[0].unitSellMajor).toBe(34.5)
+    const r1 = priceGroupedJob({ ...job, roundUnitTo: 1 })
+    expect(r1.groups.find((g) => g.groupId === "tees")!.rows[0].unitSellMajor).toBe(35)
+    expect(r1.groups.find((g) => g.groupId === "hoods")!.rows[0].unitSellMajor).toBe(50) // 20 + 16.85 + 12.6 = 49.45 → 50
+  })
+
+  it("waived setups list at $0 but keep their cost; extras join the totals", () => {
+    const r = priceGroupedJob({
+      ...job,
+      waivedKeys: ["screen-setup-A"],
+      extras: [{ id: "cc", label: "Colour change", quantity: 2, unitSellMajor: 45, unitCostExMajor: 35 }],
+    })
+    const screens = r.extras.find((c) => c.key === "screen-setup-A")!
+    expect(screens.sellTotalMajor).toBe(0)
+    expect(screens.costTotalExMajor).toBe(280)
+    expect(screens.label).toMatch(/waived$/)
+    const cc = r.extras.find((c) => c.key === "extra-cc")!
+    expect(cc).toMatchObject({ quantity: 2, unitSellMajor: 45, sellTotalMajor: 90, costTotalExMajor: 70 })
+    expect(r.totals.subtotalIncMajor).toBe(Math.round((base.totals.subtotalIncMajor - 396 + 90) * 100) / 100)
+  })
+
+  it("job discount comes off the subtotal; margin is measured on the discounted sell", () => {
+    const pct = priceGroupedJob({ ...job, discount: { kind: "percent", value: 10 } })
+    expect(pct.totals.discountMajor).toBe(Math.round(base.totals.subtotalIncMajor * 10) / 100)
+    expect(pct.totals.sellIncMajor).toBe(Math.round((base.totals.subtotalIncMajor - pct.totals.discountMajor) * 100) / 100)
+    expect(pct.totals.marginPct!).toBeLessThan(base.totals.marginPct!)
+    const amt = priceGroupedJob({ ...job, discount: { kind: "amount", value: 500 } })
+    expect(amt.totals.discountMajor).toBe(500)
+    const capped = priceGroupedJob({ ...job, discount: { kind: "amount", value: 1e9 } })
+    expect(capped.totals.sellIncMajor).toBe(0)
+  })
+})
+
 describe("isDarkGarmentColourName", () => {
   it("flags dark colours, lets light ones through, light words win", () => {
     expect(isDarkGarmentColourName("Black")).toBe(true)
