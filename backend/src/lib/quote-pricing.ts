@@ -537,3 +537,294 @@ export function priceQuoteJob(spec: QuoteJobSpec, garment: ResolvedGarment | nul
     totals: { sellIncMajor, costExMajor, marginExMajor, marginPct, unknownCostKeys },
   }
 }
+
+// ---------------------------------------------------------------------------
+// Grouped jobs — the Job pricer's real model
+// ---------------------------------------------------------------------------
+/**
+ * A job is a list of GROUPS (one garment type × qty × its own decoration
+ * positions) sharing a set of DESIGNS (artwork). Tiers follow how we're billed:
+ *   - full-colour prints tier on the job-wide print quantity (gang sheets —
+ *     the same cart-wide aggregation checkout does);
+ *   - screen print tiers per group (DSP bills each garment+artwork run);
+ *   - embroidery tiers per group;
+ *   - EVERY setup is per design, shared across the garments carrying it:
+ *     screens (DSP charges per design; a changed design = new screens),
+ *     Supacolour transfer setup, digitizing. A design flagged `repeat`
+ *     (reorder within 6 months) takes the repeat/reset rate — digitizing is
+ *     waived outright.
+ */
+export type JobPositionSpec =
+  | { method: "print"; channel?: PrintChannel; sizeId: ScpPrintSizeId; designId: string }
+  | { method: "screen"; colours: number; darkGarment?: boolean; designId: string }
+  | { method: "embroidery"; stitchCount: number; promo?: boolean; designId: string }
+
+export type JobGroupSpec = {
+  id: string
+  quantity: number
+  garment: ResolvedGarment | null
+  positions: JobPositionSpec[]
+}
+
+export type JobDesignSpec = { id: string; label: string; repeat?: boolean }
+
+export type JobSpec = {
+  groups: JobGroupSpec[]
+  designs: JobDesignSpec[]
+  uvdtf?: { metres: number; reorder?: boolean }
+}
+
+export type GroupPrice = {
+  groupId: string
+  quantity: number
+  /** Per-garment components: the garment itself + one per position. */
+  components: QuotePriceComponent[]
+  unitSellMajor: number
+  unitCostExMajor: number | null
+  sellTotalMajor: number
+  costTotalExMajor: number | null
+  marginExMajor: number | null
+  marginPct: number | null
+}
+
+export type JobPrice = {
+  groups: GroupPrice[]
+  /** Per-design setups + UV DTF, each charged once per job. */
+  extras: QuotePriceComponent[]
+  warnings: string[]
+  /** Job-wide full-colour print quantity (drives the DTF/Supacolour tier). */
+  printQuantity: number
+  printTierIndex: number
+  totals: {
+    sellIncMajor: number
+    costExMajor: number | null
+    marginExMajor: number | null
+    marginPct: number | null
+    unknownCostCount: number
+  }
+}
+
+const PRINT_CHANNEL_LABEL: Record<PrintChannel, string> = {
+  dtf: "DTF print",
+  supacolour: "Supacolour transfer",
+  byo: "BYO DTF print",
+  promo: "Trade DTF print",
+  press_only: "Press only",
+}
+
+export function priceGroupedJob(job: JobSpec): JobPrice {
+  const warnings: string[] = []
+  const designById = new Map(job.designs.map((d) => [d.id, d]))
+  const designLabel = (id: string) => designById.get(id)?.label ?? "?"
+
+  const groupQty = (g: JobGroupSpec) => Math.max(0, Math.floor(g.quantity || 0))
+  const printQuantity = job.groups
+    .filter((g) => g.positions.some((p) => p.method === "print"))
+    .reduce((s, g) => s + groupQty(g), 0)
+  const printTierIndex = resolveScpTierIndexForQuantity(Math.max(1, printQuantity))
+
+  // Per-design setup bookkeeping, filled while walking positions.
+  const screensByDesign = new Map<string, number>() // max effective colours
+  const supacolourDesigns = new Set<string>()
+  const digitizingDesigns = new Set<string>()
+  // Which garments carry each design, per setup kind — so a digitizing line
+  // says "Used on: Cap", not every garment the artwork appears on.
+  const designGarments = new Map<string, Set<string>>()
+  const noteDesign = (designId: string, kind: "screen" | "supacolour" | "embroidery", garmentTitle: string) => {
+    const key = `${designId}:${kind}`
+    if (!designGarments.has(key)) designGarments.set(key, new Set())
+    designGarments.get(key)!.add(garmentTitle)
+  }
+
+  const groups: GroupPrice[] = job.groups.map((g) => {
+    const qty = groupQty(g)
+    const tierQty = Math.max(1, qty)
+    const garment = g.garment
+    const garmentTitle = garment?.title ?? "Customer-supplied garment"
+    const components: QuotePriceComponent[] = []
+
+    if (garment) {
+      if (garment.unitSellMajor == null) warnings.push(`${garment.title}: no catalogue price — set the unit price by hand.`)
+      components.push(
+        component({
+          key: "garment",
+          label: garment.title,
+          kind: "per_garment",
+          quantity: qty,
+          unitSellMajor: garment.unitSellMajor ?? 0,
+          unitCostExMajor: garment.unitCostExMajor,
+          notes:
+            garment.unitCostExMajor == null
+              ? ["No supplier cost on this variant — margin unknown."]
+              : garment.costEstimated
+                ? ["Cost estimated from the 100+ ladder (no supplier cost stamped on this variant)."]
+                : undefined,
+        })
+      )
+    }
+
+    g.positions.forEach((p, i) => {
+      const pos = `position ${i + 1}`
+      const tag = `design ${designLabel(p.designId)}`
+
+      if (p.method === "print") {
+        const channel: PrintChannel = p.channel ?? (garment?.supacolour ? "supacolour" : "dtf")
+        if (channel === "supacolour") {
+          if (SUPACOLOUR_QUOTE_ONLY_SIZES.has(p.sizeId)) {
+            warnings.push(`${garmentTitle}: Supacolour has no ${sizeLabel(p.sizeId)} transfer — price that position by hand.`)
+            components.push(component({ key: `pos-${i}`, label: `Supacolour ${sizeLabel(p.sizeId)} (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: 0, unitCostExMajor: null, requiresQuote: true }))
+            return
+          }
+          supacolourDesigns.add(p.designId)
+          noteDesign(p.designId, "supacolour", garmentTitle)
+          components.push(
+            component({ key: `pos-${i}`, label: `Supacolour transfer ${sizeLabel(p.sizeId)} (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: supacolourUnitMajorForTier(p.sizeId, printTierIndex) ?? 0, unitCostExMajor: supacolourBlockerCostExMajor(p.sizeId, printTierIndex) })
+          )
+          return
+        }
+        if (channel === "press_only") {
+          components.push(component({ key: `pos-${i}`, label: `Press only ${sizeLabel(p.sizeId)} (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: round2(PROMO_PRESS_ONLY_EX[printTierIndex] * (1 + GST)), unitCostExMajor: PRESS_LABOUR_EX }))
+          return
+        }
+        const cost = fullColourFloorExMajor(p.sizeId, printTierIndex)
+        if (channel === "promo") {
+          components.push(component({ key: `pos-${i}`, label: `Trade DTF ${sizeLabel(p.sizeId)} (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: round2(PROMO_DTF_EX[p.sizeId][printTierIndex] * (1 + GST)), unitCostExMajor: cost }))
+          return
+        }
+        const retail = scpPrintUnitMajorForTier(p.sizeId, printTierIndex)
+        components.push(
+          component({
+            key: `pos-${i}`,
+            label: `${PRINT_CHANNEL_LABEL[channel]} ${sizeLabel(p.sizeId)} (${pos}, ${tag})`,
+            kind: "per_garment",
+            quantity: qty,
+            unitSellMajor: channel === "byo" ? round2(retail + BYO_HANDLING_PER_POSITION_INC) : retail,
+            unitCostExMajor: cost,
+          })
+        )
+        return
+      }
+
+      if (p.method === "screen") {
+        if (qty > 0 && qty < SCREEN_MIN_QUANTITY) warnings.push(`${garmentTitle}: screen printing minimum is ${SCREEN_MIN_QUANTITY} — ${qty} prices at the 25–49 band.`)
+        if (qty > SCREEN_MAX_QUANTITY) warnings.push(`${garmentTitle}: over ${SCREEN_MAX_QUANTITY} screen prints — get a DSP quote.`)
+        const heavy = garment?.screenHeavy ?? false
+        const r = screenUnitMajor({ quantity: tierQty, colours: p.colours, darkGarment: p.darkGarment, heavyGarment: heavy })
+        screensByDesign.set(p.designId, Math.max(screensByDesign.get(p.designId) ?? 0, r.effectiveColours))
+        noteDesign(p.designId, "screen", garmentTitle)
+        components.push(
+          component({
+            key: `pos-${i}`,
+            label: `Screen print ${r.effectiveColours} colour${r.effectiveColours > 1 ? "s" : ""}${p.darkGarment ? " incl. underbase" : ""}${heavy ? " + heavy garment" : ""} (${pos}, ${tag})`,
+            kind: "per_garment",
+            quantity: qty,
+            unitSellMajor: r.unitMajor,
+            unitCostExMajor: round2(SCREEN_DSP_COST_EX[r.tierIndex][r.effectiveColours - 1] + SCREEN_HANDLING_EX + (heavy ? SCREEN_HEAVY_COST_EX : 0)),
+          })
+        )
+        return
+      }
+
+      // embroidery
+      const stitches = Math.max(1, Math.floor(p.stitchCount || 0))
+      if (stitches > MAX_AUTO_PRICED_STITCHES) {
+        warnings.push(`${garmentTitle}: ${stitches.toLocaleString()} stitches is over the ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} cap — price by hand.`)
+        components.push(component({ key: `pos-${i}`, label: `Embroidery ${stitches.toLocaleString()} st (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: 0, unitCostExMajor: embroideryCostExMajor(12000, tierQty), requiresQuote: true }))
+        return
+      }
+      digitizingDesigns.add(p.designId)
+      noteDesign(p.designId, "embroidery", garmentTitle)
+      const cost = embroideryCostExMajor(stitches, tierQty)
+      if (p.promo) {
+        const band = Math.min(12, Math.max(3, Math.ceil(stitches / 1000)))
+        const { tierIndex: t } = resolveEmbroideryQuantityTier(tierQty)
+        components.push(component({ key: `pos-${i}`, label: `Trade embroidery ${stitches.toLocaleString()} st (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: round2(PROMO_EMB_EX[band - 3][t] * (1 + GST)), unitCostExMajor: cost }))
+        return
+      }
+      const r = calculateEmbroideryUnitPriceMajor({ stitchCount: stitches, quantity: tierQty, includeDigitizing: false })
+      components.push(
+        component({ key: `pos-${i}`, label: `Embroidery ${stitches.toLocaleString()} st (${pos}, ${tag}, ${r.tierLabel} band)`, kind: "per_garment", quantity: qty, unitSellMajor: r.unitDecorationMajor, unitCostExMajor: cost, notes: qty > 100 ? ["Over 100 units — costed at GAA outsource rates."] : undefined })
+      )
+    })
+
+    const unitSellMajor = round2(components.reduce((s, c) => s + c.unitSellMajor, 0))
+    const costKnown = components.every((c) => c.unitCostExMajor != null)
+    const unitCostExMajor = costKnown ? round2(components.reduce((s, c) => s + (c.unitCostExMajor ?? 0), 0)) : null
+    const sellTotalMajor = round2(unitSellMajor * qty)
+    const costTotalExMajor = unitCostExMajor == null ? null : round2(unitCostExMajor * qty)
+    const marginExMajor = costTotalExMajor == null ? null : round2(exGst(sellTotalMajor) - costTotalExMajor)
+    const marginPct = marginExMajor == null || sellTotalMajor <= 0 ? null : Math.round((marginExMajor / exGst(sellTotalMajor)) * 1000) / 10
+    return { groupId: g.id, quantity: qty, components, unitSellMajor, unitCostExMajor, sellTotalMajor, costTotalExMajor, marginExMajor, marginPct }
+  })
+
+  // --- per-design setups, once per job ---
+  const extras: QuotePriceComponent[] = []
+  const usedOn = (designId: string, kind: "screen" | "supacolour" | "embroidery") =>
+    Array.from(designGarments.get(`${designId}:${kind}`) ?? []).join(", ")
+  for (const d of job.designs) {
+    const screens = screensByDesign.get(d.id)
+    if (screens) {
+      extras.push(
+        component({
+          key: `screen-setup-${d.id}`,
+          label: `Screen setup — design ${d.label} (${screens} screen${screens > 1 ? "s" : ""}${d.repeat ? ", repeat" : ""})`,
+          kind: "setup",
+          quantity: screens,
+          unitSellMajor: d.repeat ? SCREEN_REPEAT_SETUP_PER_SCREEN_MAJOR : SCREEN_SETUP_PER_SCREEN_MAJOR,
+          unitCostExMajor: d.repeat ? SCREEN_SETUP_COST_EX.repeat : SCREEN_SETUP_COST_EX.new,
+          setupProduct: "screen_setup",
+          notes: [`Used on: ${usedOn(d.id, "screen")}`],
+        })
+      )
+    }
+    if (supacolourDesigns.has(d.id)) {
+      extras.push(
+        component({
+          key: `supacolour-setup-${d.id}`,
+          label: `Supacolour setup — design ${d.label}${d.repeat ? " (repeat)" : ""}`,
+          kind: "setup",
+          quantity: 1,
+          unitSellMajor: d.repeat ? SUPACOLOUR_REPEAT_SETUP_MAJOR : SUPACOLOUR_SETUP_MAJOR,
+          unitCostExMajor: d.repeat ? SUPA_SETUP_COST_EX.repeat : SUPA_SETUP_COST_EX.new,
+          setupProduct: "supacolour_setup",
+          notes: [`Used on: ${usedOn(d.id, "supacolour")}`],
+        })
+      )
+    }
+    if (digitizingDesigns.has(d.id) && !d.repeat) {
+      extras.push(
+        component({
+          key: `digitizing-${d.id}`,
+          label: `Digitizing — design ${d.label}`,
+          kind: "setup",
+          quantity: 1,
+          unitSellMajor: DIGITIZING_FEE_MAJOR,
+          unitCostExMajor: 0,
+          setupProduct: "embroidery_setup",
+          notes: [`Used on: ${usedOn(d.id, "embroidery")}`, "Cost is owner time in-house (GAA charges $30–100 if outsourced)."],
+        })
+      )
+    }
+  }
+
+  if (job.uvdtf && job.uvdtf.metres > 0) {
+    const metres = Math.max(1, Math.floor(job.uvdtf.metres))
+    const rate = UVDTF_RATE_BANDS.find((b) => metres >= b.minMetres)?.perMetre ?? 65
+    extras.push(component({ key: "uvdtf", label: `UV DTF gang sheet 580mm (${metres} m)`, kind: "per_metre", quantity: metres, unitSellMajor: rate, unitCostExMajor: uvdtfFloorExPerLm(), notes: [`Floor assumes ${UV.lmPerMonth} lm/month through the Sublistar.`] }))
+    if (!job.uvdtf.reorder) {
+      extras.push(component({ key: "uvdtf-setup", label: "UV DTF setup / artwork", kind: "setup", quantity: 1, unitSellMajor: UVDTF_SETUP_INC, unitCostExMajor: UV_SETUP_COST_EX, setupProduct: null }))
+    }
+  }
+
+  const costedGroups = groups.filter((g) => g.costTotalExMajor != null)
+  const costedExtras = extras.filter((c) => c.costTotalExMajor != null)
+  const sellIncMajor = round2(groups.reduce((s, g) => s + g.sellTotalMajor, 0) + extras.reduce((s, c) => s + c.sellTotalMajor, 0))
+  const costedSellEx = exGst(costedGroups.reduce((s, g) => s + g.sellTotalMajor, 0) + costedExtras.reduce((s, c) => s + c.sellTotalMajor, 0))
+  const anyCosted = costedGroups.length + costedExtras.length > 0
+  const costExMajor = anyCosted ? round2(costedGroups.reduce((s, g) => s + (g.costTotalExMajor ?? 0), 0) + costedExtras.reduce((s, c) => s + (c.costTotalExMajor ?? 0), 0)) : null
+  const marginExMajor = costExMajor == null ? null : round2(costedSellEx - costExMajor)
+  const marginPct = marginExMajor == null || costedSellEx <= 0 ? null : Math.round((marginExMajor / costedSellEx) * 1000) / 10
+  const unknownCostCount = groups.length - costedGroups.length + (extras.length - costedExtras.length)
+
+  return { groups, extras, warnings: Array.from(new Set(warnings)), printQuantity, printTierIndex, totals: { sellIncMajor, costExMajor, marginExMajor, marginPct, unknownCostCount } }
+}
