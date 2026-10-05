@@ -505,6 +505,108 @@ function LineItemsEditor({
   )
 }
 
+/**
+ * The job as priced in the Job pricer — groups, size runs, positions, setups,
+ * totals — rendered from the snapshot the pricer saves on the quote
+ * (`metadata.job_pricer.snapshot`, prices frozen at send time). The line
+ * items below stay the editable ledger; this is what a human reads.
+ */
+function JobBreakdownCard({ jobPricer, quoteId }: { jobPricer: unknown; quoteId: string }) {
+  const jp = jobPricer as
+    | {
+        saved_at?: string
+        snapshot?: {
+          summary?: string
+          tier?: string
+          garmentQuantity?: number
+          designs?: Array<{ label: string; repeat?: boolean }>
+          groups?: Array<{
+            title: string
+            thumbnail?: string | null
+            quantity: number
+            unitSellMin: number
+            unitSellMax: number
+            sellTotalMajor: number
+            marginPct: number | null
+            override?: boolean
+            positions: string[]
+            rows: Array<{ label: string; quantity: number; unitSellMajor: number; sellTotalMajor: number }>
+          }>
+          extras?: Array<{ label: string; quantity: number; unitSellMajor: number; sellTotalMajor: number; waived?: boolean }>
+          totals?: { subtotalIncMajor?: number; discountMajor?: number; sellIncMajor: number; costExMajor: number | null; marginExMajor: number | null; marginPct: number | null }
+        }
+      }
+    | null
+    | undefined
+  const snap = jp?.snapshot
+  if (!snap?.groups?.length && !snap?.extras?.length) return null
+  const money = (n: number | null | undefined) =>
+    n == null ? "—" : new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
+  const tone = (pct: number | null | undefined): "grey" | "red" | "orange" | "green" =>
+    pct == null ? "grey" : pct < 15 ? "red" : pct < 35 ? "orange" : "green"
+  return (
+    <div className="rounded-md border border-ui-border-base">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-ui-bg-subtle">
+        <div>
+          <Text weight="plus" size="small">Job breakdown</Text>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            {snap.garmentQuantity ?? 0} garments · {snap.tier ?? "Public quantity ladder"}
+            {jp?.saved_at ? ` · priced ${new Date(jp.saved_at).toLocaleString("en-AU")}` : ""}
+            {snap.designs?.length ? ` · designs ${snap.designs.map((d) => `${d.label}${d.repeat ? " (repeat)" : ""}`).join(", ")}` : ""}
+          </Text>
+        </div>
+        <Button size="small" variant="secondary" asChild>
+          <a href={`/app/quote-pricer?quote=${encodeURIComponent(quoteId)}`}>Edit in Job pricer</a>
+        </Button>
+      </div>
+      <div className="divide-y divide-ui-border-base">
+        {(snap.groups ?? []).map((g, i) => (
+          <div key={i} className="px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {g.thumbnail ? <img src={g.thumbnail} alt="" className="w-8 h-8 rounded object-cover bg-ui-bg-subtle" /> : null}
+              <span className="font-medium">{g.quantity} × {g.title}</span>
+              <span className="text-xs text-ui-fg-muted">{g.unitSellMin !== g.unitSellMax ? `${money(g.unitSellMin)}–${money(g.unitSellMax)}` : money(g.unitSellMin)}/unit{g.override ? " (negotiated)" : ""}</span>
+              {g.marginPct != null ? <Badge size="2xsmall" color={tone(g.marginPct)}>{g.marginPct}%</Badge> : null}
+              <span className="ml-auto font-medium">{money(g.sellTotalMajor)}</span>
+            </div>
+            {g.positions.length ? <div className="text-xs text-ui-fg-muted mt-1">{g.positions.join(" · ")}</div> : <div className="text-xs text-ui-fg-muted mt-1">Blank garment</div>}
+            {g.rows.length > 1 ? (
+              <div className="text-xs mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                {g.rows.map((r, j) => (
+                  <span key={j} className="text-ui-fg-subtle">{r.label} <span className="text-ui-fg-muted">× {r.quantity}</span></span>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+        {(snap.extras ?? []).length ? (
+          <div className="px-3 py-2 text-xs flex flex-col gap-y-0.5">
+            {(snap.extras ?? []).map((x, i) => (
+              <div key={i} className={`flex justify-between gap-2 ${x.waived ? "text-ui-fg-muted line-through" : ""}`}>
+                <span>{x.label}</span>
+                <span className="whitespace-nowrap">{x.quantity} × {money(x.unitSellMajor)} = {money(x.sellTotalMajor)}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {snap.totals ? (
+          <div className="px-3 py-2 text-sm flex flex-wrap items-baseline justify-end gap-x-4 gap-y-1">
+            {snap.totals.discountMajor ? (
+              <span className="text-xs text-ui-fg-muted">subtotal {money(snap.totals.subtotalIncMajor)} − discount {money(snap.totals.discountMajor)}</span>
+            ) : null}
+            <span><span className="text-ui-fg-muted text-xs mr-1">Sell inc GST</span><span className="font-medium">{money(snap.totals.sellIncMajor)}</span></span>
+            <span><span className="text-ui-fg-muted text-xs mr-1">Cost ex</span>{money(snap.totals.costExMajor)}</span>
+            <span>
+              <span className="text-ui-fg-muted text-xs mr-1">Margin</span>{money(snap.totals.marginExMajor)}
+              {snap.totals.marginPct != null ? <Badge size="2xsmall" color={tone(snap.totals.marginPct)} className="ml-1">{snap.totals.marginPct}%</Badge> : null}
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function NewQuoteDrawer({
   open,
   onClose,
@@ -1421,6 +1523,8 @@ function QuoteDetail({
           </div>
         </div>
       ) : null}
+
+      <JobBreakdownCard jobPricer={quote.metadata?.job_pricer} quoteId={quote.id} />
 
       <div>
         <Heading level="h3" className="text-base">Line items</Heading>

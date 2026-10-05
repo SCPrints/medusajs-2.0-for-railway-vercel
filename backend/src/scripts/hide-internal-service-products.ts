@@ -33,6 +33,7 @@ import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 const KNOWN_HANDLES = [
   "screen-printing-setup-fee",
   "supacolour-transfer-setup-fee",
+  "custom-service-line",
 ]
 
 // The embroidery setup product was created by hand in admin — no known

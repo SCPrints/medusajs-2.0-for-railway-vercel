@@ -188,6 +188,8 @@ const SETUP_HANDLES: Record<Exclude<SetupKey, "embroidery_setup">, string> = {
   screen_setup: "screen-printing-setup-fee",
   supacolour_setup: "supacolour-transfer-setup-fee",
 }
+/** $0 service product that carries a quoted price on lines with no catalogue product (so they convert to orders). */
+const SERVICE_LINE_HANDLE = "custom-service-line"
 
 const genId = (p: string) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
 const money = (n: number | null | undefined) =>
@@ -459,6 +461,7 @@ function QuotePricerPage() {
   const [hydrated, setHydrated] = useState(false)
   const [draftRestored, setDraftRestored] = useState(false)
   const [setups, setSetups] = useState<Record<SetupKey, ServiceProduct | null>>({ screen_setup: null, supacolour_setup: null, embroidery_setup: null })
+  const [serviceLine, setServiceLine] = useState<ServiceProduct | null>(null)
   const [newEmail, setNewEmail] = useState("")
   const [sending, setSending] = useState(false)
 
@@ -484,7 +487,7 @@ function QuotePricerPage() {
   useEffect(() => {
     void (async () => {
       try {
-        const handles = Object.values(SETUP_HANDLES).map((h) => `handle[]=${encodeURIComponent(h)}`).join("&")
+        const handles = [...Object.values(SETUP_HANDLES), SERVICE_LINE_HANDLE].map((h) => `handle[]=${encodeURIComponent(h)}`).join("&")
         const [byHandle, byTitle] = await Promise.all([
           adminGet<{ products: Array<ProductLite & { variants: Array<{ id: string }> }> }>(`/admin/products?${handles}&fields=id,handle,title,variants.id`),
           adminGet<{ products: Array<ProductLite & { variants: Array<{ id: string }> }> }>(`/admin/products?q=setup&limit=20&fields=id,handle,title,variants.id`),
@@ -495,6 +498,7 @@ function QuotePricerPage() {
         for (const p of byHandle.products ?? []) {
           if (p.handle === SETUP_HANDLES.screen_setup) next.screen_setup = toService(p)
           if (p.handle === SETUP_HANDLES.supacolour_setup) next.supacolour_setup = toService(p)
+          if (p.handle === SERVICE_LINE_HANDLE) setServiceLine(toService(p))
         }
         next.embroidery_setup = toService((byTitle.products ?? []).find((p) => /embroidery.*setup|setup.*embroidery|digitiz/i.test(p.title ?? "")))
         setSetups(next)
@@ -750,6 +754,22 @@ function QuotePricerPage() {
   }, [state])
 
   // --- send to quote ---
+  // A job discount is applied PRO RATA to every line's unit price (a negative
+  // "discount" line can't be carted), and noted in each description.
+  const discountFactor = priced.totals.subtotalIncMajor > 0 ? priced.totals.sellIncMajor / priced.totals.subtotalIncMajor : 1
+  const discountNote =
+    priced.totals.discountMajor > 0
+      ? ` (incl. ${state.discountKind === "percent" ? `${Number(state.discountValue)}%` : money(priced.totals.discountMajor)} job discount)`
+      : ""
+  const discounted = (unit: number) => Math.round(unit * discountFactor * 100) / 100
+  /** Lines with no catalogue product ride on the $0 service product so they convert to orders. */
+  const onServiceLine = (): Pick<QuoteLine, "product_id" | "variant_id" | "product_handle" | "thumbnail"> => ({
+    product_id: serviceLine?.product_id ?? null,
+    variant_id: serviceLine?.variant_id ?? null,
+    product_handle: serviceLine?.handle ?? null,
+    thumbnail: null,
+  })
+
   const buildLines = (): QuoteLine[] => {
     const lines: QuoteLine[] = []
     for (const gp of priced.groups) {
@@ -763,50 +783,62 @@ function QuotePricerPage() {
         const size = sizeKey === "any" ? ANY_SIZE : sizeKey
         const variant = !g.supplied && axes && row && size !== ANY_SIZE ? axes.variantFor(row.colour, size) : null
         const garment = rp.components.find((c) => c.key === "garment")
+        const description = (g.positions.map((p) => positionSummary(p, state.designs, row?.dark ?? false)).join(" · ") || "") + discountNote
         lines.push({
           id: `jp_r_${rp.rowId}`,
           title: garment ? garment.label : `Customer-supplied — ${rp.label}`,
-          description: g.positions.map((p) => positionSummary(p, state.designs, row?.dark ?? false)).join(" · ") || null,
+          description: description.trim() || null,
           quantity: rp.quantity,
-          unit_price: rp.unitSellMajor,
-          product_id: g.supplied ? null : g.product?.id ?? null,
-          variant_id: variant?.id ?? null,
-          product_handle: g.supplied ? null : g.product?.handle ?? null,
-          thumbnail: g.supplied ? null : g.product?.thumbnail ?? null,
+          unit_price: discounted(rp.unitSellMajor),
+          ...(g.supplied
+            ? onServiceLine()
+            : { product_id: g.product?.id ?? null, variant_id: variant?.id ?? null, product_handle: g.product?.handle ?? null, thumbnail: g.product?.thumbnail ?? null }),
         })
       }
     }
     for (const c of priced.extras) {
       // Waived setups don't go on the quote — nothing to charge.
       if ((state.waivedKeys ?? []).includes(c.key)) continue
-      const svc = c.setupProduct ? setups[c.setupProduct] : null
+      const svc = (c.setupProduct ? setups[c.setupProduct] : null) ?? serviceLine
       lines.push({
         id: `jp_x_${c.key}`,
         title: c.label,
-        description: c.notes?.[0] ?? (svc ? null : c.kind === "setup" ? "Custom line — add the matching setup product to charge it at checkout." : null),
+        description: ((c.notes?.[0] ?? "") + discountNote).trim() || null,
         quantity: c.quantity,
-        unit_price: c.unitSellMajor,
+        unit_price: discounted(c.unitSellMajor),
         product_id: svc?.product_id ?? null,
         variant_id: svc?.variant_id ?? null,
         product_handle: svc?.handle ?? null,
         thumbnail: null,
       })
     }
-    if (priced.totals.discountMajor > 0) {
-      lines.push({
-        id: "jp_discount",
-        title: `Discount${state.discountKind === "percent" ? ` (${Number(state.discountValue)}%)` : ""}`,
-        description: null,
-        quantity: 1,
-        unit_price: -priced.totals.discountMajor,
-        product_id: null,
-        variant_id: null,
-        product_handle: null,
-        thumbnail: null,
-      })
-    }
     return lines
   }
+
+  /** What the quote page's "Job breakdown" card renders — prices frozen at send time. */
+  const buildSnapshot = () => ({
+    summary: jobSummary,
+    tier: tier ? tier.name : "Public quantity ladder",
+    garmentQuantity: priced.garmentQuantity,
+    designs: state.designs.map((d) => ({ label: d.label, repeat: d.repeat })),
+    groups: priced.groups.map((gp) => {
+      const g = state.groups.find((x) => x.id === gp.groupId)!
+      return {
+        title: g.supplied ? "Customer-supplied garments" : g.product?.title ?? "Garment",
+        thumbnail: g.supplied ? null : g.product?.thumbnail ?? null,
+        quantity: gp.quantity,
+        unitSellMin: gp.unitSellMin,
+        unitSellMax: gp.unitSellMax,
+        sellTotalMajor: gp.sellTotalMajor,
+        marginPct: gp.marginPct,
+        override: Boolean(g.unitOverride?.trim()),
+        positions: g.positions.map((p) => positionSummary(p, state.designs, false).replace(" + underbase", "")),
+        rows: gp.rows.filter((r) => r.quantity > 0).map((r) => ({ label: r.label, quantity: r.quantity, unitSellMajor: r.unitSellMajor, sellTotalMajor: r.sellTotalMajor })),
+      }
+    }),
+    extras: priced.extras.map((c) => ({ label: c.label, quantity: c.quantity, unitSellMajor: c.unitSellMajor, sellTotalMajor: c.sellTotalMajor, waived: (state.waivedKeys ?? []).includes(c.key) })),
+    totals: priced.totals,
+  })
 
   const sendToQuote = async () => {
     const lines = buildLines()
@@ -814,7 +846,7 @@ function QuotePricerPage() {
       toast.error("Nothing to send — add a garment with a quantity first.")
       return
     }
-    const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, state }
+    const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state }
     setSending(true)
     try {
       if (targetQuote) {
@@ -1171,7 +1203,7 @@ function QuotePricerPage() {
                         <td className="px-3 py-1.5">
                           {c.label}
                           {c.notes?.[0] ? <div className="text-[11px] text-ui-fg-muted">{c.notes[0]}</div> : null}
-                          {!waived && c.setupProduct && !setups[c.setupProduct] ? <div className="text-[11px] text-ui-tag-orange-text">custom line — setup product not found</div> : null}
+                          {!waived && c.setupProduct && !setups[c.setupProduct] && !serviceLine ? <div className="text-[11px] text-ui-tag-orange-text">custom line — setup product not found</div> : null}
                         </td>
                         <td className="px-3 py-1.5 text-right whitespace-nowrap">{c.quantity} × {money(c.unitSellMajor)}</td>
                         <td className="px-3 py-1.5 text-right whitespace-nowrap">
