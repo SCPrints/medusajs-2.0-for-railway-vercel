@@ -18,9 +18,11 @@ import { TIERS, getTierBySlug, tierForCustomer, type Tier } from "../../../lib/c
 import { garmentCostExMajor, garmentMajorWithTier } from "../../../lib/garment-ladder"
 import { SIDE_LABELS } from "../../../lib/print-profile"
 import {
+  isDarkGarmentColourName,
   priceGroupedJob,
   type JobGroupSpec,
   type JobPositionSpec,
+  type JobRowSpec,
   type JobSpec,
   type PrintChannel,
   type QuotePriceComponent,
@@ -37,12 +39,13 @@ import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 /**
  * Job pricer — the quoting calculator, full page.
  *
- * A job is a list of GROUPS (one garment type × qty × its own decoration
- * positions) sharing a set of DESIGNS (artwork letters). Every number
- * recalculates in the browser on each keystroke via the pure pricer
- * (lib/quote-pricing.ts — sell from the live rate cards, cost from the
- * cost-model constants). Tiers follow how we're billed: prints on the
- * job-wide quantity, screen + embroidery per group, every setup once per
+ * A job is a list of GROUPS (one garment type, a size grid of colour rows ×
+ * size cells, and its own decoration positions) sharing a set of DESIGNS
+ * (artwork letters). Every number recalculates in the browser on each
+ * keystroke via the pure pricer (lib/quote-pricing.ts — sell from the live
+ * rate cards, cost from the cost-model constants). Tiers follow how we're
+ * billed: garment ladder + prints on the job-wide quantity, screen +
+ * embroidery per group (underbase only on dark rows), every setup once per
  * design. The job autosaves as a browser draft while building and is saved
  * onto the quote (`metadata.job_pricer`) on send, so "Price a job" from that
  * quote reopens it loaded; re-sending replaces the pricer's lines (ids
@@ -76,25 +79,34 @@ type UiPosition = {
   channel: "auto" | PrintChannel
   sizeId: ScpPrintSizeId
   colours: string
-  dark: boolean
   stitches: string
   /** Trade embroidery card (customer-supplied garments). */
   promo: boolean
 }
 type JobDesign = { id: string; label: string; repeat: boolean }
+/** ANY_SIZE is the "Any" cell key — a whole-product line, size chosen at order time. */
+const ANY_SIZE = ""
+type GroupRow = {
+  id: string
+  /** Colour-axis value for catalogue garments; null when the product has no colour axis. */
+  colour: string | null
+  /** Free label for customer-supplied rows ("Black hoodies"). */
+  label: string
+  /** Dark garment → white underbase screen. Auto from the colour name, overridable. */
+  dark: boolean
+  /** size → qty (string for free typing); ANY_SIZE key = "Any" cell. */
+  cells: Record<string, string>
+}
 type JobGroup = {
   id: string
   product: ProductLite | null
   supplied: boolean
-  colour: string | null
-  /** "" = any size (whole-product line; size chosen at order time). */
-  size: string
-  qty: string
+  rows: GroupRow[]
   positions: UiPosition[]
 }
 /** Persisted on the quote as `metadata.job_pricer.state` and as the browser draft. */
 type JobState = {
-  version: 1
+  version: 2
   tierSlug: string
   designs: JobDesign[]
   groups: JobGroup[]
@@ -157,10 +169,12 @@ const SETUP_HANDLES: Record<Exclude<SetupKey, "embroidery_setup">, string> = {
 const genId = (p: string) => `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
 const money = (n: number | null | undefined) =>
   n == null ? "—" : new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
-const round2 = (n: number) => Math.round(n * 100) / 100
 const marginTone = (pct: number | null): "grey" | "red" | "orange" | "green" =>
   pct == null ? "grey" : pct < 15 ? "red" : pct < 35 ? "orange" : "green"
 const sizeOptLabel = (id: ScpPrintSizeId) => SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === id)?.label ?? id
+const cellQty = (v: string | undefined) => Math.max(0, Math.floor(Number(v) || 0))
+const rowQty = (r: GroupRow) => Object.values(r.cells).reduce((s, v) => s + cellQty(v), 0)
+const groupQty = (g: JobGroup) => g.rows.reduce((s, r) => s + rowQty(r), 0)
 const nextDesignLabel = (designs: JobDesign[]) => {
   for (let i = 0; i < 26; i++) {
     const l = String.fromCharCode(65 + i)
@@ -227,29 +241,18 @@ function variantAxes(product: ProductDetail) {
   const uniq = (axis: "colour" | "size", pool: VariantLite[]) =>
     Array.from(new Set(pool.map((v) => valueOf(v, axis)).filter((x): x is string => Boolean(x))))
   const colours = uniq("colour", product.variants)
+  const allSizes = sortSizes(uniq("size", product.variants))
   const sizesFor = (colour: string | null) => sortSizes(uniq("size", product.variants.filter((v) => !colour || valueOf(v, "colour") === colour)))
-  return { colours, sizesFor, valueOf }
+  const variantFor = (colour: string | null, size: string): VariantLite | null =>
+    product.variants.find((v) => (colour == null || valueOf(v, "colour") === colour) && (size === ANY_SIZE || valueOf(v, "size") === size)) ?? null
+  return { colours, allSizes, sizesFor, variantFor }
 }
 
-function resolveGroupVariant(group: JobGroup, detail: ProductDetail | undefined): VariantLite | null {
-  if (!detail) return null
-  const { valueOf } = variantAxes(detail)
-  return (
-    detail.variants.find(
-      (v) => (group.colour == null || valueOf(v, "colour") === group.colour) && (!group.size || valueOf(v, "size") === group.size)
-    ) ?? null
-  )
-}
-
-function resolveGarment(group: JobGroup, detail: ProductDetail | undefined, quantity: number, tier: Tier | null): ResolvedGarment | null {
-  if (group.supplied || !group.product || !detail) return null
-  const variant = resolveGroupVariant(group, detail)
-  if (!variant) return null
+function resolveGarment(detail: ProductDetail, variant: VariantLite, label: string, quantity: number, tier: Tier | null): ResolvedGarment {
   const cost = garmentCostExMajor(variant.metadata)
   const productMeta = detail.metadata ?? {}
-  const label = group.size ? variant.title : group.colour ? `${group.colour} (any size)` : "any size"
   return {
-    title: `${detail.title}${label ? ` — ${label}` : ""}`,
+    title: `${detail.title} — ${label}`,
     unitSellMajor: garmentMajorWithTier(variant.metadata, quantity, tier),
     unitCostExMajor: cost.costExMajor,
     costEstimated: cost.estimated,
@@ -258,18 +261,23 @@ function resolveGarment(group: JobGroup, detail: ProductDetail | undefined, quan
   }
 }
 
+const rowLabel = (g: JobGroup, row: GroupRow, size: string) =>
+  g.supplied
+    ? row.label.trim() || (row.dark ? "Dark garments" : "Light garments")
+    : `${row.colour ?? ""}${size === ANY_SIZE ? " (any size)" : ` / ${size}`}`.trim()
+
 const toPositionSpec = (p: UiPosition, supplied: boolean): JobPositionSpec => {
-  if (p.method === "screen") return { method: "screen", colours: Math.min(6, Math.max(1, Number(p.colours) || 1)), darkGarment: p.dark, designId: p.designId }
+  if (p.method === "screen") return { method: "screen", colours: Math.min(6, Math.max(1, Number(p.colours) || 1)), designId: p.designId }
   if (p.method === "embroidery") return { method: "embroidery", stitchCount: Number(p.stitches) || 0, promo: supplied && p.promo, designId: p.designId }
   const channel: PrintChannel | undefined = p.channel === "auto" ? (supplied ? "byo" : undefined) : p.channel
   return { method: "print", channel, sizeId: p.sizeId, designId: p.designId }
 }
 
-const positionSummary = (p: UiPosition, designs: JobDesign[]) => {
+const positionSummary = (p: UiPosition, designs: JobDesign[], dark: boolean) => {
   const d = designs.find((x) => x.id === p.designId)?.label ?? "?"
   const body =
     p.method === "screen"
-      ? `Screen print ${Number(p.colours) || 1} col${p.dark ? " + underbase" : ""}`
+      ? `Screen print ${Number(p.colours) || 1} col${dark ? " + underbase" : ""}`
       : p.method === "embroidery"
         ? `Embroidery ${Number(p.stitches) || 0} st`
         : `${p.channel === "auto" ? "Full-colour print" : CHANNEL_LABELS[p.channel].split(" ")[0]} ${sizeOptLabel(p.sizeId)}`
@@ -284,12 +292,31 @@ const newPosition = (group: JobGroup, designId: string): UiPosition => ({
   channel: "auto",
   sizeId: "up_to_a4",
   colours: "1",
-  dark: false,
   stitches: "5000",
   promo: false,
 })
 
-const emptyState = (): JobState => ({ version: 1, tierSlug: "standard", designs: [{ id: genId("d"), label: "A", repeat: false }], groups: [], uvMetres: "", uvReorder: false })
+const newRow = (colour: string | null, label = ""): GroupRow => ({ id: genId("row"), colour, label, dark: isDarkGarmentColourName(colour ?? label), cells: {} })
+const emptyState = (): JobState => ({ version: 2, tierSlug: "standard", designs: [{ id: genId("d"), label: "A", repeat: false }], groups: [], uvMetres: "", uvReorder: false })
+
+/** Accept a v1 job (single colour/size/qty per group) saved before the size grid shipped. */
+function migrateState(raw: any): JobState | null {
+  if (!raw || typeof raw !== "object") return null
+  if (raw.version === 2) return raw as JobState
+  if (raw.version !== 1) return null
+  const groups: JobGroup[] = (raw.groups ?? []).map((g: any) => {
+    const row = newRow(g.supplied ? null : g.colour ?? null, g.supplied ? "" : "")
+    row.cells = { [g.supplied ? ANY_SIZE : g.size || ANY_SIZE]: String(g.qty ?? "") }
+    return {
+      id: g.id,
+      product: g.product ?? null,
+      supplied: Boolean(g.supplied),
+      rows: [row],
+      positions: (g.positions ?? []).map((p: any) => ({ id: p.id, side: p.side, method: p.method, designId: p.designId, channel: p.channel ?? "auto", sizeId: p.sizeId ?? "up_to_a4", colours: p.colours ?? "1", stitches: p.stitches ?? "5000", promo: Boolean(p.promo) })),
+    }
+  })
+  return { version: 2, tierSlug: raw.tierSlug ?? "standard", designs: raw.designs ?? [], groups, uvMetres: raw.uvMetres ?? "", uvReorder: Boolean(raw.uvReorder) }
+}
 
 // ---------------------------------------------------------------------------
 // Garment search (Meili-ranked; list is position:fixed so the card can't clip it)
@@ -422,9 +449,8 @@ function QuotePricerPage() {
         try {
           const { quote } = await adminGet<{ quote: { id: string; public_id: string; email: string; customer_id: string | null; metadata?: Record<string, any> | null } }>(`/admin/quotes/${targetQuoteId}`)
           setTargetQuote({ id: quote.id, public_id: quote.public_id, email: quote.email, customer_id: quote.customer_id })
-          const saved = quote.metadata?.job_pricer?.state as JobState | undefined
-          if (saved?.version === 1) loaded = saved
-          else if (quote.customer_id) {
+          loaded = migrateState(quote.metadata?.job_pricer?.state)
+          if (!loaded && quote.customer_id) {
             const { customer } = await adminGet<{ customer: { groups?: Array<{ id: string; name: string; metadata: Record<string, unknown> | null }> } }>(
               `/admin/customers/${quote.customer_id}?fields=%2Bgroups.id,%2Bgroups.name,%2Bgroups.metadata`
             )
@@ -438,8 +464,8 @@ function QuotePricerPage() {
       if (!loaded) {
         try {
           const raw = localStorage.getItem(draftKey)
-          const draft = raw ? (JSON.parse(raw) as JobState) : null
-          if (draft?.version === 1 && (draft.groups.length || draft.uvMetres)) {
+          const draft = migrateState(raw ? JSON.parse(raw) : null)
+          if (draft && (draft.groups.length || draft.uvMetres)) {
             loaded = draft
             setDraftRestored(true)
           }
@@ -468,7 +494,6 @@ function QuotePricerPage() {
     }, 300)
     return () => clearTimeout(t)
   }, [state, hydrated, draftKey])
-
   const clearDraft = () => {
     try {
       localStorage.removeItem(draftKey)
@@ -493,27 +518,47 @@ function QuotePricerPage() {
     })
   }
 
-  // --- groups ---
+  // --- groups / rows ---
   const patchGroup = (id: string, p: Partial<JobGroup>) => patch({ groups: state.groups.map((g) => (g.id === id ? { ...g, ...p } : g)) })
+  const patchRow = (groupId: string, rowId: string, p: Partial<GroupRow>) =>
+    patch({ groups: state.groups.map((g) => (g.id === groupId ? { ...g, rows: g.rows.map((r) => (r.id === rowId ? { ...r, ...p } : r)) } : g)) })
+  const setCell = (groupId: string, rowId: string, size: string, value: string) =>
+    patch({ groups: state.groups.map((g) => (g.id === groupId ? { ...g, rows: g.rows.map((r) => (r.id === rowId ? { ...r, cells: { ...r.cells, [size]: value } } : r)) } : g)) })
   const addGroup = (supplied: boolean) => {
-    const g: JobGroup = { id: genId("g"), product: null, supplied, colour: null, size: "", qty: "", positions: [] }
+    const g: JobGroup = { id: genId("g"), product: null, supplied, rows: supplied ? [newRow(null, "")] : [], positions: [] }
     patch({ groups: [...state.groups, g] })
   }
   const duplicateGroup = (id: string) => {
     const src = state.groups.find((g) => g.id === id)
     if (!src) return
-    const copy: JobGroup = { ...src, id: genId("g"), positions: src.positions.map((p) => ({ ...p, id: genId("pos") })) }
+    const copy: JobGroup = { ...src, id: genId("g"), rows: src.rows.map((r) => ({ ...r, id: genId("row"), cells: { ...r.cells } })), positions: src.positions.map((p) => ({ ...p, id: genId("pos") })) }
     const idx = state.groups.findIndex((g) => g.id === id)
     patch({ groups: [...state.groups.slice(0, idx + 1), copy, ...state.groups.slice(idx + 1)] })
   }
   const removeGroup = (id: string) => patch({ groups: state.groups.filter((g) => g.id !== id) })
+  const addRow = (groupId: string) => {
+    const g = state.groups.find((x) => x.id === groupId)
+    if (!g) return
+    const detail = g.product ? details[g.product.id] : undefined
+    const colours = detail ? variantAxes(detail).colours : []
+    const used = new Set(g.rows.map((r) => r.colour))
+    const colour = g.supplied ? null : colours.find((c) => !used.has(c)) ?? colours[0] ?? null
+    patchGroup(groupId, { rows: [...g.rows, newRow(colour, "")] })
+  }
+  const removeRow = (groupId: string, rowId: string) => {
+    const g = state.groups.find((x) => x.id === groupId)
+    if (!g) return
+    patchGroup(groupId, { rows: g.rows.filter((r) => r.id !== rowId) })
+  }
   const pickProduct = async (groupId: string, p: ProductLite) => {
     const detail = await ensureDetail(p)
     if (!detail) return
-    const { colours } = variantAxes({ ...detail, variants: detail.variants ?? [] })
+    const { colours } = variantAxes(detail)
     setState((s) => ({
       ...s,
-      groups: s.groups.map((g) => (g.id === groupId ? { ...g, product: { id: detail.id, title: detail.title, handle: detail.handle, thumbnail: detail.thumbnail }, supplied: false, colour: colours[0] ?? null, size: "" } : g)),
+      groups: s.groups.map((g) =>
+        g.id === groupId ? { ...g, product: { id: detail.id, title: detail.title, handle: detail.handle, thumbnail: detail.thumbnail }, supplied: false, rows: [newRow(colours[0] ?? null)] } : g
+      ),
     }))
   }
 
@@ -536,11 +581,7 @@ function QuotePricerPage() {
         designId = d.id
       }
     }
-    setState((s) => ({
-      ...s,
-      designs,
-      groups: s.groups.map((g) => (g.id === groupId ? { ...g, positions: [...g.positions, newPosition(g, designId!)] } : g)),
-    }))
+    setState((s) => ({ ...s, designs, groups: s.groups.map((g) => (g.id === groupId ? { ...g, positions: [...g.positions, newPosition(g, designId!)] } : g)) }))
   }
   const patchPosition = (groupId: string, posId: string, p: Partial<UiPosition>) =>
     patch({ groups: state.groups.map((g) => (g.id === groupId ? { ...g, positions: g.positions.map((x) => (x.id === posId ? { ...x, ...p } : x)) } : g)) })
@@ -548,41 +589,85 @@ function QuotePricerPage() {
     patch({ groups: state.groups.map((g) => (g.id === groupId ? { ...g, positions: g.positions.filter((x) => x.id !== posId) } : g)) })
 
   // --- pricing (pure, synchronous) ---
-  const buildJob = useCallback(
-    (overrideQty?: { groupId: string; quantity: number }): JobSpec => ({
-      designs: state.designs.map((d) => ({ id: d.id, label: d.label, repeat: d.repeat })),
-      groups: state.groups.map((g): JobGroupSpec => {
-        const quantity = overrideQty?.groupId === g.id ? overrideQty.quantity : Math.max(0, Math.floor(Number(g.qty) || 0))
-        return {
-          id: g.id,
-          quantity,
-          garment: resolveGarment(g, g.product ? details[g.product.id] : undefined, Math.max(1, quantity), tier),
-          positions: g.positions.map((p) => toPositionSpec(p, g.supplied)),
+  const jobQuantity = useMemo(() => state.groups.reduce((s, g) => s + groupQty(g), 0), [state.groups])
+
+  /**
+   * Spec rows for a group: one per cell with quantity (each at its own
+   * variant), plus a zero-qty placeholder on the first row so an empty group
+   * still shows its decoration prices. `garmentTierQty` is the job-wide
+   * quantity the garment ladder tiers on.
+   */
+  const specRows = useCallback(
+    (g: JobGroup, garmentTierQty: number, override?: { rowId: string; size: string; quantity: number }): JobRowSpec[] => {
+      const detail = g.product ? details[g.product.id] : undefined
+      const axes = detail ? variantAxes(detail) : null
+      const out: JobRowSpec[] = []
+      for (const row of g.rows) {
+        const sizes = g.supplied ? [ANY_SIZE] : [...(axes ? axes.sizesFor(row.colour) : []), ANY_SIZE]
+        for (const size of sizes) {
+          const qty = override && override.rowId === row.id && override.size === size ? override.quantity : cellQty(row.cells[size])
+          if (qty <= 0 && out.length > 0) continue
+          if (qty <= 0 && !(row === g.rows[0] && size === sizes[0])) continue
+          let garment: ResolvedGarment | null = null
+          if (!g.supplied && detail && axes) {
+            const variant = axes.variantFor(row.colour, size)
+            if (variant) garment = resolveGarment(detail, variant, rowLabel(g, row, size), Math.max(1, garmentTierQty), tier)
+          }
+          out.push({ id: `${row.id}:${size || "any"}`, label: rowLabel(g, row, size), quantity: qty, garment, darkGarment: row.dark })
         }
-      }),
+      }
+      // Drop the placeholder once real quantities exist.
+      return out.some((r) => r.quantity > 0) ? out.filter((r) => r.quantity > 0) : out
+    },
+    [details, tier]
+  )
+  const buildJob = useCallback(
+    (override?: { groupId: string; rowId: string; size: string; quantity: number; garmentTierQty: number }): JobSpec => ({
+      designs: state.designs.map((d) => ({ id: d.id, label: d.label, repeat: d.repeat })),
+      groups: state.groups.map((g): JobGroupSpec => ({
+        id: g.id,
+        title: g.supplied ? "Customer-supplied garments" : g.product?.title ?? "Garment",
+        rows: override?.groupId === g.id ? specRows(g, override.garmentTierQty, override) : specRows(g, override?.garmentTierQty ?? jobQuantity),
+        positions: g.positions.map((p) => toPositionSpec(p, g.supplied)),
+      })),
       uvdtf: Number(state.uvMetres) > 0 ? { metres: Number(state.uvMetres), reorder: state.uvReorder } : undefined,
     }),
-    [state, details, tier]
+    [state, specRows, jobQuantity]
   )
   const priced = useMemo(() => priceGroupedJob(buildJob()), [buildJob])
+
+  // Band table: "this group at each band" = its first row's first cell at the
+  // band quantity (other cells cleared), everything else as entered.
   const bands = useMemo(
     () =>
       Object.fromEntries(
-        state.groups.map((g) => [
-          g.id,
-          SCP_BLANK_ALIGNED_QUANTITY_TIERS.map((t) => priceGroupedJob(buildJob({ groupId: g.id, quantity: t.minQuantity })).groups.find((x) => x.groupId === g.id)?.unitSellMajor ?? 0),
-        ])
+        state.groups.map((g) => {
+          const row = g.rows[0]
+          if (!row) return [g.id, SCP_BLANK_ALIGNED_QUANTITY_TIERS.map(() => 0)]
+          const detail = g.product ? details[g.product.id] : undefined
+          const size = g.supplied ? ANY_SIZE : Object.keys(row.cells).find((k) => cellQty(row.cells[k]) > 0) ?? (detail ? variantAxes(detail).sizesFor(row.colour)[0] ?? ANY_SIZE : ANY_SIZE)
+          const others = jobQuantity - groupQty(g)
+          return [
+            g.id,
+            SCP_BLANK_ALIGNED_QUANTITY_TIERS.map((t) => {
+              const job = buildJob({ groupId: g.id, rowId: row.id, size, quantity: t.minQuantity, garmentTierQty: others + t.minQuantity })
+              // Only the overridden cell counts for this group.
+              job.groups = job.groups.map((x) => (x.id === g.id ? { ...x, rows: x.rows.filter((r) => r.id === `${row.id}:${size || "any"}`) } : x))
+              return priceGroupedJob(job).groups.find((x) => x.groupId === g.id)?.unitSellMajor ?? 0
+            }),
+          ]
+        })
       ) as Record<string, number[]>,
-    [state.groups, buildJob]
+    [state.groups, details, jobQuantity, buildJob]
   )
 
   const jobSummary = useMemo(() => {
     const parts = state.groups
-      .filter((g) => Number(g.qty) > 0)
+      .filter((g) => groupQty(g) > 0)
       .map((g) => {
         const name = g.supplied ? "supplied garments" : g.product?.title ?? "garment"
-        const methods = Array.from(new Set(g.positions.map((p) => (p.method === "print" ? "print" : p.method)))).join("+")
-        return `${Number(g.qty)} × ${name}${methods ? ` (${methods})` : ""}`
+        const methods = Array.from(new Set(g.positions.map((p) => p.method))).join("+")
+        return `${groupQty(g)} × ${name}${methods ? ` (${methods})` : ""}`
       })
     if (Number(state.uvMetres) > 0) parts.push(`${Number(state.uvMetres)} m UV DTF`)
     return parts.join(", ")
@@ -592,23 +677,28 @@ function QuotePricerPage() {
   const buildLines = (): QuoteLine[] => {
     const lines: QuoteLine[] = []
     for (const gp of priced.groups) {
-      if (gp.quantity <= 0) continue
       const g = state.groups.find((x) => x.id === gp.groupId)!
       const detail = g.product ? details[g.product.id] : undefined
-      const garment = gp.components.find((c) => c.key === "garment")
-      const description = g.positions.map((p) => positionSummary(p, state.designs)).join(" · ") || null
-      const variant = g.size ? resolveGroupVariant(g, detail) : null
-      lines.push({
-        id: `jp_g_${g.id}`,
-        title: garment ? garment.label : `Customer-supplied garments — decoration only`,
-        description,
-        quantity: gp.quantity,
-        unit_price: gp.unitSellMajor,
-        product_id: g.supplied ? null : g.product?.id ?? null,
-        variant_id: g.supplied ? null : variant?.id ?? null,
-        product_handle: g.supplied ? null : g.product?.handle ?? null,
-        thumbnail: g.supplied ? null : g.product?.thumbnail ?? null,
-      })
+      const axes = detail ? variantAxes(detail) : null
+      for (const rp of gp.rows) {
+        if (rp.quantity <= 0) continue
+        const [rowId, sizeKey] = rp.rowId.split(":")
+        const row = g.rows.find((r) => r.id === rowId)
+        const size = sizeKey === "any" ? ANY_SIZE : sizeKey
+        const variant = !g.supplied && axes && row && size !== ANY_SIZE ? axes.variantFor(row.colour, size) : null
+        const garment = rp.components.find((c) => c.key === "garment")
+        lines.push({
+          id: `jp_r_${rp.rowId}`,
+          title: garment ? garment.label : `Customer-supplied — ${rp.label}`,
+          description: g.positions.map((p) => positionSummary(p, state.designs, row?.dark ?? false)).join(" · ") || null,
+          quantity: rp.quantity,
+          unit_price: rp.unitSellMajor,
+          product_id: g.supplied ? null : g.product?.id ?? null,
+          variant_id: variant?.id ?? null,
+          product_handle: g.supplied ? null : g.product?.handle ?? null,
+          thumbnail: g.supplied ? null : g.product?.thumbnail ?? null,
+        })
+      }
     }
     for (const c of priced.extras) {
       const svc = c.setupProduct ? setups[c.setupProduct] : null
@@ -633,7 +723,7 @@ function QuotePricerPage() {
       toast.error("Nothing to send — add a garment with a quantity first.")
       return
     }
-    const jobPricer = { version: 1, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, state }
+    const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, state }
     setSending(true)
     try {
       if (targetQuote) {
@@ -743,82 +833,122 @@ function QuotePricerPage() {
       {/* ---------------- Groups ---------------- */}
       <div className="px-6 flex flex-col gap-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Heading level="h2" className="text-base">Garment groups <span className="text-ui-fg-muted font-normal text-sm">— one per garment type; each has its own decoration</span></Heading>
+          <Heading level="h2" className="text-base">Garment groups <span className="text-ui-fg-muted font-normal text-sm">— one per garment type; each has its own size run and decoration</span></Heading>
           <div className="flex items-center gap-2">
             <Button size="small" variant="secondary" onClick={() => addGroup(false)}><Plus /> Garment</Button>
             <Button size="small" variant="secondary" onClick={() => addGroup(true)}><Plus /> Customer-supplied</Button>
           </div>
         </div>
         {state.groups.length === 0 ? (
-          <Text size="xsmall" className="text-ui-fg-muted">Add a garment (or a customer-supplied group), set its quantity, then add its print / embroidery positions.</Text>
+          <Text size="xsmall" className="text-ui-fg-muted">Add a garment (or a customer-supplied group), type the size run, then add its print / embroidery positions.</Text>
         ) : null}
         {state.groups.map((g, gi) => {
           const gp = priced.groups.find((x) => x.groupId === g.id)
           const detail = g.product ? details[g.product.id] : undefined
-          const garment = gp?.components.find((c) => c.key === "garment")
-          const decorationUnit = round2((gp?.components ?? []).filter((c) => c.key !== "garment").reduce((s, c) => s + c.unitSellMajor, 0))
           const axes = detail ? variantAxes(detail) : null
-          const sizes = axes ? axes.sizesFor(g.colour) : []
-          const resolved = resolveGarment(g, detail, 1, tier)
+          const firstRow = gp?.rows[0]
+          const resolved = firstRow?.components.find((c) => c.key === "garment")
+          const flags = detail ? { supacolour: parseDecorationPricingClass((detail.metadata ?? {}).decoration_pricing_class) === "supacolour", heavy: (detail.metadata ?? {}).screen_heavy === true } : null
+          const costEst = firstRow?.components.find((c) => c.key === "garment")?.notes?.[0]?.startsWith("Cost estimated")
           const channels = g.supplied ? SUPPLIED_CHANNELS : OUR_CHANNELS
+          const sizeCols = g.supplied ? [] : axes?.allSizes ?? []
+          const qty = groupQty(g)
           return (
             <div key={g.id} className="rounded-md border border-ui-border-base">
               {/* header */}
               <div className="flex flex-wrap items-center gap-3 px-3 py-2 bg-ui-bg-subtle">
                 <Text size="xsmall" className="text-ui-fg-muted w-6">#{gi + 1}</Text>
                 {g.supplied ? (
-                  <Badge size="2xsmall" color="grey">Customer-supplied garment</Badge>
+                  <Badge size="2xsmall" color="grey">Customer-supplied garments</Badge>
                 ) : g.product ? (
                   <div className="flex items-center gap-2 min-w-0">
                     {g.product.thumbnail ? <img src={g.product.thumbnail} alt="" className="w-8 h-8 rounded object-cover bg-ui-bg-base" /> : null}
-                    <span className="font-medium truncate max-w-[18rem]">{g.product.title}</span>
-                    {resolved?.supacolour ? <Badge size="2xsmall" color="purple">Supacolour</Badge> : null}
-                    {resolved?.screenHeavy ? <Badge size="2xsmall" color="orange">Heavy</Badge> : null}
-                    {resolved?.costEstimated ? <Badge size="2xsmall" color="grey" title="No supplier cost stamped — estimated from the 100+ ladder">cost est.</Badge> : null}
+                    <span className="font-medium truncate max-w-[20rem]">{g.product.title}</span>
+                    {flags?.supacolour ? <Badge size="2xsmall" color="purple">Supacolour</Badge> : null}
+                    {flags?.heavy ? <Badge size="2xsmall" color="orange">Heavy</Badge> : null}
+                    {costEst ? <Badge size="2xsmall" color="grey" title="No supplier cost stamped — estimated from the 100+ ladder">cost est.</Badge> : null}
                     {!detail ? <Badge size="2xsmall" color="grey">loading…</Badge> : null}
-                    <Button size="small" variant="transparent" onClick={() => patchGroup(g.id, { product: null, colour: null, size: "" })} aria-label="Change garment"><XMark /></Button>
+                    <Button size="small" variant="transparent" onClick={() => patchGroup(g.id, { product: null, rows: [] })} aria-label="Change garment"><XMark /></Button>
                   </div>
                 ) : (
                   <GarmentSearch onPick={(p) => void pickProduct(g.id, p)} />
                 )}
-                {axes ? (
-                  <div className="flex items-center gap-1">
-                    {axes.colours.length ? (
-                      <Select value={g.colour ?? ""} onValueChange={(v) => patchGroup(g.id, { colour: v, size: "" })}>
-                        <Select.Trigger className="w-40"><Select.Value placeholder="Colour" /></Select.Trigger>
-                        <Select.Content>{axes.colours.map((c) => <Select.Item key={c} value={c}>{c}</Select.Item>)}</Select.Content>
-                      </Select>
-                    ) : null}
-                    {sizes.length ? (
-                      <Select value={g.size || "__any"} onValueChange={(v) => patchGroup(g.id, { size: v === "__any" ? "" : v })}>
-                        <Select.Trigger className="w-28"><Select.Value /></Select.Trigger>
-                        <Select.Content>
-                          <Select.Item value="__any">Any size</Select.Item>
-                          {sizes.map((s) => <Select.Item key={s} value={s}>{s}</Select.Item>)}
-                        </Select.Content>
-                      </Select>
-                    ) : null}
-                  </div>
-                ) : null}
-                <div className="flex items-center gap-1">
-                  <Label size="xsmall">Qty</Label>
-                  <Input size="small" type="number" min={0} className="w-20" value={g.qty} onChange={(e) => patchGroup(g.id, { qty: e.target.value })} placeholder="0" />
-                </div>
                 <div className="ml-auto flex items-center gap-3 text-xs whitespace-nowrap">
-                  <span className="text-ui-fg-muted">garment {money(garment?.unitSellMajor ?? 0)} + deco {money(decorationUnit)} =</span>
-                  <span className="font-medium text-sm">{money(gp?.unitSellMajor ?? 0)}/unit</span>
-                  <span className="text-ui-fg-muted">cost {money(gp?.unitCostExMajor)}</span>
+                  <span className="text-ui-fg-muted">{qty} pcs</span>
+                  <span className="text-ui-fg-muted">garment {money(resolved?.unitSellMajor ?? 0)} + deco {money(gp?.decorationUnitMajor ?? 0)} =</span>
+                  <span className="font-medium text-sm">
+                    {gp && gp.unitSellMin !== gp.unitSellMax ? `${money(gp.unitSellMin)}–${money(gp.unitSellMax)}` : money(gp?.unitSellMajor ?? 0)}/unit
+                  </span>
+                  <span className="text-ui-fg-muted">cost {money(firstRow?.unitCostExMajor)}</span>
                   {gp?.marginPct != null ? <Badge size="2xsmall" color={marginTone(gp.marginPct)}>{gp.marginPct}%</Badge> : null}
                   <span className="font-medium">{money(gp?.sellTotalMajor ?? 0)}</span>
                   <Button size="small" variant="transparent" onClick={() => duplicateGroup(g.id)} title="Duplicate group (same decoration + designs)" aria-label="Duplicate group"><SquareTwoStack /></Button>
                   <Button size="small" variant="transparent" onClick={() => removeGroup(g.id)} aria-label="Remove group"><Trash /></Button>
                 </div>
               </div>
+
+              {/* size grid */}
+              {(g.supplied || detail) && (
+                <div className="px-3 pt-2 overflow-x-auto">
+                  <table className="text-xs">
+                    <thead className="text-ui-fg-muted">
+                      <tr>
+                        <th className="text-left font-medium pr-2 py-1">{g.supplied ? "Garments" : "Colour"}</th>
+                        <th className="font-medium px-1 py-1" title="Dark garment → white underbase on screen prints">dark</th>
+                        {sizeCols.map((s) => <th key={s} className="font-medium px-1 py-1 text-center">{s}</th>)}
+                        <th className="font-medium px-1 py-1 text-center" title="Quantity with no size yet — a whole-product line, size chosen at order time">Any</th>
+                        <th className="font-medium px-1 py-1 text-right">Row</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.rows.map((row) => {
+                        const rowSizes = g.supplied ? [] : axes?.sizesFor(row.colour) ?? []
+                        return (
+                          <tr key={row.id}>
+                            <td className="pr-2 py-0.5">
+                              {g.supplied ? (
+                                <Input size="small" className="w-44" value={row.label} onChange={(e) => patchRow(g.id, row.id, { label: e.target.value })} placeholder="e.g. Black hoodies" />
+                              ) : axes && axes.colours.length ? (
+                                <Select value={row.colour ?? ""} onValueChange={(v) => patchRow(g.id, row.id, { colour: v, dark: isDarkGarmentColourName(v), cells: {} })}>
+                                  <Select.Trigger className="w-44"><Select.Value placeholder="Colour" /></Select.Trigger>
+                                  <Select.Content>{axes.colours.map((c) => <Select.Item key={c} value={c}>{c}</Select.Item>)}</Select.Content>
+                                </Select>
+                              ) : (
+                                <span className="text-ui-fg-muted">one colour</span>
+                              )}
+                            </td>
+                            <td className="px-1 text-center"><Checkbox checked={row.dark} onCheckedChange={(v) => patchRow(g.id, row.id, { dark: v === true })} /></td>
+                            {sizeCols.map((s) => (
+                              <td key={s} className="px-0.5">
+                                {rowSizes.includes(s) ? (
+                                  <input type="number" min={0} className="w-12 h-7 rounded border border-ui-border-base bg-ui-bg-base px-1 text-center text-xs" value={row.cells[s] ?? ""} onChange={(e) => setCell(g.id, row.id, s, e.target.value)} />
+                                ) : (
+                                  <span className="block w-12 text-center text-ui-fg-muted">—</span>
+                                )}
+                              </td>
+                            ))}
+                            <td className="px-0.5">
+                              <input type="number" min={0} className="w-14 h-7 rounded border border-ui-border-base bg-ui-bg-base px-1 text-center text-xs" value={row.cells[ANY_SIZE] ?? ""} onChange={(e) => setCell(g.id, row.id, ANY_SIZE, e.target.value)} />
+                            </td>
+                            <td className="px-1 text-right font-medium">{rowQty(row)}</td>
+                            <td>
+                              {g.rows.length > 1 ? <Button size="small" variant="transparent" onClick={() => removeRow(g.id, row.id)} aria-label="Remove row"><XMark /></Button> : null}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                  <Button size="small" variant="transparent" onClick={() => addRow(g.id)}><Plus /> {g.supplied ? "Row" : "Colour"}</Button>
+                </div>
+              )}
+
               {/* positions */}
-              <div className="px-3 py-2 flex flex-col gap-y-1.5">
+              <div className="px-3 py-2 flex flex-col gap-y-1.5 border-t border-ui-border-base">
                 {g.positions.length === 0 ? <Text size="xsmall" className="text-ui-fg-muted">No decoration yet — blank garment.</Text> : null}
-                {g.positions.map((p) => {
-                  const comp = gp?.components.find((c) => c.key === `pos-${g.positions.indexOf(p)}`)
+                {g.positions.map((p, pi) => {
+                  const comp = firstRow?.components.find((c) => c.key === `pos-${pi}`)
                   return (
                     <div key={p.id} className="flex flex-wrap items-center gap-2">
                       <Select value={p.side} onValueChange={(v) => patchPosition(g.id, p.id, { side: v })}>
@@ -843,8 +973,7 @@ function QuotePricerPage() {
                       ) : p.method === "screen" ? (
                         <>
                           <Input size="small" type="number" min={1} max={6} className="w-16" value={p.colours} onChange={(e) => patchPosition(g.id, p.id, { colours: e.target.value })} />
-                          <Text size="xsmall">colours</Text>
-                          <label className="flex items-center gap-1 text-xs"><Checkbox checked={p.dark} onCheckedChange={(v) => patchPosition(g.id, p.id, { dark: v === true })} /> dark garment (+ underbase)</label>
+                          <Text size="xsmall">colours <span className="text-ui-fg-muted">(+ underbase on dark rows)</span></Text>
                         </>
                       ) : (
                         <>
@@ -885,7 +1014,7 @@ function QuotePricerPage() {
         })}
         {state.groups.length ? (
           <Text size="xsmall" className="text-ui-fg-muted">
-            Full-colour prints tier on the job-wide print quantity ({priced.printQuantity} — {SCP_BLANK_ALIGNED_QUANTITY_TIERS[priced.printTierIndex]?.label}); screen print and embroidery tier per group; setups once per design.
+            Garment ladder + full-colour prints tier on the job-wide quantity ({priced.garmentQuantity} — {SCP_BLANK_ALIGNED_QUANTITY_TIERS[priced.printTierIndex]?.label}, as checkout aggregates the cart); screen print and embroidery tier per group; setups once per design.
           </Text>
         ) : null}
       </div>
@@ -962,7 +1091,7 @@ function QuotePricerPage() {
             {targetQuote ? (
               <>
                 <Button variant="primary" isLoading={sending} onClick={sendToQuote}>Save job to quote {targetQuote.public_id}</Button>
-                <Text size="xsmall" className="text-ui-fg-muted">Replaces the pricer's lines on the quote; lines you added by hand are kept. The job is saved with the quote so "Price a job" reopens it.</Text>
+                <Text size="xsmall" className="text-ui-fg-muted">Replaces the pricer's lines on the quote (one per colour/size); lines you added by hand are kept. The job is saved with the quote so "Price a job" reopens it.</Text>
               </>
             ) : (
               <>
