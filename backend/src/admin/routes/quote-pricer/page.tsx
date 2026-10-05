@@ -303,10 +303,20 @@ function QuotePricerPage() {
   const removeRow = (id: string) => setRows((r) => r.filter((row) => row.id !== id))
 
   const pickProduct = useCallback(async (rowId: string, p: ProductLite) => {
+    const fields = "id,title,handle,thumbnail,metadata,variants.id,variants.title,variants.sku,variants.metadata"
     try {
-      const { product } = await adminGet<{ product: ProductDetail }>(
-        `/admin/products/${p.id}?fields=id,title,handle,thumbnail,metadata,variants.id,variants.title,variants.sku,variants.metadata`
-      )
+      let product: ProductDetail | undefined
+      try {
+        product = (await adminGet<{ product: ProductDetail }>(`/admin/products/${p.id}?fields=${fields}`)).product
+      } catch {
+        // The search index can lag a re-import (or point at another
+        // environment's ids) — handles are stable, so resolve by handle.
+        if (!p.handle) throw new Error("Product not found")
+        product = (
+          await adminGet<{ products: ProductDetail[] }>(`/admin/products?handle=${encodeURIComponent(p.handle)}&limit=1&fields=${fields}`)
+        ).products?.[0]
+        if (!product) throw new Error("Product not found")
+      }
       const variants = product.variants ?? []
       setRows((r) =>
         r.map((row) =>
