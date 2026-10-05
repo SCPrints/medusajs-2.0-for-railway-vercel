@@ -681,7 +681,7 @@ function QuotePricerPage() {
   // Safe default: each new position in a group is a NEW design (front + back
   // are usually different artwork; an unneeded setup is a refund, a missed
   // one is a silent loss). Duplicating a group keeps the letters.
-  const addPosition = (groupId: string) => {
+  const addPosition = (groupId: string, method?: UiMethod) => {
     const group = state.groups.find((g) => g.id === groupId)
     if (!group) return
     let designs = state.designs
@@ -697,7 +697,29 @@ function QuotePricerPage() {
       }
     }
     const detail = group.product ? details[group.product.id] : undefined
-    setState((s) => ({ ...s, designs, groups: s.groups.map((g) => (g.id === groupId ? { ...g, positions: [...g.positions, newPosition(g, designId!, detail)] } : g)) }))
+    setState((s) => ({
+      ...s,
+      designs,
+      groups: s.groups.map((g) => {
+        if (g.id !== groupId) return g
+        const pos = newPosition(g, designId!, detail)
+        if (method) {
+          // Pick the first side that allows the requested technique (a cap's
+          // embroidery goes on the front panel, not wherever "next" is).
+          const allowed = allowedFor(detail)
+          const used = new Set(g.positions.map((p) => p.side))
+          const side =
+            allowed.sides.find((s) => s.key !== "other" && !used.has(s.key) && allowed.methods(s.key).includes(method))?.key ??
+            allowed.sides.find((s) => s.key !== "other" && allowed.methods(s.key).includes(method))?.key ??
+            pos.side
+          const sizes = allowed.sizes(side)
+          pos.side = side
+          pos.method = method
+          pos.sizeId = sizes.includes(pos.sizeId) ? pos.sizeId : sizes[0] ?? pos.sizeId
+        }
+        return { ...g, positions: [...g.positions, pos] }
+      }),
+    }))
   }
   const patchPosition = (groupId: string, posId: string, p: Partial<UiPosition>) =>
     patch({ groups: state.groups.map((g) => (g.id === groupId ? { ...g, positions: g.positions.map((x) => (x.id === posId ? { ...x, ...p } : x)) } : g)) })
@@ -1150,7 +1172,7 @@ function QuotePricerPage() {
 
               {/* positions */}
               <div className="px-3 py-2 flex flex-col gap-y-1.5 border-t border-ui-border-base">
-                {g.positions.length === 0 ? <Text size="xsmall" className="text-ui-fg-muted">No decoration yet — blank garment.</Text> : null}
+                {g.positions.length === 0 ? <Text size="xsmall" className="text-ui-fg-muted">Blank garment — add its decoration below (one line per position; each position has its own technique).</Text> : null}
                 {g.positions.map((p, pi) => {
                   const comp = firstRow?.components.find((c) => c.key === `pos-${pi}`)
                   // Side / method / size choices come from the garment's print
@@ -1225,9 +1247,19 @@ function QuotePricerPage() {
                     </div>
                   )
                 })}
-                <div>
-                  <Button size="small" variant="transparent" onClick={() => addPosition(g.id)}><Plus /> Position</Button>
-                </div>
+                {(() => {
+                  // Techniques this garment can take anywhere (union over its profile's sides).
+                  const allowed = allowedFor(g.supplied ? undefined : detail)
+                  const offered = (Object.keys(METHOD_LABELS) as UiMethod[]).filter((m) => allowed.sides.some((s) => s.key !== "other" && allowed.methods(s.key).includes(m)))
+                  return (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Text size="xsmall" className="text-ui-fg-muted">Add position:</Text>
+                      {offered.map((m) => (
+                        <Button key={m} size="small" variant="secondary" onClick={() => addPosition(g.id, m)}><Plus /> {METHOD_LABELS[m]}</Button>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           )
