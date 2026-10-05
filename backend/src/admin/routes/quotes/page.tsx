@@ -519,7 +519,7 @@ function JobBreakdownCard({ jobPricer, quoteId }: { jobPricer: unknown; quoteId:
           summary?: string
           tier?: string
           garmentQuantity?: number
-          designs?: Array<{ label: string; repeat?: boolean }>
+          designs?: Array<{ label: string; repeat?: boolean; imageUrl?: string | null }>
           groups?: Array<{
             title: string
             thumbnail?: string | null
@@ -555,9 +555,17 @@ function JobBreakdownCard({ jobPricer, quoteId }: { jobPricer: unknown; quoteId:
             {snap.designs?.length ? ` · designs ${snap.designs.map((d) => `${d.label}${d.repeat ? " (repeat)" : ""}`).join(", ")}` : ""}
           </Text>
         </div>
-        <Button size="small" variant="secondary" asChild>
-          <a href={`/app/quote-pricer?quote=${encodeURIComponent(quoteId)}`}>Edit in Job pricer</a>
-        </Button>
+        <div className="flex items-center gap-2">
+          {(snap.designs ?? []).filter((d) => d.imageUrl).map((d) => (
+            <a key={d.label} href={d.imageUrl!} target="_blank" rel="noreferrer" title={`Design ${d.label}`} className="relative">
+              <img src={d.imageUrl!} alt={`Design ${d.label}`} className="w-9 h-9 rounded object-contain bg-ui-bg-base border border-ui-border-base" />
+              <span className="absolute -bottom-1 -right-1 text-[9px] font-semibold rounded bg-ui-bg-base border border-ui-border-base px-1">{d.label}</span>
+            </a>
+          ))}
+          <Button size="small" variant="secondary" asChild>
+            <a href={`/app/quote-pricer?quote=${encodeURIComponent(quoteId)}`}>Edit in Job pricer</a>
+          </Button>
+        </div>
       </div>
       <div className="divide-y divide-ui-border-base">
         {(snap.groups ?? []).map((g, i) => (

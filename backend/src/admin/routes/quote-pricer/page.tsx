@@ -90,7 +90,8 @@ type UiPosition = {
   /** Trade embroidery card (customer-supplied garments). */
   promo: boolean
 }
-type JobDesign = { id: string; label: string; repeat: boolean }
+/** `imageUrl` = artwork dropped onto the letter (R2 via /admin/uploads) → line thumbnail + approval email. */
+type JobDesign = { id: string; label: string; repeat: boolean; imageUrl?: string | null }
 /** ANY_SIZE is the "Any" cell key — a whole-product line, size chosen at order time. */
 const ANY_SIZE = ""
 type GroupRow = {
@@ -221,6 +222,19 @@ async function adminPost<T>(path: string, body: unknown): Promise<T> {
 }
 
 type ProductDetailRaw = Omit<ProductDetail, "areas">
+
+/** Upload an artwork image to R2 through Medusa's /admin/uploads (same path the quote mockup uses). */
+async function uploadArtwork(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Only image files can be used as artwork")
+  if (file.size > 10 * 1024 * 1024) throw new Error("Artwork exceeds the 10 MB limit")
+  const fd = new FormData()
+  fd.append("files", file)
+  const res = await fetch("/admin/uploads", { method: "POST", credentials: "include", body: fd })
+  if (!res.ok) throw new Error(`Upload failed (${res.status})`)
+  const url = ((await res.json()) as { files?: Array<{ url?: string }> })?.files?.[0]?.url
+  if (!url) throw new Error("Upload returned no URL")
+  return url
+}
 
 /** Product detail by id, falling back to the (stable) handle — the search index can lag a re-import. */
 async function fetchProductDetail(p: ProductLite): Promise<ProductDetail> {
@@ -567,12 +581,49 @@ function QuotePricerPage() {
   }
 
   // --- designs ---
-  const addDesign = () => {
-    const d: JobDesign = { id: genId("d"), label: nextDesignLabel(state.designs), repeat: false }
+  const addDesign = (imageUrl?: string) => {
+    const d: JobDesign = { id: genId("d"), label: nextDesignLabel(state.designs), repeat: false, imageUrl: imageUrl ?? null }
     patch({ designs: [...state.designs, d] })
     return d
   }
-  const patchDesign = (id: string, p: Partial<JobDesign>) => patch({ designs: state.designs.map((d) => (d.id === id ? { ...d, ...p } : d)) })
+  const patchDesign = (id: string, p: Partial<JobDesign>) => setState((s) => ({ ...s, designs: s.designs.map((d) => (d.id === id ? { ...d, ...p } : d)) }))
+  // Artwork: drop a file on a letter (or on "+ Design" to make a new one),
+  // or click the letter to pick a file. Uploads to R2; becomes the line
+  // thumbnail for every garment carrying that design.
+  const [uploadingDesign, setUploadingDesign] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState<string | null>(null)
+  const filePickTarget = useRef<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const attachArtwork = async (designId: string | "__new", file: File | undefined) => {
+    if (!file) return
+    setUploadingDesign(designId)
+    try {
+      const url = await uploadArtwork(file)
+      if (designId === "__new") addDesign(url)
+      else patchDesign(designId, { imageUrl: url })
+      toast.success("Artwork attached")
+    } catch (err: any) {
+      toast.error(err?.message ?? "Artwork upload failed")
+    } finally {
+      setUploadingDesign(null)
+      setDragOver(null)
+    }
+  }
+  const dropHandlers = (designId: string | "__new") => ({
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault()
+      if (dragOver !== designId) setDragOver(designId)
+    },
+    onDragLeave: () => setDragOver((d) => (d === designId ? null : d)),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault()
+      void attachArtwork(designId, e.dataTransfer.files?.[0])
+    },
+  })
+  const pickArtwork = (designId: string | "__new") => {
+    filePickTarget.current = designId
+    fileInputRef.current?.click()
+  }
   const removeDesign = (id: string) => {
     if (state.designs.length <= 1) return
     const fallback = state.designs.find((d) => d.id !== id)!.id
@@ -784,6 +835,8 @@ function QuotePricerPage() {
         const variant = !g.supplied && axes && row && size !== ANY_SIZE ? axes.variantFor(row.colour, size) : null
         const garment = rp.components.find((c) => c.key === "garment")
         const description = (g.positions.map((p) => positionSummary(p, state.designs, row?.dark ?? false)).join(" · ") || "") + discountNote
+        // The line's "mockup": the first artwork on this garment's positions, else the product photo.
+        const artwork = g.positions.map((p) => state.designs.find((d) => d.id === p.designId)?.imageUrl).find(Boolean) ?? null
         lines.push({
           id: `jp_r_${rp.rowId}`,
           title: garment ? garment.label : `Customer-supplied — ${rp.label}`,
@@ -791,8 +844,8 @@ function QuotePricerPage() {
           quantity: rp.quantity,
           unit_price: discounted(rp.unitSellMajor),
           ...(g.supplied
-            ? onServiceLine()
-            : { product_id: g.product?.id ?? null, variant_id: variant?.id ?? null, product_handle: g.product?.handle ?? null, thumbnail: g.product?.thumbnail ?? null }),
+            ? { ...onServiceLine(), thumbnail: artwork }
+            : { product_id: g.product?.id ?? null, variant_id: variant?.id ?? null, product_handle: g.product?.handle ?? null, thumbnail: artwork ?? g.product?.thumbnail ?? null }),
         })
       }
     }
@@ -820,7 +873,7 @@ function QuotePricerPage() {
     summary: jobSummary,
     tier: tier ? tier.name : "Public quantity ladder",
     garmentQuantity: priced.garmentQuantity,
-    designs: state.designs.map((d) => ({ label: d.label, repeat: d.repeat })),
+    designs: state.designs.map((d) => ({ label: d.label, repeat: d.repeat, imageUrl: d.imageUrl ?? null })),
     groups: priced.groups.map((gp) => {
       const g = state.groups.find((x) => x.id === gp.groupId)!
       return {
@@ -926,17 +979,41 @@ function QuotePricerPage() {
       <div className="px-6 grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4">
         <div className="rounded-md border border-ui-border-base p-3">
           <div className="flex items-center justify-between mb-2">
-            <Text weight="plus" size="small">Designs <span className="text-ui-fg-muted font-normal">— one letter per artwork; setups are charged once per design, shared across garments</span></Text>
-            <Button size="small" variant="secondary" onClick={() => addDesign()}><Plus /> Design</Button>
+            <Text weight="plus" size="small">Designs <span className="text-ui-fg-muted font-normal">— one letter per artwork; setups are charged once per design. Drop the artwork on its letter (or click it) — it becomes the quote's mockup.</span></Text>
+            <div {...dropHandlers("__new")}>
+              <Button size="small" variant={dragOver === "__new" ? "primary" : "secondary"} isLoading={uploadingDesign === "__new"} onClick={() => addDesign()}><Plus /> Design</Button>
+            </div>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              const target = filePickTarget.current
+              filePickTarget.current = null
+              const file = e.target.files?.[0]
+              e.target.value = ""
+              if (target) void attachArtwork(target, file)
+            }}
+          />
           <div className="flex flex-wrap gap-2">
             {state.designs.map((d) => {
               const uses = state.groups.reduce((n, g) => n + g.positions.filter((p) => p.designId === d.id).length, 0)
+              const over = dragOver === d.id
               return (
-                <div key={d.id} className="flex items-center gap-2 rounded-md border border-ui-border-base px-2 py-1 text-xs">
-                  <Badge size="2xsmall" color="blue">{d.label}</Badge>
+                <div key={d.id} {...dropHandlers(d.id)} className={`flex items-center gap-2 rounded-md border px-2 py-1 text-xs ${over ? "border-ui-fg-interactive bg-ui-bg-highlight" : "border-ui-border-base"}`}>
+                  <button type="button" title={d.imageUrl ? "Replace artwork" : "Add artwork (click or drop a file)"} onClick={() => pickArtwork(d.id)} className="flex items-center gap-1.5">
+                    {d.imageUrl ? (
+                      <img src={d.imageUrl} alt="" className="w-8 h-8 rounded object-contain bg-ui-bg-base border border-ui-border-base" />
+                    ) : (
+                      <span className="w-8 h-8 rounded border border-dashed border-ui-border-strong flex items-center justify-center text-ui-fg-muted">{uploadingDesign === d.id ? "…" : "+"}</span>
+                    )}
+                    <Badge size="2xsmall" color="blue">{d.label}</Badge>
+                  </button>
                   <span className="text-ui-fg-muted">{uses} position{uses === 1 ? "" : "s"}</span>
                   <label className="flex items-center gap-1"><Checkbox checked={d.repeat} onCheckedChange={(v) => patchDesign(d.id, { repeat: v === true })} /> repeat (≤6 mo: screens $39, transfer $35, no digitizing)</label>
+                  {d.imageUrl ? <button type="button" className="text-ui-fg-muted hover:text-ui-fg-base" onClick={() => patchDesign(d.id, { imageUrl: null })} title="Remove artwork">clear art</button> : null}
                   {state.designs.length > 1 ? <button type="button" className="text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeDesign(d.id)} aria-label={`Remove design ${d.label}`}><XMark /></button> : null}
                 </div>
               )
