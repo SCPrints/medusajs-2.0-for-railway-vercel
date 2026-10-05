@@ -46,16 +46,88 @@ import { tinted, NAV_COLOR } from "../../lib/nav-tint"
  */
 
 type ProductLite = { id: string; title: string; handle: string | null; thumbnail: string | null }
-type VariantLite = { id: string; title: string | null; sku: string | null; metadata: Record<string, unknown> | null }
-type ProductDetail = ProductLite & { metadata: Record<string, unknown> | null; variants: VariantLite[] }
+type VariantLite = {
+  id: string
+  title: string | null
+  sku: string | null
+  metadata: Record<string, unknown> | null
+  options?: Array<{ option_id: string; value: string }> | null
+}
+type ProductDetail = ProductLite & {
+  metadata: Record<string, unknown> | null
+  variants: VariantLite[]
+  options?: Array<{ id: string; title: string }> | null
+}
 
 type GarmentRow = {
   id: string
   /** null = customer-supplied garment (decoration only). */
   product: ProductDetail | null
-  variantId: string | null
+  /** Selected colour-axis value (null when the product has no colour axis). */
+  colour: string | null
+  /** Selected size-axis value; "" = any size (whole-product line, size at order time). */
+  size: string
   qty: string
   supplied: boolean
+}
+
+const PRODUCT_DETAIL_FIELDS =
+  "id,title,handle,thumbnail,metadata,options.id,options.title,variants.id,variants.title,variants.sku,variants.metadata,variants.options.option_id,variants.options.value"
+
+/** Conventional garment size order; unknown tokens sort after, alphabetically. */
+const SIZE_ORDER = ["2XS", "XXS", "XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL", "XXXL", "4XL", "5XL", "6XL", "7XL"]
+const sizeRank = (s: string) => {
+  const i = SIZE_ORDER.indexOf(s.trim().toUpperCase())
+  if (i >= 0) return i
+  const n = Number.parseFloat(s)
+  return Number.isFinite(n) ? 100 + n : 1000
+}
+const sortSizes = (sizes: string[]) =>
+  sizes.slice().sort((a, b) => sizeRank(a) - sizeRank(b) || a.localeCompare(b))
+
+/**
+ * A product's colour + size axes. Prefers the real product options (Colour /
+ * Size by title, else first/second option); falls back to splitting the
+ * variant title on " / " (every importer writes "COLOUR / SIZE").
+ */
+function variantAxes(product: ProductDetail) {
+  const opts = product.options ?? []
+  const hasVariantOptions = product.variants.some((v) => (v.options?.length ?? 0) > 0)
+  const colourOpt = hasVariantOptions
+    ? opts.find((o) => /colou?r/i.test(o.title)) ?? (opts.length >= 2 ? opts[0] : null)
+    : null
+  const sizeOpt = hasVariantOptions
+    ? opts.find((o) => /size/i.test(o.title)) ??
+      (opts.length >= 2 ? opts[1] : opts.length === 1 && !colourOpt ? opts[0] : null)
+    : null
+  const valueOf = (v: VariantLite, axis: "colour" | "size"): string | null => {
+    if (hasVariantOptions) {
+      const opt = axis === "colour" ? colourOpt : sizeOpt
+      return opt ? v.options?.find((o) => o.option_id === opt.id)?.value ?? null : null
+    }
+    const parts = (v.title ?? "").split(" / ")
+    if (parts.length >= 2) return axis === "colour" ? parts[0] : parts.slice(1).join(" / ")
+    return axis === "size" ? parts[0] || null : null
+  }
+  const uniq = (axis: "colour" | "size", pool: VariantLite[]) =>
+    Array.from(new Set(pool.map((v) => valueOf(v, axis)).filter((x): x is string => Boolean(x))))
+  const colours = uniq("colour", product.variants)
+  const sizesFor = (colour: string | null) =>
+    sortSizes(uniq("size", product.variants.filter((v) => !colour || valueOf(v, "colour") === colour)))
+  return { colours, sizesFor, valueOf }
+}
+
+/** The variant a row prices at: exact colour+size, or the first variant of that colour for "any size". */
+function resolveRowVariant(row: GarmentRow): VariantLite | null {
+  if (!row.product) return null
+  const { valueOf } = variantAxes(row.product)
+  return (
+    row.product.variants.find(
+      (v) =>
+        (row.colour == null || valueOf(v, "colour") === row.colour) &&
+        (!row.size || valueOf(v, "size") === row.size)
+    ) ?? null
+  )
 }
 
 type ServiceProduct = { product_id: string; variant_id: string; handle: string | null; title: string }
@@ -100,13 +172,14 @@ async function adminGet<T>(path: string): Promise<T> {
 }
 
 function resolveGarment(row: GarmentRow, quantity: number, tier: Tier | null): ResolvedGarment | null {
-  if (!row.product || !row.variantId) return null
-  const variant = row.product.variants.find((v) => v.id === row.variantId)
+  if (!row.product) return null
+  const variant = resolveRowVariant(row)
   if (!variant) return null
   const cost = garmentCostExMajor(variant.metadata)
   const productMeta = row.product.metadata ?? {}
+  const label = row.size ? variant.title : row.colour ? `${row.colour} (any size)` : "any size"
   return {
-    title: `${row.product.title}${variant.title ? ` — ${variant.title}` : ""}`,
+    title: `${row.product.title}${label ? ` — ${label}` : ""}`,
     unitSellMajor: garmentMajorWithTier(variant.metadata, quantity, tier),
     unitCostExMajor: cost.costExMajor,
     costEstimated: cost.estimated,
@@ -296,14 +369,14 @@ function QuotePricerPage() {
   }, [targetQuoteId])
 
   // --- row helpers ---
-  const addGarmentRow = () => setRows((r) => [...r, { id: genId(), product: null, variantId: null, qty: "", supplied: false }])
-  const addSuppliedRow = () => setRows((r) => [...r, { id: genId(), product: null, variantId: null, qty: "", supplied: true }])
+  const addGarmentRow = () => setRows((r) => [...r, { id: genId(), product: null, colour: null, size: "", qty: "", supplied: false }])
+  const addSuppliedRow = () => setRows((r) => [...r, { id: genId(), product: null, colour: null, size: "", qty: "", supplied: true }])
   const patchRow = (id: string, patch: Partial<GarmentRow>) =>
     setRows((r) => r.map((row) => (row.id === id ? { ...row, ...patch } : row)))
   const removeRow = (id: string) => setRows((r) => r.filter((row) => row.id !== id))
 
   const pickProduct = useCallback(async (rowId: string, p: ProductLite) => {
-    const fields = "id,title,handle,thumbnail,metadata,variants.id,variants.title,variants.sku,variants.metadata"
+    const fields = PRODUCT_DETAIL_FIELDS
     try {
       let product: ProductDetail | undefined
       try {
@@ -317,10 +390,11 @@ function QuotePricerPage() {
         ).products?.[0]
         if (!product) throw new Error("Product not found")
       }
-      const variants = product.variants ?? []
+      const detail: ProductDetail = { ...product, variants: product.variants ?? [] }
+      const { colours } = variantAxes(detail)
       setRows((r) =>
         r.map((row) =>
-          row.id === rowId ? { ...row, product: { ...product, variants }, variantId: variants[0]?.id ?? null, supplied: false } : row
+          row.id === rowId ? { ...row, product: detail, colour: colours[0] ?? null, size: "", supplied: false } : row
         )
       )
     } catch (err: any) {
@@ -417,7 +491,9 @@ function QuotePricerPage() {
       if (r.qty <= 0) continue
       const decoration = r.perGarment.filter((c) => c.key !== "garment").map((c) => c.label).join("; ")
       if (r.garment && r.row.product) {
-        const variant = r.row.product.variants.find((v) => v.id === r.row.variantId)
+        // "Any size" → whole-product line (no variant_id): the accept route
+        // picks a representative size and staff adjust sizes at order time.
+        const variant = r.row.size ? resolveRowVariant(r.row) : null
         lines.push({
           title: r.garment.title,
           description: decoration || null,
@@ -685,23 +761,43 @@ function QuotePricerPage() {
                               {garment && garment.unitSellMajor == null ? <Badge size="2xsmall" color="red">no price</Badge> : null}
                             </div>
                           </div>
-                          <Button size="small" variant="transparent" onClick={() => patchRow(row.id, { product: null, variantId: null })} aria-label="Change garment"><XMark /></Button>
+                          <Button size="small" variant="transparent" onClick={() => patchRow(row.id, { product: null, colour: null, size: "" })} aria-label="Change garment"><XMark /></Button>
                         </div>
                       ) : (
                         <GarmentSearch onPick={(p) => void pickProduct(row.id, p)} />
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {row.product ? (
-                        <Select value={row.variantId ?? ""} onValueChange={(v) => patchRow(row.id, { variantId: v })}>
-                          <Select.Trigger className="w-44"><Select.Value placeholder="Pick a size" /></Select.Trigger>
-                          <Select.Content>
-                            {row.product.variants.map((v) => (
-                              <Select.Item key={v.id} value={v.id}>{v.title ?? v.sku ?? v.id}</Select.Item>
-                            ))}
-                          </Select.Content>
-                        </Select>
-                      ) : (
+                      {row.product ? (() => {
+                        const axes = variantAxes(row.product)
+                        const sizes = axes.sizesFor(row.colour)
+                        return (
+                          <div className="flex items-center gap-1">
+                            {axes.colours.length ? (
+                              <Select value={row.colour ?? ""} onValueChange={(v) => patchRow(row.id, { colour: v, size: "" })}>
+                                <Select.Trigger className="w-40"><Select.Value placeholder="Colour" /></Select.Trigger>
+                                <Select.Content>
+                                  {axes.colours.map((c) => (
+                                    <Select.Item key={c} value={c}>{c}</Select.Item>
+                                  ))}
+                                </Select.Content>
+                              </Select>
+                            ) : null}
+                            {sizes.length ? (
+                              <Select value={row.size || "__any"} onValueChange={(v) => patchRow(row.id, { size: v === "__any" ? "" : v })}>
+                                <Select.Trigger className="w-28"><Select.Value /></Select.Trigger>
+                                <Select.Content>
+                                  <Select.Item value="__any">Any size</Select.Item>
+                                  {sizes.map((s) => (
+                                    <Select.Item key={s} value={s}>{s}</Select.Item>
+                                  ))}
+                                </Select.Content>
+                              </Select>
+                            ) : null}
+                            {!axes.colours.length && !sizes.length ? <Text size="xsmall" className="text-ui-fg-muted">one size</Text> : null}
+                          </div>
+                        )
+                      })() : (
                         <Text size="xsmall" className="text-ui-fg-muted">—</Text>
                       )}
                     </td>
