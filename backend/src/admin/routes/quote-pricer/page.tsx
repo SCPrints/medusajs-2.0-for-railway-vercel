@@ -115,13 +115,25 @@ function resolveGarment(row: GarmentRow, quantity: number, tier: Tier | null): R
   }
 }
 
-/** Inline product typeahead for a garment row. */
+/**
+ * Inline product typeahead for a garment row. Hits the relevance-ranked
+ * `/admin/quote-pricer/search` (Meili, title matches first). The list is
+ * position:fixed from the input's rect so the table's scroll container can't
+ * clip it.
+ */
 function GarmentSearch({ onPick }: { onPick: (p: ProductLite) => void }) {
   const [q, setQ] = useState("")
   const [results, setResults] = useState<ProductLite[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const seq = useRef(0)
+
+  const place = () => {
+    const r = inputRef.current?.getBoundingClientRect()
+    if (r) setRect({ top: r.bottom + 4, left: r.left, width: Math.max(r.width, 420) })
+  }
 
   useEffect(() => {
     if (!q.trim()) {
@@ -133,7 +145,7 @@ function GarmentSearch({ onPick }: { onPick: (p: ProductLite) => void }) {
       setLoading(true)
       try {
         const json = await adminGet<{ products: ProductLite[] }>(
-          `/admin/products?q=${encodeURIComponent(q.trim())}&limit=12&fields=id,title,handle,thumbnail`
+          `/admin/quote-pricer/search?q=${encodeURIComponent(q.trim())}&limit=12`
         )
         if (mine === seq.current) setResults(json.products ?? [])
       } catch {
@@ -141,25 +153,33 @@ function GarmentSearch({ onPick }: { onPick: (p: ProductLite) => void }) {
       } finally {
         if (mine === seq.current) setLoading(false)
       }
-    }, 200)
+    }, 150)
     return () => clearTimeout(t)
   }, [q])
 
   return (
-    <div className="relative">
+    <div>
       <Input
+        ref={inputRef}
         size="small"
         placeholder="Search garment (name, SKU, handle)…"
         value={q}
         onChange={(e) => {
           setQ(e.target.value)
           setOpen(true)
+          place()
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true)
+          place()
+        }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
-      {open && (results.length > 0 || loading) ? (
-        <ul className="absolute z-20 mt-1 w-[28rem] max-w-[80vw] max-h-72 overflow-y-auto rounded-md border border-ui-border-base bg-ui-bg-base shadow-elevation-flyout divide-y divide-ui-border-base">
+      {open && rect && (results.length > 0 || loading) ? (
+        <ul
+          style={{ position: "fixed", top: rect.top, left: rect.left, width: rect.width }}
+          className="z-50 max-h-80 overflow-y-auto rounded-md border border-ui-border-base bg-ui-bg-base shadow-elevation-flyout divide-y divide-ui-border-base"
+        >
           {loading && results.length === 0 ? (
             <li className="px-3 py-2 text-xs text-ui-fg-muted">Searching…</li>
           ) : null}
