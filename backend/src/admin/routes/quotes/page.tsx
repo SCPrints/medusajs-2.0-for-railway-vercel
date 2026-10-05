@@ -1,6 +1,6 @@
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { ChatBubbleLeftRight, Plus, Trash, PencilSquare, Sparkles, Photo } from "@medusajs/icons"
+import { ChatBubbleLeftRight, CurrencyDollar, Plus, Trash, PencilSquare, Sparkles, Photo } from "@medusajs/icons"
 import {
   Badge,
   Button,
@@ -22,8 +22,6 @@ import {
   ProductLinePicker,
   type PickedProductLine,
 } from "../../components/quotes/product-line-picker"
-import { JobPricer } from "../../components/quotes/job-pricer"
-import type { QuotePricingLine } from "../../../api/admin/quote-pricing/route"
 import { mergeServerRows } from "../../lib/quote-line-merge"
 
 type Quote = {
@@ -199,7 +197,7 @@ function LineItemsEditor({
   regionId,
   onDesignLine,
   onAddDesign,
-  customerId,
+  pricerQuoteId,
 }: {
   rows: DraftLineItem[]
   onChange: (rows: DraftLineItem[]) => void
@@ -208,38 +206,16 @@ function LineItemsEditor({
   onDesignLine?: (row: DraftLineItem) => void
   /** Open the Studio with no preselected product. Omit to hide. */
   onAddDesign?: () => void
-  /** Quote's customer — the job pricer prices the garment at their tier. */
-  customerId?: string | null
+  /**
+   * Quote id for the full-page job pricer (`/app/quote-pricer?quote=`), which
+   * prices garments + decoration with live margin and writes the lines back
+   * onto this quote. Omit (create drawer) to hide the button.
+   */
+  pricerQuoteId?: string | null
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pricerOpen, setPricerOpen] = useState(false)
   const setRow = (idx: number, patch: Partial<DraftLineItem>) =>
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
-
-  // Lines from the job pricer land as ordinary rows: a priced catalog line
-  // (or a custom line for supplied garments) + setup-fee lines on the hidden
-  // service products, all editable before save.
-  const addPricedLines = (lines: QuotePricingLine[]) => {
-    onChange([
-      ...rows,
-      ...lines.map((l) => ({
-        id: genLineId(),
-        title: l.title,
-        description: l.description ?? "",
-        quantity: String(l.quantity),
-        unit_price: String(l.unit_price),
-        product_id: l.product_id,
-        variant_id: l.variant_id,
-        product_handle: l.product_handle,
-        thumbnail: l.thumbnail,
-        customizerDesign: null,
-        print_size_id: null,
-        group_id: null,
-      })),
-    ])
-    setPricerOpen(false)
-    toast.success(`${lines.length} priced line${lines.length === 1 ? "" : "s"} added — save line items to keep them`)
-  }
 
   const addPicked = (p: PickedProductLine) => {
     onChange([
@@ -497,22 +473,14 @@ function LineItemsEditor({
         />
       ) : null}
 
-      {pricerOpen ? (
-        <JobPricer
-          customerId={customerId ?? null}
-          onAdd={addPricedLines}
-          onClose={() => setPricerOpen(false)}
-        />
-      ) : null}
-
       <div className="flex flex-wrap items-center gap-2">
-        <Button
-          size="small"
-          variant="secondary"
-          onClick={() => setPricerOpen((v) => !v)}
-        >
-          <Plus /> Price a job
-        </Button>
+        {pricerQuoteId ? (
+          <Button size="small" variant="secondary" asChild>
+            <a href={`/app/quote-pricer?quote=${encodeURIComponent(pricerQuoteId)}`}>
+              <CurrencyDollar /> Price a job
+            </a>
+          </Button>
+        ) : null}
         <Button
           size="small"
           variant="secondary"
@@ -808,7 +776,11 @@ const QuotesPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>("active")
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // `?id=` deep-links a quote (the job pricer hands back here after writing
+  // lines); the detail loads by id regardless of the list's status filter.
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get("id")
+  )
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [events, setEvents] = useState<QuoteEvent[]>([])
   const [createOpen, setCreateOpen] = useState(false)
@@ -1457,7 +1429,7 @@ function QuoteDetail({
             rows={draftLineItems}
             onChange={setDraftLineItems}
             regionId={regionId}
-            customerId={quote.customer_id ?? null}
+            pricerQuoteId={quote.id}
             onDesignLine={(row) =>
               openStudio(row.group_id ?? null, row.product_handle ?? null)
             }
