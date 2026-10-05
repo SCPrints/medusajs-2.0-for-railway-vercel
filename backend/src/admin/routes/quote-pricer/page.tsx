@@ -67,7 +67,14 @@ type ProductDetail = ProductLite & {
   metadata: Record<string, unknown> | null
   variants: VariantLite[]
   options?: Array<{ id: string; title: string }> | null
+  /**
+   * The product's resolved print profile (what can be printed where, with
+   * which technique, at what size) — the same data the customiser enforces.
+   * null = no profile assigned → unconstrained.
+   */
+  areas: PrintArea[] | null
 }
+type PrintArea = { key: string; label: string; methods: Array<"print" | "embroidery">; sizes: ScpPrintSizeId[] }
 
 type UiMethod = "print" | "screen" | "embroidery"
 type UiPosition = {
@@ -195,16 +202,45 @@ async function adminPost<T>(path: string, body: unknown): Promise<T> {
   return json as T
 }
 
+type ProductDetailRaw = Omit<ProductDetail, "areas">
+
 /** Product detail by id, falling back to the (stable) handle — the search index can lag a re-import. */
 async function fetchProductDetail(p: ProductLite): Promise<ProductDetail> {
+  let raw: ProductDetailRaw
   try {
-    return (await adminGet<{ product: ProductDetail }>(`/admin/products/${p.id}?fields=${PRODUCT_DETAIL_FIELDS}`)).product
+    raw = (await adminGet<{ product: ProductDetailRaw }>(`/admin/products/${p.id}?fields=${PRODUCT_DETAIL_FIELDS}`)).product
   } catch {
     if (!p.handle) throw new Error(`${p.title}: product not found`)
-    const found = (await adminGet<{ products: ProductDetail[] }>(`/admin/products?handle=${encodeURIComponent(p.handle)}&limit=1&fields=${PRODUCT_DETAIL_FIELDS}`)).products?.[0]
+    const found = (await adminGet<{ products: ProductDetailRaw[] }>(`/admin/products?handle=${encodeURIComponent(p.handle)}&limit=1&fields=${PRODUCT_DETAIL_FIELDS}`)).products?.[0]
     if (!found) throw new Error(`${p.title}: product not found`)
-    return found
+    raw = found
   }
+  // Print profile (best effort — no profile just means no constraints).
+  let areas: PrintArea[] | null = null
+  try {
+    const pp = await adminGet<{ resolved_areas?: PrintArea[] | null }>(`/admin/products/${raw.id}/print-profile`)
+    areas = Array.isArray(pp.resolved_areas) && pp.resolved_areas.length ? pp.resolved_areas : null
+  } catch {
+    /* unconstrained */
+  }
+  return { ...raw, variants: raw.variants ?? [], areas }
+}
+
+/** Which side / method / size choices a group's garment allows. */
+function allowedFor(detail: ProductDetail | undefined) {
+  const areas = detail?.areas ?? null
+  const sides: Array<{ key: string; label: string }> = areas ? [...areas.map((a) => ({ key: a.key, label: a.label || sideLabel(a.key) })), { key: "other", label: "Other" }] : SIDES
+  const area = (side: string) => areas?.find((a) => a.key === side) ?? null
+  const methods = (side: string): UiMethod[] => {
+    const a = area(side)
+    if (!a) return ["print", "screen", "embroidery"]
+    const out: UiMethod[] = []
+    if (a.methods.includes("print")) out.push("print", "screen")
+    if (a.methods.includes("embroidery")) out.push("embroidery")
+    return out.length ? out : ["print", "screen", "embroidery"]
+  }
+  const sizes = (side: string): ScpPrintSizeId[] => area(side)?.sizes ?? SCP_PRINT_SIZE_OPTIONS.map((o) => o.id)
+  return { constrained: Boolean(areas), sides, methods, sizes }
 }
 
 /** Conventional garment size order; unknown tokens sort after, alphabetically. */
@@ -284,17 +320,25 @@ const positionSummary = (p: UiPosition, designs: JobDesign[], dark: boolean) => 
   return `${sideLabel(p.side)}: ${body} (design ${d})`
 }
 
-const newPosition = (group: JobGroup, designId: string): UiPosition => ({
-  id: genId("pos"),
-  side: group.positions.length === 0 ? "front" : group.positions.length === 1 ? "back" : "left_sleeve",
-  method: "print",
-  designId,
-  channel: "auto",
-  sizeId: "up_to_a4",
-  colours: "1",
-  stitches: "5000",
-  promo: false,
-})
+/** New position defaults: the first side this garment allows that isn't used yet, its first allowed method, A4 if allowed. */
+const newPosition = (group: JobGroup, designId: string, detail: ProductDetail | undefined): UiPosition => {
+  const allowed = allowedFor(detail)
+  const used = new Set(group.positions.map((p) => p.side))
+  const side = allowed.sides.find((s) => s.key !== "other" && !used.has(s.key))?.key ?? allowed.sides[0]?.key ?? "front"
+  const methods = allowed.methods(side)
+  const sizes = allowed.sizes(side)
+  return {
+    id: genId("pos"),
+    side,
+    method: methods.includes("print") ? "print" : methods[0],
+    designId,
+    channel: "auto",
+    sizeId: sizes.includes("up_to_a4") ? "up_to_a4" : sizes[0] ?? "up_to_a4",
+    colours: "1",
+    stitches: "5000",
+    promo: false,
+  }
+}
 
 const newRow = (colour: string | null, label = ""): GroupRow => ({ id: genId("row"), colour, label, dark: isDarkGarmentColourName(colour ?? label), cells: {} })
 const emptyState = (): JobState => ({ version: 2, tierSlug: "standard", designs: [{ id: genId("d"), label: "A", repeat: false }], groups: [], uvMetres: "", uvReorder: false })
@@ -581,7 +625,8 @@ function QuotePricerPage() {
         designId = d.id
       }
     }
-    setState((s) => ({ ...s, designs, groups: s.groups.map((g) => (g.id === groupId ? { ...g, positions: [...g.positions, newPosition(g, designId!)] } : g)) }))
+    const detail = group.product ? details[group.product.id] : undefined
+    setState((s) => ({ ...s, designs, groups: s.groups.map((g) => (g.id === groupId ? { ...g, positions: [...g.positions, newPosition(g, designId!, detail)] } : g)) }))
   }
   const patchPosition = (groupId: string, posId: string, p: Partial<UiPosition>) =>
     patch({ groups: state.groups.map((g) => (g.id === groupId ? { ...g, positions: g.positions.map((x) => (x.id === posId ? { ...x, ...p } : x)) } : g)) })
@@ -949,21 +994,36 @@ function QuotePricerPage() {
                 {g.positions.length === 0 ? <Text size="xsmall" className="text-ui-fg-muted">No decoration yet — blank garment.</Text> : null}
                 {g.positions.map((p, pi) => {
                   const comp = firstRow?.components.find((c) => c.key === `pos-${pi}`)
+                  // Side / method / size choices come from the garment's print
+                  // profile (same data the customiser enforces); a position
+                  // the profile doesn't allow is flagged, not blocked.
+                  const allowed = allowedFor(g.supplied ? undefined : detail)
+                  const sideOptions = allowed.sides.some((s) => s.key === p.side) ? allowed.sides : [...allowed.sides, { key: p.side, label: sideLabel(p.side) }]
+                  const methodOptions = allowed.methods(p.side)
+                  const sizeOptions = allowed.sizes(p.side)
+                  const offProfile = allowed.constrained && (!methodOptions.includes(p.method) || (p.method === "print" && !sizeOptions.includes(p.sizeId)) || !allowed.sides.some((s) => s.key === p.side))
                   return (
                     <div key={p.id} className="flex flex-wrap items-center gap-2">
-                      <Select value={p.side} onValueChange={(v) => patchPosition(g.id, p.id, { side: v })}>
+                      <Select
+                        value={p.side}
+                        onValueChange={(v) => {
+                          const m = allowed.methods(v)
+                          const sz = allowed.sizes(v)
+                          patchPosition(g.id, p.id, { side: v, method: m.includes(p.method) ? p.method : m[0], sizeId: sz.includes(p.sizeId) ? p.sizeId : sz[0] ?? p.sizeId })
+                        }}
+                      >
                         <Select.Trigger className="w-36"><Select.Value /></Select.Trigger>
-                        <Select.Content>{SIDES.map((s) => <Select.Item key={s.key} value={s.key}>{s.label}</Select.Item>)}</Select.Content>
+                        <Select.Content>{sideOptions.map((s) => <Select.Item key={s.key} value={s.key}>{s.label}</Select.Item>)}</Select.Content>
                       </Select>
                       <Select value={p.method} onValueChange={(v) => patchPosition(g.id, p.id, { method: v as UiMethod })}>
                         <Select.Trigger className="w-40"><Select.Value /></Select.Trigger>
-                        <Select.Content>{(Object.keys(METHOD_LABELS) as UiMethod[]).map((m) => <Select.Item key={m} value={m}>{METHOD_LABELS[m]}</Select.Item>)}</Select.Content>
+                        <Select.Content>{(methodOptions.includes(p.method) ? methodOptions : [...methodOptions, p.method]).map((m) => <Select.Item key={m} value={m}>{METHOD_LABELS[m]}</Select.Item>)}</Select.Content>
                       </Select>
                       {p.method === "print" ? (
                         <>
                           <Select value={p.sizeId} onValueChange={(v) => patchPosition(g.id, p.id, { sizeId: v as ScpPrintSizeId })}>
                             <Select.Trigger className="w-40"><Select.Value /></Select.Trigger>
-                            <Select.Content>{SCP_PRINT_SIZE_OPTIONS.map((o) => <Select.Item key={o.id} value={o.id}>{o.label} · {o.dimensionsLabel}</Select.Item>)}</Select.Content>
+                            <Select.Content>{SCP_PRINT_SIZE_OPTIONS.filter((o) => sizeOptions.includes(o.id) || o.id === p.sizeId).map((o) => <Select.Item key={o.id} value={o.id}>{o.label} · {o.dimensionsLabel}</Select.Item>)}</Select.Content>
                           </Select>
                           <Select value={g.supplied && p.channel === "auto" ? "byo" : p.channel} onValueChange={(v) => patchPosition(g.id, p.id, { channel: v as "auto" | PrintChannel })}>
                             <Select.Trigger className="w-52"><Select.Value /></Select.Trigger>
@@ -997,6 +1057,7 @@ function QuotePricerPage() {
                           <Select.Item value="__new">+ new design</Select.Item>
                         </Select.Content>
                       </Select>
+                      {offProfile ? <Badge size="2xsmall" color="orange" title="This garment's print profile doesn't allow this side / technique / size — check before quoting">not in print profile</Badge> : null}
                       <span className="text-xs whitespace-nowrap ml-auto">
                         {comp ? money(comp.unitSellMajor) : "—"}
                         {comp?.requiresQuote ? <Badge size="2xsmall" color="orange" className="ml-1">by hand</Badge> : null}
