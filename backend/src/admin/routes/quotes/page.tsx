@@ -435,6 +435,35 @@ function LineItemsEditor({
                     </a>
                   </Button>
                 ))}
+                {/* Customer's uploaded source files + rendered print files —
+                    staff need these to quote (e.g. POA embroidery digitizing). */}
+                {(
+                  ((row.customizerDesign as any)?.customerOriginalFiles ??
+                    []) as Array<{ url: string; fileName?: string; sides?: string[] }>
+                ).map((f, i) => (
+                  <Button key={`orig-${i}`} size="small" variant="secondary" asChild>
+                    <a href={f.url} target="_blank" rel="noreferrer" download>
+                      Artwork: {f.fileName || `file ${i + 1}`}
+                      {f.sides?.length
+                        ? ` (${f.sides.join(", ").replace(/_/g, " ")})`
+                        : ""}
+                    </a>
+                  </Button>
+                ))}
+                {(
+                  ((row.customizerDesign as any)?.artifacts ?? []) as Array<{
+                    side?: string
+                    printUrl?: string | null
+                  }>
+                )
+                  .filter((a) => a.printUrl)
+                  .map((a, i) => (
+                    <Button key={`print-${i}`} size="small" variant="secondary" asChild>
+                      <a href={a.printUrl!} target="_blank" rel="noreferrer">
+                        Print file{a.side ? `: ${a.side.replace(/_/g, " ")}` : ""}
+                      </a>
+                    </Button>
+                  ))}
                 <Button
                   size="small"
                   variant="secondary"

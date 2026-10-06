@@ -102,10 +102,33 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  // POA lines carry no trusted price — staff set unit_price on the quote.
+  // Pre-fill each line with what the customizer already priced (garment tier
+  // for the total qty + any auto-priced print positions; the POA embroidery
+  // side prices at $0). Client-supplied, so it's a starting point only — the
+  // quote lands as `new` and staff add the embroidery before sending.
+  // `discountedUnitPriceCents` is MAJOR units (dollars) despite the suffix.
+  const poaSideLabel = parsed.poa_sides
+    .map((s) => s.side.replace(/_/g, " "))
+    .join(", ")
   const newLines = mapQuoteDesignLines(
-    parsed.lines.map((l) => ({ ...l, unit_price_cents: null })),
+    parsed.lines.map((l) => {
+      const dollars = Number(
+        (l.metadata as any)?.customizerDesign?.pricing?.discountedUnitPriceCents
+      )
+      return {
+        ...l,
+        unit_price_cents:
+          Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : null,
+      }
+    }),
     parsed.group_id
+  ).map((line) =>
+    line.unit_price != null
+      ? {
+          ...line,
+          description: `Garment + other positions only — EXCLUDES ${poaSideLabel} embroidery (POA). Add embroidery before sending.`,
+        }
+      : line
   )
   // Heavy vector sideLayouts → R2, deduped across size lines (see lib).
   await archiveLineDesigns(req.scope, newLines, `poa-${publicId}`)

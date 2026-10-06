@@ -2,6 +2,15 @@
 
 import { sdk } from "@lib/config"
 
+/** Technique + size per decoration (built by backend lib/quote-decorations.ts). */
+export type QuoteDecoration = {
+  garment: string | null
+  side: string
+  side_label: string
+  method: string
+  detail: string
+}
+
 export type QuoteForAccept = {
   public_id: string
   status: string
@@ -27,6 +36,7 @@ export type QuoteForAccept = {
     side_label?: string | null
     url: string
   }>
+  decorations?: QuoteDecoration[]
   expires_at: string | null
   already_accepted?: boolean
 }

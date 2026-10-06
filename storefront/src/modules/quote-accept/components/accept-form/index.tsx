@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useParams, useRouter } from "next/navigation"
 
 import { acceptQuote, type QuoteForAccept } from "@lib/data/quote-accept"
+import DecorationList from "@modules/quote-accept/components/decoration-list"
 
 type Props = {
   id: string
@@ -129,6 +130,8 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           ))}
         </div>
       ) : null}
+
+      <DecorationList decorations={quote.decorations} />
 
       {quote.line_items.length > 0 ? (
         <ul className="divide-y divide-[rgba(26,26,46,0.06)]">

@@ -3,6 +3,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { QUOTE_MODULE } from "../../../../modules/quote"
 import type QuoteModuleService from "../../../../modules/quote/service"
 import { buildQuoteMockups } from "../../../../lib/quote-mockups"
+import { buildQuoteDecorations } from "../../../../lib/quote-decorations"
 import { verifyQuoteAccept } from "../../../../services/quote-accept/sign"
 
 /**
@@ -69,6 +70,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       side_label: m.sideLabel,
       url: m.url,
     })),
+    // Technique + size per decoration so the customer knows what they accept.
+    decorations: buildQuoteDecorations(quote),
     expires_at: quote.expires_at,
   })
 }

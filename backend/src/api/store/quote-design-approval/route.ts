@@ -8,6 +8,7 @@ import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
 import { notifyQuoteCustomerAction } from "../../../lib/notify-quote-action"
 import { buildQuoteMockups } from "../../../lib/quote-mockups"
+import { buildQuoteDecorations } from "../../../lib/quote-decorations"
 import { verifyQuoteApproval } from "../../../services/quote-approval/sign"
 
 type DesignApprovalStatus = "pending" | "approved" | "changes_requested"
@@ -77,6 +78,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       side_label: m.sideLabel,
       url: m.url,
     })),
+    decorations: buildQuoteDecorations(quote),
   })
 }
 

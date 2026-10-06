@@ -1,6 +1,7 @@
 "use server"
 
 import { sdk } from "@lib/config"
+import type { QuoteDecoration } from "@lib/data/quote-accept"
 
 export type QuoteApprovalState = {
   quote_id: string
@@ -12,6 +13,7 @@ export type QuoteApprovalState = {
   design_changes_comment: string | null
   /** Mockups designed in the Studio for this quote's lines. */
   mockup_urls: { side: string; side_label?: string | null; url: string }[]
+  decorations?: QuoteDecoration[]
 }
 
 export async function getQuoteApproval(

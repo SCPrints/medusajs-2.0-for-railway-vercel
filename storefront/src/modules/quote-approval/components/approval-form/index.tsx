@@ -6,6 +6,7 @@ import {
   submitQuoteDesignDecision,
   type QuoteApprovalState,
 } from "@lib/data/quote-approval"
+import DecorationList from "@modules/quote-accept/components/decoration-list"
 
 type Props = {
   quoteId: string
@@ -91,6 +92,10 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
           </p>
         </div>
       )}
+
+      <div className="mt-6">
+        <DecorationList decorations={initial.decorations} />
+      </div>
 
       {alreadyApproved ? (
         <div className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-4">
