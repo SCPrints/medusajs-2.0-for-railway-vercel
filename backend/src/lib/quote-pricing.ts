@@ -209,6 +209,19 @@ export const UVDTF_RATE_BANDS = [
 ] as const
 export const UVDTF_SETUP_INC = 25
 
+/**
+ * Rush turnaround, inc GST per JOB per technique — mirror of storefront
+ * `decoration/lib/rush.ts` (flat fees) and `methods/screen.ts` (screen rush
+ * = +30% of print + setup, no express: the run is outsourced to DSP).
+ */
+export const RUSH_FEES = {
+  print: { priority: 15, express: 35 },
+  embroidery: { priority: 25, express: 50 },
+  uvdtf: { priority: 20, express: 40 },
+} as const
+export const SCREEN_RUSH_RATE = 0.3
+export type RushTier = "priority" | "express"
+
 /** "BYO Pricing" — handling fee per PRINT POSITION on customer-supplied garments, inc GST (Sean 2026-08-18). */
 export const BYO_HANDLING_PER_POSITION_INC = 3
 
@@ -604,6 +617,8 @@ export type JobSpec = {
   roundUnitTo?: number | null
   /** Whole-of-job discount, applied after everything else. */
   discount?: { kind: "percent" | "amount"; value: number } | null
+  /** Rush turnaround — one fee per technique used (screen: +30% of print + setup; no express). */
+  rush?: RushTier | null
 }
 
 export type RowPrice = {
@@ -704,6 +719,11 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
   // Which garments carry each design, per setup kind — so a digitizing line
   // says "Used on: Cap", not every garment the artwork appears on.
   const designGarments = new Map<string, Set<string>>()
+  // Rush bookkeeping: which techniques the job uses, and the screen print
+  // sell/cost it would surcharge (storefront screen rush = 30% of print + setup).
+  const methodsUsed = new Set<"print" | "screen" | "embroidery">()
+  let screenSell = 0
+  let screenCost = 0
   const noteDesign = (designId: string, kind: "screen" | "supacolour" | "embroidery", garmentTitle: string) => {
     const key = `${designId}:${kind}`
     if (!designGarments.has(key)) designGarments.set(key, new Set())
@@ -746,6 +766,7 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
         const pos = `position ${i + 1}`
         const tag = `design ${designLabel(p.designId)}`
 
+        if (qty > 0) methodsUsed.add(p.method)
         if (p.method === "print") {
           const channel: PrintChannel = p.channel ?? (garment?.supacolour ? "supacolour" : "dtf")
           if (channel === "supacolour") {
@@ -790,6 +811,9 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
           const r = screenUnitMajor({ quantity: tierQty, colours: p.colours, darkGarment: dark, heavyGarment: heavy })
           screensByDesign.set(p.designId, Math.max(screensByDesign.get(p.designId) ?? 0, r.effectiveColours))
           noteDesign(p.designId, "screen", g.title)
+          const screenUnitCost = round2(SCREEN_DSP_COST_EX[r.tierIndex][r.effectiveColours - 1] + SCREEN_HANDLING_EX + (heavy ? SCREEN_HEAVY_COST_EX : 0))
+          screenSell += r.unitMajor * qty
+          screenCost += screenUnitCost * qty
           components.push(
             component({
               key: `pos-${i}`,
@@ -797,7 +821,7 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
               kind: "per_garment",
               quantity: qty,
               unitSellMajor: r.unitMajor,
-              unitCostExMajor: round2(SCREEN_DSP_COST_EX[r.tierIndex][r.effectiveColours - 1] + SCREEN_HANDLING_EX + (heavy ? SCREEN_HEAVY_COST_EX : 0)),
+              unitCostExMajor: screenUnitCost,
             })
           )
           return
@@ -915,6 +939,24 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
     if (!job.uvdtf.reorder) {
       extras.push(component({ key: "uvdtf-setup", label: "UV DTF setup / artwork", kind: "setup", quantity: 1, unitSellMajor: UVDTF_SETUP_INC, unitCostExMajor: UV_SETUP_COST_EX, setupProduct: null }))
     }
+  }
+
+  // Rush turnaround — one fee per technique the job uses. Screen = 30% of
+  // the screen print + screen setup sell (cost: the same 30% DSP charges us);
+  // the rest are the storefront's flat fees. Screen has no express tier.
+  if (job.rush) {
+    const tierLabel = job.rush === "express" ? "Express" : "Priority"
+    if (methodsUsed.has("screen")) {
+      if (job.rush === "express") warnings.push("Screen printing has no express tier — rushed at the priority rate (+30%).")
+      const setups = extras.filter((c) => c.setupProduct === "screen_setup")
+      const sell = round2((screenSell + setups.reduce((s, c) => s + c.sellTotalMajor, 0)) * SCREEN_RUSH_RATE)
+      const cost = round2((screenCost + setups.reduce((s, c) => s + (c.costTotalExMajor ?? 0), 0)) * SCREEN_RUSH_RATE)
+      // ponytail: measured on the computed screen components even under a unit override — the surcharge is what DSP bills us.
+      extras.push(component({ key: "rush-screen", label: `Priority turnaround — screen print (+${SCREEN_RUSH_RATE * 100}% of print + setup)`, kind: "setup", quantity: 1, unitSellMajor: sell, unitCostExMajor: cost, setupProduct: null }))
+    }
+    if (methodsUsed.has("print")) extras.push(component({ key: "rush-print", label: `${tierLabel} turnaround — full-colour print`, kind: "setup", quantity: 1, unitSellMajor: RUSH_FEES.print[job.rush], unitCostExMajor: 0, setupProduct: null }))
+    if (methodsUsed.has("embroidery")) extras.push(component({ key: "rush-embroidery", label: `${tierLabel} turnaround — embroidery`, kind: "setup", quantity: 1, unitSellMajor: RUSH_FEES.embroidery[job.rush], unitCostExMajor: 0, setupProduct: null }))
+    if (job.uvdtf && job.uvdtf.metres > 0) extras.push(component({ key: "rush-uvdtf", label: `${tierLabel} turnaround — UV DTF`, kind: "setup", quantity: 1, unitSellMajor: RUSH_FEES.uvdtf[job.rush], unitCostExMajor: 0, setupProduct: null }))
   }
 
   // Free-form extras (colour change, sample, freight, artwork…) — inside the

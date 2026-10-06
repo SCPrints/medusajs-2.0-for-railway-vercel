@@ -11,6 +11,24 @@ export type QuoteDecoration = {
   detail: string
 }
 
+export type QuoteJobBreakdown = {
+  summary: string | null
+  garment_quantity: number
+  designs: Array<{ label: string; image_url: string | null }>
+  groups: Array<{
+    title: string
+    thumbnail: string | null
+    quantity: number
+    unit_min: number
+    unit_max: number
+    total: number
+    positions: string[]
+    rows: Array<{ label: string; quantity: number; unit: number; total: number }>
+  }>
+  extras: Array<{ label: string; quantity: number; unit: number; total: number; waived: boolean }>
+  totals: { subtotal: number; discount: number; total: number }
+}
+
 export type QuoteForAccept = {
   public_id: string
   status: string
@@ -37,6 +55,8 @@ export type QuoteForAccept = {
     url: string
   }>
   decorations?: QuoteDecoration[]
+  /** Job-pricer breakdown (backend lib/quote-job-breakdown.ts) — null unless priced in the Job pricer. */
+  job_breakdown?: QuoteJobBreakdown | null
   expires_at: string | null
   already_accepted?: boolean
 }

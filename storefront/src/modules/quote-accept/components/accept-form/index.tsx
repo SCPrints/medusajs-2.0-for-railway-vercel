@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 
 import { acceptQuote, type QuoteForAccept } from "@lib/data/quote-accept"
 import DecorationList from "@modules/quote-accept/components/decoration-list"
+import JobBreakdown from "@modules/quote-accept/components/job-breakdown"
 
 type Props = {
   id: string
@@ -133,7 +134,31 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
 
       <DecorationList decorations={quote.decorations} />
 
-      {quote.line_items.length > 0 ? (
+      {quote.job_breakdown ? (
+        <JobBreakdown breakdown={quote.job_breakdown} currency={quote.currency_code} />
+      ) : null}
+
+      {/* With a job breakdown the per-size ledger is detail, not the story — tuck it away. */}
+      {quote.line_items.length > 0 && quote.job_breakdown ? (
+        <details className="mb-2">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
+            Itemised lines ({quote.line_items.length})
+          </summary>
+          <ul className="mt-2 divide-y divide-[rgba(26,26,46,0.06)]">
+            {quote.line_items.map((li, idx) => (
+              <li key={idx} className="py-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-[var(--brand-primary)]">{li.title ?? "Item"}</p>
+                  {li.quantity ? <p className="text-xs text-ui-fg-muted">Qty {li.quantity}</p> : null}
+                </div>
+                <span className="text-sm text-ui-fg-base whitespace-nowrap">
+                  {fmtMoney(li.total ?? li.unit_price ?? null, quote.currency_code)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : quote.line_items.length > 0 ? (
         <ul className="divide-y divide-[rgba(26,26,46,0.06)]">
           {quote.line_items.map((li, idx) => (
             <li

@@ -71,6 +71,10 @@ import {
   SizeQuantity,
 } from "@modules/customizer/lib/types"
 import {
+  decodeJobPricerSeed,
+  seedToCustomizerMetadata,
+} from "@modules/customizer/lib/quote-seed"
+import {
   profileAllowedSides,
   profileMethodsForSide,
   profileSizesForSide,
@@ -858,6 +862,9 @@ export default function CustomizerTemplate({
   const quoteIdFromUrl = initialVariantSearchParams?.get("quote_id") ?? null
   const quoteSigFromUrl = initialVariantSearchParams?.get("qsig") ?? null
   const quoteGroupFromUrl = initialVariantSearchParams?.get("group") ?? null
+  // Job-pricer handoff: sides / techniques / sizes / quantities to pre-select
+  // when the group has no saved design yet (see lib/quote-seed.ts).
+  const quoteSeedFromUrl = initialVariantSearchParams?.get("seed") ?? null
   const isQuoteMode = Boolean(quoteIdFromUrl && quoteSigFromUrl)
 
   // POA auto-quote: embroidery over the auto-priced stitch cap can't be added
@@ -2323,6 +2330,16 @@ export default function CustomizerTemplate({
             quoteSigFromUrl,
             quoteGroupFromUrl
           )
+          // No design on this group yet → open pre-seeded from the Job pricer.
+          if (!meta && quoteSeedFromUrl) {
+            const seed = decodeJobPricerSeed(quoteSeedFromUrl)
+            if (seed) {
+              meta = seedToCustomizerMetadata(
+                seed,
+                (product.variants ?? []).map((v) => v.id)
+              )
+            }
+          }
         } else if (isAdminProofMode && adminProofOrderId && adminProofLineItemId) {
           // Staff "Create revised proof" — replay the customer's saved design so
           // the artwork comes back on every side at its real position (and the
@@ -2351,6 +2368,7 @@ export default function CustomizerTemplate({
     quoteIdFromUrl,
     quoteSigFromUrl,
     quoteGroupFromUrl,
+    quoteSeedFromUrl,
     isAdminProofMode,
     adminProofOrderId,
     adminProofLineItemId,

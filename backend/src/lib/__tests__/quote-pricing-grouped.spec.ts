@@ -180,3 +180,40 @@ describe("isDarkGarmentColourName", () => {
     expect(isDarkGarmentColourName(null)).toBe(false)
   })
 })
+
+describe("priceGroupedJob rush", () => {
+  const tee = garment({ title: "Tee" })
+  const base: JobSpec = {
+    designs: [{ id: "A", label: "A" }],
+    groups: [
+      { id: "tees", title: "Tee", rows: [{ id: "t", label: "Black / M", quantity: 50, garment: tee, darkGarment: true }], positions: [{ method: "print", sizeId: "up_to_a4", designId: "A" }] },
+      { id: "caps", title: "Cap", rows: [{ id: "c", label: "Black", quantity: 50, garment: garment({ title: "Cap" }) }], positions: [{ method: "embroidery", stitchCount: 5000, designId: "A" }] },
+    ],
+    uvdtf: { metres: 2 },
+  }
+
+  it("adds one flat fee per technique used (storefront rush.ts numbers)", () => {
+    const r = priceGroupedJob({ ...base, rush: "priority" })
+    const fees = Object.fromEntries(r.extras.filter((c) => c.key.startsWith("rush-")).map((c) => [c.key, c.unitSellMajor]))
+    expect(fees).toEqual({ "rush-print": 15, "rush-embroidery": 25, "rush-uvdtf": 20 })
+    const e = priceGroupedJob({ ...base, rush: "express" })
+    expect(e.extras.find((c) => c.key === "rush-print")?.unitSellMajor).toBe(35)
+    expect(priceGroupedJob(base).extras.some((c) => c.key.startsWith("rush-"))).toBe(false)
+  })
+
+  it("screen rush = 30% of screen print + screen setup, costed at the same 30%, no express tier", () => {
+    const job: JobSpec = {
+      designs: [{ id: "A", label: "A" }],
+      groups: [{ id: "h", title: "Hood", rows: [{ id: "h1", label: "White / L", quantity: 50, garment: tee, darkGarment: false }], positions: [{ method: "screen", colours: 2, designId: "A" }] }],
+      rush: "express",
+    }
+    const r = priceGroupedJob(job)
+    const printSell = r.groups[0].rows[0].components.find((c) => c.key === "pos-0")!
+    const setup = r.extras.find((c) => c.key === "screen-setup-A")!
+    const rush = r.extras.find((c) => c.key === "rush-screen")!
+    expect(rush.unitSellMajor).toBe(Math.round((printSell.sellTotalMajor + setup.sellTotalMajor) * 0.3 * 100) / 100)
+    expect(rush.unitCostExMajor).toBe(Math.round((printSell.costTotalExMajor! + setup.costTotalExMajor!) * 0.3 * 100) / 100)
+    expect(r.extras.some((c) => c.key === "rush-print")).toBe(false)
+    expect(r.warnings.some((w) => /no express/.test(w))).toBe(true)
+  })
+})

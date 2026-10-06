@@ -5,6 +5,8 @@ import { QUOTE_MODULE } from "../../../../../modules/quote"
 import type QuoteModuleService from "../../../../../modules/quote/service"
 import { getPostHog } from "../../../../../lib/posthog"
 import {
+  attachDesignToPricerLines,
+  isPricerLine,
   mapQuoteDesignLines,
   quoteDesignLineSchema,
 } from "../../../../../lib/quote-design-lines"
@@ -147,17 +149,59 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       )
     : body.lines
 
+  const currentItems: Array<Record<string, any>> = Array.isArray(quote.line_items?.items)
+    ? quote.line_items.items
+    : []
+
+  // Job-pricer group (lines `jp_…` carrying this group_id): the pricer owns
+  // the pricing, so ATTACH the design to its lines instead of replacing them
+  // at the customiser's own price (which would lose cross-group tiers,
+  // overrides and the negotiated discount). Also records the mockup on the
+  // saved job so the pricer + breakdown card show it.
+  const groupLines = currentItems.filter((li) => li?.group_id === body.group_id)
+  if (groupLines.length && groupLines.every(isPricerLine)) {
+    const legacyDesign = body.lines[0]?.metadata?.customizerDesign
+    const design =
+      sharedDesign ??
+      (legacyDesign && typeof legacyDesign === "object"
+        ? await archiveSideLayoutsIfLarge(req.scope, legacyDesign as Record<string, unknown>, `quote-${id}`)
+        : null)
+    const printSizeId = body.lines.find((l) => typeof l.metadata?.print_size_id === "string")?.metadata
+      ?.print_size_id as string | undefined
+    const { items, mockupUrl } = attachDesignToPricerLines(currentItems, body.group_id, design, printSizeId ?? null)
+
+    const metadata = { ...((quote.metadata as Record<string, any>) ?? {}) }
+    const jp = metadata.job_pricer
+    if (mockupUrl && jp?.state?.groups && Array.isArray(jp.state.groups)) {
+      const idx = jp.state.groups.findIndex((g: any) => g?.id === body.group_id)
+      if (idx >= 0) {
+        const groups = jp.state.groups.map((g: any, i: number) => (i === idx ? { ...g, mockupUrl } : g))
+        const snapGroups = Array.isArray(jp.snapshot?.groups)
+          ? jp.snapshot.groups.map((g: any, i: number) => (i === idx ? { ...g, thumbnail: mockupUrl } : g))
+          : jp.snapshot?.groups
+        metadata.job_pricer = { ...jp, state: { ...jp.state, groups }, snapshot: { ...jp.snapshot, groups: snapGroups } }
+      }
+    }
+
+    await service.updateQuotes([{ id, line_items: { items }, metadata }])
+    await service.createQuoteEvents([
+      { quote_id: id, type: "line_items_updated", actor: "studio", body: { group_id: body.group_id, count: groupLines.length, design: true, attach_only: true } },
+    ])
+    getPostHog()?.capture({
+      distinctId: quote.email ?? id,
+      event: "quote design attached",
+      properties: { quote_id: id, public_id: quote.public_id, group_id: body.group_id, line_count: groupLines.length, attach_only: true },
+    })
+    return res.status(201).json({ ok: true, lines: items.filter((li) => li?.group_id === body.group_id), count: groupLines.length, attach_only: true })
+  }
+
   // Shared with /store/quotes/poa-request — keep the persisted line shape
   // identical across both write paths (see lib/quote-design-lines.ts).
   const newLines = mapQuoteDesignLines(lines, body.group_id)
   // Legacy per-line designs bypass the shared-design archive above.
   await archiveLineDesigns(req.scope, newLines, `quote-${id}`)
 
-  const existing = Array.isArray(quote.line_items?.items)
-    ? (quote.line_items.items as Array<Record<string, any>>).filter(
-        (li) => li?.group_id !== body.group_id
-      )
-    : []
+  const existing = currentItems.filter((li) => li?.group_id !== body.group_id)
 
   await service.updateQuotes([
     { id, line_items: { items: [...existing, ...newLines] } },

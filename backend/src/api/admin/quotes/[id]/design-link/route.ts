@@ -32,6 +32,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const group = typeof req.query.group === "string" ? req.query.group : ""
   const handle = typeof req.query.handle === "string" ? req.query.handle : ""
+  // Job-pricer handoff: pre-select the colour (`variant`) and pre-seed the
+  // sides / techniques / sizes / quantities (`seed`, base64url JSON — read by
+  // the customiser's quote-mode hydration when the group has no design yet).
+  const variant = typeof req.query.variant === "string" ? req.query.variant : ""
+  const seed = typeof req.query.seed === "string" ? req.query.seed.slice(0, 4000) : ""
 
   const sig = signQuoteDesign(id)
   const storefrontUrl =
@@ -45,6 +50,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   params.set("qsig", sig)
   if (group) params.set("group", group)
   if (handle) params.set("handle", handle)
+  if (variant) params.set("variant", variant)
+  if (seed) params.set("seed", seed)
 
   const url = `${storefrontUrl}/${country}/customizer-v2?${params.toString()}`
   res.json({ url })

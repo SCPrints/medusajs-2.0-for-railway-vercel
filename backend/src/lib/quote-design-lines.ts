@@ -29,6 +29,41 @@ export const quoteDesignLineSchema = z.object({
 
 export type QuoteDesignLineInput = z.infer<typeof quoteDesignLineSchema>
 
+/** Lines the Job pricer wrote (`jp_r_…` rows, `jp_x_…` setups) — priced in the pricer, not the Studio. */
+export const isPricerLine = (li: { id?: unknown }) => String(li?.id ?? "").startsWith("jp_")
+
+/**
+ * Attach a Studio design to a Job-pricer group WITHOUT re-pricing. The pricer
+ * owns quantity / unit price / title / description (negotiated, cross-group
+ * tiers, overrides); the Studio only contributes the artwork: the design is
+ * stamped on every line of the group (variantId per line, as the accept route
+ * and the print files expect) and the rendered mockup becomes the thumbnail.
+ * Lines outside the group are untouched. Returns the mockup URL used.
+ */
+export function attachDesignToPricerLines(
+  items: Array<Record<string, any>>,
+  groupId: string,
+  design: Record<string, any> | null,
+  printSizeId?: string | null
+): { items: Array<Record<string, any>>; mockupUrl: string | null } {
+  const mockupUrl =
+    (Array.isArray(design?.artifacts)
+      ? design!.artifacts.find((a: any) => typeof a?.mockupUrl === "string" && a.mockupUrl)?.mockupUrl
+      : null) ?? null
+  const next = items.map((li) => {
+    if (li?.group_id !== groupId || !isPricerLine(li)) return li
+    return {
+      ...li,
+      customizerDesign: design
+        ? { ...design, ...(li.variant_id ? { variantId: li.variant_id } : {}) }
+        : li.customizerDesign ?? null,
+      thumbnail: mockupUrl ?? li.thumbnail ?? null,
+      print_size_id: printSizeId ?? li.print_size_id ?? null,
+    }
+  })
+  return { items: next, mockupUrl }
+}
+
 export function mapQuoteDesignLines(
   lines: QuoteDesignLineInput[],
   groupId: string

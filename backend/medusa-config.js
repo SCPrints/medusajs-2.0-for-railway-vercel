@@ -595,7 +595,8 @@ const medusaConfig = {
                 ],
                 transformer: (product) => meiliTransformProduct(product),
                 indexSettings: {
-                  searchableAttributes: ['title', 'description', 'variant_sku', 'material_text'],
+                  // brand_name after title so "biz hoodie" ranks the brand's hoodies (Job pricer garment search).
+                  searchableAttributes: ['title', 'brand_name', 'description', 'variant_sku', 'material_text'],
                   displayedAttributes: ['id', 'handle', 'title', 'description', 'variant_sku', 'thumbnail'],
                   // Drive storefront listing facets in Meili instead of the in-memory catalog scan.
                   filterableAttributes: [

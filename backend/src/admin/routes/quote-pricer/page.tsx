@@ -1,5 +1,5 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { CurrencyDollar, Plus, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
+import { CurrencyDollar, Plus, Sparkles, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
 import {
   Badge,
   Button,
@@ -27,6 +27,7 @@ import {
   type PrintChannel,
   type QuotePriceComponent,
   type ResolvedGarment,
+  type RushTier,
 } from "../../../lib/quote-pricing"
 import {
   SCP_BLANK_ALIGNED_QUANTITY_TIERS,
@@ -113,6 +114,8 @@ type JobGroup = {
   positions: UiPosition[]
   /** Negotiated all-in unit sell for the group ("" = computed). */
   unitOverride?: string
+  /** Studio mockup attached to this group's lines (set by the design-items route on post-back). */
+  mockupUrl?: string | null
 }
 type JobExtra = { id: string; label: string; qty: string; unitSell: string; unitCost: string }
 /** Persisted on the quote as `metadata.job_pricer.state` and as the browser draft. */
@@ -128,6 +131,7 @@ type JobState = {
   roundUnitTo?: "" | "0.05" | "0.5" | "1"
   discountKind?: "percent" | "amount"
   discountValue?: string
+  rush?: "" | RushTier
 }
 
 /** Quick-add extras with workbook-backed numbers (inc GST sell / ex GST cost). Staff edit freely. */
@@ -150,7 +154,14 @@ type QuoteLine = {
   variant_id: string | null
   product_handle: string | null
   thumbnail: string | null
+  /** Pricer group the line belongs to — the Studio attaches its design to the group's lines by this. */
+  group_id?: string | null
+  /** `true` = keep the design already stored on this line (the update route restores it). */
+  customizerDesign?: true
+  print_size_id?: string | null
 }
+/** A `jp_` line as the admin GET returns it (design slimmed to `true`, mockups lifted out). */
+type ExistingLine = { id?: string; customizerDesign?: unknown; thumbnail?: string | null; print_size_id?: string | null; group_id?: string | null; mockup_urls?: Array<{ url: string }> | null }
 
 // ---------------------------------------------------------------------------
 // Constants + helpers
@@ -370,6 +381,28 @@ const newPosition = (group: JobGroup, designId: string, detail: ProductDetail | 
     stitches: "5000",
     promo: false,
   }
+}
+
+/**
+ * Job-pricer → Studio seed (contract: storefront customizer/lib/quote-seed.ts).
+ * The group's first row gives the colour + size run; positions map onto the
+ * Studio's sides (chest → front, nape/hood → back; others have no canvas).
+ */
+const STUDIO_SIDE: Record<string, string> = { front: "front", back: "back", left_sleeve: "left_sleeve", right_sleeve: "right_sleeve", printed_tag: "printed_tag", left_chest: "front", right_chest: "front", nape: "back", hood: "back" }
+function buildStudioSeed(g: JobGroup, detail: ProductDetail): string {
+  const axes = variantAxes(detail)
+  const row = g.rows[0]
+  const sized = row ? Object.entries(row.cells).filter(([s, q]) => s !== ANY_SIZE && cellQty(q) > 0) : []
+  const variant = row ? (sized.map(([s]) => axes.variantFor(row.colour, s)).find(Boolean) ?? axes.variantFor(row.colour, axes.sizesFor(row.colour)[0] ?? ANY_SIZE)) : null
+  const seen = new Set<string>()
+  const sides = g.positions.flatMap((p) => {
+    const side = STUDIO_SIDE[p.side]
+    if (!side || seen.has(side)) return []
+    seen.add(side)
+    return [{ side, method: p.method, ...(p.method === "print" ? { sizeId: p.sizeId } : {}), ...(p.method === "screen" ? { colours: Number(p.colours) || 1, dark: row?.dark === true } : {}) }]
+  })
+  const json = JSON.stringify({ v: 1, variant: variant?.id ?? null, sizes: sized.map(([size, q]) => ({ size, quantity: cellQty(q) })), sides })
+  return btoa(String.fromCharCode(...new TextEncoder().encode(json))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
 }
 
 const newRow = (colour: string | null, label = ""): GroupRow => ({ id: genId("row"), colour, label, dark: isDarkGarmentColourName(colour ?? label), cells: {} })
@@ -774,6 +807,7 @@ function QuotePricerPage() {
       waivedKeys: state.waivedKeys ?? [],
       roundUnitTo: state.roundUnitTo ? Number(state.roundUnitTo) : null,
       discount: state.discountValue && Number(state.discountValue) > 0 ? { kind: state.discountKind ?? "percent", value: Number(state.discountValue) } : null,
+      rush: state.rush || null,
     }),
     [state, specRows, jobQuantity]
   )
@@ -843,7 +877,13 @@ function QuotePricerPage() {
     thumbnail: null,
   })
 
-  const buildLines = (): QuoteLine[] => {
+  /**
+   * `existing` = the quote's current `jp_` lines by id. A Studio design attached
+   * to a group (design-items route, attach mode) lives on those lines — carry
+   * it across a re-save (`customizerDesign: true` → the update route restores
+   * the stored design) so re-pricing never drops the artwork.
+   */
+  const buildLines = (existing: Map<string, ExistingLine> = new Map()): QuoteLine[] => {
     const lines: QuoteLine[] = []
     for (const gp of priced.groups) {
       const g = state.groups.find((x) => x.id === gp.groupId)!
@@ -859,15 +899,20 @@ function QuotePricerPage() {
         const description = (g.positions.map((p) => positionSummary(p, state.designs, row?.dark ?? false)).join(" · ") || "") + discountNote
         // The line's "mockup": the first artwork on this garment's positions, else the product photo.
         const artwork = g.positions.map((p) => state.designs.find((d) => d.id === p.designId)?.imageUrl).find(Boolean) ?? null
+        const id = `jp_r_${rp.rowId}`
+        const prev = existing.get(id)
+        const hasDesign = Boolean(prev?.customizerDesign)
         lines.push({
-          id: `jp_r_${rp.rowId}`,
+          id,
           title: garment ? garment.label : `Customer-supplied — ${rp.label}`,
           description: description.trim() || null,
           quantity: rp.quantity,
           unit_price: discounted(rp.unitSellMajor),
+          group_id: g.id,
+          ...(hasDesign ? { customizerDesign: true as const, print_size_id: prev?.print_size_id ?? null } : {}),
           ...(g.supplied
-            ? { ...onServiceLine(), thumbnail: artwork }
-            : { product_id: g.product?.id ?? null, variant_id: variant?.id ?? null, product_handle: g.product?.handle ?? null, thumbnail: artwork ?? g.product?.thumbnail ?? null }),
+            ? { ...onServiceLine(), thumbnail: (hasDesign ? prev?.thumbnail : null) ?? artwork }
+            : { product_id: g.product?.id ?? null, variant_id: variant?.id ?? null, product_handle: g.product?.handle ?? null, thumbnail: (hasDesign ? prev?.thumbnail : null) ?? artwork ?? g.product?.thumbnail ?? null }),
         })
       }
     }
@@ -900,7 +945,7 @@ function QuotePricerPage() {
       const g = state.groups.find((x) => x.id === gp.groupId)!
       return {
         title: g.supplied ? "Customer-supplied garments" : g.product?.title ?? "Garment",
-        thumbnail: g.supplied ? null : g.product?.thumbnail ?? null,
+        thumbnail: g.mockupUrl ?? (g.supplied ? null : g.product?.thumbnail ?? null),
         quantity: gp.quantity,
         unitSellMin: gp.unitSellMin,
         unitSellMax: gp.unitSellMax,
@@ -915,33 +960,46 @@ function QuotePricerPage() {
     totals: priced.totals,
   })
 
-  const sendToQuote = async () => {
-    const lines = buildLines()
-    if (!lines.length) {
+  /** Save the job onto the quote (or create one). `navigate=false` keeps the page (Studio handoff). Returns false on failure. */
+  const saveJob = async ({ navigate = true } = {}): Promise<boolean> => {
+    if (!targetQuote && !navigate) return false
+    if (targetQuote && !buildLines().length) {
       toast.error("Nothing to send — add a garment with a quantity first.")
-      return
+      return false
     }
-    const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state }
     setSending(true)
     try {
       if (targetQuote) {
         // The update route REPLACES metadata and line_items wholesale: merge
-        // metadata, and swap only the pricer's own lines (ids `jp_…`).
-        const { quote } = await adminGet<{ quote: { line_items?: { items?: Array<{ id?: string }> }; metadata?: Record<string, unknown> | null } }>(`/admin/quotes/${targetQuote.id}`)
-        const manual = (quote.line_items?.items ?? []).filter((li) => !String(li.id ?? "").startsWith("jp_"))
+        // metadata, and swap only the pricer's own lines (ids `jp_…`) —
+        // carrying any Studio design they already hold.
+        const { quote } = await adminGet<{ quote: { line_items?: { items?: ExistingLine[] }; metadata?: Record<string, unknown> | null } }>(`/admin/quotes/${targetQuote.id}`)
+        const items = quote.line_items?.items ?? []
+        const manual = items.filter((li) => !String(li.id ?? "").startsWith("jp_"))
+        const existing = new Map(items.filter((li) => li.id && String(li.id).startsWith("jp_")).map((li) => [String(li.id), li]))
+        const lines = buildLines(existing)
+        const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state }
         await adminPost(`/admin/quotes/${targetQuote.id}`, {
           line_items: [...manual, ...lines],
           metadata: { ...(quote.metadata ?? {}), job_pricer: jobPricer },
           total_estimate: priced.totals.sellIncMajor,
         })
         clearDraft()
-        toast.success(`${lines.length} line(s) written to ${targetQuote.public_id}`)
-        window.location.assign(`/app/quotes?id=${targetQuote.id}`)
-        return
+        if (navigate) {
+          toast.success(`${lines.length} line(s) written to ${targetQuote.public_id}`)
+          window.location.assign(`/app/quotes?id=${targetQuote.id}`)
+        }
+        return true
       }
+      const lines = buildLines()
+      if (!lines.length) {
+        toast.error("Nothing to send — add a garment with a quantity first.")
+        return false
+      }
+      const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state }
       if (!newEmail.trim()) {
         toast.error("Enter the customer's email to create the quote.")
-        return
+        return false
       }
       const json = await adminPost<{ quote?: { id?: string }; id?: string }>("/admin/quotes", {
         email: newEmail.trim(),
@@ -954,10 +1012,109 @@ function QuotePricerPage() {
       const id = json?.quote?.id ?? json?.id
       toast.success("Quote created")
       window.location.assign(id ? `/app/quotes?id=${id}` : "/app/quotes")
+      return true
     } catch (err: any) {
       toast.error(err?.message ?? "Couldn't send to quote")
+      return false
     } finally {
       setSending(false)
+    }
+  }
+  const sendToQuote = () => void saveJob()
+
+  // --- Studio handoff: open the customiser pre-seeded from a group, poll for the mockup ---
+  // The job is saved first so the group's `jp_` lines exist on the quote; the
+  // design-items route then ATTACHES the Studio design to them (no re-pricing).
+  const [studioGroup, setStudioGroup] = useState<string | null>(null)
+  const studioPopup = useRef<Window | null>(null)
+  const studioPoll = useRef<number | null>(null)
+  const stopStudioPoll = () => {
+    if (studioPoll.current != null) window.clearInterval(studioPoll.current)
+    studioPoll.current = null
+    studioPopup.current = null
+    setStudioGroup(null)
+  }
+  useEffect(() => stopStudioPoll, [])
+  const openStudio = async (g: JobGroup) => {
+    const detail = g.product ? details[g.product.id] : undefined
+    if (!targetQuote || !g.product || !detail) return
+    if (!(await saveJob({ navigate: false }))) return
+    try {
+      const params = new URLSearchParams({ group: g.id, handle: g.product.handle ?? "", seed: buildStudioSeed(g, detail) })
+      const { url } = await adminGet<{ url?: string }>(`/admin/quotes/${targetQuote.id}/design-link?${params}`)
+      if (!url) throw new Error("No Studio URL returned")
+      const popup = window.open(url, "quote-customizer", "width=1280,height=900,noopener=false")
+      if (!popup) {
+        toast.error("Popup blocked — allow popups for this site")
+        return
+      }
+      studioPopup.current = popup
+      setStudioGroup(g.id)
+      let lastUrl = g.mockupUrl ?? null
+      studioPoll.current = window.setInterval(async () => {
+        try {
+          const { quote } = await adminGet<{ quote: { line_items?: { items?: ExistingLine[] } } }>(`/admin/quotes/${targetQuote.id}`)
+          const url = (quote.line_items?.items ?? []).find((li) => li.group_id === g.id && li.mockup_urls?.length)?.mockup_urls?.[0]?.url ?? null
+          if (url && url !== lastUrl) {
+            lastUrl = url
+            setState((s) => ({ ...s, groups: s.groups.map((x) => (x.id === g.id ? { ...x, mockupUrl: url } : x)) }))
+            toast.success("Studio design attached to the group")
+          }
+        } catch {
+          /* keep polling */
+        }
+        if (studioPopup.current?.closed) stopStudioPoll()
+      }, 2000)
+    } catch (err: any) {
+      toast.error(err?.message ?? "Failed to open the Studio")
+    }
+  }
+
+  // --- "Load last job": the customer's most recent other quote priced here ---
+  const [lastJob, setLastJob] = useState<{ id: string; public_id: string; saved_at: string; state: JobState } | null>(null)
+  useEffect(() => {
+    if (!targetQuote?.email) return
+    void (async () => {
+      try {
+        const { quotes } = await adminGet<{ quotes: Array<{ id: string; public_id: string; created_at: string; metadata?: Record<string, any> | null }> }>(`/admin/quotes?q=${encodeURIComponent(targetQuote.email)}&limit=25`)
+        const prev = (quotes ?? [])
+          .filter((q) => q.id !== targetQuote.id && q.metadata?.job_pricer?.state)
+          .sort((a, b) => String(b.metadata!.job_pricer.saved_at ?? b.created_at).localeCompare(String(a.metadata!.job_pricer.saved_at ?? a.created_at)))[0]
+        const st = prev ? migrateState(prev.metadata!.job_pricer.state) : null
+        if (prev && st) setLastJob({ id: prev.id, public_id: prev.public_id, saved_at: prev.metadata!.job_pricer.saved_at ?? prev.created_at, state: st })
+      } catch {
+        /* optional */
+      }
+    })()
+  }, [targetQuote])
+  const loadLastJob = async () => {
+    if (!lastJob) return
+    const recent = Date.now() - new Date(lastJob.saved_at).getTime() < 183 * 86400e3
+    // Designs within 6 months take the repeat rate; Studio mockups belong to the old quote's lines.
+    const st: JobState = { ...lastJob.state, designs: lastJob.state.designs.map((d) => ({ ...d, repeat: recent })), groups: lastJob.state.groups.map((g) => ({ ...g, mockupUrl: null })) }
+    setState(st)
+    await Promise.all(st.groups.filter((g) => g.product).map((g) => ensureDetail(g.product!)))
+    toast.success(`Loaded ${lastJob.public_id}${recent ? " — designs marked repeat" : ""}`)
+  }
+
+  // --- size grid keyboard flow: arrows move between cells, Enter moves down ---
+  const gridKey = (e: React.KeyboardEvent<HTMLInputElement>, gridId: string, r: number, c: number, cols: number, rows: number) => {
+    const d: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1], Enter: [e.shiftKey ? -1 : 1, 0] }
+    const step = d[e.key]
+    if (!step) return
+    const el = e.currentTarget
+    if ((e.key === "ArrowLeft" && (el.selectionStart ?? 0) > 0) || (e.key === "ArrowRight" && (el.selectionStart ?? 0) < el.value.length)) return
+    e.preventDefault()
+    let [nr, nc] = [r + step[0], c + step[1]]
+    while (nr >= 0 && nr < rows && nc >= 0 && nc <= cols) {
+      const next = document.querySelector<HTMLInputElement>(`input[data-grid="${gridId}"][data-r="${nr}"][data-c="${nc}"]`)
+      if (next) {
+        next.focus()
+        next.select()
+        return
+      }
+      nr += step[0]
+      nc += step[1]
     }
   }
 
@@ -984,6 +1141,11 @@ function QuotePricerPage() {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
+          {lastJob ? (
+            <Button size="small" variant="secondary" onClick={() => void loadLastJob()} title={`Load the job priced on ${lastJob.public_id} (${new Date(lastJob.saved_at).toLocaleDateString("en-AU")}) as the starting point`}>
+              Load last job ({lastJob.public_id})
+            </Button>
+          ) : null}
           <Label size="xsmall" className="whitespace-nowrap">Garment pricing</Label>
           <Select value={state.tierSlug} onValueChange={(v) => patch({ tierSlug: v })}>
             <Select.Trigger className="w-64"><Select.Value /></Select.Trigger>
@@ -1108,6 +1270,21 @@ function QuotePricerPage() {
                   <span className="text-ui-fg-muted">cost {money(firstRow?.unitCostExMajor)}</span>
                   {gp?.marginPct != null ? <Badge size="2xsmall" color={marginTone(gp.marginPct)}>{gp.marginPct}%</Badge> : null}
                   <span className="font-medium">{money(gp?.sellTotalMajor ?? 0)}</span>
+                  {!g.supplied && g.product ? (
+                    <span className="flex items-center gap-1">
+                      {g.mockupUrl ? <a href={g.mockupUrl} target="_blank" rel="noreferrer" title="Studio mockup attached to this group's lines"><img src={g.mockupUrl} alt="" className="w-8 h-8 rounded object-contain bg-ui-bg-base border border-ui-border-base" /></a> : null}
+                      <Button
+                        size="small"
+                        variant="secondary"
+                        isLoading={studioGroup === g.id}
+                        disabled={!targetQuote || !detail || sending}
+                        title={targetQuote ? "Open the Studio with this group's colour, sizes and positions pre-selected; the design attaches to these lines at the pricer's prices" : "Create the quote first — the design attaches to the quote's lines"}
+                        onClick={() => void openStudio(g)}
+                      >
+                        <Sparkles /> {g.mockupUrl ? "Edit in Studio" : "Design in Studio"}
+                      </Button>
+                    </span>
+                  ) : null}
                   <Button size="small" variant="transparent" onClick={() => duplicateGroup(g.id)} title="Duplicate group (same decoration + designs)" aria-label="Duplicate group"><SquareTwoStack /></Button>
                   <Button size="small" variant="transparent" onClick={() => removeGroup(g.id)} aria-label="Remove group"><Trash /></Button>
                 </div>
@@ -1128,8 +1305,9 @@ function QuotePricerPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {g.rows.map((row) => {
+                      {g.rows.map((row, ri) => {
                         const rowSizes = g.supplied ? [] : axes?.sizesFor(row.colour) ?? []
+                        const onKey = (c: number) => (e: React.KeyboardEvent<HTMLInputElement>) => gridKey(e, g.id, ri, c, sizeCols.length, g.rows.length)
                         return (
                           <tr key={row.id}>
                             <td className="pr-2 py-0.5">
@@ -1145,17 +1323,17 @@ function QuotePricerPage() {
                               )}
                             </td>
                             <td className="px-1 text-center"><Checkbox checked={row.dark} onCheckedChange={(v) => patchRow(g.id, row.id, { dark: v === true })} /></td>
-                            {sizeCols.map((s) => (
+                            {sizeCols.map((s, ci) => (
                               <td key={s} className="px-0.5">
                                 {rowSizes.includes(s) ? (
-                                  <input type="number" min={0} className="w-12 h-7 rounded border border-ui-border-base bg-ui-bg-base px-1 text-center text-xs" value={row.cells[s] ?? ""} onChange={(e) => setCell(g.id, row.id, s, e.target.value)} />
+                                  <input type="number" min={0} data-grid={g.id} data-r={ri} data-c={ci} onKeyDown={onKey(ci)} className="w-12 h-7 rounded border border-ui-border-base bg-ui-bg-base px-1 text-center text-xs" value={row.cells[s] ?? ""} onChange={(e) => setCell(g.id, row.id, s, e.target.value)} />
                                 ) : (
                                   <span className="block w-12 text-center text-ui-fg-muted">—</span>
                                 )}
                               </td>
                             ))}
                             <td className="px-0.5">
-                              <input type="number" min={0} className="w-14 h-7 rounded border border-ui-border-base bg-ui-bg-base px-1 text-center text-xs" value={row.cells[ANY_SIZE] ?? ""} onChange={(e) => setCell(g.id, row.id, ANY_SIZE, e.target.value)} />
+                              <input type="number" min={0} data-grid={g.id} data-r={ri} data-c={sizeCols.length} onKeyDown={onKey(sizeCols.length)} className="w-14 h-7 rounded border border-ui-border-base bg-ui-bg-base px-1 text-center text-xs" value={row.cells[ANY_SIZE] ?? ""} onChange={(e) => setCell(g.id, row.id, ANY_SIZE, e.target.value)} />
                             </td>
                             <td className="px-1 text-right font-medium">{rowQty(row)}</td>
                             <td>
@@ -1288,7 +1466,13 @@ function QuotePricerPage() {
                 {state.groups.map((g, gi) => (
                   <tr key={g.id}>
                     <td className="px-3 py-2 truncate max-w-[18rem]">#{gi + 1} {g.supplied ? "Customer-supplied" : g.product?.title ?? "—"}</td>
-                    {(bands[g.id] ?? []).map((b, i) => <td key={i} className="px-3 py-2 text-right whitespace-nowrap">{money(b)}</td>)}
+                    {g.unitOverride?.trim() ? (
+                      <td colSpan={SCP_BLANK_ALIGNED_QUANTITY_TIERS.length} className="px-3 py-2 text-xs text-ui-fg-muted">
+                        Negotiated at {money(Number(g.unitOverride))}/unit at any quantity — clear the override to see the bands.
+                      </td>
+                    ) : (
+                      (bands[g.id] ?? []).map((b, i) => <td key={i} className="px-3 py-2 text-right whitespace-nowrap">{money(b)}</td>)
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -1381,6 +1565,17 @@ function QuotePricerPage() {
                   <Select.Content>
                     <Select.Item value="percent">%</Select.Item>
                     <Select.Item value="amount">$</Select.Item>
+                  </Select.Content>
+                </Select>
+              </span>
+              <span className="flex items-center gap-1" title="One fee per technique used (storefront rush card); screen print = +30% of print + setup, no express">
+                <Label size="xsmall">Turnaround</Label>
+                <Select value={state.rush ?? ""} onValueChange={(v) => patch({ rush: v === "__std" ? "" : (v as RushTier) })}>
+                  <Select.Trigger className="h-7 w-28"><Select.Value placeholder="Standard" /></Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="__std">Standard</Select.Item>
+                    <Select.Item value="priority">Priority</Select.Item>
+                    <Select.Item value="express">Express</Select.Item>
                   </Select.Content>
                 </Select>
               </span>

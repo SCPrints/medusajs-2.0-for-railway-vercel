@@ -97,27 +97,62 @@ Line ids `jp_r_<row>:<size>` / `jp_x_<key>`; re-save replaces only `jp_` lines. 
 `subject` and `total_estimate` are set from the job. `custom-service-line` must stay
 published (draft breaks add-to-cart) and in the Internal Services channel.
 
+## Phase 2 — Studio handoff (shipped 2026-10-07)
+
+Per group: **Design in Studio** (needs the job on a quote — the button saves the job first,
+`saveJob({ navigate: false })`). It mints the design-link with `group=<pricer group id>`,
+`handle`, and a `seed` (base64url JSON: colour variant, the first row's size run, and the
+positions mapped onto Studio sides — chest → front, nape/hood → back; contract in
+storefront `customizer/lib/quote-seed.ts` ↔ admin `buildStudioSeed`). The customiser's
+quote-mode hydration, finding no saved design on the group, turns the seed into a partial
+`CustomizerMetadata` and runs it through the normal rehydration effect — sides, techniques,
+screen colours/dark, print sizes, quantities, colour all pre-selected; staff place artwork.
+
+**No re-pricing.** The pricer writes `group_id = g.id` on its `jp_r_` lines. The
+design-items POST sees that every line in the group is a `jp_` line and takes the
+**attach** path (`attachDesignToPricerLines`, tested): the shared design is stamped on each
+line (variantId per line), the mockup becomes the line thumbnail, and
+`metadata.job_pricer.state.groups[i].mockupUrl` + the snapshot group thumbnail are set.
+Quantity / unit price / title / description are untouched. The pricer polls the quote every
+2s while the popup is open and shows the mockup on the group header ("Edit in Studio"
+re-opens with full rehydration). On re-save the pricer passes `customizerDesign: true` +
+`print_size_id` + the mockup thumbnail for lines that had a design, so the update route
+restores the stored design — re-pricing never drops artwork. Non-pricer groups (Kanban
+"Design in Studio") still replace as before.
+
+## Phase 3 (shipped 2026-10-07)
+
+- **Rush tiers** — `JobSpec.rush: "priority" | "express"`; one `rush-*` extra per
+  technique used: flat storefront fees (`RUSH_FEES` mirror of `decoration/lib/rush.ts`:
+  print 15/35, embroidery 25/50, UV DTF 20/40 inc GST, cost 0) and screen = +30% of screen
+  print + screen setup sell, costed at the same 30% (DSP's rush terms); no express for
+  screen (warns, charges priority). "Turnaround" select next to Discount.
+- **Customer breakdown on the accept page** — `GET /store/quotes/:id` returns
+  `job_breakdown` (lib `quote-job-breakdown.ts`: the snapshot minus cost/margin/tier/
+  override, null unless the `jp_` lines still sum to the snapshot total — hand-edited lines
+  fall back to the plain list). Storefront `quote-accept/components/job-breakdown.tsx`;
+  the per-size ledger collapses into "Itemised lines (N)".
+- **Load last job** — with a target quote, the pricer searches `/admin/quotes?q=<email>` for
+  the customer's most recent other quote carrying `job_pricer.state`; the header button
+  loads it, marks every design `repeat` if saved within 6 months, clears old mockups.
+- **Brand-name search** — `brand_name` added to Meili `searchableAttributes` (after title).
+  Needs the settings PATCH on prod (see "Working on it").
+- **Size-grid keyboard flow** — arrows move between cells (skipping "—"), Enter down,
+  Shift+Enter up; Left/Right only leave a cell at the caret edge.
+- Band table shows "Negotiated at $X/unit" instead of meaningless bands under an override.
+
 ## Known gaps / next steps
 
-Phase 2 — **Studio handoff** (not started): open the customiser from a group with
-sides/methods/sizes pre-selected (design-link takes `handle` + `group`; would need new params
-read by the storefront customizer template), and attach the design **without re-pricing** —
-today a Studio design posted to `/store/quotes/:id/design-items` *replaces* lines with that
-`group_id` at the customiser's own price (no cross-group gang tier, no overrides). Until
-solved: price in the pricer, attach artwork via the design letters, keep Studio for
-customer-facing mockups on separate lines.
-
-Phase 3 — rush tiers (storefront `rush.ts` fees: screen +30%, DTF/embroidery flat);
-"load last job" for repeat customers; customer-facing breakdown on the accept page
-(`/quote-accept/[id]`); brand-name search (add `brand_name` to Meili `searchableAttributes`
-in `medusa-config.js`, then PATCH settings / reindex); size-grid keyboard flow.
-
-Small things noticed: band table is meaningless under a unit override (shows the override);
-"cost est." is an inversion of the standard ladder and is only roughly right for
-spreadsheet-synced ladders; local dev uploads land in the **prod** R2 bucket (local `.env`
-points MINIO at it); local dev `MEILISEARCH_HOST` points at prod Meili so search ids 404
-locally (handle fallback covers it); local DB had no print profiles until
-`seed-print-profiles.ts` was run and the Streetworx hoodie given `long-sleeve-garment`.
+- "cost est." is an inversion of the standard ladder and only roughly right for
+  spreadsheet-synced ladders.
+- The Studio seed takes the colour + size run from the group's **first row** only; other
+  colour rows get the design attached but staff see one colour in the popup.
+- Local dev uploads land in the **prod** R2 bucket (local `.env` points MINIO at it); local
+  `MEILISEARCH_HOST` points at prod Meili so search ids 404 locally (handle fallback covers
+  it); local DB had no print profiles until `seed-print-profiles.ts` was run.
+- Pre-existing unrelated red test: `crm-owners.spec.ts › setOwner updates the existing
+  assignment row` — `e2acf6ff` moved `id` inside the update payload, the spec still expects
+  the old `(id, payload)` shape.
 
 ## Working on it
 
@@ -129,3 +164,6 @@ locally (handle fallback covers it); local DB had no print profiles until
 - Deploy: `cd backend && fly deploy --app sc-prints-backend` with the unrelated WIP stashed
   (`git stash push -u -- "backend/src/api/store/bundles/[handle]/route.ts" backend/src/scripts/sync-resend-audience.ts`, pop after) — that WIP is Sean's, uncommitted, never swept into commits.
 - Prod one-offs: `fly ssh console --app sc-prints-backend -C "sh -c 'cd /app/.medusa/server && npx medusa exec src/scripts/<name>.js'"` with `FLY_ACCESS_TOKEN` from `~/.fly/config.yml`.
+- Meili settings after changing `indexSettings` in `medusa-config.js`:
+  `curl -X PATCH "$MEILISEARCH_HOST/indexes/products/settings" -H "Authorization: Bearer $MEILISEARCH_ADMIN_KEY" -H 'Content-Type: application/json' -d '{"searchableAttributes":["title","brand_name","description","variant_sku","material_text"]}'`
+  (keys from `fly ssh console -C "printenv MEILISEARCH_ADMIN_KEY"`). Meili re-ranks in place — no reindex.

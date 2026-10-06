@@ -4,6 +4,7 @@ import { QUOTE_MODULE } from "../../../../modules/quote"
 import type QuoteModuleService from "../../../../modules/quote/service"
 import { buildQuoteMockups } from "../../../../lib/quote-mockups"
 import { buildQuoteDecorations } from "../../../../lib/quote-decorations"
+import { buildQuoteJobBreakdown } from "../../../../lib/quote-job-breakdown"
 import { verifyQuoteAccept } from "../../../../services/quote-accept/sign"
 
 /**
@@ -72,6 +73,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     })),
     // Technique + size per decoration so the customer knows what they accept.
     decorations: buildQuoteDecorations(quote),
+    // Job-pricer breakdown (garments × positions × setups), customer-safe.
+    // Null when the quote wasn't priced in the Job pricer or the lines drifted.
+    job_breakdown: buildQuoteJobBreakdown(quote),
     expires_at: quote.expires_at,
   })
 }
