@@ -148,9 +148,15 @@ const GAA_COST_EX: ReadonlyArray<readonly [number, number, number]> = [
  * overlapping GAA band, as the workbook does). Under 3,000 stitches costs as 3,000.
  */
 export function embroideryCostExMajor(stitchCount: number, quantity: number): number {
-  const band = Math.min(12, Math.max(3, Math.ceil(stitchCount / 1000)))
+  const band = Math.max(3, Math.ceil(stitchCount / 1000))
   const { tierIndex } = resolveEmbroideryQuantityTier(quantity)
-  if (tierIndex >= 3) return GAA_COST_EX[band - 3][tierIndex - 3]
+  if (tierIndex >= 3) {
+    // GAA card stops at 12k — extend by its own last-row step per extra 1k.
+    const row = GAA_COST_EX[Math.min(band, 12) - 3][tierIndex - 3]
+    if (band <= 12) return row
+    const step = row - GAA_COST_EX[8][tierIndex - 3]
+    return round2(row + (band - 12) * step)
+  }
   const runMin = (band * 1000) / EMB_STITCHES_PER_MIN
   const operatorMin = Math.max(EMB_HOOP_MINUTES, runMin / EMB_HEADS_PER_OPERATOR)
   return round2((operatorMin / 60) * LABOUR_RATE_HR + EMB_CONSUMABLES_EX)
@@ -335,6 +341,18 @@ const component = (
   const marginPct =
     marginExMajor == null || sellEx <= 0 ? null : Math.round((marginExMajor / sellEx) * 1000) / 10
   return { ...c, sellTotalMajor, costTotalExMajor, marginExMajor, marginPct }
+}
+
+/**
+ * Embroidery above the 12k auto-priced cap (storefront = price on application).
+ * Staff quotes extend the rate card at its own 8k+ slope: +$1 per extra 1,000
+ * stitches on every quantity band. A suggestion — staff can override the position.
+ */
+export const EMB_EXTENDED_STEP_PER_1K = 1
+export function extendedEmbroideryUnitMajor(stitchCount: number, quantity: number): number {
+  const base = calculateEmbroideryUnitPriceMajor({ stitchCount: MAX_AUTO_PRICED_STITCHES, quantity, includeDigitizing: false }).unitDecorationMajor
+  const extraK = Math.max(0, Math.ceil(stitchCount / 1000) - MAX_AUTO_PRICED_STITCHES / 1000)
+  return round2(base + extraK * EMB_EXTENDED_STEP_PER_1K)
 }
 
 const sizeLabel = (id: ScpPrintSizeId) =>
@@ -572,10 +590,14 @@ export function priceQuoteJob(spec: QuoteJobSpec, garment: ResolvedGarment | nul
  *     (reorder within 6 months) takes the repeat/reset rate — digitizing is
  *     waived outright.
  */
-export type JobPositionSpec =
+export type JobPositionSpec = (
   | { method: "print"; channel?: PrintChannel; sizeId: ScpPrintSizeId; designId: string }
   | { method: "screen"; colours: number; designId: string }
   | { method: "embroidery"; stitchCount: number; promo?: boolean; designId: string }
+) & {
+  /** Staff-set per-garment sell for this position (inc GST) — replaces the card price; cost unchanged. */
+  unitSellOverrideMajor?: number | null
+}
 
 /** One colour/size cell of a group: its own variant (price), dark flag (underbase), quantity. */
 export type JobRowSpec = {
@@ -829,13 +851,13 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
 
         // embroidery
         const stitches = Math.max(1, Math.floor(p.stitchCount || 0))
-        if (stitches > MAX_AUTO_PRICED_STITCHES) {
-          warnings.push(`${g.title}: ${stitches.toLocaleString()} stitches is over the ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} cap — price by hand.`)
-          components.push(component({ key: `pos-${i}`, label: `Embroidery ${stitches.toLocaleString()} st (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: 0, unitCostExMajor: embroideryCostExMajor(12000, tierQty), requiresQuote: true }))
-          return
-        }
         digitizingDesigns.add(p.designId)
         noteDesign(p.designId, "embroidery", g.title)
+        if (stitches > MAX_AUTO_PRICED_STITCHES && !p.promo) {
+          if (p.unitSellOverrideMajor == null) warnings.push(`${g.title}: ${stitches.toLocaleString()} stitches is over the ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} cap — priced on the extended card (+$${EMB_EXTENDED_STEP_PER_1K} per 1k). Check against the digitised count.`)
+          components.push(component({ key: `pos-${i}`, label: `Embroidery ${stitches.toLocaleString()} st (${pos}, ${tag}, extended card)`, kind: "per_garment", quantity: qty, unitSellMajor: extendedEmbroideryUnitMajor(stitches, tierQty), unitCostExMajor: embroideryCostExMajor(stitches, tierQty) }))
+          return
+        }
         const cost = embroideryCostExMajor(stitches, tierQty)
         if (p.promo) {
           const band = Math.min(12, Math.max(3, Math.ceil(stitches / 1000)))
@@ -847,6 +869,15 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
         components.push(
           component({ key: `pos-${i}`, label: `Embroidery ${stitches.toLocaleString()} st (${pos}, ${tag}, ${r.tierLabel} band)`, kind: "per_garment", quantity: qty, unitSellMajor: r.unitDecorationMajor, unitCostExMajor: cost, notes: groupQty > 100 ? ["Over 100 units — costed at GAA outsource rates."] : undefined })
         )
+      })
+
+      g.positions.forEach((p, i) => {
+        const o = p.unitSellOverrideMajor
+        if (o == null || !Number.isFinite(o) || o < 0) return
+        const idx = components.findIndex((c) => c.key === `pos-${i}`)
+        if (idx < 0) return
+        const { sellTotalMajor: _s, costTotalExMajor: _c, marginExMajor: _m, marginPct: _p, ...base } = components[idx]
+        components[idx] = component({ ...base, unitSellMajor: round2(o), requiresQuote: false, notes: [...(base.notes ?? []), `Price set by hand (card ${base.requiresQuote ? "n/a" : `$${base.unitSellMajor.toFixed(2)}`}).`] })
       })
 
       const computedUnitSellMajor = round2(components.reduce((s, c) => s + c.unitSellMajor, 0))

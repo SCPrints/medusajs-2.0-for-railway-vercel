@@ -37,6 +37,9 @@ const updateSchema = z.object({
         customizerDesign: z.any().nullable().optional(),
         print_size_id: z.string().max(40).nullable().optional(),
         group_id: z.string().max(80).nullable().optional(),
+        // Restore the stored design from this OTHER line id (the Job pricer
+        // taking over a customer Studio line). Never persisted.
+        design_from: z.string().max(80).optional(),
       })
     )
     .max(50)
@@ -138,7 +141,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         .filter((li) => li?.id)
         .map((li) => [String(li.id), li])
     )
-    const items = body.line_items.map((li) => {
+    const items = body.line_items.map(({ design_from, ...li }) => {
       const quantity = li.quantity ?? null
       const unit_price = li.unit_price ?? null
       const total =
@@ -149,7 +152,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         li.customizerDesign && typeof li.customizerDesign === "object"
           ? li.customizerDesign
           : li.customizerDesign
-            ? storedById.get(String(li.id))?.customizerDesign ?? null
+            ? storedById.get(String(design_from ?? li.id))?.customizerDesign ?? null
             : null
       return { ...li, id: li.id || ulid(), total, customizerDesign }
     })

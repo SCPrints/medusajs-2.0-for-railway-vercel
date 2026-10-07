@@ -53,6 +53,8 @@ import { tinted, NAV_COLOR } from "../../lib/nav-tint"
  * `jp_…`) and leaves manual lines alone.
  */
 
+import { absorbStudioLines } from "../../lib/quote-pricer-absorb"
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -90,6 +92,8 @@ type UiPosition = {
   stitches: string
   /** Trade embroidery card (customer-supplied garments). */
   promo: boolean
+  /** Staff-set per-garment price for this position ("" = card price). */
+  priceOverride?: string
 }
 /** `imageUrl` = artwork dropped onto the letter (R2 via /admin/uploads) → line thumbnail + approval email. */
 type JobDesign = { id: string; label: string; repeat: boolean; imageUrl?: string | null }
@@ -158,10 +162,27 @@ type QuoteLine = {
   group_id?: string | null
   /** `true` = keep the design already stored on this line (the update route restores it). */
   customizerDesign?: true
+  /** Restore the stored design from THIS line id instead (a customer Studio line the pricer took over). */
+  design_from?: string
   print_size_id?: string | null
 }
 /** A `jp_` line as the admin GET returns it (design slimmed to `true`, mockups lifted out). */
-type ExistingLine = { id?: string; customizerDesign?: unknown; thumbnail?: string | null; print_size_id?: string | null; group_id?: string | null; mockup_urls?: Array<{ url: string }> | null }
+type ExistingLine = {
+  id?: string
+  customizerDesign?: unknown
+  thumbnail?: string | null
+  print_size_id?: string | null
+  group_id?: string | null
+  product_id?: string | null
+  variant_id?: string | null
+  product_handle?: string | null
+  quantity?: number | null
+  mockup_urls?: Array<{ url: string }> | null
+  /** Derived by the admin slim (lib/quote-admin-slim.ts) — the customer's decoration positions. */
+  design_positions?: Array<{ side: string; method: "print" | "screen" | "embroidery"; sizeId?: string; colours?: number; stitches?: number }> | null
+  original_files?: Array<{ url: string; sides?: string[] | null }> | null
+}
+
 
 // ---------------------------------------------------------------------------
 // Constants + helpers
@@ -324,7 +345,7 @@ function variantAxes(product: ProductDetail) {
   const sizesFor = (colour: string | null) => sortSizes(uniq("size", product.variants.filter((v) => !colour || valueOf(v, "colour") === colour)))
   const variantFor = (colour: string | null, size: string): VariantLite | null =>
     product.variants.find((v) => (colour == null || valueOf(v, "colour") === colour) && (size === ANY_SIZE || valueOf(v, "size") === size)) ?? null
-  return { colours, allSizes, sizesFor, variantFor }
+  return { colours, allSizes, sizesFor, variantFor, valueOf }
 }
 
 function resolveGarment(detail: ProductDetail, variant: VariantLite, label: string, quantity: number, tier: Tier | null): ResolvedGarment {
@@ -346,10 +367,12 @@ const rowLabel = (g: JobGroup, row: GroupRow, size: string) =>
     : `${row.colour ?? ""}${size === ANY_SIZE ? " (any size)" : ` / ${size}`}`.trim()
 
 const toPositionSpec = (p: UiPosition, supplied: boolean): JobPositionSpec => {
-  if (p.method === "screen") return { method: "screen", colours: Math.min(6, Math.max(1, Number(p.colours) || 1)), designId: p.designId }
-  if (p.method === "embroidery") return { method: "embroidery", stitchCount: Number(p.stitches) || 0, promo: supplied && p.promo, designId: p.designId }
+  const o = p.priceOverride?.trim() ? Number(p.priceOverride) : NaN
+  const unitSellOverrideMajor = Number.isFinite(o) && o >= 0 ? o : null
+  if (p.method === "screen") return { method: "screen", colours: Math.min(6, Math.max(1, Number(p.colours) || 1)), designId: p.designId, unitSellOverrideMajor }
+  if (p.method === "embroidery") return { method: "embroidery", stitchCount: Number(p.stitches) || 0, promo: supplied && p.promo, designId: p.designId, unitSellOverrideMajor }
   const channel: PrintChannel | undefined = p.channel === "auto" ? (supplied ? "byo" : undefined) : p.channel
-  return { method: "print", channel, sizeId: p.sizeId, designId: p.designId }
+  return { method: "print", channel, sizeId: p.sizeId, designId: p.designId, unitSellOverrideMajor }
 }
 
 const positionSummary = (p: UiPosition, designs: JobDesign[], dark: boolean) => {
@@ -425,6 +448,64 @@ function migrateState(raw: any): JobState | null {
     }
   })
   return { version: 2, tierSlug: raw.tierSlug ?? "standard", designs: raw.designs ?? [], groups, uvMetres: raw.uvMetres ?? "", uvReorder: Boolean(raw.uvReorder) }
+}
+
+/** The quote's customer Studio-design lines (non-`jp_`, carrying a design). */
+const studioLinesOf = (items: ExistingLine[]) =>
+  items.filter((li) => li.customizerDesign && li.product_id && !String(li.id ?? "").startsWith("jp_"))
+
+/** Colour rows (with size quantities) for a product, read off the customer's Studio lines. */
+function studioRowsFor(detail: ProductDetail, lines: ExistingLine[]): GroupRow[] {
+  const axes = variantAxes(detail)
+  const rows = new Map<string, GroupRow>()
+  for (const li of lines) {
+    if (li.product_id !== detail.id) continue
+    const v = detail.variants.find((x) => x.id === li.variant_id)
+    if (!v) continue
+    const colour = axes.valueOf(v, "colour")
+    const size = axes.valueOf(v, "size") ?? ANY_SIZE
+    const row = rows.get(colour ?? "") ?? newRow(colour)
+    row.cells[size] = String(cellQty(row.cells[size]) + Math.max(0, li.quantity ?? 0))
+    rows.set(colour ?? "", row)
+  }
+  return [...rows.values()]
+}
+
+/**
+ * Start a job from the customer's own Studio design (a POA / customiser quote
+ * with no saved job): one group per product, colour rows + size quantities
+ * from their lines, and one position + design letter per decoration, with
+ * the customer's uploaded file as the letter's artwork.
+ */
+async function seedFromStudioLines(items: ExistingLine[], load: (p: ProductLite) => Promise<ProductDetail | null>): Promise<JobState | null> {
+  const studio = studioLinesOf(items)
+  if (!studio.length) return null
+  const state: JobState = { ...emptyState(), designs: [] }
+  for (const productId of Array.from(new Set(studio.map((li) => li.product_id!)))) {
+    const lines = studio.filter((li) => li.product_id === productId)
+    const detail = await load({ id: productId, title: "Garment", handle: lines[0].product_handle ?? null, thumbnail: null })
+    if (!detail) continue
+    const files = [...(lines[0].original_files ?? [])]
+    const positions: UiPosition[] = (lines[0].design_positions ?? []).map((dp) => {
+      const fi = files.findIndex((f) => f.sides?.includes(dp.side))
+      const file = fi >= 0 ? files.splice(fi, 1)[0] : null
+      const design: JobDesign = { id: genId("d"), label: nextDesignLabel(state.designs), repeat: false, imageUrl: file?.url ?? null }
+      state.designs.push(design)
+      const sizeId = (SCP_PRINT_SIZE_OPTIONS.some((o) => o.id === dp.sizeId) ? dp.sizeId : "up_to_a4") as ScpPrintSizeId
+      return { id: genId("pos"), side: dp.side, method: dp.method, designId: design.id, channel: "auto", sizeId, colours: String(dp.colours ?? 1), stitches: String(dp.stitches ?? 5000), promo: false }
+    })
+    state.groups.push({
+      id: genId("g"),
+      product: { id: detail.id, title: detail.title, handle: detail.handle, thumbnail: detail.thumbnail },
+      supplied: false,
+      rows: studioRowsFor(detail, lines),
+      positions,
+      mockupUrl: lines[0].mockup_urls?.[0]?.url ?? null,
+    })
+  }
+  if (!state.groups.length) return null
+  if (!state.designs.length) state.designs = emptyState().designs
+  return state
 }
 
 // ---------------------------------------------------------------------------
@@ -511,6 +592,8 @@ function QuotePricerPage() {
   const [serviceLine, setServiceLine] = useState<ServiceProduct | null>(null)
   const [newEmail, setNewEmail] = useState("")
   const [sending, setSending] = useState(false)
+  /** The quote's customer Studio-design lines — colour/size defaults when a garment is picked. */
+  const studioLines = useRef<ExistingLine[]>([])
 
   const tier = useMemo(() => getTierBySlug(state.tierSlug), [state.tierSlug])
   const patch = (p: Partial<JobState>) => setState((s) => ({ ...s, ...p }))
@@ -558,8 +641,9 @@ function QuotePricerPage() {
       let loaded: JobState | null = null
       if (targetQuoteId) {
         try {
-          const { quote } = await adminGet<{ quote: { id: string; public_id: string; email: string; customer_id: string | null; metadata?: Record<string, any> | null } }>(`/admin/quotes/${targetQuoteId}`)
+          const { quote } = await adminGet<{ quote: { id: string; public_id: string; email: string; customer_id: string | null; metadata?: Record<string, any> | null; line_items?: { items?: ExistingLine[] } } }>(`/admin/quotes/${targetQuoteId}`)
           setTargetQuote({ id: quote.id, public_id: quote.public_id, email: quote.email, customer_id: quote.customer_id })
+          studioLines.current = studioLinesOf(quote.line_items?.items ?? [])
           loaded = migrateState(quote.metadata?.job_pricer?.state)
           if (!loaded && quote.customer_id) {
             const { customer } = await adminGet<{ customer: { groups?: Array<{ id: string; name: string; metadata: Record<string, unknown> | null }> } }>(
@@ -584,9 +668,17 @@ function QuotePricerPage() {
           /* no draft */
         }
       }
+      // Nothing saved or drafted, but the customer designed it in the Studio:
+      // start from their garment, colour, sizes and positions.
+      let seeded = false
+      if (!loaded && studioLines.current.length) {
+        loaded = await seedFromStudioLines(studioLines.current, ensureDetail)
+        seeded = Boolean(loaded)
+      }
       if (loaded) {
-        setState(loaded)
-        await Promise.all(loaded.groups.filter((g) => g.product).map((g) => ensureDetail(g.product!)))
+        setState((s) => ({ ...loaded!, tierSlug: seeded ? s.tierSlug : loaded!.tierSlug }))
+        if (!seeded) await Promise.all(loaded.groups.filter((g) => g.product).map((g) => ensureDetail(g.product!)))
+        if (seeded) toast.info("Started from the customer's Studio design — check sizes, stitch counts and techniques.")
       }
       setHydrated(true)
     })()
@@ -702,10 +794,12 @@ function QuotePricerPage() {
     const detail = await ensureDetail(p)
     if (!detail) return
     const { colours } = variantAxes(detail)
+    // The customer's own colour + sizes when they designed this garment; else the first colour.
+    const fromStudio = studioRowsFor(detail, studioLines.current)
     setState((s) => ({
       ...s,
       groups: s.groups.map((g) =>
-        g.id === groupId ? { ...g, product: { id: detail.id, title: detail.title, handle: detail.handle, thumbnail: detail.thumbnail }, supplied: false, rows: [newRow(colours[0] ?? null)] } : g
+        g.id === groupId ? { ...g, product: { id: detail.id, title: detail.title, handle: detail.handle, thumbnail: detail.thumbnail }, supplied: false, rows: fromStudio.length ? fromStudio : [newRow(colours[0] ?? null)] } : g
       ),
     }))
   }
@@ -975,9 +1069,13 @@ function QuotePricerPage() {
         // carrying any Studio design they already hold.
         const { quote } = await adminGet<{ quote: { line_items?: { items?: ExistingLine[] }; metadata?: Record<string, unknown> | null } }>(`/admin/quotes/${targetQuote.id}`)
         const items = quote.line_items?.items ?? []
-        const manual = items.filter((li) => !String(li.id ?? "").startsWith("jp_"))
         const existing = new Map(items.filter((li) => li.id && String(li.id).startsWith("jp_")).map((li) => [String(li.id), li]))
-        const lines = buildLines(existing)
+        const { lines, manual, absorbed, unmatched } = absorbStudioLines(
+          items.filter((li) => !String(li.id ?? "").startsWith("jp_")),
+          buildLines(existing)
+        )
+        if (absorbed) toast.info(`Took over ${absorbed} customer design line(s) — their artwork now rides on the priced lines.`)
+        if (unmatched) toast.warning(`${unmatched} customer design line(s) are for a garment this job doesn't price — kept on the quote, check them.`)
         const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state }
         await adminPost(`/admin/quotes/${targetQuote.id}`, {
           line_items: [...manual, ...lines],
@@ -1417,10 +1515,23 @@ function QuotePricerPage() {
                         </Select.Content>
                       </Select>
                       {offProfile ? <Badge size="2xsmall" color="orange" title="This garment's print profile doesn't allow this side / technique / size — check before quoting">not in print profile</Badge> : null}
-                      <span className="text-xs whitespace-nowrap ml-auto">
+                      <span className="text-xs whitespace-nowrap ml-auto flex items-center gap-1">
                         {comp ? money(comp.unitSellMajor) : "—"}
-                        {comp?.requiresQuote ? <Badge size="2xsmall" color="orange" className="ml-1">by hand</Badge> : null}
+                        {comp?.requiresQuote ? <Badge size="2xsmall" color="orange">by hand</Badge> : null}
+                        {p.priceOverride?.trim() ? <Badge size="2xsmall" color="orange">set</Badge> : null}
+                        {comp?.label.includes("extended card") ? <Badge size="2xsmall" color="blue" title="Over the 12k auto-priced cap: rate card extended at +$1 per 1,000 stitches. Override if the digitised count or density says otherwise.">extended</Badge> : null}
                       </span>
+                      <Input
+                        size="small"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className="w-20"
+                        placeholder="set $"
+                        title="Set this position's per-garment price by hand (inc GST) — replaces the card price"
+                        value={p.priceOverride ?? ""}
+                        onChange={(e) => patchPosition(g.id, p.id, { priceOverride: e.target.value })}
+                      />
                       <Button size="small" variant="transparent" onClick={() => removePosition(g.id, p.id)} aria-label="Remove position"><XMark /></Button>
                     </div>
                   )
@@ -1604,7 +1715,7 @@ function QuotePricerPage() {
             {targetQuote ? (
               <>
                 <Button variant="primary" isLoading={sending} onClick={sendToQuote}>Save job to quote {targetQuote.public_id}</Button>
-                <Text size="xsmall" className="text-ui-fg-muted">Replaces the pricer's lines on the quote (one per colour/size); lines you added by hand are kept. The job is saved with the quote so "Price a job" reopens it.</Text>
+                <Text size="xsmall" className="text-ui-fg-muted">Replaces the pricer's lines on the quote (one per colour/size) and takes over the customer's own design lines for the same garment (their artwork moves onto the priced lines); other lines you added by hand are kept. The job is saved with the quote so "Price a job" reopens it.</Text>
               </>
             ) : (
               <>

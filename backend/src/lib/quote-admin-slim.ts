@@ -29,7 +29,86 @@ export function slimQuoteLineForAdmin(li: AnyLine): AnyLine {
   const mockup_urls = artifacts
     .filter((a: any) => typeof a?.mockupUrl === "string" && a.mockupUrl)
     .map((a: any) => ({ side: a.side ?? null, url: a.mockupUrl as string }))
-  return { ...li, customizerDesign: true, mockup_urls }
+  // Also derived (never persisted): the customer's uploaded source files and
+  // per-side print files (artwork download buttons), plus a compact list of
+  // decoration positions so the Job pricer can start from the customer's design.
+  const print_urls = artifacts
+    .filter((a: any) => typeof a?.printUrl === "string" && a.printUrl)
+    .map((a: any) => ({ side: a.side ?? null, url: a.printUrl as string }))
+  const original_files = (
+    Array.isArray(design.customerOriginalFiles) ? design.customerOriginalFiles : []
+  )
+    .filter((f: any) => typeof f?.url === "string" && f.url)
+    .map((f: any) => ({
+      url: f.url as string,
+      fileName: typeof f.fileName === "string" ? f.fileName : null,
+      sides: Array.isArray(f.sides) ? f.sides.map(String) : null,
+    }))
+  return {
+    ...li,
+    customizerDesign: true,
+    mockup_urls,
+    print_urls,
+    original_files,
+    design_positions: designPositions(design),
+  }
+}
+
+export type DesignPosition = {
+  side: string
+  method: "print" | "screen" | "embroidery"
+  sizeId?: string
+  colours?: number
+  stitches?: number
+}
+
+/** One entry per decoration: each embroidery side, each print transfer (a side can carry several). */
+export function designPositions(design: any): DesignPosition[] {
+  const methods = (design?.sideDecorationMethods ?? {}) as Record<string, string>
+  const emb = (design?.sideEmbroideryConfigs ?? {}) as Record<string, any>
+  const screen = (design?.sideScreenConfigs ?? {}) as Record<string, any>
+  const out: DesignPosition[] = []
+  for (const [side, cfg] of Object.entries(emb)) {
+    if (methods[side] && methods[side] !== "embroidery") continue
+    out.push({ side, method: "embroidery", stitches: Number(cfg?.stitchCount) || undefined })
+  }
+  const screenSides = new Set<string>()
+  for (const p of Array.isArray(design?.prints) ? design.prints : []) {
+    const side = typeof p?.side === "string" ? p.side : "front"
+    const method = methods[side] ?? "print"
+    if (method === "embroidery") continue
+    if (method === "screen") {
+      // One screen run per side, whatever the object count.
+      if (screenSides.has(side)) continue
+      screenSides.add(side)
+      out.push({ side, method: "screen", colours: Number(screen[side]?.colours) || 1 })
+      continue
+    }
+    const cm = p?.approxCm
+    out.push({
+      side,
+      method: "print",
+      sizeId: fitPrintSize(Number(cm?.width), Number(cm?.height)) ?? (typeof p?.sizeId === "string" ? p.sizeId : undefined),
+    })
+  }
+  return out
+}
+
+// Transfer sheet sizes (cm) — SCP_PRINT_SIZE_OPTIONS dimensions. The Studio's
+// auto-snapped `sizeId` can overshoot (seen: a 19×7.7 cm print snapped to
+// Oversize), so staff quotes size by the artwork's physical extent instead.
+const PRINT_SHEETS: Array<[string, number, number]> = [
+  ["up_to_a6", 10, 15],
+  ["up_to_a4", 21, 30],
+  ["up_to_a3", 29, 42],
+  ["oversize", 38, 48],
+]
+
+/** Smallest transfer the artwork fits on, either orientation; null when the size is unknown. */
+export function fitPrintSize(widthCm: number, heightCm: number): string | null {
+  if (!(widthCm > 0) || !(heightCm > 0)) return null
+  const [a, b] = [Math.min(widthCm, heightCm), Math.max(widthCm, heightCm)]
+  return PRINT_SHEETS.find(([, w, h]) => a <= w && b <= h)?.[0] ?? "oversize"
 }
 
 export function slimQuoteForAdmin<T extends AnyLine>(quote: T): T {

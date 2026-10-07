@@ -4,6 +4,7 @@ import { ChatBubbleLeftRight, CurrencyDollar, Plus, Trash, PencilSquare, Sparkle
 import {
   Badge,
   Button,
+  Checkbox,
   Container,
   Drawer,
   Heading,
@@ -52,6 +53,8 @@ type Quote = {
       thumbnail?: string | null
       customizerDesign?: unknown | null
       mockup_urls?: Array<{ side?: string | null; url: string }> | null
+      print_urls?: Array<{ side?: string | null; url: string }> | null
+      original_files?: Array<{ url: string; fileName?: string | null; sides?: string[] | null }> | null
       print_size_id?: string | null
       group_id?: string | null
     }>
@@ -117,6 +120,8 @@ type DraftLineItem = {
   // Derived server-side from design.artifacts (see lib/quote-admin-slim.ts);
   // display-only, never sent back on save.
   mockup_urls?: Array<{ side?: string | null; url: string }> | null
+  print_urls?: Array<{ side?: string | null; url: string }> | null
+  original_files?: Array<{ url: string; fileName?: string | null; sides?: string[] | null }> | null
   print_size_id?: string | null
   group_id?: string | null
 }
@@ -142,6 +147,8 @@ function lineItemsToDraft(items?: Quote["line_items"]["items"]): DraftLineItem[]
     thumbnail: li.thumbnail ?? null,
     customizerDesign: li.customizerDesign ?? null,
     mockup_urls: li.mockup_urls ?? null,
+    print_urls: li.print_urls ?? null,
+    original_files: li.original_files ?? null,
     print_size_id: li.print_size_id ?? null,
     group_id: li.group_id ?? null,
   }))
@@ -437,10 +444,7 @@ function LineItemsEditor({
                 ))}
                 {/* Customer's uploaded source files + rendered print files —
                     staff need these to quote (e.g. POA embroidery digitizing). */}
-                {(
-                  ((row.customizerDesign as any)?.customerOriginalFiles ??
-                    []) as Array<{ url: string; fileName?: string; sides?: string[] }>
-                ).map((f, i) => (
+                {(row.original_files ?? []).map((f, i) => (
                   <Button key={`orig-${i}`} size="small" variant="secondary" asChild>
                     <a href={f.url} target="_blank" rel="noreferrer" download>
                       Artwork: {f.fileName || `file ${i + 1}`}
@@ -450,16 +454,10 @@ function LineItemsEditor({
                     </a>
                   </Button>
                 ))}
-                {(
-                  ((row.customizerDesign as any)?.artifacts ?? []) as Array<{
-                    side?: string
-                    printUrl?: string | null
-                  }>
-                )
-                  .filter((a) => a.printUrl)
+                {(row.print_urls ?? [])
                   .map((a, i) => (
                     <Button key={`print-${i}`} size="small" variant="secondary" asChild>
-                      <a href={a.printUrl!} target="_blank" rel="noreferrer">
+                      <a href={a.url} target="_blank" rel="noreferrer">
                         Print file{a.side ? `: ${a.side.replace(/_/g, " ")}` : ""}
                       </a>
                     </Button>
@@ -1355,23 +1353,40 @@ function QuoteDetail({
     }
   }
 
-  // Email the approval link straight to the customer (with the mockups) so staff
-  // don't have to copy-and-send.
+  // Email the customer straight from the quote: the design approval (mockups +
+  // decoration details), an optional note, and — when every line is priced —
+  // the price + accept-and-pay link, so one send is the whole quote.
   const [sendingApproval, setSendingApproval] = useState(false)
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [emailNote, setEmailNote] = useState("")
+  const quoteItems = quote.line_items?.items ?? []
+  const allPriced =
+    quoteItems.length > 0 && quoteItems.every((li) => li.unit_price != null)
+  const [includeQuote, setIncludeQuote] = useState(allPriced)
   const sendDesignApprovalLink = async () => {
     setSendingApproval(true)
     try {
       const res = await fetch(
         `/admin/quotes/${quote.id}/design-approval-link`,
-        { method: "POST", credentials: "include" }
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            note: emailNote.trim() || undefined,
+            include_quote: includeQuote && allPriced,
+          }),
+        }
       )
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`)
       toast.success(
-        `Design approval emailed to ${json.sent_to}${
+        `${includeQuote && allPriced ? "Quote" : "Design approval"} emailed to ${json.sent_to}${
           json.has_mockups ? "" : " (no mockup attached yet)"
         }`
       )
+      setEmailOpen(false)
+      setEmailNote("")
       onReload()
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to send approval email")
@@ -1408,10 +1423,12 @@ function QuoteDetail({
           <Button
             size="small"
             variant="primary"
-            isLoading={sendingApproval}
-            onClick={sendDesignApprovalLink}
+            onClick={() => {
+              setIncludeQuote(allPriced)
+              setEmailOpen((v) => !v)
+            }}
           >
-            Email approval to customer
+            Email customer…
           </Button>
           <Button
             size="small"
@@ -1448,6 +1465,44 @@ function QuoteDetail({
           <Badge color={STATUS_COLORS[quote.status]}>{STATUS_LABELS[quote.status]}</Badge>
         </div>
       </div>
+
+      {emailOpen ? (
+        <div className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2">
+          <Text size="small" weight="plus">
+            Email {quote.email}
+          </Text>
+          <Text size="xsmall" className="text-ui-fg-muted">
+            Sends the mockups, decoration details and the design-approval link.
+          </Text>
+          <label className="flex items-center gap-x-2 text-sm">
+            <Checkbox
+              checked={includeQuote && allPriced}
+              disabled={!allPriced}
+              onCheckedChange={(v) => setIncludeQuote(v === true)}
+            />
+            Include the price and the accept-and-pay link
+            {!allPriced ? (
+              <span className="text-xs text-ui-tag-orange-text">
+                — price every line first (an unpriced line falls back to the catalogue price)
+              </span>
+            ) : null}
+          </label>
+          <Textarea
+            rows={3}
+            value={emailNote}
+            onChange={(e) => setEmailNote(e.target.value)}
+            placeholder="Note to the customer (optional) — e.g. please send higher-resolution artwork: vector (AI, EPS, SVG, PDF) or 300 DPI PNG at print size."
+          />
+          <div className="flex justify-end gap-x-2">
+            <Button size="small" variant="secondary" onClick={() => setEmailOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="small" variant="primary" isLoading={sendingApproval} onClick={sendDesignApprovalLink}>
+              {includeQuote && allPriced ? "Send quote" : "Send design approval"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {designStatus === "approved" || designStatus === "changes_requested" ? (
         <div
