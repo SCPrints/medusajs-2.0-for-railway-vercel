@@ -9,9 +9,11 @@ export type GuideEntry = {
   title: string
   blurb: string
   tag: "Choosing a method" | "How it works" | "Brand guide" | "Artwork"
-  /** Local image under /public. null = the CMYK swatch tile. */
+  /** Local image under /public. null = a swatch tile built from `tile`. */
   cover: string | null
   coverAlt: string
+  /** Hex colours for the no-photo tile. */
+  tile?: string[]
 }
 
 export const GUIDES: GuideEntry[] = [
@@ -54,6 +56,17 @@ export const GUIDES: GuideEntry[] = [
     tag: "Artwork",
     cover: null,
     coverAlt: "",
+    tile: ["#00aeef", "#ec008c", "#fff200", "#231f20"],
+  },
+  {
+    slug: "pantone-screen-printing",
+    title: "Pantone colours for screen printing",
+    blurb: "How to supply a Pantone reference, what shifts the match on fabric, and the base inks and solids we are asked for most.",
+    tag: "Artwork",
+    cover: null,
+    coverAlt: "",
+    // Reflex Blue, 485, Yellow, 354, Purple — from the chart
+    tile: ["#001689", "#E1261C", "#FFDE00", "#00AF43", "#C129B9"],
   },
 ]
 

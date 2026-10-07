@@ -99,6 +99,14 @@ export default function CmykDtfGuide() {
                 Contact us
                 <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </LocalizedClientLink>
+              <span className="text-sm text-ui-fg-subtle">·</span>
+              <LocalizedClientLink
+                href="/guides/pantone-screen-printing"
+                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+              >
+                Screen printing a brand colour? Pantone guide
+                <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </LocalizedClientLink>
             </div>
           </section>
 

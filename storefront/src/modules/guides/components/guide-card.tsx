@@ -26,12 +26,15 @@ export default function GuideCard({
             className="object-cover transition duration-500 group-hover:scale-[1.04]"
           />
         ) : (
-          // CMYK swatch tile for the colour guide, which has no photo.
-          <div aria-hidden className="grid h-full grid-cols-4">
-            <span className="bg-[#00aeef]" />
-            <span className="bg-[#ec008c]" />
-            <span className="bg-[#fff200]" />
-            <span className="bg-[#231f20]" />
+          // Swatch tile for the colour guides, which have no photo.
+          <div
+            aria-hidden
+            className="grid h-full"
+            style={{ gridTemplateColumns: `repeat(${guide.tile?.length ?? 1}, 1fr)` }}
+          >
+            {(guide.tile ?? ["#231f20"]).map((hex) => (
+              <span key={hex} style={{ backgroundColor: hex }} />
+            ))}
           </div>
         )}
         <span className="absolute left-3 top-3 rounded-md bg-white px-2 py-1 text-xs font-semibold !text-[var(--brand-primary)] shadow-sm">
