@@ -4,6 +4,7 @@ import { HttpTypes } from "@medusajs/types"
 import { clx } from "@medusajs/ui"
 import React, { useMemo, useState } from "react"
 
+import { catalogSwatchBackgroundImageUrl } from "@lib/util/catalog-image-url"
 import { useProductOptions } from "@modules/products/context/product-options-context"
 import { sortGarmentColorLabels } from "@modules/products/lib/garment-color-order"
 import { sortApparelSizeLabels } from "@modules/products/lib/apparel-size-order"
@@ -143,7 +144,13 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
       )?.map((v) => {
         const isSelected = v === current
         const normalizedValue = toTitleSlug(v ?? "")
-        const swatchImage = colorSwatchImageMap?.get(normalizedValue)
+        // Route through /_next/image: the map holds full-res (1280px) supplier
+        // garment photos, and a 70-colour tee was pulling 9.6MB of raw JPEGs
+        // for 32–44px circles on every PDP load.
+        const rawSwatchImage = colorSwatchImageMap?.get(normalizedValue)
+        const swatchImage = rawSwatchImage
+          ? catalogSwatchBackgroundImageUrl(rawSwatchImage, 256)
+          : undefined
 
         // Stock-warning resolution. Sizes use the single matching variant
         // (per other selected options) and pull a per-size message from

@@ -49,4 +49,11 @@ describe("catalogSwatchBackgroundImageUrl", () => {
       `/_next/image?url=${encodeURIComponent(src)}&w=64&q=75`
     )
   })
+
+  it("honours an explicit width for PDP swatches", () => {
+    process.env = { ...env, NEXT_PUBLIC_UNOPTIMIZED_IMAGES: "false", VERCEL: undefined }
+    expect(catalogSwatchBackgroundImageUrl(src, 256)).toBe(
+      `/_next/image?url=${encodeURIComponent(src)}&w=256&q=75`
+    )
+  })
 })
