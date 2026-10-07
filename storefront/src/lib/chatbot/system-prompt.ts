@@ -83,7 +83,7 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant â
 - We print the transfer sheets; the customer applies the stickers to their own items (hard surfaces: glass, metal, wood, hard plastics, drinkware). We do NOT offer an application service.
 - Priced per lineal metre of 580mm-wide sheet, cheaper the longer the run: ${[...UVDTF_SHEET_RATE_BANDS].reverse().map((b) => `${b.label} $${b.perMetre}/m`).join(", ")}. Every metre in an order is charged at the rate for its total length. Plus $${UVDTF_SHEET_SETUP_FEE} setup fee, waived on reorders.
 - Whole metres only. Sheets are 580mm wide.
-- Customers can lay out designs themselves using the gang sheet builder on the website (linked from the UVDTF estimator and at /dtf-builder).
+- There is no self-serve gang sheet builder on the website any more. Customers send their PNGs and layout notes via the contact form and we lay out the sheet.
 - Standard turnaround: ${t.uvdtf_sheet.standard}. Priority +$${r.uvdtf_sheet.priority} (${t.uvdtf_sheet.priority}). Express +$${r.uvdtf_sheet.express} (${t.uvdtf_sheet.express}).
 
 ## UV Print

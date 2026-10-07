@@ -1,7 +1,6 @@
 "use client"
 
 import React, { useMemo, useState } from "react"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import {
   calculateUvdtfSheetPrice,
   UVDTF_SHEET_SETUP_FEE,
@@ -38,16 +37,6 @@ const UvdtfSheetEstimator: React.FC = () => {
           <span>This is a reorder (waives ${UVDTF_SHEET_SETUP_FEE} setup)</span>
         </label>
       </div>
-
-      <p className="text-xs text-ui-fg-muted">
-        Need help laying out designs across the sheet?{" "}
-        <LocalizedClientLink
-          href="/dtf-builder"
-          className="underline decoration-dotted hover:text-ui-fg-base"
-        >
-          Use the gang sheet builder →
-        </LocalizedClientLink>
-      </p>
 
       <RushSelector method="uvdtf_sheet" value={rushTier} onChange={setRushTier} />
       <PriceSummary breakdown={breakdown} />

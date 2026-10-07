@@ -5,7 +5,6 @@ import ProductActions from "@modules/products/components/product-actions"
 import RelatedProducts from "@modules/products/components/related-products"
 import ProductInfo from "@modules/products/templates/product-info"
 import SkeletonRelatedProducts from "@modules/skeletons/templates/skeleton-related-products"
-import DtfBuilderLink from "@modules/products/components/dtf-builder-link"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Divider from "@modules/common/components/divider"
 import ProductActionsWrapper from "./product-actions-wrapper"
@@ -119,15 +118,6 @@ const DtfAutoBuilderTemplate: React.FC<Props> = ({
               />
             </div>
             <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-6">
-              <div className="flex flex-col gap-y-3">
-                <DtfBuilderLink
-                  product={product}
-                  className="flex w-full h-10 items-center justify-center rounded-md border border-ui-border-base bg-ui-bg-base text-small font-medium text-ui-fg-base hover:bg-ui-bg-subtle transition-colors"
-                />
-                <Text className="text-xsmall text-ui-fg-muted text-center">
-                  Opens the gang sheet builder for the size you select—upload PNGs and lay out your roll.
-                </Text>
-              </div>
               <Suspense
                 fallback={
                   <ProductActions disabled={true} product={product} region={region} />

@@ -5,17 +5,10 @@ import { iconBase } from "@modules/common/icons/icon-base"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 
 // Surfaces built-but-buried customer tools that previously had no home-page
-// entry point (Phase 1 S2): the DTF gang-sheet builder, BYO (bring-your-own
-// garments) and curated Bundles. Each card is a whole-card link to an existing
-// route. (The "Design Studio" → /customizer card was removed — that standalone
-// customizer is retired; designing now happens on the per-product PDP.)
-
-const DtfBuilderIcon = (props: SVGProps<SVGSVGElement>) => (
-  <svg {...iconBase} {...props}>
-    <rect x="4" y="4" width="24" height="24" rx="2" />
-    <path d="M4 12h24M4 20h24M12 4v24M20 4v24" />
-  </svg>
-)
+// entry point (Phase 1 S2): BYO (bring-your-own garments) and curated Bundles.
+// Each card is a whole-card link to an existing route. (The "Design Studio" →
+// /customizer card was removed — that standalone customizer is retired; the DTF
+// gang-sheet builder card went with the /dtf-builder route in Oct 2026.)
 
 const ByoIcon = (props: SVGProps<SVGSVGElement>) => (
   <svg {...iconBase} {...props}>
@@ -40,13 +33,6 @@ type Tool = {
 }
 
 const TOOLS: Tool[] = [
-  {
-    id: "dtf_builder",
-    title: "DTF Gang Sheet Builder",
-    description: "Pack multiple prints onto one sheet and only pay for the space.",
-    href: "/dtf-builder",
-    Icon: DtfBuilderIcon,
-  },
   {
     id: "byo",
     title: "Bring Your Own Garments",
@@ -88,7 +74,7 @@ export default function HomeToolsRail() {
         title="Tools to get you started"
       />
 
-      <ul className="mt-8 grid list-none grid-cols-1 gap-3 p-0 phone:grid-cols-2 phone:gap-4 small:grid-cols-3">
+      <ul className="mt-8 grid list-none grid-cols-1 gap-3 p-0 phone:grid-cols-2 phone:gap-4">
         {TOOLS.map((tool) => {
           const { Icon } = tool
           return (

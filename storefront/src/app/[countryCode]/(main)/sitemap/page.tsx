@@ -65,8 +65,6 @@ const STATIC_GROUPS: LinkGroup[] = [
     items: [
       { href: "/services", label: "All services" },
       { href: "/customizer", label: "Customizer" },
-      { href: "/dtf-builder", label: "DTF builder" },
-      { href: "/3d-print-design", label: "3D print design" },
       { href: "/byo", label: "BYO — bring your own" },
     ],
   },

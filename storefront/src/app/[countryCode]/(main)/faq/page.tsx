@@ -78,7 +78,7 @@ const FAQ_SECTIONS: FaqSection[] = [
       {
         question: "What services do you provide?",
         answer:
-          "Screen printing, embroidery, digital transfers, UV printing, UV DTF, and 3D print design. We also handle in-house artwork and digital proofs.",
+          "Screen printing, embroidery, digital transfers, UV printing, and UV DTF. We also handle in-house artwork and digital proofs.",
       },
       {
         question: "Can I mix garment sizes in one run?",

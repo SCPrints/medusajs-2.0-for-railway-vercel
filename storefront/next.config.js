@@ -74,6 +74,22 @@ const nextConfig = {
       bodySizeLimit: "10mb",
     },
   },
+  // Retired pages (Oct 2026). 301 so old links, Google results and the chatbot
+  // transcript URLs land somewhere useful instead of a 404.
+  async redirects() {
+    return [
+      {
+        source: "/:countryCode/dtf-builder",
+        destination: "/:countryCode/services/uv-dtf",
+        permanent: true,
+      },
+      {
+        source: "/:countryCode/3d-print-design",
+        destination: "/:countryCode/services",
+        permanent: true,
+      },
+    ]
+  },
   images: {
     /**
      * Image Optimization is ON by default. Vercel Pro includes the quota; cards
