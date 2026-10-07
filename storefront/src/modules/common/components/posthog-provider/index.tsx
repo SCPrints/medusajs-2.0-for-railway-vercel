@@ -33,7 +33,10 @@ const initPostHog = () => {
     person_profiles: "identified_only",
     autocapture: true,
     capture_exceptions: true,
-    capture_performance: { web_vitals: true },
+    // web_vitals_attribution attaches the element behind each LCP / CLS /
+    // INP sample ($web_vitals_*_event.attribution) so a bad score names
+    // what moved instead of needing a session recording.
+    capture_performance: { web_vitals: true, web_vitals_attribution: true },
     disable_session_recording: false,
     rate_limiting: { events_per_second: 10 },
     // Surveys aren't used on this storefront; opting out skips loading
