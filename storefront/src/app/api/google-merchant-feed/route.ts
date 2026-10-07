@@ -73,6 +73,18 @@ const FEED_PRODUCT_FIELDS =
   "+variants.allow_backorder,+variants.inventory_quantity"
 /** Runaway guard, mirroring listAllProductHandles(). */
 const MAX_PRODUCTS = 20000
+/**
+ * Merchant Center's shipping service is weight-based (mirrors the checkout
+ * bands in backend/src/lib/shipping-rate.ts), so every item without
+ * `g:shipping_weight` is DISAPPROVED — that took out 1335/1335 products.
+ *
+ * ponytail: one constant = what checkout charges for a single garment: the
+ * backend's SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS (300) + per-order
+ * SHIPPING_PACKAGING_OVERHEAD_GRAMS (150) → 450g → the $11 band, same as the
+ * cart. Products have no real weights today; read `variants.weight` here once
+ * they do.
+ */
+const SHIPPING_WEIGHT = "450 g"
 /** Google caps additional images at 10. */
 const MAX_ADDITIONAL_IMAGES = 10
 
@@ -199,6 +211,7 @@ const buildItem = (product: HttpTypes.StoreProduct, baseUrl: string): string | n
     ),
     `      <g:availability>${isInStock(product) ? "in_stock" : "out_of_stock"}</g:availability>`,
     `      <g:price>${priceMajor} ${currency}</g:price>`,
+    `      <g:shipping_weight>${SHIPPING_WEIGHT}</g:shipping_weight>`,
     `      <g:brand>${xml(brand)}</g:brand>`,
     "      <g:condition>new</g:condition>",
     // Custom-printed apparel has no manufacturer barcode. Without this Google
