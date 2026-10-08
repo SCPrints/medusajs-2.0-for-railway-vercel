@@ -26,16 +26,18 @@ const DISALLOW = [
   "/*?*inStock=",
 ]
 
-// AI training / answer-engine scrapers. They bring no customers and walk
-// the whole catalog repeatedly. Search engines are deliberately NOT here.
+// AI TRAINING scrapers only. They bring no customers and walk the whole
+// catalog repeatedly. Search engines are deliberately NOT here, and neither
+// are the answer-time fetchers (ChatGPT-User, OAI-SearchBot, PerplexityBot,
+// Perplexity-User, Claude-User, Claude-SearchBot): those fetch one page when
+// a person asks the assistant a question so it can cite + link us. chatgpt.com
+// was the #3 referrer (54 visitors / 90d) before they were blocked on 2026-10-04.
 const AI_CRAWLERS = [
   "GPTBot",
-  "ChatGPT-User",
   "ClaudeBot",
   "anthropic-ai",
   "CCBot",
   "Bytespider",
-  "PerplexityBot",
   "Amazonbot",
   "meta-externalagent",
   "Applebot-Extended",
