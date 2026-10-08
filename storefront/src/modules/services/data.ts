@@ -1,6 +1,12 @@
 export type ServiceItem = {
   slug: string
   title: string
+  /** Search-facing name when the nav label isn't what people type (e.g. "DTF Printing"). */
+  seoTitle?: string
+  /** Offer-led <meta description>; falls back to shortDescription. */
+  metaDescription?: string
+  /** Short on-page paragraph naming the studio, Sydney and what we actually do here. */
+  localIntro?: string
   shortDescription: string
   heroDescription: string
   bulletPoints: string[]
@@ -13,6 +19,10 @@ export const services: ServiceItem[] = [
   {
     slug: "screen-printing",
     title: "Screen Printing",
+    metaDescription:
+      "Screen printing in Sydney from our Villawood studio — tees, hoodies, hi-vis and uniforms for businesses, clubs and schools. Runs from 25 pieces, Pantone matched, shipped Australia-wide.",
+    localIntro:
+      "We screen print in-house at our Villawood studio in Sydney's south-west — tees, hoodies, hi-vis workwear and uniforms for businesses, clubs and schools across Sydney, with delivery Australia-wide. Runs start at 25 pieces per design. Bring your own garments or choose from AS Colour, Gildan, Shaka Wear and the rest of our range.",
     shortDescription:
       "Best-value print method for larger runs, delivering bold colour, strong wash durability, and consistent repeat results.",
     heroDescription:
@@ -33,6 +43,10 @@ export const services: ServiceItem[] = [
   {
     slug: "embroidery",
     title: "Embroidery",
+    metaDescription:
+      "Embroidery in Sydney — polos, caps, jackets and workwear stitched in-house at Villawood. Logo digitised, test stitch-out, hundreds of thread colours. From a single garment, shipped Australia-wide.",
+    localIntro:
+      "Embroidered polos, caps, jackets and workwear, stitched in-house at our Villawood studio in Sydney. We digitise your logo, run a test stitch-out and keep hundreds of thread colours on hand, so corporate, hospitality, healthcare and trade uniforms get the same finish on the first order and the reorder — from a single garment.",
     shortDescription:
       "Premium stitched branding for uniforms and retail garments where a structured, high-end finish is required.",
     heroDescription:
@@ -53,6 +67,13 @@ export const services: ServiceItem[] = [
   {
     slug: "digital-transfers",
     title: "Digital Transfers",
+    // "dtf printing" / "dtf gang sheet builder" are what people type; the
+    // retired /dtf-builder page (pos 5-8 for gang-sheet queries) 301s here.
+    seoTitle: "DTF Printing",
+    metaDescription:
+      "DTF printing in Sydney — full-colour transfers on almost any fabric, from one tee to a full team kit. DTF gang sheets printed to order. In-house at Villawood, shipped Australia-wide.",
+    localIntro:
+      "DTF transfers printed in-house at our Villawood studio in Sydney: full-colour artwork, names and numbers on almost any fabric, from a single tee to a full team kit. We also print DTF gang sheets to order — send your artwork already laid out on a sheet, or let us arrange it — ready for you to press yourself. Collect from the studio or we ship Australia-wide.",
     shortDescription:
       "Flexible full-colour decoration for short runs, variable data jobs, and fast-turnaround orders.",
     heroDescription:
@@ -62,6 +83,7 @@ export const services: ServiceItem[] = [
       "Fast setup and efficient for urgent or deadline-driven jobs",
       "Ideal for variable runs like names, numbers, and team kits",
       "Works across a wide range of fabric types and garment styles",
+      "DTF gang sheets printed to order for pressing your own garments",
     ],
     bestFor:
       "Short-to-mid runs, variable data jobs, and fast-turnaround projects with detailed full-colour artwork.",

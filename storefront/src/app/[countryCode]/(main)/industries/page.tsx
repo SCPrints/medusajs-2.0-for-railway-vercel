@@ -22,7 +22,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     "Custom apparel, uniforms and event merch for trades, hospitality, corporate teams, sports clubs, schools and event organisers across Australia."
 
   return {
-    title: `${title} | ${SEO.siteName}`,
+    // Root layout's title template appends "| SC PRINTS" already.
+    title,
     description,
     alternates: {
       canonical: `/${countryCode}/industries`,

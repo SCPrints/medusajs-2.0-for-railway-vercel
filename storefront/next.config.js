@@ -79,8 +79,11 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        // Gang sheets are DTF (fabric), not UV DTF (hard goods). The retired
+        // builder ranked pos 5-8 for "dtf gang sheet builder"; land those
+        // searches on the page that actually talks about DTF gang sheets.
         source: "/:countryCode/dtf-builder",
-        destination: "/:countryCode/services/uv-dtf",
+        destination: "/:countryCode/services/digital-transfers",
         permanent: true,
       },
       {

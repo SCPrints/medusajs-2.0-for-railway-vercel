@@ -58,22 +58,27 @@ export async function generateMetadata({
 }: MetadataProps): Promise<Metadata> {
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}`
-  const description = SEO.siteDescription
+  // GSC Oct 2026: the homepage already draws ~500 impressions/quarter for
+  // "screen printing sydney" / "custom screen printing" at position 40-50 —
+  // the title just never said the service or the city.
+  const title = "Custom T-Shirt Printing & Embroidery Sydney"
+  const description =
+    "Screen printing, DTF transfers, embroidery and UV printing from our Villawood studio in Sydney. From one garment, no minimum — design it online, printed in-house, shipped Australia-wide."
 
   return {
-    title: "Custom Apparel & Branded Merch",
+    title,
     description,
     alternates: {
       canonical: canonicalPath,
     },
     openGraph: {
       url: buildAbsoluteUrl(canonicalPath),
-      title: `${SEO.siteName} | Custom Apparel & Branded Merch`,
+      title: `${SEO.siteName} | ${title}`,
       description,
       images: [SEO.ogImage],
     },
     twitter: {
-      title: `${SEO.siteName} | Custom Apparel & Branded Merch`,
+      title: `${SEO.siteName} | ${title}`,
       description,
       images: [SEO.ogImage],
     },

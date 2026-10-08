@@ -79,11 +79,11 @@ export default function HomeHero() {
       <div className="content-container relative py-16 small:py-28">
         <div className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]/80">
-            Custom apparel &amp; branded merch · NSW
+            Custom apparel &amp; branded merch · Villawood, Sydney
           </p>
 
           <h1 className="page-title-marketing mt-4">
-            Custom printed gear for your team, club or brand.
+            Custom printed gear for Sydney teams, clubs and brands.
           </h1>
 
           <p className="mt-5 max-w-2xl text-base text-ui-fg-subtle small:text-lg">

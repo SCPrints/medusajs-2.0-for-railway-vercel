@@ -49,19 +49,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     product.description,
     `${product.title} — custom printing & embroidery from SC PRINTS.`
   )
+  // "Staple Tee" means nothing in a results page; "AS Colour Staple Tee,
+  // custom printed" says what it is and what we do to it. Skip the brand
+  // prefix when the supplier already put it in the title.
+  const rawBrand = (product as any).brand
+  const brandName: string | undefined = (Array.isArray(rawBrand) ? rawBrand[0] : rawBrand)?.name
+  const needsBrand =
+    brandName && !product.title.toLowerCase().includes(brandName.toLowerCase())
+  const title = `${needsBrand ? `${brandName} ` : ""}${product.title}, custom printed`
 
   return {
-    title: product.title,
+    title,
     description,
     alternates: { canonical: `/${normalizedCountryCode}/products/${product.handle}` },
     openGraph: {
       url: buildAbsoluteUrl(`/${normalizedCountryCode}/products/${product.handle}`),
-      title: `${product.title} | ${SEO.siteName}`,
+      title: `${title} | ${SEO.siteName}`,
       description,
       images: product.thumbnail ? [product.thumbnail] : [],
     },
     twitter: {
-      title: `${product.title} | ${SEO.siteName}`,
+      title: `${title} | ${SEO.siteName}`,
       description,
       images: product.thumbnail ? [product.thumbnail] : [SEO.ogImage],
     },

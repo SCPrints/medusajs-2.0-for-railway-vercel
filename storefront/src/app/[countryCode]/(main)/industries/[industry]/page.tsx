@@ -25,7 +25,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${industry.title} | ${SEO.siteName}`,
+    // Root layout's title template appends "| SC PRINTS" — don't add it here
+    // too (was rendering "… | SC PRINTS | SC PRINTS").
+    title: industry.title,
     description: industry.description,
     alternates: {
       canonical: `/${countryCode}/industries/${industry.slug}`,

@@ -19,23 +19,24 @@ type MetadataProps = {
 export async function generateMetadata({ params }: MetadataProps): Promise<Metadata> {
   const { countryCode } = await params
   const canonicalPath = `/${countryCode}/services`
+  const title = "Printing & Embroidery Services Sydney"
   const description =
-    "Explore screen printing, embroidery, digital transfers, and UV printing services for Australian brands and teams."
+    "Screen printing, embroidery, DTF transfers and UV printing from our Villawood studio in Sydney — for businesses, clubs, schools and brands, from one garment up."
 
   return {
-    title: "Services",
+    title,
     description,
     alternates: {
       canonical: canonicalPath,
     },
     openGraph: {
       url: buildAbsoluteUrl(canonicalPath),
-      title: `Services | ${SEO.siteName}`,
+      title: `${title} | ${SEO.siteName}`,
       description,
       images: [SEO.ogImage],
     },
     twitter: {
-      title: `Services | ${SEO.siteName}`,
+      title: `${title} | ${SEO.siteName}`,
       description,
       images: [SEO.ogImage],
     },

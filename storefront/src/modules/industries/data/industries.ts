@@ -84,10 +84,13 @@ export const industries: Industry[] = [
   {
     slug: "schools",
     name: "Schools & Education",
-    title: "School merch & teacher apparel",
+    // "teacher polos" sits at pos ~11 on this page (GSC, Oct 2026) with no
+    // page-one commitment in the title.
+    title: "School Uniforms & Teacher Polos Sydney",
     description:
-      "School-branded apparel, teacher polos, year-12 leavers' merch, fundraising tees.",
+      "School uniforms, teacher polos, year-12 leavers' merch and fundraising tees — printed and embroidered at our Sydney studio for schools across NSW.",
     bullets: [
+      "Teacher polos embroidered with the school crest — from a single polo for new staff",
       "Multi-design and multi-name printing for year levels",
       "Bulk pricing from 25 units",
       "Quote-anchored ordering — pay a deposit then the balance",

@@ -34,21 +34,24 @@ export async function generateMetadata({
     return { title: "Brand" }
   }
   const canonicalPath = `/${countryCode}/brands/${handle}`
+  const presentation = getBrandPresentation(brand.handle)
+  const title = presentation.seoTitle ?? brand.name
   const description =
+    presentation.intro ??
     brand.description ??
     `${brand.name} apparel and headwear — explore products available for printing and embroidery.`
   return {
-    title: brand.name,
+    title,
     description,
     alternates: { canonical: canonicalPath },
     openGraph: {
       url: buildAbsoluteUrl(canonicalPath),
-      title: `${brand.name} | ${SEO.siteName}`,
+      title: `${title} | ${SEO.siteName}`,
       description,
       images: brand.logo_url ? [{ url: brand.logo_url }] : [SEO.ogImage],
     },
     twitter: {
-      title: `${brand.name} | ${SEO.siteName}`,
+      title: `${title} | ${SEO.siteName}`,
       description,
       images: brand.logo_url ? [brand.logo_url] : [SEO.ogImage],
     },
@@ -96,6 +99,14 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         heroVariant={presentation.heroVariant ?? null}
         heroProductSrc={presentation.heroProductSrc ?? null}
       />
+
+      {presentation.intro ? (
+        <div className="content-container pt-8">
+          <p className="max-w-3xl text-base text-ui-fg-subtle small:text-lg">
+            {presentation.intro}
+          </p>
+        </div>
+      ) : null}
 
       {BRAND_GUIDES[brand.handle] ? (
         <div className="content-container pt-6">

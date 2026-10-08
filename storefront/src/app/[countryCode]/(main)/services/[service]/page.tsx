@@ -133,23 +133,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
+  // City in the title: "screen printing sydney" / "embroidery sydney" had
+  // no page to land on and fell to the homepage at position ~50.
+  const title = `${service.seoTitle ?? service.title} Sydney`
+  const description = service.metaDescription ?? service.shortDescription
+
   return {
-    // City in the title: "screen printing sydney" / "embroidery sydney" had
-    // no page to land on and fell to the homepage at position ~50.
-    title: `${service.title} Sydney`,
-    description: service.shortDescription,
+    title,
+    description,
     alternates: {
       canonical: `/${countryCode}/services/${service.slug}`,
     },
     openGraph: {
       url: buildAbsoluteUrl(`/${countryCode}/services/${service.slug}`),
-      title: `${service.title} | ${SEO.siteName}`,
-      description: service.shortDescription,
+      title: `${title} | ${SEO.siteName}`,
+      description,
       images: [SEO.ogImage],
     },
     twitter: {
-      title: `${service.title} | ${SEO.siteName}`,
-      description: service.shortDescription,
+      title: `${title} | ${SEO.siteName}`,
+      description,
       images: [SEO.ogImage],
     },
   }
@@ -178,7 +181,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         <MarketingHero
           eyebrow={service.title}
           eyebrowVariant="muted"
-          title={service.title}
+          title={`${service.seoTitle ?? service.title} Sydney`}
           subtitle={service.heroDescription}
         >
           <div className="mt-7 flex flex-wrap gap-3">
@@ -198,6 +201,12 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           </div>
         </MarketingHero>
       </div>
+
+      {service.localIntro ? (
+        <p className="mt-8 max-w-3xl text-base text-ui-fg-subtle small:text-lg">
+          {service.localIntro}
+        </p>
+      ) : null}
 
       <section className="mt-12">
         <SectionHeader

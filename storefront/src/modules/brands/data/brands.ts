@@ -73,6 +73,14 @@ export type BrandPresentation = {
    * Render is skipped entirely when this is empty.
    */
   gallery?: BrandGalleryImage[]
+  /** Search-facing <title> for the brand landing page (template adds "| SC PRINTS"). */
+  seoTitle?: string
+  /**
+   * One short paragraph rendered under the hero and used as the meta
+   * description. Brand pages with no body copy sit at pos 7-15 with hundreds
+   * of impressions and nothing for Google to quote.
+   */
+  intro?: string
 }
 
 // Default sizing for brand logos. Tuned so most wordmarks read at a similar
@@ -142,6 +150,9 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     // Their homepage hero loop (sourced from shakawear.com, hosted locally).
     videoSrc: `${BRAND_BASE}/shaka-wear-hero.mp4`,
     videoPosterSrc: `${BRAND_BASE}/shaka-wear-hero-poster.jpg`,
+    seoTitle: "Shaka Wear Australia — Heavyweight Tees, Custom Printed",
+    intro:
+      "Shaka Wear heavyweight tees and hoodies, available in Australia and custom printed in Sydney. The Max Heavyweight 7.5oz tee, the garment-dyed range and the oversized drop-shoulder cuts are the streetwear blanks our customers ask for by name — pick a colour and size run, add your artwork in the online studio, and we print or embroider it in-house at Villawood. From a single piece, shipped Australia-wide.",
   },
   "as-colour": {
     initials: "AS",
@@ -249,6 +260,9 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
     logoSrc: `${LOGO_BASE}/american-apparel.svg`,
     logoClass: "max-h-full max-w-[40%] object-contain object-left",
     bannerSrc: `${BRAND_BASE}/american-apparel-banner.jpg`,
+    seoTitle: "American Apparel Australia — Custom Printed Tees & Fleece",
+    intro:
+      "American Apparel blanks in Australia — the fine jersey tee, CVC tees, garment-dyed tanks and ReFlex fleece — custom screen printed, DTF printed or embroidered at our Sydney studio. Order from one piece, design it online, and we decorate it in-house at Villawood and ship Australia-wide.",
     gallery: [
       { src: `${BRAND_BASE}/american-apparel/tee.jpg`, alt: "American Apparel cotton t-shirt" },
       { src: `${BRAND_BASE}/american-apparel/crewneck.jpg`, alt: "American Apparel ReFlex fleece crewneck" },
