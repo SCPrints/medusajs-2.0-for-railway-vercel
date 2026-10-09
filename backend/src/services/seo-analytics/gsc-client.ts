@@ -7,6 +7,7 @@ import type { GscRow, GscSummary } from "./types"
 
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 const TOP_ROW_LIMIT = 25
+const GSC_LAG_DAYS = 3
 // Wider net for the prior window so most current top-25 keys find a match to
 // trend against; unmatched keys just show no arrow.
 const PREV_MATCH_LIMIT = 250
@@ -31,10 +32,6 @@ function isoDaysAgo(days: number): string {
   const d = new Date()
   d.setUTCDate(d.getUTCDate() - days)
   return d.toISOString().slice(0, 10)
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 function buildClient() {
@@ -123,11 +120,13 @@ export async function fetchGscSummary(
   days: number
 ): Promise<GscSummary> {
   const searchconsole = buildClient()
-  const endDate = todayIso()
-  const startDate = isoDaysAgo(days)
+  // GSC data trails ~3 days. Ending at "today" left the current window ~3
+  // days short of the full prior window, overstating every decline by ~10%.
+  const endDate = isoDaysAgo(GSC_LAG_DAYS)
+  const startDate = isoDaysAgo(days + GSC_LAG_DAYS - 1)
   // Prior window: the `days` immediately before the current one, no overlap.
-  const prevEndDate = isoDaysAgo(days + 1)
-  const prevStartDate = isoDaysAgo(days * 2)
+  const prevEndDate = isoDaysAgo(days + GSC_LAG_DAYS)
+  const prevStartDate = isoDaysAgo(days * 2 + GSC_LAG_DAYS - 1)
 
   const [
     topQueries,
