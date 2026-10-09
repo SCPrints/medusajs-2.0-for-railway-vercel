@@ -38,6 +38,11 @@ export type GscSummary = {
     ctr: number
     position: number
   }
+  // Same rollup with brand queries ("sc prints"…) excluded — the real SEO
+  // signal, since brand clicks only measure people who already know us.
+  // Optional so older cache entries still deserialise.
+  nonBrandTotals?: GscSummary["totals"]
+  previousNonBrandTotals?: GscSummary["totals"]
   topQueries: GscRow[]
   topPages: GscRow[]
   byDay: GscByDay[]

@@ -28,6 +28,8 @@ type SeoSummary = {
   gsc: {
     totals: { clicks: number; impressions: number; ctr: number; position: number }
     previousTotals?: { clicks: number; impressions: number; ctr: number; position: number }
+    nonBrandTotals?: { clicks: number; impressions: number; ctr: number; position: number }
+    previousNonBrandTotals?: { clicks: number; impressions: number; ctr: number; position: number }
     topQueries: GscRow[]
     topPages: GscRow[]
     byDay: Array<{ date: string; clicks: number; impressions: number }>
@@ -423,6 +425,53 @@ const SeoAnalyticsPage = () => {
               lowerIsBetter
             />
           </div>
+          {summary.gsc.nonBrandTotals ? (
+            <>
+              <Text size="small" leading="compact" weight="plus" className="text-ui-fg-subtle">
+                Non-brand (total minus "sc prints" searches — the real SEO signal)
+              </Text>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <Kpi
+                  label="Non-brand clicks"
+                  value={formatInt(summary.gsc.nonBrandTotals.clicks)}
+                  help={HELP_GSC_CLICKS}
+                  trend={pctTrend(
+                    summary.gsc.nonBrandTotals.clicks,
+                    summary.gsc.previousNonBrandTotals?.clicks
+                  )}
+                />
+                <Kpi
+                  label="Non-brand impressions"
+                  value={formatInt(summary.gsc.nonBrandTotals.impressions)}
+                  help={HELP_GSC_IMPRESSIONS}
+                  trend={pctTrend(
+                    summary.gsc.nonBrandTotals.impressions,
+                    summary.gsc.previousNonBrandTotals?.impressions
+                  )}
+                />
+                <Kpi
+                  label="Non-brand CTR"
+                  value={formatPct(summary.gsc.nonBrandTotals.ctr)}
+                  help={HELP_GSC_CTR}
+                  trend={pctTrend(
+                    summary.gsc.nonBrandTotals.ctr,
+                    summary.gsc.previousNonBrandTotals?.ctr
+                  )}
+                />
+                <Kpi
+                  label="Non-brand position"
+                  value={formatPosition(summary.gsc.nonBrandTotals.position)}
+                  hint="lower is better"
+                  help={HELP_GSC_POSITION}
+                  trend={pctTrend(
+                    summary.gsc.nonBrandTotals.position,
+                    summary.gsc.previousNonBrandTotals?.position
+                  )}
+                  lowerIsBetter
+                />
+              </div>
+            </>
+          ) : null}
         </Container>
       ) : null}
 

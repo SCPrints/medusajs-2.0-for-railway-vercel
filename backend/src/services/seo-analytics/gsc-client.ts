@@ -17,6 +17,13 @@ const LOCAL_PAGE_PATTERN = /\/locations(\/|$)/
 /** Queries the local-SEO work targets: services × catchment suburbs + Sydney. */
 export const TRACKED_QUERY_PATTERN =
   /\b(embroider|uniform|workwear|hi[- ]?vis|screen print|dtf|t[- ]?shirt print)/i
+/**
+ * Brand searches ("sc prints", "scprints", "sc printing"). RE2 syntax — GSC
+ * applies it server-side. Non-brand is derived as total − brand rather than
+ * via excludingRegex: any query filter drops GSC's anonymised (rare) queries,
+ * which are ~2/3 of our clicks and almost all non-brand.
+ */
+export const BRAND_QUERY_REGEX = "(?i)\\bsc\\s*print"
 const TRACKED_PLACE_PATTERN =
   /\b(liverpool|bankstown|prestons|chipping norton|fairfield|cabramatta|villawood|parramatta|wetherill|sydney|melbourne|brisbane|perth|adelaide|canberra|hobart|darwin|newcastle|wollongong|central coast|gold coast|sunshine coast|geelong|townsville|cairns|near me)\b/i
 
@@ -43,7 +50,8 @@ async function queryDimensions(
   startDate: string,
   endDate: string,
   dimensions: string[],
-  rowLimit: number
+  rowLimit: number,
+  brandOnlyRegex?: string
 ): Promise<GscRow[]> {
   const res = await withTransientRetry(() =>
     searchconsole.searchanalytics.query({
@@ -53,6 +61,15 @@ async function queryDimensions(
         endDate,
         dimensions,
         rowLimit,
+        ...(brandOnlyRegex && {
+          dimensionFilterGroups: [
+            {
+              filters: [
+                { dimension: "query", operator: "includingRegex", expression: brandOnlyRegex },
+              ],
+            },
+          ],
+        }),
       },
     })
   )
@@ -82,6 +99,20 @@ function totalsFromDateRows(rows: GscRow[]): GscSummary["totals"] {
   return { clicks, impressions, ctr, position }
 }
 
+/** all − part, with position un-weighted back out of the impression-weighted mean. */
+export function subtractTotals(
+  all: GscSummary["totals"],
+  part: GscSummary["totals"]
+): GscSummary["totals"] {
+  const clicks = Math.max(0, all.clicks - part.clicks)
+  const impressions = Math.max(0, all.impressions - part.impressions)
+  const position =
+    impressions > 0
+      ? (all.position * all.impressions - part.position * part.impressions) / impressions
+      : 0
+  return { clicks, impressions, ctr: impressions > 0 ? clicks / impressions : 0, position }
+}
+
 /**
  * Pulls a 28-day (or `days`) window of GSC Search Analytics for a single site.
  * Returns top queries, top pages, daily totals, and overall totals — plus the
@@ -109,6 +140,8 @@ export async function fetchGscSummary(
     allPages,
     prevAllQueries,
     prevAllPages,
+    brandByDay,
+    prevBrandByDay,
   ] = await Promise.all([
     queryDimensions(searchconsole, siteUrl, startDate, endDate, ["query"], TOP_ROW_LIMIT),
     queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TOP_ROW_LIMIT),
@@ -120,6 +153,8 @@ export async function fetchGscSummary(
     queryDimensions(searchconsole, siteUrl, startDate, endDate, ["page"], TRACK_ROW_LIMIT),
     queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["query"], TRACK_ROW_LIMIT),
     queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["page"], TRACK_ROW_LIMIT),
+    queryDimensions(searchconsole, siteUrl, startDate, endDate, ["date"], days + 5, BRAND_QUERY_REGEX),
+    queryDimensions(searchconsole, siteUrl, prevStartDate, prevEndDate, ["date"], days + 5, BRAND_QUERY_REGEX),
   ])
 
   const byDay = byDayRaw
@@ -141,6 +176,11 @@ export async function fetchGscSummary(
   return {
     totals: totalsFromDateRows(byDayRaw),
     previousTotals: totalsFromDateRows(prevByDayRaw),
+    nonBrandTotals: subtractTotals(totalsFromDateRows(byDayRaw), totalsFromDateRows(brandByDay)),
+    previousNonBrandTotals: subtractTotals(
+      totalsFromDateRows(prevByDayRaw),
+      totalsFromDateRows(prevBrandByDay)
+    ),
     topQueries: attachPrevious(topQueries, prevQueries),
     topPages: attachPrevious(topPages, prevPages),
     byDay,
