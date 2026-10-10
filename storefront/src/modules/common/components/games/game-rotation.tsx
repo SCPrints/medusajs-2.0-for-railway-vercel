@@ -68,8 +68,8 @@ export default function GameRotation() {
   const label = GAME_LABELS[gameId]
   const intro =
     gameId === "tetris"
-      ? "While you’re here, you can play a quick round of Tetris."
-      : "While you’re here, defend the wordmark. A round of Space Invaders."
+      ? "While you’re here, stack the rack. A quick round of Tetris."
+      : "While you’re here, the blanks are invading. A round of Space Invaders."
 
   return (
     <div className="w-full max-w-7xl mt-6 small:mt-10 flex flex-col items-stretch px-0">

@@ -8,10 +8,13 @@
  * stays small.
  */
 
+import { drawGarment, NAVY } from "../garment-glyphs"
+
 import {
   ALIEN_COLS,
-  ALIEN_FRAMES,
+  ALIEN_GARMENT,
   ALIEN_H,
+  ALIEN_INK_RGB,
   ALIEN_HSPACE,
   ALIEN_RGB,
   ALIEN_ROWS,
@@ -30,7 +33,6 @@ import {
   LOGICAL_H,
   LOGICAL_W,
   PLAYER_H,
-  PLAYER_INVULN_FRAMES,
   PLAYER_RGB,
   PLAYER_TILT_LERP,
   PLAYER_TILT_MAX,
@@ -41,11 +43,12 @@ import {
   UFO_W,
   UFO_WOBBLE_AMP,
   UFO_WOBBLE_HZ,
-  WAVE_CARD_HOLD_FRAMES,
   WAVE_CARD_IN_FRAMES,
   WAVE_CARD_OUT_FRAMES,
 } from "./constants"
 import type { GameState } from "./types"
+
+const PLAYER_CSS = `rgb(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]})`
 
 /** Stable across frames; tracks render-only state that doesn't belong in
  * GameState (visual-only smoothing values like the player tilt). */
@@ -93,7 +96,7 @@ export function renderFrame(
   drawGameOverCard(ctx, state)
 }
 
-/** Player ship — chunky arrow-shape with springy tilt. */
+/** Player — a teal tee on the rack, tilting into its movement. */
 function drawPlayer(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -104,71 +107,69 @@ function drawPlayer(
   /** Invuln shimmer — alternate visibility every 6 frames. */
   if (state.invulnFrames > 0 && Math.floor(frame / 6) % 2 === 0) return
 
-  const x = state.playerX
-  const y = PLAYER_Y
   ctx.save()
-  ctx.translate(x, y)
+  ctx.translate(state.playerX, PLAYER_Y)
   ctx.rotate(rs.playerTilt)
-  /** Soft outer glow first, then crisp core. */
   ctx.shadowBlur = 10
-  ctx.shadowColor = `rgb(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]})`
-  ctx.fillStyle = `rgb(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]})`
-  /** Body: trapezoid widening at the bottom. Hand-rolled vertices for an
-   * 8-bit-arcade silhouette without dipping into actual sprite assets. */
-  const hw = PLAYER_W / 2
-  const hh = PLAYER_H / 2
-  ctx.beginPath()
-  ctx.moveTo(0, -hh)
-  ctx.lineTo(hw - 2, hh)
-  ctx.lineTo(hw - 6, hh - 2)
-  ctx.lineTo(2, -hh + 4)
-  ctx.lineTo(-2, -hh + 4)
-  ctx.lineTo(-hw + 6, hh - 2)
-  ctx.lineTo(-hw + 2, hh)
-  ctx.closePath()
-  ctx.fill()
-  /** Cockpit dot. */
-  ctx.shadowBlur = 0
-  ctx.fillStyle = "#ffffff"
-  ctx.fillRect(-1, -hh + 2, 2, 2)
+  ctx.shadowColor = PLAYER_CSS
+  drawGarment(ctx, "tee", 0, 0, PLAYER_W, PLAYER_H, PLAYER_CSS)
   ctx.restore()
 }
 
-/** Bullets — short fading trail. */
+/** Bullets — ink drops with a short fading trail. Player ink is teal, the
+ * rack fires magenta. */
 function drawBullets(
   ctx: CanvasRenderingContext2D,
   state: GameState
 ): void {
   for (const b of state.bullets) {
-    const colour = b.fromPlayer
-      ? `rgb(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]})`
-      : "#ff5e3a"
-    /** Trail: oldest segment first, alpha ramps down. */
+    const rgb = b.fromPlayer ? PLAYER_RGB : ALIEN_INK_RGB
+    const colour = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`
     for (let i = b.trail.length - 1; i >= 1; i--) {
       const p = b.trail[i]!
-      const alpha = (1 - i / BULLET_TRAIL_LENGTH) * 0.6
-      ctx.fillStyle = b.fromPlayer
-        ? `rgba(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]}, ${alpha})`
-        : `rgba(255, 94, 58, ${alpha})`
-      ctx.fillRect(p.x - BULLET_W / 2, p.y - BULLET_H / 2, BULLET_W, BULLET_H)
+      const alpha = (1 - i / BULLET_TRAIL_LENGTH) * 0.5
+      ctx.fillStyle = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, BULLET_W * 0.9, 0, Math.PI * 2)
+      ctx.fill()
     }
-    /** Head — solid + glow. */
     ctx.shadowBlur = 6
     ctx.shadowColor = colour
     ctx.fillStyle = colour
-    ctx.fillRect(b.x - BULLET_W / 2, b.y - BULLET_H / 2, BULLET_W, BULLET_H)
+    drawInkDrop(ctx, b.x, b.y, BULLET_W * 1.6, BULLET_H, b.fromPlayer ? -1 : 1)
     ctx.shadowBlur = 0
   }
 }
 
-/** Alien grid — two-frame walk cycle keyed on stepParity. Per-row colours.
- * Adjacent flinch via FLINCH_SCALE during flinch frames. */
+/** Teardrop pointing in the travel direction (`dir` -1 = up, 1 = down). */
+function drawInkDrop(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  dir: number
+): void {
+  const tip = y + (dir * h) / 2
+  const tail = y - (dir * h) / 2
+  ctx.beginPath()
+  ctx.moveTo(x, tip)
+  ctx.quadraticCurveTo(x + w, tail + dir * h * 0.3, x, tail)
+  ctx.quadraticCurveTo(x - w, tail + dir * h * 0.3, x, tip)
+  ctx.closePath()
+  ctx.fill()
+}
+
+/** The fleet — a grid of blank garments, one style per row. Walk cycle is a
+ * gentle sway keyed on stepParity; adjacent flinch via FLINCH_SCALE. */
 function drawAliens(
   ctx: CanvasRenderingContext2D,
   state: GameState
 ): void {
   for (let r = 0; r < ALIEN_ROWS; r++) {
     const [rR, rG, rB] = ALIEN_RGB[r] ?? [255, 255, 255]
+    const colour = `rgb(${rR}, ${rG}, ${rB})`
+    const kind = ALIEN_GARMENT[r] ?? "tee"
     for (let c = 0; c < ALIEN_COLS; c++) {
       const idx = r * ALIEN_COLS + c
       if (!state.aliens[idx]) continue
@@ -180,70 +181,29 @@ function drawAliens(
           ? FLINCH_SCALE +
             (1 - FLINCH_SCALE) * (1 - flinch / FLINCH_FRAMES)
           : 1
-      const frameIdx = state.stepParity
+      /** Sway: garments on a moving rack lean into the step. */
+      const sway = (state.stepParity === 0 ? 1 : -1) * 0.08
       ctx.save()
       ctx.translate(cx, cy)
+      ctx.rotate(sway)
       ctx.scale(scale, scale)
-      ctx.shadowBlur = 6
-      ctx.shadowColor = `rgb(${rR}, ${rG}, ${rB})`
-      ctx.fillStyle = `rgb(${rR}, ${rG}, ${rB})`
-      drawAlienBody(ctx, frameIdx)
+      ctx.shadowBlur = 5
+      ctx.shadowColor = colour
+      drawGarment(ctx, kind, 0, 0, ALIEN_W + 2, ALIEN_H + 4, colour, NAVY)
       ctx.restore()
     }
   }
 }
 
-/** Alien body shape — abstracted as 5×4 chunky pixel cells with a
- * simple two-frame leg animation. The walk cycle is the legs swapping;
- * the body stays still. */
-function drawAlienBody(
-  ctx: CanvasRenderingContext2D,
-  frameIdx: number
-): void {
-  const cell = 2
-  const W = ALIEN_W
-  const H = ALIEN_H
-  /** Fill a rectangle of `cell × cell` pixels at grid (gx, gy). */
-  const px = (gx: number, gy: number) => {
-    const x = gx * cell - W / 2
-    const y = gy * cell - H / 2
-    ctx.fillRect(x, y, cell, cell)
-  }
-  /** Body — squarish frame with a small notch on top. */
-  for (let gx = 1; gx < W / cell - 1; gx++) {
-    px(gx, 0)
-    px(gx, 1)
-    px(gx, 2)
-    px(gx, 3)
-  }
-  /** Eyes — black voids. */
-  ctx.save()
-  ctx.fillStyle = "#000"
-  px(2, 1)
-  px(W / cell - 3, 1)
-  ctx.restore()
-  /** Legs — alternate frame. */
-  if (frameIdx === 0) {
-    px(1, 4)
-    px(W / cell - 2, 4)
-    px(2, 5)
-    px(W / cell - 3, 5)
-  } else {
-    px(0, 4)
-    px(W / cell - 1, 4)
-    px(1, 5)
-    px(W / cell - 2, 5)
-  }
-}
-
-/** Barriers — chunk grid; only intact chunks drawn. */
+/** Barriers — chunk grid; only intact chunks drawn. Stacks of folded blanks
+ * in brand soft-light. */
 function drawBarriers(
   ctx: CanvasRenderingContext2D,
   state: GameState
 ): void {
   const barrierW = BARRIER_GRID_W * BARRIER_CHUNK_SIZE
   const spacing = LOGICAL_W / BARRIER_COUNT
-  ctx.fillStyle = "#3dcfc2"
+  ctx.fillStyle = "rgba(238, 238, 238, 0.6)"
   for (let bi = 0; bi < BARRIER_COUNT; bi++) {
     const bx0 = (bi + 0.5) * spacing - barrierW / 2
     const grid = state.barriers[bi]!
@@ -261,7 +221,7 @@ function drawBarriers(
   }
 }
 
-/** UFO — rectangle with wobble + trail dot. */
+/** UFO — the bonus hoodie drifting across the top with a wobble. */
 function drawUfo(
   ctx: CanvasRenderingContext2D,
   state: GameState
@@ -270,19 +230,13 @@ function drawUfo(
   const wobble =
     Math.sin((state.ufo.phase * UFO_WOBBLE_HZ) / 60 * Math.PI * 2) *
     UFO_WOBBLE_AMP
-  const x = state.ufo.x
-  const y = state.ufo.y + wobble
+  const colour = `rgb(${UFO_RGB[0]}, ${UFO_RGB[1]}, ${UFO_RGB[2]})`
   ctx.save()
-  ctx.translate(x, y)
-  ctx.shadowBlur = 8
-  ctx.shadowColor = `rgb(${UFO_RGB[0]}, ${UFO_RGB[1]}, ${UFO_RGB[2]})`
-  ctx.fillStyle = `rgb(${UFO_RGB[0]}, ${UFO_RGB[1]}, ${UFO_RGB[2]})`
-  /** Saucer body: ellipse top + flat strip. */
-  ctx.beginPath()
-  ctx.ellipse(0, 0, UFO_W / 2, UFO_H / 2, 0, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = "#fff"
-  ctx.fillRect(-3, -1, 6, 2)
+  ctx.translate(state.ufo.x, state.ufo.y + wobble)
+  ctx.rotate(state.ufo.dir * 0.12)
+  ctx.shadowBlur = 10
+  ctx.shadowColor = colour
+  drawGarment(ctx, "hoodie", 0, 0, UFO_W, UFO_H, colour, NAVY)
   ctx.restore()
 }
 
@@ -302,13 +256,12 @@ function drawHud(
   /** Wave — top-centre. */
   ctx.textAlign = "center"
   ctx.fillText(`WAVE  ${state.wave}`, LOGICAL_W / 2, 6)
-  /** Lives — top-right (small ship glyphs). */
+  /** Lives — top-right (mini tees). */
   ctx.textAlign = "right"
   ctx.fillText(`LIVES`, LOGICAL_W - 6, 6)
   for (let i = 0; i < state.lives; i++) {
-    const lx = LOGICAL_W - 6 - 6 - i * 14
-    ctx.fillStyle = `rgb(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]})`
-    ctx.fillRect(lx - 8, 22, 8, 4)
+    const lx = LOGICAL_W - 12 - i * 14
+    drawGarment(ctx, "tee", lx, 25, 11, 9, PLAYER_CSS)
   }
   ctx.restore()
 }

@@ -28,7 +28,9 @@ import {
 } from "@modules/common/lib/wordmark-gradient"
 
 import {
+  ALIEN_INK_RGB,
   ALIEN_RGB,
+  BARRIER_RGB,
   PLAYER_RGB,
   PLAYER_THRUSTER_RGB,
   SCORE_POPUP_RGB,
@@ -289,7 +291,7 @@ export class InvadersParticleSystem {
         break
       }
       case "barrierHit": {
-        const rgb = this.pack(61, 207, 194) // brand teal — same as barrier colour
+        const rgb = this.pack(...BARRIER_RGB)
         for (let i = 0; i < 8; i++) {
           const p = this.alloc()
           if (!p) break
@@ -311,8 +313,8 @@ export class InvadersParticleSystem {
         break
       }
       case "alienFire": {
-        /** Tiny down-puff — alien sneeze. */
-        const rgb = this.pack(255, 94, 58)
+        /** Tiny down-puff — ink spit. */
+        const rgb = this.pack(...ALIEN_INK_RGB)
         for (let i = 0; i < 3; i++) {
           const p = this.alloc()
           if (!p) break

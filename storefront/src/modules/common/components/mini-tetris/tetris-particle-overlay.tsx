@@ -15,6 +15,9 @@ import {
   sampleVelocityField,
 } from "@modules/home/components/home-particle-logo-hero/velocity-field"
 import { sampleCurlNoise } from "@modules/home/components/home-particle-logo-hero/curl-noise"
+import { drawGarmentTile } from "@modules/common/components/games/garment-glyphs"
+
+import { PIECE_GARMENT, PIECE_RGB } from "./palette"
 
 const BOARD_W = 10
 const BOARD_H = 20
@@ -80,7 +83,7 @@ const FLASH_LIFE_MS = 820
 const EXCITEMENT_DECAY = 0.991
 /** Ambient particle base alpha at rest (0-1). Quiet field at rest, brightens to
  * full white when pushed (via excitement). */
-const AMBIENT_BASE_ALPHA = 0.72
+const AMBIENT_BASE_ALPHA = 0.18
 /** Vignette darkness at canvas corners (0 = no vignette, 1 = corners fully dark). */
 const VIGNETTE_STRENGTH = 0.62
 /** Extra vignette bias toward the top of the board (where the playfield is
@@ -88,7 +91,7 @@ const VIGNETTE_STRENGTH = 0.62
 const VIGNETTE_TOP_BIAS = 0.35
 /** Locked-block "breathing": tiny time-based jitter so locked blobs feel alive
  * instead of frozen. Amplitude in CSS px. */
-const LOCKED_BREATHE_PX = 1.2
+const LOCKED_BREATHE_PX = 0 // crisp tiles don't wobble
 /** Lock-impact white anticipation flash drawn over the lock cells for a brief
  * window before the ripple starts. */
 const LOCK_FLASH_LIFE_MS = 180
@@ -174,18 +177,6 @@ const BURST_CURL_AMPLITUDE = 0.18
 const BURST_CURL_SCALE = 0.018
 const BURST_CURL_HZ = 0.6
 
-/** Per-piece-type RGB palette used to render the active piece on canvas (where it
- * can be smoothly interpolated between drop ticks). Roughly matches the DOM palette
- * but uses concrete RGB so we can write directly to the pixel buffer. */
-const PIECE_RGB: ReadonlyArray<readonly [number, number, number]> = [
-  [61, 207, 194], // I — teal (brand-accent)
-  [255, 46, 99], // O — magenta (brand-secondary)
-  [181, 86, 255], // T — violet
-  [69, 164, 255], // S — blue
-  [255, 193, 69], // Z — yellow
-  [193, 255, 69], // J — lime
-  [255, 107, 53], // L — orange
-]
 /** Pre-built gradient lookup table size. */
 const GRAD_LUT_SIZE = 512
 
@@ -1619,128 +1610,6 @@ export default function TetrisParticleOverlay({
       const span = Math.max(1e-3, mx - mn)
       const lutMaxIdx = GRAD_LUT_SIZE - 1
 
-      /** Draw filled cells as GLOWING RADIAL BLOBS of luminous fluid. Bright core
-       * (overdriven toward white) falls off through the piece colour to a soft
-       * alpha-blended edge that bleeds into the surrounding particle field. The
-       * piece colour is blended 50/50 with the gradient colour at the cell's
-       * canvas position — pieces feel part of the rainbow palette rather than
-       * arbitrary saturated rectangles.
-       *
-       * Per-pixel evaluation enables:
-       *  • smooth subpixel edges — block doesn't pixel-snap as it moves
-       *  • luminance gradient — bright core glows like a fluid ink drop in water
-       *  • alpha falloff — block bleeds into the field, no hard rectangle */
-      const blockHalfW = sizeState.cellW * 0.48
-      const blockHalfH = sizeState.cellH * 0.48
-      const renderBlockBlob = (
-        cssX: number,
-        cssY: number,
-        pr: number,
-        pg: number,
-        pb: number,
-        seedA: number,
-        scale = 1
-      ) => {
-        /** Light gradient tint of the piece colour (25% gradient / 75% piece) —
-         * the piece keeps its identity while taking on a hint of the local
-         * rainbow palette. Avoids the pastel "muddied" look from heavier blends. */
-        const proj = cssX * gdx + cssY * gdy
-        let tg = (proj - mn) / span
-        if (tg < 0) tg = 0
-        else if (tg > 1) tg = 1
-        const lutIdx = (tg * lutMaxIdx) | 0
-        const grR = gradLutR[lutIdx]!
-        const grG = gradLutG[lutIdx]!
-        const grB = gradLutB[lutIdx]!
-        const baseR = Math.min(255, (pr * 0.75 + grR * 0.25) | 0)
-        const baseG = Math.min(255, (pg * 0.75 + grG * 0.25) | 0)
-        const baseB = Math.min(255, (pb * 0.75 + grB * 0.25) | 0)
-        /** Pixel-space bounding box with margin for the soft edge. Scale lets
-         * callers apply a rotation-pulse expansion. */
-        const cxPx = cssX * dpr
-        const cyPx = cssY * dpr
-        const halfWPx = blockHalfW * dpr * scale
-        const halfHPx = blockHalfH * dpr * scale
-        const margin = 3
-        const x0 = Math.max(0, ((cxPx - halfWPx - margin) | 0))
-        const y0 = Math.max(0, ((cyPx - halfHPx - margin) | 0))
-        const x1 = Math.min(PW, ((cxPx + halfWPx + margin) | 0) + 1)
-        const y1 = Math.min(PH, ((cyPx + halfHPx + margin) | 0) + 1)
-        const invHalfW = 1 / halfWPx
-        const invHalfH = 1 / halfHPx
-        for (let py = y0; py < y1; py++) {
-          const dy = (py + 0.5 - cyPx) * invHalfH
-          const dy2 = dy * dy
-          if (dy2 > 1.6) continue
-          const rowOff = py * PW * 4
-          for (let px = x0; px < x1; px++) {
-            const dx = (px + 0.5 - cxPx) * invHalfW
-            const r2 = dx * dx + dy2
-            if (r2 > 1.4) continue
-            /** Luminance: gentle dome — bright at centre (no overdrive), softly
-             * falling to ~70% at the rim. Less "white jellyfish core" look. */
-            let lum: number
-            if (r2 < 0.5) {
-              lum = 1.0 - r2 * 0.1
-            } else if (r2 < 0.95) {
-              lum = 0.95 - (r2 - 0.5) * 0.55
-            } else {
-              lum = 0.7 - (r2 - 0.95) * 5
-            }
-            if (lum <= 0.05) continue
-            /** Crisp alpha edge: full opacity inside r²=0.92, fast cliff to 0 by
-             * r²=1.05. Block reads as deliberate fluid drop, not a fuzzy halo. */
-            let edgeA: number
-            if (r2 < 0.92) {
-              edgeA = 255
-            } else if (r2 < 1.05) {
-              edgeA = (255 * (1 - (r2 - 0.92) / 0.13)) | 0
-            } else {
-              continue
-            }
-            /** Subtle white-ish core highlight — much milder than before. */
-            const whiteK = r2 < 0.1 ? (0.1 - r2) * 0.7 : 0
-            let r = baseR * lum
-            let g = baseG * lum
-            let b = baseB * lum
-            if (whiteK > 0) {
-              r = r + (255 - r) * whiteK
-              g = g + (255 - g) * whiteK
-              b = b + (255 - b) * whiteK
-            }
-            const off = rowOff + px * 4
-            const ri = r | 0
-            const gi = g | 0
-            const bi = b | 0
-            /** Replace pixel — block colour wins over field underneath.
-             * Non-null asserted: the early-return guard above keeps pixBuf
-             * non-null for the entire tick(); TS just loses track in nested loops. */
-            pixBuf![off] = ri > 255 ? 255 : ri
-            pixBuf![off + 1] = gi > 255 ? 255 : gi
-            pixBuf![off + 2] = bi > 255 ? 255 : bi
-            pixBuf![off + 3] = edgeA
-          }
-        }
-        /** Sparse internal sparkles — 5-6 brighter pixels inside the core for
-         * crystalline/granular texture, keyed on stable seed so they don't
-         * shimmer between frames. */
-        for (let s = 0; s < 6; s++) {
-          const u = hash01(seedA, s * 11 + 5) * 1.2 - 0.6
-          const v = hash01(seedA, s * 11 + 6) * 1.2 - 0.6
-          const sx = (cssX + u * blockHalfW * 0.7) * dpr
-          const sy = (cssY + v * blockHalfH * 0.7) * dpr
-          const sxi = sx | 0
-          const syi = sy | 0
-          if (sxi < 0 || sxi + 1 >= PW || syi < 0 || syi + 1 >= PH) continue
-          const off = (syi * PW + sxi) * 4
-          // Non-null asserted — see note above on the early-return guard.
-          pixBuf![off] = 255
-          pixBuf![off + 1] = 255
-          pixBuf![off + 2] = 255
-          pixBuf![off + 3] = 255
-        }
-      }
-
       /** Block rendering moved to AFTER particles+bursts so blocks always sit
        * cleanly on top of the field — no filled-mask alignment artefacts. */
 
@@ -1882,7 +1751,7 @@ export default function TetrisParticleOverlay({
         const y1 = Math.min(PH, ((cyP + outerRP) | 0) + 1)
         const ampNorm = Math.min(1, rip.amplitude / RIPPLE_AMPLITUDE)
         /** Peak alpha in the band, scales with amplitude. */
-        const peakA = ampNorm * 220
+        const peakA = ampNorm * 110 // half strength — rings sit under crisp tiles now
         if (peakA < 6) continue
         const innerRP = Math.max(0, radiusP - ringRP)
         for (let py = y0; py < y1; py++) {
@@ -1940,40 +1809,8 @@ export default function TetrisParticleOverlay({
         }
       }
 
-      /** =========== Block render (over particles + bursts) ===========
-       * Blocks render LAST among the field-level passes so they sit cleanly on
-       * top of any particles around them — no need to mask particles by active-
-       * piece position; they're simply covered by the block's own pixels. */
-
-      /** Locked cells: each blob breathes via a tiny per-cell sinusoidal offset
-       * so the static stack feels alive instead of frozen. */
-      const breathePhase = now * 0.0009
-      for (let by = 0; by < BOARD_H; by++) {
-        for (let bx = 0; bx < BOARD_W; bx++) {
-          const v = brdNow[by]?.[bx] ?? 0
-          if (v === 0) continue
-          const colour = PIECE_RGB[v - 1] ?? [255, 255, 255]
-          const c = cellCentre(bx, by)
-          const seed = bx * 1009 + by * 17 + 1
-          const breatheX =
-            Math.sin(breathePhase + bx * 0.4 + by * 0.7) * LOCKED_BREATHE_PX
-          const breatheY =
-            Math.cos(breathePhase * 1.13 + bx * 0.6 + by * 0.3) *
-            LOCKED_BREATHE_PX
-          renderBlockBlob(
-            c.x + breatheX,
-            c.y + breatheY,
-            colour[0]!,
-            colour[1]!,
-            colour[2]!,
-            seed
-          )
-        }
-      }
-
-      /** Active piece: rendered AFTER locked so it visually sits on top during
-       * lock transitions. Position uses the smoothly-interpolated offset.
-       * Rotation pulse scales briefly to punctuate rotation events. */
+      /** Rotation pulse scales the active piece briefly to punctuate rotation
+       * events. Tiles themselves are drawn after putImageData (see below). */
       let activeScale = 1
       if (rotationPulse.startedAt >= 0) {
         const elapsed = now - rotationPulse.startedAt
@@ -1983,22 +1820,6 @@ export default function TetrisParticleOverlay({
           const u = elapsed / ROTATION_PULSE_MS
           const bell = Math.sin(u * Math.PI)
           activeScale = 1 + ROTATION_PULSE_SCALE * bell
-        }
-      }
-      if (actNow != null) {
-        const colour = PIECE_RGB[actNow.t] ?? [255, 255, 255]
-        for (let aci = 0; aci < activeCellsForMotion.length; aci++) {
-          const ac = activeCellsForMotion[aci]!
-          const c = cellCentre(ac.bx, ac.by)
-          renderBlockBlob(
-            c.x + smoothOffsetX,
-            c.y + smoothOffsetY,
-            colour[0]!,
-            colour[1]!,
-            colour[2]!,
-            900000 + aci * 31,
-            activeScale
-          )
         }
       }
 
@@ -2146,6 +1967,50 @@ export default function TetrisParticleOverlay({
 
       ctx.putImageData(imageData, 0, 0)
 
+      /** =================== Garment tiles ===================
+       * Drawn with the 2D ctx on top of the particle buffer so edges stay
+       * crisp at any DPR. Locked stack first, then the active piece (smoothly
+       * interpolated between drop ticks) so it sits on top during lock. */
+      {
+        const tilePx = Math.min(sizeState.cellW, sizeState.cellH) * dpr
+        const breathePhase = now * 0.0009
+        for (let by = 0; by < BOARD_H; by++) {
+          for (let bx = 0; bx < BOARD_W; bx++) {
+            const v = brdNow[by]?.[bx] ?? 0
+            if (v === 0) continue
+            const c = cellCentre(bx, by)
+            const breatheX =
+              Math.sin(breathePhase + bx * 0.4 + by * 0.7) * LOCKED_BREATHE_PX
+            const breatheY =
+              Math.cos(breathePhase * 1.13 + bx * 0.6 + by * 0.3) *
+              LOCKED_BREATHE_PX
+            drawGarmentTile(
+              ctx,
+              PIECE_GARMENT[v - 1] ?? "tee",
+              (c.x + breatheX) * dpr,
+              (c.y + breatheY) * dpr,
+              tilePx,
+              PIECE_RGB[v - 1] ?? [255, 255, 255]
+            )
+          }
+        }
+        if (actNow != null) {
+          for (let aci = 0; aci < activeCellsForMotion.length; aci++) {
+            const ac = activeCellsForMotion[aci]!
+            const c = cellCentre(ac.bx, ac.by)
+            drawGarmentTile(
+              ctx,
+              PIECE_GARMENT[actNow.t] ?? "tee",
+              (c.x + smoothOffsetX) * dpr,
+              (c.y + smoothOffsetY) * dpr,
+              tilePx,
+              PIECE_RGB[actNow.t] ?? [255, 255, 255],
+              activeScale
+            )
+          }
+        }
+      }
+
       /** =================== Ghost-piece outline ===================
        * Drawn AFTER putImageData via the 2D ctx so the stroked outline doesn't
        * fight with the dense pixel-buffer writes above. A thin sinusoidal pulse
@@ -2167,12 +2032,15 @@ export default function TetrisParticleOverlay({
           const c = cellCentre(gc.bx, gc.by)
           const rgb = PIECE_RGB[gc.t] ?? [255, 255, 255]
           ctx.strokeStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`
-          ctx.strokeRect(
+          ctx.beginPath()
+          ctx.roundRect(
             (c.x - halfW + inset) * dpr,
             (c.y - halfH + inset) * dpr,
             (sizeState.cellW - 2 * inset) * dpr,
-            (sizeState.cellH - 2 * inset) * dpr
+            (sizeState.cellH - 2 * inset) * dpr,
+            sizeState.cellW * 0.18 * dpr
           )
+          ctx.stroke()
         }
         ctx.restore()
       }

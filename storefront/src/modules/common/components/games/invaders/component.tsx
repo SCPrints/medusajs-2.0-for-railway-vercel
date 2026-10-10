@@ -310,7 +310,7 @@ export default function InvadersInternal({
             className={`relative ${playWidth} rounded-md`}
             style={{
               boxShadow:
-                "0 0 0 1px rgba(255,255,255,0.06), 0 0 32px 4px rgba(120,180,255,0.10), 0 0 80px 12px rgba(120,180,255,0.06)",
+                "0 0 0 1px rgba(255,255,255,0.06), 0 0 32px 4px rgba(61,207,194,0.10), 0 0 80px 12px rgba(61,207,194,0.06)",
               touchAction: "none",
             }}
           >
@@ -334,7 +334,7 @@ export default function InvadersInternal({
                     : "1.625rem",
                 lineHeight: 1.05,
                 textShadow:
-                  "0 0 12px rgba(120,180,255,0.45), 0 0 30px rgba(120,180,255,0.25)",
+                  "0 0 12px rgba(61,207,194,0.45), 0 0 30px rgba(61,207,194,0.25)",
               }}
             >
               {score}
@@ -355,7 +355,7 @@ export default function InvadersInternal({
                     : "1.25rem",
                 lineHeight: 1.05,
                 textShadow:
-                  "0 0 10px rgba(120,180,255,0.35), 0 0 24px rgba(120,180,255,0.18)",
+                  "0 0 10px rgba(61,207,194,0.35), 0 0 24px rgba(61,207,194,0.18)",
               }}
             >
               {wave}
@@ -367,15 +367,18 @@ export default function InvadersInternal({
             </p>
             <div className="mt-2 flex gap-1.5" aria-label={`${lives} lives remaining`}>
               {Array.from({ length: lives }).map((_, i) => (
-                <span
+                <svg
                   key={i}
-                  className="inline-block h-3 w-5 rounded-sm"
+                  viewBox="-1 -1 2 2"
+                  className="h-5 w-5"
+                  aria-hidden
                   style={{
-                    background: `rgb(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]})`,
-                    boxShadow:
-                      "0 0 6px 1px rgba(61,207,194,0.55)",
+                    fill: `rgb(${PLAYER_RGB[0]}, ${PLAYER_RGB[1]}, ${PLAYER_RGB[2]})`,
+                    filter: "drop-shadow(0 0 4px rgba(61,207,194,0.6))",
                   }}
-                />
+                >
+                  <path d="M-.32-.9L-.95-.6-.72-.12-.52-.22V.9H.52V-.22L.72-.12.95-.6.32-.9Q0-.55-.32-.9Z" />
+                </svg>
               ))}
             </div>
           </div>

@@ -7,6 +7,8 @@
  * whatever CSS-px size the container has.
  */
 
+import type { GarmentKind } from "../garment-glyphs"
+
 /** ============== Playfield dimensions (logical px) ============== */
 /** Logical playfield aspect ratio (4:5) — matches Tetris's 10×20 portrait
  * footprint so both games occupy the same visual slot on the 404 page. */
@@ -14,8 +16,8 @@ export const LOGICAL_W = 320
 export const LOGICAL_H = 400
 
 /** ============== Player ship ============== */
-export const PLAYER_W = 22
-export const PLAYER_H = 12
+export const PLAYER_W = 24
+export const PLAYER_H = 18
 export const PLAYER_Y = LOGICAL_H - 22
 export const PLAYER_SPEED = 3.4
 /** Tilt animation (radians). Spring-driven; lerps toward target each frame. */
@@ -58,14 +60,22 @@ export const ALIEN_WAVE_DROP = 12
 export const ALIEN_MAX_WAVE_DROPS = 6
 /** Per-row points (top row = highest). */
 export const ALIEN_POINTS = [40, 30, 20, 10, 10] as const
-/** RGB triples per row index. Top row uses brand teal so the highest-value
- * aliens visually stand out. */
+/** RGB triples per row index. Brand palette — top row magenta so the
+ * highest-value garments stand out against the navy. */
 export const ALIEN_RGB: ReadonlyArray<readonly [number, number, number]> = [
-  [61, 207, 194], // teal — top row (40 pts)
+  [255, 46, 99], // magenta — top row (40 pts)
   [181, 86, 255], // violet
   [69, 164, 255], // blue
   [255, 193, 69], // yellow
-  [193, 255, 69], // lime — bottom row (10 pts)
+  [238, 238, 238], // soft light — bottom row (10 pts)
+]
+/** Garment drawn per row index — the "alien" fleet is a rack of blanks. */
+export const ALIEN_GARMENT: readonly GarmentKind[] = [
+  "cap",
+  "hoodie",
+  "polo",
+  "tee",
+  "singlet",
 ]
 /** Two-frame walk cycle is keyed on the formation step counter (0/1). */
 export const ALIEN_FRAMES = 2
@@ -97,8 +107,8 @@ export const UFO_INTERVAL_MIN_FRAMES = 60 * 12
 export const UFO_INTERVAL_MAX_FRAMES = 60 * 22
 export const UFO_SPEED = 1.6
 export const UFO_Y = 30
-export const UFO_W = 24
-export const UFO_H = 10
+export const UFO_W = 26
+export const UFO_H = 18
 export const UFO_WOBBLE_AMP = 2
 export const UFO_WOBBLE_HZ = 1.2
 export const UFO_POINTS_MIN = 100
@@ -134,3 +144,9 @@ export const PLAYER_THRUSTER_RGB: readonly [number, number, number] = [
 export const UFO_RGB: readonly [number, number, number] = [
   255, 46, 99,
 ] // brand magenta
+/** Ink fired by the rack. */
+export const ALIEN_INK_RGB: readonly [number, number, number] = [
+  255, 46, 99,
+] // brand magenta
+/** Barrier chunk colour (soft-light blanks) — shared with debris particles. */
+export const BARRIER_RGB: readonly [number, number, number] = [238, 238, 238]

@@ -11,6 +11,9 @@ import {
 } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 
+import { drawGarmentTile } from "@modules/common/components/games/garment-glyphs"
+
+import { PIECE_GARMENT, PIECE_RGB } from "./palette"
 import TetrisParticleOverlay from "./tetris-particle-overlay"
 
 const BOARD_W = 10
@@ -216,15 +219,38 @@ const SHAPES: readonly (readonly (readonly (readonly (0 | 1)[])[])[])[] = [
   ],
 ] as const
 
-const PIECE_FILL: readonly string[] = [
-  "var(--brand-accent)",
-  "var(--brand-secondary)",
-  "var(--brand-primary)",
-  "color-mix(in srgb, var(--brand-accent) 70%, var(--brand-background))",
-  "color-mix(in srgb, var(--brand-secondary) 75%, var(--brand-primary))",
-  "color-mix(in srgb, var(--brand-primary) 55%, var(--brand-accent))",
-  "color-mix(in srgb, var(--brand-primary) 40%, var(--brand-background))",
-]
+/** Next-piece preview: a tiny canvas drawing the same garment tiles as the
+ * board so the preview and the playfield share one visual language. */
+function NextPreview({ type, cellPx }: { type: number; cellPx: number }) {
+  const ref = useRef<HTMLCanvasElement | null>(null)
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return
+    const dpr = Math.min(window.devicePixelRatio ?? 1, 2)
+    canvas.width = GRID * cellPx * dpr
+    canvas.height = GRID * cellPx * dpr
+    canvas.style.width = `${GRID * cellPx}px`
+    canvas.style.height = `${GRID * cellPx}px`
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const m = getShapeM(type, 0)
+    for (let row = 0; row < GRID; row++) {
+      for (let col = 0; col < GRID; col++) {
+        if (m[row]![col]! !== 1) continue
+        drawGarmentTile(
+          ctx,
+          PIECE_GARMENT[type] ?? "tee",
+          (col + 0.5) * cellPx * dpr,
+          (row + 0.5) * cellPx * dpr,
+          cellPx * dpr,
+          PIECE_RGB[type] ?? [255, 255, 255]
+        )
+      }
+    }
+  }, [type, cellPx])
+  return <canvas ref={ref} className="block" aria-hidden />
+}
 
 type Board = (0 | 1 | 2 | 3 | 4 | 5 | 6 | 7)[][]
 
@@ -544,17 +570,17 @@ const TETRIS_SIZES = {
   default: {
     cellEmpty: "w-3.5 h-3.5 small:w-4 small:h-4",
     cellFilled: "w-3.5 h-3.5 small:w-4 small:h-4 box-border",
-    next: "w-3 h-3",
+    nextPx: 14,
   },
   lg: {
     cellEmpty: "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6",
     cellFilled: "w-[1.3125rem] h-[1.3125rem] small:w-6 small:h-6 box-border",
-    next: "w-[1.125rem] h-[1.125rem]",
+    nextPx: 20,
   },
   xl: {
     cellEmpty: "w-5 h-5 small:w-7 small:h-7",
     cellFilled: "w-5 h-5 small:w-7 small:h-7 box-border",
-    next: "w-4 h-4 small:w-5 small:h-5",
+    nextPx: 24,
   },
 } as const
 
@@ -562,8 +588,8 @@ const TETRIS_SIZES = {
  * from the previously displayed value to the new value over `duration` ms with
  * easeOutCubic, and briefly lifts a blue-glow text-shadow on increase. Inline
  * because the flash semantics are specific to this HUD. */
-const SHADOW_BASE = "0 0 12px rgba(120,180,255,0.45), 0 0 30px rgba(120,180,255,0.25)"
-const SHADOW_PEAK = "0 0 22px rgba(120,180,255,0.85), 0 0 60px rgba(120,180,255,0.45)"
+const SHADOW_BASE = "0 0 12px rgba(61,207,194,0.45), 0 0 30px rgba(61,207,194,0.25)"
+const SHADOW_PEAK = "0 0 22px rgba(61,207,194,0.85), 0 0 60px rgba(61,207,194,0.45)"
 const SHADOW_FLASH_MS = 700
 
 function easeOutCubic(t: number): number {
@@ -576,7 +602,7 @@ function buildShadow(flashAmount: number): string {
   const a2 = 0.25 + 0.2 * flashAmount
   const r1 = 12 + 10 * flashAmount
   const r2 = 30 + 30 * flashAmount
-  return `0 0 ${r1}px rgba(120,180,255,${a1}), 0 0 ${r2}px rgba(120,180,255,${a2})`
+  return `0 0 ${r1}px rgba(61,207,194,${a1}), 0 0 ${r2}px rgba(61,207,194,${a2})`
 }
 
 type AnimatedNumberProps = {
@@ -764,7 +790,7 @@ function ClearLabel({
               fontWeight: 800,
               letterSpacing: "0.18em",
               textShadow:
-                "0 0 24px rgba(120,180,255,0.55), 0 0 60px rgba(120,180,255,0.25)",
+                "0 0 24px rgba(61,207,194,0.55), 0 0 60px rgba(61,207,194,0.25)",
             }}
           >
             {copy.label}
@@ -796,7 +822,7 @@ function ClearLabel({
               fontWeight: 700,
               letterSpacing: "0.2em",
               textShadow:
-                "0 0 18px rgba(120,180,255,0.45), 0 0 40px rgba(120,180,255,0.2)",
+                "0 0 18px rgba(61,207,194,0.45), 0 0 40px rgba(61,207,194,0.2)",
             }}
           >
             x{combo} COMBO
@@ -1021,7 +1047,6 @@ export default function MiniTetris({
     return getGhostCells(g)
   }, [state.active, state.board, state.phase])
 
-  const nextMat = getShapeM(state.next, 0)
 
   const wrapPad =
     size === "xl"
@@ -1077,14 +1102,20 @@ export default function MiniTetris({
             className="relative inline-block rounded-md"
             style={{
               boxShadow:
-                "0 0 0 1px rgba(255,255,255,0.06), 0 0 32px 4px rgba(120,180,255,0.10), 0 0 80px 12px rgba(120,180,255,0.06)",
+                "0 0 0 1px rgba(255,255,255,0.06), 0 0 32px 4px rgba(61,207,194,0.10), 0 0 80px 12px rgba(61,207,194,0.06)",
             }}
           >
             <div
               ref={gridContainerRef}
-              className="grid gap-0 rounded-md bg-black inline-grid overflow-hidden"
+              className="grid gap-0 rounded-md inline-grid overflow-hidden"
               style={{
                 gridTemplateColumns: `repeat(${BOARD_W}, minmax(0, 1fr))`,
+                /** Navy panel (one step lighter than the page) with a faint
+                 * cell grid so the stack reads against a drawn board. */
+                backgroundColor: "#0e0e1d",
+                backgroundImage:
+                  "linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)",
+                backgroundSize: `${100 / BOARD_W}% ${100 / BOARD_H}%`,
               }}
               aria-hidden
             >
@@ -1220,7 +1251,7 @@ export default function MiniTetris({
                 style={{
                   gridTemplateColumns: "repeat(4, 1fr)",
                   boxShadow:
-                    "0 0 0 1px rgba(255,255,255,0.04), 0 0 16px 2px rgba(120,180,255,0.08)",
+                    "0 0 0 1px rgba(255,255,255,0.04), 0 0 16px 2px rgba(61,207,194,0.08)",
                 }}
               >
                 <AnimatePresence mode="wait">
@@ -1246,28 +1277,8 @@ export default function MiniTetris({
                         ? { duration: 0 }
                         : { duration: 0.38, ease: [0.22, 1, 0.36, 1] }
                     }
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(4, 1fr)",
-                      gap: "1px",
-                    }}
                   >
-                    {nextMat.map((row, ri) =>
-                      row.map((cell, ci) => (
-                        <div
-                          className={s.next}
-                          key={`n-${ri}-${ci}`}
-                          style={
-                            cell === 1
-                              ? {
-                                  background:
-                                    PIECE_FILL[state.next] ?? "var(--brand-primary)",
-                                }
-                              : undefined
-                          }
-                        />
-                      ))
-                    )}
+                    <NextPreview type={state.next} cellPx={s.nextPx} />
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -1318,7 +1329,7 @@ function IntroOverlay() {
           color: "rgba(255,255,255,0.92)",
           letterSpacing: "0.32em",
           textShadow:
-            "0 0 32px rgba(120,180,255,0.55), 0 0 80px rgba(120,180,255,0.25)",
+            "0 0 32px rgba(61,207,194,0.55), 0 0 80px rgba(61,207,194,0.25)",
         }}
       >
         READY
@@ -1341,7 +1352,7 @@ function IntroOverlay() {
           color: "var(--brand-accent)",
           letterSpacing: "0.32em",
           textShadow:
-            "0 0 28px rgba(120,180,255,0.6), 0 0 70px rgba(120,180,255,0.3)",
+            "0 0 28px rgba(61,207,194,0.6), 0 0 70px rgba(61,207,194,0.3)",
         }}
       >
         GO
@@ -1410,7 +1421,7 @@ function GameOverOverlay({
             color: "rgba(255,255,255,0.92)",
             letterSpacing: "0.22em",
             textShadow:
-              "0 0 24px rgba(120,180,255,0.45), 0 0 60px rgba(120,180,255,0.2)",
+              "0 0 24px rgba(61,207,194,0.45), 0 0 60px rgba(61,207,194,0.2)",
           }}
         >
           GAME OVER
