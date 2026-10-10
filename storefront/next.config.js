@@ -91,6 +91,17 @@ const nextConfig = {
         destination: "/:countryCode/services",
         permanent: true,
       },
+      // AS Colour handles renamed 2026-10-10 ("as-colour-5001-5001" →
+      // "as-colour-staple-tee-5001"). Config redirects run before the PPR
+      // shell, so these are real 308s; a page-level redirect is only a
+      // meta-refresh inside a 200.
+      ...Object.entries(require("./src/lib/data/legacy-handles.json")).map(
+        ([from, to]) => ({
+          source: `/:countryCode/products/${from}`,
+          destination: `/:countryCode/products/${to}`,
+          permanent: true,
+        })
+      ),
     ]
   },
   images: {

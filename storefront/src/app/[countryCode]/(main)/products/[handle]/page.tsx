@@ -1,6 +1,5 @@
 import { Metadata } from "next"
-import { notFound, permanentRedirect } from "next/navigation"
-import legacyHandles from "@lib/data/legacy-handles.json"
+import { notFound } from "next/navigation"
 
 import ProductTemplate from "@modules/products/templates"
 import { getRegion } from "@lib/data/regions"
@@ -89,10 +88,6 @@ export default async function ProductPage({ params }: Props) {
 
   const pricedProduct = await getProductByHandle(normalizedHandle, region.id)
   if (!pricedProduct) {
-    // Pre-2026-10 AS Colour handles ("as-colour-5001-5001") were renamed to
-    // readable ones; keep old links + Google alive with a 301.
-    const renamed = (legacyHandles as Record<string, string>)[normalizedHandle]
-    if (renamed) permanentRedirect(`/${normalizedCountryCode}/products/${renamed}`)
     notFound()
   }
 
