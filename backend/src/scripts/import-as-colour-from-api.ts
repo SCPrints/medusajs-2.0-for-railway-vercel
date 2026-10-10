@@ -42,9 +42,14 @@ const AS_COLOUR_BRAND_HANDLE = "as-colour"
 const AS_COLOUR_BRAND_EXTERNAL_CODE = "ASCOLOUR"
 const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
 
+// The API field is `styleName` (e.g. "Staple Tee | 5001"), not `productName`.
+// Pre-2026-10 imports read the wrong key and produced "as-colour-5001-5001";
+// those handles are indexed + referenced by handle elsewhere, so leave them.
 const handleForStyle = (style: AsColourProduct) => {
-  const name = style.productName ?? style.styleCode ?? "as-colour-product"
-  return `as-colour-${slugify(`${name}-${style.styleCode}`)}`
+  const name = String(style.styleName ?? "")
+    .replace(/\s*\|\s*\d+[A-Z]*\s*$/, "")
+    .trim()
+  return `as-colour-${slugify(`${name || "product"}-${style.styleCode}`)}`
 }
 
 type EnrichedStyle = {

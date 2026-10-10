@@ -1,5 +1,6 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
+import legacyHandles from "@lib/data/legacy-handles.json"
 import { Suspense } from "react"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomerTier } from "@lib/data/customer-tier"
@@ -184,7 +185,10 @@ export default async function CustomizerPage({ params, searchParams }: Customize
   //   3. ?design=<savedId> → saved design's base product
   //   4. Configured env default
   //   5. First shirt-like product in catalog
+  // Old-style AS Colour handles in saved links/emails map to the renamed ones.
   let effectiveHandleFromUrl: string | null = handleFromQuery
+    ? (legacyHandles as Record<string, string>)[handleFromQuery] ?? handleFromQuery
+    : null
   if (!effectiveHandleFromUrl && reorderRef) {
     effectiveHandleFromUrl = await resolveReorderHandle(reorderRef)
   }

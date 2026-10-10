@@ -75,9 +75,9 @@ const PRODUCT_LIMIT = 12 // mirror PaginatedProducts
  * WARM_CACHE_PRODUCT_HANDLES (comma-separated).
  */
 const DEFAULT_WARM_PRODUCT_HANDLES = [
-  "as-colour-5001-5001",
-  "as-colour-5080-5080",
-  "as-colour-5146-5146",
+  "as-colour-staple-tee-5001",
+  "as-colour-heavy-tee-5080",
+  "as-colour-heavy-hood-5146",
   "shaka-wear-max-heavyweight-tee",
   "shaka-wear-max-heavyweight-oversized-tee",
   "shaka-wear-garment-dye-drop-shoulder-tee",
