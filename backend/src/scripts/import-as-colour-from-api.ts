@@ -29,7 +29,8 @@ import {
   linkProductsToBrand,
   seedInventoryLevels,
 } from "../lib/supplier-import-pipeline"
-import { slugify, titleCase } from "../utils/string-case"
+import { titleCase } from "../utils/string-case"
+import { asColourHandle } from "../lib/ascolour-handle"
 import { parseGsm } from "../utils/parse-gsm"
 
 const PRICE_CURRENCY_CODE = "aud"
@@ -45,13 +46,8 @@ const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
 // The API field is `styleName` (e.g. "Staple Tee | 5001"), not `productName`.
 // Pre-2026-10 imports read the wrong key and produced "as-colour-5001-5001";
 // those handles are indexed + referenced by handle elsewhere, so leave them.
-const handleForStyle = (style: AsColourProduct) => {
-  const name = String(style.styleName ?? "")
-    .replace(/\s*\|\s*\d+[A-Z]*\s*$/, "")
-    .replace(new RegExp(`^${style.styleCode}\\s*[-|:]?\\s*`, "i"), "")
-    .trim()
-  return `as-colour-${slugify(`${name || "product"}-${style.styleCode}`)}`
-}
+const handleForStyle = (style: AsColourProduct) =>
+  asColourHandle(style.styleName, style.styleCode)
 
 type EnrichedStyle = {
   product: AsColourProduct

@@ -6,6 +6,7 @@ import { BUNDLES_MODULE } from "../modules/bundles"
 import { HOME_SECTION_MODULE } from "../modules/home-section"
 import { LOOKBOOK_MODULE } from "../modules/lookbook"
 import { QUOTE_MODULE } from "../modules/quote"
+import { asColourHandle } from "../lib/ascolour-handle"
 import { slugify } from "../utils/string-case"
 
 /**
@@ -44,17 +45,14 @@ export default async function renameAsColourHandles({ container }: ExecArgs) {
   for (const p of products as any[]) {
     const code = String(p.metadata?.ascolour?.styleCode ?? "")
     const codeSlug = slugify(code)
-    // Some titles lead with the code ("5056 General LS Tee") — don't double it.
-    const title = String(p.title ?? "")
-      .replace(new RegExp(`^${code}\\s*[-|:]?\\s*`, "i"), "")
-      .trim()
+    const title = String(p.title ?? "").trim()
     // Only touch the exact doubled shape — anything else was hand-edited.
     if (!code || p.handle !== `as-colour-${codeSlug}-${codeSlug}`) continue
     if (!title || /^as colour/i.test(title)) {
       skipped.push(`${p.handle} (no usable title: "${title}")`)
       continue
     }
-    const next = `as-colour-${slugify(`${title}-${code}`)}`
+    const next = asColourHandle(title, code)
     if (next === p.handle) continue
     if (existing.has(next) || Object.values(map).includes(next)) {
       skipped.push(`${p.handle} → ${next} (collision)`)
