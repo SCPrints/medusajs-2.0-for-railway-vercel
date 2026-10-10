@@ -48,6 +48,7 @@ const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
 const handleForStyle = (style: AsColourProduct) => {
   const name = String(style.styleName ?? "")
     .replace(/\s*\|\s*\d+[A-Z]*\s*$/, "")
+    .replace(new RegExp(`^${style.styleCode}\\s*[-|:]?\\s*`, "i"), "")
     .trim()
   return `as-colour-${slugify(`${name || "product"}-${style.styleCode}`)}`
 }

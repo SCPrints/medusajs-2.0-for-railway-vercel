@@ -44,7 +44,10 @@ export default async function renameAsColourHandles({ container }: ExecArgs) {
   for (const p of products as any[]) {
     const code = String(p.metadata?.ascolour?.styleCode ?? "")
     const codeSlug = slugify(code)
-    const title = String(p.title ?? "").trim()
+    // Some titles lead with the code ("5056 General LS Tee") — don't double it.
+    const title = String(p.title ?? "")
+      .replace(new RegExp(`^${code}\\s*[-|:]?\\s*`, "i"), "")
+      .trim()
     // Only touch the exact doubled shape — anything else was hand-edited.
     if (!code || p.handle !== `as-colour-${codeSlug}-${codeSlug}`) continue
     if (!title || /^as colour/i.test(title)) {
