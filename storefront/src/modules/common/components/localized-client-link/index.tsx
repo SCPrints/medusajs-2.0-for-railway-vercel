@@ -1,111 +1,54 @@
 "use client"
 
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import React from "react"
 
-/**
- * If the browser's startViewTransition() snapshot phase doesn't complete
- * within this many ms, fall back to a plain router.push so the click is
- * never lost. The customizer page in particular (Fabric.js canvas + the
- * 5500-line wizard) can stall the snapshot indefinitely, which previously
- * left users with a "click does nothing, URL doesn't change" hang on the
- * SC Prints logo and other internal links.
- */
-const VIEW_TRANSITION_FALLBACK_MS = 250
-
-const runPageTransition = () => {
-  // Reset scroll to the top of the new page. Next.js's router.push normally
-  // does this automatically with `scroll: true` (the default), but wrapping
-  // the push inside `document.startViewTransition` + `startTransition`
-  // (which next-view-transitions does internally) defers the scroll reset
-  // until the transition completes — by which point the user briefly sees
-  // the new page mounted at the previous scroll position. Doing it here
-  // (inside `transition.ready`) means the actual DOM scroll happens while
-  // the view-transition pseudo-elements still cover the page, so the user
-  // sees a clean transition that lands at the top.
-  window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior })
-
-  document.documentElement.animate(
-    [
-      { opacity: 1, transform: "translateY(0)" },
-      { opacity: 0.25, transform: "translateY(24%)" },
-    ],
-    {
-      duration: 650,
-      easing: "cubic-bezier(0.87, 0, 0.13, 1)",
-      fill: "forwards",
-      pseudoElement: "::view-transition-old(root)",
-    }
-  )
-
-  document.documentElement.animate(
-    [
-      { clipPath: "polygon(0 0, 100% 0, 100% 0, 0 0)" },
-      { clipPath: "polygon(0 0, 100% 0, 100% 100%, 0 100%)" },
-    ],
-    {
-      duration: 650,
-      easing: "cubic-bezier(0.87, 0, 0.13, 1)",
-      fill: "forwards",
-      pseudoElement: "::view-transition-new(root)",
-    }
-  )
-}
-
-type NavRouter = ReturnType<typeof useRouter>
+import { phCapture } from "@lib/posthog"
 
 /**
- * Navigate via the browser View Transitions API when available, with a hard
- * timeout fallback to plain `router.push` so a stalled snapshot phase never
- * blocks the click. Replaces the previous `next-view-transitions` integration
- * which had no timeout and hung indefinitely on heavy customizer pages.
+ * If the URL still hasn't changed this long after an internal link click,
+ * report it. This is the "click does nothing" symptom customers described for
+ * months; the watchdog gives us the href, page and browser each time it recurs.
  */
-function navigateWithViewTransition(router: NavRouter, href: string): void {
-  if (
-    typeof document === "undefined" ||
-    typeof (document as any).startViewTransition !== "function"
-  ) {
-    router.push(href)
+const NAVIGATION_STALL_MS = 5000
+
+const watchForStalledNavigation = (targetHref: string) => {
+  if (typeof window === "undefined") return
+  const from = window.location.href
+  const target = new URL(targetHref, window.location.origin)
+  // Clicking a link to the page you're already on is a no-op by design.
+  if (target.pathname + target.search === window.location.pathname + window.location.search) {
     return
   }
-
-  let didNavigate = false
-  const navigate = () => {
-    if (didNavigate) return
-    didNavigate = true
-    router.push(href)
-  }
-
-  const fallbackTimer = window.setTimeout(navigate, VIEW_TRANSITION_FALLBACK_MS)
-
-  try {
-    const transition = (document as any).startViewTransition(() => {
-      window.clearTimeout(fallbackTimer)
-      navigate()
+  window.setTimeout(() => {
+    if (window.location.href !== from) return
+    phCapture("navigation_stalled", {
+      href: target.pathname + target.search,
+      from_path: window.location.pathname,
+      elapsed_ms: NAVIGATION_STALL_MS,
+      online: navigator.onLine,
+      visibility: document.visibilityState,
     })
-    // Fire the clip-path animation once the new DOM is snapshotted; any failure
-    // (unsupported pseudo-elements, transition skip, etc.) is non-fatal — the
-    // navigation itself is already in flight.
-    if (transition?.ready && typeof transition.ready.then === "function") {
-      transition.ready.then(runPageTransition).catch(() => undefined)
-    }
-  } catch {
-    // startViewTransition can throw synchronously when called during an
-    // active transition. Bail out cleanly to the timeout-driven fallback.
-    window.clearTimeout(fallbackTimer)
-    navigate()
-  }
+  }, NAVIGATION_STALL_MS)
 }
 
 /**
  * Use this component to create a Next.js `<Link />` that persists the current country code in the url,
  * without having to explicitly pass it as a prop.
+ *
+ * Plain `next/link` navigation on purpose. Until Oct 2026 every click here was
+ * wrapped in `document.startViewTransition()`, which freezes painting from the
+ * click until the new route commits (or the browser's ~4s timeout). On heavy
+ * destinations that read as "I clicked and nothing happened" and was ~90% of
+ * the client exceptions PostHog captured (View transition ... timed out /
+ * aborted). The loading.tsx skeletons can only paint when nothing freezes them.
  */
 const LocalizedClientLink = ({
   children,
   href,
   prefetch,
+  onClick,
   ...props
 }: {
   children?: React.ReactNode
@@ -117,7 +60,6 @@ const LocalizedClientLink = ({
   passHref?: true
   [x: string]: any
 }) => {
-  const router = useRouter()
   const { countryCode } = useParams()
   const normalizedCountryCode = Array.isArray(countryCode)
     ? countryCode[0]
@@ -133,20 +75,11 @@ const LocalizedClientLink = ({
       : `/${normalizedCountryCode}${href}`
 
   const handleClick: React.MouseEventHandler<HTMLAnchorElement> = (e) => {
-    const clickHandler = props.onClick
-    if (typeof clickHandler === "function") {
-      if (clickHandler.length === 0) {
-        ;(clickHandler as () => void)()
-      } else {
-        ;(clickHandler as React.MouseEventHandler<HTMLAnchorElement>)(e)
-      }
-    }
+    ;(onClick as React.MouseEventHandler<HTMLAnchorElement> | undefined)?.(e)
 
-    if (e.defaultPrevented) {
-      return
-    }
-
-    if (
+    const opensElsewhere =
+      e.defaultPrevented ||
+      e.button !== 0 ||
       e.metaKey ||
       e.ctrlKey ||
       e.shiftKey ||
@@ -155,21 +88,13 @@ const LocalizedClientLink = ({
       props.download ||
       isExternalHref ||
       href.startsWith("#")
-    ) {
-      return
+    if (!opensElsewhere) {
+      watchForStalledNavigation(localizedHref)
     }
-
-    e.preventDefault()
-    navigateWithViewTransition(router, localizedHref)
   }
 
   return (
-    <Link
-      href={localizedHref}
-      prefetch={prefetch}
-      {...props}
-      onClick={handleClick}
-    >
+    <Link href={localizedHref} prefetch={prefetch} {...props} onClick={handleClick}>
       {children}
     </Link>
   )

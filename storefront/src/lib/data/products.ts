@@ -668,6 +668,41 @@ export async function getProductsListWithSort({
   }
   const useApiPagination = Boolean(API_SORT_ORDER[sortBy]) && !hasClientFilters
 
+  // Meilisearch results page: `queryParams.id` is Meili's RANKED hit list.
+  // Page over it in rank order and hydrate only this page's ids with the slim
+  // listing field set. The old path handed every hit to Medusa with the full
+  // field set + `order=-created_at`, which (a) threw relevance away — "staple
+  // tee" put the Staple Tee on page 3 behind newer hoodies — and (b) built a
+  // cache entry too big for Vercel's runtime cache (413 on every write, so
+  // every search re-ran the ~4s hydration). Non-default sorts and filters
+  // still take the legacy paths below.
+  // ponytail: this entry can still near the 2MB cache ceiling for 12
+  // variant-heavy products (Aussie Pacific); if 413s persist, trim
+  // LISTING_PRODUCT_FIELDS rather than the page size.
+  const rankedIds = Array.isArray((queryParams as Record<string, unknown>)?.id)
+    ? ((queryParams as Record<string, unknown>).id as string[])
+    : null
+  if (rankedIds && !hasClientFilters && sortBy === "created_at") {
+    const start = (resolvedPage - 1) * limit
+    const pageIds = rankedIds.slice(start, start + limit)
+    const region = pageIds.length ? await getRegion(countryCode) : null
+    const hydrated = region
+      ? await getProductsByIdForListing({ ids: pageIds, regionId: region.id })
+      : []
+    const rank = new Map(pageIds.map((id, i) => [id, i]))
+    const products = [...hydrated].sort(
+      (a, b) => (rank.get(a.id ?? "") ?? 0) - (rank.get(b.id ?? "") ?? 0)
+    )
+    // An id list that resolves to nothing on page 1 (e.g. the `__no_match__`
+    // sentinel for an unknown legacy tag) is an empty result, not "N hits".
+    const count = resolvedPage === 1 && products.length === 0 ? 0 : rankedIds.length
+    return {
+      response: { products, count },
+      nextPage: count > resolvedPage * limit ? resolvedPage + 1 : null,
+      queryParams,
+    }
+  }
+
   // Listing-via-search (flag-gated): Meili sorts/filters/paginates and we
   // hydrate just the page's 12 IDs with the slim field set. Used for ALL
   // sorts INCLUDING the default created_at view — the Medusa default-listing

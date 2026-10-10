@@ -75,8 +75,11 @@ const RefinementList = ({
   sortBy,
   filters,
   facetOptions,
+  search,
   "data-testid": dataTestId,
 }: RefinementListProps) => {
+  // Search results default to Meilisearch's ranking, not newest-first.
+  const defaultSortLabel = search ? "Relevance" : undefined
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -361,6 +364,7 @@ const RefinementList = ({
             data-testid={dataTestId}
             variant="inline-mobile"
             pending={isPending}
+            defaultLabel={defaultSortLabel}
           />
         </div>
       </div>
@@ -397,6 +401,7 @@ const RefinementList = ({
                 setQueryParams={setSortQueryParam}
                 data-testid={dataTestId}
                 pending={isPending}
+                defaultLabel={defaultSortLabel}
               />
               {filterForm}
             </div>
@@ -411,6 +416,7 @@ const RefinementList = ({
           setQueryParams={setSortQueryParam}
           data-testid={dataTestId}
           pending={isPending}
+          defaultLabel={defaultSortLabel}
         />
         {filterForm}
       </div>

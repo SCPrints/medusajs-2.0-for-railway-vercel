@@ -22,6 +22,9 @@ type SortProductsProps = {
   variant?: "radio" | "inline-mobile"
   /** Show an inline spinner while the sort navigation is in flight. */
   pending?: boolean
+  /** Label for the default (`created_at`) option. Search results pass
+   *  "Relevance" because their default order is Meilisearch's ranking. */
+  defaultLabel?: string
   "data-testid"?: string
 }
 
@@ -33,7 +36,7 @@ const PendingSpinner = ({ className }: { className?: string }) => (
   />
 )
 
-const sortOptions = [
+const baseSortOptions = [
   {
     value: "created_at",
     label: "Latest Arrivals",
@@ -62,10 +65,14 @@ const SortProducts = ({
   setQueryParams,
   variant = "radio",
   pending = false,
+  defaultLabel,
 }: SortProductsProps) => {
   const handleChange = (value: SortOptions) => {
     setQueryParams("sortBy", value)
   }
+  const sortOptions = defaultLabel
+    ? baseSortOptions.map((o) => (o.value === "created_at" ? { ...o, label: defaultLabel } : o))
+    : baseSortOptions
 
   if (variant === "inline-mobile") {
     const onSelect = (event: ChangeEvent<HTMLSelectElement>) =>

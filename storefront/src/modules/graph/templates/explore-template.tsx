@@ -1,8 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useParams } from "next/navigation"
-import { useTransitionRouter } from "next-view-transitions"
+import { useParams, useRouter } from "next/navigation"
 
 import type { GraphNode, GraphPayload } from "../../../types/graph"
 import { ForceGraph, type ForceGraphHandle } from "../components/force-graph"
@@ -34,7 +33,7 @@ export function ExploreTemplate({ initialPayload, initialFocus }: Props) {
   const countryCode = Array.isArray(params?.countryCode)
     ? params.countryCode[0]
     : (params?.countryCode as string | undefined)
-  const router = useTransitionRouter()
+  const router = useRouter()
 
   const [visibility, setVisibility] = useState<GraphVisibility>(DEFAULT_VISIBILITY)
   const [search, setSearch] = useState<string>("")

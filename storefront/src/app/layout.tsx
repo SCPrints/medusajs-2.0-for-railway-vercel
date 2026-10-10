@@ -3,7 +3,6 @@ import { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans } from "next/font/google"
 import { Suspense } from "react"
 import "styles/globals.css"
-import { ViewTransitions } from "next-view-transitions"
 import ConditionalCursorDot from "@modules/layout/components/conditional-cursor-dot"
 import { Ga4Script } from "@modules/common/components/ga4-script"
 import { MetaPixel } from "@modules/common/components/meta-pixel"
@@ -164,11 +163,9 @@ export default function RootLayout(props: { children: React.ReactNode }) {
             }}
           />
           <Suspense fallback={null}>
-            <ViewTransitions>
-              <main className="relative min-h-dvh bg-[var(--brand-background)] text-[var(--brand-primary)]">
-                {props.children}
-              </main>
-            </ViewTransitions>
+            <main className="relative min-h-dvh bg-[var(--brand-background)] text-[var(--brand-primary)]">
+              {props.children}
+            </main>
           </Suspense>
           <AddToHomeBanner />
           <ServiceWorkerRegister />
