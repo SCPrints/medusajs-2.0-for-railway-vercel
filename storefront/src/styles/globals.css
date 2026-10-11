@@ -3,6 +3,9 @@
 @import "tailwindcss/utilities";
 
 :root {
+  /* Sticky header height (row 1 = 80px; row 2 category bar adds 48px from `small:`).
+     Full-viewport pages subtract this: calc(100dvh - var(--nav-height)). */
+  --nav-height: 80px;
   --brand-primary: #1a1a2e; /* Inkwell Navy */
   --brand-secondary: #ff2e63; /* Magenta Punch */
   --brand-accent: #3dcfc2; /* Brand teal — rgb(61, 207, 194) */
@@ -306,3 +309,10 @@ a.checkout-nav-link--subtle:hover {
 }
 
 
+
+/* Second header row (category bar) is only rendered from the `small:` breakpoint. */
+@media (min-width: 1024px) {
+  :root {
+    --nav-height: 128px;
+  }
+}

@@ -39,8 +39,7 @@ export function mergePayloads(
       ...existing,
       ...node,
       thumbnail: node.thumbnail ?? existing.thumbnail,
-      price: node.price ?? existing.price,
-      logoSrc: node.logoSrc ?? existing.logoSrc,
+      handle: node.handle ?? existing.handle,
       productCount: node.productCount ?? existing.productCount,
     })
   }

@@ -1,47 +1,37 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { isStorefrontOriginAllowed } from "../../../lib/storefront-origins"
-import { BRAND_MODULE } from "../../../modules/brand"
-import type BrandModuleService from "../../../modules/brand/service"
 
 /**
  * GET /store/graph
  *
- * Builds the Nodes/Links JSON for the storefront product discovery graph.
- * Uses `query.graph` so a single request fetches product + brand (metadata) +
- * category + collection relationships with no waterfalls.
+ * Nodes/Links JSON for the storefront "Explore" catalog map.
  *
  * Modes:
- *   - `summary` (default): root + distinct brand nodes + top-level categories
- *     + product types + product tags. No product nodes. Used for initial paint.
- *   - `brand`:    products for one brand + links to brand + their categories/types/tags.
- *   - `category`: products in one category + links.
- *   - `type`:     products for one product type + links.
- *   - `tag`:      products for one product tag + links.
- *   - `all`:      full dump, hard-capped. Diagnostic / admin tool override.
+ *   - `summary` (default): root + brands + categories + product types + tags,
+ *     each with a product count. No product nodes. Built from four GROUP BY
+ *     queries (no product hydration) and cached in-process for 5 minutes.
+ *   - `brand` / `category` / `type` / `tag`: products for one hub + links to
+ *     their brand / categories / type / tags. Cached per (mode, id, page).
  *
- * Query params:
- *   - mode: "summary" | "brand" | "category" | "type" | "tag" | "all" (default "summary")
- *   - brand: brand name (required when mode=brand)
- *   - category_id: category id (required when mode=category)
- *   - type_id: product type id (required when mode=type)
- *   - tag_id: product tag id (required when mode=tag)
- *   - limit: per-page cap for product-returning modes (default 200, max 500)
- *   - offset: pagination offset (product-returning modes only)
+ * Query params: mode, brand (name), category_id, type_id, tag_id, limit
+ * (default 200, max 500), offset.
+ *
+ * 2026-10: rewritten from a full-catalog paginate (3.6–4.5 s per summary call,
+ * 10–16 s per brand expansion because every variant's prices + metadata were
+ * hydrated for a hover-only price). Prices are no longer emitted at all — the
+ * old min-over-all-price-rows leaked B2B tier prices to guests.
  */
 
 type NodeKind = "root" | "brand" | "category" | "product" | "type" | "tag"
-
-type GraphPrice = { amount: number; currency_code: string }
 
 type GraphNode = {
   id: string
   kind: NodeKind
   label: string
+  /** Product handle (product nodes) or brand handle (brand nodes, for logo lookup). */
   handle?: string
   thumbnail?: string | null
-  price?: GraphPrice | null
-  logoSrc?: string | null
   productCount?: number
 }
 
@@ -58,7 +48,7 @@ type GraphLinkKind =
 
 type GraphLink = { source: string; target: string; kind: GraphLinkKind }
 
-type GraphMode = "summary" | "brand" | "category" | "type" | "tag" | "all"
+type GraphMode = "summary" | "brand" | "category" | "type" | "tag"
 
 type GraphPayload = {
   nodes: GraphNode[]
@@ -73,27 +63,17 @@ type ProductRow = {
   handle: string | null
   title: string
   thumbnail: string | null
-  metadata: Record<string, unknown> | null
-  status?: string
+  brand?: { name?: string; handle?: string } | Array<{ name?: string; handle?: string }> | null
   type?: { id: string; value: string } | null
   tags?: Array<{ id: string; value: string }>
-  variants?: Array<{
-    id: string
-    prices?: Array<{ amount: number; currency_code: string }>
-    metadata?: Record<string, unknown> | null
-  }>
-  categories?: Array<{
-    id: string
-    name: string
-    parent_category_id: string | null
-  }>
-  collection?: { id: string; title: string } | null
+  categories?: Array<{ id: string; name: string }>
 }
 
-type CategoryRow = {
-  id: string
-  name: string
-  parent_category_id: string | null
+type QueryGraph = {
+  graph: (args: Record<string, unknown>) => Promise<{
+    data: unknown[]
+    metadata?: { count?: number }
+  }>
 }
 
 const ROOT_ID = "root"
@@ -102,261 +82,149 @@ const ROOT_NODE: GraphNode = { id: ROOT_ID, kind: "root", label: "Catalog" }
 const DEFAULT_LIMIT = 200
 const HARD_MAX_LIMIT = 500
 
-/**
- * Canonical brands always rendered in the summary graph, even when the
- * catalogue currently has zero products for them. Mirrors
- * `storefront/src/modules/brands/data/brands.ts` so the graph stays in sync
- * with the `/brands` page. `logoSrc` paths are relative to the storefront
- * public dir — the graph renderer prefixes them with the storefront origin.
- */
-const CANONICAL_BRANDS: Array<{ name: string; logoSrc: string | null }> = [
-  { name: "AS Colour", logoSrc: "/images/brands/logos/as-colour.png" },
-  { name: "Syzmik", logoSrc: "/images/brands/logos/syzmik-workwear.svg" },
-  { name: "Biz Collection", logoSrc: "/images/brands/logos/biz-collection.svg" },
-]
+/** Products the storefront never lists (setup-fee / vectorisation service rows). */
+const NOT_INTERNAL_SERVICE_SQL = `coalesce(product.metadata->>'internal_service', '') <> 'true'`
 
-/**
- * Brand resolution: read the linked Brand entity (populated by every supplier
- * importer + the `/admin/products/:id/brand` widget). The link is expanded via
- * `query.graph(...)` so this is a pure projection — no fallback needed once
- * `verify-brand-links` reports zero orphans (last confirmed 2026-05-23).
- */
-function resolveProductBrand(row: ProductRow): string | null {
-  const linked = (row as { brand?: { name?: string } | Array<{ name?: string }> | null }).brand
-  const linkedName = Array.isArray(linked) ? linked[0]?.name : linked?.name
-  if (typeof linkedName === "string" && linkedName.trim()) return linkedName.trim()
-  return null
+// ── In-process cache (per machine; same shape as shop-categories/menu) ──────
+const CACHE_TTL_MS = 5 * 60 * 1000
+const CACHE_MAX_ENTRIES = 200
+const cache = new Map<string, { exp: number; payload: GraphPayload }>()
+const inFlight = new Map<string, Promise<GraphPayload>>()
+
+async function cached(key: string, build: () => Promise<GraphPayload>): Promise<GraphPayload> {
+  const hit = cache.get(key)
+  if (hit && hit.exp > Date.now()) return hit.payload
+  let p = inFlight.get(key)
+  if (!p) {
+    p = build()
+      .then((payload) => {
+        if (cache.size >= CACHE_MAX_ENTRIES) {
+          const oldest = cache.keys().next().value
+          if (oldest) cache.delete(oldest)
+        }
+        cache.set(key, { exp: Date.now() + CACHE_TTL_MS, payload })
+        return payload
+      })
+      .finally(() => inFlight.delete(key))
+    inFlight.set(key, p)
+  }
+  return p
 }
 
-function resolveProductType(row: ProductRow): { id: string; value: string } | null {
-  const t = row.type
-  if (t && typeof t.id === "string" && typeof t.value === "string") {
-    return { id: t.id, value: t.value }
-  }
-  return null
+// ── Summary: four GROUP BY queries, no product hydration ────────────────────
+
+/** Join + filter shared by every count query: published, live, not a service product. */
+function publishedProducts(pg: any, table: string, productIdColumn: string) {
+  return pg(table)
+    .join("product", "product.id", `${table}.${productIdColumn}`)
+    .where("product.status", "published")
+    .whereNull("product.deleted_at")
+    .whereRaw(NOT_INTERNAL_SERVICE_SQL)
 }
 
-function resolveProductTags(row: ProductRow): Array<{ id: string; value: string }> {
-  const tags = row.tags
-  if (!Array.isArray(tags)) return []
-  return tags.filter(
-    (t): t is { id: string; value: string } =>
-      typeof t.id === "string" && typeof t.value === "string"
-  )
+async function buildSummary(pg: any): Promise<GraphPayload> {
+  const nodes: GraphNode[] = [ROOT_NODE]
+  const links: GraphLink[] = []
+
+  const [categoryRows, categoryCounts, brandRows, brandCounts, typeRows, tagRows] =
+    await Promise.all([
+      pg("product_category")
+        .whereNull("deleted_at")
+        .where({ is_active: true, is_internal: false })
+        .whereRaw(`coalesce(metadata->>'is_hidden_from_menu', '') <> 'true'`)
+        .select("id", "name", "handle", "parent_category_id") as Promise<
+        Array<{ id: string; name: string; handle: string; parent_category_id: string | null }>
+      >,
+      publishedProducts(pg, "product_category_product", "product_id")
+        .groupBy("product_category_product.product_category_id")
+        .select("product_category_product.product_category_id as id")
+        .count("product.id as count") as Promise<Array<{ id: string; count: string }>>,
+      pg("brand")
+        .whereNull("deleted_at")
+        .where({ is_active: true })
+        .select("id", "name", "handle") as Promise<
+        Array<{ id: string; name: string; handle: string }>
+      >,
+      publishedProducts(pg, "product_product_brand_brand", "product_id")
+        .whereNull("product_product_brand_brand.deleted_at")
+        .groupBy("product_product_brand_brand.brand_id")
+        .select("product_product_brand_brand.brand_id as id")
+        .count("product.id as count") as Promise<Array<{ id: string; count: string }>>,
+      pg("product")
+        .join("product_type", "product_type.id", "product.type_id")
+        .where("product.status", "published")
+        .whereNull("product.deleted_at")
+        .whereNull("product_type.deleted_at")
+        .whereRaw(NOT_INTERNAL_SERVICE_SQL)
+        .groupBy("product_type.id", "product_type.value")
+        .select("product_type.id as id", "product_type.value as value")
+        .count("product.id as count") as Promise<
+        Array<{ id: string; value: string; count: string }>
+      >,
+      publishedProducts(pg, "product_tags", "product_id")
+        .join("product_tag", "product_tag.id", "product_tags.product_tag_id")
+        .whereNull("product_tag.deleted_at")
+        .groupBy("product_tag.id", "product_tag.value")
+        .select("product_tag.id as id", "product_tag.value as value")
+        .count("product.id as count") as Promise<
+        Array<{ id: string; value: string; count: string }>
+      >,
+    ])
+
+  const countById = (rows: Array<{ id: string; count: string }>) =>
+    new Map(rows.map((r) => [r.id, Number(r.count) || 0]))
+  const catCount = countById(categoryCounts)
+  const brandCount = countById(brandCounts)
+
+  // Categories: keep every top-level audience (so the ring is stable even if
+  // one is temporarily empty) and only sub-categories that actually hold stock.
+  const categoryIds = new Set(categoryRows.map((c) => c.id))
+  for (const cat of categoryRows) {
+    const count = catCount.get(cat.id) ?? 0
+    const hasParent = Boolean(cat.parent_category_id && categoryIds.has(cat.parent_category_id))
+    if (hasParent && count === 0) continue
+    nodes.push({ id: `cat:${cat.id}`, kind: "category", label: cat.name, handle: cat.handle, productCount: count })
+    links.push(
+      hasParent
+        ? { source: `cat:${cat.id}`, target: `cat:${cat.parent_category_id}`, kind: "category-parent" }
+        : { source: `cat:${cat.id}`, target: ROOT_ID, kind: "category-root" }
+    )
+  }
+
+  for (const b of brandRows) {
+    nodes.push({ id: `brand:${b.name}`, kind: "brand", label: b.name, handle: b.handle, productCount: brandCount.get(b.id) ?? 0 })
+    links.push({ source: `brand:${b.name}`, target: ROOT_ID, kind: "brand-root" })
+  }
+
+  for (const t of typeRows) {
+    nodes.push({ id: `type:${t.id}`, kind: "type", label: t.value, productCount: Number(t.count) || 0 })
+    links.push({ source: `type:${t.id}`, target: ROOT_ID, kind: "type-root" })
+  }
+
+  for (const t of tagRows) {
+    nodes.push({ id: `tag:${t.id}`, kind: "tag", label: t.value, productCount: Number(t.count) || 0 })
+    links.push({ source: `tag:${t.id}`, target: ROOT_ID, kind: "tag-root" })
+  }
+
+  return { nodes, links, mode: "summary" }
 }
 
-const BULK_VS_CALCULATED_MISMATCH_RATIO = 2
-const SUSPICIOUSLY_LOW_CALCULATED_MINOR = 100
-const PLAUSIBLE_RETAIL_BULK_MINOR = 500
-const AS_COLOUR_HANDLE_PREFIX = "as-colour-"
+// ── Product modes ───────────────────────────────────────────────────────────
 
-const toNumber = (value: unknown) => {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value
-  }
-  if (typeof value === "string") {
-    const cleaned = value.replace(/,/g, "").trim()
-    if (!cleaned) {
-      return Number.NaN
-    }
-    const n = Number(cleaned)
-    return Number.isFinite(n) ? n : Number.NaN
-  }
-  return Number.NaN
-}
-
-const getFirstBulkTierMinor = (variant: {
-  metadata?: Record<string, unknown> | null
-}): number | undefined => {
-  const metadata = (variant.metadata ?? {}) as Record<string, unknown>
-  const bulkPricing = metadata.bulk_pricing as { tiers?: Array<Record<string, unknown>> } | undefined
-  if (!Array.isArray(bulkPricing?.tiers) || bulkPricing.tiers.length === 0) {
-    return undefined
-  }
-
-  const parsed = bulkPricing.tiers
-    .map((tier) => {
-      const minQuantity = toNumber(tier.min_quantity)
-      const amount = toNumber(tier.amount)
-      if (!Number.isFinite(minQuantity) || !Number.isFinite(amount)) {
-        return null
-      }
-      return { min_quantity: minQuantity, amount }
-    })
-    .filter((t): t is { min_quantity: number; amount: number } => t !== null)
-    .sort((a, b) => a.min_quantity - b.min_quantity)
-
-  const first = parsed[0]
-  return first && Number.isFinite(first.amount) ? first.amount : undefined
-}
-
-const resolveHeadlineMinorAmount = (
-  bulkTierAmount: number | undefined,
-  calculatedMinor: number
-): number => {
-  const b =
-    typeof bulkTierAmount === "number" && Number.isFinite(bulkTierAmount) ? bulkTierAmount : null
-  const c = calculatedMinor
-
-  if (b !== null && b > 0 && c > 0) {
-    if (c >= b * BULK_VS_CALCULATED_MISMATCH_RATIO) {
-      return c
-    }
-    if (b >= c * BULK_VS_CALCULATED_MISMATCH_RATIO) {
-      if (
-        c < SUSPICIOUSLY_LOW_CALCULATED_MINOR &&
-        b > PLAUSIBLE_RETAIL_BULK_MINOR &&
-        b >= c * 10
-      ) {
-        return b
-      }
-      return c
-    }
-    return b
-  }
-
-  if (b !== null && b > 0) {
-    return b
-  }
-
-  return c
-}
-
-const finalizeAudAsColourMinorIfHundredfoldTypo = (
-  resolvedMinor: number,
-  apiMinor: number,
-  productHandle: string | null | undefined,
-  currencyCode: string
-): number => {
-  const cc = String(currencyCode ?? "").toLowerCase()
-  if (cc !== "aud") {
-    return resolvedMinor
-  }
-
-  const h = String(productHandle ?? "").trim().toLowerCase()
-  if (!h.startsWith(AS_COLOUR_HANDLE_PREFIX)) {
-    return resolvedMinor
-  }
-
-  if (resolvedMinor !== apiMinor) {
-    return resolvedMinor
-  }
-
-  if (!(apiMinor >= 5 && apiMinor <= 199)) {
-    return resolvedMinor
-  }
-
-  const scaled = Math.round(apiMinor * 100)
-  if (scaled < 500 || scaled > 600_000) {
-    return resolvedMinor
-  }
-  return scaled
-}
-
-/**
- * Pick qty-1 headline-style minor amount for graph cards so Explorer aligns with PDP.
- * Uses preferred currency when available, then falls back to lowest minor in any currency.
- */
-function lowestPrice(row: ProductRow, preferredCurrency: string | null): GraphPrice | null {
-  const all: GraphPrice[] = []
-
-  for (const variant of row.variants ?? []) {
-    const bulkFirst = getFirstBulkTierMinor(variant)
-    for (const price of variant.prices ?? []) {
-      if (typeof price.amount !== "number" || !price.currency_code) {
-        continue
-      }
-      const currencyCode = price.currency_code.toLowerCase()
-      const headlineResolved = resolveHeadlineMinorAmount(bulkFirst, price.amount)
-      const displayMinor = finalizeAudAsColourMinorIfHundredfoldTypo(
-        headlineResolved,
-        price.amount,
-        row.handle,
-        currencyCode
-      )
-      all.push({ amount: displayMinor, currency_code: currencyCode })
-    }
-  }
-
-  if (!all.length) return null
-  if (preferredCurrency) {
-    const inPreferred = all.filter((p) => p.currency_code === preferredCurrency.toLowerCase())
-    if (inPreferred.length) {
-      return inPreferred.reduce((min, p) => (p.amount < min.amount ? p : min))
-    }
-  }
-  return all.reduce((min, p) => (p.amount < min.amount ? p : min))
-}
-
-function isAllowedOrigin(origin: string): boolean {
-  return isStorefrontOriginAllowed(origin)
-}
-
-function setCors(req: MedusaRequest, res: MedusaResponse) {
-  const origin = req.headers.origin ?? ""
-  if (origin && isAllowedOrigin(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin)
-  }
-  res.setHeader("Vary", "Origin")
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key")
-  res.setHeader("Access-Control-Allow-Credentials", "true")
-}
-
-function setCacheHeaders(res: MedusaResponse) {
-  res.setHeader("Cache-Control", "public, s-maxage=300, stale-while-revalidate=3600")
-}
-
-function parseMode(raw: unknown): GraphMode {
-  const v = typeof raw === "string" ? raw.toLowerCase() : ""
-  if (v === "brand" || v === "category" || v === "type" || v === "tag" || v === "all") return v
-  return "summary"
-}
-
-function clampLimit(raw: unknown): number {
-  const n = Number(raw)
-  if (!Number.isFinite(n) || n <= 0) return DEFAULT_LIMIT
-  return Math.min(Math.floor(n), HARD_MAX_LIMIT)
-}
-
-function clampOffset(raw: unknown): number {
-  const n = Number(raw)
-  if (!Number.isFinite(n) || n < 0) return 0
-  return Math.floor(n)
-}
-
-/** Graph product fields requested via query.graph. */
 const PRODUCT_FIELDS = [
   "id",
   "handle",
   "title",
   "thumbnail",
-  "metadata",
-  "status",
-  "brand.id",
   "brand.name",
   "brand.handle",
   "type.id",
   "type.value",
   "tags.id",
   "tags.value",
-  "variants.id",
-  "variants.prices.amount",
-  "variants.prices.currency_code",
-  "variants.metadata",
   "categories.id",
   "categories.name",
-  "categories.parent_category_id",
-  "collection.id",
-  "collection.title",
 ]
-
-type QueryGraph = {
-  graph: (args: Record<string, unknown>) => Promise<{
-    data: unknown[]
-    metadata?: { count?: number; take?: number; skip?: number }
-  }>
-}
 
 async function fetchProducts(
   query: QueryGraph,
@@ -370,572 +238,150 @@ async function fetchProducts(
     filters: { status: "published", ...filters },
     pagination: { take: limit, skip: offset },
   })
-  return {
-    rows: (data as ProductRow[]) ?? [],
-    total: metadata?.count ?? (data?.length ?? 0),
-  }
+  const rows = ((data as ProductRow[]) ?? []).filter((r) => r.handle)
+  return { rows, total: metadata?.count ?? rows.length }
 }
 
-async function fetchAllCategories(query: QueryGraph): Promise<CategoryRow[]> {
-  const rows: CategoryRow[] = []
-  let skip = 0
-  const take = 200
-  for (;;) {
-    const { data } = await query.graph({
-      entity: "product_category",
-      fields: ["id", "name", "parent_category_id"],
-      pagination: { take, skip },
-    })
-    const page = (data as CategoryRow[]) ?? []
-    rows.push(...page)
-    if (page.length < take) break
-    skip += take
-  }
-  return rows
-}
-
-function buildProductNodeAndLinks(
-  row: ProductRow,
-  preferredCurrency: string | null,
-  includeBrandLink: boolean,
-  includeCategoryLinks: boolean
-): { node: GraphNode; links: GraphLink[]; brand: string | null } {
-  const brand = resolveProductBrand(row)
-  const node: GraphNode = {
-    id: `prod:${row.id}`,
-    kind: "product",
-    label: row.title,
-    handle: row.handle ?? undefined,
-    thumbnail: row.thumbnail ?? null,
-    price: lowestPrice(row, preferredCurrency),
-  }
-
-  const links: GraphLink[] = []
-  if (includeBrandLink && brand) {
-    links.push({
-      source: node.id,
-      target: `brand:${brand}`,
-      kind: "product-brand",
-    })
-  }
-  if (includeCategoryLinks) {
-    for (const cat of row.categories ?? []) {
-      links.push({
-        source: node.id,
-        target: `cat:${cat.id}`,
-        kind: "product-category",
-      })
-    }
-  }
-
-  // Always emit type/tag links so products connect to the summary super-nodes
-  // when they're merged into the client payload.
-  const productType = resolveProductType(row)
-  if (productType) {
-    links.push({
-      source: node.id,
-      target: `type:${productType.id}`,
-      kind: "product-type",
-    })
-  }
-  for (const tag of resolveProductTags(row)) {
-    links.push({
-      source: node.id,
-      target: `tag:${tag.id}`,
-      kind: "product-tag",
-    })
-  }
-
-  return { node, links, brand }
+function brandOf(row: ProductRow): { name: string; handle?: string } | null {
+  const b = Array.isArray(row.brand) ? row.brand[0] : row.brand
+  const name = b?.name?.trim()
+  return name ? { name, handle: b?.handle } : null
 }
 
 /**
- * Build the initial "summary" payload — root + brand super-nodes + category
- * super-nodes + product type nodes + tag nodes. Brand/type/tag counts come
- * from a lightweight product scan. No product nodes are emitted here.
+ * Emit the product node, its links, and any hub nodes (brand / categories /
+ * type / tags) it references so the client merge never produces a dangling
+ * link. `hub` is the node this expansion was requested for.
  */
-async function buildSummary(query: QueryGraph): Promise<GraphPayload> {
-  const nodes: GraphNode[] = [ROOT_NODE]
-  const links: GraphLink[] = []
+function appendProducts(
+  rows: ProductRow[],
+  nodes: GraphNode[],
+  links: GraphLink[],
+  hubId: string
+) {
+  const seen = new Set<string>([hubId])
+  const hub = (node: GraphNode) => {
+    if (seen.has(node.id)) return
+    seen.add(node.id)
+    nodes.push(node)
+  }
+  for (const row of rows) {
+    const id = `prod:${row.id}`
+    nodes.push({ id, kind: "product", label: row.title, handle: row.handle ?? undefined, thumbnail: row.thumbnail ?? null })
 
-  const categories = await fetchAllCategories(query)
-  const categoryIdSet = new Set(categories.map((c) => c.id))
-
-  for (const cat of categories) {
-    nodes.push({
-      id: `cat:${cat.id}`,
-      kind: "category",
-      label: cat.name,
-    })
-    if (cat.parent_category_id && categoryIdSet.has(cat.parent_category_id)) {
-      links.push({
-        source: `cat:${cat.id}`,
-        target: `cat:${cat.parent_category_id}`,
-        kind: "category-parent",
-      })
-    } else {
-      links.push({
-        source: `cat:${cat.id}`,
-        target: ROOT_ID,
-        kind: "category-root",
-      })
+    const brand = brandOf(row)
+    if (brand) {
+      hub({ id: `brand:${brand.name}`, kind: "brand", label: brand.name, handle: brand.handle })
+      links.push({ source: id, target: `brand:${brand.name}`, kind: "product-brand" })
+    }
+    for (const cat of row.categories ?? []) {
+      hub({ id: `cat:${cat.id}`, kind: "category", label: cat.name })
+      links.push({ source: id, target: `cat:${cat.id}`, kind: "product-category" })
+    }
+    if (row.type?.id) {
+      hub({ id: `type:${row.type.id}`, kind: "type", label: row.type.value })
+      links.push({ source: id, target: `type:${row.type.id}`, kind: "product-type" })
+    }
+    for (const tag of row.tags ?? []) {
+      hub({ id: `tag:${tag.id}`, kind: "tag", label: tag.value })
+      links.push({ source: id, target: `tag:${tag.id}`, kind: "product-tag" })
     }
   }
-
-  const brandCounts = new Map<string, number>()
-  const typeCounts = new Map<string, { value: string; count: number }>()
-  const tagCounts = new Map<string, { value: string; count: number }>()
-
-  let skip = 0
-  const take = 500
-  for (;;) {
-    const { data } = await query.graph({
-      entity: "product",
-      fields: ["id", "handle", "metadata", "brand.name", "type.id", "type.value", "tags.id", "tags.value"],
-      filters: { status: "published" },
-      pagination: { take, skip },
-    })
-    const page = (data as ProductRow[]) ?? []
-    for (const row of page) {
-      const brand = resolveProductBrand(row as ProductRow)
-      if (brand) {
-        brandCounts.set(brand, (brandCounts.get(brand) ?? 0) + 1)
-      }
-
-      const productType = resolveProductType(row)
-      if (productType) {
-        const existing = typeCounts.get(productType.id) ?? { value: productType.value, count: 0 }
-        typeCounts.set(productType.id, { ...existing, count: existing.count + 1 })
-      }
-
-      for (const tag of resolveProductTags(row)) {
-        const existing = tagCounts.get(tag.id) ?? { value: tag.value, count: 0 }
-        tagCounts.set(tag.id, { ...existing, count: existing.count + 1 })
-      }
-    }
-    if (page.length < take) break
-    skip += take
-  }
-
-  /**
-   * Always emit every canonical brand so the graph matches the `/brands` page,
-   * even when a brand has zero products in the current catalogue. Non-canonical
-   * brands discovered from product metadata are appended afterwards.
-   */
-  const emittedBrands = new Set<string>()
-  for (const canonical of CANONICAL_BRANDS) {
-    emittedBrands.add(canonical.name)
-    nodes.push({
-      id: `brand:${canonical.name}`,
-      kind: "brand",
-      label: canonical.name,
-      productCount: brandCounts.get(canonical.name) ?? 0,
-      logoSrc: canonical.logoSrc,
-    })
-    links.push({
-      source: `brand:${canonical.name}`,
-      target: ROOT_ID,
-      kind: "brand-root",
-    })
-  }
-
-  for (const [brand, count] of brandCounts) {
-    if (emittedBrands.has(brand)) continue
-    emittedBrands.add(brand)
-    nodes.push({
-      id: `brand:${brand}`,
-      kind: "brand",
-      label: brand,
-      productCount: count,
-    })
-    links.push({
-      source: `brand:${brand}`,
-      target: ROOT_ID,
-      kind: "brand-root",
-    })
-  }
-
-  // Emit product type super-nodes.
-  for (const [typeId, { value, count }] of typeCounts) {
-    nodes.push({
-      id: `type:${typeId}`,
-      kind: "type",
-      label: value,
-      productCount: count,
-    })
-    links.push({
-      source: `type:${typeId}`,
-      target: ROOT_ID,
-      kind: "type-root",
-    })
-  }
-
-  // Emit tag super-nodes.
-  for (const [tagId, { value, count }] of tagCounts) {
-    nodes.push({
-      id: `tag:${tagId}`,
-      kind: "tag",
-      label: value,
-      productCount: count,
-    })
-    links.push({
-      source: `tag:${tagId}`,
-      target: ROOT_ID,
-      kind: "tag-root",
-    })
-  }
-
-  return { nodes, links, mode: "summary" }
 }
 
 async function buildBrand(
   query: QueryGraph,
-  brandService: BrandModuleService,
-  pgConnection: any,
-  brand: string,
+  pg: any,
+  brandName: string,
   limit: number,
-  offset: number,
-  preferredCurrency: string | null
+  offset: number
 ): Promise<GraphPayload> {
+  const brand: { id: string; name: string; handle: string } | undefined = await pg("brand")
+    .whereNull("deleted_at")
+    .whereRaw("lower(name) = ?", [brandName.toLowerCase()])
+    .select("id", "name", "handle")
+    .first()
+
+  const hubId = `brand:${brandName}`
   const nodes: GraphNode[] = []
   const links: GraphLink[] = []
-
-  // Look up the Brand entity by name (case-insensitive). Same shape as the
-  // store /brands/:handle route — the link table is the single source of truth.
-  const brandLower = brand.toLowerCase()
-  const [allBrands] = await brandService.listAndCountBrands({ is_active: true })
-  const brandEntity = (allBrands as Array<{ id: string; name: string }>).find(
-    (b) => (b.name ?? "").toLowerCase() === brandLower
-  )
-
-  if (!brandEntity) {
-    nodes.push({
-      id: `brand:${brand}`,
-      kind: "brand",
-      label: brand,
-      productCount: 0,
-    })
+  if (!brand) {
+    nodes.push({ id: hubId, kind: "brand", label: brandName, productCount: 0 })
     return { nodes, links, mode: "brand", offset, total: 0 }
   }
 
-  // Read product IDs from the Module Link table — exactly like
-  // /store/brands/:handle/products. No handle-prefix fallback in this route:
-  // any drift surfaces in `verify-brand-links` and is repaired by
-  // `relink-supplier-brands`, not by silently papering over it at read time.
-  const linkRows: Array<{ product_id: string }> = await pgConnection(
-    "product_product_brand_brand"
-  )
-    .where({ brand_id: brandEntity.id })
+  // Product ids come from the Module Link table — the single source of truth.
+  const linkRows: Array<{ product_id: string }> = await pg("product_product_brand_brand")
+    .where({ brand_id: brand.id })
     .whereNull("deleted_at")
     .select("product_id")
+  const ids = linkRows.map((r) => r.product_id)
 
-  const brandProductIds = linkRows
-    .map((r) => r?.product_id)
-    .filter((id): id is string => typeof id === "string" && id.length > 0)
+  const { rows, total } = ids.length
+    ? await fetchProducts(query, { id: ids }, limit, offset)
+    : { rows: [], total: 0 }
 
-  if (brandProductIds.length === 0) {
-    nodes.push({
-      id: `brand:${brand}`,
-      kind: "brand",
-      label: brand,
-      productCount: 0,
-    })
-    return { nodes, links, mode: "brand", offset, total: 0 }
-  }
-
-  const { rows, total } = await fetchProducts(
-    query,
-    { id: brandProductIds },
-    limit,
-    offset
-  )
-
-  nodes.push({
-    id: `brand:${brand}`,
-    kind: "brand",
-    label: brand,
-    productCount: total,
-  })
-
-  const seenCategories = new Set<string>()
-  for (const row of rows) {
-    const { node, links: rowLinks } = buildProductNodeAndLinks(
-      row,
-      preferredCurrency,
-      true,
-      true
-    )
-    nodes.push(node)
-    links.push(...rowLinks)
-    for (const cat of row.categories ?? []) {
-      if (!seenCategories.has(cat.id)) {
-        seenCategories.add(cat.id)
-        nodes.push({ id: `cat:${cat.id}`, kind: "category", label: cat.name })
-      }
-    }
-  }
-
+  nodes.push({ id: hubId, kind: "brand", label: brand.name, handle: brand.handle, productCount: total })
+  appendProducts(rows, nodes, links, hubId)
   return { nodes, links, mode: "brand", offset, total }
 }
 
-/**
- * Resolve a category's display name directly from `product_category`, rather
- * than relying on it appearing as a relation on a returned product. This keeps
- * the UI correct even when the category currently contains zero products.
- */
-async function fetchCategoryName(
+async function buildHub(
   query: QueryGraph,
-  categoryId: string
-): Promise<string | null> {
-  try {
-    const { data } = await query.graph({
-      entity: "product_category",
-      fields: ["id", "name"],
-      filters: { id: categoryId },
-    })
-    const row = (data as Array<{ id: string; name: string }>)[0]
-    return row?.name ?? null
-  } catch (error) {
-    console.warn(`[/store/graph] failed to fetch category ${categoryId} name`, error)
-    return null
-  }
-}
-
-async function buildCategory(
-  query: QueryGraph,
-  categoryId: string,
+  pg: any,
+  mode: "category" | "type" | "tag",
+  id: string,
   limit: number,
-  offset: number,
-  preferredCurrency: string | null
+  offset: number
 ): Promise<GraphPayload> {
-  const nodes: GraphNode[] = []
-  const links: GraphLink[] = []
+  const spec = {
+    category: { table: "product_category", labelCol: "name", filter: { categories: { id } }, prefix: "cat" },
+    type: { table: "product_type", labelCol: "value", filter: { type_id: id }, prefix: "type" },
+    tag: { table: "product_tag", labelCol: "value", filter: { tags: { id } }, prefix: "tag" },
+  }[mode]
 
-  /**
-   * Resolve the canonical category name up-front so the node label is always
-   * correct — even when the category contains zero products, or when the
-   * primary product→category filter returns nothing.
-   */
-  const resolvedName = await fetchCategoryName(query, categoryId)
+  const [labelRow, { rows, total }] = await Promise.all([
+    pg(spec.table).where({ id }).whereNull("deleted_at").select(`${spec.labelCol} as label`).first() as Promise<
+      { label: string } | undefined
+    >,
+    fetchProducts(query, spec.filter, limit, offset),
+  ])
 
-  let rows: ProductRow[] = []
-  let total = 0
-  const attempts: Array<{ label: string; filter: Record<string, unknown> }> = [
-    { label: "categories.id", filter: { categories: { id: categoryId } } },
-    { label: "category_id", filter: { category_id: categoryId } },
+  const hubId = `${spec.prefix}:${id}`
+  const nodes: GraphNode[] = [
+    { id: hubId, kind: mode, label: labelRow?.label ?? mode, productCount: total },
   ]
-
-  for (const attempt of attempts) {
-    try {
-      const result = await fetchProducts(query, attempt.filter, limit, offset)
-      if (result.rows.length > 0 || result.total > 0) {
-        rows = result.rows
-        total = result.total
-        break
-      }
-      total = result.total
-    } catch (error) {
-      console.warn(
-        `[/store/graph] category filter "${attempt.label}" failed for ${categoryId}`,
-        error
-      )
-    }
-  }
-
-  if (!rows.length) {
-    console.info(
-      `[/store/graph] category ${categoryId} (${
-        resolvedName ?? "unknown"
-      }) returned 0 products. This usually means no products are assigned to this category in Medusa Admin, or their status != "published".`
-    )
-  }
-
-  const categoryLabel =
-    resolvedName ??
-    rows[0]?.categories?.find((c) => c.id === categoryId)?.name ??
-    "Category"
-
-  nodes.push({
-    id: `cat:${categoryId}`,
-    kind: "category",
-    label: categoryLabel,
-    productCount: total,
-  })
-
-  const brandsSeen = new Set<string>()
-  for (const row of rows) {
-    const { node, links: rowLinks, brand } = buildProductNodeAndLinks(
-      row,
-      preferredCurrency,
-      true,
-      true
-    )
-    nodes.push(node)
-    links.push(...rowLinks)
-    if (brand && !brandsSeen.has(brand)) {
-      brandsSeen.add(brand)
-      nodes.push({ id: `brand:${brand}`, kind: "brand", label: brand })
-    }
-  }
-
-  return { nodes, links, mode: "category", offset, total }
+  const links: GraphLink[] = []
+  appendProducts(rows, nodes, links, hubId)
+  return { nodes, links, mode, offset, total }
 }
 
-async function buildType(
-  query: QueryGraph,
-  typeId: string,
-  limit: number,
-  offset: number,
-  preferredCurrency: string | null
-): Promise<GraphPayload> {
-  const nodes: GraphNode[] = []
-  const links: GraphLink[] = []
+// ── HTTP ────────────────────────────────────────────────────────────────────
 
-  const { rows, total } = await fetchProducts(
-    query,
-    { type_id: typeId },
-    limit,
-    offset
-  )
-
-  const typeLabel = resolveProductType(rows[0] ?? ({} as ProductRow))?.value ?? "Type"
-
-  nodes.push({
-    id: `type:${typeId}`,
-    kind: "type",
-    label: typeLabel,
-    productCount: total,
-  })
-
-  const brandsSeen = new Set<string>()
-  const categoriesSeen = new Set<string>()
-
-  for (const row of rows) {
-    const { node, links: rowLinks, brand } = buildProductNodeAndLinks(
-      row,
-      preferredCurrency,
-      true,
-      true
-    )
-    nodes.push(node)
-    links.push(...rowLinks)
-    if (brand && !brandsSeen.has(brand)) {
-      brandsSeen.add(brand)
-      nodes.push({ id: `brand:${brand}`, kind: "brand", label: brand })
-    }
-    for (const cat of row.categories ?? []) {
-      if (!categoriesSeen.has(cat.id)) {
-        categoriesSeen.add(cat.id)
-        nodes.push({ id: `cat:${cat.id}`, kind: "category", label: cat.name })
-      }
-    }
+function setCors(req: MedusaRequest, res: MedusaResponse) {
+  const origin = req.headers.origin ?? ""
+  if (origin && isStorefrontOriginAllowed(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin)
   }
-
-  return { nodes, links, mode: "type", offset, total }
+  res.setHeader("Vary", "Origin")
+  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-publishable-api-key")
+  res.setHeader("Access-Control-Allow-Credentials", "true")
 }
 
-async function buildTag(
-  query: QueryGraph,
-  tagId: string,
-  limit: number,
-  offset: number,
-  preferredCurrency: string | null
-): Promise<GraphPayload> {
-  const nodes: GraphNode[] = []
-  const links: GraphLink[] = []
-
-  // Filter products that have this tag. Medusa v2 supports relation filters
-  // via nested objects — `{ tags: { id: tagId } }` matches products where at
-  // least one tag matches the given id.
-  let rows: ProductRow[] = []
-  let total = 0
-  try {
-    const result = await fetchProducts(query, { tags: { id: tagId } }, limit, offset)
-    rows = result.rows
-    total = result.total
-  } catch (error) {
-    console.warn(`[/store/graph] tag filter failed for tag ${tagId}`, error)
-  }
-
-  // Determine tag label from any matching product row.
-  let tagLabel = "Tag"
-  for (const row of rows) {
-    const found = resolveProductTags(row).find((t) => t.id === tagId)
-    if (found) {
-      tagLabel = found.value
-      break
-    }
-  }
-
-  nodes.push({
-    id: `tag:${tagId}`,
-    kind: "tag",
-    label: tagLabel,
-    productCount: total,
-  })
-
-  const brandsSeen = new Set<string>()
-  const categoriesSeen = new Set<string>()
-
-  for (const row of rows) {
-    const { node, links: rowLinks, brand } = buildProductNodeAndLinks(
-      row,
-      preferredCurrency,
-      true,
-      true
-    )
-    nodes.push(node)
-    links.push(...rowLinks)
-    if (brand && !brandsSeen.has(brand)) {
-      brandsSeen.add(brand)
-      nodes.push({ id: `brand:${brand}`, kind: "brand", label: brand })
-    }
-    for (const cat of row.categories ?? []) {
-      if (!categoriesSeen.has(cat.id)) {
-        categoriesSeen.add(cat.id)
-        nodes.push({ id: `cat:${cat.id}`, kind: "category", label: cat.name })
-      }
-    }
-  }
-
-  return { nodes, links, mode: "tag", offset, total }
+function clampLimit(raw: unknown): number {
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n <= 0) return DEFAULT_LIMIT
+  return Math.min(Math.floor(n), HARD_MAX_LIMIT)
 }
 
-async function buildAll(
-  query: QueryGraph,
-  limit: number,
-  offset: number,
-  preferredCurrency: string | null
-): Promise<GraphPayload> {
-  const { rows, total } = await fetchProducts(query, {}, limit, offset)
-  const nodes: GraphNode[] = [ROOT_NODE]
-  const links: GraphLink[] = []
-  const brandsSeen = new Set<string>()
-  const categoriesSeen = new Set<string>()
+function clampOffset(raw: unknown): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+}
 
-  for (const row of rows) {
-    const { node, links: rowLinks, brand } = buildProductNodeAndLinks(
-      row,
-      preferredCurrency,
-      true,
-      true
-    )
-    nodes.push(node)
-    links.push(...rowLinks)
-    if (brand && !brandsSeen.has(brand)) {
-      brandsSeen.add(brand)
-      nodes.push({ id: `brand:${brand}`, kind: "brand", label: brand })
-      links.push({ source: `brand:${brand}`, target: ROOT_ID, kind: "brand-root" })
-    }
-    for (const cat of row.categories ?? []) {
-      if (!categoriesSeen.has(cat.id)) {
-        categoriesSeen.add(cat.id)
-        nodes.push({ id: `cat:${cat.id}`, kind: "category", label: cat.name })
-      }
-    }
-  }
-
-  return { nodes, links, mode: "all", offset, total }
+function str(raw: unknown): string {
+  return typeof raw === "string" ? raw.trim() : ""
 }
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
@@ -945,71 +391,32 @@ export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   setCors(req, res)
-  setCacheHeaders(res)
+  // max-age so the browser reuses an expansion it already fetched this session.
+  res.setHeader("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=3600")
 
-  const mode = parseMode(req.query.mode)
+  const mode = str(req.query.mode).toLowerCase()
   const limit = clampLimit(req.query.limit)
   const offset = clampOffset(req.query.offset)
-  const preferredCurrency =
-    typeof req.query.currency_code === "string"
-      ? (req.query.currency_code as string).toLowerCase()
-      : process.env.STORE_DEFAULT_CURRENCY?.toLowerCase() ?? null
-
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as QueryGraph
+  const pg = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION) as any
 
   try {
     let payload: GraphPayload
-    if (mode === "summary") {
-      payload = await buildSummary(query)
-    } else if (mode === "brand") {
-      const brand = typeof req.query.brand === "string" ? req.query.brand.trim() : ""
-      if (!brand) {
-        return res.status(400).json({
-          error: "Missing `brand` query parameter for mode=brand",
-        })
-      }
-      const brandService = req.scope.resolve<BrandModuleService>(BRAND_MODULE)
-      const pgConnection = req.scope.resolve(ContainerRegistrationKeys.PG_CONNECTION)
-      payload = await buildBrand(
-        query,
-        brandService,
-        pgConnection,
-        brand,
-        limit,
-        offset,
-        preferredCurrency
+    if (mode === "brand") {
+      const brand = str(req.query.brand)
+      if (!brand) return res.status(400).json({ error: "Missing `brand` query parameter for mode=brand" })
+      payload = await cached(`brand:${brand.toLowerCase()}:${limit}:${offset}`, () =>
+        buildBrand(query, pg, brand, limit, offset)
       )
-    } else if (mode === "category") {
-      const categoryId =
-        typeof req.query.category_id === "string" ? req.query.category_id.trim() : ""
-      if (!categoryId) {
-        return res.status(400).json({
-          error: "Missing `category_id` query parameter for mode=category",
-        })
-      }
-      payload = await buildCategory(query, categoryId, limit, offset, preferredCurrency)
-    } else if (mode === "type") {
-      const typeId =
-        typeof req.query.type_id === "string" ? req.query.type_id.trim() : ""
-      if (!typeId) {
-        return res.status(400).json({
-          error: "Missing `type_id` query parameter for mode=type",
-        })
-      }
-      payload = await buildType(query, typeId, limit, offset, preferredCurrency)
-    } else if (mode === "tag") {
-      const tagId =
-        typeof req.query.tag_id === "string" ? req.query.tag_id.trim() : ""
-      if (!tagId) {
-        return res.status(400).json({
-          error: "Missing `tag_id` query parameter for mode=tag",
-        })
-      }
-      payload = await buildTag(query, tagId, limit, offset, preferredCurrency)
+    } else if (mode === "category" || mode === "type" || mode === "tag") {
+      const id = str(req.query[`${mode}_id`])
+      if (!id) return res.status(400).json({ error: `Missing \`${mode}_id\` query parameter for mode=${mode}` })
+      payload = await cached(`${mode}:${id}:${limit}:${offset}`, () =>
+        buildHub(query, pg, mode, id, limit, offset)
+      )
     } else {
-      payload = await buildAll(query, limit, offset, preferredCurrency)
+      payload = await cached("summary", () => buildSummary(pg))
     }
-
     return res.status(200).json(payload)
   } catch (error) {
     console.error("[/store/graph] failed to build graph payload", error)

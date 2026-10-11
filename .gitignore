@@ -13,3 +13,4 @@ backend/logs/
 .claude/worktrees/
 
 .DS_Store
+node_modules/

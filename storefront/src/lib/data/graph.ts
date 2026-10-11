@@ -1,132 +1,35 @@
 import "server-only"
 
+import { cacheLife, cacheTag } from "next/cache"
+
+import { MEDUSA_BACKEND_URL } from "@lib/config"
 import type { GraphPayload } from "../../types/graph"
 
 /**
- * Server-only fetchers for the Medusa `/store/graph` custom route.
+ * Summary payload for `/explore`, cached like every other catalog fetcher in
+ * lib/data (`"use cache: remote"` + tags). The `graph` and `categories` tags
+ * are already purged by the backend → `/api/revalidate-products` hook, so the
+ * page is served from the static shell and refreshes behind the scenes.
  *
- * These mirror the caching pattern used in `@lib/data/products` — Next.js
- * `fetch` with tags so on-demand revalidation purges the graph alongside the
- * product catalog. The underlying backend route also sets a `Cache-Control`
- * header, so Vercel's edge can serve a warm copy between revalidations.
+ * Client-side expansions (brand / category / type / tag) live in
+ * `@modules/graph/hooks/use-graph-expansion` and call the backend directly.
  */
+export async function getGraphSummary(): Promise<GraphPayload> {
+  "use cache: remote"
+  cacheTag("graph", "products", "categories")
+  cacheLife({ revalidate: 3600, stale: 86400, expire: 86400 })
 
-const GRAPH_TAGS = ["graph", "products", "categories", "collections"] as const
-const GRAPH_REVALIDATE_SECONDS = 300
+  const headers: Record<string, string> = { "Content-Type": "application/json" }
+  const key = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY?.trim()
+  if (key) headers["x-publishable-api-key"] = key
 
-function getBackendBaseUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
-  if (!raw) {
-    throw new Error(
-      "NEXT_PUBLIC_MEDUSA_BACKEND_URL is not set; cannot reach /store/graph"
-    )
-  }
-  return raw.replace(/\/+$/, "").replace(/\/store$/, "")
-}
-
-function buildGraphUrl(params: Record<string, string | number | undefined>): string {
-  const base = getBackendBaseUrl()
-  const qs = new URLSearchParams()
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null || value === "") continue
-    qs.set(key, String(value))
-  }
-  const query = qs.toString()
-  return `${base}/store/graph${query ? `?${query}` : ""}`
-}
-
-function getPublishableKey(): string | null {
-  return process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY?.trim() || null
-}
-
-async function fetchGraph(
-  params: Record<string, string | number | undefined>,
-  tags: readonly string[] = GRAPH_TAGS
-): Promise<GraphPayload> {
-  const url = buildGraphUrl(params)
-  const key = getPublishableKey()
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  }
-  if (key) {
-    headers["x-publishable-api-key"] = key
-  }
-
-  let response: Response
-  try {
-    response = await fetch(url, {
-      method: "GET",
-      headers,
-      next: {
-        tags: tags as string[],
-        revalidate: GRAPH_REVALIDATE_SECONDS,
-      },
-    })
-  } catch (error) {
-    console.error(
-      `[graph] network error reaching ${url} — is the Medusa backend deployed and reachable?`,
-      error
-    )
-    throw error
-  }
-
+  const url = `${MEDUSA_BACKEND_URL}/store/graph?mode=summary`
+  const response = await fetch(url, { headers })
   if (!response.ok) {
     const text = await response.text().catch(() => "")
-    const message = `Failed to fetch ${url}: ${response.status} ${response.statusText}${
-      text ? ` — ${text.slice(0, 200)}` : ""
-    }`
-    if (response.status === 404) {
-      console.error(
-        `[graph] ${url} returned 404. The backend is running but the /store/graph route is missing — redeploy the Medusa backend after committing backend/src/api/store/graph/route.ts.`
-      )
-    } else {
-      console.error(`[graph] ${message}`)
-    }
-    throw new Error(message)
+    throw new Error(
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}${text ? ` — ${text.slice(0, 200)}` : ""}`
+    )
   }
-
   return (await response.json()) as GraphPayload
-}
-
-export async function getGraphSummary(): Promise<GraphPayload> {
-  return fetchGraph({ mode: "summary" }, ["graph", "categories", "collections"])
-}
-
-export async function getGraphForBrand(
-  brand: string,
-  options: { limit?: number; offset?: number } = {}
-): Promise<GraphPayload> {
-  const { limit = 200, offset = 0 } = options
-  return fetchGraph(
-    {
-      mode: "brand",
-      brand,
-      limit,
-      offset,
-    },
-    ["graph", "products"]
-  )
-}
-
-export async function getGraphForCategory(
-  categoryId: string,
-  options: { limit?: number; offset?: number } = {}
-): Promise<GraphPayload> {
-  const { limit = 200, offset = 0 } = options
-  return fetchGraph(
-    {
-      mode: "category",
-      category_id: categoryId,
-      limit,
-      offset,
-    },
-    ["graph", "products", "categories"]
-  )
-}
-
-export async function getGraphAll(
-  options: { limit?: number; offset?: number } = {}
-): Promise<GraphPayload> {
-  const { limit = 500, offset = 0 } = options
-  return fetchGraph({ mode: "all", limit, offset }, GRAPH_TAGS)
 }

@@ -2,6 +2,8 @@
 
 import { Switch } from "@headlessui/react"
 
+import { HUD_LABEL, HUD_SURFACE } from "../lib/style"
+
 export type GraphVisibility = {
   root: boolean
   brand: boolean
@@ -14,45 +16,39 @@ export type GraphVisibility = {
 type Props = {
   value: GraphVisibility
   onChange: (next: GraphVisibility) => void
+  className?: string
 }
 
-/**
- * Toggle switches that hide/show each node kind. Pure presentational —
- * the parent applies the visibility map via `filterPayload` and re-renders.
- */
-export function GraphFilters({ value, onChange }: Props) {
-  const toggle = (key: keyof GraphVisibility) => {
-    onChange({ ...value, [key]: !value[key] })
-  }
+const ITEMS: Array<{ key: keyof GraphVisibility; label: string }> = [
+  { key: "brand", label: "Planets · brands" },
+  { key: "category", label: "Moons · categories" },
+  { key: "type", label: "Beacons · types" },
+  { key: "tag", label: "Stars · tags" },
+  { key: "product", label: "Dust · products" },
+]
 
-  const items: Array<{ key: keyof GraphVisibility; label: string }> = [
-    { key: "brand", label: "Brands" },
-    { key: "category", label: "Categories" },
-    { key: "type", label: "Types" },
-    { key: "tag", label: "Tags" },
-    { key: "product", label: "Products" },
-  ]
-
+/** Toggle switches that hide/show each node kind. 44 px rows for touch. */
+export function GraphFilters({ value, onChange, className }: Props) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-ui-border-base bg-ui-bg-base/90 p-3 backdrop-blur">
-      <p className="text-[0.65rem] uppercase tracking-widest text-ui-fg-subtle">Show</p>
-      <ul className="flex flex-col gap-2">
-        {items.map((item) => (
-          <li key={item.key} className="flex items-center justify-between gap-4">
-            <span className="text-small-regular text-ui-fg-base">{item.label}</span>
+    <div className={`${HUD_SURFACE} p-3 ${className ?? ""}`}>
+      <p className={HUD_LABEL}>Show</p>
+      <ul className="flex flex-col">
+        {ITEMS.map((item) => (
+          <li key={item.key} className="flex min-h-11 items-center justify-between gap-4">
+            <span className="text-small-regular">{item.label}</span>
             <Switch
               checked={value[item.key]}
-              onChange={() => toggle(item.key)}
+              onChange={() => onChange({ ...value, [item.key]: !value[item.key] })}
               className={`${
-                value[item.key] ? "bg-slate-700" : "bg-ui-bg-component"
-              } relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border border-ui-border-base transition-colors duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400`}
+                value[item.key] ? "bg-[#45A29E]" : "bg-[#1F2833]"
+              } relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border border-[#45A29E]/40 transition-colors duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#66FCF1]`}
               aria-label={`Toggle ${item.label}`}
             >
               <span
                 aria-hidden="true"
                 className={`${
-                  value[item.key] ? "translate-x-4" : "translate-x-0.5"
-                } pointer-events-none inline-block h-4 w-4 translate-y-0.5 transform rounded-full bg-white shadow ring-0 transition duration-150 ease-in-out`}
+                  value[item.key] ? "translate-x-5" : "translate-x-0.5"
+                } pointer-events-none inline-block h-5 w-5 translate-y-px transform rounded-full bg-[#C5C6C7] shadow transition duration-150 ease-in-out`}
               />
             </Switch>
           </li>

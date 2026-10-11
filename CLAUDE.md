@@ -472,6 +472,29 @@ Reference docs (CMYK ↔ DTF colour chart, etc.) live as TS data + page template
 | Guides module | [storefront/src/modules/guides/](storefront/src/modules/guides/) |
 | Guide pages | [storefront/src/app/[countryCode]/(main)/guides/](storefront/src/app/[countryCode]/(main)/guides/) |
 
+## Explore — the space-themed catalog map (`/explore`)
+
+A force-directed map of the catalog drawn as a solar system: the catalog root is the **sun**, brands are **planets** (logo discs with a teal glow, sized by product count) on the inner orbit, top-level audience categories are **moons** on the next orbit, product types are **beacons**, tags are background **stars** (off by default), and products are **dust** that only appears around the selected planet/moon. The home hero's starfield is painted behind it. Rebuilt 2026-10-11 after the review in [Docs/EXPLORE_PAGE_REVIEW_2026_10.md](Docs/EXPLORE_PAGE_REVIEW_2026_10.md).
+
+| Component | Path |
+| --- | --- |
+| Backend route (summary via 4 SQL GROUP BYs + 5-min in-process cache; brand/category/type/tag expansions; no prices) | [backend/src/api/store/graph/route.ts](backend/src/api/store/graph/route.ts) |
+| Server fetcher (`"use cache: remote"`, tags `graph`/`products`/`categories`) | [storefront/src/lib/data/graph.ts](storefront/src/lib/data/graph.ts) |
+| Page (static — deliberately reads NO `searchParams`) | [storefront/src/app/\[countryCode\]/(main)/explore/page.tsx](storefront/src/app/[countryCode]/(main)/explore/page.tsx) |
+| Template (HUD, visibility rules, `?focus=` read client-side) | [storefront/src/modules/graph/templates/explore-template.tsx](storefront/src/modules/graph/templates/explore-template.tsx) |
+| Canvas renderer (orbits via `forceRadial`, sun/planet/moon drawing) | [storefront/src/modules/graph/components/force-graph.tsx](storefront/src/modules/graph/components/force-graph.tsx) |
+| Starfield backdrop (shared with the home space hero) | [storefront/src/modules/graph/components/starfield-backdrop.tsx](storefront/src/modules/graph/components/starfield-backdrop.tsx) + [storefront/src/modules/home/components/space-hero/starfield.ts](storefront/src/modules/home/components/space-hero/starfield.ts) |
+| Palette, ring radii, HUD surface classes | [storefront/src/modules/graph/lib/style.ts](storefront/src/modules/graph/lib/style.ts) |
+| Client expansion hook | [storefront/src/modules/graph/hooks/use-graph-expansion.ts](storefront/src/modules/graph/hooks/use-graph-expansion.ts) |
+
+**Rules that keep it fast (don't undo):**
+- The page must stay static: no `searchParams`/`cookies` reads in `page.tsx`. One such read turned the whole body into a per-request dynamic hole whose content never reached the CDN document (React #419 on every load, 30 s fallbacks).
+- Nothing auto-expands on load. Products are fetched only when a hub is clicked (`expandNode`), and only the selected hub's products are rendered.
+- `force-graph.tsx` passes node objects through **unchanged** so d3 keeps positions across merges/filter toggles; new nodes are seeded next to their hub. `cooldownTicks` is a constant — setting it to 0 "after settle" freezes merges and breaks drag.
+- Brand logos come from the storefront presentation map by brand handle (`getBrandPresentation`), never from the backend.
+- The graph libraries are **storefront** deps (`storefront/package.json`). They used to live in the repo-root `package.json` with a committed 17 MB `node_modules/` — that was removed; keep `node_modules/` ignored.
+- The route emits no prices (the old min-over-all-price-rows leaked B2B tier prices into the tooltip). Add a `MIN(amount) WHERE price_list_id IS NULL` query if a price is ever wanted.
+
 ## Point of sale (POS) — walk-in transactions
 
 Admin page at `/app/pos` for in-store walk-in sales. Three-panel layout: product search left, cart middle, customer + payment right. Cash payments mark the order paid immediately; "Card (QR link)" generates a Stripe Payment Link rendered as a QR code for the customer to scan on their phone (reuses the existing payment-link feature). Customizer integration is a popup — clicking "Add custom design" opens the storefront customizer at `/[country]/customizer?pos_session=<id>`, the customizer's "Add to cart" path detects POS mode and POSTs each rendered line to the storefront's `/api/pos-bridge/items` relay, which forwards to the backend's `/store/pos-sessions/:id/items` route. The POS page polls the session every 2s and surfaces new customizer lines in the cart UI.

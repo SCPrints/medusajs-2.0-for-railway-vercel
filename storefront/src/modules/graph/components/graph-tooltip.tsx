@@ -2,41 +2,29 @@
 
 import { useLayoutEffect, useRef, useState } from "react"
 
-import { convertToLocale } from "@lib/util/money"
-
 import type { GraphNode } from "../../../types/graph"
+import { HUD_LABEL } from "../lib/style"
 
 type Props = {
   node: GraphNode | null
   position: { x: number; y: number } | null
 }
 
-function formatPrice(price: GraphNode["price"]): string | null {
-  if (!price) return null
-  return convertToLocale({
-    amount: price.amount,
-    currency_code: price.currency_code,
-  })
+/** Gap between the hovered node and the card — larger than the biggest planet. */
+const NODE_CLEARANCE = 28
+
+const KIND_LABEL: Record<GraphNode["kind"], string> = {
+  root: "Catalog",
+  brand: "Planet · brand",
+  category: "Moon · category",
+  type: "Beacon · product type",
+  tag: "Star · tag",
+  product: "Product",
 }
 
 /**
- * Gap between the hovered node and the edge of the tooltip card. Should be
- * larger than the biggest node radius we render so the card never sits on top
- * of a brand/category node or its label.
- */
-const NODE_CLEARANCE = 28
-
-/**
- * Absolutely-positioned hover card rendered as DOM (not on the canvas) so the
- * thumbnail and typography render crisply regardless of graph zoom.
- *
- * Placement algorithm:
- *   - Prefer to the right of the node, vertically centered. Flip to the left
- *     if it would overflow the viewport.
- *   - After placement, if it would still clip vertically, nudge it back inside
- *     the viewport.
- *   - `pointer-events-none` means hovering the card won't retrigger hover
- *     events on the underlying canvas.
+ * DOM hover card (not canvas) so the thumbnail and type render crisply at any
+ * zoom. Prefers the right of the node, flips left, then clamps into the viewport.
  */
 export function GraphTooltip({ node, position }: Props) {
   const ref = useRef<HTMLDivElement | null>(null)
@@ -48,86 +36,51 @@ export function GraphTooltip({ node, position }: Props) {
       return
     }
     const card = ref.current.getBoundingClientRect()
-    const viewportW = window.innerWidth
-    const viewportH = window.innerHeight
     const margin = 8
-
-    // Default to the right of the node, vertically centered on its midpoint.
     let left = position.x + NODE_CLEARANCE
     let top = position.y - card.height / 2
-
-    // Flip horizontally if the card would run off the right edge.
-    if (left + card.width + margin > viewportW) {
-      left = position.x - NODE_CLEARANCE - card.width
-    }
-    // If still off-screen to the left (very cramped viewport), clamp and fall
-    // back to placing above the node instead, which is always visible.
+    if (left + card.width + margin > window.innerWidth) left = position.x - NODE_CLEARANCE - card.width
     if (left < margin) {
       left = Math.max(margin, position.x - card.width / 2)
       top = position.y - NODE_CLEARANCE - card.height
     }
-
     if (top < margin) top = margin
-    if (top + card.height + margin > viewportH) {
-      top = viewportH - card.height - margin
-    }
-
+    if (top + card.height + margin > window.innerHeight) top = window.innerHeight - card.height - margin
     setPlacement({ left, top })
   }, [position, node?.id])
 
   if (!node || !position) return null
 
-  const priceLabel = node.kind === "product" ? formatPrice(node.price) : null
-  const kindLabel =
-    node.kind === "product"
-      ? "Product"
-      : node.kind === "brand"
-      ? "Brand"
-      : node.kind === "category"
-      ? "Category"
-      : "Catalog"
+  const expands = node.kind === "brand" || node.kind === "category" || node.kind === "type" || node.kind === "tag"
 
   return (
     <div
       ref={ref}
-      className="pointer-events-none fixed z-50 max-w-[15rem] rounded-xl border border-ui-border-base bg-ui-bg-base/95 p-3 text-left text-small-regular text-ui-fg-base shadow-xl backdrop-blur"
+      className="pointer-events-none fixed z-50 max-w-[15rem] rounded-xl border border-[#45A29E]/40 bg-[#0B0C10]/90 p-3 text-left text-small-regular !text-[#C5C6C7] shadow-[0_0_24px_rgba(69,162,158,0.2)] backdrop-blur"
       style={{
         left: placement?.left ?? position.x + NODE_CLEARANCE,
         top: placement?.top ?? position.y,
-        // Hide the first paint before useLayoutEffect measures the card to
-        // avoid a visible jump from the default anchor to the flipped one.
         visibility: placement ? "visible" : "hidden",
       }}
     >
       {node.kind === "product" && node.thumbnail ? (
-        <div className="mb-2 h-28 w-full overflow-hidden rounded-md bg-ui-bg-subtle">
-          <img
-            src={node.thumbnail}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-          />
+        <div className="mb-2 h-28 w-full overflow-hidden rounded-md bg-[#1F2833]">
+          <img src={node.thumbnail} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
         </div>
       ) : null}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[0.65rem] uppercase tracking-widest text-ui-fg-subtle">
-          {kindLabel}
-        </span>
+        <span className={HUD_LABEL}>{KIND_LABEL[node.kind]}</span>
         {node.productCount ? (
-          <span className="text-[0.65rem] text-ui-fg-subtle">
+          <span className="text-[0.65rem] !text-[#C5C6C7]/70">
             {node.productCount} {node.productCount === 1 ? "product" : "products"}
           </span>
         ) : null}
       </div>
-      <p className="mt-1 line-clamp-2 text-sm font-medium">{node.label}</p>
-      {priceLabel ? (
-        <p className="mt-1 text-sm font-semibold text-ui-fg-base">{priceLabel}</p>
-      ) : null}
+      <p className="mt-1 line-clamp-2 text-sm font-medium !text-white">{node.label}</p>
       {node.kind === "product" ? (
-        <p className="mt-2 text-[0.65rem] text-ui-fg-muted">Click to open</p>
-      ) : node.kind === "brand" || node.kind === "category" ? (
-        <p className="mt-2 text-[0.65rem] text-ui-fg-muted">Click to expand</p>
+        <p className="mt-2 text-[0.65rem] !text-[#C5C6C7]/60">Click to open</p>
+      ) : expands ? (
+        <p className="mt-2 text-[0.65rem] !text-[#C5C6C7]/60">Click to orbit its products</p>
       ) : null}
     </div>
   )

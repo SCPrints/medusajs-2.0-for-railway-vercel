@@ -5,21 +5,18 @@ import { useEffect, useState } from "react"
 type Props = {
   value: string
   onChange: (next: string) => void
-  onSubmit?: (value: string) => void
   placeholder?: string
   debounceMs?: number
+  className?: string
 }
 
-/**
- * Debounced search input. Updates are deferred so each keystroke doesn't
- * re-materialize the graph's filtered node list.
- */
+/** Debounced search input so each keystroke doesn't re-derive the focus set. */
 export function GraphSearch({
   value,
   onChange,
-  onSubmit,
   placeholder = "Search brands, categories, products…",
   debounceMs = 180,
+  className,
 }: Props) {
   const [local, setLocal] = useState<string>(value)
 
@@ -40,9 +37,8 @@ export function GraphSearch({
       onSubmit={(event) => {
         event.preventDefault()
         onChange(local)
-        onSubmit?.(local)
       }}
-      className="w-full"
+      className={className}
     >
       <label className="sr-only" htmlFor="graph-search">
         Search graph
@@ -53,7 +49,7 @@ export function GraphSearch({
         value={local}
         onChange={(event) => setLocal(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-ui-border-base bg-ui-bg-base/90 px-3 py-2 text-small-regular text-ui-fg-base placeholder:text-ui-fg-muted backdrop-blur focus:outline-none focus:ring-2 focus:ring-slate-400"
+        className="min-h-11 w-full rounded-xl border border-[#45A29E]/30 bg-[#0B0C10]/75 px-3 text-small-regular !text-[#C5C6C7] placeholder:text-[#C5C6C7]/50 shadow-[0_0_24px_rgba(69,162,158,0.12)] backdrop-blur focus:outline-none focus:ring-2 focus:ring-[#66FCF1]"
         autoComplete="off"
       />
     </form>
