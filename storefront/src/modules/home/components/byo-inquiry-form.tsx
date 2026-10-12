@@ -1,6 +1,7 @@
 "use client"
 
 import { useId, useRef, useState } from "react"
+import { trackLead } from "@lib/analytics"
 
 const PRINTING_TYPES = [
   { value: "", label: "Select printing type" },
@@ -206,6 +207,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
         body: JSON.stringify(payload),
       })
       if (response.ok) {
+        trackLead("byo")
         setSuccess(true)
         form.reset()
         setPrintingType("")

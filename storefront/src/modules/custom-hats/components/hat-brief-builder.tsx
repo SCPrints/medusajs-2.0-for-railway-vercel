@@ -1,6 +1,7 @@
 "use client"
 
 import { useId, useRef, useState } from "react"
+import { trackLead } from "@lib/analytics"
 
 import {
   CAP_STYLES,
@@ -235,6 +236,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
         body: JSON.stringify(payload),
       })
       if (response.ok) {
+        trackLead("hats")
         setSuccess(true)
         form.reset()
         setCapStyle("")

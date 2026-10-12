@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import { trackLead } from "@lib/analytics"
 
 import { uploadContactAttachment } from "../../lib/upload-attachment"
 
@@ -149,6 +150,7 @@ export default function ContactForm() {
       })
 
       if (response.ok) {
+        trackLead("contact")
         setSuccess(true)
         setAttachments([])
       } else {

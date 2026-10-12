@@ -144,7 +144,7 @@ import { HttpTypes } from "@medusajs/types"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
-import { trackCustomizerAction, trackCustomizerFunnel } from "@lib/analytics"
+import { trackCustomizerAction, trackCustomizerFunnel, trackLead } from "@lib/analytics"
 import { phCapture } from "@lib/posthog"
 import CustomizerGuide from "@modules/customizer/components/customizer-guide"
 import * as fabric from "fabric"
@@ -5211,6 +5211,7 @@ export default function CustomizerTemplate({
               j?.message ?? j?.error ?? `Quote request failed (${bridgeRes.status})`
             )
           }
+          trackLead("poa_embroidery")
           setStatusMessage(
             `Quote request${j.public_id ? ` ${j.public_id}` : ""} sent! Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches is priced individually — we'll email ${contact.email} with a price, usually within 1 business day.`
           )

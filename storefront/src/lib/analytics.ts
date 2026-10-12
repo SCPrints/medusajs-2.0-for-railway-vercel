@@ -285,6 +285,20 @@ export const trackSearch = (searchTerm: string, resultsCount?: number) => {
   fireMeta("Search", { search_string: searchTerm })
 }
 
+/* ---------- lead (enquiry) --------------------------------------- */
+
+export type LeadForm = "contact" | "byo" | "hats" | "poa_embroidery"
+
+/**
+ * Fire after a successful enquiry submit. Most jobs start as an enquiry,
+ * not a checkout — mark `generate_lead` as a key event in GA4 admin so
+ * the Reports "Conversions" tile counts it.
+ */
+export const trackLead = (form: LeadForm) => {
+  fire("generate_lead", { form })
+  fireMeta("Lead", { content_name: form })
+}
+
 /* ---------- vectorization upsell funnel -------------------------- */
 
 export type VectorizationFunnelStep =
