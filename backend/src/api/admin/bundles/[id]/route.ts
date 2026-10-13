@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { BUNDLES_MODULE } from "../../../../modules/bundles"
 import type BundlesModuleService from "../../../../modules/bundles/service"
+import { MAX_BUNDLE_DISCOUNT_PCT, bundleItemExtras } from "../../../../lib/bundle-lines"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -14,6 +15,7 @@ const updateBodySchema = z.object({
   status: z.enum(["active", "draft"]).optional(),
   thumbnail_url: z.string().url().nullable().optional(),
   quantity_multiplier_label: z.string().trim().max(100).nullable().optional(),
+  discount_pct: z.coerce.number().int().min(0).max(MAX_BUNDLE_DISCOUNT_PCT).optional(),
   items: z
     .array(
       z.object({
@@ -24,6 +26,9 @@ const updateBodySchema = z.object({
           .enum(["embroidery", "print", "none"])
           .default("embroidery"),
         position: z.coerce.number().int().min(0).default(0),
+        // Validated + normalised server-side (lib/bundle-lines.ts).
+        print_positions: z.unknown().optional(),
+        choices: z.unknown().optional(),
       })
     )
     .optional(),
@@ -73,6 +78,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     patch.thumbnail_url = body.thumbnail_url
   if (body.quantity_multiplier_label !== undefined)
     patch.quantity_multiplier_label = body.quantity_multiplier_label
+  if (body.discount_pct !== undefined) patch.discount_pct = body.discount_pct
 
   if (Object.keys(patch).length > 0) {
     await bundleService.updateBundles({ id, ...patch })
@@ -92,6 +98,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           quantity_per_unit: item.quantity_per_unit,
           decoration_type: item.decoration_type,
           position: item.position ?? idx,
+          ...bundleItemExtras(item),
         }))
       )
     }

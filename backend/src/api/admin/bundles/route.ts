@@ -5,6 +5,7 @@ import { z } from "zod"
 import { BUNDLES_MODULE } from "../../../modules/bundles"
 import type BundlesModuleService from "../../../modules/bundles/service"
 import { slugifyBrandHandle } from "../../../lib/brand-handle"
+import { MAX_BUNDLE_DISCOUNT_PCT, bundleItemExtras } from "../../../lib/bundle-lines"
 
 const bundleBodySchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -13,6 +14,7 @@ const bundleBodySchema = z.object({
   status: z.enum(["active", "draft"]).optional(),
   thumbnail_url: z.string().url().nullable().optional(),
   quantity_multiplier_label: z.string().trim().max(100).nullable().optional(),
+  discount_pct: z.coerce.number().int().min(0).max(MAX_BUNDLE_DISCOUNT_PCT).optional(),
   items: z
     .array(
       z.object({
@@ -23,6 +25,9 @@ const bundleBodySchema = z.object({
           .enum(["embroidery", "print", "none"])
           .default("embroidery"),
         position: z.coerce.number().int().min(0).default(0),
+        // Validated + normalised server-side (lib/bundle-lines.ts).
+        print_positions: z.unknown().optional(),
+        choices: z.unknown().optional(),
       })
     )
     .optional(),
@@ -89,6 +94,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       status: body.status ?? "active",
       thumbnail_url: body.thumbnail_url ?? null,
       quantity_multiplier_label: body.quantity_multiplier_label ?? null,
+      discount_pct: body.discount_pct ?? 0,
     },
   ])
 
@@ -101,6 +107,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         quantity_per_unit: item.quantity_per_unit,
         decoration_type: item.decoration_type,
         position: item.position ?? idx,
+        ...bundleItemExtras(item),
       }))
     )
   }

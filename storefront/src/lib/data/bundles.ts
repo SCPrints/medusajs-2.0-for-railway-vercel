@@ -1,6 +1,15 @@
 import { MEDUSA_BACKEND_URL } from "@lib/config"
 import { cache } from "react"
 
+export type BundlePrintPosition = {
+  side: string
+  method: "print" | "embroidery"
+  size_id?: string
+  stitch_count?: number
+  width_mm?: number
+  height_mm?: number
+}
+
 export type BundleItem = {
   id: string
   bundle_id: string
@@ -9,6 +18,10 @@ export type BundleItem = {
   quantity_per_unit: number
   decoration_type: "embroidery" | "print" | "none"
   position: number
+  /** Null on items saved before positions existed — see bundlePositions(). */
+  print_positions?: { positions?: BundlePrintPosition[] } | null
+  /** Garments the customer picks between (e.g. Mens / Womens). */
+  choices?: { options?: Array<{ label: string; product_handle: string }> } | null
 }
 
 export type Bundle = {
@@ -19,6 +32,8 @@ export type Bundle = {
   status: "active" | "draft"
   thumbnail_url: string | null
   quantity_multiplier_label: string | null
+  /** % off the whole pack while every item is in the cart. */
+  discount_pct?: number
   items: BundleItem[]
 }
 

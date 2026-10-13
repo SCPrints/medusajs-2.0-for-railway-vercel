@@ -659,6 +659,50 @@ export async function addScpLineItemsBatchSafe(input: {
 }
 
 /**
+ * Add a configured bundle. The backend builds every line's decoration +
+ * pricing from the bundle row (POST /store/carts/:id/bundle-items) — the
+ * wizard only says which item, which garment choice, and which variants.
+ */
+export async function addBundleToCartSafe(input: {
+  countryCode: string
+  bundleHandle: string
+  artworkUrl: string | null
+  notes: string | null
+  items: Array<{
+    bundleItemId: string
+    productHandle: string
+    lines: Array<{ variantId: string; quantity: number }>
+  }>
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const cart = await getOrSetCart(input.countryCode)
+  if (!cart?.id) {
+    return { ok: false, error: "Error retrieving or creating cart." }
+  }
+  try {
+    await postJsonMedusa(`/store/carts/${cart.id}/bundle-items`, {
+      bundle_handle: input.bundleHandle,
+      artwork_url: input.artworkUrl,
+      notes: input.notes,
+      items: input.items.map((it) => ({
+        bundle_item_id: it.bundleItemId,
+        product_handle: it.productHandle,
+        lines: it.lines.map((l) => ({ variant_id: l.variantId, quantity: l.quantity })),
+      })),
+    })
+    revalidateTag("cart", "max")
+    return { ok: true }
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error && error.message
+          ? error.message
+          : "Could not add this pack to your cart right now.",
+    }
+  }
+}
+
+/**
  * In-place design update for a set of existing cart lines that share a
  * customizer design-group. The artwork/text/positions change but the line
  * ids, variants, and quantities are preserved — so created_at, manual

@@ -18,6 +18,17 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { HelpTooltip } from "../../components/reports/help-tooltip"
 import { slugifyBundleHandle } from "../../lib/bundle-handle"
 
+type PrintPosition = {
+  side: string
+  method: "print" | "embroidery"
+  size_id?: string
+  stitch_count?: number
+  width_mm?: number
+  height_mm?: number
+}
+
+type Choice = { label: string; product_handle: string }
+
 type BundleItem = {
   id: string
   bundle_id: string
@@ -26,6 +37,8 @@ type BundleItem = {
   quantity_per_unit: number
   decoration_type: "embroidery" | "print" | "none"
   position: number
+  print_positions: { positions?: PrintPosition[] } | null
+  choices: { options?: Choice[] } | null
 }
 
 type Bundle = {
@@ -36,6 +49,7 @@ type Bundle = {
   status: "active" | "draft"
   thumbnail_url: string | null
   quantity_multiplier_label: string | null
+  discount_pct: number
   items: BundleItem[]
   created_at: string
   updated_at: string
@@ -47,6 +61,8 @@ type ItemDraft = {
   quantity_per_unit: number
   decoration_type: "embroidery" | "print" | "none"
   position: number
+  positions: PrintPosition[]
+  choices: Choice[]
 }
 
 type BundleDraft = {
@@ -56,6 +72,7 @@ type BundleDraft = {
   status: "active" | "draft"
   thumbnail_url: string
   quantity_multiplier_label: string
+  discount_pct: number
   items: ItemDraft[]
 }
 
@@ -65,6 +82,8 @@ const BLANK_ITEM: ItemDraft = {
   quantity_per_unit: 1,
   decoration_type: "embroidery",
   position: 0,
+  positions: [{ side: "front", method: "embroidery", stitch_count: 4000, width_mm: 90, height_mm: 60 }],
+  choices: [],
 }
 
 const BLANK_DRAFT: BundleDraft = {
@@ -74,6 +93,7 @@ const BLANK_DRAFT: BundleDraft = {
   status: "active",
   thumbnail_url: "",
   quantity_multiplier_label: "",
+  discount_pct: 0,
   items: [],
 }
 
@@ -84,6 +104,7 @@ const bundleToDraft = (bundle: Bundle): BundleDraft => ({
   status: bundle.status,
   thumbnail_url: bundle.thumbnail_url ?? "",
   quantity_multiplier_label: bundle.quantity_multiplier_label ?? "",
+  discount_pct: bundle.discount_pct ?? 0,
   items: (bundle.items ?? [])
     .sort((a, b) => a.position - b.position)
     .map((i) => ({
@@ -92,6 +113,8 @@ const bundleToDraft = (bundle: Bundle): BundleDraft => ({
       quantity_per_unit: i.quantity_per_unit,
       decoration_type: i.decoration_type,
       position: i.position,
+      positions: i.print_positions?.positions ?? defaultPositionsFor(i.decoration_type),
+      choices: i.choices?.options ?? [],
     })),
 })
 
@@ -102,14 +125,137 @@ const draftToPayload = (draft: BundleDraft) => ({
   status: draft.status,
   thumbnail_url: draft.thumbnail_url.trim() || null,
   quantity_multiplier_label: draft.quantity_multiplier_label.trim() || null,
+  discount_pct: draft.discount_pct,
   items: draft.items.map((item, idx) => ({
     product_handle: item.product_handle.trim(),
     label: item.label.trim(),
     quantity_per_unit: item.quantity_per_unit,
-    decoration_type: item.decoration_type,
+    // Summary label for older views; positions are what's priced.
+    decoration_type: summariseDecoration(item.positions),
     position: idx,
+    print_positions: { positions: item.positions },
+    choices: { options: item.choices.filter((c) => c.label.trim() && c.product_handle.trim()) },
   })),
 })
+
+// Mirrors resolvePrintPositions in backend/src/lib/bundle-lines.ts — items
+// saved before positions existed are priced as one front decoration.
+const defaultPositionsFor = (decoration: ItemDraft["decoration_type"]): PrintPosition[] =>
+  decoration === "embroidery"
+    ? [{ side: "front", method: "embroidery", stitch_count: 4000, width_mm: 90, height_mm: 60 }]
+    : decoration === "print"
+      ? [{ side: "front", method: "print", size_id: "up_to_a4" }]
+      : []
+
+const summariseDecoration = (positions: PrintPosition[]): ItemDraft["decoration_type"] =>
+  positions.length === 0
+    ? "none"
+    : positions.some((p) => p.method === "embroidery")
+      ? "embroidery"
+      : "print"
+
+const SIDE_OPTIONS = [
+  ["front", "Front"],
+  ["back", "Back"],
+  ["left_sleeve", "Left sleeve"],
+  ["right_sleeve", "Right sleeve"],
+  ["printed_tag", "Neck tag"],
+] as const
+
+const SIZE_OPTIONS = [
+  ["up_to_a6", "Up to A6 (logo)"],
+  ["up_to_a4", "Up to A4"],
+  ["up_to_a3", "Up to A3"],
+  ["oversize", "Oversize"],
+] as const
+
+const numberInput = (v: string) => Math.max(0, parseInt(v) || 0)
+
+const PositionRow = ({
+  position,
+  usedSides,
+  onChange,
+  onRemove,
+}: {
+  position: PrintPosition
+  usedSides: string[]
+  onChange: (p: PrintPosition) => void
+  onRemove: () => void
+}) => (
+  <div className="grid grid-cols-[1fr_1fr_1.4fr_auto] gap-2 items-end">
+    <Select value={position.side} onValueChange={(side) => onChange({ ...position, side })}>
+      <Select.Trigger size="small">
+        <Select.Value />
+      </Select.Trigger>
+      <Select.Content>
+        {SIDE_OPTIONS.filter(([v]) => v === position.side || !usedSides.includes(v)).map(([v, l]) => (
+          <Select.Item key={v} value={v}>
+            {l}
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select>
+    <Select
+      value={position.method}
+      onValueChange={(m) =>
+        onChange(
+          m === "embroidery"
+            ? { side: position.side, method: "embroidery", stitch_count: 4000, width_mm: 90, height_mm: 60 }
+            : { side: position.side, method: "print", size_id: "up_to_a4" }
+        )
+      }
+    >
+      <Select.Trigger size="small">
+        <Select.Value />
+      </Select.Trigger>
+      <Select.Content>
+        <Select.Item value="embroidery">Embroidery</Select.Item>
+        <Select.Item value="print">Print (DTF)</Select.Item>
+      </Select.Content>
+    </Select>
+    {position.method === "print" ? (
+      <Select value={position.size_id ?? "up_to_a4"} onValueChange={(size_id) => onChange({ ...position, size_id })}>
+        <Select.Trigger size="small">
+          <Select.Value />
+        </Select.Trigger>
+        <Select.Content>
+          {SIZE_OPTIONS.map(([v, l]) => (
+            <Select.Item key={v} value={v}>
+              {l}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select>
+    ) : (
+      <div className="grid grid-cols-3 gap-1">
+        <Input
+          size="small"
+          type="number"
+          title="Stitch count"
+          value={position.stitch_count ?? 4000}
+          onChange={(e) => onChange({ ...position, stitch_count: numberInput(e.currentTarget.value) })}
+        />
+        <Input
+          size="small"
+          type="number"
+          title="Width (mm)"
+          value={position.width_mm ?? 90}
+          onChange={(e) => onChange({ ...position, width_mm: numberInput(e.currentTarget.value) })}
+        />
+        <Input
+          size="small"
+          type="number"
+          title="Height (mm)"
+          value={position.height_mm ?? 60}
+          onChange={(e) => onChange({ ...position, height_mm: numberInput(e.currentTarget.value) })}
+        />
+      </div>
+    )}
+    <Button size="small" variant="transparent" onClick={onRemove} className="text-ui-fg-muted hover:text-ui-tag-red-icon">
+      <Trash />
+    </Button>
+  </div>
+)
 
 const ItemRow = ({
   item,
@@ -165,24 +311,110 @@ const ItemRow = ({
           }
         />
       </div>
-      <div className="flex flex-col gap-y-1">
-        <Label className="text-xs">Decoration</Label>
-        <Select
-          value={item.decoration_type}
-          onValueChange={(v) =>
-            onChange({ ...item, decoration_type: v as ItemDraft["decoration_type"] })
+    </div>
+
+    <div className="flex flex-col gap-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">
+          Decoration positions{" "}
+          <span className="text-ui-fg-muted font-normal">(priced at checkout — stitches · W × H mm for embroidery)</span>
+        </Label>
+        {item.positions.length < SIDE_OPTIONS.length ? (
+          <Button
+            size="small"
+            variant="transparent"
+            onClick={() => {
+              const free = SIDE_OPTIONS.find(([v]) => !item.positions.some((p) => p.side === v))![0]
+              onChange({ ...item, positions: [...item.positions, { side: free, method: "print", size_id: "up_to_a4" }] })
+            }}
+          >
+            <Plus className="mr-1" /> Position
+          </Button>
+        ) : null}
+      </div>
+      {item.positions.length === 0 ? (
+        <Text size="xsmall" className="text-ui-fg-muted">
+          No decoration — this garment goes in the pack blank.
+        </Text>
+      ) : (
+        item.positions.map((pos, pi) => (
+          <PositionRow
+            key={pi}
+            position={pos}
+            usedSides={item.positions.map((p) => p.side)}
+            onChange={(p) => {
+              const positions = [...item.positions]
+              positions[pi] = p
+              onChange({ ...item, positions })
+            }}
+            onRemove={() => onChange({ ...item, positions: item.positions.filter((_, i) => i !== pi) })}
+          />
+        ))
+      )}
+    </div>
+
+    <div className="flex flex-col gap-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">
+          Garment choices{" "}
+          <span className="text-ui-fg-muted font-normal">(optional — e.g. Mens / Womens)</span>
+        </Label>
+        <Button
+          size="small"
+          variant="transparent"
+          onClick={() =>
+            onChange({
+              ...item,
+              choices: item.choices.length
+                ? [...item.choices, { label: "", product_handle: "" }]
+                : [
+                    { label: "", product_handle: item.product_handle },
+                    { label: "", product_handle: "" },
+                  ],
+            })
           }
         >
-          <Select.Trigger size="small">
-            <Select.Value />
-          </Select.Trigger>
-          <Select.Content>
-            <Select.Item value="embroidery">Embroidery</Select.Item>
-            <Select.Item value="print">Print</Select.Item>
-            <Select.Item value="none">None</Select.Item>
-          </Select.Content>
-        </Select>
+          <Plus className="mr-1" /> Choice
+        </Button>
       </div>
+      {item.choices.map((choice, ci) => (
+        <div key={ci} className="grid grid-cols-[1fr_1.6fr_auto] gap-2">
+          <Input
+            size="small"
+            value={choice.label}
+            placeholder={ci === 0 ? "e.g. Mens" : "e.g. Womens"}
+            onChange={(e) => {
+              const choices = [...item.choices]
+              choices[ci] = { ...choice, label: e.currentTarget.value }
+              onChange({ ...item, choices })
+            }}
+          />
+          <Input
+            size="small"
+            value={choice.product_handle}
+            placeholder="product handle"
+            onChange={(e) => {
+              const choices = [...item.choices]
+              choices[ci] = { ...choice, product_handle: e.currentTarget.value }
+              onChange({ ...item, choices })
+            }}
+          />
+          <Button
+            size="small"
+            variant="transparent"
+            onClick={() => onChange({ ...item, choices: item.choices.filter((_, i) => i !== ci) })}
+            className="text-ui-fg-muted hover:text-ui-tag-red-icon"
+          >
+            <Trash />
+          </Button>
+        </div>
+      ))}
+      {item.choices.length ? (
+        <Text size="xsmall" className="text-ui-fg-muted">
+          The item&rsquo;s product handle above is the default; customers pick between these. Every choice is
+          decorated with the same positions.
+        </Text>
+      ) : null}
     </div>
   </div>
 )
@@ -250,6 +482,11 @@ const BundleFormDrawer = ({
       }
       if (!item.label.trim()) {
         setError(`Item ${i + 1}: label is required.`)
+        return
+      }
+      const filledChoices = item.choices.filter((c) => c.label.trim() || c.product_handle.trim())
+      if (filledChoices.some((c) => !c.label.trim() || !c.product_handle.trim())) {
+        setError(`Item ${i + 1}: every garment choice needs a label and a product handle.`)
         return
       }
     }
@@ -361,6 +598,26 @@ const BundleFormDrawer = ({
               </Text>
             </div>
 
+            <div className="flex flex-col gap-y-1">
+              <Label className="text-xs">Pack discount (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={30}
+                value={draft.discount_pct}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    discount_pct: Math.min(30, Math.max(0, parseInt(e.currentTarget.value) || 0)),
+                  }))
+                }
+              />
+              <Text size="xsmall" className="text-ui-fg-muted">
+                Taken off every line of the pack (garment + decoration) while the cart holds every item. Removing an
+                item from the cart removes the discount. Max 30%.
+              </Text>
+            </div>
+
             <div className="flex items-center gap-x-2">
               <Switch
                 id="bundle-active"
@@ -448,6 +705,7 @@ const BundleRow = ({
         {bundle.quantity_multiplier_label
           ? ` · crew: "${bundle.quantity_multiplier_label}"`
           : ""}
+        {bundle.discount_pct > 0 ? ` · ${bundle.discount_pct}% pack discount` : ""}
       </Text>
     </div>
     <div className="shrink-0">
@@ -544,9 +802,12 @@ const BundlesPage = () => {
                   "Title + handle: The handle becomes the URL (/bundles/[handle]) — avoid changing after launch.",
                   "Subtitle: The angle/pitch shown in quotes on the bundle page (e.g. \"Everything your new tradie needs, sorted before their first day.\").",
                   "Crew multiplier: Set the label (e.g. \"How many crew members?\") to make the wizard ask for a number and multiply all item quantities by it. Leave blank for fixed packs.",
-                  "Items: Each item is a Medusa product (referenced by handle), the per-unit quantity, and the decoration type. The label is what the customer sees.",
+                  "Items: Each item is a Medusa product (referenced by handle), the per-unit quantity, and its decoration positions (side + print size, or side + stitch count). The label is what the customer sees.",
+                  "Pricing: Decoration is charged automatically at checkout from each item's positions — the same print/embroidery rate card as the Studio. Embroidery shares one digitizing fee across the whole pack.",
+                  "Garment choices: Optional per item (e.g. Mens / Womens) — the customer picks one; all choices get the same positions.",
+                  "Pack discount: % off every line while the cart holds the whole pack (max 30%).",
                   "Status: Inactive bundles are hidden from the storefront but kept here for editing.",
-                  "Cart lines: When a customer checks out a bundle, each garment is a separate cart line tagged with bundle_id and decoration notes for staff to follow up on pricing.",
+                  "Cart lines: Each garment is a separate priced cart line tagged with bundle_id. The order's print-details widget shows each side's method and size; the customer's artwork is attached as the original file.",
                 ],
               }}
             />

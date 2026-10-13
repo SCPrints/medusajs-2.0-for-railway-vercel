@@ -9,6 +9,12 @@ const Bundle = model
     status: model.text().default("active"),
     thumbnail_url: model.text().nullable(),
     quantity_multiplier_label: model.text().nullable(),
+    /**
+     * Whole-number % off every line of the pack, applied by the cart-wide
+     * recompute only while the cart holds at least one line for EVERY item
+     * of the bundle (see lib/bundle-lines.ts). 0 = no pack discount.
+     */
+    discount_pct: model.number().default(0),
   })
   .indexes([
     { on: ["handle"], unique: true },

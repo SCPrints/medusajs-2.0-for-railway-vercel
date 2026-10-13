@@ -3,17 +3,23 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
-import { joinGroupOrder } from "@lib/data/group-order"
+import { joinGroupOrder, type GroupOrderBundleItem } from "@lib/data/group-order"
 
 const COMMON_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"]
 
 const JoinForm = ({
   token,
   sizeOptions,
+  bundleItems,
 }: {
   token: string
   sizeOptions?: string[]
+  /** Bundle team order: one size pick per sized item instead of one size. */
+  bundleItems?: GroupOrderBundleItem[]
 }) => {
+  const sizedItems = (bundleItems ?? []).filter((i) => i.sizes.length > 0)
+  const isBundle = !!bundleItems?.length
+  const [bundleSizes, setBundleSizes] = useState<Record<string, string>>({})
   const router = useRouter()
   // When the group order has a real base product, drive the size
   // picker from its actual variants so participants can only pick
@@ -31,8 +37,13 @@ const JoinForm = ({
   const [, startTransition] = useTransition()
 
   const submit = () => {
-    if (!name.trim() || !size.trim()) {
+    if (!name.trim() || (!isBundle && !size.trim())) {
       setError("Name and size are required.")
+      return
+    }
+    const missing = sizedItems.find((i) => !bundleSizes[i.bundle_item_id])
+    if (missing) {
+      setError(`Pick a size for ${missing.label}.`)
       return
     }
     setError(null)
@@ -40,7 +51,7 @@ const JoinForm = ({
       const qty = Math.max(1, Number.parseInt(quantity, 10) || 1)
       const res = await joinGroupOrder(token, {
         name: name.trim(),
-        size_label: size,
+        ...(isBundle ? { bundle_sizes: bundleSizes } : { size_label: size }),
         quantity: qty,
         player_number: playerNumber.trim() || undefined,
         custom_notes: notes.trim() || undefined,
@@ -54,6 +65,7 @@ const JoinForm = ({
       setName("")
       setPlayerNumber("")
       setNotes("")
+      setBundleSizes({})
       router.refresh()
     })
   }
@@ -90,7 +102,39 @@ const JoinForm = ({
           placeholder="Player or recipient name"
         />
       </div>
-      <div className="grid grid-cols-1 small:grid-cols-3 gap-3">
+      {sizedItems.length ? (
+        <div className="grid grid-cols-1 small:grid-cols-2 gap-3">
+          {sizedItems.map((item) => (
+            <div key={item.bundle_item_id}>
+              <label
+                htmlFor={`size-${item.bundle_item_id}`}
+                className="text-sm font-semibold text-[var(--brand-primary)]"
+              >
+                {item.label} size *
+              </label>
+              <select
+                id={`size-${item.bundle_item_id}`}
+                value={bundleSizes[item.bundle_item_id] ?? ""}
+                onChange={(e) =>
+                  setBundleSizes((prev) => ({ ...prev, [item.bundle_item_id]: e.target.value }))
+                }
+                className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+              >
+                <option value="" disabled>
+                  Choose a size
+                </option>
+                {item.sizes.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className={`grid grid-cols-1 gap-3 ${isBundle ? "small:grid-cols-2" : "small:grid-cols-3"}`}>
+        {isBundle ? null : (
         <div>
           <label htmlFor="size" className="text-sm font-semibold text-[var(--brand-primary)]">
             Size *
@@ -106,9 +150,10 @@ const JoinForm = ({
             ))}
           </select>
         </div>
+        )}
         <div>
           <label htmlFor="quantity" className="text-sm font-semibold text-[var(--brand-primary)]">
-            Quantity
+            {isBundle ? "Packs" : "Quantity"}
           </label>
           <input
             id="quantity"
@@ -165,7 +210,7 @@ const JoinForm = ({
           onClick={submit}
           className="inline-flex w-full min-h-12 items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
         >
-          Submit my size
+          {isBundle ? "Submit my sizes" : "Submit my size"}
         </button>
       </div>
     </div>

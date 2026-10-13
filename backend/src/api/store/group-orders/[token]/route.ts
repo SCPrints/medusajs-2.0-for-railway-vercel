@@ -3,6 +3,9 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { GROUP_ORDER_MODULE } from "../../../../modules/group-order"
 import type GroupOrderModuleService from "../../../../modules/group-order/service"
+import { BUNDLES_MODULE } from "../../../../modules/bundles"
+import type BundlesModuleService from "../../../../modules/bundles/service"
+import { loadBundleGroupItems, type BundleGroupConfig } from "../../../../lib/bundle-group-order"
 
 /**
  * GET /store/group-orders/:token
@@ -95,6 +98,35 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // Soft fail — the public page renders fine without previews.
   }
 
+  // Bundle team order: the pack items + sizes available in the owner's
+  // chosen colours. Never the artwork URL.
+  let bundlePreview: {
+    title: string | null
+    items: Array<{
+      bundle_item_id: string
+      label: string
+      quantity_per_unit: number
+      product_title: string | null
+      thumbnail: string | null
+      color: string | null
+      sizes: string[]
+    }>
+  } | null = null
+  if (groupOrder.bundle_id && groupOrder.bundle_config) {
+    const items = await loadBundleGroupItems(
+      req.scope,
+      groupOrder.bundle_id,
+      groupOrder.bundle_config as unknown as BundleGroupConfig
+    )
+    const bundles = await req.scope
+      .resolve<BundlesModuleService>(BUNDLES_MODULE)
+      .listBundles({ id: groupOrder.bundle_id }, { take: 1 })
+    bundlePreview = {
+      title: bundles[0]?.title ?? null,
+      items: items.map(({ variantBySize, defaultVariantId, product_handle, ...safe }) => safe),
+    }
+  }
+
   res.json({
     group_order: {
       id: groupOrder.id,
@@ -113,6 +145,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     },
     design_preview: designPreview,
     product_preview: productPreview,
+    bundle_preview: bundlePreview,
     participants: (participants as any[]).map((p) => ({
       id: p.id,
       name: p.name,
@@ -120,6 +153,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       quantity: p.quantity,
       player_number: p.player_number,
       custom_notes: p.custom_notes,
+      bundle_sizes: p.bundle_sizes ?? null,
       created_at: p.created_at,
     })),
   })

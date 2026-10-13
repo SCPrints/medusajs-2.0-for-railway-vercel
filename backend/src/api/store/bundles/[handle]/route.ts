@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { BUNDLES_MODULE } from "../../../../modules/bundles"
 import type BundlesModuleService from "../../../../modules/bundles/service"
+import { allowedHandlesFor } from "../../../../lib/bundle-lines"
 
 const paramsSchema = z.object({ handle: z.string().min(1) })
 
@@ -33,7 +34,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     { order: { position: "ASC" } }
   )
 
-  const productHandles = [...new Set(items.map((i) => i.product_handle))]
+  // Include every garment choice (e.g. Mens / Womens) so the wizard can switch.
+  const productHandles = [...new Set(items.flatMap((i) => [...allowedHandlesFor(i)]))]
 
   let products: Record<string, unknown> = {}
 
@@ -48,6 +50,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         "thumbnail",
         "status",
         "metadata",
+        "options.id",
+        "options.title",
         "variants.id",
         "variants.title",
         "variants.sku",

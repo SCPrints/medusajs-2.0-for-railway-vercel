@@ -30,6 +30,9 @@
  *     (prices via its own serverPricing; structural checks still apply)
  *   - metadata.price_override       — explicit override marker
  *     ({ by, reason, at }) for POS discounts / goodwill adjustments
+ *
+ * Bundle pack discounts are NOT an exemption: the expected price applies the
+ * same DB-verified discount the recompute does (lib/bundle-lines.ts).
  */
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
@@ -48,6 +51,7 @@ import {
 import { costExGstMinorFromMetadata, isBelowCost } from "./safe-tier-pricing"
 import type { Tier } from "./customer-tiers"
 import { getPostHog } from "./posthog"
+import { bundleDiscountByLine, loadBundleDiscountDefs, type BundleDiscountDef } from "./bundle-lines"
 
 export type InvariantLine = {
   id: string
@@ -114,14 +118,18 @@ const serverBlockOf = (line: InvariantLine): Record<string, unknown> | null => {
  */
 export function evaluateCartPricing(
   lines: InvariantLine[],
-  tier?: Tier | null
+  tier?: Tier | null,
+  /** Active discounted bundles referenced by the cart (loadBundleDiscountDefs). */
+  bundleDefs: Map<string, BundleDiscountDef> = new Map()
 ): InvariantResult {
   const findings: InvariantFinding[] = []
 
   const evaluable = lines.filter((l) => l?.id && !isExempt(l))
   const { prices, aggregated_quantity } = recomputeScpCartPricingPure(
     evaluable,
-    tier
+    tier,
+    // Same completeness rule as the recompute: judged over every cart line.
+    bundleDiscountByLine(lines, bundleDefs)
   )
   const aggregatedQty = Math.max(1, aggregated_quantity)
   const screenJobQtyByLine = screenJobQuantityByLine(evaluable)
@@ -303,7 +311,7 @@ export async function runCheckoutPriceInvariant(
       },
     }))
 
-    const result = evaluateCartPricing(lines, tier)
+    const result = evaluateCartPricing(lines, tier, await loadBundleDiscountDefs(scope, lines))
 
     if (result.findings.length) {
       // eslint-disable-next-line no-console

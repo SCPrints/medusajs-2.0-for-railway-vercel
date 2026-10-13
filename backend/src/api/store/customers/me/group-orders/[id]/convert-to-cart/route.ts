@@ -6,39 +6,35 @@ import {
   ContainerRegistrationKeys,
   MedusaError,
 } from "@medusajs/framework/utils"
-import {
-  addToCartWorkflow,
-  createCartWorkflow,
-} from "@medusajs/medusa/core-flows"
+import { createCartWorkflow } from "@medusajs/medusa/core-flows"
 
 import { GROUP_ORDER_MODULE } from "../../../../../../../modules/group-order"
 import type GroupOrderModuleService from "../../../../../../../modules/group-order/service"
 import { getPostHog } from "../../../../../../../lib/posthog"
 import { requireCustomer } from "../../../../../../../lib/require-customer"
-
-type ParticipantLine = {
-  participant_id: string
-  name: string
-  size_label: string
-  quantity: number
-  variant_id: string | null
-  matched: boolean
-  reason?: string
-}
+import {
+  loadBundleGroupItems,
+  rosterToBundleLines,
+  type BundleGroupConfig,
+} from "../../../../../../../lib/bundle-group-order"
+import { buildBundleCartLines } from "../../../../../../../lib/bundle-lines"
+import { addScpLinesToCart } from "../../../../../../../lib/scp-add-lines"
+import { rosterToDesignLines } from "../../../../../../../lib/group-order-lines"
 
 /**
  * POST /store/customers/me/group-orders/:id/convert-to-cart
- *   → { cart_id, lines_added, skipped: ParticipantLine[] }
+ *   → { cart_id, lines_added, skipped: participants whose size didn't match }
  *
- * Builds a cart from a group order's participants. For each
- * participant, picks the variant on the base product whose title or
- * options match the participant's size_label (case-insensitive,
- * trimmed). Variants that can't be matched are reported in `skipped`
- * but the cart is still created so the owner can fix sizes manually.
+ * Builds a cart from a group order's participants. Each participant's
+ * size_label is matched exactly against the base product's size options
+ * (in the organiser's colour), the roster is aggregated per variant, and
+ * every line is priced garment + decoration (lib/group-order-lines.ts).
+ * Sizes that can't be matched are reported in `skipped`; the cart is still
+ * created so the owner can fix sizes manually.
  *
  * Idempotent on the side of the group order:
  *   - If the group order is already `converted` AND we have a recorded
- *     cart_id in metadata, return it without re-adding.
+ *     cart_id in converted_order_ids, return it without re-adding.
  *   - Otherwise build a fresh cart and stamp the id.
  *
  * Edge cases handled:
@@ -72,7 +68,10 @@ export async function POST(
   }
 
   // ---- Idempotency: already-converted → return existing cart ----
-  const existingMeta = (groupOrder.metadata as Record<string, unknown>) ?? {}
+  // Conversion state lives in `converted_order_ids` — group_order has no
+  // `metadata` column (earlier code wrote there and the write was lost).
+  const existingMeta =
+    ((groupOrder.converted_order_ids ?? groupOrder.metadata) as Record<string, unknown>) ?? {}
   if (
     groupOrder.status === "converted" &&
     typeof existingMeta.cart_id === "string"
@@ -85,7 +84,7 @@ export async function POST(
     })
   }
 
-  if (!groupOrder.base_product_id) {
+  if (!groupOrder.base_product_id && !groupOrder.bundle_id) {
     return res.status(400).json({
       error: "missing_base_product",
       detail:
@@ -124,7 +123,7 @@ export async function POST(
       const fresh = await service
         .retrieveGroupOrder(groupOrderId)
         .catch(() => null)
-      const m = ((fresh as any)?.metadata ?? {}) as Record<string, unknown>
+      const m = ((fresh as any)?.converted_order_ids ?? {}) as Record<string, unknown>
       if (
         fresh &&
         (fresh as any).status === "converted" &&
@@ -156,8 +155,61 @@ export async function POST(
     })
   }
 
-  // ---- Resolve the base product's variants + match each participant ----
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+
+  // ---- Bundle team order: the whole pack per participant, priced ----
+  if (groupOrder.bundle_id && groupOrder.bundle_config) {
+    const config = groupOrder.bundle_config as BundleGroupConfig
+    const items = await loadBundleGroupItems(req.scope, groupOrder.bundle_id, config)
+    const roster = rosterToBundleLines(items, participants as any[])
+    if (!roster.items.length) {
+      await service.updateGroupOrders([{ id: groupOrderId, status: "closed" }])
+      return res.status(400).json({
+        error: "no_matching_variants",
+        detail: "No participant had a valid size for every item in the pack.",
+        skipped: roster.skipped,
+      })
+    }
+    const { lines } = await buildBundleCartLines(req.scope, {
+      bundle: { id: groupOrder.bundle_id },
+      artworkUrl: config.artwork_url ?? null,
+      notes: config.notes ?? null,
+      items: roster.items,
+    })
+    const cart = await createGroupCart(query, req.scope, groupOrder, groupOrderId)
+    if ("error" in cart) return res.status(500).json(cart)
+    const result = await addScpLinesToCart(req.scope, cart.id, lines)
+    await service.updateGroupOrders([
+      {
+        id: groupOrderId,
+        status: "converted",
+        converted_order_ids: {
+          ...existingMeta,
+          cart_id: cart.id,
+          converted_at: new Date().toISOString(),
+          converted_lines: result.items_added,
+        },
+      },
+    ])
+    getPostHog()?.capture({
+      distinctId: groupOrder.owner_email,
+      event: "group order converted to cart",
+      properties: {
+        group_order_id: groupOrderId,
+        cart_id: cart.id,
+        lines_added: result.items_added,
+        lines_skipped: roster.skipped.length,
+        bundle_team_order: true,
+      },
+    })
+    return res.json({
+      cart_id: cart.id,
+      lines_added: result.items_added,
+      skipped: roster.skipped,
+    })
+  }
+
+  // ---- Resolve the base product's variants + match each participant ----
   const { data: products } = await query.graph({
     entity: "product",
     fields: [
@@ -179,81 +231,7 @@ export async function POST(
     })
   }
 
-  type Variant = {
-    id: string
-    title: string
-    options?: Array<{ value?: string }>
-  }
-  const variants: Variant[] = product.variants ?? []
-
-  const matchVariant = (sizeLabel: string): string | null => {
-    const target = sizeLabel.trim().toLowerCase()
-    if (!target) return null
-    for (const v of variants) {
-      const titleMatch = String(v.title ?? "").toLowerCase().includes(target)
-      if (titleMatch) return v.id
-      for (const o of v.options ?? []) {
-        if (String(o.value ?? "").toLowerCase() === target) return v.id
-      }
-    }
-    return null
-  }
-
-  const lines: ParticipantLine[] = participants.map((p: any) => {
-    const variantId = matchVariant(p.size_label)
-    return {
-      participant_id: p.id,
-      name: p.name,
-      size_label: p.size_label,
-      quantity: Math.max(1, Number(p.quantity ?? 1)),
-      variant_id: variantId,
-      matched: variantId !== null,
-      reason: variantId === null ? "size_label did not match any variant" : undefined,
-    }
-  })
-
-  const matched = lines.filter((l) => l.matched)
-  if (matched.length === 0) {
-    return res.status(400).json({
-      error: "no_matching_variants",
-      detail:
-        "None of the participants' sizes matched the base product's variants.",
-      skipped: lines,
-    })
-  }
-
-  // ---- Pick a region + sales channel ----
-  let regionId: string | null = null
-  let salesChannelId: string | null = null
-  try {
-    const { data: regions } = await query.graph({
-      entity: "region",
-      fields: ["id", "currency_code"],
-      pagination: { take: 50, skip: 0 },
-    })
-    regionId = (regions as any[])?.[0]?.id ?? null
-  } catch {
-    /* fallthrough */
-  }
-  if (!regionId) {
-    return res.status(500).json({ error: "no_region_configured" })
-  }
-  try {
-    const { data: channels } = await query.graph({
-      entity: "sales_channel",
-      fields: ["id", "is_disabled"],
-      pagination: { take: 20, skip: 0 },
-    })
-    const live =
-      (channels as any[])?.find((c) => c.is_disabled !== true) ??
-      (channels as any[])?.[0]
-    salesChannelId = live?.id ?? null
-  } catch {
-    /* fallthrough */
-  }
-
-  // Load the design (if any) so each cart line carries its
-  // customizer_metadata for the customizer flow / production team.
+  // Load the design (if any) — it's what gets printed on every garment.
   let designMetadata: Record<string, unknown> | null = null
   if (groupOrder.base_design_id) {
     try {
@@ -267,52 +245,45 @@ export async function POST(
         designMetadata = d.customizer_metadata as Record<string, unknown>
       }
     } catch {
-      // Soft-fail; the cart still works without it.
+      // Soft-fail; the cart still works without it (blank garments).
     }
   }
 
-  // ---- Build the cart ----
-  const { result: cart } = await createCartWorkflow(req.scope).run({
-    input: {
-      region_id: regionId,
-      sales_channel_id: salesChannelId ?? undefined,
-      email: groupOrder.owner_email,
-      currency_code: "aud",
-      metadata: {
-        source: "group_order_convert",
-        group_order_id: groupOrderId,
-        group_order_token: groupOrder.public_token,
-      },
-    },
+  // One priced line per variant (lib/group-order-lines.ts): garment +
+  // decoration via the same descriptor + recompute as a Studio add.
+  const { lines: cartLines, skipped } = rosterToDesignLines({
+    variants: product.variants ?? [],
+    baseVariantId: groupOrder.base_variant_id,
+    participants: participants as any[],
+    design: designMetadata,
+    groupOrderId,
   })
+  if (cartLines.length === 0) {
+    await service.updateGroupOrders([{ id: groupOrderId, status: "closed" }])
+    return res.status(400).json({
+      error: "no_matching_variants",
+      detail:
+        "None of the participants' sizes matched the base product's variants.",
+      skipped,
+    })
+  }
+
+  // ---- Build the cart ----
+  const cart = await createGroupCart(query, req.scope, groupOrder, groupOrderId)
+  if ("error" in cart) return res.status(500).json(cart)
 
   let linesAdded = 0
-  for (const line of matched) {
-    try {
-      await addToCartWorkflow(req.scope).run({
-        input: {
-          cart_id: cart.id,
-          items: [
-            {
-              variant_id: line.variant_id as string,
-              quantity: line.quantity,
-              metadata: {
-                group_order_participant_id: line.participant_id,
-                group_order_participant_name: line.name,
-                ...(designMetadata
-                  ? { customizerDesign: designMetadata }
-                  : {}),
-              },
-            },
-          ],
-        },
-      })
-      linesAdded += 1
-    } catch (err: any) {
-      // Move this line into the skipped list so the owner can see what failed.
-      line.matched = false
-      line.reason = `add_to_cart failed: ${err?.message ?? err}`
-    }
+  try {
+    linesAdded = (await addScpLinesToCart(req.scope, cart.id, cartLines)).items_added
+  } catch (err: any) {
+    // e.g. a saved design with unconfirmed embroidery size — reopen so the
+    // owner can fix the design and convert again.
+    await service.updateGroupOrders([{ id: groupOrderId, status: "closed" }])
+    return res.status(400).json({
+      error: "pricing_failed",
+      detail: err?.message ?? "Couldn't price this design. Contact us and we'll sort it.",
+      skipped,
+    })
   }
 
   // Stamp converted + cart_id on the group order itself.
@@ -322,7 +293,7 @@ export async function POST(
     {
       id: groupOrderId,
       status: "converted",
-      metadata: {
+      converted_order_ids: {
         ...existingMeta,
         cart_id: cart.id,
         converted_at: new Date().toISOString(),
@@ -338,13 +309,62 @@ export async function POST(
       group_order_id: groupOrderId,
       cart_id: cart.id,
       lines_added: linesAdded,
-      lines_skipped: lines.filter((l) => !l.matched).length,
+      lines_skipped: skipped.length,
     },
   })
 
   res.json({
     cart_id: cart.id,
     lines_added: linesAdded,
-    skipped: lines.filter((l) => !l.matched),
+    skipped,
   })
+}
+
+async function createGroupCart(
+  query: any,
+  scope: AuthenticatedMedusaRequest["scope"],
+  groupOrder: any,
+  groupOrderId: string
+): Promise<{ id: string } | { error: string }> {
+  let regionId: string | null = null
+  let salesChannelId: string | null = null
+  try {
+    const { data: regions } = await query.graph({
+      entity: "region",
+      fields: ["id", "currency_code"],
+      pagination: { take: 50, skip: 0 },
+    })
+    regionId = (regions as any[])?.[0]?.id ?? null
+  } catch {
+    /* fallthrough */
+  }
+  if (!regionId) return { error: "no_region_configured" }
+  try {
+    const { data: channels } = await query.graph({
+      entity: "sales_channel",
+      fields: ["id", "is_disabled"],
+      pagination: { take: 20, skip: 0 },
+    })
+    const live =
+      (channels as any[])?.find((c) => c.is_disabled !== true) ??
+      (channels as any[])?.[0]
+    salesChannelId = live?.id ?? null
+  } catch {
+    /* fallthrough */
+  }
+
+  const { result: cart } = await createCartWorkflow(scope).run({
+    input: {
+      region_id: regionId,
+      sales_channel_id: salesChannelId ?? undefined,
+      email: groupOrder.owner_email,
+      currency_code: "aud",
+      metadata: {
+        source: "group_order_convert",
+        group_order_id: groupOrderId,
+        group_order_token: groupOrder.public_token,
+      },
+    },
+  })
+  return { id: cart.id }
 }

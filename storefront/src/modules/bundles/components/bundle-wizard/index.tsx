@@ -2,7 +2,9 @@
 
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { addToCartSafe, retrieveCart } from "@lib/data/cart"
+import { addBundleToCartSafe, retrieveCart } from "@lib/data/cart"
+import { createGroupOrder } from "@lib/data/group-order"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 import {
   extractCartDesigns,
@@ -21,6 +23,7 @@ import type {
   BundleProductVariant,
   BundleWithProducts,
 } from "@lib/data/bundles"
+import { describePositions } from "@modules/bundles/lib/positions"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,8 +65,9 @@ function getUniqueColors(
 
 function getSizesForColor(
   product: BundleProduct,
-  colorOptionId: string,
-  selectedColor: string
+  /** null = product has no colour option; every variant counts. */
+  colorOptionId: string | null,
+  selectedColor: string | null
 ): { optionId: string; values: string[] } | null {
   const sizeOption = (product.options ?? []).find(
     (o) => SIZE_RE.test(o.title ?? "") && !isColorOption(o.title)
@@ -72,8 +76,7 @@ function getSizesForColor(
   const seen = new Set<string>()
   const values: string[] = []
   for (const v of product.variants) {
-    const color = getOptionValue(v, colorOptionId)
-    if (color !== selectedColor) continue
+    if (colorOptionId && getOptionValue(v, colorOptionId) !== selectedColor) continue
     const size = getOptionValue(v, sizeOption.id)
     if (size && !seen.has(size)) {
       seen.add(size)
@@ -131,10 +134,41 @@ function variantsForColor(
   )
 }
 
-const DECORATION_LABELS: Record<string, string> = {
-  embroidery: "Embroidery",
-  print: "Print",
-  none: "No decoration",
+function choicesFor(item: BundleItem) {
+  const options = item.choices?.options ?? []
+  return options.length >= 2 ? options : []
+}
+
+/**
+ * Variant lines for one item. Sized garments use the size grid; one-size
+ * garments (caps, totes) — and garments with no colour option — get a
+ * single line at the pack quantity, so they're never silently dropped.
+ */
+function linesForItem(
+  product: BundleProduct | null,
+  cfg: ProductConfig,
+  item: BundleItem,
+  multiplier: number
+): Array<{ variantId: string; quantity: number }> {
+  if (!product) return []
+  const colorInfo = getUniqueColors(product)
+  const needsColor = !!colorInfo && colorInfo.values.length > 0
+  if (needsColor && !cfg.selectedColor) return []
+  const colorOptionId = needsColor ? colorInfo!.optionId : null
+  const sizeInfo = getSizesForColor(product, colorOptionId, cfg.selectedColor)
+  if (sizeInfo && sizeInfo.values.length > 0) {
+    return Object.entries(cfg.sizeQtys)
+      .filter(([, qty]) => qty > 0)
+      .map(([size, quantity]) => ({
+        variantId: findVariantId(product, colorOptionId, cfg.selectedColor, sizeInfo.optionId, size),
+        quantity,
+      }))
+      .filter((l): l is { variantId: string; quantity: number } => !!l.variantId)
+  }
+  const variantId = findVariantId(product, colorOptionId, cfg.selectedColor, null, "")
+  return variantId
+    ? [{ variantId, quantity: Math.max(1, item.quantity_per_unit * multiplier) }]
+    : []
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +210,11 @@ export default function BundleWizard({
 
   const [step, setStep] = useState(0)
   const [multiplier, setMultiplier] = useState(1)
+  const [chosenHandles, setChosenHandles] = useState<string[]>(() =>
+    items.map((i) => i.product_handle)
+  )
+  const productFor = (idx: number): BundleProduct | null =>
+    bundle.products[chosenHandles[idx] ?? ""] ?? null
 
   const [productConfigs, setProductConfigs] = useState<ProductConfig[]>(() =>
     items.map(() => ({
@@ -234,6 +273,18 @@ export default function BundleWizard({
     [items, multiplier]
   )
 
+  const handleChoose = (itemIdx: number, handle: string) => {
+    setChosenHandles((prev) => prev.map((h, i) => (i === itemIdx ? handle : h)))
+    // A different garment has different colours/sizes — start that item over.
+    setProductConfigs((prev) =>
+      prev.map((cfg, i) =>
+        i === itemIdx
+          ? { selectedColor: null, colorOptionId: null, sizeOptionId: null, sizeQtys: {} }
+          : cfg
+      )
+    )
+  }
+
   const handleSizeQtyChange = useCallback(
     (itemIdx: number, sizeValue: string, qty: number) => {
       setProductConfigs((prev) =>
@@ -285,54 +336,28 @@ export default function BundleWizard({
     setAddingToCart(true)
     setCartError(null)
     try {
-      const cartAdds: Promise<{ ok: boolean; error?: string }>[] = []
+      const payloadItems = items
+        .map((item, i) => ({
+          bundleItemId: item.id,
+          productHandle: chosenHandles[i],
+          lines: linesForItem(productFor(i), productConfigs[i], item, multiplier),
+        }))
+        .filter((it) => it.lines.length > 0)
 
-      for (let i = 0; i < items.length; i++) {
-        const bundleItem = items[i]
-        const cfg = productConfigs[i]
-        const product = bundle.products[bundleItem.product_handle]
-
-        if (!product) continue
-
-        const sizesToAdd = Object.entries(cfg.sizeQtys).filter(
-          ([, qty]) => qty > 0
-        )
-
-        for (const [sizeValue, qty] of sizesToAdd) {
-          const variantId = findVariantId(
-            product,
-            cfg.colorOptionId,
-            cfg.selectedColor,
-            cfg.sizeOptionId,
-            sizeValue
-          )
-          if (!variantId) continue
-
-          cartAdds.push(
-            addToCartSafe({
-              variantId,
-              quantity: qty,
-              countryCode,
-              metadata: {
-                bundle_id: bundle.id,
-                bundle_handle: bundle.handle,
-                bundle_title: bundle.title,
-                bundle_item_label: bundleItem.label,
-                decoration_type: bundleItem.decoration_type,
-                artwork_url: artworkUrl ?? null,
-                printNotes: decorationNotes || null,
-              },
-            })
-          )
-        }
+      if (!payloadItems.length) {
+        setCartError("Pick at least one size and quantity before adding to cart.")
+        return
       }
 
-      const results = await Promise.all(cartAdds)
-      const failed = results.filter((r) => !r.ok)
-      if (failed.length > 0) {
-        setCartError(
-          `${failed.length} item(s) could not be added to cart. Please try again.`
-        )
+      const result = await addBundleToCartSafe({
+        countryCode,
+        bundleHandle: bundle.handle,
+        artworkUrl,
+        notes: decorationNotes.trim() || null,
+        items: payloadItems,
+      })
+      if (!result.ok) {
+        setCartError(result.error)
         return
       }
 
@@ -376,13 +401,16 @@ export default function BundleWizard({
       {step > overviewStep && step <= items.length && (() => {
         const itemIdx = productStepIndex(step)
         const bundleItem = items[itemIdx]
-        const product = bundle.products[bundleItem?.product_handle ?? ""] ?? null
+        const product = productFor(itemIdx)
         const cfg = productConfigs[itemIdx]
         return (
           <ProductConfigStep
             bundleItem={bundleItem}
             product={product}
             config={cfg}
+            multiplier={multiplier}
+            chosenHandle={chosenHandles[itemIdx]}
+            onChoose={(handle) => handleChoose(itemIdx, handle)}
             itemIdx={itemIdx}
             totalItems={items.length}
             onColorSelect={(colorOptionId, colorValue) =>
@@ -418,12 +446,48 @@ export default function BundleWizard({
           bundle={bundle}
           items={items}
           productConfigs={productConfigs}
+          products={items.map((_, i) => productFor(i))}
+          multiplier={multiplier}
           artworkUrl={artworkUrl}
           decorationNotes={decorationNotes}
           addingToCart={addingToCart}
           cartError={cartError}
           onBack={() => setStep((s) => s - 1)}
           onAddToCart={handleAddToCart}
+        />
+      )}
+
+      {step === reviewStep && (
+        <TeamOrderPanel
+          bundle={bundle}
+          missingColour={items
+            .filter((_, i) => {
+              const product = productFor(i)
+              const colours = product ? getUniqueColors(product) : null
+              return !!colours?.values.length && !productConfigs[i].selectedColor
+            })
+            .map((item) => item.label)}
+          onCreate={(title, email) =>
+            createGroupOrder({
+              title,
+              owner_email: email,
+              bundle_handle: bundle.handle,
+              bundle_config: {
+                artwork_url: artworkUrl,
+                notes: decorationNotes.trim() || null,
+                items: items
+                  .map((item, i) => ({
+                    bundle_item_id: item.id,
+                    product_handle: chosenHandles[i],
+                    color: productConfigs[i].selectedColor,
+                  }))
+                  .filter((_, i) => !!productFor(i)),
+              },
+            }).then((res) => {
+              if (res.ok) router.push(`/${countryCode}/account/group-orders`)
+              return res
+            })
+          }
         />
       )}
     </div>
@@ -458,12 +522,17 @@ function OverviewStep({
                 {item.quantity_per_unit}×
               </span>
               <span className="text-sm text-ui-fg-base">{item.label}</span>
-              <span className="ml-auto text-xs text-ui-fg-muted">
-                {DECORATION_LABELS[item.decoration_type] ?? item.decoration_type}
+              <span className="ml-auto text-right text-xs text-ui-fg-muted">
+                {describePositions(item)}
               </span>
             </li>
           ))}
         </ul>
+        {bundle.discount_pct ? (
+          <p className="mt-4 text-sm font-medium text-ui-fg-base">
+            Save {bundle.discount_pct}% when you order the full pack.
+          </p>
+        ) : null}
       </div>
 
       {bundle.quantity_multiplier_label ? (
@@ -514,6 +583,9 @@ function ProductConfigStep({
   bundleItem,
   product,
   config,
+  multiplier,
+  chosenHandle,
+  onChoose,
   itemIdx,
   totalItems,
   onColorSelect,
@@ -524,6 +596,9 @@ function ProductConfigStep({
   bundleItem: BundleItem
   product: BundleProduct | null
   config: ProductConfig
+  multiplier: number
+  chosenHandle: string
+  onChoose: (handle: string) => void
   itemIdx: number
   totalItems: number
   onColorSelect: (colorOptionId: string, colorValue: string) => void
@@ -532,13 +607,17 @@ function ProductConfigStep({
   onNext: () => void
 }) {
   const colorInfo = product ? getUniqueColors(product) : null
+  const needsColor = !!colorInfo && colorInfo.values.length > 0
+  const colorReady = !needsColor || !!config.selectedColor
   const sizeInfo =
-    product && config.selectedColor && config.colorOptionId
-      ? getSizesForColor(product, config.colorOptionId, config.selectedColor)
+    product && colorReady
+      ? getSizesForColor(product, needsColor ? colorInfo!.optionId : null, config.selectedColor)
       : null
+  const oneSize = !!product && colorReady && (!sizeInfo || sizeInfo.values.length === 0)
+  const choices = choicesFor(bundleItem)
 
   const hasQty = Object.values(config.sizeQtys).some((q) => q > 0)
-  const canProceed = !product || hasQty
+  const canProceed = !product || hasQty || oneSize
 
   return (
     <div className="flex flex-col gap-y-6">
@@ -550,6 +629,29 @@ function ProductConfigStep({
           Item {itemIdx + 1} of {totalItems}
         </span>
       </div>
+      <p className="-mt-4 text-sm text-ui-fg-subtle">{describePositions(bundleItem)}</p>
+
+      {choices.length ? (
+        <div className="flex flex-col gap-y-2">
+          <p className="text-sm font-medium text-ui-fg-base">Choose a style</p>
+          <div className="flex flex-wrap gap-2">
+            {choices.map((choice) => (
+              <button
+                key={choice.product_handle}
+                onClick={() => onChoose(choice.product_handle)}
+                className={[
+                  "min-h-11 rounded-full border px-4 py-1.5 text-sm font-medium transition",
+                  chosenHandle === choice.product_handle
+                    ? "border-ui-fg-interactive bg-ui-fg-interactive text-ui-bg-base"
+                    : "border-ui-border-base bg-ui-bg-base text-ui-fg-base hover:bg-ui-bg-subtle",
+                ].join(" ")}
+              >
+                {choice.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {!product ? (
         <div className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-5">
@@ -606,7 +708,7 @@ function ProductConfigStep({
           ) : null}
 
           {/* Size qty table */}
-          {config.selectedColor && sizeInfo && sizeInfo.values.length > 0 ? (
+          {colorReady && sizeInfo && sizeInfo.values.length > 0 ? (
             <div className="flex flex-col gap-y-2">
               <p className="text-sm font-medium text-ui-fg-base">
                 Set quantities per size
@@ -628,7 +730,7 @@ function ProductConfigStep({
                       const requested = config.sizeQtys[size] ?? 0
                       const variant = findVariant(
                         product,
-                        config.colorOptionId,
+                        needsColor ? colorInfo!.optionId : null,
                         config.selectedColor,
                         sizeInfo.optionId,
                         size
@@ -677,11 +779,11 @@ function ProductConfigStep({
           ) : null}
 
           {/* No size options — product has no size option (e.g. one-size) */}
-          {config.selectedColor && !sizeInfo && product.variants.length > 0 ? (
+          {oneSize && product.variants.length > 0 ? (
             <div className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4">
               <p className="text-sm text-ui-fg-subtle">
                 This item is one-size. Quantity will be set to{" "}
-                {bundleItem.quantity_per_unit}.
+                {Math.max(1, bundleItem.quantity_per_unit * multiplier)}.
               </p>
             </div>
           ) : null}
@@ -901,6 +1003,8 @@ function ReviewStep({
   bundle,
   items,
   productConfigs,
+  products,
+  multiplier,
   artworkUrl,
   decorationNotes,
   addingToCart,
@@ -911,6 +1015,8 @@ function ReviewStep({
   bundle: BundleWithProducts
   items: BundleItem[]
   productConfigs: ProductConfig[]
+  products: Array<BundleProduct | null>
+  multiplier: number
   artworkUrl: string | null
   decorationNotes: string
   addingToCart: boolean
@@ -918,16 +1024,14 @@ function ReviewStep({
   onBack: () => void
   onAddToCart: () => void
 }) {
-  const hasAnyQty = productConfigs.some((cfg) =>
-    Object.values(cfg.sizeQtys).some((q) => q > 0)
+  const linesByItem = items.map((item, i) =>
+    linesForItem(products[i], productConfigs[i], item, multiplier)
   )
-  const hasProductsWithNoConfig = items.some(
-    (item) => !bundle.products[item.product_handle]
-  )
+  const hasAnyQty = linesByItem.some((lines) => lines.length > 0)
+  const hasProductsWithNoConfig = products.some((p) => !p)
+  const isFullPack = linesByItem.every((lines) => lines.length > 0)
 
-  const totalQty = productConfigs.reduce((acc, cfg) => {
-    return acc + Object.values(cfg.sizeQtys).reduce((a, q) => a + q, 0)
-  }, 0)
+  const totalQty = linesByItem.flat().reduce((acc, l) => acc + l.quantity, 0)
 
   return (
     <div className="flex flex-col gap-y-6">
@@ -936,7 +1040,7 @@ function ReviewStep({
       <div className="flex flex-col gap-y-3">
         {items.map((item, i) => {
           const cfg = productConfigs[i]
-          const product = bundle.products[item.product_handle]
+          const product = products[i]
           const sizes = Object.entries(cfg.sizeQtys).filter(([, q]) => q > 0)
 
           return (
@@ -955,16 +1059,18 @@ function ReviewStep({
                     </p>
                   )}
                 </div>
-                <span className="text-xs text-ui-fg-muted shrink-0">
-                  {DECORATION_LABELS[item.decoration_type] ?? item.decoration_type}
+                <span className="text-xs text-ui-fg-muted text-right">
+                  {describePositions(item)}
                 </span>
               </div>
 
-              {cfg.selectedColor ? (
+              {linesByItem[i].length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                  <span className="text-xs text-ui-fg-subtle">
-                    Colour: <strong className="text-ui-fg-base">{cfg.selectedColor}</strong>
-                  </span>
+                  {cfg.selectedColor ? (
+                    <span className="text-xs text-ui-fg-subtle">
+                      Colour: <strong className="text-ui-fg-base">{cfg.selectedColor}</strong>
+                    </span>
+                  ) : null}
                   {sizes.length > 0 ? (
                     <span className="text-xs text-ui-fg-subtle">
                       Sizes: {sizes.map(([s, q]) => `${s}×${q}`).join(", ")}
@@ -998,9 +1104,21 @@ function ReviewStep({
       ) : null}
 
       {totalQty > 0 ? (
-        <p className="text-sm text-ui-fg-subtle">
-          Total items being added to cart: <strong className="text-ui-fg-base">{totalQty}</strong>
-        </p>
+        <div className="flex flex-col gap-y-1">
+          <p className="text-sm text-ui-fg-subtle">
+            Total items being added to cart: <strong className="text-ui-fg-base">{totalQty}</strong>
+          </p>
+          <p className="text-xs text-ui-fg-muted">
+            Your cart shows the full price for each item, including printing and embroidery.
+          </p>
+          {bundle.discount_pct ? (
+            <p className="text-sm font-medium text-ui-fg-base">
+              {isFullPack
+                ? `Full pack: ${bundle.discount_pct}% off is applied in your cart.`
+                : `Add every item in the pack to save ${bundle.discount_pct}%.`}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {hasProductsWithNoConfig ? (
@@ -1034,6 +1152,85 @@ function ReviewStep({
           {addingToCart ? "Adding to cart…" : "Add to cart"}
         </button>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Team packs: instead of entering every size, the organiser shares a link and
+ * each person picks their own sizes. Converts into this same priced pack.
+ */
+function TeamOrderPanel({
+  bundle,
+  missingColour,
+  onCreate,
+}: {
+  bundle: BundleWithProducts
+  missingColour: string[]
+  onCreate: (title: string, email: string) => Promise<{ ok: true } | { ok: false; error: string }>
+}) {
+  const [title, setTitle] = useState(bundle.title)
+  const [email, setEmail] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = async () => {
+    if (missingColour.length) {
+      setError(`Choose a colour for ${missingColour.join(", ")} first.`)
+      return
+    }
+    if (!title.trim() || !email.trim()) {
+      setError("Add a name for the order and your email.")
+      return
+    }
+    setBusy(true)
+    setError(null)
+    const res = await onCreate(title.trim(), email.trim())
+    if (!res.ok) setError(res.error)
+    setBusy(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-y-3 rounded-xl border border-ui-border-base bg-ui-bg-subtle p-5">
+      <div>
+        <p className="text-sm font-semibold text-ui-fg-base">Ordering for a team?</p>
+        <p className="mt-1 text-xs text-ui-fg-subtle">
+          Skip the size spreadsheet. Share one link and everyone picks their own sizes for this pack. You
+          convert it to a single order when everyone&rsquo;s in. Your colours and artwork above are kept.
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-2 small:grid-cols-2">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Under 12s kit 2027"
+          className="min-h-11 rounded-md border border-ui-border-base bg-ui-bg-base px-3 text-sm"
+        />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Your email"
+          className="min-h-11 rounded-md border border-ui-border-base bg-ui-bg-base px-3 text-sm"
+        />
+      </div>
+      {error ? (
+        <p className="text-sm text-ui-tag-red-text">
+          {error}{" "}
+          {/sign in/i.test(error) ? (
+            <LocalizedClientLink href="/account" className="underline">
+              Sign in
+            </LocalizedClientLink>
+          ) : null}
+        </p>
+      ) : null}
+      <button
+        onClick={submit}
+        disabled={busy}
+        className="self-start min-h-11 rounded-full border border-ui-border-base bg-ui-bg-base px-5 text-sm font-medium text-ui-fg-base transition hover:bg-ui-bg-subtle-hover disabled:opacity-40"
+      >
+        {busy ? "Creating link…" : "Create a team size link"}
+      </button>
     </div>
   )
 }

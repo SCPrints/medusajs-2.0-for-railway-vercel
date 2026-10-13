@@ -63,7 +63,7 @@ export default async function GroupOrderJoinPage({
     )
   }
 
-  const { group_order, participants, design_preview, product_preview } = data
+  const { group_order, participants, design_preview, product_preview, bundle_preview } = data
   const preferredSizes = product_preview?.available_sizes ?? []
 
   return (
@@ -135,6 +135,39 @@ export default async function GroupOrderJoinPage({
           </div>
         ) : null}
 
+        {bundle_preview?.items.length ? (
+          <div className="mt-6">
+            <p className="text-sm font-semibold text-ui-fg-base">
+              {bundle_preview.title ?? "Team pack"} &mdash; each person gets:
+            </p>
+            <ul className="mt-3 grid list-none grid-cols-1 gap-3 p-0 small:grid-cols-2">
+              {bundle_preview.items.map((item) => (
+                <li
+                  key={item.bundle_item_id}
+                  className="flex items-center gap-3 rounded-xl border border-ui-border-base bg-ui-bg-subtle p-3"
+                >
+                  {item.thumbnail ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={item.thumbnail}
+                      alt=""
+                      className="h-14 w-14 shrink-0 rounded-md bg-white object-contain"
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ui-fg-base">
+                      {item.quantity_per_unit}× {item.label}
+                    </p>
+                    <p className="text-xs text-ui-fg-subtle">
+                      {[item.product_title, item.color].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <hr className="my-6 border-ui-border-base" />
 
         {group_order.status !== "open" ? (
@@ -142,7 +175,11 @@ export default async function GroupOrderJoinPage({
             This group order is no longer accepting submissions.
           </div>
         ) : (
-          <JoinForm token={token} sizeOptions={preferredSizes} />
+          <JoinForm
+            token={token}
+            sizeOptions={preferredSizes}
+            bundleItems={bundle_preview?.items}
+          />
         )}
       </section>
 
@@ -171,7 +208,8 @@ export default async function GroupOrderJoinPage({
                   ) : null}
                 </div>
                 <span className="text-sm font-medium text-ui-fg-base">
-                  Size {p.size_label}
+                  {bundle_preview ? "" : "Size "}
+                  {p.size_label}
                   {p.quantity > 1 ? ` × ${p.quantity}` : ""}
                 </span>
               </li>

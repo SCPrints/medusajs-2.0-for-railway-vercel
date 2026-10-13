@@ -9,6 +9,7 @@ import { z } from "zod"
 import { GROUP_ORDER_MODULE } from "../../../modules/group-order"
 import type GroupOrderModuleService from "../../../modules/group-order/service"
 import { getPostHog } from "../../../lib/posthog"
+import { validateBundleGroupConfig, type BundleGroupConfig } from "../../../lib/bundle-group-order"
 
 const createSchema = z.object({
   title: z.string().min(1).max(200),
@@ -23,6 +24,24 @@ const createSchema = z.object({
   customizer_metadata: z.record(z.string(), z.unknown()).optional(),
   deadline_at: z.string().datetime().optional(),
   notes: z.string().max(2000).optional(),
+  // Bundle team order: the whole pack, one size per item per participant.
+  bundle_handle: z.string().min(1).max(200).optional(),
+  bundle_config: z
+    .object({
+      artwork_url: z.string().url().max(2000).nullable().optional(),
+      notes: z.string().max(2000).nullable().optional(),
+      items: z
+        .array(
+          z.object({
+            bundle_item_id: z.string().min(1),
+            product_handle: z.string().min(1),
+            color: z.string().max(100).nullable().optional(),
+          })
+        )
+        .min(1)
+        .max(20),
+    })
+    .optional(),
 })
 
 function makePublicToken() {
@@ -45,6 +64,22 @@ export async function POST(
     return res.status(400).json({ error: err?.message ?? "invalid" })
   }
 
+  let bundle: { bundleId: string; config: BundleGroupConfig } | null = null
+  if (body.bundle_handle) {
+    if (!body.bundle_config) {
+      return res.status(400).json({ error: "bundle_config is required for a bundle team order" })
+    }
+    bundle = await validateBundleGroupConfig(req.scope, body.bundle_handle, {
+      artwork_url: body.bundle_config.artwork_url ?? null,
+      notes: body.bundle_config.notes ?? null,
+      items: body.bundle_config.items.map((i) => ({
+        bundle_item_id: i.bundle_item_id,
+        product_handle: i.product_handle,
+        color: i.color ?? null,
+      })),
+    })
+  }
+
   const service = req.scope.resolve<GroupOrderModuleService>(GROUP_ORDER_MODULE)
   const ownerCustomerId = req.auth_context?.actor_id ?? null
 
@@ -63,6 +98,8 @@ export async function POST(
       customizer_metadata: body.customizer_metadata ?? {},
       deadline_at: body.deadline_at ? new Date(body.deadline_at) : null,
       notes: body.notes ?? null,
+      bundle_id: bundle?.bundleId ?? null,
+      bundle_config: bundle?.config ?? null,
     },
   ])
 
@@ -73,6 +110,7 @@ export async function POST(
       group_order_id: created.id,
       title: body.title,
       organisation_name: body.organisation_name ?? null,
+      bundle_handle: body.bundle_handle ?? null,
     },
   })
 

@@ -31,6 +31,18 @@ const GroupOrder = model
     deadline_at: model.dateTime().nullable(),
     notes: model.text().nullable(),
     converted_order_ids: model.json().default({}),
+    /**
+     * Set when the group order is a bundle team order: every participant
+     * picks a size per bundle item and the convert step adds the whole pack
+     * through the priced bundle path (lib/bundle-lines.ts).
+     */
+    bundle_id: model.text().nullable(),
+    /**
+     * `{ artwork_url, notes, items: [{ bundle_item_id, product_handle, color }] }`
+     * — the owner's pack choices (garment + colour per item). Artwork URL is
+     * never exposed on the public page.
+     */
+    bundle_config: model.json().nullable(),
   })
   .indexes([
     { on: ["public_token"], unique: true },

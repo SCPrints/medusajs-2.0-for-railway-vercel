@@ -1,5 +1,6 @@
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { updateLineItemInCartWorkflow } from "@medusajs/medusa/core-flows"
+import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
+import { refreshCartItemsWorkflow } from "@medusajs/medusa/core-flows"
+import type { ICartModuleService } from "@medusajs/framework/types"
 
 import {
   bnLikeToMajorAmount,
@@ -22,6 +23,11 @@ import {
   screenJobQuantityByLine,
   type DigitizingUnitEntry,
 } from "./scp-decoration-pricing"
+import {
+  applyBundleDiscount,
+  bundleDiscountByLine,
+  loadBundleDiscountDefs,
+} from "./bundle-lines"
 
 /**
  * Cross-cart bulk-tier aggregation.
@@ -205,7 +211,8 @@ const computeNewUnitPriceMajor = (
   aggregatedQty: number,
   screenJobQty: number,
   tier?: Tier | null,
-  digitizingAmortQtyByKey?: Map<string, number>
+  digitizingAmortQtyByKey?: Map<string, number>,
+  bundleDiscountPct?: number
 ): number | null => {
   const variantMeta = line.variant?.metadata ?? null
   // Tier customers get a flat garment price (cost × multiplier), quantity-
@@ -227,7 +234,7 @@ const computeNewUnitPriceMajor = (
 
   // No customizer metadata → plain garment line, no print component.
   if (!scpBlock || !scpBlock.printSizeId) {
-    return round2(Math.max(0, garmentMajor))
+    return applyBundleDiscount(round2(Math.max(0, garmentMajor)), bundleDiscountPct)
   }
 
   // Canonical decoration math — shared with the add descriptor and the
@@ -252,11 +259,15 @@ const computeNewUnitPriceMajor = (
     digitizingAmortQtyByKey,
   })
 
-  return round2(
-    Math.max(0, garmentMajor) +
-      totals.printTotalMajor +
-      totals.embroideryTotalMajor +
-      totals.screenTotalMajor
+  // Pack discount (bundle bought in full) — last, over garment + decoration.
+  return applyBundleDiscount(
+    round2(
+      Math.max(0, garmentMajor) +
+        totals.printTotalMajor +
+        totals.embroideryTotalMajor +
+        totals.screenTotalMajor
+    ),
+    bundleDiscountPct
   )
 }
 
@@ -264,7 +275,8 @@ const buildUpdatedServerBlock = (
   existingMetadata: Record<string, unknown> | null | undefined,
   newUnitPriceMajor: number,
   aggregatedQty: number,
-  screenJobQty: number
+  screenJobQty: number,
+  bundleDiscountPct?: number
 ): Record<string, unknown> | null => {
   if (!existingMetadata || typeof existingMetadata !== "object") return null
   const customizerDesign = existingMetadata.customizerDesign as
@@ -284,6 +296,8 @@ const buildUpdatedServerBlock = (
     // Screen job (design-group) quantity the screen tier was priced at —
     // what DSP will bill this run on, so staff can reconcile the invoice.
     screen_job_quantity: screenJobQty,
+    // Pack discount actually applied this pass (0 once the pack is broken up).
+    bundle_discount_pct: bundleDiscountPct ?? 0,
   }
   return {
     ...existingMetadata,
@@ -435,6 +449,12 @@ export async function recomputeScpCartPricing(
 
   const digitizingAmortByLine = buildDigitizingAmortByLine(eligible)
   const screenJobQtyByLine = screenJobQuantityByLine(eligible)
+  // Completeness is judged over ALL cart lines (an undiscountable bundle line
+  // still proves the item is present).
+  const bundleDiscounts = bundleDiscountByLine(
+    items,
+    await loadBundleDiscountDefs(scope, items)
+  )
   const pending: PendingUpdate[] = []
   for (const line of eligible) {
     const oldUnitPrice = bnLikeToMajorAmount(line.unit_price) ?? 0
@@ -444,7 +464,8 @@ export async function recomputeScpCartPricing(
       effectiveQty,
       screenJobQty,
       tier,
-      digitizingAmortByLine.get(line.id)
+      digitizingAmortByLine.get(line.id),
+      bundleDiscounts.get(line.id)
     )
     if (newUnitPriceMajor === null) continue
     if (round2(oldUnitPrice) === round2(newUnitPriceMajor)) continue
@@ -457,29 +478,32 @@ export async function recomputeScpCartPricing(
         line.metadata,
         newUnitPriceMajor,
         effectiveQty,
-        screenJobQty
+        screenJobQty,
+        bundleDiscounts.get(line.id)
       ),
     })
   }
 
-  // Each workflow run targets a distinct line_id, so concurrent writes don't
-  // collide on the cart_line_item row. Parallelising turns N sequential
-  // ~200-500ms workflow runs (full cart pricing recalc each) into ~1 round-trip
-  // — the dominant cost in the slow cart-delete UX.
-  await Promise.all(
-    pending.map((p) =>
-      updateLineItemInCartWorkflow(scope as never).run({
-        input: {
-          cart_id: cartId,
-          item_id: p.line_id,
-          update: {
-            unit_price: p.new_unit_price,
-            ...(p.updated_metadata ? { metadata: p.updated_metadata } : {}),
-          },
-        },
-      })
+  // ONE batched write + ONE cart refresh. The old shape ran one
+  // updateLineItemInCartWorkflow per line in parallel, but every run takes
+  // the same per-cart lock (2s timeout) and does a full refresh, so on carts
+  // with many changed lines (bundles, the bulk grid) the later runs failed
+  // with "Failed to acquire lock" and those lines kept their add-time price.
+  // A non-forced refresh doesn't reprice items — it only re-syncs shipping,
+  // promotions and the payment collection, exactly what each per-line run did
+  // after writing its price.
+  if (pending.length) {
+    const cartModule = scope.resolve(Modules.CART) as ICartModuleService
+    await cartModule.updateLineItems(
+      pending.map((p) => ({
+        id: p.line_id,
+        unit_price: p.new_unit_price,
+        is_custom_price: true,
+        ...(p.updated_metadata ? { metadata: p.updated_metadata } : {}),
+      }))
     )
-  )
+    await refreshCartItemsWorkflow(scope as never).run({ input: { cart_id: cartId } })
+  }
 
   return {
     aggregated_quantity: aggregatedQty,
@@ -501,7 +525,9 @@ export async function recomputeScpCartPricing(
  */
 export function recomputeScpCartPricingPure(
   lines: CartLineForRecompute[],
-  tier?: Tier | null
+  tier?: Tier | null,
+  /** Per-line pack discount % (bundleDiscountByLine). */
+  bundleDiscounts?: Map<string, number>
 ): {
   aggregated_quantity: number
   prices: Map<string, number>
@@ -530,7 +556,8 @@ export function recomputeScpCartPricingPure(
       effectiveQty,
       screenJobQtyByLine.get(line.id) ?? Math.max(1, line.quantity),
       tier,
-      digitizingAmortByLine.get(line.id)
+      digitizingAmortByLine.get(line.id),
+      bundleDiscounts?.get(line.id)
     )
     if (major !== null) prices.set(line.id, major)
   }

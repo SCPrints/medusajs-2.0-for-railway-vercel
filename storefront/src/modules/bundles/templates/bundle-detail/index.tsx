@@ -1,12 +1,8 @@
 import type { BundleWithProducts } from "@lib/data/bundles"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import BundleWizard from "@modules/bundles/components/bundle-wizard"
+import { describePositions } from "@modules/bundles/lib/positions"
 
-const DECORATION_ICONS: Record<string, string> = {
-  embroidery: "🪡",
-  print: "🖨️",
-  none: "",
-}
 
 const ArrowLeftIcon = ({ className }: { className?: string }) => (
   <svg
@@ -90,16 +86,19 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
                     <span className="flex-1 text-sm text-ui-fg-base small:text-base">
                       {item.label}
                     </span>
-                    {item.decoration_type !== "none" ? (
-                      <span className="ml-auto shrink-0 text-xs text-ui-fg-muted">
-                        {DECORATION_ICONS[item.decoration_type] ?? ""}{" "}
-                        {item.decoration_type}
-                      </span>
-                    ) : null}
+                    <span className="ml-auto text-right text-xs text-ui-fg-muted">
+                      {describePositions(item)}
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
+
+            {bundle.discount_pct ? (
+              <p className="text-sm font-semibold text-ui-fg-base">
+                Save {bundle.discount_pct}% when you order the full pack.
+              </p>
+            ) : null}
 
             {bundle.quantity_multiplier_label ? (
               <div className="rounded-xl border border-ui-border-base bg-ui-bg-subtle px-4 py-3">

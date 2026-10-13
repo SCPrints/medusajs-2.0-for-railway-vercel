@@ -28,6 +28,8 @@ export type GroupOrderParticipant = {
   quantity: number
   player_number: string | null
   custom_notes: string | null
+  /** Bundle team orders: `{ sizes: { [bundle_item_id]: size } }`. */
+  bundle_sizes?: { sizes?: Record<string, string> } | null
   created_at: string
 }
 
@@ -43,11 +45,28 @@ export type GroupOrderProductPreview = {
   available_sizes: string[]
 }
 
+export type GroupOrderBundleItem = {
+  bundle_item_id: string
+  label: string
+  quantity_per_unit: number
+  product_title: string | null
+  thumbnail: string | null
+  color: string | null
+  /** Empty = one-size, no pick needed. */
+  sizes: string[]
+}
+
+export type GroupOrderBundlePreview = {
+  title: string | null
+  items: GroupOrderBundleItem[]
+}
+
 export type GroupOrderPublicPayload = {
   group_order: GroupOrder
   participants: GroupOrderParticipant[]
   design_preview: GroupOrderDesignPreview | null
   product_preview: GroupOrderProductPreview | null
+  bundle_preview?: GroupOrderBundlePreview | null
 }
 
 export async function getGroupOrderByToken(
@@ -66,7 +85,8 @@ export async function joinGroupOrder(
   token: string,
   input: {
     name: string
-    size_label: string
+    size_label?: string
+    bundle_sizes?: Record<string, string>
     quantity?: number
     player_number?: string
     custom_notes?: string
@@ -98,6 +118,13 @@ export async function createGroupOrder(input: {
   customizer_metadata?: Record<string, unknown>
   deadline_at?: string
   notes?: string
+  /** Bundle team order: whole pack per participant. */
+  bundle_handle?: string
+  bundle_config?: {
+    artwork_url: string | null
+    notes: string | null
+    items: Array<{ bundle_item_id: string; product_handle: string; color: string | null }>
+  }
 }): Promise<{ ok: true; group_order: GroupOrder } | { ok: false; error: string }> {
   const headers = await getAuthHeaders()
   if (!("authorization" in headers)) {

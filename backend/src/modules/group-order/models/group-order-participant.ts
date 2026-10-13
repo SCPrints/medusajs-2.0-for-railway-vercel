@@ -17,6 +17,8 @@ const GroupOrderParticipant = model
     player_number: model.text().nullable(),
     custom_notes: model.text().nullable(),
     submitter_email: model.text().nullable(),
+    /** Bundle team orders: `{ sizes: { [bundle_item_id]: size_label } }`. */
+    bundle_sizes: model.json().nullable(),
   })
   .indexes([{ on: ["group_order_id"] }])
 
