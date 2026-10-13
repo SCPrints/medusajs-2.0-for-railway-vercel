@@ -37,8 +37,15 @@ const fire = (name: string, params: Record<string, any>) => {
   if (!isClient()) return
   const gtag = window.gtag
   if (typeof gtag !== "function") return
+  // GA4 reads event-level `source` / `medium` / `campaign` as the session's
+  // traffic source — customizer `source: "upload"` was showing up as an
+  // acquisition channel. Prefix them so they stay plain event params.
+  const safe: Record<string, any> = {}
+  for (const [k, v] of Object.entries(params)) {
+    safe[k === "source" || k === "medium" || k === "campaign" ? `event_${k}` : k] = v
+  }
   try {
-    gtag("event", name, params)
+    gtag("event", name, safe)
   } catch {
     // never throw from analytics
   }

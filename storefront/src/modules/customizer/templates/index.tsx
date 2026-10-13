@@ -144,7 +144,7 @@ import { HttpTypes } from "@medusajs/types"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
-import { trackCustomizerAction, trackCustomizerFunnel, trackLead } from "@lib/analytics"
+import { productToItem, trackAddToCart, trackCustomizerAction, trackCustomizerFunnel, trackLead } from "@lib/analytics"
 import { phCapture } from "@lib/posthog"
 import CustomizerGuide from "@modules/customizer/components/customizer-guide"
 import * as fabric from "fabric"
@@ -5358,6 +5358,20 @@ export default function CustomizerTemplate({
       }
       trackCustomizerFunnel("design_added_to_cart", cartedPayload)
       phCapture("customizer_design_added_to_cart", cartedPayload)
+      // Standard GA4 ecommerce add_to_cart — without it the Reports funnel
+      // shows 0 cart adds since Studio became the PDP.
+      const decoratedUnit = Number((pricing as any)?.discountedUnitPriceCents) // major units
+      trackAddToCart(
+        resolvedQuantities.flatMap(({ variant, quantity }) => {
+          const item = productToItem(
+            { ...variant, product: variant.product ?? selectedProduct } as any,
+            quantity
+          )
+          if (!item) return []
+          if (decoratedUnit > 0) item.price = decoratedUnit
+          return [item]
+        })
+      )
 
       // Phase 3a — auto-save bulk groups as a Design for logged-in
       // customers. The cart line still carries the full snapshot (so
