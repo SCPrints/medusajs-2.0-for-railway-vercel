@@ -316,3 +316,12 @@ a.checkout-nav-link--subtle:hover {
     --nav-height: 128px;
   }
 }
+
+/* /explore: bodies that appear when a planet is selected pop in. */
+@keyframes explore-pop {
+  from { opacity: 0; }
+}
+.explore-pop { animation: explore-pop 350ms cubic-bezier(.22,.61,.36,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .explore-pop { animation: none; }
+}

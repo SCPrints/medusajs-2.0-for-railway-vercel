@@ -474,7 +474,7 @@ Reference docs (CMYK ↔ DTF colour chart, etc.) live as TS data + page template
 
 ## Explore — the space-themed catalog map (`/explore`)
 
-A force-directed map of the catalog drawn as a solar system: the catalog root is the **sun**, brands are **planets** (logo discs with a teal glow, sized by product count) on the inner orbit, top-level audience categories are **moons** on the next orbit, product types are **beacons**, tags are background **stars** (off by default), and products are **dust** that only appears around the selected planet/moon. The home hero's starfield is painted behind it. Rebuilt 2026-10-11 after the review in [Docs/EXPLORE_PAGE_REVIEW_2026_10.md](Docs/EXPLORE_PAGE_REVIEW_2026_10.md).
+A map of the catalog drawn as a solar system in **plain DOM** (no physics, no canvas library): the catalog root is the **sun**, brands are **planets** (logo discs with a teal glow, sized by product count) on the inner orbit, top-level audience categories are **moons** on the next orbit, product types are **beacons**, tags are background **stars** (off by default), and products are **dust** that only appears around the selected planet/moon. Positions are pure maths (`layoutOrbits`: ring radius + evenly spaced angle, satellites on concentric rings around the selected hub), the camera is one CSS transform on the scene, and every change is a CSS transition. The home hero's starfield is painted behind it. Reviewed + rebuilt 2026-10-11 ([Docs/EXPLORE_PAGE_REVIEW_2026_10.md](Docs/EXPLORE_PAGE_REVIEW_2026_10.md)); the react-force-graph version was replaced by the DOM orbit map on 2026-10-13 because the simulation made it feel clunky (drift after every click, 180 KB chunk, blurry canvas logos, pixel hit-testing).
 
 | Component | Path |
 | --- | --- |
@@ -482,7 +482,8 @@ A force-directed map of the catalog drawn as a solar system: the catalog root is
 | Server fetcher (`"use cache: remote"`, tags `graph`/`products`/`categories`) | [storefront/src/lib/data/graph.ts](storefront/src/lib/data/graph.ts) |
 | Page (static — deliberately reads NO `searchParams`) | [storefront/src/app/\[countryCode\]/(main)/explore/page.tsx](storefront/src/app/[countryCode]/(main)/explore/page.tsx) |
 | Template (HUD, visibility rules, `?focus=` read client-side) | [storefront/src/modules/graph/templates/explore-template.tsx](storefront/src/modules/graph/templates/explore-template.tsx) |
-| Canvas renderer (orbits via `forceRadial`, sun/planet/moon drawing) | [storefront/src/modules/graph/components/force-graph.tsx](storefront/src/modules/graph/components/force-graph.tsx) |
+| Layout maths (pure, unit-tested) | [storefront/src/modules/graph/lib/orbit-layout.ts](storefront/src/modules/graph/lib/orbit-layout.ts) |
+| DOM renderer (scene transform camera, drag/wheel/pinch, bodies as buttons/links) | [storefront/src/modules/graph/components/orbit-map.tsx](storefront/src/modules/graph/components/orbit-map.tsx) |
 | Starfield backdrop (shared with the home space hero) | [storefront/src/modules/graph/components/starfield-backdrop.tsx](storefront/src/modules/graph/components/starfield-backdrop.tsx) + [storefront/src/modules/home/components/space-hero/starfield.ts](storefront/src/modules/home/components/space-hero/starfield.ts) |
 | Palette, ring radii, HUD surface classes | [storefront/src/modules/graph/lib/style.ts](storefront/src/modules/graph/lib/style.ts) |
 | Client expansion hook | [storefront/src/modules/graph/hooks/use-graph-expansion.ts](storefront/src/modules/graph/hooks/use-graph-expansion.ts) |
@@ -490,9 +491,9 @@ A force-directed map of the catalog drawn as a solar system: the catalog root is
 **Rules that keep it fast (don't undo):**
 - The page must stay static: no `searchParams`/`cookies` reads in `page.tsx`. One such read turned the whole body into a per-request dynamic hole whose content never reached the CDN document (React #419 on every load, 30 s fallbacks).
 - Nothing auto-expands on load. Products are fetched only when a hub is clicked (`expandNode`), and only the selected hub's products are rendered.
-- `force-graph.tsx` passes node objects through **unchanged** so d3 keeps positions across merges/filter toggles; new nodes are seeded next to their hub. `cooldownTicks` is a constant — setting it to 0 "after settle" freezes merges and breaks drag.
+- Ring order is **alphabetical**, never by product count: counts change when an expansion merges in, and re-ordering a ring would move every planet under the user (the camera centred on a planet that then slid away). Layout coordinates are rounded to 2 dp so server and client serialise identical inline styles (hydration).
 - Brand logos come from the storefront presentation map by brand handle (`getBrandPresentation`), never from the backend.
-- The graph libraries are **storefront** deps (`storefront/package.json`). They used to live in the repo-root `package.json` with a committed 17 MB `node_modules/` — that was removed; keep `node_modules/` ignored.
+- No graph library: `react-force-graph-2d`/`d3-force` were removed on 2026-10-13. Don't reintroduce a simulation; if a layout needs changing, change `layoutOrbits`. The repo-root `node_modules/` that used to hold those libs is gone and ignored.
 - The route emits no prices (the old min-over-all-price-rows leaked B2B tier prices into the tooltip). Add a `MIN(amount) WHERE price_list_id IS NULL` query if a price is ever wanted.
 
 ## Point of sale (POS) — walk-in transactions
