@@ -1,6 +1,8 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { findOpenCarts } from "../../../../lib/open-carts"
+
 /**
  * GET /admin/admin-workspace/search?q=<query>
  *
@@ -14,7 +16,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 const LIMIT = 10
 
 type Hit = {
-  type: "order" | "customer" | "product"
+  type: "order" | "customer" | "product" | "cart"
   id: string
   title: string
   subtitle?: string | null
@@ -125,6 +127,24 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   } catch {
     /* skip */
+  }
+
+  // Open carts — cart / line ids (customers and AI agents quote `cali_…` back
+  // at us) or an email. Short free text is skipped: names already hit customers.
+  if (/^(cart_|cali_|cus_)/.test(q) || q.includes("@")) {
+    try {
+      for (const c of await findOpenCarts(req.scope, { q, limit: LIMIT })) {
+        results.push({
+          type: "cart",
+          id: c.id,
+          title: c.customer_name || c.email || c.id,
+          subtitle: `${c.lines.length} line${c.lines.length === 1 ? "" : "s"} · $${c.item_total.toFixed(2)}`,
+          href: `/app/open-carts?q=${encodeURIComponent(c.id)}`,
+        })
+      }
+    } catch {
+      /* skip */
+    }
   }
 
   return res.json({ q, hits: results })

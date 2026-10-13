@@ -8,6 +8,7 @@ import {
   type ContactAttachment,
 } from "../../lib/contact-submissions"
 import { isValidEmail } from "../../lib/email-validation"
+import { findOpenCarts } from "../../lib/open-carts"
 import { getPostHog } from "../../lib/posthog"
 import { getStorefrontOriginAllowlist } from "../../lib/storefront-origins"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
@@ -131,6 +132,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const notificationRecipient = CONTACT_NOTIFICATION_EMAIL?.trim()
 
+  // Customers often enquire about designs sitting in their cart — attach any
+  // open carts for this email so staff see the artwork without digging.
+  const carts = await findOpenCarts(req.scope, { q: email, limit: 3 }).catch((error) => {
+    console.error("Open-cart lookup for contact submission failed", error)
+    return []
+  })
+  const cartTag = carts.length ? `[Has cart $${carts[0].item_total.toFixed(2)}] ` : ""
+
   if (notificationRecipient) {
     try {
       const notificationModuleService: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
@@ -141,11 +150,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         template: EmailTemplates.CONTACT_SUBMISSION,
         data: {
           emailOptions: {
-            subject: subject
-              ? `New contact submission: ${subject}`
-              : "New contact form submission",
+            subject: `${cartTag}${subject ? `New contact submission: ${subject}` : "New contact form submission"}`,
             replyTo: email,
           },
+          carts,
           submission: {
             id: submissionId,
             firstName,
@@ -179,6 +187,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       subject: subject ?? null,
       source_origin: sourceOrigin ?? null,
       attachment_count: attachments.length,
+      open_cart_count: carts.length,
       $set: { email },
     },
   })

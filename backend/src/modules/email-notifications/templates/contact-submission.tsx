@@ -1,5 +1,6 @@
-import { Hr, Link, Section, Text } from "@react-email/components"
+import { Hr, Img, Link, Section, Text } from "@react-email/components"
 import { Base, STYLES, NAVY, BG_SUBTLE } from "./base"
+import type { OpenCart } from "../../../lib/open-carts"
 
 export const CONTACT_SUBMISSION = "contact-submission"
 
@@ -34,8 +35,52 @@ const formatBytes = (bytes?: number | null): string | null => {
 
 export interface ContactSubmissionEmailProps {
   submission: ContactSubmissionEmailData
+  /** Open carts for the sender's email — see lib/open-carts.ts. */
+  carts?: OpenCart[] | null
   preview?: string
 }
+
+const money = (n: number) => `$${n.toFixed(2)}`
+
+const OpenCartsBlock = ({ carts }: { carts: OpenCart[] }) => (
+  <>
+    <Hr style={STYLES.divider} />
+    <Text style={STYLES.h2}>{carts.length === 1 ? "Their open cart" : `Their open carts (${carts.length})`}</Text>
+    {carts.map((cart) => (
+      <Section key={cart.id} style={{ margin: "12px 0 0", padding: "14px 16px", background: BG_SUBTLE, borderRadius: "8px" }}>
+        <Text style={{ ...STYLES.meta, margin: 0 }}>
+          {cart.id} &middot; last active {new Date(cart.updated_at).toLocaleString("en-AU", { timeZone: "Australia/Sydney" })}
+        </Text>
+        {cart.lines.map((line) => (
+          <Section key={line.id} style={{ margin: "12px 0 0" }}>
+            {line.thumbnail ? (
+              <Img src={line.thumbnail} alt="" width="96" style={{ borderRadius: "6px", margin: "0 0 6px" }} />
+            ) : null}
+            <Text style={{ ...STYLES.body, margin: 0 }}>
+              <strong style={{ color: NAVY }}>
+                {line.quantity} &times; {line.title}
+                {line.variant_title ? ` — ${line.variant_title}` : ""}
+              </strong>{" "}
+              &middot; {money(line.unit_price)} ea
+            </Text>
+            {line.files.map((f) => (
+              <Text key={f.url} style={{ ...STYLES.meta, margin: "2px 0 0" }}>
+                <Link href={f.url} style={STYLES.link}>{f.label}</Link>
+              </Text>
+            ))}
+            {line.print_notes ? (
+              <Text style={{ ...STYLES.meta, margin: "2px 0 0" }}>Notes: {line.print_notes}</Text>
+            ) : null}
+          </Section>
+        ))}
+        <Text style={{ ...STYLES.body, margin: "12px 0 0" }}>
+          <strong style={{ color: NAVY }}>Items total:</strong> {money(cart.item_total)} inc GST (excl. shipping) &middot;{" "}
+          <Link href={cart.admin_url} style={STYLES.link}>Open in admin</Link>
+        </Text>
+      </Section>
+    ))}
+  </>
+)
 
 export const isContactSubmissionData = (data: any): data is ContactSubmissionEmailProps =>
   typeof data?.submission === "object" &&
@@ -45,6 +90,7 @@ export const isContactSubmissionData = (data: any): data is ContactSubmissionEma
 
 export const ContactSubmissionEmail = ({
   submission,
+  carts,
   preview = "A new contact form submission was received.",
 }: ContactSubmissionEmailProps) => {
   const senderName = [submission.firstName, submission.lastName].filter(Boolean).join(" ").trim()
@@ -120,6 +166,8 @@ export const ContactSubmissionEmail = ({
           </Section>
         </>
       )}
+
+      {carts?.length ? <OpenCartsBlock carts={carts} /> : null}
 
       <Hr style={STYLES.divider} />
 
