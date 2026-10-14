@@ -74,6 +74,10 @@ const BRAND_GUIDES: Record<string, { href: string; label: string }> = {
     href: "/guides/jbs-wear",
     label: "New to JB's Wear? Read the guide to the polos, hi-vis and labels",
   },
+  "thread-lab": {
+    href: "/guides/thread-lab",
+    label: "New to Thread Lab? Read the guide to the tees, weights and colours",
+  },
   "as-colour": {
     href: "/guides/as-colour",
     label: "New to AS Colour? Read the guide to the range, weights and names",

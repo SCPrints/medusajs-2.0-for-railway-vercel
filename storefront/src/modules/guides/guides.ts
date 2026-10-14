@@ -42,6 +42,16 @@ export const GUIDES: GuideEntry[] = [
     coverAlt: "Still from the Shaka Wear brand film.",
   },
   {
+    slug: "thread-lab",
+    title: "Thread Lab: Core, Superior and Premium",
+    blurb: "The three tees by weight and fit, the Core fleece, every colour, and how each one takes a print.",
+    tag: "Brand guide",
+    cover: null,
+    coverAlt: "",
+    // Guide palette: unbleached paper, stone ink, fleece taupe
+    tile: ["#efebe4", "#1c1917", "#8a7f6f", "#d9d3c7"],
+  },
+  {
     slug: "jbs-wear",
     title: "JB's Wear: polos, hi-vis and workwear",
     blurb: "Polo and fleece weights compared, day vs day/night hi-vis, the four labels, and how to read the style names.",
