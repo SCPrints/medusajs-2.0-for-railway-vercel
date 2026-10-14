@@ -275,6 +275,9 @@ function buildProductPayload(
 
   return {
     title: style.title,
+    // Admin product search covers title/subtitle/description, NOT handle or
+    // SKU — staff search JB's by style code ("1HT"), so put it here.
+    subtitle: `Style ${style.code}`,
     handle: style.handle,
     status: ProductStatus.PUBLISHED,
     description: renderJbsDescription(style),
