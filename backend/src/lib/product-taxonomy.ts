@@ -84,6 +84,14 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "1/4 zip": "Sweatshirts",
   "fleecy": "Sweatshirts",
   "fleecy top": "Sweatshirts",
+  "fleecys": "Sweatshirts", // JB's Wear sub-category
+  "knitwear": "Sweatshirts", // JB's Wear sub-category (jumpers)
+  // Polar-fleece pullovers/zips and rugby tops — worn as a jumper. Without
+  // these "JB's Kids Rugby" fell through to the "kids" alias as its TYPE.
+  "polar": "Sweatshirts",
+  "polars": "Sweatshirts",
+  "rugby": "Sweatshirts",
+  "rugbys": "Sweatshirts",
   "jumper": "Sweatshirts",
   "jumpers": "Sweatshirts",
   "sloppy joe": "Sweatshirts",
@@ -163,6 +171,7 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "racer back": "Tanks",
   // Shorts
   "shorts": "Shorts",
+  "skorts": "Shorts", // JB's Wear (Podium sport skorts)
   "short": "Shorts",
   "board short": "Shorts",
   "board shorts": "Shorts",
@@ -276,6 +285,14 @@ export const PRODUCT_TYPE_ALIASES: Record<string, string> = {
   "gum boots": "Accessories",
   "glove": "Accessories",
   "gloves": "Accessories",
+  // JB's Wear footwear / PPE sub-categories
+  "shoes": "Accessories",
+  "eyewear": "Accessories",
+  "ear muff": "Accessories",
+  "ear muffs": "Accessories",
+  "earplug": "Accessories",
+  "earplugs": "Accessories",
+  "foot bed": "Accessories",
   "knee pad": "Accessories",
   "knee pads": "Accessories",
   "kneepad": "Accessories",
@@ -1421,5 +1438,58 @@ export function classifyGildanProduct(
     }
   }
 
+  return { productType, tags }
+}
+
+/** One JB's Wear style as grouped from the "SKU - WEBCC Trade" spreadsheet. */
+export type JbsWearStyleSource = {
+  title: string
+  /** e.g. "Hi Vis Tradewear", "Traditional Workwear", "Corporate" */
+  category: string
+  /** e.g. "Hi Vis Polo", "Fleecys", "Scrubs", "Rugbys" */
+  subCategory: string
+}
+
+// JB's sub-categories that don't name a garment type ("Rail Workwear" holds
+// shirts AND pants, "Scrubs" holds tops AND pants, "Hearing" is muffs AND
+// plugs). Left to applyTitleFallbacks, which reads the title.
+const JBS_SUB_TITLE_DECIDES = new Set([
+  "scrubs",
+  "rail workwear",
+  "basketball",
+  "waiting vest",
+  "hearing",
+])
+
+/**
+ * Derive product_type + tags for a JB's Wear style (JB's Wear, Podium,
+ * Colours of Cotton, Johnny Bobbin).
+ *   type ← Sub Category with the "Hi Vis " / "Hospitality " prefix stripped
+ *          ("Hi Vis Polo" → Polos); fabric/range words defer to the title.
+ *   tags ← Category: Hi Vis Tradewear → Hi-Vis, Traditional Workwear →
+ *          Industrial (both route to the Workwear audience); Scrubs →
+ *          Healthcare. Demographic comes from the title via applyTitleFallbacks
+ *          (JB's titles carry LADIES / KIDS / INFANT cues).
+ */
+export function classifyJbsWearProduct(
+  src: JbsWearStyleSource,
+  unknownLog?: string[]
+): { productType: string | null; tags: string[] } {
+  const sub = (src.subCategory ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/^(hi vis|hospitality)\s+/, "")
+  const productType =
+    !sub || JBS_SUB_TITLE_DECIDES.has(sub)
+      ? null
+      : normalizeProductType(sub, unknownLog)
+
+  const tags: string[] = []
+  const category = (src.category ?? "").trim().toLowerCase()
+  if (category === "hi vis tradewear" || /^hi vis\b/i.test(src.subCategory ?? "")) {
+    tags.push("Hi-Vis")
+  }
+  if (category === "traditional workwear") tags.push("Industrial")
+  if (sub === "scrubs") tags.push("Healthcare")
   return { productType, tags }
 }

@@ -1136,6 +1136,22 @@ Env vars (see [backend/src/lib/constants.ts](backend/src/lib/constants.ts) for f
 
 **No dropship**: Gildan ships pallets to SC Prints' warehouse — not a per-order dropship model. There's no equivalent of the AS Colour / Aussie Pacific dropship widgets.
 
+### JB's Wear (xlsx SKU sheet importer)
+
+JB's sends a per-SKU spreadsheet ("SKU - WEBCC Trade", ~12.7k rows / 515 styles) covering four labels: **JB's Wear** (parent brand, `jbs-wear` → Workwear audience), **Podium**, **Colours of Cotton**, **Johnny Bobbin** (parented under JB's). Same policy as Gildan: no stock data → `manage_inventory: false`, no stock location, no cron. CLI only — on Fly, `fly ssh sftp shell` the xlsx into `/tmp` then `cd /app/.medusa/server && JBS_XLSX_PATH=/tmp/jbs.xlsx npx medusa exec src/scripts/import-jbs-wear-from-xlsx.js` (`IMPORT_DRY_RUN=1`, `IMPORT_LIMIT`, `IMPORT_STYLES=1HT,4P` supported). Create-only, keyed by handle `{brand}-{slug}-{stylecode}`.
+
+| Component | Path |
+| --- | --- |
+| Pure parsing (grouping, titles, handles, weight) + tests | [backend/src/lib/jbs-wear-catalog.ts](backend/src/lib/jbs-wear-catalog.ts) |
+| Classifier | `classifyJbsWearProduct` in [backend/src/lib/product-taxonomy.ts](backend/src/lib/product-taxonomy.ts) |
+| Import script | [backend/src/scripts/import-jbs-wear-from-xlsx.ts](backend/src/scripts/import-jbs-wear-from-xlsx.ts) |
+
+- **No discontinued / clearance / sale lines — ever.** The SKU sheet has no status column, so [jbs-wear-exclude.ts](backend/src/scripts/jbs-wear-exclude.ts) is the gate (whole style `4LSW` or colourway `1HT/NX`). Paste JB's clearance/discontinued list into it before each import. Seeded 2026-10-14 with the 6 sheet styles that 404 on jbswear.com.au. (Probing colours against jbswear.com.au is NOT reliable — JB's names colour images two different ways.)
+- **Pricing**: `WEBCC Trade` column = SC Prints' trade cost, **ex-GST (confirmed with JB's 2026-10-14 — matches the trade price on jbswear.com.au, e.g. 1BT3 = $8.34)**, per SKU (each variant gets its own ladder). `JBS_COST_ADJUSTMENT` (default 1.0) if the invoice rate differs.
+- **Images (front + back for the customizer)**: JB's Hightail pack (flat-lays, 900×1101, `_01` front / alt `_03` back — sheet columns `Hightail Colour Image` / `Hightail Alt Colour Image`) is downloaded locally, then [upload-jbs-wear-images.ts](backend/src/scripts/upload-jbs-wear-images.ts) pushes it to R2 as `jbs-wear/<STYLE>_<COLOUR>_front|back.jpg` (`JBS_XLSX_PATH` + `JBS_IMAGES_DIR`, run locally, idempotent). The re-key matters: the storefront's `garmentUrlViewRank` tells front from back by the words "front"/"back" in the URL, which JB's `_01`/`_03` names lack. **Run the uploader before the importer** — the importer prefers those R2 shots, falls back to the sheet's jbswear.com.au `Colour Image URL` (front only), and HEAD-validates everything. ~96% of colourways have both views; the rest are mostly aprons/PPE/footwear.
+- **Weight**: carton gross weight ÷ carton qty → `variant.weight` (real data, beats the 300g shipping default).
+- **Taxonomy**: Sub Category drives type (`Hi Vis ` prefix stripped); Category drives audience tags (Hi Vis Tradewear → `Hi-Vis`, Traditional Workwear → `Industrial`, Scrubs → `Healthcare`). A colour name with two colour codes in one style (4P White = WS + WX) becomes `White (WS)` / `White (WX)`.
+
 ### Shaka Wear (PDF price list → baked-data seed)
 
 The leanest importer — no API and no CSV. The only source is the AU distributor **Prime Example**'s PDF wholesale price list (`Price_List_PrinterPartner_Jan2026.pdf`) + their 2026 catalogue. The 6 styles SC Prints stocks (sizes, ex-GST costs, AU colour names) are baked into a committed data module; images + marketing copy are hotlinked from the Shaka Wear US site (Shopify CDN), matched to the AU colour names. No stock data → variants are "always available" (`manage_inventory: false`), no stock location, no sync cron — same policy as Gildan.
