@@ -5,6 +5,7 @@ import { Badge, Button, Container, Heading, Input, Text, Textarea } from "@medus
 
 import { HelpTooltip } from "../components/reports/help-tooltip"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { isComplete as isPackingComplete } from "../../lib/packing-check"
 
 import {
   ARTWORK_STAGES,
@@ -168,6 +169,29 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
 
   const save = useCallback(async () => {
     if (!orderId) return
+    // Soft gate: warn (don't block) when shipping before the packing check is
+    // done. Read it fresh — ticks happen in the Packing check widget.
+    if (
+      downstreamChanged &&
+      (pendingDownstream === "shipped" || pendingDownstream === "delivered") &&
+      currentDownstream !== "shipped"
+    ) {
+      const lineIds = (data?.items ?? []).map((i) => i.id)
+      const packing = await fetch(`/admin/orders/${orderId}/packing-check`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null)
+      if (
+        lineIds.length > 0 &&
+        !isPackingComplete(packing ?? { ticks: {} }, lineIds) &&
+        !window.confirm(
+          "The packing check for this order isn't complete.\n\nMark it as " +
+            pendingDownstream.replace(/_/g, " ") +
+            " anyway?"
+        )
+      ) {
+        return
+      }
+    }
     setSaving(true)
     setError(null)
     try {
@@ -206,7 +230,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
     } finally {
       setSaving(false)
     }
-  }, [orderId, note, artworkChanged, blanksChanged, downstreamChanged, pendingArtwork, pendingBlanks, pendingDownstream])
+  }, [orderId, note, artworkChanged, blanksChanged, downstreamChanged, pendingArtwork, pendingBlanks, pendingDownstream, currentDownstream, data?.items])
 
   const saveDueDate = useCallback(async () => {
     if (!orderId) return

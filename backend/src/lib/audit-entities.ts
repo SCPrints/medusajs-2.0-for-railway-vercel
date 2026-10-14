@@ -84,6 +84,8 @@ export const AUDIT_ACTION = {
 
   // Screen printing
   SCREEN_REPRICED: "screen_repriced",
+  // Dispatch
+  PACKING_CHECK_COMPLETED: "packing_check_completed",
   DESIGN_CREATED: "design_created",
   DESIGN_UPDATED: "design_updated",
   DESIGN_DEACTIVATED: "design_deactivated",
