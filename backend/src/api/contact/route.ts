@@ -7,6 +7,7 @@ import {
   createContactSubmission,
   type ContactAttachment,
 } from "../../lib/contact-submissions"
+import { fillCustomerBlanks } from "../../lib/customer-contact-backfill"
 import { isValidEmail } from "../../lib/email-validation"
 import { findOpenCarts } from "../../lib/open-carts"
 import { getPostHog } from "../../lib/posthog"
@@ -129,6 +130,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       `Failed to persist contact submission: ${error instanceof Error ? error.message : "unknown error"}`
     )
   }
+
+  await fillCustomerBlanks(req.scope, email, { first_name: firstName, last_name: lastName, phone })
 
   const notificationRecipient = CONTACT_NOTIFICATION_EMAIL?.trim()
 

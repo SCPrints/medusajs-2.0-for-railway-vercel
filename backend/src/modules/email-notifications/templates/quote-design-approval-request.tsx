@@ -130,6 +130,10 @@ export const QuoteDesignApprovalRequestEmail = ({
             <Column style={{ padding: "10px 0 0", fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>Total (inc GST)</Column>
             <Column align="right" style={{ padding: "10px 0 0", fontSize: "15px", fontWeight: 700, color: "#1a1a2e" }}>{money(q.total)}</Column>
           </Row>
+          {/* Accepting goes through website checkout, which adds the weight-based shipping. */}
+          <Text style={{ margin: "6px 0 0", fontSize: "12px", color: "#6b7280" }}>
+            Shipping calculated at checkout.
+          </Text>
           {q.expiresAt ? (
             <Text style={{ margin: "6px 0 0", fontSize: "12px", color: "#9ca3af" }}>
               Valid until {new Date(q.expiresAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}.

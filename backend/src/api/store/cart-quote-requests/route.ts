@@ -4,6 +4,7 @@ import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { CONTACT_NOTIFICATION_EMAIL } from "../../../lib/constants"
+import { fillCustomerBlanks } from "../../../lib/customer-contact-backfill"
 import { createQuoteFromCart, findOpenCarts } from "../../../lib/open-carts"
 import { getPostHog } from "../../../lib/posthog"
 import { EmailTemplates } from "../../../modules/email-notifications/templates"
@@ -41,10 +42,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(err?.status ?? 500).json({ success: false, message: err?.message ?? "Could not request a quote" })
   }
 
+  const [cart] = await findOpenCarts(req.scope, { q: cart_id, limit: 1 }).catch(() => [])
+  if (cart?.email && contact_phone) await fillCustomerBlanks(req.scope, cart.email, { phone: contact_phone })
+
   const recipient = CONTACT_NOTIFICATION_EMAIL?.trim()
   if (result.created && recipient) {
     try {
-      const [cart] = await findOpenCarts(req.scope, { q: cart_id, limit: 1 })
       const notifications: INotificationModuleService = req.scope.resolve(Modules.NOTIFICATION)
       await notifications.createNotifications({
         to: recipient,
