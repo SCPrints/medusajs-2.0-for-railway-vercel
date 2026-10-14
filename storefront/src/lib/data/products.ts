@@ -186,9 +186,12 @@ export async function getProductsByHandle({
 export async function getProductSummariesByHandle({
   handles,
   images = false,
+  variants = false,
 }: {
   handles: string[]
   images?: boolean
+  /** Variant titles + metadata only (no prices) — for per-colour photo maps. */
+  variants?: boolean
 }) {
   "use cache: remote"
   cacheTag("products")
@@ -201,7 +204,7 @@ export async function getProductSummariesByHandle({
       handle: handles,
       fields: `id,handle,title,thumbnail,material,metadata,*type,*options,*options.values${
         images ? ",*images" : ""
-      }`,
+      }${variants ? ",variants.title,variants.metadata" : ""}`,
       limit: handles.length,
     } as HttpTypes.FindParams & HttpTypes.StoreProductParams)
     return products

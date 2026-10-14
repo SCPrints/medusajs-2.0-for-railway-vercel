@@ -42,6 +42,16 @@ export const GUIDES: GuideEntry[] = [
     coverAlt: "Still from the Shaka Wear brand film.",
   },
   {
+    slug: "jbs-wear",
+    title: "JB's Wear: polos, hi-vis and workwear",
+    blurb: "Polo and fleece weights compared, day vs day/night hi-vis, the four labels, and how to read the style names.",
+    tag: "Brand guide",
+    cover: null,
+    coverAlt: "",
+    // Guide palette: navy, safety amber, reflective-tape silver
+    tile: ["#0f2238", "#f5b300", "#c9ced6", "#0f2238"],
+  },
+  {
     slug: "screen-printing-cost",
     title: "Why screen printing has setup costs",
     blurb: "What happens before the first print, why there is a minimum order, and how to keep the cost down.",
