@@ -9,6 +9,7 @@ import {
 } from "../../lib/contact-submissions"
 import { fillCustomerBlanks } from "../../lib/customer-contact-backfill"
 import { isValidEmail } from "../../lib/email-validation"
+import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../lib/lead-relay"
 import { findOpenCarts } from "../../lib/open-carts"
 import { getPostHog } from "../../lib/posthog"
 import { getStorefrontOriginAllowlist } from "../../lib/storefront-origins"
@@ -71,6 +72,9 @@ export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   setManualCors(req, res)
 
+  const relay = readLeadRelay(req)
+  if (!relay.ok) return res.status(403).json(LEAD_RELAY_REJECTED)
+
   const body = (req.body ?? {}) as Record<string, unknown>
   const firstName = typeof body.first_name === "string" ? body.first_name.trim() : null
   const lastName = typeof body.last_name === "string" ? body.last_name.trim() : null
@@ -103,12 +107,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const submissionId = ulid()
-  const sourceIpHeader = req.headers["x-forwarded-for"]
-  const sourceIp = Array.isArray(sourceIpHeader)
-    ? sourceIpHeader[0] ?? null
-    : sourceIpHeader?.split(",")?.[0]?.trim() ?? null
-  const sourceOrigin = req.headers.origin ?? null
-  const userAgent = req.headers["user-agent"] ?? null
+  // The relay forwards the visitor's own IP / browser (else we'd log Vercel's).
+  const sourceIp = relay.clientIp
+  const sourceOrigin = req.headers.origin ?? (relay.ok ? "scprints.com.au form" : null)
+  const userAgent = relay.userAgent
 
   try {
     await createContactSubmission({
@@ -141,7 +143,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     console.error("Open-cart lookup for contact submission failed", error)
     return []
   })
-  const cartTag = carts.length ? `[Has cart $${carts[0].item_total.toFixed(2)}] ` : ""
+  const cartTag = `${relay.bot ? "[⚠ Possible bot] " : ""}${carts.length ? `[Has cart $${carts[0].item_total.toFixed(2)}] ` : ""}`
 
   if (notificationRecipient) {
     try {
@@ -191,6 +193,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       source_origin: sourceOrigin ?? null,
       attachment_count: attachments.length,
       open_cart_count: carts.length,
+      bot_flagged: relay.bot,
       $set: { email },
     },
   })

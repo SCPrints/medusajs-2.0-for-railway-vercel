@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { leadRelayHeaders } from "@lib/util/lead-relay"
 import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
 
 // Same payload family as /api/quote-bridge/items — one or more design lines
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...(await leadRelayHeaders()),
   }
   const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
   if (publishableKey) headers["x-publishable-api-key"] = publishableKey

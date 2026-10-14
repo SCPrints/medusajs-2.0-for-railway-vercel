@@ -2,6 +2,7 @@
 
 import { sdk } from "@lib/config"
 import { revalidateTag } from "next/cache"
+import { leadRelayHeaders } from "@lib/util/lead-relay"
 import { getAuthHeaders, getCartId } from "./cookies"
 
 /**
@@ -26,6 +27,7 @@ export async function requestCartQuote(input: {
     revalidateTag("cart", "max")
     const res = (await sdk.client.fetch("/store/cart-quote-requests", {
       method: "POST",
+      headers: await leadRelayHeaders({ botCheck: false }), // server action: not BotID-protected; needs a real cart anyway
       body: { cart_id: cartId, contact_phone: input.phone?.trim() || undefined, note: input.note?.trim() || undefined },
     })) as { success?: boolean; public_id?: string }
     if (!res?.success || !res.public_id) return { ok: false, error: "We couldn't send your request. Please try again." }

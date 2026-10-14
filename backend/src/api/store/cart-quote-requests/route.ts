@@ -6,6 +6,7 @@ import { z } from "zod"
 import { CONTACT_NOTIFICATION_EMAIL } from "../../../lib/constants"
 import { fillCustomerBlanks } from "../../../lib/customer-contact-backfill"
 import { createQuoteFromCart, findOpenCarts } from "../../../lib/open-carts"
+import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../lib/lead-relay"
 import { getPostHog } from "../../../lib/posthog"
 import { EmailTemplates } from "../../../modules/email-notifications/templates"
 
@@ -26,6 +27,9 @@ const schema = z.object({
 })
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const relay = readLeadRelay(req)
+  if (!relay.ok) return res.status(403).json(LEAD_RELAY_REJECTED)
+
   const parsed = schema.safeParse(req.body ?? {})
   if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid request" })
   const { cart_id, note, contact_phone } = parsed.data
@@ -68,8 +72,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             subject: "Email me a quote / proof (from cart)",
             message: note?.trim() || "Customer asked for a quote / proof instead of checking out. Quote created — open it in admin to send the proof and payment link.",
             sourceOrigin: req.headers.origin ?? null,
-            sourceIp: null,
-            userAgent: req.headers["user-agent"] ?? null,
+            sourceIp: relay.clientIp,
+            userAgent: relay.userAgent,
           },
           preview: `Quote ${result.public_id} requested from cart`,
         },

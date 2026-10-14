@@ -224,11 +224,15 @@ const nextConfig = {
 
 // Wrap with @next/bundle-analyzer when ANALYZE=true. Only required at
 // analyze time so devs/CI without the dep can still build normally.
+// BotID proxies its challenge script through our domain (rewrites) — see
+// src/instrumentation-client.ts + lib/util/lead-relay.ts.
+const { withBotId } = require("botid/next/config")
+
 if (process.env.ANALYZE === "true") {
   const withBundleAnalyzer = require("@next/bundle-analyzer")({
     enabled: true,
   })
-  module.exports = withBundleAnalyzer(nextConfig)
+  module.exports = withBotId(withBundleAnalyzer(nextConfig))
 } else {
-  module.exports = nextConfig
+  module.exports = withBotId(nextConfig)
 }

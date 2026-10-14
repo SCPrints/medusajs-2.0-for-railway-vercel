@@ -14,6 +14,7 @@ import {
   TRIM_OPTIONS,
   TRIM_LABEL,
 } from "../data"
+import { HONEYPOT_FIELD, HoneypotField } from "@modules/common/components/honeypot-field"
 
 // Mood-board limits mirror the BYO form so a permitted submission never 413s at
 // the /api/quote proxy (28 MB cap). Keep in step with byo-inquiry-form.tsx.
@@ -205,6 +206,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
       company: company || null,
       subject: "Custom hat request",
       source: "custom_hats" as const,
+      [HONEYPOT_FIELD]: data.get(HONEYPOT_FIELD),
       message: buildMessage(contactMessage),
       line_items: lineItems,
       mood_board: moodBoard.map((m) => ({
@@ -293,6 +295,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
       className={`space-y-8${id ? " scroll-mt-28" : ""}`}
       aria-label="Custom hat brief builder"
     >
+      <HoneypotField />
       {/* 1. Base cap */}
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-[var(--brand-primary)]">1. Base cap</legend>

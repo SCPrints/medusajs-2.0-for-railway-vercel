@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from "react"
 import { trackLead } from "@lib/analytics"
+import { HONEYPOT_FIELD, HoneypotField } from "@modules/common/components/honeypot-field"
 
 const PRINTING_TYPES = [
   { value: "", label: "Select printing type" },
@@ -193,6 +194,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
       subject: BYO_SUBJECT,
       message: buildMessage(userMessage),
       source: "byo" as const,
+      [HONEYPOT_FIELD]: data.get(HONEYPOT_FIELD),
       mood_board: moodBoard.map((m) => ({
         filename: m.filename,
         mime_type: m.mime_type,
@@ -270,6 +272,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
       className={`space-y-4${id ? " scroll-mt-28" : ""} ${className}`.trim()}
       aria-label="BYO inquiry form"
     >
+      <HoneypotField />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="byo-first-name" className={labelClass}>

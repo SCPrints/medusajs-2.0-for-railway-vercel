@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+import { isHoneypotTripped, leadRelayHeaders } from "@lib/util/lead-relay"
 
 /**
  * Storefront proxy → backend POST /store/quotes. Forwards the
@@ -30,11 +31,17 @@ export async function POST(req: NextRequest) {
   const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
   if (!parsed.ok) return parsed.response
 
+  // Bots fill the hidden field: pretend it worked so they don't retry.
+  if (isHoneypotTripped(parsed.data)) {
+    return NextResponse.json({ success: true }, { status: 200 })
+  }
+
   try {
     const payload = parsed.data
     const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      ...(await leadRelayHeaders()),
     }
     if (publishableKey) {
       headers["x-publishable-api-key"] = publishableKey

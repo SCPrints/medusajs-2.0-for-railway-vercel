@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getOrCreateRequestId } from "@lib/request-context"
 import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+import { isHoneypotTripped, leadRelayHeaders } from "@lib/util/lead-relay"
 
 const MAX_BODY_BYTES = 256 * 1024
 
@@ -18,10 +19,12 @@ async function postContact(
   endpoint: string,
   payload: unknown,
   publishableKey?: string,
-  requestId?: string
+  requestId?: string,
+  relayHeaders: Record<string, string> = {}
 ) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...relayHeaders,
   }
 
   if (publishableKey) {
@@ -48,9 +51,15 @@ export async function POST(req: NextRequest) {
   const parsed = await readJsonBounded(req, MAX_BODY_BYTES)
   if (!parsed.ok) return parsed.response
 
+  // Bots fill the hidden field: pretend it worked so they don't retry.
+  if (isHoneypotTripped(parsed.data)) {
+    return NextResponse.json({ success: true, message: "Message sent successfully." }, { status: 200 })
+  }
+
   try {
     const payload = parsed.data
     const backendBaseUrl = getBackendBaseUrl()
+    const relayHeaders = await leadRelayHeaders()
     const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
     const requestId = await getOrCreateRequestId()
 
@@ -58,7 +67,8 @@ export async function POST(req: NextRequest) {
       `${backendBaseUrl}/contact`,
       payload,
       publishableKey,
-      requestId
+      requestId,
+      relayHeaders
     )
 
     // Compatibility fallback for older backends exposing /store/contact.
@@ -67,7 +77,8 @@ export async function POST(req: NextRequest) {
         `${backendBaseUrl}/store/contact`,
         payload,
         publishableKey,
-        requestId
+        requestId,
+        relayHeaders
       )
     }
 

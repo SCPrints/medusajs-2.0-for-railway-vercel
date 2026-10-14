@@ -4,6 +4,7 @@ import { useRef, useState } from "react"
 import { trackLead } from "@lib/analytics"
 
 import { uploadContactAttachment } from "../../lib/upload-attachment"
+import { HONEYPOT_FIELD, HoneypotField } from "@modules/common/components/honeypot-field"
 
 const MAX_FILES = 3
 const MAX_FILE_BYTES = 20 * 1024 * 1024
@@ -134,6 +135,7 @@ export default function ContactForm() {
       phone: formData.get("phone"),
       subject: formData.get("subject"),
       message: formData.get("message"),
+      [HONEYPOT_FIELD]: formData.get(HONEYPOT_FIELD),
       attachments: attachments
         .filter((a) => a.status === "done" && a.url)
         .map((a) => ({ url: a.url, fileName: a.name, mimeType: a.mimeType, bytes: a.bytes })),
@@ -201,6 +203,7 @@ export default function ContactForm() {
   return (
     <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
       <form onSubmit={handleSubmit} className="space-y-6">
+        <HoneypotField />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label

@@ -9,6 +9,7 @@ import {
   SUPPORT_REPLY_TO_EMAIL,
 } from "../../../../lib/constants"
 import { isValidEmail } from "../../../../lib/email-validation"
+import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../../lib/lead-relay"
 import { MAX_AUTO_PRICED_STITCHES } from "../../../../lib/embroidery-pricing"
 import { getPostHog } from "../../../../lib/posthog"
 import {
@@ -60,6 +61,9 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const relay = readLeadRelay(req)
+  if (!relay.ok) return res.status(403).json(LEAD_RELAY_REJECTED)
+
   let parsed: z.infer<typeof bodySchema>
   try {
     parsed = bodySchema.parse(req.body ?? {})
@@ -195,7 +199,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         template: EmailTemplates.CONTACT_SUBMISSION,
         data: {
           emailOptions: {
-            subject: `New POA quote request ${publicId}: embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches`,
+            subject: `${relay.bot ? "[⚠ Possible bot] " : ""}New POA quote request ${publicId}: embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches`,
             replyTo: email,
           },
           submission: {
@@ -207,8 +211,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             subject: `Embroidery POA — ${productTitle}`,
             message,
             sourceOrigin: req.headers.origin ?? null,
-            sourceIp: null,
-            userAgent: req.headers["user-agent"] ?? null,
+            sourceIp: relay.clientIp,
+            userAgent: relay.userAgent,
           },
           preview: `Quote ${publicId}`,
         },

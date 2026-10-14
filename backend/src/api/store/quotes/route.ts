@@ -10,6 +10,7 @@ import {
 } from "../../../lib/constants"
 import { isValidEmail } from "../../../lib/email-validation"
 import { getPostHog } from "../../../lib/posthog"
+import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../lib/lead-relay"
 import { getStorefrontOriginAllowlist } from "../../../lib/storefront-origins"
 import { EmailTemplates } from "../../../modules/email-notifications/templates"
 import { QUOTE_MODULE } from "../../../modules/quote"
@@ -69,6 +70,9 @@ export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   setManualCors(req, res)
+
+  const relay = readLeadRelay(req)
+  if (!relay.ok) return res.status(403).json(LEAD_RELAY_REJECTED)
 
   let parsed: z.infer<typeof bodySchema>
   try {
@@ -160,7 +164,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         template: EmailTemplates.CONTACT_SUBMISSION,
         data: {
           emailOptions: {
-            subject: `New quote request ${publicId}${parsed.subject ? `: ${parsed.subject}` : ""}`,
+            subject: `${relay.bot ? "[⚠ Possible bot] " : ""}New quote request ${publicId}${parsed.subject ? `: ${parsed.subject}` : ""}`,
             replyTo: email,
           },
           submission: {
@@ -171,8 +175,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             subject: parsed.subject ?? null,
             message: parsed.message,
             sourceOrigin: req.headers.origin ?? null,
-            sourceIp: null,
-            userAgent: req.headers["user-agent"] ?? null,
+            sourceIp: relay.clientIp,
+            userAgent: relay.userAgent,
           },
           preview: `Quote ${publicId}`,
         },
