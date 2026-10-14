@@ -172,8 +172,11 @@ const BRAND_PRESENTATION_BY_HANDLE: Record<string, BrandPresentation> = {
   "jbs-wear": {
     initials: "JB",
     // Guide navy (not JB's own #174a7c) — the hero falls back to this until a
-    // banner or logo is supplied.
+    // banner is supplied.
     bgClass: "bg-[#0f2238]",
+    // jbswear.com.au header logo (white-on-black JPEG), box removed and
+    // recoloured to the shared muted grey on transparent.
+    logoSrc: `${LOGO_BASE}/jbs-wear.png`,
     seoTitle: "JB's Wear Australia — Custom Printed Polos, Hi-Vis & Workwear",
     intro:
       "JB's Wear polos, tees, hoodies, hi-vis, workwear and scrubs, custom printed or embroidered at our Sydney studio. The 210 Polo, the day/night hi-vis range and the Fleecy Hoodie are uniform staples for trades, clubs, schools and clinics — pick a colour and size run, add your logo in the online studio, and we decorate it in-house at Villawood. From a single piece, shipped Australia-wide.",
