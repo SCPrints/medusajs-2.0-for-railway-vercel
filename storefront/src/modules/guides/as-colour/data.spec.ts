@@ -24,3 +24,11 @@ describe("AS Colour guide classification", () => {
     expect(cutOf("Staple Tee")).toBe("mens")
   })
 })
+
+describe("asColourHandle", () => {
+  it("resolves every featured style to a renamed (live) handle", () => {
+    const { asColourHandle, TEE_CODES } = require("./data")
+    for (const code of TEE_CODES) expect(asColourHandle(code)).not.toBe(`as-colour-${code}-${code}`.toLowerCase())
+    expect(asColourHandle("5001")).toBe("as-colour-staple-tee-5001")
+  })
+})

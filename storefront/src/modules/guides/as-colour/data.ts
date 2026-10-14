@@ -4,7 +4,13 @@
  * decides WHICH styles are featured and how the tee finder classifies them.
  */
 
-export const asColourHandle = (code: string) => `as-colour-${code}-${code}`.toLowerCase()
+import legacyHandles from "@lib/data/legacy-handles.json"
+
+/** Style code → live handle. Handles were renamed 2026-10-10 (as-colour-5001-5001 → as-colour-staple-tee-5001); the legacy map resolves them. */
+export const asColourHandle = (code: string) => {
+  const legacy = `as-colour-${code}-${code}`.toLowerCase()
+  return (legacyHandles as Record<string, string>)[legacy] ?? legacy
+}
 
 /** Short-sleeve tees offered in the finder. Order is not significant. */
 export const TEE_CODES = [
