@@ -1,11 +1,7 @@
-import { IM_Fell_English } from "next/font/google"
+import localFont from "next/font/local"
 import { ReactNode } from "react"
 
-const imFell = IM_Fell_English({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-})
+const imFell = localFont({ src: [{ path: "../../../fonts/im-fell-english-400-normal.woff2", weight: "400", style: "normal" }, { path: "../../../fonts/im-fell-english-400-italic.woff2", weight: "400", style: "italic" }] })
 
 export default function DanLayout({ children }: { children: ReactNode }) {
   return (

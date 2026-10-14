@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { Lora } from "next/font/google"
+import localFont from "next/font/local"
 import type { SVGProps } from "react"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
@@ -13,11 +13,7 @@ export async function generateStaticParams() {
   return [{ countryCode: "au" }]
 }
 
-const lora = Lora({
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["500", "600", "700"],
-})
+const lora = localFont({ src: [{ path: "../../../../fonts/lora-500-700-normal.woff2", weight: "500 700", style: "normal" }], display: "swap" })
 
 type MetadataProps = {
   params: Promise<{ countryCode: string }>

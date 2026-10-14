@@ -1786,6 +1786,10 @@ The `medusajs-launch-utils` Railway helpers (`init-backend`, `await-backend`, `l
 
 When a PDP variant or other view is a client component (`"use client"`) but needs server-fetched data, **render the server piece in the parent and pass it as a slot prop** — never `import` server-only modules into the client component. Reference implementation: [storefront/src/modules/customizer/components/embedded-product-customizer.tsx](storefront/src/modules/customizer/components/embedded-product-customizer.tsx) accepts an optional `integratedPdpSlots: { gallery: ReactNode; variantPickers: ReactNode }` prop; the parent server component composes those nodes from server-side data and hands them in. This avoids the "you're importing a Server Component into a Client Component" build failure that bites at deploy time, not in dev. New PDP templates (e.g. embroidery-only, sticker-only) should follow the same pattern.
 
+## Fonts — self-hosted only (never `next/font/google`)
+
+`next/font/google` downloads every font from Google **during each Vercel build**; when Google hiccups the build fails with `next/font/google queries have exactly one entry` / `Can't resolve '@vercel/turbopack-next/internal/font/google/font'` even though no code changed. All fonts are committed as Latin `.woff2` files in [storefront/src/fonts/](storefront/src/fonts/) and loaded with `next/font/local`. To add a font: download the Latin woff2 from `fonts.googleapis.com/css2?family=…` (Chrome user agent) into `src/fonts/`, then `localFont({ src: [{ path: "<relative>/fonts/x.woff2", weight: "400 700", style: "normal" }], display: "swap" })` **in the page that uses it** — not a shared fonts module, or every route preloads every font.
+
 ## Mobile / responsive conventions
 
 The storefront's Tailwind breakpoint names are **inverted from Tailwind defaults** — `small: 1024px` is iPad-landscape / small-desktop, NOT phone. Reading "small" and assuming "phone" silently ships a desktop layout to every device below 1024px. Before adding responsive classes, check [storefront/tailwind.config.js](storefront/tailwind.config.js) `screens` to confirm what you actually mean.

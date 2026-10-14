@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { Lora } from "next/font/google"
+import localFont from "next/font/local"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import SectionHeader from "@modules/common/components/section-header"
@@ -10,7 +10,7 @@ export async function generateStaticParams() {
   return [{ countryCode: "au" }]
 }
 
-const lora = Lora({ subsets: ["latin"], display: "swap", weight: ["500", "600", "700"] })
+const lora = localFont({ src: [{ path: "../../../../fonts/lora-500-700-normal.woff2", weight: "500 700", style: "normal" }], display: "swap" })
 
 const DESCRIPTION =
   "Fully custom caps and hats: embroidery (flat, 3D puff, chenille, appliqué), applied patches, heat-applied prints, direct print, and structural trim. Build a brief and we'll quote it."

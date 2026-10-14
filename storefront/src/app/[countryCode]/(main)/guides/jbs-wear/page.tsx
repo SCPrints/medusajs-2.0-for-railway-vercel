@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { Barlow_Condensed } from "next/font/google"
+import localFont from "next/font/local"
 import Image from "next/image"
 import type { HttpTypes } from "@medusajs/types"
 
@@ -30,7 +30,7 @@ import {
 // from the products (slim, price-free fetch); what is featured lives in
 // @modules/guides/jbs-wear/data.
 
-const display = Barlow_Condensed({ subsets: ["latin"], weight: ["600", "800"], display: "swap" })
+const display = localFont({ src: [{ path: "../../../../../fonts/barlow-condensed-600-normal.woff2", weight: "600", style: "normal" }, { path: "../../../../../fonts/barlow-condensed-800-normal.woff2", weight: "800", style: "normal" }], display: "swap" })
 
 const PATH = "/guides/jbs-wear"
 const TITLE = "JB's Wear Custom Printing Australia: Polos, Hi-Vis & Workwear"

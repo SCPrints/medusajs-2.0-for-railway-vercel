@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { Big_Shoulders } from "next/font/google"
+import localFont from "next/font/local"
 import Image from "next/image"
 import type { HttpTypes } from "@medusajs/types"
 
@@ -21,7 +21,7 @@ import { SHAKA_STYLES, type ShakaStyle } from "@modules/guides/shaka-wear/styles
 // Colours, sizes, photos, size charts and GSM are read live from the six
 // products; only the editorial lives in @modules/guides/shaka-wear/styles.
 
-const display = Big_Shoulders({ subsets: ["latin"], weight: ["800", "900"], display: "swap" })
+const display = localFont({ src: [{ path: "../../../../../fonts/big-shoulders-800-900-normal.woff2", weight: "800 900", style: "normal" }], display: "swap" })
 
 const PATH = "/guides/shaka-wear"
 const TITLE = "Shaka Wear Australia: Max Heavyweight Tees, Fit & Size Guide"

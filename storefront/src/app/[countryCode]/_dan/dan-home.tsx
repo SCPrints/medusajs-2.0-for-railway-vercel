@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { motion, useReducedMotion } from "framer-motion"
-import { Archivo_Black } from "next/font/google"
+import localFont from "next/font/local"
 
 import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
 import { V3_TUNING } from "../(main)/particle-flow/v3-splash"
@@ -11,7 +11,7 @@ import { V3_TUNING } from "../(main)/particle-flow/v3-splash"
 /** Heavy geometric sans matching the "DMC / PROUD / MARY" reference. Used both
  * as the wordmark mask (rasterised to a data URL on mount) and for any future
  * stacked-type compositions on this page. */
-const archivoBlack = Archivo_Black({ weight: "400", subsets: ["latin"] })
+const archivoBlack = localFont({ src: [{ path: "../../../fonts/archivo-black-400-normal.woff2", weight: "400", style: "normal" }] })
 
 /** Rasterise stacked all-caps lines into a transparent PNG data URL. Each line
  * is auto-sized so its measured width fills the available row, giving the

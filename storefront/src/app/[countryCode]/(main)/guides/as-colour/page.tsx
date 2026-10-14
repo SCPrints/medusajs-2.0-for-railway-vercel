@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { Inter } from "next/font/google"
+import localFont from "next/font/local"
 import Image from "next/image"
 import type { HttpTypes } from "@medusajs/types"
 
@@ -32,7 +32,7 @@ import Reveal from "@modules/guides/components/reveal"
 // types are read live from the products (slim, variant-free fetch); what is
 // featured lives in @modules/guides/as-colour/data.
 
-const inter = Inter({ subsets: ["latin"], weight: ["400", "500"], display: "swap" })
+const inter = localFont({ src: [{ path: "../../../../../fonts/inter-400-500-normal.woff2", weight: "400 500", style: "normal" }], display: "swap" })
 
 const PATH = "/guides/as-colour"
 const TITLE = "AS Colour Custom Printing Australia: The Range, Explained"

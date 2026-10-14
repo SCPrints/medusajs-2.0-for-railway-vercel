@@ -1,6 +1,6 @@
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import { Metadata, Viewport } from "next"
-import { Plus_Jakarta_Sans } from "next/font/google"
+import localFont from "next/font/local"
 import { Suspense } from "react"
 import "styles/globals.css"
 import ConditionalCursorDot from "@modules/layout/components/conditional-cursor-dot"
@@ -10,10 +10,7 @@ import { PostHogProvider } from "@modules/common/components/posthog-provider"
 import AddToHomeBanner from "@modules/common/components/add-to-home-banner"
 import ServiceWorkerRegister from "@modules/common/components/service-worker-register"
 
-const plusJakartaSans = Plus_Jakarta_Sans({ 
-  subsets: ["latin"],
-  display: "swap", 
-})
+const plusJakartaSans = localFont({ src: [{ path: "../fonts/plus-jakarta-sans-200-800-normal.woff2", weight: "200 800", style: "normal" }], display: "swap" })
 
 export const viewport: Viewport = {
   themeColor: "#EEEEEE",

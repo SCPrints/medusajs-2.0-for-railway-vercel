@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google"
+import localFont from "next/font/local"
 import Image from "next/image"
 import type { HttpTypes } from "@medusajs/types"
 
@@ -21,8 +21,8 @@ import { THREAD_LAB_STYLES, type ThreadLabStyle } from "@modules/guides/thread-l
 // Colours, sizes, photos and GSM are read live from the products; only the
 // editorial lives in @modules/guides/thread-lab/styles.
 
-const display = Space_Grotesk({ subsets: ["latin"], weight: ["500", "700"], display: "swap" })
-const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "600"], display: "swap" })
+const display = localFont({ src: [{ path: "../../../../../fonts/space-grotesk-500-700-normal.woff2", weight: "500 700", style: "normal" }], display: "swap" })
+const mono = localFont({ src: [{ path: "../../../../../fonts/jetbrains-mono-400-600-normal.woff2", weight: "400 600", style: "normal" }], display: "swap" })
 
 const PATH = "/guides/thread-lab"
 const TITLE = "Thread Lab Blanks: Core, Superior & Premium Tees Compared"
