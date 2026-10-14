@@ -7,7 +7,9 @@ primary_region = 'syd'
 [deploy]
   # Run migrations once per deploy, not on every boot.
   # This moves the 2-4 minute migration step out of the hot path.
-  release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate && npx medusa db:sync-links'"
+  # db:migrate already syncs links (skip with --skip-links), so a separate
+  # db:sync-links would just cold-boot Medusa again to find nothing to do.
+  release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate'"
 
 [env]
   PORT = '9000'
