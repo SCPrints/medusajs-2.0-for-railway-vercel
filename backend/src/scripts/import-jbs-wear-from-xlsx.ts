@@ -143,6 +143,13 @@ export default async function importJbsWear({ container, args }: ExecArgs) {
     const results = await Promise.all(chunk.map((u) => checkImageUrl(u, 10_000)))
     results.forEach((r, j) => r.ok && liveUrls.add(chunk[j]))
   }
+  // r2.dev rate-limits bursts — the parallel pass false-negatived ~230 live
+  // shots on the first prod dry run. Re-check every miss slowly, one at a time,
+  // so a throttled check never silently drops a real front/back image.
+  for (const u of urls.filter((u) => !liveUrls.has(u))) {
+    await new Promise((r) => setTimeout(r, 150))
+    if ((await checkImageUrl(u, 15_000)).ok) liveUrls.add(u)
+  }
   const r2Live = [...liveUrls].filter((u) => R2_BASE && u.startsWith(R2_BASE)).length
   logger.info(`Images: ${liveUrls.size}/${urls.length} candidate URLs live (${r2Live} Hightail shots on R2).`)
 
