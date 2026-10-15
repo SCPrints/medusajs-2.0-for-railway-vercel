@@ -11,9 +11,9 @@
 export const PACKING_CHECK_KEY = "packing_check"
 
 export const LINE_CHECKS = [
-  { id: "items", label: "Correct garment, colour, sizes & quantity" },
-  { id: "quality", label: "Print / embroidery quality OK (placement, no defects)" },
-  { id: "packed", label: "Folded & bagged" },
+  { id: "items", short: "Right items", label: "Correct garment, colour, sizes & quantity" },
+  { id: "quality", short: "Quality OK", label: "Print / embroidery quality OK (placement, no defects)" },
+  { id: "packed", short: "Bagged", label: "Folded & bagged" },
 ] as const
 
 export const ORDER_CHECKS = [

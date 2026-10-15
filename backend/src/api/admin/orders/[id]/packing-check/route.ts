@@ -19,7 +19,7 @@ import {
  */
 
 const tickSchema = z.object({
-  key: z.string().min(1).max(200),
+  keys: z.array(z.string().min(1).max(200)).min(1).max(500),
   checked: z.boolean(),
 })
 
@@ -34,7 +34,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 }
 
-/** POST /admin/orders/:id/packing-check  body { key, checked } → PackingCheckState */
+/**
+ * POST /admin/orders/:id/packing-check  body { keys, checked } → PackingCheckState
+ * Several keys in one call so "tick row" is a single read-modify-write.
+ */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const orderId = req.params.id
   const parsed = tickSchema.safeParse(req.body ?? {})
@@ -49,9 +52,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const lineIds: string[] = (order.items ?? []).map((i: any) => i.id)
-  if (!isValidKey(parsed.data.key, lineIds)) {
-    return res.status(400).json({ error: `Unknown checklist key: ${parsed.data.key}` })
-  }
+  const bad = parsed.data.keys.find((k) => !isValidKey(k, lineIds))
+  if (bad) return res.status(400).json({ error: `Unknown checklist key: ${bad}` })
 
   const actorId: string | null = (req as any).auth_context?.actor_id ?? null
   let actorName: string | null = actorId
@@ -69,10 +71,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const state = readPackingCheck(meta)
   const wasComplete = isComplete(state, lineIds)
   const ticks = { ...state.ticks }
-  if (parsed.data.checked) {
-    ticks[parsed.data.key] = { at: new Date().toISOString(), by: actorName }
-  } else {
-    delete ticks[parsed.data.key]
+  const at = new Date().toISOString()
+  for (const key of parsed.data.keys) {
+    if (!parsed.data.checked) delete ticks[key]
+    else if (!ticks[key]) ticks[key] = { at, by: actorName } // keep original ticker
   }
   const next = { ...state, ticks }
   const nowComplete = isComplete(next, lineIds)
