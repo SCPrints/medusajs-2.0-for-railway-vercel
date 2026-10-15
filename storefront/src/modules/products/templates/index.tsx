@@ -6,6 +6,7 @@ import ProductActions from "@modules/products/components/product-actions"
 import ProductionEtaStrip from "@modules/products/components/production-eta-strip"
 import ProductTabs from "@modules/products/components/product-tabs"
 import RelatedProducts from "@modules/products/components/related-products"
+import LookbookStrip from "@modules/lookbook/components/lookbook-strip"
 import ProductInfo from "@modules/products/templates/product-info"
 import SkeletonRelatedProducts from "@modules/skeletons/templates/skeleton-related-products"
 import SkeletonProductionEtaStrip from "@modules/skeletons/components/skeleton-production-eta-strip"
@@ -196,6 +197,17 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
       <div className="my-12 small:my-20" data-testid="cross-sell-container">
         <Suspense fallback={null}>
           <FrequentlyBoughtTogether product={product} countryCode={countryCode} />
+        </Suspense>
+      </div>
+
+      {/* Past jobs printed on this garment; renders nothing (and the
+          wrapper collapses) when no lookbook photo links this product. */}
+      <div className="my-12 empty:hidden small:my-20">
+        <Suspense fallback={null}>
+          <LookbookStrip
+            productHandle={product.handle}
+            title="Real jobs on this garment"
+          />
         </Suspense>
       </div>
 

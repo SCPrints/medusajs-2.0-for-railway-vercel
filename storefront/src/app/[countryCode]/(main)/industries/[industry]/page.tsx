@@ -1,9 +1,11 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
+import { Suspense } from "react"
 
 import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { getIndustry, industries } from "@modules/industries/data/industries"
+import LookbookStrip from "@modules/lookbook/components/lookbook-strip"
 
 type Props = {
   params: Promise<{
@@ -99,6 +101,18 @@ export default async function IndustryPage({ params }: Props) {
           </LocalizedClientLink>
         </div>
       </section>
+
+      {/* Past jobs tagged with this industry's slug in the admin lookbook.
+          Renders nothing (wrapper collapses) until tiles are tagged. */}
+      <div className="mt-16 empty:hidden">
+        <Suspense fallback={null}>
+          <LookbookStrip
+            tag={industry.slug}
+            title={`Recent ${industry.name.toLowerCase()} jobs`}
+            limit={8}
+          />
+        </Suspense>
+      </div>
 
       {others.length > 0 ? (
         <section className="mt-16 border-t border-ui-border-base pt-10">

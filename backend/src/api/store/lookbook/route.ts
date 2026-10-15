@@ -93,6 +93,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       image_url: i.image_url,
       attribution: i.attribution,
       tags: (i.tags as { values?: string[] })?.values ?? [],
+      // Links the tile to its job page (/lookbook/<job_slug>).
+      job_slug: i.job_slug ?? null,
       // Order-preserving: keep the staff-curated handle order, drop misses.
       products: handlesPerItem[idx]
         .map((h) => byHandle.get(h))

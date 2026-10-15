@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import { LookbookProductPicker } from "../../../components/lookbook/product-picker"
+import { LOOKBOOK_INDUSTRY_TAGS, slugifyJob } from "../../../../lib/lookbook-job-slug"
 
 type Item = {
   id: string
@@ -23,6 +24,7 @@ type Item = {
   product_handles: { handles?: string[] }
   product_ids: { ids?: string[] }
   tags: { values?: string[] }
+  job_slug: string | null
   attribution: string | null
   is_published: boolean
   weight: number
@@ -46,6 +48,7 @@ type FormState = {
   title: string
   description: string
   tagsCsv: string
+  jobSlug: string
   attribution: string
   orderId: string
   weight: string
@@ -57,6 +60,7 @@ const EMPTY_FORM: FormState = {
   title: "",
   description: "",
   tagsCsv: "",
+  jobSlug: "",
   attribution: "",
   orderId: "",
   weight: "0",
@@ -131,6 +135,7 @@ const LookbookPage = () => {
       title: item.title,
       description: item.description ?? "",
       tagsCsv: (item.tags?.values ?? []).join(", "),
+      jobSlug: item.job_slug ?? "",
       attribution: item.attribution ?? "",
       orderId: item.order_id ?? "",
       weight: String(item.weight ?? 0),
@@ -166,6 +171,8 @@ const LookbookPage = () => {
         order_id: form.orderId.trim() || undefined,
         product_handles: form.productHandles,
         tags,
+        // Blank → the server derives it from the title.
+        job_slug: form.jobSlug.trim(),
         weight: Number.isFinite(weight) ? weight : 0,
       }
       if (form.file) {
@@ -238,6 +245,7 @@ const LookbookPage = () => {
                 "Edit any tile to change its details, swap the photo, re-order or change its linked products.",
                 "Toggle Published to hide a tile without deleting it.",
                 "Weight controls order (lower = earlier); 0 is the default.",
+                "Photos with the same Job are one page at /lookbook/<job>, shown on the linked garments' product pages. Industry tags (trades, sports…) show the job on that industry page.",
               ],
             }}
           />
@@ -294,6 +302,53 @@ const LookbookPage = () => {
                 onChange={(e) => setField("tagsCsv", e.target.value)}
                 placeholder="sports, hoodie, embroidery"
               />
+              {/* Industry tags drive the strips on /industries/<tag>, so they
+                  must be spelt exactly — click rather than type. */}
+              <div className="mt-2 flex flex-wrap gap-1">
+                {LOOKBOOK_INDUSTRY_TAGS.map((t) => {
+                  const current = form.tagsCsv
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                  const on = current.some((c) => c.toLowerCase() === t)
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() =>
+                        setField(
+                          "tagsCsv",
+                          (on
+                            ? current.filter((c) => c.toLowerCase() !== t)
+                            : [...current, t]
+                          ).join(", ")
+                        )
+                      }
+                      className={`rounded-full border px-2 py-0.5 text-xs ${
+                        on
+                          ? "border-ui-fg-interactive bg-ui-bg-highlight text-ui-fg-interactive"
+                          : "border-ui-border-base text-ui-fg-subtle"
+                      }`}
+                    >
+                      {on ? "✓ " : "+ "}
+                      {t}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <Label size="xsmall">Job (groups photos into one page)</Label>
+              <Input
+                value={form.jobSlug}
+                onChange={(e) => setField("jobSlug", e.target.value)}
+                placeholder={slugifyJob(form.title) || "auto from title"}
+              />
+              <Text size="xsmall" className="mt-1 text-ui-fg-muted">
+                Photos with the same job share /lookbook/
+                {slugifyJob(form.jobSlug || form.title) || "…"}. Leave blank to
+                use the title.
+              </Text>
             </div>
             <div>
               <Label size="xsmall">Order ID (optional)</Label>
@@ -391,6 +446,11 @@ const LookbookPage = () => {
                         <Badge color="grey">Off</Badge>
                       )}
                     </div>
+                    {item.job_slug ? (
+                      <Text size="xsmall" className="mt-1 truncate text-ui-fg-muted">
+                        Job: {item.job_slug}
+                      </Text>
+                    ) : null}
                     {linkedCount > 0 ? (
                       <Text size="xsmall" className="mt-1 text-ui-fg-muted">
                         {linkedCount} linked product{linkedCount === 1 ? "" : "s"}

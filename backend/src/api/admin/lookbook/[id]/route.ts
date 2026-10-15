@@ -6,6 +6,7 @@ import { z } from "zod"
 import { LOOKBOOK_MODULE } from "../../../../modules/lookbook"
 import type LookbookModuleService from "../../../../modules/lookbook/service"
 import { revalidateStorefrontTags } from "../../../../lib/storefront-revalidate"
+import { slugifyJob } from "../../../../lib/lookbook-jobs"
 
 const MAX_BYTES = 8 * 1024 * 1024
 
@@ -16,6 +17,8 @@ const updateSchema = z.object({
   order_id: z.string().max(120).nullable().optional(),
   product_handles: z.array(z.string().max(200)).max(20).optional(),
   tags: z.array(z.string().max(40)).max(20).optional(),
+  /** "" re-derives the slug from the title. */
+  job_slug: z.string().max(120).optional(),
   is_published: z.boolean().optional(),
   weight: z.coerce.number().int().optional(),
   /** Replace the tile photo. A pre-uploaded URL or a fresh base64 data URL. */
@@ -59,6 +62,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
+  const service = req.scope.resolve<LookbookModuleService>(LOOKBOOK_MODULE)
   const update: Record<string, unknown> = { id }
   for (const k of Object.keys(body) as Array<keyof typeof body>) {
     if (body[k] === undefined) continue
@@ -66,6 +70,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       update.product_handles = { handles: body.product_handles }
     } else if (k === "tags") {
       update.tags = { values: body.tags }
+    } else if (k === "job_slug") {
+      const title =
+        body.title ?? (await service.retrieveLookbookItem(id)).title
+      update.job_slug = slugifyJob(body.job_slug || title) || null
     } else if (
       k === "image_data_base64" ||
       k === "image_filename" ||
@@ -81,7 +89,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     update.image_url = replacementImageUrl
   }
 
-  const service = req.scope.resolve<LookbookModuleService>(LOOKBOOK_MODULE)
   await service.updateLookbookItems([update])
   const updated = await service.retrieveLookbookItem(id)
 

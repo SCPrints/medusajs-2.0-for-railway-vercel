@@ -35,12 +35,17 @@ const LookbookItem = model
      */
     product_ids: model.json().default({}),
     tags: model.json().default({}),
+    /**
+     * Groups photos into one job (`/lookbook/<job_slug>`). Defaults to the
+     * slugified title; staff edit it to merge/split jobs. See lib/lookbook-jobs.
+     */
+    job_slug: model.text().nullable(),
     /** "Photo by ${attribution}" badge on the tile. */
     attribution: model.text().nullable(),
     is_published: model.boolean().default(true),
     weight: model.number().default(0),
     created_by: model.text().nullable(),
   })
-  .indexes([{ on: ["is_published"] }, { on: ["weight"] }])
+  .indexes([{ on: ["is_published"] }, { on: ["weight"] }, { on: ["job_slug"] }])
 
 export default LookbookItem

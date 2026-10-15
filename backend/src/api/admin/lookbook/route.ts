@@ -6,6 +6,7 @@ import { z } from "zod"
 import { LOOKBOOK_MODULE } from "../../../modules/lookbook"
 import type LookbookModuleService from "../../../modules/lookbook/service"
 import { revalidateStorefrontTags } from "../../../lib/storefront-revalidate"
+import { slugifyJob } from "../../../lib/lookbook-jobs"
 
 const MAX_BYTES = 8 * 1024 * 1024
 
@@ -23,6 +24,8 @@ const createSchema = z.object({
   product_handles: z.array(z.string().max(200)).max(20).optional(),
   product_ids: z.array(z.string()).max(20).optional(),
   tags: z.array(z.string().max(40)).max(20).optional(),
+  /** Groups photos into one job page; defaults to the slugified title. */
+  job_slug: z.string().max(120).optional(),
   is_published: z.boolean().optional(),
   weight: z.coerce.number().int().optional(),
 })
@@ -92,6 +95,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       product_handles: { handles: body.product_handles ?? [] },
       product_ids: { ids: body.product_ids ?? [] },
       tags: { values: body.tags ?? [] },
+      job_slug: slugifyJob(body.job_slug || body.title) || null,
       is_published: body.is_published ?? true,
       weight: body.weight ?? 0,
       created_by: (req as any).auth_context?.actor_id ?? null,

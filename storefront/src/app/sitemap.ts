@@ -3,6 +3,7 @@ import { MetadataRoute } from "next"
 import { listBrands } from "@lib/data/brands"
 import { listBundles } from "@lib/data/bundles"
 import { listCategories } from "@lib/data/categories"
+import { listLookbookJobs } from "@lib/data/lookbook"
 import { listAllProductHandles } from "@lib/data/products"
 import { getBaseURL } from "@lib/util/env"
 import { industries } from "@modules/industries/data/industries"
@@ -50,12 +51,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Dynamic sets. Every helper already swallows backend errors → [] so one
   // slow/failing set never empties the whole sitemap.
-  const [products, categories, brands, bundles] = await Promise.all([
-    listAllProductHandles(),
-    listCategories().catch(() => []),
-    listBrands().catch(() => []),
-    listBundles().catch(() => []),
-  ])
+  const [products, categories, brands, bundles, lookbookJobs] =
+    await Promise.all([
+      listAllProductHandles(),
+      listCategories().catch(() => []),
+      listBrands().catch(() => []),
+      listBundles().catch(() => []),
+      listLookbookJobs({ limit: 500 }),
+    ])
 
   const staticEntries: MetadataRoute.Sitemap = [
     ...staticPaths,
@@ -96,6 +99,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.5,
     }))
 
+  // Only industry-tagged jobs — the rest are noindex (see lookbook/[slug]).
+  const industrySlugs = new Set(industries.map((i) => i.slug))
+  const lookbookEntries: MetadataRoute.Sitemap = lookbookJobs
+    .filter((j) => j.tags.some((t) => industrySlugs.has(t)))
+    .map((j) => ({
+      url: toAbsoluteUrl(`/${cc}/lookbook/${encodeURIComponent(j.slug)}`),
+      lastModified: j.updated_at ? new Date(j.updated_at) : now,
+      changeFrequency: "monthly",
+      priority: 0.5,
+    }))
+
   const productEntries: MetadataRoute.Sitemap = products.map((p) => ({
     url: toAbsoluteUrl(`/${cc}/products/${encodeURIComponent(p.handle)}`),
     lastModified: p.updated_at ? new Date(p.updated_at) : now,
@@ -108,6 +122,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...categoryEntries,
     ...brandEntries,
     ...bundleEntries,
+    ...lookbookEntries,
     ...productEntries,
   ]
 }

@@ -256,6 +256,16 @@ export default function LookbookGallery({ items }: Props) {
                   </div>
                 )
               })()}
+              {current.job_slug ? (
+                <div className="mt-3 flex justify-center">
+                  <LocalizedClientLink
+                    href={`/lookbook/${current.job_slug}`}
+                    className="inline-flex min-h-11 items-center text-sm font-semibold text-white/80 underline-offset-4 hover:text-white hover:underline"
+                  >
+                    See every photo from this job
+                  </LocalizedClientLink>
+                </div>
+              ) : null}
               {hasMany ? (
                 <p className="mt-3 text-xs font-medium text-white/40">
                   {openIndex! + 1} / {items.length}

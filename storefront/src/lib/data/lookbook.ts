@@ -18,6 +18,24 @@ export type LookbookItem = {
   tags: string[]
   /** Linked garments, staff-curated order; first is the primary CTA target. */
   products: LookbookProduct[]
+  /** The job this photo belongs to → `/lookbook/<job_slug>`. */
+  job_slug: string | null
+}
+
+/** A job = every photo sharing a `job_slug` (one card per job). */
+export type LookbookJob = {
+  slug: string
+  title: string
+  description: string | null
+  cover_image_url: string
+  image_count: number
+  tags: string[]
+  updated_at: string | null
+}
+
+export type LookbookJobDetail = LookbookJob & {
+  images: { id: string; image_url: string; attribution: string | null }[]
+  products: LookbookProduct[]
 }
 
 export type LookbookPage = {
@@ -51,8 +69,9 @@ async function fetchLookbookPage(
   const res = (await sdk.client.fetch("/store/lookbook", {
     query: { limit, offset },
   })) as {
-    items?: (Omit<LookbookItem, "products"> & {
+    items?: (Omit<LookbookItem, "products" | "job_slug"> & {
       products?: LookbookProduct[]
+      job_slug?: string | null
     })[]
     count?: number
     limit?: number
@@ -61,7 +80,11 @@ async function fetchLookbookPage(
   return {
     // Normalise `products` so consumers can safely read `products[0]` even if
     // an older backend (pre product-linking) is still serving this route.
-    items: (res.items ?? []).map((i) => ({ ...i, products: i.products ?? [] })),
+    items: (res.items ?? []).map((i) => ({
+      ...i,
+      products: i.products ?? [],
+      job_slug: i.job_slug ?? null,
+    })),
     count: res.count ?? 0,
     limit: res.limit ?? limit,
     tags: res.tags ?? [],
@@ -120,4 +143,67 @@ export async function getLookbookHomeRail(
   await connection()
   const pool = await getLookbookPool()
   return shuffle(pool).slice(0, limit)
+}
+
+/**
+ * Jobs filtered by garment and/or tag (PDP + industry strips), or all jobs
+ * (sitemap). Same cache + throw-inside / catch-outside contract as above.
+ */
+async function fetchLookbookJobs(
+  productHandle: string | null,
+  tag: string | null,
+  limit: number
+): Promise<LookbookJob[]> {
+  "use cache: remote"
+  cacheTag("lookbook")
+  cacheLife({ revalidate: 600, stale: 86400, expire: 86400 })
+  const query: Record<string, string | number> = { limit }
+  if (productHandle) query.product_handle = productHandle
+  if (tag) query.tag = tag
+  const res = (await sdk.client.fetch("/store/lookbook/jobs", { query })) as {
+    jobs?: LookbookJob[]
+  }
+  return res.jobs ?? []
+}
+
+export async function listLookbookJobs({
+  productHandle,
+  tag,
+  limit = 200,
+}: { productHandle?: string; tag?: string; limit?: number } = {}): Promise<
+  LookbookJob[]
+> {
+  try {
+    return await fetchLookbookJobs(productHandle ?? null, tag ?? null, limit)
+  } catch {
+    return []
+  }
+}
+
+async function fetchLookbookJob(
+  slug: string
+): Promise<{ job: LookbookJobDetail; related: LookbookJob[] } | null> {
+  "use cache: remote"
+  cacheTag("lookbook")
+  cacheLife({ revalidate: 600, stale: 86400, expire: 86400 })
+  try {
+    return (await sdk.client.fetch(
+      `/store/lookbook/jobs/${encodeURIComponent(slug)}`
+    )) as { job: LookbookJobDetail; related: LookbookJob[] }
+  } catch (err: any) {
+    // A genuine 404 is a cacheable answer; anything else must throw so a
+    // transient backend failure isn't cached.
+    if (err?.status === 404) return null
+    throw err
+  }
+}
+
+export async function getLookbookJob(
+  slug: string
+): Promise<{ job: LookbookJobDetail; related: LookbookJob[] } | null> {
+  try {
+    return await fetchLookbookJob(slug)
+  } catch {
+    return null
+  }
 }
