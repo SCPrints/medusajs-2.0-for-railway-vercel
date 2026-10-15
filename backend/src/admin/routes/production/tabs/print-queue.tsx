@@ -1,8 +1,8 @@
 import { Badge, Container, Heading, Text, toast } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-import { HelpTooltip } from "../../components/reports/help-tooltip"
-import { METHOD_LABELS as SHARED_METHOD_LABELS } from "../../lib/print-recipe-methods"
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
+import { METHOD_LABELS as SHARED_METHOD_LABELS } from "../../../lib/print-recipe-methods"
 
 type Job = {
   order_id: string

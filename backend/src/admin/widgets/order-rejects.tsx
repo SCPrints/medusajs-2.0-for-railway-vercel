@@ -142,7 +142,7 @@ const OrderRejectsWidget = ({ data: order }: { data: { id: string } }) => {
           <HelpTooltip
             text={{
               title: "Production rejects",
-              body: "Log every garment scrapped during production for this order. Drives waste reporting + supplier defect tracking (see /app/production-rejects).",
+              body: "Log every garment scrapped during production for this order. Drives waste reporting + supplier defect tracking (see Production → Rejects).",
               bullets: [
                 "Reason guides the report: misprints surface operator drift; damaged_blank and supplier_defect surface bad batches to chase.",
                 "Cost estimate uses minor units internally (cents) but the form accepts dollars.",

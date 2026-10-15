@@ -106,7 +106,7 @@ const OrderPrintRecipesWidget = ({ data: order }: { data: { id: string } }) => {
           <HelpTooltip
             text={{
               title: "Print recipes for this order",
-              body: "Recipes are tuning notes — mesh count, flash temp, ink type, embroidery digitization file, etc. — for the operator running this job. Link any reusable recipe from the library, or build one from scratch on /app/print-recipes.",
+              body: "Recipes are tuning notes — mesh count, flash temp, ink type, embroidery digitization file, etc. — for the operator running this job. Link any reusable recipe from the library, or build one from scratch on Production → Print recipes.",
               bullets: [
                 "Each linked recipe shows on the printable work-order so the press operator has the right settings.",
                 "Linking stamps the recipe's last_used_at so the library can sort by recency.",

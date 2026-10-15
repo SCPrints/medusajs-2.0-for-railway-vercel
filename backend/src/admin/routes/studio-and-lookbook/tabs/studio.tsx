@@ -7,7 +7,7 @@ import {
 } from "@medusajs/ui"
 import { useCallback, useEffect, useState } from "react"
 
-import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 
 type StudioRow = {
   bucket: string
@@ -127,7 +127,6 @@ const StudioPage = () => {
   )
 }
 
-// Page is now embedded as "Studio" tab in Studio & Lookbook;
-// direct URL /app/studio still works for deep links
+// Rendered as the "Studio" tab of /app/studio-and-lookbook.
 
 export default StudioPage

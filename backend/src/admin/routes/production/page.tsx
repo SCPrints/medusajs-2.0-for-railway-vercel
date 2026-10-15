@@ -36,11 +36,12 @@ import {
   nextStageInTrack,
   isProductionStage,
 } from "../../../lib/production-stage"
-import PrintQueuePage from "../print-queue/page"
-import PrintRecipesPage from "../print-recipes/page"
-import ProductionRejectsPage from "../production-rejects/page"
-import ProductionCalendarPage from "../production-calendar/page"
+import PrintQueuePage from "./tabs/print-queue"
+import PrintRecipesPage from "./tabs/print-recipes"
+import ProductionRejectsPage from "./tabs/production-rejects"
+import ProductionCalendarPage from "./tabs/production-calendar"
 import { formatCurrency } from "../../lib/reports/format"
+import { initialHubTab } from "../../lib/hub-tab"
 
 /* ---------- types mirrored from /admin/reports/production-snapshot ------- */
 
@@ -951,8 +952,10 @@ const KanbanCard = ({
   )
 }
 
+const PRODUCTION_TABS = ["dashboard", "print-queue", "print-recipes", "calendar", "rejects"] as const
+
 const ProductionPage = () => (
-  <Tabs defaultValue="dashboard">
+  <Tabs defaultValue={initialHubTab(PRODUCTION_TABS, "dashboard")}>
     <div className="px-6 pt-4">
       <Tabs.List>
         <Tabs.Trigger value="dashboard">Dashboard</Tabs.Trigger>

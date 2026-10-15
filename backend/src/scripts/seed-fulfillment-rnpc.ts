@@ -37,7 +37,7 @@ const HOODIE_UNIT_PRICE_CENTS = 8800
 // printed to the requested qty (even 1) from those blanks, so on_hand
 // tracks blanks. Blanks are reordered from AS Colour 30 at a time when a
 // size drops to 10 — that's reorder_point / reorder_quantity below. The
-// order itself is the print instruction (it lands in /app/print-queue via
+// order itself is the print instruction (it lands in Production → Print queue via
 // production_stage like any other job) — no separate print task.
 const TEE_REORDER_POINT = 10
 const TEE_REORDER_QUANTITY = 30

@@ -35,7 +35,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          Open <strong>Studio</strong> (<a href="/app/studio" className="underline">/app/studio</a>) first thing every morning. It surfaces five buckets of things worth your attention right now:
+          Open <strong>Studio</strong> (<a href="/app/studio-and-lookbook" className="underline">Studio &amp; Lookbook</a>) first thing every morning. It surfaces five buckets of things worth your attention right now:
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm">
           <li><strong>VIPs who&apos;ve gone quiet</strong> — tagged VIP, no order in 60+ days.</li>
@@ -79,7 +79,7 @@ const SECTIONS: Section[] = [
         </li>
         <li><strong>Production photos</strong> — snap from phone, latest auto-appears in customer&apos;s next stage email.</li>
         <li><strong>Print recipes</strong> — link reusable production settings (mesh count, flash temp, embroidery file).</li>
-        <li><strong>Rejects / spoilage</strong> — log every scrapped garment. Powers the /app/production-rejects report.</li>
+        <li><strong>Rejects / spoilage</strong> — log every scrapped garment. Powers the Production → Rejects report.</li>
         <li><strong>Order timeline</strong> — one chronological feed of every signal we captured for this order.</li>
       </ul>
     ),
@@ -339,7 +339,7 @@ const SECTIONS: Section[] = [
           <li><strong>Print recipes tab</strong> — reusable settings library. Capture &amp; link to orders so operators have the right setup.</li>
           <li><strong>Production calendar tab</strong> — Gantt-style view of in-flight orders vs deadlines. Red bars = stale.</li>
           <li><strong>Rejects tab</strong> — waste report by reason + supplier brand over any date range.</li>
-          <li><strong>Lookbook</strong> (<a href="/app/lookbook" className="underline">/app/lookbook</a>) — curated photos of past jobs rendered at /lookbook for social proof. Still its own sidebar entry.</li>
+          <li><strong>Lookbook</strong> (<a href="/app/studio-and-lookbook?tab=lookbook" className="underline">Studio &amp; Lookbook → Lookbook</a>) — curated photos of past jobs rendered at /lookbook for social proof.</li>
         </ul>
       </>
     ),
@@ -871,7 +871,7 @@ const SECTIONS: Section[] = [
       <div className="grid grid-cols-1 small:grid-cols-2 gap-2 text-sm">
         <div><strong>Ring up a walk-in customer</strong> <a href="/app/pos" className="underline">/app/pos</a></div>
         <div><strong>Take a card payment in-person (QR link)</strong> <a href="/app/pos" className="underline">/app/pos</a> → Card (QR link)</div>
-        <div><strong>What needs my attention today?</strong> <a href="/app/studio" className="underline">/app/studio</a></div>
+        <div><strong>What needs my attention today?</strong> <a href="/app/studio-and-lookbook" className="underline">Studio &amp; Lookbook</a></div>
         <div><strong>What&apos;s on my plate?</strong> <a href="/app/tasks" className="underline">/app/tasks</a></div>
         <div><strong>Mark a customer tax-exempt</strong> Customer detail → Tax status</div>
         <div><strong>Tag a customer VIP</strong> Customer detail → Tags</div>
@@ -894,7 +894,7 @@ const SECTIONS: Section[] = [
         <div><strong>See all fulfillment orders</strong> <a href="/app/fulfillment" className="underline">/app/fulfillment</a></div>
         <div><strong>Reconcile stocktake on an inventory row</strong> Org detail → Inventory tab → row → Adjust</div>
         <div><strong>Mark a print run received</strong> Org detail → Inventory tab → row → Receive</div>
-        <div><strong>Add a gallery tile</strong> <a href="/app/lookbook" className="underline">/app/lookbook</a></div>
+        <div><strong>Add a gallery tile</strong> <a href="/app/studio-and-lookbook?tab=lookbook" className="underline">Studio &amp; Lookbook → Lookbook</a></div>
         <div><strong>Snooze a customer for Tuesday</strong> Customer detail → Notes → add note with snooze date</div>
         <div><strong>Tax invoice</strong> Customer side: /account/orders/[id] → Tax invoice button</div>
         <div><strong>Stop marketing emails to an address</strong> Customer calls? <code>POST /admin/email-suppressions</code> (admin REST). UI page on the roadmap.</div>

@@ -11,8 +11,8 @@ import {
 } from "@medusajs/ui"
 import { useCallback, useEffect, useState } from "react"
 
-import { HelpTooltip } from "../../components/reports/help-tooltip"
-import { LookbookProductPicker } from "../../components/lookbook/product-picker"
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
+import { LookbookProductPicker } from "../../../components/lookbook/product-picker"
 
 type Item = {
   id: string
@@ -456,7 +456,6 @@ const LookbookPage = () => {
   )
 }
 
-// Page is now embedded as "Lookbook" tab in Studio & Lookbook;
-// direct URL /app/lookbook still works for deep links
+// Rendered as the "Lookbook" tab of /app/studio-and-lookbook.
 
 export default LookbookPage

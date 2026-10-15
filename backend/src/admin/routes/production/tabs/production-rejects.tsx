@@ -11,7 +11,7 @@ import {
 } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 
 type RejectRow = {
   id: string

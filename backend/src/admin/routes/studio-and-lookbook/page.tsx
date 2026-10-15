@@ -4,11 +4,14 @@ import { Sparkles } from "@medusajs/icons"
 import { Container, Tabs } from "@medusajs/ui"
 import { useState } from "react"
 
-import StudioPage from "../studio/page"
-import LookbookPage from "../lookbook/page"
+import StudioPage from "./tabs/studio"
+import LookbookPage from "./tabs/lookbook"
+import { initialHubTab } from "../../lib/hub-tab"
 
 const StudioAndLookbookPage = () => {
-  const [activeTab, setActiveTab] = useState<"studio" | "lookbook">("studio")
+  const [activeTab, setActiveTab] = useState<"studio" | "lookbook">(() =>
+    initialHubTab(["studio", "lookbook"] as const, "studio")
+  )
 
   return (
     <Container className="p-0">

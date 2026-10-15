@@ -9,9 +9,10 @@ import FashionBizImportPage from "../fashionbiz-import/page"
 import AussiePacificImportPage from "../aussie-pacific-import/page"
 import GildanImportPage from "../gildan-import/page"
 import ProductTypeTagManagePage from "../product-type-tag-manage/page"
-import SpreadsheetSyncPage from "../spreadsheet-sync/page"
-import SpreadsheetSyncUpdatePage from "../spreadsheet-sync-update/page"
+import SpreadsheetSyncPage from "./tabs/spreadsheet-sync"
+import SpreadsheetSyncUpdatePage from "./tabs/spreadsheet-sync-update"
 import ProductsManagerTab from "./components/products-manager-tab"
+import { initialHubTab } from "../../lib/hub-tab"
 import TaxonomyAuditPanel from "./components/taxonomy-audit-panel"
 
 /**
@@ -29,6 +30,8 @@ import TaxonomyAuditPanel from "./components/taxonomy-audit-panel"
  * they no longer appear in the sidebar (they're still routable by
  * direct URL for deep links / muscle memory).
  */
+const PRODUCT_DATA_TABS = ["browse-manage", "import-new", "update-existing", "types-tags", "taxonomy-audit", "ascolour-import", "fashionbiz-import", "aussie-pacific-import", "gildan-import"] as const
+
 const ProductDataPage = () => {
   return (
     <div className="flex flex-col gap-y-4">
@@ -58,7 +61,7 @@ const ProductDataPage = () => {
         </Text>
       </Container>
 
-      <Tabs defaultValue="browse-manage">
+      <Tabs defaultValue={initialHubTab(PRODUCT_DATA_TABS, "browse-manage")}>
         <Container>
           <Tabs.List>
             <Tabs.Trigger value="browse-manage">Browse &amp; manage</Tabs.Trigger>

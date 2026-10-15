@@ -1,12 +1,12 @@
 import { Button, Checkbox, Container, Heading, Text } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 
 import {
   applySpreadsheetHeaderAliases,
   chunkCreates,
-} from "../../lib/spreadsheet-sync-import"
+} from "../../../lib/spreadsheet-sync-import"
 import {
   buildBatchUpdatesFromParsedCsv,
   buildVariantGarmentDataByProductId,
@@ -19,14 +19,14 @@ import {
   spreadsheetHeadersIgnoringPatchable,
   VARIANT_GARMENT_METADATA_CSV_KEY,
   type VariantGarmentCsvRow,
-} from "../../lib/spreadsheet-sync-update-import"
+} from "../../../lib/spreadsheet-sync-update-import"
 import {
   resolveBrandValues,
   resolveBrandIdForValue,
   type BrandClient,
-} from "../../lib/spreadsheet-sync-brands"
-import { parseCsv, readCsvFile } from "../../lib/csv-import"
-import { sdk } from "../../lib/sdk"
+} from "../../../lib/spreadsheet-sync-brands"
+import { parseCsv, readCsvFile } from "../../../lib/csv-import"
+import { sdk } from "../../../lib/sdk"
 
 const adminFetchPath = (path: string) => {
   const base = (import.meta.env.VITE_BACKEND_URL ?? "").replace(/\/$/, "")
@@ -568,7 +568,7 @@ const SpreadsheetSyncUpdatePage = () => {
           columns, values come from the <strong>first row</strong> per Product Id. The Admin variant{" "}
           <strong>Media</strong> panel only shows files uploaded into Medusa; garment URLs from your CSV live under variant{" "}
           <strong>Metadata</strong> (and drive the storefront gallery). To create new products, use{" "}
-          <a href="/app/spreadsheet-sync" className="text-ui-fg-interactive hover:underline">
+          <a href="/app/product-data?tab=import-new" className="text-ui-fg-interactive hover:underline">
             Spreadsheet sync (new)
           </a>
           .

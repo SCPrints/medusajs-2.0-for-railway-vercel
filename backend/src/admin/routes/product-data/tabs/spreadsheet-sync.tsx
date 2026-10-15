@@ -1,7 +1,7 @@
 import { Button, Checkbox, Container, Heading, Input, Text } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { HelpTooltip } from "../../../components/reports/help-tooltip"
 
 import {
   applyDefaultCollectionIdToParsedCsv,
@@ -23,30 +23,30 @@ import {
   slugifyCollectionHandle,
   SPREADSHEET_IMPORT_FORMAT_OPTIONS,
   type SpreadsheetImportFormat,
-} from "../../lib/spreadsheet-sync-import"
+} from "../../../lib/spreadsheet-sync-import"
 import {
   applyCategoryIdsToCreates,
   resolveCategoryPaths,
   type CategoryClient,
-} from "../../lib/spreadsheet-sync-categories"
+} from "../../../lib/spreadsheet-sync-categories"
 import {
   applyTagIdsToCreates,
   resolveTagValues,
   type TagClient,
-} from "../../lib/spreadsheet-sync-tags"
+} from "../../../lib/spreadsheet-sync-tags"
 import {
   resolveBrandValues,
   resolveBrandIdForValue,
   type BrandClient,
-} from "../../lib/spreadsheet-sync-brands"
+} from "../../../lib/spreadsheet-sync-brands"
 import {
   groupRowsByProduct,
   initialSkippedHandles,
   type PreviewProduct,
-} from "../../lib/spreadsheet-sync-preview"
-import type { TierMoneyMinor } from "../../lib/spreadsheet-money"
-import { parseCsv, readCsvFile } from "../../lib/csv-import"
-import { sdk } from "../../lib/sdk"
+} from "../../../lib/spreadsheet-sync-preview"
+import type { TierMoneyMinor } from "../../../lib/spreadsheet-money"
+import { parseCsv, readCsvFile } from "../../../lib/csv-import"
+import { sdk } from "../../../lib/sdk"
 
 const adminFetchPath = (path: string) => {
   const base = (import.meta.env.VITE_BACKEND_URL ?? "").replace(/\/$/, "")
@@ -734,7 +734,7 @@ const SpreadsheetSyncPage = () => {
             Product Id
           </code>{" "}
           or handle — duplicate handles follow Medusa/API rules. Bulk updates to existing products live under{" "}
-          <a href="/app/spreadsheet-sync-update" className="text-ui-fg-interactive hover:underline">
+          <a href="/app/product-data?tab=update-existing" className="text-ui-fg-interactive hover:underline">
             Spreadsheet sync (updates)
           </a>
           .

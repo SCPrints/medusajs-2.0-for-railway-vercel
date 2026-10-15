@@ -115,7 +115,7 @@ One `Brand` entity owns every product's brand identity. Storefront filtering, br
 
 **Importer**: the spreadsheet sync uses a single "Product Brand" column (back-compat reads "Product Supplier" too). Values are resolved by name or `external_code` (case-insensitive) and missing brands are auto-created. New brands default to `parent_id = null` — staff re-parent in admin.
 
-**Preview UI**: both spreadsheet-sync flows (`/app/spreadsheet-sync` and `/app/spreadsheet-sync-update`) show a per-product checklist before submitting the batch. Products with validation warnings start unchecked. Unchecking skips the product entirely (no metadata writes, no link).
+**Preview UI**: both spreadsheet-sync flows (the "Import new products" and "Update existing" tabs of `/app/product-data`) show a per-product checklist before submitting the batch. Products with validation warnings start unchecked. Unchecking skips the product entirely (no metadata writes, no link).
 
 **Read-path single source of truth**: every brand read goes through the Product↔Brand Module Link. Legacy `metadata.brand` / `metadata.supplier` / `metadata.manufacturer` / `metadata.label` fallbacks were removed from the catalog graph route + `/store/brands/[handle]/products` route on 2026-05-23 after `verify-brand-links` confirmed zero orphans. Drift is now surfaced explicitly by `verify-brand-links` and repaired by `relink-supplier-brands` — never silently masked at read time. Old metadata values may still sit on product rows; they're harmless dead weight.
 
@@ -296,7 +296,7 @@ Tag-filterable masonry grid of past client jobs at `/lookbook` (plus the prototy
 | Migration (`product_handles` column) | [backend/src/modules/lookbook/migrations/Migration20270710000000.ts](backend/src/modules/lookbook/migrations/Migration20270710000000.ts) |
 | Admin REST | [backend/src/api/admin/lookbook/](backend/src/api/admin/lookbook/) |
 | Store REST (resolves linked handles → live PDPs) | [backend/src/api/store/lookbook/route.ts](backend/src/api/store/lookbook/route.ts) |
-| Admin CRUD page (create **+ edit**) | [backend/src/admin/routes/lookbook/page.tsx](backend/src/admin/routes/lookbook/page.tsx) |
+| Admin CRUD page (create **+ edit**) | [backend/src/admin/routes/studio-and-lookbook/tabs/lookbook.tsx](backend/src/admin/routes/studio-and-lookbook/tabs/lookbook.tsx) (Lookbook tab of `/app/studio-and-lookbook`) |
 | Product picker (handle-based, reorderable) | [backend/src/admin/components/lookbook/product-picker.tsx](backend/src/admin/components/lookbook/product-picker.tsx) |
 | Combined dashboard (studio + lookbook) | [backend/src/admin/routes/studio-and-lookbook/page.tsx](backend/src/admin/routes/studio-and-lookbook/page.tsx) |
 | Storefront page + gallery lightbox | [storefront/src/app/[countryCode]/(main)/lookbook/page.tsx](storefront/src/app/[countryCode]/(main)/lookbook/page.tsx) + [lookbook-gallery.tsx](storefront/src/modules/lookbook/components/lookbook-gallery.tsx) |
@@ -557,7 +557,7 @@ Groups today's queued orders by decoration method + colour signature to minimise
 | Pure batching logic | [backend/src/services/print-queue/build.ts](backend/src/services/print-queue/build.ts) |
 | Container wrapper | [backend/src/services/print-queue/get-queue.ts](backend/src/services/print-queue/get-queue.ts) |
 | Admin route | [backend/src/api/admin/print-queue/route.ts](backend/src/api/admin/print-queue/route.ts) |
-| Admin page | [backend/src/admin/routes/print-queue/page.tsx](backend/src/admin/routes/print-queue/page.tsx) |
+| Admin page | [backend/src/admin/routes/production/tabs/print-queue.tsx](backend/src/admin/routes/production/tabs/print-queue.tsx) (Print queue tab of `/app/production`) |
 
 Stale orders float to top, tiebreak by `created_at`. Colour signature is normalised (lowercased, sorted, deduped) so the same ink mix on different orders clusters together.
 
@@ -569,7 +569,7 @@ Operators capture step-by-step instructions (ink mix, screen settings, placement
 | Module | [backend/src/modules/print-recipe/](backend/src/modules/print-recipe/) |
 | Migration | [backend/src/modules/print-recipe/migrations/Migration20260620000000.ts](backend/src/modules/print-recipe/migrations/Migration20260620000000.ts) |
 | Admin REST | [backend/src/api/admin/print-recipes/](backend/src/api/admin/print-recipes/) |
-| Admin CRUD page | [backend/src/admin/routes/print-recipes/page.tsx](backend/src/admin/routes/print-recipes/page.tsx) |
+| Admin CRUD page | [backend/src/admin/routes/production/tabs/print-recipes.tsx](backend/src/admin/routes/production/tabs/print-recipes.tsx) (Print recipes tab of `/app/production`) |
 | Order-detail widget | [backend/src/admin/widgets/order-print-recipes.tsx](backend/src/admin/widgets/order-print-recipes.tsx) |
 | Per-line print notes | [backend/src/admin/widgets/order-line-print-notes.tsx](backend/src/admin/widgets/order-line-print-notes.tsx) |
 
@@ -581,7 +581,7 @@ Week / month view of orders by upcoming stage transitions. Reads stage-change da
 | Component | Path |
 | --- | --- |
 | Admin route | [backend/src/api/admin/production-calendar/route.ts](backend/src/api/admin/production-calendar/route.ts) |
-| Admin calendar page | [backend/src/admin/routes/production-calendar/page.tsx](backend/src/admin/routes/production-calendar/page.tsx) |
+| Admin calendar page | [backend/src/admin/routes/production/tabs/production-calendar.tsx](backend/src/admin/routes/production/tabs/production-calendar.tsx) (Calendar tab of `/app/production`) |
 | Production dashboard (tabs hub) | [backend/src/admin/routes/production/page.tsx](backend/src/admin/routes/production/page.tsx) |
 
 ### Production rejects (QC defect log)
@@ -592,7 +592,7 @@ Log misprints / defects per order with reason + cost; aggregates show defect rat
 | Module | [backend/src/modules/production-reject/](backend/src/modules/production-reject/) |
 | Migration | [backend/src/modules/production-reject/migrations/Migration20260619000000.ts](backend/src/modules/production-reject/migrations/Migration20260619000000.ts) |
 | Admin REST | [backend/src/api/admin/production-rejects/](backend/src/api/admin/production-rejects/) |
-| Admin report page | [backend/src/admin/routes/production-rejects/page.tsx](backend/src/admin/routes/production-rejects/page.tsx) |
+| Admin report page | [backend/src/admin/routes/production/tabs/production-rejects.tsx](backend/src/admin/routes/production/tabs/production-rejects.tsx) (Rejects tab of `/app/production`) |
 | Order-detail widget | [backend/src/admin/widgets/order-rejects.tsx](backend/src/admin/widgets/order-rejects.tsx) |
 
 ### Mockup PDF generator
@@ -1423,7 +1423,7 @@ Five live buckets recomputed at every page load: VIP dormant, first-timer orders
 | --- | --- |
 | Service | [backend/src/services/studio-dashboard/build.ts](backend/src/services/studio-dashboard/build.ts) |
 | Admin route | [backend/src/api/admin/studio/route.ts](backend/src/api/admin/studio/route.ts) |
-| Admin page | [backend/src/admin/routes/studio/page.tsx](backend/src/admin/routes/studio/page.tsx) |
+| Admin page | [backend/src/admin/routes/studio-and-lookbook/tabs/studio.tsx](backend/src/admin/routes/studio-and-lookbook/tabs/studio.tsx) (Studio tab of `/app/studio-and-lookbook`) |
 
 ### System map
 Lazy-loaded Mermaid diagrams of stage flow, staff lanes, data ownership.
@@ -1471,8 +1471,8 @@ One admin page consolidating five spreadsheet/import workflows into tabs: import
 | Component | Path |
 | --- | --- |
 | Product data hub | [backend/src/admin/routes/product-data/page.tsx](backend/src/admin/routes/product-data/page.tsx) |
-| Spreadsheet-sync (import) | [backend/src/admin/routes/spreadsheet-sync/page.tsx](backend/src/admin/routes/spreadsheet-sync/page.tsx) |
-| Spreadsheet-sync (update) | [backend/src/admin/routes/spreadsheet-sync-update/page.tsx](backend/src/admin/routes/spreadsheet-sync-update/page.tsx) |
+| Spreadsheet-sync (import) | [backend/src/admin/routes/product-data/tabs/spreadsheet-sync.tsx](backend/src/admin/routes/product-data/tabs/spreadsheet-sync.tsx) |
+| Spreadsheet-sync (update) | [backend/src/admin/routes/product-data/tabs/spreadsheet-sync-update.tsx](backend/src/admin/routes/product-data/tabs/spreadsheet-sync-update.tsx) |
 | Bulk-delete | [backend/src/admin/routes/product-bulk-delete/page.tsx](backend/src/admin/routes/product-bulk-delete/page.tsx) |
 | Types & tags manager | [backend/src/admin/routes/product-type-tag-manage/page.tsx](backend/src/admin/routes/product-type-tag-manage/page.tsx) |
 | Per-supplier importer UIs | [backend/src/admin/routes/ascolour-import/](backend/src/admin/routes/ascolour-import/), [fashionbiz-import/](backend/src/admin/routes/fashionbiz-import/), [aussie-pacific-import/](backend/src/admin/routes/aussie-pacific-import/) |
@@ -1532,8 +1532,6 @@ These routes exist but aren't linked from the main nav. Some are intentional lan
 | --- | --- |
 | `[countryCode]/test/animation-widgets/` | Widget animation sandbox |
 | `[countryCode]/test/button-animations/` | Button interaction tests |
-| `[countryCode]/bleh/`, `bleh2/` | Three.js particle experiments with photo source |
-| `[countryCode]/dan/`, `dmc/` | Dev splash pages, not linked from nav |
 | `[countryCode]/(main)/particle-logo/`, `particle-threejs/`, `particle-flow/` | Tsparticles + Three.js sandboxes (`particle-logo/` is active work) |
 | `[countryCode]/(main)/old-hero/` | Legacy hero — superseded by current home hero |
 | `[countryCode]/(main)/jungle-scene/`, `space-hero/` | Animation isolation tests |
