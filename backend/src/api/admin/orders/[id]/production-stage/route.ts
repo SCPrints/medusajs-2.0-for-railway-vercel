@@ -248,9 +248,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     ? downstreamChanged.to
     : transitions[transitions.length - 1].to
 
+  // A stage move is progress by definition — drop any stale flag now
+  // rather than leaving the red badge up until the next daily scan.
+  const { is_stale: _isStale, stale_since: _staleSince, ...freshMeta } =
+    meta as Record<string, unknown>
   await orderModuleService.updateOrders(order.id, {
     metadata: {
-      ...meta,
+      ...freshMeta,
       production_stage: persistedStage,
       production_stage_changed_at: changedAt,
       production_stage_history: nextHistory,

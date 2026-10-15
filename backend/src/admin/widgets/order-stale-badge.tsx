@@ -21,6 +21,9 @@ const OrderStaleBadgeWidget = ({
 
   const since = typeof meta.stale_since === "string" ? meta.stale_since : null
   const stage = typeof meta.production_stage === "string" ? meta.production_stage : null
+  // Shipped/delivered can't be stale — a leftover flag is just waiting for
+  // the cron to clear it.
+  if (stage === "shipped" || stage === "delivered") return null
 
   return (
     <Container className="p-0">

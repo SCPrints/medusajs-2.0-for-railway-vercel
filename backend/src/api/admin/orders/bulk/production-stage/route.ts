@@ -165,8 +165,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
     const nextHistory = [...history, newEntry]
 
+    // Stage move = progress; clear any stale flag immediately.
+    const { is_stale: _isStale, stale_since: _staleSince, ...freshMeta } =
+      meta as Record<string, unknown>
     const metaUpdate: Record<string, unknown> = {
-      ...meta,
+      ...freshMeta,
       production_stage: toStage,
       production_stage_changed_at: changedAt,
       production_stage_history: nextHistory,
