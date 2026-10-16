@@ -31,7 +31,9 @@ ENV DATABASE_URL=postgresql://x:x@localhost:5432/x \
     COOKIE_SECRET=build-placeholder \
     BACKEND_PUBLIC_URL=https://api.scprints.com.au
 
-RUN pnpm build
+# The admin (Vite) build sits right at Node's default ~2 GB heap and OOMs
+# intermittently; build-step only, the runtime is unaffected.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm build
 
 EXPOSE 9000
 
