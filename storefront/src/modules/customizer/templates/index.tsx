@@ -102,6 +102,7 @@ import {
 } from "@modules/customizer/lib/scp-supacolour-pricing"
 import {
   canvasPxToApproxCm,
+  maxArtworkPx,
   printSpecsToPricingSpecs,
   snapSizeForBoundingCm,
 } from "@modules/customizer/lib/print-spec"
@@ -1030,11 +1031,12 @@ export default function CustomizerTemplate({
     }
     const objects = canvas.getObjects?.() ?? []
     let mutated = false
+    const cap = maxArtworkPx(effectivePrintSizeIdForArea, canvasSize.width, canvasSize.height)
     for (const obj of objects) {
       const baseW = Math.max(1, (obj as any).width ?? 0)
       const baseH = Math.max(1, (obj as any).height ?? 0)
-      const maxScaleX = pr.width / baseW
-      const maxScaleY = pr.height / baseH
+      const maxScaleX = cap.width / baseW
+      const maxScaleY = cap.height / baseH
       const maxScale = Math.min(maxScaleX, maxScaleY)
       const sx = Math.abs((obj as any).scaleX ?? 1)
       const sy = Math.abs((obj as any).scaleY ?? 1)
@@ -3087,8 +3089,14 @@ export default function CustomizerTemplate({
         // bounding rect (which Fabric may not have committed yet mid-drag).
         const baseW = Math.max(1, obj.width ?? 0)
         const baseH = Math.max(1, obj.height ?? 0)
-        const maxScaleX = pr.width / baseW
-        const maxScaleY = pr.height / baseH
+        // Cap at the TRUE print size (A3 = 29 cm), not the smaller dashed guide.
+        const cap = maxArtworkPx(
+          effectivePrintSizeIdRef.current,
+          Number(canvas.getWidth?.() ?? canvas.width ?? 0),
+          Number(canvas.getHeight?.() ?? canvas.height ?? 0)
+        )
+        const maxScaleX = cap.width / baseW
+        const maxScaleY = cap.height / baseH
         const maxScale = Math.min(maxScaleX, maxScaleY)
         const sx = Math.abs(obj.scaleX ?? 1)
         const sy = Math.abs(obj.scaleY ?? 1)

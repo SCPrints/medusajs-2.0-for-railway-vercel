@@ -1,5 +1,6 @@
 import {
   canvasPxToApproxCm,
+  maxArtworkPx,
   printSpecsToPricingSpecs,
   snapSizeForBoundingCm,
   SCP_PRINT_SIZE_REFERENCE_CM,
@@ -26,6 +27,14 @@ describe("canvasPxToApproxCm", () => {
   })
 })
 
+describe("maxArtworkPx", () => {
+  it("lets A3 artwork reach the true 29 cm width, not the 19 cm guide", () => {
+    const cap = maxArtworkPx("up_to_a3", 1000, 1000)
+    expect(canvasPxToApproxCm(cap.width, cap.height, 1000, 1000).width).toBeCloseTo(29, 5)
+    expect(snapSizeForBoundingCm("back", { width: 24, height: 30 }, false)).toBe("up_to_a3")
+  })
+})
+
 describe("snapSizeForBoundingCm", () => {
   it("snaps tiny artwork to A6", () => {
     expect(snapSizeForBoundingCm("front", { width: 5, height: 8 }, { isLongSleeve: false })).toBe("up_to_a6")
@@ -36,7 +45,7 @@ describe("snapSizeForBoundingCm", () => {
   })
 
   it("snaps large artwork to A3", () => {
-    expect(snapSizeForBoundingCm("front", { width: 18, height: 26 }, false)).toBe("up_to_a3")
+    expect(snapSizeForBoundingCm("front", { width: 25, height: 36 }, false)).toBe("up_to_a3")
   })
 
   it("snaps anything bigger than A3 to oversize", () => {
@@ -56,7 +65,7 @@ describe("snapSizeForBoundingCm", () => {
   })
 
   it("allows long-sleeve sleeves to use up to A3", () => {
-    expect(snapSizeForBoundingCm("left_sleeve", { width: 18, height: 26 }, true)).toBe(
+    expect(snapSizeForBoundingCm("left_sleeve", { width: 25, height: 36 }, true)).toBe(
       "up_to_a3"
     )
   })

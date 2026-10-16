@@ -28,6 +28,34 @@ export const SCP_PRINT_SIZE_REFERENCE_CM: Record<
   oversize: { width: 38, height: 48 },
 }
 
+/**
+ * The real print sizes we price and print (the labels customers see in
+ * `SCP_PRINT_SIZE_OPTIONS`). The dashed guide above is drawn smaller on
+ * purpose, but artwork must be able to reach the size that was paid for —
+ * capping at the guide limited "A3" prints to 19 cm. Don't swap these into
+ * the reference map: saved designs decode their scale from that one.
+ */
+export const SCP_PRINT_SIZE_TRUE_CM: Record<ScpPrintSizeId, { width: number; height: number }> = {
+  up_to_a6: { width: 10, height: 15 },
+  up_to_a4: { width: 21, height: 30 },
+  up_to_a3: { width: 29, height: 42 },
+  oversize: { width: 38, height: 48 },
+}
+
+/** Largest artwork box (canvas px) a print size allows — the inverse of `canvasPxToApproxCm`. */
+export const maxArtworkPx = (
+  sizeId: ScpPrintSizeId,
+  canvasWidth: number,
+  canvasHeight: number
+): { width: number; height: number } => {
+  const t = SCP_PRINT_SIZE_TRUE_CM[sizeId] ?? SCP_PRINT_SIZE_TRUE_CM.oversize
+  const o = SCP_PRINT_SIZE_REFERENCE_CM.oversize
+  return {
+    width: canvasWidth * 0.68 * (t.width / o.width),
+    height: canvasHeight * 0.72 * (t.height / o.height),
+  }
+}
+
 /** Tier ordering, smallest → largest. Used by the auto-snap selector. */
 export const SCP_PRINT_SIZE_ORDER: ScpPrintSizeId[] = [
   "up_to_a6",
@@ -96,7 +124,7 @@ export const snapSizeForBoundingCm = (
     return "up_to_a6"
   }
   const fits = orderedAllowed.find((id) => {
-    const ref = SCP_PRINT_SIZE_REFERENCE_CM[id]
+    const ref = SCP_PRINT_SIZE_TRUE_CM[id]
     return approxCm.width <= ref.width && approxCm.height <= ref.height
   })
   return fits ?? orderedAllowed[orderedAllowed.length - 1]
