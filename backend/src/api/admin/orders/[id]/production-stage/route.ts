@@ -28,6 +28,9 @@ import {
   type ProductionTrack,
 } from "../../../../../lib/production-stage"
 import { getPostHog } from "../../../../../lib/posthog"
+import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
+import { writeAudit } from "../../../../../lib/audit-log"
+import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -43,6 +46,8 @@ const bodySchema = z
     blanks_stage: z.enum(BLANKS_STAGES).optional(),
     production_stage: z.enum(DOWNSTREAM_STAGES).optional(),
     note: z.string().trim().max(500).optional(),
+    /** Start production even though the readiness check failed. */
+    override_reason: z.string().trim().min(3).max(300).optional(),
   })
   .refine(
     (v) =>
@@ -131,6 +136,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         : null,
     production_due_date:
       typeof meta.production_due_date === "string" ? meta.production_due_date : null,
+    production_due_date_source:
+      meta.production_due_date_source === "auto" ? "auto" : "manual",
   })
 }
 
@@ -162,7 +169,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   let order: any
   try {
-    order = await orderModuleService.retrieveOrder(params.data.id)
+    order = await orderModuleService.retrieveOrder(params.data.id, { relations: ["items"] })
   } catch {
     throw new MedusaError(
       MedusaError.Types.NOT_FOUND,
@@ -228,13 +235,38 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
+  // Readiness check before printing starts (lib/production-gate.ts).
+  const gateFailures = productionGateFailures({
+    meta,
+    fromDownstream: currentTracks.downstream,
+    toDownstream: nextDownstream,
+    artwork: nextArtwork,
+    blanks: nextBlanks,
+    hasDecoratedLines: (order.items ?? []).some(isDecoratedLine),
+  })
+  if (gateFailures.length > 0 && !body.override_reason) {
+    return res.status(409).json({
+      type: "not_allowed",
+      code: "production_not_ready",
+      message: `Not ready for production: ${gateFailures.join("; ")}.`,
+      failures: gateFailures,
+    })
+  }
+  const overrideNote =
+    gateFailures.length > 0
+      ? `Started without: ${gateFailures.join(", ")}. Reason: ${body.override_reason}`
+      : null
+
   const history = readHistory(meta)
   const note = body.note?.length ? body.note : null
   const newEntries: ProductionStageHistoryEntry[] = transitions.map((t) => ({
     stage: t.to,
     changed_at: changedAt,
     changed_by: changedBy,
-    note,
+    note:
+      t.track === "production" && overrideNote
+        ? [note, overrideNote].filter(Boolean).join(" — ")
+        : note,
     track: t.track,
   }))
   const nextHistory = [...history, ...newEntries]
@@ -250,8 +282,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   // A stage move is progress by definition — drop any stale flag now
   // rather than leaving the red badge up until the next daily scan.
-  const { is_stale: _isStale, stale_since: _staleSince, ...freshMeta } =
-    meta as Record<string, unknown>
+  const {
+    is_stale: _isStale,
+    stale_since: _staleSince,
+    stale_track: _staleTrack,
+    stale_stage: _staleStage,
+    stale_stage_since: _staleStageSince,
+    ...freshMeta
+  } = meta as Record<string, unknown>
   await orderModuleService.updateOrders(order.id, {
     metadata: {
       ...freshMeta,
@@ -270,6 +308,22 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           : ((meta as ProductionStageMetaShape).blanks_stage_changed_at ?? null),
     },
   })
+
+  if (overrideNote) {
+    await writeAudit({
+      container: req.scope,
+      entity: AUDIT_ENTITY.ORDER,
+      entity_id: order.id,
+      action: AUDIT_ACTION.STATUS_CHANGED,
+      actor_id: changedBy ?? undefined,
+      details: {
+        kind: "production_gate_overridden",
+        failures: gateFailures,
+        reason: body.override_reason,
+        to_stage: nextDownstream,
+      },
+    })
+  }
 
   for (const t of transitions) {
     const eventName =

@@ -7,6 +7,7 @@ import { withWidgetBoundary } from "../components/widget-error-boundary"
 
 import { HelpTooltip } from "../components/reports/help-tooltip"
 import { SIDE_LABELS } from "../../lib/print-profile"
+import { computeSidePlacements, formatPlacement } from "../../lib/print-placement"
 
 /**
  * Per-order widget that surfaces — for every line item carrying
@@ -157,6 +158,10 @@ function summariseSidesForDesign(design: CustomizerDesign) {
     ...decoratedSides,
   ])
 
+  const placementBySide = new Map(
+    computeSidePlacements(design).map((p) => [p.side, formatPlacement(p)])
+  )
+
   const ordered = SIDE_ORDER.filter((s) => sidesUnion.has(s))
   // Append any non-canonical sides we don't know about (defensive)
   for (const s of sidesUnion) {
@@ -195,7 +200,9 @@ function summariseSidesForDesign(design: CustomizerDesign) {
           }
         : null
 
-    return { side, snapped, global, approxCm, mismatch, method, embroideryCm }
+    const placement = method === "print" ? placementBySide.get(side) ?? null : null
+
+    return { side, snapped, global, approxCm, mismatch, method, embroideryCm, placement }
   })
 }
 
@@ -279,10 +286,11 @@ const OrderCustomizerPrintDetailsWidget = ({
             <HelpTooltip
               text={{
                 title: "Print sizes & type",
-                body: "At-a-glance print position, size, and decoration type (Print or Embroidery) per designed line. Expand for physical dimensions and the per-unit garment-vs-print cost split.",
+                body: "At-a-glance print position, size, and decoration type (Print or Embroidery) per designed line. Expand for the artwork's size and position in mm and the per-unit garment-vs-print cost split.",
                 bullets: [
                   "Sizes come from the customer's choice in the customizer (A6 / A4 / A3 / Oversize); embroidery shows stitched dimensions.",
                   "Type is the decoration method per side — Print (DTF) or Embroidery.",
+                  "Position is measured from the top of the print zone (where an oversize print starts) and the garment's centre line, as you look at it. It is not measured from the collar.",
                   "Expand for the cost split (garment vs print), useful for quoting reprints.",
                 ],
               }}
@@ -390,7 +398,7 @@ const OrderCustomizerPrintDetailsWidget = ({
                             Customer global pick
                           </th>
                           <th className="text-left font-medium px-3 py-2">
-                            Approx. (cm)
+                            Size &amp; position
                           </th>
                         </tr>
                       </thead>
@@ -436,9 +444,10 @@ const OrderCustomizerPrintDetailsWidget = ({
                               )}
                             </td>
                             <td className="px-3 py-2 text-ui-fg-subtle">
-                              {row.approxCm
-                                ? `${row.approxCm.width} × ${row.approxCm.height}`
-                                : "—"}
+                              {row.placement ??
+                                (row.approxCm
+                                  ? `≈ ${Math.round(row.approxCm.width * 10)} × ${Math.round(row.approxCm.height * 10)} mm`
+                                  : "—")}
                             </td>
                           </tr>
                         ))}

@@ -15,7 +15,9 @@ import {
   deriveTracksFromLegacyStage,
   isArtworkStage,
   isBlanksStage,
+  isDownstreamStage,
   isProductionStage,
+  resolveTracksFromMeta,
   type ProductionStage,
   type ProductionStageChangedEvent,
   type ProductionStageHistoryEntry,
@@ -36,6 +38,7 @@ const EVENT_FOR_TRACK: Record<ProductionTrack, string> = {
   production: PRODUCTION_STAGE_EVENT,
 }
 import { getPostHog } from "../../../../../lib/posthog"
+import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
 
 /**
  * POST /admin/orders/bulk/production-stage
@@ -128,7 +131,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
     let order: any
     try {
-      order = await orderModuleService.retrieveOrder(orderId)
+      order = await orderModuleService.retrieveOrder(orderId, { relations: ["items"] })
     } catch (err: any) {
       results.push({
         order_id: orderId,
@@ -155,6 +158,30 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const track = trackForStage(toStage)
     const derived = deriveTracksFromLegacyStage(toStage)
 
+    // Same readiness check as the single-order route. Bulk moves can't
+    // override it: open the order and start it there with a reason.
+    if (isDownstreamStage(toStage)) {
+      const tracks = resolveTracksFromMeta(meta)
+      const failures = productionGateFailures({
+        meta,
+        fromDownstream: tracks.downstream,
+        toDownstream: toStage,
+        artwork: tracks.artwork,
+        blanks: tracks.blanks,
+        hasDecoratedLines: (order.items ?? []).some(isDecoratedLine),
+      })
+      if (failures.length > 0) {
+        results.push({
+          order_id: orderId,
+          changed: false,
+          from_stage: fromStage,
+          to_stage: toStage,
+          error: `Not ready for production: ${failures.join("; ")}`,
+        })
+        continue
+      }
+    }
+
     const history = readHistory(meta)
     const newEntry: ProductionStageHistoryEntry = {
       stage: toStage,
@@ -166,8 +193,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     const nextHistory = [...history, newEntry]
 
     // Stage move = progress; clear any stale flag immediately.
-    const { is_stale: _isStale, stale_since: _staleSince, ...freshMeta } =
-      meta as Record<string, unknown>
+    const {
+      is_stale: _isStale,
+      stale_since: _staleSince,
+      stale_track: _staleTrack,
+      stale_stage: _staleStage,
+      stale_stage_since: _staleStageSince,
+      ...freshMeta
+    } = meta as Record<string, unknown>
     const metaUpdate: Record<string, unknown> = {
       ...freshMeta,
       production_stage: toStage,

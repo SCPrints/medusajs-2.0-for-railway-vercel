@@ -109,8 +109,14 @@ export async function notifyStaleOrders(
           assignee_user_id: ownerUserId,
           order_id: e.order_id,
           customer_id: e.customer_id,
-          title: `Investigate stale order #${e.display_id ?? e.order_id.slice(-6)}`,
-          body: `Order has been in "${e.stage}" for ${e.days_in_stage} days. Move it forward or surface a blocker.`,
+          title:
+            e.stage === "awaiting_approval"
+              ? `Chase proof approval for order #${e.display_id ?? e.order_id.slice(-6)}`
+              : `Investigate stale order #${e.display_id ?? e.order_id.slice(-6)}`,
+          body:
+            e.stage === "awaiting_approval"
+              ? `The customer hasn't answered their proof in ${e.days_in_stage} business days (they've had an automatic reminder). Call or email them.`
+              : `Order has been in "${e.stage}" for ${e.days_in_stage} business days. Move it forward or surface a blocker.`,
           due_at: new Date(now.getTime() + 86400000), // 1 day from now
           status: "open",
           priority: PRIORITY_BY_DAYS(e.days_in_stage),

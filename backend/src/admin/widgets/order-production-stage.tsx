@@ -43,6 +43,7 @@ type StatusPayload = {
   blanks_stage: BlanksStage
   blanks_stage_changed_at: string | null
   production_due_date?: string | null
+  production_due_date_source?: "auto" | "manual"
 }
 
 const formatDate = (iso: string | null | undefined): string => {
@@ -108,6 +109,11 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>("all")
+  // Set when the server refuses to start production (readiness check).
+  const [gateFailures, setGateFailures] = useState<string[] | null>(null)
+  const [overrideReason, setOverrideReason] = useState("")
+  // Changing a track makes the last check out of date.
+  useEffect(() => setGateFailures(null), [pendingArtwork, pendingBlanks, pendingDownstream])
 
   const [dueDate, setDueDate] = useState<string>("")
   const [savingDue, setSavingDue] = useState(false)
@@ -167,7 +173,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
   const willEmailDownstream = downstreamChanged && DOWNSTREAM_STAGES_THAT_EMAIL.has(pendingDownstream)
   const willEmail = willEmailArtwork || willEmailBlanks || willEmailDownstream
 
-  const save = useCallback(async () => {
+  const save = useCallback(async (override?: string) => {
     if (!orderId) return
     // Soft gate: warn (don't block) when shipping before the packing check is
     // done. Read it fresh — ticks happen in the Packing check widget.
@@ -199,6 +205,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
       if (artworkChanged) payload.artwork_stage = pendingArtwork
       if (blanksChanged) payload.blanks_stage = pendingBlanks
       if (downstreamChanged) payload.production_stage = pendingDownstream
+      if (override) payload.override_reason = override
 
       const res = await fetch(adminPath(orderId), {
         method: "POST",
@@ -210,6 +217,12 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         message?: string
         ok?: boolean
         changed?: boolean
+        code?: string
+        failures?: string[]
+      }
+      if (res.status === 409 && body.code === "production_not_ready") {
+        setGateFailures(body.failures ?? [])
+        return
       }
       if (!res.ok) {
         throw new Error((body as any)?.message || `HTTP ${res.status}`)
@@ -223,8 +236,11 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         blanks_stage: body.blanks_stage ?? pendingBlanks,
         blanks_stage_changed_at: prev?.blanks_stage_changed_at ?? null,
         production_due_date: prev?.production_due_date ?? null,
+        production_due_date_source: prev?.production_due_date_source,
       }))
       setNote("")
+      setGateFailures(null)
+      setOverrideReason("")
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to update production stage")
     } finally {
@@ -244,6 +260,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         body: JSON.stringify({ due_date: dueDate || null }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setStatus((prev) => (prev ? { ...prev, production_due_date_source: "manual" } : prev))
     } catch (e) {
       setDueError(e instanceof Error ? e.message : "Failed to save due date")
     } finally {
@@ -300,6 +317,41 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
           <Text size="small" className="text-ui-fg-error">
             {error}
           </Text>
+        ) : null}
+
+        {gateFailures ? (
+          <div className="rounded-md border border-ui-tag-orange-border bg-ui-tag-orange-bg px-3 py-3 flex flex-col gap-y-2">
+            <Text size="small" weight="plus" className="text-ui-tag-orange-text">
+              Not ready for production
+            </Text>
+            <ul className="list-disc pl-5 m-0">
+              {gateFailures.map((f) => (
+                <li key={f}>
+                  <Text size="small" className="text-ui-tag-orange-text">{f}</Text>
+                </li>
+              ))}
+            </ul>
+            <Text size="xsmall" className="text-ui-fg-subtle">
+              Update the tracks above, or start anyway with a reason. The reason is saved in the history.
+            </Text>
+            <div className="flex items-center gap-x-2">
+              <Input
+                value={overrideReason}
+                onChange={(e) => setOverrideReason(e.target.value)}
+                placeholder="Reason, e.g. blanks from studio stock"
+                disabled={saving}
+                className="flex-1"
+              />
+              <Button
+                size="small"
+                variant="secondary"
+                disabled={saving || overrideReason.trim().length < 3}
+                onClick={() => void save(overrideReason.trim())}
+              >
+                Start production anyway
+              </Button>
+            </div>
+          </div>
         ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -378,7 +430,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
               "No customer email for these transitions."
             )}
           </Text>
-          <Button onClick={save} disabled={saving || !anyChange}>
+          <Button onClick={() => void save()} disabled={saving || !anyChange}>
             {saving ? "Saving…" : "Save changes"}
           </Button>
         </div>
@@ -430,7 +482,9 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         </div>
         {dueError ? <Text size="xsmall" className="text-ui-fg-error">{dueError}</Text> : null}
         <Text size="xsmall" className="text-ui-fg-subtle">
-          Sets the target completion date. Also draggable on the Production calendar view.
+          {status?.production_due_date_source === "auto" && dueDate
+            ? "Set automatically when the proof was approved. Saving a date here makes it fixed."
+            : "Sets the target completion date. Filled in automatically on proof approval if empty. Also draggable on the Production calendar view."}
         </Text>
       </div>
 

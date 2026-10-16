@@ -6,10 +6,6 @@ import {
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { SUPPORT_REPLY_TO_EMAIL } from "../lib/constants"
 import { tagUrl } from "../lib/email-utm"
-import {
-  buildLineCustomizerExport,
-  lineMockupGroupKey,
-} from "../lib/customizer-order-artifacts"
 import { EmailTemplates } from "../modules/email-notifications/templates"
 import {
   ARTWORK_STAGE_EVENT,
@@ -19,28 +15,10 @@ import {
   type ProductionStageChangedEvent,
 } from "../lib/production-stage"
 import { subjectForStage } from "../modules/email-notifications/templates/order-production-stage"
-import { signArtworkApproval } from "../services/artwork-approval/sign"
-
-const STOREFRONT_URL = process.env.STOREFRONT_URL?.replace(/\/$/, "")
-const STOREFRONT_DEFAULT_COUNTRY_CODE =
-  process.env.STOREFRONT_DEFAULT_COUNTRY_CODE?.toLowerCase()
-
-function buildPortalUrl(orderId: string): string | null {
-  if (!STOREFRONT_URL) return null
-  const prefix = STOREFRONT_DEFAULT_COUNTRY_CODE
-    ? `/${STOREFRONT_DEFAULT_COUNTRY_CODE}`
-    : ""
-  return `${STOREFRONT_URL}${prefix}/account/orders/details/${orderId}`
-}
-
-function buildApprovalUrl(orderId: string): string | null {
-  if (!STOREFRONT_URL) return null
-  const prefix = STOREFRONT_DEFAULT_COUNTRY_CODE
-    ? `/${STOREFRONT_DEFAULT_COUNTRY_CODE}`
-    : ""
-  const sig = signArtworkApproval(orderId)
-  return `${STOREFRONT_URL}${prefix}/artwork-approval/${encodeURIComponent(orderId)}?sig=${sig}`
-}
+import {
+  buildPortalUrl,
+  sendProofEmail,
+} from "../services/artwork-approval/proof-email"
 
 /**
  * Fires a customer email when artwork transitions to a milestone in
@@ -98,8 +76,6 @@ export default async function orderArtworkStageChangedHandler({
   const displayId = (order as { display_id?: string | number }).display_id ?? data.order_id
   const firstName = order.shipping_address?.first_name ?? null
 
-  const orderMeta = (order.metadata ?? {}) as Record<string, unknown>
-
   // Dedup via Medusa's built-in idempotency_key on the notification table.
   // A UNIQUE index on (idempotency_key WHERE deleted_at IS NULL) means two
   // parallel createNotifications calls race at the DB level — exactly one
@@ -111,96 +87,6 @@ export default async function orderArtworkStageChangedHandler({
   const idempotencyKey = `artwork-email:${data.order_id}:${toStage}${
     data.changed_at ? `:${data.changed_at}` : ""
   }`
-
-  const revisedProofs = Array.isArray(orderMeta.revised_proofs)
-    ? (orderMeta.revised_proofs as Array<{
-        id?: string
-        line_item_id?: string
-        side?: string
-        url?: string
-        uploaded_at?: string
-      }>)
-    : []
-
-  const photos = Array.isArray(orderMeta.production_photos)
-    ? (orderMeta.production_photos as Array<{ url?: string; uploaded_at?: string }>)
-    : []
-  const latestPhotoUrl =
-    photos
-      .filter((p) => typeof p?.url === "string" && (p.url as string).length > 0)
-      .sort((a, b) =>
-        (a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1
-      )[0]?.url ?? null
-
-  // Build mockup images for awaiting_approval, merging per-side revised proofs.
-  // Backward compat: if proofs lack line_item_id (old format) fall back to the
-  // single-image proofImageUrl path so existing orders aren't broken.
-  const hasPerSideProofs = revisedProofs.some((p) => p.line_item_id)
-  const mockupImages =
-    toStage === "awaiting_approval"
-      ? (() => {
-          // One mockup per (design group, colourway, side): the same design
-          // ordered across N size lines repeats identical mockups otherwise
-          // (a 24-image email for one front + one back).
-          const groupKeyOfLine = new Map<string, string>()
-          for (const line of order.items ?? []) {
-            groupKeyOfLine.set(line.id as string, lineMockupGroupKey(line))
-          }
-          const seen = new Set<string>()
-          const rawArtifacts = (order.items ?? []).flatMap((line: any) => {
-            const exp = buildLineCustomizerExport(line)
-            return (exp?.artifacts ?? [])
-              .filter((a: any) => a.mockup_url && !a.mockup_url_inline_omitted)
-              .map((a: any) => ({
-                groupKey: groupKeyOfLine.get(line.id) as string,
-                url: a.mockup_url as string,
-                side: a.side as string,
-                sideLabel: a.side_label ?? null,
-              }))
-              .filter((a: any) => {
-                const k = `${a.groupKey}:${a.side}`
-                if (seen.has(k)) return false
-                seen.add(k)
-                return true
-              })
-          })
-          if (rawArtifacts.length === 0) return null
-
-          if (hasPerSideProofs) {
-            // Latest proof per `${groupKey}:${side}` — a proof uploaded
-            // against ANY line in the group applies to the kept image.
-            const latestBySideKey = new Map<string, string>()
-            ;[...revisedProofs]
-              .filter((p) => p.line_item_id && p.side && p.url)
-              .sort((a, b) => ((a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1))
-              .forEach((p) => {
-                const gk = groupKeyOfLine.get(p.line_item_id!) ?? p.line_item_id!
-                const k = `${gk}:${p.side}`
-                if (!latestBySideKey.has(k)) latestBySideKey.set(k, p.url!)
-              })
-
-            return rawArtifacts.map((a) => ({
-              url: latestBySideKey.get(`${a.groupKey}:${a.side}`) ?? a.url,
-              side: a.side,
-              sideLabel: a.sideLabel,
-            }))
-          }
-
-          return rawArtifacts.map((a) => ({
-            url: a.url,
-            side: a.side,
-            sideLabel: a.sideLabel,
-          }))
-        })()
-      : null
-
-  // Legacy: order-level proof (no line_item_id) replaces all — backward compat only
-  const latestRevisedProofUrl =
-    !hasPerSideProofs
-      ? revisedProofs
-          .filter((p) => typeof p?.url === "string" && (p.url as string).length > 0)
-          .sort((a, b) => ((a.uploaded_at ?? "") < (b.uploaded_at ?? "") ? 1 : -1))[0]?.url ?? null
-      : null
 
   // Inline helper for the generic stage-update fallback. Used directly for
   // non-approval stages, and as a backstop when the awaiting_approval flow
@@ -229,58 +115,19 @@ export default async function orderArtworkStageChangedHandler({
   }
 
   try {
-    if (toStage === "awaiting_approval") {
-      // Preferred path: dedicated approval template with a signed
-      // one-click "Approve" button and mockup images.
-      let approvalUrl: string | null = null
-      try {
-        approvalUrl = buildApprovalUrl(data.order_id)
-      } catch (signError) {
-        logger.warn(
-          `${ARTWORK_STAGE_EVENT}: failed to sign approval URL for ${data.order_id} (${
-            (signError as Error).message
-          }); falling back to generic stage email.`
-        )
-      }
-
-      if (approvalUrl) {
-        await notificationModuleService.createNotifications({
-          to: order.email,
-          channel: "email",
-          template: EmailTemplates.ARTWORK_APPROVAL,
-          idempotency_key: idempotencyKey,
-          data: {
-            emailOptions: {
-              replyTo: SUPPORT_REPLY_TO_EMAIL,
-              subject: `Your artwork proof for order #${displayId}`,
-            },
-            approval: {
-              firstName,
-              orderDisplayId: displayId,
-              approvalUrl: tagUrl(approvalUrl, {
-                medium: "transactional",
-                campaign: "artwork_approval",
-                content: "approve_button",
-              }) ?? approvalUrl,
-              mockupImages,
-              // Legacy fallback: old order-level proof (no line_item_id) replaces all images
-              proofImageUrl: latestRevisedProofUrl ?? (mockupImages ? null : latestPhotoUrl),
-              staffNote: null,
-            },
-            preview: `Your proof is ready for sign-off — order #${displayId}.`,
-          },
-        })
-      } else {
-        // Fallback: STOREFRONT_URL is unset (or signing failed). Send the
-        // generic stage-update email so the customer still gets notified
-        // their artwork is ready, even if they have to click through to
-        // the portal manually instead of using a one-click approve link.
+    // Preferred path for awaiting_approval: the dedicated approval email with
+    // a signed one-click "Approve" button and mockups. Falls back to the
+    // generic stage email when no approval link can be built (e.g.
+    // STOREFRONT_URL unset) so the customer still hears their proof is ready.
+    const sent =
+      toStage === "awaiting_approval" &&
+      (await sendProofEmail(container, order, { idempotencyKey }))
+    if (!sent) {
+      if (toStage === "awaiting_approval") {
         logger.warn(
           `${ARTWORK_STAGE_EVENT}: cannot build approval URL (STOREFRONT_URL unset?); sending generic stage email for ${data.order_id} instead. Fix env to restore one-click approve.`
         )
-        await sendGenericStageEmail()
       }
-    } else {
       await sendGenericStageEmail()
     }
   } catch (error) {

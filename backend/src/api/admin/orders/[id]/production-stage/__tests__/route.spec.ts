@@ -6,6 +6,7 @@ import { PRODUCTION_STAGE_EVENT } from "../../../../../../lib/production-stage"
 type AnyOrder = {
   id: string
   metadata?: Record<string, unknown>
+  items?: { id: string; metadata?: Record<string, unknown> }[]
 }
 
 const buildScope = (order: AnyOrder, opts?: { eventBusBroken?: boolean }) => {
@@ -73,6 +74,65 @@ const buildRes = () => {
   })
   return res
 }
+
+describe("POST /admin/orders/:id/production-stage — readiness check", () => {
+  const decoratedOrder = (): AnyOrder => ({
+    id: "order-g",
+    metadata: { artwork_stage: "awaiting_approval", blanks_stage: "arrived" },
+    items: [{ id: "li-1", metadata: { customizerDesign: { version: 2 } } }],
+  })
+
+  it("refuses to start production before the artwork is approved", async () => {
+    const order = decoratedOrder()
+    const { scope, orderModule, eventBus } = buildScope(order)
+    const res = buildRes()
+
+    await POST(buildReq(scope, { id: "order-g" }, { production_stage: "in_production" }) as any, res)
+
+    expect(res.statusCode).toBe(409)
+    expect(res.body).toMatchObject({
+      code: "production_not_ready",
+      failures: ["Artwork isn't approved"],
+    })
+    expect(orderModule.updateOrders).not.toHaveBeenCalled()
+    expect(eventBus.emit).not.toHaveBeenCalled()
+  })
+
+  it("lets staff approve the artwork and start production in one save", async () => {
+    const order = decoratedOrder()
+    const { scope } = buildScope(order)
+    const res = buildRes()
+
+    await POST(
+      buildReq(scope, { id: "order-g" }, { artwork_stage: "approved", production_stage: "in_production" }) as any,
+      res
+    )
+
+    expect(res.statusCode).toBe(200)
+    expect(order.metadata?.production_stage).toBe("in_production")
+  })
+
+  it("starts production anyway with a reason, and records it", async () => {
+    const order = decoratedOrder()
+    const { scope } = buildScope(order)
+    const res = buildRes()
+
+    await POST(
+      buildReq(
+        scope,
+        { id: "order-g" },
+        { production_stage: "in_production", override_reason: "customer approved by phone" }
+      ) as any,
+      res
+    )
+
+    expect(res.statusCode).toBe(200)
+    const history = order.metadata?.production_stage_history as { note?: string; track?: string }[]
+    expect(history.find((h) => h.track === "production")?.note).toBe(
+      "Started without: Artwork isn't approved. Reason: customer approved by phone"
+    )
+  })
+})
 
 describe("POST /admin/orders/:id/production-stage", () => {
   it("sets the stage, appends a history entry, and emits the change event", async () => {

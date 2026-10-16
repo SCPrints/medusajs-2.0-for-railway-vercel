@@ -2,6 +2,7 @@ import fs from "fs"
 import path from "path"
 import PDFDocument from "pdfkit"
 import sharp from "sharp"
+import { computeSidePlacements, formatPlacementShort } from "../../lib/print-placement"
 
 // Logo ink colour — black (the SC Prints wordmark renders black on the proof).
 const LOGO_COLOR = { r: 0, g: 0, b: 0 }
@@ -378,6 +379,12 @@ function buildPageData(
     return globalSizeId ? (PRINT_SIZE_LABELS[globalSizeId] ?? "") : ""
   }
 
+  // Measured size + horizontal position in mm, when the design's layout is
+  // stored inline (archived quote designs fall back to the cm estimate).
+  const placementBySide = new Map(
+    computeSidePlacements(rawDesign).map((p) => [p.side, formatPlacementShort(p)])
+  )
+
   // A staff override on ANY line item in this product group wins for that side
   // (the group shares one design, so the override applies regardless of which
   // line it was written against). Falls back to the order-time band label.
@@ -386,7 +393,7 @@ function buildPageData(
       const override = dimensionOverrides[`${it.id}:${side}`]
       if (override) return override
     }
-    return bandLabel(side)
+    return placementBySide.get(side) ?? bandLabel(side)
   }
 
   return {

@@ -509,6 +509,28 @@ export const SLACK_PRODUCTION_WEBHOOK_URL =
   process.env.SLACK_PRODUCTION_WEBHOOK_URL
 
 /**
+ * Proof reminders: a daily weekday cron re-sends the artwork-approval email
+ * once per proof round when the customer hasn't answered within
+ * PROOF_REMINDER_BUSINESS_DAYS. The owner alert for proofs that stay unanswered
+ * comes from the stale-order scan (awaiting_approval limit in stale-orders/scan.ts).
+ */
+export const PROOF_REMINDERS_ENABLED =
+  String(process.env.PROOF_REMINDERS_ENABLED).toLowerCase() === "true"
+export const PROOF_REMINDER_BUSINESS_DAYS = parseIntEnv(
+  process.env.PROOF_REMINDER_BUSINESS_DAYS,
+  2
+)
+
+/**
+ * Business days from artwork approval to the production due date. Matches the
+ * "7–10 business days" turnaround the storefront promises (aim for the low end).
+ */
+export const PRODUCTION_LEAD_BUSINESS_DAYS = parseIntEnv(
+  process.env.PRODUCTION_LEAD_BUSINESS_DAYS,
+  7
+)
+
+/**
  * Per-order inbound email aliases. When set, transactional emails for
  * an order use `inbox+ord<order-id>@${ORDER_INBOX_DOMAIN}` as their
  * Reply-To. Customer replies land at that alias, which (with a DNS

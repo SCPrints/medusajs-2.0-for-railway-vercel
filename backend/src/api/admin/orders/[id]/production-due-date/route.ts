@@ -33,6 +33,9 @@ export async function PATCH(req: MedusaRequest, res: MedusaResponse) {
     metadata: {
       ...meta,
       production_due_date: dueDate,
+      // Staff-entered dates are never moved by the approval subscriber.
+      // Clearing the date hands it back to the automatic rule.
+      production_due_date_source: dueDate ? "manual" : null,
     },
   })
 

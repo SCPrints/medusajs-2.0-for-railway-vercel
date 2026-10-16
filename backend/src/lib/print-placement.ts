@@ -1,0 +1,123 @@
+/**
+ * Where the artwork sits on each side, in millimetres, from a saved
+ * customizer design. Mirrors the storefront canvas maths (getPrintArea in
+ * storefront/src/modules/customizer/templates/index.tsx): the print area for
+ * size X is X's reference size, centred, so one print-area pixel is
+ * refWidth / areaWidth cm. That's the same scale the customizer uses for the
+ * `approxCm` sizes, so these numbers agree with the sizes already shown.
+ *
+ * Reference point: the top of the full print zone (where an oversize print
+ * starts, 13% down the canvas) and the garment's centre line. It is NOT
+ * measured from the collar: the canvas has no collar landmark.
+ *
+ * ponytail: rotation is ignored (box of the unrotated artwork). Fine for the
+ * usual straight prints; a rotated logo reads a little small.
+ */
+
+const REFERENCE_CM: Record<string, { w: number; h: number }> = {
+  up_to_a6: { w: 8, h: 12 },
+  up_to_a4: { w: 14, h: 20 },
+  up_to_a3: { w: 19, h: 27 },
+  oversize: { w: 38, h: 48 },
+}
+const OVERSIZE = REFERENCE_CM.oversize
+const PRINT_ZONE_TOP_RATIO = 0.13
+const PRINT_AREA_HEIGHT_RATIO = 0.72
+
+export type SidePlacement = {
+  side: string
+  widthMm: number
+  heightMm: number
+  /** Top edge of the artwork below the top of the print zone. */
+  fromTopMm: number
+  /** Artwork centre relative to the garment centre line; negative = left. */
+  offsetXMm: number
+}
+
+type Box = { left: number; top: number; right: number; bottom: number }
+
+const num = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) ? v : null
+
+function objectBox(o: Record<string, unknown>): Box | null {
+  const left = num(o.left)
+  const top = num(o.top)
+  const width = num(o.width)
+  const height = num(o.height)
+  if (left === null || top === null || width === null || height === null) return null
+  const w = Math.abs(width * (num(o.scaleX) ?? 1))
+  const h = Math.abs(height * (num(o.scaleY) ?? 1))
+  // Fabric 6+ defaults to a centre origin; older saves may say "left"/"top".
+  const originX = o.originX ?? "center"
+  const originY = o.originY ?? "center"
+  const x0 = originX === "center" ? left - w / 2 : originX === "right" ? left - w : left
+  const y0 = originY === "center" ? top - h / 2 : originY === "bottom" ? top - h : top
+  return { left: x0, top: y0, right: x0 + w, bottom: y0 + h }
+}
+
+export function computeSidePlacements(design: unknown): SidePlacement[] {
+  const d = (design ?? {}) as {
+    printArea?: { x?: unknown; y?: unknown; width?: unknown; height?: unknown }
+    scpPrintSizeId?: unknown
+    sideLayouts?: { side?: unknown; objects?: unknown }[]
+  }
+  const ref = REFERENCE_CM[String(d.scpPrintSizeId ?? "")]
+  const areaX = num(d.printArea?.x)
+  const areaW = num(d.printArea?.width)
+  const areaH = num(d.printArea?.height)
+  if (!ref || areaX === null || !areaW || !areaH || !Array.isArray(d.sideLayouts)) return []
+
+  const mmPerPxX = (ref.w * 10) / areaW
+  const mmPerPxY = (ref.h * 10) / areaH
+  const canvasH = areaH / (PRINT_AREA_HEIGHT_RATIO * (ref.h / OVERSIZE.h))
+  const zoneTop = canvasH * PRINT_ZONE_TOP_RATIO
+  const centreX = areaX + areaW / 2
+
+  const out: SidePlacement[] = []
+  for (const layout of d.sideLayouts) {
+    const objects = Array.isArray(layout?.objects)
+      ? (layout.objects as Record<string, unknown>[])
+      : []
+    // Customer artwork carries a customizerId; prefer those if present.
+    const tagged = objects.filter((o) => o && o.customizerId)
+    const boxes = (tagged.length ? tagged : objects)
+      .map((o) => (o && typeof o === "object" ? objectBox(o) : null))
+      .filter((b): b is Box => b !== null)
+    if (!boxes.length || typeof layout.side !== "string") continue
+    const box = boxes.reduce((a, b) => ({
+      left: Math.min(a.left, b.left),
+      top: Math.min(a.top, b.top),
+      right: Math.max(a.right, b.right),
+      bottom: Math.max(a.bottom, b.bottom),
+    }))
+    out.push({
+      side: layout.side,
+      widthMm: Math.round((box.right - box.left) * mmPerPxX),
+      heightMm: Math.round((box.bottom - box.top) * mmPerPxY),
+      fromTopMm: Math.round((box.top - zoneTop) * mmPerPxY),
+      offsetXMm: Math.round(((box.left + box.right) / 2 - centreX) * mmPerPxX),
+    })
+  }
+  return out
+}
+
+const across = (p: SidePlacement): string =>
+  Math.abs(p.offsetXMm) < 5
+    ? "centred"
+    : // As you look at the garment: right of centre = the wearer's left chest.
+      `${Math.abs(p.offsetXMm)} mm ${p.offsetXMm < 0 ? "left" : "right"} of centre (as viewed)`
+
+/** Staff view: "92 × 110 mm · 35 mm below top of print zone · centred" */
+export function formatPlacement(p: SidePlacement): string {
+  // Sleeves and tags have no meaningful print-zone top.
+  const down =
+    p.side === "front" || p.side === "back"
+      ? ` · ${Math.max(0, p.fromTopMm)} mm below top of print zone`
+      : ""
+  return `${p.widthMm} × ${p.heightMm} mm${down} · ${across(p)}`
+}
+
+/** Customer proof: "92 × 110 mm · centred" (no internal print-zone jargon). */
+export function formatPlacementShort(p: SidePlacement): string {
+  return `${p.widthMm} × ${p.heightMm} mm · ${across(p)}`
+}

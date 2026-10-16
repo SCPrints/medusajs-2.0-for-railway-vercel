@@ -178,6 +178,12 @@ Staff updates each order's stage in the admin; the customer sees a Domino's-Pizz
 
 **Customer milestones** (collapsed for the storefront stepper): `received` → `artwork` → `production` → `shipped` → `delivered`
 
+**Ready-for-production gate** ([production-gate.ts](backend/src/lib/production-gate.ts)): moving the production track from `received` to `in_production`/`quality_check` is refused (409 `production_not_ready`) unless artwork is approved and blanks have arrived (only for orders with decorated lines) and any deposit is paid. The checks use the stages the request moves TO, so staff can approve + start in one save. Staff can start anyway with `override_reason`; the reason lands in the history note and an audit row. The bulk route skips not-ready orders (no override); POS fast-forward and automation rules bypass it.
+
+**Due date counts from proof approval** ([order-artwork-approved-due-date.ts](backend/src/subscribers/order-artwork-approved-due-date.ts) + [production-due-date.ts](backend/src/lib/production-due-date.ts)): when artwork reaches `approved`, `production_due_date` = approval + `PRODUCTION_LEAD_BUSINESS_DAYS` (default 7) business days, stamped `production_due_date_source: "auto"`. Dates staff type in are `"manual"` (older dates with no source count as manual) and are never moved; an audit row flags them when tight. Business days = Mon–Fri in Sydney time, no public holidays ([business-days.ts](backend/src/lib/business-days.ts)).
+
+**Proof reminders** ([send-proof-reminders.ts](backend/src/jobs/send-proof-reminders.ts), gated `PROOF_REMINDERS_ENABLED`): weekday mornings, re-sends the artwork-approval email once per proof round when the customer hasn't answered in `PROOF_REMINDER_BUSINESS_DAYS` (default 2). Stamps `artwork_proof_reminder_sent_at`. The owner alert at 4 business days comes from the stale scan (`awaiting_approval` limit). Email building is shared with the stage subscriber in [proof-email.ts](backend/src/services/artwork-approval/proof-email.ts).
+
 **Stages that email the customer**: `awaiting_approval`, `in_production`. `shipped` is intentionally excluded — the tracking email is delegated to `shipment.created` instead. **Caveat**: nothing created a shipment until the fulfilment bridge landed on 2026-08-03, so that email had never actually fired. It's now reachable but still gated off behind `FULFILLMENT_BRIDGE_NOTIFY` — see "Fulfilment: stock locations, and why the production stage drives it".
 
 ### 2. Saved designs ("My Designs")
@@ -623,10 +629,10 @@ Cluster of widgets on the order detail page giving operators a single pane of gl
 | Arrival watcher (inbound scan) | [backend/src/admin/widgets/order-arrival-watcher.tsx](backend/src/admin/widgets/order-arrival-watcher.tsx) |
 | Production photos uploader | [backend/src/admin/widgets/order-production-photos.tsx](backend/src/admin/widgets/order-production-photos.tsx) |
 | Customizer downloads (per-line files) | [backend/src/admin/widgets/order-customizer-downloads.tsx](backend/src/admin/widgets/order-customizer-downloads.tsx) |
-| Customizer print details | [backend/src/admin/widgets/order-customizer-print-details.tsx](backend/src/admin/widgets/order-customizer-print-details.tsx) |
+| Customizer print details (size + position in mm via [print-placement.ts](backend/src/lib/print-placement.ts)) | [backend/src/admin/widgets/order-customizer-print-details.tsx](backend/src/admin/widgets/order-customizer-print-details.tsx) |
 | Stage audit subscriber | [backend/src/subscribers/order-stage-audit.ts](backend/src/subscribers/order-stage-audit.ts) |
 
-**Stale flag**: env-gated. `STALE_ORDER_ALERTS_ENABLED=true` enables; threshold `STALE_ORDER_THRESHOLD_DAYS` (default 3); optional Slack digest via `SLACK_PRODUCTION_WEBHOOK_URL`.
+**Stale ("stuck") flag**: env-gated. `STALE_ORDER_ALERTS_ENABLED=true` enables; optional Slack digest via `SLACK_PRODUCTION_WEBHOOK_URL`. Each track is judged against its own limit in business days (`STUCK_AFTER_BUSINESS_DAYS` in [scan.ts](backend/src/services/stale-orders/scan.ts)): artwork in review 2, awaiting approval 4, blanks ordered 5, in production 3, quality check 2. `received` uses `STALE_ORDER_THRESHOLD_DAYS` (default 3) from the last activity on any track, and only when no other track is at a limited stage. Stamps `is_stale` + `stale_track` / `stale_stage` / `stale_stage_since`; the owner email + task fire once per stuck stay (`stale_notified_key`), so staff clearing the badge doesn't re-trigger them.
 
 **Presence heartbeat**: POSTs to `/admin/admin-workspace/presence` every 20s when tab is visible. Powers "X is viewing this order" avatars across tabs.
 
@@ -792,6 +798,9 @@ Always returns 204 so failures never break UX. Query length validated 1-500 char
 | `QUOTE_CONVERSION_ENABLED` | Master switch for the quote-on-order-placed / quote-on-order-cancelled subscribers (Phase 11). ON by default — closing the quote loop is the desired behaviour in production. Set to `false` to disable the loop closure without removing the subscribers. | `true` |
 | `STALE_ORDER_ESCALATION_DAYS` | How many days an order stays in `metadata.is_stale = true` before the manager-escalation path fires (Phase 11). Distinct from `STALE_ORDER_THRESHOLD_DAYS` (which controls when "stale" is flagged in the first place). | `3` |
 | `STALE_ORDER_MANAGER_EMAIL` | Comma-separated inboxes that get the manager escalation when an order has been stale longer than `STALE_ORDER_ESCALATION_DAYS`. Unset = no escalation (the owner task + audit still fire). | unset |
+| `PROOF_REMINDERS_ENABLED` | Gates the weekday proof-reminder cron ([send-proof-reminders.ts](backend/src/jobs/send-proof-reminders.ts)). | `false` |
+| `PROOF_REMINDER_BUSINESS_DAYS` | Business days a proof waits before the customer gets its one reminder. | `2` |
+| `PRODUCTION_LEAD_BUSINESS_DAYS` | Business days from artwork approval to the automatic production due date. | `7` |
 | `PRICING_INVARIANT_MODE` | Checkout pricing invariant ([backend/src/lib/checkout-price-invariant.ts](backend/src/lib/checkout-price-invariant.ts)) — middleware on `POST /store/carts/:id/complete` re-derives every line's expected price via the canonical decoration pricing and flags mismatches, $0-decoration lines, POA embroidery, and below-cost lines. `off` = never runs; `alert` = log + PostHog only (shadow mode); `block` = 409 the checkout on block-severity findings (flip only after a clean shadow run). Exempt: `quote_locked_price`, `decorationDesign`, `metadata.price_override` lines. Fail-open on internal errors. | `alert` |
 
 #### Customer-lifecycle send-gate flags (CRM)
@@ -1342,6 +1351,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | `0 8 * * *` | 18:00 | [scan-stale-orders.ts](backend/src/jobs/scan-stale-orders.ts) | Flag orders not progressed in N days |
 | `0 9 * * *` | 19:00 | [notify-overdue-tasks.ts](backend/src/jobs/notify-overdue-tasks.ts) | Surface overdue tasks via audit + PostHog (gated by `TASKS_OVERDUE_CRON_ENABLED`) |
 | `0 22 * * *` | 08:00 next day | [send-nps-requests.ts](backend/src/jobs/send-nps-requests.ts) | Daily NPS prompt batch |
+| `30 22 * * *` | 08:30 next day (weekdays) | [send-proof-reminders.ts](backend/src/jobs/send-proof-reminders.ts) | One reminder per unanswered proof round (gated by `PROOF_REMINDERS_ENABLED`) |
 | `0 23 * * *` | 09:00 next day | [expire-quotes.ts](backend/src/jobs/expire-quotes.ts) | Transition `quoted` quotes past their `expires_at` to `expired` (gated by `QUOTE_EXPIRY_CRON_ENABLED`) |
 | `15 23 * * *` | 09:15 next day | [send-abandoned-cart-reminders.ts](backend/src/jobs/send-abandoned-cart-reminders.ts) | Cart reminder batch |
 | `30 23 * * *` | 09:30 next day | [send-reorder-reminders.ts](backend/src/jobs/send-reorder-reminders.ts) | Repeat-customer nudge |
@@ -1367,6 +1377,7 @@ Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, ShipS
 | [order-stage-audit.ts](backend/src/subscribers/order-stage-audit.ts) | `production_stage_changed` | Append stage change to audit log + production_stage_history metadata |
 | [order-stage-sync-fulfillment.ts](backend/src/subscribers/order-stage-sync-fulfillment.ts) | `production_stage_changed` | Create the Medusa fulfillment + shipment so `fulfillment_status` follows the stage (see "Fulfilment" above) |
 | [order-artwork-stage-changed.ts](backend/src/subscribers/order-artwork-stage-changed.ts) | `artwork_stage_changed` | Build mockup PDF + email customer the HMAC-signed approval link |
+| [order-artwork-approved-due-date.ts](backend/src/subscribers/order-artwork-approved-due-date.ts) | `artwork_stage_changed` | On `approved`, set the production due date to approval + lead time (manual dates kept) |
 | [automation-on-order-placed.ts](backend/src/subscribers/automation-on-order-placed.ts) | `order.placed` | Hydrate LTV + order count, evaluate automation rules |
 | [automation-on-stage-changed.ts](backend/src/subscribers/automation-on-stage-changed.ts) | `production_stage_changed` | Evaluate stage-triggered automation rules |
 | [abandoned-cart-mark-converted.ts](backend/src/subscribers/abandoned-cart-mark-converted.ts) | `order.placed` | Stamp `converted_at` on matching abandoned_cart_followups |

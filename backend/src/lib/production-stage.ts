@@ -14,8 +14,9 @@
  *
  * Artwork chase and blanks PO happen in parallel — the shop wants to order
  * stock the moment payment clears, without waiting on approval (which can
- * drag on for weeks). Staff can advance any track in any order; nothing is
- * hard-gated.
+ * drag on for weeks). Staff can advance any track in any order. The one
+ * check is starting production (received → in_production): see
+ * production-gate.ts — staff can override it with a reason.
  *
  * Customers see one "Preparing" milestone collapsing both prep tracks, with
  * the two mini-tracks rendered side-by-side underneath.
