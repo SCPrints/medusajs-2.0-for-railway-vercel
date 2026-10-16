@@ -9,7 +9,7 @@ import {
   Textarea,
   toast,
 } from "@medusajs/ui"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import { LookbookProductPicker } from "../../../components/lookbook/product-picker"
@@ -81,6 +81,14 @@ const LookbookPage = () => {
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const formRef = useRef<HTMLDivElement | null>(null)
+
+  // Bring the form into view when it opens. The admin scrolls an inner panel,
+  // not the window, so window.scrollTo was a no-op: Edit on a tile further
+  // down opened the form off-screen and looked like it did nothing.
+  useEffect(() => {
+    if (open) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }, [open, editingId])
 
   const setField = <K extends keyof FormState>(key: K, val: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: val }))
@@ -143,8 +151,6 @@ const LookbookPage = () => {
       file: null,
     })
     setOpen(true)
-    // Bring the form into view — the grid can be long.
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const submit = async () => {
@@ -259,7 +265,7 @@ const LookbookPage = () => {
       </div>
 
       {open ? (
-        <div className="px-6 py-4 border-b border-ui-border-base">
+        <div ref={formRef} className="scroll-mt-4 px-6 py-4 border-b border-ui-border-base">
           <div className="mb-3 flex items-center gap-x-2">
             <Text weight="plus" size="small">
               {editingId ? "Edit tile" : "New tile"}
