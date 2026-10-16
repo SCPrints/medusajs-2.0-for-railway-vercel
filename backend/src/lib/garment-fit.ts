@@ -165,12 +165,15 @@ const TYPE_DEFAULT_HALF_CHEST: Array<{ match: RegExp; women?: boolean; kids?: bo
 /** No chest to measure: the mockup keeps today's look for these. */
 const NOT_A_TOP = /\b(socks?|caps?|hats?|beanies?|visors?|bags?|totes?|backpacks?|aprons?|towels?|pants|shorts|trousers|skirts?|leggings|scarf|scarves|gloves?|stubby|coolers?|bottles?|mugs?)\b/i
 
+/** Defaults only for garments with a chest: a flag or tote must never get a "typical tee" width. */
+const IS_A_TOP = /\b(t-?shirts?|tees?|polos?|shirts?|hood(ie|ies|s|ed)?|crews?|sweat\w*|jumpers?|pullovers?|jackets?|vests?|gilets?|singlets?|tanks?|tops?|fleece|knit\w*|cardigans?|blouses?|tunics?|scrubs?|dress(es)?|onesies?|one[- ]piece|bodysuits?|zip)\b/i
+
 export function chartBodyWidth(
   chart: "dnc" | "type_default",
   p: { title?: string | null; type?: string | null; tags?: string[] }
 ): { reference_size: string; body_width_cm: number } | null {
   const text = `${p.type ?? ""} ${p.title ?? ""}`
-  if (NOT_A_TOP.test(text)) return null
+  if (NOT_A_TOP.test(text) || !IS_A_TOP.test(text)) return null
   const tagText = (p.tags ?? []).join(" ")
   const kids = /\b(kids?|youth|junior|boys|girls|infant)\b/i.test(`${text} ${tagText}`)
   const women = !kids && /\b(women'?s?|womens|ladies|ladys?|female)\b/i.test(`${text} ${tagText}`)

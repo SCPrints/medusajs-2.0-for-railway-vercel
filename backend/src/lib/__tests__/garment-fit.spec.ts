@@ -107,6 +107,8 @@ describe("source parsers", () => {
     expect(chartBodyWidth("type_default", { title: "Pullover", type: "Hoodies" })?.body_width_cm).toBe(58)
     expect(chartBodyWidth("dnc", { title: "Cotton Socks - 3 pair pack", type: "Socks" })).toBeNull()
     expect(chartBodyWidth("type_default", { title: "Trucker Cap", type: "Caps" })).toBeNull()
+    expect(chartBodyWidth("type_default", { title: "Canvas Pennant Flag", type: null })).toBeNull()
+    expect(chartBodyWidth("type_default", { title: "Organic Infant Wee Tee", type: "T-Shirts" })?.body_width_cm).toBe(40)
   })
 })
 
