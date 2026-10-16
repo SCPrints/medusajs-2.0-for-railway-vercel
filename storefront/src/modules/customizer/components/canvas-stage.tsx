@@ -33,6 +33,8 @@ type CanvasStageProps = {
   frameClassName?: string
   /** `resolveMockupArtworkScale` — shrinks the artwork layer on screen only. */
   artworkScale?: number
+  /** Garment size the mockup is drawn at (e.g. "M"); shows a small caption when set. */
+  previewSize?: string | null
 }
 
 function CanvasStage({
@@ -48,6 +50,7 @@ function CanvasStage({
   tintColor,
   frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
   artworkScale = 1,
+  previewSize = null,
 }: CanvasStageProps) {
   // The mockup URL can be dead (supplier CDN rotated the file, R2 object GC'd).
   // Rather than drop straight to the blank placeholder, walk an ordered list of
@@ -167,6 +170,15 @@ function CanvasStage({
         the placeholder is intentional — your artwork still prints on the
         actual garment sleeve.
       */}
+      {previewSize && !isSleeveView && showPhoto ? (
+        <div
+          className="pointer-events-none absolute right-3 top-3 rounded-md border border-ui-border-base bg-ui-bg-base/90 px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-sm"
+          aria-hidden
+        >
+          Preview shown on a size {previewSize}
+        </div>
+      ) : null}
+
       {isSleeveView && showPhoto ? (
         <div
           className="pointer-events-none absolute left-3 top-3 rounded-md border border-ui-border-base bg-ui-bg-base/90 px-2 py-1 text-[11px] font-medium text-ui-fg-subtle shadow-sm"

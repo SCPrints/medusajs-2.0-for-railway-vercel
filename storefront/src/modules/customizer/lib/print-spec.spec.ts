@@ -3,6 +3,7 @@ import {
   maxArtworkPx,
   printSpecsToPricingSpecs,
   resolveMockupArtworkScale,
+  resolveMockupReferenceSize,
   snapSizeForBoundingCm,
   SCP_PRINT_SIZE_REFERENCE_CM,
 } from "./print-spec"
@@ -137,5 +138,26 @@ describe("resolveMockupArtworkScale", () => {
   it("never scales sleeves or the tag (generic drawing / zoomed view)", () => {
     expect(resolveMockupArtworkScale({ mockup_scale: 0.62 }, "left_sleeve")).toBe(1)
     expect(resolveMockupArtworkScale({ mockup_scale: 0.62 }, "printed_tag")).toBe(1)
+  })
+})
+
+describe("garment_fit (stamped from size charts)", () => {
+  const fit = { garment_fit: { mockup_scale: 0.7, reference_size: "M" } }
+
+  it("uses the stamped scale and reports the reference size", () => {
+    expect(resolveMockupArtworkScale(fit, "front")).toBe(0.7)
+    expect(resolveMockupReferenceSize(fit)).toBe("M")
+  })
+
+  it("a manual mockup_scale wins and hides the size caption", () => {
+    const meta = { ...fit, mockup_scale: "0.62" }
+    expect(resolveMockupArtworkScale(meta, "front")).toBe(0.62)
+    expect(resolveMockupReferenceSize(meta)).toBeNull()
+  })
+
+  it("no caption when the photo couldn't be measured", () => {
+    const meta = { garment_fit: { mockup_scale: null, reference_size: "M" } }
+    expect(resolveMockupArtworkScale(meta, "front")).toBe(1)
+    expect(resolveMockupReferenceSize(meta)).toBeNull()
   })
 })

@@ -106,6 +106,7 @@ import {
   maxArtworkPx,
   printSpecsToPricingSpecs,
   resolveMockupArtworkScale,
+  resolveMockupReferenceSize,
   snapSizeForBoundingCm,
 } from "@modules/customizer/lib/print-spec"
 import {
@@ -5906,6 +5907,13 @@ export default function CustomizerTemplate({
                       sizeWarning={screenSizeWarning}
                       fabricContainerRef={fabricContainerRef}
                       artworkScale={mockupArtworkScale}
+                      previewSize={
+                        mockupArtworkScale !== 1
+                          ? resolveMockupReferenceSize(
+                              selectedProduct?.metadata as Record<string, unknown> | undefined
+                            )
+                          : null
+                      }
                       frameClassName={
                         assemblyLayout
                           ? "mx-auto aspect-[4/5] h-full max-h-full w-auto max-w-full rounded-xl"
