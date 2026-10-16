@@ -6,6 +6,7 @@ import { buildQuoteMockups } from "../../../../lib/quote-mockups"
 import { buildQuoteDecorations } from "../../../../lib/quote-decorations"
 import { buildQuoteJobBreakdown } from "../../../../lib/quote-job-breakdown"
 import { verifyQuoteAccept } from "../../../../services/quote-accept/sign"
+import { STRIPE_PAYMENT_LINK_MODULE } from "../../../../modules/stripe-payment-link"
 
 /**
  * GET /store/quotes/:id?sig=...
@@ -29,10 +30,29 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     return res.status(404).json({ error: "not_found" })
   }
   if (quote.status === "accepted" || quote.status === "converted") {
+    // Accepting creates the order — surface its number + any unpaid card
+    // link so a customer revisiting the link can still pay.
+    const meta = (quote.metadata ?? {}) as Record<string, unknown>
+    const orderId = typeof meta.order_id === "string" ? meta.order_id : null
+    let payUrl: string | null = null
+    if (orderId) {
+      try {
+        const links: any = req.scope.resolve(STRIPE_PAYMENT_LINK_MODULE)
+        const [open] = await links.listStripePaymentLinks(
+          { order_id: orderId, status: "open" },
+          { order: { created_at: "DESC" }, take: 1 }
+        )
+        payUrl = open?.url ?? null
+      } catch {
+        /* optional */
+      }
+    }
     return res.json({
       status: quote.status,
       public_id: quote.public_id,
       already_accepted: true,
+      order_display_id: orderId ? meta.order_display_id ?? null : null,
+      pay_url: payUrl,
     })
   }
   if (quote.status === "lost" || quote.status === "expired") {

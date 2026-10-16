@@ -6,6 +6,7 @@ import { z } from "zod"
 import { QUOTE_MODULE } from "../../../../modules/quote"
 import type QuoteModuleService from "../../../../modules/quote/service"
 import { slimQuoteForAdmin } from "../../../../lib/quote-admin-slim"
+import { convertQuoteToOrder } from "../../../../services/quote/convert"
 
 const VALID_STATUSES = ["new", "quoted", "accepted", "lost", "expired"] as const
 type QuoteStatus = (typeof VALID_STATUSES)[number]
@@ -170,9 +171,37 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     )
   }
 
+  // Accepted means the customer said yes — that's an order. Convert now
+  // (idempotent: a quote that already has an order is left alone). Failure
+  // (e.g. no convertible lines yet) keeps the status and reports why, so
+  // staff can fix the lines and hit "Convert to order".
+  let order: { order_id: string; display_id: number | string | null } | null = null
+  let orderError: string | null = null
+  const existingOrderId = (current.metadata as Record<string, unknown> | null)
+    ?.order_id
+  if (body.status === "accepted" && current.status !== "accepted" && !existingOrderId) {
+    try {
+      const r = await convertQuoteToOrder(req.scope, {
+        quoteId: id,
+        actorId: actor,
+        fromStatus: current.status,
+      })
+      order = { order_id: r.order_id, display_id: r.display_id }
+    } catch (err: any) {
+      orderError = String(err?.message ?? err)
+    }
+  }
+  if (order) {
+    const fresh = await quoteService.retrieveQuote(id)
+    return res.json({ quote: slimQuoteForAdmin(fresh), order })
+  }
+
   // Merge in-memory rather than re-retrieving — the row can be tens of MB
   // with Studio designs, and this response is slimmed anyway.
-  return res.json({ quote: slimQuoteForAdmin({ ...current, ...updatePayload }) })
+  return res.json({
+    quote: slimQuoteForAdmin({ ...current, ...updatePayload }),
+    ...(orderError ? { order_error: orderError } : {}),
+  })
 }
 
 export async function DELETE(req: MedusaRequest, res: MedusaResponse) {

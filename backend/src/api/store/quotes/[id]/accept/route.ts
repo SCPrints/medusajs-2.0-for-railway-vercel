@@ -1,19 +1,18 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import {
-  ContainerRegistrationKeys,
-  Modules,
-} from "@medusajs/framework/utils"
-import {
-  createCartWorkflow,
-  addToCartWorkflow,
-} from "@medusajs/medusa/core-flows"
+import type { IOrderModuleService } from "@medusajs/framework/types"
+import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { QUOTE_MODULE } from "../../../../../modules/quote"
 import type QuoteModuleService from "../../../../../modules/quote/service"
+import { STRIPE_PAYMENT_LINK_MODULE } from "../../../../../modules/stripe-payment-link"
+import type StripePaymentLinkModuleService from "../../../../../modules/stripe-payment-link/service"
+import { STRIPE_API_KEY } from "../../../../../lib/constants"
 import { getPostHog } from "../../../../../lib/posthog"
 import { notifyQuoteCustomerAction } from "../../../../../lib/notify-quote-action"
 import { verifyQuoteAccept } from "../../../../../services/quote-accept/sign"
+import { convertQuoteToOrder } from "../../../../../services/quote/convert"
+import { createPaymentLink } from "../../../../../services/stripe-payment-link"
 
 const schema = z.object({
   sig: z.string().min(16).max(64),
@@ -21,18 +20,68 @@ const schema = z.object({
 })
 
 /**
+ * Card-payment link for the order the acceptance just created. Reuses an
+ * open link on re-POST so a refresh never mints a second Stripe link.
+ * Null when Stripe isn't configured or anything fails — the tax invoice
+ * (bank details) still goes out, so payment is never blocked on this.
+ */
+const payUrlForOrder = async (
+  req: MedusaRequest,
+  orderId: string,
+  displayId: number | string | null,
+  quoteId: string
+): Promise<string | null> => {
+  if (!STRIPE_API_KEY) return null
+  try {
+    const links = req.scope.resolve(
+      STRIPE_PAYMENT_LINK_MODULE
+    ) as StripePaymentLinkModuleService
+    const [open] = await links.listStripePaymentLinks(
+      { order_id: orderId, status: "open" } as any,
+      { order: { created_at: "DESC" }, take: 1 } as any
+    )
+    if (open?.url) return open.url as string
+
+    const orderModule: IOrderModuleService = req.scope.resolve(Modules.ORDER)
+    const order: any = await orderModule.retrieveOrder(orderId, {
+      relations: ["summary"],
+    })
+    // Order aggregates come back 0 from retrieveOrder; the summary is reliable.
+    const total = Number(
+      order?.summary?.raw_current_order_total?.value ??
+        order?.summary?.current_order_total ??
+        0
+    )
+    const amountCents = Math.round(total * 100)
+    if (!Number.isFinite(amountCents) || amountCents < 50) return null
+    const link = await createPaymentLink(req.scope, {
+      amountCents,
+      currency: String(order.currency_code ?? "aud").toLowerCase(),
+      scenario: "full",
+      label: `Order #${displayId ?? ""}`.trim(),
+      orderId,
+      quoteId,
+    })
+    return link.url
+  } catch {
+    return null
+  }
+}
+
+/**
  * POST /store/quotes/:id/accept
  *   body: { sig, approver_name? }
- *   → { ok: true, cart_id, checkout_url }
+ *   → { ok: true, order_id, display_id, pay_url, lines_added, skipped_items }
  *
- * Verifies the HMAC signature, marks the quote `accepted`, and
- * materialises a cart from the quote's line items. Returns a
- * `cart_id` the storefront can redirect to checkout with.
+ * Accepting IS ordering: verifies the HMAC signature and converts the quote
+ * straight into a real (unpaid) order at the quoted prices — the same
+ * conversion as the admin "Convert to order" button. The order-placed email
+ * sends the customer the tax invoice (bank details); `pay_url` is a Stripe
+ * Payment Link for the order total so they can pay by card right away, and
+ * the payment-link webhook marks the order paid.
  *
- * Line items must reference real `variant_id`s to be added to cart.
- * "Whole product" lines (a `product_id` but no `variant_id`) are resolved to a
- * representative variant first. Anything still missing a `variant_id` (custom
- * placeholder lines) is skipped and reported in `skipped_items`.
+ * (Before 2026-10-16 this built a cart and sent the customer to checkout, so
+ * an accepted quote whose cart was never paid never became an order.)
  */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const id = req.params.id
@@ -60,35 +109,30 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   // Idempotency: the accept link is static and non-expiring, so a re-POST
-  // (refresh, double-click) must NOT mint a second cart, re-add line items,
-  // or append another status_changed event. If the quote is already
-  // accepted/converted and carries its cart, return that cart unchanged.
-  const existingCartId =
-    typeof (quote.metadata as any)?.cart_id === "string"
-      ? ((quote.metadata as any).cart_id as string)
-      : null
-  if (
-    (quote.status === "accepted" || quote.status === "converted") &&
-    existingCartId
-  ) {
-    return res.json({
+  // (refresh, double-click) returns the existing order + its open pay link.
+  const alreadyOrdered = async (q: any) => {
+    const m = ((q?.metadata ?? {}) as Record<string, unknown>)
+    if (typeof m.order_id !== "string" || !m.order_id) return null
+    const displayId = (m.order_display_id as number | string) ?? null
+    return {
       ok: true,
-      cart_id: existingCartId,
+      order_id: m.order_id,
+      display_id: displayId,
+      pay_url: await payUrlForOrder(req, m.order_id, displayId, id),
       lines_added: 0,
       skipped_items: [],
       idempotent: true,
-    })
+    }
   }
+  const existing = await alreadyOrdered(quote)
+  if (existing) return res.json(existing)
 
-  // ---- Atomic conversion claim (prevents duplicate carts) ----
-  // The idempotency check above is a read-then-write; two concurrent POSTs
-  // (refresh / double-click on the static accept link) both pass it and each
-  // mint a full cart, then the last updateQuotes wins and orphans the other
-  // cart. Flip status to a transient "converting" in ONE statement so only one
-  // POST proceeds. A 'converting' row older than 5 min is treated as a crashed
-  // prior attempt and may be re-claimed, so a failed accept self-heals. Mirrors
-  // the group-order convert-to-cart route. (status is a plain text column, so a
-  // transient value outside the model enum is fine.)
+  // ---- Atomic conversion claim (prevents duplicate orders) ----
+  // The check above is read-then-write; two concurrent POSTs would both pass
+  // it and each create an order. Flip status to a transient "converting" in
+  // ONE statement so only one POST proceeds. A 'converting' row older than
+  // 5 min is a crashed prior attempt and may be re-claimed. (status is a plain
+  // text column, so a transient value outside the model enum is fine.)
   const pg = req.scope.resolve<any>("__pg_connection__")
   if (pg?.raw) {
     let claimed = false
@@ -98,8 +142,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             set status = 'converting', updated_at = now()
           where id = ?
             and deleted_at is null
-            and status <> 'accepted'
-            and status <> 'converted'
+            and coalesce(metadata->>'order_id', '') = ''
             and (status <> 'converting' or updated_at < now() - interval '5 minutes')
           returning id`,
         [id]
@@ -112,21 +155,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
     if (!claimed) {
       const fresh = await service.retrieveQuote(id).catch(() => null)
-      const m = ((fresh as any)?.metadata ?? {}) as Record<string, unknown>
-      if (
-        fresh &&
-        ((fresh as any).status === "accepted" ||
-          (fresh as any).status === "converted") &&
-        typeof m.cart_id === "string"
-      ) {
-        return res.json({
-          ok: true,
-          cart_id: m.cart_id,
-          lines_added: 0,
-          skipped_items: [],
-          idempotent: true,
-        })
-      }
+      const done = await alreadyOrdered(fresh)
+      if (done) return res.json(done)
       return res.status(409).json({
         error: "acceptance_in_progress",
         detail:
@@ -135,177 +165,28 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
-  // Pick a region — use the first published region for the quote's currency.
-  let regionId: string | null = null
-  let salesChannelId: string | null = null
+  let result: Awaited<ReturnType<typeof convertQuoteToOrder>>
   try {
-    const { data: regions } = await query.graph({
-      entity: "region",
-      fields: ["id", "currency_code"],
-      pagination: { take: 50, skip: 0 },
+    result = await convertQuoteToOrder(req.scope, {
+      quoteId: id,
+      actorId: null,
+      via: "customer",
+      approverName: body.approver_name ?? null,
+      fromStatus: quote.status,
     })
-    // Only a currency-matching region is correct: the line unit_prices are bare
-    // numbers in the quote currency, so a region whose currency differs would
-    // mis-key tax/shipping. Fail loudly rather than silently fall back to a
-    // mismatched region (was `?? regions[0]`).
-    const region = (regions as any[])?.find(
-      (r) =>
-        String(r.currency_code).toLowerCase() ===
-        String(quote.currency_code).toLowerCase()
-    )
-    regionId = region?.id ?? null
-  } catch {
-    /* fallthrough */
-  }
-  if (!regionId) {
+  } catch (err: any) {
+    // Release the claim so the customer (or staff) can retry immediately.
+    await service
+      .updateQuotes([{ id, status: quote.status }])
+      .catch(() => undefined)
     return res.status(500).json({
-      error: "no_region_for_currency",
-      currency_code: quote.currency_code,
+      error:
+        "We couldn't place this order automatically. Reply to your quote email and we'll sort it out.",
+      detail: String(err?.message ?? err),
     })
   }
-  try {
-    const { data: channels } = await query.graph({
-      entity: "sales_channel",
-      fields: ["id", "name", "is_disabled"],
-      pagination: { take: 20, skip: 0 },
-    })
-    const live =
-      (channels as any[])?.find((c) => c.is_disabled !== true) ??
-      (channels as any[])?.[0]
-    salesChannelId = live?.id ?? null
-  } catch {
-    /* fallthrough */
-  }
 
-  // Materialise the cart.
-  const { result: cart } = await createCartWorkflow(req.scope).run({
-    input: {
-      region_id: regionId,
-      sales_channel_id: salesChannelId ?? undefined,
-      email: quote.email,
-      currency_code: String(quote.currency_code ?? "aud").toLowerCase(),
-      metadata: {
-        source: "quote_accept",
-        quote_id: id,
-        quote_public_id: quote.public_id,
-      },
-    },
-  })
-
-  const lineItems = (quote.line_items as { items?: Array<Record<string, any>> })
-    ?.items ?? []
-
-  // Resolve "whole product" lines (a product_id but no variant_id — staff added
-  // the product without committing to a size/colour) to a representative
-  // variant, so they convert to cart instead of being skipped. We pick the
-  // lowest-ranked (default) variant; the customer can adjust size in the cart
-  // at checkout. Failure to resolve leaves the line unresolved → reported in
-  // skipped_items, never blocks the rest of the acceptance.
-  const productOnly = lineItems.filter(
-    (li) =>
-      !li?.variant_id &&
-      typeof li?.product_id === "string" &&
-      Number(li?.quantity ?? 0) > 0
-  )
-  if (productOnly.length) {
-    try {
-      const productIds = [
-        ...new Set(productOnly.map((li) => String(li.product_id))),
-      ]
-      const { data: products } = await query.graph({
-        entity: "product",
-        fields: ["id", "variants.id", "variants.variant_rank"],
-        filters: { id: productIds },
-      })
-      const defaultVariantByProduct = new Map<string, string>()
-      for (const p of products as any[]) {
-        const variants = [...(p?.variants ?? [])].sort(
-          (a: any, b: any) => (a?.variant_rank ?? 0) - (b?.variant_rank ?? 0)
-        )
-        const vid = variants[0]?.id
-        if (vid) defaultVariantByProduct.set(String(p.id), String(vid))
-      }
-      for (const li of productOnly) {
-        const vid = defaultVariantByProduct.get(String(li.product_id))
-        if (vid) li.variant_id = vid
-      }
-    } catch {
-      /* leave unresolved → skipped below */
-    }
-  }
-
-  const addable = lineItems.filter(
-    (li) => typeof li?.variant_id === "string" && Number(li?.quantity ?? 0) > 0
-  )
-  const skipped = lineItems.filter(
-    (li) => !addable.includes(li)
-  )
-
-  for (const li of addable) {
-    try {
-      // Honour the QUOTED unit_price (what the customer agreed to) rather than
-      // re-pricing at catalog rate — addToCartWorkflow accepts a per-line
-      // unit_price natively (same lever the SCP customizer route uses). And
-      // carry the Studio design through as line metadata so the resulting
-      // order line is a full customizer line: mockup PDF, customizer downloads,
-      // and print-details widgets all work with no quote-specific branch.
-      // Honour an explicit quoted price (incl. a deliberate 0), but treat a
-      // NULL/blank price as "not set" → omit unit_price so the line falls back
-      // to catalog/region pricing rather than being coerced to $0 (Number(null)
-      // === 0, which would silently give the garment away for free).
-      const unitPrice = li.unit_price == null ? NaN : Number(li.unit_price)
-      // Every quote-accept line is the agreed price — lock it so a later
-      // cart-wide SCP recompute (triggered by the customer editing the cart)
-      // can't re-tier it to ladder pricing. See recompute-scp-cart-pricing.ts.
-      const lineMetadata: Record<string, unknown> = { quote_locked_price: true }
-      if (li.customizerDesign && typeof li.customizerDesign === "object") {
-        lineMetadata.customizerDesign = li.customizerDesign
-        if (li.product_handle) lineMetadata.product_handle = li.product_handle
-        if (li.print_size_id) lineMetadata.print_size_id = li.print_size_id
-      }
-      await addToCartWorkflow(req.scope).run({
-        input: {
-          cart_id: cart.id,
-          items: [
-            {
-              variant_id: String(li.variant_id),
-              quantity: Number(li.quantity ?? 1),
-              ...(Number.isFinite(unitPrice) && unitPrice >= 0
-                ? { unit_price: unitPrice }
-                : {}),
-              metadata: lineMetadata,
-            },
-          ],
-        },
-      })
-    } catch (err: any) {
-      // Soft-fail: skip the line but keep the cart. Staff can chase.
-      skipped.push({ ...li, error: String(err?.message ?? err) })
-    }
-  }
-
-  // Stamp the quote.
-  await service.updateQuotes([
-    {
-      id,
-      status: "accepted",
-      accepted_at: new Date(),
-      metadata: {
-        ...((quote.metadata as Record<string, unknown>) ?? {}),
-        cart_id: cart.id,
-        accepted_by_name: body.approver_name ?? null,
-      },
-    },
-  ])
-  await service.createQuoteEvents([
-    {
-      quote_id: id,
-      type: "status_changed",
-      actor: body.approver_name ?? "customer",
-      body: { from: quote.status, to: "accepted", cart_id: cart.id },
-    },
-  ])
+  const payUrl = await payUrlForOrder(req, result.order_id, result.display_id, id)
 
   getPostHog()?.capture({
     distinctId: quote.email,
@@ -313,14 +194,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     properties: {
       quote_id: id,
       public_id: quote.public_id,
-      cart_id: cart.id,
-      lines_added: addable.length,
-      lines_skipped: skipped.length,
+      order_id: result.order_id,
+      lines_added: result.lines_added,
+      lines_skipped: result.skipped_items.length,
+      has_pay_link: !!payUrl,
     },
   })
 
-  // Email staff that the customer accepted — the cart is created and they've
-  // been sent to checkout; the job lands in Orders once they pay.
+  // Email staff that the customer accepted — the order now exists.
   await notifyQuoteCustomerAction(req.scope, {
     quote,
     action: "quote_accepted",
@@ -329,8 +210,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   return res.json({
     ok: true,
-    cart_id: cart.id,
-    lines_added: addable.length,
-    skipped_items: skipped,
+    order_id: result.order_id,
+    display_id: result.display_id,
+    pay_url: payUrl,
+    lines_added: result.lines_added,
+    skipped_items: result.skipped_items,
   })
 }

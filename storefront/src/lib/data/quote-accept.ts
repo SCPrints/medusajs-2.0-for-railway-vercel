@@ -59,6 +59,8 @@ export type QuoteForAccept = {
   job_breakdown?: QuoteJobBreakdown | null
   expires_at: string | null
   already_accepted?: boolean
+  order_display_id?: number | string | null
+  pay_url?: string | null
 }
 
 export async function getQuoteForAccept(
@@ -81,7 +83,9 @@ export async function acceptQuote(input: {
 }): Promise<
   | {
       ok: true
-      cart_id: string
+      order_id: string
+      display_id: number | string | null
+      pay_url: string | null
       lines_added: number
       skipped_items: unknown[]
     }
@@ -96,11 +100,13 @@ export async function acceptQuote(input: {
       }
     )) as {
       ok: boolean
-      cart_id: string
+      order_id: string
+      display_id: number | string | null
+      pay_url: string | null
       lines_added: number
       skipped_items: unknown[]
     }
-    if (!res?.ok || !res.cart_id) {
+    if (!res?.ok || !res.order_id) {
       return { ok: false, error: "Couldn't accept quote." }
     }
     return res as any
