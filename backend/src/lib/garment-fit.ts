@@ -20,6 +20,8 @@ export type GarmentFit = {
   /** Body width as a fraction of the 4:5 Studio canvas width, measured from flat-lay photos. */
   photo_body_ratio: number | null
   photo_samples: number
+  /** "photo" = measured off this product; "brand_median" = the brand's typical short-sleeve photo (long sleeves that hide the body). */
+  photo_from: "photo" | "brand_median" | null
   /** photo body (reference cm) ÷ real body cm; null = photo couldn't be measured. */
   mockup_scale: number | null
   measured_at: string
@@ -226,9 +228,11 @@ export async function measurePhotoBodyRatio(image: Buffer): Promise<number | nul
   if (top <= 2 || bottom >= h - 3 || bottom - top < h * 0.3) return null
 
   // Body = the run of foreground that crosses the garment's centre column,
-  // sampled through the lower torso (55–80% down), below the sleeves.
+  // sampled down the lower torso (55–94%). Long sleeves hanging alongside the
+  // body inflate the upper rows but end above the hem, so a low percentile
+  // isolates the body; a stray highlight that splits one row can't drag it down.
   const widths: number[] = []
-  for (let f = 0.55; f <= 0.8; f += 0.05) {
+  for (let f = 0.55; f <= 0.94; f += 0.03) {
     const y = Math.round(top + f * (bottom - top))
     const cx = Math.round(w / 2)
     if (!isFg(cx, y)) continue
@@ -240,7 +244,7 @@ export async function measurePhotoBodyRatio(image: Buffer): Promise<number | nul
   }
   if (widths.length < 3) return null
   widths.sort((a, b) => a - b)
-  const bodyPx = widths[Math.floor(widths.length / 2)]
+  const bodyPx = widths[Math.floor(widths.length / 4)]
   // object-fit: cover into a canvas of width 1 and height 1.25.
   const coverScale = Math.max(1 / w, CANVAS_ASPECT / h)
   const ratio = Math.round(bodyPx * coverScale * 1000) / 1000
@@ -253,6 +257,27 @@ export async function measurePhotoBodyRatio(image: Buffer): Promise<number | nul
  * measurement is more likely wrong than the photo that far off — return null
  * so the mockup keeps today's look.
  */
+/**
+ * Styles whose sleeves can sit flush against the body all the way down (ghost
+ * mannequins, folded flat-lays) — the photo measurement may include them.
+ */
+export const SLEEVES_MAY_HIDE_BODY = /long\s*sleeve|\bl\/s\b|hood|jacket|fleece|jumper|sweat|crew\s*neck|pullover|zip|knit|cardigan|softshell|puffer|coat|parka|anorak|spray/i
+
+/**
+ * For those styles, a photo reading well above the brand's typical
+ * short-sleeve reading is almost certainly counting the sleeves: use the brand
+ * typical instead (same supplier, same framing).
+ */
+export function sleeveSafeRatio(
+  measured: number | null,
+  brandShortSleeveMedian: number | null
+): { ratio: number | null; from: "photo" | "brand_median" | null } {
+  if (brandShortSleeveMedian && (measured == null || measured > brandShortSleeveMedian * 1.12)) {
+    return { ratio: brandShortSleeveMedian, from: "brand_median" }
+  }
+  return { ratio: measured, from: measured == null ? null : "photo" }
+}
+
 export function mockupScaleFor(photoBodyRatio: number | null, bodyWidthCm: number): number | null {
   if (!photoBodyRatio || !bodyWidthCm) return null
   const scale = (photoBodyRatio * REF_CM_PER_CANVAS_WIDTH) / bodyWidthCm

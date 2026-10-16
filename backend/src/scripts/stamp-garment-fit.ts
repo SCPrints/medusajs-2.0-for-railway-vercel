@@ -36,6 +36,8 @@ import {
   parseKiwiSizing,
   readSizeChartImage,
   SizeTable,
+  SLEEVES_MAY_HIDE_BODY,
+  sleeveSafeRatio,
   widthFromTable,
 } from "../lib/garment-fit"
 import { revalidateStorefrontTags } from "../lib/storefront-revalidate"
@@ -215,7 +217,11 @@ export default async function run({ container }: ExecArgs) {
   let wrote = 0
   let noWidth = 0
   let noPhoto = 0
+  let fromBrand = 0
 
+  // Pass 1: width + photo reading for every product.
+  type Measured = { row: Row; width: Width; ratio: number | null; samples: number; sleevesMayHide: boolean }
+  const measured: Measured[] = []
   await mapPool(targets, 4, async (row) => {
     const width = await resolveWidth(row)
     if (!width) {
@@ -223,36 +229,59 @@ export default async function run({ container }: ExecArgs) {
       return
     }
     const ratios = await measurePhotos(row)
-    const ratio = median(ratios)
+    const text = `${row.type?.value ?? ""} ${row.title ?? ""}`
+    measured.push({ row, width, ratio: median(ratios), samples: ratios.length, sleevesMayHide: SLEEVES_MAY_HIDE_BODY.test(text) })
+  })
+
+  // Pass 2: each brand's typical short-sleeve photo reading (same supplier = same framing).
+  const brandSamples = new Map<string, number[]>()
+  for (const m of measured) {
+    if (m.sleevesMayHide || m.ratio == null || !m.row.brand?.handle) continue
+    brandSamples.set(m.row.brand.handle, [...(brandSamples.get(m.row.brand.handle) ?? []), m.ratio])
+  }
+  const brandMedian = (handle?: string) => {
+    const xs = handle ? brandSamples.get(handle) ?? [] : []
+    return xs.length >= 5 ? median(xs) : null
+  }
+
+  // Pass 3: build + write.
+  for (const m of measured) {
+    const { row, width } = m
+    const photo = m.sleevesMayHide
+      ? sleeveSafeRatio(m.ratio, brandMedian(row.brand?.handle))
+      : { ratio: m.ratio, from: m.ratio == null ? null : ("photo" as const) }
+    if (photo.from === "brand_median") fromBrand++
     const fit: GarmentFit = {
       reference_size: width.reference_size,
       body_width_cm: width.body_width_cm,
       source: width.source,
-      photo_body_ratio: ratio,
-      photo_samples: ratios.length,
-      mockup_scale: mockupScaleFor(ratio, width.body_width_cm),
+      photo_body_ratio: photo.ratio,
+      photo_samples: m.samples,
+      photo_from: photo.from,
+      mockup_scale: mockupScaleFor(photo.ratio, width.body_width_cm),
       measured_at: new Date().toISOString(),
     }
     counts[width.source] = (counts[width.source] ?? 0) + 1
     if (fit.mockup_scale == null) noPhoto++
     logger.info(
-      `garment-fit ${row.handle}: ${fit.source} ${fit.reference_size}=${fit.body_width_cm}cm, photo ${ratio ?? "—"} (${ratios.length}) → scale ${fit.mockup_scale ?? "none"}`
+      `garment-fit ${row.handle}: ${fit.source} ${fit.reference_size}=${fit.body_width_cm}cm, photo ${photo.ratio ?? "—"} (${m.samples}${photo.from === "brand_median" ? ", brand median" : ""}) → scale ${fit.mockup_scale ?? "none"}`
     )
 
     const { measured_at: _a, ...next } = fit
     const { measured_at: _b, ...prev } = (row.metadata?.garment_fit ?? {}) as GarmentFit
-    if (JSON.stringify(next) === JSON.stringify(prev)) return
+    if (JSON.stringify(next) === JSON.stringify(prev)) continue
     if (!dryRun) {
       // read-modify-write: Medusa metadata updates REPLACE the whole jsonb.
       const [fresh] = await productModule.listProducts({ id: row.id }, { select: ["id", "metadata"] })
       await productModule.updateProducts(row.id, { metadata: { ...(fresh?.metadata ?? {}), garment_fit: fit } })
     }
     wrote++
-  })
+  }
 
   logger.info(
     `garment-fit${dryRun ? " (dry-run)" : ""}: ${wrote} written; by source ${JSON.stringify(counts)}; ` +
-      `${noWidth} with no width; ${noPhoto} with no usable flat-lay photo (mockup keeps today's look)`
+      `${noWidth} with no width; ${noPhoto} with no usable flat-lay photo (mockup keeps today's look); ` +
+      `${fromBrand} long-sleeve styles used their brand's typical photo`
   )
   if (wrote > 0 && !dryRun) {
     const purged = await revalidateStorefrontTags(["products"], logger)

@@ -8,6 +8,7 @@ import {
   parseKiwiSizing,
   pickReferenceSize,
   readSizeChartImage,
+  sleeveSafeRatio,
   toBodyWidthCm,
   widthFromTable,
 } from "../garment-fit"
@@ -168,5 +169,18 @@ describe("mockupScaleFor", () => {
   it("refuses implausible results", () => {
     expect(mockupScaleFor(0.9, 30)).toBeNull()
     expect(mockupScaleFor(null, 52)).toBeNull()
+  })
+})
+
+describe("sleeveSafeRatio", () => {
+  it("keeps a plausible long-sleeve reading", () => {
+    expect(sleeveSafeRatio(0.66, 0.63)).toEqual({ ratio: 0.66, from: "photo" })
+  })
+  it("swaps a reading inflated by sleeves for the brand's typical photo", () => {
+    expect(sleeveSafeRatio(0.92, 0.63)).toEqual({ ratio: 0.63, from: "brand_median" })
+    expect(sleeveSafeRatio(null, 0.63)).toEqual({ ratio: 0.63, from: "brand_median" })
+  })
+  it("leaves it alone when the brand has no typical", () => {
+    expect(sleeveSafeRatio(0.92, null)).toEqual({ ratio: 0.92, from: "photo" })
   })
 })
