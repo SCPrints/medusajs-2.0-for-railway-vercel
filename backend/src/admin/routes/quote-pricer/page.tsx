@@ -54,6 +54,7 @@ import { tinted, NAV_COLOR } from "../../lib/nav-tint"
  */
 
 import { absorbStudioLines } from "../../lib/quote-pricer-absorb"
+import { pricerDesignLabel, pricerGroupTitle, pricerLineTitle, pricerPositionSummary } from "../../lib/quote-pricer-labels"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,7 +97,8 @@ type UiPosition = {
   priceOverride?: string
 }
 /** `imageUrl` = artwork dropped onto the letter (R2 via /admin/uploads) → line thumbnail + approval email. */
-type JobDesign = { id: string; label: string; repeat: boolean; imageUrl?: string | null }
+/** `name` = optional customer-facing name ("Bull (back)") shown with the letter on the quote. */
+type JobDesign = { id: string; label: string; name?: string; repeat: boolean; imageUrl?: string | null }
 /** ANY_SIZE is the "Any" cell key — a whole-product line, size chosen at order time. */
 const ANY_SIZE = ""
 type GroupRow = {
@@ -112,6 +114,8 @@ type GroupRow = {
 }
 type JobGroup = {
   id: string
+  /** Optional customer-facing name ("Bull shirt") — tells two groups of one garment apart on the quote. */
+  name?: string
   product: ProductLite | null
   supplied: boolean
   rows: GroupRow[]
@@ -229,7 +233,6 @@ const money = (n: number | null | undefined) =>
   n == null ? "—" : new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
 const marginTone = (pct: number | null): "grey" | "red" | "orange" | "green" =>
   pct == null ? "grey" : pct < 15 ? "red" : pct < 35 ? "orange" : "green"
-const sizeOptLabel = (id: ScpPrintSizeId) => SCP_PRINT_SIZE_OPTIONS.find((o) => o.id === id)?.label ?? id
 const cellQty = (v: string | undefined) => Math.max(0, Math.floor(Number(v) || 0))
 const rowQty = (r: GroupRow) => Object.values(r.cells).reduce((s, v) => s + cellQty(v), 0)
 const groupQty = (g: JobGroup) => g.rows.reduce((s, r) => s + rowQty(r), 0)
@@ -375,16 +378,17 @@ const toPositionSpec = (p: UiPosition, supplied: boolean): JobPositionSpec => {
   return { method: "print", channel, sizeId: p.sizeId, designId: p.designId, unitSellOverrideMajor }
 }
 
-const positionSummary = (p: UiPosition, designs: JobDesign[], dark: boolean) => {
-  const d = designs.find((x) => x.id === p.designId)?.label ?? "?"
-  const body =
-    p.method === "screen"
-      ? `Screen print ${Number(p.colours) || 1} col${dark ? " + underbase" : ""}`
-      : p.method === "embroidery"
-        ? `Embroidery ${Number(p.stitches) || 0} st`
-        : `${p.channel === "auto" ? "Full-colour print" : CHANNEL_LABELS[p.channel].split(" ")[0]} ${sizeOptLabel(p.sizeId)}`
-  return `${sideLabel(p.side)}: ${body} (design ${d})`
-}
+const positionSummary = (p: UiPosition, designs: JobDesign[], dark: boolean) =>
+  pricerPositionSummary({
+    sideLabel: sideLabel(p.side),
+    method: p.method,
+    channelShort: p.channel === "auto" ? null : CHANNEL_LABELS[p.channel].split(" ")[0],
+    sizeId: p.sizeId,
+    colours: Number(p.colours) || 1,
+    stitches: Number(p.stitches) || 0,
+    dark,
+    design: designs.find((x) => x.id === p.designId) ?? null,
+  })
 
 /** New position defaults: the first side this garment allows that isn't used yet, its first allowed method, A4 if allowed. */
 const newPosition = (group: JobGroup, designId: string, detail: ProductDetail | undefined): UiPosition => {
@@ -946,7 +950,7 @@ function QuotePricerPage() {
     const parts = state.groups
       .filter((g) => groupQty(g) > 0)
       .map((g) => {
-        const name = g.supplied ? "supplied garments" : g.product?.title ?? "garment"
+        const name = g.name?.trim() || (g.supplied ? "supplied garments" : g.product?.title ?? "garment")
         const methods = Array.from(new Set(g.positions.map((p) => p.method))).join("+")
         return `${groupQty(g)} × ${name}${methods ? ` (${methods})` : ""}`
       })
@@ -989,7 +993,6 @@ function QuotePricerPage() {
         const row = g.rows.find((r) => r.id === rowId)
         const size = sizeKey === "any" ? ANY_SIZE : sizeKey
         const variant = !g.supplied && axes && row && size !== ANY_SIZE ? axes.variantFor(row.colour, size) : null
-        const garment = rp.components.find((c) => c.key === "garment")
         const description = (g.positions.map((p) => positionSummary(p, state.designs, row?.dark ?? false)).join(" · ") || "") + discountNote
         // The line's "mockup": the first artwork on this garment's positions, else the product photo.
         const artwork = g.positions.map((p) => state.designs.find((d) => d.id === p.designId)?.imageUrl).find(Boolean) ?? null
@@ -998,7 +1001,7 @@ function QuotePricerPage() {
         const hasDesign = Boolean(prev?.customizerDesign)
         lines.push({
           id,
-          title: garment ? garment.label : `Customer-supplied — ${rp.label}`,
+          title: pricerLineTitle({ groupName: g.name, supplied: g.supplied, productTitle: g.product?.title ?? "Garment", rowLabel: rp.label, colour: row?.colour ?? null, size }),
           description: description.trim() || null,
           quantity: rp.quantity,
           unit_price: discounted(rp.unitSellMajor),
@@ -1034,11 +1037,11 @@ function QuotePricerPage() {
     summary: jobSummary,
     tier: tier ? tier.name : "Public quantity ladder",
     garmentQuantity: priced.garmentQuantity,
-    designs: state.designs.map((d) => ({ label: d.label, repeat: d.repeat, imageUrl: d.imageUrl ?? null })),
+    designs: state.designs.map((d) => ({ label: pricerDesignLabel(d), repeat: d.repeat, imageUrl: d.imageUrl ?? null })),
     groups: priced.groups.map((gp) => {
       const g = state.groups.find((x) => x.id === gp.groupId)!
       return {
-        title: g.supplied ? "Customer-supplied garments" : g.product?.title ?? "Garment",
+        title: pricerGroupTitle({ groupName: g.name, supplied: g.supplied, productTitle: g.product?.title }),
         thumbnail: g.mockupUrl ?? (g.supplied ? null : g.product?.thumbnail ?? null),
         quantity: gp.quantity,
         unitSellMin: gp.unitSellMin,
@@ -1293,6 +1296,7 @@ function QuotePricerPage() {
                     )}
                     <Badge size="2xsmall" color="blue">{d.label}</Badge>
                   </button>
+                  <Input size="small" className="w-36" placeholder="name (optional)" title="Customer-facing name shown with the letter on the quote, e.g. Bull (back)" value={d.name ?? ""} onChange={(e) => patchDesign(d.id, { name: e.target.value })} />
                   <span className="text-ui-fg-muted">{uses} position{uses === 1 ? "" : "s"}</span>
                   <label className="flex items-center gap-1"><Checkbox checked={d.repeat} onCheckedChange={(v) => patchDesign(d.id, { repeat: v === true })} /> repeat (≤6 mo: screens $39, transfer $35, no digitizing)</label>
                   {d.imageUrl ? <button type="button" className="text-ui-fg-muted hover:text-ui-fg-base" onClick={() => patchDesign(d.id, { imageUrl: null })} title="Remove artwork">clear art</button> : null}
@@ -1355,6 +1359,7 @@ function QuotePricerPage() {
                 ) : (
                   <GarmentSearch onPick={(p) => void pickProduct(g.id, p)} />
                 )}
+                <Input size="small" className="w-40" placeholder="group name (optional)" title="Customer-facing name, e.g. Bull shirt — prefixes this group's quote lines so two groups of one garment read differently" value={g.name ?? ""} onChange={(e) => patchGroup(g.id, { name: e.target.value })} />
                 <div className="ml-auto flex items-center gap-3 text-xs whitespace-nowrap">
                   <span className="text-ui-fg-muted">{qty} pcs</span>
                   <span className="text-ui-fg-muted">garment {money(resolved?.unitSellMajor ?? 0)} + deco {money(gp?.decorationUnitMajor ?? 0)} =</span>

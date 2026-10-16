@@ -46,7 +46,7 @@ const COPY: Record<
   quote_accepted: {
     eyebrow: "Quote accepted",
     titleColor: "#16a34a",
-    body: "The customer accepted the quote — a cart has been created and they've been sent to checkout. The job lands in Orders once they complete payment.",
+    body: "The customer accepted the quote — the order has been created (unpaid) and they've been emailed the tax invoice and offered card payment on the accept page. It's in Orders now; a card payment marks it paid automatically.",
   },
 }
 

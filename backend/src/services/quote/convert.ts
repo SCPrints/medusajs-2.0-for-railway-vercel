@@ -26,7 +26,9 @@ export type ConvertQuoteResult = {
 }
 
 /**
- * Staff-side quote → order conversion — no customer checkout involved.
+ * Quote → order conversion — no customer checkout involved. Runs when the
+ * customer clicks Accept on the signed link, when staff set the status to
+ * Accepted, and from the admin "Convert to order" button.
  *
  * Marries the two existing halves:
  *  - line mapping from the customer accept route (quoted unit_price honoured,
@@ -48,8 +50,17 @@ export type ConvertQuoteResult = {
  */
 export const convertQuoteToOrder = async (
   container: MedusaContainer,
-  args: { quoteId: string; actorId: string | null }
+  args: {
+    quoteId: string
+    actorId: string | null
+    /** "customer" = the customer clicked Accept on the signed link. */
+    via?: "admin" | "customer"
+    approverName?: string | null
+    /** Status before the caller's transient "converting" claim, for the event log. */
+    fromStatus?: string
+  }
 ): Promise<ConvertQuoteResult> => {
+  const via = args.via ?? "admin"
   const service = container.resolve<QuoteModuleService>(QUOTE_MODULE)
   const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
 
@@ -330,7 +341,8 @@ export const convertQuoteToOrder = async (
         order_id: orderId,
         order_display_id: displayId,
         converted_by: args.actorId,
-        converted_via: "admin",
+        converted_via: via,
+        ...(args.approverName ? { accepted_by_name: args.approverName } : {}),
       },
     },
   ])
@@ -338,12 +350,12 @@ export const convertQuoteToOrder = async (
     {
       quote_id: quote.id,
       type: "status_changed",
-      actor: args.actorId ?? "admin",
+      actor: args.actorId ?? args.approverName ?? via,
       body: {
-        from: quote.status,
+        from: args.fromStatus ?? quote.status,
         to: "accepted",
         order_id: orderId,
-        via: "admin_convert",
+        via: via === "customer" ? "customer_accept" : "admin_convert",
       },
     },
   ])

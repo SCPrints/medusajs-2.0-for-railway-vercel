@@ -1014,7 +1014,14 @@ const QuotesPage = () => {
         body: JSON.stringify(patch),
       })
       if (!res.ok) throw new Error(await res.text())
-      toast.success("Saved")
+      const json = await res.json().catch(() => ({}))
+      if ((json as any)?.order) {
+        toast.success(`Accepted — order #${(json as any).order.display_id ?? ""} created`)
+      } else if ((json as any)?.order_error) {
+        toast.warning(`Saved, but no order was created: ${(json as any).order_error}`)
+      } else {
+        toast.success("Saved")
+      }
       await load()
       if (selectedId === id) await loadDetail(id)
     } catch (err: any) {

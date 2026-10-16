@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useParams, useRouter } from "next/navigation"
 
 import { acceptQuote, type QuoteForAccept } from "@lib/data/quote-accept"
 import DecorationList from "@modules/quote-accept/components/decoration-list"
@@ -35,25 +34,45 @@ const fmtMoney = (
 }
 
 const AcceptForm = ({ id, sig, quote }: Props) => {
-  const router = useRouter()
-  const { countryCode } = useParams() as { countryCode: string }
   const [name, setName] = useState(quote.contact_name ?? "")
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [placed, setPlaced] = useState<{
+    display_id: number | string | null
+    pay_url: string | null
+  } | null>(
+    quote.already_accepted
+      ? {
+          display_id: quote.order_display_id ?? null,
+          pay_url: quote.pay_url ?? null,
+        }
+      : null
+  )
 
-  if (quote.already_accepted) {
+  if (placed) {
     return (
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
           Quote {quote.public_id}
         </p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-emerald-900">
-          Quote already accepted
+          {placed.display_id
+            ? `Order #${placed.display_id} confirmed`
+            : "Quote accepted"}
         </h1>
         <p className="mt-2 text-sm text-emerald-800">
-          We&apos;ve got this one moving. If you weren&apos;t expecting that,
-          reply to your quote email and we&apos;ll sort it out.
+          {placed.display_id
+            ? "Thanks — your job is booked in. We've emailed your tax invoice with bank-transfer details."
+            : "We've got this one moving. If you weren't expecting that, reply to your quote email and we'll sort it out."}
         </p>
+        {placed.pay_url ? (
+          <a
+            href={placed.pay_url}
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
+          >
+            Pay now by card
+          </a>
+        ) : null}
       </div>
     )
   }
@@ -70,8 +89,10 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         setError(res.error)
         return
       }
-      // Take them to the cart so they can review + check out.
-      router.push(`/${countryCode}/cart`)
+      setPlaced({ display_id: res.display_id, pay_url: res.pay_url })
+      // Card payment straight away when a link was minted; the confirmation
+      // (with the same button) shows if they come back.
+      if (res.pay_url) window.location.href = res.pay_url
     })
   }
 
@@ -223,14 +244,14 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           disabled={pending}
           className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
         >
-          {pending ? "Building your cart…" : "Accept and check out"}
+          {pending ? "Placing your order…" : "Accept and place order"}
         </button>
       </div>
 
       <p className="mt-6 text-xs text-ui-fg-muted">
-        Accepting builds a cart with the items above. You&apos;ll review one
-        more time before paying. Reply to your quote email if anything needs to
-        change first.
+        Accepting places your order at the prices above and emails your tax
+        invoice. You can pay by card straight away or by bank transfer. Reply
+        to your quote email if anything needs to change first.
       </p>
     </div>
   )
