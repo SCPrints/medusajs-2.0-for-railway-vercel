@@ -420,13 +420,16 @@ function LineItemsEditor({
                 />
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {hasDesign && onDesignLine ? (
+                {/* Job-pricer lines (jp_…) open the Studio on THEIR group so the
+                    design attaches to them at the quoted price — the bottom
+                    "Design in Studio" starts a new group (a duplicate line). */}
+                {(hasDesign || (row.group_id && row.id.startsWith("jp_"))) && onDesignLine ? (
                   <Button
                     size="small"
                     variant="secondary"
                     onClick={() => onDesignLine(row)}
                   >
-                    <PencilSquare /> Edit design in Studio
+                    <PencilSquare /> {hasDesign ? "Edit design in Studio" : "Design in Studio"}
                   </Button>
                 ) : null}
                 {(row.mockup_urls?.length
@@ -438,7 +441,12 @@ function LineItemsEditor({
                   <Button key={i} size="small" variant="secondary" asChild>
                     <a href={m.url} target="_blank" rel="noreferrer">
                       View{" "}
-                      {m.side ? String(m.side).replace(/_/g, " ") : "mockup"}
+                      {m.side
+                        ? String(m.side).replace(/_/g, " ")
+                        : // ponytail: a pricer line with no Studio design carries the design letter's artwork, not a mockup
+                          row.id.startsWith("jp_") && !hasDesign
+                          ? "artwork"
+                          : "mockup"}
                     </a>
                   </Button>
                 ))}
@@ -1257,11 +1265,12 @@ function QuoteDetail({
   }, [incomingStudioPopup])
 
   const openStudio = useCallback(
-    async (group: string | null, handle: string | null) => {
+    async (group: string | null, handle: string | null, variant: string | null = null) => {
       try {
         const params = new URLSearchParams()
         if (group) params.set("group", group)
         if (handle) params.set("handle", handle)
+        if (variant) params.set("variant", variant)
         const res = await fetch(
           `/admin/quotes/${quote.id}/design-link?${params.toString()}`,
           { credentials: "include" }
@@ -1627,7 +1636,7 @@ function QuoteDetail({
             regionId={regionId}
             pricerQuoteId={quote.id}
             onDesignLine={(row) =>
-              openStudio(row.group_id ?? null, row.product_handle ?? null)
+              openStudio(row.group_id ?? null, row.product_handle ?? null, row.variant_id ?? null)
             }
             onAddDesign={() => openStudio(null, null)}
           />
