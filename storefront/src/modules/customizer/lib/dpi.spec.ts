@@ -6,6 +6,7 @@ import {
   effectiveDpiForFabricImage,
   getFabricImageSourceWidthPx,
 } from "./dpi"
+import { canvasPxPerInch } from "./print-spec"
 
 /**
  * Build a duck-typed Fabric image object exposing the small surface our DPI
@@ -161,5 +162,28 @@ describe("assessCanvasDpi", () => {
   it("returns ok when canvas argument is falsy", () => {
     expect(assessCanvasDpi(null, pixelsPerInch).severity).toBe("ok")
     expect(assessCanvasDpi({}, pixelsPerInch).severity).toBe("ok")
+  })
+})
+
+describe("DPI on the production cm scale (canvasPxPerInch)", () => {
+  // Reported 2026-10-16: 2000 px artwork printed 9 cm and 24 cm wide showed
+  // ~148 and ~132 DPI. The old code called each size's (undersized) guide box
+  // 12 inches wide. On the production scale they are ~564 and ~212 DPI.
+  const W = 600
+  const pxPerCm = (W * 0.68) / 38
+  const image = (cm: number) => fakeImage({ naturalWidth: 2000, scaledWidth: cm * pxPerCm })
+
+  it("9 cm and 24 cm prints of a 2000 px file read ~564 and ~212 DPI", () => {
+    const ppi = canvasPxPerInch(W)
+    expect(effectiveDpiForFabricImage(image(9), ppi)).toBeCloseTo(2000 / (9 / 2.54), 3)
+    expect(effectiveDpiForFabricImage(image(24), ppi)).toBeCloseTo(2000 / (24 / 2.54), 3)
+    expect(classifyDpi(effectiveDpiForFabricImage(image(24), ppi)!)).toBe("warning")
+  })
+
+  it("reproduces the old wrong numbers when the guide box is treated as 12 inches", () => {
+    const a6GuidePx = W * 0.68 * (8 / 38)
+    const a3GuidePx = W * 0.68 * (19 / 38)
+    expect(Math.round(effectiveDpiForFabricImage(image(9), a6GuidePx / 12)!)).toBe(148)
+    expect(Math.round(effectiveDpiForFabricImage(image(24), a3GuidePx / 12)!)).toBe(132)
   })
 })

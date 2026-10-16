@@ -96,6 +96,14 @@ export const canvasPxToApproxCm = (
   }
 }
 
+/**
+ * Canvas px per printed inch, on the same scale as `canvasPxToApproxCm` and
+ * production (38 cm = 68% of canvas width). Feed this to the DPI check — the
+ * old "print area = 12 inches" guess treated an A6 guide as 30 cm wide.
+ */
+export const canvasPxPerInch = (canvasWidth: number): number =>
+  ((canvasWidth * CANVAS_PRINT_AREA_W_RATIO) / SCP_PRINT_SIZE_REFERENCE_CM.oversize.width) * 2.54
+
 export type SnapContext = {
   isLongSleeve: boolean
   /** Hat / cap garments — every side collapses to A6. */

@@ -101,6 +101,7 @@ import {
   parseDecorationPricingClass,
 } from "@modules/customizer/lib/scp-supacolour-pricing"
 import {
+  canvasPxPerInch,
   canvasPxToApproxCm,
   maxArtworkPx,
   printSpecsToPricingSpecs,
@@ -153,7 +154,6 @@ import { FabricImage } from "fabric"
 
 const DESIGN_SIDES: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
 const MAX_UPLOAD_SIZE = 8 * 1024 * 1024
-const PRINT_AREA_INCHES = { width: 12, height: 16 }
 const SESSION_UPLOADS_KEY = "customizer_uploads_v1"
 /** Ignore sub-pixel drift from Fabric so small moves inside the box don’t show a “clipped” alert. */
 const PRINT_AREA_EPS = 1.5
@@ -1978,7 +1978,8 @@ export default function CustomizerTemplate({
       return
     }
 
-    const pixelsPerInch = pr.width / PRINT_AREA_INCHES.width
+    // Production scale, not the guide box: guides are drawn undersized per size.
+    const pixelsPerInch = canvasPxPerInch(canvas.getWidth())
     if (!Number.isFinite(pixelsPerInch) || pixelsPerInch <= 0) {
       setDpiWarning(null)
       setDpiAssessment({ worstDpi: null, severity: "ok", imagesEvaluated: 0, imagesBelowCritical: 0 })
