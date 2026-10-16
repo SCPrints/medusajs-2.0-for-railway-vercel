@@ -543,6 +543,18 @@ export const renderPrintAsset = async (payload: RenderRequestPayload) => {
   }
 }
 
+/**
+ * Where the artwork overlay lands when shrunk by `artworkScale`. Mirrors the
+ * storefront CSS `scale(s)` with origin 50% 13% (MOCKUP_SCALE_ORIGIN in
+ * storefront print-spec.ts): garment centre line, top of the print zone.
+ */
+export const scaledOverlayBox = (width: number, height: number, scale: number) => ({
+  left: Math.round(width * 0.5 * (1 - scale)),
+  top: Math.round(height * 0.13 * (1 - scale)),
+  width: Math.max(1, Math.round(width * scale)),
+  height: Math.max(1, Math.round(height * scale)),
+})
+
 export const renderMockupAsset = async (payload: RenderRequestPayload) => {
   const artworkSvgBuffer = Buffer.from(payload.artworkSvg)
 
@@ -656,12 +668,18 @@ export const renderMockupAsset = async (payload: RenderRequestPayload) => {
       .toBuffer()
   }
 
+  const scale = payload.artworkScale ?? 1
+  const box = scaledOverlayBox(mockupWidth, mockupHeight, scale)
+  if (scale < 1) {
+    overlayBuf = await sharp(overlayBuf).resize(box.width, box.height).png().toBuffer()
+  }
+
   const mockupBuffer = await sharp(garmentBase)
     .composite([
       {
         input: overlayBuf,
-        left: 0,
-        top: 0,
+        left: scale < 1 ? box.left : 0,
+        top: scale < 1 ? box.top : 0,
         blend: "over",
       },
     ])

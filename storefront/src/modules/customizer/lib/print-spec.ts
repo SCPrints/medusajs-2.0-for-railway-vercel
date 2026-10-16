@@ -104,6 +104,28 @@ export const canvasPxToApproxCm = (
 export const canvasPxPerInch = (canvasWidth: number): number =>
   ((canvasWidth * CANVAS_PRINT_AREA_W_RATIO) / SCP_PRINT_SIZE_REFERENCE_CM.oversize.width) * 2.54
 
+/**
+ * Garment photos are framed by the supplier, not to our cm scale: the AS
+ * Colour 5086 flat-lay body spans ~36 reference cm on the canvas but a real
+ * Large is 59 cm, so artwork looked ~1.6× too big on the shirt. A product's
+ * `metadata.mockup_scale` (photo body cm ÷ real body cm, e.g. 0.62) shrinks
+ * the artwork layer on screen and in the rendered mockup ONLY — Fabric
+ * coordinates, saved designs, print files and production mm are untouched.
+ * Front/back only: sleeves use a generic drawing and the tag view is zoomed.
+ */
+export const MOCKUP_SCALE_ORIGIN = { x: 0.5, y: 0.13 } // garment centre, top of the print zone
+
+export const resolveMockupArtworkScale = (
+  metadata: Record<string, unknown> | null | undefined,
+  side: GarmentSide
+): number => {
+  if (side !== "front" && side !== "back") return 1
+  // Admin metadata editor saves strings, so accept "0.62" too.
+  const raw = metadata?.mockup_scale
+  const v = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN
+  return Number.isFinite(v) && v >= 0.3 && v <= 1 ? v : 1
+}
+
 export type SnapContext = {
   isLongSleeve: boolean
   /** Hat / cap garments — every side collapses to A6. */

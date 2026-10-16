@@ -105,6 +105,7 @@ import {
   canvasPxToApproxCm,
   maxArtworkPx,
   printSpecsToPricingSpecs,
+  resolveMockupArtworkScale,
   snapSizeForBoundingCm,
 } from "@modules/customizer/lib/print-spec"
 import {
@@ -1562,6 +1563,12 @@ export default function CustomizerTemplate({
     }
     return null
   }, [selectedProduct])
+
+  // Display-only artwork shrink so prints read at true size on the photo.
+  const mockupArtworkScale = resolveMockupArtworkScale(
+    selectedProduct?.metadata as Record<string, unknown> | undefined,
+    currentSide
+  )
 
   const garmentImageUrl = useMemo(
     () =>
@@ -3785,6 +3792,10 @@ export default function CustomizerTemplate({
       // recolours the white placeholder so the mockup picks up the variant
       // colour instead of staying white-on-black.
       tintColor: variantTintHexForRender ?? undefined,
+      artworkScale: resolveMockupArtworkScale(
+        selectedProduct?.metadata as Record<string, unknown> | undefined,
+        side
+      ),
     }
 
     const [printResponse, mockupResponse] = await Promise.all([
@@ -3884,6 +3895,10 @@ export default function CustomizerTemplate({
         },
         canvas: canvasDims,
         tintColor: variantTintHexForRender ?? undefined,
+        artworkScale: resolveMockupArtworkScale(
+          selectedProduct?.metadata as Record<string, unknown> | undefined,
+          side
+        ),
       }
 
       const mockupResponse = await fetch("/api/customizer/render-mockup", {
@@ -5890,6 +5905,7 @@ export default function CustomizerTemplate({
                       dpiWarning={dpiWarning}
                       sizeWarning={screenSizeWarning}
                       fabricContainerRef={fabricContainerRef}
+                      artworkScale={mockupArtworkScale}
                       frameClassName={
                         assemblyLayout
                           ? "mx-auto aspect-[4/5] h-full max-h-full w-auto max-w-full rounded-xl"

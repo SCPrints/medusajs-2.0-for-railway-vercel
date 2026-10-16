@@ -39,6 +39,11 @@ export const renderRequestSchema = z.object({
       z.union([z.string().regex(/^#[0-9a-fA-F]{6}$/), z.null()])
     )
     .optional(),
+  /**
+   * Mockup-only artwork shrink (product `metadata.mockup_scale`) so prints read
+   * at true size against the supplier photo. Ignored by render-print.
+   */
+  artworkScale: z.number().min(0.3).max(1).optional(),
 })
 
 export type RenderRequestPayload = z.infer<typeof renderRequestSchema>

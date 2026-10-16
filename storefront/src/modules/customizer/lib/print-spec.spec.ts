@@ -2,6 +2,7 @@ import {
   canvasPxToApproxCm,
   maxArtworkPx,
   printSpecsToPricingSpecs,
+  resolveMockupArtworkScale,
   snapSizeForBoundingCm,
   SCP_PRINT_SIZE_REFERENCE_CM,
 } from "./print-spec"
@@ -117,5 +118,24 @@ describe("printSpecsToPricingSpecs", () => {
     expect(printSpecsToPricingSpecs(specs)).toEqual([
       { side: "front", sizeId: "up_to_a4" },
     ])
+  })
+})
+
+describe("resolveMockupArtworkScale", () => {
+  it("reads metadata.mockup_scale as a number or the admin editor's string", () => {
+    expect(resolveMockupArtworkScale({ mockup_scale: 0.62 }, "front")).toBe(0.62)
+    expect(resolveMockupArtworkScale({ mockup_scale: "0.62" }, "back")).toBe(0.62)
+  })
+
+  it("defaults to 1 (today's behaviour) when unset or out of range", () => {
+    expect(resolveMockupArtworkScale(undefined, "front")).toBe(1)
+    expect(resolveMockupArtworkScale({ mockup_scale: "" }, "front")).toBe(1)
+    expect(resolveMockupArtworkScale({ mockup_scale: 0.1 }, "front")).toBe(1)
+    expect(resolveMockupArtworkScale({ mockup_scale: 1.6 }, "front")).toBe(1)
+  })
+
+  it("never scales sleeves or the tag (generic drawing / zoomed view)", () => {
+    expect(resolveMockupArtworkScale({ mockup_scale: 0.62 }, "left_sleeve")).toBe(1)
+    expect(resolveMockupArtworkScale({ mockup_scale: 0.62 }, "printed_tag")).toBe(1)
   })
 })
