@@ -83,14 +83,14 @@ export default function HomeToolsRail() {
                 href={tool.href}
                 className="group flex h-full min-h-12 flex-col rounded-lg border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm"
               >
-                <Icon className="text-ui-fg-base transition-colors group-hover:text-[var(--brand-secondary)]" />
+                <Icon className="text-ui-fg-base transition-colors group-hover:text-brand" />
                 <p className="mt-4 flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
                   {tool.title}
                 </p>
                 <p className="mt-2 flex-1 text-xs text-ui-fg-subtle">
                   {tool.description}
                 </p>
-                <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--brand-secondary)]">
+                <span className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-brand">
                   Open
                   <ArrowIcon />
                 </span>

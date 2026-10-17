@@ -99,7 +99,7 @@ export default function HomeMovingBanner() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-[var(--brand-secondary)]"
+                className="text-brand"
                 aria-hidden
               >
                 <g className="scp-mvbox">
@@ -125,7 +125,7 @@ export default function HomeMovingBanner() {
               <LocalizedClientLink
                 href={MOVE.newAddressHref}
                 onClick={dismiss}
-                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
+                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
               >
                 See our new address
               </LocalizedClientLink>

@@ -5,7 +5,7 @@
 export default function NoMinimumBadge({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-secondary)]/10 px-3 py-1 text-xs font-semibold !text-[var(--brand-secondary)] phone:text-sm ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-secondary)]/10 px-3 py-1 text-xs font-semibold !text-brand phone:text-sm ${className}`}
     >
       <svg
         width="14"

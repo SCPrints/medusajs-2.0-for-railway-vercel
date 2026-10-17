@@ -209,7 +209,7 @@ const EmailPreferencesForm = ({
             type="button"
             onClick={save}
             disabled={loading || saving}
-            className="rounded-md bg-[var(--brand-primary,#ff2e63)] text-white px-4 py-2 text-sm font-semibold disabled:opacity-50"
+            className="rounded-md bg-ink text-white px-4 py-2 text-sm font-semibold disabled:opacity-50"
           >
             {saving ? "Saving…" : "Save preferences"}
           </button>

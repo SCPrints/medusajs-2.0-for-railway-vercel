@@ -197,9 +197,9 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
                 className={clx(
                   "h-11 w-11 small:h-8 small:w-8 rounded-full border transition-all duration-150 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2",
                   {
-                    "border-[var(--brand-accent)] ring-2 ring-[var(--brand-accent)] ring-offset-1":
+                    "border-accent ring-2 ring-accent ring-offset-1":
                       isSelected,
-                    "border-ui-border-base hover:scale-105 hover:border-[var(--brand-secondary)] hover:ring-2 hover:ring-[var(--brand-secondary)] hover:ring-offset-1":
+                    "border-ui-border-base hover:scale-105 hover:border-brand hover:ring-2 hover:ring-brand hover:ring-offset-1":
                       !isSelected,
                   }
                 )}
@@ -257,7 +257,7 @@ const OptionSelect: React.FC<OptionSelectProps> = ({
         <button
           type="button"
           onClick={() => setColourExpanded(true)}
-          className="inline-flex h-11 w-11 small:h-8 small:w-8 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle text-[11px] font-semibold text-ui-fg-base transition-all duration-150 ease-in-out hover:scale-105 hover:border-[var(--brand-secondary)] hover:ring-2 hover:ring-[var(--brand-secondary)] hover:ring-offset-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
+          className="inline-flex h-11 w-11 small:h-8 small:w-8 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-subtle text-[11px] font-semibold text-ui-fg-base transition-all duration-150 ease-in-out hover:scale-105 hover:border-brand hover:ring-2 hover:ring-brand hover:ring-offset-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-fg-base focus-visible:ring-offset-2"
           aria-label={`Show ${hiddenColourCount} more ${title?.toLowerCase()} option${hiddenColourCount === 1 ? "" : "s"}`}
           data-testid="option-swatch-show-more"
         >

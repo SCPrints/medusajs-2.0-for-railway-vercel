@@ -88,7 +88,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
                   })}
                 </p>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[var(--brand-secondary)]">
+              <span className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand">
                 View
                 <ArrowRightIcon />
               </span>
@@ -101,7 +101,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
             </p>
             <LocalizedClientLink
               href="/store"
-              className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-4 py-2.5 text-sm font-semibold text-white"
+              className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white"
             >
               Browse the store
               <ArrowRightIcon />
@@ -121,7 +121,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
         ) : null}
       </div>
       <div className="hidden small:block">
-        <header className="border-l-4 border-[var(--brand-secondary)] pl-4">
+        <header className="border-l-4 border-brand pl-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
             Account overview
           </p>
@@ -164,7 +164,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
             {profileCompletion < 100 ? (
               <LocalizedClientLink
                 href="/account/profile"
-                className="group mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 Finish your profile
                 <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -188,7 +188,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
             </p>
             <LocalizedClientLink
               href="/account/addresses"
-              className="group mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+              className="group mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
             >
               {addressCount > 0 ? "Manage addresses" : "Add an address"}
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -209,7 +209,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
             {recentOrders.length > 0 ? (
               <LocalizedClientLink
                 href="/account/orders"
-                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 View all orders
                 <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -267,7 +267,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
                         </span>
                       </div>
                       <button
-                        className="flex items-center justify-between text-ui-fg-subtle transition group-hover:text-[var(--brand-secondary)]"
+                        className="flex items-center justify-between text-ui-fg-subtle transition group-hover:text-brand"
                         data-testid="open-order-button"
                         type="button"
                       >
@@ -291,7 +291,7 @@ const Overview = ({ customer, orders, tier = null }: OverviewProps) => {
                   </p>
                   <LocalizedClientLink
                     href="/store"
-                    className="group mt-4 inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                    className="group mt-4 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
                   >
                     Browse the store
                     <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

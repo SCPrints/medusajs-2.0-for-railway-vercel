@@ -45,11 +45,11 @@ const NpsThanks = ({ order, score, sig }: Props) => {
   }
 
   return (
-    <div className="rounded-2xl border border-[rgba(26,26,46,0.1)] bg-white/95 p-6 shadow-[0_4px_40px_rgba(26,26,46,0.08)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+    <div className="rounded-2xl border border-ink/[0.1] bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
         You scored us {score}/5
       </p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--brand-primary)]">
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
         {HEADLINE[score] ?? "Thanks for your feedback"}
       </h1>
       {error ? (
@@ -63,8 +63,8 @@ const NpsThanks = ({ order, score, sig }: Props) => {
       )}
 
       {score >= 4 && (
-        <div className="mt-5 rounded-xl border border-[rgba(26,26,46,0.08)] bg-[rgba(26,26,46,0.03)] p-4">
-          <p className="text-sm font-semibold text-[var(--brand-primary)]">
+        <div className="mt-5 rounded-xl border border-ink/[0.08] bg-ink/[0.03] p-4">
+          <p className="text-sm font-semibold text-ink">
             Mind sharing that on Google?
           </p>
           <p className="mt-1 text-sm text-ui-fg-subtle">
@@ -75,14 +75,14 @@ const NpsThanks = ({ order, score, sig }: Props) => {
             href={GOOGLE_REVIEW_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center justify-center rounded-md bg-[var(--brand-secondary)] px-4 py-2 text-sm font-semibold text-white shadow-sm"
+            className="mt-3 inline-flex items-center justify-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm"
           >
             Leave a Google review
           </a>
         </div>
       )}
 
-      <hr className="my-6 border-[rgba(26,26,46,0.08)]" />
+      <hr className="my-6 border-ink/[0.08]" />
 
       {commentSaved ? (
         <p className="text-sm text-emerald-700">
@@ -92,7 +92,7 @@ const NpsThanks = ({ order, score, sig }: Props) => {
         <>
           <label
             htmlFor="nps-comment"
-            className="block text-sm font-semibold text-[var(--brand-primary)]"
+            className="block text-sm font-semibold text-ink"
           >
             Anything you&apos;d like to add? (optional)
           </label>
@@ -102,14 +102,14 @@ const NpsThanks = ({ order, score, sig }: Props) => {
             onChange={(e) => setComment(e.target.value)}
             rows={4}
             maxLength={1000}
-            className="mt-2 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+            className="mt-2 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             placeholder="What stood out — good or bad?"
           />
           <button
             type="button"
             onClick={submitComment}
             disabled={!comment.trim()}
-            className="mt-3 inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-gray-300"
+            className="mt-3 inline-flex items-center justify-center rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:bg-gray-300"
           >
             Send comment
           </button>

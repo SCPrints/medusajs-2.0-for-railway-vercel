@@ -125,7 +125,7 @@ export default function AddToHomeBanner() {
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="text-[var(--brand-secondary)]"
+                className="text-brand"
                 aria-hidden
               >
                 <path d="M12 3v12" />
@@ -169,7 +169,7 @@ export default function AddToHomeBanner() {
             <button
               type="button"
               onClick={install}
-              className="mt-3 inline-flex w-full min-h-11 items-center justify-center rounded-lg bg-[var(--brand-secondary)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
+              className="mt-3 inline-flex w-full min-h-11 items-center justify-center rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm active:scale-[0.99]"
             >
               Install
             </button>

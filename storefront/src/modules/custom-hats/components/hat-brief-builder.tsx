@@ -266,7 +266,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
         className={`rounded-2xl border border-[var(--brand-primary)]/25 bg-white p-6 text-center${id ? " scroll-mt-28" : ""}`}
         aria-labelledby={formTitleId}
       >
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-primary)]/8 text-[var(--brand-primary)]">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-primary)]/8 text-ink">
           <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -280,7 +280,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
         <button
           type="button"
           onClick={() => setSuccess(false)}
-          className="mt-5 text-sm font-semibold text-[var(--brand-secondary)] underline hover:text-[var(--brand-accent)]"
+          className="mt-5 text-sm font-semibold text-brand underline hover:text-accent"
         >
           Start another hat
         </button>
@@ -298,7 +298,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
       <HoneypotField />
       {/* 1. Base cap */}
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-[var(--brand-primary)]">1. Base cap</legend>
+        <legend className="text-sm font-semibold text-ink">1. Base cap</legend>
         <div>
           <label className={labelClass}>Cap style</label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -307,7 +307,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
                 key={c.id}
                 className={`flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 text-sm transition ${
                   capStyle === c.id
-                    ? "border-[var(--brand-primary)] bg-[var(--brand-primary)]/5"
+                    ? "border-ink bg-[var(--brand-primary)]/5"
                     : "border-ui-border-base hover:border-[var(--brand-primary)]/50"
                 }`}
               >
@@ -318,7 +318,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
                     value={c.id}
                     checked={capStyle === c.id}
                     onChange={() => setCapStyle(c.id)}
-                    className="h-4 w-4 text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
+                    className="h-4 w-4 text-ink focus:ring-ink"
                   />
                   {c.label}
                 </span>
@@ -341,7 +341,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
 
       {/* 2. Decorations */}
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-[var(--brand-primary)]">2. Decorations</legend>
+        <legend className="text-sm font-semibold text-ink">2. Decorations</legend>
         <p className="text-xs text-ui-fg-subtle">Add a block per logo/graphic. Choose where it goes and how it&apos;s decorated.</p>
         <div className="space-y-3">
           {decorations.map((d, i) => (
@@ -390,18 +390,18 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
             </div>
           ))}
         </div>
-        <button type="button" onClick={addDecoration} className="text-sm font-semibold text-[var(--brand-secondary)] underline hover:text-[var(--brand-accent)]">
+        <button type="button" onClick={addDecoration} className="text-sm font-semibold text-brand underline hover:text-accent">
           + Add another decoration
         </button>
       </fieldset>
 
       {/* 3. Structural / trim */}
       <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold text-[var(--brand-primary)]">3. Structural &amp; trim add-ons <span className="font-normal text-ui-fg-subtle">(optional)</span></legend>
+        <legend className="text-sm font-semibold text-ink">3. Structural &amp; trim add-ons <span className="font-normal text-ui-fg-subtle">(optional)</span></legend>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {TRIM_OPTIONS.map((t) => (
             <label key={t.id} className="flex cursor-pointer items-center gap-2 text-sm text-ui-fg-base">
-              <input type="checkbox" checked={trims.has(t.id)} onChange={() => toggleTrim(t.id)} className="h-4 w-4 rounded border-[var(--brand-primary)]/40 text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]" />
+              <input type="checkbox" checked={trims.has(t.id)} onChange={() => toggleTrim(t.id)} className="h-4 w-4 rounded border-[var(--brand-primary)]/40 text-ink focus:ring-ink" />
               {t.label}
             </label>
           ))}
@@ -410,7 +410,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
 
       {/* 4. Artwork */}
       <fieldset className="space-y-2">
-        <legend className="text-sm font-semibold text-[var(--brand-primary)]">4. Artwork &amp; references <span className="font-normal text-ui-fg-subtle">(optional, up to {MAX_MOOD_BOARD})</span></legend>
+        <legend className="text-sm font-semibold text-ink">4. Artwork &amp; references <span className="font-normal text-ui-fg-subtle">(optional, up to {MAX_MOOD_BOARD})</span></legend>
         <p className="text-xs text-ui-fg-subtle">Logos, sketches, brand references, or photos of a look you&apos;re after. Faster quotes, fewer rounds.</p>
         <div className="flex flex-wrap items-start gap-2">
           {moodBoard.map((m) => (
@@ -433,7 +433,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
 
       {/* 5. Your details */}
       <fieldset className="space-y-4">
-        <legend className="text-sm font-semibold text-[var(--brand-primary)]">5. Your details</legend>
+        <legend className="text-sm font-semibold text-ink">5. Your details</legend>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="hat-first" className={labelClass}>First name</label>
@@ -473,7 +473,7 @@ export default function HatBriefBuilder({ id }: { id?: string }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-[var(--brand-primary)] px-4 py-3 text-sm font-semibold text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-lg bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Sending…" : "Send my hat brief"}
       </button>

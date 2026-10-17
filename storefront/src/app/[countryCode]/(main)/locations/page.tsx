@@ -83,7 +83,7 @@ export default function LocationsPage() {
                 <p className="mt-3 text-sm leading-relaxed text-ui-fg-subtle">
                   {location.description}
                 </p>
-                <span className="mt-4 inline-block text-sm font-medium text-[var(--brand-secondary)]">
+                <span className="mt-4 inline-block text-sm font-medium text-brand">
                   View {location.suburb} →
                 </span>
               </LocalizedClientLink>

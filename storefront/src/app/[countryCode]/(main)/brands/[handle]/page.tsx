@@ -120,7 +120,7 @@ export default async function BrandLandingPage({ params, searchParams }: Params)
         <div className="content-container pt-6">
           <LocalizedClientLink
             href={BRAND_GUIDES[brand.handle].href}
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold !text-ui-fg-base underline underline-offset-4 hover:!text-[var(--brand-secondary)]"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold !text-ui-fg-base underline underline-offset-4 hover:!text-brand"
           >
             {BRAND_GUIDES[brand.handle].label} →
           </LocalizedClientLink>

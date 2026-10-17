@@ -26,7 +26,7 @@ export default async function CheckoutForm({
 
   return (
     <div>
-      <div className="grid w-full grid-cols-1 gap-y-0 divide-y divide-[rgba(26,26,46,0.1)]">
+      <div className="grid w-full grid-cols-1 gap-y-0 divide-y divide-ink/[0.1]">
         <div className="pb-10 pt-0 first:pt-0">
           <Addresses cart={cart} customer={customer} />
         </div>

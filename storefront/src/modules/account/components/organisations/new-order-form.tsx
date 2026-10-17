@@ -174,7 +174,7 @@ export default function NewOrderForm({
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
-            className="rounded-full border border-[var(--brand-secondary)]/40 px-3 py-1.5 text-xs font-semibold text-[var(--brand-secondary)] transition hover:bg-[var(--brand-secondary)]/10 min-h-11"
+            className="rounded-full border border-[var(--brand-secondary)]/40 px-3 py-1.5 text-xs font-semibold text-brand transition hover:bg-[var(--brand-secondary)]/10 min-h-11"
           >
             + Add item
           </button>
@@ -238,7 +238,7 @@ export default function NewOrderForm({
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                             inv.fulfillment_mode === "held_stock"
-                              ? "bg-[var(--brand-accent)]/15 text-[var(--brand-primary)]"
+                              ? "bg-[var(--brand-accent)]/15 text-ink"
                               : "bg-ui-bg-subtle text-ui-fg-subtle"
                           }`}
                         >
@@ -376,7 +376,7 @@ export default function NewOrderForm({
             type="button"
             disabled={!canSubmit}
             onClick={() => setConfirmOpen(true)}
-            className="inline-flex flex-1 items-center justify-center rounded-full bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 small:flex-none"
+            className="inline-flex flex-1 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11 small:flex-none"
           >
             Submit order
           </button>
@@ -563,7 +563,7 @@ function SkuPicker({
       <button
         type="button"
         onClick={onBack}
-        className="self-start text-xs font-semibold text-[var(--brand-secondary)] hover:underline min-h-11 px-1"
+        className="self-start text-xs font-semibold text-brand hover:underline min-h-11 px-1"
       >
         ← Change design
       </button>
@@ -618,7 +618,7 @@ function SkuPicker({
                   onClick={() => {
                     onAdd(r.id, current)
                   }}
-                  className="rounded-full bg-[var(--brand-secondary)] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
+                  className="rounded-full bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
                 >
                   Add
                 </button>
@@ -692,7 +692,7 @@ function ConfirmModal({
             type="button"
             onClick={onConfirm}
             disabled={submitting}
-            className="rounded-full bg-[var(--brand-secondary)] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:opacity-60 min-h-11"
+            className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:opacity-60 min-h-11"
           >
             {submitting ? "Placing…" : "Place order"}
           </button>

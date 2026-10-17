@@ -45,7 +45,7 @@ const Addresses = ({
       <div className="flex flex-row items-center justify-between mb-6">
         <Heading
           level="h2"
-          className="flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-[var(--brand-primary)]"
+          className="flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-ink"
         >
           Shipping address
           {!isOpen && <CheckCircleSolid />}

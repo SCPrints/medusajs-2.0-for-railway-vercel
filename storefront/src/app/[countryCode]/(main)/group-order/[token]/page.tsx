@@ -52,7 +52,7 @@ export default async function GroupOrderJoinPage({
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Contact support
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -69,7 +69,7 @@ export default async function GroupOrderJoinPage({
   return (
     <div className="content-container max-w-3xl py-12">
       <section className="rounded-2xl border border-ui-border-base bg-white p-6 shadow-sm small:p-8">
-        <header className="border-l-4 border-[var(--brand-secondary)] pl-4">
+        <header className="border-l-4 border-brand pl-4">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
             {group_order.organisation_name ?? "Group order"}
           </p>

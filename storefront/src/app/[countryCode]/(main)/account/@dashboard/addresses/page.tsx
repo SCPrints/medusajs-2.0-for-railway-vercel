@@ -35,7 +35,7 @@ export default function Addresses({
 }) {
   return (
     <div className="w-full" data-testid="addresses-page-wrapper">
-      <header className="mb-8 border-l-4 border-[var(--brand-secondary)] pl-4">
+      <header className="mb-8 border-l-4 border-brand pl-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           Shipping
         </p>

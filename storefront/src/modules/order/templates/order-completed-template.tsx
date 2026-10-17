@@ -23,7 +23,7 @@ export default async function OrderCompletedTemplate({
   const isOnboarding = cookieStore.get("_medusa_onboarding")?.value === "true"
 
   return (
-    <div className="bg-[var(--brand-background)] py-12 min-h-[calc(100vh-64px)]">
+    <div className="bg-surface py-12 min-h-[calc(100vh-64px)]">
       <div className="content-container flex flex-col gap-y-6 max-w-4xl w-full">
         {isOnboarding && <OnboardingCta orderId={order.id} />}
 
@@ -31,11 +31,11 @@ export default async function OrderCompletedTemplate({
           className="bg-white rounded-2xl border border-ui-border-base shadow-sm p-8 sm:p-10"
           data-testid="order-complete-container"
         >
-          <div className="border-l-4 border-[var(--brand-secondary)] pl-4 mb-8">
+          <div className="border-l-4 border-brand pl-4 mb-8">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
               Order #{order.display_id} &middot; Confirmed
             </p>
-            <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-[var(--brand-primary)] leading-tight">
+            <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-ink leading-tight">
               Thank you!
             </h1>
             <p className="text-ui-fg-subtle mt-3 max-w-2xl text-base">
@@ -48,7 +48,7 @@ export default async function OrderCompletedTemplate({
           <OrderDetails order={order} />
 
           <div className="mt-10">
-            <h2 className="text-2xl font-semibold text-[var(--brand-primary)] border-l-4 border-[var(--brand-secondary)] pl-4 mb-5">
+            <h2 className="text-2xl font-semibold text-ink border-l-4 border-brand pl-4 mb-5">
               Summary
             </h2>
             <Items items={order.items} currencyCode={order.currency_code} />
@@ -72,7 +72,7 @@ export default async function OrderCompletedTemplate({
           <div className="mt-10 flex flex-col sm:flex-row gap-3">
             <LocalizedClientLink
               href="/store"
-              className="group inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Continue shopping
               <svg
@@ -92,7 +92,7 @@ export default async function OrderCompletedTemplate({
             </LocalizedClientLink>
             <LocalizedClientLink
               href="/account/orders"
-              className="inline-flex items-center justify-center rounded-lg border border-ui-border-base bg-white px-6 py-3 text-sm font-semibold text-[var(--brand-primary)] transition hover:bg-ui-bg-subtle"
+              className="inline-flex items-center justify-center rounded-lg border border-ui-border-base bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-ui-bg-subtle"
             >
               View my orders
             </LocalizedClientLink>

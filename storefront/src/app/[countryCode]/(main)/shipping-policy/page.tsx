@@ -47,14 +47,14 @@ export default function ShippingPolicyPage() {
           </p>
           <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Domestic:</span>{" "}
                 Residential, business, and PO Boxes (via Australia Post).
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">International:</span>{" "}
                 Currently we only ship within Australia.
@@ -76,14 +76,14 @@ export default function ShippingPolicyPage() {
           </p>
           <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Standard production:</span>{" "}
                 Typically 3&ndash;7 business days following artwork approval.
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Express production:</span>{" "}
                 Available for select items for an additional fee, reducing lead
@@ -91,7 +91,7 @@ export default function ShippingPolicyPage() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Split shipments:</span>{" "}
                 Orders with multiple products may occasionally ship in separate
@@ -173,7 +173,7 @@ export default function ShippingPolicyPage() {
           </p>
           <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Damaged items:</span>{" "}
                 Take clear photos of the packaging and product and contact us
@@ -181,7 +181,7 @@ export default function ShippingPolicyPage() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Lost parcels:</span>{" "}
                 If tracking shows &quot;delivered&quot; but you haven&apos;t

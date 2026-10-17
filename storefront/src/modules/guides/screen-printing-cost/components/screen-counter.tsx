@@ -22,7 +22,7 @@ const POP_CSS = `
 const segment = (active: boolean) =>
   `min-h-11 min-w-11 rounded-lg border px-3 text-sm font-semibold transition ${
     active
-      ? "border-[var(--brand-secondary)] bg-[var(--brand-secondary)] text-white"
+      ? "border-brand bg-brand text-white"
       : "border-ui-border-base bg-white text-ui-fg-base hover:border-[var(--brand-secondary)]/50"
   }`
 
@@ -110,7 +110,7 @@ export default function ScreenCounter() {
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           Screens to set up
         </p>
-        <p className="mt-1 text-6xl font-semibold leading-none text-[var(--brand-secondary)]">{total}</p>
+        <p className="mt-1 text-6xl font-semibold leading-none text-brand">{total}</p>
         <p className="mt-3 text-sm text-ui-fg-subtle">
           {safeColours} colour{safeColours > 1 ? "s" : ""}
           {dark ? " + a white underbase" : ""}

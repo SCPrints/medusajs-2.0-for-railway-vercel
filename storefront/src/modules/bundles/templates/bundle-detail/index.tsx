@@ -30,7 +30,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
       <section className="content-container py-10 small:py-14">
         <LocalizedClientLink
           href="/bundles"
-          className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+          className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
         >
           <ArrowLeftIcon className="transition-transform group-hover:-translate-x-0.5" />
           All bundles
@@ -55,7 +55,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
 
           {/* Info */}
           <div className="flex flex-col gap-y-6">
-            <header className="border-l-4 border-[var(--brand-secondary)] pl-4">
+            <header className="border-l-4 border-brand pl-4">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
                 Uniform pack
               </p>
@@ -80,7 +80,7 @@ export default function BundleDetail({ bundle }: { bundle: BundleWithProducts })
               <ul className="mt-4 flex list-none flex-col gap-y-3 p-0">
                 {items.map((item, i) => (
                   <li key={i} className="flex items-center gap-x-3">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-secondary)]/15 text-xs font-semibold text-[var(--brand-secondary)]">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--brand-secondary)]/15 text-xs font-semibold text-brand">
                       {item.quantity_per_unit}×
                     </span>
                     <span className="flex-1 text-sm text-ui-fg-base small:text-base">

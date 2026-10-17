@@ -88,21 +88,21 @@ export default function ReturnsPolicyPage() {
           </p>
           <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 Send clear photos showing the issue (and packaging, if the
                 damage is from transit).
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 Include your order number and a short description of the
                 problem.
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 Depending on the issue we&apos;ll remake, credit, or refund
                 the affected items at no cost to you.
@@ -180,7 +180,7 @@ export default function ReturnsPolicyPage() {
           <div className="mt-7 flex justify-center">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Contact support
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

@@ -172,7 +172,7 @@ export default async function ServicesPage({
         <div className="mt-7 flex flex-wrap gap-3">
           <LocalizedClientLink
             href="/contact"
-            className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
           >
             Get a quote
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -205,14 +205,14 @@ export default async function ServicesPage({
             >
               <div className="grid gap-5 small:grid-cols-[2fr_1fr] small:gap-7">
                 <div>
-                  <h3 className="text-2xl font-semibold text-ui-fg-base transition-colors group-hover:text-[var(--brand-secondary)]">
+                  <h3 className="text-2xl font-semibold text-ui-fg-base transition-colors group-hover:text-brand">
                     {service.title}
                   </h3>
                   <p className="mt-3 text-sm text-ui-fg-subtle">{service.heroDescription}</p>
                   <ul className="mt-4 space-y-2 text-sm text-ui-fg-subtle">
                     {service.bulletPoints.map((point) => (
                       <li key={point} className="flex gap-2.5">
-                        <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]" />
+                        <span className="mt-1.5 inline-block h-1.5 w-1.5 rounded-full bg-brand" />
                         <span>{point}</span>
                       </li>
                     ))}
@@ -229,7 +229,7 @@ export default async function ServicesPage({
                   <p className="mt-2 text-sm text-ui-fg-subtle">{service.shortDescription}</p>
                   <LocalizedClientLink
                     href={`/services/${service.slug}`}
-                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
                   >
                     View service details
                     <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -268,7 +268,7 @@ export default async function ServicesPage({
                 >
                   {step.number}
                 </span>
-                <Icon className="relative text-ui-fg-base transition-colors group-hover:text-[var(--brand-secondary)]" />
+                <Icon className="relative text-ui-fg-base transition-colors group-hover:text-brand" />
                 <p className="relative mt-4 text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
                   {step.title}
                 </p>
@@ -283,7 +283,7 @@ export default async function ServicesPage({
         <div className="mt-8 flex flex-wrap justify-center">
           <LocalizedClientLink
             href="/contact"
-            className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
           >
             Get a quote
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

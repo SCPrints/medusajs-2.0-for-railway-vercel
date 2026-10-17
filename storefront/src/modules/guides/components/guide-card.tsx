@@ -14,9 +14,9 @@ export default function GuideCard({
   return (
     <LocalizedClientLink
       href={guideHref(guide)}
-      className="group flex h-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white !text-ui-fg-base transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)] hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-xl border border-ui-border-base bg-white !text-ui-fg-base transition hover:-translate-y-0.5 hover:border-brand hover:shadow-md"
     >
-      <div className="relative aspect-[16/10] overflow-hidden bg-[var(--brand-primary)]">
+      <div className="relative aspect-[16/10] overflow-hidden bg-ink">
         {guide.cover ? (
           <Image
             src={guide.cover}
@@ -37,14 +37,14 @@ export default function GuideCard({
             ))}
           </div>
         )}
-        <span className="absolute left-3 top-3 rounded-md bg-white px-2 py-1 text-xs font-semibold !text-[var(--brand-primary)] shadow-sm">
+        <span className="absolute left-3 top-3 rounded-md bg-white px-2 py-1 text-xs font-semibold !text-ink shadow-sm">
           {guide.tag}
         </span>
       </div>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="text-lg font-semibold leading-snug text-ui-fg-base">{guide.title}</h3>
         <p className="mt-2 flex-1 text-sm leading-relaxed text-ui-fg-subtle">{guide.blurb}</p>
-        <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-secondary)]">
+        <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand">
           Read the guide
           <span aria-hidden className="transition-transform group-hover:translate-x-0.5">
             →

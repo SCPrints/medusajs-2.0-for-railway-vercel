@@ -198,7 +198,7 @@ const prose = "mt-4 max-w-3xl text-base leading-relaxed text-ui-fg-subtle"
 const eyebrow = "text-xs font-semibold uppercase tracking-[0.12em]"
 const card =
   "h-full rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:shadow-sm"
-const linkClass = "font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
+const linkClass = "font-semibold !text-brand underline underline-offset-4"
 
 export default function DecorationMethodsGuidePage() {
   const articleLd = {
@@ -239,7 +239,7 @@ export default function DecorationMethodsGuidePage() {
           </p>
           <a
             href="#picker"
-            className="group mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
+            className="group mt-6 inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
           >
             Find your method
             <span aria-hidden className="transition-transform group-hover:translate-y-0.5">
@@ -365,7 +365,7 @@ export default function DecorationMethodsGuidePage() {
                     <li key={limit} className="flex gap-3">
                       <span
                         aria-hidden
-                        className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgba(255,46,99,0.12)] text-xs font-bold !text-[#d81e4f]"
+                        className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/[0.12] text-xs font-bold !text-[#d81e4f]"
                       >
                         !
                       </span>
@@ -394,7 +394,7 @@ export default function DecorationMethodsGuidePage() {
                     sizes="(min-width: 1024px) 25vw, (min-width: 480px) 50vw, 100vw"
                     className="object-cover transition duration-500 hover:scale-[1.03]"
                   />
-                  <span className="absolute left-3 top-3 rounded-md bg-[var(--brand-primary)] px-2 py-1 text-xs font-semibold !text-white">
+                  <span className="absolute left-3 top-3 rounded-md bg-ink px-2 py-1 text-xs font-semibold !text-white">
                     {photo.method}
                   </span>
                 </div>
@@ -406,7 +406,7 @@ export default function DecorationMethodsGuidePage() {
 
       {/* MIX */}
       <Reveal className="mt-16">
-        <section className="grid items-center gap-8 rounded-2xl bg-[var(--brand-primary)] p-8 small:grid-cols-[auto_1fr] small:p-10">
+        <section className="grid items-center gap-8 rounded-2xl bg-ink p-8 small:grid-cols-[auto_1fr] small:p-10">
           <div className="flex justify-center -space-x-5">
             {METHODS.map((m) => (
               <MethodSwatch key={m.key} method={m.key} id={`mix-${m.key}`} className="h-20 w-20 small:h-24 small:w-24" />
@@ -430,13 +430,13 @@ export default function DecorationMethodsGuidePage() {
           {FAQS.map((f) => (
             <details
               key={f.q}
-              className="group rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4 transition hover:border-[var(--brand-secondary)]"
+              className="group rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4 transition hover:border-brand"
             >
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-ui-fg-base">
                 <span>{f.q}</span>
                 <span
                   aria-hidden
-                  className="shrink-0 text-lg leading-none text-[var(--brand-secondary)] transition-transform group-open:rotate-45"
+                  className="shrink-0 text-lg leading-none text-brand transition-transform group-open:rotate-45"
                 >
                   +
                 </span>
@@ -449,7 +449,7 @@ export default function DecorationMethodsGuidePage() {
 
       {/* CTA */}
       <Reveal className="mt-16">
-        <section className="rounded-2xl bg-[var(--brand-primary)] p-8 text-center small:p-12">
+        <section className="rounded-2xl bg-ink p-8 text-center small:p-12">
           <h2 className="text-2xl font-semibold text-white small:text-3xl">Try it on your own artwork</h2>
           <p className="mx-auto mt-3 max-w-2xl text-white/80">
             Pick a garment and add your design in the customiser. You can switch between methods
@@ -458,7 +458,7 @@ export default function DecorationMethodsGuidePage() {
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <LocalizedClientLink
               href="/store"
-              className="group inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
             >
               Choose a garment
               <span aria-hidden className="transition-transform group-hover:translate-x-0.5">

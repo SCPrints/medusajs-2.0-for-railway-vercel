@@ -58,7 +58,7 @@ export default function HomeIndustryGrid() {
                   {BLURBS[industry.slug] ?? ""}
                 </p>
               </div>
-              <span className="shrink-0 text-ui-fg-muted transition-colors group-hover:text-[var(--brand-secondary)]">
+              <span className="shrink-0 text-ui-fg-muted transition-colors group-hover:text-brand">
                 <ArrowIcon />
               </span>
             </LocalizedClientLink>

@@ -66,7 +66,7 @@ const OrderWatchers = ({ orderId }: { orderId: string }) => {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="email@example.com"
-          className="flex-1 rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+          className="flex-1 rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
           disabled={pending || watchers.length >= 5}
           onKeyDown={(e) => {
             if (e.key === "Enter") add()
@@ -76,7 +76,7 @@ const OrderWatchers = ({ orderId }: { orderId: string }) => {
           type="button"
           onClick={add}
           disabled={pending || !draft.trim() || watchers.length >= 5}
-          className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
         >
           Add
         </button>
@@ -87,7 +87,7 @@ const OrderWatchers = ({ orderId }: { orderId: string }) => {
           {watchers.map((email) => (
             <li
               key={email}
-              className="inline-flex items-center gap-2 rounded-full bg-ui-bg-subtle px-3 py-1 text-xs text-[var(--brand-primary)]"
+              className="inline-flex items-center gap-2 rounded-full bg-ui-bg-subtle px-3 py-1 text-xs text-ink"
             >
               {email}
               <button

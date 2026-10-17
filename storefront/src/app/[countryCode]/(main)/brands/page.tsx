@@ -121,7 +121,7 @@ async function BrandsContent() {
                     )}
                   </span>
                   <span className="flex flex-1 flex-col gap-1.5">
-                    <span className="text-sm font-semibold text-ui-fg-base transition-colors group-hover:text-[var(--brand-secondary)] small:text-base">
+                    <span className="text-sm font-semibold text-ui-fg-base transition-colors group-hover:text-brand small:text-base">
                       {b.name}
                     </span>
                     {parent ? (
@@ -160,7 +160,7 @@ async function BrandsContent() {
           <div className="mt-7 flex justify-center">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Request a quote
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

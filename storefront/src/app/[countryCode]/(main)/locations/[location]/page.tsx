@@ -134,7 +134,7 @@ export default async function LocationPage({ params }: Props) {
         <div className="mt-8 flex flex-wrap gap-3">
           <LocalizedClientLink
             href={`/contact?location=${location.slug}`}
-            className="rounded-full bg-[var(--brand-secondary)] px-6 py-3 text-base font-medium text-white transition-colors hover:bg-[var(--brand-accent)]"
+            className="rounded-full bg-brand px-6 py-3 text-base font-medium text-white transition-colors hover:bg-accent"
           >
             Get a quote for {location.suburb}
           </LocalizedClientLink>
@@ -190,13 +190,13 @@ export default async function LocationPage({ params }: Props) {
         <div className="mt-5 flex flex-wrap gap-4 text-sm">
           <a
             href={`tel:${SEO.contactPhone}`}
-            className="font-medium !text-[var(--brand-secondary)] hover:underline"
+            className="font-medium !text-brand hover:underline"
           >
             {SEO.contactPhone}
           </a>
           <a
             href={`mailto:${SEO.contactEmail}`}
-            className="font-medium !text-[var(--brand-secondary)] hover:underline"
+            className="font-medium !text-brand hover:underline"
           >
             {SEO.contactEmail}
           </a>

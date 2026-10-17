@@ -27,7 +27,7 @@ export default function InstagramFeedStrip({
           href={profileUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-semibold text-[var(--brand-secondary)] transition hover:text-[var(--brand-accent)]"
+          className="text-sm font-semibold text-brand transition hover:text-accent"
         >
           Follow {label} →
         </a>

@@ -72,7 +72,7 @@ export default async function IndustryPage({ params }: Props) {
         <ul className="mt-8 grid gap-2 text-base text-ui-fg-base small:grid-cols-2">
           {industry.bullets.map((bullet) => (
             <li key={bullet} className="flex items-start gap-2">
-              <span aria-hidden className="mt-1 text-[var(--brand-secondary)]">
+              <span aria-hidden className="mt-1 text-brand">
                 •
               </span>
               <span>{bullet}</span>
@@ -83,7 +83,7 @@ export default async function IndustryPage({ params }: Props) {
         <div className="mt-10 flex flex-wrap gap-3">
           <LocalizedClientLink
             href={`/contact?industry=${industry.slug}`}
-            className="rounded-full bg-[var(--brand-secondary)] px-6 py-3 text-base font-medium text-white transition-colors hover:bg-[var(--brand-accent)]"
+            className="rounded-full bg-brand px-6 py-3 text-base font-medium text-white transition-colors hover:bg-accent"
           >
             Get a quote for {industry.name}
           </LocalizedClientLink>

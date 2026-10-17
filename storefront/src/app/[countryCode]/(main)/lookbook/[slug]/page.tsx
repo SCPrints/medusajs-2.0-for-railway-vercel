@@ -124,7 +124,7 @@ export default async function LookbookJobPage({ params }: Params) {
                 ? `/products/${primaryProduct.handle}`
                 : "/contact?ref=lookbook"
             }
-            className="inline-flex min-h-11 items-center rounded-full bg-[var(--brand-secondary)] px-6 text-base font-medium text-white transition-colors hover:bg-[var(--brand-accent)]"
+            className="inline-flex min-h-11 items-center rounded-full bg-brand px-6 text-base font-medium text-white transition-colors hover:bg-accent"
           >
             Start a job like this →
           </LocalizedClientLink>

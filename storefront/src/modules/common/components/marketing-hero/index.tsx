@@ -31,7 +31,7 @@ export default function MarketingHero({
 }: MarketingHeroProps) {
   const eyebrowEl =
     eyebrowVariant === "pill" ? (
-      <span className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-secondary)]">
+      <span className="inline-flex rounded-full border border-[var(--brand-secondary)]/40 bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-brand">
         {eyebrow}
       </span>
     ) : (

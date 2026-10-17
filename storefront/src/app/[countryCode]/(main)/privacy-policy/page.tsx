@@ -63,14 +63,14 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Identity &amp; contact:</span>{" "}
                 Name, shipping address, billing address, and email address.
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Transaction data:</span>{" "}
                 Details about payments and products you have purchased. We do
@@ -79,7 +79,7 @@ export default function PrivacyPolicyPage() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">User content:</span>{" "}
                 Artwork files, designs, or images you upload for printing.
@@ -101,7 +101,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Order fulfilment:</span>{" "}
                 Processing payments, printing your designs, and delivering your
@@ -109,14 +109,14 @@ export default function PrivacyPolicyPage() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Support:</span>{" "}
                 Responding to your inquiries or resolving order issues.
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Marketing:</span>{" "}
                 Sending updates or promotions, provided you have opted in. You
@@ -124,7 +124,7 @@ export default function PrivacyPolicyPage() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Security:</span>{" "}
                 Preventing fraudulent transactions and protecting our website.
@@ -146,7 +146,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="mt-4 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Service providers:</span>{" "}
                 Delivery couriers, payment gateways (e.g. Stripe, PayPal), and
@@ -154,14 +154,14 @@ export default function PrivacyPolicyPage() {
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Professional advisers:</span>{" "}
                 Lawyers, auditors, or insurers if required.
               </span>
             </li>
             <li className="flex gap-3">
-              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+              <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
               <span>
                 <span className="font-medium text-ui-fg-base">Overseas disclosure:</span>{" "}
                 Some digital service providers (web hosting, analytics) may

@@ -41,8 +41,8 @@ export default async function NpsPage({
       {isValid ? (
         <NpsThanks order={order!} score={numericScore} sig={sig!} />
       ) : (
-        <div className="rounded-2xl border border-[rgba(26,26,46,0.1)] bg-white/95 p-6 shadow-[0_4px_40px_rgba(26,26,46,0.08)]">
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--brand-primary)]">
+        <div className="rounded-2xl border border-ink/[0.1] bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
             Link expired
           </h1>
           <p className="mt-2 text-sm text-ui-fg-subtle">

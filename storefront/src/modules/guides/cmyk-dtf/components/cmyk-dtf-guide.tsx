@@ -65,7 +65,7 @@ export default function CmykDtfGuide() {
             </h2>
             <ul className="mt-5 list-none space-y-3 p-0 text-sm leading-relaxed text-ui-fg-subtle small:text-base">
               <li className="flex gap-3">
-                <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+                <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <span>
                   Work in your design app&apos;s CMYK workspace when possible;
                   avoid converting RGB artwork at the last step unless you
@@ -73,7 +73,7 @@ export default function CmykDtfGuide() {
                 </span>
               </li>
               <li className="flex gap-3">
-                <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+                <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <span>
                   Coordinate white ink and choke/spread settings with whoever
                   runs your films &mdash; those choices affect how sharp
@@ -81,7 +81,7 @@ export default function CmykDtfGuide() {
                 </span>
               </li>
               <li className="flex gap-3">
-                <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+                <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <span>
                   Heavy ink stacks may hit printer limits; very saturated
                   fills might need adjustment on press.
@@ -94,7 +94,7 @@ export default function CmykDtfGuide() {
               </p>
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 Contact us
                 <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -102,7 +102,7 @@ export default function CmykDtfGuide() {
               <span className="text-sm text-ui-fg-subtle">·</span>
               <LocalizedClientLink
                 href="/guides/pantone-screen-printing"
-                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 Screen printing a brand colour? Pantone guide
                 <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />

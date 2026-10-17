@@ -127,7 +127,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
           <button
             type="submit"
             disabled={busy || !inviteEmail.trim()}
-            className="inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
+            className="inline-flex shrink-0 items-center justify-center rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 disabled:cursor-not-allowed disabled:opacity-50 min-h-11"
           >
             Invite
           </button>

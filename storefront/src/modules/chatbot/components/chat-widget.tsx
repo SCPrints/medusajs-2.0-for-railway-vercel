@@ -70,7 +70,7 @@ const ChatWidget: React.FC = () => {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 inline-flex min-h-12 min-w-12 items-center justify-center rounded-full bg-[var(--brand-primary,#002a5c)] text-white shadow-lg hover:opacity-90 tablet:right-5 tablet:bottom-5 tablet:px-4 tablet:py-3 tablet:text-sm tablet:font-medium"
+        className="fixed right-3 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 inline-flex min-h-12 min-w-12 items-center justify-center rounded-full bg-ink text-white shadow-lg hover:opacity-90 tablet:right-5 tablet:bottom-5 tablet:px-4 tablet:py-3 tablet:text-sm tablet:font-medium"
         aria-label={open ? "Close chat" : "Open chat"}
       >
         <span className="tablet:hidden" aria-hidden>
@@ -110,7 +110,7 @@ const ChatWidget: React.FC = () => {
         <div
           className="fixed right-3 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-50 flex h-[min(70dvh,520px)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-lg border border-ui-border-base bg-ui-bg-base shadow-xl tablet:right-5 tablet:bottom-20 tablet:h-[520px] tablet:w-[360px] tablet:max-w-[calc(100vw-2.5rem)]"
         >
-          <div className="border-b border-ui-border-base bg-[var(--brand-primary,#002a5c)] px-4 py-3 text-white">
+          <div className="border-b border-ui-border-base bg-ink px-4 py-3 text-white">
             <div className="text-sm font-semibold">SC Prints assistant</div>
             <div className="text-xs opacity-80">
               AI-assisted answers — final pricing via the on-page estimator.
@@ -143,7 +143,7 @@ const ChatWidget: React.FC = () => {
                     key={idx}
                     className={`whitespace-pre-wrap rounded-md px-3 py-2 ${
                       m.role === "user"
-                        ? "ml-8 bg-[var(--brand-primary,#002a5c)] text-white"
+                        ? "ml-8 bg-ink text-white"
                         : "mr-8 bg-ui-bg-subtle text-ui-fg-base"
                     }`}
                   >
@@ -187,7 +187,7 @@ const ChatWidget: React.FC = () => {
             <button
               type="submit"
               disabled={pending || !input.trim()}
-              className="rounded-md bg-[var(--brand-primary,#002a5c)] px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-md bg-ink px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               Send
             </button>

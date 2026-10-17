@@ -195,7 +195,7 @@ const ReorderActions = ({ order }: Props) => {
                 ) : null}
                 <LocalizedClientLink
                   href={reorderHref}
-                  className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-4 py-2.5 text-base font-medium text-white hover:opacity-90 tablet:w-auto tablet:py-2 tablet:text-sm"
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-ink px-4 py-2.5 text-base font-medium text-white hover:opacity-90 tablet:w-auto tablet:py-2 tablet:text-sm"
                   data-testid="reorder-design-link"
                   onClick={() => phCapture("reorder_design_clicked", {
                     order_id: order.id,

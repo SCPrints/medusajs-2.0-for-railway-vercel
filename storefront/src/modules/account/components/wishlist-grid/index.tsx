@@ -36,7 +36,7 @@ const WishlistGrid = ({ items }: Props) => {
         </p>
         <LocalizedClientLink
           href="/categories"
-          className="inline-flex items-center gap-2 rounded-md bg-[var(--brand-primary)] text-white px-5 py-2.5 text-sm font-medium hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-md bg-ink text-white px-5 py-2.5 text-sm font-medium hover:opacity-90"
         >
           Browse the catalog
         </LocalizedClientLink>
@@ -74,7 +74,7 @@ const WishlistGrid = ({ items }: Props) => {
               <div className="flex flex-col">
                 <LocalizedClientLink
                   href={`/products/${item.product_id}`}
-                  className="text-sm font-semibold text-[var(--brand-primary)] hover:underline"
+                  className="text-sm font-semibold text-ink hover:underline"
                 >
                   {item.product_id}
                 </LocalizedClientLink>

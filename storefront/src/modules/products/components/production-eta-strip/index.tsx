@@ -20,12 +20,12 @@ export default async function ProductionEtaStrip() {
     : "Most orders ship within this window. We'll keep you posted at every stage."
 
   return (
-    <div className="mt-3 rounded-md border border-[rgba(26,26,46,0.08)] bg-white/80 px-4 py-3">
+    <div className="mt-3 rounded-md border border-ink/[0.08] bg-white/80 px-4 py-3">
       <div className="flex items-baseline justify-between gap-x-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+        <span className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
           Estimated delivery
         </span>
-        <span className="text-sm font-semibold text-[var(--brand-primary)]">
+        <span className="text-sm font-semibold text-ink">
           {heroLine}
         </span>
       </div>
