@@ -121,7 +121,7 @@ const CartDropdown = ({
             </svg>
             {totalItems > 0 ? (
               <span
-                className="tablet:hidden absolute -top-0.5 -right-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--brand-secondary)] px-1 text-[10px] font-bold leading-none text-white"
+                className="tablet:hidden absolute -top-0.5 -right-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold leading-none text-white"
                 aria-hidden
               >
                 {totalItems > 99 ? "99+" : totalItems}

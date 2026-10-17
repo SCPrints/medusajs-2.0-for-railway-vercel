@@ -167,7 +167,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           (see the now-removed overflow-anchor hack in globals.css). */}
       <header className="relative mx-auto">
         {/* ROW 1 — utility, always visible */}
-        <div className="bg-ui-fg-base">
+        <div className="bg-header">
         <div className="content-container flex h-20 w-full items-center gap-x-3 phone:gap-x-4 small:gap-x-5 text-base font-medium text-white">
           {/* Mobile hamburger — drives MobileMegaMenu's full overlay */}
           <div className="small:hidden flex h-full items-center">
@@ -201,7 +201,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
             aria-label="Show shop categories"
             aria-expanded={false}
             aria-hidden={!isCondensed}
-            className="hidden small:inline-flex items-center justify-center overflow-hidden text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]"
+            className="hidden small:inline-flex items-center justify-center overflow-hidden text-brand hover:text-accent"
             style={{
               maxWidth: isCondensed ? 44 : 0,
               opacity: isCondensed ? 1 : 0,
@@ -236,7 +236,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
               Brands / Services / Best Sellers moved into row 2 next to
               the audiences so the right cluster reads cleanly. */}
           <LocalizedClientLink
-            className="hidden small:flex h-full items-center hover:text-[var(--brand-accent)] transition-colors"
+            className="hidden small:flex h-full items-center hover:text-accent transition-colors"
             href="/account"
             data-testid="nav-account-link"
           >
@@ -258,7 +258,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           aria-hidden={isCondensed}
         >
           <div
-            className="h-12 w-full bg-ui-fg-base"
+            className="h-12 w-full bg-header"
             style={{
               transform: isCondensed ? "translateY(-100%)" : undefined,
               opacity: isCondensed ? 0 : 1,
@@ -277,28 +277,28 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
             <div className="flex-1" />
             <div className="flex items-center gap-x-1">
               <LocalizedClientLink
-                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-brand hover:text-accent medium:px-3"
                 href="/brands"
                 data-testid="nav-brands-link"
               >
                 Brands
               </LocalizedClientLink>
               <LocalizedClientLink
-                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-brand hover:text-accent medium:px-3"
                 href="/services"
                 data-testid="nav-services-link"
               >
                 Services
               </LocalizedClientLink>
               <LocalizedClientLink
-                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-brand hover:text-accent medium:px-3"
                 href="/guides"
                 data-testid="nav-guides-link"
               >
                 Guides
               </LocalizedClientLink>
               <LocalizedClientLink
-                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] medium:px-3"
+                className="inline-flex items-center px-2 py-3 text-sm font-medium tracking-wide whitespace-nowrap transition-colors duration-150 text-brand hover:text-accent medium:px-3"
                 href="/best-sellers"
                 data-testid="nav-best-sellers-link"
               >

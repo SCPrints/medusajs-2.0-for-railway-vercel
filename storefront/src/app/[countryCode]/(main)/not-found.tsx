@@ -14,7 +14,7 @@ export const metadata: Metadata = {
  * Inkwell Navy from `globals.css`). Inlined as a hex literal so this page is
  * not at the mercy of Tailwind class generation, CSS load order, or globals
  * cascade — the browser renders the colour we ask for. */
-const HEADER_NAVY = "#1a1a2e"
+const HEADER_NAVY = "rgb(var(--header-bg))"
 
 export default function NotFound() {
   return (
