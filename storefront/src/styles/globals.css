@@ -6,10 +6,32 @@
   /* Sticky header height (row 1 = 80px; row 2 category bar adds 48px from `small:`).
      Full-viewport pages subtract this: calc(100dvh - var(--nav-height)). */
   --nav-height: 80px;
-  --brand-primary: #1a1a2e; /* Inkwell Navy */
-  --brand-secondary: #ff2e63; /* Magenta Punch */
-  --brand-accent: #3dcfc2; /* Brand teal — rgb(61, 207, 194) */
-  --brand-background: #eeeeee; /* Soft Light */
+
+  /* ── Semantic colour tokens ─────────────────────────────────────────────
+     Space-separated RGB channels so Tailwind can apply opacity modifiers:
+     tailwind.config.js maps each to `rgb(var(--x) / <alpha-value>)`, so
+     `bg-brand/20`, `text-ink/[0.72]` etc. work. Use them in CSS as
+     `rgb(var(--brand))` or `rgb(var(--ink) / 0.22)`.
+     A seasonal theme overrides these on `html[data-theme="…"]` — nothing
+     else should need to change. Product imagery, garment swatches, the
+     customizer canvas and mockups deliberately do NOT read these. */
+  --brand: 255 46 99; /* Magenta Punch #ff2e63 — CTAs, links, highlights */
+  --ink: 26 26 46; /* Inkwell Navy #1a1a2e — body text, dark buttons */
+  --accent: 61 207 194; /* Brand teal #3dcfc2 — hover/secondary accent */
+  --surface: 238 238 238; /* Soft Light #eeeeee — page background */
+  --header-bg: var(--ink); /* Sticky header + checkout header bar */
+  --header-fg: 248 250 252; /* #f8fafc — text on the header / mega-menu */
+  --header-panel: 12 17 23; /* #0c1117 — mega-menu dropdown panel (used at /95) */
+  --hero-overlay: 255 255 255; /* Home hero left-side readability wash */
+
+  /* Legacy aliases — still read by inline styles, the customizer UI and a
+     few raw `var(--brand-*)` call sites. Derived from the tokens above so
+     they follow a theme automatically. Prefer the Tailwind token classes
+     (`text-brand`, `bg-ink`, `text-accent`, `bg-surface`) in new code. */
+  --brand-primary: rgb(var(--ink));
+  --brand-secondary: rgb(var(--brand));
+  --brand-accent: rgb(var(--accent));
+  --brand-background: rgb(var(--surface));
 }
 
 /* Tactile press (test page #4) — :where = zero specificity, opt out [data-no-squish] */
@@ -58,7 +80,7 @@ main {
     var(--brand-accent) 72%,
     var(--brand-secondary) 100%
   );
-  box-shadow: 0 0 0 1px rgba(26, 26, 46, 0.12);
+  box-shadow: 0 0 0 1px rgb(var(--ink) / 0.12);
   pointer-events: none;
   opacity: 0;
   will-change: transform, opacity;
@@ -110,7 +132,7 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 }
 
 .text-ui-fg-subtle {
-  color: rgba(26, 26, 46, 0.72);
+  color: rgb(var(--ink) / 0.72);
 }
 
 .bg-ui-fg-base {
@@ -123,7 +145,7 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 }
 
 .border-ui-border-base {
-  border-color: rgba(26, 26, 46, 0.22);
+  border-color: rgb(var(--ink) / 0.22);
 }
 
 /* Keep interactive states aligned with the new palette */
@@ -135,12 +157,12 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 /* Checkout flow — high-contrast primary actions (Medusa default primary can read as grey) */
 .checkout-primary-action:not(:disabled) {
   background-color: var(--brand-primary) !important;
-  color: rgba(248, 250, 252, 0.98) !important;
+  color: rgb(var(--header-fg) / 0.98) !important;
   border-color: transparent !important;
 }
 .checkout-primary-action:hover:not(:disabled) {
   background-color: var(--brand-secondary) !important;
-  color: rgba(248, 250, 252, 0.98) !important;
+  color: rgb(var(--header-fg) / 0.98) !important;
 }
 .checkout-primary-action:disabled {
   opacity: 0.45;
@@ -148,13 +170,13 @@ a:not(.bg-ui-fg-base):not(.text-white):hover {
 
 /* Checkout nav: don't let global `a { color: var(--brand-secondary) }` override light-on-navy links */
 a.checkout-nav-link {
-  color: rgba(248, 250, 252, 0.9) !important;
+  color: rgb(var(--header-fg) / 0.9) !important;
 }
 a.checkout-nav-link:hover {
   color: var(--brand-accent) !important;
 }
 a.checkout-nav-link--subtle {
-  color: rgba(248, 250, 252, 0.75) !important;
+  color: rgb(var(--header-fg) / 0.75) !important;
 }
 a.checkout-nav-link--subtle:hover {
   color: var(--brand-accent) !important;
@@ -166,7 +188,7 @@ a.checkout-nav-link--subtle:hover {
 
 /* Small badge/chip treatment */
 [class*="rounded-full"][class*="text-xs"] {
-  border-color: rgba(255, 46, 99, 0.5);
+  border-color: rgb(var(--brand) / 0.5);
   color: var(--brand-secondary);
 }
 

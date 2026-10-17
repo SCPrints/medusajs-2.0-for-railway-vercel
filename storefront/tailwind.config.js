@@ -21,6 +21,21 @@ module.exports = {
         padding: "padding-top padding-right padding-bottom padding-left",
       },
       colors: {
+        /**
+         * Semantic theme tokens — channels live in src/styles/globals.css
+         * (`:root`). `<alpha-value>` keeps opacity modifiers working
+         * (`bg-brand/20`). Seasonal themes override the CSS variables only.
+         */
+        brand: "rgb(var(--brand) / <alpha-value>)",
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        accent: "rgb(var(--accent) / <alpha-value>)",
+        surface: "rgb(var(--surface) / <alpha-value>)",
+        header: {
+          DEFAULT: "rgb(var(--header-bg) / <alpha-value>)",
+          fg: "rgb(var(--header-fg) / <alpha-value>)",
+          panel: "rgb(var(--header-panel) / <alpha-value>)",
+        },
+        "hero-overlay": "rgb(var(--hero-overlay) / <alpha-value>)",
         grey: {
           0: "#FFFFFF",
           5: "#F9FAFB",
