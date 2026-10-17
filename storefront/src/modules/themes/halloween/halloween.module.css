@@ -1,0 +1,180 @@
+/* Halloween decorations. Loaded only with the lazy Halloween chunk.
+   Every animation is opt-in via prefers-reduced-motion: no-preference, and
+   `.paused` (tab hidden / hero off-screen) freezes them. */
+
+.layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.paused,
+.paused * {
+  animation-play-state: paused !important;
+}
+
+/* ---- Hero ------------------------------------------------------------- */
+
+/* Dusk tint confined to the top-right corner (never across the garments in
+   the middle of the photo). */
+.dusk {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 38% 55% at 100% 0%,
+    rgb(30 16 41 / 0.55) 0%,
+    rgb(30 16 41 / 0.25) 45%,
+    transparent 75%
+  );
+}
+
+.moon {
+  position: absolute;
+  top: 9%;
+  right: 7%;
+  width: 92px;
+  height: 92px;
+  border-radius: 9999px;
+  box-shadow: 0 0 46px 12px rgb(254 243 199 / 0.35);
+}
+
+.ghost {
+  position: absolute;
+  top: 30%;
+  right: 19%;
+  width: 54px;
+  opacity: 0.92;
+}
+
+.pumpkin {
+  position: absolute;
+  right: 4%;
+  bottom: 6%;
+  width: 84px;
+}
+
+.pumpkinGlow {
+  opacity: 0.85;
+}
+
+.bat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 46px;
+  will-change: transform;
+  /* Off-screen until the rAF loop places it. */
+  transform: translate3d(-200px, -200px, 0);
+}
+
+.wingL,
+.wingR {
+  transform-box: fill-box;
+}
+.wingL {
+  transform-origin: 100% 40%;
+}
+.wingR {
+  transform-origin: 0% 40%;
+}
+
+/* Below `tablet` the hero copy fills the frame: keep only the pumpkin. */
+@media (max-width: 767px) {
+  .moon,
+  .ghost {
+    display: none;
+  }
+  .pumpkin {
+    width: 56px;
+    right: 3%;
+    bottom: 3%;
+  }
+  .dusk {
+    opacity: 0.6;
+  }
+}
+
+/* ---- Header corner cobweb -------------------------------------------- */
+
+.web {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 51; /* just above the sticky header (z-50) */
+  width: 64px;
+  pointer-events: none;
+  transform-origin: 100% 0%;
+  opacity: 0.45;
+}
+
+@media (min-width: 1024px) {
+  .web {
+    width: 88px;
+  }
+}
+
+.spider {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+
+/* ---- Motion (opt-in) -------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .wingL {
+    animation: flapL 0.26s ease-in-out infinite alternate;
+  }
+  .wingR {
+    animation: flapR 0.26s ease-in-out infinite alternate;
+  }
+  .pumpkinGlow {
+    animation: flicker 3.2s steps(1, end) infinite;
+  }
+  .pumpkin {
+    animation: lanternBreathe 3.2s ease-in-out infinite;
+  }
+  .ghost {
+    animation: ghostBob 6s ease-in-out infinite;
+  }
+  .web {
+    animation: sway 7s ease-in-out infinite;
+  }
+  .spider {
+    animation: dangle 5s ease-in-out infinite;
+  }
+}
+
+@keyframes flapL {
+  from { transform: scaleY(1) rotate(0deg); }
+  to { transform: scaleY(0.35) rotate(-8deg); }
+}
+@keyframes flapR {
+  from { transform: scaleY(1) rotate(0deg); }
+  to { transform: scaleY(0.35) rotate(8deg); }
+}
+@keyframes flicker {
+  0% { opacity: 0.85; }
+  12% { opacity: 0.6; }
+  16% { opacity: 0.9; }
+  40% { opacity: 0.75; }
+  44% { opacity: 0.95; }
+  70% { opacity: 0.7; }
+  74% { opacity: 0.88; }
+}
+@keyframes lanternBreathe {
+  0%, 100% { filter: drop-shadow(0 0 10px rgb(251 146 60 / 0.45)); }
+  50% { filter: drop-shadow(0 0 18px rgb(251 146 60 / 0.7)); }
+}
+@keyframes ghostBob {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-3deg); }
+  50% { transform: translate3d(-6px, -10px, 0) rotate(3deg); }
+}
+@keyframes sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-2.5deg); }
+}
+@keyframes dangle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}

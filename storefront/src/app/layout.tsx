@@ -3,12 +3,20 @@ import { Metadata, Viewport } from "next"
 import localFont from "next/font/local"
 import { Suspense } from "react"
 import "styles/globals.css"
+import "styles/themes.css"
 import ConditionalCursorDot from "@modules/layout/components/conditional-cursor-dot"
 import { Ga4Script } from "@modules/common/components/ga4-script"
 import { MetaPixel } from "@modules/common/components/meta-pixel"
 import { PostHogProvider } from "@modules/common/components/posthog-provider"
 import AddToHomeBanner from "@modules/common/components/add-to-home-banner"
 import ServiceWorkerRegister from "@modules/common/components/service-worker-register"
+import ThemeAnalytics from "@modules/themes/components/theme-analytics"
+import { buildThemeInitScript } from "@lib/themes/init-script"
+
+// Seasonal theme picker (see src/lib/themes). Runs inline before first paint
+// so there is no flash, and reads ?theme= / localStorage on the CLIENT only —
+// the server never reads cookies/headers/searchParams, so pages stay static.
+const THEME_INIT_SCRIPT = buildThemeInitScript()
 
 const plusJakartaSans = localFont({ src: [{ path: "../fonts/plus-jakarta-sans-200-800-normal.woff2", weight: "200 800", style: "normal" }], display: "swap" })
 
@@ -117,8 +125,9 @@ const localBusinessStructuredData = {
 
 export default function RootLayout(props: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-mode="light" className="scroll-smooth">
+    <html lang="en" data-mode="light" className="scroll-smooth" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/*
           Preconnect to origins we hit on every page. Saves ~100-300ms TLS +
           DNS round-trip per origin on the first request to each — meaningful
@@ -150,6 +159,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         <Ga4Script />
         <MetaPixel />
         <PostHogProvider>
+          <ThemeAnalytics />
           <Suspense fallback={null}>
             <ConditionalCursorDot />
           </Suspense>

@@ -103,3 +103,27 @@ export const phCapturePageViewWhenReady = (
   }
   tick()
 }
+
+/**
+ * Capture once posthog-js has initialised (init is deferred to idle, up to
+ * ~4s after load). Gives up quietly after `maxAttempts` — e.g. no API key.
+ */
+export const phCaptureWhenReady = (
+  event: string,
+  properties?: Record<string, any>,
+  opts?: { maxAttempts?: number; intervalMs?: number }
+) => {
+  if (!isClient() || !event) return
+  const maxAttempts = opts?.maxAttempts ?? 40
+  const intervalMs = opts?.intervalMs ?? 250
+  let attempts = 0
+  const tick = () => {
+    if (isReady()) {
+      phCapture(event, properties)
+      return
+    }
+    attempts += 1
+    if (attempts < maxAttempts) window.setTimeout(tick, intervalMs)
+  }
+  tick()
+}

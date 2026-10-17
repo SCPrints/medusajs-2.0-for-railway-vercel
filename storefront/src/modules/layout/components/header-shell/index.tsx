@@ -165,9 +165,9 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           on every scroll-direction flip, shifting the whole page by 48px
           (recurring desktop CLS) and fighting browser scroll anchoring
           (see the now-removed overflow-anchor hack in globals.css). */}
-      <header className="relative mx-auto">
+      <header className="relative mx-auto" data-theme-region="header">
         {/* ROW 1 — utility, always visible */}
-        <div className="bg-ui-fg-base">
+        <div className="theme-header-bar bg-ui-fg-base">
         <div className="content-container flex h-20 w-full items-center gap-x-3 phone:gap-x-4 small:gap-x-5 text-base font-medium text-white">
           {/* Mobile hamburger — drives MobileMegaMenu's full overlay */}
           <div className="small:hidden flex h-full items-center">
@@ -258,7 +258,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           aria-hidden={isCondensed}
         >
           <div
-            className="h-12 w-full bg-ui-fg-base"
+            className="theme-header-bar h-12 w-full bg-ui-fg-base"
             style={{
               transform: isCondensed ? "translateY(-100%)" : undefined,
               opacity: isCondensed ? 0 : 1,

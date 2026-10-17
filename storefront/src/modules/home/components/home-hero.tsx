@@ -1,5 +1,7 @@
 import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { formatMonthDay, getSeasonalTheme } from "@lib/themes/config"
+import { SeasonalHeroArt } from "@modules/themes/components/seasonal-decorations"
 
 // Home hero (Phase 1). Full-bleed product photo (a rack of blank garments)
 // behind the content, with a left-to-right white scrim so the dark headline +
@@ -33,6 +35,14 @@ const CheckIcon = () => (
     <path d="M20 6L9 17l-5-5" />
   </svg>
 )
+
+const HALLOWEEN_ORDER_BY = getSeasonalTheme("halloween")?.orderBy
+
+// Seasonal one-liners. Always in the static HTML, hidden unless the matching
+// theme is on <html> (see `.theme-seasonal` in styles/themes.css), so they
+// paint with the page — no client JS, no layout shift.
+const SEASONAL_LINE_CLASS =
+  "theme-seasonal mb-5 w-fit items-center gap-2 rounded-full bg-[rgb(var(--header-bg))] px-3.5 py-1.5 text-xs font-semibold text-[rgb(var(--seasonal-glow))] phone:text-sm"
 
 const ArrowIcon = ({ className }: { className?: string }) => (
   <svg
@@ -76,8 +86,21 @@ export default function HomeHero() {
         className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/80 via-white/20 to-transparent tablet:hidden"
       />
 
+      {/* Seasonal decorations (lazy, theme-gated; renders nothing for classic). */}
+      <SeasonalHeroArt />
+
       <div className="content-container relative py-16 small:py-28">
         <div className="max-w-3xl">
+          {HALLOWEEN_ORDER_BY ? (
+            <p className={SEASONAL_LINE_CLASS} data-season-show="halloween">
+              Halloween merch? Order by {formatMonthDay(HALLOWEEN_ORDER_BY)} for
+              delivery before the 31st.
+            </p>
+          ) : null}
+          <p className={SEASONAL_LINE_CLASS} data-season-show="halloween-late">
+            Happy Halloween from the SC Prints studio.
+          </p>
+
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-primary)]/80">
             Custom apparel &amp; branded merch · Villawood, Sydney
           </p>

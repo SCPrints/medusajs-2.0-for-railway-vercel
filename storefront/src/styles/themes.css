@@ -1,0 +1,73 @@
+/*
+ * Seasonal theme colours. <html data-theme="…"> is set before first paint by
+ * the inline script from src/lib/themes/init-script.ts; the schedule lives in
+ * src/lib/themes/config.ts. Themes only REDEFINE tokens — keep this file to
+ * colour overrides plus the few seasonal-only content switches at the bottom.
+ *
+ * Token notes:
+ *  - Semantic tokens (--brand, --header-bg, …) are space-separated RGB
+ *    channels, consumed as rgb(var(--x) / <alpha>) by tailwind.config.js
+ *    (colour-tokens PR).
+ *  - The legacy hex vars (--brand-secondary, --brand-accent) are still read
+ *    directly by many components today, so themes override those too.
+ *  - Surfaces (--surface, --surface-muted, --ink, --border) are deliberately
+ *    NOT themed: product photos and garment swatches sit on them and a tinted
+ *    background distorts perceived garment colour.
+ */
+
+[data-theme="halloween"] {
+  --brand: 181 61 12; /* deep pumpkin #b53d0c — white text 5.77:1 */
+  --brand-hover: 154 52 18; /* #9a3412 */
+  --header-bg: 30 16 41; /* aubergine night #1e1029 */
+  --header-fg: 248 241 255; /* ghost white #f8f1ff */
+  --seasonal-glow: 251 146 60; /* lantern orange #fb923c (on dark only) */
+  --seasonal-slime: 163 230 53; /* slime #a3e635 (on dark only) */
+
+  --brand-secondary: #b53d0c;
+}
+
+/* Inside the dark header the accent must be light to read on aubergine. */
+[data-theme="halloween"] [data-theme-region="header"] {
+  --brand-secondary: #fb923c;
+  --brand-accent: #a3e635;
+}
+
+/* Header bars. Redundant once the header uses bg-header-bg directly. */
+[data-theme="halloween"] .theme-header-bar {
+  background-color: rgb(var(--header-bg));
+}
+
+/* Regions that must look classic in every theme (Studio / customizer).
+   Values mirror the classic :root tokens — keep them in sync. */
+[data-theme] .theme-neutral {
+  --brand: 255 46 99;
+  --brand-hover: 230 30 85;
+  --brand-secondary: #ff2e63;
+  --brand-accent: #3dcfc2;
+}
+
+/* Section-header mark: a small bat after the eyebrow text. CSS-only (a
+   ~300-byte mask), so classic visitors pay nothing but these bytes. */
+[data-theme="halloween"] .theme-section-mark::after {
+  content: "";
+  display: inline-block;
+  width: 1.6em;
+  height: 0.8em;
+  margin-left: 0.5em;
+  vertical-align: -0.05em;
+  background-color: var(--brand-secondary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M30 14C25 7 15 4 3 8c5 2 7 6 6 10 4-3 8-2 10 2 3-4 7-4 11-2zm4 0c5-7 15-10 27-6-5 2-7 6-6 10-4-3-8-2-10 2-3-4-7-4-11-2z'/%3E%3Cellipse cx='32' cy='17' rx='4.5' ry='6.5'/%3E%3Cpath d='M28.5 12.5 29.5 7l2.5 3.5L34.5 7l1 5.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M30 14C25 7 15 4 3 8c5 2 7 6 6 10 4-3 8-2 10 2 3-4 7-4 11-2zm4 0c5-7 15-10 27-6-5 2-7 6-6 10-4-3-8-2-10 2-3-4-7-4-11-2z'/%3E%3Cellipse cx='32' cy='17' rx='4.5' ry='6.5'/%3E%3Cpath d='M28.5 12.5 29.5 7l2.5 3.5L34.5 7l1 5.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Seasonal-only content, server-rendered into the static HTML and revealed by
+   the theme attribute — so it shows from first paint with no layout shift and
+   no client JS. Pair `data-season-show="<theme>"` (promo) and
+   `"<theme>-late"` (after the order-by cut-off). */
+.theme-seasonal {
+  display: none;
+}
+[data-theme="halloween"]:not([data-theme-late]) .theme-seasonal[data-season-show="halloween"],
+[data-theme="halloween"][data-theme-late] .theme-seasonal[data-season-show="halloween-late"] {
+  display: flex;
+}
