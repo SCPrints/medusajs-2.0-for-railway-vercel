@@ -97,7 +97,7 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
               ? "Weight-based"
               : decision.tier === "flat"
               ? "Flat-rate"
-              : "Live ShipStation quote"}
+              : "Live carrier quote"}
           </Badge>
         ) : null}
       </div>

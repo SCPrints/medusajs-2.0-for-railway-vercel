@@ -26,10 +26,8 @@ const EMPTY_RESPONSE: CartShippingOptionsResponse = {
 
 /**
  * Fetches the cart's eligible shipping options via the custom hybrid route
- * `/store/cart-shipping-options`. The route filters the underlying core list
- * by the cart's total gram weight:
- *   - ≤ threshold (~3kg): only manual flat-rate options.
- *   - >  threshold:        only ShipStation calculated options.
+ * `/store/cart-shipping-options`. The route returns the single weight-based
+ * "Standard Shipping (AU)" option, priced from the cart's total gram weight.
  *
  * Returns the full payload so callers can also surface `tier` and weight info.
  */

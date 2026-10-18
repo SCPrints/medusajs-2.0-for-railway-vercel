@@ -130,16 +130,6 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "32mb" },
     },
     {
-      // ShipStation v2 webhook endpoint. Preserve the raw request body so we
-      // can verify the HMAC-SHA256 signature header.
-      matcher: "/hooks/shipstation",
-      methods: ["POST"],
-      bodyParser: {
-        preserveRawBody: true,
-        sizeLimit: "1mb",
-      },
-    },
-    {
       // Stripe webhook for admin-created Payment Links. Stripe signs the raw
       // body, so we must preserve it for `stripe.webhooks.constructEvent`.
       matcher: "/hooks/stripe-payment-link",

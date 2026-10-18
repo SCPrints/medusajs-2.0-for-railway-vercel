@@ -70,20 +70,7 @@ export const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID
 /** Set PAYPAL_IS_SANDBOX=true to use PayPal Sandbox; any other value uses live. */
 export const PAYPAL_IS_SANDBOX =
   String(process.env.PAYPAL_IS_SANDBOX).toLowerCase() === "true"
-export const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY
-export const SHIPSTATION_WEBHOOK_SECRET = process.env.SHIPSTATION_WEBHOOK_SECRET
-export const SHIPSTATION_WAREHOUSE_POSTCODE = process.env.SHIPSTATION_WAREHOUSE_POSTCODE
-export const SHIPSTATION_WAREHOUSE_COUNTRY_CODE =
-  process.env.SHIPSTATION_WAREHOUSE_COUNTRY_CODE || "AU"
-export const SHIPSTATION_WAREHOUSE_CITY = process.env.SHIPSTATION_WAREHOUSE_CITY
-export const SHIPSTATION_WAREHOUSE_STATE = process.env.SHIPSTATION_WAREHOUSE_STATE
-export const SHIPSTATION_WAREHOUSE_NAME =
-  process.env.SHIPSTATION_WAREHOUSE_NAME || "Warehouse"
-export const SHIPSTATION_WAREHOUSE_ADDRESS_1 =
-  process.env.SHIPSTATION_WAREHOUSE_ADDRESS_1
-export const SHIPSTATION_WAREHOUSE_PHONE = process.env.SHIPSTATION_WAREHOUSE_PHONE
-
-/** Nominal parcel dimensions for ShipStation rate quotes (cm). Carriers often require L×W×H. */
+/** Nominal parcel dimensions for carrier rate quotes (cm). Carriers often require L×W×H. */
 const parsePackageDimCm = (raw: string | undefined, fallback: number) => {
   const n = Number.parseFloat(raw ?? "")
   if (!Number.isFinite(n) || n <= 0 || n > 200) {
@@ -91,19 +78,6 @@ const parsePackageDimCm = (raw: string | undefined, fallback: number) => {
   }
   return n
 }
-export const SHIPSTATION_PACKAGE_LENGTH_CM = parsePackageDimCm(
-  process.env.SHIPSTATION_PACKAGE_LENGTH_CM,
-  40
-)
-export const SHIPSTATION_PACKAGE_WIDTH_CM = parsePackageDimCm(
-  process.env.SHIPSTATION_PACKAGE_WIDTH_CM,
-  30
-)
-export const SHIPSTATION_PACKAGE_HEIGHT_CM = parsePackageDimCm(
-  process.env.SHIPSTATION_PACKAGE_HEIGHT_CM,
-  15
-)
-
 /**
  * Australia Post Shipping & Tracking API **v1** — direct integration replacing
  * ShipStation for AU-domestic parcels. Off until creds are issued.
@@ -159,7 +133,7 @@ export const AUSPOST_LABEL_LAYOUT =
   process.env.AUSPOST_LABEL_LAYOUT || "A4-1pp"
 
 /**
- * AusPost ship-from address. Same shape as SHIPSTATION_WAREHOUSE_*; if both
+ * AusPost ship-from address; if both
  * sets are populated they serve their respective providers. Country code
  * defaults to AU because AusPost only ships from AU origins.
  */
@@ -193,21 +167,6 @@ export const AUSPOST_PACKAGE_HEIGHT_CM = parsePackageDimCm(
   10
 )
 
-/**
- * Cart-shipping-options tier filter switch: which provider's `*_*` options
- * to surface above the SHIPPING_FLAT_RATE_MAX_GRAMS threshold.
- *
- *   "shipstation" — current behaviour, kept as default until AusPost is proven
- *   "auspost"     — flip after testbed QA + first live prod parcel succeeds
- *
- * Both providers stay registered during the transition; only the storefront
- * filter switches. Lets you roll back via a single env-var change.
- */
-export const LIVE_SHIPPING_PROVIDER =
-  (process.env.LIVE_SHIPPING_PROVIDER || "shipstation").toLowerCase() as
-    | "shipstation"
-    | "auspost"
-
 const parseIntEnv = (raw: string | undefined, fallback: number) => {
   if (!raw) {
     return fallback
@@ -219,7 +178,7 @@ const parseIntEnv = (raw: string | undefined, fallback: number) => {
 /**
  * Hybrid shipping threshold: anything ≤ this weight (incl. packaging overhead)
  * is offered the manual flat-rate tiers. Anything heavier suppresses flat rates
- * and surfaces ShipStation calculated quotes.
+ * and surfaces carrier calculated quotes.
  */
 export const SHIPPING_FLAT_RATE_MAX_GRAMS = parseIntEnv(
   process.env.SHIPPING_FLAT_RATE_MAX_GRAMS,

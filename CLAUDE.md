@@ -852,14 +852,10 @@ Every reminder/digest job is gated behind an `*_ENABLED` flag so accidental boot
 | `FULFILLMENT_NOTIFICATION_EMAIL` | Comma-separated inboxes for internal "new fulfillment order" alerts (Phase 2 customer portal restocks). Falls back to `ORDER_NOTIFICATION_EMAIL` then `CONTACT_NOTIFICATION_EMAIL` so production gets notified even if this is unset. | unset |
 | `ADMIN_PUBLIC_URL` | Public admin URL used in digest emails. | falls back to `BACKEND_URL` |
 
-#### Shipping (ShipStation + dropship)
+#### Shipping (weight-based + AusPost + dropship)
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `SHIPSTATION_API_KEY` | Required to enable the ShipStation fulfillment provider (rates, labels). | unset — provider not registered |
-| `SHIPSTATION_WEBHOOK_SECRET` | Required for incoming label events. | unset |
-| `SHIPSTATION_WAREHOUSE_*` | Warehouse address fallback (`POSTCODE`, `COUNTRY_CODE`, `CITY`, `STATE`, `ADDRESS_1`, `PHONE`, `NAME`). Prefer the stock-location address in admin. | unset |
-| `SHIPSTATION_PACKAGE_LENGTH_CM` / `_WIDTH_CM` / `_HEIGHT_CM` | Default package dimensions for rate quotes. | unset |
 | `SHIPPING_PACKAGING_OVERHEAD_GRAMS` | Added to item weight for accurate rates. | `150` |
 | `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` | Per-unit fallback weight for line items with no real weight (no variant/product weight, no `metadata.weight_grams`). Makes the weight-based "Standard Shipping" rate scale with order size before products have weights set. Bump toward 350 for a hoodie-heavy mix. See "Customer-facing rate" above + [shipping-rate.ts](backend/src/lib/shipping-rate.ts). | `300` |
 | `FULFILLMENT_BRIDGE_ENABLED` | Gates the subscriber that creates the Medusa fulfillment when the production stage reaches `shipped` / `delivered`, so staff don't maintain two systems by hand. On by default — closing this loop is the desired behaviour. See "Fulfilment: stock locations…" below. | `true` |
@@ -1201,7 +1197,7 @@ The storefront checkout shows **one** shipping option — "Standard Shipping (AU
 | Provider registration (`id: "scp"`, unconditional) | [backend/medusa-config.js](backend/medusa-config.js) |
 | Prod migration script | [backend/src/scripts/reconfigure-shipping-weight-based.ts](backend/src/scripts/reconfigure-shipping-weight-based.ts) |
 
-**The no-weights conundrum, solved by a default:** `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` (default `300`) is the per-unit fallback applied to any line item with no real weight (no `variant.weight` / `product.weight` / `metadata.weight_grams`). So weight scales with quantity *today* even though ~nothing has a weight set; the moment a real weight is entered it overrides the default automatically. `calculatePrice` returns **dollars (major units), GST-INCLUSIVE** since the 2026-07 HOLD cutover — the customer pays exactly the band amount; the provider marks the rate tax-inclusive and Medusa extracts the embedded GST (÷11). The ladder lives in code (not env) on purpose: shipping prices are business numbers that belong in code review.
+**The no-weights conundrum, solved by a default:** `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` (default `300`) is the per-unit fallback applied to any line item with no real weight (no `variant.weight` / `product.weight` / `metadata.weight_grams`). So weight scales with quantity *today* even though ~nothing has a weight set; the moment a real weight is entered it overrides the default automatically. `calculatePrice` returns **dollars (major units), GST-INCLUSIVE** since the 2026-07 HOLD cutover — the customer pays exactly the band amount; the provider marks the rate tax-inclusive and Medusa extracts the embedded GST (÷11). The ladder lives in code (not env) on purpose: shipping prices are business numbers that belong in code review. Since 2026-10-19 every band also carries `FREIGHT_IN_PER_ORDER_AUD` ($15): the supplier-to-studio freight, charged ONCE per order here instead of per unit in the garment ladder (`FREIGHT_IN_ALLOWANCE_AUD` is now 0 — a 5-tee order used to carry $75 of it). Move the number here, never back into the ladder.
 
 **Cutover runbook (existing prod DB):** (1) `cd backend && fly deploy` (registers the `scp_scp` provider); (2) `cd /app/.medusa/server && DRY_RUN=1 npx medusa exec src/scripts/reconfigure-shipping-weight-based.js` to preview, then re-run without `DRY_RUN` (creates the one weight-based option, soft-deletes Express + flat + live-quote options); (3) `git push origin master` for the storefront banner/display changes. The custom route filters to `scp_*` with a fallback to the unfiltered list, so checkout never dead-ends if the option isn't created yet. The ShipStation/AusPost providers below stay registered but are **not** surfaced at checkout under this model — they remain the future live-rate upgrade path (flip the route filter + create calculated options) once real weights + AusPost creds land.
 
@@ -1233,21 +1229,8 @@ The storefront checkout shows **one** shipping option — "Standard Shipping (AU
 - `markOrderFulfillmentAsDeliveredWorkflow` takes **camelCase** `{ orderId, fulfillmentId }`; its sibling fulfilment workflows take snake_case.
 - Import core workflows from `@medusajs/medusa/core-flows`, **never** `@medusajs/core-flows` — the latter type-checks in the IDE and throws at runtime, because pnpm strict mode hides transitive deps (same trap as the module-provider note in the Redis section).
 
-### ShipStation fulfillment provider (being deprecated)
-Real-time rate calculation, label purchase, and shipment tracking via ShipStation API v2. **Slated for removal** once the AusPost direct integration (below) clears 50+ live parcels — driven by ShipStation's ~US$50/mo API tier vs AusPost's free direct API on the same MyPost Business charge account.
-
-| Component | Path |
-| --- | --- |
-| Module + service | [backend/src/modules/shipstation/](backend/src/modules/shipstation/) |
-| Parcels widget | [backend/src/admin/widgets/order-shipstation-parcels.tsx](backend/src/admin/widgets/order-shipstation-parcels.tsx) |
-| Shipping-decision widget | [backend/src/admin/widgets/order-shipping-decision.tsx](backend/src/admin/widgets/order-shipping-decision.tsx) |
-| Shipping-decision stamp (cart → order) | [backend/src/subscribers/order-placed-stamp-shipping-decision.ts](backend/src/subscribers/order-placed-stamp-shipping-decision.ts) |
-| Shipment-created → email | [backend/src/subscribers/order-shipment-created.ts](backend/src/subscribers/order-shipment-created.ts) |
-
-**Env**: `SHIPSTATION_API_KEY` + warehouse fields (see env table). **Gotcha**: rates silently fail if any required warehouse field is missing; `variant.weight` or `item.metadata.weight_grams` must be set or only packaging overhead is used.
-
-### Australia Post direct fulfillment provider (successor)
-Replacement for the ShipStation provider. Uses AusPost's classic **Shipping & Tracking API v1** with **HTTP Basic Auth** (`Authorization: Basic base64(api_key:api_password)` + `Account-Number` header — NOT OAuth; AusPost's OAuth flow belongs to its separate newer "Parcel Send"/v2 generation, which MyPost Business accounts don't use) against a MyPost Business account + Credit (Charge) Account. AusPost has no webhook push, so tracking events sync via a 4-hourly poll cron rather than the ShipStation-style realtime webhook.
+### Australia Post direct fulfillment provider
+Uses AusPost's classic **Shipping & Tracking API v1** with **HTTP Basic Auth** (`Authorization: Basic base64(api_key:api_password)` + `Account-Number` header — NOT OAuth; AusPost's OAuth flow belongs to its separate newer "Parcel Send"/v2 generation, which MyPost Business accounts don't use) against a MyPost Business account + Credit (Charge) Account. AusPost has no webhook push, so tracking events sync via a 4-hourly poll cron rather than a realtime webhook.
 
 | Component | Path |
 | --- | --- |
@@ -1261,7 +1244,7 @@ Replacement for the ShipStation provider. Uses AusPost's classic **Shipping & Tr
 
 **Service codes** are hardcoded to AusPost defaults (`7E55` Parcel Post, `7E54` Express Post) and can be overridden per-account via `AUSPOST_DEFAULT_SERVICE_PARCEL_PRODUCT_ID` / `_EXPRESS_PRODUCT_ID`. AusPost has no equivalent of ShipStation's "list services" endpoint, so the merchant treats these as opaque per-account strings — sync against the `POST /prices/items` response (`items[].prices[].product_id`) if AusPost issues a different code.
 
-**Pricing**: `calculatePrice` returns DOLLARS (major units), matching the ShipStation provider — Medusa's `calculated_amount` for a shipping option is major units, NOT cents. AusPost `/prices/items` returns ex-GST `calculated_price` + `calculated_gst`; we sum them and mark the option tax-inclusive.
+**Pricing**: `calculatePrice` returns DOLLARS (major units), matching the scp provider — Medusa's `calculated_amount` for a shipping option is major units, NOT cents. AusPost `/prices/items` returns ex-GST `calculated_price` + `calculated_gst`; we sum them and mark the option tax-inclusive.
 
 **Cred-shape checkpoint (v1 vs v2)**: this code targets v1 + Basic Auth. When creds arrive, confirm the shape — an **API key (UUID) + password** = v1 (this code works as-is); a **client_id + client_secret** = the v2/OAuth generation, which needs a different client + endpoint shapes. See [Docs/AUSPOST_SETUP.md](Docs/AUSPOST_SETUP.md).
 
@@ -1316,7 +1299,7 @@ Preview templates locally: `cd backend && pnpm email:dev` (boots [react-email](h
 | Template | Triggered by | Recipient | Notes |
 | --- | --- | --- | --- |
 | `order-placed.tsx` | `order.placed` subscriber | Customer + `ORDER_NOTIFICATION_EMAIL` | |
-| `order-shipped.tsx` | `order.shipment_created` subscriber | Customer | Tracking parcels from fulfillment metadata or ShipStation labels |
+| `order-shipped.tsx` | `order.shipment_created` subscriber | Customer | Tracking parcels from fulfillment metadata or native labels |
 | `order-production-stage.tsx` | `production_stage_changed` subscriber (Phase 1) | Customer | Sent only for forward transitions through `awaiting_approval` and `in_production` |
 | `artwork-approval.tsx` | `order-artwork-stage-changed` subscriber | Customer | HMAC-signed link to `/artwork-approval/[orderId]` |
 | `cart-reminder.tsx` | `send-abandoned-cart-reminders` job | Customer (consent-gated) | One per cart per lifetime |
@@ -1361,7 +1344,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | `0 19 * * 0` | Mon 05:00 | [repair-supplier-images.ts](backend/src/jobs/repair-supplier-images.ts) | Self-heal supplier CDN rot: AS Colour repair + website scrape + storefront cache purge (gated by `IMAGE_AUTO_REPAIR_ENABLED`) |
 | `0 22 * * *` | daily 08:00 (runs on 2nd only) | [send-monthly-digest.ts](backend/src/jobs/send-monthly-digest.ts) | Internal monthly performance digest. Daily cron gated to the 2nd in-handler — a monthly `0 22 2 * *` cron overflows Node's setTimeout (>24.85 days → 1ms → tight loop). |
 
-Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, ShipStation, PostHog, Google) no-op silently when their token/key env vars are unset.
+Cron jobs that depend on optional integrations (AS Colour, FashionBiz, AP, AusPost, PostHog, Google) no-op silently when their token/key env vars are unset.
 
 ## Subscribers — at-a-glance
 

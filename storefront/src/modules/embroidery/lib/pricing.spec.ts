@@ -14,11 +14,11 @@ describe("calculatePrice", () => {
       quantity: 50,
       includeDigitizing: false,
     })
-    // 7000 stitches → "up to 7,000" row, qty 50 → "26–50" column.
-    // Matrix lookup: 10.50.
-    expect(result.unitDecorationPrice).toBe(10.5)
-    expect(result.appliedTier.label).toBe("26–50")
-    expect(result.decorationSubtotal).toBe(525)
+    // 7000 stitches → "up to 7,000" row, qty 50 → "50–99" column.
+    // Matrix lookup: 8.50.
+    expect(result.unitDecorationPrice).toBe(8.5)
+    expect(result.appliedTier.label).toBe("50–99")
+    expect(result.decorationSubtotal).toBe(425)
     expect(result.requiresQuote).toBe(false)
   })
 
@@ -32,19 +32,20 @@ describe("calculatePrice", () => {
     expect(result.unitDecorationPrice).toBe(11.25)
   })
 
-  it("snaps qty 25 to the 1–25 column and qty 26 to 26–50", () => {
-    const at25 = calculatePrice({
-      stitchCount: 3000,
-      quantity: 25,
-      includeDigitizing: false,
-    })
-    const at26 = calculatePrice({
-      stitchCount: 3000,
-      quantity: 26,
-      includeDigitizing: false,
-    })
-    expect(at25.unitDecorationPrice).toBe(10.5)
-    expect(at26.unitDecorationPrice).toBe(9.5)
+  it("breaks bands at 25 / 50 / 100 / 250 / 500 (round-number orders get the cheaper column)", () => {
+    const price = (quantity: number) =>
+      calculatePrice({ stitchCount: 3000, quantity, includeDigitizing: false })
+    expect(price(24).unitDecorationPrice).toBe(10.5)
+    expect(price(24).appliedTier.label).toBe("1–24")
+    expect(price(25).unitDecorationPrice).toBe(9.5)
+    expect(price(25).appliedTier.label).toBe("25–49")
+    expect(price(49).unitDecorationPrice).toBe(9.5)
+    expect(price(50).unitDecorationPrice).toBe(7.5)
+    expect(price(99).unitDecorationPrice).toBe(7.5)
+    expect(price(100).unitDecorationPrice).toBe(5.5)
+    expect(price(250).unitDecorationPrice).toBe(4.5)
+    expect(price(500).unitDecorationPrice).toBe(3.5)
+    expect(price(500).appliedTier.label).toBe("500+")
   })
 
   it("returns POA breakdown when stitch count exceeds the auto-priced cap", () => {
