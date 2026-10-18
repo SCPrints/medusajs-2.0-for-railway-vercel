@@ -32,7 +32,7 @@ const run = (
   opts: { search?: string; storage?: ReturnType<typeof memoryStorage> | null } = {}
 ) => {
   const root = fakeRoot()
-  const res = runThemeInit(THEME_INIT_CONFIG, {
+  const res = runThemeInit(THEME_INIT_CONFIG, null, {
     now,
     search: opts.search ?? "",
     storage: opts.storage === undefined ? memoryStorage() : opts.storage,
@@ -105,7 +105,7 @@ describe("runThemeInit — precedence", () => {
       },
     }
     const root = fakeRoot()
-    const r = runThemeInit(THEME_INIT_CONFIG, {
+    const r = runThemeInit(THEME_INIT_CONFIG, null, {
       now: OCT_17,
       search: "?theme=classic",
       storage: throwing,
@@ -154,9 +154,15 @@ describe("runThemeInit — order-by cut-off", () => {
     expect(r.attrs["data-theme-late"]).toBe("")
   })
 
-  it("is never late for classic", () => {
+  it("follows the season, so switching the look back on still shows the late copy", () => {
     const storage = memoryStorage({ "scp-theme": "classic|halloween" })
-    expect(run(new Date("2026-10-25T05:00:00Z"), { storage }).late).toBe(false)
+    const r = run(new Date("2026-10-25T05:00:00Z"), { storage })
+    expect(r.theme).toBe("classic")
+    expect(r.attrs["data-theme-late"]).toBe("")
+  })
+
+  it("is never late outside the season", () => {
+    expect(run(MAR_10, { search: "?theme=halloween" }).late).toBe(false)
   })
 })
 
@@ -166,7 +172,7 @@ describe("runThemeInit — windows that wrap the new year", () => {
     themes: [{ n: "newyear", s: 1228, e: 103 }],
   }
   const at = (iso: string) =>
-    runThemeInit(cfg, { now: new Date(iso), search: "", storage: null, root: null }).theme
+    runThemeInit(cfg, null, { now: new Date(iso), search: "", storage: null, root: null }).theme
 
   it("covers both sides of 1 January", () => {
     expect(at("2026-12-29T02:00:00Z")).toBe("newyear")
@@ -177,18 +183,35 @@ describe("runThemeInit — windows that wrap the new year", () => {
 })
 
 describe("buildThemeInitScript", () => {
-  it("serialises into a self-contained script that sets data-theme", () => {
+  const runScript = (search: string, storage = memoryStorage()) => {
     const attrs: Record<string, string> = {}
     const fakeWindow: any = {
-      location: { search: "?theme=halloween" },
-      localStorage: memoryStorage(),
+      location: { search },
+      localStorage: storage,
       document: { documentElement: { setAttribute: (n: string, v: string) => (attrs[n] = v) } },
     }
-    const script = buildThemeInitScript()
     // Run the script text with a stand-in `window` in scope.
-    new Function("window", script)(fakeWindow)
+    new Function("window", buildThemeInitScript())(fakeWindow)
+    return { attrs, fakeWindow }
+  }
+
+  it("serialises into a self-contained script that sets data-theme", () => {
+    const { attrs, fakeWindow } = runScript("?theme=halloween")
     expect(attrs["data-theme"]).toBe("halloween")
     expect(fakeWindow.__scpTheme).toMatchObject({ theme: "halloween", source: "param" })
+  })
+
+  it("reads the saved choice through the window it is handed", () => {
+    const { attrs } = runScript("", memoryStorage({ "scp-theme": "classic|halloween" }))
+    // Out of season in CI? The saved season must match today's; make it robust.
+    const season = runThemeInit(THEME_INIT_CONFIG, null, { storage: null, root: null }).season
+    expect(attrs["data-theme"]).toBe(season === "halloween" ? "classic" : season)
+  })
+
+  it("never references the window global (server bundlers fold `typeof window`)", () => {
+    const body = runThemeInit.toString()
+    expect(body).not.toMatch(/typeof window|[^.\w]document\.|[^.\w]process\./)
+    expect(body).toMatch(/location\.search/)
   })
 
   it("stays small", () => {

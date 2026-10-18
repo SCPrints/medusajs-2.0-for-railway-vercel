@@ -21,12 +21,21 @@ export type ThemeInitResult = {
   source: ThemeSource
   /** Theme the date alone selects ("classic" outside every window). */
   season: string
-  /** The applied theme's order-by date has passed (Sydney time). */
+  /** The in-season theme's order-by date has passed (Sydney time). */
   late: boolean
+}
+
+/** The browser globals the script reads; tests pass a stand-in or null. */
+export type ThemeWindowLike = {
+  location: { search: string }
+  localStorage?: StorageLike
+  document: { documentElement: { setAttribute(name: string, value: string): void } }
+  __scpTheme?: ThemeInitResult
 }
 
 type StorageLike = Pick<Storage, "getItem" | "setItem">
 
+/** Test overrides; each wins over the corresponding `win` read. */
 export type ThemeInitEnv = {
   now?: Date
   search?: string
@@ -55,25 +64,33 @@ export const THEME_INIT_CONFIG: ThemeInitConfig = {
  * serialised with `.toString()` into the inline <head> script so it runs
  * before first paint. Tests call it directly with an injected `env`.
  *
+ * The browser is passed in as `win` rather than read from the `window`
+ * global on purpose: this function is bundled for the SERVER (the root
+ * layout), where Turbopack folds `typeof window` to "undefined" and strips
+ * every branch behind it — the serialised script would then never read the
+ * URL, storage or <html>. A parameter can't be folded. Keep `window`,
+ * `document` and `process` out of this body.
+ *
  * Today is read as MMDD in Sydney time (device clock if Intl fails). Storage
  * failures (private mode, blocked site data) are swallowed — the theme still
- * applies for this load. A saved choice only counts in the season it was made in — opting out of
- * Halloween doesn't also opt you out of Christmas, and a Halloween opt-in
- * doesn't leak into December.
+ * applies for this load. A saved choice only counts in the season it was
+ * made in — opting out of Halloween doesn't also opt you out of Christmas,
+ * and a Halloween opt-in doesn't leak into December.
  */
 export function runThemeInit(
   cfg: ThemeInitConfig,
+  win: ThemeWindowLike | null,
   env?: ThemeInitEnv
 ): ThemeInitResult {
   const e = env || {}
-  const w: any = typeof window !== "undefined" ? window : null
+  const w = win
   const now = e.now || new Date()
   const search = e.search != null ? e.search : w ? w.location.search : ""
   let storage: StorageLike | null = null
   if (e.storage !== undefined) storage = e.storage
   else {
     try {
-      storage = w ? w.localStorage : null
+      storage = w && w.localStorage ? w.localStorage : null
     } catch (_) {
       storage = null
     }
@@ -95,10 +112,10 @@ export function runThemeInit(
     }
     if (m && d) md = m * 100 + d
   } catch (_) {
-    md = md + 0
+    /* device clock */
   }
 
-  const known: Record<string, any> = { classic: {} }
+  const known: Record<string, { o?: number; e?: number }> = { classic: {} }
   let season = "classic"
   for (let i = 0; i < cfg.themes.length; i++) {
     const t = cfg.themes[i]
@@ -139,7 +156,11 @@ export function runThemeInit(
     }
   }
 
-  const late = !!(known[theme].o && md > known[theme].o && md <= known[theme].e)
+  // Late is a property of the SEASON (date), not the applied theme, so a
+  // visitor who switches the seasonal look back on via the toggle still sees
+  // the post-cut-off copy.
+  const cut = known[season].o
+  const late = !!(cut && md > cut)
   if (root) {
     root.setAttribute("data-theme", theme)
     if (late) root.setAttribute("data-theme-late", "")
@@ -151,5 +172,5 @@ export function runThemeInit(
 
 /** The inline script for the root layout <head> (~2.5 KB raw, ~1 KB gzipped). */
 export function buildThemeInitScript(cfg: ThemeInitConfig = THEME_INIT_CONFIG): string {
-  return `try{(${runThemeInit.toString()})(${JSON.stringify(cfg)})}catch(e){}`
+  return `try{(${runThemeInit.toString()})(${JSON.stringify(cfg)},window)}catch(e){}`
 }

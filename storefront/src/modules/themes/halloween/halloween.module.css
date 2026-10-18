@@ -97,20 +97,21 @@
 
 /* ---- Header corner cobweb -------------------------------------------- */
 
+/* Inside the header's row-1 bar, behind its controls (the row is `relative`;
+   the controls container comes after it in the DOM, so it paints on top). */
 .web {
-  position: fixed;
+  position: absolute;
   top: 0;
   right: 0;
-  z-index: 51; /* just above the sticky header (z-50) */
   width: 64px;
   pointer-events: none;
   transform-origin: 100% 0%;
-  opacity: 0.45;
+  opacity: 0.32;
 }
 
 @media (min-width: 1024px) {
   .web {
-    width: 88px;
+    width: 80px;
   }
 }
 

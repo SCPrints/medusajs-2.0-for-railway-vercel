@@ -1,6 +1,5 @@
 import Footer from "@modules/layout/templates/footer"
 import Nav from "@modules/layout/templates/nav"
-import { SeasonalSiteDecorations } from "@modules/themes/components/seasonal-decorations"
 
 /**
  * Standard shop header + footer. Used by `(main)/layout` and by root `app/not-found`
@@ -16,7 +15,6 @@ export default function MainStoreShell({
       <Nav />
       {children}
       <Footer />
-      <SeasonalSiteDecorations />
     </>
   )
 }

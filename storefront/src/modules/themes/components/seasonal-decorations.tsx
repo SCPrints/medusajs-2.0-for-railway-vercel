@@ -15,8 +15,8 @@ const HalloweenHeroArt = dynamic(
   { ssr: false }
 )
 
-/** Site-wide decorations (header corner). Mounted in the main shop shell only — never checkout. */
-export function SeasonalSiteDecorations() {
+/** Header-corner decoration. Rendered inside the shop header only — never checkout. */
+export function SeasonalHeaderDecor() {
   const theme = useActiveTheme()
   const idle = useIdle()
   if (!idle) return null
