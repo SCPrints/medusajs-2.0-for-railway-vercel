@@ -7,7 +7,8 @@
  * order in the shipping bands instead — so the same script now takes it back
  * out. It works on the DELTA between the variant's `bulk_pricing.freight_in_aud`
  * stamp (unstamped = 0) and the constant, so it is idempotent and re-runnable
- * at any value.
+ * at any value. Unstamped ladders created while the allowance was 15 are
+ * treated as carrying it (see UNSTAMPED_FREIGHT_WINDOW).
  *
  * For each variant with `metadata.bulk_pricing.tiers` whose stamp differs:
  *   - adds `delta / max(1, min_quantity)` to each tier amount
@@ -42,6 +43,28 @@ const PAGE_SIZE = 100
 const CHUNK = 20
 
 const round2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * Ladders built while FREIGHT_IN_ALLOWANCE_AUD was 15 but NOT stamped: the
+ * JB's Wear family (2026-10-14) and the nightly AS Colour / FashionBiz
+ * variant backfills write `bulk_pricing` through their own metadata builders,
+ * which never copied the stamp. The 2026-08-27 run stamped everything that
+ * existed before it, and ladders built after this constant went to 0 carry
+ * nothing — so "unstamped + created inside the window" ⇔ carries $15.
+ * ponytail: window end = the 2026-10-19 backend deploy; widen if a
+ * later import is found carrying freight.
+ */
+const UNSTAMPED_FREIGHT_WINDOW = {
+  from: Date.parse("2026-08-27T00:00:00Z"),
+  to: Date.parse("2026-10-18T22:00:00Z"),
+  allowance: 15,
+}
+const impliedFreight = (createdAt: unknown): number => {
+  const t = Date.parse(String(createdAt ?? ""))
+  return t >= UNSTAMPED_FREIGHT_WINDOW.from && t < UNSTAMPED_FREIGHT_WINDOW.to
+    ? UNSTAMPED_FREIGHT_WINDOW.allowance
+    : 0
+}
 
 const toFinite = (v: unknown): number | null => {
   const n = typeof v === "string" ? Number(v) : v
@@ -109,6 +132,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
         "handle",
         "variants.id",
         "variants.sku",
+        "variants.created_at",
         "variants.metadata",
         "variants.prices.amount",
         "variants.prices.currency_code",
@@ -122,6 +146,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
       variants?: Array<{
         id: string
         sku: string | null
+        created_at?: unknown
         metadata: Record<string, unknown> | null
         prices?: Array<{
           amount: unknown
@@ -143,7 +168,8 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
           continue
         }
         const tiers = bulk.tiers as Array<Record<string, unknown>> | undefined
-        const stamped = toFinite(bulk.freight_in_aud) ?? 0
+        const stamped =
+          toFinite(bulk.freight_in_aud) ?? impliedFreight(variant.created_at)
         const delta = round2(FREIGHT_IN_ALLOWANCE_AUD - stamped)
         const perUnit = (minQty: number) => round2(delta / Math.max(1, minQty))
         if (delta === 0) {
