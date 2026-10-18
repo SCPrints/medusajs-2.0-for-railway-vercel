@@ -587,10 +587,16 @@ export default function MiniBubblePop() {
     if (!ctx) {
       return
     }
+    // Canvas can't resolve `var(--…)`, so read the raw `--surface` channels
+    // ("238 238 238") and build a plain rgb() string from them.
+    const surfaceChannels = getComputedStyle(document.documentElement)
+      .getPropertyValue("--surface")
+      .trim()
+      .split(/\s+/)
     const bgColor =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--brand-background")
-        .trim() || "#eeeeee"
+      surfaceChannels.length === 3 && surfaceChannels.every((c) => /^\d+$/.test(c))
+        ? `rgb(${surfaceChannels.join(",")})`
+        : "#eeeeee"
     const dpr = Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1)
     canvas.width = CANVAS_W * dpr
     canvas.height = CANVAS_H * dpr
