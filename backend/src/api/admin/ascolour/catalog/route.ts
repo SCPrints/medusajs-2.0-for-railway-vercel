@@ -2,18 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { ASCOLOUR_MODULE } from "../../../../modules/ascolour"
 import AsColourService from "../../../../modules/ascolour/service"
-
-const slugify = (s: string) =>
-  (s || "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-
-const handleForStyle = (styleCode: string, productName?: string) => {
-  const name = productName ?? styleCode
-  return `as-colour-${slugify(`${name}-${styleCode}`)}`
-}
+import { asColourHandle } from "../../../../lib/ascolour-handle"
 
 /**
  * AS Colour appends "S" to a styleCode to mark it as superseded/discontinued
@@ -87,7 +76,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const page = products.slice(offset, offset + limit)
 
   // Check which handles already exist in Medusa
-  const handles = page.map((p) => handleForStyle(p.styleCode, (p as any).productName))
+  // Same handle the importer writes (API field is `styleName`), so
+  // already_imported reflects the renamed products.
+  const handles = page.map((p) => asColourHandle((p as any).styleName, p.styleCode))
   const { data: existing } = await query.graph({
     entity: "product",
     fields: ["id", "handle"],
@@ -96,7 +87,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const existingHandles = new Set((existing ?? []).map((p: any) => p.handle as string))
 
   const rows = page.map((p) => {
-    const handle = handleForStyle(p.styleCode, (p as any).productName)
+    const handle = asColourHandle((p as any).styleName, p.styleCode)
     const rawStyleName = (p as any).styleName ?? ""
     const cleanedName = rawStyleName.replace(/\s*\|\s*\d+[A-Z]*\s*$/, "").trim()
     return {
