@@ -181,6 +181,14 @@ const CATEGORIES: Category[] = [
         tech: "Reference",
       },
       {
+        href: "/sandbox/halloween",
+        label: "Halloween cast",
+        description:
+          "Every Halloween theme mascot at 240px with its name and personality note — the hero/header set plus the extended print-shop cast (hoodie skeleton, ink witch, cat in a box, film mummy, patchwork monster, squeegee vampire, zombie hand, cap spider, candy-corn trio, stamp ghost).",
+        status: "active",
+        tech: "SVG ink + cel paint",
+      },
+      {
         href: "/test/animation-widgets",
         label: "Animation widgets lab",
         description:

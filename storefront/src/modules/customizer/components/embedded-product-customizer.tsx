@@ -87,19 +87,23 @@ export default function EmbeddedProductCustomizer({
 
   const defaultGarment = extractDefaultGarmentFromProduct(product)
 
+  // `theme-neutral` keeps seasonal colours out of the Studio (display:contents,
+  // so the integrated PDP grid is unaffected).
   return (
-    <CustomizerTemplate
-      embedded
-      pdpSyncedVariantId={syncVariantId}
-      integratedPdpSlots={integratedPdpSlots}
-      assemblyLayout={assemblyLayout}
-      defaultGarmentImage={defaultGarment?.url ?? null}
-      defaultGarmentTitle={defaultGarment?.title ?? null}
-      product={product}
-      pickerProducts={pickerProducts}
-      tier={tier}
-      customerContact={customerContact}
-      printProfile={printProfile}
-    />
+    <div className="theme-neutral contents">
+      <CustomizerTemplate
+        embedded
+        pdpSyncedVariantId={syncVariantId}
+        integratedPdpSlots={integratedPdpSlots}
+        assemblyLayout={assemblyLayout}
+        defaultGarmentImage={defaultGarment?.url ?? null}
+        defaultGarmentTitle={defaultGarment?.title ?? null}
+        product={product}
+        pickerProducts={pickerProducts}
+        tier={tier}
+        customerContact={customerContact}
+        printProfile={printProfile}
+      />
+    </div>
   )
 }

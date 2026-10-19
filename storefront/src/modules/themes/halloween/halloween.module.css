@@ -1,0 +1,371 @@
+/* Halloween decorations. Loaded only with the lazy Halloween chunk.
+   Every animation is opt-in via prefers-reduced-motion: no-preference, and
+   `.paused` (tab hidden / hero off-screen) freezes them.
+
+   Motion is "on twos/threes": steps() timing so poses HOLD, no smooth
+   tweening — it should read as hand-drawn frames. The colour layer (.paint)
+   runs the same animation one frame behind the ink (.ink), like cel
+   misregistration. One frame = --fr. */
+
+.layer {
+  --fr: 0.125s;
+  --fo: -0.125s;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.paused,
+.paused * {
+  animation-play-state: paused !important;
+}
+
+/* ---- Hero ------------------------------------------------------------- */
+
+/* Candy-night tint confined to the top-right corner (never across the
+   garments in the middle of the photo). */
+.dusk {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 40% 58% at 100% 0%,
+    rgb(91 58 155 / 0.5) 0%,
+    rgb(91 58 155 / 0.22) 45%,
+    transparent 75%
+  );
+}
+
+.moon {
+  position: absolute;
+  top: 6%;
+  right: 7%;
+  width: 100px;
+}
+
+.cloudBack {
+  position: absolute;
+  top: 4%;
+  right: 16%;
+  width: 124px;
+}
+
+.cloudFront {
+  position: absolute;
+  top: 38%;
+  right: 1%;
+  width: 96px;
+}
+
+/* Peeks down from behind the header: the hero clips its crown. */
+.ghost {
+  position: absolute;
+  top: -18px;
+  right: 25%;
+  width: 72px;
+}
+
+.boo {
+  position: absolute;
+  top: 12px;
+  right: calc(25% + 82px);
+  width: 86px;
+}
+
+.skyline {
+  position: absolute;
+  right: 0;
+  bottom: -3px;
+  width: 320px;
+}
+
+.ground {
+  position: absolute;
+  right: 9%;
+  bottom: 2%;
+  width: 62px;
+}
+
+/* Leans against the "Shop the range" button (anchored to its wrapper). */
+.cta {
+  position: absolute;
+  right: -52px;
+  bottom: -9px;
+  width: 64px;
+  transform: rotate(-14deg);
+  pointer-events: none;
+}
+
+.bat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 58px;
+  will-change: transform;
+  /* Off-screen until the rAF loop places it. */
+  transform: translate3d(-200px, -200px, 0);
+}
+
+/* Transform anchors for the animated parts (all CSS, no JS). */
+.ink,
+.paint,
+.blink,
+.wingL,
+.wingR,
+.spider,
+.legsL,
+.legsR,
+.tangled {
+  transform-box: fill-box;
+}
+.ink,
+.paint {
+  transform-origin: 50% 100%;
+}
+.blink {
+  transform-origin: 50% 50%;
+}
+.wingL {
+  transform-origin: 100% 45%;
+}
+.wingR {
+  transform-origin: 0% 45%;
+}
+.spider {
+  transform-origin: 50% 0%;
+}
+.legsL {
+  transform-origin: 100% 50%;
+}
+.legsR {
+  transform-origin: 0% 50%;
+}
+.tangled {
+  transform-origin: 50% 50%;
+}
+.hemB,
+.fB {
+  opacity: 0;
+}
+
+/* ---- Reusable mascots (<HalloweenMascot>) ---------------------------- */
+
+.mascot {
+  --fr: 0.125s;
+  --fo: -0.125s;
+  display: block;
+  height: auto;
+  overflow: visible;
+}
+.still,
+.still * {
+  animation: none !important;
+}
+
+/* Below `tablet` the hero copy fills the frame: keep only the CTA pumpkin. */
+@media (max-width: 767px) {
+  .moon,
+  .ghost,
+  .boo,
+  .cloudBack,
+  .cloudFront,
+  .skyline,
+  .ground {
+    display: none;
+  }
+  .cta {
+    width: 52px;
+    right: -40px;
+  }
+  .dusk {
+    opacity: 0.6;
+  }
+}
+
+/* ---- Header corner cobweb -------------------------------------------- */
+
+/* Inside the header's row-1 bar, behind its controls (the row is `relative`;
+   the controls container comes after it in the DOM, so it paints on top). */
+.web {
+  --fr: 0.125s;
+  --fo: -0.125s;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 72px;
+  pointer-events: none;
+  transform-origin: 100% 0%;
+  opacity: 0.7;
+}
+
+@media (min-width: 1024px) {
+  .web {
+    width: 88px;
+  }
+}
+
+/* ---- Motion (opt-in) -------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* colour layer one frame behind the ink */
+  .paint,
+  .paint .wingL,
+  .paint .wingR {
+    animation-delay: var(--fo);
+  }
+
+  .blink {
+    animation: blink 4.4s steps(1, end) infinite;
+  }
+  .ghost .blink {
+    animation-delay: 0.75s;
+  }
+  .bat .blink {
+    animation-delay: 1.875s;
+  }
+  .spider .blink {
+    animation-delay: 2.625s;
+  }
+
+  .pumpkin .ink,
+  .pumpkin .paint {
+    animation: squashBounce 2.5s steps(2, end) infinite;
+  }
+  .ghost .ink,
+  .ghost .paint {
+    animation: ghostWobble 3.75s steps(3, end) infinite;
+  }
+  .ghost .hemA {
+    animation: frameA 0.5s steps(1, end) infinite;
+  }
+  .ghost .hemB {
+    animation: frameB 0.5s steps(1, end) infinite;
+  }
+  .boo .ink {
+    animation: booPop 1.5s steps(1, end) infinite;
+  }
+  /* generic idle for <HalloweenMascot>: three held poses + 2-frame parts */
+  .idle .ink,
+  .idle .paint {
+    animation: idleHold 2.25s steps(1, end) infinite;
+  }
+  .idle .hemA,
+  .idle .fA {
+    animation: frameA 0.5s steps(1, end) infinite;
+  }
+  .idle .hemB,
+  .idle .fB {
+    animation: frameB 0.5s steps(1, end) infinite;
+  }
+  .ghost .fA,
+  .pumpkin .fA,
+  .web .fA {
+    animation: frameA 0.5s steps(1, end) infinite;
+  }
+  .ghost .fB,
+  .pumpkin .fB,
+  .web .fB {
+    animation: frameB 0.5s steps(1, end) infinite;
+  }
+  .wingL {
+    animation: flapL 0.25s steps(1, end) infinite alternate;
+  }
+  .wingR {
+    animation: flapR 0.25s steps(1, end) infinite alternate;
+  }
+  .moon .ink,
+  .moon .paint {
+    animation: moonBob 9s steps(4, end) infinite;
+  }
+  .cloudBack {
+    animation: drift 16s steps(12, end) infinite;
+  }
+  .cloudFront {
+    animation: drift 11s steps(10, end) infinite reverse;
+  }
+  .web {
+    animation: sway 7s steps(6, end) infinite;
+  }
+  .spider {
+    animation: dangle 2.75s steps(3, end) infinite;
+  }
+  .legsL {
+    animation: wiggleL 0.375s steps(1, end) infinite alternate;
+  }
+  .legsR {
+    animation: wiggleR 0.375s steps(1, end) infinite alternate;
+  }
+  .tangled {
+    animation: struggle 0.375s steps(1, end) infinite alternate;
+  }
+}
+
+@keyframes blink {
+  0%, 88%, 96%, 100% { transform: scaleY(1); }
+  92% { transform: scaleY(0.1); }
+}
+@keyframes frameA {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes frameB {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+@keyframes idleHold {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(0, -3px) rotate(-2deg); }
+  66% { transform: translate(1px, 0) rotate(2deg); }
+}
+@keyframes booPop {
+  0%, 100% { transform: scale(1) rotate(-4deg); }
+  50% { transform: scale(1.08) rotate(2deg); }
+}
+@keyframes flapL {
+  from { transform: scaleY(1) rotate(0deg); }
+  to { transform: scaleY(0.45) rotate(-12deg); }
+}
+@keyframes flapR {
+  from { transform: scaleY(1) rotate(0deg); }
+  to { transform: scaleY(0.45) rotate(12deg); }
+}
+@keyframes squashBounce {
+  0%, 100% { transform: scale(1, 1); }
+  18% { transform: scale(1.08, 0.9); }
+  40% { transform: scale(0.95, 1.07) translateY(-9px); }
+  58% { transform: scale(1.05, 0.94); }
+  74% { transform: scale(0.99, 1.02); }
+}
+@keyframes ghostWobble {
+  0%, 100% { transform: translate(0, 0) rotate(-5deg); }
+  50% { transform: translate(-4px, -8px) rotate(5deg); }
+}
+@keyframes moonBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-12px); }
+}
+@keyframes sway {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-2.5deg); }
+}
+@keyframes dangle {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  45% { transform: translateY(8px) scale(0.92, 1.08); }
+  60% { transform: translateY(6px) scale(1.08, 0.92); }
+}
+@keyframes wiggleL {
+  from { transform: rotate(-7deg); }
+  to { transform: rotate(7deg); }
+}
+@keyframes wiggleR {
+  from { transform: rotate(7deg); }
+  to { transform: rotate(-7deg); }
+}
+@keyframes struggle {
+  from { transform: rotate(-5deg); }
+  to { transform: rotate(5deg); }
+}

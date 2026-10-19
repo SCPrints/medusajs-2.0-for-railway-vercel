@@ -11,7 +11,10 @@ export default function CheckoutLayout({
 }) {
   return (
     <div className="w-full min-h-dvh flex flex-col bg-surface text-ink">
-      <header className="sticky top-0 z-50 border-b-2 border-white/20 bg-header">
+      <header
+        className="theme-header-bar sticky top-0 z-50 border-b-2 border-white/20 bg-header"
+        data-theme-region="header"
+      >
         <nav className="content-container flex h-20 w-full items-center justify-between gap-4 text-base font-medium text-header-fg/90">
           <LocalizedClientLink
             href="/cart"

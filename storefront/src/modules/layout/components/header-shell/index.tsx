@@ -8,6 +8,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import DesktopMegaMenu from "@modules/layout/components/mega-menu/desktop-mega-menu"
 import MobileMegaMenu from "@modules/layout/components/mega-menu/mobile-mega-menu"
 import NavSearchTrigger from "@modules/search/components/nav-search-trigger"
+import { SeasonalHeaderDecor } from "@modules/themes/components/seasonal-decorations"
 
 /**
  * Two-row sticky header with scroll-direction-aware collapse.
@@ -165,10 +166,12 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           on every scroll-direction flip, shifting the whole page by 48px
           (recurring desktop CLS) and fighting browser scroll anchoring
           (see the now-removed overflow-anchor hack in globals.css). */}
-      <header className="relative mx-auto">
+      <header className="relative mx-auto" data-theme-region="header">
         {/* ROW 1 — utility, always visible */}
-        <div className="bg-header">
-        <div className="content-container flex h-20 w-full items-center gap-x-3 phone:gap-x-4 small:gap-x-5 text-base font-medium text-white">
+        <div className="theme-header-bar relative bg-header">
+        {/* Seasonal corner decoration — sits behind the row's controls. */}
+        <SeasonalHeaderDecor />
+        <div className="content-container relative flex h-20 w-full items-center gap-x-3 phone:gap-x-4 small:gap-x-5 text-base font-medium text-white">
           {/* Mobile hamburger — drives MobileMegaMenu's full overlay */}
           <div className="small:hidden flex h-full items-center">
             <MobileMegaMenu audiences={audiences} />
@@ -258,7 +261,7 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
           aria-hidden={isCondensed}
         >
           <div
-            className="h-12 w-full bg-header"
+            className="theme-header-bar h-12 w-full bg-header"
             style={{
               transform: isCondensed ? "translateY(-100%)" : undefined,
               opacity: isCondensed ? 0 : 1,

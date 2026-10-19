@@ -28,7 +28,7 @@ export default function SectionHeader({
       }
     >
       {eyebrow ? (
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
+        <p className="theme-section-mark text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           {eyebrow}
         </p>
       ) : null}

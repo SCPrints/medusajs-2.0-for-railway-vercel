@@ -6,6 +6,7 @@ import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import AreasWeServe from "@modules/locations/components/areas-we-serve"
 import NewsletterSignup from "./newsletter-signup"
+import ThemeToggle from "@modules/themes/components/theme-toggle"
 
 // Captured at build time so Cache Components can prerender the static shell.
 // New build per year refreshes this; acceptable drift for a copyright string.
@@ -159,10 +160,12 @@ export default async function Footer() {
           </div>
         )}
 
-        <div className="flex w-full border-t border-ui-border-base pt-8 text-ui-fg-muted">
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 border-t border-ui-border-base pt-8 text-ui-fg-muted">
           <Text className="txt-compact-small" as="p">
             © {COPYRIGHT_YEAR} SC PRINTS. All rights reserved.
           </Text>
+          {/* Seasonal look switch — renders only while a seasonal theme runs. */}
+          <ThemeToggle />
         </div>
       </div>
     </footer>
