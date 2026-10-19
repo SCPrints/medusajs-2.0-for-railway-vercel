@@ -9,6 +9,13 @@ import SectionHeader from "@modules/common/components/section-header"
 import { iconBase } from "@modules/common/icons/icon-base"
 import { getServiceBySlug } from "@modules/services/data"
 import AreasWeServe from "@modules/locations/components/areas-we-serve"
+import { SeasonalMarginMascot } from "@modules/themes/components/seasonal-decorations"
+
+/** Seasonal mascot per service (Halloween theme only). */
+const SERVICE_MASCOT = {
+  "screen-printing": "vampire",
+  "digital-transfers": "mummy",
+} as const
 
 const SERVICE_PLACEHOLDER_IMAGES_BY_SLUG: Record<string, string[]> = {
   "digital-transfers": Array(3).fill("/placeholders/services/digital-transfers.svg"),
@@ -177,7 +184,15 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         Back to services
       </LocalizedClientLink>
 
-      <div className="mt-6">
+      <div className="relative mt-6">
+        {service.slug in SERVICE_MASCOT ? (
+          <SeasonalMarginMascot
+            name={SERVICE_MASCOT[service.slug as keyof typeof SERVICE_MASCOT]}
+            size={130}
+            className="right-6 top-2"
+            show="hidden small:block"
+          />
+        ) : null}
         <MarketingHero
           eyebrow={service.title}
           eyebrowVariant="muted"

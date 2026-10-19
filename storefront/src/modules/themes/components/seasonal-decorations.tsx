@@ -52,6 +52,19 @@ export function SeasonalMascot({
   return null
 }
 
+/**
+ * A mascot parked in a page header's margin: absolutely positioned inside a
+ * `relative` parent, out of the way of text (hidden below `tablet` by
+ * default — pass `show` to change the breakpoint class), never clickable.
+ */
+export function SeasonalMarginMascot({
+  className = "right-4 top-4",
+  show = "hidden tablet:block",
+  ...rest
+}: { name: MascotName; size?: number; className?: string; show?: string }) {
+  return <SeasonalMascot {...rest} className={`pointer-events-none absolute ${show} ${className}`} />
+}
+
 /** Mascot leaning on the hero CTA. Must sit inside a `relative` wrapper around the button. */
 export function SeasonalCtaMascot() {
   const theme = useActiveTheme()

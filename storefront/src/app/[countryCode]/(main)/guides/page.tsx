@@ -5,6 +5,7 @@ import { buildAbsoluteUrl, SEO } from "@lib/util/seo"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import GuideCard from "@modules/guides/components/guide-card"
 import { GUIDES, guideHref } from "@modules/guides/guides"
+import { SeasonalMarginMascot } from "@modules/themes/components/seasonal-decorations"
 
 const TITLE = "Guides: Print Methods, Brands & Artwork"
 const DESCRIPTION =
@@ -57,7 +58,9 @@ export default function GuidesIndexPage() {
     <div className="content-container py-14 small:py-20">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(listLd) }} />
 
-      <header className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
+      <header className="relative rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-8 small:p-10">
+        {/* Seasonal: the ink witch knows which method (Halloween only). */}
+        <SeasonalMarginMascot name="witch" size={150} className="right-6 bottom-2" />
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ui-fg-muted">Guides</p>
         <h1 className="page-title-marketing mt-3">Know before you order</h1>
         <p className="mt-4 max-w-2xl text-ui-fg-subtle">

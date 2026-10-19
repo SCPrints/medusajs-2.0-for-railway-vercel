@@ -1,6 +1,7 @@
 import { Metadata } from "next"
 import OrderOverview from "@modules/account/components/order-overview"
 import { listOrders } from "@lib/data/orders"
+import { SeasonalMarginMascot } from "@modules/themes/components/seasonal-decorations"
 
 export const metadata: Metadata = {
   title: "Orders",
@@ -11,7 +12,9 @@ export default async function Orders(){const orders = (await listOrders()) ?? []
 
   return (
     <div className="w-full" data-testid="orders-page-wrapper">
-      <header className="mb-8 border-l-4 border-brand pl-4">
+      <header className="relative mb-8 border-l-4 border-brand pl-4">
+        {/* Seasonal: the stamp ghost approves proofs (Halloween only). */}
+        <SeasonalMarginMascot name="stamp-ghost" size={110} className="right-0 -top-2" />
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           Order history
         </p>

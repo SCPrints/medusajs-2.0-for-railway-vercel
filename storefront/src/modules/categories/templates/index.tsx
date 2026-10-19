@@ -14,6 +14,15 @@ import PaginatedProducts from "@modules/store/templates/paginated-products"
 import { HttpTypes } from "@medusajs/types"
 import { buildAbsoluteUrl } from "@lib/util/seo"
 import { safeJsonLd } from "@lib/util/json-ld"
+import { SeasonalMarginMascot } from "@modules/themes/components/seasonal-decorations"
+
+/** Seasonal mascot for a category header (Halloween theme only). */
+const categoryMascot = (handle: string | null | undefined) => {
+  const h = handle ?? ""
+  if (h.startsWith("kids")) return "candy-corn" as const
+  if (h === "mens" || h.includes("hoodies")) return "skeleton" as const
+  return null
+}
 
 export default async function CategoryTemplate({
   categories,
@@ -137,9 +146,12 @@ export default async function CategoryTemplate({
         dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }}
       />
       <section
-        className="content-container border-b border-ui-border-base py-10 small:py-14"
+        className="content-container relative border-b border-ui-border-base py-10 small:py-14"
         data-testid="category-hero"
       >
+        {categoryMascot(category.handle) ? (
+          <SeasonalMarginMascot name={categoryMascot(category.handle)!} size={110} className="right-4 bottom-3" />
+        ) : null}
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ui-fg-muted">
           {parents.length > 0 ? (
             <>

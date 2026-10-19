@@ -7,6 +7,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import SectionHeader from "@modules/common/components/section-header"
 import { iconBase } from "@modules/common/icons/icon-base"
 import ByoInquiryForm from "@modules/home/components/byo-inquiry-form"
+import { SeasonalMarginMascot } from "@modules/themes/components/seasonal-decorations"
 
 
 export async function generateStaticParams() {
@@ -188,7 +189,9 @@ export default async function ByoPage({
       />
 
       {/* 1. Hero header */}
-      <section className="content-container py-14 small:py-20">
+      <section className="content-container relative py-14 small:py-20">
+        {/* Seasonal: the patchwork monster brought its own tee (Halloween only). */}
+        <SeasonalMarginMascot name="patchwork" size={120} className="right-6 top-10" show="hidden small:block" />
         <header className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
             Bring your own
