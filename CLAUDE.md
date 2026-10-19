@@ -406,7 +406,7 @@ Tier system overrides the quantity-ladder with a flat rate via Medusa price-list
 | Order applied-perks widget | [backend/src/admin/widgets/order-applied-perks.tsx](backend/src/admin/widgets/order-applied-perks.tsx) |
 | Tier regen job (`0 6 * * *`) | [backend/src/jobs/regenerate-tier-prices.ts](backend/src/jobs/regenerate-tier-prices.ts) |
 
-**Tier ladder**: 8 ranks from platinum (1.10×) to member (1.45×). Customers are assigned by adding them to the matching "Tier: X" customer group.
+**Tier ladder**: 8 ranks from platinum (1.30×) to member (1.65×), applied to ex-GST supplier cost to give a GST-inclusive flat price (rebased 2026-08 from 1.10–1.45 after the inc-GST cutover left Platinum at 0% margin — [customer-tiers.ts](backend/src/lib/customer-tiers.ts) is authoritative). Customers are assigned by adding them to the matching "Tier: X" customer group.
 
 **Free-shipping perks**: `FREE_SHIPPING_TAGS` env var (comma-separated, default `"VIP,Wholesale"`). At `order.placed` the subscriber checks customer tags and stamps `order.metadata.applied_perks.free_shipping = true` if any match — staff manually waive shipping at fulfilment.
 
@@ -888,7 +888,7 @@ The plugin (`@rokmohar/medusa-plugin-meilisearch` in [backend/medusa-config.js](
 
 Category / store / collection / brand product grids can sort + filter + paginate **in Meilisearch**, then hydrate the page's product IDs via Medusa for live region pricing — replacing the in-memory catalog scan in [`getProductsListWithSort`](storefront/src/lib/data/products.ts) that ran for every non-`created_at` sort and every brand/fabric/price/stock filter (the cause of the "sorting looks frozen" rage-click sessions). Gated by `LISTING_VIA_SEARCH` (default off), with graceful fallback to the legacy scan on any Meili miss/error.
 
-**Why one indexed price sorts correctly for everyone:** the catalog is AUD-only and customer tiers are a *uniform* multiplier (platinum 1.10× … member 1.45×, applied identically to every product via `applyTierMultiplier`) — a positive constant preserves ordering, so the guest base `min_price_aud` orders identically for every tier. `min_price_aud` mirrors the tile headline-price rule in [listing-summary.ts](backend/src/lib/listing-summary.ts).
+**Why one indexed price sorts correctly for everyone:** the catalog is AUD-only and customer tiers are a *uniform* multiplier (platinum 1.30× … member 1.65×, applied identically to every product via `applyTierMultiplier`) — a positive constant preserves ordering, so the guest base `min_price_aud` orders identically for every tier. `min_price_aud` mirrors the tile headline-price rule in [listing-summary.ts](backend/src/lib/listing-summary.ts).
 
 | Component | Path |
 | --- | --- |
