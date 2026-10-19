@@ -20,9 +20,10 @@ const schema = z.object({
  * recorded score sticks; subsequent submissions only update the
  * `comment` field.
  *
- * Accepts both GET (one-click link from the email) and POST (form
- * submission with optional comment). GET response is a tiny HTML
- * "thanks" page; POST returns JSON for the storefront /nps page.
+ * Only POST writes. GET just verifies the signature so a link preview or
+ * mail-security scanner following the URL can't submit a score on the
+ * customer's behalf (review 4-8); the email links to the storefront /nps
+ * page, which POSTs after render.
  */
 const recordScore = async (
   req: MedusaRequest,
@@ -77,14 +78,12 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       score: req.query.score,
       sig: req.query.sig,
     })
-    const result = await recordScore(req, parsed)
-    if (!result.ok) {
-      res
-        .status(400)
-        .json({ success: false, message: result.reason ?? "invalid" })
+    if (!verifyNpsRating(parsed.order, parsed.score, parsed.sig)) {
+      res.status(400).json({ success: false, message: "invalid_signature" })
       return
     }
-    res.json({ success: true, first_response: result.first })
+    // Read-only: valid link, nothing recorded. POST to record.
+    res.json({ success: true, valid: true, order: parsed.order, score: parsed.score })
   } catch (err: any) {
     res
       .status(400)
