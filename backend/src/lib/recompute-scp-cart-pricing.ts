@@ -84,6 +84,35 @@ type CartLineForRecompute = {
 
 const ENABLE_FLAG_ENV = "ENABLE_SCP_CART_AGGREGATION"
 
+/**
+ * Lost-update guard (review 1-2). The recompute reads the cart, prices it,
+ * then writes unit_price per line — with no cart lock, while Medusa's core
+ * cart workflows hold one. A quantity edit that lands between our read and
+ * our write would be priced at the stale quantity and nothing re-triggers
+ * until the next mutation (±$470 on a 100-unit line at a tier boundary).
+ *
+ * Instead of taking the core lock (refreshCartItemsWorkflow re-acquires the
+ * same key with the default owner, so we'd have to release before calling
+ * it and every caller already runs after its own workflow returned), we
+ * fingerprint the lines we priced and re-read right before the write: if any
+ * (id, quantity, updated_at) differs, discard and recompute once more.
+ * updated_at catches concurrent design edits too, not just quantity.
+ */
+export function cartItemsFingerprint(
+  items: ReadonlyArray<{ id?: string; quantity?: number; updated_at?: unknown }>
+): string {
+  return items
+    .filter((it) => !!it?.id)
+    .map((it) => {
+      const ts = it.updated_at instanceof Date ? it.updated_at.toISOString() : String(it.updated_at ?? "")
+      return `${it.id}:${it.quantity ?? ""}:${ts}`
+    })
+    .sort()
+    .join("|")
+}
+
+const CART_ITEM_FINGERPRINT_FIELDS = ["items.id", "items.quantity", "items.updated_at"]
+
 const aggregationDisabled = (): boolean => {
   const raw = process.env[ENABLE_FLAG_ENV]
   if (raw === undefined) return false
@@ -336,6 +365,27 @@ export async function recomputeScpCartPricing(
   if (aggregationDisabled()) return empty
   if (!cartId) return empty
 
+  // One retry when the cart changed under us (see cartItemsFingerprint).
+  for (let attempt = 0; ; attempt++) {
+    const outcome = await recomputeOnce(cartId, scope, empty)
+    if (outcome !== "stale") return outcome
+    if (attempt >= 1) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[recompute-scp-cart-pricing] cart ${cartId} changed during both recompute passes — leaving prices for the next mutation to re-trigger`
+      )
+      return empty
+    }
+    // eslint-disable-next-line no-console
+    console.warn(`[recompute-scp-cart-pricing] cart ${cartId} changed during recompute — retrying once`)
+  }
+}
+
+async function recomputeOnce(
+  cartId: string,
+  scope: { resolve: (key: string) => unknown },
+  empty: RecomputeResult
+): Promise<RecomputeResult | "stale"> {
   const query = scope.resolve(ContainerRegistrationKeys.QUERY) as {
     graph: (q: Record<string, unknown>) => Promise<{ data?: unknown[] }>
   }
@@ -347,8 +397,7 @@ export async function recomputeScpCartPricing(
       "id",
       "customer_id",
       "completed_at",
-      "items.id",
-      "items.quantity",
+      ...CART_ITEM_FINGERPRINT_FIELDS,
       "items.unit_price",
       "items.variant_id",
       "items.metadata",
@@ -363,6 +412,7 @@ export async function recomputeScpCartPricing(
         items?: Array<{
           id?: string
           quantity?: number
+          updated_at?: unknown
           unit_price?: unknown
           variant_id?: string | null
           metadata?: Record<string, unknown> | null
@@ -493,6 +543,22 @@ export async function recomputeScpCartPricing(
   // promotions and the payment collection, exactly what each per-line run did
   // after writing its price.
   if (pending.length) {
+    // Re-read right before the write: a core workflow (quantity edit, design
+    // update, remove) may have landed since our read above. Priced against
+    // stale lines → discard; the caller retries once.
+    const { data: freshCarts } = await query.graph({
+      entity: "cart",
+      filters: { id: cartId },
+      fields: ["id", "completed_at", ...CART_ITEM_FINGERPRINT_FIELDS],
+    })
+    const fresh = freshCarts?.[0] as
+      | { completed_at?: unknown; items?: Array<{ id?: string; quantity?: number; updated_at?: unknown }> }
+      | undefined
+    if (!fresh || fresh.completed_at) return empty
+    if (cartItemsFingerprint(fresh.items ?? []) !== cartItemsFingerprint(rawItems)) {
+      return "stale"
+    }
+
     const cartModule = scope.resolve(Modules.CART) as ICartModuleService
     await cartModule.updateLineItems(
       pending.map((p) => ({
