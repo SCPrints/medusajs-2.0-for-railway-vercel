@@ -12,6 +12,7 @@ import { getPostHog } from "../../../../../lib/posthog"
 import { notifyQuoteCustomerAction } from "../../../../../lib/notify-quote-action"
 import { verifyQuoteAccept } from "../../../../../services/quote-accept/sign"
 import { convertQuoteToOrder } from "../../../../../services/quote/convert"
+import { isQuoteExpired } from "../../../../../services/quote/expire"
 import { createPaymentLink } from "../../../../../services/stripe-payment-link"
 
 const schema = z.object({
@@ -102,10 +103,21 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } catch {
     return res.status(404).json({ error: "not_found" })
   }
+  // Accepting creates a real order at the quoted prices, so an expired quote
+  // must be refused here — the expire-quotes cron that flips the status is
+  // off by default (QUOTE_EXPIRY_CRON_ENABLED). Already-accepted quotes still
+  // fall through to the idempotent re-POST below.
   if (quote.status === "lost" || quote.status === "expired") {
     return res
       .status(410)
       .json({ error: "quote no longer accepting", status: quote.status })
+  }
+  if (quote.status !== "accepted" && isQuoteExpired(quote.expires_at)) {
+    return res.status(410).json({
+      error: "quote_expired",
+      status: "expired",
+      detail: "This quote has expired. Contact us and we'll send a fresh one.",
+    })
   }
 
   // Idempotency: the accept link is static and non-expiring, so a re-POST

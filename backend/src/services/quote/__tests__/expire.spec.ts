@@ -1,4 +1,4 @@
-import { selectExpiredQuotes } from "../expire"
+import { isQuoteExpired, selectExpiredQuotes } from "../expire"
 
 const now = new Date("2026-05-19T12:00:00Z")
 
@@ -55,6 +55,15 @@ describe("selectExpiredQuotes", () => {
 
   it("handles empty input", () => {
     expect(selectExpiredQuotes([], now)).toEqual([])
+  })
+
+  it("isQuoteExpired: past = true; future, unset, malformed = false", () => {
+    expect(isQuoteExpired("2026-05-18T12:00:00Z", now)).toBe(true)
+    expect(isQuoteExpired(new Date(now.getTime() - 1), now)).toBe(true)
+    expect(isQuoteExpired(new Date(now.getTime() + 60_000), now)).toBe(false)
+    expect(isQuoteExpired(null, now)).toBe(false)
+    expect(isQuoteExpired(undefined, now)).toBe(false)
+    expect(isQuoteExpired("not-a-date", now)).toBe(false)
   })
 
   it("uses Date.now() when no `now` is supplied", () => {
