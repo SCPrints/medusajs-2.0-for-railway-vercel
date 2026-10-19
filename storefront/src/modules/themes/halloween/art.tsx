@@ -20,11 +20,11 @@ import s from "./halloween.module.css"
 
 type Props = SVGProps<SVGSVGElement>
 /** [x, y, inkWidth] — width only matters for `inkPath`. */
-type P = readonly [number, number, number]
+export type P = readonly [number, number, number]
 
 export const INK = "#1f1235"
-const PALE = "#f8f1ff"
-const TONGUE = "#ff5c8a"
+export const PALE = "#f8f1ff"
+export const TONGUE = "#ff5c8a"
 
 const r1 = (n: number) => Math.round(n * 10) / 10
 
@@ -89,11 +89,11 @@ export function inkPath(pts: readonly P[], closed = false): string {
   return `M${poly(left)}L${poly(right.reverse())}Z`
 }
 
-const mirror = (pts: readonly P[], axis: number): P[] =>
+export const mirror = (pts: readonly P[], axis: number): P[] =>
   pts.map(([x, y, w]) => [2 * axis - x, y, w] as const)
 
 /** Wobbly ring: a circle with per-point jitter, thin top-left → thick bottom-right. */
-function ring(cx: number, cy: number, r: number, jitter: number[], wMin: number, wMax: number): P[] {
+export function ring(cx: number, cy: number, r: number, jitter: number[], wMin: number, wMax: number): P[] {
   return jitter.map((j, i) => {
     const a = (i / jitter.length) * Math.PI * 2 - Math.PI * 0.75
     const rr = r + j
@@ -103,7 +103,7 @@ function ring(cx: number, cy: number, r: number, jitter: number[], wMin: number,
   })
 }
 
-const Ink = ({ d, closed, fill = INK }: { d: readonly P[]; closed?: boolean; fill?: string }) => (
+export const Ink = ({ d, closed, fill = INK }: { d: readonly P[]; closed?: boolean; fill?: string }) => (
   <path d={inkPath(d, closed)} fill={fill} fillRule={closed ? "evenodd" : undefined} />
 )
 
@@ -143,7 +143,7 @@ export function InkDefs() {
 /* ---- Face parts ------------------------------------------------------- */
 
 /** Tall oval eye: thick upper lid, big iris, two highlights, thin lower line. */
-function Eye({ cx, cy, rx, ry, ink = INK }: { cx: number; cy: number; rx: number; ry: number; ink?: string }) {
+export function Eye({ cx, cy, rx, ry, ink = INK, iris = ink }: { cx: number; cy: number; rx: number; ry: number; ink?: string; iris?: string }) {
   const lid: P[] = [
     [cx - rx * 1.05, cy - ry * 0.1, 0.4],
     [cx - rx * 0.5, cy - ry * 0.95, rx * 0.42],
@@ -158,7 +158,7 @@ function Eye({ cx, cy, rx, ry, ink = INK }: { cx: number; cy: number; rx: number
   return (
     <>
       <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#fff" />
-      <ellipse cx={cx + rx * 0.08} cy={cy + ry * 0.12} rx={rx * 0.62} ry={ry * 0.68} fill={ink} />
+      <ellipse cx={cx + rx * 0.08} cy={cy + ry * 0.12} rx={rx * 0.62} ry={ry * 0.68} fill={iris} />
       <ellipse cx={cx - rx * 0.22} cy={cy - ry * 0.3} rx={rx * 0.26} ry={ry * 0.22} fill="#fff" />
       <circle cx={cx + rx * 0.3} cy={cy + ry * 0.4} r={rx * 0.12} fill="#fff" />
       <Ink d={lid} fill={ink} />
@@ -168,12 +168,12 @@ function Eye({ cx, cy, rx, ry, ink = INK }: { cx: number; cy: number; rx: number
 }
 
 /** Eyebrow drawn outside the head line, tapered both ends. */
-const Brow = ({ x1, y1, x2, y2, w = 2.2, ink = INK }: { x1: number; y1: number; x2: number; y2: number; w?: number; ink?: string }) => (
+export const Brow = ({ x1, y1, x2, y2, w = 2.2, ink = INK }: { x1: number; y1: number; x2: number; y2: number; w?: number; ink?: string }) => (
   <Ink d={[[x1, y1, 0.4], [(x1 + x2) / 2, (y1 + y2) / 2 - 1.2, w], [x2, y2, 0.5]]} fill={ink} />
 )
 
 /** Cheek blush: three short hatch lines. */
-const Blush = ({ x, y, ink = INK }: { x: number; y: number; ink?: string }) => (
+export const Blush = ({ x, y, ink = INK }: { x: number; y: number; ink?: string }) => (
   <>
     {[0, 1, 2].map((i) => (
       <Ink key={i} d={[[x + i * 3, y + 3, 0.3], [x + i * 3 + 2.4, y - 2, 1.0], [x + i * 3 + 3.2, y - 3.6, 0.3]]} fill={ink} />
@@ -181,7 +181,7 @@ const Blush = ({ x, y, ink = INK }: { x: number; y: number; ink?: string }) => (
   </>
 )
 
-const Sweat = ({ x, y }: { x: number; y: number }) => (
+export const Sweat = ({ x, y }: { x: number; y: number }) => (
   <>
     <path d={`M${x} ${y}c-3 4-4 6-4 8a4 4 0 0 0 8 0c0-2-1-4-4-8z`} fill="#8ad3ff" />
     <Ink d={[[x - 0.5, y + 1, 0.4], [x - 3.6, y + 7, 1.4], [x - 1, y + 12, 1.2], [x + 3, y + 10, 0.9], [x + 3.4, y + 6, 0.4]]} />
@@ -189,7 +189,7 @@ const Sweat = ({ x, y }: { x: number; y: number }) => (
 )
 
 /** Open mouth with one tooth and a tongue. */
-function Mouth({ cx, cy, w, h }: { cx: number; cy: number; w: number; h: number }) {
+export function Mouth({ cx, cy, w, h }: { cx: number; cy: number; w: number; h: number }) {
   const lip: P[] = [
     [cx - w * 0.5, cy - h * 0.05, 0.9],
     [cx - w * 0.25, cy - h * 0.5, 1.4],

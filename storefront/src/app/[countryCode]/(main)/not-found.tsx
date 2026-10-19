@@ -2,6 +2,7 @@ import { Metadata } from "next"
 
 import InteractiveLink from "@modules/common/components/interactive-link"
 import GameRotation from "@modules/common/components/games/game-rotation"
+import { SeasonalMascot } from "@modules/themes/components/seasonal-decorations"
 
 import NotFoundBodyBg from "./not-found-body-bg"
 
@@ -43,6 +44,8 @@ export default function NotFound() {
         className="-mx-[calc(50vw-50%)] flex w-screen flex-col gap-4 items-center justify-center min-h-[calc(100vh-64px)] px-4 pb-10 pt-10 text-white"
         style={{ backgroundColor: HEADER_NAVY }}
       >
+        {/* Seasonal: the hoodie skeleton got lost too (Halloween theme only). */}
+        <SeasonalMascot name="skeleton" size={150} />
         <h1 className="text-2xl-semi text-white text-center max-w-lg">
           Page not found&hellip; But maybe you&rsquo;ve found something else
         </h1>

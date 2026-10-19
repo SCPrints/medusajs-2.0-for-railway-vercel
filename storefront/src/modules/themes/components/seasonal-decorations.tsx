@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic"
 
 import { useActiveTheme, useIdle } from "@lib/themes/client"
+import type { MascotName } from "@modules/themes/halloween/mascot"
 
 // Each theme's decorations are a separate chunk, fetched only when that theme
 // is active and the browser is idle. Classic visitors download none of it.
@@ -26,6 +27,28 @@ export function SeasonalHeaderDecor() {
   const idle = useIdle()
   if (!idle) return null
   if (theme === "halloween") return <HalloweenSiteDecor />
+  return null
+}
+
+// The extended cast is its own chunk, fetched only on pages that place one.
+const HalloweenMascot = dynamic(
+  () => import("@modules/themes/halloween/mascot").then((m) => m.HalloweenMascot),
+  { ssr: false }
+)
+
+/**
+ * Theme-gated drop-in mascot: renders nothing for classic visitors (and
+ * downloads nothing), a `<HalloweenMascot>` from the registry otherwise.
+ * `name` is a Halloween mascot key; other themes can add their own branch.
+ */
+export function SeasonalMascot({
+  name,
+  ...rest
+}: { name: MascotName; size?: number; animate?: boolean; className?: string }) {
+  const theme = useActiveTheme()
+  const idle = useIdle()
+  if (!idle) return null
+  if (theme === "halloween") return <HalloweenMascot name={name} {...rest} />
   return null
 }
 

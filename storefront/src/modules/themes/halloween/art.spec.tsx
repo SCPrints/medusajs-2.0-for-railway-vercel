@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server"
 import { readFileSync, writeFileSync } from "node:fs"
 
 import { Bat, Boo, Cloud, Cobweb, Ghost, InkDefs, Moon, Pumpkin, Skyline, fillPath, inkPath } from "./art"
+import { CandyCorn, CapSpider, CatInBox, Mummy, Patchwork, Skeleton, StampGhost, Vampire, Witch, ZombieHand } from "./cast"
 
 // CSS modules aren't transformed by the jest config; echo class names back.
 jest.mock("./halloween.module.css", () => ({
@@ -12,7 +13,11 @@ jest.mock("./halloween.module.css", () => ({
   default: new Proxy({}, { get: (_t, k) => String(k) }),
 }))
 
-const MASCOTS = { Ghost, Boo, Pumpkin, Bat, Moon, Cloud, Skyline, Cobweb }
+const MASCOTS = {
+  Ghost, Boo, Pumpkin, Bat, Moon, Cloud, Skyline, Cobweb,
+  Skeleton, Witch, CatInBox, Mummy, Patchwork, Vampire, ZombieHand, CapSpider, CandyCorn, StampGhost,
+}
+const CAST = ["Skeleton", "Witch", "CatInBox", "Mummy", "Patchwork", "Vampire", "ZombieHand", "CapSpider", "CandyCorn", "StampGhost"]
 
 describe("ink helpers", () => {
   const pts = [[0, 0, 0], [10, 0, 4], [20, 0, 0]] as const
@@ -48,7 +53,7 @@ describe("halloween art", () => {
   })
 
   it("every character has blinking eyes with highlights and an ink + paint layer", () => {
-    for (const name of ["Ghost", "Pumpkin", "Bat", "Cobweb"]) {
+    for (const name of ["Ghost", "Pumpkin", "Bat", "Cobweb", ...CAST]) {
       expect(html[name]).toContain('class="blink"')
       expect(html[name]).toContain('class="paint"')
       expect(html[name]).toContain('class="ink"')
@@ -65,6 +70,18 @@ describe("halloween art", () => {
   it("the ghost has two hem frames", () => {
     expect(html.Ghost.match(/class="hemA"/g)).toHaveLength(2)
     expect(html.Ghost.match(/class="hemB"/g)).toHaveLength(2)
+  })
+
+  it("the new cast shades with two tones, screentone and hatch, and the frame-swappers have two frames", () => {
+    for (const name of CAST) {
+      expect(html[name]).toContain('fill="url(#hw-tone)"')
+      expect(html[name]).toContain('fill="url(#hw-hatch)"')
+    }
+    for (const name of ["Witch", "Mummy"]) {
+      expect(html[name].match(/class="fA"/g)!.length).toBeGreaterThanOrEqual(2)
+      expect(html[name].match(/class="fB"/g)!.length).toBeGreaterThanOrEqual(2)
+    }
+    expect(html.Skeleton).toContain('fill="#ff2e63"') // the SC chest print
   })
 
   it("the defs provide the filters and patterns the art references", () => {
@@ -94,8 +111,7 @@ describe("halloween art", () => {
        </style>
        ${renderToStaticMarkup(<InkDefs />)}
        <div class="grid">
-         ${tile("Ghost", 300)}${tile("Boo", 300)}${tile("Pumpkin", 420)}${tile("Bat", 420)}${tile("Moon", 320)}
-         ${tile("Cloud", 420)}${tile("Skyline", 680)}${tile("Cobweb", 420, true)}
+         ${Object.keys(MASCOTS).map((n) => tile(n, n === "Skyline" ? 680 : 360, n === "Cobweb")).join("")}
        </div>`
     )
     expect(true).toBe(true)

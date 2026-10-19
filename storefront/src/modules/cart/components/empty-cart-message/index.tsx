@@ -1,4 +1,5 @@
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import { SeasonalMascot } from "@modules/themes/components/seasonal-decorations"
 
 const ArrowRightIcon = ({ className }: { className?: string }) => (
   <svg
@@ -43,6 +44,8 @@ const EmptyCartMessage = () => {
       data-testid="empty-cart-message"
     >
       <div className="mx-auto max-w-xl text-center">
+        {/* Seasonal: a cat has claimed the empty box (Halloween theme only). */}
+        <SeasonalMascot name="cat" size={150} className="mx-auto mb-4" />
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-ui-border-base bg-white text-[var(--brand-secondary)]">
           <CartIcon />
         </div>

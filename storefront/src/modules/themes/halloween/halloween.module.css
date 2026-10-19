@@ -143,8 +143,23 @@
 .tangled {
   transform-origin: 50% 50%;
 }
-.hemB {
+.hemB,
+.fB {
   opacity: 0;
+}
+
+/* ---- Reusable mascots (<HalloweenMascot>) ---------------------------- */
+
+.mascot {
+  --fr: 0.125s;
+  --fo: -0.125s;
+  display: block;
+  height: auto;
+  overflow: visible;
+}
+.still,
+.still * {
+  animation: none !important;
 }
 
 /* Below `tablet` the hero copy fills the frame: keep only the CTA pumpkin. */
@@ -229,6 +244,29 @@
   .boo .ink {
     animation: booPop 1.5s steps(1, end) infinite;
   }
+  /* generic idle for <HalloweenMascot>: three held poses + 2-frame parts */
+  .idle .ink,
+  .idle .paint {
+    animation: idleHold 2.25s steps(1, end) infinite;
+  }
+  .idle .hemA,
+  .idle .fA {
+    animation: frameA 0.5s steps(1, end) infinite;
+  }
+  .idle .hemB,
+  .idle .fB {
+    animation: frameB 0.5s steps(1, end) infinite;
+  }
+  .ghost .fA,
+  .pumpkin .fA,
+  .web .fA {
+    animation: frameA 0.5s steps(1, end) infinite;
+  }
+  .ghost .fB,
+  .pumpkin .fB,
+  .web .fB {
+    animation: frameB 0.5s steps(1, end) infinite;
+  }
   .wingL {
     animation: flapL 0.25s steps(1, end) infinite alternate;
   }
@@ -273,6 +311,11 @@
 @keyframes frameB {
   0%, 100% { opacity: 0; }
   50% { opacity: 1; }
+}
+@keyframes idleHold {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(0, -3px) rotate(-2deg); }
+  66% { transform: translate(1px, 0) rotate(2deg); }
 }
 @keyframes booPop {
   0%, 100% { transform: scale(1) rotate(-4deg); }
