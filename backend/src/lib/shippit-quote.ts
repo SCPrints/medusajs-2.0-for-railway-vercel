@@ -70,7 +70,9 @@ export type ShippitStandardQuote = {
 /**
  * Cheapest successful `standard` quote in a /quotes response, or null.
  * `success:false` entries and $0 prices (Shippit's "can't accept") are
- * skipped, so a partial carrier outage still prices if anyone answered.
+ * skipped. We request `return_all_quotes: false`, so Shippit normally returns
+ * ONE standard carrier — the one its allocation rules would actually book —
+ * and "cheapest" only matters if it ever returns several.
  */
 export const pickStandardQuote = (json: unknown): ShippitStandardQuote | null => {
   const rows = (json as { response?: unknown[] })?.response
@@ -144,7 +146,12 @@ export const fetchShippitStandardQuote = async (input: {
         dropoff_country_code: "AU",
         parcel_attributes: parcels,
         service_levels: ["standard"],
-        return_all_quotes: true,
+        // false = the carrier Shippit's allocation rules would book for this
+        // address, so courier exclusions set in the Shippit portal (bad
+        // experiences with X in area Y) flow into the quoted price and the
+        // customer pays for the carrier that's actually used. true would
+        // let us pick a cheaper carrier staff then won't book.
+        return_all_quotes: false,
       },
     }),
     signal: AbortSignal.timeout(SHIPPIT_TIMEOUT_MS),
