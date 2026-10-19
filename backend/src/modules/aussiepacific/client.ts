@@ -1,4 +1,6 @@
 import { MedusaError } from "@medusajs/framework/utils"
+
+import { SUPPLIER_FETCH_TIMEOUT_MS, isFetchTimeout } from "../../lib/supplier-fetch"
 import {
   AussiePacificCreateOrderRequest,
   AussiePacificListResponse,
@@ -38,7 +40,25 @@ export class AussiePacificClient {
     }
 
     const url = `${this.options.base_url}${path}`
-    const resp = await fetch(url, { ...init, headers })
+    let resp: Response
+    try {
+      resp = await fetch(url, {
+        ...init,
+        headers,
+        signal: init.signal ?? AbortSignal.timeout(SUPPLIER_FETCH_TIMEOUT_MS),
+      })
+    } catch (err) {
+      // A hung socket used to stall the daily sweep for hours (review 2-7).
+      if (isFetchTimeout(err) && attempt < 1) {
+        return this.sendRequest<T>(path, init, attempt + 1)
+      }
+      throw isFetchTimeout(err)
+        ? new MedusaError(
+            MedusaError.Types.UNEXPECTED_STATE,
+            `Aussie Pacific API timed out after ${SUPPLIER_FETCH_TIMEOUT_MS}ms on ${path}`
+          )
+        : err
+    }
 
     // AP publishes no rate-limit spec, but defend against 429s anyway:
     // sleep on Retry-After (capped) and retry up to 5 times.

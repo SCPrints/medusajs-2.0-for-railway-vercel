@@ -1,4 +1,6 @@
 import { MedusaError } from "@medusajs/framework/utils"
+
+import { SUPPLIER_FETCH_TIMEOUT_MS, isFetchTimeout } from "../../lib/supplier-fetch"
 import {
   FashionBizBrandSlug,
   FashionBizOptions,
@@ -31,7 +33,26 @@ export class FashionBizClient {
     }
 
     const url = `${this.options.base_url}${path}`
-    const resp = await fetch(url, { headers, redirect: "manual" })
+    let resp: Response
+    try {
+      resp = await fetch(url, {
+        headers,
+        redirect: "manual",
+        signal: AbortSignal.timeout(SUPPLIER_FETCH_TIMEOUT_MS),
+      })
+    } catch (err) {
+      // Thousands of sequential calls per sweep — one hung socket used to
+      // turn a 10-minute job into hours (review 2-7). Retry once, then fail.
+      if (isFetchTimeout(err) && attempt < 1) {
+        return this.sendRequest<T>(path, attempt + 1)
+      }
+      throw isFetchTimeout(err)
+        ? new MedusaError(
+            MedusaError.Types.UNEXPECTED_STATE,
+            `FashionBiz API timed out after ${SUPPLIER_FETCH_TIMEOUT_MS}ms on ${path}`
+          )
+        : err
+    }
 
     // FashionBiz publishes no rate-limit spec, but defend against 429s anyway:
     // sleep on Retry-After (capped) and retry up to 5 times.
