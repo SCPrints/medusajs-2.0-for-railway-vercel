@@ -31,6 +31,11 @@ import { getPostHog } from "../../../../../lib/posthog"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
 import { writeAudit } from "../../../../../lib/audit-log"
 import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
+import {
+  STAGE_TRANSITION_NOT_ALLOWED,
+  assertTransition,
+  isTransitionNotAllowed,
+} from "../../../../../lib/production-stage-guard"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -235,6 +240,25 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
+  // State machine (lib/production-stage-guard.ts): forward step or the one
+  // legitimate rewind per track; anything else needs an override_reason,
+  // which lands in the history note + audit row below.
+  try {
+    for (const t of transitions) {
+      assertTransition(t.track, t.from, t.to, {
+        actor: { kind: "admin", user_id: changedBy },
+        override_reason: body.override_reason,
+      })
+    }
+  } catch (err) {
+    if (!isTransitionNotAllowed(err)) throw err
+    return res.status(409).json({
+      type: "not_allowed",
+      code: STAGE_TRANSITION_NOT_ALLOWED,
+      message: `${err.message}. Add an override reason to force it.`,
+    })
+  }
+
   // Readiness check before printing starts (lib/production-gate.ts).
   const gateFailures = productionGateFailures({
     meta,
@@ -256,6 +280,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     gateFailures.length > 0
       ? `Started without: ${gateFailures.join(", ")}. Reason: ${body.override_reason}`
       : null
+  // A transition that only passed because of the reason gets it on record too.
+  const forcedTransitions = transitions.filter((t) => {
+    try {
+      assertTransition(t.track, t.from, t.to, { actor: { kind: "system" } })
+      return false
+    } catch {
+      return true
+    }
+  })
+  const forcedNote =
+    forcedTransitions.length > 0 && body.override_reason
+      ? `Forced ${forcedTransitions.map((t) => `${t.track} ${t.from} → ${t.to}`).join(", ")}. Reason: ${body.override_reason}`
+      : null
 
   const history = readHistory(meta)
   const note = body.note?.length ? body.note : null
@@ -264,9 +301,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     changed_at: changedAt,
     changed_by: changedBy,
     note:
-      t.track === "production" && overrideNote
-        ? [note, overrideNote].filter(Boolean).join(" — ")
-        : note,
+      [
+        note,
+        t.track === "production" ? overrideNote : null,
+        forcedTransitions.includes(t) ? forcedNote : null,
+      ]
+        .filter(Boolean)
+        .join(" — ") || null,
     track: t.track,
   }))
   const nextHistory = [...history, ...newEntries]
@@ -321,6 +362,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         failures: gateFailures,
         reason: body.override_reason,
         to_stage: nextDownstream,
+      },
+    })
+  }
+  if (forcedNote) {
+    await writeAudit({
+      container: req.scope,
+      entity: AUDIT_ENTITY.ORDER,
+      entity_id: order.id,
+      action: AUDIT_ACTION.STATUS_CHANGED,
+      actor_id: changedBy ?? undefined,
+      details: {
+        kind: "stage_transition_forced",
+        transitions: forcedTransitions.map((t) => ({ track: t.track, from: t.from, to: t.to })),
+        reason: body.override_reason,
       },
     })
   }

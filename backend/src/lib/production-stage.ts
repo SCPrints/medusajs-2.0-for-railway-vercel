@@ -27,6 +27,8 @@
  * write sets for each track field.
  */
 
+import { assertTransition, type StageActor } from "./production-stage-guard"
+
 export const ARTWORK_STAGES = [
   "pending",
   "in_review",
@@ -502,6 +504,11 @@ export function resolveTracksFromMeta(meta: Record<string, unknown>): {
  * stopped the artwork-approval email from firing). Returns the metadata patch
  * to merge and the events to emit; `changed: false` when it's a no-op.
  *
+ * Every transition is checked by `assertTransition` (production-stage-guard)
+ * for `opts.actor` — default `system`, which can never override — so any
+ * caller that plans through here inherits the state machine. Throws
+ * MedusaError CONFLICT (`stage_transition_not_allowed`).
+ *
  * NOTE: keep in lockstep with the route handler's inline logic.
  */
 export function planProductionStageChange(
@@ -512,6 +519,8 @@ export function planProductionStageChange(
     changedAt: string
     changedBy: string
     note?: string | null
+    actor?: StageActor
+    override_reason?: string | null
   }
 ): ProductionStageChangePlan {
   const current = resolveTracksFromMeta(meta)
@@ -552,6 +561,11 @@ export function planProductionStageChange(
 
   if (transitions.length === 0) {
     return { changed: false, metadata: null, events: [] }
+  }
+
+  const actor: StageActor = opts.actor ?? { kind: "system" }
+  for (const t of transitions) {
+    assertTransition(t.track, t.from, t.to, { actor, override_reason: opts.override_reason })
   }
 
   const note = opts.note ?? null

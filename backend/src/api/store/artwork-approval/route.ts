@@ -15,6 +15,11 @@ import {
   lineMockupGroupKey,
 } from "../../../lib/customizer-order-artifacts"
 import { verifyArtworkApproval } from "../../../services/artwork-approval/sign"
+import {
+  STAGE_TRANSITION_NOT_ALLOWED,
+  assertTransition,
+  isTransitionNotAllowed,
+} from "../../../lib/production-stage-guard"
 
 const schema = z.object({
   order: z.string().min(1),
@@ -247,6 +252,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const now = new Date().toISOString()
 
   const nextStage: "approved" | "in_review" = body.approved ? "approved" : "in_review"
+
+  // State machine: a customer link may only answer a proof that is awaiting
+  // approval. pending → approved (no proof was ever sent) and any move once
+  // artwork is approved are refused here instead of silently flipping the
+  // track (review 3-2).
+  try {
+    assertTransition("artwork", previousStage, nextStage, {
+      actor: { kind: "customer_link", name: body.approver_name ?? null },
+    })
+  } catch (err) {
+    if (!isTransitionNotAllowed(err)) throw err
+    return res.status(409).json({
+      error: STAGE_TRANSITION_NOT_ALLOWED,
+      message:
+        "This proof isn't waiting on your approval any more. If you need to change your answer, reply to the proof email and we'll sort it.",
+    })
+  }
 
   // Append to the same history the admin stage widget renders — without this
   // the customer's decision flipped `artwork_stage` invisibly and staff saw
