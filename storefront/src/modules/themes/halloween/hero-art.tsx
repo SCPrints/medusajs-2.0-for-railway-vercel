@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import { Bat, Ghost, JackOLantern, Moon } from "./art"
+import { Bat, Cloud, Ghost, Moon, Pumpkin, Skyline } from "./art"
 import s from "./halloween.module.css"
 import { usePageHidden, useReducedMotion } from "./use-page-hidden"
 
@@ -21,8 +21,9 @@ type Flight = {
 }
 
 /**
- * Halloween overlay for the home hero: dusk tint + moon + ghost in the top
- * right, a flickering jack-o'-lantern bottom right, and a few bats flitting
+ * Halloween overlay for the home hero: candy-night tint, a sleepy moon and
+ * puffy clouds top right, a wobbling ghost, a little round-roofed town along
+ * the bottom with a bouncing pumpkin in front, and a few cheeky bats flitting
  * across on a requestAnimationFrame loop. Everything is aria-hidden and
  * pointer-events: none. No bats (and no CSS motion) under reduced motion;
  * the loop stops while the tab is hidden or the hero is scrolled away.
@@ -52,10 +53,17 @@ export default function HalloweenHeroArt() {
     let nextSpawn = performance.now() + 800
     let raf = 0
 
-    const place = (i: number, x: number, y: number, scale: number, dir: number) => {
+    const place = (
+      i: number,
+      x: number,
+      y: number,
+      scale: number,
+      dir: number,
+      tilt = 0
+    ) => {
       const el = batRefs.current[i]
       if (el) {
-        el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${dir * scale}, ${scale})`
+        el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${dir * scale}, ${scale}) rotate(${tilt}deg)`
       }
     }
 
@@ -89,8 +97,11 @@ export default function HalloweenHeroArt() {
         }
         const span = w + 120
         const x = f.dir === 1 ? -60 + p * span : w + 60 - p * span
-        const y = f.y0 + Math.sin(p * Math.PI * 2 * f.waves) * f.amp
-        place(i, x, y, f.scale, f.dir)
+        const phase = p * Math.PI * 2 * f.waves
+        const y = f.y0 + Math.sin(phase) * f.amp
+        // Lean into the climb/dive a little — a wobbly, bouncy flight.
+        const tilt = Math.cos(phase) * 9
+        place(i, x, y, f.scale, f.dir, tilt)
       })
 
       raf = requestAnimationFrame(tick)
@@ -111,9 +122,12 @@ export default function HalloweenHeroArt() {
       data-testid="halloween-hero-art"
     >
       <div className={s.dusk} />
+      <Cloud className={s.cloudBack} focusable="false" />
       <Moon className={s.moon} focusable="false" />
+      <Cloud className={s.cloudFront} focusable="false" />
       <Ghost className={s.ghost} focusable="false" />
-      <JackOLantern className={s.pumpkin} focusable="false" />
+      <Skyline className={s.skyline} focusable="false" />
+      <Pumpkin className={s.pumpkin} focusable="false" />
       {!reduced &&
         Array.from({ length: BAT_COUNT }, (_, i) => (
           <div

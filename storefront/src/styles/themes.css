@@ -15,20 +15,27 @@
  *    background distorts perceived garment colour.
  */
 
+/* Candy palette (cartoon mascots use brighter literals in art.tsx; these are
+   the ones that carry TEXT, so they stay at WCAG AA):
+     white on --brand #b53d0c         5.77:1   (#c2410c would be 4.46 on #eee)
+     #b53d0c on page #eeeeee          4.98:1
+     white on --header-bg #2d1b4e    15.24:1
+     #ffa726 on #2d1b4e               7.84:1
+     #a3e635 on #2d1b4e              10.10:1 */
 [data-theme="halloween"] {
-  --brand: 181 61 12; /* deep pumpkin #b53d0c — white text 5.77:1 */
+  --brand: 181 61 12; /* deep pumpkin #b53d0c */
   --brand-hover: 154 52 18; /* #9a3412 */
-  --header-bg: 30 16 41; /* aubergine night #1e1029 */
+  --header-bg: 45 27 78; /* candy night purple #2d1b4e */
   --header-fg: 248 241 255; /* ghost white #f8f1ff */
-  --seasonal-glow: 251 146 60; /* lantern orange #fb923c (on dark only) */
+  --seasonal-glow: 255 167 38; /* candy orange #ffa726 (on dark only) */
   --seasonal-slime: 163 230 53; /* slime #a3e635 (on dark only) */
 
   --brand-secondary: #b53d0c;
 }
 
-/* Inside the dark header the accent must be light to read on aubergine. */
+/* Inside the dark header the accent must be light to read on purple. */
 [data-theme="halloween"] [data-theme-region="header"] {
-  --brand-secondary: #fb923c;
+  --brand-secondary: #ffa726;
   --brand-accent: #a3e635;
 }
 
@@ -46,8 +53,9 @@
   --brand-accent: #3dcfc2;
 }
 
-/* Section-header mark: a small bat after the eyebrow text. CSS-only (a
-   ~300-byte mask), so classic visitors pay nothing but these bytes. */
+/* Section-header mark: a small round bat (same silhouette as the hero
+   mascot) after the eyebrow text. CSS-only (a ~300-byte mask), so classic
+   visitors pay nothing but these bytes. */
 [data-theme="halloween"] .theme-section-mark::after {
   content: "";
   display: inline-block;
@@ -56,8 +64,8 @@
   margin-left: 0.5em;
   vertical-align: -0.05em;
   background-color: var(--brand-secondary);
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M30 14C25 7 15 4 3 8c5 2 7 6 6 10 4-3 8-2 10 2 3-4 7-4 11-2zm4 0c5-7 15-10 27-6-5 2-7 6-6 10-4-3-8-2-10 2-3-4-7-4-11-2z'/%3E%3Cellipse cx='32' cy='17' rx='4.5' ry='6.5'/%3E%3Cpath d='M28.5 12.5 29.5 7l2.5 3.5L34.5 7l1 5.5z'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M30 14C25 7 15 4 3 8c5 2 7 6 6 10 4-3 8-2 10 2 3-4 7-4 11-2zm4 0c5-7 15-10 27-6-5 2-7 6-6 10-4-3-8-2-10 2-3-4-7-4-11-2z'/%3E%3Cellipse cx='32' cy='17' rx='4.5' ry='6.5'/%3E%3Cpath d='M28.5 12.5 29.5 7l2.5 3.5L34.5 7l1 5.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M30 16C24 8 14 5 3 8c2 4 2 8 0 12 3-3 6-3 8-1 3-3 6-3 8 0 2-2 4-2 6 1zm4 0c6-8 16-11 27-8-2 4-2 8 0 12-3-3-6-3-8-1-3-3-6-3-8 0-2-2-4-2-6 1zM26 12l-2-8 7 4zm12 0l2-8-7 4z'/%3E%3Ccircle cx='32' cy='18' r='8'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 32'%3E%3Cpath d='M30 16C24 8 14 5 3 8c2 4 2 8 0 12 3-3 6-3 8-1 3-3 6-3 8 0 2-2 4-2 6 1zm4 0c6-8 16-11 27-8-2 4-2 8 0 12-3-3-6-3-8-1-3-3-6-3-8 0-2-2-4-2-6 1zM26 12l-2-8 7 4zm12 0l2-8-7 4z'/%3E%3Ccircle cx='32' cy='18' r='8'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 /* Seasonal-only content, server-rendered into the static HTML and revealed by

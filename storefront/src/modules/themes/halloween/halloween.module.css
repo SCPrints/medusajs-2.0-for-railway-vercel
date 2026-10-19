@@ -1,6 +1,7 @@
 /* Halloween decorations. Loaded only with the lazy Halloween chunk.
    Every animation is opt-in via prefers-reduced-motion: no-preference, and
-   `.paused` (tab hidden / hero off-screen) freezes them. */
+   `.paused` (tab hidden / hero off-screen) freezes them. Motion is cartoon
+   squash-and-stretch, blinks and wobbles — nothing flickers. */
 
 .layer {
   position: absolute;
@@ -16,61 +17,93 @@
 
 /* ---- Hero ------------------------------------------------------------- */
 
-/* Dusk tint confined to the top-right corner (never across the garments in
-   the middle of the photo). */
+/* Candy-night tint confined to the top-right corner (never across the
+   garments in the middle of the photo). */
 .dusk {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    ellipse 38% 55% at 100% 0%,
-    rgb(30 16 41 / 0.55) 0%,
-    rgb(30 16 41 / 0.25) 45%,
+    ellipse 40% 58% at 100% 0%,
+    rgb(91 58 155 / 0.5) 0%,
+    rgb(91 58 155 / 0.22) 45%,
     transparent 75%
   );
 }
 
 .moon {
   position: absolute;
-  top: 9%;
-  right: 7%;
+  top: 7%;
+  right: 8%;
+  width: 96px;
+  height: 96px;
+}
+
+.cloudBack {
+  position: absolute;
+  top: 5%;
+  right: 17%;
+  width: 118px;
+}
+
+.cloudFront {
+  position: absolute;
+  top: 36%;
+  right: 2%;
   width: 92px;
-  height: 92px;
-  border-radius: 9999px;
-  box-shadow: 0 0 46px 12px rgb(254 243 199 / 0.35);
 }
 
 .ghost {
   position: absolute;
-  top: 30%;
-  right: 19%;
-  width: 54px;
-  opacity: 0.92;
+  top: 28%;
+  right: 20%;
+  width: 62px;
+}
+
+.skyline {
+  position: absolute;
+  right: 0;
+  bottom: -2px;
+  width: 300px;
 }
 
 .pumpkin {
   position: absolute;
-  right: 4%;
-  bottom: 6%;
-  width: 84px;
-}
-
-.pumpkinGlow {
-  opacity: 0.85;
+  right: 5%;
+  bottom: 4%;
+  width: 94px;
+  transform-origin: 50% 100%;
 }
 
 .bat {
   position: absolute;
   top: 0;
   left: 0;
-  width: 46px;
+  width: 52px;
   will-change: transform;
   /* Off-screen until the rAF loop places it. */
   transform: translate3d(-200px, -200px, 0);
 }
 
+/* Transform anchors for the animated parts (all CSS, no JS). */
+.blink,
+.batBody,
+.wave,
 .wingL,
-.wingR {
+.wingR,
+.spider,
+.legsL,
+.legsR {
   transform-box: fill-box;
+}
+.blink {
+  transform-origin: 50% 50%;
+}
+.batBody {
+  transform-origin: 50% 60%;
+}
+.wave {
+  /* shoulder: the arm's bbox bottom-left */
+  transform-origin: 0% 100%;
 }
 .wingL {
   transform-origin: 100% 40%;
@@ -78,15 +111,27 @@
 .wingR {
   transform-origin: 0% 40%;
 }
+.spider {
+  transform-origin: 50% 0%;
+}
+.legsL {
+  transform-origin: 100% 50%;
+}
+.legsR {
+  transform-origin: 0% 50%;
+}
 
 /* Below `tablet` the hero copy fills the frame: keep only the pumpkin. */
 @media (max-width: 767px) {
   .moon,
-  .ghost {
+  .ghost,
+  .cloudBack,
+  .cloudFront,
+  .skyline {
     display: none;
   }
   .pumpkin {
-    width: 56px;
+    width: 62px;
     right: 3%;
     bottom: 3%;
   }
@@ -106,7 +151,7 @@
   width: 64px;
   pointer-events: none;
   transform-origin: 100% 0%;
-  opacity: 0.32;
+  opacity: 0.55;
 }
 
 @media (min-width: 1024px) {
@@ -115,67 +160,115 @@
   }
 }
 
-.spider {
-  transform-box: fill-box;
-  transform-origin: 50% 0%;
-}
-
 /* ---- Motion (opt-in) -------------------------------------------------- */
 
 @media (prefers-reduced-motion: no-preference) {
+  .blink {
+    animation: blink 4.4s ease-in-out infinite;
+  }
+  .ghost .blink {
+    animation-delay: 0.7s;
+  }
+  .bat .blink {
+    animation-delay: 1.9s;
+  }
+  .spider .blink {
+    animation-delay: 2.6s;
+  }
+  .wave {
+    animation: wave 1.1s ease-in-out infinite alternate;
+  }
   .wingL {
-    animation: flapL 0.26s ease-in-out infinite alternate;
+    animation: flapL 0.34s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
   }
   .wingR {
-    animation: flapR 0.26s ease-in-out infinite alternate;
+    animation: flapR 0.34s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
   }
-  .pumpkinGlow {
-    animation: flicker 3.2s steps(1, end) infinite;
+  .batBody {
+    animation: batSquash 0.34s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
   }
   .pumpkin {
-    animation: lanternBreathe 3.2s ease-in-out infinite;
+    animation: squashBounce 2.6s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
   }
   .ghost {
-    animation: ghostBob 6s ease-in-out infinite;
+    animation: ghostWobble 3.8s ease-in-out infinite;
+  }
+  .moon {
+    animation: moonBob 9s ease-in-out infinite;
+  }
+  .cloudBack {
+    animation: drift 16s ease-in-out infinite;
+  }
+  .cloudFront {
+    animation: drift 11s ease-in-out infinite reverse;
   }
   .web {
     animation: sway 7s ease-in-out infinite;
   }
   .spider {
-    animation: dangle 5s ease-in-out infinite;
+    animation: dangle 2.8s cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+  }
+  .legsL {
+    animation: wiggleL 0.9s ease-in-out infinite alternate;
+  }
+  .legsR {
+    animation: wiggleR 0.9s ease-in-out infinite alternate;
   }
 }
 
+@keyframes blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(0.08); }
+}
+@keyframes wave {
+  from { transform: rotate(-10deg); }
+  to { transform: rotate(14deg); }
+}
 @keyframes flapL {
   from { transform: scaleY(1) rotate(0deg); }
-  to { transform: scaleY(0.35) rotate(-8deg); }
+  to { transform: scaleY(0.4) rotate(-10deg); }
 }
 @keyframes flapR {
   from { transform: scaleY(1) rotate(0deg); }
-  to { transform: scaleY(0.35) rotate(8deg); }
+  to { transform: scaleY(0.4) rotate(10deg); }
 }
-@keyframes flicker {
-  0% { opacity: 0.85; }
-  12% { opacity: 0.6; }
-  16% { opacity: 0.9; }
-  40% { opacity: 0.75; }
-  44% { opacity: 0.95; }
-  70% { opacity: 0.7; }
-  74% { opacity: 0.88; }
+@keyframes batSquash {
+  from { transform: scale(1, 1); }
+  to { transform: scale(1.08, 0.9); }
 }
-@keyframes lanternBreathe {
-  0%, 100% { filter: drop-shadow(0 0 10px rgb(251 146 60 / 0.45)); }
-  50% { filter: drop-shadow(0 0 18px rgb(251 146 60 / 0.7)); }
+@keyframes squashBounce {
+  0%, 100% { transform: scale(1, 1); }
+  18% { transform: scale(1.08, 0.9); }
+  40% { transform: scale(0.95, 1.07) translateY(-10px); }
+  58% { transform: scale(1.05, 0.94); }
+  74% { transform: scale(0.99, 1.02); }
 }
-@keyframes ghostBob {
-  0%, 100% { transform: translate3d(0, 0, 0) rotate(-3deg); }
-  50% { transform: translate3d(-6px, -10px, 0) rotate(3deg); }
+@keyframes ghostWobble {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-5deg); }
+  50% { transform: translate3d(-5px, -12px, 0) rotate(5deg); }
+}
+@keyframes moonBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-12px); }
 }
 @keyframes sway {
   0%, 100% { transform: rotate(0deg); }
   50% { transform: rotate(-2.5deg); }
 }
 @keyframes dangle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(6px); }
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  45% { transform: translateY(8px) scale(0.92, 1.08); }
+  60% { transform: translateY(6px) scale(1.08, 0.92); }
+}
+@keyframes wiggleL {
+  from { transform: rotate(-7deg); }
+  to { transform: rotate(7deg); }
+}
+@keyframes wiggleR {
+  from { transform: rotate(7deg); }
+  to { transform: rotate(-7deg); }
 }
