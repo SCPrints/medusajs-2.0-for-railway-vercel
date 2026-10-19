@@ -2,6 +2,7 @@ import { authenticate, defineMiddlewares } from "@medusajs/framework/http"
 
 import { smartVariantSearchMiddleware } from "./middlewares/smart-variant-search"
 import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-invariant"
+import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-cost-metadata"
 
 /**
  * Default Express JSON limit is ~100kb; customizer render payloads include
@@ -19,6 +20,24 @@ export default defineMiddlewares({
       matcher: "/admin/product-variants",
       methods: ["GET"],
       middlewares: [smartVariantSearchMiddleware],
+    },
+    {
+      // Supplier cost never leaves the store API. Every store route that
+      // emits `variants[].metadata` is listed here — add new ones.
+      // See ./middlewares/strip-variant-cost-metadata.ts.
+      matcher: "/store/products*",
+      methods: ["GET"],
+      middlewares: [stripVariantCostMetadataMiddleware],
+    },
+    {
+      matcher: "/store/brands/:handle/products",
+      methods: ["GET"],
+      middlewares: [stripVariantCostMetadataMiddleware],
+    },
+    {
+      matcher: "/store/bundles/:handle",
+      methods: ["GET"],
+      middlewares: [stripVariantCostMetadataMiddleware],
     },
     {
       // Pricing invariant — last gate before a cart becomes an order.
