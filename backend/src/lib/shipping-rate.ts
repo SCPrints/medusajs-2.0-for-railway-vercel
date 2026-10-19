@@ -27,29 +27,15 @@ export type ShippingWeightBand = {
   amount: number
 }
 
-/**
- * Inbound freight-in, AUD, charged ONCE PER ORDER on top of the postage
- * band. Every supplier bills SC Prints ~$10-15 to send the blanks to the
- * workshop; postage below only covers the OUTBOUND leg. Until 2026-10-19
- * this sat in the garment ladder per unit (FREIGHT_IN_ALLOWANCE_AUD) and
- * charged a 5-tee order $75 — see the pricing review 2026-10-08 §4a.
- * Waived with the rest of shipping for free-shipping perks.
- */
-export const FREIGHT_IN_PER_ORDER_AUD = 15
-
-/** Outbound postage by weight, BEFORE the per-order freight-in above. */
-export const POSTAGE_WEIGHT_BANDS: ShippingWeightBand[] = [
-  { maxGrams: 1000, amount: 11 }, // ≈ 1–2 garments
+export const SHIPPING_WEIGHT_BANDS: ShippingWeightBand[] = [
+  // $15 minimum (2026-10-19): $11 didn't cover some parcels and $15 is the
+  // Express Post floor. Placeholder until the Shippit API returns live quotes.
+  { maxGrams: 1000, amount: 15 }, // ≈ 1–2 garments
   { maxGrams: 3000, amount: 15 }, // ≈ 3–9 garments
   { maxGrams: 5000, amount: 20 }, // ≈ 10–16 garments
   { maxGrams: 10000, amount: 32 }, // ≈ 17–32 garments
   { maxGrams: 22000, amount: 55 }, // ≈ 33–72 garments
 ]
-
-/** What the customer pays per band: postage + the per-order freight-in. */
-export const SHIPPING_WEIGHT_BANDS: ShippingWeightBand[] = POSTAGE_WEIGHT_BANDS.map(
-  (b) => ({ maxGrams: b.maxGrams, amount: b.amount + FREIGHT_IN_PER_ORDER_AUD })
-)
 
 /** Above the top band, add this much per kg (or part-kg) over the top threshold. */
 export const SHIPPING_OVERAGE_PER_KG = 3

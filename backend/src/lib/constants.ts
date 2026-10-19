@@ -105,6 +105,16 @@ const parsePackageDimCm = (raw: string | undefined, fallback: number) => {
  * (separate creds issued by AusPost alongside production ones). Test-bed
  * labels are generic — do final visual QA against one real prod label.
  */
+/**
+ * Shippit (app.shippit.com → Settings → API keys, "Retrieve Quote" permission
+ * only). When set, the single "Standard Shipping (AU)" option is priced from
+ * Shippit's cheapest standard carrier quote for the customer's address
+ * instead of the weight ladder; unset = ladder. See lib/shippit-quote.ts.
+ */
+export const SHIPPIT_API_KEY = process.env.SHIPPIT_API_KEY
+export const SHIPPIT_BASE_URL =
+  process.env.SHIPPIT_BASE_URL || "https://app.shippit.com/api/3"
+
 export const AUSPOST_API_KEY = process.env.AUSPOST_API_KEY
 /** The API key's paired password (the "secret" half of the Basic Auth pair). */
 export const AUSPOST_API_PASSWORD =

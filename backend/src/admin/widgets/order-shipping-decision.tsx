@@ -11,7 +11,20 @@ type ShippingDecision = {
   /** Present on orders priced by the weight-based scp_scp rate. */
   model?: "weight_based"
   provider?: string
-  /** Quoted shipping rate (AUD, ex-GST) for the cart's weight. */
+  /** "shippit" = live carrier quote for the address; "ladder" = weight bands. */
+  rate_source?: "shippit" | "ladder"
+  fallback_reason?: string | null
+  shippit?: {
+    carrier_price: number
+    courier: string
+    transit?: string
+    suburb: string
+    postcode: string
+    state: string
+    parcels?: number
+    parcel_kg?: number
+  } | null
+  /** Rate the customer paid (AUD, inc-GST since the 2026-07 HOLD cutover). */
   amount_aud?: number
   total_weight_grams?: number
   items_weight_grams?: number
@@ -93,7 +106,9 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
                 : "green"
             }
           >
-            {decision.model === "weight_based"
+            {decision.rate_source === "shippit"
+              ? "Shippit quote"
+              : decision.model === "weight_based"
               ? "Weight-based"
               : decision.tier === "flat"
               ? "Flat-rate"
@@ -119,9 +134,26 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
               </Text>
             </Row>
             {typeof decision.amount_aud === "number" ? (
-              <Row label="Quoted rate (ex GST)">
+              <Row label="Customer paid (inc GST)">
                 <Text size="small" weight="plus">
                   {`$${decision.amount_aud.toFixed(2)}`}
+                </Text>
+              </Row>
+            ) : null}
+            {decision.shippit ? (
+              <Row label="Shippit carrier">
+                <Text size="small">
+                  {decision.shippit.courier}
+                  {decision.shippit.transit ? ` · ${decision.shippit.transit}` : ""}
+                </Text>
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  {`${decision.shippit.parcels && decision.shippit.parcels > 1 ? `${decision.shippit.parcels} × ` : ""}$${decision.shippit.carrier_price.toFixed(2)} inc GST${decision.shippit.parcel_kg ? ` (${decision.shippit.parcel_kg} kg each)` : ""} to ${decision.shippit.suburb} ${decision.shippit.postcode}`}
+                </Text>
+              </Row>
+            ) : decision.rate_source === "ladder" && decision.fallback_reason ? (
+              <Row label="Priced by weight bands">
+                <Text size="xsmall" className="text-ui-fg-subtle">
+                  {decision.fallback_reason.replace(/_/g, " ")}
                 </Text>
               </Row>
             ) : null}
