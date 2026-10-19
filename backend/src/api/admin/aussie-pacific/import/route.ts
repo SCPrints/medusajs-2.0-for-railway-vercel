@@ -32,6 +32,7 @@ import {
 import type { PriceLadder } from "../../../../utils/bulk-price-ladder"
 import { BRAND_MODULE } from "../../../../modules/brand"
 import { classifyAussiePacificProduct } from "../../../../lib/product-taxonomy"
+import { isLockSkipped, withSupplierLock } from "../../../../lib/supplier-sync-lock"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -59,7 +60,17 @@ type VariantLadderResult = {
  * Body: { style_codes: string[] }
  * Returns: { imported: string[], skipped: string[], errors: Array<{ style_code, error }> }
  */
+/** 409 while the Aussie Pacific inventory sync / another import holds the lock. */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const result = await withSupplierLock(req.scope, "aussiepacific", () => runImport(req, res))
+  if (isLockSkipped(result)) {
+    return res.status(409).json({
+      error: "An Aussie Pacific sync or import is already running — try again in a few minutes.",
+    })
+  }
+}
+
+async function runImport(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
   let ap: AussiePacificService

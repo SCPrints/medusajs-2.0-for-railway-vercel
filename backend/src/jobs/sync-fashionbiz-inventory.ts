@@ -8,6 +8,7 @@ import { FASHIONBIZ_MODULE } from "../modules/fashionbiz"
 import FashionBizService from "../modules/fashionbiz/service"
 import { FashionBizBrandSlug } from "../modules/fashionbiz/types"
 import { withJobContext, getContextLogger } from "../lib/job-context-wrapper"
+import { withSupplierLock } from "../lib/supplier-sync-lock"
 
 const FASHIONBIZ_LOCATION_NAME = "FashionBiz Warehouse"
 const CHECKPOINT_KEY = "fashionbiz:inventory:lastSync"
@@ -23,9 +24,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
  * make one /stock call per group, summing across stock locations.
  *
  * Runs at 04:00 UTC = ~14:00–15:00 AEDT — off-peak for both AU customers
- * and (assumed) FashionBiz API capacity.
+ * and (assumed) FashionBiz API capacity. Under the `supplier-sync:fashionbiz`
+ * lock, shared with the admin import route.
  */
-const handler = async function syncFashionBizInventory(container: MedusaContainer) {
+const handler = (container: MedusaContainer) =>
+  withSupplierLock(container, "fashionbiz", () => syncFashionBizInventory(container))
+
+async function syncFashionBizInventory(container: MedusaContainer) {
   const logger = getContextLogger(container)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
 

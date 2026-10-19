@@ -23,6 +23,7 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
 import { classifyAsColourProduct } from "../../../../lib/product-taxonomy"
+import { isLockSkipped, withSupplierLock } from "../../../../lib/supplier-sync-lock"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -57,7 +58,17 @@ const extractArray = <T,>(resp: any): T[] => {
  * Body: { styleCodes: string[] }
  * Returns: { imported: string[], skipped: string[], errors: Array<{ styleCode, error }> }
  */
+/** 409 while the AS Colour inventory sync / backfill / another import holds the lock. */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const result = await withSupplierLock(req.scope, "ascolour", () => runImport(req, res))
+  if (isLockSkipped(result)) {
+    return res.status(409).json({
+      error: "An AS Colour sync or import is already running — try again in a few minutes.",
+    })
+  }
+}
+
+async function runImport(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
   let ascolour: AsColourService

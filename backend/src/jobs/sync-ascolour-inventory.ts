@@ -7,6 +7,7 @@ import {
 import { ASCOLOUR_MODULE } from "../modules/ascolour"
 import AsColourService from "../modules/ascolour/service"
 import { withJobContext, getContextLogger } from "../lib/job-context-wrapper"
+import { withSupplierLock } from "../lib/supplier-sync-lock"
 
 const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
 const CHECKPOINT_KEY = "ascolour:inventory:lastSync"
@@ -16,8 +17,13 @@ const CHECKPOINT_KEY = "ascolour:inventory:lastSync"
  * Uses /inventory/items?updatedAt:min=<lastSync> so payloads stay small.
  *
  * Falls back to a full sync the first time it runs (no checkpoint yet).
+ * Runs under the `supplier-sync:ascolour` lock — shared with the admin
+ * import route and the variant backfill cron.
  */
-const handler = async function syncAsColourInventory(container: MedusaContainer) {
+const handler = (container: MedusaContainer) =>
+  withSupplierLock(container, "ascolour", () => syncAsColourInventory(container))
+
+async function syncAsColourInventory(container: MedusaContainer) {
   const logger = getContextLogger(container)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
 

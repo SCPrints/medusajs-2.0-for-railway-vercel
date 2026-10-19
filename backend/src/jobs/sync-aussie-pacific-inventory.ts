@@ -9,6 +9,7 @@ import AussiePacificService from "../modules/aussiepacific/service"
 import { normalizeStockLevel, toArray } from "../modules/aussiepacific/mapping"
 import type { AussiePacificVariant } from "../modules/aussiepacific/types"
 import { withJobContext, getContextLogger } from "../lib/job-context-wrapper"
+import { withSupplierLock } from "../lib/supplier-sync-lock"
 
 const AUSSIEPACIFIC_LOCATION_NAME = "Aussie Pacific Warehouse"
 const CHECKPOINT_KEY = "aussiepacific:inventory:lastSync"
@@ -21,10 +22,15 @@ const CHECKPOINT_KEY = "aussiepacific:inventory:lastSync"
  * on variants inside `/api/v1/products`. We walk every page (with
  * `include=variants`) and build a `Map<sku, stock_level>` across the
  * whole catalog. One pass per day at 05:00 UTC (an hour after FashionBiz).
+ * Under the `supplier-sync:aussiepacific` lock, shared with the admin
+ * import route.
  */
-const handler = async function syncAussiePacificInventory(
-  container: MedusaContainer
-) {
+const handler = (container: MedusaContainer) =>
+  withSupplierLock(container, "aussiepacific", () =>
+    syncAussiePacificInventory(container)
+  )
+
+async function syncAussiePacificInventory(container: MedusaContainer) {
   const logger = getContextLogger(container)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
