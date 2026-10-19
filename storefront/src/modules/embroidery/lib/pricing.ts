@@ -13,7 +13,7 @@ import type {
  *
  * The pricing matrix below is effectively:
  *
- *                         1–25  26–50  51–100  101–250  251–500  501+
+ *                         1–24  25–49  50–99   100–249  250–499  500+
  *   up to 3,000 stitches  10.50  9.50   7.50    5.50     4.50    3.50
  *   up to 4,000           10.75  9.75   7.75    5.75     4.75    3.75
  *   up to 5,000           11.00 10.00   8.00    6.00     5.00    4.00
@@ -29,14 +29,17 @@ import type {
  * 2026-08 repricing: 8k+ rows lifted — at measured machine throughput
  * (600 spm, 3 heads/operator) the old 10k-12k prices were below in-house
  * cost. Rows ≤7k unchanged.
+ *
+ * 2026-10-19 (v2): quantity bands break at 25/50/100/250/500 like the rest of
+ * the market, so 25- and 50-piece orders land in the cheaper column.
  */
 const QUANTITY_TIERS: QuantityTier[] = [
-  { minQuantity: 1, label: "1–25" },
-  { minQuantity: 26, label: "26–50" },
-  { minQuantity: 51, label: "51–100" },
-  { minQuantity: 101, label: "101–250" },
-  { minQuantity: 251, label: "251–500" },
-  { minQuantity: 501, label: "501+" },
+  { minQuantity: 1, label: "1–24" },
+  { minQuantity: 25, label: "25–49" },
+  { minQuantity: 50, label: "50–99" },
+  { minQuantity: 100, label: "100–249" },
+  { minQuantity: 250, label: "250–499" },
+  { minQuantity: 500, label: "500+" },
 ]
 
 const STITCH_TIERS: StitchTier[] = [

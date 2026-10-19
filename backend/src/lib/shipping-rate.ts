@@ -28,8 +28,10 @@ export type ShippingWeightBand = {
 }
 
 export const SHIPPING_WEIGHT_BANDS: ShippingWeightBand[] = [
-  { maxGrams: 1000, amount: 11 }, // ≈ 1–2 garments
-  { maxGrams: 3000, amount: 15 }, // ≈ 3–9 garments  (the current flat rate)
+  // $15 minimum (2026-10-19): $11 didn't cover some parcels and $15 is the
+  // Express Post floor. Placeholder until the Shippit API returns live quotes.
+  { maxGrams: 1000, amount: 15 }, // ≈ 1–2 garments
+  { maxGrams: 3000, amount: 15 }, // ≈ 3–9 garments
   { maxGrams: 5000, amount: 20 }, // ≈ 10–16 garments
   { maxGrams: 10000, amount: 32 }, // ≈ 17–32 garments
   { maxGrams: 22000, amount: 55 }, // ≈ 33–72 garments

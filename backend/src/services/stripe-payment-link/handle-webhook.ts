@@ -150,16 +150,9 @@ export const handleCheckoutSessionCompleted = async (
     (sessionAmountCents ?? Math.round(Number(row.amount ?? 0) * 100)) / 100
   const paidAtIso = new Date().toISOString()
 
-  await appendOrderMetadataSummary(container, orderId, {
-    link_id: stripeLinkId,
-    payment_intent_id: paymentIntentId,
-    amount: amountMajor,
-    currency: sessionCurrency,
-    scenario: row.scenario,
-    paid_at: paidAtIso,
-    payment_collection_id: paymentCollectionId,
-  })
-
+  // Flip the row to paid FIRST. The payment is already applied to the order;
+  // if anything below throws, the hooks route 500s, Stripe retries, and a
+  // still-"pending" row would mint a second payment_collection.
   await service.updateStripePaymentLinks({
     id: row.id,
     status: "paid",
@@ -168,6 +161,24 @@ export const handleCheckoutSessionCompleted = async (
     paid_at: new Date(paidAtIso),
     order_id: orderId,
   } as any)
+
+  // Best-effort: the order.metadata summary is a display convenience (a full
+  // metadata read-modify-write that can collide with a concurrent stage save).
+  try {
+    await appendOrderMetadataSummary(container, orderId, {
+      link_id: stripeLinkId,
+      payment_intent_id: paymentIntentId,
+      amount: amountMajor,
+      currency: sessionCurrency,
+      scenario: row.scenario,
+      paid_at: paidAtIso,
+      payment_collection_id: paymentCollectionId,
+    })
+  } catch (err) {
+    logger.error(
+      `[stripe-payment-link] payment applied (collection=${paymentCollectionId}) but failed to append order.metadata.stripe_payment_links on ${orderId}: ${(err as Error).message}`
+    )
+  }
 
   logger.info(
     `[stripe-payment-link] applied ${sessionCurrency.toUpperCase()} ${amountMajor.toFixed(

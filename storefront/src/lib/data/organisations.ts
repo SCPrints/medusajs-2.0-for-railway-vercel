@@ -22,8 +22,7 @@ export type Membership = {
     handle: string
     name: string
     contact_email: string | null
-    notes: string | null
-    default_pricing_tier: string | null
+    contact_phone: string | null
     tax_exempt: boolean
   } | null
   role: OrgRole
@@ -37,9 +36,7 @@ export type OrganisationDetail = {
     name: string
     contact_email: string | null
     contact_phone: string | null
-    notes: string | null
     tax_exempt: boolean
-    metadata: Record<string, unknown> | null
   }
   role: OrgRole
 }

@@ -23,24 +23,21 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
 import { classifyAsColourProduct } from "../../../../lib/product-taxonomy"
+import { isLockSkipped, withSupplierLock } from "../../../../lib/supplier-sync-lock"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
   linkProductsToBrand,
   seedInventoryLevels,
 } from "../../../../lib/supplier-import-pipeline"
-import { slugify, titleCase } from "../../../../utils/string-case"
+import { titleCase } from "../../../../utils/string-case"
+import { asColourHandle } from "../../../../lib/ascolour-handle"
 
 const PRICE_CURRENCY_CODE = "aud"
 const AS_COLOUR_BRAND_HANDLE = "as-colour"
 const AS_COLOUR_BRAND_NAME = "AS Colour"
 const AS_COLOUR_BRAND_EXTERNAL_CODE = "ASCOLOUR"
 const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
-
-const handleForStyle = (styleCode: string, productName?: string) => {
-  const name = productName ?? styleCode
-  return `as-colour-${slugify(`${name}-${styleCode}`)}`
-}
 
 const extractArray = <T,>(resp: any): T[] => {
   if (!resp) return []
@@ -57,7 +54,17 @@ const extractArray = <T,>(resp: any): T[] => {
  * Body: { styleCodes: string[] }
  * Returns: { imported: string[], skipped: string[], errors: Array<{ styleCode, error }> }
  */
+/** 409 while the AS Colour inventory sync / backfill / another import holds the lock. */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const result = await withSupplierLock(req.scope, "ascolour", () => runImport(req, res))
+  if (isLockSkipped(result)) {
+    return res.status(409).json({
+      error: "An AS Colour sync or import is already running — try again in a few minutes.",
+    })
+  }
+}
+
+async function runImport(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
   let ascolour: AsColourService
@@ -181,7 +188,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         continue
       }
 
-      const handle = handleForStyle(styleCode, (product as any).productName)
+      // Same handle as import-as-colour-from-api.ts (the API field is
+      // `styleName`, not `productName`) — otherwise the idempotency check
+      // never matches the renamed products and we create duplicates.
+      const handle = asColourHandle((product as any).styleName, styleCode)
 
       // Idempotency: skip if already imported
       const { data: existing } = await query.graph({
@@ -194,10 +204,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         continue
       }
 
-      // Enrich with variants + images
-      const variants: AsColourVariant[] = product.variants?.length
-        ? product.variants
-        : extractArray<AsColourVariant>(await ascolour.getClient().getProductVariants(styleCode))
+      // Enrich with variants + images. ALWAYS hit fetchAllProductVariants —
+      // the catalog's inline `variants` can be truncated and the per-product
+      // endpoint paginates at 250 (see import-as-colour-from-api.ts).
+      const variants: AsColourVariant[] = await ascolour.fetchAllProductVariants(styleCode)
       const images: AsColourImage[] = product.images?.length
         ? product.images
         : extractArray<AsColourImage>(await ascolour.getClient().getProductImages(styleCode))

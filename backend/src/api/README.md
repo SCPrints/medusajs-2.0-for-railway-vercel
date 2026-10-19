@@ -137,125 +137,37 @@ The `matcher` property can be either a string or a regular expression. The `midd
 
 ## Shipping
 
-The storefront uses a hybrid shipping model: light AU carts get manual flat
-rates, heavier carts get live ShipStation quotes. The threshold and webhook
-flow are wired through three custom routes plus a few env vars.
+Checkout offers one shipping option, **Standard Shipping (AU)**, priced by the
+cart's total weight through the in-house `scp_scp` fulfillment provider
+(`src/modules/scp-shipping`). The bands live in `src/lib/shipping-rate.ts`:
+outbound postage by weight plus a once-per-order inbound freight-in
+(`FREIGHT_IN_PER_ORDER_AUD`). No external carrier is called at checkout.
 
-### Threshold env vars
+### Env vars
 
 | Var | Default | Purpose |
 | --- | --- | --- |
-| `SHIPPING_FLAT_RATE_MAX_GRAMS` | `3000` | Anything ≤ this weight (incl. packaging overhead) gets the manual flat-rate tier. Above it, only ShipStation calculated rates are returned. |
-| `SHIPPING_PACKAGING_OVERHEAD_GRAMS` | `150` | Constant added to every cart's `Σ(item.weight × quantity)` before tier evaluation and before the weight is forwarded to ShipStation. |
-| `SHIPSTATION_API_KEY` | — | When unset the ShipStation provider is not registered; only manual flat rates are seeded/served. |
-| `SHIPSTATION_WEBHOOK_SECRET` | — | HMAC-SHA256 secret used to verify incoming webhook payloads. Required for `/hooks/shipstation`. |
-| `SHIPSTATION_WAREHOUSE_*` | — | Origin (ship-from) defaults used when a Medusa stock location is missing fields (`POSTCODE`, `COUNTRY_CODE`, `CITY`, `STATE`, `NAME`, `ADDRESS_1`, `PHONE`). |
+| `SHIPPING_PACKAGING_OVERHEAD_GRAMS` | `150` | Added to `Σ(item.weight × quantity)` before the band lookup. |
+| `SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS` | `300` | Per-unit weight for items with no real weight, so the band still scales with quantity. |
 
 ### Storefront shipping endpoint
 
 `GET /store/cart-shipping-options?cart_id=<id>`
 
-1. Resolves the cart and computes
-   `total_weight_grams = Σ(item.weight × quantity) + SHIPPING_PACKAGING_OVERHEAD_GRAMS`.
-2. Loads every shipping option Medusa would normally return for the cart via
-   `listShippingOptionsForCartWorkflow`.
-3. If `total ≤ SHIPPING_FLAT_RATE_MAX_GRAMS` → returns only options whose
-   `provider_id` starts with `manual_`. Otherwise returns only options whose
-   `provider_id` starts with `shipstation_`. Falls back to the unfiltered list
-   if filtering would empty the response (avoids checkout dead-ends).
-4. Response shape:
-   ```json
-   {
-     "shipping_options": [/* StoreCartShippingOption[] */],
-     "total_weight_grams": 2750,
-     "items_weight_grams": 2600,
-     "packaging_overhead_grams": 150,
-     "threshold_grams": 3000,
-     "items_missing_weight": 0,
-     "tier": "flat"
-   }
-   ```
+1. Resolves the cart and computes the total gram weight (see `src/lib/cart-weight.ts`).
+2. Stamps the weight breakdown + quoted amount onto `cart.metadata.shipping_decision`
+   so it rides into the order for the admin "Shipping decision" widget.
+3. Runs `listShippingOptionsForCartWithPricingWorkflow` (the `WithPricing`
+   variant is required — the option is `price_type: "calculated"`) and narrows
+   the result to `scp_*` options, falling back to the unfiltered list so
+   checkout never dead-ends.
 
-### ShipStation webhook
+### Tracking + the shipped email
 
-`POST /hooks/shipstation`
-
-Register this URL in the ShipStation v2 dashboard and subscribe to at least
-the `shipment_shipped` event (we also handle `tracking_updated`,
-`shipment_voided`, and `label_voided`). The route:
-
-1. Verifies the `X-SHIPSTATION-WEBHOOK-SIGNATURE` header against the raw
-   request body using `SHIPSTATION_WEBHOOK_SECRET` (HMAC-SHA256, base64). The
-   route is registered with `bodyParser.preserveRawBody: true` in
-   `src/api/middlewares.ts`.
-2. Pulls the full shipment + label set from ShipStation using the
-   `external_order_id` / `external_shipment_id` we attached when
-   `createFulfillment` was invoked, and de-duplicates by `label_id`.
-3. Persists the parcels onto the matching Medusa fulfillment as
-   `metadata.parcels` and mirrors them onto `metadata.tracking_links` for
-   compatibility.
-4. Triggers `createOrderShipmentWorkflow` so Medusa emits
-   `order.shipment_created`, which the `order-shipment-created` subscriber
-   uses to send the per-parcel `ORDER_SHIPPED` dispatch email.
-
-### Expected `parcels` metadata shape
-
-`fulfillment.metadata.parcels` is an array — one entry per ShipStation label.
-The same shape is consumed by both the dispatch email template and the
-storefront's `TrackingList`.
-
-```json
-[
-  {
-    "label_id": "se-1234567890",
-    "shipment_id": "se-9876543210",
-    "tracking_number": "ABC123",
-    "tracking_url": "https://auspost.com.au/mypost/track/#/details/ABC123",
-    "carrier_id": "se_australia_post",
-    "carrier_code": "auspost",
-    "service_code": "auspost_parcel_post",
-    "package_code": null,
-    "label_url": "https://api.shipstation.com/v2/downloads/.../label.pdf",
-    "weight_grams": 1100,
-    "voided_at": null,
-    "shipped_at": "2026-04-27T10:30:00.000Z"
-  }
-]
-```
-
-### Admin visibility
-
-Two read-only widgets surface the shipping picture on the Admin Order page:
-
-- **Shipping decision** (sidebar, `order.details.side.after`) reads
-  `order.metadata.shipping_decision` and renders the chosen tier
-  (Flat-rate vs Live ShipStation quote), cart weight at checkout, the
-  threshold, ship-from postcode/country, and `computed_at`. The blob is
-  written by `/store/cart-shipping-options` onto the cart on every poll, and a
-  defensive `order.placed` subscriber
-  (`src/subscribers/order-placed-stamp-shipping-decision.ts`) mirrors it onto
-  the order if the core completion flow doesn't carry cart metadata across.
-  Older orders predating this rollout simply show an empty state.
-- **ShipStation parcels** (full-width, `order.details.after`) re-fetches the
-  order with `+fulfillments.metadata` and renders one table per fulfillment:
-  carrier · service, tracking number + Track link, per-parcel weight, label
-  PDF link, and a Voided / Shipped / Pending status pill. Falls back to native
-  `fulfillment.labels[]` when `metadata.parcels` is absent so manual flat-rate
-  fulfillments still render usefully.
-
-Both widgets are view-only; reprint and void label actions are intentionally
-out of scope. Edit shipping data via ShipStation itself — the webhook will
-sync changes back into `metadata.parcels` on the next event.
-
-### Smoke test
-
-Validate the threshold logic without booting the storefront:
-
-```bash
-cd backend
-npx medusa exec ./src/scripts/test-shipping-tier.ts
-```
-
-The script synthesises three carts (~2.5 kg, ~3.5 kg, and exactly at the
-threshold) and prints the resolved `tier` for each so you can see the
-hybrid logic decide flat vs. live.
+`fulfillment.metadata.parcels` (one entry per label: `tracking_number`,
+`tracking_url`, `carrier_code`, `service_code`, `label_url`, `weight_grams`,
+`shipped_at`, `voided_at`) is written by the AusPost tracking job
+(`src/jobs/sync-auspost-tracking.ts`). The `order-shipment-created` subscriber
+and the storefront `TrackingList` read it and fall back to native
+`fulfillment.labels[]`. The AusPost parcels widget on the admin order page
+renders the same data; it is view-only.

@@ -48,16 +48,44 @@ describe("evaluateCartPricing", () => {
     expect(result.checked_lines).toBe(1)
   })
 
-  it("ignores sub-50c rounding drift", () => {
-    const result = evaluateCartPricing([embroideredLine(CORRECT_EMB_UNIT + 0.4)])
+  it("ignores sub-50c rounding drift on the LINE total", () => {
+    // 10c/unit × qty 3 = 30c line delta → inside the ignore band.
+    const result = evaluateCartPricing([embroideredLine(CORRECT_EMB_UNIT + 0.1)])
     expect(result.verdict).toBe("ok")
   })
 
   it("alerts on a small but non-trivial mismatch", () => {
-    // 90c under: past the 50c ignore band, under max($1, 2%) = $1.23
+    // 90c/unit × qty 3 = $2.70 line delta: past the 50c ignore band, under
+    // the material threshold max($5, 2% of $183.90) = $5.
     const result = evaluateCartPricing([embroideredLine(CORRECT_EMB_UNIT - 0.9)])
     expect(result.verdict).toBe("alert")
-    expect(result.findings[0]).toMatchObject({ kind: "price_mismatch", severity: "alert" })
+    expect(result.findings[0]).toMatchObject({
+      kind: "price_mismatch",
+      severity: "alert",
+      delta: -0.9,
+      line_delta: -2.7,
+    })
+  })
+
+  it("a sub-50c PER-UNIT undercharge on a 300-unit line is material, not ignored", () => {
+    // 49c/unit × 300 = $147 under. Expected 100+ band $23.10 → line $6,930,
+    // material threshold max($5, 2%) = $138.60 → block.
+    const line = {
+      id: "line_bulk",
+      quantity: 300,
+      unit_price: 23.1 - 0.49,
+      variant_id: "var_1",
+      variant: { id: "var_1", metadata: VARIANT_META },
+      metadata: {},
+    }
+    const result = evaluateCartPricing([line])
+    expect(result.verdict).toBe("block")
+    expect(result.findings[0]).toMatchObject({
+      kind: "price_mismatch",
+      severity: "block",
+      delta: -0.49,
+      line_delta: -147,
+    })
   })
 
   it("BLOCKS the order-#44 shape: embroidery charge silently dropped", () => {

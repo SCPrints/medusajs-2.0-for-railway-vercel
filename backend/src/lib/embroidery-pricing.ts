@@ -9,17 +9,20 @@
  * pricing.
  */
 
-export const EMBROIDERY_PRICING_VERSION = 1 as const
+// v2 (2026-10-19): bands break at 25/50/100/250/500 like the rest of the
+// market, so a 25- or 50-piece order gets the cheaper column instead of the
+// dearest edge of the one below (pricing review 2026-10-08 §4b).
+export const EMBROIDERY_PRICING_VERSION = 2 as const
 
 export const MAX_AUTO_PRICED_STITCHES = 12000
 
 const QUANTITY_TIERS: Array<{ minQuantity: number; label: string }> = [
-  { minQuantity: 1, label: "1–25" },
-  { minQuantity: 26, label: "26–50" },
-  { minQuantity: 51, label: "51–100" },
-  { minQuantity: 101, label: "101–250" },
-  { minQuantity: 251, label: "251–500" },
-  { minQuantity: 501, label: "501+" },
+  { minQuantity: 1, label: "1–24" },
+  { minQuantity: 25, label: "25–49" },
+  { minQuantity: 50, label: "50–99" },
+  { minQuantity: 100, label: "100–249" },
+  { minQuantity: 250, label: "250–499" },
+  { minQuantity: 500, label: "500+" },
 ]
 
 const STITCH_TIERS: Array<{ maxStitches: number; prices: number[] }> = [

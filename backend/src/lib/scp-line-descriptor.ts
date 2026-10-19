@@ -37,6 +37,7 @@ import {
   resolveGarmentUnitAmountMajor,
 } from "./scp-resolve-garment-unit-price"
 import type { Tier } from "./customer-tiers"
+import { allowlistClientLineMetadata } from "./client-line-metadata"
 
 export type { EmbroideryBreakdownEntry, ScreenBreakdownEntry }
 
@@ -94,9 +95,12 @@ export async function computeScpLineDescriptor(
   }
   const printSizeId: ScpPrintSizeId = printSizeIdRaw
 
-  const mergedMetadata: Record<string, unknown> = {
-    ...(incomingMetadata ?? {}),
-  }
+  // Trust boundary: only caller-owned keys survive (lib/client-line-metadata).
+  // quote_locked_price / price_override / decorationDesign and any client
+  // copy of pricing.server are dropped here; the server block is rebuilt
+  // below from the computed totals.
+  const mergedMetadata: Record<string, unknown> =
+    allowlistClientLineMetadata(incomingMetadata).metadata
 
   const decoratedSides = decoratedSidesFromLineMetadata(mergedMetadata)
   if (decoratedSides.length < 1) {

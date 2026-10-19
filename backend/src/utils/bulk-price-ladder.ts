@@ -16,9 +16,12 @@
  *   50-99    = standard * 0.80
  *   base     = standard           (covers Medusa qty 1-9)
  *
- * Since 2026-08-27 every band ALSO carries an inbound freight-in allowance
- * (`FREIGHT_IN_ALLOWANCE_AUD`, full at 1-9, amortized over the band minimum
- * above) — see the constant's doc comment.
+ * 2026-08-27 → 2026-10-19 every band ALSO carried a per-unit inbound
+ * freight-in allowance (`FREIGHT_IN_ALLOWANCE_AUD`). It is now 0: freight-in
+ * is charged ONCE PER ORDER inside the shipping bands instead — see
+ * lib/shipping-rate.ts `FREIGHT_IN_PER_ORDER_AUD`. The constant + the
+ * `freight_in_aud` stamp stay so apply-freight-in-allowance.ts can move
+ * existing variants to whatever value this holds.
  *
  * Originally ported from `scripts/build_as_colour_import_csv.py`.
  *
@@ -39,16 +42,16 @@ export type PriceLadder = {
 const round2 = (n: number) => Math.round(n * 100) / 100
 
 /**
- * Inbound freight-in allowance, AUD, per supplier consignment.
+ * Per-UNIT inbound freight-in allowance baked into the garment ladder, AUD.
  *
- * Every supplier bills SC Prints freight (~$10-15) per order sent to the
- * workshop, and the customer's weight-based "Standard Shipping" only covers
- * OUTBOUND postage — so a single-garment order used to eat the inbound
- * freight (decided 2026-08-27 off order #79: two 1-garment consignments,
- * $11 shipping collected, ~$20+ inbound freight paid). Baked into the
- * retail ladder: full at qty 1-9, amortized over the band minimum above.
+ * Was 15 from 2026-08-27 (full at qty 1-9, amortized over the band minimum
+ * above). That charged a 5-tee order $75 against ~$15 of real inbound
+ * freight and put the single tee ~$13 above market (pricing review
+ * 2026-10-08 §4a). Set to 0 on 2026-10-19: the allowance now lives in the
+ * shipping bands, once per order (lib/shipping-rate.ts). Keep at 0 — change
+ * the shipping constant instead.
  */
-export const FREIGHT_IN_ALLOWANCE_AUD = 15
+export const FREIGHT_IN_ALLOWANCE_AUD = 0
 
 /** Per-unit freight add for a quantity band starting at `minQty`. */
 export const freightInPerUnit = (minQty: number): number =>
@@ -80,8 +83,9 @@ export const toMinorAud = (major: number): number => Math.round(major * 100)
  *   { min_quantity, max_quantity?, amount }  — amount in minor units (cents).
  */
 export const buildBulkPricingMetadata = (ladder: PriceLadder) => ({
-  // Stamp so the one-off apply-freight-in-allowance script knows this
-  // ladder already carries the inbound-freight allowance.
+  // Stamp so apply-freight-in-allowance.ts knows how much per-unit freight
+  // this ladder carries (0 = none; the script moves stamped variants to the
+  // current constant).
   freight_in_aud: FREIGHT_IN_ALLOWANCE_AUD,
   base_sale_price: ladder.base,
   tier_10_to_19_price: ladder.tier10to19,

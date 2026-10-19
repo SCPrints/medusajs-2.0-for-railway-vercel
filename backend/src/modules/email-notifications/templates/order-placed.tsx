@@ -2,6 +2,7 @@ import { Text, Section, Hr, Row, Column } from '@react-email/components'
 import * as React from 'react'
 import { Base, STYLES, NAVY, SLATE, BORDER, BG_SUBTLE } from './base'
 import { OrderDTO, OrderAddressDTO } from '@medusajs/framework/types'
+import type { OpenQuoteSummary } from '../../../lib/open-quotes'
 
 export const ORDER_PLACED = 'order-placed'
 
@@ -24,6 +25,10 @@ export interface OrderPlacedTemplateProps {
   preview?: string
   /** When `merchant`, copy is aimed at the shop inbox instead of the customer. */
   audience?: 'customer' | 'merchant'
+  /** Merchant only: the customer's open quotes — see lib/open-quotes.ts. */
+  openQuotes?: OpenQuoteSummary[] | null
+  /** Merchant only: where the quotes link goes. */
+  adminQuotesUrl?: string | null
 }
 
 export const isOrderPlacedTemplateData = (data: any): data is OrderPlacedTemplateProps =>
@@ -36,6 +41,8 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
   shippingAddress,
   preview,
   audience = 'customer',
+  openQuotes,
+  adminQuotesUrl,
 }) => {
   const isMerchant = audience === 'merchant'
   const effectivePreview =
@@ -68,6 +75,39 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
           <Text style={{ ...STYLES.body, margin: '4px 0 0' }}>
             <strong style={{ color: NAVY }}>Internal id:</strong> {order.id}
           </Text>
+          {openQuotes?.length ? (
+            <Section
+              style={{
+                margin: '16px 0 0',
+                padding: '12px 16px',
+                background: '#fff7ed',
+                border: '1px solid #fdba74',
+                borderRadius: '8px',
+              }}
+            >
+              <Text style={{ ...STYLES.body, margin: 0, fontWeight: 700, color: NAVY }}>
+                This customer also has{' '}
+                {openQuotes.length === 1 ? 'an open quote' : `${openQuotes.length} open quotes`}{' '}
+                &mdash; it is not part of this order.
+              </Text>
+              {openQuotes.map((q) => (
+                <Text key={q.id} style={{ ...STYLES.body, margin: '6px 0 0', fontSize: '14px', color: SLATE }}>
+                  <strong style={{ color: NAVY }}>{q.public_id}</strong> &middot; {q.status} &middot;{' '}
+                  {new Date(q.created_at).toLocaleDateString('en-AU', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                  {q.subject ? <> &middot; {q.subject}</> : null}
+                </Text>
+              ))}
+              {adminQuotesUrl ? (
+                <Text style={{ ...STYLES.body, margin: '8px 0 0', fontSize: '14px' }}>
+                  <a href={adminQuotesUrl} style={{ color: NAVY }}>Open the quotes board</a>
+                </Text>
+              ) : null}
+            </Section>
+          ) : null}
         </Section>
       ) : (
         <Text style={STYLES.body}>

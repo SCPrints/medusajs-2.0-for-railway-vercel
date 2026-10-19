@@ -119,9 +119,8 @@ const OrderAusPostParcelsWidget = ({
     void refresh()
   }, [refresh])
 
-  // Render nothing for orders that have no AusPost fulfillments — the
-  // ShipStation widget already covers those, so the admin doesn't get a
-  // empty AusPost panel on every legacy order.
+  // Render nothing for orders that have no AusPost fulfillments, so the
+  // admin doesn't get an empty AusPost panel on every order.
   const ausPostFulfillments = useMemo(
     () =>
       fulfillments.filter(

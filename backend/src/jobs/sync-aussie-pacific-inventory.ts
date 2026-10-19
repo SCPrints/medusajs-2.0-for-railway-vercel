@@ -1,14 +1,12 @@
 import { MedusaContainer } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import {
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
-} from "@medusajs/medusa/core-flows"
+import { Modules } from "@medusajs/framework/utils"
 import { AUSSIEPACIFIC_MODULE } from "../modules/aussiepacific"
 import AussiePacificService from "../modules/aussiepacific/service"
 import { normalizeStockLevel, toArray } from "../modules/aussiepacific/mapping"
 import type { AussiePacificVariant } from "../modules/aussiepacific/types"
+import { writeInventoryLevels } from "../lib/inventory-level-writes"
 import { withJobContext, getContextLogger } from "../lib/job-context-wrapper"
+import { withSupplierLock } from "../lib/supplier-sync-lock"
 
 const AUSSIEPACIFIC_LOCATION_NAME = "Aussie Pacific Warehouse"
 const CHECKPOINT_KEY = "aussiepacific:inventory:lastSync"
@@ -21,12 +19,16 @@ const CHECKPOINT_KEY = "aussiepacific:inventory:lastSync"
  * on variants inside `/api/v1/products`. We walk every page (with
  * `include=variants`) and build a `Map<sku, stock_level>` across the
  * whole catalog. One pass per day at 05:00 UTC (an hour after FashionBiz).
+ * Under the `supplier-sync:aussiepacific` lock, shared with the admin
+ * import route.
  */
-const handler = async function syncAussiePacificInventory(
-  container: MedusaContainer
-) {
+const handler = (container: MedusaContainer) =>
+  withSupplierLock(container, "aussiepacific", () =>
+    syncAussiePacificInventory(container)
+  )
+
+async function syncAussiePacificInventory(container: MedusaContainer) {
   const logger = getContextLogger(container)
-  const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
   let ap: AussiePacificService
   try {
@@ -79,58 +81,19 @@ const handler = async function syncAussiePacificInventory(
     return
   }
 
-  // 3. Resolve inventory items + existing levels.
-  const skus = Array.from(stockBySku.keys())
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
-    filters: { sku: skus },
-  })
-  const itemIds = (inventoryItems ?? []).map((i: any) => i.id)
-  const { data: existingLevels } = await query.graph({
-    entity: "inventory_level",
-    fields: ["id", "inventory_item_id", "location_id"],
-    filters: { inventory_item_id: itemIds, location_id: locationId },
-  })
-  const haveLevel = new Set(
-    (existingLevels ?? []).map((l: any) => l.inventory_item_id)
-  )
-
-  const updates: {
-    inventory_item_id: string
-    location_id: string
-    stocked_quantity: number
-  }[] = []
-  const creates: {
-    inventory_item_id: string
-    location_id: string
-    stocked_quantity: number
-  }[] = []
-  for (const item of inventoryItems ?? []) {
-    const qty = stockBySku.get(item.sku) ?? 0
-    const payload = {
-      inventory_item_id: item.id,
-      location_id: locationId,
-      stocked_quantity: qty,
-    }
-    if (haveLevel.has(item.id)) updates.push(payload)
-    else creates.push(payload)
-  }
-
-  if (creates.length) {
-    await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: creates },
-    })
-  }
-  if (updates.length) {
-    await updateInventoryLevelsWorkflow(container).run({
-      input: { updates },
-    })
+  // 3. Change-only, chunked, sanity-guarded write (lib/inventory-level-writes).
+  //    A renamed `stock_level` field (→ NaN → 0 for ~8k variants) is refused here.
+  const result = await writeInventoryLevels(container, { stockBySku, locationId, logger })
+  if (result.aborted) {
+    logger.warn(
+      `Aussie Pacific inventory sync ABORTED (checkpoint not advanced): ${result.reason}`
+    )
+    return
   }
 
   await writeCheckpoint(container, startedAt.toISOString())
   logger.info(
-    `Aussie Pacific inventory sync done — SKUs synced: ${stockBySku.size}, levels created: ${creates.length}, updated: ${updates.length}.`
+    `Aussie Pacific inventory sync done — SKUs synced: ${stockBySku.size}, levels created: ${result.created}, updated: ${result.updated}, unchanged: ${result.unchanged}.`
   )
 }
 

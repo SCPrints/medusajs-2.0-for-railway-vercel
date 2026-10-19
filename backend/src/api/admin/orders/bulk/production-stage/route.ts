@@ -9,34 +9,13 @@ import {
 } from "@medusajs/framework/types"
 
 import {
-  ARTWORK_STAGE_EVENT,
-  BLANKS_STAGE_EVENT,
-  PRODUCTION_STAGE_EVENT,
-  deriveTracksFromLegacyStage,
-  isArtworkStage,
-  isBlanksStage,
   isDownstreamStage,
   isProductionStage,
+  planProductionStageChange,
   resolveTracksFromMeta,
   type ProductionStage,
-  type ProductionStageChangedEvent,
-  type ProductionStageHistoryEntry,
-  type ProductionTrack,
 } from "../../../../../lib/production-stage"
-
-function trackForStage(stage: ProductionStage): ProductionTrack {
-  if (isArtworkStage(stage) || stage === "art_review") return "artwork"
-  if (isBlanksStage(stage) || stage === "blanks_ordered" || stage === "blanks_arrived") {
-    return "blanks"
-  }
-  return "production"
-}
-
-const EVENT_FOR_TRACK: Record<ProductionTrack, string> = {
-  artwork: ARTWORK_STAGE_EVENT,
-  blanks: BLANKS_STAGE_EVENT,
-  production: PRODUCTION_STAGE_EVENT,
-}
+import { isTransitionNotAllowed } from "../../../../../lib/production-stage-guard"
 import { getPostHog } from "../../../../../lib/posthog"
 import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
 
@@ -44,10 +23,16 @@ import { isDecoratedLine, productionGateFailures } from "../../../../../lib/prod
  * POST /admin/orders/bulk/production-stage
  *   { order_ids: string[], stage: ProductionStage, note?: string }
  *
- * Move N orders to the same stage in one shot. Same logic as the
- * single-order endpoint per order — same-stage no-ops are skipped, an
- * event is emitted per actually-changed order so subscribers (emails,
- * audit log, alerts) all fire correctly.
+ * Move N orders to the same stage in one shot. Each order is planned through
+ * `planProductionStageChange` — the same planner the automation action uses —
+ * so the target routes to its track, the same-value check compares against
+ * the TRACK value (not the overloaded `production_stage` field: an order whose
+ * artwork is already awaiting_approval but whose last transition was blanks
+ * "ordered" used to get a duplicate history entry, a reset
+ * artwork_stage_changed_at and a second proof email — review 3-7), and the
+ * state-machine guard runs as `bulk` with no override path. Events are
+ * emitted per actually-changed order so subscribers (emails, audit log,
+ * alerts) all fire correctly.
  *
  * Caps at 200 orders per call.
  */
@@ -59,26 +44,6 @@ type ResultRow = {
   from_stage: ProductionStage | null
   to_stage: ProductionStage
   error?: string
-}
-
-const readCurrentStage = (meta: Record<string, unknown>): ProductionStage | null => {
-  const cur = meta?.production_stage
-  if (typeof cur === "string" && isProductionStage(cur)) return cur
-  return null
-}
-
-const readHistory = (
-  meta: Record<string, unknown>
-): ProductionStageHistoryEntry[] => {
-  const raw = meta?.production_stage_history
-  if (!Array.isArray(raw)) return []
-  return raw.filter(
-    (e: any) =>
-      e &&
-      typeof e === "object" &&
-      typeof e.stage === "string" &&
-      typeof e.changed_at === "string"
-  ) as ProductionStageHistoryEntry[]
 }
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -144,8 +109,33 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
 
     const meta = (order.metadata ?? {}) as Record<string, unknown>
-    const fromStage = readCurrentStage(meta)
-    if (fromStage === toStage) {
+    const tracks = resolveTracksFromMeta(meta)
+
+    let plan: ReturnType<typeof planProductionStageChange>
+    try {
+      plan = planProductionStageChange(
+        meta,
+        { stage: toStage },
+        { orderId, changedAt, changedBy, note, actor: { kind: "bulk", user_id: changedBy } }
+      )
+    } catch (err: any) {
+      results.push({
+        order_id: orderId,
+        changed: false,
+        from_stage: tracks.downstream,
+        to_stage: toStage,
+        error: isTransitionNotAllowed(err)
+          ? `${err.message}. Open the order to force it with a reason.`
+          : `plan failed: ${err?.message ?? err}`,
+      })
+      continue
+    }
+
+    // The planner reports which track moved; "from" is that track's value.
+    const moved = plan.events[0]?.data
+    const fromStage: ProductionStage | null = moved?.from_stage ?? null
+
+    if (!plan.changed || !plan.metadata) {
       results.push({
         order_id: orderId,
         changed: false,
@@ -155,19 +145,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       continue
     }
 
-    const track = trackForStage(toStage)
-    const derived = deriveTracksFromLegacyStage(toStage)
-
     // Same readiness check as the single-order route. Bulk moves can't
     // override it: open the order and start it there with a reason.
     if (isDownstreamStage(toStage)) {
-      const tracks = resolveTracksFromMeta(meta)
       const failures = productionGateFailures({
         meta,
         fromDownstream: tracks.downstream,
         toDownstream: toStage,
-        artwork: tracks.artwork,
-        blanks: tracks.blanks,
+        artwork: plan.metadata.artwork_stage,
+        blanks: plan.metadata.blanks_stage,
         hasDecoratedLines: (order.items ?? []).some(isDecoratedLine),
       })
       if (failures.length > 0) {
@@ -182,16 +168,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     }
 
-    const history = readHistory(meta)
-    const newEntry: ProductionStageHistoryEntry = {
-      stage: toStage,
-      changed_at: changedAt,
-      changed_by: changedBy,
-      note,
-      track,
-    }
-    const nextHistory = [...history, newEntry]
-
     // Stage move = progress; clear any stale flag immediately.
     const {
       is_stale: _isStale,
@@ -201,22 +177,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       stale_stage_since: _staleStageSince,
       ...freshMeta
     } = meta as Record<string, unknown>
-    const metaUpdate: Record<string, unknown> = {
-      ...freshMeta,
-      production_stage: toStage,
-      production_stage_changed_at: changedAt,
-      production_stage_history: nextHistory,
-    }
-    if (track === "artwork") {
-      metaUpdate.artwork_stage = derived.artwork_stage
-      metaUpdate.artwork_stage_changed_at = changedAt
-    } else if (track === "blanks") {
-      metaUpdate.blanks_stage = derived.blanks_stage
-      metaUpdate.blanks_stage_changed_at = changedAt
-    }
 
     try {
-      await orderModuleService.updateOrders(orderId, { metadata: metaUpdate })
+      await orderModuleService.updateOrders(orderId, {
+        metadata: { ...freshMeta, ...plan.metadata },
+      })
     } catch (err: any) {
       results.push({
         order_id: orderId,
@@ -228,21 +193,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       continue
     }
 
-    const event: ProductionStageChangedEvent = {
-      order_id: orderId,
-      from_stage: fromStage,
-      to_stage: toStage,
-      changed_at: changedAt,
-      changed_by: changedBy,
-      note,
-      track,
-    }
-    try {
-      await eventBus.emit({ name: EVENT_FOR_TRACK[track], data: event })
-    } catch (err: any) {
-      logger.warn?.(
-        `bulk-production-stage: failed to emit event for ${orderId}: ${err?.message ?? err}`
-      )
+    for (const e of plan.events) {
+      try {
+        await eventBus.emit({ name: e.name, data: e.data })
+      } catch (err: any) {
+        logger.warn?.(
+          `bulk-production-stage: failed to emit event for ${orderId}: ${err?.message ?? err}`
+        )
+      }
     }
     results.push({
       order_id: orderId,

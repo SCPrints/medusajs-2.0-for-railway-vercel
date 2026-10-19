@@ -88,6 +88,7 @@ describe("toClientProduct", () => {
     for (const k of ["created_at", "updated_at", "deleted_at", "hs_code", "origin_country", "width", "barcode"]) {
       expect(v).not.toHaveProperty(k)
     }
+    expect(v.metadata).not.toHaveProperty("cost_price_ex_gst_minor")
     expect(v.calculated_price).not.toHaveProperty("raw_calculated_amount")
     expect(v.calculated_price).not.toHaveProperty("original_price")
     expect(v.calculated_price.calculated_price).not.toHaveProperty("min_quantity")

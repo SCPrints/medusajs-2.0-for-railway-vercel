@@ -7,11 +7,13 @@ import type {
 import { z } from "zod"
 
 import {
-  ARTWORK_STAGE_EVENT,
-  BLANKS_STAGE_EVENT,
-  PRODUCTION_STAGE_EVENT,
-  type ProductionStageChangedEvent,
+  planProductionStageChange,
+  resolveTracksFromMeta,
 } from "../../../../../../lib/production-stage"
+import {
+  STAGE_TRANSITION_NOT_ALLOWED,
+  isTransitionNotAllowed,
+} from "../../../../../../lib/production-stage-guard"
 import { writeAudit } from "../../../../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../../lib/audit-entities"
 import { captureEvent } from "../../../../../../lib/posthog"
@@ -21,24 +23,27 @@ const bodySchema = z.object({
   note: z.string().max(500).optional(),
 })
 
+const POS_OVERRIDE_REASON = "POS fast-forward"
+
 /**
  * POST /admin/pos/orders/:id/fast-forward
  *   body: { target?: "delivered" | "shipped" | "in_production", note? }
- *   → { ok: true, applied: { production, artwork, blanks } }
+ *   → { ok: true, changed, applied: { artwork, blanks, production } }
  *
  * Single-shot "the customer is walking out the door with the goods"
- * shortcut. Stamps all three production tracks to terminal-for-target
- * states and emits the stage-changed events so subscribers (emails,
- * audit, automation rules) fire exactly as they would on a normal
- * advance. The default target is `delivered` which covers stock-item
- * pickup; staff can opt for `shipped` if the courier is coming later,
- * or `in_production` if it's a multi-day custom job they only want to
- * flag as approved + blanks-in-hand.
+ * shortcut. Plans all three tracks through `planProductionStageChange` so
+ * history entries are appended and the state-machine guard runs as
+ * `pos_fast_forward` with the standing override reason — artwork
+ * pending → approved and production received → delivered are skipped steps
+ * that only this actor (or an admin with a reason) may force. The default
+ * target is `delivered` for stock-item pickup; `shipped` if the courier is
+ * coming later; `in_production` to flag approved + blanks-in-hand on a
+ * multi-day custom job.
  *
- * Idempotent at the metadata level: if the order is already at the
- * target, we still re-emit so any missed subscriber (e.g. a freshly
- * added watcher) picks it up — that's typically what the user wants
- * when they click the button twice.
+ * Idempotent: an order already at the target is a no-op (no events, so a
+ * double click can't duplicate automation actions or audit rows — review
+ * 3-6). The old code also wrote `blanks_stage: "blanks_arrived"`, which is
+ * not a BLANKS_STAGES value; the planner writes `arrived`.
  */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const orderId = req.params.id
@@ -61,86 +66,62 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(404).json({ error: "order not found" })
   }
 
-  // Pick the terminal-state triple for the target.
-  const targets =
-    body.target === "delivered"
-      ? {
-          artwork: "approved" as const,
-          blanks: "blanks_arrived" as const,
-          production: "delivered" as const,
-        }
-      : body.target === "shipped"
-        ? {
-            artwork: "approved" as const,
-            blanks: "blanks_arrived" as const,
-            production: "shipped" as const,
-          }
-        : {
-            artwork: "approved" as const,
-            blanks: "blanks_arrived" as const,
-            production: "in_production" as const,
-          }
-
-  const previous = (order.metadata ?? {}) as any
-  const fromArtwork = previous.artwork_stage ?? null
-  const fromBlanks = previous.blanks_stage ?? null
-  const fromProduction =
-    previous.production_stage ?? previous.legacy_production_stage ?? null
-
+  const previous = (order.metadata ?? {}) as Record<string, unknown>
+  const from = resolveTracksFromMeta(previous)
   const nowIso = new Date().toISOString()
-  const newMetadata: Record<string, unknown> = {
-    ...previous,
-    artwork_stage: targets.artwork,
-    blanks_stage: targets.blanks,
-    production_stage: targets.production,
-    pos_fast_forwarded_at: nowIso,
-    pos_fast_forwarded_target: body.target,
+
+  let plan
+  try {
+    plan = planProductionStageChange(
+      previous,
+      { artwork_stage: "approved", blanks_stage: "arrived", production_stage: body.target },
+      {
+        orderId,
+        changedAt: nowIso,
+        changedBy: actor,
+        note: body.note ?? POS_OVERRIDE_REASON,
+        actor: { kind: "pos_fast_forward", user_id: actor },
+        override_reason: POS_OVERRIDE_REASON,
+      }
+    )
+  } catch (err) {
+    if (!isTransitionNotAllowed(err)) throw err
+    return res.status(409).json({ error: STAGE_TRANSITION_NOT_ALLOWED, message: err.message })
+  }
+
+  const applied = {
+    artwork: plan.metadata?.artwork_stage ?? from.artwork,
+    blanks: plan.metadata?.blanks_stage ?? from.blanks,
+    production: plan.metadata?.production_stage ?? from.downstream,
+  }
+
+  if (!plan.changed || !plan.metadata) {
+    return res.json({ ok: true, changed: false, applied })
   }
 
   await orderModule.updateOrders([
-    { id: orderId, metadata: newMetadata },
+    {
+      id: orderId,
+      metadata: {
+        ...previous,
+        ...plan.metadata,
+        pos_fast_forwarded_at: nowIso,
+        pos_fast_forwarded_target: body.target,
+      },
+    },
   ])
 
-  // Emit each track-event so the existing subscribers (emails,
-  // automation rules, audit) fire as if the stages had advanced one
-  // at a time. `from_stage` is the previous value so the dedupe logic
-  // in `shouldEmailForStageTransition` correctly identifies forward
-  // motion.
-  const baseEvent = {
-    order_id: orderId,
-    changed_at: nowIso,
-    changed_by: actor,
-    note: body.note ?? "POS fast-forward",
+  // One event per track that actually moved, so subscribers (emails,
+  // automation rules, audit) fire as if the stages had advanced one at a time.
+  for (const e of plan.events) {
+    try {
+      await eventBus.emit({ name: e.name, data: e.data })
+    } catch (err: any) {
+      req.scope
+        .resolve("logger")
+        .error(`pos fast-forward: failed to emit ${e.name} for ${orderId}: ${err?.message ?? err}`)
+    }
   }
-
-  await eventBus.emit({
-    name: ARTWORK_STAGE_EVENT,
-    data: {
-      ...baseEvent,
-      from_stage: fromArtwork,
-      to_stage: targets.artwork,
-      track: "artwork" as const,
-    },
-  })
-  await eventBus.emit({
-    name: BLANKS_STAGE_EVENT,
-    data: {
-      ...baseEvent,
-      from_stage: fromBlanks,
-      to_stage: targets.blanks,
-      track: "blanks" as const,
-    },
-  })
-  const productionEvent: ProductionStageChangedEvent = {
-    ...baseEvent,
-    from_stage: fromProduction as any,
-    to_stage: targets.production as any,
-    track: "production",
-  }
-  await eventBus.emit({
-    name: PRODUCTION_STAGE_EVENT,
-    data: productionEvent as any,
-  })
 
   await writeAudit({
     container: req.scope as any,
@@ -151,12 +132,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     details: {
       source: "pos_fast_forward",
       target: body.target,
-      from: {
-        artwork: fromArtwork,
-        blanks: fromBlanks,
-        production: fromProduction,
-      },
-      to: targets,
+      from: { artwork: from.artwork, blanks: from.blanks, production: from.downstream },
+      to: applied,
+      override_reason: POS_OVERRIDE_REASON,
     },
   })
 
@@ -169,5 +147,5 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     /* best-effort */
   }
 
-  return res.json({ ok: true, applied: targets })
+  return res.json({ ok: true, changed: true, applied })
 }

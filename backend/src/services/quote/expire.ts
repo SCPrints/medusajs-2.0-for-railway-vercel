@@ -17,22 +17,30 @@ export type ExpiryCandidate = {
   expires_at: Date | string | null
 }
 
+/**
+ * True when `expires_at` is set, parseable and strictly in the past. Unset or
+ * malformed = never expires. Shared by the cron selection below and the
+ * customer accept route, which must not depend on the (off by default) cron
+ * having flipped the status.
+ */
+export function isQuoteExpired(
+  expiresAt: Date | string | null | undefined,
+  now: Date = new Date()
+): boolean {
+  if (!expiresAt) return false
+  const ts = expiresAt instanceof Date ? expiresAt.getTime() : Date.parse(String(expiresAt))
+  return Number.isFinite(ts) && ts < now.getTime()
+}
+
 export function selectExpiredQuotes(
   rows: ExpiryCandidate[],
   now: Date = new Date()
 ): string[] {
-  const cutoff = now.getTime()
   const ids: string[] = []
   for (const row of rows) {
     if (!row?.id) continue
     if (row.status !== "quoted") continue
-    if (!row.expires_at) continue
-    const ts =
-      row.expires_at instanceof Date
-        ? row.expires_at.getTime()
-        : Date.parse(String(row.expires_at))
-    if (!Number.isFinite(ts)) continue
-    if (ts >= cutoff) continue
+    if (!isQuoteExpired(row.expires_at, now)) continue
     ids.push(row.id)
   }
   return ids

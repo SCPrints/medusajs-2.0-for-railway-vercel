@@ -30,6 +30,7 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
 import { classifyFashionBizProduct } from "../../../../lib/product-taxonomy"
+import { isLockSkipped, withSupplierLock } from "../../../../lib/supplier-sync-lock"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -59,7 +60,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
  * Body: { brand: string, slugs: string[] }
  * Returns: { imported: string[], skipped: string[], errors: Array<{ slug, error }> }
  */
+/** 409 while the FashionBiz inventory sync / another import holds the lock. */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const result = await withSupplierLock(req.scope, "fashionbiz", () => runImport(req, res))
+  if (isLockSkipped(result)) {
+    return res.status(409).json({
+      error: "A FashionBiz sync or import is already running — try again in a few minutes.",
+    })
+  }
+}
+
+async function runImport(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
 
   let fashionbiz: FashionBizService

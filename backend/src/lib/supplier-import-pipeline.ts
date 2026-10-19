@@ -21,11 +21,8 @@
 
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import {
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
-} from "@medusajs/medusa/core-flows"
 import { BRAND_MODULE } from "../modules/brand"
+import { writeInventoryLevels, type InventoryWriteResult } from "./inventory-level-writes"
 import { applyTitleFallbacks } from "./product-taxonomy"
 import {
   applyTypeAndTagsToProduct,
@@ -210,67 +207,9 @@ export async function seedInventoryLevels(
     locationId: string
     logger?: SupplierImportLogger
   }
-): Promise<{ created: number; updated: number }> {
-  const { stockBySku, locationId, logger } = opts
-  if (stockBySku.size === 0) return { created: 0, updated: 0 }
-
-  const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
-    filters: { sku: Array.from(stockBySku.keys()) },
-  })
-  const inventoryIds = ((inventoryItems ?? []) as Array<{ id: string }>).map(
-    (i) => i.id
-  )
-  const { data: existingLevels } = await query.graph({
-    entity: "inventory_level",
-    fields: ["id", "inventory_item_id"],
-    filters: { inventory_item_id: inventoryIds, location_id: locationId },
-  })
-  const haveLevel = new Set(
-    ((existingLevels ?? []) as Array<{ inventory_item_id: string }>).map(
-      (l) => l.inventory_item_id
-    )
-  )
-
-  const creates: Array<{
-    inventory_item_id: string
-    location_id: string
-    stocked_quantity: number
-  }> = []
-  const updates: Array<{
-    inventory_item_id: string
-    location_id: string
-    stocked_quantity: number
-  }> = []
-  for (const item of (inventoryItems ?? []) as Array<{
-    id: string
-    sku: string
-  }>) {
-    const qty = stockBySku.get(item.sku) ?? 0
-    const payload = {
-      inventory_item_id: item.id,
-      location_id: locationId,
-      stocked_quantity: qty,
-    }
-    if (haveLevel.has(item.id)) updates.push(payload)
-    else creates.push(payload)
-  }
-  if (creates.length) {
-    await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: creates },
-    })
-  }
-  if (updates.length) {
-    await updateInventoryLevelsWorkflow(container).run({
-      input: { updates },
-    })
-  }
-  if (logger) {
-    logger.info(
-      `Inventory levels: ${creates.length} created, ${updates.length} updated.`
-    )
-  }
-  return { created: creates.length, updated: updates.length }
+): Promise<InventoryWriteResult> {
+  // Same change-only / chunked / guarded path as the daily syncs
+  // (lib/inventory-level-writes). A fresh import is almost all creates, so
+  // the drift guard has nothing to judge and never fires here.
+  return writeInventoryLevels(container, opts)
 }

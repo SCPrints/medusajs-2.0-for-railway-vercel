@@ -234,18 +234,24 @@ export async function POST(
   // Load the design (if any) — it's what gets printed on every garment.
   let designMetadata: Record<string, unknown> | null = null
   if (groupOrder.base_design_id) {
+    let d: any = null
     try {
       const { data: designs } = await query.graph({
         entity: "design",
-        fields: ["id", "customizer_metadata"],
+        fields: ["id", "customer_id", "customizer_metadata"],
         filters: { id: groupOrder.base_design_id },
       })
-      const d = (designs as any[])?.[0]
-      if (d?.customizer_metadata) {
-        designMetadata = d.customizer_metadata as Record<string, unknown>
-      }
+      d = (designs as any[])?.[0] ?? null
     } catch {
       // Soft-fail; the cart still works without it (blank garments).
+    }
+    // Re-verify ownership here, not just at create time: a group order that
+    // somehow points at someone else's design must never print it (4-2).
+    if (d && d.customer_id !== groupOrder.owner_customer_id) {
+      throw new MedusaError(MedusaError.Types.NOT_FOUND, "Design not found.")
+    }
+    if (d?.customizer_metadata) {
+      designMetadata = d.customizer_metadata as Record<string, unknown>
     }
   }
 

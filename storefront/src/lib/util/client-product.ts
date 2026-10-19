@@ -20,6 +20,20 @@ import { HttpTypes } from "@medusajs/types"
  * Product-level fields are passed through untouched (they're one object, not
  * one-per-variant). Server components should keep receiving the full product.
  */
+/**
+ * Supplier-cost keys. The backend already strips these from every store
+ * response (api/middlewares/strip-variant-cost-metadata.ts); this is the
+ * client-boundary backstop so a new backend route can't re-leak them.
+ */
+const VARIANT_COST_KEYS = ["cost_price_ex_gst_minor", "raw_prices", "cost_adjustment"]
+
+function withoutCostKeys(metadata: Record<string, unknown> | null | undefined) {
+  if (!metadata || !VARIANT_COST_KEYS.some((k) => k in metadata)) return metadata
+  const out = { ...metadata }
+  for (const k of VARIANT_COST_KEYS) delete out[k]
+  return out
+}
+
 export function toClientProduct(
   product: HttpTypes.StoreProduct
 ): HttpTypes.StoreProduct {
@@ -32,7 +46,7 @@ export function toClientProduct(
     manage_inventory: v.manage_inventory,
     allow_backorder: v.allow_backorder,
     inventory_quantity: v.inventory_quantity,
-    metadata: v.metadata,
+    metadata: withoutCostKeys(v.metadata),
     options: (v.options ?? []).map((o) => ({
       id: o.id,
       value: o.value,

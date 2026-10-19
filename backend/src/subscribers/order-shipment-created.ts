@@ -11,8 +11,8 @@ import { resolveOrderIdFromShipmentEvent } from '../lib/resolve-order-from-fulfi
 
 /**
  * `shipment.created` (FulfillmentWorkflowEvents.SHIPMENT_CREATED) is emitted by
- * the core `createOrderShipmentWorkflow` — which both the ShipStation webhook and
- * the AusPost tracking job trigger once labels arrive. The event payload is
+ * the core `createOrderShipmentWorkflow` — which the production-stage
+ * fulfilment bridge and the AusPost tracking job trigger. The event payload is
  * `{ id: <fulfillment_id>, no_notification }`, so we translate the fulfillment id
  * to its order, reload the order with its fulfillments + shipping address,
  * materialise the parcels array, and dispatch the ORDER_SHIPPED email.
@@ -83,7 +83,7 @@ export default async function orderShipmentCreatedHandler({
   const fulfillments = orders?.[0]?.fulfillments || []
   let parcels: OrderShippedParcel[] = []
 
-  // Prefer the shipstation-managed parcels metadata; fall back to native labels.
+  // Prefer the fulfillment's `metadata.parcels`; fall back to native labels.
   if (shippedFulfillmentId) {
     const matched = fulfillments.find((f: any) => f.id === shippedFulfillmentId)
     if (matched) {

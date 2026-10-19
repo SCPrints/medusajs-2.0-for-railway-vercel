@@ -20,7 +20,6 @@ import {
   POSTHOG_PROJECT_ID,
   REDIS_URL,
   RESEND_API_KEY,
-  SHIPSTATION_API_KEY,
   STRIPE_API_KEY,
   AUSPOST_API_KEY,
   AUSPOST_TEST_MODE,
@@ -347,16 +346,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       url: "https://api.resend.com/domains",
       headers: RESEND_API_KEY
         ? { Authorization: `Bearer ${RESEND_API_KEY}` }
-        : undefined,
-    }),
-    ping("ShipStation", {
-      configured: Boolean(SHIPSTATION_API_KEY),
-      // /v2/carriers is the smallest auth-gated payload that's documented
-      // and stable. /v2/environment/account doesn't exist in the v2 API and
-      // returns 404.
-      url: "https://api.shipstation.com/v2/carriers",
-      headers: SHIPSTATION_API_KEY
-        ? { "API-Key": SHIPSTATION_API_KEY }
         : undefined,
     }),
     ping("Australia Post", {

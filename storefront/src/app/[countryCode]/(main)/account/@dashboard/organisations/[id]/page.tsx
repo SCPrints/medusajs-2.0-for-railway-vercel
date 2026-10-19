@@ -89,11 +89,6 @@ export default async function OrgDetailPage({ params }: PageProps) {
             </span>
           </p>
         </div>
-        {organisation.notes ? (
-          <p className="mt-3 max-w-3xl whitespace-pre-wrap text-sm text-ui-fg-subtle">
-            {organisation.notes}
-          </p>
-        ) : null}
       </header>
 
       <OrgTabs
