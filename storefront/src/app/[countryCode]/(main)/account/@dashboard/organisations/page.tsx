@@ -81,11 +81,6 @@ export default async function OrganisationsPage() {
                       </span>
                     </div>
                   </div>
-                  {m.organisation.notes ? (
-                    <p className="mt-4 whitespace-pre-wrap rounded-xl bg-ui-bg-subtle px-4 py-3 text-sm leading-relaxed text-ui-fg-base">
-                      {m.organisation.notes}
-                    </p>
-                  ) : null}
                 </LocalizedClientLink>
               </li>
             ) : null

@@ -5,6 +5,7 @@ import {
 import { ORGANISATION_MODULE } from "../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../modules/organisation/service"
 import { requireCustomer } from "../../../../../lib/require-customer"
+import { memberSafeOrganisation } from "./_helpers"
 
 export async function GET(
   req: AuthenticatedMedusaRequest,
@@ -23,7 +24,7 @@ export async function GET(
   for (const o of orgs as any[]) byId.set(o.id, o)
   res.json({
     organisations: memberships.map((m: any) => ({
-      organisation: byId.get(m.organisation_id) ?? null,
+      organisation: memberSafeOrganisation(byId.get(m.organisation_id)),
       role: m.role,
       joined_at: m.accepted_at,
     })),

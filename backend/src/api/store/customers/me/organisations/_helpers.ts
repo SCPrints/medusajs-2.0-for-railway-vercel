@@ -51,6 +51,22 @@ export async function requireMembership(
 }
 
 /**
+ * The organisation fields a member may see. Never `notes` (staff-written,
+ * internal) or `metadata` (can carry a price_list pointer) — review 4-7.
+ */
+export function memberSafeOrganisation(org: any) {
+  if (!org) return null
+  return {
+    id: org.id,
+    handle: org.handle,
+    name: org.name,
+    contact_email: org.contact_email ?? null,
+    contact_phone: org.contact_phone ?? null,
+    tax_exempt: org.tax_exempt === true,
+  }
+}
+
+/**
  * Require one of the listed roles. Throws 403 if the membership exists
  * but doesn't have an allowed role.
  */
