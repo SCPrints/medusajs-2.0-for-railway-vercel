@@ -91,14 +91,14 @@ const JoinForm = ({
   return (
     <div className="flex flex-col gap-y-3">
       <div>
-        <label htmlFor="name" className="text-sm font-semibold text-[var(--brand-primary)]">
+        <label htmlFor="name" className="text-sm font-semibold text-ink">
           Name *
         </label>
         <input
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
           placeholder="Player or recipient name"
         />
       </div>
@@ -108,7 +108,7 @@ const JoinForm = ({
             <div key={item.bundle_item_id}>
               <label
                 htmlFor={`size-${item.bundle_item_id}`}
-                className="text-sm font-semibold text-[var(--brand-primary)]"
+                className="text-sm font-semibold text-ink"
               >
                 {item.label} size *
               </label>
@@ -118,7 +118,7 @@ const JoinForm = ({
                 onChange={(e) =>
                   setBundleSizes((prev) => ({ ...prev, [item.bundle_item_id]: e.target.value }))
                 }
-                className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+                className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
               >
                 <option value="" disabled>
                   Choose a size
@@ -136,14 +136,14 @@ const JoinForm = ({
       <div className={`grid grid-cols-1 gap-3 ${isBundle ? "small:grid-cols-2" : "small:grid-cols-3"}`}>
         {isBundle ? null : (
         <div>
-          <label htmlFor="size" className="text-sm font-semibold text-[var(--brand-primary)]">
+          <label htmlFor="size" className="text-sm font-semibold text-ink">
             Size *
           </label>
           <select
             id="size"
             value={size}
             onChange={(e) => setSize(e.target.value)}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
           >
             {sizes.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -152,7 +152,7 @@ const JoinForm = ({
         </div>
         )}
         <div>
-          <label htmlFor="quantity" className="text-sm font-semibold text-[var(--brand-primary)]">
+          <label htmlFor="quantity" className="text-sm font-semibold text-ink">
             {isBundle ? "Packs" : "Quantity"}
           </label>
           <input
@@ -161,24 +161,24 @@ const JoinForm = ({
             min={1}
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
           />
         </div>
         <div>
-          <label htmlFor="player_number" className="text-sm font-semibold text-[var(--brand-primary)]">
+          <label htmlFor="player_number" className="text-sm font-semibold text-ink">
             Number (optional)
           </label>
           <input
             id="player_number"
             value={playerNumber}
             onChange={(e) => setPlayerNumber(e.target.value)}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
             placeholder="Player or jersey #"
           />
         </div>
       </div>
       <div>
-        <label htmlFor="notes" className="text-sm font-semibold text-[var(--brand-primary)]">
+        <label htmlFor="notes" className="text-sm font-semibold text-ink">
           Notes (optional)
         </label>
         <textarea
@@ -186,12 +186,12 @@ const JoinForm = ({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
           placeholder="e.g. Tall fit preferred"
         />
       </div>
       <div>
-        <label htmlFor="email" className="text-sm font-semibold text-[var(--brand-primary)]">
+        <label htmlFor="email" className="text-sm font-semibold text-ink">
           Email (optional)
         </label>
         <input
@@ -199,7 +199,7 @@ const JoinForm = ({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+          className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
           placeholder="So the coach can chase if needed"
         />
       </div>
@@ -208,7 +208,7 @@ const JoinForm = ({
         <button
           type="button"
           onClick={submit}
-          className="inline-flex w-full min-h-12 items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
+          className="inline-flex w-full min-h-12 items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
         >
           {isBundle ? "Submit my sizes" : "Submit my size"}
         </button>

@@ -174,7 +174,7 @@ export default async function ContactPage({
 
             <section className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle p-6 small:p-8">
               <div className="flex items-start gap-3">
-                <ClockIcon className="mt-0.5 shrink-0 text-[var(--brand-secondary)]" />
+                <ClockIcon className="mt-0.5 shrink-0 text-brand" />
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
                     Open hours

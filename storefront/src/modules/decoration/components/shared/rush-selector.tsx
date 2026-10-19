@@ -23,7 +23,7 @@ const RushSelector: React.FC<Props> = ({ method, value, onChange }) => {
   }> = ({ tier, label, note, fee, disabled }) => (
     <label
       className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
-        value === tier ? "border-[var(--brand-primary,#002a5c)] bg-ui-bg-subtle" : "border-ui-border-base"
+        value === tier ? "border-ink bg-ui-bg-subtle" : "border-ui-border-base"
       } ${disabled ? "opacity-50" : "cursor-pointer"}`}
     >
       <span className="flex items-center gap-2">
@@ -53,7 +53,7 @@ const RushSelector: React.FC<Props> = ({ method, value, onChange }) => {
         // Screen rush is percentage-based (outsourced run, supplier charges +30%).
         <label
           className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
-            value === "priority" ? "border-[var(--brand-primary,#002a5c)] bg-ui-bg-subtle" : "border-ui-border-base"
+            value === "priority" ? "border-ink bg-ui-bg-subtle" : "border-ui-border-base"
           } cursor-pointer`}
         >
           <span className="flex items-center gap-2">

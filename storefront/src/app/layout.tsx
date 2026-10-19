@@ -154,7 +154,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
         />
       </head>
       <body
-        className={`${plusJakartaSans.className} antialiased selection:bg-[#FF2E63] selection:text-[#EEEEEE]`}
+        className={`${plusJakartaSans.className} antialiased selection:bg-brand selection:text-surface`}
       >
         <Ga4Script />
         <MetaPixel />
@@ -170,7 +170,7 @@ export default function RootLayout(props: { children: React.ReactNode }) {
             }}
           />
           <Suspense fallback={null}>
-            <main className="relative min-h-dvh bg-[var(--brand-background)] text-[var(--brand-primary)]">
+            <main className="relative min-h-dvh bg-surface text-ink">
               {props.children}
             </main>
           </Suspense>

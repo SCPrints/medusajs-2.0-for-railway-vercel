@@ -148,7 +148,7 @@ const VariantWeightsWidget = ({ data }: DetailWidgetProps<AdminProduct>) => {
               <HelpTooltip
                 text={{
                   title: "Variant weights (grams)",
-                  body: "Per-variant weights in grams. Drives the storefront's flat-rate vs live-quote shipping decision: total cart weight ≤3kg gets flat-rate, >3kg goes to ShipStation for a live quote.",
+                  body: "Per-variant weights in grams. The checkout's Standard Shipping price is a weight band, so real weights replace the 300 g per-item default and make the rate right for heavy or light garments.",
                   bullets: [
                     "Get the weight from the supplier spec sheet — usually listed per garment in grams already.",
                     "'Apply to all' copies the first row's draft value to every variant. Useful when a supplier publishes the same weight across all sizes (it rarely is, but it's a quick reset).",
@@ -159,7 +159,7 @@ const VariantWeightsWidget = ({ data }: DetailWidgetProps<AdminProduct>) => {
               />
             </Heading>
             <Text size="small" className="text-ui-fg-subtle">
-              Drives the cart-weight threshold (≤3kg flat-rate / &gt;3kg ShipStation live quote).
+              Drives the weight-based Standard Shipping band at checkout.
             </Text>
           </div>
         </button>

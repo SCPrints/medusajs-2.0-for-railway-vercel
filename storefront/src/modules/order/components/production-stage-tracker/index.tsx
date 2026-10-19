@@ -55,14 +55,14 @@ const MiniTrack = <T extends string>({
           const dotClasses = [
             "flex items-center justify-center rounded-full w-5 h-5 text-[10px] font-semibold shrink-0",
             isComplete
-              ? "bg-[var(--brand-primary)] text-white"
+              ? "bg-ink text-white"
               : isCurrent
-              ? "bg-[var(--brand-primary)] text-white ring-2 ring-[var(--brand-primary)]/20"
+              ? "bg-ink text-white ring-2 ring-[var(--brand-primary)]/20"
               : "bg-ui-bg-component text-ui-fg-subtle border border-ui-border-base",
           ].join(" ")
           const connectorClasses = [
             "flex-1 h-0.5",
-            isComplete ? "bg-[var(--brand-primary)]" : "bg-ui-border-base",
+            isComplete ? "bg-ink" : "bg-ui-border-base",
           ].join(" ")
           return (
             <li key={s} className="flex items-center flex-1 last:flex-none">
@@ -130,9 +130,9 @@ const ProductionStageTracker = ({ order }: Props) => {
           const dotClasses = [
             "flex items-center justify-center rounded-full w-7 h-7 text-xs font-semibold shrink-0",
             isComplete
-              ? "bg-[var(--brand-primary)] text-white"
+              ? "bg-ink text-white"
               : isCurrent
-              ? "bg-[var(--brand-primary)] text-white ring-4 ring-[var(--brand-primary)]/20"
+              ? "bg-ink text-white ring-4 ring-[var(--brand-primary)]/20"
               : "bg-ui-bg-component text-ui-fg-subtle border border-ui-border-base",
           ].join(" ")
 
@@ -143,7 +143,7 @@ const ProductionStageTracker = ({ order }: Props) => {
 
           const connectorClasses = [
             "hidden sm:block flex-1 h-0.5 self-center mx-2",
-            isComplete ? "bg-[var(--brand-primary)]" : "bg-ui-border-base",
+            isComplete ? "bg-ink" : "bg-ui-border-base",
           ].join(" ")
 
           return (

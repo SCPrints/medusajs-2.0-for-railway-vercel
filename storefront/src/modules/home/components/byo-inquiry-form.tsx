@@ -238,7 +238,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
         className={`rounded-2xl border border-[var(--brand-primary)]/25 bg-white p-6 text-center${id ? " scroll-mt-28" : ""} ${className}`.trim()}
         aria-labelledby={formTitleId}
       >
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-primary)]/8 text-[var(--brand-primary)]">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--brand-primary)]/8 text-ink">
           <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path
               strokeLinecap="round"
@@ -257,7 +257,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
         <button
           type="button"
           onClick={() => setSuccess(false)}
-          className="mt-5 text-sm font-semibold text-[var(--brand-secondary)] underline hover:text-[var(--brand-accent)]"
+          className="mt-5 text-sm font-semibold text-brand underline hover:text-accent"
         >
           Send another message
         </button>
@@ -372,7 +372,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
                 type="checkbox"
                 checked={selectedGarments.has(g.id)}
                 onChange={() => toggleGarment(g.id)}
-                className="h-4 w-4 rounded border-[var(--brand-primary)]/40 text-[var(--brand-primary)] focus:ring-[var(--brand-primary)]"
+                className="h-4 w-4 rounded border-[var(--brand-primary)]/40 text-ink focus:ring-ink"
               />
               {g.label}
             </label>
@@ -457,7 +457,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-[var(--brand-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-lg bg-ink px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black/90 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? "Sending…" : "Send BYO question"}
       </button>

@@ -8,12 +8,15 @@ import {
 } from "@medusajs/framework/types"
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import {
+  ADMIN_PUBLIC_URL,
+  BACKEND_URL,
   CONTACT_NOTIFICATION_EMAIL,
   FULFILLMENT_NOTIFICATION_EMAIL,
   ORDER_NOTIFICATION_EMAIL,
   SUPPORT_REPLY_TO_EMAIL,
 } from "../lib/constants"
 import { parseNotificationEmailList } from "../lib/notification-recipients"
+import { findOpenQuotes, openQuoteSubjectTag } from "../lib/open-quotes"
 import { getPostHog } from "../lib/posthog"
 import { ORGANISATION_MODULE } from "../modules/organisation"
 import type OrganisationModuleService from "../modules/organisation/service"
@@ -335,6 +338,24 @@ export default async function orderPlacedHandler({
     )
   }
 
+  // A quote request and an order from the same customer arrive as two
+  // unrelated emails — surface the open quotes on the staff copy so nobody
+  // assumes the order replaced the quote. Never blocks the email.
+  const openQuotes = order.email
+    ? await findOpenQuotes(container, {
+        email: order.email,
+        excludeQuoteId: typeof meta.quote_id === "string" ? meta.quote_id : null,
+        orderId: data.id,
+      }).catch((error) => {
+        logger.warn(
+          `order.placed: open-quote lookup failed for order ${data.id}: ${(error as Error).message}`
+        )
+        return []
+      })
+    : []
+  const quoteTag = openQuoteSubjectTag(openQuotes)
+  const adminQuotesUrl = `${(ADMIN_PUBLIC_URL || BACKEND_URL).replace(/\/$/, "")}/app/quotes`
+
   for (const inbox of merchantInboxes) {
     try {
       await notificationModuleService.createNotifications({
@@ -344,12 +365,14 @@ export default async function orderPlacedHandler({
         data: {
           emailOptions: {
             replyTo: order.email ?? replyToSupport,
-            subject: `New order #${displayId}`,
+            subject: `${quoteTag}New order #${displayId}`,
           },
           order,
           shippingAddress,
           audience: "merchant",
-          preview: `New order #${displayId}`,
+          openQuotes,
+          adminQuotesUrl,
+          preview: `${quoteTag}New order #${displayId}`,
         },
       })
     } catch (error) {

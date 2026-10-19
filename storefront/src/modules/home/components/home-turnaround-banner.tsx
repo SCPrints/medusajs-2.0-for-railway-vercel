@@ -18,15 +18,15 @@ export default function HomeTurnaroundBanner({
         <p className="flex items-center gap-2.5 text-xs font-medium text-ui-fg-base phone:text-sm">
           <span
             aria-hidden
-            className="inline-block size-2 shrink-0 rounded-full bg-[var(--brand-secondary)] motion-safe:animate-pulse"
+            className="inline-block size-2 shrink-0 rounded-full bg-brand motion-safe:animate-pulse"
           />
           <span>
             DTF prints ship in{" "}
-            <span className="font-semibold text-[var(--brand-secondary)]">
+            <span className="font-semibold text-brand">
               3–5 business days
             </span>
             , embroidery and screen printing in{" "}
-            <span className="font-semibold text-[var(--brand-secondary)]">
+            <span className="font-semibold text-brand">
               7–10
             </span>
             , from our NSW studio.

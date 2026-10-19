@@ -19,7 +19,7 @@ export default function PantoneLibrary({ swatches }: { swatches: PantoneSwatch[]
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="e.g. 286, Reflex Blue, Cool Gray"
-          className="min-h-11 rounded-lg border border-ui-border-base bg-white px-3 text-base text-ui-fg-base outline-none focus:border-[var(--brand-secondary)]"
+          className="min-h-11 rounded-lg border border-ui-border-base bg-white px-3 text-base text-ui-fg-base outline-none focus:border-brand"
         />
       </label>
       <p className="mt-2 text-xs text-ui-fg-muted" aria-live="polite">

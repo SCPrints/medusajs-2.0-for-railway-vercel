@@ -32,7 +32,7 @@ const CheckIcon = () => (
     strokeWidth="2.5"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="text-[var(--brand-secondary)]"
+    className="text-brand"
     aria-hidden
   >
     <path d="M20 6L9 17l-5-5" />
@@ -82,11 +82,11 @@ export default function HomeHero() {
           badges legible on mobile where the rack fills more of the frame. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,white_0%,white_28%,rgba(255,255,255,0.55)_45%,transparent_62%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgb(var(--hero-overlay))_0%,rgb(var(--hero-overlay))_28%,rgb(var(--hero-overlay)/0.55)_45%,transparent_62%)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-white/80 via-white/20 to-transparent tablet:hidden"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-t from-hero-overlay/80 via-hero-overlay/20 to-transparent tablet:hidden"
       />
 
       {/* Seasonal decorations (lazy, theme-gated; renders nothing for classic). */}
@@ -123,7 +123,7 @@ export default function HomeHero() {
             <span className="relative inline-flex w-fit">
               <LocalizedClientLink
                 href="/store"
-                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
               >
                 Shop the range
                 <ArrowIcon className="transition-transform group-hover:translate-x-0.5" />

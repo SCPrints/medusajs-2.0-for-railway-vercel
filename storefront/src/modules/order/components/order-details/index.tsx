@@ -15,7 +15,7 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
     <span className="text-xs uppercase tracking-wide text-ui-fg-subtle mb-1">
       {label}
     </span>
-    <span className="text-sm text-[var(--brand-primary)] font-medium">
+    <span className="text-sm text-ink font-medium">
       {children}
     </span>
   </div>
@@ -32,7 +32,7 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
       <Row label="Order number">
         <span
           data-testid="order-id"
-          className="text-[var(--brand-secondary)]"
+          className="text-brand"
         >
           #{order.display_id}
         </span>

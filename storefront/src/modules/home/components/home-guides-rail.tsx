@@ -14,7 +14,7 @@ export default function HomeGuidesRail() {
         action={
           <LocalizedClientLink
             href="/guides"
-            className="inline-flex min-h-11 items-center text-sm font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
+            className="inline-flex min-h-11 items-center text-sm font-semibold !text-brand underline underline-offset-4"
           >
             All guides
           </LocalizedClientLink>

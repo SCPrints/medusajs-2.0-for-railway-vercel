@@ -26,7 +26,7 @@ const AudienceDropdown = ({ audience, onLinkClick }: Props) => {
 
   return (
     <div
-      className="content-container flex flex-col gap-6 py-8 text-sm text-[#F8FAFC]"
+      className="content-container flex flex-col gap-6 py-8 text-sm text-header-fg"
       role="region"
       aria-label={`${audience.name} categories`}
     >
@@ -42,7 +42,7 @@ const AudienceDropdown = ({ audience, onLinkClick }: Props) => {
       >
         {clusters.map((cluster) => (
           <div key={cluster.name} className="flex flex-col gap-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--brand-secondary)]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-brand">
               {cluster.name}
             </h3>
             <ul className="flex flex-col gap-y-2">
@@ -51,10 +51,10 @@ const AudienceDropdown = ({ audience, onLinkClick }: Props) => {
                   <LocalizedClientLink
                     href={`/categories/${sub.handle}`}
                     onClick={onLinkClick}
-                    className="group inline-flex items-center gap-x-1.5 text-sm text-[#F8FAFC]/85 transition-colors hover:text-[var(--brand-accent)] focus:text-[var(--brand-accent)] focus:outline-none"
+                    className="group inline-flex items-center gap-x-1.5 text-sm text-header-fg/85 transition-colors hover:text-accent focus:text-accent focus:outline-none"
                   >
                     <span>{sub.name}</span>
-                    <span className="text-[10px] text-[#F8FAFC]/40 group-hover:text-[#F8FAFC]/60 transition-colors">
+                    <span className="text-[10px] text-header-fg/40 group-hover:text-header-fg/60 transition-colors">
                       {sub.product_count}
                     </span>
                   </LocalizedClientLink>
@@ -71,12 +71,12 @@ const AudienceDropdown = ({ audience, onLinkClick }: Props) => {
         <LocalizedClientLink
           href={`/categories/${audience.handle}`}
           onClick={onLinkClick}
-          className="group inline-flex items-center gap-x-1 text-sm font-medium text-[var(--brand-secondary)] hover:text-[var(--brand-accent)] transition-colors"
+          className="group inline-flex items-center gap-x-1 text-sm font-medium text-brand hover:text-accent transition-colors"
         >
           <span>Shop all {audience.name}</span>
           <ArrowRightMini className="transition-transform duration-150 group-hover:translate-x-0.5" />
         </LocalizedClientLink>
-        <span className="text-xs text-[#F8FAFC]/40">
+        <span className="text-xs text-header-fg/40">
           {audience.total_products} product placement
           {audience.total_products === 1 ? "" : "s"}
         </span>

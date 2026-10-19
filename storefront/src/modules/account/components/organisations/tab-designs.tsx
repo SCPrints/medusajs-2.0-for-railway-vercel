@@ -150,7 +150,7 @@ function DesignModal({
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                       r.fulfillment_mode === "held_stock"
-                        ? "bg-[var(--brand-accent)]/15 text-[var(--brand-primary)]"
+                        ? "bg-[var(--brand-accent)]/15 text-ink"
                         : "bg-ui-bg-subtle text-ui-fg-subtle"
                     }`}
                   >

@@ -13,13 +13,13 @@ const PerksBanner = ({ perks }: { perks: ActivePerk[] }) => {
   if (!perks || perks.length === 0) return null
 
   return (
-    <div className="mb-6 rounded-xl border border-[rgba(255,46,99,0.25)] bg-[rgba(255,46,99,0.06)] px-5 py-4 small:px-6 small:py-5">
+    <div className="mb-6 rounded-xl border border-brand/[0.25] bg-brand/[0.06] px-5 py-4 small:px-6 small:py-5">
       <div className="flex flex-col gap-y-2 small:flex-row small:items-center small:justify-between small:gap-x-6">
         <div className="flex flex-col">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
             {perks[0].granted_by_tag} perk
           </p>
-          <p className="text-sm font-semibold text-[var(--brand-primary)] small:text-base">
+          <p className="text-sm font-semibold text-ink small:text-base">
             {PERK_HEADLINE[perks[0].perk] ?? perks[0].perk}
           </p>
         </div>

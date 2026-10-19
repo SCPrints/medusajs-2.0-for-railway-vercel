@@ -19,10 +19,11 @@
  * Fail-open by design: an exception inside the invariant must never stop a
  * customer from checking out — the middleware catches, logs, and proceeds.
  *
- * Tolerance tiers (per line):
- *   |delta| <= $0.50                        → ignored (rounding drift)
- *   |delta| <= max($1, 2% of expected)      → alert finding
- *   beyond that                             → block finding
+ * Tolerance tiers, judged on the LINE total (unit delta × quantity — review
+ * 1-6: per-unit thresholds let 300 units under by $0.49 = $147 slide by):
+ *   |line delta| <= $0.50                              → ignored (rounding drift)
+ *   |line delta| <= max($5, 2% of the line's expected) → alert finding
+ *   beyond that                                        → block finding
  *
  * Exemptions (legitimate deviations, never flagged):
  *   - metadata.quote_locked_price   — staff-negotiated quote price
@@ -66,9 +67,12 @@ export type InvariantFinding = {
   line_id: string
   kind: "price_mismatch" | "free_decoration" | "requires_quote" | "below_cost"
   severity: "alert" | "block"
+  /** Per-unit figures. */
   expected?: number
   actual?: number
   delta?: number
+  /** delta × quantity — what the tolerance tiers are judged on. */
+  line_delta?: number
   detail: string
 }
 
@@ -81,7 +85,30 @@ export type InvariantResult = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-const IGNORE_DELTA_MAJOR = 0.5
+const IGNORE_LINE_DELTA_MAJOR = 0.5
+const MATERIAL_LINE_DELTA_FLOOR_MAJOR = 5
+const MATERIAL_LINE_DELTA_RATIO = 0.02
+
+/** Pure: classify a per-unit mismatch by its line-total impact. */
+export function classifyPriceMismatch(
+  expectedUnit: number,
+  actualUnit: number,
+  quantity: number
+): { severity: "alert" | "block"; delta: number; line_delta: number } | null {
+  const qty = Math.max(1, Math.floor(quantity || 1))
+  const delta = round2(actualUnit - expectedUnit)
+  const lineDelta = round2(delta * qty)
+  if (Math.abs(lineDelta) <= IGNORE_LINE_DELTA_MAJOR) return null
+  const materialThreshold = Math.max(
+    MATERIAL_LINE_DELTA_FLOOR_MAJOR,
+    round2(expectedUnit * qty * MATERIAL_LINE_DELTA_RATIO)
+  )
+  return {
+    severity: Math.abs(lineDelta) > materialThreshold ? "block" : "alert",
+    delta,
+    line_delta: lineDelta,
+  }
+}
 
 export type InvariantMode = "off" | "alert" | "block"
 
@@ -140,17 +167,17 @@ export function evaluateCartPricing(
 
     // 1. Expected-vs-charged.
     if (actual !== null && expected !== null) {
-      const delta = round2(actual - expected)
-      if (Math.abs(delta) > IGNORE_DELTA_MAJOR) {
-        const materialThreshold = Math.max(1, round2(expected * 0.02))
+      const mismatch = classifyPriceMismatch(expected, actual, line.quantity)
+      if (mismatch) {
         findings.push({
           line_id: line.id,
           kind: "price_mismatch",
-          severity: Math.abs(delta) > materialThreshold ? "block" : "alert",
+          severity: mismatch.severity,
           expected: round2(expected),
           actual: round2(actual),
-          delta,
-          detail: `charged ${round2(actual)} vs expected ${round2(expected)} (delta ${delta})`,
+          delta: mismatch.delta,
+          line_delta: mismatch.line_delta,
+          detail: `charged ${round2(actual)} vs expected ${round2(expected)} (unit delta ${mismatch.delta}, line delta ${mismatch.line_delta} over qty ${Math.max(1, Math.floor(line.quantity || 1))})`,
         })
       }
     }

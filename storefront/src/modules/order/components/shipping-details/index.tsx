@@ -15,7 +15,7 @@ const ColLabel = ({ children }: { children: React.ReactNode }) => (
 const ShippingDetails = ({ order }: ShippingDetailsProps) => {
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-[var(--brand-primary)] border-l-4 border-[var(--brand-secondary)] pl-4 mb-5">
+      <h2 className="text-2xl font-semibold text-ink border-l-4 border-brand pl-4 mb-5">
         Delivery
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -24,7 +24,7 @@ const ShippingDetails = ({ order }: ShippingDetailsProps) => {
           data-testid="shipping-address-summary"
         >
           <ColLabel>Shipping Address</ColLabel>
-          <Text className="text-sm text-[var(--brand-primary)] font-medium">
+          <Text className="text-sm text-ink font-medium">
             {order.shipping_address?.first_name}{" "}
             {order.shipping_address?.last_name}
           </Text>
@@ -59,7 +59,7 @@ const ShippingDetails = ({ order }: ShippingDetailsProps) => {
           data-testid="shipping-method-summary"
         >
           <ColLabel>Method</ColLabel>
-          <Text className="text-sm text-[var(--brand-primary)] font-medium">
+          <Text className="text-sm text-ink font-medium">
             {(order as any).shipping_methods[0]?.name}
           </Text>
           <Text className="text-sm text-ui-fg-subtle">

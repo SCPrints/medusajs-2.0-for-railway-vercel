@@ -99,7 +99,7 @@ export default async function SpiritTypePage({
           </LocalizedClientLink>
           <LocalizedClientLink
             href="/contact"
-            className="rounded-full bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 transition"
+            className="rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 transition"
           >
             Get a quote
           </LocalizedClientLink>

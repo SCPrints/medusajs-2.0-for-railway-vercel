@@ -92,7 +92,7 @@ export default function FeaturedProductsCarousel({
             {viewAllHref ? (
               <LocalizedClientLink
                 href={viewAllHref}
-                className="group ml-1 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group ml-1 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 View all products
                 <svg

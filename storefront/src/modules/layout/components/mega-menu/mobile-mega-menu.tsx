@@ -35,7 +35,7 @@ const MobileMegaMenu = ({ audiences }: Props) => {
             data-testid="mobile-nav-menu-button"
             data-no-squish
             aria-label="Open navigation menu"
-            className="relative h-full flex min-h-11 min-w-11 items-center gap-2 text-base font-medium text-[var(--brand-secondary)] transition-all ease-out duration-200 focus:outline-none hover:text-[var(--brand-accent)]"
+            className="relative h-full flex min-h-11 min-w-11 items-center gap-2 text-base font-medium text-brand transition-all ease-out duration-200 focus:outline-none hover:text-accent"
           >
             <svg
               width="22"
@@ -58,7 +58,7 @@ const MobileMegaMenu = ({ audiences }: Props) => {
 
           <Popover.Panel
             data-testid="mobile-nav-menu-popup"
-            className="fixed inset-x-0 top-20 bottom-0 z-40 flex flex-col overflow-hidden border-t-2 border-white/20 bg-[rgba(12,17,23,0.95)] text-sm text-[#F8FAFC] shadow-lg outline-none backdrop-blur-2xl"
+            className="fixed inset-x-0 top-20 bottom-0 z-40 flex flex-col overflow-hidden border-t-2 border-white/20 bg-header-panel/95 text-sm text-header-fg shadow-lg outline-none backdrop-blur-2xl"
           >
             <div
               className="content-container flex min-h-0 flex-1 flex-col py-6 overflow-y-auto"
@@ -71,7 +71,7 @@ const MobileMegaMenu = ({ audiences }: Props) => {
                   type="button"
                   onClick={() => close()}
                   aria-label="Close menu"
-                  className="inline-flex min-h-11 min-w-11 items-center justify-center text-[#F8FAFC] hover:text-[var(--brand-accent)] transition-colors"
+                  className="inline-flex min-h-11 min-w-11 items-center justify-center text-header-fg hover:text-accent transition-colors"
                 >
                   <XMark />
                 </button>
@@ -144,7 +144,7 @@ const MobileAudienceRow = ({
         <LocalizedClientLink
           href={`/categories/${audience.handle}`}
           onClick={onLinkClick}
-          className="flex-1 py-3 text-base font-medium text-[#F8FAFC] hover:text-[var(--brand-accent)] transition-colors"
+          className="flex-1 py-3 text-base font-medium text-header-fg hover:text-accent transition-colors"
         >
           {audience.name}
         </LocalizedClientLink>
@@ -155,7 +155,7 @@ const MobileAudienceRow = ({
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? `Collapse ${audience.name}` : `Expand ${audience.name}`}
           aria-expanded={open}
-          className="min-h-11 min-w-11 inline-flex items-center justify-center text-[#F8FAFC]/60 hover:text-[var(--brand-accent)] transition-transform duration-150"
+          className="min-h-11 min-w-11 inline-flex items-center justify-center text-header-fg/60 hover:text-accent transition-transform duration-150"
           style={{
             transform: open ? "rotate(90deg)" : "rotate(0deg)",
           }}
@@ -172,10 +172,10 @@ const MobileAudienceRow = ({
               <LocalizedClientLink
                 href={`/categories/${sub.handle}`}
                 onClick={onLinkClick}
-                className="flex items-center justify-between py-2 text-sm text-[#F8FAFC]/85 hover:text-[var(--brand-accent)] transition-colors"
+                className="flex items-center justify-between py-2 text-sm text-header-fg/85 hover:text-accent transition-colors"
               >
                 <span>{sub.name}</span>
-                <span className="text-xs text-[#F8FAFC]/40">
+                <span className="text-xs text-header-fg/40">
                   {sub.product_count}
                 </span>
               </LocalizedClientLink>
@@ -199,7 +199,7 @@ const MobileTopLink = ({
   <LocalizedClientLink
     href={href}
     onClick={onClick}
-    className="py-3 text-base font-medium text-[#F8FAFC] hover:text-[var(--brand-accent)] transition-colors border-b border-white/5"
+    className="py-3 text-base font-medium text-header-fg hover:text-accent transition-colors border-b border-white/5"
   >
     {children}
   </LocalizedClientLink>

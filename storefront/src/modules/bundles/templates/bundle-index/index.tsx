@@ -42,7 +42,7 @@ export default function BundleIndex({ bundles }: { bundles: Bundle[] }) {
       <section className="content-container py-14 small:py-20">
         <LocalizedClientLink
           href="/"
-          className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+          className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
         >
           <ArrowLeftIcon className="transition-transform group-hover:-translate-x-0.5" />
           Back to home
@@ -73,7 +73,7 @@ export default function BundleIndex({ bundles }: { bundles: Bundle[] }) {
             <div className="mt-6 flex justify-center">
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
               >
                 Talk to our team
                 <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -107,7 +107,7 @@ export default function BundleIndex({ bundles }: { bundles: Bundle[] }) {
             <div className="mt-6 flex justify-center">
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
               >
                 Get in touch
                 <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

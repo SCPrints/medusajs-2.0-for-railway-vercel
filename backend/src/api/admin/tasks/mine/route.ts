@@ -28,9 +28,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   )
 
   if (bucket === "today") {
+    // Overdue tasks belong on "Today" too — it's the default tab, and the
+    // daily overdue email links here, so hiding them looked like an empty queue.
     const now = new Date()
     return res.json({
-      tasks: all.filter((r) => isDueToday(r, now)),
+      tasks: all.filter((r) => isDueToday(r, now) || isOverdue(r, now)),
       bucket,
     })
   }

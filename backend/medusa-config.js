@@ -21,7 +21,6 @@ import {
   PAYPAL_CLIENT_SECRET,
   PAYPAL_WEBHOOK_ID,
   PAYPAL_IS_SANDBOX,
-  SHIPSTATION_API_KEY,
   AUSPOST_API_KEY,
   AUSPOST_API_PASSWORD,
   AUSPOST_ACCOUNT_NUMBER,
@@ -513,15 +512,9 @@ const medusaConfig = {
             resolve: "./src/modules/scp-shipping",
             id: "scp",
           },
-          ...(SHIPSTATION_API_KEY
-            ? [{
-                resolve: "./src/modules/shipstation",
-                id: "shipstation",
-                options: {
-                  api_key: SHIPSTATION_API_KEY,
-                },
-              }]
-            : []),
+          // ShipStation provider removed 2026-10-19 (subscription cancelled;
+          // never shipped a parcel). Prod's `shipstation_shipstation` row is
+          // just disabled by Medusa's provider sync on the next boot.
           // AusPost (v1, HTTP Basic Auth) gated on the full credential triple
           // — key + password + account number. A partial config would fail at
           // first quote, so require all three so the error surfaces at boot,

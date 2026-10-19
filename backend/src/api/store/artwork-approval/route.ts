@@ -14,7 +14,15 @@ import {
   buildLineCustomizerExport,
   lineMockupGroupKey,
 } from "../../../lib/customizer-order-artifacts"
-import { verifyArtworkApproval } from "../../../services/artwork-approval/sign"
+import {
+  artworkProofRound,
+  verifyArtworkApproval,
+} from "../../../services/artwork-approval/sign"
+import {
+  STAGE_TRANSITION_NOT_ALLOWED,
+  assertTransition,
+  isTransitionNotAllowed,
+} from "../../../lib/production-stage-guard"
 
 const schema = z.object({
   order: z.string().min(1),
@@ -44,7 +52,7 @@ const schema = z.object({
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const orderId = String((req.query?.order as string) ?? "")
   const sig = String((req.query?.sig as string) ?? "")
-  if (!verifyArtworkApproval(orderId, sig)) {
+  if (!orderId || !sig) {
     return res.status(400).json({ error: "invalid_signature" })
   }
   const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER)
@@ -52,9 +60,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   try {
     order = await orderModuleService.retrieveOrder(orderId, { relations: ["items"] })
   } catch {
-    return res.status(404).json({ error: "not_found" })
+    // Same response as a bad signature so order ids aren't enumerable.
+    return res.status(400).json({ error: "invalid_signature" })
   }
   const meta = (order.metadata ?? {}) as Record<string, unknown>
+  // The signature is bound to the current proof round: a link from an
+  // earlier round (revised proof since) reads as expired on the storefront.
+  if (!verifyArtworkApproval(orderId, artworkProofRound(meta), sig)) {
+    return res.status(400).json({ error: "invalid_signature" })
+  }
   const photos = Array.isArray(meta.production_photos)
     ? (meta.production_photos as Array<{ url?: string; uploaded_at?: string }>)
     : []
@@ -226,10 +240,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } catch (err: any) {
     return res.status(400).json({ error: err?.message ?? "invalid" })
   }
-  if (!verifyArtworkApproval(body.order, body.sig)) {
-    return res.status(400).json({ error: "invalid_signature" })
-  }
-
   const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER)
   const eventBus = req.scope.resolve("event_bus") as
     | { emit: (e: { name: string; data: unknown }) => Promise<unknown> }
@@ -238,15 +248,47 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   try {
     order = await orderModuleService.retrieveOrder(body.order)
   } catch {
-    return res.status(404).json({ error: "not_found" })
+    return res.status(400).json({ error: "invalid_signature" })
   }
 
   const meta = (order.metadata ?? {}) as Record<string, unknown>
+  const round = artworkProofRound(meta)
+  if (!verifyArtworkApproval(body.order, round, body.sig)) {
+    return res.status(400).json({ error: "invalid_signature" })
+  }
+
   const previousStage =
     typeof meta.artwork_stage === "string" ? (meta.artwork_stage as string) : null
+  // Only a proof that is actually out for approval can be answered. The
+  // round-bound signature already rules out stale links; this is the clear
+  // message for a link clicked twice or after staff moved the artwork on.
+  if (previousStage !== "awaiting_approval") {
+    return res.status(409).json({
+      error: "not_awaiting_approval",
+      message:
+        "This proof isn't waiting on your approval any more. If you need to change your answer, reply to the proof email and we'll sort it.",
+    })
+  }
   const now = new Date().toISOString()
 
   const nextStage: "approved" | "in_review" = body.approved ? "approved" : "in_review"
+
+  // State machine: a customer link may only answer a proof that is awaiting
+  // approval. pending → approved (no proof was ever sent) and any move once
+  // artwork is approved are refused here instead of silently flipping the
+  // track (review 3-2).
+  try {
+    assertTransition("artwork", previousStage, nextStage, {
+      actor: { kind: "customer_link", name: body.approver_name ?? null },
+    })
+  } catch (err) {
+    if (!isTransitionNotAllowed(err)) throw err
+    return res.status(409).json({
+      error: STAGE_TRANSITION_NOT_ALLOWED,
+      message:
+        "This proof isn't waiting on your approval any more. If you need to change your answer, reply to the proof email and we'll sort it.",
+    })
+  }
 
   // Append to the same history the admin stage widget renders — without this
   // the customer's decision flipped `artwork_stage` invisibly and staff saw
@@ -268,13 +310,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     ...meta,
     artwork_stage: nextStage,
     artwork_stage_changed_at: now,
-    production_stage_history:
-      previousStage !== nextStage ? [...priorHistory, historyEntry] : priorHistory,
+    // Always a real transition: we only get here from awaiting_approval.
+    production_stage_history: [...priorHistory, historyEntry],
   }
   if (body.approved) {
-    if (typeof meta.artwork_approved_at !== "string") {
-      updates.artwork_approved_at = now
-    }
+    // Each proof round is approved on its own: stamp when, and which round.
+    updates.artwork_approved_at = now
+    updates.artwork_approved_round = round
     if (body.approver_name) {
       updates.artwork_approver_name = body.approver_name
     }
@@ -293,7 +335,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // Fire the existing artwork_stage_changed event so any downstream
   // notification flows (or future automation rules on artwork) react
   // exactly like they would when a staff member changes the stage.
-  if (eventBus?.emit && previousStage !== nextStage) {
+  if (eventBus?.emit) {
     try {
       const fromStage: ProductionStage | null = isProductionStage(previousStage)
         ? (previousStage as ProductionStage)

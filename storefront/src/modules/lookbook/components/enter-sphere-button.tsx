@@ -14,7 +14,7 @@ const EnterSphereButton = () => (
   <LocalizedClientLink
     href="/lookbook-sphere"
     aria-label="Enter the immersive sphere lookbook"
-    className="group relative mt-8 inline-flex items-center gap-3 overflow-hidden rounded-full bg-[var(--brand-secondary)] px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] !text-white shadow-sm transition-transform duration-300 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/50 focus-visible:ring-offset-2"
+    className="group relative mt-8 inline-flex items-center gap-3 overflow-hidden rounded-full bg-brand px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] !text-white shadow-sm transition-transform duration-300 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/50 focus-visible:ring-offset-2"
   >
     {/* Hover sheen sweep */}
     <span

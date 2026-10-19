@@ -63,7 +63,7 @@ const collectParcels = (order: HttpTypes.StoreOrder): Parcel[] => {
 
 /**
  * Renders one row per parcel for an order. Reads `fulfillments[].metadata.parcels`
- * (set by the ShipStation webhook) and falls back to native fulfillment labels.
+ * (set by the AusPost tracking job) and falls back to native fulfillment labels.
  */
 const TrackingList = ({ order, variant = "default" }: TrackingListProps) => {
   const parcels = collectParcels(order)
@@ -72,7 +72,7 @@ const TrackingList = ({ order, variant = "default" }: TrackingListProps) => {
   return (
     <div data-testid="tracking-list">
       {!isCompact && (
-        <h2 className="text-2xl font-semibold text-[var(--brand-primary)] border-l-4 border-[var(--brand-secondary)] pl-4 mb-5">
+        <h2 className="text-2xl font-semibold text-ink border-l-4 border-brand pl-4 mb-5">
           Tracking
         </h2>
       )}

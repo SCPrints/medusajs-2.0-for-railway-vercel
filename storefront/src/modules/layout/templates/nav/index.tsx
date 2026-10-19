@@ -27,7 +27,7 @@ export default async function Nav() {
         <Suspense
           fallback={
             <LocalizedClientLink
-              className="flex h-full min-h-10 min-w-10 items-center justify-center whitespace-nowrap text-base font-medium hover:text-[var(--brand-accent)]"
+              className="flex h-full min-h-10 min-w-10 items-center justify-center whitespace-nowrap text-base font-medium hover:text-accent"
               href="/cart"
               data-testid="nav-cart-link"
               aria-label="View cart"

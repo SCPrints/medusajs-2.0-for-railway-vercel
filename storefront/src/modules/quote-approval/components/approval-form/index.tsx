@@ -45,13 +45,13 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
   }
 
   return (
-    <div className="rounded-2xl border border-[rgba(26,26,46,0.1)] bg-white/95 p-6 shadow-[0_4px_40px_rgba(26,26,46,0.08)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+    <div className="rounded-2xl border border-ink/[0.1] bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
         Quote
         {initial.public_id ? ` ${initial.public_id}` : ""}
         {initial.company ? ` · ${initial.company}` : ""}
       </p>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[var(--brand-primary)]">
+      <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">
         {alreadyApproved
           ? "Design approved"
           : changesRequested
@@ -76,7 +76,7 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
               <img
                 src={img.url}
                 alt={img.side_label ?? img.side}
-                className="w-full rounded-lg border border-[rgba(26,26,46,0.08)]"
+                className="w-full rounded-lg border border-ink/[0.08]"
               />
             </div>
           ))}
@@ -123,11 +123,11 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
             </div>
           ) : null}
 
-          <hr className="my-6 border-[rgba(26,26,46,0.08)]" />
+          <hr className="my-6 border-ink/[0.08]" />
 
           <label
             htmlFor="approver"
-            className="block text-sm font-semibold text-[var(--brand-primary)]"
+            className="block text-sm font-semibold text-ink"
           >
             Your name
           </label>
@@ -136,12 +136,12 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="So we can record who signed it off"
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
           />
 
           <label
             htmlFor="comment"
-            className="mt-4 block text-sm font-semibold text-[var(--brand-primary)]"
+            className="mt-4 block text-sm font-semibold text-ink"
           >
             Notes (optional)
           </label>
@@ -151,7 +151,7 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
             onChange={(e) => setComment(e.target.value)}
             rows={3}
             maxLength={2000}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
             placeholder="Anything we should change? Colour tweaks, placement, sizing notes, etc."
           />
 
@@ -164,7 +164,7 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
               type="button"
               onClick={() => submit(false)}
               disabled={pending}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-3 text-base font-semibold text-[var(--brand-primary)] hover:bg-ui-bg-subtle disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-3 text-base font-semibold text-ink hover:bg-ui-bg-subtle disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
             >
               Request changes
             </button>
@@ -172,7 +172,7 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
               type="button"
               onClick={() => submit(true)}
               disabled={pending}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
             >
               Approve design
             </button>

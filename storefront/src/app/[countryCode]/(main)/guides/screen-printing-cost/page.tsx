@@ -218,8 +218,8 @@ const PRICE_DRIVERS: { heading: string; body: string; Icon: Icon; effect: Effect
 
 const EFFECT_STYLE: Record<Effect, { arrow: string; className: string }> = {
   // Tints are literal rgba: Tailwind's `/opacity` modifier is a no-op on hex CSS variables.
-  up: { arrow: "↑", className: "bg-[rgba(255,46,99,0.1)] !text-[#d81e4f]" },
-  down: { arrow: "↓", className: "bg-[rgba(61,207,194,0.18)] !text-[#147a71]" },
+  up: { arrow: "↑", className: "bg-brand/[0.1] !text-[#d81e4f]" },
+  down: { arrow: "↓", className: "bg-accent/[0.18] !text-[#147a71]" },
   none: { arrow: "→", className: "bg-ui-bg-subtle !text-ui-fg-subtle" },
 }
 
@@ -320,7 +320,7 @@ const eyebrow = "text-xs font-semibold uppercase tracking-[0.12em]"
 const card =
   "h-full rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm"
 const iconBadge =
-  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgba(61,207,194,0.18)] text-[var(--brand-primary)]"
+  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent/[0.18] text-ink"
 
 export default function ScreenPrintingCostGuidePage() {
   const articleLd = {
@@ -396,11 +396,11 @@ export default function ScreenPrintingCostGuidePage() {
             {SETUP_STEPS.map(({ heading, body, Icon }, i) => (
               <li key={heading}>
                 <Reveal delay={i * 0.06} className="relative flex gap-5">
-                  <span className="relative z-10 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-ui-border-base bg-white text-[var(--brand-primary)] shadow-sm">
+                  <span className="relative z-10 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-ui-border-base bg-white text-ink shadow-sm">
                     <Icon width={26} height={26} />
                   </span>
                   <div>
-                    <p className={`${eyebrow} text-[var(--brand-secondary)]`}>Step {i + 1}</p>
+                    <p className={`${eyebrow} text-brand`}>Step {i + 1}</p>
                     <h3 className="mt-1 text-lg font-semibold text-ui-fg-base">{heading}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-ui-fg-subtle">{body}</p>
                   </div>
@@ -464,9 +464,9 @@ export default function ScreenPrintingCostGuidePage() {
 
       {/* Minimum band */}
       <Reveal className="mt-16">
-        <section className="grid items-center gap-6 rounded-2xl bg-[var(--brand-primary)] p-8 text-white small:grid-cols-[auto_1fr] small:gap-10 small:p-10">
+        <section className="grid items-center gap-6 rounded-2xl bg-ink p-8 text-white small:grid-cols-[auto_1fr] small:gap-10 small:p-10">
           <div className="text-center">
-            <p className="text-7xl font-semibold leading-none text-[var(--brand-accent)] small:text-8xl">
+            <p className="text-7xl font-semibold leading-none text-accent small:text-8xl">
               {MIN}
             </p>
             <p className={`${eyebrow} mt-2 text-white/70`}>piece minimum</p>
@@ -485,7 +485,7 @@ export default function ScreenPrintingCostGuidePage() {
               For smaller orders,{" "}
               <LocalizedClientLink
                 href="/services/digital-transfers"
-                className="font-semibold !text-[var(--brand-accent)] underline underline-offset-4"
+                className="font-semibold !text-accent underline underline-offset-4"
               >
                 DTF printing
               </LocalizedClientLink>{" "}
@@ -554,7 +554,7 @@ export default function ScreenPrintingCostGuidePage() {
                   <ul className="mt-2 space-y-1.5">
                     {method.bestFor.map((item) => (
                       <li key={item} className="flex items-center gap-2 text-sm text-ui-fg-base">
-                        <CheckIcon className="shrink-0 text-[var(--brand-accent)]" />
+                        <CheckIcon className="shrink-0 text-accent" />
                         {item}
                       </li>
                     ))}
@@ -570,7 +570,7 @@ export default function ScreenPrintingCostGuidePage() {
           logos on polos, caps and jackets, embroidery is the third option:{" "}
           <LocalizedClientLink
             href="/guides/dtf-vs-screen-printing-vs-embroidery"
-            className="font-medium !text-[var(--brand-secondary)] underline underline-offset-4"
+            className="font-medium !text-brand underline underline-offset-4"
           >
             compare all three methods
           </LocalizedClientLink>
@@ -605,7 +605,7 @@ export default function ScreenPrintingCostGuidePage() {
           {SAVINGS.map((tip, i) => (
             <Reveal key={tip.heading} delay={(i % 3) * 0.08}>
               <div className={`${card} flex gap-4`}>
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-secondary)] text-sm font-semibold text-white">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
                   {i + 1}
                 </span>
                 <div>
@@ -663,7 +663,7 @@ export default function ScreenPrintingCostGuidePage() {
                 <span>{f.q}</span>
                 <span
                   aria-hidden
-                  className="shrink-0 text-lg leading-none text-[var(--brand-secondary)] transition-transform group-open:rotate-45"
+                  className="shrink-0 text-lg leading-none text-brand transition-transform group-open:rotate-45"
                 >
                   +
                 </span>
@@ -676,7 +676,7 @@ export default function ScreenPrintingCostGuidePage() {
 
       {/* CTA */}
       <Reveal className="mt-16">
-        <section className="rounded-2xl bg-[var(--brand-primary)] p-8 text-center small:p-12">
+        <section className="rounded-2xl bg-ink p-8 text-center small:p-12">
           <h2 className="text-2xl font-semibold text-white small:text-3xl">
             See the price for your job
           </h2>
@@ -688,7 +688,7 @@ export default function ScreenPrintingCostGuidePage() {
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <LocalizedClientLink
               href="/store"
-              className="group inline-flex min-h-11 items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
             >
               Choose a garment
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

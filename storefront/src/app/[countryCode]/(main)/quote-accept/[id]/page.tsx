@@ -51,7 +51,7 @@ function ErrorState({
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <LocalizedClientLink
             href="/contact"
-            className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
           >
             Contact support
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

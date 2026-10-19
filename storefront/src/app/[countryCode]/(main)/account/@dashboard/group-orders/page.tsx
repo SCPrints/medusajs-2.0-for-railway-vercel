@@ -11,7 +11,7 @@ export default async function GroupOrdersPage(){const orders = await listMyGroup
 
   return (
     <div className="w-full" data-testid="group-orders-wrapper">
-      <header className="mb-8 border-l-4 border-[var(--brand-secondary)] pl-4">
+      <header className="mb-8 border-l-4 border-brand pl-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           Team orders
         </p>

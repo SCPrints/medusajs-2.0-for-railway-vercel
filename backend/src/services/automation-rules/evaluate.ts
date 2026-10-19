@@ -133,7 +133,8 @@ const evalConditions = (event: any, conditions: Condition[] | null): boolean => 
 const dispatchAction = async (
   container: MedusaContainer,
   event: any,
-  action: Action
+  action: Action,
+  ruleId: string = "unknown"
 ): Promise<{ ok: boolean; detail?: string }> => {
   const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
 
@@ -288,6 +289,10 @@ const dispatchAction = async (
       // production_stage + emitted the generic event, so a rule targeting an
       // artwork/blanks stage (e.g. awaiting_approval) drifted the track
       // fields and never fired the artwork-approval email.
+      // The planner's state-machine guard runs as `automation:<rule_id>` —
+      // rules can never force a skipped step (e.g. order.placed →
+      // in_production with artwork still pending); the throw lands in the
+      // catch below as a failed action.
       const plan = planProductionStageChange(
         meta,
         { stage: action.params.stage },
@@ -296,6 +301,7 @@ const dispatchAction = async (
           changedAt: new Date().toISOString(),
           changedBy: "automation",
           note: action.params.note ?? null,
+          actor: { kind: "automation", rule_id: ruleId },
         }
       )
       if (!plan.changed || !plan.metadata) {
@@ -356,7 +362,7 @@ export async function runRulesForEvent(
     const actions = Array.isArray(r.actions) ? r.actions : []
     let allOk = true
     for (const a of actions) {
-      const res = await dispatchAction(container, eventData, a)
+      const res = await dispatchAction(container, eventData, a, r.id)
       if (!res.ok) {
         allOk = false
         failures += 1

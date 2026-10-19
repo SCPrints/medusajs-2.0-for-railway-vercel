@@ -14,7 +14,8 @@ export type GroupOrder = {
   owner_email?: string
   base_product_id: string | null
   base_variant_id: string | null
-  base_design_id: string | null
+  /** Owner-only (create response); the public token payload omits it. */
+  base_design_id?: string | null
   customizer_metadata: Record<string, unknown>
   deadline_at: string | null
   notes: string | null

@@ -9,6 +9,7 @@ import { z } from "zod"
 import { GROUP_ORDER_MODULE } from "../../../modules/group-order"
 import type GroupOrderModuleService from "../../../modules/group-order/service"
 import { getPostHog } from "../../../lib/posthog"
+import { loadOwnedDesign } from "../../../lib/owned-design"
 import { validateBundleGroupConfig, type BundleGroupConfig } from "../../../lib/bundle-group-order"
 
 const createSchema = z.object({
@@ -81,7 +82,23 @@ export async function POST(
   }
 
   const service = req.scope.resolve<GroupOrderModuleService>(GROUP_ORDER_MODULE)
+  // Medusa applies optional customer auth to every /store route, so this is
+  // the signed-in customer when the storefront forwards their token.
   const ownerCustomerId = req.auth_context?.actor_id ?? null
+
+  // A saved design's customizer_metadata is loaded into the owner's cart at
+  // convert time, so the base design must be the caller's own — otherwise any
+  // guessed design id became a cross-customer read (finding 4-2). 404 on
+  // mismatch, never 403.
+  if (body.base_design_id) {
+    if (!ownerCustomerId) {
+      throw new MedusaError(
+        MedusaError.Types.UNAUTHORIZED,
+        "Sign in to start a group order from a saved design."
+      )
+    }
+    await loadOwnedDesign(req.scope, body.base_design_id, ownerCustomerId)
+  }
 
   const [created] = await service.createGroupOrders([
     {

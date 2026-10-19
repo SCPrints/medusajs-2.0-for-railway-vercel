@@ -1,22 +1,27 @@
 /**
- * One-off reprice: bake the inbound freight-in allowance into every existing
- * laddered garment variant (decided 2026-08-27 — see FREIGHT_IN_ALLOWANCE_AUD
- * in utils/bulk-price-ladder.ts).
+ * Reprice: move every laddered garment variant's per-unit freight-in
+ * allowance to the current FREIGHT_IN_ALLOWANCE_AUD (utils/bulk-price-ladder.ts).
  *
- * For each variant with `metadata.bulk_pricing.tiers`:
- *   - adds `FREIGHT_IN_ALLOWANCE_AUD / max(1, min_quantity)` to each tier
- *     amount ($15 at 1-9, $1.50 at 10-19, $0.75 at 20-49, $0.30 at 50-99,
- *     $0.15 at 100+)
- *   - mirrors the bump onto the legacy flat fields
+ * 2026-08-27 it baked $15 in (full at 1-9, amortized over the band minimum
+ * above). 2026-10-19 the constant went to 0 — freight-in is charged once per
+ * order in the shipping bands instead — so the same script now takes it back
+ * out. It works on the DELTA between the variant's `bulk_pricing.freight_in_aud`
+ * stamp (unstamped = 0) and the constant, so it is idempotent and re-runnable
+ * at any value. Unstamped ladders created while the allowance was 15 are
+ * treated as carrying it (see UNSTAMPED_FREIGHT_WINDOW).
+ *
+ * For each variant with `metadata.bulk_pricing.tiers` whose stamp differs:
+ *   - adds `delta / max(1, min_quantity)` to each tier amount
+ *   - mirrors the change onto the legacy flat fields
  *   - rewrites the variant's AUD price rows from the updated tiers (heals any
  *     row/metadata drift at the same time — metadata is what the cart charges)
- *   - stamps `bulk_pricing.freight_in_aud` for idempotency (newly imported
- *     variants arrive pre-stamped via buildBulkPricingMetadata)
+ *   - stamps `bulk_pricing.freight_in_aud` = the constant
  *
- * Skipped (and counted): variants already stamped, variants with
- * `bulk_pricing` but no tiers array (legacy flat-fields-only — none expected),
- * and variants with no bulk_pricing at all (services, decoration products —
- * freight doesn't apply).
+ * Skipped (and counted): variants already at the constant (drift-repaired if
+ * their price rows disagree with metadata), variants with `bulk_pricing` but
+ * no tiers array (legacy flat-fields-only — none expected), and variants with
+ * no bulk_pricing at all (services, decoration products — freight doesn't
+ * apply).
  *
  * Drift repair: a stamped variant whose AUD price rows don't match its
  * metadata tiers (metadata committed but the price-set step failed — happened
@@ -32,15 +37,34 @@ import type { ExecArgs } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { updateProductsWorkflow } from "@medusajs/medusa/core-flows"
 
-import {
-  FREIGHT_IN_ALLOWANCE_AUD,
-  freightInPerUnit,
-} from "../utils/bulk-price-ladder"
+import { FREIGHT_IN_ALLOWANCE_AUD } from "../utils/bulk-price-ladder"
 
 const PAGE_SIZE = 100
 const CHUNK = 20
 
 const round2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * Ladders built while FREIGHT_IN_ALLOWANCE_AUD was 15 but NOT stamped: the
+ * JB's Wear family (2026-10-14) and the nightly AS Colour / FashionBiz
+ * variant backfills write `bulk_pricing` through their own metadata builders,
+ * which never copied the stamp. The 2026-08-27 run stamped everything that
+ * existed before it, and ladders built after this constant went to 0 carry
+ * nothing — so "unstamped + created inside the window" ⇔ carries $15.
+ * ponytail: window end = the 2026-10-19 backend deploy; widen if a
+ * later import is found carrying freight.
+ */
+const UNSTAMPED_FREIGHT_WINDOW = {
+  from: Date.parse("2026-08-27T00:00:00Z"),
+  to: Date.parse("2026-10-18T22:00:00Z"),
+  allowance: 15,
+}
+const impliedFreight = (createdAt: unknown): number => {
+  const t = Date.parse(String(createdAt ?? ""))
+  return t >= UNSTAMPED_FREIGHT_WINDOW.from && t < UNSTAMPED_FREIGHT_WINDOW.to
+    ? UNSTAMPED_FREIGHT_WINDOW.allowance
+    : 0
+}
 
 const toFinite = (v: unknown): number | null => {
   const n = typeof v === "string" ? Number(v) : v
@@ -108,6 +132,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
         "handle",
         "variants.id",
         "variants.sku",
+        "variants.created_at",
         "variants.metadata",
         "variants.prices.amount",
         "variants.prices.currency_code",
@@ -121,6 +146,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
       variants?: Array<{
         id: string
         sku: string | null
+        created_at?: unknown
         metadata: Record<string, unknown> | null
         prices?: Array<{
           amount: unknown
@@ -142,7 +168,11 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
           continue
         }
         const tiers = bulk.tiers as Array<Record<string, unknown>> | undefined
-        if (toFinite(bulk.freight_in_aud) !== null) {
+        const stamped =
+          toFinite(bulk.freight_in_aud) ?? impliedFreight(variant.created_at)
+        const delta = round2(FREIGHT_IN_ALLOWANCE_AUD - stamped)
+        const perUnit = (minQty: number) => round2(delta / Math.max(1, minQty))
+        if (delta === 0) {
           alreadyStamped++
           // Drift repair: metadata already carries the allowance, but the
           // price-set write may have failed mid-run. If the AUD rows don't
@@ -211,7 +241,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
           }
           newTiers.push({
             ...tier,
-            amount: round2(amount + freightInPerUnit(minQty)),
+            amount: round2(amount + perUnit(minQty)),
           })
         }
         if (bad) {
@@ -227,7 +257,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
         for (const [field, minQty] of Object.entries(FLAT_FIELD_MIN_QTY)) {
           const current = toFinite(bulk[field])
           if (current !== null) {
-            newBulk[field] = round2(current + freightInPerUnit(minQty))
+            newBulk[field] = round2(current + perUnit(minQty))
           }
         }
 
@@ -256,7 +286,7 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
         if (sampleLines.length < 10) {
           const oldBase = toFinite(tiers[0]?.amount)
           sampleLines.push(
-            `${product.handle} ${variant.sku ?? variant.id}: 1-9 $${oldBase} → $${newTiers[0]?.amount}`
+            `${product.handle} ${variant.sku ?? variant.id}: freight $${stamped} → $${FREIGHT_IN_ALLOWANCE_AUD}, 1-9 $${oldBase} → $${newTiers[0]?.amount}`
           )
         }
       }
@@ -278,10 +308,10 @@ export default async function applyFreightInAllowance({ container }: ExecArgs) {
   await flush()
 
   logger.info(`--- apply-freight-in-allowance ${dryRun ? "DRY RUN " : ""}summary ---`)
-  logger.info(`freight allowance:      $${FREIGHT_IN_ALLOWANCE_AUD} per band-min unit`)
+  logger.info(`freight allowance:      $${FREIGHT_IN_ALLOWANCE_AUD} per band-min unit (target)`)
   logger.info(`products touched:       ${productsTouched}`)
-  logger.info(`variants bumped:        ${variantsBumped}`)
-  logger.info(`already stamped:        ${alreadyStamped} (skipped)`)
+  logger.info(`variants repriced:      ${variantsBumped}`)
+  logger.info(`already at target:      ${alreadyStamped} (skipped)`)
   logger.info(`drift repaired:         ${driftRepaired} (price rows rewritten from metadata)`)
   logger.info(`no bulk_pricing:        ${noBulkPricing} (skipped — services/decoration)`)
   logger.info(`bulk_pricing w/o tiers: ${noTiersArray} (skipped — inspect if > 0)`)

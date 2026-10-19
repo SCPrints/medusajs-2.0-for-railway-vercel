@@ -1,12 +1,10 @@
 import { MedusaContainer } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import {
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
-} from "@medusajs/medusa/core-flows"
+import { Modules } from "@medusajs/framework/utils"
 import { ASCOLOUR_MODULE } from "../modules/ascolour"
 import AsColourService from "../modules/ascolour/service"
+import { writeInventoryLevels } from "../lib/inventory-level-writes"
 import { withJobContext, getContextLogger } from "../lib/job-context-wrapper"
+import { withSupplierLock } from "../lib/supplier-sync-lock"
 
 const AS_COLOUR_LOCATION_NAME = "AS Colour Warehouse"
 const CHECKPOINT_KEY = "ascolour:inventory:lastSync"
@@ -16,10 +14,14 @@ const CHECKPOINT_KEY = "ascolour:inventory:lastSync"
  * Uses /inventory/items?updatedAt:min=<lastSync> so payloads stay small.
  *
  * Falls back to a full sync the first time it runs (no checkpoint yet).
+ * Runs under the `supplier-sync:ascolour` lock — shared with the admin
+ * import route and the variant backfill cron.
  */
-const handler = async function syncAsColourInventory(container: MedusaContainer) {
+const handler = (container: MedusaContainer) =>
+  withSupplierLock(container, "ascolour", () => syncAsColourInventory(container))
+
+async function syncAsColourInventory(container: MedusaContainer) {
   const logger = getContextLogger(container)
-  const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
   let ascolour: AsColourService
   try {
@@ -76,54 +78,19 @@ const handler = async function syncAsColourInventory(container: MedusaContainer)
     return
   }
 
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
-    filters: { sku: skus },
-  })
-
-  if (!inventoryItems?.length) {
-    logger.info(
-      `Received ${items.length} delta items but none match Medusa inventory items (have they been imported yet?).`
+  // Change-only, chunked, sanity-guarded. On abort NOTHING is written and the
+  // checkpoint stays put, so the next run re-fetches the same delta.
+  const result = await writeInventoryLevels(container, { stockBySku, locationId, logger })
+  if (result.aborted) {
+    logger.warn(
+      `AS Colour inventory sync ABORTED (checkpoint not advanced): ${result.reason}`
     )
-    await writeCheckpoint(container, startedAt.toISOString())
     return
-  }
-
-  const itemIds = inventoryItems.map((i: any) => i.id)
-  const { data: existingLevels } = await query.graph({
-    entity: "inventory_level",
-    fields: ["id", "inventory_item_id", "location_id"],
-    filters: { inventory_item_id: itemIds, location_id: locationId },
-  })
-  const haveLevel = new Set(
-    (existingLevels ?? []).map((l: any) => l.inventory_item_id)
-  )
-
-  const updates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-  const creates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-
-  for (const item of inventoryItems) {
-    const qty = stockBySku.get(item.sku) ?? 0
-    const payload = { inventory_item_id: item.id, location_id: locationId, stocked_quantity: qty }
-    if (haveLevel.has(item.id)) updates.push(payload)
-    else creates.push(payload)
-  }
-
-  if (creates.length) {
-    await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: creates },
-    })
-  }
-  if (updates.length) {
-    await updateInventoryLevelsWorkflow(container).run({
-      input: { updates },
-    })
   }
 
   await writeCheckpoint(container, startedAt.toISOString())
   logger.info(
-    `AS Colour inventory sync done — items processed: ${items.length}, levels created: ${creates.length}, updated: ${updates.length}.`
+    `AS Colour inventory sync done — items processed: ${items.length}, levels created: ${result.created}, updated: ${result.updated}, unchanged: ${result.unchanged}.`
   )
 }
 

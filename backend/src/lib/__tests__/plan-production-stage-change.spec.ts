@@ -20,7 +20,12 @@ describe("planProductionStageChange", () => {
     // production_stage + emitted the generic PRODUCTION_STAGE_EVENT, so the
     // artwork-approval email subscriber (listens on ARTWORK_STAGE_EVENT)
     // never fired and the track fields drifted.
-    const result = plan({ production_stage: "received" }, { stage: "awaiting_approval" })
+    // Start from in_review: the state-machine guard (review 3-2) refuses the
+    // pending → awaiting_approval skip for a non-human actor, see below.
+    const result = plan(
+      { production_stage: "received", artwork_stage: "in_review" },
+      { stage: "awaiting_approval" }
+    )
     expect(result.changed).toBe(true)
     expect(result.metadata?.artwork_stage).toBe("awaiting_approval")
     expect(result.events.map((e) => e.name)).toEqual([ARTWORK_STAGE_EVENT])
@@ -37,6 +42,24 @@ describe("planProductionStageChange", () => {
     expect(result.changed).toBe(true)
     expect(result.metadata?.production_stage).toBe("in_production")
     expect(result.events.map((e) => e.name)).toEqual([PRODUCTION_STAGE_EVENT])
+  })
+
+  it("refuses a skipped step for the default (system) actor and for a rule, allows it for an admin with a reason", () => {
+    const meta = { production_stage: "received", artwork_stage: "pending" }
+    expect(() => plan(meta, { stage: "awaiting_approval" })).toThrow(/not an allowed transition for system/)
+    expect(() =>
+      planProductionStageChange(meta, { stage: "awaiting_approval" }, {
+        ...OPTS,
+        actor: { kind: "automation", rule_id: "rule_1" },
+      })
+    ).toThrow(/automation:rule_1/)
+    const forced = planProductionStageChange(meta, { stage: "awaiting_approval" }, {
+      ...OPTS,
+      actor: { kind: "admin", user_id: "user_1" },
+      override_reason: "proof sent by hand",
+    })
+    expect(forced.changed).toBe(true)
+    expect(forced.metadata?.artwork_stage).toBe("awaiting_approval")
   })
 
   it("is a no-op when the target stage matches the current track", () => {

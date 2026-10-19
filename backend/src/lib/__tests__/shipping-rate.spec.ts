@@ -5,15 +5,15 @@ import {
 
 describe("computeShippingAmount (weight → price ladder)", () => {
   it("returns the first band for empty/zero/negative/NaN weight", () => {
-    expect(computeShippingAmount(0)).toBe(11)
-    expect(computeShippingAmount(-50)).toBe(11)
-    expect(computeShippingAmount(Number.NaN)).toBe(11)
+    expect(computeShippingAmount(0)).toBe(15)
+    expect(computeShippingAmount(-50)).toBe(15)
+    expect(computeShippingAmount(Number.NaN)).toBe(15)
   })
 
-  it("prices each band by its inclusive upper bound", () => {
-    expect(computeShippingAmount(500)).toBe(11)
-    expect(computeShippingAmount(1000)).toBe(11) // boundary, inclusive
-    expect(computeShippingAmount(1001)).toBe(15) // just over → next band
+  it("prices each band by its inclusive upper bound ($15 minimum)", () => {
+    expect(computeShippingAmount(500)).toBe(15)
+    expect(computeShippingAmount(1000)).toBe(15) // boundary, inclusive
+    expect(computeShippingAmount(1001)).toBe(15) // same price, next band
     expect(computeShippingAmount(3000)).toBe(15)
     expect(computeShippingAmount(3001)).toBe(20)
     expect(computeShippingAmount(5000)).toBe(20)

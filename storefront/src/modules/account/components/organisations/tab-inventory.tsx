@@ -90,7 +90,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
             type="checkbox"
             checked={belowReorderOnly}
             onChange={(e) => setBelowReorderOnly(e.target.checked)}
-            className="size-4 accent-[var(--brand-secondary)]"
+            className="size-4 accent-brand"
           />
           Below reorder point
         </label>
@@ -145,7 +145,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                         r.fulfillment_mode === "held_stock"
-                          ? "bg-[var(--brand-accent)]/15 text-[var(--brand-primary)]"
+                          ? "bg-[var(--brand-accent)]/15 text-ink"
                           : "bg-ui-bg-subtle text-ui-fg-subtle"
                       }`}
                     >
@@ -215,7 +215,7 @@ export default function InventoryTab({ inventory, designs }: Props) {
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
                     r.fulfillment_mode === "held_stock"
-                      ? "bg-[var(--brand-accent)]/15 text-[var(--brand-primary)]"
+                      ? "bg-[var(--brand-accent)]/15 text-ink"
                       : "bg-ui-bg-subtle text-ui-fg-subtle"
                   }`}
                 >

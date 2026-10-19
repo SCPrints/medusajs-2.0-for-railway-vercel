@@ -11,7 +11,7 @@ import {
   SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS,
   SHIPPING_PACKAGING_OVERHEAD_GRAMS,
 } from "../../lib/constants"
-import { computeShippingAmount } from "../../lib/shipping-rate"
+import { resolveShippingRate } from "../../lib/shippit-quote"
 
 type InjectedDependencies = {
   logger: Logger
@@ -20,11 +20,11 @@ type InjectedDependencies = {
 /**
  * SC Prints in-house "calculated" shipping provider.
  *
- * Unlike ShipStation/AusPost it makes NO external API call — `calculatePrice`
- * is a pure function of the cart's total weight via the weight→price ladder in
- * `lib/shipping-rate.ts`. This is the single rate the storefront shows: one
- * "Standard Shipping (AU)" option whose price scales with order size, with the
- * default-garment-weight fallback covering the catalog's missing weights.
+ * `calculatePrice` prices the single "Standard Shipping (AU)" option from the
+ * cart's total weight (default-garment-weight fallback covers the catalog's
+ * missing weights) — via Shippit's live standard-carrier quote for the
+ * customer's address when SHIPPIT_API_KEY is set, else the weight→price
+ * ladder in `lib/shipping-rate.ts`. See `lib/shippit-quote.ts`.
  *
  * Provider id (config `id: "scp"` + `static identifier`) → `scp_scp`.
  */
@@ -78,8 +78,15 @@ class ScpShippingProviderService extends AbstractFulfillmentProviderService {
       )
     }
 
+    const rate = await resolveShippingRate(
+      totalWeightGrams,
+      (context as unknown as { shipping_address?: Record<string, string | null> })
+        ?.shipping_address,
+      (msg) => this.logger_.warn(`scp-shipping calculatePrice: ${msg}`)
+    )
+
     return {
-      calculated_amount: computeShippingAmount(totalWeightGrams),
+      calculated_amount: rate.amount,
       // Price is GST-INCLUSIVE (HOLD cutover, Docs/GST_INC_PRICING_SCOPE.md):
       // the customer pays exactly the band amount ($11 stays $11 all-in) and
       // Medusa backs the GST out of it (÷11) for tax lines. Was `false` when

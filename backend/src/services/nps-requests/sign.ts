@@ -5,7 +5,7 @@ import { LINK_SIGNING_SECRET_INSECURE, NPS_LINK_SECRET } from "../../lib/constan
 /**
  * Signs an NPS rating URL so customers can't forge scores by tweaking
  * the URL. Sig is HMAC-SHA256 over `{order_id}:{score}` keyed by
- * `NPS_LINK_SECRET`, truncated to 16 hex chars (96 bits — enough to
+ * `NPS_LINK_SECRET`, truncated to 16 hex chars (64 bits — enough to
  * deter casual tampering, no need for cryptographic-strength here).
  */
 export function signNpsRating(orderId: string, score: number): string {

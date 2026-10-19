@@ -53,7 +53,7 @@ const DecorationEstimator: React.FC<Props> = ({ methods, initialMethod }) => {
               onClick={() => setActive(m)}
               className={`-mb-px border-b-2 px-3 py-2 ${
                 active === m
-                  ? "border-[var(--brand-primary,#002a5c)] text-ui-fg-base"
+                  ? "border-ink text-ui-fg-base"
                   : "border-transparent text-ui-fg-subtle hover:text-ui-fg-base"
               }`}
             >

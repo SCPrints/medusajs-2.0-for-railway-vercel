@@ -19,7 +19,7 @@ export default async function OrganisationsPage() {
 
   return (
     <div className="w-full">
-      <header className="mb-8 border-l-4 border-[var(--brand-secondary)] pl-4">
+      <header className="mb-8 border-l-4 border-brand pl-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           Memberships
         </p>
@@ -69,23 +69,18 @@ export default async function OrganisationsPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {m.organisation.tax_exempt ? (
-                        <span className="inline-flex items-center rounded-full border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-[var(--brand-accent)]">
+                        <span className="inline-flex items-center rounded-full border border-[var(--brand-accent)]/30 bg-[var(--brand-accent)]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-accent">
                           Tax-exempt
                         </span>
                       ) : null}
                       <span
                         aria-hidden="true"
-                        className="text-ui-fg-muted transition group-hover:text-[var(--brand-secondary)]"
+                        className="text-ui-fg-muted transition group-hover:text-brand"
                       >
                         →
                       </span>
                     </div>
                   </div>
-                  {m.organisation.notes ? (
-                    <p className="mt-4 whitespace-pre-wrap rounded-xl bg-ui-bg-subtle px-4 py-3 text-sm leading-relaxed text-ui-fg-base">
-                      {m.organisation.notes}
-                    </p>
-                  ) : null}
                 </LocalizedClientLink>
               </li>
             ) : null

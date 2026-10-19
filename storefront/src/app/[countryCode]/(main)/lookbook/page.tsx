@@ -120,7 +120,7 @@ export default async function LookbookPage({ searchParams }: Params) {
           <div className="mt-6 flex justify-center">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Request the portfolio
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -162,7 +162,7 @@ export default async function LookbookPage({ searchParams }: Params) {
               <span
                 key={p}
                 aria-current="page"
-                className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg bg-[var(--brand-secondary)] px-3 text-sm font-semibold text-white"
+                className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg bg-brand px-3 text-sm font-semibold text-white"
               >
                 {p}
               </span>

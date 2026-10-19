@@ -12,7 +12,7 @@ import {
   SHIPPING_FLAT_RATE_MAX_GRAMS,
   SHIPPING_PACKAGING_OVERHEAD_GRAMS,
 } from "../../../lib/constants"
-import { computeShippingAmount } from "../../../lib/shipping-rate"
+import { resolveShippingRate } from "../../../lib/shippit-quote"
 
 type ShippingOption = {
   id: string
@@ -64,6 +64,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       "items.variant.weight",
       "items.variant.product.weight",
       "items.product.weight",
+      "shipping_address.postal_code",
+      "shipping_address.city",
+      "shipping_address.province",
+      "shipping_address.country_code",
     ],
   })
 
@@ -78,23 +82,36 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS
   )
 
+  // Same resolver the scp provider's calculatePrice uses (Shippit quote when
+  // the key is set and the address is complete, else the ladder), so the
+  // amount stamped here is the one the customer is charged. Served from the
+  // resolver's cache on the provider's call a moment later.
+  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
+  const rate = await resolveShippingRate(
+    weightSummary.totalWeightGrams,
+    (cart as { shipping_address?: Record<string, string | null> }).shipping_address,
+    (msg) => logger.warn(`cart-shipping-options: ${msg}`)
+  )
+
   // Stamp the decision onto cart.metadata so it rides into the order and the
   // Admin "Shipping decision" panel can render the weight breakdown post-
   // checkout. Idempotent — the latest storefront poll wins. `tier` stays
   // "flat" so the existing admin widget keeps rendering; `model` records the
-  // real mechanism. `amount_aud` is the quoted rate (inc-GST) the provider
-  // would compute for this weight.
+  // real mechanism. `amount_aud` is the rate (inc-GST) the customer pays.
   const shippingDecision = {
     tier: "flat" as const,
     model: "weight_based" as const,
     provider: "scp",
+    rate_source: rate.rate_source,
+    fallback_reason: rate.fallback_reason ?? null,
+    shippit: rate.shippit ?? null,
     total_weight_grams: weightSummary.totalWeightGrams,
     items_weight_grams: weightSummary.itemsWeightGrams,
     packaging_overhead_grams: weightSummary.packagingOverheadGrams,
     default_item_weight_grams: weightSummary.defaultItemWeightGrams,
     threshold_grams: SHIPPING_FLAT_RATE_MAX_GRAMS,
     items_missing_weight: weightSummary.itemsMissingWeight,
-    amount_aud: computeShippingAmount(weightSummary.totalWeightGrams),
+    amount_aud: rate.amount,
     ship_from_postcode: null,
     ship_from_country: null,
     computed_at: new Date().toISOString(),
@@ -121,7 +138,6 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   } catch (err) {
     // Stamping is best-effort: the response below is the source of truth for
     // the storefront, so a metadata write failure must not 500 checkout.
-    const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER)
     logger.warn(
       `cart-shipping-options: failed to stamp cart.metadata.shipping_decision on ${cartId}: ${
         (err as Error).message

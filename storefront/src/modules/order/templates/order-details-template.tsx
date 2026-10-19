@@ -43,14 +43,14 @@ const OrderDetailsTemplate: React.FC<OrderDetailsTemplateProps> = ({
     <div className="flex flex-col justify-center gap-y-6">
       <LocalizedClientLink
         href="/account/orders"
-        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
         data-testid="back-to-overview-button"
       >
         <ArrowLeftIcon className="transition-transform group-hover:-translate-x-0.5" />
         Back to orders
       </LocalizedClientLink>
 
-      <div className="flex flex-wrap items-end justify-between gap-3 border-l-4 border-[var(--brand-secondary)] pl-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 border-l-4 border-brand pl-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
             Order #{order.display_id}

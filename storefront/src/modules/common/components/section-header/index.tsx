@@ -24,7 +24,7 @@ export default function SectionHeader({
       className={
         isCenter
           ? "mx-auto max-w-3xl text-center"
-          : "border-l-4 border-[var(--brand-secondary)] pl-4"
+          : "border-l-4 border-brand pl-4"
       }
     >
       {eyebrow ? (

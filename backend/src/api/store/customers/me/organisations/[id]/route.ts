@@ -5,7 +5,7 @@ import {
 
 import { ORGANISATION_MODULE } from "../../../../../../modules/organisation"
 import type OrganisationModuleService from "../../../../../../modules/organisation/service"
-import { requireMembership } from "../_helpers"
+import { memberSafeOrganisation, requireMembership } from "../_helpers"
 
 /**
  * GET /store/customers/me/organisations/[id]
@@ -24,16 +24,8 @@ export async function GET(
   const organisation = (await service.retrieveOrganisation(
     membership.organisation_id
   )) as any
-  // Strip server-only fields the customer doesn't need
-  const safeOrg = {
-    id: organisation.id,
-    handle: organisation.handle,
-    name: organisation.name,
-    contact_email: organisation.contact_email,
-    contact_phone: organisation.contact_phone,
-    notes: organisation.notes,
-    tax_exempt: organisation.tax_exempt,
-    metadata: organisation.metadata,
-  }
-  res.json({ organisation: safeOrg, role: membership.role })
+  res.json({
+    organisation: memberSafeOrganisation(organisation),
+    role: membership.role,
+  })
 }

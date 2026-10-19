@@ -28,7 +28,7 @@ export default function VerticalStepTimeline({
   return (
     <div ref={ref} className="space-y-3">
       {title ? (
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
           {title}
         </p>
       ) : null}
@@ -58,9 +58,9 @@ export default function VerticalStepTimeline({
                 <motion.div
                   className={
                     showCheck
-                      ? "flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-accent)] text-xs font-bold text-white"
+                      ? "flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-white"
                       : isCurrent
-                        ? "flex h-8 w-8 items-center justify-center rounded-full border-2 border-[var(--brand-accent)] bg-ui-bg-base text-xs font-bold text-[var(--brand-primary)]"
+                        ? "flex h-8 w-8 items-center justify-center rounded-full border-2 border-accent bg-ui-bg-base text-xs font-bold text-ink"
                         : "flex h-8 w-8 items-center justify-center rounded-full border border-ui-border-base bg-ui-bg-base text-xs font-bold text-ui-fg-muted"
                   }
                   initial={false}
@@ -80,7 +80,7 @@ export default function VerticalStepTimeline({
                 {i < steps.length - 1 ? (
                   <div className="relative min-h-[28px] w-0.5 flex-1 bg-ui-border-base">
                     <motion.div
-                      className="absolute inset-x-0 top-0 h-full origin-top bg-[var(--brand-accent)]"
+                      className="absolute inset-x-0 top-0 h-full origin-top bg-accent"
                       initial={{ scaleY: 0 }}
                       animate={{
                         scaleY:
@@ -103,7 +103,7 @@ export default function VerticalStepTimeline({
                 <p
                   className={
                     isCurrent
-                      ? "text-sm font-semibold text-[var(--brand-primary)]"
+                      ? "text-sm font-semibold text-ink"
                       : "text-sm font-medium text-ui-fg-base"
                   }
                 >

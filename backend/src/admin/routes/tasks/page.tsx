@@ -18,7 +18,7 @@ import {
 import { useEffect, useMemo, useState } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
-import { OwnerPicker } from "../../components/owner-picker"
+import { OwnerPicker, fetchUsers } from "../../components/owner-picker"
 
 type Task = {
   id: string
@@ -36,7 +36,7 @@ type Task = {
   completed_at: string | null
 }
 
-type Bucket = "today" | "overdue" | "all"
+type Bucket = "today" | "overdue" | "all" | "everyone"
 
 const PRIORITY_COLOR: Record<Task["priority"], "grey" | "blue" | "orange" | "red"> = {
   low: "grey",
@@ -60,9 +60,14 @@ const TasksPage = () => {
   const refresh = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/admin/tasks/mine?bucket=${bucket}`, {
-        credentials: "include",
-      })
+      const url =
+        bucket === "everyone"
+          ? "/admin/tasks?status=open,in_progress"
+          : `/admin/tasks/mine?bucket=${bucket}`
+      const res = await fetch(url, { credentials: "include" })
+      // A failed request used to render as "Nothing in this bucket", hiding
+      // real tasks behind a silent error — surface it instead.
+      if (!res.ok) throw new Error(`Tasks failed to load (${res.status}): ${await res.text()}`)
       const json = (await res.json()) as { tasks: Task[] }
       setTasks(json.tasks ?? [])
     } catch (err: any) {
@@ -71,6 +76,14 @@ const TasksPage = () => {
       setLoading(false)
     }
   }
+
+  // Assignee names for the "Everyone" tab.
+  const [userEmails, setUserEmails] = useState<Record<string, string>>({})
+  useEffect(() => {
+    void fetchUsers().then((users) =>
+      setUserEmails(Object.fromEntries(users.map((u) => [u.id, u.email])))
+    )
+  }, [])
 
   useEffect(() => {
     void refresh()
@@ -170,9 +183,10 @@ const TasksPage = () => {
               title: "Staff tasks",
               body: "Personal task queue for the logged-in admin. Tasks can be anchored to a customer, order, quote, or organisation so the right context is one click away.",
               bullets: [
-                "Today: tasks with due_at on the current UTC day.",
+                "Today: tasks due today plus anything overdue.",
                 "Overdue: due_at in the past, status still active.",
                 "All: every active task assigned to you (open + in_progress).",
+                "Everyone: every active task for all staff — close anyone's task from here.",
                 "Completed/cancelled tasks fall off automatically — switch a row's status to bring it back.",
                 "Daily 09:00 UTC cron writes audit + PostHog events for tasks that stay overdue, gated by TASKS_OVERDUE_CRON_ENABLED.",
               ],
@@ -193,6 +207,7 @@ const TasksPage = () => {
             <Tabs.Trigger value="today">Today</Tabs.Trigger>
             <Tabs.Trigger value="overdue">Overdue</Tabs.Trigger>
             <Tabs.Trigger value="all">All active</Tabs.Trigger>
+            <Tabs.Trigger value="everyone">Everyone</Tabs.Trigger>
           </Tabs.List>
         </Tabs>
       </div>
@@ -209,6 +224,9 @@ const TasksPage = () => {
             <Table.Header>
               <Table.Row>
                 <Table.HeaderCell>Title</Table.HeaderCell>
+                {bucket === "everyone" ? (
+                  <Table.HeaderCell>Assignee</Table.HeaderCell>
+                ) : null}
                 <Table.HeaderCell>Anchor</Table.HeaderCell>
                 <Table.HeaderCell>Due</Table.HeaderCell>
                 <Table.HeaderCell>Priority</Table.HeaderCell>
@@ -231,6 +249,13 @@ const TasksPage = () => {
                         ) : null}
                       </div>
                     </Table.Cell>
+                    {bucket === "everyone" ? (
+                      <Table.Cell>
+                        <Text className="text-xs">
+                          {userEmails[t.assignee_user_id] ?? t.assignee_user_id}
+                        </Text>
+                      </Table.Cell>
+                    ) : null}
                     <Table.Cell>
                       {anchor ? (
                         <a

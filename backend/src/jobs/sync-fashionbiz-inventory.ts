@@ -1,13 +1,11 @@
 import { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
-import {
-  createInventoryLevelsWorkflow,
-  updateInventoryLevelsWorkflow,
-} from "@medusajs/medusa/core-flows"
 import { FASHIONBIZ_MODULE } from "../modules/fashionbiz"
 import FashionBizService from "../modules/fashionbiz/service"
 import { FashionBizBrandSlug } from "../modules/fashionbiz/types"
+import { writeInventoryLevels } from "../lib/inventory-level-writes"
 import { withJobContext, getContextLogger } from "../lib/job-context-wrapper"
+import { withSupplierLock } from "../lib/supplier-sync-lock"
 
 const FASHIONBIZ_LOCATION_NAME = "FashionBiz Warehouse"
 const CHECKPOINT_KEY = "fashionbiz:inventory:lastSync"
@@ -23,9 +21,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
  * make one /stock call per group, summing across stock locations.
  *
  * Runs at 04:00 UTC = ~14:00–15:00 AEDT — off-peak for both AU customers
- * and (assumed) FashionBiz API capacity.
+ * and (assumed) FashionBiz API capacity. Under the `supplier-sync:fashionbiz`
+ * lock, shared with the admin import route.
  */
-const handler = async function syncFashionBizInventory(container: MedusaContainer) {
+const handler = (container: MedusaContainer) =>
+  withSupplierLock(container, "fashionbiz", () => syncFashionBizInventory(container))
+
+async function syncFashionBizInventory(container: MedusaContainer) {
   const logger = getContextLogger(container)
   const query = container.resolve(ContainerRegistrationKeys.QUERY)
 
@@ -149,46 +151,17 @@ const handler = async function syncFashionBizInventory(container: MedusaContaine
     return
   }
 
-  // 4. Resolve inventory items for the SKUs we have data for, then split into create/update.
-  const skus = Array.from(stockBySku.keys())
-  const { data: inventoryItems } = await query.graph({
-    entity: "inventory_item",
-    fields: ["id", "sku"],
-    filters: { sku: skus },
-  })
-  const itemIds = (inventoryItems ?? []).map((i: any) => i.id)
-  const { data: existingLevels } = await query.graph({
-    entity: "inventory_level",
-    fields: ["id", "inventory_item_id", "location_id"],
-    filters: { inventory_item_id: itemIds, location_id: locationId },
-  })
-  const haveLevel = new Set(
-    (existingLevels ?? []).map((l: any) => l.inventory_item_id)
-  )
-
-  const updates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-  const creates: { inventory_item_id: string; location_id: string; stocked_quantity: number }[] = []
-  for (const item of inventoryItems ?? []) {
-    const qty = stockBySku.get(item.sku) ?? 0
-    const payload = { inventory_item_id: item.id, location_id: locationId, stocked_quantity: qty }
-    if (haveLevel.has(item.id)) updates.push(payload)
-    else creates.push(payload)
-  }
-
-  if (creates.length) {
-    await createInventoryLevelsWorkflow(container).run({
-      input: { inventory_levels: creates },
-    })
-  }
-  if (updates.length) {
-    await updateInventoryLevelsWorkflow(container).run({
-      input: { updates },
-    })
+  // 4. Change-only, chunked, sanity-guarded write (lib/inventory-level-writes).
+  //    A "200 OK with the wrong shape" that zeroes everything is refused here.
+  const result = await writeInventoryLevels(container, { stockBySku, locationId, logger })
+  if (result.aborted) {
+    logger.warn(`FashionBiz inventory sync ABORTED (checkpoint not advanced): ${result.reason}`)
+    return
   }
 
   await writeCheckpoint(container, startedAt.toISOString())
   logger.info(
-    `FashionBiz inventory sync done — SKUs synced: ${stockBySku.size}, levels created: ${creates.length}, updated: ${updates.length}, group errors: ${groupErrors}.`
+    `FashionBiz inventory sync done — SKUs synced: ${stockBySku.size}, levels created: ${result.created}, updated: ${result.updated}, unchanged: ${result.unchanged}, group errors: ${groupErrors}.`
   )
 }
 

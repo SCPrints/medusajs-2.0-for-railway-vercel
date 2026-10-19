@@ -16,6 +16,8 @@ import {
   isDownstreamStage,
   isProductionStage,
   nextStageInTrack,
+  planProductionStageChange,
+  resolveTracksFromMeta,
   shouldEmailForArtworkTransition,
   shouldEmailForBlanksTransition,
   shouldEmailForDownstreamTransition,
@@ -219,5 +221,19 @@ describe("nextStageInTrack", () => {
     expect(nextStageInTrack("art_review")).toBe("awaiting_approval")
     expect(nextStageInTrack("blanks_ordered")).toBe("blanks_arrived")
     expect(nextStageInTrack("blanks_arrived")).toBeNull()
+  })
+})
+
+describe("planProductionStageChange — artwork/blanks-only saves", () => {
+  const OPTS = { orderId: "order_1", changedAt: "2026-10-19T00:00:00.000Z", changedBy: "staff" }
+
+  it("keeps production_stage at in_production when only blanks moves to ordered", () => {
+    const meta = { production_stage: "in_production", blanks_stage: "not_started" }
+    const result = planProductionStageChange(meta, { blanks_stage: "ordered" }, OPTS)
+    expect(result.changed).toBe(true)
+    expect(result.metadata?.blanks_stage).toBe("ordered")
+    expect(result.metadata?.production_stage).toBe("in_production")
+    // Every reader derives downstream from production_stage — it must not rewind.
+    expect(resolveTracksFromMeta({ ...meta, ...result.metadata }).downstream).toBe("in_production")
   })
 })

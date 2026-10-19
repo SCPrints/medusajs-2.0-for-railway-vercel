@@ -22,7 +22,7 @@ const InvoiceDownloadButton = ({ orderId }: { orderId: string }) => {
       <button
         type="button"
         onClick={open}
-        className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-semibold text-[var(--brand-primary)] hover:bg-ui-bg-subtle"
+        className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ui-bg-subtle"
       >
         Tax invoice
       </button>

@@ -1,4 +1,4 @@
-import { recomputeScpCartPricingPure } from "../recompute-scp-cart-pricing"
+import { cartItemsFingerprint, recomputeScpCartPricingPure } from "../recompute-scp-cart-pricing"
 
 // Standard SC Prints 5-tier ladder, varied by supplier cost.
 // Variant A: lower-cost shirt
@@ -452,5 +452,31 @@ describe("recomputeScpCartPricingPure", () => {
     expect(result.prices.get("line_plain")).toBe(20)
     // Customizer: 20 + 6 print = 26
     expect(result.prices.get("line_cust")).toBe(26)
+  })
+})
+
+describe("cartItemsFingerprint (lost-update guard)", () => {
+  const items = [
+    { id: "l1", quantity: 100, updated_at: "2026-10-19T01:00:00.000Z" },
+    { id: "l2", quantity: 5, updated_at: new Date("2026-10-19T01:00:00.000Z") },
+  ]
+
+  it("is order-independent and treats Date / ISO string updated_at the same", () => {
+    const swapped = [items[1], { ...items[0], updated_at: new Date(items[0].updated_at as string) }]
+    expect(cartItemsFingerprint(swapped)).toBe(cartItemsFingerprint(items))
+  })
+
+  it("changes when a quantity, an updated_at, or the set of lines changes", () => {
+    const base = cartItemsFingerprint(items)
+    expect(cartItemsFingerprint([{ ...items[0], quantity: 1 }, items[1]])).not.toBe(base)
+    expect(
+      cartItemsFingerprint([{ ...items[0], updated_at: "2026-10-19T01:00:01.000Z" }, items[1]])
+    ).not.toBe(base)
+    expect(cartItemsFingerprint([items[0]])).not.toBe(base)
+    expect(cartItemsFingerprint([...items, { id: "l3", quantity: 1 }])).not.toBe(base)
+  })
+
+  it("ignores rows without an id", () => {
+    expect(cartItemsFingerprint([...items, { quantity: 9 }])).toBe(cartItemsFingerprint(items))
   })
 })

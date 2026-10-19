@@ -96,7 +96,7 @@ export default function OverviewTab({
                   window.location.hash = "orders"
                 }
               }}
-              className="text-xs font-semibold text-[var(--brand-secondary)] hover:underline"
+              className="text-xs font-semibold text-brand hover:underline"
             >
               View all →
             </button>
@@ -159,7 +159,7 @@ export default function OverviewTab({
           {canPlace ? (
             <LocalizedClientLink
               href={`/account/organisations/${orgId}/orders/new`}
-              className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 min-h-11"
+              className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--brand-secondary)]/90 min-h-11"
             >
               <span aria-hidden>+</span>
               Place new order

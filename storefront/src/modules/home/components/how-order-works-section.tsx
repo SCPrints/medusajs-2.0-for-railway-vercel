@@ -130,7 +130,7 @@ export default function HowOrderWorksSection() {
                 >
                   {step.number}
                 </span>
-                <Icon className="relative text-ui-fg-base transition-colors group-hover:text-[var(--brand-secondary)]" />
+                <Icon className="relative text-ui-fg-base transition-colors group-hover:text-brand" />
                 <p className="relative mt-4 text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
                   {step.title}
                 </p>

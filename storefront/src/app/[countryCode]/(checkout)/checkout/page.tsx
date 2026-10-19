@@ -43,7 +43,7 @@ export default async function Checkout(){const cart = await fetchCart()
   return (
     <div className="content-container py-8 small:py-10 pb-14">
       <BeginCheckoutTracker cart={cart} />
-      <header className="mb-8 max-w-2xl border-l-4 border-[var(--brand-secondary)] pl-4 small:mb-10">
+      <header className="mb-8 max-w-2xl border-l-4 border-brand pl-4 small:mb-10">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           Secure checkout
         </p>

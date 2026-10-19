@@ -137,9 +137,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       owner_name: groupOrder.owner_name,
       base_product_id: groupOrder.base_product_id,
       base_variant_id: groupOrder.base_variant_id,
-      base_design_id: groupOrder.base_design_id,
-      // Don't expose raw customizer_metadata to the public page —
-      // can contain MinIO URLs to customer source artwork.
+      // No base_design_id (the public page only needs design_preview) and no
+      // raw customizer_metadata — it can contain MinIO URLs to customer
+      // source artwork.
       deadline_at: groupOrder.deadline_at,
       notes: groupOrder.notes,
     },

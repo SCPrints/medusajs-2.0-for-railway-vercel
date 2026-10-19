@@ -1,7 +1,13 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { ulid } from "ulid"
 import { z } from "zod"
 
+import { computeScpLineDescriptor } from "../../../../../lib/scp-line-descriptor"
+import {
+  resolveTierForCartCustomer,
+  type RemoteJoinerGraphLike,
+} from "../../../../../lib/scp-resolve-garment-unit-price"
 import { POS_SESSION_MODULE } from "../../../../../modules/pos-session"
 import type POSSessionModuleService from "../../../../../modules/pos-session/service"
 
@@ -59,6 +65,39 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(410).json({ error: "session expired" })
   }
 
+  // Price customizer lines server-side (garment + decoration) with the same
+  // descriptor the cart route uses. The bridge only sends the bare garment
+  // price, so trusting it sold every walk-in print job at blank-garment
+  // price. The client value is the fallback only when derivation throws.
+  let unitPriceCents = body.unit_price_cents ?? null
+  let metadata = body.metadata ?? {}
+  if (body.kind === "customizer" && body.variant_id) {
+    const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as RemoteJoinerGraphLike
+    try {
+      const tier = await resolveTierForCartCustomer(query, session.customer_id ?? null)
+      const descriptor = await computeScpLineDescriptor({
+        variantId: body.variant_id,
+        quantity: body.quantity,
+        metadata,
+        printSizeIdRaw: String(metadata.print_size_id ?? "up_to_a6"),
+        // ponytail: POS has no cart; the catalog is AUD-only and the resolver
+        // only needs a currency for variants without a bulk ladder.
+        cart: { currency_code: "aud" },
+        query,
+        tier,
+      })
+      unitPriceCents = Math.round(descriptor.unitPriceMajor * 100)
+      metadata = descriptor.metadata
+    } catch (err: any) {
+      const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as {
+        warn: (msg: string) => void
+      }
+      logger.warn(
+        `[pos-sessions] could not price customizer line for variant ${body.variant_id} — using client unit_price_cents=${unitPriceCents}: ${err?.message ?? err}`
+      )
+    }
+  }
+
   const item = {
     id: ulid(),
     kind: body.kind,
@@ -67,8 +106,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     product_title: body.product_title,
     variant_title: body.variant_title ?? null,
     quantity: body.quantity,
-    unit_price_cents: body.unit_price_cents ?? null,
-    metadata: body.metadata ?? {},
+    unit_price_cents: unitPriceCents,
+    metadata,
     added_at: new Date().toISOString(),
   }
 

@@ -22,8 +22,8 @@ export default function SetupShareChart() {
                 className="flex h-full origin-left transition-transform duration-700 ease-out group-data-[shown=false]/reveal:scale-x-0"
                 style={{ width: `${row.setup + row.print}%`, transitionDelay: `${0.15 + i * 0.12}s` }}
               >
-                <span className="h-full bg-[var(--brand-secondary)]" style={{ flexGrow: row.setup }} />
-                <span className="h-full bg-[var(--brand-primary)]" style={{ flexGrow: row.print }} />
+                <span className="h-full bg-brand" style={{ flexGrow: row.setup }} />
+                <span className="h-full bg-ink" style={{ flexGrow: row.print }} />
               </div>
             </div>
           </div>
@@ -31,10 +31,10 @@ export default function SetupShareChart() {
       </div>
       <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-ui-fg-subtle">
         <span className="inline-flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-[var(--brand-secondary)]" /> Its share of the setup
+          <span className="h-3 w-3 rounded-sm bg-brand" /> Its share of the setup
         </span>
         <span className="inline-flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-[var(--brand-primary)]" /> Printing it
+          <span className="h-3 w-3 rounded-sm bg-ink" /> Printing it
         </span>
       </div>
       <figcaption className="mt-3 text-xs text-ui-fg-muted">
