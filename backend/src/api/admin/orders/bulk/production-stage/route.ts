@@ -203,7 +203,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     } = meta as Record<string, unknown>
     const metaUpdate: Record<string, unknown> = {
       ...freshMeta,
-      production_stage: toStage,
+      // `production_stage` is the downstream track's key: an artwork/blanks
+      // move must not overwrite it (readers would derive downstream = received).
+      production_stage:
+        track === "production" ? toStage : resolveTracksFromMeta(meta).downstream,
       production_stage_changed_at: changedAt,
       production_stage_history: nextHistory,
     }

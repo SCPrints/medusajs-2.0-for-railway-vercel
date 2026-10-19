@@ -564,10 +564,10 @@ export function planProductionStageChange(
     track: t.track,
   }))
 
+  // `production_stage` is the downstream track's key — never write an
+  // artwork/blanks value into it (readers would derive downstream = received).
   const downstreamChanged = transitions.find((t) => t.track === "production")
-  const persistedStage: ProductionStage = downstreamChanged
-    ? downstreamChanged.to
-    : transitions[transitions.length - 1].to
+  const persistedStage: ProductionStage = downstreamChanged?.to ?? current.downstream
 
   const m = meta as {
     artwork_stage_changed_at?: unknown
