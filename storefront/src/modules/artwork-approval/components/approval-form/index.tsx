@@ -61,12 +61,12 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
   }
 
   return (
-    <div className="rounded-2xl border border-[rgba(26,26,46,0.1)] bg-white/95 p-6 shadow-[0_4px_40px_rgba(26,26,46,0.08)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+    <div className="rounded-2xl border border-ink/[0.1] bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
         Order
         {initial.order_display_id ? ` #${initial.order_display_id}` : ""}
       </p>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[var(--brand-primary)]">
+      <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">
         {alreadyApproved
           ? "Artwork approved"
           : status === "in_review"
@@ -87,7 +87,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
                 type="button"
                 onClick={() => setZoomSrc(img.url)}
                 aria-label={`Enlarge ${img.side_label ?? img.side} mockup`}
-                className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg border border-[rgba(26,26,46,0.08)]"
+                className="group relative block w-full cursor-zoom-in overflow-hidden rounded-lg border border-ink/[0.08]"
               >
                 <img
                   src={img.url}
@@ -103,12 +103,12 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
                 </span>
               </button>
               {img.print_dimension ? (
-                <p className="mt-1.5 text-sm text-[var(--brand-primary)]">
+                <p className="mt-1.5 text-sm text-ink">
                   <span className="font-semibold">Print size:</span> {img.print_dimension}
                 </p>
               ) : null}
               {img.note ? (
-                <p className="mt-1.5 text-sm text-[var(--brand-primary)]">
+                <p className="mt-1.5 text-sm text-ink">
                   <span className="font-semibold">Studio note:</span> {img.note}
                 </p>
               ) : null}
@@ -124,7 +124,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             type="button"
             onClick={() => setZoomSrc(initial.latest_photo_url)}
             aria-label="Enlarge proof preview"
-            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border border-[rgba(26,26,46,0.08)]"
+            className="group relative block w-full cursor-zoom-in overflow-hidden rounded-md border border-ink/[0.08]"
           >
             <img
               src={initial.latest_photo_url}
@@ -166,11 +166,11 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
         </div>
       ) : (
         <>
-          <hr className="my-6 border-[rgba(26,26,46,0.08)]" />
+          <hr className="my-6 border-ink/[0.08]" />
 
           <label
             htmlFor="approver"
-            className="block text-sm font-semibold text-[var(--brand-primary)]"
+            className="block text-sm font-semibold text-ink"
           >
             Your name
           </label>
@@ -179,12 +179,12 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="So we can record who signed it off"
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
           />
 
           <label
             htmlFor="comment"
-            className="mt-4 block text-sm font-semibold text-[var(--brand-primary)]"
+            className="mt-4 block text-sm font-semibold text-ink"
           >
             Notes (optional)
           </label>
@@ -194,7 +194,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             onChange={(e) => setComment(e.target.value)}
             rows={3}
             maxLength={2000}
-            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+            className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
             placeholder="Anything we should know? Colour tweaks, placement notes, etc."
           />
 
@@ -207,7 +207,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
               type="button"
               onClick={() => submit(false)}
               disabled={pending}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-3 text-base font-semibold text-[var(--brand-primary)] hover:bg-ui-bg-subtle disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-3 text-base font-semibold text-ink hover:bg-ui-bg-subtle disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
             >
               Request changes
             </button>
@@ -215,7 +215,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
               type="button"
               onClick={() => submit(true)}
               disabled={pending}
-              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
             >
               Approve and send to print
             </button>

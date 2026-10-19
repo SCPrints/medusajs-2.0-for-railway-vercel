@@ -43,7 +43,7 @@ const EmptyCartMessage = () => {
       data-testid="empty-cart-message"
     >
       <div className="mx-auto max-w-xl text-center">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-ui-border-base bg-white text-[var(--brand-secondary)]">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-ui-border-base bg-white text-brand">
           <CartIcon />
         </div>
         <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
@@ -59,7 +59,7 @@ const EmptyCartMessage = () => {
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <LocalizedClientLink
             href="/store"
-            className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
           >
             Browse the store
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

@@ -230,7 +230,7 @@ const ScrollingPictureBar = () => {
   }
 
   const arrowClass =
-    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white/85 text-ui-fg-base shadow-elevation-card-rest backdrop-blur transition hover:bg-white hover:border-[var(--brand-secondary)]/60 hover:text-[var(--brand-secondary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/50 small:h-12 small:w-12"
+    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-ui-border-base bg-white/85 text-ui-fg-base shadow-elevation-card-rest backdrop-blur transition hover:bg-white hover:border-[var(--brand-secondary)]/60 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/50 small:h-12 small:w-12"
 
   return (
     <section className="w-full bg-ui-bg-base py-8 small:py-10">

@@ -29,7 +29,7 @@ const ReceiptDownloadButton = ({ orderId }: { orderId: string }) => {
         type="button"
         onClick={download}
         disabled={busy}
-        className="inline-flex items-center justify-center gap-2 rounded-lg border border-ui-border-base bg-white px-6 py-3 text-sm font-semibold text-[var(--brand-primary)] transition hover:bg-ui-bg-subtle disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-lg border border-ui-border-base bg-white px-6 py-3 text-sm font-semibold text-ink transition hover:bg-ui-bg-subtle disabled:opacity-60"
       >
         <svg
           width="16"

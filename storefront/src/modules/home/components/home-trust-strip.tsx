@@ -191,7 +191,7 @@ export default function HomeTrustStrip() {
               key={stat.lead}
               className="flex items-start gap-2.5 phone:gap-3"
             >
-              <Icon className="mt-0.5 size-5 shrink-0 text-[var(--brand-secondary)] phone:size-6" />
+              <Icon className="mt-0.5 size-5 shrink-0 text-brand phone:size-6" />
               <div className="min-w-0">
                 <p className="text-xs font-semibold leading-tight text-ui-fg-base phone:text-sm">
                   {stat.lead}

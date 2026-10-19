@@ -351,7 +351,7 @@ const RefinementList = ({
           </svg>
           Filters
           {activeFilterCount > 0 ? (
-            <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--brand-secondary)] px-1.5 text-[11px] font-semibold text-white">
+            <span className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-[11px] font-semibold text-white">
               {activeFilterCount}
             </span>
           ) : null}

@@ -68,7 +68,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         {placed.pay_url ? (
           <a
             href={placed.pay_url}
-            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
+            className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 tablet:w-auto tablet:py-2 tablet:text-sm"
           >
             Pay now by card
           </a>
@@ -110,11 +110,11 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           }))
 
   return (
-    <div className="rounded-2xl border border-[rgba(26,26,46,0.1)] bg-white/95 p-6 shadow-[0_4px_40px_rgba(26,26,46,0.08)]">
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--brand-secondary)]">
+    <div className="rounded-2xl border border-ink/[0.1] bg-white/95 p-6 shadow-[0_4px_40px_rgb(var(--ink)/0.08)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand">
         Quote {quote.public_id}
       </p>
-      <h1 className="mt-1 text-3xl font-semibold tracking-tight text-[var(--brand-primary)]">
+      <h1 className="mt-1 text-3xl font-semibold tracking-tight text-ink">
         {quote.subject ?? "Your SC PRINTS quote"}
       </h1>
       {quote.message ? (
@@ -123,7 +123,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         </p>
       ) : null}
 
-      <hr className="my-6 border-[rgba(26,26,46,0.08)]" />
+      <hr className="my-6 border-ink/[0.08]" />
 
       {/* Large design preview — every print position (front, back, sleeves…) so
           the customer can clearly see what they're agreeing to. */}
@@ -141,7 +141,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
               <img
                 src={img.url}
                 alt={img.side_label ?? img.side}
-                className="w-full max-h-[480px] rounded-xl border border-[rgba(26,26,46,0.08)] bg-white object-contain"
+                className="w-full max-h-[480px] rounded-xl border border-ink/[0.08] bg-white object-contain"
               />
               {img.side_label ? (
                 <figcaption className="mt-1.5 text-center text-xs font-medium uppercase tracking-wide text-ui-fg-subtle">
@@ -165,11 +165,11 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
             Itemised lines ({quote.line_items.length})
           </summary>
-          <ul className="mt-2 divide-y divide-[rgba(26,26,46,0.06)]">
+          <ul className="mt-2 divide-y divide-ink/[0.06]">
             {quote.line_items.map((li, idx) => (
               <li key={idx} className="py-2 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm text-[var(--brand-primary)]">{li.title ?? "Item"}</p>
+                  <p className="text-sm text-ink">{li.title ?? "Item"}</p>
                   {li.quantity ? <p className="text-xs text-ui-fg-muted">Qty {li.quantity}</p> : null}
                 </div>
                 <span className="text-sm text-ui-fg-base whitespace-nowrap">
@@ -180,14 +180,14 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           </ul>
         </details>
       ) : quote.line_items.length > 0 ? (
-        <ul className="divide-y divide-[rgba(26,26,46,0.06)]">
+        <ul className="divide-y divide-ink/[0.06]">
           {quote.line_items.map((li, idx) => (
             <li
               key={idx}
               className="py-3 flex items-start justify-between gap-3"
             >
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--brand-primary)]">
+                <p className="text-sm font-semibold text-ink">
                   {li.title ?? "Item"}
                 </p>
                 {li.description ? (
@@ -212,16 +212,16 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
       )}
 
       {quote.total_estimate ? (
-        <p className="mt-4 text-right text-base font-semibold text-[var(--brand-primary)]">
+        <p className="mt-4 text-right text-base font-semibold text-ink">
           Total estimate {fmtMoney(quote.total_estimate, quote.currency_code)}
         </p>
       ) : null}
 
-      <hr className="my-6 border-[rgba(26,26,46,0.08)]" />
+      <hr className="my-6 border-ink/[0.08]" />
 
       <label
         htmlFor="approver"
-        className="block text-sm font-semibold text-[var(--brand-primary)]"
+        className="block text-sm font-semibold text-ink"
       >
         Your name (for our records)
       </label>
@@ -229,7 +229,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         id="approver"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)] tablet:text-sm"
+        className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
         placeholder="e.g. Alex Smith"
       />
 
@@ -242,7 +242,7 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
           type="button"
           onClick={accept}
           disabled={pending}
-          className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-md bg-ink px-5 py-3 text-base font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60 tablet:w-auto tablet:py-2 tablet:text-sm"
         >
           {pending ? "Placing your order…" : "Accept and place order"}
         </button>

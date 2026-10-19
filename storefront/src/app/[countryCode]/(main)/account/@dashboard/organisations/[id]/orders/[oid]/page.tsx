@@ -86,7 +86,7 @@ export default async function OrgOrderDetailPage({ params }: PageProps) {
         <span className="text-ui-fg-subtle">Order #{order.display_id}</span>
       </nav>
 
-      <header className="mb-6 border-l-4 border-[var(--brand-secondary)] pl-4">
+      <header className="mb-6 border-l-4 border-brand pl-4">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
           Order
         </p>

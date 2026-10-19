@@ -24,7 +24,7 @@ export default function CheckoutTimelines({
         <Heading
           id="checkout-progress-title"
           level="h2"
-          className="text-lg font-semibold tracking-tight text-[var(--brand-primary)]"
+          className="text-lg font-semibold tracking-tight text-ink"
         >
           Your progress
         </Heading>

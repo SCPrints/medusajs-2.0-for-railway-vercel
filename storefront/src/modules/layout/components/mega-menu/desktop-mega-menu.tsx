@@ -132,8 +132,8 @@ const DesktopMegaMenu = ({ audiences }: Props) => {
                     "transition-colors duration-150",
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent)]/60 focus-visible:rounded",
                     isOpen
-                      ? "text-[var(--brand-accent)]"
-                      : "text-[var(--brand-secondary)] hover:text-[var(--brand-accent)]",
+                      ? "text-accent"
+                      : "text-brand hover:text-accent",
                   ].join(" ")}
                 >
                   {audience.name}
@@ -153,7 +153,7 @@ const DesktopMegaMenu = ({ audiences }: Props) => {
           onMouseEnter={clearCloseTimer}
           onMouseLeave={scheduleClose}
         >
-          <div className="border-t border-white/10 bg-[rgba(12,17,23,0.95)] backdrop-blur-2xl shadow-lg">
+          <div className="border-t border-white/10 bg-header-panel/95 backdrop-blur-2xl shadow-lg">
             <AudienceDropdown
               audience={activeAudience}
               onLinkClick={closeNow}

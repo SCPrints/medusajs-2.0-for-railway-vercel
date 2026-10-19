@@ -81,7 +81,7 @@ export default function OrgTabs({ tabs, defaultTab, panels }: Props) {
               onClick={() => setActive(t.key)}
               className={`relative inline-flex shrink-0 items-center gap-2 px-4 py-3 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)]/40 min-h-11 ${
                 isActive
-                  ? "text-[var(--brand-primary)] after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:bg-[var(--brand-secondary)]"
+                  ? "text-ink after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:bg-brand"
                   : "text-ui-fg-subtle hover:text-ui-fg-base"
               }`}
             >
@@ -90,7 +90,7 @@ export default function OrgTabs({ tabs, defaultTab, panels }: Props) {
                 <span
                   className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${
                     isActive
-                      ? "bg-[var(--brand-secondary)]/15 text-[var(--brand-primary)]"
+                      ? "bg-[var(--brand-secondary)]/15 text-ink"
                       : "bg-ui-bg-subtle text-ui-fg-muted"
                   }`}
                 >

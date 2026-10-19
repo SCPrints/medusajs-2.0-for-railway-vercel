@@ -133,14 +133,14 @@ const OwnerRoster = ({ orders }: Props) => {
             <button
               type="button"
               onClick={() => router.push("/cart")}
-              className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-4 py-2 text-sm font-semibold text-white"
+              className="inline-flex items-center justify-center rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"
             >
               Open the cart
             </button>
             <button
               type="button"
               onClick={() => setConvertReport(null)}
-              className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2 text-sm font-semibold text-[var(--brand-primary)]"
+              className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2 text-sm font-semibold text-ink"
             >
               Dismiss
             </button>
@@ -162,7 +162,7 @@ const OwnerRoster = ({ orders }: Props) => {
               >
                 {STATUS_LABELS[o.status] ?? o.status}
               </span>
-              <h2 className="mt-2 text-base font-semibold text-[var(--brand-primary)]">
+              <h2 className="mt-2 text-base font-semibold text-ink">
                 {o.title}
               </h2>
               {o.organisation_name ? (
@@ -178,7 +178,7 @@ const OwnerRoster = ({ orders }: Props) => {
               <button
                 type="button"
                 onClick={() => copy(o.public_token)}
-                className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-semibold text-[var(--brand-primary)] hover:bg-ui-bg-subtle"
+                className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ui-bg-subtle"
               >
                 Copy share link
               </button>
@@ -197,7 +197,7 @@ const OwnerRoster = ({ orders }: Props) => {
                     type="button"
                     onClick={() => handleStatus(o.id, "open")}
                     disabled={busy === o.id}
-                    className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-semibold text-[var(--brand-primary)] hover:bg-ui-bg-subtle disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-semibold text-ink hover:bg-ui-bg-subtle disabled:opacity-60"
                   >
                     Re-open
                   </button>
@@ -205,7 +205,7 @@ const OwnerRoster = ({ orders }: Props) => {
                     type="button"
                     onClick={() => handleConvert(o.id)}
                     disabled={busy === o.id}
-                    className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold text-white hover:opacity-95 disabled:opacity-60"
+                    className="inline-flex items-center justify-center rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white hover:opacity-95 disabled:opacity-60"
                   >
                     {busy === o.id ? "Building cart…" : "Convert to cart"}
                   </button>
@@ -215,7 +215,7 @@ const OwnerRoster = ({ orders }: Props) => {
           </div>
           <a
             href={`/group-order/${o.public_token}`}
-            className="mt-3 inline-block text-xs text-[var(--brand-secondary)] hover:underline"
+            className="mt-3 inline-block text-xs text-brand hover:underline"
           >
             View public page →
           </a>

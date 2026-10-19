@@ -134,7 +134,7 @@ export default function HomeCoreServicesLordicons() {
               .filter(Boolean)
               .join(" ")}
           >
-            <Icon className="text-ui-fg-base transition-colors group-hover:text-[var(--brand-secondary)]" />
+            <Icon className="text-ui-fg-base transition-colors group-hover:text-brand" />
             <p className="mt-4 text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
               {service.title}
             </p>

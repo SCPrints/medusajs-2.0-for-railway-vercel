@@ -66,7 +66,7 @@ export default function MobileCheckoutBar({
           </div>
           <LocalizedClientLink
             href={checkoutHref}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition active:scale-[0.99]"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 text-sm font-semibold text-white shadow-sm transition active:scale-[0.99]"
             data-testid="mobile-checkout-bar-button"
           >
             Checkout

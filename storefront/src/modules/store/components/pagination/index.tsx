@@ -3,9 +3,11 @@
 import { clx } from "@medusajs/ui"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
-const BRAND_PRIMARY = "#1a1a2e"
-const BRAND_SECONDARY = "#ff2e63"
-const BRAND_BACKGROUND = "#eeeeee"
+// Theme tokens from globals.css (`:root`) — resolved by the browser, so a
+// seasonal theme on <html> repaints the pagination too.
+const BRAND_PRIMARY = "rgb(var(--ink))"
+const BRAND_SECONDARY = "rgb(var(--brand))"
+const BRAND_BACKGROUND = "rgb(var(--surface))"
 
 // Shared layout + motion classes for every button in the pagination bar.
 const BASE_BUTTON_CLASSES =
@@ -87,7 +89,7 @@ export function Pagination({
       }}
       onBlur={(e) => {
         e.currentTarget.style.boxShadow = isCurrent
-          ? "0 4px 12px rgba(255, 46, 99, 0.35)"
+          ? "0 4px 12px rgb(var(--brand) / 0.35)"
           : "none"
       }}
     >
@@ -99,7 +101,7 @@ export function Pagination({
     <span
       key={id}
       className="inline-flex items-center justify-center min-w-10 h-10 text-base font-semibold select-none cursor-default"
-      style={{ color: "rgba(26, 26, 46, 0.45)" }}
+      style={{ color: "rgb(var(--ink) / 0.45)" }}
     >
       …
     </span>
@@ -131,7 +133,7 @@ export function Pagination({
       )}
       style={{
         backgroundColor: "transparent",
-        color: disabled ? "rgba(26, 26, 46, 0.25)" : BRAND_PRIMARY,
+        color: disabled ? "rgb(var(--ink) / 0.25)" : BRAND_PRIMARY,
       }}
       onMouseEnter={(e) => {
         if (disabled) return

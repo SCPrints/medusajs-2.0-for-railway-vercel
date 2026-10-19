@@ -135,9 +135,9 @@ export default async function SitemapPage() {
                 <li key={item.href}>
                   <LocalizedClientLink
                     href={item.href}
-                    className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-[var(--brand-secondary)]"
+                    className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                   >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-[var(--brand-secondary)]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-brand" />
                     {item.label}
                   </LocalizedClientLink>
                 </li>
@@ -160,9 +160,9 @@ export default async function SitemapPage() {
             <li>
               <LocalizedClientLink
                 href="/services"
-                className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-[var(--brand-secondary)]"
+                className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
               >
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-[var(--brand-secondary)]" />
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-brand" />
                 All services
               </LocalizedClientLink>
             </li>
@@ -170,9 +170,9 @@ export default async function SitemapPage() {
               <li key={s.slug}>
                 <LocalizedClientLink
                   href={`/services/${s.slug}`}
-                  className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-[var(--brand-secondary)]"
+                  className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                 >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-[var(--brand-secondary)]" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-brand" />
                   {s.title}
                 </LocalizedClientLink>
               </li>
@@ -195,9 +195,9 @@ export default async function SitemapPage() {
               <li>
                 <LocalizedClientLink
                   href="/brands"
-                  className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-[var(--brand-secondary)]"
+                  className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                 >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-[var(--brand-secondary)]" />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-brand" />
                   All brands
                 </LocalizedClientLink>
               </li>
@@ -205,9 +205,9 @@ export default async function SitemapPage() {
                 <li key={b.handle}>
                   <LocalizedClientLink
                     href={`/brands/${b.handle}`}
-                    className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-[var(--brand-secondary)]"
+                    className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                   >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-[var(--brand-secondary)]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-brand" />
                     {b.name}
                   </LocalizedClientLink>
                 </li>
@@ -233,9 +233,9 @@ export default async function SitemapPage() {
                 <li key={c.id}>
                   <LocalizedClientLink
                     href={`/collections/${c.handle}`}
-                    className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-[var(--brand-secondary)]"
+                    className="group inline-flex items-center gap-1.5 text-ui-fg-subtle transition hover:text-brand"
                   >
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-[var(--brand-secondary)]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--brand-secondary)]/50 transition group-hover:bg-brand" />
                     {c.title}
                   </LocalizedClientLink>
                 </li>

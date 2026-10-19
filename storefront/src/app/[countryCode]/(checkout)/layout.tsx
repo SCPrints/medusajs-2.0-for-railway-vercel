@@ -10,12 +10,12 @@ export default function CheckoutLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="w-full min-h-dvh flex flex-col bg-[var(--brand-background)] text-[var(--brand-primary)]">
-      <header className="sticky top-0 z-50 border-b-2 border-white/20 bg-ui-fg-base">
-        <nav className="content-container flex h-20 w-full items-center justify-between gap-4 text-base font-medium text-[rgba(248,250,252,0.9)]">
+    <div className="w-full min-h-dvh flex flex-col bg-surface text-ink">
+      <header className="sticky top-0 z-50 border-b-2 border-white/20 bg-header">
+        <nav className="content-container flex h-20 w-full items-center justify-between gap-4 text-base font-medium text-header-fg/90">
           <LocalizedClientLink
             href="/cart"
-            className="checkout-nav-link flex flex-1 basis-0 items-center gap-x-2 text-sm font-semibold uppercase tracking-wide !text-[rgba(248,250,252,0.9)] transition-colors hover:!text-[var(--brand-accent)]"
+            className="checkout-nav-link flex flex-1 basis-0 items-center gap-x-2 text-sm font-semibold uppercase tracking-wide !text-header-fg/90 transition-colors hover:!text-accent"
             data-testid="back-to-cart-link"
           >
             <ChevronDown className="rotate-90 shrink-0" size={16} />

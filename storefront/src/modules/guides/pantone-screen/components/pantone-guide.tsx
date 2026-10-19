@@ -7,7 +7,7 @@ import PantoneLibrary from "./pantone-library"
 
 const Bullet = ({ children }: { children: React.ReactNode }) => (
   <li className="flex gap-3">
-    <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+    <span className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
     <span>{children}</span>
   </li>
 )
@@ -62,7 +62,7 @@ export default function PantoneGuide() {
               </p>
               <LocalizedClientLink
                 href="/guides/cmyk-dtf"
-                className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 Printing DTF instead? Read the CMYK guide
                 <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
@@ -123,7 +123,7 @@ export default function PantoneGuide() {
               <p className="text-sm text-ui-fg-subtle">Have a brand colour to match?</p>
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 Send us the reference
                 <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>

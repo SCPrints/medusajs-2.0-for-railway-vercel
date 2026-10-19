@@ -95,7 +95,7 @@ export default function HomeGuaranteeBlock() {
                 key={promise.id}
                 className="flex flex-col rounded-lg border border-ui-border-base bg-white p-6"
               >
-                <Icon className="text-[var(--brand-secondary)]" />
+                <Icon className="text-brand" />
                 <p className="mt-4 text-sm font-semibold text-ui-fg-base">
                   {promise.title}
                 </p>

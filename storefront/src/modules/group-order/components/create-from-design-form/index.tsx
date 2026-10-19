@@ -84,13 +84,13 @@ const CreateFromDesignForm = ({
           who&apos;s already submitted, and a form for new participants.
         </p>
         <div className="mt-4 rounded-md border border-emerald-200 bg-white p-3 flex items-center gap-x-2">
-          <code className="text-xs text-[var(--brand-primary)] flex-1 break-all">
+          <code className="text-xs text-ink flex-1 break-all">
             {shareUrl}
           </code>
           <button
             type="button"
             onClick={() => navigator.clipboard.writeText(shareUrl)}
-            className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold text-white"
+            className="inline-flex items-center justify-center rounded-md bg-ink px-3 py-1.5 text-xs font-semibold text-white"
           >
             Copy
           </button>
@@ -99,7 +99,7 @@ const CreateFromDesignForm = ({
           <button
             type="button"
             onClick={() => router.push(`/${countryCode}/account/group-orders`)}
-            className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-4 py-2 text-sm font-semibold text-white"
+            className="inline-flex items-center justify-center rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"
           >
             Manage group orders
           </button>
@@ -107,7 +107,7 @@ const CreateFromDesignForm = ({
             href={shareUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2 text-sm font-semibold text-[var(--brand-primary)]"
+            className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-4 py-2 text-sm font-semibold text-ink"
           >
             Preview public page
           </a>
@@ -129,7 +129,7 @@ const CreateFromDesignForm = ({
         ) : (
           <div className="aspect-square w-full rounded-md bg-ui-bg-subtle" />
         )}
-        <p className="mt-3 text-sm font-semibold text-[var(--brand-primary)]">
+        <p className="mt-3 text-sm font-semibold text-ink">
           {design.name}
         </p>
         {!design.base_product_id ? (
@@ -144,74 +144,74 @@ const CreateFromDesignForm = ({
       <div className="rounded-xl border border-ui-border-base bg-white p-5">
         <div className="grid grid-cols-1 gap-y-3">
           <label className="text-sm">
-            <span className="font-semibold text-[var(--brand-primary)]">
+            <span className="font-semibold text-ink">
               Group order title *
             </span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               placeholder="e.g. Marrickville Lions 2026 hoodies"
             />
           </label>
 
           <label className="text-sm">
-            <span className="font-semibold text-[var(--brand-primary)]">
+            <span className="font-semibold text-ink">
               Organisation
             </span>
             <input
               value={organisation}
               onChange={(e) => setOrganisation(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               placeholder="School / club / business name (optional)"
             />
           </label>
 
           <div className="grid grid-cols-1 small:grid-cols-2 gap-3">
             <label className="text-sm">
-              <span className="font-semibold text-[var(--brand-primary)]">
+              <span className="font-semibold text-ink">
                 Your name
               </span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </label>
             <label className="text-sm">
-              <span className="font-semibold text-[var(--brand-primary)]">
+              <span className="font-semibold text-ink">
                 Your email *
               </span>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+                className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </label>
           </div>
 
           <label className="text-sm">
-            <span className="font-semibold text-[var(--brand-primary)]">
+            <span className="font-semibold text-ink">
               Deadline (optional)
             </span>
             <input
               type="date"
               value={deadline}
               onChange={(e) => setDeadline(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </label>
 
           <label className="text-sm">
-            <span className="font-semibold text-[var(--brand-primary)]">
+            <span className="font-semibold text-ink">
               Notes (optional, shown to participants)
             </span>
             <textarea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-[var(--brand-secondary)] focus:outline-none focus:ring-1 focus:ring-[var(--brand-secondary)]"
+              className="mt-1 block w-full rounded-md border border-ui-border-base bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               placeholder="e.g. Tall fits available on request"
             />
           </label>
@@ -225,7 +225,7 @@ const CreateFromDesignForm = ({
               type="button"
               onClick={submit}
               disabled={pending}
-              className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-md bg-ink px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-60"
             >
               {pending ? "Creating…" : "Create group order"}
             </button>

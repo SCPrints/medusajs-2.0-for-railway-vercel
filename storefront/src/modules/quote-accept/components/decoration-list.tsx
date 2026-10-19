@@ -18,11 +18,11 @@ const DecorationList = ({
       <p className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
         Decoration details
       </p>
-      <ul className="divide-y divide-[rgba(26,26,46,0.06)] rounded-lg border border-[rgba(26,26,46,0.08)]">
+      <ul className="divide-y divide-ink/[0.06] rounded-lg border border-ink/[0.08]">
         {decorations.map((d, i) => (
           <li key={i} className="flex items-start justify-between gap-3 px-3 py-2.5">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-[var(--brand-primary)]">
+              <p className="text-sm font-semibold text-ink">
                 {d.side_label}
                 {multiGarment && d.garment ? (
                   <span className="font-normal text-ui-fg-subtle"> · {d.garment}</span>

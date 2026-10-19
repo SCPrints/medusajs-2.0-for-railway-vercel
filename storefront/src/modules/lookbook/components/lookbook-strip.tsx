@@ -37,7 +37,7 @@ export default async function LookbookStrip({
         action={
           <LocalizedClientLink
             href="/lookbook"
-            className="text-sm font-semibold text-[var(--brand-secondary)] hover:underline"
+            className="text-sm font-semibold text-brand hover:underline"
           >
             See the full lookbook →
           </LocalizedClientLink>

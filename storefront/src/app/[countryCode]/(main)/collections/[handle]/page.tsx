@@ -89,7 +89,7 @@ export default async function CollectionPage({ params }: Params) {
             <p className="mt-1 text-sm text-ui-fg-subtle">
               <LocalizedClientLink
                 href="/store"
-                className="underline underline-offset-4 hover:text-[var(--brand-secondary)]"
+                className="underline underline-offset-4 hover:text-brand"
               >
                 Browse the full range
               </LocalizedClientLink>{" "}

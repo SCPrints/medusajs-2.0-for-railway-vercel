@@ -41,7 +41,7 @@ const DesignsGrid = ({ designs }: Props) => {
         </p>
         <LocalizedClientLink
           href="/customizer"
-          className="inline-flex items-center gap-2 rounded-md bg-[var(--brand-primary)] text-white px-5 py-2.5 text-sm font-medium hover:opacity-90"
+          className="inline-flex items-center gap-2 rounded-md bg-ink text-white px-5 py-2.5 text-sm font-medium hover:opacity-90"
         >
           Open the customizer
         </LocalizedClientLink>
@@ -134,7 +134,7 @@ const DesignsGrid = ({ designs }: Props) => {
                         setRenamingId(null)
                       }
                     }}
-                    className="text-sm font-semibold border border-ui-border-base rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]"
+                    className="text-sm font-semibold border border-ui-border-base rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ink"
                     maxLength={120}
                     disabled={isBusy}
                   />
@@ -155,7 +155,7 @@ const DesignsGrid = ({ designs }: Props) => {
                   <div className="flex items-center justify-between gap-2">
                     <LocalizedClientLink
                       href={editHref}
-                      className="inline-flex items-center justify-center rounded-md bg-[var(--brand-primary)] text-white px-3 py-1.5 text-xs font-medium hover:opacity-90"
+                      className="inline-flex items-center justify-center rounded-md bg-ink text-white px-3 py-1.5 text-xs font-medium hover:opacity-90"
                     >
                       Edit / re-order
                     </LocalizedClientLink>
@@ -170,7 +170,7 @@ const DesignsGrid = ({ designs }: Props) => {
                   </div>
                   <LocalizedClientLink
                     href={`/account/designs/${design.id}/group-order`}
-                    className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-medium text-[var(--brand-primary)] hover:bg-ui-bg-subtle"
+                    className="inline-flex items-center justify-center rounded-md border border-ui-border-base bg-white px-3 py-1.5 text-xs font-medium text-ink hover:bg-ui-bg-subtle"
                   >
                     Use for a group order
                   </LocalizedClientLink>

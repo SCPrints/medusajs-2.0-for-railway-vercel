@@ -74,7 +74,7 @@ export default async function CustomHatsPage({
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">
             Fully custom headwear
           </p>
-          <h1 className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-[var(--brand-primary)] small:text-5xl`}>
+          <h1 className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-ink small:text-5xl`}>
             Custom hats & caps
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-ui-fg-subtle small:text-lg">
@@ -84,7 +84,7 @@ export default async function CustomHatsPage({
           <div className="mt-7">
             <a
               href="#hat-brief"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Start your hat
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:translate-x-0.5" aria-hidden>

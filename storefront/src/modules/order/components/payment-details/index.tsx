@@ -19,7 +19,7 @@ const PaymentDetails = ({ order }: PaymentDetailsProps) => {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-[var(--brand-primary)] border-l-4 border-[var(--brand-secondary)] pl-4 mb-5">
+      <h2 className="text-2xl font-semibold text-ink border-l-4 border-brand pl-4 mb-5">
         Payment
       </h2>
       {payment && (
@@ -27,7 +27,7 @@ const PaymentDetails = ({ order }: PaymentDetailsProps) => {
           <div className="flex flex-col">
             <ColLabel>Payment method</ColLabel>
             <Text
-              className="text-sm text-[var(--brand-primary)] font-medium"
+              className="text-sm text-ink font-medium"
               data-testid="payment-method"
             >
               {paymentInfoMap[payment.provider_id].title}

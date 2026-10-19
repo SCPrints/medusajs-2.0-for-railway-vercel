@@ -89,7 +89,7 @@ const Shipping: React.FC<ShippingProps> = ({
         <Heading
           level="h2"
           className={clx(
-            "flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-[var(--brand-primary)]",
+            "flex flex-row items-baseline gap-x-2 text-2xl font-semibold tracking-tight text-ink",
             {
               "pointer-events-none select-none opacity-50":
                 !isOpen && cart.shipping_methods?.length === 0,
@@ -119,7 +119,7 @@ const Shipping: React.FC<ShippingProps> = ({
       {isOpen ? (
         <div data-testid="delivery-options-container">
           {typeof totalWeightGrams === "number" && totalWeightGrams > 0 && (
-            <p className="text-small-regular mb-4 rounded-lg border border-[rgba(61,207,194,0.35)] bg-[rgba(61,207,194,0.1)] px-3 py-2.5 text-ui-fg-subtle">
+            <p className="text-small-regular mb-4 rounded-lg border border-accent/[0.35] bg-accent/[0.1] px-3 py-2.5 text-ui-fg-subtle">
               {`Shipping is calculated by total weight — your cart is ${formatKg(
                 totalWeightGrams
               )}.`}
@@ -140,12 +140,12 @@ const Shipping: React.FC<ShippingProps> = ({
                     disabled={!hasPrice}
                     data-testid="delivery-option-radio"
                     className={clx(
-                      "mb-2 flex items-center justify-between rounded-rounded border border-[rgba(26,26,46,0.14)] bg-[rgba(255,255,255,0.6)] px-6 py-4 text-small-regular transition-shadow small:px-8",
+                      "mb-2 flex items-center justify-between rounded-rounded border border-[rgb(var(--ink)/0.14)] bg-[rgba(255,255,255,0.6)] px-6 py-4 text-small-regular transition-shadow small:px-8",
                       {
-                        "cursor-pointer hover:border-[rgba(26,26,46,0.22)] hover:shadow-md":
+                        "cursor-pointer hover:border-ink/[0.22] hover:shadow-md":
                           hasPrice,
                         "cursor-not-allowed opacity-50": !hasPrice,
-                        "border-[var(--brand-secondary)] ring-1 ring-[var(--brand-secondary)]/30":
+                        "border-brand ring-1 ring-[var(--brand-secondary)]/30":
                           option.id === selectedShippingMethod?.id,
                       }
                     )}
@@ -156,7 +156,7 @@ const Shipping: React.FC<ShippingProps> = ({
                       />
                       <span className="text-base-regular">{option.name}</span>
                       {pendingOptionId === option.id && (
-                        <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-[var(--brand-secondary)] border-t-transparent" />
+                        <span className="ml-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-brand border-t-transparent" />
                       )}
                     </div>
                     <span className="justify-self-end text-ui-fg-base">

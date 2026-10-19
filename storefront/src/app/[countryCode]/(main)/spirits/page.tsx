@@ -80,7 +80,7 @@ export default async function SpiritsHubPage({ params }: Props) {
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <LocalizedClientLink
                 href="#spirit-types"
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 transition"
+                className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 transition"
               >
                 Browse spirit types
                 <ArrowRightIcon className="-mr-1" />
@@ -110,7 +110,7 @@ export default async function SpiritsHubPage({ params }: Props) {
             <li key={spirit.slug}>
               <LocalizedClientLink
                 href={`/spirits/${spirit.slug}`}
-                className="group relative flex h-full flex-col gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)] hover:shadow-md"
+                className="group relative flex h-full flex-col gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base p-6 transition hover:-translate-y-0.5 hover:border-brand hover:shadow-md"
               >
                 <span className="text-4xl" aria-hidden>
                   {spirit.emoji}
@@ -123,7 +123,7 @@ export default async function SpiritsHubPage({ params }: Props) {
                     {spirit.tagline}
                   </p>
                 </div>
-                <span className="mt-auto inline-flex items-center gap-1.5 text-sm font-medium text-[var(--brand-secondary)] group-hover:gap-2 transition-[gap]">
+                <span className="mt-auto inline-flex items-center gap-1.5 text-sm font-medium text-brand group-hover:gap-2 transition-[gap]">
                   Browse {spirit.noun}
                   <ArrowRightIcon />
                 </span>
@@ -141,7 +141,7 @@ export default async function SpiritsHubPage({ params }: Props) {
         />
         <ol className="mt-8 grid grid-cols-1 gap-6 small:grid-cols-3">
           <li className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle/30 p-6">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-secondary)] text-sm font-semibold text-white">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
               1
             </span>
             <h3 className="mt-3 text-lg font-semibold text-ui-fg-base">
@@ -153,7 +153,7 @@ export default async function SpiritsHubPage({ params }: Props) {
             </p>
           </li>
           <li className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle/30 p-6">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-secondary)] text-sm font-semibold text-white">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
               2
             </span>
             <h3 className="mt-3 text-lg font-semibold text-ui-fg-base">
@@ -165,7 +165,7 @@ export default async function SpiritsHubPage({ params }: Props) {
             </p>
           </li>
           <li className="rounded-2xl border border-ui-border-base bg-ui-bg-subtle/30 p-6">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--brand-secondary)] text-sm font-semibold text-white">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand text-sm font-semibold text-white">
               3
             </span>
             <h3 className="mt-3 text-lg font-semibold text-ui-fg-base">

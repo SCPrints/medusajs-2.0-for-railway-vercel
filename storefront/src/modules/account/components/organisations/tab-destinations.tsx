@@ -61,7 +61,7 @@ export default function DestinationsTab({ destinations }: Props) {
                   <button
                     type="button"
                     onClick={() => setActive(d)}
-                    className="text-xs font-semibold text-[var(--brand-secondary)] hover:underline min-h-11 px-2"
+                    className="text-xs font-semibold text-brand hover:underline min-h-11 px-2"
                   >
                     Details →
                   </button>

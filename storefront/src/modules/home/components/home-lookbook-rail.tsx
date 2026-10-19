@@ -17,7 +17,7 @@ const MAX_TILES = 8
 const ViewAllLink = () => (
   <LocalizedClientLink
     href="/lookbook-sphere"
-    className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--brand-secondary)] transition hover:brightness-110"
+    className="group inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-brand transition hover:brightness-110"
   >
     Enter the sphere
     <svg

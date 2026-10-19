@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "Something went wrong",
 }
 
-const HEADER_NAVY = "#1a1a2e"
+const HEADER_NAVY = "rgb(var(--header-bg))"
 
 export default function NotFound() {
   return (

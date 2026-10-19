@@ -171,7 +171,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
     <div className="content-container py-14 small:py-20">
       <LocalizedClientLink
         href="/services"
-        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+        className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
       >
         <ArrowLeftIcon className="transition-transform group-hover:-translate-x-0.5" />
         Back to services
@@ -187,7 +187,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           <div className="mt-7 flex flex-wrap gap-3">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Get a quote
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -340,7 +340,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           <ul className="mt-5 space-y-3 text-sm text-ui-fg-subtle">
             {service.bulletPoints.map((point) => (
               <li key={point} className="flex gap-3">
-                <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brand-secondary)]" />
+                <span className="mt-1.5 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
                 <span>{point}</span>
               </li>
             ))}
@@ -361,14 +361,14 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           </p>
           <LocalizedClientLink
             href="/contact"
-            className="group mt-5 inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+            className="group mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
           >
             Request service quote
             <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
           </LocalizedClientLink>
           <LocalizedClientLink
             href="/guides/dtf-vs-screen-printing-vs-embroidery"
-            className="mt-4 flex min-h-11 items-center text-sm font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
+            className="mt-4 flex min-h-11 items-center text-sm font-semibold !text-brand underline underline-offset-4"
           >
             Compare DTF, screen printing and embroidery
           </LocalizedClientLink>
@@ -377,7 +377,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
 
       <section className="mt-12 grid gap-4 small:grid-cols-3">
         <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm">
-          <ThumbsUpIcon className="text-[var(--brand-accent)] transition-colors group-hover:text-[var(--brand-secondary)]" />
+          <ThumbsUpIcon className="text-accent transition-colors group-hover:text-brand" />
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
             Best for
           </p>
@@ -385,7 +385,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         </article>
 
         <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm">
-          <ThumbsDownIcon className="text-ui-fg-muted transition-colors group-hover:text-[var(--brand-secondary)]" />
+          <ThumbsDownIcon className="text-ui-fg-muted transition-colors group-hover:text-brand" />
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
             Not ideal for
           </p>
@@ -393,7 +393,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
         </article>
 
         <article className="group rounded-xl border border-ui-border-base bg-white p-6 transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm">
-          <ClockIcon className="text-[var(--brand-accent)] transition-colors group-hover:text-[var(--brand-secondary)]" />
+          <ClockIcon className="text-accent transition-colors group-hover:text-brand" />
           <p className="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
             Typical turnaround
           </p>
@@ -406,7 +406,7 @@ export default async function ServiceDetailPage({ params }: Props){const { servi
           Wondering about setup fees?{" "}
           <LocalizedClientLink
             href="/guides/screen-printing-cost"
-            className="font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
+            className="font-semibold !text-brand underline underline-offset-4"
           >
             Why screen printing has setup costs and a minimum order
           </LocalizedClientLink>

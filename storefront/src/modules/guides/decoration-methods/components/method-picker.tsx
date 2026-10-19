@@ -26,12 +26,12 @@ const METHOD: Record<Method, { name: string; inline: string; href: string }> = {
 const VERDICT: Record<Verdict, { label: string; badge: string; row: string }> = {
   best: {
     label: "Best match",
-    badge: "bg-[var(--brand-secondary)] !text-white",
-    row: "border-[var(--brand-secondary)] bg-white shadow-sm",
+    badge: "bg-brand !text-white",
+    row: "border-brand bg-white shadow-sm",
   },
   works: {
     label: "Also works",
-    badge: "bg-[rgba(61,207,194,0.2)] !text-[#147a71]",
+    badge: "bg-accent/[0.2] !text-[#147a71]",
     row: "border-ui-border-base bg-white",
   },
   avoid: {
@@ -44,8 +44,8 @@ const VERDICT: Record<Verdict, { label: string; badge: string; row: string }> = 
 const segment = (active: boolean) =>
   `min-h-11 rounded-lg border px-3 py-2 text-left text-sm font-semibold transition ${
     active
-      ? "border-[var(--brand-secondary)] bg-[var(--brand-secondary)] text-white"
-      : "border-ui-border-base bg-white text-ui-fg-base hover:border-[var(--brand-secondary)]"
+      ? "border-brand bg-brand text-white"
+      : "border-ui-border-base bg-white text-ui-fg-base hover:border-brand"
   }`
 
 function Group<T extends string>({
@@ -115,7 +115,7 @@ export default function MethodPicker() {
                 {r.verdict === "best" ? (
                   <LocalizedClientLink
                     href={m.href}
-                    className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold !text-[var(--brand-secondary)] underline underline-offset-4"
+                    className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold !text-brand underline underline-offset-4"
                   >
                     More about {m.inline}
                   </LocalizedClientLink>

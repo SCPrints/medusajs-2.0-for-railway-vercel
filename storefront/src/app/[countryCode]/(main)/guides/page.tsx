@@ -74,14 +74,14 @@ export default function GuidesIndexPage() {
         ))}
       </ul>
 
-      <section className="mt-14 rounded-2xl bg-[var(--brand-primary)] p-8 text-center small:p-10">
+      <section className="mt-14 rounded-2xl bg-ink p-8 text-center small:p-10">
         <h2 className="text-2xl font-semibold text-white">Still not sure?</h2>
         <p className="mx-auto mt-3 max-w-xl text-white/80">
           Tell us what you are making and we will point you at the right garment and method.
         </p>
         <LocalizedClientLink
           href="/contact"
-          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
+          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-brand px-6 py-3 text-sm font-semibold !text-white shadow-sm transition hover:brightness-110"
         >
           Ask us about your job
         </LocalizedClientLink>

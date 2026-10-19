@@ -194,7 +194,7 @@ export default async function ByoPage({
             Bring your own
           </p>
           <h1
-            className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-[var(--brand-primary)] small:text-5xl`}
+            className={`${lora.className} mt-3 text-4xl font-semibold leading-tight text-ink small:text-5xl`}
           >
             BYO: how it works
           </h1>
@@ -206,7 +206,7 @@ export default async function ByoPage({
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <a
               href="#byo-inquiry"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Ask us a BYO question
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
@@ -282,7 +282,7 @@ export default async function ByoPage({
                   >
                     {step.number}
                   </span>
-                  <Icon className="relative text-ui-fg-base transition-colors group-hover:text-[var(--brand-secondary)]" />
+                  <Icon className="relative text-ui-fg-base transition-colors group-hover:text-brand" />
                   <p className="relative mt-4 text-sm font-semibold uppercase tracking-wide text-ui-fg-base">
                     {step.title}
                   </p>
@@ -309,7 +309,7 @@ export default async function ByoPage({
             <ul className="mt-6 list-none space-y-4 p-0 text-sm text-ui-fg-subtle small:text-base">
               {BRING_ITEMS.map((item) => (
                 <li key={item} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)]/15 text-[var(--brand-accent)]">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent)]/15 text-accent">
                     <CheckIcon />
                   </span>
                   <span>{item}</span>
@@ -336,7 +336,7 @@ export default async function ByoPage({
             <div className="mt-auto pt-6">
               <a
                 href="#byo-inquiry"
-                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-[var(--brand-secondary)]"
+                className="group inline-flex items-center gap-1.5 text-sm font-semibold text-ui-fg-base underline underline-offset-4 transition hover:text-brand"
               >
                 Get a timeline for your project
                 <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -369,14 +369,14 @@ export default async function ByoPage({
             Prefer the full catalogue?{" "}
             <LocalizedClientLink
               href="/store"
-              className="font-semibold text-[var(--brand-secondary)] hover:underline"
+              className="font-semibold text-brand hover:underline"
             >
               Browse the store
             </LocalizedClientLink>{" "}
             or{" "}
             <LocalizedClientLink
               href="/contact"
-              className="font-semibold text-[var(--brand-secondary)] hover:underline"
+              className="font-semibold text-brand hover:underline"
             >
               use the main contact form
             </LocalizedClientLink>

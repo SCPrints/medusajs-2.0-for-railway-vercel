@@ -164,7 +164,7 @@ export default async function PaginatedProducts({
         </p>
         <LocalizedClientLink
           href="/store"
-          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-[var(--brand-secondary)] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+          className="mt-6 inline-flex min-h-11 items-center rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
         >
           Browse all products
         </LocalizedClientLink>

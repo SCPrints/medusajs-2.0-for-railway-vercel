@@ -469,7 +469,7 @@ export default async function Home({
                   key={stat.label}
                   className="group flex flex-col items-center rounded-lg border border-ui-border-base bg-white p-6 text-center transition hover:-translate-y-0.5 hover:border-[var(--brand-secondary)]/40 hover:shadow-sm"
                 >
-                  <Icon className="text-[var(--brand-secondary)]/70 transition-colors group-hover:text-[var(--brand-secondary)]" />
+                  <Icon className="text-[var(--brand-secondary)]/70 transition-colors group-hover:text-brand" />
                   <p className="mt-3 text-2xl font-semibold text-ui-fg-base small:text-3xl">
                     {stat.value}
                   </p>
@@ -495,7 +495,7 @@ export default async function Home({
                   catalogue, so this is "talk to us", not "get a quote". */}
               <LocalizedClientLink
                 href="/contact"
-                className="group inline-flex min-h-12 items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+                className="group inline-flex min-h-12 items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
               >
                 Get in touch
                 <svg

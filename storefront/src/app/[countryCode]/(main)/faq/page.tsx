@@ -238,7 +238,7 @@ export default async function FaqPage({
             <a
               key={section.id}
               href={`#${section.id}`}
-              className="inline-flex rounded-full border border-ui-border-base bg-white px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-base transition hover:border-[var(--brand-secondary)]/60 hover:text-[var(--brand-secondary)]"
+              className="inline-flex rounded-full border border-ui-border-base bg-white px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em] text-ui-fg-base transition hover:border-[var(--brand-secondary)]/60 hover:text-brand"
             >
               {section.title}
             </a>
@@ -267,7 +267,7 @@ export default async function FaqPage({
                     <span>{item.question}</span>
                     <span
                       aria-hidden
-                      className="shrink-0 text-lg leading-none text-[var(--brand-secondary)] transition-transform group-open:rotate-45"
+                      className="shrink-0 text-lg leading-none text-brand transition-transform group-open:rotate-45"
                     >
                       +
                     </span>
@@ -297,7 +297,7 @@ export default async function FaqPage({
           <div className="mt-7 flex flex-wrap justify-center gap-3">
             <LocalizedClientLink
               href="/contact"
-              className="group inline-flex items-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              className="group inline-flex items-center gap-2 rounded-lg bg-brand px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
             >
               Contact support
               <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />

@@ -187,7 +187,7 @@ export default function PdpSplitTabs({
                 type="button"
                 onClick={openGuideFromPhotos}
                 aria-label="Open the step-by-step guide"
-                className="flex shrink-0 items-center gap-1 rounded-lg border border-[var(--brand-secondary)] bg-[var(--brand-secondary)] px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-secondary)] focus-visible:ring-offset-2 whitespace-nowrap"
+                className="flex shrink-0 items-center gap-1 rounded-lg border border-brand bg-brand px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 whitespace-nowrap"
               >
                 <svg
                   width="12"
@@ -214,7 +214,7 @@ export default function PdpSplitTabs({
               <button
                 type="button"
                 onClick={() => goDesign(true)}
-                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-[var(--brand-primary,#1e293b)] px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:scale-[1.01] hover:brightness-110 active:scale-[0.99]"
+                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-ink px-4 py-4 text-base font-bold uppercase tracking-wide text-white shadow-md ring-1 ring-black/5 transition-all hover:scale-[1.01] hover:brightness-110 active:scale-[0.99]"
               >
                 <svg
                   viewBox="0 0 24 24"

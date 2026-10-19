@@ -66,11 +66,11 @@ export default function IndustriesIndexPage() {
             href={`/industries/${i.slug}`}
             className="group flex h-full flex-col gap-3 rounded-2xl border border-ui-border-base bg-ui-bg-base p-6 transition-colors hover:border-ui-border-strong hover:bg-ui-bg-subtle"
           >
-            <h2 className="text-lg font-semibold text-ui-fg-base group-hover:text-[var(--brand-secondary)]">
+            <h2 className="text-lg font-semibold text-ui-fg-base group-hover:text-brand">
               {i.name}
             </h2>
             <p className="text-sm text-ui-fg-subtle">{i.description}</p>
-            <span className="mt-auto text-sm font-medium text-[var(--brand-secondary)]">
+            <span className="mt-auto text-sm font-medium text-brand">
               See {i.name.toLowerCase()} →
             </span>
           </LocalizedClientLink>
