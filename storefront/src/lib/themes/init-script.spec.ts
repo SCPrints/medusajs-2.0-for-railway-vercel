@@ -142,14 +142,18 @@ describe("runThemeInit — Sydney-time boundaries", () => {
 })
 
 describe("runThemeInit — order-by cut-off", () => {
+  it("defaults the cut-off to 24 October", () => {
+    expect(THEME_INIT_CONFIG.themes.find((t) => t.n === "halloween")?.o).toBe(1024)
+  })
+
   it("is not late on the cut-off day", () => {
-    const r = run(new Date("2026-10-20T05:00:00Z"))
+    const r = run(new Date("2026-10-24T05:00:00Z"))
     expect(r.late).toBe(false)
     expect(r.attrs["data-theme-late"]).toBeUndefined()
   })
 
   it("is late the day after the cut-off", () => {
-    const r = run(new Date("2026-10-21T05:00:00Z"))
+    const r = run(new Date("2026-10-25T05:00:00Z"))
     expect(r.late).toBe(true)
     expect(r.attrs["data-theme-late"]).toBe("")
   })

@@ -1,7 +1,10 @@
 import Image from "next/image"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { formatMonthDay, getSeasonalTheme } from "@lib/themes/config"
-import { SeasonalHeroArt } from "@modules/themes/components/seasonal-decorations"
+import {
+  SeasonalCtaMascot,
+  SeasonalHeroArt,
+} from "@modules/themes/components/seasonal-decorations"
 
 // Home hero (Phase 1). Full-bleed product photo (a rack of blank garments)
 // behind the content, with a left-to-right white scrim so the dark headline +
@@ -116,13 +119,17 @@ export default function HomeHero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 phone:flex-row phone:flex-wrap">
-            <LocalizedClientLink
-              href="/store"
-              className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
-            >
-              Shop the range
-              <ArrowIcon className="transition-transform group-hover:translate-x-0.5" />
-            </LocalizedClientLink>
+            {/* `relative` wrapper anchors the seasonal mascot to the button. */}
+            <span className="relative inline-flex w-fit">
+              <LocalizedClientLink
+                href="/store"
+                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[var(--brand-secondary)] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
+              >
+                Shop the range
+                <ArrowIcon className="transition-transform group-hover:translate-x-0.5" />
+              </LocalizedClientLink>
+              <SeasonalCtaMascot />
+            </span>
           </div>
 
           <ul className="mt-8 flex list-none flex-wrap gap-x-5 gap-y-2 p-0">

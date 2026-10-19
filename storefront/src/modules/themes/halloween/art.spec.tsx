@@ -2,9 +2,9 @@
  * @jest-environment node
  */
 import { renderToStaticMarkup } from "react-dom/server"
-import { writeFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 
-import { Bat, Cloud, Cobweb, Ghost, Moon, Pumpkin, Skyline } from "./art"
+import { Bat, Boo, Cloud, Cobweb, Ghost, InkDefs, Moon, Pumpkin, Skyline, fillPath, inkPath } from "./art"
 
 // CSS modules aren't transformed by the jest config; echo class names back.
 jest.mock("./halloween.module.css", () => ({
@@ -12,7 +12,29 @@ jest.mock("./halloween.module.css", () => ({
   default: new Proxy({}, { get: (_t, k) => String(k) }),
 }))
 
-const MASCOTS = { Ghost, Pumpkin, Bat, Moon, Cloud, Skyline, Cobweb }
+const MASCOTS = { Ghost, Boo, Pumpkin, Bat, Moon, Cloud, Skyline, Cobweb }
+
+describe("ink helpers", () => {
+  const pts = [[0, 0, 0], [10, 0, 4], [20, 0, 0]] as const
+
+  it("inkPath makes a closed tapered ribbon around the centreline", () => {
+    const d = inkPath(pts)
+    expect(d.startsWith("M")).toBe(true)
+    expect(d.endsWith("Z")).toBe(true)
+    // widest point (10, 0) with w=4 → ribbon edges at y=±2
+    expect(d).toMatch(/[ML]10 2[LZ]/)
+    expect(d).toMatch(/[ML]10 -2[LZ]/)
+  })
+
+  it("closed shapes become an evenodd ring (two subpaths)", () => {
+    expect(inkPath([[0, 0, 2], [10, 0, 2], [10, 10, 2], [0, 10, 2]], true).match(/Z/g)).toHaveLength(2)
+  })
+
+  it("fillPath passes through the control points", () => {
+    expect(fillPath(pts, false)).toMatch(/^M0 0L/)
+    expect(fillPath(pts, false)).toMatch(/L20 0$/)
+  })
+})
 
 describe("halloween art", () => {
   const html = Object.fromEntries(
@@ -25,28 +47,38 @@ describe("halloween art", () => {
     expect(out).not.toMatch(/NaN|undefined/)
   })
 
-  it("every face has blinking eyes with highlights", () => {
+  it("every character has blinking eyes with highlights and an ink + paint layer", () => {
     for (const name of ["Ghost", "Pumpkin", "Bat", "Cobweb"]) {
       expect(html[name]).toContain('class="blink"')
-      // two eyes → two white highlight dots
-      expect(html[name].match(/fill="#fff"/g)!.length).toBeGreaterThanOrEqual(2)
+      expect(html[name]).toContain('class="paint"')
+      expect(html[name]).toContain('class="ink"')
+      expect(html[name].match(/fill="#fff"/g)!.length).toBeGreaterThanOrEqual(4)
     }
   })
 
-  it("mirrored bat wing keeps its SVG transform outside the animated group", () => {
-    expect(html.Bat).toMatch(/<g transform="translate\(96 0\) scale\(-1 1\)"><g class="wingR">/)
+  it("ink is wobbled, paint is grained + misregistered", () => {
+    expect(html.Pumpkin).toContain('filter="url(#hw-wobble)"')
+    expect(html.Pumpkin).toContain('filter="url(#hw-grain)"')
+    expect(html.Pumpkin).toMatch(/class="paint" transform="translate\(1\.2 0\.9\)"/)
   })
 
-  // HALLOWEEN_PREVIEW_OUT=/path/preview.html pnpm test -- art.spec
+  it("the ghost has two hem frames", () => {
+    expect(html.Ghost.match(/class="hemA"/g)).toHaveLength(2)
+    expect(html.Ghost.match(/class="hemB"/g)).toHaveLength(2)
+  })
+
+  it("the defs provide the filters and patterns the art references", () => {
+    const defs = renderToStaticMarkup(<InkDefs />)
+    for (const id of ["hw-wobble", "hw-grain", "hw-tone", "hw-hatch"]) expect(defs).toContain(`id="${id}"`)
+  })
+
+  // HALLOWEEN_PREVIEW_OUT=/path/preview.html npx jest themes/halloween/art
   // writes a standalone page of all the mascots (with the module CSS inlined,
-  // so the animations run) for eyeballing in a browser.
+  // so the stepped animations run) for eyeballing in a browser.
   it("optionally writes a preview page", () => {
     const out = process.env.HALLOWEEN_PREVIEW_OUT
     if (!out) return
-    const css = require("node:fs").readFileSync(
-      require.resolve("./halloween.module.css"),
-      "utf8"
-    )
+    const css = readFileSync(require.resolve("./halloween.module.css"), "utf8")
     const tile = (name: string, w: number, dark = false) =>
       `<figure style="margin:0;padding:24px;background:${dark ? "#2d1b4e" : "#eee"};display:flex;flex-direction:column;align-items:center;gap:12px">
          <div style="width:${w}px">${html[name]}</div>
@@ -60,9 +92,10 @@ describe("halloween art", () => {
          .grid{display:grid;grid-template-columns:1fr}
          .grid svg{width:100%;height:auto;overflow:visible}
        </style>
+       ${renderToStaticMarkup(<InkDefs />)}
        <div class="grid">
-         ${tile("Ghost", 150)}${tile("Pumpkin", 220)}${tile("Bat", 220)}${tile("Moon", 150)}
-         ${tile("Cloud", 220)}${tile("Skyline", 340)}${tile("Cobweb", 220, true)}
+         ${tile("Ghost", 300)}${tile("Boo", 300)}${tile("Pumpkin", 420)}${tile("Bat", 420)}${tile("Moon", 320)}
+         ${tile("Cloud", 420)}${tile("Skyline", 680)}${tile("Cobweb", 420, true)}
        </div>`
     )
     expect(true).toBe(true)

@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import { Bat, Cloud, Ghost, Moon, Pumpkin, Skyline } from "./art"
+import { Bat, Boo, Cloud, Ghost, InkDefs, Moon, Pumpkin, Skyline } from "./art"
 import s from "./halloween.module.css"
 import { usePageHidden, useReducedMotion } from "./use-page-hidden"
 
 const BAT_COUNT = 3
 /** At most this many bats in the air at once — a flit, not a swarm. */
 const MAX_FLYING = 2
+/** Flight is quantised to this many ms per frame (8 fps: "on threes"). */
+const FRAME_MS = 125
 
 type Flight = {
   start: number
@@ -22,11 +24,13 @@ type Flight = {
 
 /**
  * Halloween overlay for the home hero: candy-night tint, a sleepy moon and
- * puffy clouds top right, a wobbling ghost, a little round-roofed town along
- * the bottom with a bouncing pumpkin in front, and a few cheeky bats flitting
- * across on a requestAnimationFrame loop. Everything is aria-hidden and
- * pointer-events: none. No bats (and no CSS motion) under reduced motion;
- * the loop stops while the tab is hidden or the hero is scrolled away.
+ * puffy clouds top right, a ghost peeking down from behind the header with a
+ * hand-lettered "BOO!", a little round-roofed town along the bottom with a
+ * pumpkin sitting on the grass, and a few bats flitting across on a
+ * requestAnimationFrame loop (quantised to 8 fps so it reads as drawn
+ * frames). Everything is aria-hidden and pointer-events: none. No bats (and
+ * no CSS motion) under reduced motion; the loop stops while the tab is
+ * hidden or the hero is scrolled away.
  */
 export default function HalloweenHeroArt() {
   const layerRef = useRef<HTMLDivElement>(null)
@@ -52,6 +56,7 @@ export default function HalloweenHeroArt() {
     const flights: (Flight | null)[] = Array(BAT_COUNT).fill(null)
     let nextSpawn = performance.now() + 800
     let raf = 0
+    let lastFrame = -1
 
     const place = (
       i: number,
@@ -67,7 +72,12 @@ export default function HalloweenHeroArt() {
       }
     }
 
-    const tick = (now: number) => {
+    const tick = (raw: number) => {
+      raf = requestAnimationFrame(tick)
+      const frame = Math.floor(raw / FRAME_MS)
+      if (frame === lastFrame) return
+      lastFrame = frame
+      const now = frame * FRAME_MS
       const w = layer.clientWidth
       const h = layer.clientHeight
 
@@ -103,8 +113,6 @@ export default function HalloweenHeroArt() {
         const tilt = Math.cos(phase) * 9
         place(i, x, y, f.scale, f.dir, tilt)
       })
-
-      raf = requestAnimationFrame(tick)
     }
 
     raf = requestAnimationFrame(tick)
@@ -121,13 +129,15 @@ export default function HalloweenHeroArt() {
       className={`${s.layer}${running ? "" : ` ${s.paused}`}`}
       data-testid="halloween-hero-art"
     >
+      <InkDefs />
       <div className={s.dusk} />
       <Cloud className={s.cloudBack} focusable="false" />
       <Moon className={s.moon} focusable="false" />
       <Cloud className={s.cloudFront} focusable="false" />
+      <Boo className={s.boo} focusable="false" />
       <Ghost className={s.ghost} focusable="false" />
       <Skyline className={s.skyline} focusable="false" />
-      <Pumpkin className={s.pumpkin} focusable="false" />
+      <Pumpkin className={`${s.pumpkin} ${s.ground}`} focusable="false" />
       {!reduced &&
         Array.from({ length: BAT_COUNT }, (_, i) => (
           <div

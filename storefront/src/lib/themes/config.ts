@@ -28,12 +28,25 @@ export type SeasonalTheme = {
   orderBy?: string
 }
 
+/**
+ * Halloween "order by" cut-off, "MM-DD". Override per deploy with
+ * HALLOWEEN_ORDER_CUTOFF (read at build/render time on the server). Once the
+ * date has passed the "Order by …" hero line is hidden automatically and the
+ * late-season line shows instead (see `data-theme-late`).
+ */
+const HALLOWEEN_ORDER_CUTOFF_DEFAULT = "10-24"
+const envCutoff = process.env.HALLOWEEN_ORDER_CUTOFF
+export const HALLOWEEN_ORDER_CUTOFF =
+  envCutoff && /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(envCutoff)
+    ? envCutoff
+    : HALLOWEEN_ORDER_CUTOFF_DEFAULT
+
 export const SEASONAL_THEMES: SeasonalTheme[] = [
   {
     name: "halloween",
     label: "Halloween",
     window: { start: "10-01", end: "11-01" },
-    orderBy: "10-20",
+    orderBy: HALLOWEEN_ORDER_CUTOFF,
   },
 ]
 
