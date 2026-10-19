@@ -3,6 +3,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import {
   ALLOWED_TRANSITIONS,
   STAGE_TRANSITION_NOT_ALLOWED,
+  StageTransitionError,
   assertTransition,
   isTransitionNotAllowed,
   type StageActor,
@@ -25,9 +26,11 @@ const blocked = (track: "artwork" | "blanks" | "production", from: string | null
   } catch (e) {
     caught = e
   }
-  expect(caught).toBeInstanceOf(MedusaError)
-  expect((caught as MedusaError).type).toBe(MedusaError.Types.CONFLICT)
-  expect((caught as MedusaError).code).toBe(STAGE_TRANSITION_NOT_ALLOWED)
+  expect(caught).toBeInstanceOf(StageTransitionError)
+  // Duck-typed on purpose (no framework import in the guard): the error
+  // handler maps on `type`, so this must equal Medusa's CONFLICT → 409.
+  expect((caught as StageTransitionError).type).toBe(MedusaError.Types.CONFLICT)
+  expect((caught as StageTransitionError).code).toBe(STAGE_TRANSITION_NOT_ALLOWED)
   expect(isTransitionNotAllowed(caught)).toBe(true)
 }
 
