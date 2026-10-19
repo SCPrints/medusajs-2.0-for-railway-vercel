@@ -7,6 +7,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import AreasWeServe from "@modules/locations/components/areas-we-serve"
 import NewsletterSignup from "./newsletter-signup"
 import ThemeToggle from "@modules/themes/components/theme-toggle"
+import { SeasonalMascot } from "@modules/themes/components/seasonal-decorations"
 
 // Captured at build time so Cache Components can prerender the static shell.
 // New build per year refreshes this; acceptable drift for a copyright string.
@@ -164,8 +165,12 @@ export default async function Footer() {
           <Text className="txt-compact-small" as="p">
             © {COPYRIGHT_YEAR} SC PRINTS. All rights reserved.
           </Text>
-          {/* Seasonal look switch — renders only while a seasonal theme runs. */}
-          <ThemeToggle />
+          {/* Seasonal look switch — renders only while a seasonal theme runs,
+              with the candy-corn trio keeping it company. */}
+          <div className="flex items-center gap-4">
+            <SeasonalMascot name="candy-corn" size={88} className="pointer-events-none" />
+            <ThemeToggle />
+          </div>
         </div>
       </div>
     </footer>

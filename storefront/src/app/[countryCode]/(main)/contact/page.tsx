@@ -6,6 +6,7 @@ import LocalizedClientLink from "@modules/common/components/localized-client-lin
 import HomeParticleLogoHero from "@modules/home/components/home-particle-logo-hero"
 import { NEWMIX_V3_TUNING } from "@modules/home/components/home-particle-logo-hero/newmix-v3-preset"
 import { WORDMARK_GRADIENT } from "@modules/common/lib/wordmark-gradient"
+import { SeasonalMarginMascot } from "@modules/themes/components/seasonal-decorations"
 
 
 export async function generateStaticParams() {
@@ -110,11 +111,13 @@ export default async function ContactPage({
         sectionAriaLabel="SC Prints — custom print apparel"
       />
 
-      <div className="content-container py-14 small:py-20">
+      <div className="content-container relative py-14 small:py-20">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(contactStructuredData) }}
         />
+        {/* Seasonal: the cap spider hangs down from the hero's edge (Halloween only). */}
+        <SeasonalMarginMascot name="cap-spider" size={72} className="right-[8%] -top-1" />
 
         <header className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-primary)]/70">

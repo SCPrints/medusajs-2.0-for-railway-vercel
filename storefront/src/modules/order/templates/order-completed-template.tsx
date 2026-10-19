@@ -11,6 +11,7 @@ import PaymentDetails from "@modules/order/components/payment-details"
 import TrackingList from "@modules/order/components/tracking-list"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import { HttpTypes } from "@medusajs/types"
+import { SeasonalMarginMascot } from "@modules/themes/components/seasonal-decorations"
 
 type OrderCompletedTemplateProps = {
   order: HttpTypes.StoreOrder
@@ -28,9 +29,11 @@ export default async function OrderCompletedTemplate({
         {isOnboarding && <OnboardingCta orderId={order.id} />}
 
         <div
-          className="bg-white rounded-2xl border border-ui-border-base shadow-sm p-8 sm:p-10"
+          className="relative bg-white rounded-2xl border border-ui-border-base shadow-sm p-8 sm:p-10"
           data-testid="order-complete-container"
         >
+          {/* Seasonal: a fresh tee held up for the new order (Halloween only). */}
+          <SeasonalMarginMascot name="zombie-hand" size={100} className="right-6 top-4" />
           <div className="border-l-4 border-brand pl-4 mb-8">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--brand-primary)]/80">
               Order #{order.display_id} &middot; Confirmed
