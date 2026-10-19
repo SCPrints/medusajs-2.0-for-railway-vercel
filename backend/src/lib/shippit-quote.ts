@@ -7,8 +7,8 @@
  * ladder is a Sydney-metro price charged nationally — Sydney over-recovers by
  * up to $37 while Dubbo/Darwin (flat $32 TNT) lose ~$21 on a one-garment order.
  *
- * Customer price = ceil(cheapest standard carrier price), which is already
- * inc-GST (see SHIPPIT_QUOTE_GST_MULTIPLIER). Postage only —
+ * Customer price = ceil(AusPost single-parcel price × parcel count), already
+ * inc-GST (see SHIPPIT_QUOTE_GST_MULTIPLIER, WEBSITE_COURIER). Postage only —
  * the small-order / inbound-freight charge lives in the garment ladder
  * (commit 5cb0ad42), not here. Any failure (no key, non-AU, missing address,
  * timeout, every carrier refusing, $0 quote) returns the ladder amount —
@@ -27,8 +27,15 @@ import { computeShippingAmount } from "./shipping-rate"
  */
 export const SHIPPIT_QUOTE_GST_MULTIPLIER = 1
 
-/** Heaviest single carton we'll declare; heavier carts split into n parcels. */
-export const SHIPPIT_MAX_PARCEL_KG = 20
+/**
+ * Heaviest single carton we'll declare; heavier carts split into n parcels.
+ * AusPost prices per parcel and by zone, so this decides how many parcels a
+ * bulk order is charged for. 10 kg ≈ a real carton of ~50 tees or ~18
+ * hoodies; the old 20 kg quoted 100 kg of tees as 6 cartons when it ships
+ * as 10 and under-recovered ~$100 to Sydney.
+ * ponytail: single number until Sean supplies carton sizes per garment type.
+ */
+export const SHIPPIT_MAX_PARCEL_KG = 10
 
 /** 5 s — a slow carrier must not stall the delivery step. */
 const SHIPPIT_TIMEOUT_MS = 5_000
@@ -60,26 +67,38 @@ export const shippitParcels = (grams: number): ShippitParcel[] => {
   return [{ qty: n, weight: +(kg / n).toFixed(2) }]
 }
 
+/**
+ * The ONLY carrier the website quotes (Shippit's courier_type). Staff still
+ * book any carrier by hand in Shippit; web orders go AusPost after the
+ * Aramex / CouriersPlease lost-parcel history (Sean, 2026-10-19). AusPost
+ * via Shippit only quotes ONE parcel (≤22 kg) per call and prices per
+ * parcel with no consignment discount, so a multi-carton order is quoted as
+ * one carton × the carton count.
+ */
+export const WEBSITE_COURIER = "MyPostBusinessStandard"
+
 export type ShippitStandardQuote = {
-  /** Carrier price as returned (AUD, inc-GST). */
+  /** Carrier price for ONE parcel as returned (AUD, inc-GST). */
   carrier_price: number
   courier: string
   transit?: string
 }
 
 /**
- * Cheapest successful `standard` quote in a /quotes response, or null.
- * `success:false` entries and $0 prices (Shippit's "can't accept") are
- * skipped. We request `return_all_quotes: false`, so Shippit normally returns
- * ONE standard carrier — the one its allocation rules would actually book —
- * and "cheapest" only matters if it ever returns several.
+ * The `standard` quote for `courier` in a /quotes response (or, with no
+ * courier given, the cheapest successful one), or null. `success:false`
+ * entries and $0 prices (Shippit's "can't accept") are skipped.
  */
-export const pickStandardQuote = (json: unknown): ShippitStandardQuote | null => {
+export const pickStandardQuote = (
+  json: unknown,
+  courier?: string
+): ShippitStandardQuote | null => {
   const rows = (json as { response?: unknown[] })?.response
   if (!Array.isArray(rows)) return null
   let best: ShippitStandardQuote | null = null
   for (const row of rows as Array<Record<string, any>>) {
     if (row?.service_level !== "standard" || !row.success) continue
+    if (courier && row.courier_type !== courier) continue
     for (const q of (row.quotes ?? []) as Array<Record<string, any>>) {
       const price = Number(q?.price)
       if (!Number.isFinite(price) || price <= 0) continue
@@ -95,9 +114,9 @@ export const pickStandardQuote = (json: unknown): ShippitStandardQuote | null =>
   return best
 }
 
-/** What the customer pays for a carrier price: rounded up to whole dollars. */
-export const customerAmountFromCarrierPrice = (carrierPrice: number): number =>
-  Math.ceil(carrierPrice * SHIPPIT_QUOTE_GST_MULTIPLIER)
+/** What the customer pays: per-parcel carrier price × parcels, rounded up to whole dollars. */
+export const customerAmountFromCarrierPrice = (carrierPrice: number, parcels = 1): number =>
+  Math.ceil(carrierPrice * SHIPPIT_QUOTE_GST_MULTIPLIER * Math.max(1, parcels))
 
 type Address = {
   postal_code?: string | null
@@ -110,8 +129,14 @@ export type ShippingRateResolution = {
   /** AUD dollars, inc-GST, what the customer pays. */
   amount: number
   rate_source: "shippit" | "ladder"
-  /** Set when rate_source = "shippit". */
-  shippit?: ShippitStandardQuote & { suburb: string; postcode: string; state: string }
+  /** Set when rate_source = "shippit". `parcels` × `parcel_kg` is what was priced. */
+  shippit?: ShippitStandardQuote & {
+    suburb: string
+    postcode: string
+    state: string
+    parcels: number
+    parcel_kg: number
+  }
   /** Why the ladder was used (for the shipping_decision stamp / logs). */
   fallback_reason?: string
 }
@@ -125,8 +150,10 @@ export const fetchShippitStandardQuote = async (input: {
   state: string
   grams: number
 }): Promise<ShippitStandardQuote | null> => {
-  const parcels = shippitParcels(input.grams)
-  const key = `${input.postcode}|${input.suburb.toLowerCase()}|${input.state}|${parcels[0].qty}x${parcels[0].weight}`
+  const [{ weight }] = shippitParcels(input.grams)
+  // One parcel only: AusPost via Shippit errors on qty > 1, and it prices per
+  // parcel anyway, so the caller multiplies by the parcel count.
+  const key = `${input.postcode}|${input.suburb.toLowerCase()}|${input.state}|${weight}`
   const hit = cache.get(key)
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value
 
@@ -144,20 +171,17 @@ export const fetchShippitStandardQuote = async (input: {
         dropoff_suburb: input.suburb,
         dropoff_state: input.state,
         dropoff_country_code: "AU",
-        parcel_attributes: parcels,
+        parcel_attributes: [{ qty: 1, weight }],
         service_levels: ["standard"],
-        // false = the carrier Shippit's allocation rules would book for this
-        // address, so courier exclusions set in the Shippit portal (bad
-        // experiences with X in area Y) flow into the quoted price and the
-        // customer pays for the carrier that's actually used. true would
-        // let us pick a cheaper carrier staff then won't book.
-        return_all_quotes: false,
+        // true = every carrier, so WEBSITE_COURIER is present even when a
+        // cheaper courier would have won Shippit's own allocation.
+        return_all_quotes: true,
       },
     }),
     signal: AbortSignal.timeout(SHIPPIT_TIMEOUT_MS),
   })
   if (!res.ok) throw new Error(`Shippit /quotes ${res.status}`)
-  const value = pickStandardQuote(await res.json())
+  const value = pickStandardQuote(await res.json(), WEBSITE_COURIER)
   cache.set(key, { at: Date.now(), value })
   return value
 }
@@ -189,11 +213,12 @@ export const resolveShippingRate = async (
 
   try {
     const quote = await fetchShippitStandardQuote({ postcode, suburb, state, grams: totalWeightGrams })
-    if (!quote) return fallback("no_carrier_quote")
+    if (!quote) return fallback("no_auspost_quote")
+    const [{ qty: parcels, weight: parcel_kg }] = shippitParcels(totalWeightGrams)
     return {
-      amount: customerAmountFromCarrierPrice(quote.carrier_price),
+      amount: customerAmountFromCarrierPrice(quote.carrier_price, parcels),
       rate_source: "shippit",
-      shippit: { ...quote, suburb, postcode, state },
+      shippit: { ...quote, suburb, postcode, state, parcels, parcel_kg },
     }
   } catch (err) {
     log?.(`shippit quote failed, using ladder: ${(err as Error).message}`)

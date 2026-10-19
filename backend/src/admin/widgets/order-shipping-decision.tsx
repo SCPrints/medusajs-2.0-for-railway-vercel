@@ -21,6 +21,8 @@ type ShippingDecision = {
     suburb: string
     postcode: string
     state: string
+    parcels?: number
+    parcel_kg?: number
   } | null
   /** Rate the customer paid (AUD, inc-GST since the 2026-07 HOLD cutover). */
   amount_aud?: number
@@ -145,7 +147,7 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
                   {decision.shippit.transit ? ` · ${decision.shippit.transit}` : ""}
                 </Text>
                 <Text size="xsmall" className="text-ui-fg-subtle">
-                  {`$${decision.shippit.carrier_price.toFixed(2)} inc GST to ${decision.shippit.suburb} ${decision.shippit.postcode}`}
+                  {`${decision.shippit.parcels && decision.shippit.parcels > 1 ? `${decision.shippit.parcels} × ` : ""}$${decision.shippit.carrier_price.toFixed(2)} inc GST${decision.shippit.parcel_kg ? ` (${decision.shippit.parcel_kg} kg each)` : ""} to ${decision.shippit.suburb} ${decision.shippit.postcode}`}
                 </Text>
               </Row>
             ) : decision.rate_source === "ladder" && decision.fallback_reason ? (

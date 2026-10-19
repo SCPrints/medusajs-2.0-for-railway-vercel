@@ -30,6 +30,23 @@ describe("shippit-quote", () => {
     })
   })
 
+  it("returns only the requested courier when one is named (website = AusPost)", () => {
+    const json = {
+      response: [
+        { service_level: "standard", courier_type: "AramexAuNz", success: true, quotes: [{ price: 8.76 }] },
+        { service_level: "standard", courier_type: "MyPostBusinessStandard", success: true, quotes: [{ price: 18.95 }] },
+        { service_level: "express", courier_type: "MyPostBusinessExpress", success: true, quotes: [{ price: 22.95 }] },
+      ],
+    }
+    expect(pickStandardQuote(json, "MyPostBusinessStandard")).toEqual({
+      carrier_price: 18.95,
+      courier: "MyPostBusinessStandard",
+      transit: undefined,
+    })
+    // AusPost absent (e.g. errored) → null, never a silent fall-through to Aramex
+    expect(pickStandardQuote({ response: [json.response[0]] }, "MyPostBusinessStandard")).toBeNull()
+  })
+
   it("returns null when every carrier refused or the shape is wrong", () => {
     expect(pickStandardQuote({ response: [{ service_level: "standard", success: false }] })).toBeNull()
     expect(pickStandardQuote({ response: [{ service_level: "standard", success: true, quotes: [{ price: 0 }] }] })).toBeNull()
@@ -42,12 +59,17 @@ describe("shippit-quote", () => {
     expect(customerAmountFromCarrierPrice(8.76)).toBe(9) // Sydney 1 kg
     expect(customerAmountFromCarrierPrice(32.06)).toBe(33) // Dubbo
     expect(customerAmountFromCarrierPrice(20)).toBe(20)
+    // multi-carton: per-parcel price × parcel count (10 cartons @ $29.15 → $292)
+    expect(customerAmountFromCarrierPrice(29.15, 10)).toBe(292)
+    expect(customerAmountFromCarrierPrice(18.95, 0)).toBe(19)
   })
 
-  it("splits heavy carts into ≤20 kg parcels and floors tiny ones at 0.1 kg", () => {
+  it("splits heavy carts into ≤10 kg cartons and floors tiny ones at 0.1 kg", () => {
     expect(shippitParcels(3000)).toEqual([{ qty: 1, weight: 3 }])
-    expect(shippitParcels(20000)).toEqual([{ qty: 1, weight: 20 }])
-    expect(shippitParcels(30000)).toEqual([{ qty: 2, weight: 15 }])
+    expect(shippitParcels(10000)).toEqual([{ qty: 1, weight: 10 }])
+    expect(shippitParcels(15000)).toEqual([{ qty: 2, weight: 7.5 }])
+    // 500 tees @ 200 g + 150 g packaging → 11 cartons, not 6
+    expect(shippitParcels(100150)).toEqual([{ qty: 11, weight: 9.1 }])
     expect(shippitParcels(0)).toEqual([{ qty: 1, weight: 0.1 }])
   })
 
