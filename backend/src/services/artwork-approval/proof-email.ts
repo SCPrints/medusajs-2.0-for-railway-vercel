@@ -8,7 +8,7 @@ import {
   lineMockupGroupKey,
 } from "../../lib/customizer-order-artifacts"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
-import { signArtworkApproval } from "./sign"
+import { artworkProofRound, signArtworkApproval } from "./sign"
 
 const STOREFRONT_URL = process.env.STOREFRONT_URL?.replace(/\/$/, "")
 const STOREFRONT_DEFAULT_COUNTRY_CODE =
@@ -22,9 +22,19 @@ export function buildPortalUrl(orderId: string): string | null {
   return `${STOREFRONT_URL}${storefrontPrefix()}/account/orders/details/${orderId}`
 }
 
-export function buildApprovalUrl(orderId: string): string | null {
+/**
+ * Signed approval URL bound to the order's CURRENT proof round
+ * (`metadata.artwork_stage_changed_at`). Null when there is no storefront
+ * URL or the artwork track has never moved (nothing to approve yet).
+ */
+export function buildApprovalUrl(
+  orderId: string,
+  meta: Record<string, unknown> | null | undefined
+): string | null {
   if (!STOREFRONT_URL) return null
-  const sig = signArtworkApproval(orderId)
+  const round = artworkProofRound(meta)
+  if (!round) return null
+  const sig = signArtworkApproval(orderId, round)
   return `${STOREFRONT_URL}${storefrontPrefix()}/artwork-approval/${encodeURIComponent(orderId)}?sig=${sig}`
 }
 
@@ -130,7 +140,7 @@ export async function sendProofEmail(
 ): Promise<boolean> {
   let approvalUrl: string | null = null
   try {
-    approvalUrl = buildApprovalUrl(order.id)
+    approvalUrl = buildApprovalUrl(order.id, order.metadata ?? null)
   } catch {
     approvalUrl = null
   }

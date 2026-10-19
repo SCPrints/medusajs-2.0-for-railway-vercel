@@ -10,6 +10,7 @@ const STRONG_SECRET = "a-strong-random-secret-9f8e7d6c5b4a3210"
 const PLACEHOLDER = "nps-dev-secret-do-not-use-in-prod"
 const QUOTE_ID = "qt_01HZX9ABCDEF"
 const ORDER_ID = "order_01HZX9ABCDEF"
+const ROUND = "2026-10-19T03:00:00.000Z"
 
 type Loaded = {
   insecure: boolean
@@ -17,8 +18,8 @@ type Loaded = {
   signQuoteDesign: (id: string) => string
   verifyQuoteAccept: (id: string, sig: string) => boolean
   signQuoteAccept: (id: string) => string
-  verifyArtworkApproval: (id: string, sig: string) => boolean
-  signArtworkApproval: (id: string) => string
+  verifyArtworkApproval: (id: string, round: string, sig: string) => boolean
+  signArtworkApproval: (id: string, round: string) => string
   verifyNpsRating: (id: string, score: number, sig: string) => boolean
   signNpsRating: (id: string, score: number) => string
 }
@@ -109,7 +110,7 @@ describe("link-signing secret guard", () => {
     expect(m.verifyQuoteDesign(QUOTE_ID, m.signQuoteDesign(QUOTE_ID))).toBe(false)
     expect(m.verifyQuoteAccept(QUOTE_ID, m.signQuoteAccept(QUOTE_ID))).toBe(false)
     expect(
-      m.verifyArtworkApproval(ORDER_ID, m.signArtworkApproval(ORDER_ID))
+      m.verifyArtworkApproval(ORDER_ID, ROUND, m.signArtworkApproval(ORDER_ID, ROUND))
     ).toBe(false)
     expect(m.verifyNpsRating(ORDER_ID, 9, m.signNpsRating(ORDER_ID, 9))).toBe(
       false
