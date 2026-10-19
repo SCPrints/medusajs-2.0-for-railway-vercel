@@ -20,7 +20,7 @@ let _cache: AdminUser[] | null = null
 let _cacheTs = 0
 const TTL_MS = 30_000
 
-const fetchUsers = async (): Promise<AdminUser[]> => {
+export const fetchUsers = async (): Promise<AdminUser[]> => {
   if (_cache && Date.now() - _cacheTs < TTL_MS) return _cache
   try {
     const res = await fetch("/admin/users?limit=200", {

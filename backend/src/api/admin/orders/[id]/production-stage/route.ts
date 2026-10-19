@@ -312,14 +312,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }))
   const nextHistory = [...history, ...newEntries]
 
-  // Compute the persisted `production_stage` value. Downstream wins if it
-  // changed; otherwise reflect whichever track moved (so the legacy field
-  // still tracks the most-recent transition for any consumer that reads it
-  // as a single source of truth).
+  // `production_stage` is the downstream track's key. An artwork/blanks-only
+  // save must leave it alone — writing e.g. "ordered" here made every reader
+  // derive the downstream track as "received" (silent rewind).
   const downstreamChanged = transitions.find((t) => t.track === "production")
-  const persistedStage: ProductionStage = downstreamChanged
-    ? downstreamChanged.to
-    : transitions[transitions.length - 1].to
+  const persistedStage: ProductionStage = downstreamChanged?.to ?? currentTracks.downstream
 
   // A stage move is progress by definition — drop any stale flag now
   // rather than leaving the red badge up until the next daily scan.
