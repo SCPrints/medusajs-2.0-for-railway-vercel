@@ -192,7 +192,8 @@ export default async function CategoryTemplate({
                 {relatedLabel}
               </p>
             ) : null}
-            <ul className="flex flex-wrap gap-2">
+            {/* Keep the chip row clear of the margin mascot (110px + right-4) where one is placed. */}
+            <ul className={`flex flex-wrap gap-2${categoryMascot(category.handle) ? " tablet:pr-32" : ""}`}>
               {relatedItems.map((c) => (
                 <li key={c.id}>
                   <LocalizedClientLink
