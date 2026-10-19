@@ -16,6 +16,7 @@ import {
 } from "@lib/data/products"
 import { getRegion } from "@lib/data/regions"
 import { listShopCategoriesMenu } from "@lib/data/shop-categories-menu"
+import { safeEqual } from "@lib/util/api-guard"
 import type { ProductFilters } from "@modules/store/components/refinement-list/types"
 
 /**
@@ -181,7 +182,7 @@ export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET
   if (cronSecret) {
     const auth = request.headers.get("authorization")
-    if (auth !== `Bearer ${cronSecret}`) {
+    if (!auth || !safeEqual(auth, `Bearer ${cronSecret}`)) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
     }
   }
