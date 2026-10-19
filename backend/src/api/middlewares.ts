@@ -3,6 +3,7 @@ import { authenticate, defineMiddlewares } from "@medusajs/framework/http"
 import { smartVariantSearchMiddleware } from "./middlewares/smart-variant-search"
 import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-invariant"
 import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-cost-metadata"
+import { stripLineItemTrustMetadataMiddleware } from "./middlewares/strip-line-item-trust-metadata"
 
 /**
  * Default Express JSON limit is ~100kb; customizer render payloads include
@@ -38,6 +39,21 @@ export default defineMiddlewares({
       matcher: "/store/bundles/:handle",
       methods: ["GET"],
       middlewares: [stripVariantCostMetadataMiddleware],
+    },
+    {
+      // Medusa's core line-items routes accept arbitrary metadata; the
+      // recompute + checkout invariant trust quote_locked_price /
+      // price_override / decorationDesign / customizerDesign.pricing.server.
+      // Delete them before the handler sees the body (review 1-4 / 1-5).
+      // Medusa updates a line with POST (there is no PUT on this route).
+      matcher: "/store/carts/:id/line-items",
+      methods: ["POST"],
+      middlewares: [stripLineItemTrustMetadataMiddleware],
+    },
+    {
+      matcher: "/store/carts/:id/line-items/:line_id",
+      methods: ["POST"],
+      middlewares: [stripLineItemTrustMetadataMiddleware],
     },
     {
       // Pricing invariant — last gate before a cart becomes an order.
