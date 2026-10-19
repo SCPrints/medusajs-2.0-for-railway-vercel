@@ -37,12 +37,11 @@ describe("shippit-quote", () => {
     expect(pickStandardQuote(null)).toBeNull()
   })
 
-  it("grosses up GST and rounds up to whole dollars (postage only, no freight-in)", () => {
-    // Sydney 1 kg: 8.76 × 1.1 = 9.636 → $10
-    expect(customerAmountFromCarrierPrice(8.76)).toBe(10)
-    // Dubbo: 32.06 × 1.1 = 35.266 → $36
-    expect(customerAmountFromCarrierPrice(32.06)).toBe(36)
-    expect(customerAmountFromCarrierPrice(20)).toBe(22)
+  it("rounds the inc-GST carrier price up to whole dollars (no gross-up, no freight-in)", () => {
+    // Shippit's price already includes GST (price_breakdown has a `gst` line).
+    expect(customerAmountFromCarrierPrice(8.76)).toBe(9) // Sydney 1 kg
+    expect(customerAmountFromCarrierPrice(32.06)).toBe(33) // Dubbo
+    expect(customerAmountFromCarrierPrice(20)).toBe(20)
   })
 
   it("splits heavy carts into ≤20 kg parcels and floors tiny ones at 0.1 kg", () => {

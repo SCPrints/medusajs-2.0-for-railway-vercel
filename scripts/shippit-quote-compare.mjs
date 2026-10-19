@@ -6,7 +6,8 @@
 //   SHIPPIT_STAGING=1 → app.staging.shippit.com
 //
 // Shippit quotes from the merchant's configured pickup location, so no origin
-// is sent. Prices are what Shippit bills us (ex-GST); bands are postage only.
+// is sent. Prices are what Shippit bills us (inc-GST — price_breakdown has a
+// gst line that sums into the headline); bands are postage only, inc-GST too.
 import { computeShippingAmount } from "../backend/src/lib/shipping-rate.ts"
 
 const key = process.env.SHIPPIT_API_KEY

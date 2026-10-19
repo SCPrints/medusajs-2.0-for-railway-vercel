@@ -145,7 +145,7 @@ const OrderShippingDecisionWidget = ({ data }: DetailWidgetProps<AdminOrder>) =>
                   {decision.shippit.transit ? ` · ${decision.shippit.transit}` : ""}
                 </Text>
                 <Text size="xsmall" className="text-ui-fg-subtle">
-                  {`$${decision.shippit.carrier_price.toFixed(2)} ex GST to ${decision.shippit.suburb} ${decision.shippit.postcode}`}
+                  {`$${decision.shippit.carrier_price.toFixed(2)} inc GST to ${decision.shippit.suburb} ${decision.shippit.postcode}`}
                 </Text>
               </Row>
             ) : decision.rate_source === "ladder" && decision.fallback_reason ? (

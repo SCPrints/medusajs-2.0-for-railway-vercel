@@ -7,7 +7,8 @@
  * ladder is a Sydney-metro price charged nationally — Sydney over-recovers by
  * up to $37 while Dubbo/Darwin (flat $32 TNT) lose ~$21 on a one-garment order.
  *
- * Customer price = ceil(cheapest standard carrier price × GST). Postage only —
+ * Customer price = ceil(cheapest standard carrier price), which is already
+ * inc-GST (see SHIPPIT_QUOTE_GST_MULTIPLIER). Postage only —
  * the small-order / inbound-freight charge lives in the garment ladder
  * (commit 5cb0ad42), not here. Any failure (no key, non-AU, missing address,
  * timeout, every carrier refusing, $0 quote) returns the ladder amount —
@@ -18,12 +19,13 @@ import { SHIPPIT_API_KEY, SHIPPIT_BASE_URL } from "./constants"
 import { computeShippingAmount } from "./shipping-rate"
 
 /**
- * Shippit's `price` is the carrier's ex-GST rate; Shippit adds GST on the
- * invoice. The customer price is inc-GST (HOLD cutover), so gross it up.
- * ponytail: constant not env — flip to 1 if an invoice line shows the quote
- * already included GST.
+ * Shippit's `price` is GST-INCLUSIVE — verified 2026-10-19 from the quote's
+ * own `price_breakdown` (TNT Dubbo: courierCost 22.195 + fuelSurcharge 6.946
+ * + gst 2.914 = 32.06, the headline price). The customer price is also
+ * inc-GST, so no gross-up. Left as a named constant so the assumption is
+ * visible; it was 1.1 for the first hour live and overcharged ~10%.
  */
-export const SHIPPIT_QUOTE_GST_MULTIPLIER = 1.1
+export const SHIPPIT_QUOTE_GST_MULTIPLIER = 1
 
 /** Heaviest single carton we'll declare; heavier carts split into n parcels. */
 export const SHIPPIT_MAX_PARCEL_KG = 20
@@ -59,7 +61,7 @@ export const shippitParcels = (grams: number): ShippitParcel[] => {
 }
 
 export type ShippitStandardQuote = {
-  /** Carrier price as returned (AUD, ex-GST). */
+  /** Carrier price as returned (AUD, inc-GST). */
   carrier_price: number
   courier: string
   transit?: string
@@ -91,7 +93,7 @@ export const pickStandardQuote = (json: unknown): ShippitStandardQuote | null =>
   return best
 }
 
-/** What the customer pays for a carrier price: GST gross-up, rounded up to whole dollars. */
+/** What the customer pays for a carrier price: rounded up to whole dollars. */
 export const customerAmountFromCarrierPrice = (carrierPrice: number): number =>
   Math.ceil(carrierPrice * SHIPPIT_QUOTE_GST_MULTIPLIER)
 
