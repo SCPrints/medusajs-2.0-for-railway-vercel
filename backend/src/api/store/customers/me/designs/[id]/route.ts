@@ -2,12 +2,10 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "zod"
 
-import { DESIGNS_MODULE } from "../../../../../../modules/designs"
-import type DesignsModuleService from "../../../../../../modules/designs/service"
 import { getPostHog } from "../../../../../../lib/posthog"
+import { loadOwnedDesign } from "../../../../../../lib/owned-design"
 import { requireCustomer } from "../../../../../../lib/require-customer"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
@@ -26,31 +24,13 @@ const updateBodySchema = z
     { message: "Provide at least one field to update." }
   )
 
-async function loadOwnedDesign(
-  req: AuthenticatedMedusaRequest,
-  designId: string,
-  customerId: string
-) {
-  const designsService = req.scope.resolve<DesignsModuleService>(DESIGNS_MODULE)
-  let design: any
-  try {
-    design = await designsService.retrieveDesign(designId)
-  } catch {
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, `Design "${designId}" was not found.`)
-  }
-  if (design.customer_id !== customerId) {
-    throw new MedusaError(MedusaError.Types.NOT_FOUND, `Design "${designId}" was not found.`)
-  }
-  return { design, designsService }
-}
-
 export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
   const customerId = requireCustomer(req)
   const params = paramsSchema.parse(req.params ?? {})
-  const { design } = await loadOwnedDesign(req, params.id, customerId)
+  const { design } = await loadOwnedDesign(req.scope, params.id, customerId)
   res.json({ design })
 }
 
@@ -62,7 +42,7 @@ export async function POST(
   const params = paramsSchema.parse(req.params ?? {})
   const body = updateBodySchema.parse(req.body ?? {})
 
-  const { design, designsService } = await loadOwnedDesign(req, params.id, customerId)
+  const { design, designsService } = await loadOwnedDesign(req.scope, params.id, customerId)
 
   // If the customizer payload is changing, snapshot the OLD state into
   // a design_version row before mutating the live design. Rename- and
@@ -123,7 +103,7 @@ export async function DELETE(
 ) {
   const customerId = requireCustomer(req)
   const params = paramsSchema.parse(req.params ?? {})
-  const { design, designsService } = await loadOwnedDesign(req, params.id, customerId)
+  const { design, designsService } = await loadOwnedDesign(req.scope, params.id, customerId)
 
   await designsService.deleteDesigns(design.id)
 
