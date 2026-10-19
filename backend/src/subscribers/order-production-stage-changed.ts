@@ -120,6 +120,12 @@ export default async function orderProductionStageChangedHandler({
         to: recipient,
         channel: "email",
         template: EmailTemplates.ORDER_PRODUCTION_STAGE,
+        // Same dedupe the artwork email relies on: the notification table's
+        // unique idempotency_key means a BullMQ redelivery of this event can't
+        // send a second "in production" email to the customer or a watcher
+        // (review 3-12). Keyed on the transition timestamp so a deliberate
+        // rewind → re-advance is a new key and emails again.
+        idempotency_key: `stage-email:${data.order_id}:${data.to_stage}:${data.changed_at}:${recipient}`,
         data: {
           emailOptions: {
             replyTo: orderInboxAddress(data.order_id) ?? SUPPORT_REPLY_TO_EMAIL,
