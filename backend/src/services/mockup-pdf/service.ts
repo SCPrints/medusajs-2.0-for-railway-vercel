@@ -258,6 +258,31 @@ export function resolveMockupSides(
   })
 }
 
+/**
+ * Does this product group have anything for the customer to approve? A group
+ * earns a PDF page only if some line carries a customizerDesign or staff have
+ * uploaded a revised proof against one of its lines. Freight, setup fees and
+ * other service lines (order #114: "Custom service / decoration line —
+ * Standard" was the $11 delivery charge) have neither and used to render as
+ * a blank garment page.
+ */
+export function hasArtworkToApprove(
+  groupItems: Array<{ id: string; metadata?: Record<string, unknown> | null }>,
+  meta: Record<string, unknown> | null | undefined
+): boolean {
+  if (
+    groupItems.some(
+      (it) => it.metadata?.customizerDesign && typeof it.metadata.customizerDesign === "object"
+    )
+  ) {
+    return true
+  }
+  const raw = meta?.revised_proofs
+  const rows: RevisedProofRow[] = Array.isArray(raw) ? (raw as RevisedProofRow[]) : []
+  const ids = new Set(groupItems.map((it) => it.id))
+  return rows.some((p) => !!p.line_item_id && ids.has(p.line_item_id))
+}
+
 function buildPageData(
   groupItems: OrderItem[],
   mockups: Array<{ side: string; buf: Buffer }>,
@@ -455,9 +480,12 @@ export async function generateMockupPdf(
     grouped.get(key)!.push(item)
   }
 
-  // Build page data (fetch mockup images concurrently per group)
+  // Build page data (fetch mockup images concurrently per group). Groups with
+  // nothing to approve (freight / fee / service lines) get no page.
   const pages: PageData[] = await Promise.all(
-    Array.from(grouped.values()).map(async (groupItems) => {
+    Array.from(grouped.values())
+      .filter((groupItems) => hasArtworkToApprove(groupItems, order.metadata))
+      .map(async (groupItems) => {
       const canonical =
         groupItems.find(
           (it) =>
