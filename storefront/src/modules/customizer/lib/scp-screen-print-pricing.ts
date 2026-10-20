@@ -56,7 +56,8 @@ export function resolveScreenTierIndexForQuantity(quantity: number): number {
   return safe < SCREEN_MIN_QUANTITY ? 0 : SCP_SCREEN_QUANTITY_TIERS.length - 1
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100
+// Number.EPSILON nudges binary x.xx5 (29.95 × 0.9 = 26.954999…) onto the cent it means (review 1-9).
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 export type ScreenUnitInput = {
   quantity: number

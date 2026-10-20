@@ -42,7 +42,8 @@ import { FREIGHT_IN_ALLOWANCE_AUD } from "../utils/bulk-price-ladder"
 const PAGE_SIZE = 100
 const CHUNK = 20
 
-const round2 = (n: number) => Math.round(n * 100) / 100
+// Number.EPSILON nudges binary x.xx5 (29.95 × 0.9 = 26.954999…) onto the cent it means (review 1-9).
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 /**
  * Ladders built while FREIGHT_IN_ALLOWANCE_AUD was 15 but NOT stamped: the

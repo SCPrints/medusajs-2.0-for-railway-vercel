@@ -254,7 +254,7 @@ export function bundleDiscountByLine(
 export function applyBundleDiscount(unitMajor: number, pct: number | undefined): number {
   if (!pct || pct <= 0) return unitMajor
   const safe = Math.min(MAX_BUNDLE_DISCOUNT_PCT, pct)
-  return Math.round(unitMajor * (1 - safe / 100) * 100) / 100
+  return Math.round((unitMajor * (1 - safe / 100) + Number.EPSILON) * 100) / 100
 }
 
 /** Load discount defs for the active, discounted bundles referenced by these lines. */

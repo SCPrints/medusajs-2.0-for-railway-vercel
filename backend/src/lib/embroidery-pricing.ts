@@ -43,7 +43,8 @@ const STITCH_TIERS: Array<{ maxStitches: number; prices: number[] }> = [
 
 export const DIGITIZING_FEE_MAJOR = 60
 
-const round2 = (n: number) => Math.round(n * 100) / 100
+// Number.EPSILON nudges binary x.xx5 (29.95 × 0.9 = 26.954999…) onto the cent it means (review 1-9).
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 export const resolveEmbroideryQuantityTier = (
   quantity: number
