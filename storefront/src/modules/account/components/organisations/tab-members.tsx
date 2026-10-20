@@ -50,7 +50,7 @@ export default function MembersTab({ orgId, members, meCustomerId }: Props) {
     if (res.ok) {
       setInviteEmail("")
       setInviteRole("purchaser")
-      setFeedback({ kind: "ok", text: "Member added." })
+      setFeedback({ kind: "ok", text: res.message ?? "Member added." })
       refresh()
     } else {
       setFeedback({ kind: "err", text: res.error })

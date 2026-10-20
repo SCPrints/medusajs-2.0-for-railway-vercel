@@ -8,7 +8,8 @@
 import { freightInPerUnit } from "../utils/bulk-price-ladder"
 import { applyTierMultiplier, type Tier } from "./customer-tiers"
 
-const round2 = (n: number) => Math.round(n * 100) / 100
+// Number.EPSILON nudges binary x.xx5 (29.95 × 0.9 = 26.954999…) onto the cent it means (review 1-9).
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 /** Ex-GST cost (minor units) stamped on variant metadata by the importers, or null. */
 export const readCostMinorFromMetadata = (

@@ -21,7 +21,8 @@ import { BulkPricingTier, PricingBreakdown, PricingInput } from "./types"
 
 const SIDE_SURCHARGE = 2.5
 
-const round2 = (n: number) => Math.round(n * 100) / 100
+// Number.EPSILON nudges binary x.xx5 (29.95 × 0.9 = 26.954999…) onto the cent it means (review 1-9).
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 const getQuantityDiscountRate = (quantity: number) => {
   if (quantity >= 100) {
@@ -295,7 +296,10 @@ export const calculatePricing = ({
   const preciseUnitWithEmbroidery = preciseDiscountedUnit + embroideryPerUnit + screenPerUnit
   const discountedUnitPriceCents = round2(preciseUnitWithEmbroidery)
   const sideSurchargeTotalCents = round2(sideSurchargePerUnit * safeQuantity)
-  const totalPriceCents = round2(preciseUnitWithEmbroidery * safeQuantity)
+  // Unit first, then × qty — the cart stores the rounded unit and Medusa
+  // multiplies, so rounding the precise total here showed $1,168.75 in the
+  // panel against $1,169.00 in the cart (review 1-9).
+  const totalPriceCents = round2(discountedUnitPriceCents * safeQuantity)
 
   return {
     baseUnitPriceCents: baseUnit,

@@ -12,7 +12,8 @@ describe("calculatePricing", () => {
     expect(pricing.sideSurchargePerUnitCents).toBe(7.5)
     expect(pricing.quantityDiscountRate).toBe(0.15)
     expect(pricing.discountedUnitPriceCents).toBeCloseTo(23.38, 2)
-    expect(pricing.totalPriceCents).toBeCloseTo(1168.75, 2)
+    // Unit rounds to 23.38 first, × 50 — what the cart charges (review 1-9).
+    expect(pricing.totalPriceCents).toBeCloseTo(1169, 2)
   })
 
   it("keeps quantity at minimum one for calculations", () => {

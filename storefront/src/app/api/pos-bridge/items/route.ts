@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { enforceRateLimit, readJsonBounded } from "@lib/util/api-guard"
+import { leadRelayHeaders } from "@lib/util/lead-relay"
 
 // Customizer line items carry the full customizerDesign metadata; 6 MB caps
 // it while staying well above a realistic single-line payload.
@@ -80,8 +81,11 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // x-scp-relay proves the add came through this relay (review 4-11); no
+  // BotID check — this path isn't in instrumentation-client.ts.
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...(await leadRelayHeaders({ botCheck: false })),
   }
   const publishableKey = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
   if (publishableKey) headers["x-publishable-api-key"] = publishableKey
