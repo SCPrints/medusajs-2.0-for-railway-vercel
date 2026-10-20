@@ -10,7 +10,6 @@ import type QuoteModuleService from "../../../modules/quote/service"
 
 const createSchema = z.object({
   email: z.string().min(3),
-  customer_id: z.string().max(80).optional(),
   contact_name: z.string().max(120).optional(),
   contact_phone: z.string().max(40).optional(),
   company: z.string().max(120).optional(),
@@ -188,7 +187,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       status: "new",
       source: "admin",
       email,
-      customer_id: parsed.customer_id ?? null,
       contact_name: parsed.contact_name ?? null,
       contact_phone: parsed.contact_phone ?? null,
       company: parsed.company ?? null,
