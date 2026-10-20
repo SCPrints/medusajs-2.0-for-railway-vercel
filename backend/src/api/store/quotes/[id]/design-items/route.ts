@@ -1,6 +1,12 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { z } from "zod"
 
+import { computeScpLineDescriptor } from "../../../../../lib/scp-line-descriptor"
+import {
+  resolveTierForCartCustomer,
+  type RemoteJoinerGraphLike,
+} from "../../../../../lib/scp-resolve-garment-unit-price"
 import { QUOTE_MODULE } from "../../../../../modules/quote"
 import type QuoteModuleService from "../../../../../modules/quote/service"
 import { getPostHog } from "../../../../../lib/posthog"
@@ -195,9 +201,39 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(201).json({ ok: true, lines: items.filter((li) => li?.group_id === body.group_id), count: groupLines.length, attach_only: true })
   }
 
+  // Price each customiser line SERVER-SIDE with the cart's own descriptor —
+  // the browser's unit_price_cents is only the fallback when derivation
+  // throws (review 1-11; same pattern as the POS bridge). Staff still
+  // override per line in the admin Kanban; convert.ts then locks that price.
+  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as RemoteJoinerGraphLike
+  const tier = await resolveTierForCartCustomer(query, quote.customer_id ?? null)
+  const pricedLines = await Promise.all(
+    lines.map(async (l) => {
+      if (l.kind !== "customizer" || !l.variant_id || !l.metadata?.customizerDesign) return l
+      try {
+        const descriptor = await computeScpLineDescriptor({
+          variantId: l.variant_id,
+          quantity: l.quantity,
+          metadata: l.metadata,
+          printSizeIdRaw: String(l.metadata.print_size_id ?? "up_to_a6"),
+          cart: { currency_code: "aud", customer_id: quote.customer_id ?? null },
+          query,
+          tier,
+          container: req.scope,
+        })
+        return { ...l, unit_price_cents: Math.round(descriptor.unitPriceMajor * 100), metadata: descriptor.metadata }
+      } catch (err: any) {
+        ;(req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any)?.warn?.(
+          `[quote design-items] could not price variant ${l.variant_id} for quote ${id} — using client unit_price_cents=${l.unit_price_cents}: ${err?.message ?? err}`
+        )
+        return l
+      }
+    })
+  )
+
   // Shared with /store/quotes/poa-request — keep the persisted line shape
   // identical across both write paths (see lib/quote-design-lines.ts).
-  const newLines = mapQuoteDesignLines(lines, body.group_id)
+  const newLines = mapQuoteDesignLines(pricedLines, body.group_id)
   // Legacy per-line designs bypass the shared-design archive above.
   await archiveLineDesigns(req.scope, newLines, `quote-${id}`)
 
