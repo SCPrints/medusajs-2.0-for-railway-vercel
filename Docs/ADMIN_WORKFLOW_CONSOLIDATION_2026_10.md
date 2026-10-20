@@ -167,7 +167,24 @@ Not in scope, on purpose: a Job table, a shared inbox product, in-app notificati
 - **Order detail scroll:** 29 stacked widgets → 1 panel with 5 tabs.
 - Ask staff after two weeks: "Is there anywhere you still go that isn't Today, the job page, or the board?" The answer should be POS and Reports.
 
-## 9. Decisions needed from Sean
+## 9. Phase 0 — shipped 2026-10-21 (commit 31df8fc3), and the switches
+
+Code is live on master (Vercel) and Fly. What it does with no config change: the admin "Convert to order" button asks for the delivery address (or pick-up); the customer accept page collects one; proof change requests (order and quote) create a task for the owner and email staff; the 08:00 UTC sweep flags any quote accepted ≥ 1 business day ago with no order. Replies still go to `SUPPORT_REPLY_TO_EMAIL` until the inbox domain is set.
+
+To turn customer replies on (one-off, ~15 minutes, all in dashboards):
+
+1. **Resend → Domains → Add domain** `jobs.scprints.com.au`, region Sydney isn't offered so pick the default; tick **Receiving**. Add the records it shows at Cloudflare: the MX for `jobs` (receiving) plus the SPF/DKIM TXT rows. Wait for "Verified".
+2. **Resend → Webhooks → Add**: URL `https://api.scprints.com.au/hooks/resend`, events **email.received**, **email.bounced**, **email.complained** (opened/clicked optional). Copy the signing secret (`whsec_…`). One webhook only: the route verifies against a single secret.
+3. **Fly secrets** (each `fly secrets set` restarts the backend once; set them in one command):
+   ```bash
+   fly secrets set --app sc-prints-backend ORDER_INBOX_DOMAIN=jobs.scprints.com.au RESEND_WEBHOOK_SECRET=whsec_… PROOF_REMINDERS_ENABLED=true
+   ```
+   `RESEND_WEBHOOK_SECRET` was never set, so bounce/complaint suppression also starts working with this. `INBOUND_EMAIL_SECRET` is only for a non-Resend provider; leave it.
+4. **Test**: open any order in admin, "Email invoice" to yourself, reply to it. Within a minute the reply is on the order's Comments & audit, a task "Reply to the customer — #N" is in /app/tasks, and `info@` gets a "Customer replied" email.
+
+Also worth flipping now: `STALE_ORDER_ALERTS_ENABLED=true` (the first run creates one task per currently stuck order; today that's a handful).
+
+## 10. Decisions needed from Sean
 
 1. Approve Phase 0 now (config + two small code changes; nothing visual changes).
 2. Approve Phase 1–2 as the build (the job page and Today). Phases 3–4 follow once staff have used them.
