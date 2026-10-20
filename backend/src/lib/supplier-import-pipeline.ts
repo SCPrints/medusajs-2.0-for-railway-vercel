@@ -72,8 +72,11 @@ export async function linkProductsToBrand(
       if (
         !/already|multiple links|duplicate/i.test(String(err?.message ?? ""))
       ) {
-        // non-fatal: existing importer behaviour silently absorbs link
-        // failures; verify-brand-links is the source of truth for drift.
+        // Non-fatal (verify-brand-links repairs drift), but never silent
+        // (review 2-10): the import log must say which product missed its brand.
+        ;(container.resolve(ContainerRegistrationKeys.LOGGER) as any)?.warn?.(
+          `linkProductsToBrand: ${p.id} → ${brandId} failed: ${err?.message ?? err}`
+        )
       }
     }
   }

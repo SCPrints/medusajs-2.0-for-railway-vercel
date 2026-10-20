@@ -90,6 +90,14 @@ export class AussiePacificClient {
       )
     }
 
+    // Unparseable JSON on a 200 must not read as an empty page (review 2-4).
+    if (contentType.includes("application/json") && (body === null || typeof body !== "object")) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        `Aussie Pacific API ${resp.status} on ${path}: unparseable JSON body`
+      )
+    }
+
     return body as T
   }
 

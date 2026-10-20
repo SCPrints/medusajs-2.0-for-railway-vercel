@@ -107,6 +107,16 @@ export class AsColourClient {
       )
     }
 
+    // A 200 whose JSON body won't parse used to come back as null, which the
+    // paginators read as "last page" and ended the walk early with the
+    // checkpoint advanced (review 2-4). Fail loudly instead.
+    if (contentType.includes("application/json") && (body === null || typeof body !== "object")) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        `AS Colour API ${resp.status} on ${path}: unparseable JSON body`
+      )
+    }
+
     return body as T
   }
 
