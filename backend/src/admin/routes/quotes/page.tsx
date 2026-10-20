@@ -1642,9 +1642,23 @@ function QuoteDetail({
             onChange={setDraftLineItems}
             regionId={regionId}
             pricerQuoteId={quote.id}
-            onDesignLine={(row) =>
-              openStudio(row.group_id ?? null, row.product_handle ?? null, row.variant_id ?? null)
-            }
+            onDesignLine={(row) => {
+              // Customer-supplied pricer groups sit on the service line, so the
+              // line has no garment — open the Studio on the stand-in the
+              // Job pricer picked for the mockup instead.
+              const jpGroup = ((quote.metadata?.job_pricer as any)?.state?.groups ?? []).find(
+                (g: any) => g?.id === row.group_id
+              )
+              if (jpGroup?.supplied) {
+                const handle = jpGroup.mockupProduct?.handle
+                if (!handle) {
+                  toast.info("Customer-supplied garments — pick a mockup garment for this group in the Job pricer first")
+                  return
+                }
+                return openStudio(row.group_id ?? null, handle, null)
+              }
+              return openStudio(row.group_id ?? null, row.product_handle ?? null, row.variant_id ?? null)
+            }}
             onAddDesign={() => openStudio(null, null)}
           />
         </div>
