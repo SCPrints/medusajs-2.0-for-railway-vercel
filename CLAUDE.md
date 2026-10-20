@@ -1330,6 +1330,7 @@ All schedules in UTC. Hours shown also as AEST (+10) since the studio is in NSW.
 | --- | --- | --- | --- |
 | `*/15 * * * *` | every 15 min | [sync-ascolour-order-status.ts](backend/src/jobs/sync-ascolour-order-status.ts) | Poll AP and AS Colour order status |
 | `30 * * * *` | hourly :30 | [expire-pos-sessions.ts](backend/src/jobs/expire-pos-sessions.ts) | Auto-expire abandoned POS sessions (always-on housekeeping) |
+| `*/10 * * * *` | every 10 min | [drain-pending-stage-events.ts](backend/src/jobs/drain-pending-stage-events.ts) | Re-emit stage events that failed to reach the bus (`metadata.pending_stage_events`, queued by `emitStageEvents` — always-on, no-op when empty) |
 | `0 2 * * *` | 12:00 | [refresh-cross-sell-recommendations.ts](backend/src/jobs/refresh-cross-sell-recommendations.ts) | Recompute top-K co-purchased products |
 | `0 3 * * *` | 13:00 | [sync-ascolour-inventory.ts](backend/src/jobs/sync-ascolour-inventory.ts) | Delta inventory pull from AS Colour |
 | `30 3 * * *` | 13:30 | [sync-posthog-cohorts.ts](backend/src/jobs/sync-posthog-cohorts.ts) | PostHog cohort → customer tag |

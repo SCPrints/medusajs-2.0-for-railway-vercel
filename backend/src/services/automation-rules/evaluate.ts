@@ -11,6 +11,7 @@ import {
   planProductionStageChange,
 } from "../../lib/production-stage"
 import { mergeOrderMetadata } from "../../lib/order-metadata"
+import { emitStageEvents } from "../../lib/stage-events"
 import { writeAudit } from "../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { TASK_MODULE } from "../../modules/task"
@@ -309,10 +310,13 @@ const dispatchAction = async (
       }
       // Atomic merge — an order.placed rule runs concurrently with the
       // metadata stampers, so a full read-modify-write would clobber them.
-      await mergeOrderMetadata(container, orderId, plan.metadata)
-      for (const e of plan.events) {
-        await eventBus.emit({ name: e.name, data: e.data })
-      }
+      // History is APPENDED in the same statement (review 3-5) — this used
+      // to merge the full array and so could not append at all.
+      const { production_stage_history: _history, ...stagePatch } = plan.metadata
+      await mergeOrderMetadata(container, orderId, stagePatch, {
+        append: { production_stage_history: plan.historyEntries },
+      })
+      await emitStageEvents(container, orderId, plan.events)
       return { ok: true }
     }
   } catch (err: any) {

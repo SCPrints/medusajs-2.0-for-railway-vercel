@@ -82,9 +82,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         printSizeIdRaw: String(metadata.print_size_id ?? "up_to_a6"),
         // ponytail: POS has no cart; the catalog is AUD-only and the resolver
         // only needs a currency for variants without a bulk ladder.
-        cart: { currency_code: "aud" },
+        cart: { currency_code: "aud", customer_id: session.customer_id ?? null },
         query,
         tier,
+        container: req.scope,
       })
       unitPriceCents = Math.round(descriptor.unitPriceMajor * 100)
       metadata = descriptor.metadata

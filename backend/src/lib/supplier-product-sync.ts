@@ -416,6 +416,8 @@ export type ApplySummary = {
   variantsUpdated: number
   variantsAdded: number
   errors: number
+  /** Every failed chunk/write with the handles it covered (review 2-10) — the run is not "ok" while this is non-empty. */
+  failed: Array<{ step: "update" | "variants" | "images"; handles: string[]; error: string }>
 }
 
 /**
@@ -438,8 +440,10 @@ export async function applyProductDiffs(opts: {
     variantsUpdated: 0,
     variantsAdded: 0,
     errors: 0,
+    failed: [],
   }
   if (!diffs.length) return summary
+  const handleById = new Map(diffs.map((d) => [d.productId, d.handle]))
 
   // Build the products[] payload for updateProductsWorkflow. One entry
   // per product, bundling top-level patch + variant updates.
@@ -514,6 +518,11 @@ export async function applyProductDiffs(opts: {
         )
       } catch (err: any) {
         summary.errors++
+        summary.failed.push({
+          step: "update",
+          handles: chunk.map((p) => handleById.get(p.id as string) ?? String(p.id)),
+          error: String(err?.message ?? err),
+        })
         logger.warn(
           `updateProductsWorkflow chunk ${i + 1}-${i + chunk.length} failed: ${err?.message ?? err}`
         )
@@ -535,6 +544,11 @@ export async function applyProductDiffs(opts: {
         summary.variantsAdded += chunk.length
       } catch (err: any) {
         summary.errors++
+        summary.failed.push({
+          step: "variants",
+          handles: Array.from(new Set(chunk.map((v) => handleById.get(v.product_id) ?? v.product_id))),
+          error: String(err?.message ?? err),
+        })
         logger.warn(
           `batchProductVariantsWorkflow create chunk ${i + 1}-${i + chunk.length} failed: ${err?.message ?? err}`
         )
@@ -568,6 +582,7 @@ export async function applyProductDiffs(opts: {
       }
     } catch (err: any) {
       summary.errors++
+      summary.failed.push({ step: "images", handles: [d.handle], error: String(err?.message ?? err) })
       logger.warn(
         `writeProductImages failed for ${d.handle}: ${err?.message ?? err}`
       )

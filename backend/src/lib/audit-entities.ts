@@ -56,6 +56,10 @@ export const AUDIT_ACTION = {
   EMAIL_CLICKED: "email_clicked",
   EMAIL_BOUNCED: "email_bounced",
   EMAIL_SUPPRESSED: "email_suppressed",
+  /** A customer email the system meant to send did not go out (review 3-11). */
+  EMAIL_FAILED: "email_failed",
+  /** A stage event could not reach the bus; queued on metadata.pending_stage_events (review 3-10). */
+  STAGE_EVENT_EMIT_FAILED: "stage_event_emit_failed",
   PAYMENT_LINK_CLICKED: "payment_link_clicked",
   // Offline payments (bank transfer / cash) recorded by staff on an order
   PAYMENT_RECORDED: "payment_recorded",

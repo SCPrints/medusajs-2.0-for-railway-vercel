@@ -21,22 +21,59 @@ import type { MedusaContainer } from "@medusajs/framework/types"
  *
  * Note: `||` is a shallow merge — only pass top-level keys (nested objects
  * would be replaced wholesale, which is what every current caller wants).
+ *
+ * `opts.append` appends to jsonb ARRAYS in the same statement — the stage
+ * writers use it for `production_stage_history`, so two concurrent saves
+ * both keep their history entry instead of the loser's vanishing under a
+ * full-metadata read-modify-write (review 3-5). `opts.unset` drops keys
+ * (`metadata - '{k1,k2}'`) — the stale flags a stage move clears.
  */
+export type MergeOrderMetadataOptions = {
+  /** Top-level keys to remove before merging the patch. */
+  unset?: string[]
+  /** Per array key, entries to append (missing/non-array keys start as []). */
+  append?: Record<string, unknown[]>
+}
+
+const SAFE_KEY = /^[a-z_][a-z0-9_]*$/
+
 export async function mergeOrderMetadata(
   container: MedusaContainer,
   orderId: string,
-  patch: Record<string, unknown>
+  patch: Record<string, unknown>,
+  opts: MergeOrderMetadataOptions = {}
 ): Promise<void> {
-  if (!orderId || !patch || Object.keys(patch).length === 0) return
+  const unset = (opts.unset ?? []).filter((k) => SAFE_KEY.test(k))
+  const append = Object.entries(opts.append ?? {}).filter(
+    ([key, entries]) => SAFE_KEY.test(key) && Array.isArray(entries) && entries.length > 0
+  )
+  if (!orderId) return
+  if ((!patch || Object.keys(patch).length === 0) && unset.length === 0 && append.length === 0) return
   const pg = container.resolve<any>("__pg_connection__")
   if (!pg?.raw) {
     throw new Error("mergeOrderMetadata: pg connection unavailable")
   }
+
+  const bindings: unknown[] = []
+  let expr = "coalesce(metadata, '{}'::jsonb)"
+  if (unset.length > 0) {
+    expr = `(${expr} - ?::text[])`
+    bindings.push(`{${unset.join(",")}}`)
+  }
+  expr = `${expr} || ?::jsonb`
+  bindings.push(JSON.stringify(patch ?? {}))
+  for (const [key, entries] of append) {
+    // Keys are code constants (SAFE_KEY-checked), so the path literal is safe.
+    expr = `jsonb_set(${expr}, '{${key}}', coalesce(metadata->'${key}', '[]'::jsonb) || ?::jsonb)`
+    bindings.push(JSON.stringify(entries))
+  }
+  bindings.push(orderId)
+
   await pg.raw(
     `update "order"
-        set metadata = coalesce(metadata, '{}'::jsonb) || ?::jsonb,
+        set metadata = ${expr},
             updated_at = now()
       where id = ?`,
-    [JSON.stringify(patch), orderId]
+    bindings
   )
 }

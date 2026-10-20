@@ -77,6 +77,10 @@ export default class FashionBizService {
     // Hard cap defends against pagination loops on a malformed API response.
     for (let safety = 0; safety < 500; safety++) {
       const resp = await this.client_.getProductListPage(brand, page)
+      if (!resp || typeof resp !== "object") {
+        // Not the last page — a broken response (review 2-4).
+        throw new Error(`FashionBiz: expected a product list page for ${brand} p${page}, got ${typeof resp}`)
+      }
       out.push(...(resp.products ?? []))
       if (!resp.next || resp.products?.length === 0) break
       page = resp.next

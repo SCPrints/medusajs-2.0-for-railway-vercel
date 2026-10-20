@@ -100,7 +100,9 @@ async function syncAussiePacificInventory(container: MedusaContainer) {
 async function writeCheckpoint(container: MedusaContainer, value: string) {
   try {
     const cache = container.resolve(Modules.CACHE) as any
-    await cache.set(CHECKPOINT_KEY, value)
+    // Explicit TTL (review 2-4): a checkpoint that outlives a broken run would
+    // skip rows forever; 48 h means a missed run self-heals into a full sync.
+    await cache.set(CHECKPOINT_KEY, value, 48 * 3600)
   } catch {
     // Cache module not available — checkpoint is monitoring-only, safe to skip.
   }

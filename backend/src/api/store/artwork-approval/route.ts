@@ -10,6 +10,8 @@ import {
   type ProductionStageChangedEvent,
 } from "../../../lib/production-stage"
 import { getPostHog } from "../../../lib/posthog"
+import { mergeOrderMetadata } from "../../../lib/order-metadata"
+import { emitStageEvents } from "../../../lib/stage-events"
 import {
   buildLineCustomizerExport,
   lineMockupGroupKey,
@@ -241,9 +243,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(400).json({ error: err?.message ?? "invalid" })
   }
   const orderModuleService: IOrderModuleService = req.scope.resolve(Modules.ORDER)
-  const eventBus = req.scope.resolve("event_bus") as
-    | { emit: (e: { name: string; data: unknown }) => Promise<unknown> }
-    | undefined
   let order: any
   try {
     order = await orderModuleService.retrieveOrder(body.order)
@@ -293,25 +292,25 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // Append to the same history the admin stage widget renders — without this
   // the customer's decision flipped `artwork_stage` invisibly and staff saw
   // "Artwork approved" with no history row explaining who/when.
-  const priorHistory = Array.isArray(meta.production_stage_history)
-    ? meta.production_stage_history
-    : []
+  // changed_by is a fixed token, never the typed name — a customer typing a
+  // staff member's name must stay distinguishable from staff (review 3-9).
   const historyEntry = {
     stage: nextStage,
     changed_at: now,
-    changed_by: body.approver_name ? `Customer: ${body.approver_name}` : "Customer",
+    changed_by: "customer",
+    source: "customer_link",
+    approver_name: body.approver_name ?? null,
     note: body.approved
       ? (body.comment ?? "Approved via customer approval page")
       : (body.comment ?? "Changes requested via customer approval page"),
     track: "artwork" as const,
   }
 
+  // Patch only — merged atomically below with the history entry appended,
+  // so a staff save landing at the same moment loses nothing (review 3-5).
   const updates: Record<string, unknown> = {
-    ...meta,
     artwork_stage: nextStage,
     artwork_stage_changed_at: now,
-    // Always a real transition: we only get here from awaiting_approval.
-    production_stage_history: [...priorHistory, historyEntry],
   }
   if (body.approved) {
     // Each proof round is approved on its own: stamp when, and which round.
@@ -330,28 +329,27 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  await orderModuleService.updateOrders(body.order, { metadata: updates })
+  await mergeOrderMetadata(req.scope, body.order, updates, {
+    append: { production_stage_history: [historyEntry] },
+  })
 
   // Fire the existing artwork_stage_changed event so any downstream
   // notification flows (or future automation rules on artwork) react
-  // exactly like they would when a staff member changes the stage.
-  if (eventBus?.emit) {
-    try {
-      const fromStage: ProductionStage | null = isProductionStage(previousStage)
-        ? (previousStage as ProductionStage)
-        : null
-      const payload: ProductionStageChangedEvent = {
-        order_id: body.order,
-        from_stage: fromStage,
-        to_stage: nextStage as ProductionStage,
-        changed_at: now,
-        changed_by: body.approver_name ?? "customer",
-      }
-      await eventBus.emit({ name: ARTWORK_STAGE_EVENT, data: payload })
-    } catch {
-      // best-effort
-    }
+  // exactly like they would when a staff member changes the stage. A
+  // failed emit is queued on the order + audited (review 3-10).
+  const fromStage: ProductionStage | null = isProductionStage(previousStage)
+    ? (previousStage as ProductionStage)
+    : null
+  const payload: ProductionStageChangedEvent = {
+    order_id: body.order,
+    from_stage: fromStage,
+    to_stage: nextStage as ProductionStage,
+    changed_at: now,
+    changed_by: "customer",
+    source: "customer_link",
+    track: "artwork",
   }
+  await emitStageEvents(req.scope, body.order, [{ name: ARTWORK_STAGE_EVENT, data: payload }])
 
   getPostHog()?.capture({
     distinctId: order?.email ?? body.order,

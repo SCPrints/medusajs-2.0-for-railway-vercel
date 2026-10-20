@@ -152,7 +152,10 @@ type JobState = {
 /** Quick-add extras with workbook-backed numbers (inc GST sell / ex GST cost). Staff edit freely. */
 const EXTRA_PRESETS: Array<{ label: string; unitSell: string; unitCost: string }> = [
   { label: "Colour change / screen wash", unitSell: "45", unitCost: "35" },
-  { label: "Artwork setup / vectorising", unitSell: "60", unitCost: "0" },
+  // Artwork file charges (finalised 2026-10-19, inc GST). In-house time, so no cash cost — same as before.
+  { label: "Artwork — quick fix (≤15 min)", unitSell: "30", unitCost: "0" },
+  { label: "Artwork — redraw / vectorise (≤45 min)", unitSell: "80", unitCost: "0" },
+  { label: "Artwork — custom work (per 15 min block, $100/hr)", unitSell: "25", unitCost: "0" },
   { label: "Pre-production sample", unitSell: "", unitCost: "" },
   { label: "Freight to customer", unitSell: "", unitCost: "" },
 ]

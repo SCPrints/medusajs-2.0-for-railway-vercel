@@ -104,7 +104,12 @@ const FAQ_SECTIONS: FaqSection[] = [
       {
         question: "Do you offer in-house design support?",
         answer:
-          "Yes. Our team can assist with artwork preparation, print-ready setup, and design refinements for production.",
+          "Yes. Our team can assist with artwork preparation, print-ready setup, and design refinements for production. Print-ready files are free; anything we need to fix or redraw is charged per the tiers below.",
+      },
+      {
+        question: "What do artwork fixes cost?",
+        answer:
+          "Print-ready — $0: a vector file, or a transparent-background PNG at 300 dpi or higher. Quick fix — $30 (about 15 min or less): remove a flat, even background with crisp edges, change a colour, resize, or add a line of text. Redraw — $80 (about 45 min or less): a simple 1–3 colour logo from a clear JPG or screenshot redrawn sharp or vectorised, text retyped, or background removal where the edges are soft, pixelated or have a colour fringe. Custom work — $100/hr in 15-minute blocks, quoted or capped before we start: blurry or photo-based sources, cutting a person or object out of a photo, detailed illustrations, or a new design from a description. All prices inc GST; one revision round is included.",
       },
       {
         question: "What file formats do you accept?",

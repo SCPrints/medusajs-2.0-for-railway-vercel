@@ -460,6 +460,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     let updatedCount = 0
     let variantsAddedCount = 0
     let updateErrors = 0
+    let updateFailures: Array<{ step: string; handles: string[]; error: string }> = []
 
     if (!dryRun) {
       let createdProducts: any[] = []
@@ -511,6 +512,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         updatedCount = summary.productsUpdated
         variantsAddedCount = summary.variantsAdded
         updateErrors = summary.errors
+        updateFailures = summary.failed
       }
     }
 
@@ -524,6 +526,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       updated: updatedCount,
       variantsAdded: variantsAddedCount,
       errors: updateErrors,
+      // Which handles each failed chunk covered (review 2-10).
+      update_failures: updateFailures,
       warnings: parseResult.warnings,
       logs,
       imageScraperStats: scraper.stats,

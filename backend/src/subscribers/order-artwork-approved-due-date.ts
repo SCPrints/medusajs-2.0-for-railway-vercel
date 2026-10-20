@@ -5,6 +5,7 @@ import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../lib/audit-entities"
 import { writeAudit } from "../lib/audit-log"
 import { PRODUCTION_LEAD_BUSINESS_DAYS } from "../lib/constants"
+import { mergeOrderMetadata } from "../lib/order-metadata"
 import { planDueDateOnApproval } from "../lib/production-due-date"
 import {
   ARTWORK_STAGE_EVENT,
@@ -32,12 +33,12 @@ export default async function orderArtworkApprovedDueDateHandler({
 
     if (plan.action === "set") {
       if (meta.production_due_date === plan.due_date) return
-      await orderModuleService.updateOrders(order.id, {
-        metadata: {
-          ...meta,
-          production_due_date: plan.due_date,
-          production_due_date_source: "auto",
-        },
+      // Atomic key merge — this runs ~50 ms after the staff save that
+      // approved the artwork, concurrently with any other stage write
+      // (review 3-5).
+      await mergeOrderMetadata(container, order.id, {
+        production_due_date: plan.due_date,
+        production_due_date_source: "auto",
       })
     }
 

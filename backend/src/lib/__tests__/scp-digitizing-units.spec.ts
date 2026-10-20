@@ -191,7 +191,9 @@ describe("recompute cart-wide digitizing amortisation", () => {
       unit_price: 999,
       variant: { id: "var_1", metadata: TIERS },
       metadata: embMetadata({
-        sides: [{ side: "back", src: "https://r2/logo-a", widthMm: 250, heightMm: 250 }],
+        // 250 × 100 mm: a >5% resize of the 80 × 80 chest logo whose 3k
+        // stitches still clear the area floor (review 1-3).
+        sides: [{ side: "back", src: "https://r2/logo-a", widthMm: 250, heightMm: 100 }],
       }),
     }
     const result = recomputeScpCartPricingPure([fanOutLine("l_small", 5), big])
@@ -213,5 +215,43 @@ describe("recompute cart-wide digitizing amortisation", () => {
     // One file across 10 garments → $6/garment fee share.
     expect(result.prices.get("l_polo")).toBeCloseTo(27.72 + 10.5 + 6, 2)
     expect(result.prices.get("l_hoodie")).toBeCloseTo(27.72 + 10.5 + 6, 2)
+  })
+})
+
+describe("client-declared pricing inputs are floored server-side (review 1-3)", () => {
+  it("stitch count is floored from the stated mm area; honest counts untouched", () => {
+    const low = computeDecorationTotals({
+      metadata: embMetadata({ sides: [{ side: "back", stitchCount: 500, widthMm: 300, heightMm: 300 }] }),
+      printSizeId: "up_to_a6",
+      printTierQuantity: 1,
+      embroideryQuantity: 1,
+      screenHeavyGarment: false,
+    })
+    expect(low.embroideryBreakdown[0].stitchCount).toBe(9000) // 300×300×0.1
+    const honest = computeDecorationTotals({
+      metadata: embMetadata({ sides: [{ side: "front", stitchCount: 1760, widthMm: 80, heightMm: 80 }] }),
+      printSizeId: "up_to_a6",
+      printTierQuantity: 1,
+      embroideryQuantity: 1,
+      screenHeavyGarment: false,
+    })
+    expect(honest.embroideryBreakdown[0].stitchCount).toBe(1760)
+  })
+
+  it("server-resolved dark garment forces the underbase whatever the client declared", () => {
+    const metadata = {
+      customizerDesign: {
+        prints: [{ side: "front", sizeId: "up_to_a6" }],
+        sideDecorationMethods: { front: "screen" },
+        sideScreenConfigs: { front: { colours: 2, darkGarment: false } },
+      },
+    }
+    const base = { metadata, printSizeId: "up_to_a6" as const, printTierQuantity: 30, embroideryQuantity: 30, screenHeavyGarment: false }
+    const light = computeDecorationTotals(base)
+    const dark = computeDecorationTotals({ ...base, screenDarkGarment: true })
+    expect(light.screenBreakdown[0].effectiveColours).toBe(2)
+    expect(dark.screenBreakdown[0].effectiveColours).toBe(3)
+    expect(dark.screenBreakdown[0].darkGarment).toBe(true)
+    expect(dark.screenTotalMajor).toBeGreaterThan(light.screenTotalMajor)
   })
 })

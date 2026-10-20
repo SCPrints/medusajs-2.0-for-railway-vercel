@@ -60,7 +60,9 @@ const bodySchema = z.object({
    *  uploads them via the file module and stores the resulting URLs
    *  on the quote's metadata.mood_board_urls. */
   mood_board: z.array(moodBoardImageSchema).max(5).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  // No caller-supplied metadata: downstream trusts metadata.order_id /
+  // cart_id / job_pricer, and no storefront form sends any (review 4-9).
+  // The parser strips unknown keys, so a posted `metadata` is dropped.
 })
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
@@ -136,10 +138,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       subject: parsed.subject ?? null,
       message: parsed.message,
       line_items: { items: lineItems },
-      metadata: {
-        ...(parsed.metadata ?? {}),
-        ...(moodBoardUrls.length ? { mood_board_urls: moodBoardUrls } : {}),
-      },
+      metadata: moodBoardUrls.length ? { mood_board_urls: moodBoardUrls } : {},
     },
   ])
 

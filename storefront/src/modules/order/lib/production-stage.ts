@@ -215,6 +215,8 @@ export type ProductionStageHistoryEntry = {
   stage: ProductionStage
   changed_at: string
   changed_by?: string | null
+  /** admin | bulk | pos_fast_forward | automation:<rule_id> | customer_link | system (backend mirror). */
+  source?: string
   note?: string | null
   track?: ProductionTrack
 }

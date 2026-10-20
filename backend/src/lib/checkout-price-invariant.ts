@@ -41,6 +41,7 @@ import { recomputeScpCartPricingPure } from "./recompute-scp-cart-pricing"
 import {
   computeDecorationTotals,
   fullColourCardFromStoredServer,
+  screenDarkGarmentFromStoredBreakdown,
   screenHeavyFromStoredBreakdown,
   screenJobQuantityByLine,
 } from "./scp-decoration-pricing"
@@ -65,7 +66,7 @@ export type InvariantLine = {
 
 export type InvariantFinding = {
   line_id: string
-  kind: "price_mismatch" | "free_decoration" | "requires_quote" | "below_cost"
+  kind: "price_mismatch" | "free_decoration" | "requires_quote" | "below_cost" | "unparseable_price"
   severity: "alert" | "block"
   /** Per-unit figures. */
   expected?: number
@@ -180,6 +181,17 @@ export function evaluateCartPricing(
           detail: `charged ${round2(actual)} vs expected ${round2(expected)} (unit delta ${mismatch.delta}, line delta ${mismatch.line_delta} over qty ${Math.max(1, Math.floor(line.quantity || 1))})`,
         })
       }
+    } else if (actual === null && expected !== null) {
+      // A unit_price we can't read is not "ok" — it means the comparison
+      // never ran (review 1-10). Alert, never block: the usual cause is a
+      // Medusa upgrade changing the money shape, not a bad price.
+      findings.push({
+        line_id: line.id,
+        kind: "unparseable_price",
+        severity: "alert",
+        expected: round2(expected),
+        detail: `unit_price ${JSON.stringify(line.unit_price)} could not be parsed; expected ${round2(expected)} was not checked`,
+      })
     }
 
     // 2. Structural checks on customizer lines.
@@ -196,6 +208,7 @@ export function evaluateCartPricing(
         screenTierQuantity: screenJobQtyByLine.get(line.id),
         embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
         screenHeavyGarment: screenHeavyFromStoredBreakdown(server),
+        screenDarkGarment: screenDarkGarmentFromStoredBreakdown(server),
         fullColourCard: fullColourCardFromStoredServer(server),
       })
 

@@ -10,6 +10,7 @@
  * pricing logic. Behaviour is byte-identical to the original inline version.
  */
 import { MedusaError } from "@medusajs/framework/utils"
+import type { MedusaContainer } from "@medusajs/framework/types"
 
 import {
   SCP_PRINT_PRICING_VERSION,
@@ -38,11 +39,14 @@ import {
 } from "./scp-resolve-garment-unit-price"
 import type { Tier } from "./customer-tiers"
 import { allowlistClientLineMetadata } from "./client-line-metadata"
+import { applyDigitizingWaivers } from "./digitizing-waiver"
 
 export type { EmbroideryBreakdownEntry, ScreenBreakdownEntry }
 
 export type CartForLineDescriptor = {
   id?: string
+  /** Logged-in customer — the digitizing waiver only checks THEIR prior orders. */
+  customer_id?: string | null
   currency_code?: string | null
   region_id?: string | null
   sales_channel_id?: string | null
@@ -73,6 +77,11 @@ export type ScpLineDescriptorInput = {
   query: RemoteJoinerGraphLike
   /** Cart customer's pricing tier — flat garment price replaces the ladder. */
   tier?: Tier | null
+  /**
+   * Needed for the prior-order digitizing check (raw SQL). Absent (unit
+   * harnesses) → the client's includeDigitizingFee is honoured as sent.
+   */
+  container?: MedusaContainer
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -99,8 +108,14 @@ export async function computeScpLineDescriptor(
   // quote_locked_price / price_override / decorationDesign and any client
   // copy of pricing.server are dropped here; the server block is rebuilt
   // below from the computed totals.
-  const mergedMetadata: Record<string, unknown> =
+  const allowed: Record<string, unknown> =
     allowlistClientLineMetadata(incomingMetadata).metadata
+  // Digitizing is charged on new or resized artwork: the client's
+  // includeDigitizingFee is a claim, and only a matching file on one of
+  // this customer's prior orders makes it true (review 1-3).
+  const mergedMetadata: Record<string, unknown> = input.container
+    ? await applyDigitizingWaivers(input.container, cart.customer_id ?? null, allowed)
+    : allowed
 
   const decoratedSides = decoratedSidesFromLineMetadata(mergedMetadata)
   if (decoratedSides.length < 1) {
@@ -132,13 +147,14 @@ export async function computeScpLineDescriptor(
     const flags = await resolveDecorationProductFlags(query, variantId)
     fullColourCard =
       flags.decorationPricingClass === "supacolour" ? "supacolour" : "dtf"
-    if (flags.screenHeavy || fullColourCard === "supacolour") {
+    if (flags.screenHeavy || flags.darkGarment || fullColourCard === "supacolour") {
       totals = computeDecorationTotals({
         metadata: mergedMetadata,
         printSizeId,
         printTierQuantity: quantity,
         embroideryQuantity: quantity,
         screenHeavyGarment: flags.screenHeavy,
+        screenDarkGarment: flags.darkGarment,
         fullColourCard,
       })
     }

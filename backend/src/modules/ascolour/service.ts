@@ -19,8 +19,13 @@ type InjectedDependencies = {
 const PAGE_SIZE = 250
 
 function extractItems<T>(resp: PaginatedResponse<T> | T[] | null | undefined): T[] {
-  if (!resp) return []
   if (Array.isArray(resp)) return resp
+  // An HTML/empty 200 on a listing endpoint is a broken response, not the
+  // end of the catalog (review 2-4) — the walker must not treat it as the
+  // last page and advance the checkpoint past rows it never fetched.
+  if (!resp || typeof resp !== "object") {
+    throw new Error(`AS Colour: expected a paginated JSON body, got ${resp === null ? "null" : typeof resp}`)
+  }
   return resp.items ?? resp.data ?? resp.results ?? []
 }
 

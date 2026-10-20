@@ -143,3 +143,21 @@ describe("scp-dtf-print-pricing", () => {
     ).toBe(17) // 8.5 × 2
   })
 })
+
+describe("print size snaps UP from the stored cm (review 1-3)", () => {
+  it("an A3-sized print declared A6 prices as A3; a declared tier never drops", () => {
+    const locations = decoratedLocationsFromLineMetadata({
+      customizerDesign: {
+        prints: [
+          { side: "front", sizeId: "up_to_a6", approxCm: { width: 25, height: 30 } },
+          { side: "back", sizeId: "up_to_a4", approxCm: { width: 8, height: 3.5 } },
+        ],
+      },
+    })
+    expect(locations.map((l) => l.minPrintSizeId)).toEqual(["up_to_a3", "up_to_a6"])
+    // 16 (A3, tier 0) + 11.5 (declared A4 kept) — not 8.5 + 8.5.
+    expect(
+      scpPrintTotalMajorFromLocations({ selectedPrintSizeId: "up_to_a6", tierIndex: 0, locations })
+    ).toBe(27.5)
+  })
+})

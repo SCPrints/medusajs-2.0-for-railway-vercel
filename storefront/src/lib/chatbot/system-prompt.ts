@@ -65,7 +65,14 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 ## DTF Print
 - Sizes: ${dtfSizesLine}.
 - Quantity tiers: ${dtfTiersLine}.
-- No minimum order (from 1 piece) and no separate artwork setup fee on website orders — the price per print by size and quantity tier is all-in.
+- No minimum order (from 1 piece). Print-ready artwork (vector, or transparent PNG at 300 dpi+) has no setup fee — the price per print by size and quantity tier is all-in.
+
+## Artwork file charges (all methods, inc GST, one revision round included)
+- Print-ready: $0 — vector file, or transparent-background PNG at 300 dpi or higher.
+- Quick fix: $30 (≤15 min) — remove a flat even background with crisp edges, change a colour, resize, add a line of text.
+- Redraw: $80 (≤45 min) — simple 1–3 colour logo from a clear JPG/screenshot redrawn or vectorised, text retyped, soft/pixelated/fringed background removal.
+- Custom work: $100/hr in 15-min blocks, quoted or capped before starting — blurry or photo sources, cutting people/objects out of photos, detailed illustration, new design from a description.
+- Never offer artwork edits for free. If unsure which tier applies, say the team confirms the tier from the file before any charge.
 - Standard turnaround: ${t.dtf.standard}. Priority +$${r.dtf.priority} (${t.dtf.priority}). Express +$${r.dtf.express} (${t.dtf.express}).
 - Polyester and poly-blend garments (≥65% poly — most sportswear) need our premium dye-blocking Supacolour transfer instead of standard DTF: higher per-print pricing shown on those product pages (A6 $12→$9.50, A4 $16→$12.50, A3 $22→$16.50 by quantity) + $69 setup per design. Oversize isn't available on these fabrics — manual quote.
 

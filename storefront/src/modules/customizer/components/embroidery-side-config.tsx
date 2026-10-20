@@ -213,21 +213,29 @@ const EmbroiderySideConfig: React.FC<Props> = ({
         />
       </label>
 
+      {/* Inverted sense on purpose: the customer claims a prior job; the
+          server only waives when the same artwork at the same size is on a
+          previous order of theirs (review 1-3) — new or resized art pays. */}
       <label className="flex items-center gap-2 text-xs">
         <input
           type="checkbox"
-          checked={includeDigitizing}
+          checked={!includeDigitizing}
           onChange={(e) => {
-            setIncludeDigitizing(e.target.checked)
+            const include = !e.target.checked
+            setIncludeDigitizing(include)
             commit({
-              includeDigitizingFee: e.target.checked,
-              digitizingFee: e.target.checked ? DIGITIZING_FEE_DEFAULT : 0,
+              includeDigitizingFee: include,
+              digitizingFee: include ? DIGITIZING_FEE_DEFAULT : 0,
             })
           }}
         />
         <span>
-          Include digitizing fee
-          <span className="text-ui-fg-subtle"> (${DIGITIZING_FEE_DEFAULT.toFixed(2)})</span>
+          We&apos;ve embroidered this exact artwork for you before
+          <span className="text-ui-fg-subtle">
+            {" "}
+            (waives the ${DIGITIZING_FEE_DEFAULT.toFixed(2)} digitising fee when it matches a
+            previous order at the same size)
+          </span>
         </span>
       </label>
 

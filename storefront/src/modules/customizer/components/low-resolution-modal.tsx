@@ -167,6 +167,12 @@ const LowResolutionModal = ({
             </span>
           </button>
 
+          <p className="text-xs text-ui-fg-subtle mt-1">
+            Artwork edits are paid: quick fixes from $30, a full redraw $80, and
+            custom work at $100/hr (quoted before we start). Print-ready files
+            are free.
+          </p>
+
           <button
             type="button"
             onClick={fireDismissed}

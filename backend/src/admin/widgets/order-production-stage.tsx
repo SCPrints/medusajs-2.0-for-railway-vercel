@@ -530,7 +530,8 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
                 </div>
                 {entry.changed_by ? (
                   <Text size="xsmall" className="text-ui-fg-muted mt-0.5">
-                    by {entry.changed_by}
+                    by {entry.approver_name ? `${entry.changed_by} (${entry.approver_name})` : entry.changed_by}
+                    {entry.source && entry.source !== "admin" ? ` · ${entry.source}` : ""}
                   </Text>
                 ) : null}
                 {entry.note ? (

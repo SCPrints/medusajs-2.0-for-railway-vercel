@@ -1,15 +1,15 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { Modules } from "@medusajs/framework/utils"
-import type {
-  IEventBusModuleService,
-  IOrderModuleService,
-} from "@medusajs/framework/types"
+import type { IOrderModuleService } from "@medusajs/framework/types"
 import { z } from "zod"
 
 import {
+  STALE_FLAG_KEYS,
   planProductionStageChange,
   resolveTracksFromMeta,
 } from "../../../../../../lib/production-stage"
+import { mergeOrderMetadata } from "../../../../../../lib/order-metadata"
+import { emitStageEvents } from "../../../../../../lib/stage-events"
 import {
   STAGE_TRANSITION_NOT_ALLOWED,
   isTransitionNotAllowed,
@@ -57,7 +57,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const actor = (req as any).auth_context?.actor_id ?? "system"
   const orderModule = req.scope.resolve(Modules.ORDER) as IOrderModuleService
-  const eventBus = req.scope.resolve(Modules.EVENT_BUS) as IEventBusModuleService
 
   let order: any
   try {
@@ -99,29 +98,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.json({ ok: true, changed: false, applied })
   }
 
-  await orderModule.updateOrders([
-    {
-      id: orderId,
-      metadata: {
-        ...previous,
-        ...plan.metadata,
-        pos_fast_forwarded_at: nowIso,
-        pos_fast_forwarded_target: body.target,
-      },
-    },
-  ])
+  // Atomic merge + history append (review 3-5) — never a full-metadata
+  // read-modify-write over the snapshot read above.
+  const { production_stage_history: _history, ...stagePatch } = plan.metadata
+  await mergeOrderMetadata(
+    req.scope,
+    orderId,
+    { ...stagePatch, pos_fast_forwarded_at: nowIso, pos_fast_forwarded_target: body.target },
+    { append: { production_stage_history: plan.historyEntries }, unset: [...STALE_FLAG_KEYS] }
+  )
 
   // One event per track that actually moved, so subscribers (emails,
   // automation rules, audit) fire as if the stages had advanced one at a time.
-  for (const e of plan.events) {
-    try {
-      await eventBus.emit({ name: e.name, data: e.data })
-    } catch (err: any) {
-      req.scope
-        .resolve("logger")
-        .error(`pos fast-forward: failed to emit ${e.name} for ${orderId}: ${err?.message ?? err}`)
-    }
-  }
+  await emitStageEvents(req.scope, orderId, plan.events)
 
   await writeAudit({
     container: req.scope as any,

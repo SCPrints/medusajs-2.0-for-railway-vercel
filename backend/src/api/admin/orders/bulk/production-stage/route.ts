@@ -3,12 +3,10 @@ import {
   MedusaError,
   Modules,
 } from "@medusajs/framework/utils"
-import {
-  IEventBusModuleService,
-  IOrderModuleService,
-} from "@medusajs/framework/types"
+import { IOrderModuleService } from "@medusajs/framework/types"
 
 import {
+  STALE_FLAG_KEYS,
   isDownstreamStage,
   isProductionStage,
   planProductionStageChange,
@@ -16,6 +14,8 @@ import {
   type ProductionStage,
 } from "../../../../../lib/production-stage"
 import { isTransitionNotAllowed } from "../../../../../lib/production-stage-guard"
+import { mergeOrderMetadata } from "../../../../../lib/order-metadata"
+import { emitStageEvents } from "../../../../../lib/stage-events"
 import { getPostHog } from "../../../../../lib/posthog"
 import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
 
@@ -72,7 +72,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       : null
 
   const orderModuleService = req.scope.resolve<IOrderModuleService>(Modules.ORDER)
-  const eventBus = req.scope.resolve<IEventBusModuleService>(Modules.EVENT_BUS)
   const logger = (req.scope as any).resolve?.("logger") ?? console
 
   const changedAt = new Date().toISOString()
@@ -168,19 +167,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       }
     }
 
-    // Stage move = progress; clear any stale flag immediately.
-    const {
-      is_stale: _isStale,
-      stale_since: _staleSince,
-      stale_track: _staleTrack,
-      stale_stage: _staleStage,
-      stale_stage_since: _staleStageSince,
-      ...freshMeta
-    } = meta as Record<string, unknown>
-
+    // Atomic merge + history append; stale flags cleared in the same
+    // statement (review 3-5).
+    const { production_stage_history: _history, ...stagePatch } = plan.metadata
     try {
-      await orderModuleService.updateOrders(orderId, {
-        metadata: { ...freshMeta, ...plan.metadata },
+      await mergeOrderMetadata(req.scope, orderId, stagePatch, {
+        append: { production_stage_history: plan.historyEntries },
+        unset: [...STALE_FLAG_KEYS],
       })
     } catch (err: any) {
       results.push({
@@ -193,15 +186,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       continue
     }
 
-    for (const e of plan.events) {
-      try {
-        await eventBus.emit({ name: e.name, data: e.data })
-      } catch (err: any) {
-        logger.warn?.(
-          `bulk-production-stage: failed to emit event for ${orderId}: ${err?.message ?? err}`
-        )
-      }
-    }
+    await emitStageEvents(req.scope, orderId, plan.events)
     results.push({
       order_id: orderId,
       changed: true,

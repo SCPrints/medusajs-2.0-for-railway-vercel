@@ -21,6 +21,7 @@ import {
 } from "../../../../../lib/embroidery-pricing"
 import { SCP_SCREEN_PRICING_VERSION } from "../../../../../lib/scp-screen-print-pricing"
 import { SCP_SUPACOLOUR_PRICING_VERSION } from "../../../../../lib/scp-supacolour-pricing"
+import { applyDigitizingWaivers } from "../../../../../lib/digitizing-waiver"
 import {
   computeDecorationTotals,
   resolveDecorationProductFlags,
@@ -246,9 +247,13 @@ async function scpUpdateDesignPostHandler(
   // Pull the decoration plan once from the new design metadata. These
   // are identical across every targeted line because the design is
   // shared — variants only differ in colour/size.
-  const designMetadataAsLine: Record<string, unknown> = {
-    customizerDesign: newCustomizerDesign,
-  }
+  // Digitizing waiver is decided server-side from this customer's prior
+  // orders (review 1-3) — same rule as the add path.
+  const designMetadataAsLine: Record<string, unknown> = await applyDigitizingWaivers(
+    req.scope,
+    typeof cart.customer_id === "string" ? cart.customer_id : null,
+    { customizerDesign: newCustomizerDesign }
+  )
   const decoratedSides = decoratedSidesFromLineMetadata(designMetadataAsLine)
   if (decoratedSides.length < 1) {
     throw new MedusaError(
@@ -300,13 +305,14 @@ async function scpUpdateDesignPostHandler(
       }
       fullColourCard =
         flags.decorationPricingClass === "supacolour" ? "supacolour" : "dtf"
-      if (flags.screenHeavy || fullColourCard === "supacolour") {
+      if (flags.screenHeavy || flags.darkGarment || fullColourCard === "supacolour") {
         totals = computeDecorationTotals({
           metadata: designMetadataAsLine,
           printSizeId,
           printTierQuantity: line.quantity,
           embroideryQuantity: line.quantity,
           screenHeavyGarment: flags.screenHeavy,
+          screenDarkGarment: flags.darkGarment,
           fullColourCard,
         })
       }
@@ -387,7 +393,9 @@ async function scpUpdateDesignPostHandler(
         : {}
 
     const mergedCustomizerDesign: Record<string, unknown> = {
-      ...newCustomizerDesign,
+      // The waiver-decided design, so the stored includeDigitizingFee is
+      // the server's answer and the recompute/invariant reuse it.
+      ...(designMetadataAsLine.customizerDesign as Record<string, unknown>),
       pricing: {
         ...newPricingExisting,
         server: {

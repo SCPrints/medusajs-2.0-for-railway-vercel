@@ -27,7 +27,7 @@
  * write sets for each track field.
  */
 
-import { assertTransition, type StageActor } from "./production-stage-guard"
+import { actorLabel, assertTransition, type StageActor } from "./production-stage-guard"
 
 export const ARTWORK_STAGES = [
   "pending",
@@ -362,7 +362,12 @@ export function isDownstreamStage(value: unknown): value is DownstreamStage {
 export type ProductionStageHistoryEntry = {
   stage: ProductionStage
   changed_at: string
+  /** Admin user id for staff writers; the literal "customer" for the approval link — never free text (review 3-9). */
   changed_by?: string | null
+  /** Who moved it: admin | bulk | pos_fast_forward | automation:<rule_id> | customer_link | system. Absent on legacy entries. */
+  source?: string
+  /** Name the customer typed on the approval page — display only, kept apart from changed_by. */
+  approver_name?: string | null
   note?: string | null
   /** Which track this transition belongs to. Optional for backward compat with legacy entries. */
   track?: ProductionTrack
@@ -419,6 +424,8 @@ export type ProductionStageChangedEvent = {
   to_stage: ProductionStage
   changed_at: string
   changed_by?: string | null
+  /** Same vocabulary as ProductionStageHistoryEntry.source. */
+  source?: string
   note?: string | null
   track?: ProductionTrack
 }
@@ -448,7 +455,22 @@ export type ProductionStageChangePlan = {
       }
     | null
   events: Array<{ name: string; data: ProductionStageChangedEvent }>
+  /**
+   * Just the NEW history entries (metadata.production_stage_history above is
+   * the full array). Writers pass these to mergeOrderMetadata's `append` so
+   * the write is atomic — never the full array (review 3-5).
+   */
+  historyEntries: ProductionStageHistoryEntry[]
 }
+
+/** Stale-order flags every stage move clears (a move is progress by definition). */
+export const STALE_FLAG_KEYS = [
+  "is_stale",
+  "stale_since",
+  "stale_track",
+  "stale_stage",
+  "stale_stage_since",
+] as const
 
 function readStageFromMeta(meta: Record<string, unknown>): ProductionStage | null {
   const raw = (meta as { production_stage?: unknown }).production_stage
@@ -560,7 +582,7 @@ export function planProductionStageChange(
     })
 
   if (transitions.length === 0) {
-    return { changed: false, metadata: null, events: [] }
+    return { changed: false, metadata: null, events: [], historyEntries: [] }
   }
 
   const actor: StageActor = opts.actor ?? { kind: "system" }
@@ -570,10 +592,12 @@ export function planProductionStageChange(
 
   const note = opts.note ?? null
   const history = readHistoryFromMeta(meta)
+  const source = actorLabel(actor)
   const newEntries: ProductionStageHistoryEntry[] = transitions.map((t) => ({
     stage: t.to,
     changed_at: opts.changedAt,
     changed_by: opts.changedBy,
+    source,
     note,
     track: t.track,
   }))
@@ -603,6 +627,7 @@ export function planProductionStageChange(
       to_stage: t.to,
       changed_at: opts.changedAt,
       changed_by: opts.changedBy,
+      source,
       note,
       track: t.track,
     } as ProductionStageChangedEvent,
@@ -628,5 +653,6 @@ export function planProductionStageChange(
           : null,
     },
     events,
+    historyEntries: newEntries,
   }
 }
