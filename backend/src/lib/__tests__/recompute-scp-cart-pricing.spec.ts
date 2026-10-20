@@ -453,6 +453,33 @@ describe("recomputeScpCartPricingPure", () => {
     // Customizer: 20 + 6 print = 26
     expect(result.prices.get("line_cust")).toBe(26)
   })
+
+  it("perLine prices each line at its own quantity (aggregation off / single-line fallback, review 1-7)", () => {
+    // Was 100 units at the 100+ tier ($18.75), reduced to 5 → must drop to the 1-9 tier.
+    const lines = [
+      {
+        id: "line_reduced",
+        quantity: 5,
+        unit_price: 18.75,
+        variant: { id: "var_A", metadata: VARIANT_A_TIERS },
+        metadata: {},
+      },
+      {
+        id: "line_other",
+        quantity: 45,
+        unit_price: 18.75,
+        variant: { id: "var_A", metadata: VARIANT_A_TIERS },
+        metadata: {},
+      },
+    ]
+    const perLine = recomputeScpCartPricingPure(lines, null, undefined, { perLine: true })
+    expect(perLine.prices.get("line_reduced")).toBe(25)
+    expect(perLine.prices.get("line_other")).toBe(21.25)
+    // Default (aggregated) still pools both lines into the 50-99 tier.
+    const aggregated = recomputeScpCartPricingPure(lines)
+    expect(aggregated.prices.get("line_reduced")).toBe(20)
+    expect(aggregated.prices.get("line_other")).toBe(20)
+  })
 })
 
 describe("cartItemsFingerprint (lost-update guard)", () => {

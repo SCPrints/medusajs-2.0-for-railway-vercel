@@ -2,8 +2,10 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import {
   ContainerRegistrationKeys,
   MedusaError,
+  Modules,
 } from "@medusajs/framework/utils"
-import { updateLineItemInCartWorkflow } from "@medusajs/medusa/core-flows"
+import type { ICartModuleService } from "@medusajs/framework/types"
+import { refreshCartItemsWorkflow } from "@medusajs/medusa/core-flows"
 import { z } from "zod"
 
 import {
@@ -29,6 +31,7 @@ import {
 } from "../../../../../lib/scp-decoration-pricing"
 import {
   RemoteJoinerGraphLike,
+  garmentMajorWithTier,
   resolveGarmentUnitAmountMajor,
   resolveTierForCartCustomer,
 } from "../../../../../lib/scp-resolve-garment-unit-price"
@@ -71,8 +74,12 @@ const bodySchema = z.object({
  * Pricing handling:
  *   1. Each line's `customizerDesign.pricing.server` block is rewritten with
  *      the new design's decorated sides + chosen print size.
- *   2. `updateLineItemInCartWorkflow` is called per line with the rewritten
- *      metadata.
+ *   2. ONE `cartModule.updateLineItems` writes every line's price + metadata,
+ *      then ONE `refreshCartItemsWorkflow` re-syncs shipping / promotions /
+ *      payment collection — the same shape as the recompute. The old
+ *      per-line `updateLineItemInCartWorkflow` took the per-cart lock and
+ *      did a full refresh N times (up to 200 lines), the pattern behind the
+ *      "Failed to acquire lock" incident (review 1-8).
  *   3. `recomputeScpCartPricing` runs once at the end so every line's
  *      `unit_price` is recalculated against the new design + aggregated
  *      cart-wide quantity. The recompute is the source of truth for prices.
@@ -269,17 +276,46 @@ async function scpUpdateDesignPostHandler(
   const updatedLineIds: string[] = []
   const skippedLineIds: string[] = []
 
-  // Per-line update: recompute unit_price from the line's own quantity +
+  // One variant-metadata fetch for every targeted line (the bulk ladder
+  // lives on variant.metadata). Only a variant with no ladder falls back to
+  // the per-variant calculated_price lookup.
+  const targetVariantIds = Array.from(
+    new Set(
+      lineIds
+        .map((id) => cartItemsById.get(id)?.variant_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    )
+  )
+  const variantMetaById = new Map<string, Record<string, unknown> | null>()
+  if (targetVariantIds.length) {
+    const { data: variantRows } = await query.graph({
+      entity: "variants",
+      filters: { id: targetVariantIds },
+      fields: ["id", "metadata"],
+    })
+    for (const row of (variantRows ?? []) as Array<{
+      id?: string
+      metadata?: Record<string, unknown> | null
+    }>) {
+      if (row?.id) variantMetaById.set(row.id, row.metadata ?? null)
+    }
+  }
+
+  // Per-line pricing: recompute unit_price from the line's own quantity +
   // the new design via the canonical decoration math (scp-decoration-pricing
   // — shared with the add descriptor and the cart-wide recompute; this route
   // previously carried its own copy, which missed screen printing entirely
   // when it shipped and dropped the heavy-garment surcharge on every design
-  // edit). Each call hits a distinct line, so they're safe to fan out — but
-  // we keep them sequential for simpler error reporting; recompute below
-  // re-prices everything in a single parallel pass anyway.
+  // edit). Prices + metadata are collected here and written in one batch
+  // below; the recompute then re-tiers everything against the whole cart.
   // Product pricing-flag lookups (heavy garment + full-colour card) are
   // cached per variant — every targeted line usually shares one product.
   const flagsByVariant = new Map<string, DecorationProductFlags>()
+  const pending: Array<{
+    id: string
+    unit_price: number
+    metadata: Record<string, unknown>
+  }> = []
   for (const lineId of lineIds) {
     const line = cartItemsById.get(lineId)
     if (!line || !line.variant_id || line.quantity <= 0) {
@@ -361,19 +397,27 @@ async function scpUpdateDesignPostHandler(
       )
     }
 
-    const garmentMajor = await resolveGarmentUnitAmountMajor({
-      query,
-      variantId: line.variant_id,
-      quantity: line.quantity,
-      cart: cart as {
-        id?: string
-        currency_code?: string | null
-        region_id?: string | null
-        sales_channel_id?: string | null
-        region?: { currency_code?: string | null } | null
-      },
-      tier,
-    })
+    const ladderMajor = garmentMajorWithTier(
+      variantMetaById.get(line.variant_id) ?? null,
+      line.quantity,
+      tier
+    )
+    const garmentMajor =
+      ladderMajor !== null && ladderMajor >= 0
+        ? round2(ladderMajor)
+        : await resolveGarmentUnitAmountMajor({
+            query,
+            variantId: line.variant_id,
+            quantity: line.quantity,
+            cart: cart as {
+              id?: string
+              currency_code?: string | null
+              region_id?: string | null
+              sales_channel_id?: string | null
+              region?: { currency_code?: string | null } | null
+            },
+            tier,
+          })
 
     const unitPriceMajor = round2(
       Math.max(0, garmentMajor) +
@@ -448,18 +492,25 @@ async function scpUpdateDesignPostHandler(
       ...(product_title ? { product_title } : {}),
     }
 
-    await updateLineItemInCartWorkflow(req.scope as never).run({
-      input: {
-        cart_id: cartId,
-        item_id: lineId,
-        update: {
-          unit_price: unitPriceMajor,
-          metadata: mergedMetadata,
-        },
-      },
-    })
-
+    pending.push({ id: lineId, unit_price: unitPriceMajor, metadata: mergedMetadata })
     updatedLineIds.push(lineId)
+  }
+
+  // ONE batched write + ONE cart refresh (same shape as the recompute). A
+  // non-forced refresh doesn't reprice items — it only re-syncs shipping,
+  // promotions and the payment collection, which is all the per-line
+  // workflow did after writing its price.
+  if (pending.length) {
+    const cartModule = req.scope.resolve(Modules.CART) as ICartModuleService
+    await cartModule.updateLineItems(
+      pending.map((p) => ({
+        id: p.id,
+        unit_price: p.unit_price,
+        is_custom_price: true,
+        metadata: p.metadata,
+      }))
+    )
+    await refreshCartItemsWorkflow(req.scope as never).run({ input: { cart_id: cartId } })
   }
 
   // Cross-cart aggregation runs once after all per-line updates landed.

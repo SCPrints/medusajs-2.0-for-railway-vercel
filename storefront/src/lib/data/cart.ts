@@ -484,13 +484,18 @@ export async function getScpCartAggregate(): Promise<ScpCartAggregate | null> {
  * aggregated tier. Soft-fails: a recompute error never blocks the caller —
  * the cart mutation itself already succeeded.
  */
-async function recomputeScpCart(cartId: string): Promise<void> {
+async function recomputeScpCart(
+  cartId: string,
+  body: Record<string, unknown> = {}
+): Promise<boolean> {
   try {
-    await postJsonMedusa(`/store/carts/${cartId}/scp-recompute`, {})
+    await postJsonMedusa(`/store/carts/${cartId}/scp-recompute`, body)
+    return true
   } catch (error) {
     // Recompute is value-add — never let it crash the calling action.
     // eslint-disable-next-line no-console
     console.warn("scp-recompute failed (non-fatal):", error)
+    return false
   }
 }
 
@@ -887,8 +892,22 @@ export async function updateLineItem({
   // new tier (e.g. crossing the 50→100 boundary by bumping a line). Runs
   // synchronously before revalidation so the cart refetch sees the new
   // prices in the same request cycle.
-  await recomputeScpCart(cartId)
+  //
+  // Medusa core keeps the custom unit_price at the new quantity, so if the
+  // full recompute fails (lock timeout) a reduce 100→5 would leave 5 units at
+  // the 100+ price. Fall back to re-pricing just this line at its own
+  // quantity; if that fails too, tell the customer (review 1-7). Returned as
+  // a message, not thrown: Next masks thrown messages in production.
+  let message: string | undefined
+  if (!(await recomputeScpCart(cartId))) {
+    const ok = await recomputeScpCart(cartId, { line_ids: [lineId], per_line: true })
+    if (!ok) {
+      message =
+        "Quantity updated, but the price could not be refreshed. Reload the cart to see the current price."
+    }
+  }
   revalidateTag("cart", "max")
+  return message
 }
 
 export async function deleteLineItem(lineId: string) {

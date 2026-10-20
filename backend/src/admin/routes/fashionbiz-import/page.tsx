@@ -1,6 +1,7 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { ArrowDownTray } from "@medusajs/icons"
 import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { runSupplierImport } from "../../lib/supplier-import-client"
 import {
   Badge,
   Button,
@@ -227,17 +228,12 @@ const FashionBizImportPage = () => {
     setImporting(true)
     setImportResult(null)
     try {
-      const res = await fetch(adminUrl("/admin/fashionbiz/import"), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brand: activeBrand, slugs }),
+      // Starts the import (202) and polls the same URL until it finishes —
+      // the import runs off the request on the backend (review 2-8).
+      const result = await runSupplierImport<ImportResult>(adminUrl("/admin/fashionbiz/import"), {
+        brand: activeBrand,
+        slugs,
       })
-      const body = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        throw new Error((body as any)?.error ?? `HTTP ${res.status}`)
-      }
-      const result = body as ImportResult
       setImportResult(result)
 
       if (result.imported.length > 0) {
