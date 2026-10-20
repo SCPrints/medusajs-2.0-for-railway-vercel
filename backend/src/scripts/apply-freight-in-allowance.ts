@@ -3,12 +3,15 @@
  * allowance to the current FREIGHT_IN_ALLOWANCE_AUD (utils/bulk-price-ladder.ts).
  *
  * 2026-08-27 it baked $15 in (full at 1-9, amortized over the band minimum
- * above). 2026-10-19 the constant went to 0 — freight-in is charged once per
- * order in the shipping bands instead — so the same script now takes it back
- * out. It works on the DELTA between the variant's `bulk_pricing.freight_in_aud`
- * stamp (unstamped = 0) and the constant, so it is idempotent and re-runnable
- * at any value. Unstamped ladders created while the allowance was 15 are
- * treated as carrying it (see UNSTAMPED_FREIGHT_WINDOW).
+ * above). On 2026-10-19 the constant was briefly set to 0 and this script
+ * rewritten to work on the DELTA between the variant's
+ * `bulk_pricing.freight_in_aud` stamp (unstamped = 0) and the constant; the
+ * zeroing was reverted the same day (the $15 is a deliberate small-order
+ * charge, see the constant's comment) and the catalogue was NEVER repriced.
+ * The script is idempotent and re-runnable at any value, but at 15 a run is a
+ * no-op for stamped variants — DO NOT run it expecting a reprice unless the
+ * constant has actually changed. Unstamped ladders created while the
+ * allowance was 15 are treated as carrying it (see UNSTAMPED_FREIGHT_WINDOW).
  *
  * For each variant with `metadata.bulk_pricing.tiers` whose stamp differs:
  *   - adds `delta / max(1, min_quantity)` to each tier amount

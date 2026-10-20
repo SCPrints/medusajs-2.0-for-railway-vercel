@@ -139,9 +139,10 @@ The `matcher` property can be either a string or a regular expression. The `midd
 
 Checkout offers one shipping option, **Standard Shipping (AU)**, priced by the
 cart's total weight through the in-house `scp_scp` fulfillment provider
-(`src/modules/scp-shipping`). The bands live in `src/lib/shipping-rate.ts`:
-outbound postage by weight plus a once-per-order inbound freight-in
-(`FREIGHT_IN_PER_ORDER_AUD`). No external carrier is called at checkout.
+(`src/modules/scp-shipping`). With `SHIPPIT_API_KEY` set the price is a live
+AusPost quote via Shippit (`src/lib/shippit-quote.ts`); otherwise the weight
+bands in `src/lib/shipping-rate.ts` apply. Postage only — the $15 small-order
+charge lives in the garment ladder (`FREIGHT_IN_ALLOWANCE_AUD`), not here.
 
 ### Env vars
 

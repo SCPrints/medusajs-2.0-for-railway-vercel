@@ -60,8 +60,8 @@ export function getVariantCostMinor(variant: VariantLike): number | null {
   const topMajor = top ? top.amount : toNumber(bulk.tier_100_plus_price)
   if (!Number.isFinite(topMajor)) return null
 
-  // Per-unit freight-in baked into the ladder (0 since 2026-10-19; older
-  // variants may still carry 15). The top band carries `round2(stamp / 100)`.
+  // Per-unit small-order charge baked into the ladder ($15, deliberate; some
+  // importers never stamp it). The top band carries `round2(stamp / 100)`.
   const freight = toNumber(bulk.freight_in_aud)
   const freightAtTop = Number.isFinite(freight) ? round2(freight / 100) : 0
 

@@ -16,12 +16,10 @@
  *   50-99    = standard * 0.80
  *   base     = standard           (covers Medusa qty 1-9)
  *
- * 2026-08-27 → 2026-10-19 every band ALSO carried a per-unit inbound
- * freight-in allowance (`FREIGHT_IN_ALLOWANCE_AUD`). It is now 0: freight-in
- * is charged ONCE PER ORDER inside the shipping bands instead — see
- * lib/shipping-rate.ts `FREIGHT_IN_PER_ORDER_AUD`. The constant + the
- * `freight_in_aud` stamp stay so apply-freight-in-allowance.ts can move
- * existing variants to whatever value this holds.
+ * Since 2026-08-27 every band ALSO carries the per-unit small-order charge
+ * (`FREIGHT_IN_ALLOWANCE_AUD`, $15 at qty 1-9, amortised above) — see that
+ * constant's comment. The `freight_in_aud` stamp on each variant lets
+ * apply-freight-in-allowance.ts move existing variants if the value changes.
  *
  * Originally ported from `scripts/build_as_colour_import_csv.py`.
  *
@@ -43,16 +41,18 @@ export type PriceLadder = {
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100
 
 /**
- * Per-UNIT inbound freight-in allowance baked into the garment ladder, AUD.
+ * Per-UNIT small-order charge baked into the garment ladder, AUD: full at
+ * qty 1-9, amortized over the band minimum above (1.50 / 0.75 / 0.30 / 0.15).
  *
- * Was 15 from 2026-08-27 (full at qty 1-9, amortized over the band minimum
- * above). That charged a 5-tee order $75 against ~$15 of real inbound
- * freight and put the single tee ~$13 above market (pricing review
- * 2026-10-08 §4a). Set to 0 on 2026-10-19: the allowance now lives in the
- * shipping bands, once per order (lib/shipping-rate.ts). Keep at 0 — change
- * the shipping constant instead.
+ * Live in every garment retail price since 2026-08-27 and DELIBERATE (Sean,
+ * 2026-10-19): it covers staff time on small first-time orders (repeated
+ * artwork/printing email rounds at near-zero margin) as well as inbound
+ * freight. It is NOT postage — shipping (lib/shipping-rate.ts / Shippit) is
+ * priced separately. Do not move it into shipping or zero it; the 2026-10-19
+ * attempt to do that was reverted the same day. Changing this constant and
+ * running apply-freight-in-allowance.ts reprices the whole catalogue.
  */
-export const FREIGHT_IN_ALLOWANCE_AUD = 0
+export const FREIGHT_IN_ALLOWANCE_AUD = 15
 
 /** Per-unit freight add for a quantity band starting at `minQty`. */
 export const freightInPerUnit = (minQty: number): number =>
