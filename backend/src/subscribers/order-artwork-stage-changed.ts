@@ -5,6 +5,10 @@ import {
 } from "@medusajs/framework/types"
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { SUPPORT_REPLY_TO_EMAIL } from "../lib/constants"
+import { AUDIT_ACTION, AUDIT_ENTITY } from "../lib/audit-entities"
+import { writeAudit } from "../lib/audit-log"
+import { getOwner } from "../lib/crm-owners"
+import { TASK_MODULE } from "../modules/task"
 import { tagUrl } from "../lib/email-utm"
 import { EmailTemplates } from "../modules/email-notifications/templates"
 import {
@@ -136,6 +140,40 @@ export default async function orderArtworkStageChangedHandler({
         (error as Error).message
       }`
     )
+    // Tell someone (review 3-11): the stage says the proof went out, so a
+    // silent failure here was only ever found by the stale scan four
+    // business days later. Audit row on the order + a task for its owner.
+    await writeAudit({
+      container,
+      entity: AUDIT_ENTITY.ORDER,
+      entity_id: data.order_id,
+      action: AUDIT_ACTION.EMAIL_FAILED,
+      actor_id: "system",
+      details: { email: "artwork_stage", to_stage: toStage, error: (error as Error).message },
+    })
+    try {
+      const orderOwner = await getOwner({ container, entity: AUDIT_ENTITY.ORDER, entity_id: data.order_id })
+      const customerOwner =
+        !orderOwner?.user_id && order.customer_id
+          ? await getOwner({ container, entity: AUDIT_ENTITY.CUSTOMER, entity_id: order.customer_id })
+          : null
+      const assignee = orderOwner?.user_id ?? customerOwner?.user_id ?? null
+      if (assignee) {
+        await (container.resolve(TASK_MODULE) as any).createTasks({
+          assignee_user_id: assignee,
+          order_id: data.order_id,
+          customer_id: order.customer_id ?? null,
+          title: `Proof email failed for order #${order.display_id ?? data.order_id.slice(-6)}`,
+          body: `The ${toStage} email to ${order.email} did not send (${(error as Error).message}). Re-send the proof from the order page.`,
+          due_at: new Date(),
+          status: "open",
+          priority: "high",
+          created_by: "system_artwork_email",
+        })
+      }
+    } catch (taskErr: any) {
+      logger.warn(`${ARTWORK_STAGE_EVENT}: could not create owner task for ${data.order_id}: ${taskErr?.message ?? taskErr}`)
+    }
   }
 }
 
