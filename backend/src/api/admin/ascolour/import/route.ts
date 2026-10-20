@@ -23,7 +23,7 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
 import { classifyAsColourProduct } from "../../../../lib/product-taxonomy"
-import { isLockSkipped, withSupplierLock } from "../../../../lib/supplier-sync-lock"
+import { getSupplierImportState, startSupplierImport } from "../../../../lib/supplier-import-run"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -45,6 +45,12 @@ const extractArray = <T,>(resp: any): T[] => {
   return resp.items ?? resp.data ?? resp.results ?? []
 }
 
+type ImportResult = {
+  imported: string[]
+  skipped: string[]
+  errors: Array<{ styleCode: string; error: string }>
+}
+
 /**
  * POST /admin/ascolour/import
  *
@@ -52,47 +58,58 @@ const extractArray = <T,>(resp: any): T[] => {
  * `import-as-colour-from-api` script scoped to the requested styleCodes.
  *
  * Body: { styleCodes: string[] }
- * Returns: { imported: string[], skipped: string[], errors: Array<{ styleCode, error }> }
+ * Replies 202 `{ started, started_at }` and runs off the request under the
+ * `supplier-sync:ascolour` lock (409 while the inventory sync / backfill /
+ * another import holds it); GET returns `{ in_progress, last_run }` where
+ * `last_run.result` is `{ imported, skipped, errors: [{ styleCode, error }] }`
+ * (review 2-8).
  */
-/** 409 while the AS Colour inventory sync / backfill / another import holds the lock. */
-export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  const result = await withSupplierLock(req.scope, "ascolour", () => runImport(req, res))
-  if (isLockSkipped(result)) {
-    return res.status(409).json({
-      error: "An AS Colour sync or import is already running — try again in a few minutes.",
-    })
-  }
+export async function GET(_req: MedusaRequest, res: MedusaResponse) {
+  res.json(getSupplierImportState<ImportResult>("ascolour"))
 }
 
-async function runImport(req: MedusaRequest, res: MedusaResponse) {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
-
+export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const scope = req.scope
   let ascolour: AsColourService
   try {
-    ascolour = req.scope.resolve(ASCOLOUR_MODULE) as AsColourService
+    ascolour = scope.resolve(ASCOLOUR_MODULE) as AsColourService
   } catch {
     return res.status(503).json({ error: "AS Colour module not configured." })
   }
 
   const body = req.body as { styleCodes?: string[] }
   const styleCodes = body.styleCodes
-
   if (!styleCodes?.length) {
     return res.status(400).json({ error: "body must contain styleCodes[]" })
   }
 
-  const salesChannelService = req.scope.resolve(Modules.SALES_CHANNEL) as any
-  const fulfillmentService = req.scope.resolve(Modules.FULFILLMENT) as any
-  const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION) as any
-  const brandService = req.scope.resolve(BRAND_MODULE) as any
-  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any
+  await startSupplierImport<ImportResult>(req, res, {
+    supplier: "ascolour",
+    label: "An AS Colour",
+    scope: `${styleCodes.length} style${styleCodes.length === 1 ? "" : "s"}`,
+    work: () => runImport(scope, ascolour, styleCodes),
+  })
+}
+
+async function runImport(
+  scope: MedusaRequest["scope"],
+  ascolour: AsColourService,
+  styleCodes: string[]
+): Promise<ImportResult> {
+  const query = scope.resolve(ContainerRegistrationKeys.QUERY)
+
+  const salesChannelService = scope.resolve(Modules.SALES_CHANNEL) as any
+  const fulfillmentService = scope.resolve(Modules.FULFILLMENT) as any
+  const stockLocationService = scope.resolve(Modules.STOCK_LOCATION) as any
+  const brandService = scope.resolve(BRAND_MODULE) as any
+  const logger = scope.resolve(ContainerRegistrationKeys.LOGGER) as any
 
   const salesChannels = await salesChannelService.listSalesChannels({ name: "Default Sales Channel" })
-  if (!salesChannels.length) return res.status(500).json({ error: "Default Sales Channel not found" })
+  if (!salesChannels.length) throw new Error("Default Sales Channel not found")
   const defaultSalesChannelId = salesChannels[0].id
 
   const shippingProfiles = await fulfillmentService.listShippingProfiles({ type: "default" })
-  if (!shippingProfiles.length) return res.status(500).json({ error: "Default shipping profile not found" })
+  if (!shippingProfiles.length) throw new Error("Default shipping profile not found")
   const shippingProfileId = shippingProfiles[0].id
 
   // Resolve or create AS Colour Warehouse stock location
@@ -117,7 +134,7 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
     const channelIds = allChannels.map((c) => c.id)
     if (channelIds.length > 0) {
       try {
-        await linkSalesChannelsToStockLocationWorkflow(req.scope).run({
+        await linkSalesChannelsToStockLocationWorkflow(scope).run({
           input: { id: locationId, add: channelIds },
         })
       } catch {
@@ -144,10 +161,10 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
     asColourBrand = created
   }
 
-  // Fetch all products from AS Colour to find the requested styleCodes,
-  // then enrich with variants + images
-  const allProducts = await ascolour.fetchAllProducts()
-  const productsByCode = new Map(allProducts.map((p) => [p.styleCode, p]))
+  // Only the requested styles are fetched (one GET each) — the full catalog
+  // walk was the bulk of a single-style import's runtime (review 2-8). The
+  // price list has no per-style filter, so that stays one paginated pull.
+  const productsByCode = new Map<string, AsColourProduct>()
 
   // Fetch price list
   const priceList = await ascolour.fetchAllPriceList()
@@ -182,11 +199,12 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
         continue
       }
 
-      const product = productsByCode.get(styleCode)
-      if (!product) {
+      const product = await ascolour.getClient().getProduct(styleCode).catch(() => null)
+      if (!product?.styleCode) {
         errors.push({ styleCode, error: "Product not found in AS Colour catalog" })
         continue
       }
+      productsByCode.set(styleCode, product)
 
       // Same handle as import-as-colour-from-api.ts (the API field is
       // `styleName`, not `productName`) — otherwise the idempotency check
@@ -300,17 +318,17 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
   }
 
   if (!toCreate.length) {
-    return res.json({ imported, skipped, errors })
+    return { imported, skipped, errors }
   }
 
   // Create products
-  const { result } = await createProductsWorkflow(req.scope).run({
+  const { result } = await createProductsWorkflow(scope).run({
     input: { products: toCreate },
   })
   const createdProducts = (result as any[]) ?? []
 
   if (asColourBrand) {
-    await linkProductsToBrand(req.scope, createdProducts, asColourBrand.id)
+    await linkProductsToBrand(scope, createdProducts, asColourBrand.id)
   }
 
   // Build handle → source-product map for taxonomy classification. The
@@ -323,14 +341,14 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
     if (asColourProduct) sourceByHandle.set((p as any).handle, asColourProduct)
   }
 
-  await applyTaxonomyToProducts(req.scope, {
+  await applyTaxonomyToProducts(scope, {
     products: createdProducts,
     sourceByHandle,
     classify: classifyAsColourProduct,
     logger,
   })
 
-  await applyShopCategoriesToProducts(req.scope, createdProducts, logger)
+  await applyShopCategoriesToProducts(scope, createdProducts, logger)
 
   for (const ctx of contexts) {
     imported.push(ctx.styleCode)
@@ -353,8 +371,8 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
             : (item.available ?? 0)
       stockBySku.set(item.sku, (stockBySku.get(item.sku) ?? 0) + qty)
     }
-    await seedInventoryLevels(req.scope, { stockBySku, locationId, logger })
+    await seedInventoryLevels(scope, { stockBySku, locationId, logger })
   }
 
-  return res.json({ imported, skipped, errors })
+  return { imported, skipped, errors }
 }
