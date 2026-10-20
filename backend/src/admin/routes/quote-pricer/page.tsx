@@ -124,7 +124,14 @@ type JobGroup = {
   unitOverride?: string
   /** Studio mockup attached to this group's lines (set by the design-items route on post-back). */
   mockupUrl?: string | null
+  /** Supplied groups only: a look-alike catalogue garment to design the Studio mockup on. Never priced. */
+  mockupProduct?: ProductLite | null
 }
+
+/** The garment the Studio opens on: the priced product, or a supplied group's stand-in. */
+const studioProductOf = (g: JobGroup) => (g.supplied ? g.mockupProduct ?? null : g.product)
+/** Every product a job needs details for (priced garments + mockup stand-ins). */
+const productsOf = (groups: JobGroup[]) => groups.flatMap((g) => [g.product, g.mockupProduct]).filter((p): p is ProductLite => Boolean(p))
 type JobExtra = { id: string; label: string; qty: string; unitSell: string; unitCost: string }
 /** Persisted on the quote as `metadata.job_pricer.state` and as the browser draft. */
 type JobState = {
@@ -681,7 +688,7 @@ function QuotePricerPage() {
       }
       if (loaded) {
         setState((s) => ({ ...loaded!, tierSlug: seeded ? s.tierSlug : loaded!.tierSlug }))
-        if (!seeded) await Promise.all(loaded.groups.filter((g) => g.product).map((g) => ensureDetail(g.product!)))
+        if (!seeded) await Promise.all(productsOf(loaded.groups).map(ensureDetail))
         if (seeded) toast.info("Started from the customer's Studio design — check sizes, stitch counts and techniques.")
       }
       setHydrated(true)
@@ -1137,11 +1144,23 @@ function QuotePricerPage() {
   }
   useEffect(() => stopStudioPoll, [])
   const openStudio = async (g: JobGroup) => {
-    const detail = g.product ? details[g.product.id] : undefined
-    if (!targetQuote || !g.product || !detail) return
+    const product = studioProductOf(g)
+    const detail = product ? details[product.id] : undefined
+    if (!targetQuote || !product || !detail) return
     if (!(await saveJob({ navigate: false }))) return
     try {
-      const params = new URLSearchParams({ group: g.id, handle: g.product.handle ?? "", seed: buildStudioSeed(g, detail) })
+      // Supplied rows carry a free label ("Black oversized"), not a colour —
+      // pre-pick the stand-in's colour named in it so the mockup starts close.
+      const seedGroup = g.supplied
+        ? {
+            ...g,
+            rows: g.rows.slice(0, 1).map((r) => ({
+              ...r,
+              colour: variantAxes(detail).colours.find((c) => r.label.toLowerCase().includes(c.toLowerCase())) ?? null,
+            })),
+          }
+        : g
+      const params = new URLSearchParams({ group: g.id, handle: product.handle ?? "", seed: buildStudioSeed(seedGroup, detail) })
       const { url } = await adminGet<{ url?: string }>(`/admin/quotes/${targetQuote.id}/design-link?${params}`)
       if (!url) throw new Error("No Studio URL returned")
       const popup = window.open(url, "quote-customizer", "width=1280,height=900,noopener=false")
@@ -1194,7 +1213,7 @@ function QuotePricerPage() {
     // Designs within 6 months take the repeat rate; Studio mockups belong to the old quote's lines.
     const st: JobState = { ...lastJob.state, designs: lastJob.state.designs.map((d) => ({ ...d, repeat: recent })), groups: lastJob.state.groups.map((g) => ({ ...g, mockupUrl: null })) }
     setState(st)
-    await Promise.all(st.groups.filter((g) => g.product).map((g) => ensureDetail(g.product!)))
+    await Promise.all(productsOf(st.groups).map(ensureDetail))
     toast.success(`Loaded ${lastJob.public_id}${recent ? " — designs marked repeat" : ""}`)
   }
 
@@ -1345,7 +1364,20 @@ function QuotePricerPage() {
               <div className="flex flex-wrap items-center gap-3 px-3 py-2 bg-ui-bg-subtle">
                 <Text size="xsmall" className="text-ui-fg-muted w-6">#{gi + 1}</Text>
                 {g.supplied ? (
-                  <Badge size="2xsmall" color="grey">Customer-supplied garments</Badge>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Badge size="2xsmall" color="grey">Customer-supplied garments</Badge>
+                    {g.mockupProduct ? (
+                      <span className="flex items-center gap-1 min-w-0" title="Stand-in garment for the Studio mockup only — not priced, not on the quote">
+                        {g.mockupProduct.thumbnail ? <img src={g.mockupProduct.thumbnail} alt="" className="w-6 h-6 rounded object-cover bg-ui-bg-base" /> : null}
+                        <span className="text-xs text-ui-fg-muted truncate max-w-[14rem]">Mockup on: {g.mockupProduct.title}</span>
+                        <Button size="small" variant="transparent" onClick={() => patchGroup(g.id, { mockupProduct: null })} aria-label="Remove mockup garment"><XMark /></Button>
+                      </span>
+                    ) : (
+                      <span title="Optional: pick a look-alike garment to design the mockup on in the Studio. Pricing stays customer-supplied.">
+                        <GarmentSearch onPick={(p) => void ensureDetail(p).then((d) => d && patchGroup(g.id, { mockupProduct: p }))} />
+                      </span>
+                    )}
+                  </div>
                 ) : g.product ? (
                   <div className="flex items-center gap-2 min-w-0">
                     {g.product.thumbnail ? <img src={g.product.thumbnail} alt="" className="w-8 h-8 rounded object-cover bg-ui-bg-base" /> : null}
@@ -1373,14 +1405,14 @@ function QuotePricerPage() {
                   <span className="text-ui-fg-muted">cost {money(firstRow?.unitCostExMajor)}</span>
                   {gp?.marginPct != null ? <Badge size="2xsmall" color={marginTone(gp.marginPct)}>{gp.marginPct}%</Badge> : null}
                   <span className="font-medium">{money(gp?.sellTotalMajor ?? 0)}</span>
-                  {!g.supplied && g.product ? (
+                  {studioProductOf(g) ? (
                     <span className="flex items-center gap-1">
                       {g.mockupUrl ? <a href={g.mockupUrl} target="_blank" rel="noreferrer" title="Studio mockup attached to this group's lines"><img src={g.mockupUrl} alt="" className="w-8 h-8 rounded object-contain bg-ui-bg-base border border-ui-border-base" /></a> : null}
                       <Button
                         size="small"
                         variant="secondary"
                         isLoading={studioGroup === g.id}
-                        disabled={!targetQuote || !detail || sending}
+                        disabled={!targetQuote || !details[studioProductOf(g)!.id] || sending}
                         title={targetQuote ? "Open the Studio with this group's colour, sizes and positions pre-selected; the design attaches to these lines at the pricer's prices" : "Create the quote first — the design attaches to the quote's lines"}
                         onClick={() => void openStudio(g)}
                       >
