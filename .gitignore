@@ -14,3 +14,7 @@ backend/logs/
 
 .DS_Store
 node_modules/
+
+# Local-only: Next.js rewrites next-env.d.ts on every dev/build; launch.json is per-machine preview config
+storefront/next-env.d.ts
+.claude/launch.json
