@@ -134,7 +134,7 @@ export function effectiveStitchCount(cfg: SideEmbroideryConfig | undefined): num
   return Math.max(declared, floor)
 }
 
-const dimsWithinTolerance = (a: DigitizingUnitEntry, b: DigitizingUnitEntry): boolean => {
+export const dimsWithinTolerance = (a: DigitizingUnitEntry, b: DigitizingUnitEntry): boolean => {
   const close = (x: number, y: number) =>
     x === y || (x > 0 && y > 0 && Math.abs(x - y) / Math.max(x, y) <= DIGITIZING_RESIZE_TOLERANCE)
   return close(a.widthMm, b.widthMm) && close(a.heightMm, b.heightMm)

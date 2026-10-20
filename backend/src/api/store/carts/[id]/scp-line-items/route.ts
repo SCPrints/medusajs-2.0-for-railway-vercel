@@ -136,8 +136,10 @@ async function scpLineItemsPostHandler(req: MedusaRequest, res: MedusaResponse) 
     quantity,
     metadata: incomingMetadata,
     printSizeIdRaw: scp_print.print_size_id,
+    container: req.scope,
     cart: cart as {
       id?: string
+      customer_id?: string | null
       currency_code?: string | null
       region_id?: string | null
       sales_channel_id?: string | null
