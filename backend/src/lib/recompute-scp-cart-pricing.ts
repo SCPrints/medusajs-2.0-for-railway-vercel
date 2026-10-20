@@ -19,6 +19,7 @@ import {
   computeDecorationTotals,
   embroideryDigitizingUnits,
   fullColourCardFromStoredServer,
+  screenDarkGarmentFromStoredBreakdown,
   screenHeavyFromStoredBreakdown,
   screenJobQuantityByLine,
   type DigitizingUnitEntry,
@@ -126,6 +127,7 @@ const readScpServerBlock = (
   printSizeId: ScpPrintSizeId | null
   storedGarmentMajor: number | null
   screenHeavyGarment: boolean
+  screenDarkGarment: boolean
   fullColourCard: "dtf" | "supacolour"
 } | null => {
   if (!metadata || typeof metadata !== "object") return null
@@ -151,9 +153,10 @@ const readScpServerBlock = (
   // product.metadata.screen_heavy) — reuse the stamped breakdown so the
   // recompute doesn't need another product lookup.
   const screenHeavyGarment = screenHeavyFromStoredBreakdown(server)
+  const screenDarkGarment = screenDarkGarmentFromStoredBreakdown(server)
   const fullColourCard = fullColourCardFromStoredServer(server)
 
-  return { printSizeId, storedGarmentMajor, screenHeavyGarment, fullColourCard }
+  return { printSizeId, storedGarmentMajor, screenHeavyGarment, screenDarkGarment, fullColourCard }
 }
 
 const isLineEligible = (line: CartLineForRecompute): boolean => {
@@ -284,6 +287,7 @@ const computeNewUnitPriceMajor = (
     screenTierQuantity: screenJobQty,
     embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
     screenHeavyGarment: scpBlock.screenHeavyGarment,
+    screenDarkGarment: scpBlock.screenDarkGarment,
     fullColourCard: scpBlock.fullColourCard,
     digitizingAmortQtyByKey,
   })

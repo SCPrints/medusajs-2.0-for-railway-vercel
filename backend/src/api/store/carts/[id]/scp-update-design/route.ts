@@ -300,13 +300,14 @@ async function scpUpdateDesignPostHandler(
       }
       fullColourCard =
         flags.decorationPricingClass === "supacolour" ? "supacolour" : "dtf"
-      if (flags.screenHeavy || fullColourCard === "supacolour") {
+      if (flags.screenHeavy || flags.darkGarment || fullColourCard === "supacolour") {
         totals = computeDecorationTotals({
           metadata: designMetadataAsLine,
           printSizeId,
           printTierQuantity: line.quantity,
           embroideryQuantity: line.quantity,
           screenHeavyGarment: flags.screenHeavy,
+          screenDarkGarment: flags.darkGarment,
           fullColourCard,
         })
       }

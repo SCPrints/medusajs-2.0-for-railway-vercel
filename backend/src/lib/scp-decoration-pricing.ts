@@ -52,12 +52,14 @@ import {
 import {
   decoratedLocationsFromLineMetadata,
   decoratedSidesFromLineMetadata,
+  requestedScpPrintSizeForLocation,
   resolveScpPrintSizeForSide,
   resolveScpTierIndexForQuantity,
   scpPrintTotalMajorFromLocations,
   scpPrintTotalMajorPerGarmentForSides,
   type ScpPrintSizeId,
 } from "./scp-dtf-print-pricing"
+import { isDarkGarmentColourName, variantColourName } from "./garment-colour"
 
 export type EmbroideryBreakdownEntry = {
   side: string
@@ -111,6 +113,27 @@ export type DigitizingUnitEntry = {
 /** ~5% resize tolerance: beyond this the design must be re-digitized. */
 export const DIGITIZING_RESIZE_TOLERANCE = 0.05
 
+/**
+ * Floor on the client's stitch count from the stated embroidery area
+ * (review 1-3). The area is the BOUNDING BOX, which over-counts sparse
+ * designs (a name arced across the shoulders is 250 mm wide and mostly
+ * empty, ~9k stitches ≈ 0.15/mm²), so the bound is deliberately loose: 0.1
+ * never touches an honest design but stops "500 stitches" on a 300 × 300 mm
+ * back. ponytail: a real re-estimate (the storefront's Claude-vision stitch
+ * estimator run server-side at add time) is the upgrade path.
+ */
+export const MIN_STITCHES_PER_MM2 = 0.1
+
+/** The stitch count a side prices at: declared, floored by its stated area. */
+export function effectiveStitchCount(cfg: SideEmbroideryConfig | undefined): number {
+  const declared = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
+  if (declared <= 0) return 0
+  const w = Number(cfg?.widthMm)
+  const h = Number(cfg?.heightMm)
+  const floor = w > 0 && h > 0 ? Math.floor(w * h * MIN_STITCHES_PER_MM2) : 0
+  return Math.max(declared, floor)
+}
+
 const dimsWithinTolerance = (a: DigitizingUnitEntry, b: DigitizingUnitEntry): boolean => {
   const close = (x: number, y: number) =>
     x === y || (x > 0 && y > 0 && Math.abs(x - y) / Math.max(x, y) <= DIGITIZING_RESIZE_TOLERANCE)
@@ -151,7 +174,7 @@ export function embroideryDigitizingUnits(
   for (const side of decoratedSidesFromLineMetadata(metadata ?? {})) {
     if (sideDecorationMethods[side] !== "embroidery") continue
     const cfg = sideEmbroideryConfigs[side]
-    const stitchCount = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
+    const stitchCount = effectiveStitchCount(cfg)
     if (stitchCount <= 0 || stitchCount > MAX_AUTO_PRICED_STITCHES) continue
 
     const objects = layoutBySide.get(side) ?? []
@@ -260,6 +283,15 @@ export function computeDecorationTotals(args: {
   screenTierQuantity?: number
   screenHeavyGarment: boolean
   /**
+   * Dark garment as resolved SERVER-SIDE from the variant's colour name
+   * (review 1-3) — forces the white underbase on screen sides whatever the
+   * client's `sideScreenConfigs[side].darkGarment` says. The add/update
+   * paths resolve it live; the recompute + invariant reuse the flag stamped
+   * in the line's screen_breakdown. A client claiming dark on a light
+   * garment is still honoured (it only ever pays more).
+   */
+  screenDarkGarment?: boolean
+  /**
    * Which full-colour card prices the print sides: absent/"dtf" = the DTF
    * matrix; "supacolour" = the premium transfer matrix (poly/blend garments,
    * product.metadata.decoration_pricing_class). The add/update paths resolve
@@ -331,12 +363,12 @@ export function computeDecorationTotals(args: {
     printTotalMajor =
       printLocations.length > 0
         ? round2(
-            printLocations.reduce((sum, loc) => {
-              const side = (loc as { side?: string }).side ?? "front"
-              const requested =
-                (loc as { printSizeId?: ScpPrintSizeId }).printSizeId ?? args.printSizeId
-              return sum + unitFor(side, requested)
-            }, 0)
+            printLocations.reduce(
+              (sum, loc) =>
+                sum +
+                unitFor(loc.side || "front", requestedScpPrintSizeForLocation(loc, args.printSizeId)),
+              0
+            )
           )
         : round2(
             printSides.reduce((sum, side) => sum + unitFor(side, args.printSizeId), 0)
@@ -372,7 +404,7 @@ export function computeDecorationTotals(args: {
   const unconfiguredEmbroiderySides: string[] = []
   for (const side of embroiderySides) {
     const cfg = sideEmbroideryConfigs[side]
-    const stitchCount = Math.max(0, Math.floor(cfg?.stitchCount ?? 0))
+    const stitchCount = effectiveStitchCount(cfg)
     if (stitchCount <= 0) {
       unconfiguredEmbroiderySides.push(side)
       continue
@@ -430,7 +462,7 @@ export function computeDecorationTotals(args: {
   for (const side of screenSides) {
     const cfg = sideScreenConfigs[side]
     const colours = Math.max(1, Math.floor(cfg?.colours ?? 1))
-    const darkGarment = cfg?.darkGarment === true
+    const darkGarment = cfg?.darkGarment === true || args.screenDarkGarment === true
     const result = screenUnitMajor({
       quantity: args.screenTierQuantity ?? args.printTierQuantity,
       colours,
@@ -517,13 +549,16 @@ export type DecorationProductFlags = {
   screenHeavy: boolean
   /** null = standard DTF card. */
   decorationPricingClass: DecorationPricingClass | null
+  /** Variant colour reads as dark → screen sides need the white underbase. */
+  darkGarment: boolean
 }
 
 /**
- * One product-metadata lookup serving every decoration flag: the screen
- * heavy-garment surcharge AND the full-colour pricing class (Supacolour /
- * quote-only). Best-effort — a failed lookup prices as a standard cotton
- * garment rather than failing the cart operation.
+ * One variant lookup serving every server-resolved decoration flag: the
+ * screen heavy-garment surcharge, the full-colour pricing class (Supacolour
+ * / quote-only) and the dark-garment underbase from the variant's colour.
+ * Best-effort — a failed lookup prices as a standard light cotton garment
+ * rather than failing the cart operation.
  */
 export async function resolveDecorationProductFlags(
   query: { graph: (q: Record<string, unknown>) => Promise<{ data?: unknown[] }> },
@@ -532,21 +567,32 @@ export async function resolveDecorationProductFlags(
   try {
     const { data: variantRows } = await query.graph({
       entity: "variant",
-      fields: ["id", "product.metadata"],
+      fields: ["id", "title", "options.value", "options.option.title", "product.metadata"],
       filters: { id: variantId },
     })
-    const productMeta = (variantRows?.[0] as any)?.product?.metadata as
-      | Record<string, unknown>
-      | undefined
+    const variant = variantRows?.[0] as any
+    const productMeta = variant?.product?.metadata as Record<string, unknown> | undefined
     return {
       screenHeavy: productMeta?.screen_heavy === true,
       decorationPricingClass: parseDecorationPricingClass(
         productMeta?.decoration_pricing_class
       ),
+      darkGarment: isDarkGarmentColourName(variantColourName(variant ?? {})),
     }
   } catch {
-    return { screenHeavy: false, decorationPricingClass: null }
+    return { screenHeavy: false, decorationPricingClass: null, darkGarment: false }
   }
+}
+
+/** The dark-garment flag stamped in a line's screen breakdown at add time. */
+export function screenDarkGarmentFromStoredBreakdown(
+  server: Record<string, unknown> | null | undefined
+): boolean {
+  const breakdown = server?.screen_breakdown
+  return (
+    Array.isArray(breakdown) &&
+    breakdown.some((entry) => (entry as { darkGarment?: unknown })?.darkGarment === true)
+  )
 }
 
 /**

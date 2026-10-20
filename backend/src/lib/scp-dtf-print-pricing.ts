@@ -58,6 +58,49 @@ export const SCP_PRINT_UNIT_MATRIX: Record<ScpPrintSizeId, readonly [number, num
     oversize: [18, 17, 16.5, 16, 16],
   }
 
+/**
+ * True physical box per size (cm). Mirror of the storefront's
+ * `SCP_PRINT_SIZE_TRUE_CM` (customizer/lib/print-spec.ts) — the customizer
+ * auto-snaps a print's tier from these, and the server re-snaps from the
+ * same numbers so a client can't declare an A3 print as A6 (review 1-3).
+ */
+export const SCP_PRINT_SIZE_TRUE_CM: Record<ScpPrintSizeId, { width: number; height: number }> = {
+  up_to_a6: { width: 10, height: 15 },
+  up_to_a4: { width: 21, height: 30 },
+  up_to_a3: { width: 29, height: 42 },
+  oversize: { width: 38, height: 48 },
+}
+
+const SCP_PRINT_SIZE_ORDER: ScpPrintSizeId[] = ["up_to_a6", "up_to_a4", "up_to_a3", "oversize"]
+
+/** Smallest size whose box contains the print; oversize when nothing does. */
+export function snapScpPrintSizeForCm(cm: { width: number; height: number }): ScpPrintSizeId {
+  return (
+    SCP_PRINT_SIZE_ORDER.find(
+      (id) => cm.width <= SCP_PRINT_SIZE_TRUE_CM[id].width && cm.height <= SCP_PRINT_SIZE_TRUE_CM[id].height
+    ) ?? "oversize"
+  )
+}
+
+export const largerScpPrintSize = (a: ScpPrintSizeId, b: ScpPrintSizeId): ScpPrintSizeId =>
+  SCP_PRINT_SIZE_ORDER.indexOf(a) >= SCP_PRINT_SIZE_ORDER.indexOf(b) ? a : b
+
+/**
+ * The size a location prices at: its declared tier (or the line's selected
+ * size), floored by the tier its stated dimensions need. Never snaps DOWN —
+ * a customer who picked a bigger tier than the artwork needs pays for it.
+ * ponytail: `approxCm` is itself client-written; this only forces the two
+ * fields to agree with what staff see on the order sheet. Re-measuring from
+ * the rendered print PNG is the upgrade path.
+ */
+export const requestedScpPrintSizeForLocation = (
+  location: DecoratedLocation,
+  selectedPrintSizeId: ScpPrintSizeId
+): ScpPrintSizeId => {
+  const requested = location.printSizeId ?? selectedPrintSizeId
+  return location.minPrintSizeId ? largerScpPrintSize(requested, location.minPrintSizeId) : requested
+}
+
 export const DEFAULT_SCP_PRINT_SIZE_ID: ScpPrintSizeId = "up_to_a6"
 // Only the printed neck tag is physically constrained to A6 server-side.
 // Sleeve sizing is enforced by the storefront UI based on garment type
@@ -118,6 +161,8 @@ export type CustomizerDesignLike = {
 export type DecoratedLocation = {
   side: string
   printSizeId?: ScpPrintSizeId
+  /** Tier the print's stated `approxCm` needs — a floor on `printSizeId`. */
+  minPrintSizeId?: ScpPrintSizeId
 }
 
 const maybePrintSizeId = (value: unknown): ScpPrintSizeId | undefined =>
@@ -142,9 +187,14 @@ export function decoratedLocationsFromLineMetadata(
         const side = (p as { side?: unknown })?.side
         if (typeof side !== "string" || !side.trim().length) return null
         const printSizeId = maybePrintSizeId((p as { sizeId?: unknown })?.sizeId)
+        const cm = (p as { approxCm?: { width?: unknown; height?: unknown } })?.approxCm
+        const width = Number(cm?.width)
+        const height = Number(cm?.height)
         return {
           side: side.trim(),
           printSizeId,
+          minPrintSizeId:
+            width > 0 && height > 0 ? snapScpPrintSizeForCm({ width, height }) : undefined,
         } satisfies DecoratedLocation
       })
       .filter((location) => location !== null) as DecoratedLocation[]
@@ -201,7 +251,7 @@ export function scpPrintTotalMajorFromLocations(args: {
     return 0
   }
   const total = args.locations.reduce((sum, location) => {
-    const requested = location.printSizeId ?? args.selectedPrintSizeId
+    const requested = requestedScpPrintSizeForLocation(location, args.selectedPrintSizeId)
     const sizeId = resolveScpPrintSizeForSide(location.side, requested)
     return sum + scpPrintUnitMajorForTier(sizeId, args.tierIndex)
   }, 0)

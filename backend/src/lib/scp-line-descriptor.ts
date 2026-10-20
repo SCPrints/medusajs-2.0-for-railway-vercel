@@ -132,13 +132,14 @@ export async function computeScpLineDescriptor(
     const flags = await resolveDecorationProductFlags(query, variantId)
     fullColourCard =
       flags.decorationPricingClass === "supacolour" ? "supacolour" : "dtf"
-    if (flags.screenHeavy || fullColourCard === "supacolour") {
+    if (flags.screenHeavy || flags.darkGarment || fullColourCard === "supacolour") {
       totals = computeDecorationTotals({
         metadata: mergedMetadata,
         printSizeId,
         printTierQuantity: quantity,
         embroideryQuantity: quantity,
         screenHeavyGarment: flags.screenHeavy,
+        screenDarkGarment: flags.darkGarment,
         fullColourCard,
       })
     }

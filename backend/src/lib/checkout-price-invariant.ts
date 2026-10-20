@@ -41,6 +41,7 @@ import { recomputeScpCartPricingPure } from "./recompute-scp-cart-pricing"
 import {
   computeDecorationTotals,
   fullColourCardFromStoredServer,
+  screenDarkGarmentFromStoredBreakdown,
   screenHeavyFromStoredBreakdown,
   screenJobQuantityByLine,
 } from "./scp-decoration-pricing"
@@ -196,6 +197,7 @@ export function evaluateCartPricing(
         screenTierQuantity: screenJobQtyByLine.get(line.id),
         embroideryQuantity: Math.max(1, Math.floor(line.quantity || 1)),
         screenHeavyGarment: screenHeavyFromStoredBreakdown(server),
+        screenDarkGarment: screenDarkGarmentFromStoredBreakdown(server),
         fullColourCard: fullColourCardFromStoredServer(server),
       })
 
