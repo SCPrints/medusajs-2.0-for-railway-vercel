@@ -8,6 +8,13 @@ const paramsSchema = z.object({
   id: z.string().min(1),
 })
 
+// Review 1-7: the storefront's fallback after a failed full recompute —
+// re-price just the edited line at its own quantity.
+const bodySchema = z.object({
+  line_ids: z.array(z.string().min(1)).max(200).optional(),
+  per_line: z.boolean().optional(),
+})
+
 /**
  * POST /store/carts/:id/scp-recompute
  *
@@ -29,7 +36,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     )
   }
 
-  const result = await recomputeScpCartPricing(parsed.data.id, req.scope)
+  const body = bodySchema.safeParse(req.body ?? {})
+  if (!body.success) {
+    throw new MedusaError(MedusaError.Types.INVALID_DATA, `Invalid payload: ${body.error.message}`)
+  }
+
+  const result = await recomputeScpCartPricing(parsed.data.id, req.scope, {
+    lineIds: body.data.line_ids,
+    perLine: body.data.per_line,
+  })
   return res.status(200).json({
     ok: true,
     cart_id: parsed.data.id,

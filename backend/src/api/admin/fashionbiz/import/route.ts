@@ -30,7 +30,7 @@ import {
 } from "../../../../utils/bulk-tier-prices"
 import { BRAND_MODULE } from "../../../../modules/brand"
 import { classifyFashionBizProduct } from "../../../../lib/product-taxonomy"
-import { isLockSkipped, withSupplierLock } from "../../../../lib/supplier-sync-lock"
+import { getSupplierImportState, startSupplierImport } from "../../../../lib/supplier-import-run"
 import {
   applyShopCategoriesToProducts,
   applyTaxonomyToProducts,
@@ -51,6 +51,12 @@ const BRAND_HANDLE_BY_SLUG: Record<FashionBizBrandSlug, string> = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+type ImportResult = {
+  imported: string[]
+  skipped: string[]
+  errors: Array<{ slug: string; error: string }>
+}
+
 /**
  * POST /admin/fashionbiz/import
  *
@@ -58,24 +64,21 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
  * the `import-fashionbiz-from-api` script but scoped to the provided slugs.
  *
  * Body: { brand: string, slugs: string[] }
- * Returns: { imported: string[], skipped: string[], errors: Array<{ slug, error }> }
+ * Replies 202 `{ started, started_at }` and runs off the request under the
+ * `supplier-sync:fashionbiz` lock (409 while the inventory sync / another
+ * import holds it); GET returns `{ in_progress, last_run }` where
+ * `last_run.result` is `{ imported, skipped, errors: [{ slug, error }] }`
+ * (review 2-8).
  */
-/** 409 while the FashionBiz inventory sync / another import holds the lock. */
-export async function POST(req: MedusaRequest, res: MedusaResponse) {
-  const result = await withSupplierLock(req.scope, "fashionbiz", () => runImport(req, res))
-  if (isLockSkipped(result)) {
-    return res.status(409).json({
-      error: "A FashionBiz sync or import is already running — try again in a few minutes.",
-    })
-  }
+export async function GET(_req: MedusaRequest, res: MedusaResponse) {
+  res.json(getSupplierImportState<ImportResult>("fashionbiz"))
 }
 
-async function runImport(req: MedusaRequest, res: MedusaResponse) {
-  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
-
+export async function POST(req: MedusaRequest, res: MedusaResponse) {
+  const scope = req.scope
   let fashionbiz: FashionBizService
   try {
-    fashionbiz = req.scope.resolve(FASHIONBIZ_MODULE) as FashionBizService
+    fashionbiz = scope.resolve(FASHIONBIZ_MODULE) as FashionBizService
   } catch {
     return res.status(503).json({ error: "FashionBiz module not configured. Set FASHIONBIZ_API_TOKEN." })
   }
@@ -83,25 +86,39 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
   const body = req.body as { brand?: string; slugs?: string[] }
   const brand = body.brand as FashionBizBrandSlug | undefined
   const slugs = body.slugs
-
   if (!brand || !slugs?.length) {
     return res.status(400).json({ error: "body must contain brand and slugs[]" })
   }
 
+  await startSupplierImport<ImportResult>(req, res, {
+    supplier: "fashionbiz",
+    label: "A FashionBiz",
+    scope: `${brand}: ${slugs.length} style${slugs.length === 1 ? "" : "s"}`,
+    work: () => runImport(scope, fashionbiz, brand, slugs),
+  })
+}
+
+async function runImport(
+  scope: MedusaRequest["scope"],
+  fashionbiz: FashionBizService,
+  brand: FashionBizBrandSlug,
+  slugs: string[]
+): Promise<ImportResult> {
+  const query = scope.resolve(ContainerRegistrationKeys.QUERY)
   const costAdjustment = fashionbiz.getCostAdjustment()
 
-  const salesChannelService = req.scope.resolve(Modules.SALES_CHANNEL) as any
-  const fulfillmentService = req.scope.resolve(Modules.FULFILLMENT) as any
-  const stockLocationService = req.scope.resolve(Modules.STOCK_LOCATION) as any
-  const brandService = req.scope.resolve(BRAND_MODULE) as any
-  const logger = req.scope.resolve(ContainerRegistrationKeys.LOGGER) as any
+  const salesChannelService = scope.resolve(Modules.SALES_CHANNEL) as any
+  const fulfillmentService = scope.resolve(Modules.FULFILLMENT) as any
+  const stockLocationService = scope.resolve(Modules.STOCK_LOCATION) as any
+  const brandService = scope.resolve(BRAND_MODULE) as any
+  const logger = scope.resolve(ContainerRegistrationKeys.LOGGER) as any
 
   const salesChannels = await salesChannelService.listSalesChannels({ name: "Default Sales Channel" })
-  if (!salesChannels.length) return res.status(500).json({ error: "Default Sales Channel not found" })
+  if (!salesChannels.length) throw new Error("Default Sales Channel not found")
   const defaultSalesChannelId = salesChannels[0].id
 
   const shippingProfiles = await fulfillmentService.listShippingProfiles({ type: "default" })
-  if (!shippingProfiles.length) return res.status(500).json({ error: "Default shipping profile not found" })
+  if (!shippingProfiles.length) throw new Error("Default shipping profile not found")
   const shippingProfileId = shippingProfiles[0].id
 
   // Resolve or create the FashionBiz Warehouse stock location
@@ -126,7 +143,7 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
     const channelIds = allChannels.map((c) => c.id)
     if (channelIds.length > 0) {
       try {
-        await linkSalesChannelsToStockLocationWorkflow(req.scope).run({
+        await linkSalesChannelsToStockLocationWorkflow(scope).run({
           input: { id: locationId, add: channelIds },
         })
       } catch {
@@ -307,30 +324,30 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
   }
 
   if (!contexts.length) {
-    return res.json({ imported, skipped, errors })
+    return { imported, skipped, errors }
   }
 
   // Create products
-  const { result } = await createProductsWorkflow(req.scope).run({
+  const { result } = await createProductsWorkflow(scope).run({
     input: { products: contexts.map((c) => c.payload) },
   })
   const createdProducts = (result as any[]) ?? []
 
   if (brandEntity) {
-    await linkProductsToBrand(req.scope, createdProducts, brandEntity.id)
+    await linkProductsToBrand(scope, createdProducts, brandEntity.id)
   }
 
   const fbByHandle = new Map(
     contexts.map((c) => [c.payload.handle, c.fbProduct])
   )
-  await applyTaxonomyToProducts(req.scope, {
+  await applyTaxonomyToProducts(scope, {
     products: createdProducts,
     sourceByHandle: fbByHandle,
     classify: classifyFashionBizProduct,
     logger,
   })
 
-  await applyShopCategoriesToProducts(req.scope, createdProducts, logger)
+  await applyShopCategoriesToProducts(scope, createdProducts, logger)
 
   // Patch garment_images on any restored variants
   {
@@ -346,7 +363,7 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
       }
     }
     if (garmentImagesBySku.size > 0) {
-      const productModuleService = req.scope.resolve(Modules.PRODUCT) as any
+      const productModuleService = scope.resolve(Modules.PRODUCT) as any
       if (typeof productModuleService.updateProductVariants === "function") {
         const { data: dbVariants } = await query.graph({
           entity: "product_variant",
@@ -389,12 +406,12 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
       }
     }
 
-    await seedInventoryLevels(req.scope, { stockBySku, locationId, logger })
+    await seedInventoryLevels(scope, { stockBySku, locationId, logger })
   }
 
   for (const ctx of contexts) {
     imported.push(ctx.slug)
   }
 
-  return res.json({ imported, skipped, errors })
+  return { imported, skipped, errors }
 }

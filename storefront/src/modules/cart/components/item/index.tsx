@@ -74,6 +74,7 @@ const Item = ({ item, type = "full" }: ItemProps) => {
       .finally(() => {
         setUpdating(false)
       })
+    if (typeof message === "string") setError(message)
   }
 
   // Cap the dropdown size for UX — splitting into multiple line items above

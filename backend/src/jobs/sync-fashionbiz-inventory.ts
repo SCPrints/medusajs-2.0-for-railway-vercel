@@ -2,7 +2,7 @@ import { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { FASHIONBIZ_MODULE } from "../modules/fashionbiz"
 import FashionBizService from "../modules/fashionbiz/service"
-import { FashionBizBrandSlug } from "../modules/fashionbiz/types"
+import { loadFashionBizStockGroups } from "../lib/fashionbiz-stock-groups"
 import { writeInventoryLevels } from "../lib/inventory-level-writes"
 import { withJobContext, getContextLogger } from "../lib/job-context-wrapper"
 import { withSupplierLock } from "../lib/supplier-sync-lock"
@@ -54,75 +54,18 @@ async function syncFashionBizInventory(container: MedusaContainer) {
   const startedAt = new Date()
   logger.info("FashionBiz inventory sync starting…")
 
-  // 1. Find every variant we previously imported. Variant metadata.fashionbiz
-  //    carries product_slug + color_name + brand (set on the parent product
-  //    metadata; we group via variant fields to keep this query flat).
-  //
-  //    We walk pages to avoid huge result sets.
-  type VariantRow = {
-    id: string
-    sku: string
-    metadata: {
-      fashionbiz?: {
-        product_slug?: string
-        color_name?: string
-      }
-    } | null
-    product: { metadata?: Record<string, any> | null } | null
-  }
-  const variants: VariantRow[] = []
-  const PAGE = 500
-  let offset = 0
-  while (true) {
-    const { data: page } = await query.graph({
-      entity: "product_variant",
-      fields: [
-        "id",
-        "sku",
-        "metadata",
-        "product.metadata",
-      ],
-      pagination: { take: PAGE, skip: offset },
-    })
-    if (!page?.length) break
-    for (const v of page as any[]) {
-      if (v?.metadata?.fashionbiz?.product_slug && v?.metadata?.fashionbiz?.color_name) {
-        variants.push(v as VariantRow)
-      }
-    }
-    if (page.length < PAGE) break
-    offset += page.length
-  }
+  // 1+2. Find every variant we previously imported and group it by
+  //      (brand, slug, colour) — one handle-prefix query per brand instead of
+  //      a walk of the whole variant table (lib/fashionbiz-stock-groups).
+  const { groups, variantCount } = await loadFashionBizStockGroups(query)
 
-  if (!variants.length) {
+  if (!variantCount) {
     logger.info("No FashionBiz variants found in catalog — nothing to sync.")
     await writeCheckpoint(container, startedAt.toISOString())
     return
   }
-
-  // 2. Group by (brand, slug, colour). brand comes from the parent product's metadata.
-  type GroupKey = string
-  const groups = new Map<
-    GroupKey,
-    { brand: FashionBizBrandSlug; slug: string; colour: string; skus: Set<string> }
-  >()
-  for (const v of variants) {
-    const brand = (v.product?.metadata as any)?.fashionbiz?.brand_slug as
-      | FashionBizBrandSlug
-      | undefined
-    const slug = v.metadata?.fashionbiz?.product_slug
-    const colour = v.metadata?.fashionbiz?.color_name
-    if (!brand || !slug || !colour || !v.sku) continue
-    const key = `${brand}|${slug}|${colour}`
-    let group = groups.get(key)
-    if (!group) {
-      group = { brand, slug, colour, skus: new Set() }
-      groups.set(key, group)
-    }
-    group.skus.add(v.sku)
-  }
   logger.info(
-    `Sweeping ${groups.size} (brand,slug,colour) groups across ${variants.length} variants.`
+    `Sweeping ${groups.size} (brand,slug,colour) groups across ${variantCount} variants.`
   )
 
   // 3. Fetch stock for every group; build sku -> totalQty map.
