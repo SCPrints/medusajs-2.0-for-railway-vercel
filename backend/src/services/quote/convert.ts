@@ -220,9 +220,17 @@ export const convertQuoteToOrder = async (
   // ── Payer: addresses + payment terms ─────────────────────────────────────
   // Geo fields default to the studio address so the tax engine computes AU
   // GST (POS pattern); the customer's own default address wins when present.
-  // The quote's contact name/company overlay the billing identity so the
-  // invoice "Bill to" shows the right entity either way.
-  let billing: Record<string, unknown> = buildStudioAddress()
+  // Geo ONLY: the studio's contact identity (owner name, company, phone) must
+  // never land on a customer's order — #114 (21 Oct) went out as "Customer:
+  // Sean Mudie". The identity comes from the quote below.
+  const {
+    first_name: _sf,
+    last_name: _sl,
+    company: _sc,
+    phone: _sp,
+    ...studioGeo
+  } = buildStudioAddress()
+  let billing: Record<string, unknown> = studioGeo
   let shipping: Record<string, unknown> = billing
   let termsDays: number | null = null
   if (quote.customer_id) {
@@ -276,15 +284,21 @@ export const convertQuoteToOrder = async (
       /* studio fallback stands */
     }
   }
-  const contactName = String(quote.contact_name ?? "").trim()
-  if (contactName || quote.company) {
-    const [first, ...rest] = contactName.split(/\s+/).filter(Boolean)
-    billing = {
-      ...billing,
-      ...(first ? { first_name: first, last_name: rest.join(" ") || "" } : {}),
-      ...(quote.company ? { company: quote.company } : {}),
-    }
+  // Identity: the quote's contact, else whoever accepted it on the signed link
+  // (guest quotes from the job pricer carry no contact_name). Always overlays
+  // billing so the invoice "Bill to" is right; overlays shipping only when the
+  // address has no name of its own (studio geo, or a nameless saved address).
+  const contactName = String(
+    quote.contact_name ?? meta.accepted_by_name ?? ""
+  ).trim()
+  const [first, ...rest] = contactName.split(/\s+/).filter(Boolean)
+  const identity: Record<string, unknown> = {
+    ...(first ? { first_name: first, last_name: rest.join(" ") || "" } : {}),
+    ...(quote.company ? { company: quote.company } : {}),
+    ...(quote.contact_phone ? { phone: quote.contact_phone } : {}),
   }
+  if (!shipping.first_name) shipping = { ...shipping, ...identity }
+  billing = { ...billing, ...identity }
 
   const balanceDueAt = termsDays
     ? new Date(Date.now() + termsDays * 86_400_000).toISOString()

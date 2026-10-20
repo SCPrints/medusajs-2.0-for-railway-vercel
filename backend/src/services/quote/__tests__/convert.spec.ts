@@ -108,6 +108,26 @@ describe("convertQuoteToOrder", () => {
     expect(input.billing_address.first_name).toBe("Jane")
   })
 
+  it("guest quote with no contact: order carries the accepter's name, never the studio's", async () => {
+    // buildStudioAddress() falls back to "Walk-in Customer" here (no env);
+    // either way none of its identity fields may reach the order.
+    const scope = buildScope({
+      ...baseQuote,
+      contact_name: null,
+      company: null,
+      metadata: { accepted_by_name: "Dean moutopoulos" },
+      line_items: { items: [{ variant_id: "var_a", quantity: 3, unit_price: 68.5, title: "Tee" }] },
+    })
+    await convertQuoteToOrder(scope, { quoteId: "qt_1", actorId: "user_1" })
+    const input = (createOrderRun.mock.calls[0] as any)[0].input
+    for (const addr of [input.shipping_address, input.billing_address]) {
+      expect(addr.first_name).toBe("Dean")
+      expect(addr.last_name).toBe("moutopoulos")
+      expect(addr.company).toBeUndefined()
+      expect(addr.phone).toBeUndefined()
+    }
+  })
+
   it("resolves product-only lines, carries priced custom lines, skips unpriced", async () => {
     const scope = buildScope({
       ...baseQuote,
