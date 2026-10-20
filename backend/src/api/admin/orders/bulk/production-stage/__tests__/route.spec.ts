@@ -2,8 +2,15 @@ import { Modules } from "@medusajs/framework/utils"
 
 import { POST } from "../route"
 import { ARTWORK_STAGE_EVENT } from "../../../../../../lib/production-stage"
+import { mergeOrderMetadata } from "../../../../../../lib/order-metadata"
 
 jest.mock("../../../../../../lib/posthog", () => ({ getPostHog: () => null }))
+// The route writes through the atomic jsonb merge (review 3-5); the mock
+// applies unset / patch / append to the in-memory fixture.
+jest.mock("../../../../../../lib/order-metadata", () => ({
+  mergeOrderMetadata: jest.fn(async () => {}),
+}))
+const merge = mergeOrderMetadata as jest.Mock
 
 type AnyOrder = {
   id: string
@@ -13,6 +20,25 @@ type AnyOrder = {
 
 const buildScope = (orders: AnyOrder[]) => {
   const byId = new Map(orders.map((o) => [o.id, o]))
+  merge.mockClear()
+  merge.mockImplementation(
+    async (
+      _c: unknown,
+      id: string,
+      patch: Record<string, unknown>,
+      o?: { unset?: string[]; append?: Record<string, unknown[]> }
+    ) => {
+      const order = byId.get(id)
+      if (!order) throw new Error(`order ${id} not found`)
+      const meta: Record<string, unknown> = { ...(order.metadata ?? {}) }
+      for (const k of o?.unset ?? []) delete meta[k]
+      Object.assign(meta, patch)
+      for (const [k, entries] of Object.entries(o?.append ?? {})) {
+        meta[k] = [...(Array.isArray(meta[k]) ? (meta[k] as unknown[]) : []), ...entries]
+      }
+      order.metadata = meta
+    }
+  )
   const orderModule = {
     retrieveOrder: jest.fn(async (id: string) => {
       const o = byId.get(id)
@@ -80,7 +106,7 @@ describe("POST /admin/orders/bulk/production-stage — same-value check reads th
     expect(res.body).toMatchObject({ changed: 0, skipped: 1, failed: 0 })
     expect(res.body.results[0]).toMatchObject({ order_id: "order-1", changed: false })
     // No duplicate history entry, no reset of the proof round, no second proof email.
-    expect(orderModule.updateOrders).not.toHaveBeenCalled()
+    expect(merge).not.toHaveBeenCalled()
     expect(eventBus.emit).not.toHaveBeenCalled()
     expect(order.metadata?.artwork_stage_changed_at).toBe("2026-10-01T00:00:00.000Z")
     expect(order.metadata?.production_stage_history).toHaveLength(2)
@@ -102,7 +128,7 @@ describe("POST /admin/orders/bulk/production-stage — same-value check reads th
       from_stage: "in_review",
       to_stage: "awaiting_approval",
     })
-    expect(orderModule.updateOrders).toHaveBeenCalledTimes(1)
+    expect(merge).toHaveBeenCalledTimes(1)
     expect(order.metadata?.artwork_stage).toBe("awaiting_approval")
     expect(eventBus.emit).toHaveBeenCalledWith({
       name: ARTWORK_STAGE_EVENT,
@@ -119,6 +145,6 @@ describe("POST /admin/orders/bulk/production-stage — same-value check reads th
 
     expect(res.body).toMatchObject({ changed: 0, failed: 1 })
     expect(res.body.results[0].error).toMatch(/pending → approved is not an allowed transition for bulk/)
-    expect(orderModule.updateOrders).not.toHaveBeenCalled()
+    expect(merge).not.toHaveBeenCalled()
   })
 })

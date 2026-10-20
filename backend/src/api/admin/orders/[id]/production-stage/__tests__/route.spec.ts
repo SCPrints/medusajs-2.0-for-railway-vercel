@@ -2,6 +2,15 @@ import { Modules } from "@medusajs/framework/utils"
 
 import { GET, POST } from "../route"
 import { PRODUCTION_STAGE_EVENT } from "../../../../../../lib/production-stage"
+import { mergeOrderMetadata } from "../../../../../../lib/order-metadata"
+
+// The route writes through the atomic jsonb merge (review 3-5). The mock
+// applies the same semantics to the in-memory fixture: unset keys, merge the
+// patch, append to array keys.
+jest.mock("../../../../../../lib/order-metadata", () => ({
+  mergeOrderMetadata: jest.fn(async () => {}),
+}))
+const merge = mergeOrderMetadata as jest.Mock
 
 type AnyOrder = {
   id: string
@@ -10,6 +19,24 @@ type AnyOrder = {
 }
 
 const buildScope = (order: AnyOrder, opts?: { eventBusBroken?: boolean }) => {
+  merge.mockClear()
+  merge.mockImplementation(
+    async (
+      _c: unknown,
+      id: string,
+      patch: Record<string, unknown>,
+      o?: { unset?: string[]; append?: Record<string, unknown[]> }
+    ) => {
+      if (id !== order.id) throw new Error(`order ${id} not found`)
+      const meta: Record<string, unknown> = { ...(order.metadata ?? {}) }
+      for (const k of o?.unset ?? []) delete meta[k]
+      Object.assign(meta, patch)
+      for (const [k, entries] of Object.entries(o?.append ?? {})) {
+        meta[k] = [...(Array.isArray(meta[k]) ? (meta[k] as unknown[]) : []), ...entries]
+      }
+      order.metadata = meta
+    }
+  )
   const orderModule = {
     retrieveOrder: jest.fn(async (id: string) => {
       if (id !== order.id) {
@@ -95,6 +122,7 @@ describe("POST /admin/orders/:id/production-stage — readiness check", () => {
       failures: ["Artwork isn't approved"],
     })
     expect(orderModule.updateOrders).not.toHaveBeenCalled()
+    expect(merge).not.toHaveBeenCalled()
     expect(eventBus.emit).not.toHaveBeenCalled()
   })
 
@@ -143,15 +171,20 @@ describe("POST /admin/orders/:id/production-stage", () => {
 
     await POST(req as any, res as any)
 
-    expect(orderModule.updateOrders).toHaveBeenCalledTimes(1)
-    const updateArgs = orderModule.updateOrders.mock.calls[0]
-    expect(updateArgs[0]).toBe("order-1")
-    expect(updateArgs[1].metadata.production_stage).toBe("in_production")
-    expect(updateArgs[1].metadata.production_stage_history).toHaveLength(1)
-    expect(updateArgs[1].metadata.production_stage_history[0]).toMatchObject({
+    expect(orderModule.updateOrders).not.toHaveBeenCalled()
+    expect(merge).toHaveBeenCalledTimes(1)
+    const [, id, patch, opts] = merge.mock.calls[0]
+    expect(id).toBe("order-1")
+    expect(patch.production_stage).toBe("in_production")
+    // History is appended, never sent as a full array (review 3-5).
+    expect(patch.production_stage_history).toBeUndefined()
+    expect(opts.append.production_stage_history).toHaveLength(1)
+    expect(opts.append.production_stage_history[0]).toMatchObject({
       stage: "in_production",
       changed_by: "admin-user-1",
+      source: "admin",
     })
+    expect(opts.unset).toContain("is_stale")
 
     expect(eventBus.emit).toHaveBeenCalledWith({
       name: PRODUCTION_STAGE_EVENT,
@@ -191,6 +224,7 @@ describe("POST /admin/orders/:id/production-stage", () => {
     await POST(req as any, res as any)
 
     expect(orderModule.updateOrders).not.toHaveBeenCalled()
+    expect(merge).not.toHaveBeenCalled()
     expect(eventBus.emit).not.toHaveBeenCalled()
     expect(res.body).toMatchObject({
       ok: true,
@@ -222,12 +256,12 @@ describe("POST /admin/orders/:id/production-stage", () => {
 
     await POST(req as any, res as any)
 
-    const patch = orderModule.updateOrders.mock.calls[0][1]
-    expect(patch.metadata.production_stage_history).toHaveLength(2)
-    expect(patch.metadata.production_stage_history[0].stage).toBe("received")
+    const history = order.metadata?.production_stage_history as Record<string, unknown>[]
+    expect(history).toHaveLength(2)
+    expect(history[0].stage).toBe("received")
     // Legacy "art_review" is routed through deriveTracksFromLegacyStage and
     // lands on the artwork track as "in_review".
-    expect(patch.metadata.production_stage_history[1]).toMatchObject({
+    expect(history[1]).toMatchObject({
       stage: "in_review",
       note: "Heading to design",
       track: "artwork",
@@ -243,17 +277,22 @@ describe("POST /admin/orders/:id/production-stage", () => {
     await expect(POST(req as any, res as any)).rejects.toThrow()
   })
 
-  it("does not roll back the metadata change if event emission fails", async () => {
+  it("keeps the stage change and queues the event on the order when emission fails (review 3-10)", async () => {
     const order: AnyOrder = { id: "order-1", metadata: {} }
-    const { scope, orderModule, eventBus, logger } = buildScope(order, { eventBusBroken: true })
+    const { scope, eventBus, logger } = buildScope(order, { eventBusBroken: true })
     const req = buildReq(scope, { id: "order-1" }, { stage: "in_production" })
     const res = buildRes()
 
     await POST(req as any, res as any)
 
-    expect(orderModule.updateOrders).toHaveBeenCalledTimes(1)
     expect(eventBus.emit).toHaveBeenCalledTimes(1)
     expect(logger.error).toHaveBeenCalled()
+    expect(order.metadata?.production_stage).toBe("in_production")
+    // Second merge = the pending-event append the drain job picks up.
+    expect(merge).toHaveBeenCalledTimes(2)
+    const pending = order.metadata?.pending_stage_events as { name: string }[]
+    expect(pending).toHaveLength(1)
+    expect(pending[0].name).toBe(PRODUCTION_STAGE_EVENT)
     expect(res.body).toMatchObject({ ok: true, changed: true })
   })
 })

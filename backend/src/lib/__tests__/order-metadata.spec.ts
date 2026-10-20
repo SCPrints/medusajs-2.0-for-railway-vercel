@@ -37,6 +37,37 @@ describe("mergeOrderMetadata", () => {
     expect(raw).not.toHaveBeenCalled()
   })
 
+  it("unsets keys and appends to array keys in the same statement (review 3-5)", async () => {
+    const raw = jest.fn(async () => ({ rows: [] }))
+    const entry = { stage: "approved", changed_at: "2026-10-20T00:00:00Z" }
+    await mergeOrderMetadata(
+      buildContainer(raw),
+      "order_1",
+      { artwork_stage: "approved" },
+      { unset: ["is_stale", "stale_since"], append: { production_stage_history: [entry] } }
+    )
+    const [sql, bindings] = raw.mock.calls[0]
+    const norm = String(sql).replace(/\s+/g, " ")
+    expect(norm).toContain(
+      "jsonb_set((coalesce(metadata, '{}'::jsonb) - ?::text[]) || ?::jsonb, '{production_stage_history}', coalesce(metadata->'production_stage_history', '[]'::jsonb) || ?::jsonb)"
+    )
+    expect(bindings).toEqual([
+      "{is_stale,stale_since}",
+      JSON.stringify({ artwork_stage: "approved" }),
+      JSON.stringify([entry]),
+      "order_1",
+    ])
+  })
+
+  it("ignores unsafe keys and empty appends; still no-ops when nothing to write", async () => {
+    const raw = jest.fn(async () => ({ rows: [] }))
+    await mergeOrderMetadata(buildContainer(raw), "order_1", {}, {
+      unset: ["bad key'"],
+      append: { "x; drop": [1], history: [] },
+    })
+    expect(raw).not.toHaveBeenCalled()
+  })
+
   it("throws when the pg connection has no raw()", async () => {
     const c = { resolve: () => ({}) } as any
     await expect(

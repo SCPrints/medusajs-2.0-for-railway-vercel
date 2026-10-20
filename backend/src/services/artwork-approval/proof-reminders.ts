@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
 import { businessDaysBetween } from "../../lib/business-days"
 import { PROOF_REMINDER_BUSINESS_DAYS } from "../../lib/constants"
+import { mergeOrderMetadata } from "../../lib/order-metadata"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
 import { isNotProceeding } from "../../lib/reports/orders"
 import { sendProofEmail } from "./proof-email"
@@ -61,8 +62,8 @@ export async function sendProofReminders(
         logger.warn(`proof-reminders: no approval link/email for ${order.id}; skipped`)
         continue
       }
-      await orderModuleService.updateOrders(order.id, {
-        metadata: { ...meta, artwork_proof_reminder_sent_at: now.toISOString() },
+      await mergeOrderMetadata(container, order.id, {
+        artwork_proof_reminder_sent_at: now.toISOString(),
       })
       sent += 1
     } catch (err: any) {

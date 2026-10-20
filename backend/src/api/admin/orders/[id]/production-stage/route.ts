@@ -1,6 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import type {
-  IEventBusModuleService,
   IOrderModuleService,
 } from "@medusajs/framework/types"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
@@ -14,6 +13,7 @@ import {
   DOWNSTREAM_STAGES,
   PRODUCTION_STAGES,
   PRODUCTION_STAGE_EVENT,
+  STALE_FLAG_KEYS,
   deriveTracksFromLegacyStage,
   isArtworkStage,
   isBlanksStage,
@@ -30,6 +30,8 @@ import {
 import { getPostHog } from "../../../../../lib/posthog"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../../lib/audit-entities"
 import { writeAudit } from "../../../../../lib/audit-log"
+import { mergeOrderMetadata } from "../../../../../lib/order-metadata"
+import { emitStageEvents } from "../../../../../lib/stage-events"
 import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
 import {
   STAGE_TRANSITION_NOT_ALLOWED,
@@ -170,7 +172,6 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const body = bodySchema.parse(req.body ?? {})
 
   const orderModuleService = req.scope.resolve<IOrderModuleService>(Modules.ORDER)
-  const eventBus = req.scope.resolve<IEventBusModuleService>(Modules.EVENT_BUS)
 
   let order: any
   try {
@@ -300,6 +301,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     stage: t.to,
     changed_at: changedAt,
     changed_by: changedBy,
+    source: "admin",
     note:
       [
         note,
@@ -318,34 +320,24 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const downstreamChanged = transitions.find((t) => t.track === "production")
   const persistedStage: ProductionStage = downstreamChanged?.to ?? currentTracks.downstream
 
-  // A stage move is progress by definition — drop any stale flag now
-  // rather than leaving the red badge up until the next daily scan.
-  const {
-    is_stale: _isStale,
-    stale_since: _staleSince,
-    stale_track: _staleTrack,
-    stale_stage: _staleStage,
-    stale_stage_since: _staleStageSince,
-    ...freshMeta
-  } = meta as Record<string, unknown>
-  await orderModuleService.updateOrders(order.id, {
-    metadata: {
-      ...freshMeta,
+  // Atomic merge + history APPEND (review 3-5): a concurrent save on another
+  // track, the customer's approval POST or the due-date subscriber can no
+  // longer erase this entry (or have theirs erased) the way a full-metadata
+  // read-modify-write did. A stage move is progress by definition, so the
+  // stale flags go in the same statement.
+  await mergeOrderMetadata(
+    req.scope,
+    order.id,
+    {
       production_stage: persistedStage,
       production_stage_changed_at: changedAt,
-      production_stage_history: nextHistory,
       artwork_stage: nextArtwork,
-      artwork_stage_changed_at:
-        transitions.find((t) => t.track === "artwork")?.to
-          ? changedAt
-          : ((meta as ProductionStageMetaShape).artwork_stage_changed_at ?? null),
       blanks_stage: nextBlanks,
-      blanks_stage_changed_at:
-        transitions.find((t) => t.track === "blanks")?.to
-          ? changedAt
-          : ((meta as ProductionStageMetaShape).blanks_stage_changed_at ?? null),
+      ...(transitions.some((t) => t.track === "artwork") ? { artwork_stage_changed_at: changedAt } : {}),
+      ...(transitions.some((t) => t.track === "blanks") ? { blanks_stage_changed_at: changedAt } : {}),
     },
-  })
+    { append: { production_stage_history: newEntries }, unset: [...STALE_FLAG_KEYS] }
+  )
 
   if (overrideNote) {
     await writeAudit({
@@ -391,21 +383,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       to_stage: t.to,
       changed_at: changedAt,
       changed_by: changedBy,
+      source: "admin",
       note,
       track: t.track,
     }
 
-    try {
-      await eventBus.emit({ name: eventName, data: event })
-    } catch (err: any) {
-      req.scope
-        .resolve("logger")
-        .error(
-          `production-stage: failed to emit ${eventName} for order ${order.id}: ${
-            err?.message ?? err
-          }`
-        )
-    }
+    // Emit failure queues the event on the order + audits it (review 3-10);
+    // the stage change above is already committed and stays committed.
+    await emitStageEvents(req.scope, order.id, [{ name: eventName, data: event }])
 
     const adminId = changedBy ?? "admin"
     getPostHog()?.capture({

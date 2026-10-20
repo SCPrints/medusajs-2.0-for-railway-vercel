@@ -455,7 +455,22 @@ export type ProductionStageChangePlan = {
       }
     | null
   events: Array<{ name: string; data: ProductionStageChangedEvent }>
+  /**
+   * Just the NEW history entries (metadata.production_stage_history above is
+   * the full array). Writers pass these to mergeOrderMetadata's `append` so
+   * the write is atomic — never the full array (review 3-5).
+   */
+  historyEntries: ProductionStageHistoryEntry[]
 }
+
+/** Stale-order flags every stage move clears (a move is progress by definition). */
+export const STALE_FLAG_KEYS = [
+  "is_stale",
+  "stale_since",
+  "stale_track",
+  "stale_stage",
+  "stale_stage_since",
+] as const
 
 function readStageFromMeta(meta: Record<string, unknown>): ProductionStage | null {
   const raw = (meta as { production_stage?: unknown }).production_stage
@@ -567,7 +582,7 @@ export function planProductionStageChange(
     })
 
   if (transitions.length === 0) {
-    return { changed: false, metadata: null, events: [] }
+    return { changed: false, metadata: null, events: [], historyEntries: [] }
   }
 
   const actor: StageActor = opts.actor ?? { kind: "system" }
@@ -638,5 +653,6 @@ export function planProductionStageChange(
           : null,
     },
     events,
+    historyEntries: newEntries,
   }
 }
