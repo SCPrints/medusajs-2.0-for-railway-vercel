@@ -48,6 +48,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
       if (typeof changedAt !== "string" || !inRange(changedAt, from, to)) continue
       if (typeof changedBy !== "string" || changedBy.length === 0) continue
+      // Only staff-driven moves count as throughput; automation, the customer
+      // approval link and system stamps carry a non-staff source (review 3-9).
+      const source = (entry as any).source
+      if (typeof source === "string" && source !== "admin" && source !== "bulk") continue
 
       let actor = actorMap.get(changedBy)
       if (!actor) {

@@ -296,10 +296,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const priorHistory = Array.isArray(meta.production_stage_history)
     ? meta.production_stage_history
     : []
+  // changed_by is a fixed token, never the typed name — a customer typing a
+  // staff member's name must stay distinguishable from staff (review 3-9).
   const historyEntry = {
     stage: nextStage,
     changed_at: now,
-    changed_by: body.approver_name ? `Customer: ${body.approver_name}` : "Customer",
+    changed_by: "customer",
+    source: "customer_link",
+    approver_name: body.approver_name ?? null,
     note: body.approved
       ? (body.comment ?? "Approved via customer approval page")
       : (body.comment ?? "Changes requested via customer approval page"),
@@ -345,7 +349,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         from_stage: fromStage,
         to_stage: nextStage as ProductionStage,
         changed_at: now,
-        changed_by: body.approver_name ?? "customer",
+        changed_by: "customer",
+        source: "customer_link",
+        track: "artwork",
       }
       await eventBus.emit({ name: ARTWORK_STAGE_EVENT, data: payload })
     } catch {
