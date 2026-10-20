@@ -396,7 +396,7 @@ export async function inviteOrganisationMember(
   id: string,
   payload: { email: string; role: OrgRole }
 ): Promise<
-  | { ok: true; member: OrgMember }
+  | { ok: true; member: OrgMember | null; message?: string }
   | { ok: false; error: string; status?: number }
 > {
   const headers = await getAuthHeaders()
@@ -411,7 +411,12 @@ export async function inviteOrganisationMember(
         headers,
         body: payload,
       }
-    )) as { member?: OrgMember; error?: string }
+    )) as { member?: OrgMember | null; pending?: boolean; message?: string; error?: string }
+    // `pending` = the backend won't say whether that email has an account
+    // (review 4-6); show its message instead of an error.
+    if (res?.pending) {
+      return { ok: true, member: null, message: res.message }
+    }
     if (!res?.member) {
       return { ok: false, error: res?.error ?? "Failed to invite." }
     }

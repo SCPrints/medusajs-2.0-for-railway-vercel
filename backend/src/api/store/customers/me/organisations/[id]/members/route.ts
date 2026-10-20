@@ -112,9 +112,13 @@ export async function POST(
     /* fall through */
   }
   if (!customer) {
-    return res.status(404).json({
-      error:
-        "No customer found with that email. Ask them to register first, then invite.",
+    // Same shape + status as a successful add, so an org owner can't use
+    // this route to test whether an email has an account (review 4-6).
+    return res.status(202).json({
+      member: null,
+      pending: true,
+      message:
+        "If that email has an SC Prints account they've been added. If not, ask them to register and invite again.",
     })
   }
 
