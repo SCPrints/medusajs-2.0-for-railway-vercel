@@ -7,6 +7,33 @@ import { buildQuoteDecorations } from "../../../../lib/quote-decorations"
 import { buildQuoteJobBreakdown } from "../../../../lib/quote-job-breakdown"
 import { verifyQuoteAccept } from "../../../../services/quote-accept/sign"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../../../modules/stripe-payment-link"
+import { readStoredDeliveryAddress, type DeliveryAddress } from "../../../../lib/delivery-address"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+
+/** Prefill for the accept page: the quote's own address, else the customer's saved default. */
+async function deliveryPrefill(req: MedusaRequest, quote: any): Promise<DeliveryAddress | null> {
+  const stored = readStoredDeliveryAddress((quote.metadata ?? {}).delivery_address)
+  if (stored) return stored
+  if (!quote.customer_id) return null
+  try {
+    const query = req.scope.resolve(ContainerRegistrationKeys.QUERY) as any
+    const { data } = await query.graph({
+      entity: "customer",
+      filters: { id: quote.customer_id },
+      fields: [
+        "addresses.first_name", "addresses.last_name", "addresses.company",
+        "addresses.address_1", "addresses.address_2", "addresses.city",
+        "addresses.province", "addresses.postal_code", "addresses.country_code",
+        "addresses.phone", "addresses.is_default_shipping",
+      ],
+    })
+    const addresses = ((data as any[])?.[0]?.addresses ?? []) as any[]
+    const a = addresses.find((x) => x?.is_default_shipping) ?? addresses[0]
+    return a ? readStoredDeliveryAddress({ ...a, country_code: a.country_code ?? "au" }) : null
+  } catch {
+    return null
+  }
+}
 
 /**
  * GET /store/quotes/:id?sig=...
@@ -97,5 +124,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // Null when the quote wasn't priced in the Job pricer or the lines drifted.
     job_breakdown: buildQuoteJobBreakdown(quote),
     expires_at: quote.expires_at,
+    // Prefill for the delivery-address fields on the accept page.
+    delivery_address: await deliveryPrefill(req, quote),
+    contact_phone: typeof quote.contact_phone === "string" ? quote.contact_phone : null,
   })
 }

@@ -5,6 +5,7 @@ import {
 } from "@medusajs/framework/types"
 import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 import { SUPPORT_REPLY_TO_EMAIL } from "../lib/constants"
+import { orderInboxAddress } from "../lib/order-inbox-alias"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../lib/audit-entities"
 import { writeAudit } from "../lib/audit-log"
 import { getOwner } from "../lib/crm-owners"
@@ -103,7 +104,7 @@ export default async function orderArtworkStageChangedHandler({
       idempotency_key: idempotencyKey,
       data: {
         emailOptions: {
-          replyTo: SUPPORT_REPLY_TO_EMAIL,
+          replyTo: orderInboxAddress(order.id) ?? SUPPORT_REPLY_TO_EMAIL,
           subject: subjectForStage(toStage, displayId),
         },
         order,

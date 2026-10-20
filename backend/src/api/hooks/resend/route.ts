@@ -1,8 +1,11 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
-import { RESEND_WEBHOOK_SECRET } from "../../../lib/constants"
+import { Resend } from "resend"
+
+import { RESEND_API_KEY, RESEND_WEBHOOK_SECRET } from "../../../lib/constants"
 import { verifyResendWebhook } from "../../../lib/resend-webhook"
+import { recordInboundEmail } from "../../../services/inbound-email/record"
 import { ADMIN_WORKSPACE_MODULE } from "../../../modules/admin-workspace"
 import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
@@ -86,7 +89,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const data = (payload?.data ?? {}) as Record<string, unknown>
-  const email = String(data?.to ?? data?.email ?? "").trim().toLowerCase()
+  // Delivery events are about the address we sent TO; a received email is
+  // FROM the customer (its `to` is our inbox alias).
+  const email = String(
+    (eventType === "email.received" ? data?.from : data?.to ?? data?.email) ?? ""
+  )
+    .trim()
+    .toLowerCase()
   if (!email) {
     return res.status(200).json({ ok: true, no_email: true })
   }
@@ -182,6 +191,35 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         )
       } catch {
         /* best-effort */
+      }
+      break
+    }
+    case "email.received": {
+      // Inbound Routing: the webhook carries metadata only; the body comes
+      // from the Receiving API. The reply is written onto the job its
+      // Reply-To alias names (order comment / quote message) and the owner
+      // gets a task + email. See lib/order-inbox-alias.ts.
+      const emailId = typeof data?.email_id === "string" ? data.email_id : null
+      if (!emailId || !RESEND_API_KEY) {
+        logger.warn(`hooks/resend: email.received without email_id or API key — ignored`)
+        break
+      }
+      const { data: msg, error } = await new Resend(RESEND_API_KEY).emails.receiving.get(emailId)
+      if (error || !msg) {
+        logger.warn(`hooks/resend: receiving.get(${emailId}) failed: ${error?.message ?? "no data"}`)
+        // 500 so Resend retries — the email is stored on their side.
+        return res.status(500).json({ error: "receiving_fetch_failed" })
+      }
+      const result = await recordInboundEmail(req.scope, {
+        to: [...(msg.to ?? []), ...(msg.cc ?? [])],
+        from: msg.from ?? null,
+        subject: msg.subject ?? null,
+        text: msg.text ?? null,
+        html: msg.html ?? null,
+        message_id: msg.message_id ?? null,
+      })
+      if (result.ok === false) {
+        logger.info(`hooks/resend: email.received ${emailId} not routed (${result.reason}) to=${(msg.to ?? []).join(",")}`)
       }
       break
     }

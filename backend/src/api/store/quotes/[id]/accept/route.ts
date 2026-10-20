@@ -8,6 +8,7 @@ import type QuoteModuleService from "../../../../../modules/quote/service"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../../../../modules/stripe-payment-link"
 import type StripePaymentLinkModuleService from "../../../../../modules/stripe-payment-link/service"
 import { STRIPE_API_KEY } from "../../../../../lib/constants"
+import { deliveryAddressSchema } from "../../../../../lib/delivery-address"
 import { getPostHog } from "../../../../../lib/posthog"
 import { notifyQuoteCustomerAction } from "../../../../../lib/notify-quote-action"
 import { verifyQuoteAccept } from "../../../../../services/quote-accept/sign"
@@ -18,6 +19,10 @@ import { createPaymentLink } from "../../../../../services/stripe-payment-link"
 const schema = z.object({
   sig: z.string().min(16).max(64),
   approver_name: z.string().max(200).optional(),
+  // Where to send it — asked on the accept page so the order never lands
+  // with the studio's placeholder address (#114). Omitted = pickup / staff.
+  shipping_address: deliveryAddressSchema.optional(),
+  pickup: z.boolean().optional(),
 })
 
 /**
@@ -185,6 +190,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       via: "customer",
       approverName: body.approver_name ?? null,
       fromStatus: quote.status,
+      shippingAddress: body.shipping_address ?? null,
+      pickup: body.pickup === true,
     })
   } catch (err: any) {
     // Release the claim so the customer (or staff) can retry immediately.

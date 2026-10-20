@@ -61,6 +61,22 @@ export type QuoteForAccept = {
   already_accepted?: boolean
   order_display_id?: number | string | null
   pay_url?: string | null
+  /** Prefill for the delivery fields (quote's own address, else the customer's saved one). */
+  delivery_address?: DeliveryAddress | null
+  contact_phone?: string | null
+}
+
+export type DeliveryAddress = {
+  first_name?: string
+  last_name?: string
+  company?: string
+  address_1: string
+  address_2?: string
+  city: string
+  province?: string
+  postal_code: string
+  country_code?: string
+  phone?: string
 }
 
 export async function getQuoteForAccept(
@@ -80,6 +96,8 @@ export async function acceptQuote(input: {
   id: string
   sig: string
   approver_name?: string
+  shipping_address?: DeliveryAddress
+  pickup?: boolean
 }): Promise<
   | {
       ok: true
@@ -96,7 +114,12 @@ export async function acceptQuote(input: {
       `/store/quotes/${encodeURIComponent(input.id)}/accept`,
       {
         method: "POST",
-        body: { sig: input.sig, approver_name: input.approver_name },
+        body: {
+          sig: input.sig,
+          approver_name: input.approver_name,
+          shipping_address: input.shipping_address,
+          pickup: input.pickup,
+        },
       }
     )) as {
       ok: boolean

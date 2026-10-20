@@ -5,6 +5,7 @@ import {
 } from '@medusajs/framework/types'
 import { SubscriberArgs, SubscriberConfig } from '@medusajs/medusa'
 import { SUPPORT_REPLY_TO_EMAIL } from '../lib/constants'
+import { orderInboxAddress } from '../lib/order-inbox-alias'
 import { EmailTemplates } from '../modules/email-notifications/templates'
 import type { OrderShippedParcel } from '../modules/email-notifications/templates/order-shipped'
 import { resolveOrderIdFromShipmentEvent } from '../lib/resolve-order-from-fulfillment'
@@ -115,7 +116,7 @@ export default async function orderShipmentCreatedHandler({
       template: EmailTemplates.ORDER_SHIPPED,
       data: {
         emailOptions: {
-          replyTo: SUPPORT_REPLY_TO_EMAIL,
+          replyTo: orderInboxAddress(orderId) ?? SUPPORT_REPLY_TO_EMAIL,
           subject: `Your order ${(order as any).display_id ?? orderId} has shipped`,
         },
         order,

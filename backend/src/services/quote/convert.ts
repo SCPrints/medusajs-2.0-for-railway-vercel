@@ -13,6 +13,11 @@ import {
 import { QUOTE_MODULE } from "../../modules/quote"
 import type QuoteModuleService from "../../modules/quote/service"
 import { buildStudioAddress } from "../pos-checkout/checkout"
+import {
+  normaliseDeliveryAddress,
+  readStoredDeliveryAddress,
+  type DeliveryAddress,
+} from "../../lib/delivery-address"
 import { writeAudit } from "../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { captureEvent } from "../../lib/posthog"
@@ -58,6 +63,14 @@ export const convertQuoteToOrder = async (
     approverName?: string | null
     /** Status before the caller's transient "converting" claim, for the event log. */
     fromStatus?: string
+    /**
+     * Where the job ships. Given by the customer on the accept page or by
+     * staff on Convert; stored on the quote so a retry reuses it. Precedence:
+     * this → quote.metadata.delivery_address → customer's saved default →
+     * studio geo (tax only). `pickup` = collected from the studio.
+     */
+    shippingAddress?: DeliveryAddress | null
+    pickup?: boolean
   }
 ): Promise<ConvertQuoteResult> => {
   const via = args.via ?? "admin"
@@ -233,6 +246,16 @@ export const convertQuoteToOrder = async (
   let billing: Record<string, unknown> = studioGeo
   let shipping: Record<string, unknown> = billing
   let termsDays: number | null = null
+  const givenAddress = args.pickup
+    ? null
+    : args.shippingAddress
+      ? normaliseDeliveryAddress(args.shippingAddress)
+      : readStoredDeliveryAddress(meta.delivery_address)
+  const deliveryMethod: "pickup" | "delivery" | null = args.pickup
+    ? "pickup"
+    : givenAddress
+      ? "delivery"
+      : null
   if (quote.customer_id) {
     try {
       const { data: customers } = await query.graph({
@@ -297,6 +320,12 @@ export const convertQuoteToOrder = async (
     ...(quote.company ? { company: quote.company } : {}),
     ...(quote.contact_phone ? { phone: quote.contact_phone } : {}),
   }
+  if (givenAddress) {
+    // The address given for THIS job beats the saved default; the bill-to
+    // follows it unless the customer has a saved billing address.
+    shipping = { ...givenAddress }
+    if (billing === studioGeo) billing = { ...givenAddress }
+  }
   if (!shipping.first_name) shipping = { ...shipping, ...identity }
   billing = { ...billing, ...identity }
 
@@ -323,6 +352,7 @@ export const convertQuoteToOrder = async (
         quote_public_id: quote.public_id,
         converted_by: args.actorId,
         ...(balanceDueAt ? { balance_due_at: balanceDueAt } : {}),
+        ...(deliveryMethod ? { delivery_method: deliveryMethod } : {}),
       },
       items: itemPayloads,
     } as any,
@@ -357,6 +387,8 @@ export const convertQuoteToOrder = async (
         converted_by: args.actorId,
         converted_via: via,
         ...(args.approverName ? { accepted_by_name: args.approverName } : {}),
+        ...(givenAddress ? { delivery_address: givenAddress } : {}),
+        ...(deliveryMethod ? { delivery_method: deliveryMethod } : {}),
       },
     },
   ])

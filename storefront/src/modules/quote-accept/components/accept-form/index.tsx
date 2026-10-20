@@ -33,8 +33,25 @@ const fmtMoney = (
   }
 }
 
+const FIELD =
+  "mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
+
+const AU_STATES = ["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"]
+
 const AcceptForm = ({ id, sig, quote }: Props) => {
   const [name, setName] = useState(quote.contact_name ?? "")
+  const [pickup, setPickup] = useState(false)
+  const prefill = quote.delivery_address ?? null
+  const [addr, setAddr] = useState({
+    address_1: prefill?.address_1 ?? "",
+    address_2: prefill?.address_2 ?? "",
+    city: prefill?.city ?? "",
+    province: prefill?.province ?? "NSW",
+    postal_code: prefill?.postal_code ?? "",
+    phone: prefill?.phone ?? quote.contact_phone ?? "",
+  })
+  const setField = (k: keyof typeof addr) => (e: { target: { value: string } }) =>
+    setAddr((a) => ({ ...a, [k]: e.target.value }))
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [placed, setPlaced] = useState<{
@@ -79,11 +96,31 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
 
   const accept = () => {
     setError(null)
+    if (!pickup && (!addr.address_1.trim() || !addr.city.trim() || addr.postal_code.trim().length < 3)) {
+      setError("Please add a delivery address, or tick pick-up from the studio.")
+      return
+    }
+    const [first, ...rest] = name.trim().split(/\s+/).filter(Boolean)
     startTransition(async () => {
       const res = await acceptQuote({
         id,
         sig,
         approver_name: name.trim() || undefined,
+        pickup,
+        shipping_address: pickup
+          ? undefined
+          : {
+              first_name: first,
+              last_name: rest.join(" ") || undefined,
+              company: quote.company ?? undefined,
+              address_1: addr.address_1.trim(),
+              address_2: addr.address_2.trim() || undefined,
+              city: addr.city.trim(),
+              province: addr.province,
+              postal_code: addr.postal_code.trim(),
+              country_code: "au",
+              phone: addr.phone.trim() || undefined,
+            },
       })
       if (!res.ok) {
         setError(res.error)
@@ -232,6 +269,53 @@ const AcceptForm = ({ id, sig, quote }: Props) => {
         className="mt-1 block w-full min-h-11 rounded-md border border-ui-border-base bg-white px-3 py-2.5 text-base shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand tablet:text-sm"
         placeholder="e.g. Alex Smith"
       />
+
+      <fieldset className="mt-5 border-0 p-0">
+        <legend className="text-sm font-semibold text-ink">Where should we send it?</legend>
+        <label className="mt-2 flex min-h-11 items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={pickup}
+            onChange={(e) => setPickup(e.target.checked)}
+            className="h-4 w-4 rounded border-ui-border-base"
+          />
+          I&apos;ll pick it up from the studio
+        </label>
+        {!pickup ? (
+          <div className="mt-2 grid grid-cols-1 gap-3 tablet:grid-cols-2">
+            <div className="tablet:col-span-2">
+              <label htmlFor="addr1" className="text-xs font-medium text-ui-fg-subtle">Street address</label>
+              <input id="addr1" value={addr.address_1} onChange={setField("address_1")} autoComplete="address-line1" className={FIELD} placeholder="18 Kerr Cres" />
+            </div>
+            <div className="tablet:col-span-2">
+              <label htmlFor="addr2" className="text-xs font-medium text-ui-fg-subtle">Unit / company (optional)</label>
+              <input id="addr2" value={addr.address_2} onChange={setField("address_2")} autoComplete="address-line2" className={FIELD} />
+            </div>
+            <div>
+              <label htmlFor="city" className="text-xs font-medium text-ui-fg-subtle">Suburb</label>
+              <input id="city" value={addr.city} onChange={setField("city")} autoComplete="address-level2" className={FIELD} placeholder="Pagewood" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="state" className="text-xs font-medium text-ui-fg-subtle">State</label>
+                <select id="state" value={addr.province} onChange={setField("province")} autoComplete="address-level1" className={FIELD}>
+                  {AU_STATES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="postcode" className="text-xs font-medium text-ui-fg-subtle">Postcode</label>
+                <input id="postcode" value={addr.postal_code} onChange={setField("postal_code")} inputMode="numeric" autoComplete="postal-code" className={FIELD} placeholder="2035" />
+              </div>
+            </div>
+            <div className="tablet:col-span-2">
+              <label htmlFor="phone" className="text-xs font-medium text-ui-fg-subtle">Phone (for the courier)</label>
+              <input id="phone" value={addr.phone} onChange={setField("phone")} inputMode="tel" autoComplete="tel" className={FIELD} />
+            </div>
+          </div>
+        ) : null}
+      </fieldset>
 
       {error ? (
         <p className="mt-3 text-sm text-rose-700">{error}</p>

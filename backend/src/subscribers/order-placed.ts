@@ -17,6 +17,7 @@ import {
 } from "../lib/constants"
 import { parseNotificationEmailList } from "../lib/notification-recipients"
 import { findOpenQuotes, openQuoteSubjectTag } from "../lib/open-quotes"
+import { orderInboxAddress } from "../lib/order-inbox-alias"
 import { getPostHog } from "../lib/posthog"
 import { ORGANISATION_MODULE } from "../modules/organisation"
 import type OrganisationModuleService from "../modules/organisation/service"
@@ -83,7 +84,9 @@ export default async function orderPlacedHandler({
   })
 
   const displayId = (order as { display_id?: string | number }).display_id ?? data.id
-  const replyToSupport = SUPPORT_REPLY_TO_EMAIL
+  // Per-order inbox alias when ORDER_INBOX_DOMAIN is set, so a reply lands on
+  // the order's activity instead of a shared mailbox.
+  const replyToSupport = orderInboxAddress(order.id) ?? SUPPORT_REPLY_TO_EMAIL
 
   const meta = ((order as any).metadata ?? {}) as Record<string, unknown>
   const isFulfillmentOrder = meta.fulfillment_order === true

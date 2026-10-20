@@ -11,6 +11,7 @@ import {
 } from "../../../lib/production-stage"
 import { getPostHog } from "../../../lib/posthog"
 import { mergeOrderMetadata } from "../../../lib/order-metadata"
+import { raiseAttention } from "../../../services/attention/notify"
 import { emitStageEvents } from "../../../lib/stage-events"
 import {
   buildLineCustomizerExport,
@@ -350,6 +351,20 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     track: "artwork",
   }
   await emitStageEvents(req.scope, body.order, [{ name: ARTWORK_STAGE_EVENT, data: payload }])
+
+  // A change request is the customer waiting on us: task for the owner +
+  // staff email now, not when the stale scan notices in two days.
+  if (!body.approved) {
+    await raiseAttention(req.scope, {
+      kind: "changes_requested",
+      order_id: body.order,
+      customer_id: (order as any)?.customer_id ?? null,
+      label: `#${(order as any)?.display_id ?? body.order.slice(-6)}`,
+      from: (order as any)?.email ?? null,
+      subject: body.approver_name ? `Changes requested by ${body.approver_name}` : null,
+      excerpt: body.comment ?? null,
+    }).catch(() => undefined)
+  }
 
   getPostHog()?.capture({
     distinctId: order?.email ?? body.order,

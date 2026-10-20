@@ -3,6 +3,7 @@ import type { INotificationModuleService, MedusaContainer } from "@medusajs/fram
 
 import { SUPPORT_REPLY_TO_EMAIL } from "../../lib/constants"
 import { tagUrl } from "../../lib/email-utm"
+import { orderInboxAddress } from "../../lib/order-inbox-alias"
 import {
   buildLineCustomizerExport,
   lineMockupGroupKey,
@@ -158,7 +159,7 @@ export async function sendProofEmail(
     idempotency_key: options.idempotencyKey,
     data: {
       emailOptions: {
-        replyTo: SUPPORT_REPLY_TO_EMAIL,
+        replyTo: orderInboxAddress(order.id) ?? SUPPORT_REPLY_TO_EMAIL,
         subject: options.reminder
           ? `Reminder: your artwork proof for order #${displayId} is waiting`
           : `Your artwork proof for order #${displayId}`,

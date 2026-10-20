@@ -8,6 +8,7 @@ import { EmailTemplates } from "../../../../../modules/email-notifications/templ
 import { z } from "zod"
 
 import { SUPPORT_REPLY_TO_EMAIL } from "../../../../../lib/constants"
+import { quoteInboxAddress } from "../../../../../lib/order-inbox-alias"
 import { buildQuoteDecorations } from "../../../../../lib/quote-decorations"
 import { buildQuoteMockups } from "../../../../../lib/quote-mockups"
 import { signQuoteAccept } from "../../../../../services/quote-accept/sign"
@@ -128,7 +129,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           subject: quoteBlock
             ? `Your SC PRINTS quote ${publicId}`
             : `Your design is ready to review — ${publicId}`,
-          replyTo: SUPPORT_REPLY_TO_EMAIL ?? undefined,
+          replyTo: quoteInboxAddress(id) ?? SUPPORT_REPLY_TO_EMAIL ?? undefined,
         },
         approval: {
           firstName:

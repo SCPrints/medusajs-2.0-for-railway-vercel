@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import { SUPPORT_REPLY_TO_EMAIL } from "../../../../../lib/constants"
 import { parseNotificationEmailList } from "../../../../../lib/notification-recipients"
+import { orderInboxAddress } from "../../../../../lib/order-inbox-alias"
 import { EmailTemplates } from "../../../../../modules/email-notifications/templates"
 import {
   generateReceiptPdf,
@@ -113,7 +114,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         attachments,
         data: {
           emailOptions: {
-            replyTo: SUPPORT_REPLY_TO_EMAIL,
+            replyTo: orderInboxAddress(orderId) ?? SUPPORT_REPLY_TO_EMAIL,
             subject: `Tax invoice for order #${displayId}`,
           },
           customerFirstName: order.shipping_address?.first_name ?? null,

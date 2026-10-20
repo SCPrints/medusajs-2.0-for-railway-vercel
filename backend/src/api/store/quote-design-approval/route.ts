@@ -7,6 +7,7 @@ import { getPostHog } from "../../../lib/posthog"
 import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
 import { notifyQuoteCustomerAction } from "../../../lib/notify-quote-action"
+import { raiseAttention } from "../../../services/attention/notify"
 import { buildQuoteMockups } from "../../../lib/quote-mockups"
 import { buildQuoteDecorations } from "../../../lib/quote-decorations"
 import { verifyQuoteApproval } from "../../../services/quote-approval/sign"
@@ -172,6 +173,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     action: body.approved ? "design_approved" : "design_changes_requested",
     comment: body.comment ?? null,
   })
+  // …and a task for the owner so it shows in their queue, not just their inbox.
+  if (!body.approved) {
+    await raiseAttention(req.scope, {
+      kind: "changes_requested",
+      quote_id: quote.id,
+      customer_id: quote.customer_id ?? null,
+      preferred_user_id: quote.assigned_to ?? null,
+      label: quote.public_id ? `Q-${quote.public_id}` : String(quote.id).slice(-8),
+      from: quote.email ?? null,
+      subject: body.approver_name ? `Changes requested by ${body.approver_name}` : null,
+      excerpt: body.comment ?? null,
+    }).catch(() => undefined)
+  }
 
   res.json({ ok: true, status: nextStatus })
 }
