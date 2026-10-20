@@ -71,6 +71,20 @@ type RecomputeResult = {
   updates: Array<{ line_id: string; old_unit_price: number; new_unit_price: number }>
 }
 
+/**
+ * Review 1-7. `perLine` prices every eligible line at its OWN quantity
+ * instead of the cart-wide sum — what the ENABLE_SCP_CART_AGGREGATION=false
+ * branch now does instead of returning early (a quantity edit through
+ * Medusa core keeps the custom unit_price, so "aggregation off" must still
+ * re-tier the edited line or 5 units stay at the 100+ price). `lineIds`
+ * restricts the write to those lines; the storefront uses both together as
+ * the fallback when the full recompute fails after a quantity change.
+ */
+export type RecomputeOptions = {
+  perLine?: boolean
+  lineIds?: string[]
+}
+
 type CartLineForRecompute = {
   id: string
   quantity: number
@@ -357,7 +371,8 @@ const buildUpdatedServerBlock = (
  */
 export async function recomputeScpCartPricing(
   cartId: string,
-  scope: { resolve: (key: string) => unknown }
+  scope: { resolve: (key: string) => unknown },
+  opts: RecomputeOptions = {}
 ): Promise<RecomputeResult> {
   const empty: RecomputeResult = {
     aggregated_quantity: 0,
@@ -366,12 +381,11 @@ export async function recomputeScpCartPricing(
     updates: [],
   }
 
-  if (aggregationDisabled()) return empty
   if (!cartId) return empty
 
   // One retry when the cart changed under us (see cartItemsFingerprint).
   for (let attempt = 0; ; attempt++) {
-    const outcome = await recomputeOnce(cartId, scope, empty)
+    const outcome = await recomputeOnce(cartId, scope, empty, opts)
     if (outcome !== "stale") return outcome
     if (attempt >= 1) {
       // eslint-disable-next-line no-console
@@ -388,8 +402,11 @@ export async function recomputeScpCartPricing(
 async function recomputeOnce(
   cartId: string,
   scope: { resolve: (key: string) => unknown },
-  empty: RecomputeResult
+  empty: RecomputeResult,
+  opts: RecomputeOptions
 ): Promise<RecomputeResult | "stale"> {
+  const perLine = opts.perLine === true || aggregationDisabled()
+  const onlyLineIds = opts.lineIds?.length ? new Set(opts.lineIds) : null
   const query = scope.resolve(ContainerRegistrationKeys.QUERY) as {
     graph: (q: Record<string, unknown>) => Promise<{ data?: unknown[] }>
   }
@@ -477,6 +494,7 @@ async function recomputeOnce(
   const excluded: string[] = []
   for (const item of items) {
     if (!item || !item.id) continue
+    if (onlyLineIds && !onlyLineIds.has(item.id)) continue
     if (isLineEligible(item)) {
       eligible.push(item)
     } else {
@@ -493,6 +511,8 @@ async function recomputeOnce(
     0
   )
   const effectiveQty = Math.max(1, aggregatedQty)
+  const tierQtyFor = (line: CartLineForRecompute) =>
+    perLine ? Math.max(1, Math.floor(line.quantity || 1)) : effectiveQty
 
   type PendingUpdate = {
     line_id: string
@@ -515,7 +535,7 @@ async function recomputeOnce(
     const screenJobQty = screenJobQtyByLine.get(line.id) ?? Math.max(1, line.quantity)
     const newUnitPriceMajor = computeNewUnitPriceMajor(
       line,
-      effectiveQty,
+      tierQtyFor(line),
       screenJobQty,
       tier,
       digitizingAmortByLine.get(line.id),
@@ -531,7 +551,7 @@ async function recomputeOnce(
       updated_metadata: buildUpdatedServerBlock(
         line.metadata,
         newUnitPriceMajor,
-        effectiveQty,
+        tierQtyFor(line),
         screenJobQty,
         bundleDiscounts.get(line.id)
       ),
@@ -597,7 +617,8 @@ export function recomputeScpCartPricingPure(
   lines: CartLineForRecompute[],
   tier?: Tier | null,
   /** Per-line pack discount % (bundleDiscountByLine). */
-  bundleDiscounts?: Map<string, number>
+  bundleDiscounts?: Map<string, number>,
+  opts: Pick<RecomputeOptions, "perLine"> = {}
 ): {
   aggregated_quantity: number
   prices: Map<string, number>
@@ -623,7 +644,7 @@ export function recomputeScpCartPricingPure(
   for (const line of eligible) {
     const major = computeNewUnitPriceMajor(
       line,
-      effectiveQty,
+      opts.perLine ? Math.max(1, Math.floor(line.quantity || 1)) : effectiveQty,
       screenJobQtyByLine.get(line.id) ?? Math.max(1, line.quantity),
       tier,
       digitizingAmortByLine.get(line.id),
