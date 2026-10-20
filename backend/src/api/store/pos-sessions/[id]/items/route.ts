@@ -4,6 +4,7 @@ import { ulid } from "ulid"
 import { z } from "zod"
 
 import { computeScpLineDescriptor } from "../../../../../lib/scp-line-descriptor"
+import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../../../lib/lead-relay"
 import {
   resolveTierForCartCustomer,
   type RemoteJoinerGraphLike,
@@ -40,6 +41,13 @@ const addItemSchema = z.object({
  */
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const sessionId = req.params.id
+
+  // Only the storefront's pos-bridge relay may add lines — the session id
+  // alone was the capability (review 4-11). Same shared secret the lead
+  // forms use; unset locally = open.
+  if (!readLeadRelay(req).ok) {
+    return res.status(403).json(LEAD_RELAY_REJECTED)
+  }
 
   let body: z.infer<typeof addItemSchema>
   try {
