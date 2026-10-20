@@ -48,8 +48,17 @@ export async function GET(
         "metadata",
         "shipping_address.*",
         "billing_address.*",
-        "items.*",
-        "items.metadata",
+        // Explicit line fields — never `items.metadata`: the org-orders
+        // route stamps unit_cost_cents + print_file_url on each line for the
+        // production side, and a viewer-role member must not read either
+        // (review 4-3). The storefront page renders title/qty/unit price only.
+        "items.id",
+        "items.title",
+        "items.product_title",
+        "items.variant_title",
+        "items.thumbnail",
+        "items.quantity",
+        "items.unit_price",
         "fulfillments.*",
         "fulfillments.labels.*",
       ],
