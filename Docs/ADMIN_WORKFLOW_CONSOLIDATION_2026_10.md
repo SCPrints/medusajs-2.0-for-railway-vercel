@@ -197,7 +197,13 @@ Also worth flipping now: `STALE_ORDER_ALERTS_ENABLED=true` (the first run create
 - The first visit to the bare `/app/orders` in a browser tab goes to `/app/today`, since Medusa has no landing-page setting.
 - Studio tab and My tasks are still there for now; Phase 3 removes the Studio tab and nests My tasks.
 
-## 12. Decisions needed from Sean
+## 12. Phase 3 — shipped 2026-10-21
+
+Sidebar is now: **Today** · Orders ▸ Quotes, Enquiries, Board, My tasks, POS, Fulfillment · Products ▸ Product data, Brands, Print profiles, Shop categories, Bundles, Bottle shops · Inventory · Customers ▸ Organisations, Owner rotation, Email suppressions · Promotions · Price lists · **Storefront** ▸ Lookbook, Home sections · **Dropship** (AS Colour / Aussie Pacific / Bottle shop tabs) · **Reports** · **Setup** ▸ Automation rules, Help & guide.
+
+How: `nested: "/orders" | "/products" | "/customers"` on existing pages (Medusa only allows nesting under those core sections); custom parents (`storefront/`, `setup/`) nest children by file path; `rank` orders siblings. Moved pages left a redirect stub at the old URL ([components/redirect-page.tsx](../backend/src/admin/components/redirect-page.tsx)), so every link in emails, cmd-K and bookmarks still works. Job pricer has no sidebar entry (reach it from a quote or job); the Studio tab is gone (Today replaces it) and the Studio dashboard route/service is dead code for Phase 4 to remove.
+
+## 13. Decisions needed from Sean
 
 1. Approve Phase 0 now (config + two small code changes; nothing visual changes).
 2. Approve Phase 1–2 as the build (the job page and Today). Phases 3–4 follow once staff have used them.
