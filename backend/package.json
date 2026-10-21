@@ -61,6 +61,7 @@
     "googleapis": "^144.0.0",
     "mermaid": "^11.15.0",
     "minio": "^8.0.7",
+    "pdf-lib": "1.17.1",
     "pdfkit": "^0.18.0",
     "pg": "^8.20.0",
     "posthog-node": "^5.0.0",

@@ -35,7 +35,7 @@ const num = (v: unknown): number | null => {
  * a quote id, a quote public id ("Q-4GY0KD74V2" or bare), or an order
  * display number. Returns both halves when they are linked.
  */
-async function resolveJobIds(
+export async function resolveJobIds(
   container: MedusaContainer,
   raw: string
 ): Promise<{ quoteId: string | null; orderId: string | null }> {
