@@ -83,6 +83,13 @@ describe("attachDesignToPricerLines", () => {
     expect(out[3]).toBe(items[3])
   })
 
+  it("attaches to a staff catalog line designed in place (gs_ group) at its quoted price", () => {
+    const staff = [{ id: "01ABC", group_id: "gs_x", variant_id: "v_navy_xl", quantity: 3, unit_price: 46.6, thumbnail: null }]
+    const { items: out } = attachDesignToPricerLines(staff, "gs_x", design, "up_to_a6")
+    expect(out[0]).toMatchObject({ quantity: 3, unit_price: 46.6, thumbnail: "https://r2/mock.png", print_size_id: "up_to_a6" })
+    expect(out[0].customizerDesign.variantId).toBe("v_navy_xl")
+  })
+
   it("leaves the group alone when no design was posted", () => {
     const { items: out, mockupUrl } = attachDesignToPricerLines(items, "g_1", null)
     expect(mockupUrl).toBeNull()

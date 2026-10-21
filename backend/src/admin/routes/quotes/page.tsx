@@ -414,8 +414,13 @@ function LineItemsEditor({
               <div className="flex flex-wrap items-center gap-2">
                 {/* Job-pricer lines (jp_…) open the Studio on THEIR group so the
                     design attaches to them at the quoted price — the bottom
-                    "Design in Studio" starts a new group (a duplicate line). */}
-                {(hasDesign || (row.group_id && row.id.startsWith("jp_"))) && onDesignLine ? (
+                    "Design in Studio" starts a new group (a duplicate line).
+                    Catalog lines do the same: the Studio opens on their
+                    product + colour and the design attaches at their price. */}
+                {(hasDesign ||
+                  (row.group_id && row.id.startsWith("jp_")) ||
+                  (row.product_handle && !row.id.startsWith("jp_"))) &&
+                onDesignLine ? (
                   <Button
                     size="small"
                     variant="secondary"
@@ -1602,7 +1607,7 @@ function QuoteDetail({
             onChange={setDraftLineItems}
             regionId={regionId}
             pricerQuoteId={quote.id}
-            onDesignLine={(row) => {
+            onDesignLine={async (row) => {
               // Customer-supplied pricer groups sit on the service line, so the
               // line has no garment — open the Studio on the stand-in the
               // Job pricer picked for the mockup instead.
@@ -1617,7 +1622,29 @@ function QuoteDetail({
                 }
                 return openStudio(row.group_id ?? null, handle, null)
               }
-              return openStudio(row.group_id ?? null, row.product_handle ?? null, row.variant_id ?? null)
+              if (row.group_id) {
+                return openStudio(row.group_id, row.product_handle ?? null, row.variant_id ?? null)
+              }
+              // A staff-priced catalog line with no group yet: give it a `gs_`
+              // group (STAFF_PRICED_GROUP_PREFIX in lib/quote-design-lines.ts)
+              // and save it first, so the Studio's post-back attaches the
+              // design to THIS line at its quoted price instead of appending
+              // a new line at the Studio's price.
+              const group_id = `gs_${crypto.randomUUID().replace(/-/g, "")}`
+              const next = draftLineItems.map((r) => (r.id === row.id ? { ...r, group_id } : r))
+              const res = await fetch(`/admin/quotes/${quote.id}`, {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ line_items: draftToLineItems(next) }),
+              })
+              if (!res.ok) {
+                toast.error("Couldn't prepare the line for the Studio — save line items and try again")
+                return
+              }
+              setDraftLineItems(next)
+              serverSig.current = lineItemsSignature(draftToLineItems(next))
+              return openStudio(group_id, row.product_handle ?? null, row.variant_id ?? null)
             }}
             onAddDesign={() => openStudio(null, null)}
           />

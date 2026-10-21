@@ -29,8 +29,21 @@ export const quoteDesignLineSchema = z.object({
 
 export type QuoteDesignLineInput = z.infer<typeof quoteDesignLineSchema>
 
-/** Lines the Job pricer wrote (`jp_r_…` rows, `jp_x_…` setups) — priced in the pricer, not the Studio. */
-export const isPricerLine = (li: { id?: unknown }) => String(li?.id ?? "").startsWith("jp_")
+/**
+ * Group prefix the admin stamps on a staff-priced catalog line when staff open
+ * the Studio from THAT line (mirrored in admin/routes/quotes/page.tsx), so the
+ * design attaches to the line at its quoted price instead of adding a new one.
+ */
+export const STAFF_PRICED_GROUP_PREFIX = "gs_"
+
+/**
+ * Lines whose price staff own, so a Studio design attaches without re-pricing:
+ * Job-pricer lines (`jp_r_…` rows, `jp_x_…` setups) and staff catalog lines
+ * designed in place (group `gs_…`).
+ */
+export const isAttachOnlyLine = (li: { id?: unknown; group_id?: unknown }) =>
+  String(li?.id ?? "").startsWith("jp_") ||
+  String(li?.group_id ?? "").startsWith(STAFF_PRICED_GROUP_PREFIX)
 
 /**
  * Attach a Studio design to a Job-pricer group WITHOUT re-pricing. The pricer
@@ -51,7 +64,7 @@ export function attachDesignToPricerLines(
       ? design!.artifacts.find((a: any) => typeof a?.mockupUrl === "string" && a.mockupUrl)?.mockupUrl
       : null) ?? null
   const next = items.map((li) => {
-    if (li?.group_id !== groupId || !isPricerLine(li)) return li
+    if (li?.group_id !== groupId || !isAttachOnlyLine(li)) return li
     return {
       ...li,
       customizerDesign: design

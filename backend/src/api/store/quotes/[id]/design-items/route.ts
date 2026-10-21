@@ -12,7 +12,7 @@ import type QuoteModuleService from "../../../../../modules/quote/service"
 import { getPostHog } from "../../../../../lib/posthog"
 import {
   attachDesignToPricerLines,
-  isPricerLine,
+  isAttachOnlyLine,
   mapQuoteDesignLines,
   quoteDesignLineSchema,
 } from "../../../../../lib/quote-design-lines"
@@ -159,13 +159,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     ? quote.line_items.items
     : []
 
-  // Job-pricer group (lines `jp_…` carrying this group_id): the pricer owns
-  // the pricing, so ATTACH the design to its lines instead of replacing them
+  // Staff-priced group (Job-pricer `jp_…` lines, or a catalog line designed in
+  // place with a `gs_…` group): staff own the pricing, so ATTACH the design to
+  // its lines instead of replacing them
   // at the customiser's own price (which would lose cross-group tiers,
   // overrides and the negotiated discount). Also records the mockup on the
   // saved job so the pricer + breakdown card show it.
   const groupLines = currentItems.filter((li) => li?.group_id === body.group_id)
-  if (groupLines.length && groupLines.every(isPricerLine)) {
+  if (groupLines.length && groupLines.every(isAttachOnlyLine)) {
     const legacyDesign = body.lines[0]?.metadata?.customizerDesign
     const design =
       sharedDesign ??
