@@ -989,7 +989,6 @@ const QuotesPage = () => {
   useEffect(() => {
     if (!selectedId) {
       setSelectedQuote(null)
-      setEvents([])
       return
     }
     loadDetail(selectedId)

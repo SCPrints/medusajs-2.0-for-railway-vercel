@@ -49,8 +49,11 @@ const ACTIVITY_TAG: Record<JobActivity["kind"], { label: string; cls: string }> 
   task: { label: "TASK", cls: "bg-ui-tag-orange-bg text-ui-tag-orange-text" },
 }
 
-/** Mount a moved widget with the order as `data`, exactly as Medusa did. */
-const Mount = ({ W: Widget, order }: { W: ComponentType<DetailWidgetProps<AdminOrder>>; order: AdminOrder }) => (
+/**
+ * Mount a moved widget with the order as `data`, exactly as Medusa did. The
+ * widgets each declare a narrower `data` shape, so the prop is typed loosely.
+ */
+const Mount = ({ W: Widget, order }: { W: ComponentType<{ data: any }>; order: AdminOrder }) => (
   <Widget data={order} />
 )
 

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false
+  },
+  "include": ["src/admin", "src/lib"],
+  "exclude": ["**/__tests__", "**/__fixtures__", "node_modules", "build", ".cache", "src/scripts.archive"]
+}
