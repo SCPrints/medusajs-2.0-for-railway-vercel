@@ -191,7 +191,13 @@ Also worth flipping now: `STALE_ORDER_ALERTS_ENABLED=true` (the first run create
 - From the quote Kanban: "Open job" on each card and in the drawer. The drawer stays for editing lines and the Studio popup (Phase 4 slims it).
 - Not in Phase 1: Nudge is a reply box with no template yet; order_blanks / revise_proof switch to the right tab rather than acting; quote-side Artwork tab is a status + link to the drawer.
 
-## 11. Decisions needed from Sean
+## 11. Phase 2 — shipped 2026-10-21
+
+- `/app/today` ([backend/src/admin/routes/today/page.tsx](../backend/src/admin/routes/today/page.tsx)) lists every unfinished job in three sections from `GET /admin/jobs` (section rules in [backend/src/lib/job-today.ts](../backend/src/lib/job-today.ts), tested). One-click next actions run from the row; the rest open the job.
+- The first visit to the bare `/app/orders` in a browser tab goes to `/app/today`, since Medusa has no landing-page setting.
+- Studio tab and My tasks are still there for now; Phase 3 removes the Studio tab and nests My tasks.
+
+## 12. Decisions needed from Sean
 
 1. Approve Phase 0 now (config + two small code changes; nothing visual changes).
 2. Approve Phase 1–2 as the build (the job page and Today). Phases 3–4 follow once staff have used them.
