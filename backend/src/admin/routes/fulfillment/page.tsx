@@ -167,6 +167,7 @@ const FulfillmentOrdersPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/orders",
   label: "Fulfillment",
   icon: tinted(ShoppingBag, NAV_COLOR.production),
   rank: 21,

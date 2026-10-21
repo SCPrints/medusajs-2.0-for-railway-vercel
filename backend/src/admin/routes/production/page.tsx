@@ -974,6 +974,7 @@ const ProductionPage = () => (
 )
 
 export const config = defineRouteConfig({
+  nested: "/orders",
   label: "Production",
   icon: tinted(Clock, NAV_COLOR.production),
   rank: 20,

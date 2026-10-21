@@ -1734,6 +1734,7 @@ function QuoteDetail({
 }
 
 export const config = defineRouteConfig({
+  nested: "/orders",
   label: "Quotes",
   icon: tinted(ChatBubbleLeftRight, NAV_COLOR.sales),
   rank: 11,

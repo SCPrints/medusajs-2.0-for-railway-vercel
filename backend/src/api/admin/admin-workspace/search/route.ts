@@ -139,7 +139,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
           id: c.id,
           title: c.customer_name || c.email || c.id,
           subtitle: `${c.lines.length} line${c.lines.length === 1 ? "" : "s"} · $${c.item_total.toFixed(2)}`,
-          href: `/app/open-carts?q=${encodeURIComponent(c.id)}`,
+          href: `/app/enquiries?tab=carts&q=${encodeURIComponent(c.id)}`,
         })
       }
     } catch {

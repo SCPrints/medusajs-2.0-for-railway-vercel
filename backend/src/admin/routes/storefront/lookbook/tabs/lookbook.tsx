@@ -11,9 +11,9 @@ import {
 } from "@medusajs/ui"
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { HelpTooltip } from "../../../components/reports/help-tooltip"
-import { LookbookProductPicker } from "../../../components/lookbook/product-picker"
-import { LOOKBOOK_INDUSTRY_TAGS, slugifyJob } from "../../../../lib/lookbook-job-slug"
+import { HelpTooltip } from "../../../../components/reports/help-tooltip"
+import { LookbookProductPicker } from "../../../../components/lookbook/product-picker"
+import { LOOKBOOK_INDUSTRY_TAGS, slugifyJob } from "../../../../../lib/lookbook-job-slug"
 
 type Item = {
   id: string
@@ -522,6 +522,6 @@ const LookbookPage = () => {
   )
 }
 
-// Rendered as the "Lookbook" tab of /app/studio-and-lookbook.
+// Rendered by /app/storefront/lookbook.
 
 export default LookbookPage

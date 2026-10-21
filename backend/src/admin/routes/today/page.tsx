@@ -161,6 +161,7 @@ const TodayPage = () => {
 }
 
 export const config = defineRouteConfig({
+  rank: 0,
   label: "Today",
   icon: tinted(Sparkles, NAV_COLOR.tasks),
 })

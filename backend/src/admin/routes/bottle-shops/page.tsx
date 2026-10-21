@@ -411,6 +411,7 @@ const BottleShopsPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/products",
   label: "Bottle shops",
   icon: tinted(BuildingStorefront, NAV_COLOR.sales),
   rank: 12,

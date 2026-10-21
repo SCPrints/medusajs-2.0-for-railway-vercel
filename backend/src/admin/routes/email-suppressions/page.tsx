@@ -341,6 +341,7 @@ const EmailSuppressionsPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/customers",
   label: "Email suppressions",
   icon: tinted(EnvelopeSolid, NAV_COLOR.crm),
   rank: 53,

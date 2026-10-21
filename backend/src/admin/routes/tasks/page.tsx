@@ -399,9 +399,10 @@ const TasksPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/orders",
   label: "My tasks",
   icon: tinted(CheckCircle, NAV_COLOR.tasks),
-  rank: 0,
+  rank: 25,
 })
 
 export default TasksPage

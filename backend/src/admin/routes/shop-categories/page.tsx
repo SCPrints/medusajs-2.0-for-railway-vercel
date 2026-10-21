@@ -1209,6 +1209,7 @@ const SummaryTile = ({
 }
 
 export const config = defineRouteConfig({
+  nested: "/products",
   label: "Shop categories",
   icon: tinted(BuildingStorefront, NAV_COLOR.catalog),
   rank: 32,

@@ -1,5 +1,4 @@
-import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { CurrencyDollar, Plus, Sparkles, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
+import { Plus, Sparkles, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
 import {
   Badge,
   Button,
@@ -35,7 +34,6 @@ import {
   type ScpPrintSizeId,
 } from "../../../lib/scp-dtf-print-pricing"
 import { parseDecorationPricingClass } from "../../../lib/scp-supacolour-pricing"
-import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 
 /**
  * Job pricer — the quoting calculator, full page.
@@ -1776,10 +1774,6 @@ function QuotePricerPage() {
   )
 }
 
-export const config = defineRouteConfig({
-  label: "Job pricer",
-  icon: tinted(CurrencyDollar, NAV_COLOR.sales),
-  rank: 12,
-})
+// ponytail: no sidebar entry — the pricer is reached from a quote / job ("Price it", "Edit in Job pricer").
 
 export default QuotePricerPage

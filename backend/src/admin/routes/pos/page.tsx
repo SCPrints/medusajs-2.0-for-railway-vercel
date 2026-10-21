@@ -554,6 +554,7 @@ const POSPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/orders",
   label: "POS",
   icon: tinted(ShoppingCart, NAV_COLOR.sales),
   rank: 10,

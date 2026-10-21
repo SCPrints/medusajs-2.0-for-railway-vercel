@@ -430,6 +430,7 @@ const PrintProfilesPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/products",
   label: "Print profiles",
   icon: tinted(Swatch, NAV_COLOR.catalog),
   rank: 33,

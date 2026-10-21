@@ -236,6 +236,7 @@ const RotationPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/customers",
   label: "Owner rotation",
   icon: tinted(Users, NAV_COLOR.crm),
   rank: 51,

@@ -164,6 +164,7 @@ const ProductDataPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/products",
   label: "Product data",
   icon: tinted(CogSixTooth, NAV_COLOR.catalog),
   rank: 30,

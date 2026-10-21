@@ -8,7 +8,7 @@ This guide pairs with [`BACKEND_FLOW.md`](./BACKEND_FLOW.md) — that one's the 
 
 ## Your daily home — **Studio**
 
-Path: `/app/studio`
+Path: `/app/today`
 
 Studio is the dashboard that surfaces customers and orders worth your attention *today*. Open it first thing every morning. Four buckets:
 
@@ -40,7 +40,7 @@ Every order page has these stacked widgets (some only render when relevant):
 | **Watchers** | side, bottom | Up to 5 extra email addresses to CC on production-stage updates. Useful when one parent orders but the whole P&C wants updates. |
 | **Production photos** | main column | Snap a photo of the print on the press. The latest photo auto-appears in the customer's next production-stage email. |
 | **Print recipes** | main column | Reusable production settings (mesh count, flash temp, embroidery digitization file). Link existing recipes here so the operator has the settings. |
-| **Rejects / spoilage** | main column | Log every garment scrapped. Drives the `/app/production-rejects` report. |
+| **Rejects / spoilage** | main column | Log every garment scrapped. Drives the `/app/production?tab=rejects` report. |
 | **Customer applied perks** | side, bottom | Snapshot of what the customer was entitled to at order placement. |
 | **Order timeline** | bottom | One chronological feed of every signal — stage changes, photos, comments, NPS, rejects, watcher adds. |
 
@@ -267,7 +267,7 @@ After you pick an existing customer in checkout, a **Repeat last order** button 
 
 ### Print queue (suggested run order)
 
-Path: `/app/print-queue`
+Path: `/app/production?tab=print-queue`
 
 Today's queued jobs grouped by decoration method + ink colours so the press operator changes setups as few times as possible. Open this when planning the morning's run.
 
@@ -282,7 +282,7 @@ This is a *suggestion*, not a lock. Free to override based on what the press is 
 
 ### Production calendar (Gantt)
 
-Path: `/app/production-calendar`
+Path: `/app/production?tab=calendar`
 
 Every in-flight order plotted against its created_at + deadline. Colour = stage. Red glow = stale. Click any bar to open the order.
 
@@ -293,7 +293,7 @@ Use it to:
 
 ### Production rejects report
 
-Path: `/app/production-rejects`
+Path: `/app/production?tab=rejects`
 
 Aggregates every reject row staff log on order detail pages.
 
@@ -302,7 +302,7 @@ Aggregates every reject row staff log on order detail pages.
 
 ### Print recipes
 
-Path: `/app/print-recipes`
+Path: `/app/production?tab=print-recipes`
 
 Reusable production settings library. Capture mesh count, flash temp, ink type, embroidery digitization file location, etc. Link recipes to specific orders so operators have the right settings without asking senior staff.
 
@@ -310,7 +310,7 @@ Searchable by name, filterable by decoration method (screen print / DTF / embroi
 
 ### Lookbook (public gallery)
 
-Path: `/app/lookbook` → renders to `/lookbook` on the storefront
+Path: `/app/storefront/lookbook` → renders to `/lookbook` on the storefront
 
 Curated photos of real SC PRINTS jobs as a Pinterest-style grid. Use it to:
 - Soft-sell outcomes (tagged hoodie on a real player) instead of blanks.
@@ -344,7 +344,7 @@ The SEO analytics page at `/app/seo-analytics` shows GSC + GA4 metrics with a 28
 
 ## Automation rules
 
-Path: `/app/automation-rules`
+Path: `/app/setup/automation-rules`
 
 No-code "when X happens, do Y" rules. Triggers on `order.placed` and `order.production_stage_changed`. Conditions support `eq / neq / gt / gte / lt / lte / contains / exists` operators. Actions:
 - Tag a customer (e.g. "if LTV > $1500, tag VIP")
@@ -383,24 +383,24 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | --- | --- |
 | Ring up a walk-in customer | `/app/pos` |
 | Take a card payment in-person (QR link) | `/app/pos` → Card (QR link) |
-| See what needs my attention today | `/app/studio` |
-| Plan today's production runs (minimise setup changes) | `/app/print-queue` |
+| See what needs my attention today | `/app/today` |
+| Plan today's production runs (minimise setup changes) | `/app/production?tab=print-queue` |
 | Regenerate a product's description with AI | Product detail → AI description widget |
-| Find a customer who hasn't ordered in a while | `/app/studio` → "VIPs who've gone quiet" |
+| Find a customer who hasn't ordered in a while | Customers → the customer card (LTV widget), or `/app/reports` → RFM |
 | Add a snooze reminder for a customer | Customer detail → Notes → add note with snooze date |
 | Mark a customer tax-exempt | Customer detail → Tax status widget |
 | Tag a customer as VIP / Wholesale | Customer detail → Tags widget |
 | Run a quote through to a paid order | `/app/quotes` → edit → Copy customer accept link → email it |
-| Plan the week's production | `/app/production-calendar` |
+| Plan the week's production | `/app/production?tab=calendar` |
 | Log a reject from this morning's misprint | Order detail → Rejects/spoilage widget |
 | Photo of the print on the press | Order detail → Production photos widget (upload from phone) |
-| Save settings that worked for a tricky job | `/app/print-recipes` → New recipe → link to the order |
+| Save settings that worked for a tricky job | `/app/production?tab=print-recipes` → New recipe → link to the order |
 | Add a parent to receive order updates | Order detail → Watchers widget (or customer does it themselves) |
 | Set a deposit + balance schedule | Order detail → Deposit & balance widget |
 | Group order for a sports club | The club creates one via API; share the link they got back |
 | Add a school as an org account | `/app/organisations` → New organisation → add members |
-| Surface a finished job on the gallery | `/app/lookbook` → New tile → upload photo |
-| See where waste is coming from | `/app/production-rejects` |
+| Surface a finished job on the gallery | `/app/storefront/lookbook` → New tile → upload photo |
+| See where waste is coming from | `/app/production?tab=rejects` |
 | Audit a customer's interactions | Customer detail → Customer journey widget |
 | Resend an accept link to a customer | Quote detail → Copy customer accept link |
 | Generate a tax invoice | Customer side: `/account/orders/[id]` → Tax invoice button |

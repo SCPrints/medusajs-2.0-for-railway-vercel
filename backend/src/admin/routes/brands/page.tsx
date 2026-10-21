@@ -466,6 +466,7 @@ const BrandsPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/products",
   label: "Brands",
   icon: tinted(Tag, NAV_COLOR.catalog),
   rank: 31,

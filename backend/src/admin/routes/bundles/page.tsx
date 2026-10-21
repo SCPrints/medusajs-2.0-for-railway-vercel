@@ -898,6 +898,7 @@ const BundlesPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/products",
   label: "Bundles",
   icon: tinted(ShoppingCart, NAV_COLOR.storefront),
   rank: 41,

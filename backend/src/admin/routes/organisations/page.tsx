@@ -591,6 +591,7 @@ const OrganisationsPage = () => {
 }
 
 export const config = defineRouteConfig({
+  nested: "/customers",
   label: "Organisations",
   icon: tinted(BuildingStorefront, NAV_COLOR.crm),
   rank: 50,
