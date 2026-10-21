@@ -184,7 +184,14 @@ To turn customer replies on (one-off, ~15 minutes, all in dashboards):
 
 Also worth flipping now: `STALE_ORDER_ALERTS_ENABLED=true` (the first run creates one task per currently stuck order; today that's a handful).
 
-## 10. Decisions needed from Sean
+## 10. Phase 1 — shipped 2026-10-21
+
+- `GET /admin/jobs/:id` (any id: order, quote, `Q-…`, order number) returns the read model in [backend/src/lib/job-view.ts](../backend/src/lib/job-view.ts); the next-action rule is [backend/src/lib/job-state.ts](../backend/src/lib/job-state.ts) (pure, unit-tested). `POST /admin/jobs/:id/reply` emails the customer or logs a note.
+- The Job panel ([backend/src/admin/components/job/job-panel.tsx](../backend/src/admin/components/job/job-panel.tsx)) is the one widget on the Medusa order page and the page at `/app/jobs/:id`. The 27 order widgets now live in `components/job/widgets/` and render inside the tabs.
+- From the quote Kanban: "Open job" on each card and in the drawer. The drawer stays for editing lines and the Studio popup (Phase 4 slims it).
+- Not in Phase 1: Nudge is a reply box with no template yet; order_blanks / revise_proof switch to the right tab rather than acting; quote-side Artwork tab is a status + link to the drawer.
+
+## 11. Decisions needed from Sean
 
 1. Approve Phase 0 now (config + two small code changes; nothing visual changes).
 2. Approve Phase 1–2 as the build (the job page and Today). Phases 3–4 follow once staff have used them.
