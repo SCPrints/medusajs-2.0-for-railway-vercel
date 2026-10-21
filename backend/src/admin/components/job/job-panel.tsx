@@ -112,7 +112,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.customer.company ? <span>{job.customer.company}</span> : null}
               <span>{job.customer.has_account ? "Account" : "Guest"}</span>
               <span>Owner: {job.owner?.label ?? "unassigned"}</span>
-              {job.quote ? <a className="hover:underline" href={`/app/quotes?id=${job.quote.id}`}>Q-{job.quote.public_id}</a> : null}
+              {job.quote ? <a className="hover:underline" href={`/app/quotes?id=${job.quote.id}`}>{job.quote.public_id}</a> : null}
               {job.order ? <a className="hover:underline" href={`/app/orders/${job.order.id}`}>Order #{job.order.display_id ?? ""}</a> : null}
             </div>
           </div>

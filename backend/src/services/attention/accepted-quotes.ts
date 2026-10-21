@@ -60,7 +60,7 @@ export async function scanAcceptedQuotes(
         quote_id: q.id,
         customer_id: q.customer_id ?? null,
         preferred_user_id: q.assigned_to ?? null,
-        label: q.public_id ? `Q-${q.public_id}` : String(q.id).slice(-8),
+        label: q.public_id ? String(q.public_id) : String(q.id).slice(-8),
       })
       await quotes.updateQuotes([
         {

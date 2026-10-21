@@ -42,7 +42,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const to = job.customer.email
   if (channel === "email") {
     if (!to) return res.status(400).json({ error: "This job has no customer email." })
-    const label = job.order ? `order #${job.order.display_id ?? ""}` : `quote Q-${job.quote?.public_id ?? ""}`
+    const label = job.order ? `order #${job.order.display_id ?? ""}` : `quote ${job.quote?.public_id ?? ""}`
     const subject = parsed.data.subject || `Re: your SC Prints ${label}`.trim()
     const replyTo = (job.order ? orderInboxAddress(job.order.id) : quoteInboxAddress(job.quote!.id)) ?? SUPPORT_REPLY_TO_EMAIL
     const notifications = req.scope.resolve(Modules.NOTIFICATION) as any

@@ -65,7 +65,8 @@ export function rowFromJob(job: JobView): TodayRow {
   return {
     id: job.id,
     kind: job.kind,
-    label: job.order ? `#${job.order.display_id ?? ""}` : `Q-${job.quote?.public_id ?? ""}`,
+    // public_id already carries the "Q-" prefix.
+    label: job.order ? `#${job.order.display_id ?? ""}` : job.quote?.public_id ?? "",
     customer: job.customer.name ?? job.customer.email ?? "Customer",
     subject: job.quote?.subject ?? null,
     phase: job.state.phase,

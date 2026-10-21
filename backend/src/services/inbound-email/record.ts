@@ -119,7 +119,7 @@ export async function recordInboundEmail(
     quote_id: quote.id,
     customer_id: quote.customer_id ?? null,
     preferred_user_id: quote.assigned_to ?? null,
-    label: quote.public_id ? `Q-${quote.public_id}` : String(quote.id).slice(-8),
+    label: quote.public_id ? String(quote.public_id) : String(quote.id).slice(-8),
     from,
     subject: msg.subject,
     excerpt: body,

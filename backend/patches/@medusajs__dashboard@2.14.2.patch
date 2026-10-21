@@ -1,3 +1,23 @@
+diff --git a/dist/chunk-AMFEQ633.mjs b/dist/chunk-AMFEQ633.mjs
+index 939abb4e15c5b88acf6f0a14695e2c3aaeadb893..7ad53782895006f936de4009d27edecc49d06432 100644
+--- a/dist/chunk-AMFEQ633.mjs
++++ b/dist/chunk-AMFEQ633.mjs
+@@ -101838,11 +101838,12 @@ var NavItem = ({
+ }) => {
+   const { t: t2 } = useTranslation5(translationNs);
+   const { pathname } = useLocation4();
+-  const [open, setOpen] = useState7(getIsOpen(to, items, pathname));
++  const alwaysOpen = type === "extension" || !!items?.some((i) => i.nested);
++  const [open, setOpen] = useState7(alwaysOpen || getIsOpen(to, items, pathname));
+   const displayLabel = translationNs ? t2(label) : label;
+   useEffect8(() => {
+-    setOpen(getIsOpen(to, items, pathname));
+-  }, [pathname, to, items]);
++    setOpen(alwaysOpen || getIsOpen(to, items, pathname));
++  }, [pathname, to, items, alwaysOpen]);
+   const navLinkClassNames = useCallback4(
+     ({
+       to: to2,
 diff --git a/dist/chunk-IQBAUTU5.mjs b/dist/chunk-IQBAUTU5.mjs
 index e3a72ee54ee1c53baaeae0ff7b3218352eacdba9..d0226b8e6c797794604bfe9ca60c0e6661d7f952 100644
 --- a/dist/chunk-IQBAUTU5.mjs
