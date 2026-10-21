@@ -4,6 +4,7 @@ import { useState, type ComponentType, type ReactNode } from "react"
 
 import { JOB_PHASES, type NextActionKind } from "../../../lib/job-state"
 import type { JobActivity, JobView } from "../../../lib/job-view"
+import { ONE_CLICK, performNextAction } from "./actions"
 import { ConvertAddressForm } from "./convert-address-form"
 import * as W from "./widgets"
 
@@ -62,106 +63,37 @@ export function JobPanel({ job, order, onChanged }: Props) {
   const action = job.state.next_action
   const orderId = job.order?.id ?? null
 
-  const post = async (path: string, body: Record<string, unknown>) => {
-    const res = await fetch(path, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
-    const json = await res.json().catch(() => ({}))
-    return { ok: res.ok, status: res.status, json: json as any }
-  }
-
-  const setStage = async (patch: Record<string, string>) => {
-    if (!orderId) return
-    let r = await post(`/admin/orders/${orderId}/production-stage`, patch)
-    if (r.status === 409 && r.json?.code === "production_not_ready") {
-      const reasons: string[] = r.json?.failures ?? []
-      const why = window.prompt(`Not ready: ${reasons.join("; ")}.\n\nStart anyway? Type a reason:`)
-      if (!why || why.trim().length < 3) return
-      r = await post(`/admin/orders/${orderId}/production-stage`, { ...patch, override_reason: why.trim() })
-    }
-    if (!r.ok) throw new Error(r.json?.error ?? r.json?.message ?? `HTTP ${r.status}`)
-  }
-
   const runAction = async (kind: NextActionKind) => {
     setBusy(kind)
     try {
-      switch (kind) {
-        case "reply":
-          setTab("activity")
-          document.getElementById("job-reply")?.focus()
-          break
-        case "price_it":
-          window.location.href = `/app/quote-pricer?quote=${encodeURIComponent(job.quote!.id)}`
-          break
-        case "revise_design":
-          window.location.href = `/app/quotes?id=${encodeURIComponent(job.quote!.id)}`
-          break
-        case "convert_to_order":
-          setConvertOpen(true)
-          setTab("overview")
-          break
-        case "send_payment_link": {
-          const cents = Math.round((job.money.outstanding ?? job.money.order_total ?? 0) * 100)
-          if (cents < 50) throw new Error("Nothing outstanding to charge.")
-          const r = await post(`/admin/orders/${orderId}/payment-link`, {
-            amount_cents: cents,
-            scenario: "full",
-            label: `Order #${job.order?.display_id ?? ""}`.trim(),
-          })
-          if (!r.ok) throw new Error(r.json?.error ?? "Payment links aren't configured (STRIPE_PAYMENT_LINK_WEBHOOK_SECRET).")
-          const url: string | undefined = r.json?.link?.url ?? r.json?.url
-          if (url) {
-            await navigator.clipboard?.writeText(url).catch(() => undefined)
-            toast.success("Payment link created and copied. Paste it in your reply.")
-          }
-          setTab("activity")
-          break
-        }
-        case "nudge_quote":
-        case "nudge_payment":
-          setTab("activity")
-          document.getElementById("job-reply")?.focus()
-          break
-        case "send_proof":
-          await setStage({ artwork_stage: "awaiting_approval" })
-          toast.success("Proof emailed to the customer")
-          break
-        case "wait_proof":
-        case "revise_proof":
-          setTab("artwork")
-          break
-        case "order_blanks":
-          setTab("delivery")
-          break
-        case "mark_arrived":
-          await setStage({ blanks_stage: "arrived" })
-          break
-        case "start_production":
-          await setStage({ production_stage: "in_production" })
-          toast.success("In production — customer emailed")
-          break
-        case "qc_done":
-          await setStage({ production_stage: "quality_check" })
-          break
-        case "mark_shipped":
-          await setStage({ production_stage: "shipped" })
-          toast.success("Marked shipped — fulfilment created")
-          break
-        default:
-          break
+      const out = await performNextAction(
+        {
+          job_id: job.id,
+          order_id: orderId,
+          quote_id: job.quote?.id ?? null,
+          display_id: job.order?.display_id ?? null,
+          outstanding: job.money.outstanding ?? job.money.order_total,
+        },
+        kind
+      )
+      if ("navigate" in out) {
+        window.location.href = out.navigate
+        return
+      }
+      if ("tab" in out) {
+        setTab(out.tab)
+        if (out.open === "convert") setConvertOpen(true)
+        if (out.focus) setTimeout(() => document.getElementById(out.focus!)?.focus(), 50)
+        return
       }
       onChanged()
     } catch (err: any) {
-      toast.error(err?.message ?? "That didn't work")
+      if (err?.message !== "Not started") toast.error(err?.message ?? "That didn't work")
     } finally {
       setBusy(null)
     }
   }
 
-  const ONE_CLICK: ReadonlySet<NextActionKind> = new Set(["send_proof", "mark_arrived", "start_production", "qc_done", "mark_shipped", "send_payment_link"])
   const primaryIsPost = ONE_CLICK.has(action.kind)
 
   return (
