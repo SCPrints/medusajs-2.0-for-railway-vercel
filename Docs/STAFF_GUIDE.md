@@ -6,21 +6,31 @@ This guide pairs with [`BACKEND_FLOW.md`](./BACKEND_FLOW.md) — that one's the 
 
 ---
 
-## Your daily home — **Studio**
+## Your daily home — **Today**
 
-Path: `/app/today`
+Path: `/app/today` (the first visit to Orders in a new tab lands here too)
 
-Studio is the dashboard that surfaces customers and orders worth your attention *today*. Open it first thing every morning. Four buckets:
+Today is one list of every unfinished job — a job is a quote and/or the order it became — sorted longest wait first, in three sections:
 
-| Bucket | What it surfaces | Why it matters |
+| Section | What's in it | What you do |
 | --- | --- | --- |
-| **VIPs who've gone quiet** | Customers tagged "VIP" with no order in 60+ days | A short call/email keeps the relationship warm before they drift |
-| **Notable first-time orders** | First orders over half the VIP threshold in the last 14 days | Hand-written thank-yous convert better than later automated win-back |
-| **Quotes waiting on you** | Open quotes with no activity in 3+ days | Bring them home or mark lost so the pipeline stays accurate |
-| **Recent low NPS scores** | Customers who rated 1 or 2 in the last 30 days | Reach out before they churn quietly |
-| **Snooze follow-ups due** | Customer notes you snoozed; the snooze window has passed | Don't drop the ball on "follow up Tuesday" promises |
+| **Customer waiting on us** | They emailed, accepted a quote, asked for proof changes, or are waiting for a price or a payment link | Press the button on the row: Reply, Convert to order, Revise the proof, Price it, Send payment link |
+| **Ready to move** | Proof ready to send, blanks arrived, QC done — or blanks a supplier owes us | Send proof, Start production, QC done, Mark shipped run from the list in one click |
+| **Waiting on customer** | Quote, proof or payment link sent and no answer yet | Leave it; Nudge after two business days (the proof reminder emails automatically) |
 
-Each row is a one-click jump to the customer or quote.
+Flags (stale, placeholder address, unanswered emails) and due dates show as badges on the row. Shipped and delivered jobs are not listed. Click the row to open the **job page**.
+
+### The job page
+
+Path: `/app/jobs/<order id, quote id, Q-… number or order number>` — and the same panel sits at the top of every order in Orders.
+
+- **Header**: customer (click to email or call), owner, quoted / order / paid / owing.
+- **Phase strip**: Enquiry → Quoted → Accepted → Paid → Artwork → Blanks → Production → Shipped → Delivered, with the date each was reached.
+- **Next action bar**: who the job is waiting on, for how many business days, and the one button to press. Start production asks for a reason if the gate (approved artwork, blanks arrived, deposit paid) isn't met.
+- **Tabs**: Overview (lines, payment, delivery address, flags, tasks, owner) · Artwork (downloads, print details, proofs, DPI) · Production (stage tracks, recipes, notes, photos, rejects, packing) · Delivery (fulfilment, dropship, parcels, Drive folder) · Activity (every email in and out, stage change, comment, task, in one thread, plus the reply box).
+- **Reply** sends a plain email from `orders@scprints.com.au`; the customer's answer comes back onto the job's Activity and the job jumps to "Customer waiting on us". **Log note / call** records anything that happened off-system.
+
+**Customer emails**: every email the system sends about a job (quote, invoice, proof, stage updates) has a reply-to address that belongs to that job. When the customer replies, it lands on the job, a task is created for the owner and `info@` gets a "Customer replied" email. This needs the Resend receiving domain and Fly secrets described in `Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md` §9.
 
 ---
 
@@ -28,27 +38,25 @@ Each row is a one-click jump to the customer or quote.
 
 ### The order detail page
 
-Every order page has these stacked widgets (some only render when relevant):
+The job panel (above) sits at the top; Medusa's own order card (items, payments, fulfilment, addresses) is below it. The panels that used to stack down the page now live in the job panel's tabs:
 
-| Widget | Lives at | What it does |
+| Panel | Tab | What it does |
 | --- | --- | --- |
-| **Stale badge** | top of page (red) | Auto-stamped if the production stage hasn't advanced in 3+ days. Clears automatically when you move it forward. |
-| **Order details + production stage tracker** | top | Standard Medusa + our custom multi-track stage system (artwork / blanks / production) |
-| **Customer perks** | side, top | "Free shipping (waive at fulfillment)" surfaces when the customer's tag (e.g. VIP, Wholesale) qualifies. Apply via Order Edit. |
-| **Deposit & balance** | side, top | Multi-step payment tracking. Mark deposit received, set balance due date. Bookkeeping only — actual money via Stripe. |
-| **NPS** | side, bottom | Survey score (1–5) the customer left after delivery + their comment. |
-| **Watchers** | side, bottom | Up to 5 extra email addresses to CC on production-stage updates. Useful when one parent orders but the whole P&C wants updates. |
-| **Production photos** | main column | Snap a photo of the print on the press. The latest photo auto-appears in the customer's next production-stage email. |
-| **Print recipes** | main column | Reusable production settings (mesh count, flash temp, embroidery digitization file). Link existing recipes here so the operator has the settings. |
-| **Rejects / spoilage** | main column | Log every garment scrapped. Drives the `/app/production?tab=rejects` report. |
-| **Customer applied perks** | side, bottom | Snapshot of what the customer was entitled to at order placement. |
-| **Order timeline** | bottom | One chronological feed of every signal — stage changes, photos, comments, NPS, rejects, watcher adds. |
+| **Production stage tracker** | Production | Our multi-track stage system (artwork / blanks / production). The next-action button on the job header moves the common transitions for you. |
+| **Deposit & balance / payment links** | Overview | Deposit schedule, Stripe payment links, "Record payment received". |
+| **Email invoice**, **Shipping decision**, **Customer perks** | Overview | Re-send the tax invoice; see what shipping was quoted; "Free shipping (waive at fulfilment)" when a VIP / Wholesale tag qualifies. |
+| **Customizer downloads / print details / DTF gang sheet / screen colour check** | Artwork | Print files, mockups, revised proofs, sizes and positions in mm, DPI flags. |
+| **Print recipes, line print notes, production photos, rejects, packing check** | Production | Operator settings and records. The latest photo auto-appears in the customer's next stage email. |
+| **Fulfilment context, AS Colour / Aussie Pacific / bottle-shop dropship, AusPost parcels, Drive folder** | Delivery | Where the blanks come from and where the job ships. |
+| **Activity thread, watchers, NPS** | Activity | Every email, stage change, comment and task; extra people to CC; the post-delivery score. |
+
+The red **Stale** badge still shows at the very top when a stage has sat past its limit; it clears when the stage moves.
 
 ### Moving an order forward
 
 1. Customer places order → automatically stamps `production_stage = "received"` and starts the artwork + blanks parallel tracks.
 2. You advance stages from the production-stage widget. Some transitions email the customer (`awaiting_approval`, `in_production`); see `backend/src/lib/production-stage.ts:STAGES_THAT_EMAIL`.
-3. Reply emails from the customer land back in the order timeline if `ORDER_INBOX_DOMAIN` is configured (replies to `inbox+ord<id>@<domain>`).
+3. Reply emails from the customer land on the job's Activity (replies go to `inbox+ord<id>@<ORDER_INBOX_DOMAIN>`; quotes use `inbox+qt<id>@…`), create a task for the owner and flag the job "Customer waiting on us".
 4. Once `delivered`, the NPS request fires automatically 14 days later (if `NPS_REQUESTS_ENABLED=true`).
 
 ### Approving customer artwork
@@ -86,21 +94,20 @@ Customers manage their own email/SMS/retargeting consent from their account prof
 
 ## Quote pipeline
 
-Path: `/app/quotes`
+Path: Orders → **Quotes** (`/app/quotes`). Enquiries that aren't quotes yet (contact form, carts built in the Studio and never checked out) are under Orders → **Enquiries**.
 
 Every BYO inquiry, contact form quote request, or admin-created lead lands here as a "new" quote. Move it through the pipeline:
 
 ```
-new → quoted → accepted → (becomes a real cart)
+new → quoted → accepted → order (unpaid, invoice + card link emailed)
            ↘ lost / expired
 ```
 
-**Per-quote actions:**
+**The quote drawer is for building the quote**: lines (pick catalog products, or design them in the Studio popup), the Job pricer for grouped jobs, mood board, assignee, status. Everything about *where the job is* — activity, replies, next action, Convert to order — is on the **job page** ("Open job").
 
-- **Edit line items** — operator-edited freeform JSON; used as the working draft.
-- **Set total estimate** — what you're quoting them in AUD.
-- **Assign to staff** — drives the "Quotes waiting on you" Studio bucket.
-- **Copy customer accept link** — generates an HMAC-signed URL you paste into the customer email. Customer clicks → reviews the line items → hits Accept → backend builds a real cart and sends them to checkout.
+**One way to send it to the customer**: **Email customer…** in the drawer. If every line has a price it sends the quote with the accept-and-pay link; if not, it sends the design-approval link (they approve the mockup or ask for changes, then you price it and send again). **Copy link** gives you the same link the email would carry, for pasting into an Outlook reply.
+
+**Accepting is ordering.** The customer gives their delivery address (or picks pick-up) on the accept page; the order is created at the quoted prices, the tax invoice is emailed, and a card payment link is offered. If a customer accepts but no order appears within a business day, Today flags it and the owner gets a task. Staff can convert from the job page instead ("Convert to order" asks for the address).
 
 **Mood boards:** Inquiries from the BYO form can include up to 5 reference images. They appear as thumbnails at the top of the quote detail.
 
@@ -390,7 +397,10 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | Add a snooze reminder for a customer | Customer detail → Notes → add note with snooze date |
 | Mark a customer tax-exempt | Customer detail → Tax status widget |
 | Tag a customer as VIP / Wholesale | Customer detail → Tags widget |
-| Run a quote through to a paid order | `/app/quotes` → edit → Copy customer accept link → email it |
+| Run a quote through to a paid order | `/app/quotes` → build it → Email customer… (accept-and-pay link) → it becomes an order on accept |
+| See where a job is up to and what to do next | `/app/today`, or the job page from any order or quote |
+| Reply to a customer so the answer comes back to the job | Job page → Activity → reply box |
+| Convert an accepted quote by hand | Job page → Convert to order (asks for the delivery address) |
 | Plan the week's production | `/app/production?tab=calendar` |
 | Log a reject from this morning's misprint | Order detail → Rejects/spoilage widget |
 | Photo of the print on the press | Order detail → Production photos widget (upload from phone) |
@@ -402,7 +412,7 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | Surface a finished job on the gallery | `/app/storefront/lookbook` → New tile → upload photo |
 | See where waste is coming from | `/app/production?tab=rejects` |
 | Audit a customer's interactions | Customer detail → Customer journey widget |
-| Resend an accept link to a customer | Quote detail → Copy customer accept link |
+| Resend an accept link to a customer | Quote drawer → Email customer…, or Copy link and paste it into your reply |
 | Generate a tax invoice | Customer side: `/account/orders/[id]` → Tax invoice button |
 | Anonymise a customer (right to be forgotten) | Backend API only — not a button in admin (deliberate) |
 
@@ -414,7 +424,7 @@ These features exist as backend infrastructure but don't have admin UI:
 
 - **Right-to-be-forgotten** — there's a `POST /admin/customers/:id/anonymize` endpoint, but no button. Use a tool like `curl` or Postman when needed.
 - **Mass design action (customizer)** — the modal component is built but not yet wired into the customizer template chrome. Drop it in when you're ready.
-- **Inbound email webhook** — needs a DNS MX record + inbound parser config at your email provider (Postmark / SendGrid / Resend Inbound). Until then, reply-to aliases bounce.
+- **Inbound email** — the code is live; it switches on once the Resend receiving domain, webhook and Fly secrets are set (`Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md` §9). Until then replies go to the shared inbox.
 
 ---
 

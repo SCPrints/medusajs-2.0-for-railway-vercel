@@ -1418,14 +1418,30 @@ Pin date-stamped notes (label + description + colour) over time-series charts. A
 | Module | [backend/src/modules/report-annotation/](backend/src/modules/report-annotation/) |
 | Admin REST | [backend/src/api/admin/reports/annotations/](backend/src/api/admin/reports/annotations/) |
 
-### Studio dashboard ("who needs attention today")
-Five live buckets recomputed at every page load: VIP dormant, first-timer orders, idle quotes, low NPS scores, snooze follow-ups due.
+### Jobs workspace — Today, the Job page, attention (2026-10-21)
+The staff-facing consolidation from [Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md](Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md). A **job** is a read model over a quote and/or its order — no table. The old Studio dashboard (five buckets) was removed; Today replaces it.
 
 | Component | Path |
 | --- | --- |
-| Service | [backend/src/services/studio-dashboard/build.ts](backend/src/services/studio-dashboard/build.ts) |
-| Admin route | [backend/src/api/admin/studio/route.ts](backend/src/api/admin/studio/route.ts) |
-| Admin page | [backend/src/admin/routes/studio-and-lookbook/tabs/studio.tsx](backend/src/admin/routes/studio-and-lookbook/tabs/studio.tsx) (Studio tab of `/app/studio-and-lookbook`) |
+| Job state: phase steps, waiting-on, the ONE next action (pure, tested, admin-safe) | [backend/src/lib/job-state.ts](backend/src/lib/job-state.ts) |
+| Today section rules (pure, tested) | [backend/src/lib/job-today.ts](backend/src/lib/job-today.ts) |
+| Read-model types served to the admin | [backend/src/lib/job-view.ts](backend/src/lib/job-view.ts) |
+| Builder (`getJob`: quote + order + customer + owner + money/links + lines + tasks + unified activity) | [backend/src/services/jobs/build.ts](backend/src/services/jobs/build.ts) |
+| Today builder (open quotes without an order + un-shipped orders, 60 s in-process cache) | [backend/src/services/jobs/today.ts](backend/src/services/jobs/today.ts) |
+| `GET /admin/jobs` (Today) · `GET /admin/jobs/:id` · `POST /admin/jobs/:id/reply` | [backend/src/api/admin/jobs/](backend/src/api/admin/jobs/) |
+| `raiseAttention` — THE way to flag a job (task for the owner, audit, staff email, PostHog; one open task per job+kind) | [backend/src/services/attention/notify.ts](backend/src/services/attention/notify.ts) |
+| Accepted-quote-without-order sweep (inside the daily stale scan, not gated) | [backend/src/services/attention/accepted-quotes.ts](backend/src/services/attention/accepted-quotes.ts) |
+| Inbound email → job activity + attention (Resend `email.received` on `/hooks/resend`; generic `/hooks/inbound-email`) | [backend/src/services/inbound-email/record.ts](backend/src/services/inbound-email/record.ts) + [backend/src/lib/order-inbox-alias.ts](backend/src/lib/order-inbox-alias.ts) |
+| Delivery address on quote → order conversion | [backend/src/lib/delivery-address.ts](backend/src/lib/delivery-address.ts) + `shippingAddress`/`pickup` args of `convertQuoteToOrder` |
+| Job panel (header, phase strip, next-action bar, 5 tabs) | [backend/src/admin/components/job/job-panel.tsx](backend/src/admin/components/job/job-panel.tsx) |
+| Next-action runner shared by the panel and Today | [backend/src/admin/components/job/actions.ts](backend/src/admin/components/job/actions.ts) |
+| The 27 former order widgets, now mounted inside the tabs | [backend/src/admin/components/job/widgets/](backend/src/admin/components/job/widgets/) |
+| Single order-detail widget (`order.details.before`) | [backend/src/admin/widgets/order-job-panel.tsx](backend/src/admin/widgets/order-job-panel.tsx) |
+| `/app/today` · `/app/jobs/:id` | [backend/src/admin/routes/today/page.tsx](backend/src/admin/routes/today/page.tsx) · [backend/src/admin/routes/jobs/[id]/page.tsx](backend/src/admin/routes/jobs/[id]/page.tsx) |
+
+**Rules**: extend the next-action logic in `job-state.ts`, never in the UI. Flag a job with `raiseAttention`, never with ad-hoc `createTasks`. Don't recreate order widgets under `src/admin/widgets/` — they'd double-render. Every customer email about a job sets `replyTo` to `orderInboxAddress(orderId)` / `quoteInboxAddress(quoteId)` (falls back to `SUPPORT_REPLY_TO_EMAIL` while `ORDER_INBOX_DOMAIN` is unset). Inbound email needs `ORDER_INBOX_DOMAIN` + `RESEND_WEBHOOK_SECRET` on Fly and a Resend receiving domain (§9 of the plan doc).
+
+**Sidebar** (Phase 3): `nested: "/orders" | "/products" | "/customers"` on existing pages (Medusa only allows those core parents); custom parents (`routes/storefront/`, `routes/setup/`) nest children by file path; `rank` orders siblings; children of a core-nested page are dropped. Moved pages keep a redirect stub at the old URL ([backend/src/admin/components/redirect-page.tsx](backend/src/admin/components/redirect-page.tsx)) — keep them, emails and cmd-K link there. Enquiries (`/app/enquiries`) = contact submissions + open carts tabs; Dropship (`/app/dropship`) = AS Colour / Aussie Pacific / bottle-shop tabs; the Job pricer has no sidebar entry (reached from a quote or job).
 
 ### System map
 Lazy-loaded Mermaid diagrams of stage flow, staff lanes, data ownership.
@@ -1442,7 +1458,7 @@ Embedded staff guide reference (start-here, widget descriptions, keyboard shortc
 
 | Component | Path |
 | --- | --- |
-| Admin page | [backend/src/admin/routes/help/page.tsx](backend/src/admin/routes/help/page.tsx) |
+| Admin page | [backend/src/admin/routes/setup/help/page.tsx](backend/src/admin/routes/setup/help/page.tsx) (`/app/setup/help`; `/app/help` redirects) |
 
 ### Admin workspace module (cross-cutting admin state)
 Centralises persistent admin state: customer tags + notes, order comments, audit log, admin bookmarks, presence, status banner.
@@ -1568,8 +1584,7 @@ Backend = canonical. Edit `backend/src/lib/production-stage.ts` first, then mirr
 Defined in [storefront/src/modules/customizer/lib/types.ts](storefront/src/modules/customizer/lib/types.ts). Carries `version: 2`, `type: "fabric_customizer"`, side layouts, print area, sizes, pricing, artifacts, optional vectorization flag. Built via `buildCustomizerMetadataBase()` in [storefront/src/modules/customizer/lib/build-metadata.ts](storefront/src/modules/customizer/lib/build-metadata.ts) — use this single helper for any new flow that creates this shape; don't inline-build.
 
 ### Admin widget injection zones
-- `order.details.after` (main column, below order details): production stage tracker, customizer downloads
-- `order.details.side.after` (right column): shipping decision, vectorization flag
+- `order.details.before`: the **job panel** (`order-job-panel.tsx`) plus the stale badge, presence heartbeat and recently-viewed tracker. Everything else that used to stack in `order.details.after` / `side.after` is a component under `admin/components/job/widgets/` rendered inside the panel's tabs — add new order-page UI there (as a tab section), not as a new zone widget.
 - Multiple widgets in the same zone stack vertically.
 
 ### Auth on store routes

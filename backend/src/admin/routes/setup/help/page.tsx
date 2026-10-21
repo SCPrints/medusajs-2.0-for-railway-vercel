@@ -36,14 +36,12 @@ const SECTIONS: Section[] = [
           Open <strong>Today</strong> (<a href="/app/today" className="underline">/app/today</a>) first thing every morning. It lists every open job, longest wait first, with the next action on each row:
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm">
-          <li><strong>VIPs who&apos;ve gone quiet</strong> — tagged VIP, no order in 60+ days.</li>
-          <li><strong>Notable first-time orders</strong> — hand-written thank-yous build loyalty.</li>
-          <li><strong>Quotes waiting on you</strong> — open quotes idle for 3+ days.</li>
-          <li><strong>Recent low NPS scores</strong> — reach out before they churn quietly.</li>
-          <li><strong>Snooze follow-ups due</strong> — notes you snoozed; the window has passed.</li>
+          <li><strong>Customer waiting on us</strong> — they replied, accepted, asked for changes, or are waiting for a price or a payment link.</li>
+          <li><strong>Ready to move</strong> — proof to send, production to start, QC done, or blanks a supplier owes us.</li>
+          <li><strong>Waiting on customer</strong> — we&apos;ve sent a quote, proof or payment link and they haven&apos;t answered. Nudge after two business days.</li>
         </ul>
         <Text size="xsmall" className="text-ui-fg-muted mt-2">
-          Each row clicks straight through to the customer, order, or quote.
+          The button on the row is the next step. One-click moves (send proof, blanks arrived, start production, QC done, shipped, payment link) run from the list; anything else opens the <strong>job page</strong> (<code>/app/jobs/&lt;order or quote&gt;</code>), which is the same panel you see at the top of every order: customer, money, phase strip, next action, and the tabs Overview / Artwork / Production / Delivery / Activity. Replies you send from the Activity tab carry a reply-to address that lands the customer&apos;s answer back on the job.
         </Text>
       </>
     ),
@@ -53,6 +51,7 @@ const SECTIONS: Section[] = [
     title: "Order detail — what each widget does",
     body: (
       <ul className="list-disc pl-5 text-sm space-y-1">
+        <li><strong>Job panel (top of the page)</strong> — customer, money, phase strip, the next-action button, and five tabs: Overview, Artwork, Production, Delivery, Activity. Everything below in this list now lives inside one of those tabs rather than stacked down the page.</li>
         <li><strong>Order owner</strong> — the staff member responsible for this specific order. Auto-stamps from the customer's owner (or rotation if un-owned) when <code>OWNER_AUTOSTAMP_ENABLED</code> is on. Override per-order if a different teammate is handling this job. See <em>Owner &amp; rotation</em>.</li>
         <li>
           <strong>Stale badge (red)</strong>

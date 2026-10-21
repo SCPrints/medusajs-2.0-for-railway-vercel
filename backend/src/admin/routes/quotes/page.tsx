@@ -24,7 +24,6 @@ import {
   type PickedProductLine,
 } from "../../components/quotes/product-line-picker"
 import { mergeServerRows } from "../../lib/quote-line-merge"
-import { ConvertAddressForm } from "../../components/job/convert-address-form"
 
 type Quote = {
   id: string
@@ -62,15 +61,6 @@ type Quote = {
     }>
   }
   metadata?: Record<string, unknown> | null
-  created_at: string
-}
-
-type QuoteEvent = {
-  id: string
-  quote_id: string
-  type: string
-  actor: string | null
-  body: Record<string, unknown>
   created_at: string
 }
 
@@ -929,7 +919,6 @@ const QuotesPage = () => {
     () => new URLSearchParams(window.location.search).get("id")
   )
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
-  const [events, setEvents] = useState<QuoteEvent[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [regionId, setRegionId] = useState<string | null>(null)
   // A Studio popup opened from the CREATE modal, handed to the detail view (once
@@ -990,9 +979,8 @@ const QuotesPage = () => {
   const loadDetail = useCallback(async (id: string) => {
     try {
       const res = await fetch(`/admin/quotes/${id}`, { credentials: "include" })
-      const json = (await res.json()) as { quote: Quote; events: QuoteEvent[] }
+      const json = (await res.json()) as { quote: Quote }
       setSelectedQuote(json.quote)
-      setEvents(json.events ?? [])
     } catch {
       toast.error("Failed to load quote")
     }
@@ -1141,7 +1129,6 @@ const QuotesPage = () => {
           ) : (
             <QuoteDetail
               quote={selectedQuote}
-              events={events}
               regionId={regionId}
               onUpdate={(patch) => patchQuote(selectedQuote.id, patch)}
               onReload={() => loadDetail(selectedQuote.id)}
@@ -1177,7 +1164,6 @@ const QuotesPage = () => {
 
 function QuoteDetail({
   quote,
-  events,
   regionId,
   onUpdate,
   onReload,
@@ -1185,7 +1171,6 @@ function QuoteDetail({
   onIncomingStudioConsumed,
 }: {
   quote: Quote
-  events: QuoteEvent[]
   regionId: string | null
   onUpdate: (patch: Record<string, unknown>) => Promise<void> | void
   onReload: () => Promise<void> | void
@@ -1320,10 +1305,6 @@ function QuoteDetail({
       ? (quote.metadata.order_id as string)
       : null
   const convertedDisplayId = quote.metadata?.order_display_id ?? null
-  // Delivery address asked before converting (ConvertAddressForm) — a guest
-  // quote used to convert with the studio's own address as the ship-to (#114).
-  const [addressOpen, setAddressOpen] = useState(false)
-
   const copyAcceptLink = async () => {
     try {
       const res = await fetch(`/admin/quotes/${quote.id}/accept-link`, {
@@ -1433,15 +1414,17 @@ function QuoteDetail({
           <Button
             size="small"
             variant="secondary"
-            onClick={copyDesignApprovalLink}
+            onClick={allPriced ? copyAcceptLink : copyDesignApprovalLink}
+            title={
+              allPriced
+                ? "The accept-and-pay link (same one the email carries) — paste it into a reply."
+                : "The design-approval link — the quote has no prices yet, so there is nothing to accept."
+            }
           >
-            Copy design-approval link
-          </Button>
-          <Button size="small" variant="secondary" onClick={copyAcceptLink}>
-            Copy quote-accept link
+            {allPriced ? "Copy accept link" : "Copy design-approval link"}
           </Button>
           <Button size="small" variant="secondary" asChild>
-            <a href={`/app/jobs/${encodeURIComponent(quote.id)}`} title="Everything about this job in one place: phase, next action, activity.">
+            <a href={`/app/jobs/${encodeURIComponent(quote.id)}`} title="Phase, next action (incl. Convert to order), activity and replies.">
               Open job
             </a>
           </Button>
@@ -1455,30 +1438,10 @@ function QuoteDetail({
                 View order{convertedDisplayId ? ` #${convertedDisplayId}` : ""}
               </a>
             </Button>
-          ) : (
-            <Button
-              size="small"
-              variant="secondary"
-              onClick={() => setAddressOpen((v) => !v)}
-              title="Create a real (unpaid) order from this quote — no customer checkout needed. Invoice with bank details is emailed automatically."
-            >
-              Convert to order
-            </Button>
-          )}
+          ) : null}
           <Badge color={STATUS_COLORS[quote.status]}>{STATUS_LABELS[quote.status]}</Badge>
         </div>
       </div>
-
-      {addressOpen && !convertedOrderId ? (
-        <ConvertAddressForm
-          quote={quote}
-          onDone={() => {
-            setAddressOpen(false)
-            onReload()
-          }}
-          onCancel={() => setAddressOpen(false)}
-        />
-      ) : null}
 
       {emailOpen ? (
         <div className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2">
@@ -1700,35 +1663,10 @@ function QuoteDetail({
         </Text>
       </div>
 
-      <div>
-        <Heading level="h3" className="text-base">Timeline</Heading>
-        {events.length === 0 ? (
-          <Text size="xsmall" className="text-ui-fg-muted mt-2">
-            No activity yet.
-          </Text>
-        ) : (
-          <ul className="mt-2 divide-y">
-            {events.map((e) => (
-              <li key={e.id} className="py-2">
-                <div className="flex items-center justify-between">
-                  <Text weight="plus">{e.type}</Text>
-                  <Text size="xsmall" className="text-ui-fg-muted">
-                    {new Date(e.created_at).toLocaleString("en-AU")}
-                  </Text>
-                </div>
-                <Text size="xsmall" className="text-ui-fg-muted">
-                  {e.actor ? `by ${e.actor}` : "system"}
-                </Text>
-                {Object.keys(e.body || {}).length > 0 ? (
-                  <pre className="mt-1 text-xs bg-ui-bg-subtle p-2 rounded whitespace-pre-wrap break-words">
-                    {JSON.stringify(e.body, null, 2)}
-                  </pre>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <Text size="xsmall" className="text-ui-fg-muted">
+        Activity (emails, status changes, tasks) and the next action live on the{" "}
+        <a className="underline" href={`/app/jobs/${encodeURIComponent(quote.id)}`}>job page</a>.
+      </Text>
     </div>
   )
 }

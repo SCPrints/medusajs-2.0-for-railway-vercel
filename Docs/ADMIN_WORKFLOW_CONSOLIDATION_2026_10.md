@@ -203,7 +203,16 @@ Sidebar is now: **Today** · Orders ▸ Quotes, Enquiries, Board, My tasks, POS,
 
 How: `nested: "/orders" | "/products" | "/customers"` on existing pages (Medusa only allows nesting under those core sections); custom parents (`storefront/`, `setup/`) nest children by file path; `rank` orders siblings. Moved pages left a redirect stub at the old URL ([components/redirect-page.tsx](../backend/src/admin/components/redirect-page.tsx)), so every link in emails, cmd-K and bookmarks still works. Job pricer has no sidebar entry (reach it from a quote or job); the Studio tab is gone (Today replaces it) and the Studio dashboard route/service is dead code for Phase 4 to remove.
 
-## 13. Decisions needed from Sean
+## 13. Phase 4 — shipped 2026-10-21
+
+- **Deleted**: the Studio dashboard service and route (`services/studio-dashboard`, `api/admin/studio`); Today replaced it in Phase 2.
+- **Quote drawer is for building the quote only**: lines, Studio popup, Job pricer, mood board, assignee, status. Its Timeline and Convert-to-order moved to the job page (the drawer links there). The events plumbing came out of the page.
+- **One customer send**: "Email customer…" sends the quote with the accept-and-pay link when every line is priced, else the design-approval link. The two copy buttons became one "Copy link" that copies whichever the email would carry. Accepting is ordering (address asked on the accept page). Design approval stays as the pre-price step, not a second acceptance flow. Tracker 7-3's question is settled this way; no backend route was removed.
+- **Docs**: STAFF_GUIDE (daily home → Today, the job page, the order page's panel tabs, quote pipeline, task table) and CLAUDE.md ("Jobs workspace" section, widget zones, help path) updated. The admin Help page's start-here and order-detail sections updated; the rest of its long copy is still the old world and is a follow-up.
+
+**Not done, deliberately**: the quotes page is still ~1,600 lines (the drawer's line editor + Studio polling is real work, not dead weight); `/customizer` → Studio link cleanup and hiding the `/sandbox` footer link (7-3) are unrelated to this plan.
+
+## 14. Decisions needed from Sean
 
 1. Approve Phase 0 now (config + two small code changes; nothing visual changes).
 2. Approve Phase 1–2 as the build (the job page and Today). Phases 3–4 follow once staff have used them.
