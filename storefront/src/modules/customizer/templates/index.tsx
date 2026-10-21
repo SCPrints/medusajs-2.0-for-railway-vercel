@@ -3914,6 +3914,22 @@ export default function CustomizerTemplate({
       const mockupUrl = extractRenderArtifactUrl(mockupBody) ?? extractRenderArtifactUrl((mockupBody as any)?.data)
       if (!mockupUrl) throw new Error("Mockup URL not returned")
 
+      // The artwork staff actually left on the canvas (newest image first), so
+      // a swapped logo shows as "Proof artwork" in admin and re-opens next time.
+      // Used to echo the pre-loaded URL, so the old artwork stuck forever.
+      const canvasArtworkUrl =
+        [...sideObjects].reverse().reduce<string | null>((found, obj: any) => {
+          if (found) return found
+          const src = typeof obj?.src === "string" ? obj.src : ""
+          if (!src) return null
+          if (/^https?:\/\//i.test(src)) return src
+          return (
+            sessionUploads.find((u) => u.id === obj.customizerUploadId)?.originalStorageUrl ??
+            dataUrlToHostedUrl[src] ??
+            null
+          )
+        }, null)
+
       window.parent.postMessage(
         {
           type: "ADMIN_PROOF_SAVED",
@@ -3921,7 +3937,8 @@ export default function CustomizerTemplate({
           lineItemId: adminProofLineItemId,
           side,
           mockupUrl,
-          artworkUrl: proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null,
+          artworkUrl:
+            canvasArtworkUrl ?? (proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null),
         },
         "*"
       )

@@ -109,6 +109,8 @@ type LinePayload = {
   }>
   product_handle?: string | null
   variant_id?: string | null
+  /** design group + colourway — size lines of one design share it */
+  group_key?: string
 }
 
 type DownloadPayload = {
@@ -188,11 +190,41 @@ function sideKey(lineItemId: string, side: string) {
   return `${lineItemId}:${side}`
 }
 
-function lineHeading(line: LinePayload) {
-  const product = line.product_title || line.title || "Product"
-  const variant =
-    line.variant_title && typeof line.variant_title === "string" ? line.variant_title : null
+/** "COLOUR / SIZE" → ["COLOUR", "SIZE"]; size-only titles → ["", "SIZE"]. */
+function splitVariantTitle(title: string | null | undefined): [string, string] {
+  const parts = String(title ?? "").split("/").map((p) => p.trim())
+  return parts.length > 1 ? [parts.slice(0, -1).join(" / "), parts[parts.length - 1]] : ["", parts[0] ?? ""]
+}
+
+/** Heading for a design group: product · colour (sizes are listed separately). */
+function groupHeading(lines: LinePayload[]) {
+  const rep = lines[0]
+  const product = rep.product_title || rep.title || "Product"
+  const [colour, size] = splitVariantTitle(rep.variant_title)
+  const variant = lines.length > 1 ? colour : rep.variant_title ?? size
   return variant ? `${product} · ${variant}` : product
+}
+
+/** "S ×5, M ×10" for the group's size lines. */
+function groupSizes(lines: LinePayload[]) {
+  return lines.map((l) => `${splitVariantTitle(l.variant_title)[1] || "—"} ×${l.quantity}`).join(", ")
+}
+
+/**
+ * Size lines of one design+colour, in order. The approval page, proof email
+ * and PDF already collapse these to ONE mockup set and honour a proof /
+ * note / dimension saved on ANY line in the group — rendering a card per
+ * size here made staff redo the same proof once per size (order #116).
+ */
+function groupLines(lines: LinePayload[]): LinePayload[][] {
+  const byKey = new Map<string, LinePayload[]>()
+  for (const line of lines) {
+    const k = line.group_key ?? line.line_item_id
+    const bucket = byKey.get(k)
+    if (bucket) bucket.push(line)
+    else byKey.set(k, [line])
+  }
+  return [...byKey.values()]
 }
 
 function formatDate(iso: string): string {
@@ -1064,16 +1096,43 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
               </Text>
             ) : (
               <ul className="flex flex-col gap-y-5 list-none p-0 m-0">
-                {lines.map((line) => (
+                {groupLines(lines).map((group) => {
+                  const lineIds = group.map((l) => l.line_item_id)
+                  const hasKey = (rec: Record<string, string>, id: string) =>
+                    Object.keys(rec).some((k) => k === id || k.startsWith(`${id}:`))
+                  // Every save for the group goes to ONE line: the one that
+                  // already holds a note / dimension / proof-notes override,
+                  // else the first size line. Reads below search every line.
+                  // ponytail: values spread across two lines (edited before
+                  // this grouping) keep both; the PDF reads whichever item
+                  // comes first. Clear the stale one by hand if it matters.
+                  const anchorId =
+                    lineIds.find(
+                      (id) =>
+                        hasKey(studioNotes, id) || hasKey(printDimensions, id) || id in proofNotes
+                    ) ?? lineIds[0]
+                  const line: LinePayload = {
+                    ...group[0],
+                    line_item_id: anchorId,
+                    quantity: group.reduce((n, l) => n + l.quantity, 0),
+                    customer_original_files: group
+                      .flatMap((l) => l.customer_original_files ?? [])
+                      .filter((f, i, all) => all.findIndex((o) => o.url === f.url) === i),
+                  }
+                  const groupValue = (rec: Record<string, string>, side: string) =>
+                    lineIds.map((id) => rec[sideKey(id, side)]).find((v) => v !== undefined)
+                  const proofNotesLineId = lineIds.find((id) => id in proofNotes)
+                  return (
                   <li
                     key={line.line_item_id}
                     className="border-b border-ui-border-base pb-4 last:border-0 last:pb-0"
                   >
                     <Text size="small" weight="plus" className="text-ui-fg-base">
-                      {lineHeading(line)}
+                      {groupHeading(group)}
                     </Text>
                     <Text size="xsmall" className="text-ui-fg-subtle mt-0.5">
                       Qty {line.quantity}
+                      {group.length > 1 ? ` · ${groupSizes(group)} — one proof covers every size` : ""}
                     </Text>
 
                     {line.customer_original_files && line.customer_original_files.length > 0 ? (
@@ -1129,13 +1188,9 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                       lineItemId={line.line_item_id}
                       originalNotes={line.print_notes ?? null}
                       savedOverride={
-                        Object.prototype.hasOwnProperty.call(proofNotes, line.line_item_id)
-                          ? proofNotes[line.line_item_id]
-                          : undefined
+                        proofNotesLineId !== undefined ? proofNotes[proofNotesLineId] : undefined
                       }
-                      hasDimensions={Object.keys(printDimensions).some((k) =>
-                        k.startsWith(`${line.line_item_id}:`)
-                      )}
+                      hasDimensions={lineIds.some((id) => hasKey(printDimensions, id))}
                       onSaved={(id, value) =>
                         setProofNotes((prev) => ({ ...prev, [id]: value }))
                       }
@@ -1152,7 +1207,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                       {line.artifacts.map((art) => {
                         const key = sideKey(line.line_item_id, art.side)
                         const proofsForSide = allProofs.filter(
-                          (p) => p.line_item_id === line.line_item_id && p.side === art.side
+                          (p) => lineIds.includes(p.line_item_id) && p.side === art.side
                         )
                         // The per-side artwork preview MUST be side-correct.
                         // Newer orders stamp `sides` on each original (which
@@ -1204,7 +1259,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                             displayId={displayId}
                             customerSlug={customerSlug}
                             garmentCode={garmentCode}
-                            studioNote={studioNotes[key] ?? ""}
+                            studioNote={groupValue(studioNotes, art.side) ?? ""}
                             onStudioNoteSaved={(note) =>
                               setStudioNotes((prev) => {
                                 const next = { ...prev }
@@ -1213,7 +1268,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                                 return next
                               })
                             }
-                            printDimension={printDimensions[key] ?? ""}
+                            printDimension={groupValue(printDimensions, art.side) ?? ""}
                             onPrintDimensionSaved={(dimension) =>
                               setPrintDimensions((prev) => {
                                 const next = { ...prev }
@@ -1227,7 +1282,8 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                       })}
                     </ul>
                   </li>
-                ))}
+                  )
+                })}
               </ul>
             )}
           </div>

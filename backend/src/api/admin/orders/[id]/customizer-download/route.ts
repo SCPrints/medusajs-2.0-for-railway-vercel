@@ -3,7 +3,10 @@ import type { IOrderModuleService } from "@medusajs/framework/types"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
-import { buildLineCustomizerExport } from "../../../../../lib/customizer-order-artifacts"
+import {
+  buildLineCustomizerExport,
+  lineMockupGroupKey,
+} from "../../../../../lib/customizer-order-artifacts"
 
 const paramsSchema = z.object({
   id: z.string().min(1),
@@ -64,11 +67,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   // Build a lookup by line_item_id for the raw item fields
-  const itemMetaMap = new Map<string, { product_id: string | null; variant_id: string | null }>()
+  const itemMetaMap = new Map<
+    string,
+    { product_id: string | null; variant_id: string | null; group_key: string }
+  >()
   for (const item of rawItems) {
     itemMetaMap.set(item.id, {
       product_id: item.product_id ?? null,
       variant_id: item.variant_id ?? null,
+      // Same key the approval page / email / PDF collapse size lines on, so
+      // the admin widget shows ONE proof per design+colour, not one per size.
+      group_key: lineMockupGroupKey(item),
     })
   }
 
@@ -79,6 +88,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       ...line,
       product_handle: productId ? (productHandleMap.get(productId) ?? null) : null,
       variant_id: raw?.variant_id ?? null,
+      group_key: raw?.group_key ?? line.line_item_id,
     }
   })
 
