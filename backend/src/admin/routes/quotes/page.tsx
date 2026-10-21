@@ -24,6 +24,7 @@ import {
   type PickedProductLine,
 } from "../../components/quotes/product-line-picker"
 import { mergeServerRows } from "../../lib/quote-line-merge"
+import { ConvertAddressForm } from "../../components/job/convert-address-form"
 
 type Quote = {
   id: string
@@ -1102,9 +1103,18 @@ const QuotesPage = () => {
                 >
                   <div className="flex items-center justify-between">
                     <Text weight="plus">{q.public_id}</Text>
-                    <Badge color={STATUS_COLORS[q.status]}>
-                      {STATUS_LABELS[q.status]}
-                    </Badge>
+                    <span className="flex items-center gap-x-2">
+                      <a
+                        href={`/app/jobs/${encodeURIComponent(q.id)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-ui-fg-interactive hover:underline"
+                      >
+                        Open job
+                      </a>
+                      <Badge color={STATUS_COLORS[q.status]}>
+                        {STATUS_LABELS[q.status]}
+                      </Badge>
+                    </span>
                   </div>
                   <Text size="xsmall" className="text-ui-fg-muted">
                     {q.email} · {fmtDate(q.created_at)}
@@ -1305,77 +1315,14 @@ function QuoteDetail({
   )
 
   // Staff-side conversion: quote → real unpaid order (no customer checkout).
-  const [converting, setConverting] = useState(false)
   const convertedOrderId =
     typeof quote.metadata?.order_id === "string"
       ? (quote.metadata.order_id as string)
       : null
   const convertedDisplayId = quote.metadata?.order_display_id ?? null
-  // Delivery address asked before converting — a guest quote used to convert
-  // with the studio's own address as the ship-to (#114). Prefilled from the
-  // quote's stored address; "Pick up" skips it.
+  // Delivery address asked before converting (ConvertAddressForm) — a guest
+  // quote used to convert with the studio's own address as the ship-to (#114).
   const [addressOpen, setAddressOpen] = useState(false)
-  const storedAddress = (quote.metadata?.delivery_address ?? null) as Record<string, string> | null
-  const [pickup, setPickup] = useState(quote.metadata?.delivery_method === "pickup")
-  const [addr, setAddr] = useState({
-    address_1: storedAddress?.address_1 ?? "",
-    address_2: storedAddress?.address_2 ?? "",
-    city: storedAddress?.city ?? "",
-    province: storedAddress?.province ?? "NSW",
-    postal_code: storedAddress?.postal_code ?? "",
-    phone: storedAddress?.phone ?? quote.contact_phone ?? "",
-  })
-  const setAddrField = (k: keyof typeof addr) => (e: { target: { value: string } }) =>
-    setAddr((a) => ({ ...a, [k]: e.target.value }))
-  const addressValid = pickup || (addr.address_1.trim() && addr.city.trim() && addr.postal_code.trim().length >= 3)
-
-  const convertToOrder = async () => {
-    if (!addressValid) {
-      toast.error("Add the delivery address (or tick pick-up) first")
-      return
-    }
-    const [first, ...rest] = String(quote.contact_name ?? "").trim().split(/\s+/).filter(Boolean)
-    setConverting(true)
-    try {
-      const res = await fetch(`/admin/quotes/${quote.id}/convert-to-order`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          pickup
-            ? { pickup: true }
-            : {
-                shipping_address: {
-                  first_name: first,
-                  last_name: rest.join(" ") || undefined,
-                  company: quote.company ?? undefined,
-                  address_1: addr.address_1.trim(),
-                  address_2: addr.address_2.trim() || undefined,
-                  city: addr.city.trim(),
-                  province: addr.province.trim() || undefined,
-                  postal_code: addr.postal_code.trim(),
-                  country_code: "au",
-                  phone: addr.phone.trim() || undefined,
-                },
-              }
-        ),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error((json as any)?.error ?? `HTTP ${res.status}`)
-      const skipped = (json as any)?.skipped_items?.length ?? 0
-      toast.success(
-        `Order #${(json as any)?.display_id ?? "created"} — ${(json as any)?.lines_added ?? 0} line(s)${
-          skipped ? `, ${skipped} skipped (no product/variant)` : ""
-        }`
-      )
-      setAddressOpen(false)
-      onReload()
-    } catch (err: any) {
-      toast.error(err?.message ?? "Failed to convert quote")
-    } finally {
-      setConverting(false)
-    }
-  }
 
   const copyAcceptLink = async () => {
     try {
@@ -1493,6 +1440,11 @@ function QuoteDetail({
           <Button size="small" variant="secondary" onClick={copyAcceptLink}>
             Copy quote-accept link
           </Button>
+          <Button size="small" variant="secondary" asChild>
+            <a href={`/app/jobs/${encodeURIComponent(quote.id)}`} title="Everything about this job in one place: phase, next action, activity.">
+              Open job
+            </a>
+          </Button>
           {convertedOrderId ? (
             <Button size="small" variant="secondary" asChild>
               <a
@@ -1507,7 +1459,6 @@ function QuoteDetail({
             <Button
               size="small"
               variant="secondary"
-              disabled={converting}
               onClick={() => setAddressOpen((v) => !v)}
               title="Create a real (unpaid) order from this quote — no customer checkout needed. Invoice with bank details is emailed automatically."
             >
@@ -1519,56 +1470,14 @@ function QuoteDetail({
       </div>
 
       {addressOpen && !convertedOrderId ? (
-        <div className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2">
-          <Text size="small" weight="plus">
-            Convert to order — where does it ship?
-          </Text>
-          <Text size="xsmall" className="text-ui-fg-muted">
-            Creates the unpaid order at the quoted prices and emails the tax invoice. The address is kept on the quote.
-          </Text>
-          <label className="flex items-center gap-x-2 text-sm">
-            <Checkbox checked={pickup} onCheckedChange={(v) => setPickup(v === true)} />
-            Pick up from the studio
-          </label>
-          {!pickup ? (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="col-span-2">
-                <Label size="xsmall">Street address</Label>
-                <Input size="small" value={addr.address_1} onChange={setAddrField("address_1")} placeholder="18 Kerr Cres" />
-              </div>
-              <div className="col-span-2">
-                <Label size="xsmall">Unit / company</Label>
-                <Input size="small" value={addr.address_2} onChange={setAddrField("address_2")} />
-              </div>
-              <div>
-                <Label size="xsmall">Suburb</Label>
-                <Input size="small" value={addr.city} onChange={setAddrField("city")} placeholder="Pagewood" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label size="xsmall">State</Label>
-                  <Input size="small" value={addr.province} onChange={setAddrField("province")} placeholder="NSW" />
-                </div>
-                <div>
-                  <Label size="xsmall">Postcode</Label>
-                  <Input size="small" value={addr.postal_code} onChange={setAddrField("postal_code")} placeholder="2035" />
-                </div>
-              </div>
-              <div className="col-span-2">
-                <Label size="xsmall">Phone (courier)</Label>
-                <Input size="small" value={addr.phone} onChange={setAddrField("phone")} />
-              </div>
-            </div>
-          ) : null}
-          <div className="flex justify-end gap-x-2">
-            <Button size="small" variant="secondary" onClick={() => setAddressOpen(false)} disabled={converting}>
-              Cancel
-            </Button>
-            <Button size="small" isLoading={converting} disabled={converting || !addressValid} onClick={convertToOrder}>
-              Create order
-            </Button>
-          </div>
-        </div>
+        <ConvertAddressForm
+          quote={quote}
+          onDone={() => {
+            setAddressOpen(false)
+            onReload()
+          }}
+          onCancel={() => setAddressOpen(false)}
+        />
       ) : null}
 
       {emailOpen ? (

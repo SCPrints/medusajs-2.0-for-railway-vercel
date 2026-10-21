@@ -1,0 +1,234 @@
+/**
+ * Job state — pure. Given a slim snapshot of a quote and/or its order, says
+ * where the job is (phase steps), who it is waiting on, and the ONE next
+ * action staff should take. Drives the Job page header + Today list.
+ *
+ * NO `@medusajs/framework` imports: this file is bundled into the admin SPA
+ * (see feedback_admin_bundle_no_framework_imports). Keep it data-in, data-out.
+ */
+import { businessDaysBetween } from "./business-days"
+import type { ArtworkStage, BlanksStage, DownstreamStage } from "./production-stage"
+
+export type JobPhaseKey =
+  | "enquiry"
+  | "quoted"
+  | "accepted"
+  | "paid"
+  | "artwork"
+  | "blanks"
+  | "production"
+  | "shipped"
+  | "delivered"
+
+export const JOB_PHASES: { key: JobPhaseKey; label: string }[] = [
+  { key: "enquiry", label: "Enquiry" },
+  { key: "quoted", label: "Quoted" },
+  { key: "accepted", label: "Accepted" },
+  { key: "paid", label: "Paid" },
+  { key: "artwork", label: "Artwork" },
+  { key: "blanks", label: "Blanks" },
+  { key: "production", label: "Production" },
+  { key: "shipped", label: "Shipped" },
+  { key: "delivered", label: "Delivered" },
+]
+
+export type WaitingOn = "us" | "customer" | "supplier" | null
+
+export type NextActionKind =
+  | "reply"
+  | "price_it"
+  | "revise_design"
+  | "nudge_quote"
+  | "convert_to_order"
+  | "send_payment_link"
+  | "nudge_payment"
+  | "send_proof"
+  | "wait_proof"
+  | "revise_proof"
+  | "order_blanks"
+  | "mark_arrived"
+  | "start_production"
+  | "qc_done"
+  | "mark_shipped"
+  | "none"
+
+export type NextAction = {
+  kind: NextActionKind
+  label: string
+  /** Which tab the action lives on when it isn't a one-click POST. */
+  tab?: "overview" | "artwork" | "production" | "delivery" | "activity"
+  /** Why the job can't move yet (production gate). */
+  blockers?: string[]
+}
+
+export type JobSnapshot = {
+  quote?: {
+    status: "new" | "quoted" | "accepted" | "lost" | "expired" | string
+    created_at: string | null
+    quoted_at: string | null
+    accepted_at: string | null
+    has_prices: boolean
+    design_changes_requested_at: string | null
+    design_approved_at: string | null
+  } | null
+  order?: {
+    created_at: string | null
+    status: string
+    paid: boolean
+    deposit_required: boolean
+    deposit_paid: boolean
+    has_open_payment_link: boolean
+    tracks: { artwork: ArtworkStage; blanks: BlanksStage; downstream: DownstreamStage }
+    artwork_stage_changed_at: string | null
+    artwork_changes_requested_at: string | null
+    blanks_stage_changed_at: string | null
+    production_stage_changed_at: string | null
+    has_decorated_lines: boolean
+    gate_failures: string[]
+  } | null
+  /** Latest customer email / change request we have not answered. */
+  last_inbound_at: string | null
+  /** Latest email/note from staff to the customer. */
+  last_outbound_at: string | null
+  now: Date
+}
+
+export type JobState = {
+  phase: JobPhaseKey
+  steps: { key: JobPhaseKey; label: string; done: boolean; at: string | null }[]
+  waiting_on: WaitingOn
+  /** When the current wait started (ISO). */
+  since: string | null
+  /** Business days waited. */
+  days: number
+  next_action: NextAction
+  lost: boolean
+}
+
+const ts = (v: string | null | undefined): number => (v ? Date.parse(v) || 0 : 0)
+const later = (...vs: (string | null | undefined)[]): string | null =>
+  vs.filter((v): v is string => !!v && Number.isFinite(Date.parse(v))).sort().at(-1) ?? null
+
+const NUDGE_AFTER_BUSINESS_DAYS = 2
+
+export function deriveJobState(s: JobSnapshot): JobState {
+  const q = s.quote ?? null
+  const o = s.order ?? null
+  const now = s.now
+
+  const paidOk = !!o && (o.paid || (o.deposit_required && o.deposit_paid))
+  const tracks = o?.tracks
+  const downstreamIndex = ["received", "in_production", "quality_check", "shipped", "delivered"]
+  const dIdx = tracks ? downstreamIndex.indexOf(tracks.downstream) : -1
+
+  const steps: JobState["steps"] = [
+    { key: "enquiry", label: "Enquiry", done: !!q || !!o, at: q?.created_at ?? o?.created_at ?? null },
+    { key: "quoted", label: "Quoted", done: !!o || (!!q && q.status !== "new"), at: q?.quoted_at ?? null },
+    { key: "accepted", label: "Accepted", done: !!o || q?.status === "accepted", at: q?.accepted_at ?? o?.created_at ?? null },
+    { key: "paid", label: "Paid", done: paidOk, at: null },
+    { key: "artwork", label: "Artwork", done: tracks?.artwork === "approved", at: tracks?.artwork === "approved" ? o?.artwork_stage_changed_at ?? null : null },
+    { key: "blanks", label: "Blanks", done: tracks?.blanks === "arrived" || dIdx >= 1, at: tracks?.blanks === "arrived" ? o?.blanks_stage_changed_at ?? null : null },
+    { key: "production", label: "Production", done: dIdx >= 3, at: dIdx >= 3 ? o?.production_stage_changed_at ?? null : null },
+    { key: "shipped", label: "Shipped", done: dIdx >= 3, at: dIdx === 3 ? o?.production_stage_changed_at ?? null : null },
+    { key: "delivered", label: "Delivered", done: dIdx >= 4, at: dIdx === 4 ? o?.production_stage_changed_at ?? null : null },
+  ]
+  // Phase = the last completed step (first incomplete is the one "in progress").
+  const lastDone = [...steps].reverse().find((st) => st.done)
+  const phase: JobPhaseKey = lastDone?.key ?? "enquiry"
+
+  const lost = (!o && (q?.status === "lost" || q?.status === "expired")) || o?.status === "canceled"
+
+  const wait = (waiting_on: WaitingOn, since: string | null, next_action: NextAction): JobState => ({
+    phase,
+    steps,
+    waiting_on,
+    since,
+    days: since ? businessDaysBetween(new Date(since), now) : 0,
+    next_action,
+    lost,
+  })
+
+  if (lost) return wait(null, null, { kind: "none", label: "Closed" })
+
+  // Finished jobs first.
+  if (o && (tracks!.downstream === "delivered" || tracks!.downstream === "shipped")) {
+    return wait(null, null, { kind: "none", label: tracks!.downstream === "shipped" ? "In transit" : "Delivered" })
+  }
+
+  // The customer wrote to us and we haven't replied: always the first thing.
+  if (s.last_inbound_at && ts(s.last_inbound_at) > ts(s.last_outbound_at)) {
+    return wait("us", s.last_inbound_at, { kind: "reply", label: "Reply", tab: "activity" })
+  }
+
+  // ── No order yet: the quote drives it ────────────────────────────────────
+  if (!o) {
+    if (!q) return wait(null, null, { kind: "none", label: "—" })
+    if (q.status === "accepted") {
+      return wait("us", q.accepted_at, { kind: "convert_to_order", label: "Convert to order", tab: "overview" })
+    }
+    if (q.status === "new" || !q.has_prices) {
+      return wait("us", q.created_at, { kind: "price_it", label: "Price it", tab: "overview" })
+    }
+    // quoted
+    if (q.design_changes_requested_at && ts(q.design_changes_requested_at) > ts(q.design_approved_at)) {
+      return wait("us", q.design_changes_requested_at, { kind: "revise_design", label: "Revise the design", tab: "artwork" })
+    }
+    const since = later(q.quoted_at, s.last_outbound_at)
+    const days = since ? businessDaysBetween(new Date(since), now) : 0
+    return wait("customer", since, {
+      kind: "nudge_quote",
+      label: days >= NUDGE_AFTER_BUSINESS_DAYS ? "Nudge" : `Nudge in ${NUDGE_AFTER_BUSINESS_DAYS - days}d`,
+    })
+  }
+
+  // ── Order exists ──────────────────────────────────────────────────────────
+  const t = tracks!
+  if (t.downstream === "in_production") {
+    return wait("us", o.production_stage_changed_at, { kind: "qc_done", label: "QC done" })
+  }
+  if (t.downstream === "quality_check") {
+    return wait("us", o.production_stage_changed_at, { kind: "mark_shipped", label: "Mark shipped" })
+  }
+
+  // Changes requested on the proof: revise before anything else.
+  if (
+    o.artwork_changes_requested_at &&
+    t.artwork !== "approved" &&
+    ts(o.artwork_changes_requested_at) >= ts(o.artwork_stage_changed_at)
+  ) {
+    return wait("us", o.artwork_changes_requested_at, { kind: "revise_proof", label: "Revise the proof", tab: "artwork" })
+  }
+
+  if (!paidOk) {
+    if (!o.has_open_payment_link) {
+      return wait("us", o.created_at, { kind: "send_payment_link", label: "Send payment link", tab: "overview" })
+    }
+    const since = later(o.created_at, s.last_outbound_at)
+    const days = since ? businessDaysBetween(new Date(since), now) : 0
+    return wait("customer", since, {
+      kind: "nudge_payment",
+      label: days >= NUDGE_AFTER_BUSINESS_DAYS ? "Nudge" : `Nudge in ${NUDGE_AFTER_BUSINESS_DAYS - days}d`,
+    })
+  }
+
+  if (o.has_decorated_lines && t.artwork !== "approved") {
+    if (t.artwork === "awaiting_approval") {
+      return wait("customer", o.artwork_stage_changed_at, { kind: "wait_proof", label: "Proof sent", tab: "artwork" })
+    }
+    return wait("us", o.artwork_stage_changed_at ?? o.created_at, { kind: "send_proof", label: "Send proof", tab: "artwork" })
+  }
+
+  if (o.has_decorated_lines && t.blanks !== "arrived") {
+    if (t.blanks === "ordered") {
+      return wait("supplier", o.blanks_stage_changed_at, { kind: "mark_arrived", label: "Mark blanks arrived", tab: "delivery" })
+    }
+    return wait("us", o.blanks_stage_changed_at ?? o.created_at, { kind: "order_blanks", label: "Order blanks", tab: "delivery" })
+  }
+
+  // received, everything in place
+  return wait("us", later(o.artwork_stage_changed_at, o.blanks_stage_changed_at, o.created_at), {
+    kind: "start_production",
+    label: "Start production",
+    blockers: o.gate_failures.length ? o.gate_failures : undefined,
+  })
+}

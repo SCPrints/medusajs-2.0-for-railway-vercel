@@ -102,6 +102,11 @@ import {
   JobAttentionEmail,
   isJobAttentionData,
 } from './job-attention'
+import {
+  CUSTOMER_MESSAGE,
+  CustomerMessageEmail,
+  isCustomerMessageData,
+} from './customer-message'
 
 export const EmailTemplates = {
   INVITE_USER,
@@ -126,6 +131,7 @@ export const EmailTemplates = {
   TAX_INVOICE,
   PRICING_AUDIT_DIGEST,
   JOB_ATTENTION,
+  CUSTOMER_MESSAGE,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -329,6 +335,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
         )
       }
       return <JobAttentionEmail {...data} />
+
+    case EmailTemplates.CUSTOMER_MESSAGE:
+      if (!isCustomerMessageData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.CUSTOMER_MESSAGE}"`
+        )
+      }
+      return <CustomerMessageEmail {...data} />
 
     default:
       throw new MedusaError(
