@@ -45,6 +45,33 @@ async function fetchPng(url: string | null): Promise<Buffer | null> {
   }
 }
 
+/**
+ * White-ink artwork on a transparent background opens as a blank page in any
+ * previewer. When the inked pixels are mostly light, return a PNG of it on
+ * black so DSP can see it; otherwise null. The artwork file itself is untouched.
+ */
+export async function lightArtworkPreview(buf: Buffer): Promise<Buffer | null> {
+  try {
+    const img = sharp(buf, { density: 300 }).resize({ width: 1800, height: 1800, fit: "inside", withoutEnlargement: true }).ensureAlpha()
+    const { data } = await img.clone().raw().toBuffer({ resolveWithObject: true })
+    let inked = 0
+    let clear = 0
+    let lum = 0
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 128) clear++
+      else {
+        inked++
+        lum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+      }
+    }
+    // ponytail: needs real transparency (≥10%) so an opaque white-background JPG doesn't count as "white ink".
+    if (!inked || clear < (inked + clear) * 0.1 || lum / inked < 200) return null
+    return await img.flatten({ background: "#231f20" }).png().toBuffer()
+  } catch {
+    return null // PDFs/AI files sharp can't read — DSP opens those in Illustrator anyway
+  }
+}
+
 function drawFitted(page: PDFPage, img: PDFImage, box: { x: number; y: number; w: number; h: number }) {
   const s = Math.min(box.w / img.width, box.h / img.height)
   const w = img.width * s

@@ -242,7 +242,9 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
         const cfg = screenCfg[side] ?? {}
         const n = Math.min(6, Math.max(1, Number(cfg.colours) || 1))
         const dark = cfg.darkGarment === true
-        const names = notedInks.length === n ? notedInks : Array.from({ length: n }, (_, k) => `Colour ${k + 1} - see artwork`)
+        // The note covers the whole garment, so a 1-colour back on a "white + green"
+        // job takes the first noted ink; fewer names than screens → DSP reads the artwork.
+        const names = notedInks.length >= n ? notedInks.slice(0, n) : Array.from({ length: n }, (_, k) => `Colour ${k + 1} - see artwork`)
         const inks = [...(dark ? ["Base"] : []), ...names]
         return { ...common, method: "screen" as const, dark, inks, colourLines: inks.map((ink, k) => `${k + 1}/${inks.length} ${ink.toUpperCase()}`), screens: inks.length }
       }

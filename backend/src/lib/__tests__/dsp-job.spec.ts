@@ -50,8 +50,8 @@ describe("buildDspPack (from an order)", () => {
       artworkUrl: "https://x/logo.pdf",
       garmentImageUrl: "https://x/revised-front.png",
     })
-    // Back: 1 colour, so the two noted inks don't map — DSP reads the artwork.
-    expect(back).toMatchObject({ positionLabel: "Centre Back", inks: ["Base", "Colour 1 - see artwork"], printSize: { widthMm: 200, heightMm: 300 } })
+    // Back: 1 colour, so it takes the first noted ink.
+    expect(back).toMatchObject({ positionLabel: "Centre Back", inks: ["Base", "White"], printSize: { widthMm: 200, heightMm: 300 } })
     expect(p.artwork).toEqual([
       { position: "Left Chest", url: "https://x/logo.pdf", name: "logo.pdf" },
       { position: "Centre Back", url: "https://x/back-print.png", name: "back-print.png" },

@@ -9,7 +9,7 @@ import { orderInboxAddress } from "../../../../../lib/order-inbox-alias"
 import { ADMIN_WORKSPACE_MODULE } from "../../../../../modules/admin-workspace"
 import { EmailTemplates } from "../../../../../modules/email-notifications/templates"
 import { getDspPack, type DspPackResult } from "../../../../../services/dsp-pack/build"
-import { buildDspProofPdf } from "../../../../../services/dsp-pack/pdf"
+import { buildDspProofPdf, lightArtworkPreview } from "../../../../../services/dsp-pack/pdf"
 import { STAFF_EMAIL_ACTOR_PREFIX } from "../../../../../services/jobs/build"
 
 const fileName = (pack: DspPackResult) => `SCP-${pack.po}_${pack.customer}`.replace(/[^\w.-]+/g, "_").slice(0, 80) + "_DSP_proof.pdf"
@@ -66,6 +66,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     { content: (await proofPdf(pack)).toString("base64"), filename: fileName(pack), content_type: "application/pdf" },
   ]
   const seen = new Set<string>()
+  let previews = 0
   for (const a of pack.packs.flatMap((p) => p.artwork)) {
     if (!a.url || seen.has(a.url)) continue
     seen.add(a.url)
@@ -74,16 +75,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       const buf = Buffer.from(await res.arrayBuffer())
       if (!res.ok || buf.length > 15 * 1024 * 1024) continue // ponytail: >15 MB stays out; Resend caps the whole email at 40 MB
       const ext = a.name.split(".").pop() ?? "png"
+      const stem = `SCP-${pack.po}_${a.position.replace(/\W+/g, "-")}`
       attachments.push({
         content: buf.toString("base64"),
-        filename: `SCP-${pack.po}_${a.position.replace(/\W+/g, "-")}_artwork.${ext}`,
+        filename: `${stem}_artwork.${ext}`,
         content_type: res.headers.get("content-type") ?? "application/octet-stream",
       })
+      const preview = await lightArtworkPreview(buf)
+      if (preview) {
+        previews++
+        attachments.push({ content: preview.toString("base64"), filename: `${stem}_preview-on-black.png`, content_type: "image/png" })
+      }
     } catch {
       /* the proof still goes; the panel already warned about missing artwork */
     }
   }
 
+  const artworkFiles = attachments.length - 1 - previews
   const due = pack.due_date ? new Date(pack.due_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "Australia/Sydney" }) : null
   await (req.scope.resolve(Modules.NOTIFICATION) as any).createNotifications({
     to: parsed.data.to,
@@ -107,7 +115,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
           size: pg.printSize ? `${pg.printSize.widthMm} × ${pg.printSize.heightMm} mm` : "Size from artwork",
         })),
       })),
-      attachments: [`art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages)`, ...(attachments.length > 1 ? [`${attachments.length - 1} artwork file${attachments.length > 2 ? "s" : ""}`] : [])],
+      attachments: [
+        `art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages)`,
+        ...(artworkFiles ? [`${artworkFiles} artwork file${artworkFiles > 1 ? "s" : ""}`] : []),
+        ...(previews ? [`${previews} preview${previews > 1 ? "s" : ""} on black — the artwork is white ink, so it looks blank on white`] : []),
+      ],
     },
     attachments,
   })

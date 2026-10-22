@@ -55,7 +55,6 @@ export const DspJobEmail = ({ po, customer, due, note, garments, attachments }: 
       ))}
       <Text style={{ margin: "8px 0 0", fontSize: "14px" }}>Attached: {attachments.join(", ")}.</Text>
       <Text style={{ margin: "16px 0 0", fontSize: "14px" }}>Please reply with your job number and proof. Thanks!</Text>
-      <Text style={{ margin: "16px 0 0", fontSize: "14px" }}>SC Prints · info@scprints.com.au</Text>
     </Section>
   </Base>
 )
