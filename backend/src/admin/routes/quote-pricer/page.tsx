@@ -1,4 +1,7 @@
-import { Plus, Sparkles, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
+import { defineRouteConfig } from "@medusajs/admin-sdk"
+import { CurrencyDollar, Plus, Sparkles, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
+
+import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import {
   Badge,
   Button,
@@ -1774,6 +1777,13 @@ function QuotePricerPage() {
   )
 }
 
-// ponytail: no sidebar entry — the pricer is reached from a quote / job ("Price it", "Edit in Job pricer").
+// Sidebar entry: staff price walk-up enquiries here before any quote exists
+// ("Create quote" at the bottom turns the job into one).
+export const config = defineRouteConfig({
+  nested: "/orders",
+  label: "Job pricer",
+  icon: tinted(CurrencyDollar, NAV_COLOR.sales),
+  rank: 12,
+})
 
 export default QuotePricerPage
