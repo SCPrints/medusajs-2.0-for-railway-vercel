@@ -17,6 +17,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { TIERS, getTierBySlug, tierForCustomer, type Tier } from "../../../lib/customer-tiers"
+import { CustomerLookup } from "../pos/components/customer-lookup"
+import type { POSCustomer } from "../pos/types"
 import { garmentCostExMajor, garmentMajorWithTier } from "../../../lib/garment-ladder"
 import { SIDE_LABELS } from "../../../lib/print-profile"
 import {
@@ -606,12 +608,31 @@ function QuotePricerPage() {
   const [setups, setSetups] = useState<Record<SetupKey, ServiceProduct | null>>({ screen_setup: null, supacolour_setup: null, embroidery_setup: null })
   const [serviceLine, setServiceLine] = useState<ServiceProduct | null>(null)
   const [newEmail, setNewEmail] = useState("")
+  const [newCustomer, setNewCustomer] = useState<POSCustomer | null>(null)
   const [sending, setSending] = useState(false)
   /** The quote's customer Studio-design lines — colour/size defaults when a garment is picked. */
   const studioLines = useRef<ExistingLine[]>([])
 
   const tier = useMemo(() => getTierBySlug(state.tierSlug), [state.tierSlug])
   const patch = (p: Partial<JobState>) => setState((s) => ({ ...s, ...p }))
+
+  /** Price at the customer's tier (their "Tier: X" group); public ladder when they have none. */
+  const applyCustomerTier = async (customerId: string) => {
+    const { customer } = await adminGet<{ customer: { groups?: Array<{ id: string; name: string; metadata: Record<string, unknown> | null }> } }>(
+      `/admin/customers/${customerId}?fields=%2Bgroups.id,%2Bgroups.name,%2Bgroups.metadata`
+    )
+    const t = tierForCustomer({ groups: customer.groups ?? [] })
+    setState((s) => ({ ...s, tierSlug: t?.slug ?? s.tierSlug }))
+    return t
+  }
+  const pickCustomer = (c: POSCustomer | null) => {
+    setNewCustomer(c)
+    if (!c) return
+    if (c.email) setNewEmail(c.email)
+    void applyCustomerTier(c.id)
+      .then((t) => t && toast.info(`Pricing at ${t.name}`))
+      .catch(() => toast.warning("Couldn't read the customer's tier — check Garment pricing."))
+  }
 
   // --- product detail cache (never persisted; re-fetched on load) ---
   const ensureDetail = useCallback(async (p: ProductLite) => {
@@ -660,13 +681,7 @@ function QuotePricerPage() {
           setTargetQuote({ id: quote.id, public_id: quote.public_id, email: quote.email, customer_id: quote.customer_id })
           studioLines.current = studioLinesOf(quote.line_items?.items ?? [])
           loaded = migrateState(quote.metadata?.job_pricer?.state)
-          if (!loaded && quote.customer_id) {
-            const { customer } = await adminGet<{ customer: { groups?: Array<{ id: string; name: string; metadata: Record<string, unknown> | null }> } }>(
-              `/admin/customers/${quote.customer_id}?fields=%2Bgroups.id,%2Bgroups.name,%2Bgroups.metadata`
-            )
-            const t = tierForCustomer({ groups: customer.groups ?? [] })
-            if (t) setState((s) => ({ ...s, tierSlug: t.slug }))
-          }
+          if (!loaded && quote.customer_id) await applyCustomerTier(quote.customer_id)
         } catch (err: any) {
           toast.error(err?.message ?? "Couldn't load the quote")
         }
@@ -1115,6 +1130,8 @@ function QuotePricerPage() {
       }
       const json = await adminPost<{ quote?: { id?: string }; id?: string }>("/admin/quotes", {
         email: newEmail.trim(),
+        customer_id: newCustomer && newCustomer.email?.toLowerCase() === newEmail.trim().toLowerCase() ?newCustomer.id : undefined,
+        contact_name: newCustomer ? `${newCustomer.first_name ?? ""} ${newCustomer.last_name ?? ""}`.trim() || undefined : undefined,
         subject: jobSummary || undefined,
         total_estimate: priced.totals.sellIncMajor,
         line_items: lines,
@@ -1760,7 +1777,9 @@ function QuotePricerPage() {
               </>
             ) : (
               <>
-                <Label size="xsmall">Customer email (creates the quote)</Label>
+                <Label size="xsmall">Customer (links the quote + applies their tier)</Label>
+                <CustomerLookup customer={newCustomer} onSelect={pickCustomer} />
+                <Label size="xsmall">Quote email</Label>
                 <div className="flex gap-2">
                   <Input type="email" placeholder="customer@example.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
                   <Button variant="primary" isLoading={sending} onClick={sendToQuote} className="whitespace-nowrap">Create quote</Button>
