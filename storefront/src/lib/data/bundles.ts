@@ -109,7 +109,17 @@ export async function getBundleByHandle(
     if (!res.ok) return null
     const data = await res.json()
     if (!data.bundle) return null
-    return { ...data.bundle, products: data.products ?? {} }
+    // ponytail: query.graph never computes inventory_quantity, so a tracked
+    // variant arrives with no number and read as out of stock ("!" on every
+    // colour). Unknown stock = no warning. Real levels need the inventory
+    // module query in the route if a warning is ever wanted here.
+    const products: Record<string, BundleProduct> = data.products ?? {}
+    for (const p of Object.values(products)) {
+      for (const v of p.variants ?? []) {
+        if (typeof v.inventory_quantity !== "number") v.manage_inventory = false
+      }
+    }
+    return { ...data.bundle, products }
   } catch {
     return null
   }

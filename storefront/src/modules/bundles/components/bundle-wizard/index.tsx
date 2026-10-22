@@ -12,6 +12,7 @@ import {
   type CartDesignSource,
 } from "@lib/util/cart-decorations"
 import StockWarningIcon from "@modules/products/components/stock-warning-icon"
+import { compareSizes } from "@modules/customizer/components/bulk-order-grid"
 import {
   aggregateStockKind,
   getVariantStockState,
@@ -83,7 +84,7 @@ function getSizesForColor(
       values.push(size)
     }
   }
-  return { optionId: sizeOption.id, values }
+  return { optionId: sizeOption.id, values: values.sort(compareSizes) }
 }
 
 function findVariantId(
@@ -642,7 +643,7 @@ function ProductConfigStep({
                 className={[
                   "min-h-11 rounded-full border px-4 py-1.5 text-sm font-medium transition",
                   chosenHandle === choice.product_handle
-                    ? "border-ui-fg-interactive bg-ui-fg-interactive text-ui-bg-base"
+                    ? "border-ink bg-ink text-surface"
                     : "border-ui-border-base bg-ui-bg-base text-ui-fg-base hover:bg-ui-bg-subtle",
                 ].join(" ")}
               >
@@ -691,7 +692,7 @@ function ProductConfigStep({
                         className={[
                           "rounded-full border px-3 py-1.5 text-xs font-medium transition",
                           config.selectedColor === color
-                            ? "border-ui-fg-interactive bg-ui-fg-interactive text-ui-bg-base"
+                            ? "border-ink bg-ink text-surface"
                             : "border-ui-border-base bg-ui-bg-base text-ui-fg-base hover:bg-ui-bg-subtle",
                         ].join(" ")}
                       >

@@ -116,6 +116,8 @@ type DraftLineItem = {
   original_files?: Array<{ url: string; fileName?: string | null; sides?: string[] | null }> | null
   print_size_id?: string | null
   group_id?: string | null
+  // Copy the stored design from this other line on save (route restores it).
+  design_from?: string
 }
 
 const emptyLineItem = (): DraftLineItem => ({
@@ -172,6 +174,7 @@ function draftToLineItems(rows: DraftLineItem[]): QuoteLineItem[] {
         customizerDesign: r.customizerDesign ?? null,
         print_size_id: r.print_size_id ?? null,
         group_id: r.group_id ?? null,
+        ...(r.design_from ? { design_from: r.design_from } : {}),
       }
     })
 }
@@ -247,6 +250,56 @@ function LineItemsEditor({
   const mockupInputRef = useRef<HTMLInputElement | null>(null)
   const mockupTargetId = useRef<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
+
+  // --- Copy a design onto other lines ---
+  // One garment is often quoted as one line per size; each line would
+  // otherwise need its own Studio session. Copying points the target at the
+  // source's stored design (`design_from`, restored by the save route), so
+  // the order gets the same design on every size line and shows one proof.
+  const [copyFromId, setCopyFromId] = useState<string | null>(null)
+  const [copyTargets, setCopyTargets] = useState<Set<string>>(new Set())
+
+  const openCopy = (src: DraftLineItem) => {
+    setCopyFromId(src.id)
+    setCopyTargets(
+      new Set(
+        rows
+          .filter(
+            (r) =>
+              r.id !== src.id &&
+              !r.customizerDesign &&
+              Boolean(src.product_handle) &&
+              r.product_handle === src.product_handle
+          )
+          .map((r) => r.id)
+      )
+    )
+  }
+
+  const applyCopy = () => {
+    const src = rows.find((r) => r.id === copyFromId)
+    if (!src) return
+    onChange(
+      rows.map((r) =>
+        copyTargets.has(r.id)
+          ? {
+              ...r,
+              customizerDesign: true,
+              design_from: src.design_from ?? src.id,
+              thumbnail: src.thumbnail ?? r.thumbnail,
+              mockup_urls: src.mockup_urls ?? null,
+              print_urls: src.print_urls ?? null,
+              original_files: src.original_files ?? null,
+              print_size_id: src.print_size_id ?? r.print_size_id ?? null,
+            }
+          : r
+      )
+    )
+    toast.success(
+      `Design copied to ${copyTargets.size} line${copyTargets.size === 1 ? "" : "s"} — save line items to keep it`
+    )
+    setCopyFromId(null)
+  }
 
   const triggerMockupUpload = (rowId: string) => {
     mockupTargetId.current = rowId
@@ -484,7 +537,55 @@ function LineItemsEditor({
                     Remove mockup
                   </Button>
                 ) : null}
+                {hasDesign && rows.length > 1 ? (
+                  <Button
+                    size="small"
+                    variant="secondary"
+                    onClick={() =>
+                      copyFromId === row.id ? setCopyFromId(null) : openCopy(row)
+                    }
+                  >
+                    Copy design to…
+                  </Button>
+                ) : null}
               </div>
+              {copyFromId === row.id ? (
+                <div className="rounded-md bg-ui-bg-subtle p-2 flex flex-col gap-y-2">
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    Use this design and mockup on these lines (e.g. the other
+                    sizes of the same garment). Their qty and price stay as they are.
+                  </Text>
+                  {rows
+                    .filter((r) => r.id !== row.id)
+                    .map((r) => (
+                      <label key={r.id} className="flex items-center gap-x-2 text-xs">
+                        <Checkbox
+                          checked={copyTargets.has(r.id)}
+                          onCheckedChange={(v) =>
+                            setCopyTargets((prev) => {
+                              const next = new Set(prev)
+                              v ? next.add(r.id) : next.delete(r.id)
+                              return next
+                            })
+                          }
+                        />
+                        <span>
+                          {r.title || "(untitled line)"}
+                          {r.quantity ? ` × ${r.quantity}` : ""}
+                          {r.customizerDesign ? " — replaces its design" : ""}
+                        </span>
+                      </label>
+                    ))}
+                  <div className="flex gap-x-2">
+                    <Button size="small" disabled={!copyTargets.size} onClick={applyCopy}>
+                      Copy design
+                    </Button>
+                    <Button size="small" variant="transparent" onClick={() => setCopyFromId(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           )
         })

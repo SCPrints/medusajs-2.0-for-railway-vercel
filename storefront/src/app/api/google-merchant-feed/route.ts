@@ -6,7 +6,8 @@ import { getRegion } from "@lib/data/regions"
 import { getBaseURL } from "@lib/util/env"
 import { getProductPrice } from "@lib/util/get-product-price"
 import { SEO } from "@lib/util/seo"
-import { garmentUrlViewRank } from "@modules/products/lib/variant-options"
+
+import { feedImages } from "./feed-images"
 
 /**
  * Google Merchant Center product feed (RSS 2.0 / Google Shopping spec).
@@ -66,11 +67,12 @@ const PAGE_SIZE = 25
  * `*type` NOT `+type`: inside an explicit field list the `+` form silently
  * returns nothing, which drops `g:product_type` from every item. `+` only
  * works when appending to the default set (as STORE_PRODUCT_FIELDS does).
+ * `metadata` (plain scalar column) carries `image_audit.broken_urls`.
  */
 const FEED_PRODUCT_FIELDS =
-  "id,handle,title,description,thumbnail,*images,*type,*brand," +
+  "id,handle,title,description,thumbnail,metadata,weight,*images,*type,*brand," +
   "*variants.calculated_price,+variants.manage_inventory," +
-  "+variants.allow_backorder,+variants.inventory_quantity"
+  "+variants.allow_backorder,+variants.inventory_quantity,+variants.weight"
 /** Runaway guard, mirroring listAllProductHandles(). */
 const MAX_PRODUCTS = 20000
 /**
@@ -78,13 +80,23 @@ const MAX_PRODUCTS = 20000
  * bands in backend/src/lib/shipping-rate.ts), so every item without
  * `g:shipping_weight` is DISAPPROVED — that took out 1335/1335 products.
  *
- * ponytail: one constant = what checkout charges for a single garment: the
- * backend's SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS (300) + per-order
- * SHIPPING_PACKAGING_OVERHEAD_GRAMS (150) → 450g → the $11 band, same as the
- * cart. Products have no real weights today; read `variants.weight` here once
- * they do.
+ * Mirrors checkout for one garment (backend/src/lib/cart-weight.ts): the
+ * product's weight (variant weight first — JB's Wear carries real per-variant
+ * weights — then product.weight, set for ~1,400 products by
+ * backfill-product-weights), else SHIPPING_DEFAULT_ITEM_WEIGHT_GRAMS (300),
+ * plus the per-order SHIPPING_PACKAGING_OVERHEAD_GRAMS (150).
  */
-const SHIPPING_WEIGHT = "450 g"
+const DEFAULT_ITEM_GRAMS = 300
+const PACKAGING_GRAMS = 150
+const shippingWeight = (product: HttpTypes.StoreProduct): string => {
+  const variantGrams = (product.variants ?? [])
+    .map((v: any) => Number(v?.weight))
+    .find((g) => Number.isFinite(g) && g > 0)
+  const productGrams = Number((product as any).weight)
+  const grams =
+    variantGrams ?? (Number.isFinite(productGrams) && productGrams > 0 ? productGrams : DEFAULT_ITEM_GRAMS)
+  return `${Math.round(grams + PACKAGING_GRAMS)} g`
+}
 /** Google caps additional images at 10. */
 const MAX_ADDITIONAL_IMAGES = 10
 
@@ -173,24 +185,12 @@ const buildItem = (product: HttpTypes.StoreProduct, baseUrl: string): string | n
     baseUrl
   ).toString()
 
-  // CLAUDE.md hard rule: never pick a garment image by array position —
-  // repair/scrape scripts append and reorder freely, which is how back shots
-  // ended up rendering as fronts before. Rank the thumbnail alongside the
-  // gallery and lead with the best front view; `g:image_link` is the photo
-  // Google actually shows in the ad.
-  const rankedImages = [
-    product.thumbnail,
-    ...(product.images ?? []).map((i) => i?.url),
-  ]
-    .filter((url): url is string => Boolean(url))
-    .filter((url, index, all) => all.indexOf(url) === index)
-    .map((url, index) => ({ url, index, rank: garmentUrlViewRank(url) }))
-    // Stable: rank first, original order as the tiebreak.
-    .sort((a, b) => a.rank - b.rank || a.index - b.index)
-    .map((entry) => entry.url)
+  // Best front view first, audited-dead URLs dropped — see feed-images.ts.
+  const rankedImages = feedImages(product)
 
   const primaryImage = rankedImages[0]
-  if (!primaryImage) return null // image_link is required
+  // image_link is required; a product whose every image is dead is skipped.
+  if (!primaryImage) return null
 
   const additionalImages = rankedImages
     .slice(1)
@@ -211,7 +211,7 @@ const buildItem = (product: HttpTypes.StoreProduct, baseUrl: string): string | n
     ),
     `      <g:availability>${isInStock(product) ? "in_stock" : "out_of_stock"}</g:availability>`,
     `      <g:price>${priceMajor} ${currency}</g:price>`,
-    `      <g:shipping_weight>${SHIPPING_WEIGHT}</g:shipping_weight>`,
+    `      <g:shipping_weight>${shippingWeight(product)}</g:shipping_weight>`,
     `      <g:brand>${xml(brand)}</g:brand>`,
     "      <g:condition>new</g:condition>",
     // Custom-printed apparel has no manufacturer barcode. Without this Google
