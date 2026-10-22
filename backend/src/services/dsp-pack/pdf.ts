@@ -36,7 +36,7 @@ async function fetchPng(url: string | null): Promise<Buffer | null> {
     const res = await fetch(url, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS) })
     if (!res.ok) return null
     // Normalise anything (webp, svg, jpg) to a bounded PNG pdf-lib can embed.
-    return await sharp(Buffer.from(await res.arrayBuffer()), { density: 200 })
+    return await sharp(Buffer.from(await res.arrayBuffer()), { density: 400 })
       .resize({ width: 1800, height: 1800, fit: "inside", withoutEnlargement: true })
       .png()
       .toBuffer()

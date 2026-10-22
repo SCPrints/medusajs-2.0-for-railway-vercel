@@ -20,8 +20,8 @@ const fmtWhen = (iso: string) => {
 /**
  * Send to DSP (lib/dsp-job.ts): everything comes off the order — garment,
  * sizes, print positions, colours, artwork. Staff check it, then send: DSP
- * gets the job details + artwork links by email with the art proof PDF
- * (stamped on their own template) attached. Their reply lands on the job.
+ * gets a short job email with the art proof PDF (their own template) and
+ * the artwork files attached. Their reply lands on the job.
  */
 export function DspPackPanel({ jobId }: { jobId: string }) {
   const [pack, setPack] = useState<Pack | null>(null)
@@ -29,7 +29,6 @@ export function DspPackPanel({ jobId }: { jobId: string }) {
   const [to, setTo] = useState("")
   const [message, setMessage] = useState("")
   const [sending, setSending] = useState(false)
-  const [showText, setShowText] = useState(false)
   const base = `/admin/jobs/${encodeURIComponent(jobId)}/dsp-pack`
 
   useEffect(() => {
@@ -97,12 +96,16 @@ export function DspPackPanel({ jobId }: { jobId: string }) {
       {pack.packs.map((p) => (
         <div key={p.groupId} className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2">
           <Text size="small" weight="plus">{p.title}</Text>
+          <Text size="xsmall" className="text-ui-fg-subtle">{p.sizesText}</Text>
           <ul className="text-xs flex flex-col gap-y-1">
-            {p.pages.map((pg) => (
+            {p.pages.map((pg, i) => (
               <li key={pg.side} className="flex flex-wrap gap-x-2">
                 <span className="font-medium">{pg.positionLabel}</span>
                 <span className="text-ui-fg-subtle">{pg.method === "screen" ? `${pg.inks.join(", ")} · ${pg.screens} screens` : "Supacolour transfer"}</span>
                 <span className="text-ui-fg-subtle">· {pg.printSize ? `${pg.printSize.widthMm} × ${pg.printSize.heightMm} mm` : "size from artwork"}</span>
+                {p.artwork[i]?.url ? (
+                  <a className="text-ui-fg-interactive" href={p.artwork[i].url!} target="_blank" rel="noreferrer">· artwork ({p.artwork[i].name.split(".").pop()})</a>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -114,11 +117,7 @@ export function DspPackPanel({ jobId }: { jobId: string }) {
         </div>
       ))}
 
-      <div className="flex flex-wrap gap-2">
-        <Button size="small" variant="secondary" asChild><a href={`${base}?format=pdf`}>Preview art proof ({pages} page{pages === 1 ? "" : "s"})</a></Button>
-        <Button size="small" variant="transparent" onClick={() => setShowText((v) => !v)}>{showText ? "Hide" : "Show"} email details</Button>
-      </div>
-      {showText ? <Textarea readOnly rows={14} value={pack.packs.map((p) => p.printiqText).join("\n\n")} className="font-mono text-xs" /> : null}
+      <Button size="small" variant="secondary" className="self-start" asChild><a href={`${base}?format=pdf`}>Preview art proof ({pages} page{pages === 1 ? "" : "s"})</a></Button>
 
       <div className="flex flex-col gap-y-2 border-t border-ui-border-base pt-3">
         <Input size="small" type="email" placeholder="DSP's email address" value={to} onChange={(e) => setTo(e.target.value)} />

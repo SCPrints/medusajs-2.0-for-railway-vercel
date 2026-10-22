@@ -1,15 +1,13 @@
 /**
  * DSP job pack — turns an ORDER into what DSP (our screen-print and
  * Supacolour supplier, runs printIQ) needs to book the job with minimal typing:
- *   - one art-proof page per position, laid out on DSP's own template
- *     (services/dsp-pack/pdf.ts stamps it), and
- *   - a printIQ copy-paste block in the same order and wording as their job
- *     window (title, description, PO, due date, production-priority sizes,
- *     stock + colour questions).
+ * one art-proof page per position on DSP's own template (services/dsp-pack/pdf.ts),
+ * a short job summary for the email, and the best artwork file per position.
  *
  * Everything comes from the order: garment / colour / size / qty from the
- * lines, positions + colour counts + dark-garment base + artwork from each
- * line's customizerDesign, print size from staff's typed dimension or the
+ * lines, positions + colour counts + dark-garment base from each line's
+ * customizerDesign, artwork from staff's revised proof → the customer's upload
+ * → the order print file, print size from staff's typed dimension or the
  * design's measured placement. Nothing for staff to fill in.
  *
  * Pure: no framework imports, so it is unit-tested and safe to share.
@@ -48,6 +46,8 @@ export type DspInput = {
   dimensions?: Record<string, string>
   /** Latest revised-proof mockup per "<line>:<side>". */
   revisedMockups?: Record<string, string>
+  /** Latest revised-proof ARTWORK per "<line>:<side>" — staff's corrected file, beats the customer's upload. */
+  revisedArtwork?: Record<string, string>
 }
 
 export type DspPage = {
@@ -77,8 +77,12 @@ export type DspGroupPack = {
   title: string
   qty: number
   pages: DspPage[]
-  printiqText: string
-  artwork: Array<{ position: string; printUrl: string | null; originals: Array<{ name: string; url: string }> }>
+  /** "Grey Marle AS Colour Staple Tee 5001" */
+  garment: string
+  /** "L 30 · XL 20 (50 total)" */
+  sizesText: string
+  /** Best artwork file per position (revised proof → customer upload → order print file). */
+  artwork: Array<{ position: string; url: string | null; name: string }>
   warnings: string[]
 }
 
@@ -89,7 +93,6 @@ const SIDE_LABELS: Record<string, string> = {
   right_sleeve: "Right Sleeve",
   printed_tag: "Neck Label",
 }
-const ORDINALS = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth"]
 const SIDE_ORDER = ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
 
 const SIZE_ORDER = ["2XS", "XXS", "XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL", "XXXL", "4XL", "5XL", "6XL", "7XL"]
@@ -120,6 +123,14 @@ export function parseSizeMm(raw: string | undefined | null): { widthMm: number; 
   const k = (m[2] ?? m[4] ?? "mm").toLowerCase() === "cm" ? 10 : 1
   const [w, h] = [Number(m[1]) * k, Number(m[3]) * k]
   return w > 0 && h > 0 ? { widthMm: Math.round(w), heightMm: Math.round(h) } : null
+}
+
+/** "130 mm wide" / "13cm wide" → 130; anything else → null. */
+export function parseWidthMm(raw: string | undefined | null): number | null {
+  const m = String(raw ?? "").match(/(\d+(?:\.\d+)?)\s*(mm|cm)?\s*wide/i)
+  if (!m) return null
+  const w = Number(m[1]) * ((m[2] ?? "mm").toLowerCase() === "cm" ? 10 : 1)
+  return w > 0 ? Math.round(w) : null
 }
 
 /** "Screen print, white + green ink · …" → ["White", "Green"]. */
@@ -193,10 +204,26 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
       const placement = input.placements?.[canonical.id]?.find((p) => p.side === side) ?? null
       const label = positionLabel(side, placement)
       const typed = lines.map((l) => input.dimensions?.[`${l.id}:${side}`]).find(Boolean)
-      const printSize = parseSizeMm(typed) ?? (placement ? { widthMm: placement.widthMm, heightMm: placement.heightMm } : null)
+      const typedWidth = parseWidthMm(typed)
+      const printSize =
+        parseSizeMm(typed) ??
+        (typedWidth && placement?.widthMm
+          ? { widthMm: typedWidth, heightMm: Math.round((typedWidth * placement.heightMm) / placement.widthMm) } // keep the artwork's proportions
+          : placement
+            ? { widthMm: placement.widthMm, heightMm: placement.heightMm }
+            : null)
       if (!printSize) warnings.push(`${label}: print size unknown — DSP will size from the artwork.`)
       const art = artifacts.find((a) => a.side === side)
-      if (!art?.printUrl) warnings.push(`${label}: no print file on the order.`)
+      // Best file for DSP: staff's corrected proof artwork, else the customer's
+      // own upload, else the order's rendered print file (often thumbnail-sized).
+      const revised = lines.map((l) => input.revisedArtwork?.[`${l.id}:${side}`]).find(Boolean)
+      // An untagged upload (pre-`sides` orders) only counts when it's the only one.
+      const original =
+        originals.find((f) => f.url && f.sides?.includes(side)) ??
+        (originals.length === 1 && !originals[0].sides?.length ? originals[0] : undefined)
+      const artworkUrl = revised ?? original?.url ?? art?.printUrl ?? null
+      if (!artworkUrl) warnings.push(`${label}: no artwork file on the order.`)
+      else if (!revised && !original) warnings.push(`${label}: only a low-resolution print file — attach the original artwork.`)
       const mockup = lines.map((l) => input.revisedMockups?.[`${l.id}:${side}`]).find(Boolean) ?? art?.mockupUrl ?? null
       const common = {
         side,
@@ -208,7 +235,7 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
         printSize,
         sizeLines,
         repeatJob: null,
-        artworkUrl: art?.printUrl ?? null,
+        artworkUrl,
         garmentImageUrl: mockup,
       }
       if ((methods[side] ?? "print") === "screen") {
@@ -222,82 +249,20 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
       return { ...common, method: "transfer" as const, dark: false, inks: [], colourLines: ["1/1 SUPACOLOUR TRANSFER"], screens: null }
     })
 
-    const title = `${input.customer} ${codeProd} x ${qty}. ${pages.length} pos`
     out.push({
       groupId,
-      title,
+      title: `${input.customer} ${codeProd} x ${qty}. ${pages.length} pos`,
       qty,
       pages,
-      printiqText: printiqBlock({ input, product, pages, title, rows, garment, notes: canonical.notes }),
+      garment: codeProd,
+      sizesText: `${rows.map((r) => `${rows.length > 1 ? `${r.colour}: ` : ""}${r.sizes.map(([s, q]) => `${s} ${q}`).join(" · ")}`).join(" | ")} (${qty} total)`,
       artwork: pages.map((pg) => ({
         position: pg.positionLabel,
-        printUrl: pg.artworkUrl,
-        originals: originals
-          .filter((f) => f.url && (!f.sides?.length || f.sides.includes(pg.side)))
-          .map((f) => ({ name: f.fileName || "upload", url: f.url! })),
+        url: pg.artworkUrl,
+        name: pg.artworkUrl ? decodeURIComponent(pg.artworkUrl.split("/").pop() ?? "artwork") : "",
       })),
       warnings,
     })
   }
   return out
-}
-
-function printiqBlock(a: {
-  input: DspInput
-  product: DspProduct | undefined
-  pages: DspPage[]
-  title: string
-  rows: Array<{ colour: string; sizes: Array<[string, number]> }>
-  garment: string
-  notes: string | null
-}): string {
-  const desc: string[] = []
-  a.pages.forEach((pg, i) => {
-    const size = pg.printSize ? `${pg.printSize.widthMm} x ${pg.printSize.heightMm} mm` : "as per artwork"
-    desc.push(`${ORDINALS[i] ?? `Position ${i + 1}`} Position -`)
-    if (pg.method === "screen") {
-      desc.push(`${pg.inks.length} Colours (Refs - ${pg.inks.join(", ")})`)
-      desc.push("New Job screens,")
-      desc.push(`Screenprinting position to ${pg.positionLabel},`)
-      desc.push(`Screenprinting size ${size},`)
-    } else {
-      desc.push("Supacolour Transfer - full colour,")
-      desc.push(`Transfer application position to ${pg.positionLabel},`)
-      desc.push(`Transfer size ${size},`)
-    }
-    desc.push("")
-  })
-  const stock = a.rows.map((r) => `${r.colour}: ${r.sizes.map(([s, q]) => `${s} x ${q}`).join(", ")}`).join(" | ")
-  const brandType = [a.product?.brand, a.product?.type].filter(Boolean).join(" ")
-  const stockDetails = `${brandType ? `${brandType} - ` : ""}${a.garment} - ${stock}`
-
-  const questions: string[] = [`Stock Details (Customer to Supply Stock): ${stockDetails}`]
-  a.pages.forEach((pg, i) => {
-    if (pg.method !== "screen") return
-    questions.push(`${ORDINALS[i] ?? `Position ${i + 1}`} Position (${pg.positionLabel}):`)
-    pg.inks.forEach((ink, k) => questions.push(`  Colour ${k + 1}: ${ink}`))
-  })
-
-  return [
-    `JOB TITLE: ${a.title}`,
-    `PO NO: ${a.input.poNumber}`,
-    `DUE DATE: ${dspDate(a.input.dueDate) ?? "TBC"}`,
-    "",
-    "--- DESCRIPTION ---",
-    ...desc,
-    `Customer to Supply Stock - Stock Details - ${stockDetails}`,
-    ...(a.notes ? ["", `Job notes: ${a.notes}`] : []),
-    "",
-    "Artwork supplied - see attached proof and artwork links,",
-    "Photo of job is not required,",
-    "No Labelling Required,",
-    "STANDARD - Hand Fold & Re-Box,",
-    "Pick Up - SC Prints will collect; please advise once the job is completed.",
-    "",
-    "--- NOTES: PRODUCTION PRIORITY ---",
-    ...a.rows.flatMap((r) => [...(a.rows.length > 1 ? [r.colour] : []), ...r.sizes.map(([s, q]) => `${s} - ${q}`)]),
-    "",
-    "--- QUESTIONS ---",
-    ...questions,
-  ].join("\n")
 }

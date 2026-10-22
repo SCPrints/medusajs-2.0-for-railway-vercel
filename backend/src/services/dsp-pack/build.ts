@@ -76,8 +76,10 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
     }
   }
 
-  // Latest revised proof per line + side (same rule as the mockup PDF).
+  // Latest revised proof per line + side (same rule as the mockup PDF): its
+  // mockup for the garment picture, its artwork as the file DSP prints from.
   const revisedMockups: Record<string, string> = {}
+  const revisedArtwork: Record<string, string> = {}
   const revisedAt: Record<string, string> = {}
   for (const p of (Array.isArray(meta.revised_proofs) ? meta.revised_proofs : []) as any[]) {
     if (!p?.line_item_id || typeof p.side !== "string" || typeof p.url !== "string" || !p.url.startsWith("http")) continue
@@ -86,6 +88,8 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
     if (!revisedAt[key] || at >= revisedAt[key]) {
       revisedAt[key] = at
       revisedMockups[key] = p.url
+      if (typeof p.artwork_url === "string" && p.artwork_url.startsWith("http")) revisedArtwork[key] = p.artwork_url
+      else delete revisedArtwork[key]
     }
   }
 
@@ -100,6 +104,6 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
     customer,
     due_date: dueDate,
     sent: Array.isArray(meta.dsp_sent) ? meta.dsp_sent : [],
-    packs: buildDspPack({ poNumber: po, customer, dueDate, lines, products, placements, dimensions: stringMap(meta.mockup_print_dimensions), revisedMockups }),
+    packs: buildDspPack({ poNumber: po, customer, dueDate, lines, products, placements, dimensions: stringMap(meta.mockup_print_dimensions), revisedMockups, revisedArtwork }),
   }
 }

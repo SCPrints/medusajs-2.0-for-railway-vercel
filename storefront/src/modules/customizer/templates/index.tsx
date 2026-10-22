@@ -3914,20 +3914,22 @@ export default function CustomizerTemplate({
       const mockupUrl = extractRenderArtifactUrl(mockupBody) ?? extractRenderArtifactUrl((mockupBody as any)?.data)
       if (!mockupUrl) throw new Error("Mockup URL not returned")
 
-      // The artwork staff actually left on the canvas (newest image first), so
+      // The artwork staff actually left on the canvas (newest object first), so
       // a swapped logo shows as "Proof artwork" in admin and re-opens next time.
-      // Used to echo the pre-loaded URL, so the old artwork stuck forever.
+      // The upload id comes first: an SVG lands on the canvas as a vector group
+      // with no `src`, so a src-only lookup skipped it and reported the old PNG
+      // underneath (order #116 — three proof saves, none kept the new SVG).
       const canvasArtworkUrl =
         [...sideObjects].reverse().reduce<string | null>((found, obj: any) => {
           if (found) return found
+          const uploaded = obj?.customizerUploadId
+            ? sessionUploads.find((u) => u.id === obj.customizerUploadId)?.originalStorageUrl
+            : null
+          if (uploaded) return uploaded
           const src = typeof obj?.src === "string" ? obj.src : ""
           if (!src) return null
           if (/^https?:\/\//i.test(src)) return src
-          return (
-            sessionUploads.find((u) => u.id === obj.customizerUploadId)?.originalStorageUrl ??
-            dataUrlToHostedUrl[src] ??
-            null
-          )
+          return dataUrlToHostedUrl[src] ?? null
         }, null)
 
       window.parent.postMessage(

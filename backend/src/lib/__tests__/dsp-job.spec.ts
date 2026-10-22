@@ -1,4 +1,4 @@
-import { buildDspPack, inksFromNotes, parseSizeMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
+import { buildDspPack, inksFromNotes, parseSizeMm, parseWidthMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
 
 // Shaped like order #116: AS Colour 5001 Grey Marle, screen front (2 col) + back (1 col).
 const design = {
@@ -46,23 +46,28 @@ describe("buildDspPack (from an order)", () => {
       screens: 3,
       printSize: { widthMm: 130, heightMm: 60 },
       sizeLines: ["L - 30", "XL - 20"],
-      artworkUrl: "https://x/front-print.png",
+      // Customer's own upload beats the (thumbnail) print render.
+      artworkUrl: "https://x/logo.pdf",
       garmentImageUrl: "https://x/revised-front.png",
     })
     // Back: 1 colour, so the two noted inks don't map — DSP reads the artwork.
     expect(back).toMatchObject({ positionLabel: "Centre Back", inks: ["Base", "Colour 1 - see artwork"], printSize: { widthMm: 200, heightMm: 300 } })
-    expect(p.artwork[0].originals).toEqual([{ name: "logo.pdf", url: "https://x/logo.pdf" }])
-    expect(p.artwork[1].originals).toEqual([])
-    expect(p.warnings).toEqual([])
+    expect(p.artwork).toEqual([
+      { position: "Left Chest", url: "https://x/logo.pdf", name: "logo.pdf" },
+      { position: "Centre Back", url: "https://x/back-print.png", name: "back-print.png" },
+    ])
+    expect(p.sizesText).toBe("L 30 · XL 20 (50 total)")
+    expect(p.warnings).toEqual(["Centre Back: only a low-resolution print file — attach the original artwork."])
   })
 
-  it("writes the printIQ block in DSP's wording", () => {
-    const [p] = buildDspPack(base())
-    expect(p.printiqText).toContain("PO NO: 116")
-    expect(p.printiqText).toContain("DUE DATE: 30/10/26")
-    expect(p.printiqText).toContain("3 Colours (Refs - Base, White, Green)")
-    expect(p.printiqText).toContain("Screenprinting position to Left Chest,")
-    expect(p.printiqText).toContain("AS Colour T-Shirts - AS Colour Staple Tee 5001 - Grey Marle: L x 30, XL x 20")
+  it("prefers staff's revised proof artwork and honours a width-only typed size", () => {
+    const input = base()
+    input.revisedArtwork = { "l1:front": "https://x/fixed-logo.svg" }
+    input.dimensions = { "l2:front": "130 mm Wide" }
+    const [front] = buildDspPack(input)[0].pages
+    expect(front.artworkUrl).toBe("https://x/fixed-logo.svg")
+    // 130 wide, height kept in the placement's 130:60 proportion
+    expect(front.printSize).toEqual({ widthMm: 130, heightMm: 60 })
   })
 
   it("skips DTF-only orders and includes Supacolour print sides", () => {
@@ -82,6 +87,12 @@ describe("helpers", () => {
     ["100mm by 24", { widthMm: 100, heightMm: 24 }],
     ["A4", null],
   ])("parseSizeMm %s", (raw, want) => expect(parseSizeMm(raw)).toEqual(want))
+
+  it("parseWidthMm", () => {
+    expect(parseWidthMm("130 mm Wide")).toBe(130)
+    expect(parseWidthMm("13cm wide")).toBe(130)
+    expect(parseWidthMm("280 x 189")).toBeNull()
+  })
 
   it("reads ink names from staff notes", () => {
     expect(inksFromNotes("Screen print, white + green ink · Back")).toEqual(["White", "Green"])

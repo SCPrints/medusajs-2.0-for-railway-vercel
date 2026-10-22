@@ -61,38 +61,55 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
   if (!pack.packs.length) return res.status(400).json({ error: "No screen print or Supacolour work on this order." })
 
-  const pdf = await proofPdf(pack)
-  const artwork = pack.packs.flatMap((p) =>
-    p.artwork.flatMap((a) => [
-      ...(a.printUrl ? [`${a.position} — print file: ${a.printUrl}`] : []),
-      ...a.originals.map((f) => `${a.position} — customer file (${f.name}): ${f.url}`),
-    ])
-  )
-  const body = [
-    "Hi DSP team,",
-    "",
-    parsed.data.message || `Please book the job below for SC Prints. The art proof is attached (one page per position).`,
-    "",
-    ...pack.packs.flatMap((p) => [p.printiqText, ""]),
-    "--- ARTWORK ---",
-    ...artwork,
-    "",
-    `Our PO: ${pack.po}. Reply to this email with your job number and proof.`,
-  ].join("\n")
-  const summary = pack.packs.map((p) => p.title).join("; ")
+  // Attach the proof and the artwork files themselves (no links to chase).
+  const attachments: Array<{ content: string; filename: string; content_type: string }> = [
+    { content: (await proofPdf(pack)).toString("base64"), filename: fileName(pack), content_type: "application/pdf" },
+  ]
+  const seen = new Set<string>()
+  for (const a of pack.packs.flatMap((p) => p.artwork)) {
+    if (!a.url || seen.has(a.url)) continue
+    seen.add(a.url)
+    try {
+      const res = await fetch(a.url, { signal: AbortSignal.timeout(15_000) })
+      const buf = Buffer.from(await res.arrayBuffer())
+      if (!res.ok || buf.length > 15 * 1024 * 1024) continue // ponytail: >15 MB stays out; Resend caps the whole email at 40 MB
+      const ext = a.name.split(".").pop() ?? "png"
+      attachments.push({
+        content: buf.toString("base64"),
+        filename: `SCP-${pack.po}_${a.position.replace(/\W+/g, "-")}_artwork.${ext}`,
+        content_type: res.headers.get("content-type") ?? "application/octet-stream",
+      })
+    } catch {
+      /* the proof still goes; the panel already warned about missing artwork */
+    }
+  }
 
+  const due = pack.due_date ? new Date(pack.due_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "Australia/Sydney" }) : null
   await (req.scope.resolve(Modules.NOTIFICATION) as any).createNotifications({
     to: parsed.data.to,
     channel: "email",
-    template: EmailTemplates.CUSTOMER_MESSAGE,
+    template: EmailTemplates.DSP_JOB,
     data: {
       emailOptions: {
-        subject: `SC Prints PO ${pack.po} — ${summary}`.slice(0, 190),
+        subject: `New job — SC Prints PO ${pack.po} — ${pack.packs.map((p) => `${p.garment} x ${p.qty}`).join("; ")}`.slice(0, 190),
         replyTo: orderInboxAddress(pack.order_id) ?? SUPPORT_REPLY_TO_EMAIL,
       },
-      message: { body, signature: "SC Prints\ninfo@scprints.com.au · scprints.com.au" },
+      po: pack.po,
+      customer: pack.customer,
+      due,
+      note: parsed.data.message ?? null,
+      garments: pack.packs.map((p) => ({
+        garment: p.garment,
+        sizes: p.sizesText,
+        positions: p.pages.map((pg) => ({
+          where: pg.positionLabel,
+          what: pg.method === "screen" ? `Screen print, ${pg.screens} screens: ${pg.inks.join(", ")}` : "Supacolour transfer",
+          size: pg.printSize ? `${pg.printSize.widthMm} × ${pg.printSize.heightMm} mm` : "Size from artwork",
+        })),
+      })),
+      attachments: [`art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages)`, ...(attachments.length > 1 ? [`${attachments.length - 1} artwork file${attachments.length > 2 ? "s" : ""}`] : [])],
     },
-    attachments: [{ content: pdf.toString("base64"), filename: fileName(pack), content_type: "application/pdf" }],
+    attachments,
   })
 
   // Record the send on the order (metadata replaces wholesale — spread it).
