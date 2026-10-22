@@ -1,4 +1,4 @@
-import { buildDspPack, inksFromNotes, parseSizeMm, parseWidthMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
+import { buildDspPack, countInkColours, inksFromNotes, parseSizeMm, parseWidthMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
 
 // Shaped like order #116: AS Colour 5001 Grey Marle, screen front (2 col) + back (1 col).
 const design = {
@@ -105,5 +105,19 @@ describe("helpers", () => {
     expect(positionLabel("front", { side: "front", widthMm: 90, heightMm: 40, offsetXMm: -70 })).toBe("Right Chest")
     expect(positionLabel("front", { side: "front", widthMm: 280, heightMm: 300, offsetXMm: 0 })).toBe("Centre Front")
     expect(positionLabel("back")).toBe("Centre Back")
+  })
+})
+
+describe("countInkColours", () => {
+  // n pixels of one RGBA colour
+  const px = (n: number, r: number, g: number, b: number, a = 255) => Array.from({ length: n }, () => [r, g, b, a]).flat()
+  it("counts inks on transparency, ignoring soft edges and tiny specks", () => {
+    // OBC back: white + a thin green divider on transparent, soft edges, a stray speck
+    const img = [...px(900, 255, 255, 255), ...px(20, 89, 183, 145), ...px(500, 0, 0, 0, 0), ...px(30, 200, 200, 200, 120), ...px(2, 255, 0, 0)]
+    expect(countInkColours(Uint8Array.from(img))).toBe(2)
+  })
+  it("drops the paper background and anti-aliased blends on opaque artwork", () => {
+    const img = [...px(1000, 255, 255, 255), ...px(300, 0, 0, 0), ...px(40, 128, 128, 128)]
+    expect(countInkColours(Uint8Array.from(img))).toBe(1)
   })
 })

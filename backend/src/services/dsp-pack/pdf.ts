@@ -3,7 +3,7 @@ import path from "path"
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib"
 import sharp from "sharp"
 
-import { dspDate, type DspGroupPack, type DspPage } from "../../lib/dsp-job"
+import { countInkColours, dspDate, type DspGroupPack, type DspPage } from "../../lib/dsp-job"
 
 /**
  * Stamps our job data onto DSP's own art-proof template
@@ -40,6 +40,16 @@ async function fetchPng(url: string | null): Promise<Buffer | null> {
       .resize({ width: 1800, height: 1800, fit: "inside", withoutEnlargement: true })
       .png()
       .toBuffer()
+  } catch {
+    return null
+  }
+}
+
+/** Ink colours in an artwork file (lib/dsp-job countInkColours); null when sharp can't read it (PDF/AI). */
+export async function artworkInkCount(buf: Buffer): Promise<number | null> {
+  try {
+    const data = await sharp(buf, { density: 150 }).resize({ width: 800, height: 800, fit: "inside", withoutEnlargement: true }).ensureAlpha().raw().toBuffer()
+    return countInkColours(data)
   } catch {
     return null
   }

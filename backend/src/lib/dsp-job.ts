@@ -146,6 +146,53 @@ export function inksFromNotes(notes: string | null): string[] {
     .map(titleCase)
 }
 
+/**
+ * Distinct ink colours in decoded RGBA artwork pixels. Semi-transparent edge
+ * pixels are skipped, near-identical shades (anti-aliasing, JPEG noise) merge,
+ * and a colour must cover ≥0.5% of the inked area to count. An image with no
+ * real transparency is assumed to have a paper background, which is dropped.
+ * ponytail: bucket + greedy-merge heuristic; photos/gradients just read as "many",
+ * and a real ink that sits between two others (grey between black and white) is
+ * taken for a blend and missed — it under-warns, never over-warns.
+ */
+export function countInkColours(rgba: Uint8Array, minShare = 0.005): number {
+  const buckets = new Map<number, number>()
+  let inked = 0
+  let clear = 0
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (rgba[i + 3] < 200) {
+      clear++
+      continue
+    }
+    const key = ((rgba[i] >> 4) << 8) | ((rgba[i + 1] >> 4) << 4) | (rgba[i + 2] >> 4)
+    buckets.set(key, (buckets.get(key) ?? 0) + 1)
+    inked++
+  }
+  if (!inked) return 0
+  const clusters: Array<{ r: number; g: number; b: number; n: number }> = []
+  for (const [key, n] of [...buckets].sort((a, b) => b[1] - a[1])) {
+    const [r, g, b] = [(key >> 8) * 16, ((key >> 4) & 15) * 16, (key & 15) * 16]
+    const near = clusters.find((c) => (c.r - r) ** 2 + (c.g - g) ** 2 + (c.b - b) ** 2 < 64 ** 2)
+    if (near) near.n += n
+    else clusters.push({ r, g, b, n })
+  }
+  clusters.sort((a, b) => b.n - a.n)
+  // Edge pixels blend two real colours (white text on a black background reads
+  // grey): a cluster sitting on the line between two bigger ones is a blend.
+  type C = (typeof clusters)[number]
+  const offLine = (c: C, a: C, b: C) => {
+    const [dx, dy, dz] = [b.r - a.r, b.g - a.g, b.b - a.b]
+    const len = dx * dx + dy * dy + dz * dz || 1
+    const t = Math.max(0, Math.min(1, ((c.r - a.r) * dx + (c.g - a.g) * dy + (c.b - a.b) * dz) / len))
+    return Math.hypot(c.r - a.r - t * dx, c.g - a.g - t * dy, c.b - a.b - t * dz)
+  }
+  const real: C[] = []
+  for (const c of clusters) if (!real.some((a, i) => real.slice(i + 1).some((b) => offLine(c, a, b) < 40))) real.push(c)
+  const inks = clear < (inked + clear) * 0.1 ? real.slice(1) : real // no transparency → biggest cluster is the background
+  const area = inks.reduce((s, c) => s + c.n, 0)
+  return inks.filter((c) => c.n >= area * minShare).length
+}
+
 /** "DD/MM/YY" like DSP's due-date field. */
 export function dspDate(iso: string | null): string | null {
   if (!iso) return null

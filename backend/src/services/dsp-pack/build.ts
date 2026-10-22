@@ -6,6 +6,7 @@ import { computeSidePlacements } from "../../lib/print-placement"
 import { restoreSideLayouts } from "../../lib/side-layouts-archive"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { resolveJobIds } from "../jobs/build"
+import { artworkInkCount } from "./pdf"
 
 export type DspPackResult = {
   order_id: string
@@ -98,12 +99,40 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
   const po = String(order.display_id ?? order.id)
   const dueDate = typeof meta.production_due_date === "string" ? meta.production_due_date : null
 
+  const packs = buildDspPack({ poNumber: po, customer, dueDate, lines, products, placements, dimensions: stringMap(meta.mockup_print_dimensions), revisedMockups, revisedArtwork })
+  await warnInkMismatches(packs)
+
   return {
     order_id: order.id,
     po,
     customer,
     due_date: dueDate,
     sent: Array.isArray(meta.dsp_sent) ? meta.dsp_sent : [],
-    packs: buildDspPack({ poNumber: po, customer, dueDate, lines, products, placements, dimensions: stringMap(meta.mockup_print_dimensions), revisedMockups, revisedArtwork }),
+    packs,
   }
+}
+
+/** Screen sides whose artwork has more ink colours than the order says → warning, so DSP isn't quoted a screen short. */
+async function warnInkMismatches(packs: DspGroupPack[]) {
+  await Promise.all(
+    packs.flatMap((pack) =>
+      pack.pages
+        .filter((pg) => pg.method === "screen" && pg.artworkUrl)
+        .map(async (pg) => {
+          try {
+            const res = await fetch(pg.artworkUrl!, { signal: AbortSignal.timeout(10_000) })
+            if (!res.ok) return
+            const found = await artworkInkCount(Buffer.from(await res.arrayBuffer()))
+            const ordered = pg.inks.length - (pg.dark ? 1 : 0)
+            if (found && found > ordered) {
+              pack.warnings.push(
+                `${pg.positionLabel}: the artwork looks like ${found} ink colours but the order says ${ordered} — fix the colour count on the order before sending.`
+              )
+            }
+          } catch {
+            /* unreadable artwork — DSP checks it on the proof */
+          }
+        })
+    )
+  )
 }
