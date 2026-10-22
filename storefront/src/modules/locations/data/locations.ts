@@ -115,11 +115,11 @@ export const locations: Location[] = [
     postcode: "2170",
     region: "South West Sydney",
     travel: "about 15 minutes from our Villawood studio",
-    title: "Custom Logo Embroidery & Printed Uniforms Liverpool",
+    title: "Logo Embroidery, Screen & T-Shirt Printing Liverpool",
     description:
-      "Logo embroidery and printed uniforms for Liverpool, 15 min from our Villawood studio. From 1 garment, no minimum. Digitised once, re-orders match.",
+      "Logo embroidery, screen printing and t-shirt printing for Liverpool, 15 min from our Villawood studio. From 1 garment, no minimum.",
     intro:
-      "We embroider and print uniforms for Liverpool businesses out of our Villawood studio, a straight run down the Hume Highway. Your logo is digitised once and kept on file, so the first run and every top-up after it stitch out the same. Close enough that you can drop in, check a sample on the bench and pick your order up the same trip.",
+      "We do logo embroidery, screen printing and t-shirt printing for Liverpool businesses out of our Villawood studio, a straight run down the Hume Highway. Your logo is digitised once and kept on file, so the first run and every top-up after it stitch out the same. Close enough that you can drop in, check a sample on the bench and pick your order up the same trip.",
     serving:
       "Liverpool is the commercial heart of South West Sydney, and the work reflects it: trade teams running out of the industrial pockets off Newbridge Road, allied-health and medical practices around the hospital precinct, and retail and food businesses through Westfield and the Macquarie Street mall.",
     useCases: [
@@ -132,8 +132,8 @@ export const locations: Location[] = [
         body: "Hi-vis polos, drill shirts and embroidered jackets in Syzmik, Bisley, Hard Yakka and JB's Wear for site crews; embroidered scrubs, polos and tunics for practices around the Liverpool Hospital precinct. Embroidery outlasts print through industrial laundering, and re-orders for new starters take one phone call.",
       },
       {
-        heading: "Cafés, retail and hospitality",
-        body: "Branded tees, aprons and caps for Liverpool CBD venues. Small runs are fine — we'll print or embroider from a single garment, so a new hire doesn't mean ordering another box of twenty.",
+        heading: "Screen and t-shirt printing",
+        body: "Staff tees for Liverpool CBD cafés and shops, crew shirts for events, branded aprons and caps. Screen printing starts at 25 pieces and gets cheaper per shirt as the run grows; under that we print DTF from a single garment, so a new hire doesn't mean ordering another box of twenty.",
       },
     ],
     nearby: ["Casula", "Moorebank", "Warwick Farm", "Chipping Norton", "Prestons"],

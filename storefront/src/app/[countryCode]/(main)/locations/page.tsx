@@ -80,8 +80,11 @@ export default function LocationsPage() {
                 <h3 className="mt-2 text-lg font-semibold text-ui-fg-base">
                   {location.suburb}
                 </h3>
+                {/* Travel line, not the keyword-rich meta description —
+                    repeating every suburb's description here made this index
+                    outrank the suburb pages for their own queries. */}
                 <p className="mt-3 text-sm leading-relaxed text-ui-fg-subtle">
-                  {location.description}
+                  {location.travel}
                 </p>
                 <span className="mt-4 inline-block text-sm font-medium text-brand">
                   View {location.suburb} →
