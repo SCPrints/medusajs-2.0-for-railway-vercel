@@ -1503,7 +1503,7 @@ export const computeSpreadsheetPreview = (parsed: ParsedCsv): SpreadsheetPreview
     handles.add(handle)
 
     const pricing = resolveVariantRowPricing(row, rowLabel)
-    if (!pricing.ok) {
+    if (pricing.ok === false) {
       validationErrors.push(pricing.error)
       return
     }
@@ -1799,7 +1799,7 @@ export const buildBatchCreatesFromParsedCsv = (parsed: ParsedCsv): BuildCreatesR
       }
 
       const pricing = resolveVariantRowPricing(row, rowLabel)
-      if (!pricing.ok) {
+      if (pricing.ok === false) {
         errors.push(pricing.error)
         return
       }

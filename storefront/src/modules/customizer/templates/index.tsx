@@ -150,6 +150,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { motion } from "framer-motion"
 import { productToItem, trackAddToCart, trackCustomizerAction, trackCustomizerFunnel, trackLead } from "@lib/analytics"
 import { phCapture } from "@lib/posthog"
+import { svgHasLiveText } from "../lib/svg-live-text"
 import CustomizerGuide from "@modules/customizer/components/customizer-guide"
 import * as fabric from "fabric"
 import { FabricImage } from "fabric"
@@ -3405,6 +3406,17 @@ export default function CustomizerTemplate({
           svgText: svg,
           uploadId: nextAsset.id,
         })
+        // Live <text> prints in a fallback font server-side (no customer
+        // fonts in the render), so warn — the upload still goes ahead.
+        if (svgHasLiveText(svg)) {
+          setUploadError(
+            "This SVG has live text. Fonts may not match when we print — please convert text to outlines (Illustrator: Type → Create Outlines) and re-upload."
+          )
+          phCapture("customizer_svg_live_text_uploaded", {
+            product_id: selectedProduct?.id ?? null,
+          })
+        }
+        // Archive failure is the more urgent message, so it wins if both apply.
         if (!originalStorageUrl) warnArchiveFailed(nextAsset.name)
         return
       }

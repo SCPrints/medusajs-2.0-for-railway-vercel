@@ -381,13 +381,13 @@ const AsColourImportPage = () => {
                 <Table.Body>
                   {loading && products.length === 0 ? (
                     <Table.Row>
-                      <Table.Cell /><Table.Cell colSpan={4}>
+                      <Table.Cell /><Table.Cell {...{ colSpan: 4 }}>
                         <Text size="small" className="text-ui-fg-muted">Loading catalog…</Text>
                       </Table.Cell>
                     </Table.Row>
                   ) : products.length === 0 ? (
                     <Table.Row>
-                      <Table.Cell /><Table.Cell colSpan={4}>
+                      <Table.Cell /><Table.Cell {...{ colSpan: 4 }}>
                         <Text size="small" className="text-ui-fg-muted">
                           {searchQuery ? "No products match your search." : "No products found."}
                         </Text>

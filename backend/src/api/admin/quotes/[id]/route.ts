@@ -43,7 +43,7 @@ const updateSchema = z.object({
         design_from: z.string().max(80).optional(),
       })
     )
-    .max(50)
+    .max(200) // Job pricer writes one line per colour × size
     .optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   expires_at: z.string().datetime().nullable().optional(),

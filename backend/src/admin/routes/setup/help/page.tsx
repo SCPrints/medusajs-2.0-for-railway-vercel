@@ -47,38 +47,75 @@ const SECTIONS: Section[] = [
     ),
   },
   {
-    id: "order-detail",
-    title: "Order detail — what each widget does",
+    id: "sidebar",
+    title: "Finding your way — the sidebar",
     body: (
-      <ul className="list-disc pl-5 text-sm space-y-1">
-        <li><strong>Job panel (top of the page)</strong> — customer, money, phase strip, the next-action button, and five tabs: Overview, Artwork, Production, Delivery, Activity. Everything below in this list now lives inside one of those tabs rather than stacked down the page.</li>
-        <li><strong>Order owner</strong> — the staff member responsible for this specific order. Auto-stamps from the customer's owner (or rotation if un-owned) when <code>OWNER_AUTOSTAMP_ENABLED</code> is on. Override per-order if a different teammate is handling this job. See <em>Owner &amp; rotation</em>.</li>
-        <li>
-          <strong>Stale badge (red)</strong>
-          <HelpTooltip text={{
-            title: "Stale order",
-            body: "An order whose production stage hasn't advanced in STALE_ORDER_THRESHOLD_DAYS (default 3). Auto-flagged by the daily 08:00 UTC scan; auto-clears when you move the stage forward. Phase 11 escalation: a Task lands in the owner's queue immediately; if it stays stale past STALE_ORDER_ESCALATION_DAYS, the manager inbox gets pinged once.",
-          }} />
-          {" — auto-stamped if production stage hasn't moved in 3+ days. Clears when you advance. Phase 11 also auto-creates a Task for the owner (\"Investigate stale order #N\", priority high) so it lands in "}
-          <a href="/app/tasks" className="underline">My tasks</a>.
-        </li>
-        <li><strong>Production stage tracker</strong> — three parallel tracks (artwork / blanks / production). Advance from here.</li>
-        <li><strong>Customer perks</strong> — &quot;Free shipping (waive at fulfillment)&quot; surfaces when the customer&apos;s tag qualifies. Apply via Order Edit.</li>
-        <li><strong>Deposit &amp; balance</strong> — track upfront payment + balance due date. Bookkeeping only, no money movement.</li>
-        <li><strong>NPS</strong> — score + comment from the customer after delivery.</li>
-        <li>
-          <strong>Watchers</strong>
-          <HelpTooltip text={{
-            title: "Watchers",
-            body: "Extra email addresses that get CC'd on every customer-facing production-stage email for an order. Useful when a school P&C buyer wants the principal looped in, or a corporate buyer wants their assistant on the thread. Add/remove from the widget — writes an audit row each time.",
-          }} />
-          {" — up to 5 extra emails that get CC'd on production-stage updates. Add/remove now writes audit rows."}
-        </li>
-        <li><strong>Production photos</strong> — snap from phone, latest auto-appears in customer&apos;s next stage email.</li>
-        <li><strong>Print recipes</strong> — link reusable production settings (mesh count, flash temp, embroidery file).</li>
-        <li><strong>Rejects / spoilage</strong> — log every scrapped garment. Powers the Production → Rejects report.</li>
-        <li><strong>Order timeline</strong> — one chronological feed of every signal we captured for this order.</li>
-      </ul>
+      <>
+        <Text>Eight groups. Click a group to see what&apos;s inside.</Text>
+        <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Today</strong> — your daily home (above).</li>
+          <li><strong>Orders</strong> ▸ Quotes, Enquiries (contact form + carts never checked out), Board (the Production page: kanban, print queue, recipes, calendar, rejects), My tasks, POS, Fulfillment.</li>
+          <li><strong>Products</strong> ▸ Product data, Brands, Print profiles, Shop categories, Bundles, Bottle shops.</li>
+          <li><strong>Inventory</strong> — Medusa&apos;s stock pages.</li>
+          <li><strong>Customers</strong> ▸ Organisations, Owner rotation, Email suppressions.</li>
+          <li><strong>Promotions</strong> and <strong>Price lists</strong> — Medusa standard.</li>
+          <li><strong>Storefront</strong> ▸ Lookbook, Home sections.</li>
+          <li><strong>Dropship</strong> — AS Colour, Aussie Pacific and bottle-shop tabs.</li>
+          <li><strong>Reports</strong> — the KPI dashboard.</li>
+          <li><strong>Setup</strong> ▸ Automation rules, Help &amp; guide.</li>
+        </ul>
+        <Text size="xsmall" className="text-ui-fg-muted mt-2">
+          Old links still work — pages that moved redirect to their new home. The Job pricer has no sidebar entry; open it from a quote or a job. The old Studio dashboard is gone; Today replaces it. Press <code>Cmd-K</code> to jump to any order, quote, customer or email.
+        </Text>
+      </>
+    ),
+  },
+  {
+    id: "order-detail",
+    title: "The job page and the order page",
+    body: (
+      <>
+        <Text>
+          A <strong>job</strong> is a quote and/or the order it became. Open one from Today, from &quot;Open job&quot; on a quote, or at <code>/app/jobs/&lt;order id, quote id, Q-number or order number&gt;</code>. The same job panel sits at the top of every order in Orders; Medusa&apos;s own order card (items, payments, fulfilment, addresses) is below it.
+        </Text>
+        <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Header</strong> — customer (click to email or call), owner, quoted / order / paid / owing.</li>
+          <li><strong>Phase strip</strong> — Enquiry → Quoted → Accepted → Paid → Artwork → Blanks → Production → Shipped → Delivered, with the date each was reached.</li>
+          <li><strong>Next-action bar</strong> — who the job is waiting on, for how many business days, and the one button to press. Start production asks for a reason if approved artwork, arrived blanks or a paid deposit is missing.</li>
+        </ul>
+        <Text className="mt-3 font-semibold">The five tabs</Text>
+        <div className="mt-2 overflow-hidden rounded-md border border-ui-border-base">
+          <table className="w-full text-sm">
+            <thead className="bg-ui-bg-subtle text-ui-fg-subtle">
+              <tr>
+                <th className="px-3 py-1.5 text-left font-medium">Tab</th>
+                <th className="px-3 py-1.5 text-left font-medium">What&apos;s in it</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ui-border-base">
+              <tr><td className="px-3 py-1">Overview</td><td className="px-3 py-1">Lines, deposit &amp; balance, payment links, &quot;Record payment received&quot;, email invoice, shipping decision, customer perks, delivery address, flags, tasks, order owner.</td></tr>
+              <tr><td className="px-3 py-1">Artwork</td><td className="px-3 py-1">Print files and mockups, revised proofs, print sizes and positions in mm, DTF gang sheet, screen colour check, DPI flags.</td></tr>
+              <tr><td className="px-3 py-1">Production</td><td className="px-3 py-1">Stage tracks (artwork / blanks / production), print recipes, line print notes, production photos, rejects, packing check, Send to DSP.</td></tr>
+              <tr><td className="px-3 py-1">Delivery</td><td className="px-3 py-1">Fulfilment context, AS Colour / Aussie Pacific / bottle-shop dropship, AusPost parcels, Drive folder.</td></tr>
+              <tr><td className="px-3 py-1">Activity</td><td className="px-3 py-1">Every email in and out, stage change, comment and task in one thread. Reply box, Log note / call, watchers, NPS.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul className="mt-3 list-disc pl-5 text-sm space-y-1">
+          <li><strong>Reply</strong> sends a plain email from <code>orders@scprints.com.au</code>. The customer&apos;s answer lands back on the job&apos;s Activity tab and the job jumps to &quot;Customer waiting on us&quot;.</li>
+          <li>
+            <strong>Stale badge (red)</strong>
+            <HelpTooltip text={{
+              title: "Stale order",
+              body: "Each track has its own limit in business days (artwork in review 2, awaiting approval 4, blanks ordered 5, in production 3, QC 2). Flagged by the daily 08:00 UTC scan; clears when the stage moves. The owner gets a task once per stuck stay.",
+            }} />
+            {" — shows at the very top when a stage has sat past its limit. Clears when the stage moves. The owner gets a task in "}
+            <a href="/app/tasks" className="underline">My tasks</a>.
+          </li>
+          <li><strong>Production photos</strong> — the latest photo auto-appears in the customer&apos;s next stage email.</li>
+          <li><strong>Watchers</strong> — up to 5 extra emails CC&apos;d on production-stage updates.</li>
+        </ul>
+      </>
     ),
   },
   {
@@ -90,7 +127,7 @@ const SECTIONS: Section[] = [
         <li><strong>Lifetime value</strong> — LTV / orders / AOV / last-order tiles. &quot;Suggest VIP tag&quot; appears once they cross the threshold.</li>
         <li><strong>Tags + notes</strong> — coloured labels (VIP, Wholesale, Tricky) and pinnable internal notes. Add a snooze date to a note for follow-up reminders. Every tag/note change now writes an audit row visible on the Customer journey timeline.</li>
         <li><strong>Tax status</strong> — mark tax-exempt (council, NFP, school) so invoices render without GST. Snapshots to orders at placement.</li>
-        <li><strong>Customer pricing tier</strong> — drop a known/repeat customer onto a tier (Platinum 1.10× → Member 1.45× of cost). They&apos;ll see a flat below-retail price on every product after sign-in. Detail in the <em>Pricing tiers</em> section below.</li>
+        <li><strong>Customer pricing tier</strong> — drop a known/repeat customer onto a tier (Platinum 1.30× → Member 1.65× of cost). They&apos;ll see a flat below-retail price on every product after sign-in. Detail in the <em>Pricing tiers</em> section below.</li>
         <li><strong>Customer journey</strong> — unified timeline of PostHog events + orders + NPS + saved designs + tag changes + every audit-log row (purple "Activity" badge: owner changes, notes pinned/snoozed, organisation joins, unsubscribes, automation rule fires). Use before a sales call.</li>
         <li><strong>Order list</strong> — Medusa standard.</li>
       </ul>
@@ -107,8 +144,8 @@ const SECTIONS: Section[] = [
 
         <Text className="mt-3 font-semibold">How it works</Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
-          <li><strong>Manual assignment always wins.</strong> Pick an owner from the <em>Account owner</em> widget on the customer detail, or the <em>Order owner</em> widget on the order detail.</li>
-          <li><strong>Order inherits customer owner.</strong> When a customer with an owner places an order, the order auto-stamps to the same owner. Different teammate handling a specific job? Override per-order from the widget.</li>
+          <li><strong>Manual assignment always wins.</strong> Pick an owner from the <em>Account owner</em> widget on the customer page, or from the job panel&apos;s Overview tab on the order.</li>
+          <li><strong>Order inherits customer owner.</strong> When a customer with an owner places an order, the order auto-stamps to the same owner. Different teammate handling a specific job? Override it on the job&apos;s Overview tab.</li>
           <li><strong>Rotation fills in the gaps.</strong> When an un-owned customer places an order, the system picks the next teammate from the rotation table (oldest <code>last_picked_at</code> wins, position as tiebreaker) and stamps both the customer and the order with that user.</li>
         </ul>
 
@@ -142,11 +179,11 @@ const SECTIONS: Section[] = [
           The 8 tiers
           <HelpTooltip text={{
             title: "Tier math",
-            body: "Each tier multiplier is applied to the variant's ex-GST cost and produces the GST-inclusive selling price (same convention as the public ladder, which uses cost × 1.65 as its floor). Costs come from variant.metadata.cost_price_ex_gst_minor — written by every supplier importer. A nightly cron at 06:00 UTC regenerates all 8 tier price-lists from current cost so supplier price rises propagate within ~24h.",
+            body: "Each tier multiplier is applied to the variant's ex-GST cost and produces the GST-inclusive selling price. Costs come from variant.metadata.cost_price_ex_gst_minor — written by every supplier importer. A nightly cron at 06:00 UTC regenerates all 8 tier price-lists from current cost so supplier price rises propagate within ~24h.",
           }} />
         </Text>
         <Text size="xsmall" className="text-ui-fg-muted">
-          Multiplier is applied to ex-GST cost and produces the GST-inclusive selling price (same convention as today&apos;s public ladder, which uses cost × 1.65 as its floor).
+          Multiplier is applied to ex-GST cost and gives the GST-inclusive selling price.
         </Text>
         <div className="mt-2 overflow-hidden rounded-md border border-ui-border-base">
           <table className="w-full text-sm">
@@ -158,18 +195,18 @@ const SECTIONS: Section[] = [
               </tr>
             </thead>
             <tbody className="divide-y divide-ui-border-base">
-              <tr><td className="px-3 py-1">Platinum</td><td className="px-3 py-1 tabular-nums">1.10×</td><td className="px-3 py-1 tabular-nums">$5.94</td></tr>
-              <tr><td className="px-3 py-1">Gold Plus</td><td className="px-3 py-1 tabular-nums">1.15×</td><td className="px-3 py-1 tabular-nums">$6.21</td></tr>
-              <tr><td className="px-3 py-1">Gold</td><td className="px-3 py-1 tabular-nums">1.20×</td><td className="px-3 py-1 tabular-nums">$6.48</td></tr>
-              <tr><td className="px-3 py-1">Silver Plus</td><td className="px-3 py-1 tabular-nums">1.25×</td><td className="px-3 py-1 tabular-nums">$6.75</td></tr>
-              <tr><td className="px-3 py-1">Silver</td><td className="px-3 py-1 tabular-nums">1.30×</td><td className="px-3 py-1 tabular-nums">$7.02</td></tr>
-              <tr><td className="px-3 py-1">Bronze Plus</td><td className="px-3 py-1 tabular-nums">1.35×</td><td className="px-3 py-1 tabular-nums">$7.29</td></tr>
-              <tr><td className="px-3 py-1">Bronze</td><td className="px-3 py-1 tabular-nums">1.40×</td><td className="px-3 py-1 tabular-nums">$7.56</td></tr>
-              <tr><td className="px-3 py-1">Member</td><td className="px-3 py-1 tabular-nums">1.45×</td><td className="px-3 py-1 tabular-nums">$7.83</td></tr>
+              <tr><td className="px-3 py-1">Platinum</td><td className="px-3 py-1 tabular-nums">1.30×</td><td className="px-3 py-1 tabular-nums">$7.02</td></tr>
+              <tr><td className="px-3 py-1">Gold Plus</td><td className="px-3 py-1 tabular-nums">1.35×</td><td className="px-3 py-1 tabular-nums">$7.29</td></tr>
+              <tr><td className="px-3 py-1">Gold</td><td className="px-3 py-1 tabular-nums">1.40×</td><td className="px-3 py-1 tabular-nums">$7.56</td></tr>
+              <tr><td className="px-3 py-1">Silver Plus</td><td className="px-3 py-1 tabular-nums">1.45×</td><td className="px-3 py-1 tabular-nums">$7.83</td></tr>
+              <tr><td className="px-3 py-1">Silver</td><td className="px-3 py-1 tabular-nums">1.50×</td><td className="px-3 py-1 tabular-nums">$8.10</td></tr>
+              <tr><td className="px-3 py-1">Bronze Plus</td><td className="px-3 py-1 tabular-nums">1.55×</td><td className="px-3 py-1 tabular-nums">$8.37</td></tr>
+              <tr><td className="px-3 py-1">Bronze</td><td className="px-3 py-1 tabular-nums">1.60×</td><td className="px-3 py-1 tabular-nums">$8.64</td></tr>
+              <tr><td className="px-3 py-1">Member</td><td className="px-3 py-1 tabular-nums">1.65×</td><td className="px-3 py-1 tabular-nums">$8.91</td></tr>
               <tr className="bg-ui-bg-subtle/40 text-ui-fg-subtle">
                 <td className="px-3 py-1">Public retail (no tier)</td>
-                <td className="px-3 py-1 tabular-nums">1.65× – 2.20×</td>
-                <td className="px-3 py-1 tabular-nums">$8.91 (100+) – $11.88 (1-9)</td>
+                <td className="px-3 py-1 tabular-nums">quantity ladder</td>
+                <td className="px-3 py-1 tabular-nums">varies by qty</td>
               </tr>
             </tbody>
           </table>
@@ -205,7 +242,7 @@ const SECTIONS: Section[] = [
         </ul>
 
         <Text size="xsmall" className="text-ui-fg-muted mt-3">
-          Margin sanity check: Platinum (1.10× cost inc-GST) leaves ~0% margin after GST — reserve it for top accounts. Member (1.45×) is the entry tier and still ~30% below the lowest public retail tier (1.65× at qty 100+).
+          Platinum (1.30×) is the thinnest margin — keep it for top accounts. Member (1.65×) is the entry tier.
         </Text>
       </>
     ),
@@ -216,18 +253,18 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          <a href="/app/quotes" className="underline">/app/quotes</a> — every BYO inquiry, contact form quote request, or admin lead lands here as <em>new</em>.
+          Orders → <a href="/app/quotes" className="underline">Quotes</a> — every BYO enquiry, contact-form quote request or admin lead lands here as <em>new</em>. Enquiries that aren&apos;t quotes yet (contact form, Studio carts never checked out) are under Orders → <a href="/app/enquiries" className="underline">Enquiries</a>.
         </Text>
         <Text className="mt-2">
-          Move through: <strong>new → quoted → accepted → (becomes an order)</strong>. Lost / expired close the loop.
+          Move through: <strong>new → quoted → accepted → order</strong> (unpaid, invoice + card link emailed). Lost / expired close the loop.
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
-          <li><strong>Mood board</strong> — reference images the customer attached are at the top of the quote detail.</li>
-          <li><strong>Line items + total estimate</strong> — operator-edited freeform JSON, used as a working draft.</li>
-          <li><strong>Copy customer accept link</strong> — HMAC-signed URL you paste into your email reply to the customer. They click → review → Accept → backend builds a real cart → checkout.</li>
-          <li><strong>Auto-conversion to order</strong> (Phase 11) — when an order is placed from an accepted quote&apos;s cart, the backend stamps <code>quote.metadata.order_id</code> and writes a <em>converted</em> audit row. Idempotent. Visible as &quot;Quote converted&quot; on the customer&apos;s journey timeline.</li>
-          <li><strong>Quote expiry cron</strong> (Phase 5) — daily 23:45 UTC. Quotes with <code>expires_at</code> in the past flip from <em>quoted</em> to <em>expired</em>. Opt-in via <code>QUOTE_EXPIRY_CRON_ENABLED=true</code>.</li>
-          <li><strong>Cancelled orders don&apos;t un-accept the quote.</strong> If an order from a converted quote gets cancelled, the quote stays <em>accepted</em> and a note is appended. Customer needs a fresh quote to re-order.</li>
+          <li><strong>The quote drawer is for building the quote</strong> — lines (catalog products, or designed in the Studio popup), the Job pricer for grouped jobs, mood board, assignee, status. Where the job is up to — activity, replies, next action, Convert to order — is on the <strong>job page</strong> (&quot;Open job&quot;).</li>
+          <li><strong>Email customer…</strong> — the one way to send it. If every line has a price it sends the quote with the accept-and-pay link; if not, the design-approval link (they approve the mockup or ask for changes, you price it, send again). <strong>Copy link</strong> gives you the same link for pasting into an Outlook reply.</li>
+          <li><strong>Accepting is ordering.</strong> The customer gives a delivery address (or picks pick-up) on the accept page; the order is created at the quoted prices, the tax invoice is emailed and a card payment link is offered.</li>
+          <li><strong>Accepted but no order?</strong> Today flags it within a business day and the owner gets a task. Convert by hand from the job page (&quot;Convert to order&quot; asks for the address).</li>
+          <li><strong>Quote expiry</strong> — daily 23:00 UTC, <em>quoted</em> quotes past their expiry flip to <em>expired</em>. Opt-in via <code>QUOTE_EXPIRY_CRON_ENABLED=true</code>.</li>
+          <li><strong>Cancelled orders don&apos;t un-accept the quote.</strong> The quote stays <em>accepted</em> with a note; the customer needs a fresh quote to re-order.</li>
         </ul>
       </>
     ),
@@ -328,10 +365,10 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text size="small" className="text-ui-fg-subtle mb-2">
-          All production tools live under <a href="/app/production" className="underline">Production</a> (<code>/app/production</code>) as tabs.
+          All production tools live under Orders → <a href="/app/production" className="underline">Board</a> (<code>/app/production</code>) as tabs. Per-order tools (stages, recipes, photos, rejects) are on the job panel&apos;s Production tab.
         </Text>
         <ul className="list-disc pl-5 text-sm space-y-1">
-          <li><strong>Dashboard tab</strong> — live kanban/list/calendar of every in-flight order with stage, decoration method, and stale flag. The main daily view.</li>
+          <li><strong>Dashboard tab</strong> — kanban/list of every in-flight order with stage, decoration method and stale flag. For the day&apos;s to-do list use <a href="/app/today" className="underline">Today</a>.</li>
           <li><strong>Print queue tab</strong> — today&apos;s in-production orders grouped by ink/decoration so operators run similar setups back-to-back. Stale orders float to the top.</li>
           <li><strong>Print recipes tab</strong> — reusable settings library. Capture &amp; link to orders so operators have the right setup.</li>
           <li><strong>Production calendar tab</strong> — Gantt-style view of in-flight orders vs deadlines. Red bars = stale.</li>
@@ -531,7 +568,7 @@ const SECTIONS: Section[] = [
         </Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
           <li><a href="/app/fulfillment/new" className="underline">/app/fulfillment/new</a> — two-step item picker (design tile → size picker), pick destination, hit submit.</li>
-          <li>The list at <a href="/app/fulfillment" className="underline">/app/fulfillment</a> filters orders by <code>metadata.fulfillment_order=true</code>. Order detail uses the standard page + an extra "Fulfillment context" widget at the top.</li>
+          <li>The list at <a href="/app/fulfillment" className="underline">/app/fulfillment</a> filters orders by <code>metadata.fulfillment_order=true</code>. On the order page the fulfilment context sits in the job panel&apos;s Delivery tab.</li>
           <li>Refuses to submit if the org has no <em>primary contact</em> set. Fix that on the org overview tab first.</li>
         </ul>
 
@@ -662,9 +699,9 @@ const SECTIONS: Section[] = [
 
         <Text className="mt-3 font-semibold">Admin: managing the suppression list</Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
-          <li><strong>List + add</strong> — <code>GET /admin/email-suppressions</code> and <code>POST</code> from the admin (UI page is on the v1.1 roadmap; the REST endpoint is live).</li>
+          <li><strong>List + add</strong> — <a href="/app/email-suppressions" className="underline">Customers → Email suppressions</a>.</li>
           <li><strong>Reasons</strong> — <em>user_unsubscribe</em>, <em>bounce</em>, <em>spam_complaint</em>, <em>manual_admin</em>. Pick <em>manual_admin</em> when you&apos;re suppressing on a customer&apos;s phone request.</li>
-          <li><strong>Removing a suppression</strong> — <code>DELETE /admin/email-suppressions/[id]</code>. Use sparingly: re-enabling an unsubscribed customer without their permission is a compliance risk.</li>
+          <li><strong>Removing a suppression</strong> — same page. Use sparingly: re-enabling an unsubscribed customer without their permission is a compliance risk.</li>
         </ul>
 
         <Text className="mt-3 font-semibold">Activation checklist</Text>
@@ -734,7 +771,7 @@ const SECTIONS: Section[] = [
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
           <li><strong>What their API exposes</strong> — Catalog (products, colours, variants, images), Inventory (delta via <code>updatedAt:min</code> + full SKU lookup), Pricelist (wholesale costs, Bearer-authed), Authentication (login → Bearer token), and an Order API for dropship.</li>
           <li><strong>What we pull</strong> — initial import via <code>src/scripts/import-as-colour-from-api.ts</code> creates one Medusa product per style and links it to the AS Colour Brand. Hourly stock delta at <em>AS Colour Warehouse</em> uses the <code>updatedAt:min</code> filter so we only pull what's changed. Pricelist drives <code>variant.metadata.cost_price_ex_gst_minor</code>, which feeds the public quantity ladder and the tier-pricing system.</li>
-          <li><strong>What we push</strong> — dropship orders via <code>POST /v1/orders</code>. Trigger from the order detail page → <em>AS Colour dropship</em> widget; backend posts shipping address + SKU lines and stamps AS Colour's response on order metadata.</li>
+          <li><strong>What we push</strong> — dropship orders via <code>POST /v1/orders</code>. Trigger from the job panel&apos;s Delivery tab → <em>AS Colour dropship</em>; backend posts shipping address + SKU lines and stamps AS Colour's response on order metadata.</li>
           <li><strong>Quirk: discontinued styles</strong> — AS Colour appends <code>S</code> to a styleCode when it's superseded. The importer skips these by default. Set <code>IMPORT_INCLUDE_DISCONTINUED=1</code> only for one-off historical imports.</li>
           <li><strong>Where to look when it breaks</strong> — <code>fly logs --app sc-prints-backend</code> for the <code>sync-ascolour-inventory</code> job; the dropship widget surfaces any send-to-AS-Colour error inline.</li>
         </ul>
@@ -758,7 +795,7 @@ const SECTIONS: Section[] = [
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
           <li><strong>What their API exposes</strong> — <code>/check</code> (auth ping), <code>/products</code> (with optional <code>include=variants,files,images</code>), get-product-by-style-code, get-variant-by-SKU, and <code>POST /order</code> for dropship.</li>
           <li><strong>What we pull</strong> — initial import via <code>src/scripts/import-aussie-pacific-from-api.ts</code>; daily stock sweep at 05:00 UTC against <em>Aussie Pacific Warehouse</em> (no <code>updated_at</code> filter — full walk every day). Per-variant cost varies within a style, so each variant gets its own price ladder; the first 5 styles per import emit a calibration log line so operators can spot-check the ex-GST assumption against AP invoices before going wide.</li>
-          <li><strong>What we push</strong> — dropship orders via <code>POST /order</code>, from either the order-detail widget or the dedicated <a href="/app/dropship?tab=aussie-pacific" className="underline">Aussie Pacific Orders</a> dashboard.</li>
+          <li><strong>What we push</strong> — dropship orders via <code>POST /order</code>, from either the job panel&apos;s Delivery tab or the dedicated <a href="/app/dropship?tab=aussie-pacific" className="underline">Aussie Pacific Orders</a> dashboard.</li>
           <li><strong>Quirk: run-out items skipped</strong> — products with <code>run_out === true</code> are skipped at import time (one log line per skipped style).</li>
           <li><strong>Quirk: AP gives us nothing back</strong> — no GET order endpoint, no shipment endpoint, no webhooks. After we send a dropship order AP returns a reference and that's it. Operators reconcile shipment progress via AP's email confirmations or distributor portal until AP adds a status endpoint.</li>
           <li><strong>Tag mapping</strong> — AP's <code>main_category</code> (Ladies / Mens / Kids / Unisex) maps to a demographic. <code>sub_category</code> drives the Medusa <code>product_type</code> via strict alias matching, so unknown values resolve to <code>null</code> rather than leaking demographic strings through as types.</li>
@@ -852,7 +889,7 @@ const SECTIONS: Section[] = [
           <li><strong>NPS request</strong> — daily 22:00 UTC. Fires 14 days after delivery. Now respects marketing consent + suppression (Phase 8).</li>
           <li><strong>Abandoned-cart reminder</strong> — daily 23:15 UTC. Respects suppression.</li>
           <li><strong>Reorder reminder</strong> — daily 23:30 UTC. Repeat customers past their median order gap. Now respects marketing consent + suppression (Phase 8).</li>
-          <li><strong>Quote expiry</strong> — daily 23:45 UTC. Auto-expires <em>quoted</em>-status quotes past their expires_at. <em>(Phase 5, opt-in.)</em></li>
+          <li><strong>Quote expiry</strong> — daily 23:00 UTC. Auto-expires <em>quoted</em>-status quotes past their expires_at. <em>(Phase 5, opt-in.)</em></li>
           <li><strong>Win-back</strong> — Mondays 00:00 UTC. Drifting / at-risk / lost customers. Respects suppression.</li>
           <li><strong>Cross-sell refresh</strong> — daily 02:00 UTC. Walks orders, counts co-purchases, writes to product metadata.</li>
           <li><strong>PostHog cohort sync</strong> — daily 03:30 UTC. Reconciles cohort memberships to customer tags.</li>
@@ -869,22 +906,25 @@ const SECTIONS: Section[] = [
         <div><strong>Ring up a walk-in customer</strong> <a href="/app/pos" className="underline">/app/pos</a></div>
         <div><strong>Take a card payment in-person (QR link)</strong> <a href="/app/pos" className="underline">/app/pos</a> → Card (QR link)</div>
         <div><strong>What needs my attention today?</strong> <a href="/app/today" className="underline">Today</a></div>
-        <div><strong>What&apos;s on my plate?</strong> <a href="/app/tasks" className="underline">/app/tasks</a></div>
+        <div><strong>Where is a job up to?</strong> Today, or the job page from any order or quote</div>
+        <div><strong>Reply so the answer comes back to the job</strong> Job page → Activity → reply box</div>
+        <div><strong>Convert an accepted quote by hand</strong> Job page → Convert to order</div>
+        <div><strong>What&apos;s on my plate?</strong> Orders → <a href="/app/tasks" className="underline">My tasks</a></div>
         <div><strong>Mark a customer tax-exempt</strong> Customer detail → Tax status</div>
         <div><strong>Tag a customer VIP</strong> Customer detail → Tags</div>
         <div><strong>Give a customer tier pricing</strong> Customer detail → Customer pricing tier</div>
-        <div><strong>Assign a customer or order to a teammate</strong> Customer/Order detail → Account/Order owner widget</div>
-        <div><strong>Manage owner rotation</strong> <a href="/app/rotation" className="underline">/app/rotation</a></div>
-        <div><strong>Create a task for myself or a teammate</strong> <a href="/app/tasks" className="underline">/app/tasks</a> → quick-add form</div>
-        <div><strong>Generate accept link for a quote</strong> Quote detail → top right</div>
-        <div><strong>Plan the week</strong> <a href="/app/production" className="underline">Production → Production calendar tab</a></div>
-        <div><strong>Group today&apos;s press setups</strong> <a href="/app/production" className="underline">Production → Print queue tab</a></div>
+        <div><strong>Assign a customer or order to a teammate</strong> Customer detail → Account owner, or job page → Overview</div>
+        <div><strong>Manage owner rotation</strong> Customers → <a href="/app/rotation" className="underline">Owner rotation</a></div>
+        <div><strong>Create a task for myself or a teammate</strong> <a href="/app/tasks" className="underline">My tasks</a> → quick-add form</div>
+        <div><strong>Send a quote / accept link</strong> Quote drawer → Email customer… (or Copy link)</div>
+        <div><strong>Plan the week</strong> Orders → <a href="/app/production" className="underline">Board → Production calendar tab</a></div>
+        <div><strong>Group today&apos;s press setups</strong> Orders → <a href="/app/production" className="underline">Board → Print queue tab</a></div>
         <div><strong>Auto-write a product description</strong> Product detail → Generate description widget</div>
-        <div><strong>Log a reject</strong> Order detail → Rejects/spoilage</div>
-        <div><strong>Photo of the press</strong> Order detail → Production photos</div>
-        <div><strong>Save settings that worked</strong> <a href="/app/production" className="underline">Production → Print recipes tab</a></div>
-        <div><strong>Add an order watcher</strong> Order detail → Watchers</div>
-        <div><strong>Set deposit + balance</strong> Order detail → Deposit &amp; balance</div>
+        <div><strong>Log a reject</strong> Job page → Production → Rejects</div>
+        <div><strong>Photo of the press</strong> Job page → Production → Production photos</div>
+        <div><strong>Save settings that worked</strong> Orders → <a href="/app/production" className="underline">Board → Print recipes tab</a></div>
+        <div><strong>Add an order watcher</strong> Job page → Activity → Watchers</div>
+        <div><strong>Set deposit + balance</strong> Job page → Overview → Deposit &amp; balance</div>
         <div><strong>Add a school as an org</strong> <a href="/app/organisations" className="underline">/app/organisations</a></div>
         <div><strong>Set up a fulfillment customer (Lifegrain-style)</strong> <a href="/app/organisations" className="underline">/app/organisations</a> → Designs / Destinations / Inventory tabs</div>
         <div><strong>Place an admin fulfillment order</strong> <a href="/app/fulfillment/new" className="underline">/app/fulfillment/new</a></div>
@@ -894,7 +934,7 @@ const SECTIONS: Section[] = [
         <div><strong>Add a gallery tile</strong> <a href="/app/storefront/lookbook" className="underline">Storefront → Lookbook</a></div>
         <div><strong>Snooze a customer for Tuesday</strong> Customer detail → Notes → add note with snooze date</div>
         <div><strong>Tax invoice</strong> Customer side: /account/orders/[id] → Tax invoice button</div>
-        <div><strong>Stop marketing emails to an address</strong> Customer calls? <code>POST /admin/email-suppressions</code> (admin REST). UI page on the roadmap.</div>
+        <div><strong>Stop marketing emails to an address</strong> Customers → <a href="/app/email-suppressions" className="underline">Email suppressions</a></div>
       </div>
     ),
   },
@@ -913,7 +953,7 @@ const SECTIONS: Section[] = [
         <div><dt className="font-semibold inline">Snooze</dt> <dd className="inline">— a customer note with a future &quot;remind me&quot; date.</dd></div>
         <div><dt className="font-semibold inline">Org</dt> <dd className="inline">— school / club / business — a group of customers sharing identity.</dd></div>
         <div><dt className="font-semibold inline">Recipe</dt> <dd className="inline">— reusable production settings (mesh count, ink, etc.).</dd></div>
-        <div><dt className="font-semibold inline">Pricing tier</dt> <dd className="inline">— customer-group-scoped flat price (cost × 1.10 to 1.45). Hides the public quantity ladder for that customer.</dd></div>
+        <div><dt className="font-semibold inline">Pricing tier</dt> <dd className="inline">— customer-group-scoped flat price (cost × 1.30 to 1.65). Hides the public quantity ladder for that customer.</dd></div>
         <div><dt className="font-semibold inline">Owner</dt> <dd className="inline">— the staff member responsible for a customer or order. Inherits customer → order; rotation fills gaps for un-owned customers. Different from a quote&apos;s <em>assigned_to</em>, which is the person actively responding to that quote.</dd></div>
         <div><dt className="font-semibold inline">Rotation</dt> <dd className="inline">— the admin-managed list at <a href="/app/rotation" className="underline">/app/rotation</a> of staff who can be auto-assigned new customers/orders. Round-robin by oldest <em>last_picked_at</em>.</dd></div>
         <div><dt className="font-semibold inline">Task</dt> <dd className="inline">— a staff to-do anchored to a customer / order / quote / org. Single assignee, optional due_at + priority. Lives at <a href="/app/tasks" className="underline">/app/tasks</a>.</dd></div>

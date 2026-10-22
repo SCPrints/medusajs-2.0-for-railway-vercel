@@ -1,5 +1,7 @@
 const PAGE_SIZE = 100
 
+type ListRow = { id: string; value: string }
+
 export { buildCsv, downloadCsv } from "./reports/csv"
 
 export async function fetchAllProductTags(

@@ -183,8 +183,8 @@ const PositionRow = ({
   onRemove: () => void
 }) => (
   <div className="grid grid-cols-[1fr_1fr_1.4fr_auto] gap-2 items-end">
-    <Select value={position.side} onValueChange={(side) => onChange({ ...position, side })}>
-      <Select.Trigger size="small">
+    <Select size="small" value={position.side} onValueChange={(side) => onChange({ ...position, side })}>
+      <Select.Trigger>
         <Select.Value />
       </Select.Trigger>
       <Select.Content>
@@ -195,7 +195,7 @@ const PositionRow = ({
         ))}
       </Select.Content>
     </Select>
-    <Select
+    <Select size="small"
       value={position.method}
       onValueChange={(m) =>
         onChange(
@@ -205,7 +205,7 @@ const PositionRow = ({
         )
       }
     >
-      <Select.Trigger size="small">
+      <Select.Trigger>
         <Select.Value />
       </Select.Trigger>
       <Select.Content>
@@ -214,8 +214,8 @@ const PositionRow = ({
       </Select.Content>
     </Select>
     {position.method === "print" ? (
-      <Select value={position.size_id ?? "up_to_a4"} onValueChange={(size_id) => onChange({ ...position, size_id })}>
-        <Select.Trigger size="small">
+      <Select size="small" value={position.size_id ?? "up_to_a4"} onValueChange={(size_id) => onChange({ ...position, size_id })}>
+        <Select.Trigger>
           <Select.Value />
         </Select.Trigger>
         <Select.Content>

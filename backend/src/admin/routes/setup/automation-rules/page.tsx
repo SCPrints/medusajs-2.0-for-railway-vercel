@@ -240,11 +240,11 @@ const ConditionRow = ({
             />
           </div>
           <div className="w-32 shrink-0">
-            <Select
+            <Select size="small"
               value={condition.op}
               onValueChange={(v) => onChange({ ...condition, op: v })}
             >
-              <Select.Trigger size="small">
+              <Select.Trigger>
                 <Select.Value />
               </Select.Trigger>
               <Select.Content>
@@ -320,8 +320,8 @@ const ActionRow = ({
     <div className="flex flex-col gap-y-2 p-3 rounded-lg border border-ui-border-base bg-ui-bg-subtle/30">
       <div className="flex items-center gap-x-2">
         <div className="flex-1">
-          <Select value={action.kind} onValueChange={handleKindChange}>
-            <Select.Trigger size="small">
+          <Select size="small" value={action.kind} onValueChange={handleKindChange}>
+            <Select.Trigger>
               <Select.Value placeholder="Select action…" />
             </Select.Trigger>
             <Select.Content>
@@ -356,11 +356,11 @@ const ActionRow = ({
           </div>
           <div className="w-32 flex flex-col gap-y-1">
             <Label className="text-xs">Color</Label>
-            <Select
+            <Select size="small"
               value={action.params.color ?? "slate"}
               onValueChange={(v) => setParam("color", v)}
             >
-              <Select.Trigger size="small">
+              <Select.Trigger>
                 <Select.Value />
               </Select.Trigger>
               <Select.Content>
@@ -425,11 +425,11 @@ const ActionRow = ({
         <div className="flex gap-x-2">
           <div className="w-48 flex flex-col gap-y-1">
             <Label className="text-xs">Stage</Label>
-            <Select
+            <Select size="small"
               value={action.params.stage ?? ""}
               onValueChange={(v) => setParam("stage", v)}
             >
-              <Select.Trigger size="small">
+              <Select.Trigger>
                 <Select.Value placeholder="Select stage…" />
               </Select.Trigger>
               <Select.Content>

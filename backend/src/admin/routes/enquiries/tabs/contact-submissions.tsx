@@ -204,7 +204,7 @@ const ContactSubmissionsPage = () => {
 
                     {isOpen ? (
                       <Table.Row>
-                        <Table.Cell colSpan={5}>
+                        <Table.Cell {...{ colSpan: 5 }}>
                           <div className="flex flex-col gap-y-3 py-2">
                             <Text className="whitespace-pre-wrap text-sm">
                               {s.message}

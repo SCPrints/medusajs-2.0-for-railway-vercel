@@ -1,4 +1,7 @@
 import {
+  buildImageSizes,
+  sameImageSizes,
+  SIZES_STAMP_CAP,
   classifyProductImages,
   classifyThumbnail,
   shouldStamp,
@@ -150,5 +153,31 @@ describe("classifyProductImages (thumbnail + gallery)", () => {
         checks([[THUMB, { ok: true, status: 200 }]])
       )
     ).toEqual({ status: "ok", broken_urls: [] })
+  })
+})
+
+describe("buildImageSizes / sameImageSizes", () => {
+  it("reuses known sizes, adds measured ones, drops unmeasurable + removed urls", () => {
+    const next = buildImageSizes(
+      ["a", "b", "c"],
+      { a: [800, 800], gone: [100, 100] },
+      new Map([["b", [300, 400]], ["c", null]])
+    )
+    expect(next).toEqual({ a: [800, 800], b: [300, 400] })
+  })
+
+  it("caps entries in product order", () => {
+    const urls = Array.from({ length: SIZES_STAMP_CAP + 5 }, (_, i) => `u${i}`)
+    const next = buildImageSizes(urls, {}, new Map(urls.map((u) => [u, [1, 1]])))
+    expect(Object.keys(next)).toHaveLength(SIZES_STAMP_CAP)
+    expect(next.u0).toEqual([1, 1])
+  })
+
+  it("compares maps order-insensitively and tolerates bad prev", () => {
+    expect(sameImageSizes({ a: [1, 2], b: [3, 4] }, { b: [3, 4], a: [1, 2] })).toBe(true)
+    expect(sameImageSizes({ a: [1, 2] }, { a: [1, 3] })).toBe(false)
+    expect(sameImageSizes(undefined, {})).toBe(true)
+    expect(sameImageSizes(undefined, { a: [1, 1] })).toBe(false)
+    expect(sameImageSizes({ a: [1, 1] }, {})).toBe(false)
   })
 })

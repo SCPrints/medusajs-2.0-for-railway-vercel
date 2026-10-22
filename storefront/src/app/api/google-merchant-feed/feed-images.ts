@@ -22,6 +22,24 @@ const brokenUrls = (metadata: FeedImageSource["metadata"]): Set<string> => {
   return new Set(urls.filter((u): u is string => typeof u === "string"))
 }
 
+/** Google disapproves a primary image under 500x500 (from 31 Jan 2027). */
+const MIN_PRIMARY_PX = 500
+
+/**
+ * Size tier from the audit's `image_audit.sizes` ([w, h] per URL):
+ * 0 = known >= 500x500, 1 = unknown, 2 = known too small.
+ */
+const sizeTier = (metadata: FeedImageSource["metadata"]) => {
+  const audit = metadata?.image_audit as { sizes?: unknown } | undefined
+  const sizes =
+    audit?.sizes && typeof audit.sizes === "object" ? (audit.sizes as Record<string, unknown>) : {}
+  return (url: string): number => {
+    const size = sizes[url]
+    if (!Array.isArray(size) || typeof size[0] !== "number" || typeof size[1] !== "number") return 1
+    return Math.min(size[0], size[1]) >= MIN_PRIMARY_PX ? 0 : 2
+  }
+}
+
 /**
  * Feed images, best front view first, with audited-dead URLs removed.
  *
@@ -29,17 +47,18 @@ const brokenUrls = (metadata: FeedImageSource["metadata"]): Set<string> => {
  * scrape scripts append and reorder freely. Rank thumbnail + gallery and lead
  * with the best front view; `[0]` becomes `g:image_link`.
  *
- * ponytail: no >=500x500 check. Medusa image rows carry no width/height and
- * nothing stamps dimensions in metadata, so size-aware picking needs the
- * image audit to record dimensions first.
+ * Size beats view: a known >=500x500 image leads, then unknown sizes, then
+ * known-small ones, each tier front-view first. Products the audit hasn't
+ * measured are all "unknown", i.e. pure front-view ranking.
  */
 export const feedImages = (product: FeedImageSource): string[] => {
   const dead = brokenUrls(product.metadata)
+  const tier = sizeTier(product.metadata)
   return [product.thumbnail, ...(product.images ?? []).map((i) => i?.url)]
     .filter((url): url is string => Boolean(url) && !dead.has(url as string))
     .filter((url, index, all) => all.indexOf(url) === index)
-    .map((url, index) => ({ url, index, rank: garmentUrlViewRank(url) }))
-    // Stable: rank first, original order as the tiebreak.
-    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((url, index) => ({ url, index, tier: tier(url), rank: garmentUrlViewRank(url) }))
+    // Stable: size tier, then view rank, original order as the tiebreak.
+    .sort((a, b) => a.tier - b.tier || a.rank - b.rank || a.index - b.index)
     .map((entry) => entry.url)
 }

@@ -182,7 +182,7 @@ const SpreadsheetSyncUpdatePage = () => {
 
     const result = await readCsvFile(e.target.files?.[0])
     setFileName(result.fileName)
-    if (result.ok) {
+    if (result.ok === true) {
       setRawCsvText(result.text)
     } else if (result.fileName) {
       // Only surface an error when a file was actually picked — the "no file"

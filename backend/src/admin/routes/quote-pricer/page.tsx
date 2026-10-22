@@ -57,6 +57,7 @@ import { parseDecorationPricingClass } from "../../../lib/scp-supacolour-pricing
  */
 
 import { absorbStudioLines } from "../../lib/quote-pricer-absorb"
+import { pricerLineGroupId, pricerLineVariant } from "../../lib/quote-pricer-lines"
 import { pricerDesignLabel, pricerGroupTitle, pricerLineTitle, pricerPositionSummary } from "../../lib/quote-pricer-labels"
 
 // ---------------------------------------------------------------------------
@@ -114,6 +115,10 @@ type GroupRow = {
   dark: boolean
   /** size → qty (string for free typing); ANY_SIZE key = "Any" cell. */
   cells: Record<string, string>
+  /** Designed in the Studio on its own (own quote group_id) instead of sharing the group's design. */
+  ownDesign?: boolean
+  /** That row's Studio mockup (ownDesign rows only). */
+  mockupUrl?: string | null
 }
 type JobGroup = {
   id: string
@@ -599,8 +604,9 @@ function GarmentSearch({ onPick }: { onPick: (p: ProductLite) => void }) {
 // ---------------------------------------------------------------------------
 function QuotePricerPage() {
   const targetQuoteId = useMemo(() => new URLSearchParams(window.location.search).get("quote"), [])
-  const draftKey = `scp:job-pricer:${targetQuoteId ?? "new"}`
   const [targetQuote, setTargetQuote] = useState<{ id: string; public_id: string; email: string; customer_id: string | null } | null>(null)
+  // Follows a quote created in place (Studio / email handoff) so the draft stops writing to "new".
+  const draftKey = `scp:job-pricer:${targetQuote?.id ?? targetQuoteId ?? "new"}`
   const [state, setState] = useState<JobState>(emptyState)
   const [details, setDetails] = useState<Record<string, ProductDetail>>({})
   const [hydrated, setHydrated] = useState(false)
@@ -801,7 +807,7 @@ function QuotePricerPage() {
   const duplicateGroup = (id: string) => {
     const src = state.groups.find((g) => g.id === id)
     if (!src) return
-    const copy: JobGroup = { ...src, id: genId("g"), rows: src.rows.map((r) => ({ ...r, id: genId("row"), cells: { ...r.cells } })), positions: src.positions.map((p) => ({ ...p, id: genId("pos") })) }
+    const copy: JobGroup = { ...src, id: genId("g"), rows: src.rows.map((r) => ({ ...r, id: genId("row"), cells: { ...r.cells }, mockupUrl: null })), positions: src.positions.map((p) => ({ ...p, id: genId("pos") })) }
     const idx = state.groups.findIndex((g) => g.id === id)
     patch({ groups: [...state.groups.slice(0, idx + 1), copy, ...state.groups.slice(idx + 1)] })
   }
@@ -1007,10 +1013,10 @@ function QuotePricerPage() {
    * it across a re-save (`customizerDesign: true` → the update route restores
    * the stored design) so re-pricing never drops the artwork.
    */
-  const buildLines = (existing: Map<string, ExistingLine> = new Map()): QuoteLine[] => {
+  const buildLines = (existing: Map<string, ExistingLine> = new Map(), st: JobState = state): QuoteLine[] => {
     const lines: QuoteLine[] = []
     for (const gp of priced.groups) {
-      const g = state.groups.find((x) => x.id === gp.groupId)!
+      const g = st.groups.find((x) => x.id === gp.groupId)!
       const detail = g.product ? details[g.product.id] : undefined
       const axes = detail ? variantAxes(detail) : null
       for (const rp of gp.rows) {
@@ -1018,10 +1024,10 @@ function QuotePricerPage() {
         const [rowId, sizeKey] = rp.rowId.split(":")
         const row = g.rows.find((r) => r.id === rowId)
         const size = sizeKey === "any" ? ANY_SIZE : sizeKey
-        const variant = !g.supplied && axes && row && size !== ANY_SIZE ? axes.variantFor(row.colour, size) : null
-        const description = (g.positions.map((p) => positionSummary(p, state.designs, row?.dark ?? false)).join(" · ") || "") + discountNote
+        const variant = row ? pricerLineVariant({ supplied: g.supplied, colour: row.colour, size, variantFor: axes?.variantFor ?? null }) : null
+        const description = (g.positions.map((p) => positionSummary(p, st.designs, row?.dark ?? false)).join(" · ") || "") + discountNote
         // The line's "mockup": the first artwork on this garment's positions, else the product photo.
-        const artwork = g.positions.map((p) => state.designs.find((d) => d.id === p.designId)?.imageUrl).find(Boolean) ?? null
+        const artwork = g.positions.map((p) => st.designs.find((d) => d.id === p.designId)?.imageUrl).find(Boolean) ?? null
         const id = `jp_r_${rp.rowId}`
         const prev = existing.get(id)
         const hasDesign = Boolean(prev?.customizerDesign)
@@ -1031,7 +1037,7 @@ function QuotePricerPage() {
           description: description.trim() || null,
           quantity: rp.quantity,
           unit_price: discounted(rp.unitSellMajor),
-          group_id: g.id,
+          group_id: pricerLineGroupId(g.id, g.supplied ? null : row),
           ...(hasDesign ? { customizerDesign: true as const, print_size_id: prev?.print_size_id ?? null } : {}),
           ...(g.supplied
             ? { ...onServiceLine(), thumbnail: (hasDesign ? prev?.thumbnail : null) ?? artwork }
@@ -1041,7 +1047,7 @@ function QuotePricerPage() {
     }
     for (const c of priced.extras) {
       // Waived setups don't go on the quote — nothing to charge.
-      if ((state.waivedKeys ?? []).includes(c.key)) continue
+      if ((st.waivedKeys ?? []).includes(c.key)) continue
       const svc = (c.setupProduct ? setups[c.setupProduct] : null) ?? serviceLine
       lines.push({
         id: `jp_x_${c.key}`,
@@ -1083,12 +1089,17 @@ function QuotePricerPage() {
     totals: priced.totals,
   })
 
-  /** Save the job onto the quote (or create one). `navigate=false` keeps the page (Studio handoff). Returns false on failure. */
-  const saveJob = async ({ navigate = true } = {}): Promise<boolean> => {
-    if (!targetQuote && !navigate) return false
-    if (targetQuote && !buildLines().length) {
+  /**
+   * Save the job onto the quote (or create one). `navigate=false` keeps the
+   * page (Studio / email handoff) — a new quote then becomes the page's target.
+   * `st` = state to save when the caller just changed it (setState is async).
+   * Returns the quote, or null on failure.
+   */
+  type SavedQuote = { id: string; public_id: string }
+  const saveJob = async ({ navigate = true, st = state }: { navigate?: boolean; st?: JobState } = {}): Promise<SavedQuote | null> => {
+    if (targetQuote && !buildLines(undefined, st).length) {
       toast.error("Nothing to send — add a garment with a quantity first.")
-      return false
+      return null
     }
     setSending(true)
     try {
@@ -1101,11 +1112,11 @@ function QuotePricerPage() {
         const existing = new Map(items.filter((li) => li.id && String(li.id).startsWith("jp_")).map((li) => [String(li.id), li]))
         const { lines, manual, absorbed, unmatched } = absorbStudioLines(
           items.filter((li) => !String(li.id ?? "").startsWith("jp_")),
-          buildLines(existing)
+          buildLines(existing, st)
         )
         if (absorbed) toast.info(`Took over ${absorbed} customer design line(s) — their artwork now rides on the priced lines.`)
         if (unmatched) toast.warning(`${unmatched} customer design line(s) are for a garment this job doesn't price — kept on the quote, check them.`)
-        const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state }
+        const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state: st }
         await adminPost(`/admin/quotes/${targetQuote.id}`, {
           line_items: [...manual, ...lines],
           metadata: { ...(quote.metadata ?? {}), job_pricer: jobPricer },
@@ -1116,19 +1127,19 @@ function QuotePricerPage() {
           toast.success(`${lines.length} line(s) written to ${targetQuote.public_id}`)
           window.location.assign(`/app/quotes?id=${targetQuote.id}`)
         }
-        return true
+        return targetQuote
       }
-      const lines = buildLines()
+      const lines = buildLines(undefined, st)
       if (!lines.length) {
         toast.error("Nothing to send — add a garment with a quantity first.")
-        return false
+        return null
       }
-      const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state }
+      const jobPricer = { version: 2, saved_at: new Date().toISOString(), summary: jobSummary, totals: priced.totals, snapshot: buildSnapshot(), state: st }
       if (!newEmail.trim()) {
         toast.error("Enter the customer's email to create the quote.")
-        return false
+        return null
       }
-      const json = await adminPost<{ quote?: { id?: string }; id?: string }>("/admin/quotes", {
+      const json = await adminPost<{ quote?: { id?: string; public_id?: string }; id?: string }>("/admin/quotes", {
         email: newEmail.trim(),
         customer_id: newCustomer && newCustomer.email?.toLowerCase() === newEmail.trim().toLowerCase() ?newCustomer.id : undefined,
         contact_name: newCustomer ? `${newCustomer.first_name ?? ""} ${newCustomer.last_name ?? ""}`.trim() || undefined : undefined,
@@ -1140,16 +1151,38 @@ function QuotePricerPage() {
       clearDraft()
       const id = json?.quote?.id ?? json?.id
       toast.success("Quote created")
-      window.location.assign(id ? `/app/quotes?id=${id}` : "/app/quotes")
-      return true
+      if (navigate || !id) {
+        window.location.assign(id ? `/app/quotes?id=${id}` : "/app/quotes")
+        return null
+      }
+      // Stay on the pricer, now targeting the new quote (reload keeps it).
+      const created = { id, public_id: json?.quote?.public_id ?? id, email: newEmail.trim(), customer_id: newCustomer && newCustomer.email?.toLowerCase() === newEmail.trim().toLowerCase() ? newCustomer.id : null }
+      setTargetQuote(created)
+      window.history.replaceState(null, "", `${window.location.pathname}?quote=${id}`)
+      return created
     } catch (err: any) {
       toast.error(err?.message ?? "Couldn't send to quote")
-      return false
+      return null
     } finally {
       setSending(false)
     }
   }
   const sendToQuote = () => void saveJob()
+  /** Save, then send the quote email (same endpoint as the quote page's "Email customer…" with the price + accept link). */
+  const saveAndEmail = async () => {
+    const quote = await saveJob({ navigate: false })
+    if (!quote) return
+    setSending(true)
+    try {
+      const json = await adminPost<{ sent_to?: string; has_mockups?: boolean }>(`/admin/quotes/${quote.id}/design-approval-link`, { include_quote: true })
+      toast.success(`Quote emailed to ${json.sent_to ?? "the customer"}${json.has_mockups ? "" : " (no mockup attached yet)"}`)
+      window.location.assign(`/app/quotes?id=${quote.id}`)
+    } catch (err: any) {
+      toast.error(err?.message ?? "Saved, but the email failed — send it from the quote")
+    } finally {
+      setSending(false)
+    }
+  }
 
   // --- Studio handoff: open the customiser pre-seeded from a group, poll for the mockup ---
   // The job is saved first so the group's `jp_` lines exist on the quote; the
@@ -1164,11 +1197,24 @@ function QuotePricerPage() {
     setStudioGroup(null)
   }
   useEffect(() => stopStudioPoll, [])
-  const openStudio = async (g: JobGroup) => {
+  /**
+   * `row` = design that colour on its own: the row is flagged `ownDesign`
+   * (its lines get their own group_id) and the Studio seeds from it. Without
+   * a row, the group design covers every colour row that isn't on its own.
+   */
+  const openStudio = async (g: JobGroup, row?: GroupRow) => {
     const product = studioProductOf(g)
     const detail = product ? details[product.id] : undefined
-    if (!targetQuote || !product || !detail) return
-    if (!(await saveJob({ navigate: false }))) return
+    if (!product || !detail) return
+    const ownRow = row ? { ...row, ownDesign: true } : null
+    const st: JobState = ownRow && !row!.ownDesign
+      ? { ...state, groups: state.groups.map((x) => (x.id === g.id ? { ...x, rows: x.rows.map((r) => (r.id === ownRow.id ? ownRow : r)) } : x)) }
+      : state
+    if (st !== state) setState(st)
+    // Creates the quote first on a fresh pricer — the design attaches to its lines.
+    const quote = await saveJob({ navigate: false, st })
+    if (!quote) return
+    const studioId = pricerLineGroupId(g.id, ownRow)
     try {
       // Supplied rows carry a free label ("Black oversized"), not a colour —
       // pre-pick the stand-in's colour named in it so the mockup starts close.
@@ -1180,26 +1226,32 @@ function QuotePricerPage() {
               colour: variantAxes(detail).colours.find((c) => r.label.toLowerCase().includes(c.toLowerCase())) ?? null,
             })),
           }
-        : g
-      const params = new URLSearchParams({ group: g.id, handle: product.handle ?? "", seed: buildStudioSeed(seedGroup, detail) })
-      const { url } = await adminGet<{ url?: string }>(`/admin/quotes/${targetQuote.id}/design-link?${params}`)
+        : { ...g, rows: ownRow ? [ownRow] : g.rows.filter((r) => !r.ownDesign) }
+      const params = new URLSearchParams({ group: studioId, handle: product.handle ?? "", seed: buildStudioSeed(seedGroup, detail) })
+      const { url } = await adminGet<{ url?: string }>(`/admin/quotes/${quote.id}/design-link?${params}`)
       if (!url) throw new Error("No Studio URL returned")
       const popup = window.open(url, "quote-customizer", "width=1280,height=900,noopener=false")
       if (!popup) {
         toast.error("Popup blocked — allow popups for this site")
         return
       }
+      stopStudioPoll()
       studioPopup.current = popup
-      setStudioGroup(g.id)
-      let lastUrl = g.mockupUrl ?? null
+      setStudioGroup(studioId)
+      let lastUrl = (ownRow ? ownRow.mockupUrl : g.mockupUrl) ?? null
       studioPoll.current = window.setInterval(async () => {
         try {
-          const { quote } = await adminGet<{ quote: { line_items?: { items?: ExistingLine[] } } }>(`/admin/quotes/${targetQuote.id}`)
-          const url = (quote.line_items?.items ?? []).find((li) => li.group_id === g.id && li.mockup_urls?.length)?.mockup_urls?.[0]?.url ?? null
+          const { quote: q } = await adminGet<{ quote: { line_items?: { items?: ExistingLine[] } } }>(`/admin/quotes/${quote.id}`)
+          const url = (q.line_items?.items ?? []).find((li) => li.group_id === studioId && li.mockup_urls?.length)?.mockup_urls?.[0]?.url ?? null
           if (url && url !== lastUrl) {
             lastUrl = url
-            setState((s) => ({ ...s, groups: s.groups.map((x) => (x.id === g.id ? { ...x, mockupUrl: url } : x)) }))
-            toast.success("Studio design attached to the group")
+            setState((s) => ({
+              ...s,
+              groups: s.groups.map((x) =>
+                x.id !== g.id ? x : ownRow ? { ...x, rows: x.rows.map((r) => (r.id === ownRow.id ? { ...r, mockupUrl: url } : r)) } : { ...x, mockupUrl: url }
+              ),
+            }))
+            toast.success(ownRow ? "Studio design attached to the colour" : "Studio design attached to the group")
           }
         } catch {
           /* keep polling */
@@ -1232,7 +1284,7 @@ function QuotePricerPage() {
     if (!lastJob) return
     const recent = Date.now() - new Date(lastJob.saved_at).getTime() < 183 * 86400e3
     // Designs within 6 months take the repeat rate; Studio mockups belong to the old quote's lines.
-    const st: JobState = { ...lastJob.state, designs: lastJob.state.designs.map((d) => ({ ...d, repeat: recent })), groups: lastJob.state.groups.map((g) => ({ ...g, mockupUrl: null })) }
+    const st: JobState = { ...lastJob.state, designs: lastJob.state.designs.map((d) => ({ ...d, repeat: recent })), groups: lastJob.state.groups.map((g) => ({ ...g, mockupUrl: null, rows: g.rows.map((r) => ({ ...r, mockupUrl: null })) })) }
     setState(st)
     await Promise.all(productsOf(st.groups).map(ensureDetail))
     toast.success(`Loaded ${lastJob.public_id}${recent ? " — designs marked repeat" : ""}`)
@@ -1426,15 +1478,19 @@ function QuotePricerPage() {
                   <span className="text-ui-fg-muted">cost {money(firstRow?.unitCostExMajor)}</span>
                   {gp?.marginPct != null ? <Badge size="2xsmall" color={marginTone(gp.marginPct)}>{gp.marginPct}%</Badge> : null}
                   <span className="font-medium">{money(gp?.sellTotalMajor ?? 0)}</span>
-                  {studioProductOf(g) ? (
+                  {studioProductOf(g) && (g.supplied || g.rows.some((r) => !r.ownDesign)) ? (
                     <span className="flex items-center gap-1">
                       {g.mockupUrl ? <a href={g.mockupUrl} target="_blank" rel="noreferrer" title="Studio mockup attached to this group's lines"><img src={g.mockupUrl} alt="" className="w-8 h-8 rounded object-contain bg-ui-bg-base border border-ui-border-base" /></a> : null}
                       <Button
                         size="small"
                         variant="secondary"
                         isLoading={studioGroup === g.id}
-                        disabled={!targetQuote || !details[studioProductOf(g)!.id] || sending}
-                        title={targetQuote ? "Open the Studio with this group's colour, sizes and positions pre-selected; the design attaches to these lines at the pricer's prices" : "Create the quote first — the design attaches to the quote's lines"}
+                        disabled={(!targetQuote && !newEmail.trim()) || !details[studioProductOf(g)!.id] || sending}
+                        title={
+                          targetQuote || newEmail.trim()
+                            ? `${targetQuote ? "Open" : "Creates the quote, then opens"} the Studio with this group's colour, sizes and positions pre-selected; the design attaches to ${g.rows.some((r) => r.ownDesign) ? "the colours not designed on their own" : "every colour in the group"} at the pricer's prices`
+                            : "Enter the customer's email below first — the quote is created, then the Studio opens"
+                        }
                         onClick={() => void openStudio(g)}
                       >
                         <Sparkles /> {g.mockupUrl ? "Edit in Studio" : "Design in Studio"}
@@ -1492,7 +1548,23 @@ function QuotePricerPage() {
                               <input type="number" min={0} data-grid={g.id} data-r={ri} data-c={sizeCols.length} onKeyDown={onKey(sizeCols.length)} className="w-14 h-7 rounded border border-ui-border-base bg-ui-bg-base px-1 text-center text-xs" value={row.cells[ANY_SIZE] ?? ""} onChange={(e) => setCell(g.id, row.id, ANY_SIZE, e.target.value)} />
                             </td>
                             <td className="px-1 text-right font-medium">{rowQty(row)}</td>
-                            <td>
+                            <td className="whitespace-nowrap">
+                              {!g.supplied && detail && (g.rows.length > 1 || row.ownDesign) ? (
+                                <>
+                                  {row.mockupUrl ? <a href={row.mockupUrl} target="_blank" rel="noreferrer" title="This colour's Studio mockup"><img src={row.mockupUrl} alt="" className="inline w-6 h-6 rounded object-contain border border-ui-border-base" /></a> : null}
+                                  <Button
+                                    size="small"
+                                    variant="transparent"
+                                    isLoading={studioGroup === pricerLineGroupId(g.id, { id: row.id, ownDesign: true })}
+                                    disabled={rowQty(row) === 0 || (!targetQuote && !newEmail.trim()) || sending}
+                                    onClick={() => void openStudio(g, row)}
+                                    title={row.ownDesign ? "Edit this colour's own design in the Studio" : "Design this colour on its own in the Studio (e.g. different ink on a dark garment) — the group design then covers the other colours"}
+                                    aria-label="Design this colour in the Studio"
+                                  >
+                                    <Sparkles />
+                                  </Button>
+                                </>
+                              ) : null}
                               {g.rows.length > 1 ? <Button size="small" variant="transparent" onClick={() => removeRow(g.id, row.id)} aria-label="Remove row"><XMark /></Button> : null}
                             </td>
                           </tr>
@@ -1773,6 +1845,7 @@ function QuotePricerPage() {
             {targetQuote ? (
               <>
                 <Button variant="primary" isLoading={sending} onClick={sendToQuote}>Save job to quote {targetQuote.public_id}</Button>
+                <Button variant="secondary" isLoading={sending} onClick={() => void saveAndEmail()} title="Saves the job, then emails the customer the quote with mockups, prices and the accept-and-pay link">Save and email quote</Button>
                 <Text size="xsmall" className="text-ui-fg-muted">Replaces the pricer's lines on the quote (one per colour/size) and takes over the customer's own design lines for the same garment (their artwork moves onto the priced lines); other lines you added by hand are kept. The job is saved with the quote so "Price a job" reopens it.</Text>
               </>
             ) : (
@@ -1784,6 +1857,7 @@ function QuotePricerPage() {
                   <Input type="email" placeholder="customer@example.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
                   <Button variant="primary" isLoading={sending} onClick={sendToQuote} className="whitespace-nowrap">Create quote</Button>
                 </div>
+                <Button variant="secondary" isLoading={sending} disabled={!newEmail.trim()} onClick={() => void saveAndEmail()} title="Creates the quote, then emails the customer the quote with prices and the accept-and-pay link">Create and email quote</Button>
                 <Text size="xsmall" className="text-ui-fg-muted">Or open an existing quote and click "Price a job" there to add to it.</Text>
               </>
             )}

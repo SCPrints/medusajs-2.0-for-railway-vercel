@@ -2,7 +2,10 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "noEmit": true,
-    "declaration": false
+    "declaration": false,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": ["vite/client", "node"]
   },
   "include": ["src/admin", "src/lib"],
   "exclude": ["**/__tests__", "**/__fixtures__", "node_modules", "build", ".cache", "src/scripts.archive"]

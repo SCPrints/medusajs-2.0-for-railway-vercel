@@ -23,10 +23,15 @@
  */
 
 import {
+  buildImageSizes,
   checkImageUrl,
   classifyProductImages,
+  readImageSize,
+  sameImageSizes,
   shouldStamp,
   type ImageAuditStatus,
+  SIZES_STAMP_CAP,
+  type ImageSize,
 } from "./check"
 
 const PAGE_SIZE = 100
@@ -38,6 +43,7 @@ export type ImageAuditSummary = {
   checked: number
   broken_found: number
   cleared: number
+  measured: number
   updated: number
   errors: number
   scope: string
@@ -128,18 +134,18 @@ async function resolveBrandProductIds(
   return [...ids]
 }
 
-/** Concurrent HEAD/GET checks over a page's thumbnail URLs. */
-async function checkUrls(
+/** Run `fn` over `urls` with bounded concurrency. */
+async function mapUrls<T>(
   urls: string[],
   concurrency: number,
-  timeoutMs: number
-): Promise<Map<string, { ok: boolean; status: number }>> {
-  const out = new Map<string, { ok: boolean; status: number }>()
+  fn: (url: string) => Promise<T>
+): Promise<Map<string, T>> {
+  const out = new Map<string, T>()
   let cursor = 0
   const worker = async () => {
     while (cursor < urls.length) {
       const url = urls[cursor++]
-      out.set(url, await checkImageUrl(url, timeoutMs))
+      out.set(url, await fn(url))
     }
   }
   await Promise.all(
@@ -172,6 +178,7 @@ export async function runImageAudit(
     checked: 0,
     broken_found: 0,
     cleared: 0,
+    measured: 0,
     updated: 0,
     errors: 0,
     scope,
@@ -198,10 +205,28 @@ export async function runImageAudit(
     // network check; products with no images at all are "missing" (the
     // existing flag owns them).
     const urls = [...new Set(page.flatMap(productImageUrls))]
-    const statusByUrl = urls.length
-      ? await checkUrls(urls, concurrency, timeoutMs)
-      : new Map()
+    const statusByUrl = await mapUrls(urls, concurrency, (u) =>
+      checkImageUrl(u, timeoutMs)
+    )
     summary.checked += urls.length
+
+    // Pixel sizes for the Merchant feed's >=500x500 rule. Only live URLs not
+    // already in the product's stamped `sizes` are measured, so after the
+    // first full run a weekly sweep only fetches newly-added images.
+    const toMeasure = new Set<string>()
+    for (const p of page) {
+      const known = p.metadata?.image_audit?.sizes ?? {}
+      const live = productImageUrls(p).filter((u) => statusByUrl.get(u)?.ok)
+      for (const url of live.slice(0, SIZES_STAMP_CAP)) {
+        if (!known[url]) toMeasure.add(url)
+      }
+    }
+    const sizeByUrl: Map<string, ImageSize | null> = await mapUrls(
+      [...toMeasure],
+      concurrency,
+      (u) => readImageSize(u, timeoutMs)
+    )
+    summary.measured += toMeasure.size
 
     for (const p of page) {
       const thumb =
@@ -220,7 +245,15 @@ export async function runImageAudit(
 
       if (next === "broken") summary.broken_found++
 
-      if (!shouldStamp(prev, next)) continue
+      const prevSizes = p.metadata?.image_audit?.sizes
+      const sizes = buildImageSizes(
+        productImageUrls(p).filter((u) => statusByUrl.get(u)?.ok),
+        prevSizes,
+        sizeByUrl
+      )
+      // Write on a broken-ness flip OR when the size map changed (new/removed
+      // images, first measurement). Unchanged products are never rewritten.
+      if (!shouldStamp(prev, next) && sameImageSizes(prevSizes, sizes)) continue
 
       if (next !== "broken" && prev === "broken") summary.cleared++
 
@@ -231,13 +264,14 @@ export async function runImageAudit(
           status_code: thumbCheck?.status ?? null,
           broken_count: classification.broken_urls.length,
           broken_urls: classification.broken_urls.slice(0, BROKEN_URLS_STAMP_CAP),
+          sizes,
           checked_at: new Date().toISOString(),
         },
       }
       try {
         await deps.productModule.updateProducts(p.id, { metadata: nextMeta })
         summary.updated++
-        deps.logger.info(
+        if (prev !== next) deps.logger.info(
           `image-audit: ${p.handle ?? p.id} ${prev ?? "—"} → ${next}${
             classification.broken_urls.length
               ? ` (${classification.broken_urls.length} dead url(s))`
@@ -293,7 +327,7 @@ export async function runImageAudit(
   state.last_run = summary
 
   deps.logger.info(
-    `image-audit: done scanned=${summary.scanned} checked=${summary.checked} broken=${summary.broken_found} cleared=${summary.cleared} updated=${summary.updated} errors=${summary.errors}`
+    `image-audit: done scanned=${summary.scanned} checked=${summary.checked} broken=${summary.broken_found} measured=${summary.measured} cleared=${summary.cleared} updated=${summary.updated} errors=${summary.errors}`
   )
   opts.capture?.("image_audit_completed", {
     ...summary,

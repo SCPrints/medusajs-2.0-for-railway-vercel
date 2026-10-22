@@ -433,13 +433,13 @@ const FashionBizImportPage = () => {
                 <Table.Body>
                   {loading && products.length === 0 ? (
                     <Table.Row>
-                      <Table.Cell /><Table.Cell colSpan={3}>
+                      <Table.Cell /><Table.Cell {...{ colSpan: 3 }}>
                         <Text size="small" className="text-ui-fg-muted">Loading catalog…</Text>
                       </Table.Cell>
                     </Table.Row>
                   ) : products.length === 0 ? (
                     <Table.Row>
-                      <Table.Cell /><Table.Cell colSpan={3}>
+                      <Table.Cell /><Table.Cell {...{ colSpan: 3 }}>
                         <Text size="small" className="text-ui-fg-muted">
                           {searchQuery ? "No products match your search." : "No products found."}
                         </Text>

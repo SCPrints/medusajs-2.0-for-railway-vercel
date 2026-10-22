@@ -13,6 +13,8 @@
  * network check lives here too so callers have one import.
  */
 
+import sharp from "sharp"
+
 export type ImageAuditStatus = "ok" | "broken" | "missing"
 
 export type UrlCheck = { ok: boolean; status: number }
@@ -143,4 +145,110 @@ export function classifyProductImages(
     return { status: "missing", broken_urls: [] }
   }
   return { status: "ok", broken_urls: [] }
+}
+
+// ── Pixel dimensions (Google Merchant: primary image must be >= 500x500) ──
+
+export type ImageSize = [number, number]
+/** url → [width, height], stamped on `metadata.image_audit.sizes`. */
+export type ImageSizes = Record<string, ImageSize>
+
+const HEADER_BYTES = 64 * 1024
+const FULL_FETCH_CAP_BYTES = 10 * 1024 * 1024
+
+/** GET up to `maxBytes` of a URL (ranged; stops reading if the server ignores Range). */
+async function fetchPrefix(
+  url: string,
+  maxBytes: number,
+  timeoutMs: number
+): Promise<Buffer | null> {
+  const ctrl = new AbortController()
+  const t = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const r = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { Range: `bytes=0-${maxBytes - 1}` },
+      redirect: "follow",
+    })
+    if (!isOk(r.status) || !r.body) return null
+    const reader = r.body.getReader()
+    const chunks: Uint8Array[] = []
+    let total = 0
+    while (total < maxBytes) {
+      const { done, value } = await reader.read()
+      if (done) break
+      chunks.push(value)
+      total += value.length
+    }
+    await reader.cancel().catch(() => {})
+    return Buffer.concat(chunks).subarray(0, maxBytes)
+  } catch {
+    return null
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+async function sizeOf(buf: Buffer | null): Promise<ImageSize | null> {
+  if (!buf?.length) return null
+  try {
+    const m = await sharp(buf).metadata()
+    return m.width && m.height ? [m.width, m.height] : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Read an image's pixel size. The first 64KB carries the JPEG SOF / PNG IHDR
+ * for nearly every image (sharp parses truncated JPEG + PNG headers); WebP and
+ * JPEGs with huge EXIF blocks fall back to a full GET capped at 10MB. Null when
+ * unreadable — callers treat that as "unknown", never as small.
+ */
+export async function readImageSize(
+  url: string,
+  timeoutMs: number
+): Promise<ImageSize | null> {
+  return (
+    (await sizeOf(await fetchPrefix(url, HEADER_BYTES, timeoutMs))) ??
+    (await sizeOf(await fetchPrefix(url, FULL_FETCH_CAP_BYTES, timeoutMs * 3)))
+  )
+}
+
+/** Bound on stamped size entries per product (thumbnail first, then gallery order). */
+export const SIZES_STAMP_CAP = 60
+
+/**
+ * Next `sizes` map for a product: live URLs only, in product order, capped.
+ * Known sizes are reused (an image URL's pixels don't change), so only URLs
+ * missing from `prev` need measuring — `measured` supplies those.
+ */
+export function buildImageSizes(
+  liveUrls: ReadonlyArray<string>,
+  prev: unknown,
+  measured: ReadonlyMap<string, ImageSize | null>
+): ImageSizes {
+  const old = isSizes(prev) ? prev : {}
+  const out: ImageSizes = {}
+  for (const url of liveUrls) {
+    if (Object.keys(out).length >= SIZES_STAMP_CAP) break
+    const size = old[url] ?? measured.get(url)
+    if (size) out[url] = size
+  }
+  return out
+}
+
+const isSizes = (v: unknown): v is ImageSizes =>
+  Boolean(v) && typeof v === "object" && !Array.isArray(v)
+
+/** Order-insensitive equality of two sizes maps (prev may be malformed/absent). */
+export function sameImageSizes(prev: unknown, next: ImageSizes): boolean {
+  if (!isSizes(prev)) return Object.keys(next).length === 0
+  const a = Object.keys(prev)
+  if (a.length !== Object.keys(next).length) return false
+  return a.every((url) => {
+    const p = prev[url]
+    const n = next[url]
+    return Array.isArray(p) && !!n && p[0] === n[0] && p[1] === n[1]
+  })
 }

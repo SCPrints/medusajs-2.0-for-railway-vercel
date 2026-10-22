@@ -451,7 +451,7 @@ const AussiePacificImportPage = () => {
                   {loading && products.length === 0 ? (
                     <Table.Row>
                       <Table.Cell />
-                      <Table.Cell colSpan={4}>
+                      <Table.Cell {...{ colSpan: 4 }}>
                         <Text size="small" className="text-ui-fg-muted">
                           Loading catalog…
                         </Text>
@@ -460,7 +460,7 @@ const AussiePacificImportPage = () => {
                   ) : products.length === 0 ? (
                     <Table.Row>
                       <Table.Cell />
-                      <Table.Cell colSpan={4}>
+                      <Table.Cell {...{ colSpan: 4 }}>
                         <Text size="small" className="text-ui-fg-muted">
                           {searchQuery
                             ? "No products match your search."

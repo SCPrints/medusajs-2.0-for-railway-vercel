@@ -15,6 +15,7 @@ export const PALETTE = {
   // Primary scale (slate) — used for the "main" series in any chart.
   slate900: "#0f172a",
   slate700: "#334155",
+  slate600: "#475569",
   slate500: "#64748b",
   slate300: "#cbd5e1",
   slate100: "#f1f5f9",

@@ -38,7 +38,7 @@ const createSchema = z.object({
         group_id: z.string().max(80).nullable().optional(),
       })
     )
-    .max(50)
+    .max(200) // Job pricer writes one line per colour × size
     .optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
