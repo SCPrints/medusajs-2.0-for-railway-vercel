@@ -9,7 +9,7 @@ import { orderInboxAddress } from "../../../../../lib/order-inbox-alias"
 import { ADMIN_WORKSPACE_MODULE } from "../../../../../modules/admin-workspace"
 import { EmailTemplates } from "../../../../../modules/email-notifications/templates"
 import { getDspPack, type DspPackResult } from "../../../../../services/dsp-pack/build"
-import { buildDspProofPdf, lightArtworkPreview } from "../../../../../services/dsp-pack/pdf"
+import { artworkAtPrintSize, artworkPreview, buildDspProofPdf } from "../../../../../services/dsp-pack/pdf"
 import { STAFF_EMAIL_ACTOR_PREFIX } from "../../../../../services/jobs/build"
 
 const fileName = (pack: DspPackResult) => `SCP-${pack.po}_${pack.customer}`.replace(/[^\w.-]+/g, "_").slice(0, 80) + "_DSP_proof.pdf"
@@ -67,24 +67,25 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   ]
   const seen = new Set<string>()
   let previews = 0
-  for (const a of pack.packs.flatMap((p) => p.artwork)) {
-    if (!a.url || seen.has(a.url)) continue
-    seen.add(a.url)
+  for (const pg of pack.packs.flatMap((p) => p.pages)) {
+    if (!pg.artworkUrl || seen.has(pg.artworkUrl)) continue
+    seen.add(pg.artworkUrl)
     try {
-      const res = await fetch(a.url, { signal: AbortSignal.timeout(15_000) })
+      const res = await fetch(pg.artworkUrl, { signal: AbortSignal.timeout(15_000) })
       const buf = Buffer.from(await res.arrayBuffer())
       if (!res.ok || buf.length > 15 * 1024 * 1024) continue // ponytail: >15 MB stays out; Resend caps the whole email at 40 MB
-      const ext = a.name.split(".").pop() ?? "png"
-      const stem = `SCP-${pack.po}_${a.position.replace(/\W+/g, "-")}`
+      const ext = (pg.artworkUrl.split("?")[0].split(".").pop() ?? "png").toLowerCase()
+      const stem = `SCP-${pack.po}_${pg.positionLabel.replace(/\W+/g, "-")}`
+      // Sized to print: an SVG opens at print size in Illustrator, a PNG measures the print width.
       attachments.push({
-        content: buf.toString("base64"),
+        content: (await artworkAtPrintSize(buf, ext, pg.printSize)).toString("base64"),
         filename: `${stem}_artwork.${ext}`,
         content_type: res.headers.get("content-type") ?? "application/octet-stream",
       })
-      const preview = await lightArtworkPreview(buf)
+      const preview = pg.garmentHex ? await artworkPreview(buf, pg.garmentHex) : null
       if (preview) {
         previews++
-        attachments.push({ content: preview.toString("base64"), filename: `${stem}_preview-on-black.png`, content_type: "image/png" })
+        attachments.push({ content: preview.toString("base64"), filename: `${stem}_preview-on-garment.png`, content_type: "image/png" })
       }
     } catch {
       /* the proof still goes; the panel already warned about missing artwork */
@@ -117,9 +118,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       })),
       attachments: [
         `art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages)`,
-        ...(artworkFiles ? [`${artworkFiles} artwork file${artworkFiles > 1 ? "s" : ""}`] : []),
-        ...(previews ? [`${previews} preview${previews > 1 ? "s" : ""} on black — the artwork is white ink, so it looks blank on white`] : []),
+        ...(artworkFiles ? [`${artworkFiles} artwork file${artworkFiles > 1 ? "s" : ""} at print size`] : []),
+        ...(previews ? [`${previews} preview${previews > 1 ? "s" : ""} on the garment colour`] : []),
       ],
+      pmsConfirm: pack.packs.some((p) => p.pages.some((pg) => pg.pmsFromArtwork)),
     },
     attachments,
   })

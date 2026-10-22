@@ -1,4 +1,5 @@
-import { buildDspPack, countInkColours, inksFromNotes, parseSizeMm, parseWidthMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
+import { applyArtworkInks, inkClusters, nearestPantone } from "../dsp-inks"
+import { buildDspPack, inksFromNotes, parseSizeMm, parseWidthMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
 
 // Shaped like order #116: AS Colour 5001 Grey Marle, screen front (2 col) + back (1 col).
 const design = {
@@ -108,16 +109,44 @@ describe("helpers", () => {
   })
 })
 
-describe("countInkColours", () => {
+describe("inkClusters", () => {
   // n pixels of one RGBA colour
   const px = (n: number, r: number, g: number, b: number, a = 255) => Array.from({ length: n }, () => [r, g, b, a]).flat()
   it("counts inks on transparency, ignoring soft edges and tiny specks", () => {
     // OBC back: white + a thin green divider on transparent, soft edges, a stray speck
     const img = [...px(900, 255, 255, 255), ...px(20, 89, 183, 145), ...px(500, 0, 0, 0, 0), ...px(30, 200, 200, 200, 120), ...px(2, 255, 0, 0)]
-    expect(countInkColours(Uint8Array.from(img))).toBe(2)
+    expect(inkClusters(Uint8Array.from(img)).length).toBe(2)
   })
   it("drops the paper background and anti-aliased blends on opaque artwork", () => {
     const img = [...px(1000, 255, 255, 255), ...px(300, 0, 0, 0), ...px(40, 128, 128, 128)]
-    expect(countInkColours(Uint8Array.from(img))).toBe(1)
+    expect(inkClusters(Uint8Array.from(img)).length).toBe(1)
+  })
+})
+
+describe("applyArtworkInks", () => {
+  const page = () => buildDspPack(base())[0].pages // front: Base + White + Green (note), back: Base + 1 colour
+  it("pairs noted inks with artwork colours and adds the nearest PMS (not for white)", () => {
+    const [front] = page()
+    expect(applyArtworkInks(front, [{ hex: "#FFFFFF", share: 0.9 }, { hex: "#59B791", share: 0.1 }])).toBeNull()
+    expect(front.inks[0]).toBe("Base")
+    expect(front.inks[1]).toBe("White")
+    expect(front.inks[2]).toMatch(/^Green PMS .+ C$/)
+    expect(front.colourLines[2]).toMatch(/^3\/3 GREEN PMS /)
+    expect(front.pmsFromArtwork).toBe(true)
+  })
+  it("warns when the artwork has more inks than the order", () => {
+    const [, back] = page()
+    expect(applyArtworkInks(back, [{ hex: "#FFFFFF", share: 0.95 }, { hex: "#59B791", share: 0.05 }])).toMatch(/2 ink colours but the order says 1/)
+    expect(back.inks).toEqual(["Base", "White"])
+  })
+  it("names placeholder inks from the artwork", () => {
+    const input = base()
+    input.lines = input.lines.map((l) => ({ ...l, notes: null }))
+    const [, back] = buildDspPack(input)[0].pages
+    applyArtworkInks(back, [{ hex: "#D32F2F", share: 1 }])
+    expect(back.inks[1]).toMatch(/^Red PMS /)
+  })
+  it("nearestPantone finds an exact library colour", () => {
+    expect(nearestPantone("#FE3B21")).toBe("PMS Bright Red C")
   })
 })

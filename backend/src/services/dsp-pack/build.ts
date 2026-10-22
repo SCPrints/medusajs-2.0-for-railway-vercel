@@ -6,7 +6,8 @@ import { computeSidePlacements } from "../../lib/print-placement"
 import { restoreSideLayouts } from "../../lib/side-layouts-archive"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { resolveJobIds } from "../jobs/build"
-import { artworkInkCount } from "./pdf"
+import { applyArtworkInks } from "../../lib/dsp-inks"
+import { artworkInks, garmentColour } from "./pdf"
 
 export type DspPackResult = {
   order_id: string
@@ -100,7 +101,7 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
   const dueDate = typeof meta.production_due_date === "string" ? meta.production_due_date : null
 
   const packs = buildDspPack({ poNumber: po, customer, dueDate, lines, products, placements, dimensions: stringMap(meta.mockup_print_dimensions), revisedMockups, revisedArtwork })
-  await warnInkMismatches(packs)
+  await enrichFromImages(packs)
 
   return {
     order_id: order.id,
@@ -112,27 +113,32 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
   }
 }
 
-/** Screen sides whose artwork has more ink colours than the order says → warning, so DSP isn't quoted a screen short. */
-async function warnInkMismatches(packs: DspGroupPack[]) {
+/**
+ * Reads each page's images: the garment colour off the mockup (the proof's
+ * artwork background), and the inks off the artwork — named, matched to the
+ * nearest PMS, and flagged when the artwork has more inks than the order.
+ */
+async function enrichFromImages(packs: DspGroupPack[]) {
+  const get = async (url: string | null) => {
+    if (!url) return null
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+      return res.ok ? Buffer.from(await res.arrayBuffer()) : null
+    } catch {
+      return null
+    }
+  }
   await Promise.all(
     packs.flatMap((pack) =>
-      pack.pages
-        .filter((pg) => pg.method === "screen" && pg.artworkUrl)
-        .map(async (pg) => {
-          try {
-            const res = await fetch(pg.artworkUrl!, { signal: AbortSignal.timeout(10_000) })
-            if (!res.ok) return
-            const found = await artworkInkCount(Buffer.from(await res.arrayBuffer()))
-            const ordered = pg.inks.length - (pg.dark ? 1 : 0)
-            if (found && found > ordered) {
-              pack.warnings.push(
-                `${pg.positionLabel}: the artwork looks like ${found} ink colours but the order says ${ordered} — fix the colour count on the order before sending.`
-              )
-            }
-          } catch {
-            /* unreadable artwork — DSP checks it on the proof */
-          }
-        })
+      pack.pages.map(async (pg) => {
+        const [mockup, art] = await Promise.all([get(pg.garmentImageUrl), pg.method === "screen" ? get(pg.artworkUrl) : null])
+        if (mockup) pg.garmentHex = await garmentColour(mockup)
+        const clusters = art ? await artworkInks(art) : null
+        const warning = clusters ? applyArtworkInks(pg, clusters) : null
+        if (warning) pack.warnings.push(warning)
+      })
     )
   )
+  if (packs.some((p) => p.pages.some((pg) => pg.pmsFromArtwork)))
+    packs[0].warnings.push("PMS colours are the nearest match to the artwork — DSP should confirm them.")
 }

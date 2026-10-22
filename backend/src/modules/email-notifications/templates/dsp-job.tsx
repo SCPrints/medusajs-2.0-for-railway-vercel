@@ -20,6 +20,8 @@ export interface DspJobProps {
     positions: Array<{ where: string; what: string; size: string }>
   }>
   attachments: string[]
+  /** Some PMS colours were matched off the artwork, not given by the customer. */
+  pmsConfirm?: boolean
 }
 
 export const isDspJobData = (data: any): data is DspJobProps =>
@@ -27,7 +29,7 @@ export const isDspJobData = (data: any): data is DspJobProps =>
 
 const cell = { padding: "6px 8px", borderBottom: `1px solid ${BORDER}`, fontSize: "14px", verticalAlign: "top" as const }
 
-export const DspJobEmail = ({ po, customer, due, note, garments, attachments }: DspJobProps) => (
+export const DspJobEmail = ({ po, customer, due, note, garments, attachments, pmsConfirm }: DspJobProps) => (
   <Base preview={`New job — SC Prints PO ${po}`}>
     <Section>
       <Text style={STYLES.h2}>New job — SC Prints PO {po}</Text>
@@ -53,6 +55,9 @@ export const DspJobEmail = ({ po, customer, due, note, garments, attachments }: 
           </table>
         </Section>
       ))}
+      {pmsConfirm ? (
+        <Text style={{ margin: "8px 0 0", fontSize: "14px" }}>PMS colours are the nearest match to the artwork. Please confirm them on your proof.</Text>
+      ) : null}
       <Text style={{ margin: "8px 0 0", fontSize: "14px" }}>Attached: {attachments.join(", ")}.</Text>
       <Text style={{ margin: "16px 0 0", fontSize: "14px" }}>Please reply with your job number and proof. Thanks!</Text>
     </Section>
