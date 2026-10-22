@@ -5,12 +5,21 @@ import { ADMIN_WORKSPACE_MODULE } from "../../modules/admin-workspace"
 
 // Mocking the constants module so the suppression-table flag is
 // flippable per-test without env-var games.
-const constantsMock = jest.requireMock("../constants") as { EMAIL_SUPPRESSION_TABLE_ENABLED: boolean }
+const constantsMock = jest.requireMock("../constants") as {
+  EMAIL_SUPPRESSION_TABLE_ENABLED: boolean
+  MARKETING_EMAILS_SINCE: Date | null
+}
 jest.mock("../constants", () => ({
   EMAIL_SUPPRESSION_TABLE_ENABLED: false,
+  MARKETING_EMAILS_SINCE: null,
 }))
 
-type CustomerRow = { id: string; email: string; metadata: Record<string, unknown> }
+type CustomerRow = {
+  id: string
+  email: string
+  metadata: Record<string, unknown>
+  created_at?: string
+}
 type SuppressionRow = { email: string; template_kind: string | null }
 
 const buildContainer = (opts: {
@@ -219,5 +228,33 @@ describe("shouldSendMarketingEmail", () => {
     expect(container._spies.query.graph).toHaveBeenCalledWith(
       expect.objectContaining({ filters: { id: "cust_xyz" } })
     )
+  })
+
+  describe("MARKETING_EMAILS_SINCE cutoff", () => {
+    afterEach(() => {
+      constantsMock.MARKETING_EMAILS_SINCE = null
+    })
+    const customers = [
+      { id: "old", email: "old@y.z", metadata: {}, created_at: "2026-06-01T00:00:00Z" },
+      { id: "new", email: "new@y.z", metadata: {}, created_at: "2026-11-01T00:00:00Z" },
+    ]
+
+    it("skips customers created before the cutoff for reorder/winback only", async () => {
+      constantsMock.MARKETING_EMAILS_SINCE = new Date("2026-10-23T00:00:00Z")
+      const container = buildContainer({ customers })
+      const send = (email: string, template_kind: any) =>
+        shouldSendMarketingEmail({ container, email, template_kind })
+      expect(await send("old@y.z", "winback")).toEqual({ ok: false, reason: "before_cutoff" })
+      expect(await send("old@y.z", "reorder_reminder")).toEqual({ ok: false, reason: "before_cutoff" })
+      expect(await send("old@y.z", "cart_reminder")).toEqual({ ok: true })
+      expect(await send("new@y.z", "winback")).toEqual({ ok: true })
+    })
+
+    it("does nothing when unset", async () => {
+      const container = buildContainer({ customers })
+      expect(
+        await shouldSendMarketingEmail({ container, email: "old@y.z", template_kind: "winback" })
+      ).toEqual({ ok: true })
+    })
   })
 })

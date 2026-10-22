@@ -1,7 +1,7 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import type { MedusaContainer } from "@medusajs/framework/types"
 
-import { EMAIL_SUPPRESSION_TABLE_ENABLED } from "./constants"
+import { EMAIL_SUPPRESSION_TABLE_ENABLED, MARKETING_EMAILS_SINCE } from "./constants"
 import { ADMIN_WORKSPACE_MODULE } from "../modules/admin-workspace"
 import { captureEvent } from "./posthog"
 
@@ -21,7 +21,14 @@ export type ShouldSendMarketingEmailInput = {
 
 export type ShouldSendMarketingEmailResult =
   | { ok: true }
-  | { ok: false; reason: "consent_false" | "suppressed_global" | "suppressed_stream" | "no_email" }
+  | {
+      ok: false
+      reason: "consent_false" | "suppressed_global" | "suppressed_stream" | "no_email" | "before_cutoff"
+    }
+
+// Streams that target existing customers by order history; the cutoff applies
+// only to these (cart reminders look at 6-72 h old carts, already recent).
+const CUTOFF_KINDS: MarketingTemplateKind[] = ["reorder_reminder", "winback"]
 
 /**
  * Single gate every marketing-email send path must pass through. Composes:
@@ -91,7 +98,7 @@ export async function shouldSendMarketingEmail(
       : { email: lowered }
     const { data } = await query.graph({
       entity: "customer",
-      fields: ["id", "metadata"],
+      fields: ["id", "metadata", "created_at"],
       filters,
       pagination: { take: 1 },
     })
@@ -100,6 +107,14 @@ export async function shouldSendMarketingEmail(
     if (meta.marketing_consent_email === false) {
       emitSkipped(email, template_kind, "consent_false")
       return { ok: false, reason: "consent_false" }
+    }
+    if (
+      MARKETING_EMAILS_SINCE &&
+      CUTOFF_KINDS.includes(template_kind) &&
+      (!customer?.created_at || new Date(customer.created_at) < MARKETING_EMAILS_SINCE)
+    ) {
+      emitSkipped(email, template_kind, "before_cutoff")
+      return { ok: false, reason: "before_cutoff" }
     }
   } catch (err: any) {
     // Guests (no customer row) land here — allow by default; the

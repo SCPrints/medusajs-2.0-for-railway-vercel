@@ -762,6 +762,16 @@ export const EMAIL_SUPPRESSION_TABLE_ENABLED =
   String(process.env.EMAIL_SUPPRESSION_TABLE_ENABLED).toLowerCase() === "true"
 
 /**
+ * `MARKETING_EMAILS_SINCE` (ISO date): reorder reminders and win-back skip
+ * customers created before it, so switching those streams on doesn't email
+ * the pre-launch test accounts or old customers. Unset = no cutoff.
+ */
+export const MARKETING_EMAILS_SINCE: Date | null = (() => {
+  const d = new Date(String(process.env.MARKETING_EMAILS_SINCE ?? ""))
+  return Number.isNaN(d.getTime()) ? null : d
+})()
+
+/**
  * CRM Phase 6 — auto-stamp the owner on order placement.
  *
  * When `OWNER_AUTOSTAMP_ENABLED=true`, the `order-placed-stamp-owner`
