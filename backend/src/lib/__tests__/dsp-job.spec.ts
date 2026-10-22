@@ -1,79 +1,98 @@
-import { buildDspPack, parseSizeMm, type DspInput } from "../dsp-job"
+import { buildDspPack, inksFromNotes, parseSizeMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
 
+// Shaped like order #116: AS Colour 5001 Grey Marle, screen front (2 col) + back (1 col).
+const design = {
+  group_id: "grp1",
+  sideDecorationMethods: { front: "screen", back: "screen" },
+  sideScreenConfigs: { front: { colours: 2, darkGarment: true }, back: { colours: 1, darkGarment: true } },
+  artifacts: [
+    { side: "front", printUrl: "https://x/front-print.png", mockupUrl: "https://x/front-mock.png" },
+    { side: "back", printUrl: "https://x/back-print.png", mockupUrl: "https://x/back-mock.png" },
+  ],
+  customerOriginalFiles: [{ url: "https://x/logo.pdf", fileName: "logo.pdf", sides: ["front"] }],
+}
+const line = (id: string, size: string, quantity: number): DspLine => ({
+  id,
+  productId: "p1",
+  productTitle: "AS Colour Staple Tee 5001",
+  colour: "GREY MARLE",
+  size,
+  quantity,
+  design,
+  notes: "Screen print, white + green ink · Front left chest: lockup 130 mm wide",
+})
 const base = (): DspInput => ({
-  poNumber: "1234",
-  customer: "Mr Liquor",
+  poNumber: "116",
+  customer: "OBC Brickwork",
   dueDate: "2026-10-30T00:00:00Z",
-  products: { p1: { title: "Staple Tee 5001", brand: "AS Colour", type: "T-Shirts", supacolour: false } },
-  state: {
-    designs: [{ id: "d1", label: "A", imageUrl: "https://x/a.png", vectorUrl: "https://x/a.pdf" }],
-    groups: [
-      {
-        id: "g1",
-        product: { id: "p1", title: "Staple Tee 5001" },
-        supplied: false,
-        rows: [{ colour: "Black", label: "", dark: true, cells: { M: "150", S: "50", XL: "0" } }],
-        positions: [
-          { id: "a", side: "left_chest", method: "screen", designId: "d1", colours: "2", pms: ["White", "485C Red"], sizeMm: "100 x 100" },
-          { id: "b", side: "back", method: "screen", designId: "d1", colours: "1", repeatJob: "J52350" },
-          { id: "c", side: "right_sleeve", method: "print", designId: "d1", channel: "dtf" },
-          { id: "e", side: "nape", method: "embroidery", designId: "d1" },
-        ],
-      },
-    ],
-  },
+  lines: [line("l1", "XL", 20), line("l2", "L", 30), { ...line("setup", "Standard", 4), design: null }],
+  products: { p1: { brand: "AS Colour", type: "T-Shirts", supacolour: false } },
+  placements: { l1: [{ side: "front", widthMm: 130, heightMm: 60, offsetXMm: 70 }] },
+  dimensions: { "l2:back": "20×30cm" },
+  revisedMockups: { "l2:front": "https://x/revised-front.png" },
 })
 
-describe("buildDspPack", () => {
-  it("keeps only DSP positions and lays them out like DSP's proof", () => {
-    const [pack] = buildDspPack(base())
-    expect(pack.pages.map((p) => p.positionLabel)).toEqual(["Left Chest", "Centre Back"])
-    expect(pack.qty).toBe(200)
-    const [lc, back] = pack.pages
-    expect(lc.colourLines).toEqual(["1/3 BASE", "2/3 WHITE", "3/3 485C RED"])
-    expect(lc.screens).toBe(3)
-    expect(lc.printSize).toEqual({ widthMm: 100, heightMm: 100 })
-    expect(lc.sizeLines).toEqual(["S - 50", "M - 150"])
-    expect(back.repeatJob).toBe("J52350")
-    expect(pack.warnings).toEqual([
-      "Centre Back: no print size — enter it in the job pricer (mm, e.g. 280 x 189).",
-      "Centre Back: 1 PMS colour(s) not entered.",
-    ])
+describe("buildDspPack (from an order)", () => {
+  it("builds one job per design group from the order lines alone", () => {
+    const packs = buildDspPack(base())
+    expect(packs).toHaveLength(1)
+    const [p] = packs
+    expect(p.qty).toBe(50)
+    expect(p.title).toBe("OBC Brickwork Grey Marle AS Colour Staple Tee 5001 x 50. 2 pos")
+    const [front, back] = p.pages
+    expect(front).toMatchObject({
+      positionLabel: "Left Chest",
+      colourLines: ["1/3 BASE", "2/3 WHITE", "3/3 GREEN"],
+      screens: 3,
+      printSize: { widthMm: 130, heightMm: 60 },
+      sizeLines: ["L - 30", "XL - 20"],
+      artworkUrl: "https://x/front-print.png",
+      garmentImageUrl: "https://x/revised-front.png",
+    })
+    // Back: 1 colour, so the two noted inks don't map — DSP reads the artwork.
+    expect(back).toMatchObject({ positionLabel: "Centre Back", inks: ["Base", "Colour 1 - see artwork"], printSize: { widthMm: 200, heightMm: 300 } })
+    expect(p.artwork[0].originals).toEqual([{ name: "logo.pdf", url: "https://x/logo.pdf" }])
+    expect(p.artwork[1].originals).toEqual([])
+    expect(p.warnings).toEqual([])
   })
 
   it("writes the printIQ block in DSP's wording", () => {
-    const [pack] = buildDspPack(base())
-    expect(pack.printiqText).toContain("JOB TITLE: Mr Liquor Black Staple Tee 5001 x 200. 2 pos")
-    expect(pack.printiqText).toContain("DUE DATE: 30/10/26")
-    expect(pack.printiqText).toContain("3 PMS Colours (PMS Refs - Base, White, 485C Red)")
-    expect(pack.printiqText).toContain("Repeat Job screens - J52350,")
-    expect(pack.printiqText).toContain("Screenprinting position to Left Chest,")
-    expect(pack.printiqText).toContain("AS Colour T-Shirts - Staple Tee 5001 - Black: S x 50, M x 150")
+    const [p] = buildDspPack(base())
+    expect(p.printiqText).toContain("PO NO: 116")
+    expect(p.printiqText).toContain("DUE DATE: 30/10/26")
+    expect(p.printiqText).toContain("3 Colours (Refs - Base, White, Green)")
+    expect(p.printiqText).toContain("Screenprinting position to Left Chest,")
+    expect(p.printiqText).toContain("AS Colour T-Shirts - AS Colour Staple Tee 5001 - Grey Marle: L x 30, XL x 20")
   })
 
-  it("uses the Studio-measured size when staff didn't type one, and picks up Supacolour", () => {
+  it("skips DTF-only orders and includes Supacolour print sides", () => {
     const input = base()
-    input.placements = { g1: { back: { widthMm: 280, heightMm: 189 } } }
-    input.products.p1.supacolour = true
-    input.state.groups[0].positions[2].channel = "auto"
-    const [pack] = buildDspPack(input)
-    expect(pack.pages[1].printSize).toEqual({ widthMm: 280, heightMm: 189 })
-    expect(pack.pages[2]).toMatchObject({ positionLabel: "Right Sleeve", method: "transfer", screens: null, colourLines: ["1/1 SUPACOLOUR TRANSFER"] })
-  })
-
-  it("skips groups with no DSP work", () => {
-    const input = base()
-    input.state.groups[0].positions = [{ id: "c", side: "front", method: "print", designId: "d1", channel: "dtf" }]
+    const dtf = { ...design, sideDecorationMethods: { front: "print" }, sideScreenConfigs: {} }
+    input.lines = [{ ...line("l1", "M", 10), design: dtf }]
     expect(buildDspPack(input)).toEqual([])
+    input.products.p1.supacolour = true
+    expect(buildDspPack(input)[0].pages[0]).toMatchObject({ method: "transfer", colourLines: ["1/1 SUPACOLOUR TRANSFER"], screens: null })
   })
 })
 
-describe("parseSizeMm", () => {
+describe("helpers", () => {
   it.each([
     ["280 x 189", { widthMm: 280, heightMm: 189 }],
-    ["280×189mm", { widthMm: 280, heightMm: 189 }],
+    ["8.75×3.5cm", { widthMm: 88, heightMm: 35 }],
     ["100mm by 24", { widthMm: 100, heightMm: 24 }],
     ["A4", null],
-    ["", null],
-  ])("%s", (raw, want) => expect(parseSizeMm(raw)).toEqual(want))
+  ])("parseSizeMm %s", (raw, want) => expect(parseSizeMm(raw)).toEqual(want))
+
+  it("reads ink names from staff notes", () => {
+    expect(inksFromNotes("Screen print, white + green ink · Back")).toEqual(["White", "Green"])
+    expect(inksFromNotes("black ink")).toEqual(["Black"])
+    expect(inksFromNotes("Full colour DTF")).toEqual([])
+  })
+
+  it("names chest prints from the placement", () => {
+    expect(positionLabel("front", { side: "front", widthMm: 90, heightMm: 40, offsetXMm: 70 })).toBe("Left Chest")
+    expect(positionLabel("front", { side: "front", widthMm: 90, heightMm: 40, offsetXMm: -70 })).toBe("Right Chest")
+    expect(positionLabel("front", { side: "front", widthMm: 280, heightMm: 300, offsetXMm: 0 })).toBe("Centre Front")
+    expect(positionLabel("back")).toBe("Centre Back")
+  })
 })

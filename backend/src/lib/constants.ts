@@ -239,6 +239,12 @@ export const SUPPORT_REPLY_TO_EMAIL =
   undefined
 
 /**
+ * DSP's order inbox — default recipient for "Send to DSP" on the job page
+ * (services/dsp-pack). Staff can change the address per send.
+ */
+export const DSP_ORDER_EMAIL = process.env.DSP_ORDER_EMAIL?.trim() || undefined
+
+/**
  * Comma-separated inboxes for internal "new fulfillment order" alerts
  * (Phase 2 customer portal restocks). Falls back to ORDER_NOTIFICATION_EMAIL
  * so production gets notified even if this isn't set yet. See

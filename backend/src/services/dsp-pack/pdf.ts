@@ -93,10 +93,14 @@ function stampPage(page: PDFPage, pg: DspPage, ctx: { bold: PDFFont; reg: PDFFon
   rows.forEach(([label, value, emphasise], i) => {
     const y = top - step * (i + 1) + step * 0.25
     if (label) text(page, label, X(690), y, bold, 10, label === "POSITION:" || label === "CODE/PROD:" || label === "PRINT SIZE:" ? RED : BLACK)
-    const size = Math.min(emphasise ? 14 : 11, step * 0.75)
+    const font = emphasise ? bold : reg
+    const maxW = X(1130) - X(790)
+    let size = Math.min(emphasise ? 14 : 11, step * 0.75)
+    // Shrink long values (garment names) to fit before resorting to "...".
+    while (size > 8 && font.widthOfTextAtSize(safe(value), size) > maxW) size -= 0.5
     let v = safe(value)
-    while (v.length > 4 && (emphasise ? bold : reg).widthOfTextAtSize(v, size) > X(1130) - X(790)) v = v.slice(0, -2)
-    text(page, v === safe(value) ? v : `${v}...`, X(790), y, emphasise ? bold : reg, size, label === "POSITION:" ? RED : BLACK)
+    while (v.length > 4 && font.widthOfTextAtSize(v, size) > maxW) v = v.slice(0, -2)
+    text(page, v === safe(value) ? v : `${v}...`, X(790), y, font, size, label === "POSITION:" ? RED : BLACK)
     if (value) page.drawRectangle({ x: X(1140), y: y - 2, width: X(20), height: X(20), borderColor: BLACK, borderWidth: 1 })
   })
 

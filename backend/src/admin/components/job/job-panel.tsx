@@ -284,9 +284,9 @@ export function JobPanel({ job, order, onChanged }: Props) {
         </Tabs.Content>
 
         <Tabs.Content value="production" className="mt-3 flex flex-col gap-y-3">
-          {job.quote?.has_job_pricer ? <DspPackPanel jobId={job.id} quoteId={job.quote.id} /> : null}
           {order ? (
             <>
+              <DspPackPanel jobId={job.id} />
               <Mount W={W.OrderProductionStage} order={order} />
               <Mount W={W.OrderPrintRecipes} order={order} />
               <Mount W={W.OrderLinePrintNotes} order={order} />

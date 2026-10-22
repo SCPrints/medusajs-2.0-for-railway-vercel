@@ -1443,18 +1443,30 @@ The staff-facing consolidation from [Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.m
 
 **Sidebar** (Phase 3): `nested: "/orders" | "/products" | "/customers"` on existing pages (Medusa only allows those core parents); custom parents (`routes/storefront/`, `routes/setup/`) nest children by file path; `rank` orders siblings; children of a core-nested page are dropped. **Stock Medusa only shows a group's children while you are inside that group** — which hid 15 pages the day Phase 3 shipped. The dashboard patch ([backend/patches/@medusajs__dashboard@2.14.2.patch](backend/patches/@medusajs__dashboard@2.14.2.patch), `NavItem` in `chunk-AMFEQ633.mjs`) keeps a group open when it is an extension parent or has extension children (`alwaysOpen`). Carry that hunk forward on every Medusa bump, or every nested page disappears again. Moved pages keep a redirect stub at the old URL ([backend/src/admin/components/redirect-page.tsx](backend/src/admin/components/redirect-page.tsx)) — keep them, emails and cmd-K link there. Enquiries (`/app/enquiries`) = contact submissions + open carts tabs; Dropship (`/app/dropship`) = AS Colour / Aussie Pacific / bottle-shop tabs; the Job pricer has no sidebar entry (reached from a quote or job).
 
-### DSP job pack (outsourced screen print / Supacolour → DSP's printIQ)
-DSP (our screen-print + Supacolour supplier) runs printIQ, which has no file import for outside customers, so their staff key every job by hand. The pack cuts that to paste-and-check. Job page → Production → **DSP job pack**: (1) an art-proof PDF stamped onto DSP's own template ([backend/src/assets/dsp/art-proof-template.pdf](backend/src/assets/dsp/art-proof-template.pdf), their `J00000_ARTPROOF`), one page per position, in the layout of their own proofs: artwork band, position, garment, sizes, colours n/N with base, screens, code/prod, print size in mm, CPO/PPD, repeat job; (2) a printIQ copy-paste block per garment group in their job-window wording; (3) the vector artwork links. Built from the **job pricer** state on the quote. Only screen positions and Supacolour print positions are included. Each such position in the pricer carries the DSP fields `pms[]` (one ink per colour; base is added automatically on dark rows), `sizeMm` and `repeatJob`, and each design letter carries a `vectorUrl` (PDF/AI/EPS/SVG). When `sizeMm` is blank, the size measured off a Studio design on the group's lines is used.
+### Send to DSP (outsourced screen print / Supacolour → DSP's printIQ)
+DSP (our screen-print + Supacolour supplier) runs printIQ, which has no file import for outside customers, so their staff key every job by hand. Order page → Production → **Send to DSP** emails them the job, built entirely from the **order** with nothing for staff to fill in:
+- **Attached:** an art-proof PDF stamped onto DSP's own template ([backend/src/assets/dsp/art-proof-template.pdf](backend/src/assets/dsp/art-proof-template.pdf), their `J00000_ARTPROOF`), one page per position.
+- **In the body:** the job details in their printIQ job-window wording, plus the print-file and customer-file links.
+
+Where each detail comes from:
+- **Garment, colour, sizes, qty:** the order lines.
+- **Positions, colour counts, base on dark garments, artwork:** each line's `customizerDesign`.
+- **Print size:** the staff-typed print dimension (`metadata.mockup_print_dimensions`) wins, else the size measured off the design.
+- **Ink names:** parsed from the quote line's notes ("white + green ink"), else "see artwork".
+- **Chest vs centre:** taken from the placement offset.
+- **Garment image:** revised proofs win.
+
+Only screen sides, and print sides on Supacolour garments, are included; the panel hides itself on orders with neither. Reply-To is the order's inbox alias, so DSP's answer lands on the job. Each send is logged on `order.metadata.dsp_sent`, as an order comment and as an audit row. `DSP_ORDER_EMAIL` (Fly secret) pre-fills the recipient.
 
 | Component | Path |
 | --- | --- |
-| Pure pack builder + printIQ text (unit-tested) | [backend/src/lib/dsp-job.ts](backend/src/lib/dsp-job.ts) |
-| Data gathering (quote state, products, Studio placements, order no. + due date) | [backend/src/services/dsp-pack/build.ts](backend/src/services/dsp-pack/build.ts) |
+| Pure pack builder + job text (unit-tested) | [backend/src/lib/dsp-job.ts](backend/src/lib/dsp-job.ts) |
+| Data gathering from the order | [backend/src/services/dsp-pack/build.ts](backend/src/services/dsp-pack/build.ts) |
 | Template stamper (pdf-lib; coordinates measured off the template) | [backend/src/services/dsp-pack/pdf.ts](backend/src/services/dsp-pack/pdf.ts) |
-| `GET /admin/jobs/:id/dsp-pack` (`?format=pdf` = proof) | [backend/src/api/admin/jobs/[id]/dsp-pack/route.ts](backend/src/api/admin/jobs/[id]/dsp-pack/route.ts) |
-| Job page panel | [backend/src/admin/components/job/dsp-pack.tsx](backend/src/admin/components/job/dsp-pack.tsx) |
+| `GET /admin/jobs/:id/dsp-pack` (`?format=pdf` = proof) · `POST` = send | [backend/src/api/admin/jobs/[id]/dsp-pack/route.ts](backend/src/api/admin/jobs/[id]/dsp-pack/route.ts) |
+| Order page panel | [backend/src/admin/components/job/dsp-pack.tsx](backend/src/admin/components/job/dsp-pack.tsx) |
 
-Storefront-only orders (no job pricer quote) aren't covered yet. If DSP changes their template, replace the PDF and re-measure the `X()/Y()` pixel coordinates in `pdf.ts`.
+If DSP changes their template, replace the PDF and re-measure the `X()/Y()` pixel coordinates in `pdf.ts`.
 
 ### System map
 Lazy-loaded Mermaid diagrams of stage flow, staff lanes, data ownership.

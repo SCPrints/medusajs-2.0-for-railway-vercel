@@ -1,95 +1,132 @@
-import { Badge, Button, Container, Heading, Text, Textarea, toast } from "@medusajs/ui"
-import { useState } from "react"
+import { Badge, Button, Container, Heading, Input, Text, Textarea, toast } from "@medusajs/ui"
+import { useEffect, useState } from "react"
 
 import type { DspGroupPack } from "../../../lib/dsp-job"
 
-type Pack = { po: string; customer: string; due_date: string | null; packs: DspGroupPack[] }
+type Pack = {
+  po: string
+  customer: string
+  due_date: string | null
+  default_to: string | null
+  sent: Array<{ at: string; to: string; by: string | null }>
+  packs: DspGroupPack[]
+}
+
+const fmtWhen = (iso: string) => {
+  const d = new Date(iso)
+  return `${d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })} ${d.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}`
+}
 
 /**
- * DSP job pack (lib/dsp-job.ts): the art proof stamped on DSP's own template,
- * a printIQ copy-paste block per garment, and the artwork files to send.
- * PMS, print size and repeat-job come from the job pricer's DSP fields.
+ * Send to DSP (lib/dsp-job.ts): everything comes off the order — garment,
+ * sizes, print positions, colours, artwork. Staff check it, then send: DSP
+ * gets the job details + artwork links by email with the art proof PDF
+ * (stamped on their own template) attached. Their reply lands on the job.
  */
-export function DspPackPanel({ jobId, quoteId }: { jobId: string; quoteId: string | null }) {
+export function DspPackPanel({ jobId }: { jobId: string }) {
   const [pack, setPack] = useState<Pack | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [to, setTo] = useState("")
+  const [message, setMessage] = useState("")
+  const [sending, setSending] = useState(false)
+  const [showText, setShowText] = useState(false)
   const base = `/admin/jobs/${encodeURIComponent(jobId)}/dsp-pack`
 
-  const load = async () => {
-    setLoading(true)
-    setError(null)
+  useEffect(() => {
+    let live = true
+    fetch(base, { credentials: "include" })
+      .then(async (res) => {
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(json?.error ?? `Failed (${res.status})`)
+        if (!live) return
+        setPack(json as Pack)
+        setTo((json as Pack).default_to ?? "")
+      })
+      .catch((err) => live && setError(err?.message ?? "Couldn't build the DSP job"))
+    return () => {
+      live = false
+    }
+  }, [base])
+
+  const send = async () => {
+    setSending(true)
     try {
-      const res = await fetch(base, { credentials: "include" })
+      const res = await fetch(base, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: to.trim(), message: message.trim() || undefined }),
+      })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json?.error ?? `Failed (${res.status})`)
-      setPack(json as Pack)
+      if (!res.ok) throw new Error(json?.error ?? `Send failed (${res.status})`)
+      setPack((p) => (p ? { ...p, sent: json.sent ?? p.sent } : p))
+      toast.success(`Sent to ${to.trim()}`)
     } catch (err: any) {
-      setError(err?.message ?? "Couldn't build the DSP pack")
+      toast.error(err?.message ?? "Send failed")
     } finally {
-      setLoading(false)
+      setSending(false)
     }
   }
 
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast.success("Copied — paste into printIQ")
-    } catch {
-      toast.error("Copy failed — select the text and copy it by hand")
-    }
+  if (error) {
+    return (
+      <Container><Text size="small" className="text-ui-fg-subtle">DSP: {error}</Text></Container>
+    )
   }
+  if (!pack) {
+    return (
+      <Container><Text size="small" className="text-ui-fg-subtle">Building DSP job…</Text></Container>
+    )
+  }
+  if (!pack.packs.length) return null // nothing on this order goes to DSP
 
+  const pages = pack.packs.reduce((n, p) => n + p.pages.length, 0)
+  const last = pack.sent.at(-1)
   return (
     <Container className="flex flex-col gap-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-2">
         <div>
-          <Heading level="h3">DSP job pack</Heading>
-          <Text size="xsmall" className="text-ui-fg-subtle">Screen + Supacolour positions, laid out for DSP's printIQ and art-proof template.</Text>
+          <Heading level="h3">Send to DSP</Heading>
+          <Text size="xsmall" className="text-ui-fg-subtle">
+            Screen print / Supacolour work on this order, laid out for DSP's printIQ and art-proof template.
+          </Text>
         </div>
-        <div className="flex gap-2">
-          {quoteId ? <Button size="small" variant="transparent" asChild><a href={`/app/quote-pricer?quote=${quoteId}`}>Edit in job pricer</a></Button> : null}
-          <Button size="small" variant="secondary" isLoading={loading} onClick={load}>{pack ? "Refresh" : "Prepare"}</Button>
-        </div>
+        {last ? <Badge size="2xsmall" color="green">Sent {fmtWhen(last.at)} to {last.to}</Badge> : <Badge size="2xsmall" color="orange">Not sent</Badge>}
       </div>
 
-      {error ? <Text size="small" className="text-ui-fg-error">{error}</Text> : null}
-      {pack && !pack.packs.length ? <Text size="small" className="text-ui-fg-subtle">No screen print or Supacolour positions on this job — nothing goes to DSP.</Text> : null}
+      {pack.packs.map((p) => (
+        <div key={p.groupId} className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2">
+          <Text size="small" weight="plus">{p.title}</Text>
+          <ul className="text-xs flex flex-col gap-y-1">
+            {p.pages.map((pg) => (
+              <li key={pg.side} className="flex flex-wrap gap-x-2">
+                <span className="font-medium">{pg.positionLabel}</span>
+                <span className="text-ui-fg-subtle">{pg.method === "screen" ? `${pg.inks.join(", ")} · ${pg.screens} screens` : "Supacolour transfer"}</span>
+                <span className="text-ui-fg-subtle">· {pg.printSize ? `${pg.printSize.widthMm} × ${pg.printSize.heightMm} mm` : "size from artwork"}</span>
+              </li>
+            ))}
+          </ul>
+          {p.warnings.length ? (
+            <ul className="flex flex-col gap-y-0.5">
+              {p.warnings.map((w, i) => <li key={i} className="text-xs text-ui-fg-subtle">⚠ {w}</li>)}
+            </ul>
+          ) : null}
+        </div>
+      ))}
 
-      {pack && pack.packs.length ? (
-        <>
-          <Button size="small" variant="primary" asChild className="self-start">
-            <a href={`${base}?format=pdf`}>Download art proof PDF ({pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages)</a>
-          </Button>
-          {pack.packs.map((p) => (
-            <div key={p.groupId} className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2">
-              <Text size="small" weight="plus">{p.title}</Text>
-              {p.warnings.length ? (
-                <ul className="flex flex-col gap-y-1">
-                  {p.warnings.map((w, i) => (
-                    <li key={i}><Badge size="2xsmall" color="orange">check</Badge> <span className="text-xs">{w}</span></li>
-                  ))}
-                </ul>
-              ) : null}
-              <div className="flex items-center justify-between">
-                <Text size="xsmall" className="text-ui-fg-subtle">printIQ job — paste section by section</Text>
-                <Button size="small" variant="secondary" onClick={() => copy(p.printiqText)}>Copy</Button>
-              </div>
-              <Textarea readOnly rows={14} value={p.printiqText} className="font-mono text-xs" />
-              <Text size="xsmall" className="text-ui-fg-subtle">Artwork to send DSP</Text>
-              <ul className="text-xs flex flex-col gap-y-0.5">
-                {p.artwork.map((a, i) => (
-                  <li key={i}>
-                    {a.position} · design {a.design}:{" "}
-                    {a.vectorUrl ? <a className="text-ui-fg-interactive" href={a.vectorUrl} target="_blank" rel="noreferrer">vector file</a> : <span className="text-ui-fg-error">no vector</span>}
-                    {a.rasterUrl ? <> · <a className="text-ui-fg-interactive" href={a.rasterUrl} target="_blank" rel="noreferrer">preview image</a></> : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </>
-      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button size="small" variant="secondary" asChild><a href={`${base}?format=pdf`}>Preview art proof ({pages} page{pages === 1 ? "" : "s"})</a></Button>
+        <Button size="small" variant="transparent" onClick={() => setShowText((v) => !v)}>{showText ? "Hide" : "Show"} email details</Button>
+      </div>
+      {showText ? <Textarea readOnly rows={14} value={pack.packs.map((p) => p.printiqText).join("\n\n")} className="font-mono text-xs" /> : null}
+
+      <div className="flex flex-col gap-y-2 border-t border-ui-border-base pt-3">
+        <Input size="small" type="email" placeholder="DSP's email address" value={to} onChange={(e) => setTo(e.target.value)} />
+        <Textarea rows={2} placeholder="Note to DSP (optional)" value={message} onChange={(e) => setMessage(e.target.value)} />
+        <Button size="small" variant="primary" className="self-start" isLoading={sending} disabled={!to.trim()} onClick={send}>
+          {last ? "Send to DSP again" : "Send to DSP"}
+        </Button>
+      </div>
     </Container>
   )
 }

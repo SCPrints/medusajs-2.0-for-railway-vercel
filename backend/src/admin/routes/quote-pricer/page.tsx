@@ -93,17 +93,10 @@ type UiPosition = {
   promo: boolean
   /** Staff-set per-garment price for this position ("" = card price). */
   priceOverride?: string
-  /** DSP job pack (lib/dsp-job.ts): one ink per screen colour, e.g. "PMS 485C - Red". */
-  pms?: string[]
-  /** DSP job pack: the DSP job whose screens/transfers this repeats, e.g. "J52350". */
-  repeatJob?: string
-  /** DSP job pack: finished print size in mm, "280 x 189". */
-  sizeMm?: string
 }
 /** `imageUrl` = artwork dropped onto the letter (R2 via /admin/uploads) → line thumbnail + approval email. */
 /** `name` = optional customer-facing name ("Bull (back)") shown with the letter on the quote. */
-/** `vectorUrl` = print-ready vector file (PDF/AI/EPS/SVG) — what DSP screens from. */
-type JobDesign = { id: string; label: string; name?: string; repeat: boolean; imageUrl?: string | null; vectorUrl?: string | null }
+type JobDesign = { id: string; label: string; name?: string; repeat: boolean; imageUrl?: string | null }
 /** ANY_SIZE is the "Any" cell key — a whole-product line, size chosen at order time. */
 const ANY_SIZE = ""
 type GroupRow = {
@@ -277,18 +270,6 @@ type ProductDetailRaw = Omit<ProductDetail, "areas">
 async function uploadArtwork(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("Only image files can be used as artwork")
   if (file.size > 10 * 1024 * 1024) throw new Error("Artwork exceeds the 10 MB limit")
-  return uploadFile(file)
-}
-
-/** Print-ready vector artwork for DSP (they screen from vectors, never raster). */
-const VECTOR_ACCEPT = ".pdf,.ai,.eps,.svg"
-async function uploadVector(file: File): Promise<string> {
-  if (!/\.(pdf|ai|eps|svg)$/i.test(file.name)) throw new Error("Vector artwork must be a PDF, AI, EPS or SVG file")
-  if (file.size > 50 * 1024 * 1024) throw new Error("Vector file exceeds the 50 MB limit")
-  return uploadFile(file)
-}
-
-async function uploadFile(file: File): Promise<string> {
   const fd = new FormData()
   fd.append("files", file)
   const res = await fetch("/admin/uploads", { method: "POST", credentials: "include", body: fd })
@@ -404,12 +385,6 @@ const toPositionSpec = (p: UiPosition, supplied: boolean): JobPositionSpec => {
   const channel: PrintChannel | undefined = p.channel === "auto" ? (supplied ? "byo" : undefined) : p.channel
   return { method: "print", channel, sizeId: p.sizeId, designId: p.designId, unitSellOverrideMajor }
 }
-
-/** Work DSP does for us (screen print, Supacolour transfers) — mirrors lib/dsp-job.ts isDspPosition. */
-const isDspPosition = (p: UiPosition, g: JobGroup, detail: ProductDetail | undefined) =>
-  p.method === "screen" ||
-  (p.method === "print" &&
-    (p.channel === "supacolour" || (p.channel === "auto" && !g.supplied && parseDecorationPricingClass(detail?.metadata?.decoration_pricing_class) === "supacolour")))
 
 const positionSummary = (p: UiPosition, designs: JobDesign[], dark: boolean) =>
   pricerPositionSummary({
@@ -769,20 +744,6 @@ function QuotePricerPage() {
     } finally {
       setUploadingDesign(null)
       setDragOver(null)
-    }
-  }
-  const vectorTarget = useRef<string | null>(null)
-  const vectorInputRef = useRef<HTMLInputElement | null>(null)
-  const attachVector = async (designId: string, file: File | undefined) => {
-    if (!file) return
-    setUploadingDesign(designId)
-    try {
-      patchDesign(designId, { vectorUrl: await uploadVector(file) })
-      toast.success("Vector artwork attached")
-    } catch (err: any) {
-      toast.error(err?.message ?? "Vector upload failed")
-    } finally {
-      setUploadingDesign(null)
     }
   }
   const dropHandlers = (designId: string | "__new") => ({
@@ -1341,19 +1302,6 @@ function QuotePricerPage() {
               if (target) void attachArtwork(target, file)
             }}
           />
-          <input
-            ref={vectorInputRef}
-            type="file"
-            accept={VECTOR_ACCEPT}
-            hidden
-            onChange={(e) => {
-              const target = vectorTarget.current
-              vectorTarget.current = null
-              const file = e.target.files?.[0]
-              e.target.value = ""
-              if (target) void attachVector(target, file)
-            }}
-          />
           <div className="flex flex-wrap gap-2">
             {state.designs.map((d) => {
               const uses = state.groups.reduce((n, g) => n + g.positions.filter((p) => p.designId === d.id).length, 0)
@@ -1372,24 +1320,6 @@ function QuotePricerPage() {
                   <span className="text-ui-fg-muted">{uses} position{uses === 1 ? "" : "s"}</span>
                   <label className="flex items-center gap-1"><Checkbox checked={d.repeat} onCheckedChange={(v) => patchDesign(d.id, { repeat: v === true })} /> repeat (≤6 mo: screens $39, transfer $35, no digitizing)</label>
                   {d.imageUrl ? <button type="button" className="text-ui-fg-muted hover:text-ui-fg-base" onClick={() => patchDesign(d.id, { imageUrl: null })} title="Remove artwork">clear art</button> : null}
-                  {d.vectorUrl ? (
-                    <span className="flex items-center gap-1">
-                      <a href={d.vectorUrl} target="_blank" rel="noreferrer" className="text-ui-fg-interactive">vector ✓</a>
-                      <button type="button" className="text-ui-fg-muted hover:text-ui-fg-base" onClick={() => patchDesign(d.id, { vectorUrl: null })} title="Remove vector file"><XMark /></button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="text-ui-fg-muted hover:text-ui-fg-base"
-                      title="Attach the print-ready vector file (PDF / AI / EPS / SVG) — DSP screens from this"
-                      onClick={() => {
-                        vectorTarget.current = d.id
-                        vectorInputRef.current?.click()
-                      }}
-                    >
-                      + vector
-                    </button>
-                  )}
                   {state.designs.length > 1 ? <button type="button" className="text-ui-fg-muted hover:text-ui-fg-base" onClick={() => removeDesign(d.id)} aria-label={`Remove design ${d.label}`}><XMark /></button> : null}
                 </div>
               )
@@ -1641,29 +1571,6 @@ function QuotePricerPage() {
                         onChange={(e) => patchPosition(g.id, p.id, { priceOverride: e.target.value })}
                       />
                       <Button size="small" variant="transparent" onClick={() => removePosition(g.id, p.id)} aria-label="Remove position"><XMark /></Button>
-                      {isDspPosition(p, g, detail) ? (
-                        <div className="basis-full flex flex-wrap items-center gap-2 pl-4 pb-1">
-                          <Badge size="2xsmall" color="purple" title="Goes on the DSP job pack (job page → Production)">DSP</Badge>
-                          {p.method === "screen"
-                            ? Array.from({ length: Math.min(6, Math.max(1, Number(p.colours) || 1)) }, (_, k) => (
-                                <Input
-                                  key={k}
-                                  size="small"
-                                  className="w-36"
-                                  placeholder={`PMS ${k + 1} e.g. 485C Red`}
-                                  value={p.pms?.[k] ?? ""}
-                                  onChange={(e) => {
-                                    const pms = [...(p.pms ?? [])]
-                                    pms[k] = e.target.value
-                                    patchPosition(g.id, p.id, { pms })
-                                  }}
-                                />
-                              ))
-                            : null}
-                          <Input size="small" className="w-28" placeholder="size mm 280 x 189" title="Finished print size in mm (width x height)" value={p.sizeMm ?? ""} onChange={(e) => patchPosition(g.id, p.id, { sizeMm: e.target.value })} />
-                          <Input size="small" className="w-28" placeholder="repeat of DSP J…" title="DSP job number whose screens / transfers this repeats — blank = new" value={p.repeatJob ?? ""} onChange={(e) => patchPosition(g.id, p.id, { repeatJob: e.target.value })} />
-                        </div>
-                      ) : null}
                     </div>
                   )
                 })}

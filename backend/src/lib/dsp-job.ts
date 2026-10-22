@@ -1,65 +1,62 @@
 /**
- * DSP job pack — turns a job-pricer job into what DSP (our screen-print and
- * Supacolour supplier, runs printIQ) needs to book it with minimal typing:
+ * DSP job pack — turns an ORDER into what DSP (our screen-print and
+ * Supacolour supplier, runs printIQ) needs to book the job with minimal typing:
  *   - one art-proof page per position, laid out on DSP's own template
  *     (services/dsp-pack/pdf.ts stamps it), and
  *   - a printIQ copy-paste block in the same order and wording as their job
  *     window (title, description, PO, due date, production-priority sizes,
- *     the stock + PMS questions).
+ *     stock + colour questions).
+ *
+ * Everything comes from the order: garment / colour / size / qty from the
+ * lines, positions + colour counts + dark-garment base + artwork from each
+ * line's customizerDesign, print size from staff's typed dimension or the
+ * design's measured placement. Nothing for staff to fill in.
  *
  * Pure: no framework imports, so it is unit-tested and safe to share.
- * One pack per pricer GROUP (one garment type) — DSP books one job per garment.
- * Only DSP work is included: screen print positions, and print positions on
- * the Supacolour channel. DTF and embroidery stay in-house.
+ * One pack per design group (one garment + design) — DSP books one job per garment.
+ * Only DSP work is included: screen sides, and print sides on Supacolour
+ * garments. DTF and embroidery stay in-house.
  */
 
-export type DspPricerPosition = {
+export type DspLine = {
   id: string
-  side: string
-  method: "print" | "screen" | "embroidery"
-  designId: string
-  channel?: string
-  colours?: string
-  /** One entry per design colour, e.g. "PMS 485C - Red". */
-  pms?: string[]
-  /** DSP job number of the run whose screens / transfers we're repeating, e.g. "J52350". */
-  repeatJob?: string
-  /** Finished print size in mm, "280 x 189". */
-  sizeMm?: string
+  productId: string | null
+  productTitle: string
+  colour: string | null
+  size: string | null
+  quantity: number
+  /** The line's customizerDesign (sideLayouts not needed). */
+  design: Record<string, any> | null
+  /** Staff description of the decoration (quote line text), e.g. "Screen print, white + green ink · …". */
+  notes: string | null
 }
-export type DspPricerDesign = { id: string; label: string; name?: string; repeat?: boolean; imageUrl?: string | null; vectorUrl?: string | null }
-export type DspPricerRow = { colour: string | null; label: string; dark: boolean; cells: Record<string, string> }
-export type DspPricerGroup = {
-  id: string
-  name?: string
-  product: { id: string; title: string; thumbnail?: string | null } | null
-  supplied: boolean
-  rows: DspPricerRow[]
-  positions: DspPricerPosition[]
-  mockupUrl?: string | null
-}
-export type DspPricerState = { designs: DspPricerDesign[]; groups: DspPricerGroup[] }
 
-export type DspProduct = { title: string; brand: string | null; type: string | null; supacolour: boolean }
+export type DspProduct = { brand: string | null; type: string | null; supacolour: boolean }
+export type DspPlacement = { side: string; widthMm: number; heightMm: number; offsetXMm: number }
 
 export type DspInput = {
-  state: DspPricerState
-  products: Record<string, DspProduct>
-  /** Our order number (DSP's "PO No." / "CPO"). Quote ref before an order exists. */
+  /** Our order number — DSP's "PO No." / "CPO". */
   poNumber: string
   customer: string
   /** ISO date; DSP's "Due date" / "PPD". */
   dueDate: string | null
-  /** Print size measured off the Studio design, by group id then side. */
-  placements?: Record<string, Record<string, { widthMm: number; heightMm: number }>>
+  lines: DspLine[]
+  products: Record<string, DspProduct>
+  /** Measured off each line's design (lib/print-placement), by line id. */
+  placements?: Record<string, DspPlacement[]>
+  /** Staff-typed print dimensions, `order.metadata.mockup_print_dimensions` ("<line>:<side>" → "8.75×3.5cm"). */
+  dimensions?: Record<string, string>
+  /** Latest revised-proof mockup per "<line>:<side>". */
+  revisedMockups?: Record<string, string>
 }
 
 export type DspPage = {
+  side: string
   positionLabel: string
   n: number
   of: number
   method: "screen" | "transfer"
-  /** Ink names as staff typed them (base first on dark garments). */
+  /** Ink names (base first on dark garments). */
   inks: string[]
   /** "1/3 BASE" … as DSP writes them on the proof. */
   colourLines: string[]
@@ -68,10 +65,10 @@ export type DspPage = {
   codeProd: string
   printSize: { widthMm: number; heightMm: number } | null
   sizeLines: string[]
+  /** Kept for the proof's "REPEAT J…" slot; orders don't record it yet. */
   repeatJob: string | null
   dark: boolean
   artworkUrl: string | null
-  vectorUrl: string | null
   garmentImageUrl: string | null
 }
 
@@ -81,26 +78,19 @@ export type DspGroupPack = {
   qty: number
   pages: DspPage[]
   printiqText: string
-  artwork: Array<{ position: string; design: string; vectorUrl: string | null; rasterUrl: string | null }>
+  artwork: Array<{ position: string; printUrl: string | null; originals: Array<{ name: string; url: string }> }>
   warnings: string[]
 }
 
-const POSITION_LABELS: Record<string, string> = {
+const SIDE_LABELS: Record<string, string> = {
   front: "Centre Front",
   back: "Centre Back",
-  left_chest: "Left Chest",
-  right_chest: "Right Chest",
   left_sleeve: "Left Sleeve",
   right_sleeve: "Right Sleeve",
-  nape: "Nape",
-  hood: "Hood",
-  side: "Side Panel",
   printed_tag: "Neck Label",
-  other: "Other (see notes)",
 }
-/** Pricer side → the Studio canvas side its measured placement lives on. */
-const STUDIO_SIDE: Record<string, string> = { left_chest: "front", right_chest: "front", nape: "back", hood: "back" }
 const ORDINALS = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth"]
+const SIDE_ORDER = ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
 
 const SIZE_ORDER = ["2XS", "XXS", "XS", "S", "M", "L", "XL", "2XL", "XXL", "3XL", "XXXL", "4XL", "5XL", "6XL", "7XL"]
 const sizeRank = (s: string) => {
@@ -109,20 +99,41 @@ const sizeRank = (s: string) => {
   const n = Number.parseFloat(s)
   return Number.isFinite(n) ? 100 + n : 1000
 }
-const qtyOf = (v: string | undefined) => Math.max(0, Math.floor(Number(v) || 0))
+const titleCase = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 
-export const positionLabel = (side: string) => POSITION_LABELS[side] ?? side.replace(/_/g, " ")
+/**
+ * A front print that's small and well off-centre is a chest print. As you
+ * look at the garment, right of centre is the WEARER's left chest.
+ * ponytail: 160 mm / 30 mm thresholds are eyeballed; tune if DSP mislabels.
+ */
+export function positionLabel(side: string, placement?: DspPlacement | null): string {
+  if (side === "front" && placement && placement.widthMm <= 160 && Math.abs(placement.offsetXMm) >= 30) {
+    return placement.offsetXMm > 0 ? "Left Chest" : "Right Chest"
+  }
+  return SIDE_LABELS[side] ?? titleCase(side.replace(/_/g, " "))
+}
 
-/** "280 x 189", "280×189mm", "280 by 189" → { 280, 189 }; anything else → null. */
+/** "280 x 189", "280×189mm", "8.75×3.5cm" → mm; anything else → null. */
 export function parseSizeMm(raw: string | undefined | null): { widthMm: number; heightMm: number } | null {
-  const m = String(raw ?? "").match(/(\d+(?:\.\d+)?)\s*(?:mm)?\s*(?:x|×|by|\*)\s*(\d+(?:\.\d+)?)/i)
+  const m = String(raw ?? "").match(/(\d+(?:\.\d+)?)\s*(mm|cm)?\s*(?:x|×|by|\*)\s*(\d+(?:\.\d+)?)\s*(mm|cm)?/i)
   if (!m) return null
-  const [w, h] = [Number(m[1]), Number(m[2])]
+  const k = (m[2] ?? m[4] ?? "mm").toLowerCase() === "cm" ? 10 : 1
+  const [w, h] = [Number(m[1]) * k, Number(m[3]) * k]
   return w > 0 && h > 0 ? { widthMm: Math.round(w), heightMm: Math.round(h) } : null
 }
 
-const isDspPosition = (p: DspPricerPosition, product: DspProduct | undefined) =>
-  p.method === "screen" || (p.method === "print" && (p.channel === "supacolour" || (p.channel === "auto" && product?.supacolour === true)))
+/** "Screen print, white + green ink · …" → ["White", "Green"]. */
+export function inksFromNotes(notes: string | null): string[] {
+  // Up to two words per ink ("forest green"), joined by + / & / and, right before "ink".
+  const name = "[a-z]+(?: [a-z]+)?"
+  const m = String(notes ?? "").match(new RegExp(`(${name}(?:\\s*(?:\\+|&|\\band\\b)\\s*${name})*)\\s+inks?\\b`, "i"))
+  if (!m) return []
+  return m[1]
+    .split(/\s*(?:\+|&|\band\b)\s*/i)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(titleCase)
+}
 
 /** "DD/MM/YY" like DSP's due-date field. */
 export function dspDate(iso: string | null): string | null {
@@ -132,108 +143,99 @@ export function dspDate(iso: string | null): string | null {
   return d.toLocaleDateString("en-AU", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Australia/Sydney" })
 }
 
-function rowName(g: DspPricerGroup, r: DspPricerRow) {
-  return g.supplied ? r.label.trim() || (r.dark ? "Dark garments" : "Light garments") : r.colour ?? r.label.trim() ?? ""
-}
-
-function sizeBreakdown(g: DspPricerGroup): { lines: string[]; byRow: Array<{ name: string; sizes: Array<[string, number]> }> } {
-  const byRow = g.rows
-    .map((r) => ({
-      name: rowName(g, r),
-      sizes: Object.entries(r.cells)
-        .map(([s, q]) => [s === "" ? "Any size" : s, qtyOf(q)] as [string, number])
-        .filter(([, q]) => q > 0)
-        .sort((a, b) => sizeRank(a[0]) - sizeRank(b[0])),
-    }))
-    .filter((r) => r.sizes.length)
-  const multi = byRow.length > 1
-  const lines = byRow.flatMap((r) => [...(multi ? [r.name.toUpperCase()] : []), ...r.sizes.map(([s, q]) => `${s} - ${q}`)])
-  return { lines, byRow }
-}
-
 export function buildDspPack(input: DspInput): DspGroupPack[] {
-  const { state, products } = input
-  const due = dspDate(input.dueDate)
-  const out: DspGroupPack[] = []
+  const groups = new Map<string, DspLine[]>()
+  for (const l of input.lines) {
+    if (!l.design) continue
+    const key = String(l.design.group_id ?? l.productId ?? l.id)
+    groups.set(key, [...(groups.get(key) ?? []), l])
+  }
 
-  for (const g of state.groups ?? []) {
-    const product = g.product ? products[g.product.id] : undefined
-    const positions = (g.positions ?? []).filter((p) => isDspPosition(p, product))
-    if (!positions.length) continue
+  const out: DspGroupPack[] = []
+  for (const [groupId, lines] of groups) {
+    const canonical = lines[0]
+    const design = canonical.design!
+    const product = canonical.productId ? input.products[canonical.productId] : undefined
+    const methods = (design.sideDecorationMethods ?? {}) as Record<string, string>
+    const screenCfg = (design.sideScreenConfigs ?? {}) as Record<string, { colours?: number; darkGarment?: boolean }>
+    const artifacts = (Array.isArray(design.artifacts) ? design.artifacts : []) as Array<{ side?: string; printUrl?: string; mockupUrl?: string }>
+    const originals = (Array.isArray(design.customerOriginalFiles) ? design.customerOriginalFiles : []) as Array<{ url?: string; fileName?: string; sides?: string[] }>
+
+    const sides = Array.from(new Set([...Object.keys(methods), ...artifacts.map((a) => a.side).filter((s): s is string => !!s)]))
+      .filter((side) => {
+        const method = methods[side] ?? "print"
+        return method === "screen" || (method === "print" && product?.supacolour === true)
+      })
+      .sort((a, b) => (SIDE_ORDER.indexOf(a) + 1 || 99) - (SIDE_ORDER.indexOf(b) + 1 || 99))
+    if (!sides.length) continue
+
+    // Sizes per colour, from the lines themselves.
+    const byColour = new Map<string, Map<string, number>>()
+    for (const l of lines) {
+      const c = l.colour ?? ""
+      const sizes = byColour.get(c) ?? new Map<string, number>()
+      const s = l.size ?? "One size"
+      sizes.set(s, (sizes.get(s) ?? 0) + l.quantity)
+      byColour.set(c, sizes)
+    }
+    const rows = [...byColour].map(([colour, sizes]) => ({
+      colour: titleCase(colour),
+      sizes: [...sizes].sort((a, b) => sizeRank(a[0]) - sizeRank(b[0])),
+    }))
+    const qty = lines.reduce((s, l) => s + l.quantity, 0)
+    const sizeLines = rows.flatMap((r) => [...(rows.length > 1 ? [r.colour.toUpperCase()] : []), ...r.sizes.map(([s, q]) => `${s} - ${q}`)])
+    const garment = canonical.productTitle
+    const codeProd = `${rows.map((r) => r.colour).filter(Boolean).join("; ")} ${garment}`.trim()
+    const notedInks = inksFromNotes(canonical.notes)
 
     const warnings: string[] = []
-    const { lines: sizeLines, byRow } = sizeBreakdown(g)
-    const qty = byRow.reduce((s, r) => s + r.sizes.reduce((a, [, q]) => a + q, 0), 0)
-    const anyDark = g.rows.some((r) => r.dark)
-    const allDark = g.rows.length > 0 && g.rows.every((r) => r.dark)
-    const garmentTitle = g.supplied ? (g.name?.trim() || "Customer-supplied garments") : product?.title ?? g.product?.title ?? "Garment"
-    const colours = byRow.map((r) => r.name).filter(Boolean)
-    const codeProd = `${colours.join("; ")} ${garmentTitle}`.trim()
-
-    const pages: DspPage[] = positions.map((p, i) => {
-      const design = state.designs.find((d) => d.id === p.designId)
-      const label = positionLabel(p.side)
-      const studioSide = STUDIO_SIDE[p.side] ?? p.side
-      const printSize = parseSizeMm(p.sizeMm) ?? input.placements?.[g.id]?.[studioSide] ?? null
-      if (!printSize) warnings.push(`${label}: no print size — enter it in the job pricer (mm, e.g. 280 x 189).`)
-      if (!design?.vectorUrl) warnings.push(`${label}: no vector artwork on design ${design?.label ?? "?"} — DSP won't accept raster files for screens.`)
-
-      if (p.method === "screen") {
-        const n = Math.min(6, Math.max(1, Number(p.colours) || 1))
-        const refs = Array.from({ length: n }, (_, k) => p.pms?.[k]?.trim() || "")
-        if (refs.some((r) => !r)) warnings.push(`${label}: ${refs.filter((r) => !r).length} PMS colour(s) not entered.`)
-        const inks = [...(anyDark ? [allDark ? "Base" : "Base (dark garments only)"] : []), ...refs.map((r, k) => r || `Colour ${k + 1} - PMS TBC`)]
-        return {
-          positionLabel: label,
-          n: i + 1,
-          of: positions.length,
-          method: "screen",
-          inks,
-          colourLines: inks.map((ink, k) => `${k + 1}/${inks.length} ${ink.toUpperCase()}`),
-          screens: inks.length,
-          qty,
-          codeProd,
-          printSize,
-          sizeLines,
-          repeatJob: p.repeatJob?.trim() || null,
-          dark: anyDark,
-          artworkUrl: design?.imageUrl ?? null,
-          vectorUrl: design?.vectorUrl ?? null,
-          garmentImageUrl: g.mockupUrl ?? g.product?.thumbnail ?? null,
-        }
-      }
-      return {
+    const pages: DspPage[] = sides.map((side, i) => {
+      const placement = input.placements?.[canonical.id]?.find((p) => p.side === side) ?? null
+      const label = positionLabel(side, placement)
+      const typed = lines.map((l) => input.dimensions?.[`${l.id}:${side}`]).find(Boolean)
+      const printSize = parseSizeMm(typed) ?? (placement ? { widthMm: placement.widthMm, heightMm: placement.heightMm } : null)
+      if (!printSize) warnings.push(`${label}: print size unknown — DSP will size from the artwork.`)
+      const art = artifacts.find((a) => a.side === side)
+      if (!art?.printUrl) warnings.push(`${label}: no print file on the order.`)
+      const mockup = lines.map((l) => input.revisedMockups?.[`${l.id}:${side}`]).find(Boolean) ?? art?.mockupUrl ?? null
+      const common = {
+        side,
         positionLabel: label,
         n: i + 1,
-        of: positions.length,
-        method: "transfer",
-        inks: [],
-        colourLines: ["1/1 SUPACOLOUR TRANSFER"],
-        screens: null,
+        of: sides.length,
         qty,
         codeProd,
         printSize,
         sizeLines,
-        repeatJob: p.repeatJob?.trim() || null,
-        dark: anyDark,
-        artworkUrl: design?.imageUrl ?? null,
-        vectorUrl: design?.vectorUrl ?? null,
-        garmentImageUrl: g.mockupUrl ?? g.product?.thumbnail ?? null,
+        repeatJob: null,
+        artworkUrl: art?.printUrl ?? null,
+        garmentImageUrl: mockup,
       }
+      if ((methods[side] ?? "print") === "screen") {
+        const cfg = screenCfg[side] ?? {}
+        const n = Math.min(6, Math.max(1, Number(cfg.colours) || 1))
+        const dark = cfg.darkGarment === true
+        const names = notedInks.length === n ? notedInks : Array.from({ length: n }, (_, k) => `Colour ${k + 1} - see artwork`)
+        const inks = [...(dark ? ["Base"] : []), ...names]
+        return { ...common, method: "screen" as const, dark, inks, colourLines: inks.map((ink, k) => `${k + 1}/${inks.length} ${ink.toUpperCase()}`), screens: inks.length }
+      }
+      return { ...common, method: "transfer" as const, dark: false, inks: [], colourLines: ["1/1 SUPACOLOUR TRANSFER"], screens: null }
     })
 
     const title = `${input.customer} ${codeProd} x ${qty}. ${pages.length} pos`
-    const printiqText = printiqBlock({ input, g, product, pages, title, due, byRow, garmentTitle })
     out.push({
-      groupId: g.id,
+      groupId,
       title,
       qty,
       pages,
-      printiqText,
-      artwork: pages.map((pg, i) => {
-        const d = state.designs.find((x) => x.id === positions[i].designId)
-        return { position: pg.positionLabel, design: d?.label ?? "?", vectorUrl: pg.vectorUrl, rasterUrl: pg.artworkUrl }
-      }),
+      printiqText: printiqBlock({ input, product, pages, title, rows, garment, notes: canonical.notes }),
+      artwork: pages.map((pg) => ({
+        position: pg.positionLabel,
+        printUrl: pg.artworkUrl,
+        originals: originals
+          .filter((f) => f.url && (!f.sides?.length || f.sides.includes(pg.side)))
+          .map((f) => ({ name: f.fileName || "upload", url: f.url! })),
+      })),
       warnings,
     })
   }
@@ -242,60 +244,58 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
 
 function printiqBlock(a: {
   input: DspInput
-  g: DspPricerGroup
   product: DspProduct | undefined
   pages: DspPage[]
   title: string
-  due: string | null
-  byRow: Array<{ name: string; sizes: Array<[string, number]> }>
-  garmentTitle: string
+  rows: Array<{ colour: string; sizes: Array<[string, number]> }>
+  garment: string
+  notes: string | null
 }): string {
-  const { input, g, product, pages } = a
   const desc: string[] = []
-  pages.forEach((pg, i) => {
-    const size = pg.printSize ? `${pg.printSize.widthMm} x ${pg.printSize.heightMm} mm` : "TBC"
+  a.pages.forEach((pg, i) => {
+    const size = pg.printSize ? `${pg.printSize.widthMm} x ${pg.printSize.heightMm} mm` : "as per artwork"
     desc.push(`${ORDINALS[i] ?? `Position ${i + 1}`} Position -`)
     if (pg.method === "screen") {
-      desc.push(`${pg.inks.length} PMS Colours (PMS Refs - ${pg.inks.join(", ")})`)
-      desc.push(pg.repeatJob ? `Repeat Job screens - ${pg.repeatJob},` : "New Job screens,")
+      desc.push(`${pg.inks.length} Colours (Refs - ${pg.inks.join(", ")})`)
+      desc.push("New Job screens,")
       desc.push(`Screenprinting position to ${pg.positionLabel},`)
       desc.push(`Screenprinting size ${size},`)
     } else {
       desc.push("Supacolour Transfer - full colour,")
-      desc.push(pg.repeatJob ? `Repeat transfers - ${pg.repeatJob},` : "New transfers,")
       desc.push(`Transfer application position to ${pg.positionLabel},`)
       desc.push(`Transfer size ${size},`)
     }
     desc.push("")
   })
-  const stock = a.byRow.map((r) => `${r.name}: ${r.sizes.map(([s, q]) => `${s} x ${q}`).join(", ")}`).join(" | ")
-  const brandType = [product?.brand, product?.type].filter(Boolean).join(" ")
-  const stockDetails = `${g.supplied ? "" : brandType ? `${brandType} - ` : ""}${a.garmentTitle} - ${stock}`
+  const stock = a.rows.map((r) => `${r.colour}: ${r.sizes.map(([s, q]) => `${s} x ${q}`).join(", ")}`).join(" | ")
+  const brandType = [a.product?.brand, a.product?.type].filter(Boolean).join(" ")
+  const stockDetails = `${brandType ? `${brandType} - ` : ""}${a.garment} - ${stock}`
 
   const questions: string[] = [`Stock Details (Customer to Supply Stock): ${stockDetails}`]
-  pages.forEach((pg, i) => {
+  a.pages.forEach((pg, i) => {
     if (pg.method !== "screen") return
     questions.push(`${ORDINALS[i] ?? `Position ${i + 1}`} Position (${pg.positionLabel}):`)
-    pg.inks.forEach((ink, k) => questions.push(`  PMS ${k + 1}: ${ink}`))
+    pg.inks.forEach((ink, k) => questions.push(`  Colour ${k + 1}: ${ink}`))
   })
 
   return [
     `JOB TITLE: ${a.title}`,
-    `PO NO: ${input.poNumber}`,
-    `DUE DATE: ${a.due ?? "TBC"}`,
+    `PO NO: ${a.input.poNumber}`,
+    `DUE DATE: ${dspDate(a.input.dueDate) ?? "TBC"}`,
     "",
     "--- DESCRIPTION ---",
     ...desc,
     `Customer to Supply Stock - Stock Details - ${stockDetails}`,
+    ...(a.notes ? ["", `Job notes: ${a.notes}`] : []),
     "",
-    "Artwork supplied Vector Art with PMS Colour Codes,",
+    "Artwork supplied - see attached proof and artwork links,",
     "Photo of job is not required,",
     "No Labelling Required,",
     "STANDARD - Hand Fold & Re-Box,",
     "Pick Up - SC Prints will collect; please advise once the job is completed.",
     "",
     "--- NOTES: PRODUCTION PRIORITY ---",
-    ...a.byRow.flatMap((r) => [...(a.byRow.length > 1 ? [r.name] : []), ...r.sizes.map(([s, q]) => `${s} - ${q}`)]),
+    ...a.rows.flatMap((r) => [...(a.rows.length > 1 ? [r.colour] : []), ...r.sizes.map(([s, q]) => `${s} - ${q}`)]),
     "",
     "--- QUESTIONS ---",
     ...questions,
