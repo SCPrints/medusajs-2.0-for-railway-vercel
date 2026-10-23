@@ -68,7 +68,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const seen = new Set<string>()
   let previews = 0
   for (const pg of pack.packs.flatMap((p) => p.pages)) {
-    if (!pg.artworkUrl || seen.has(pg.artworkUrl)) continue
+    // A staff print file is already in the proof as vector at print size — that page IS DSP's art file.
+    if (pg.printFileUrl || !pg.artworkUrl || seen.has(pg.artworkUrl)) continue
     seen.add(pg.artworkUrl)
     try {
       const res = await fetch(pg.artworkUrl, { signal: AbortSignal.timeout(15_000) })
@@ -93,6 +94,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const artworkFiles = attachments.length - 1 - previews
+  const vectorPages = pack.packs.reduce((n, p) => n + p.pages.filter((pg) => pg.printFileUrl).length, 0)
   const due = pack.due_date ? new Date(pack.due_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "Australia/Sydney" }) : null
   await (req.scope.resolve(Modules.NOTIFICATION) as any).createNotifications({
     to: parsed.data.to,
@@ -117,7 +119,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         })),
       })),
       attachments: [
-        `art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages)`,
+        `art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages${vectorPages ? `; ${vectorPages === 1 ? "1 position has" : `${vectorPages} positions have`} the print-ready vector artwork placed at print size` : ""})`,
         ...(artworkFiles ? [`${artworkFiles} artwork file${artworkFiles > 1 ? "s" : ""} at print size`] : []),
         ...(previews ? [`${previews} preview${previews > 1 ? "s" : ""} on the garment colour`] : []),
       ],

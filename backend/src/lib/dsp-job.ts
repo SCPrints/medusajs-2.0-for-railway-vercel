@@ -48,6 +48,8 @@ export type DspInput = {
   revisedMockups?: Record<string, string>
   /** Latest revised-proof ARTWORK per "<line>:<side>" — staff's corrected file, beats the customer's upload. */
   revisedArtwork?: Record<string, string>
+  /** Staff's print-ready file per "<group>:<side>" (`order.metadata.dsp_print_files`) — a PDF/AI the proof places as vector at print size. */
+  printFiles?: Record<string, string>
 }
 
 export type DspPage = {
@@ -73,6 +75,8 @@ export type DspPage = {
   /** Some ink names carry a PMS matched off the artwork (lib/dsp-inks.ts) — DSP should confirm. */
   pmsFromArtwork?: boolean
   artworkUrl: string | null
+  /** Staff's print-ready PDF/AI for this position; beats artworkUrl in the proof and the email. */
+  printFileUrl: string | null
   garmentImageUrl: string | null
 }
 
@@ -226,8 +230,9 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
         originals.find((f) => f.url && f.sides?.includes(side)) ??
         (originals.length === 1 && !originals[0].sides?.length ? originals[0] : undefined)
       const artworkUrl = revised ?? original?.url ?? art?.printUrl ?? null
-      if (!artworkUrl) warnings.push(`${label}: no artwork file on the order.`)
-      else if (!revised && !original) warnings.push(`${label}: only a low-resolution print file — attach the original artwork.`)
+      const printFileUrl = input.printFiles?.[`${groupId}:${side}`] ?? null
+      if (!artworkUrl && !printFileUrl) warnings.push(`${label}: no artwork file on the order.`)
+      else if (!printFileUrl && !revised && !original) warnings.push(`${label}: only a low-resolution print file — attach the original artwork.`)
       const mockup = lines.map((l) => input.revisedMockups?.[`${l.id}:${side}`]).find(Boolean) ?? art?.mockupUrl ?? null
       const common = {
         side,
@@ -240,6 +245,7 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
         sizeLines,
         repeatJob: null,
         artworkUrl,
+        printFileUrl,
         garmentImageUrl: mockup,
       }
       if ((methods[side] ?? "print") === "screen") {
@@ -262,11 +268,10 @@ export function buildDspPack(input: DspInput): DspGroupPack[] {
       pages,
       garment: codeProd,
       sizesText: `${rows.map((r) => `${rows.length > 1 ? `${r.colour}: ` : ""}${r.sizes.map(([s, q]) => `${s} ${q}`).join(" · ")}`).join(" | ")} (${qty} total)`,
-      artwork: pages.map((pg) => ({
-        position: pg.positionLabel,
-        url: pg.artworkUrl,
-        name: pg.artworkUrl ? decodeURIComponent(pg.artworkUrl.split("/").pop() ?? "artwork") : "",
-      })),
+      artwork: pages.map((pg) => {
+        const url = pg.printFileUrl ?? pg.artworkUrl
+        return { position: pg.positionLabel, url, name: url ? decodeURIComponent(url.split("/").pop() ?? "artwork") : "" }
+      }),
       warnings,
     })
   }

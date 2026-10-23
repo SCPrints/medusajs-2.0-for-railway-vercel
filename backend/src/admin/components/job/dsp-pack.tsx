@@ -29,6 +29,8 @@ export function DspPackPanel({ jobId }: { jobId: string }) {
   const [to, setTo] = useState("")
   const [message, setMessage] = useState("")
   const [sending, setSending] = useState(false)
+  const [reload, setReload] = useState(0)
+  const [uploading, setUploading] = useState<string | null>(null)
   const base = `/admin/jobs/${encodeURIComponent(jobId)}/dsp-pack`
 
   useEffect(() => {
@@ -39,13 +41,42 @@ export function DspPackPanel({ jobId }: { jobId: string }) {
         if (!res.ok) throw new Error(json?.error ?? `Failed (${res.status})`)
         if (!live) return
         setPack(json as Pack)
-        setTo((json as Pack).default_to ?? "")
+        setTo((t) => t || ((json as Pack).default_to ?? ""))
       })
       .catch((err) => live && setError(err?.message ?? "Couldn't build the DSP job"))
     return () => {
       live = false
     }
-  }, [base])
+  }, [base, reload])
+
+  /** Staff's print-ready PDF/AI for one position → R2 → the order; null removes it. */
+  const setPrintFile = async (groupId: string, side: string, file: File | null) => {
+    setUploading(`${groupId}:${side}`)
+    try {
+      let url: string | null = null
+      if (file) {
+        const fd = new FormData()
+        fd.append("files", file)
+        const up = await fetch("/admin/uploads", { method: "POST", credentials: "include", body: fd })
+        if (!up.ok) throw new Error(`Upload failed (${up.status})`)
+        url = ((await up.json()) as { files?: Array<{ url?: string }> })?.files?.[0]?.url ?? null
+        if (!url) throw new Error("Upload returned no URL")
+      }
+      const res = await fetch(`${base}/print-file`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ group_id: groupId, side, url }),
+      })
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as any)?.error ?? `Save failed (${res.status})`)
+      toast.success(file ? "Print file added — check the proof" : "Print file removed")
+      setReload((n) => n + 1)
+    } catch (err: any) {
+      toast.error(err?.message ?? "Couldn't save the print file")
+    } finally {
+      setUploading(null)
+    }
+  }
 
   const send = async () => {
     setSending(true)
@@ -105,6 +136,26 @@ export function DspPackPanel({ jobId }: { jobId: string }) {
                 <span className="text-ui-fg-subtle">· {pg.printSize ? `${pg.printSize.widthMm} × ${pg.printSize.heightMm} mm` : "size from artwork"}</span>
                 {p.artwork[i]?.url ? (
                   <a className="text-ui-fg-interactive" href={p.artwork[i].url!} target="_blank" rel="noreferrer">· artwork ({p.artwork[i].name.split(".").pop()})</a>
+                ) : null}
+                {/* The print-ready file DSP prints from: placed on the proof as vector at print size. */}
+                <label className="text-ui-fg-interactive cursor-pointer">
+                  · {uploading === `${p.groupId}:${pg.side}` ? "uploading…" : pg.printFileUrl ? "replace print file" : "add print file (PDF/AI)"}
+                  <input
+                    type="file"
+                    accept=".pdf,.ai,application/pdf,application/postscript,application/illustrator"
+                    className="hidden"
+                    disabled={!!uploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      e.target.value = ""
+                      if (f) void setPrintFile(p.groupId, pg.side, f)
+                    }}
+                  />
+                </label>
+                {pg.printFileUrl ? (
+                  <button type="button" className="text-ui-fg-subtle hover:text-ui-fg-base" disabled={!!uploading} onClick={() => void setPrintFile(p.groupId, pg.side, null)}>
+                    · remove
+                  </button>
                 ) : null}
               </li>
             ))}

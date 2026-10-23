@@ -1,6 +1,6 @@
 import fs from "fs"
 import path from "path"
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib"
+import { PDFDocument, PDFEmbeddedPage, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib"
 import sharp from "sharp"
 
 import { dspDate, type DspGroupPack, type DspPage } from "../../lib/dsp-job"
@@ -119,18 +119,49 @@ export async function artworkAtPrintSize(buf: Buffer, ext: string, printSize: { 
   return buf
 }
 
-function drawFitted(page: PDFPage, img: PDFImage, box: { x: number; y: number; w: number; h: number }) {
+/** Draws a raster image or an embedded PDF page (vector) fitted and centred in a box. */
+function drawFitted(page: PDFPage, img: PDFImage | PDFEmbeddedPage, box: { x: number; y: number; w: number; h: number }) {
   const s = Math.min(box.w / img.width, box.h / img.height)
   const w = img.width * s
   const h = img.height * s
-  page.drawImage(img, { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, width: w, height: h })
+  const at = { x: box.x + (box.w - w) / 2, y: box.y + (box.h - h) / 2, width: w, height: h }
+  if (img instanceof PDFEmbeddedPage) page.drawPage(img, at)
+  else page.drawImage(img, at)
+}
+
+const PT_PER_MM = 72 / 25.4
+
+/**
+ * Why staff's print file can't go on the proof as-is, or null when it's fine.
+ * The proof embeds page 1 as vector and scales its ARTBOARD to the print width,
+ * so the artboard must be the artwork: no hidden layers (embedding shows them),
+ * no background, artboard fitted to the art.
+ * ponytail: shape check allows 20% — the print height is often the Studio's
+ * estimate; it catches presentation artboards (1920×1080 + background), not trims.
+ */
+export async function printFileProblem(buf: Buffer | null, printSize: { widthMm: number; heightMm: number } | null): Promise<string | null> {
+  if (!buf) return "couldn't download it."
+  if (buf.subarray(0, 1024).toString("latin1").indexOf("%PDF") < 0)
+    return "not PDF-based — in Illustrator use Save As PDF, or .ai with \"Create PDF Compatible File\" ticked."
+  if (/\/OFF\s*\[\s*\d+\s+\d+\s+R/.test(buf.toString("latin1")))
+    return "has hidden layers, and they show once it's placed on the proof — delete them or save a PDF of just the print layers."
+  try {
+    const page = (await PDFDocument.load(buf, { ignoreEncryption: true })).getPage(0)
+    const { width, height } = page.getSize()
+    const [wMm, hMm] = [width / PT_PER_MM, height / PT_PER_MM].map(Math.round)
+    if (printSize && Math.abs(width / height / (printSize.widthMm / printSize.heightMm) - 1) > 0.2)
+      return `its artboard is ${wMm} × ${hMm} mm, the wrong shape for a ${printSize.widthMm} × ${printSize.heightMm} mm print — fit the artboard to the artwork (Object → Artboards → Fit to Artwork Bounds) and turn off any background.`
+  } catch {
+    return "couldn't be opened as a PDF."
+  }
+  return null
 }
 
 function text(page: PDFPage, s: string, x: number, y: number, font: PDFFont, size: number, color = BLACK) {
   page.drawText(safe(s), { x, y, size, font, color })
 }
 
-function stampPage(page: PDFPage, pg: DspPage, ctx: { bold: PDFFont; reg: PDFFont; po: string; customer: string; due: string | null; art: PDFImage | null; garment: PDFImage | null }) {
+function stampPage(page: PDFPage, pg: DspPage, ctx: { bold: PDFFont; reg: PDFFont; po: string; customer: string; due: string | null; art: PDFImage | PDFEmbeddedPage | null; garment: PDFImage | null }) {
   const { bold, reg } = ctx
 
   // Artwork band (template: black, px y 212–775), filled with the garment colour
@@ -210,6 +241,18 @@ export async function buildDspProofPdf(packs: DspGroupPack[], meta: { po: string
 
   // Each image once, however many pages reuse it.
   const cache = new Map<string, Promise<PDFImage | null>>()
+  const printFiles = new Map<string, Promise<PDFEmbeddedPage | null>>()
+  const printFile = (url: string | null) => {
+    if (!url) return Promise.resolve(null)
+    if (!printFiles.has(url))
+      printFiles.set(
+        url,
+        fetch(url, { signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS) })
+          .then(async (res) => (res.ok ? (await doc.embedPdf(Buffer.from(await res.arrayBuffer()), [0]))[0] : null))
+          .catch(() => null) // not a PDF / unreadable — the panel already warned; fall back to the raster artwork
+      )
+    return printFiles.get(url)!
+  }
   const image = (url: string | null, trim = false) => {
     if (!url) return Promise.resolve(null)
     const key = `${trim}:${url}`
@@ -221,7 +264,9 @@ export async function buildDspProofPdf(packs: DspGroupPack[], meta: { po: string
     for (const pg of pack.pages) {
       const [page] = await doc.copyPages(template, [0])
       doc.addPage(page)
-      stampPage(page, pg, { bold, reg, po: meta.po, customer: meta.customer, due, art: await image(pg.artworkUrl, true), garment: await image(pg.garmentImageUrl) })
+      // Staff's print file goes on as vector (DSP prints from this PDF); else the raster artwork.
+      const art = (await printFile(pg.printFileUrl)) ?? (await image(pg.artworkUrl, true))
+      stampPage(page, pg, { bold, reg, po: meta.po, customer: meta.customer, due, art, garment: await image(pg.garmentImageUrl) })
     }
   }
   return Buffer.from(await doc.save())

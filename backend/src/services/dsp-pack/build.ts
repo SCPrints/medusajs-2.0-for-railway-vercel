@@ -6,8 +6,8 @@ import { computeSidePlacements } from "../../lib/print-placement"
 import { restoreSideLayouts } from "../../lib/side-layouts-archive"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { resolveJobIds } from "../jobs/build"
-import { applyArtworkInks } from "../../lib/dsp-inks"
-import { artworkInks, garmentColour } from "./pdf"
+import { applyArtworkInks, sharedPantone } from "../../lib/dsp-inks"
+import { artworkInks, garmentColour, printFileProblem } from "./pdf"
 
 export type DspPackResult = {
   order_id: string
@@ -100,7 +100,18 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
   const po = String(order.display_id ?? order.id)
   const dueDate = typeof meta.production_due_date === "string" ? meta.production_due_date : null
 
-  const packs = buildDspPack({ poNumber: po, customer, dueDate, lines, products, placements, dimensions: stringMap(meta.mockup_print_dimensions), revisedMockups, revisedArtwork })
+  const packs = buildDspPack({
+    poNumber: po,
+    customer,
+    dueDate,
+    lines,
+    products,
+    placements,
+    dimensions: stringMap(meta.mockup_print_dimensions),
+    revisedMockups,
+    revisedArtwork,
+    printFiles: stringMap(meta.dsp_print_files),
+  })
   await enrichFromImages(packs)
 
   return {
@@ -118,7 +129,7 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
  * artwork background), and the inks off the artwork — named, matched to the
  * nearest PMS, and flagged when the artwork has more inks than the order.
  */
-async function enrichFromImages(packs: DspGroupPack[]) {
+export async function enrichFromImages(packs: DspGroupPack[]) {
   const get = async (url: string | null) => {
     if (!url) return null
     try {
@@ -128,17 +139,30 @@ async function enrichFromImages(packs: DspGroupPack[]) {
       return null
     }
   }
-  await Promise.all(
-    packs.flatMap((pack) =>
-      pack.pages.map(async (pg) => {
-        const [mockup, art] = await Promise.all([get(pg.garmentImageUrl), pg.method === "screen" ? get(pg.artworkUrl) : null])
-        if (mockup) pg.garmentHex = await garmentColour(mockup)
-        const clusters = art ? await artworkInks(art) : null
-        const warning = clusters ? applyArtworkInks(pg, clusters) : null
-        if (warning) pack.warnings.push(warning)
-      })
-    )
+  // Images first (in parallel), then inks in order — vector (SVG) artwork first so its exact colours set each PMS.
+  const pages = packs.flatMap((pack) => pack.pages.map((pg) => ({ pack, pg })))
+  const read = await Promise.all(
+    pages.map(async ({ pack, pg }) => {
+      const [mockup, art, printFile] = await Promise.all([
+        get(pg.garmentImageUrl),
+        pg.method === "screen" ? get(pg.artworkUrl) : null,
+        get(pg.printFileUrl),
+      ])
+      if (mockup) pg.garmentHex = await garmentColour(mockup)
+      if (pg.printFileUrl) {
+        const problem = await printFileProblem(printFile, pg.printSize)
+        if (problem) pack.warnings.push(`${pg.positionLabel} print file: ${problem}`)
+      }
+      return { pack, pg, clusters: art ? await artworkInks(art) : null, vector: /\.svg($|\?)/i.test(pg.artworkUrl ?? "") }
+    })
   )
+  for (const pack of packs) {
+    const pms = sharedPantone()
+    for (const { pg, clusters } of read.filter((r) => r.pack === pack).sort((a, b) => Number(b.vector) - Number(a.vector))) {
+      const warning = clusters ? applyArtworkInks(pg, clusters, pms) : null
+      if (warning) pack.warnings.push(warning)
+    }
+  }
   if (packs.some((p) => p.pages.some((pg) => pg.pmsFromArtwork)))
     packs[0].warnings.push("PMS colours are the nearest match to the artwork — DSP should confirm them.")
 }

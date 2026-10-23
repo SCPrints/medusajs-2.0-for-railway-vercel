@@ -37,6 +37,23 @@ export function nearestPantone(hex: string): string {
   return best.name
 }
 
+/**
+ * One PMS per ink across a job: the first time a colour is matched it picks
+ * the nearest Pantone; a later colour within ΔE 12 of it (the same logo green
+ * read off a PNG instead of the SVG) reuses that PMS. Feed vector artwork first.
+ */
+export function sharedPantone(): (hex: string) => string {
+  const seen: Array<{ lab: number[]; name: string }> = []
+  return (hex) => {
+    const lab = hexToLab(hex)
+    const hit = seen.find((s) => deltaE(s.lab, lab) < 12)
+    if (hit) return hit.name
+    const name = nearestPantone(hex)
+    seen.push({ lab, name })
+    return name
+  }
+}
+
 /** Plain colour words staff write in quote notes, and what they look like. */
 const BASIC: Record<string, string> = {
   white: "#FFFFFF",
@@ -124,7 +141,7 @@ export function inkClusters(rgba: Uint8Array, minShare = 0.005): InkCluster[] {
  * and, unless it's white or black, the nearest PMS. Returns a warning when the
  * artwork has more inks than the order says.
  */
-export function applyArtworkInks(page: DspPage, clusters: InkCluster[]): string | null {
+export function applyArtworkInks(page: DspPage, clusters: InkCluster[], pms: (hex: string) => string = nearestPantone): string | null {
   if (page.method !== "screen" || !clusters.length) return null
   const names = page.inks.slice(page.dark ? 1 : 0)
   const unused = [...clusters]
@@ -150,7 +167,7 @@ export function applyArtworkInks(page: DspPage, clusters: InkCluster[]): string 
     const name = PLACEHOLDER.test(n) ? titleCase(basicName(c.hex)) : n
     if (/^(white|black)$/i.test(basicName(c.hex))) return name
     matched = true
-    return `${name} ${nearestPantone(c.hex)}`
+    return `${name} ${pms(c.hex)}`
   })
   page.inks = [...(page.dark ? ["Base"] : []), ...inks]
   page.colourLines = page.inks.map((ink, k) => `${k + 1}/${page.inks.length} ${ink.toUpperCase()}`)

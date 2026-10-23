@@ -1,4 +1,4 @@
-import { applyArtworkInks, inkClusters, nearestPantone } from "../dsp-inks"
+import { applyArtworkInks, inkClusters, nearestPantone, sharedPantone } from "../dsp-inks"
 import { buildDspPack, inksFromNotes, parseSizeMm, parseWidthMm, positionLabel, type DspInput, type DspLine } from "../dsp-job"
 
 // Shaped like order #116: AS Colour 5001 Grey Marle, screen front (2 col) + back (1 col).
@@ -148,5 +148,22 @@ describe("applyArtworkInks", () => {
   })
   it("nearestPantone finds an exact library colour", () => {
     expect(nearestPantone("#FE3B21")).toBe("PMS Bright Red C")
+  })
+})
+
+describe("print files + shared PMS", () => {
+  it("one PMS per ink across positions: a near-identical green reuses the first match", () => {
+    const pms = sharedPantone()
+    const first = pms("#59B791") // the SVG's exact logo green
+    expect(pms("#55B48C")).toBe(first) // same green read off a PNG
+    expect(pms("#D32F2F")).not.toBe(first)
+  })
+  it("a staff print file beats the artwork in the pack's file list and clears the low-res warning", () => {
+    const input = base()
+    input.printFiles = { "grp1:back": "https://x/back-print.pdf" }
+    const [p] = buildDspPack(input)
+    expect(p.pages[1].printFileUrl).toBe("https://x/back-print.pdf")
+    expect(p.artwork[1]).toEqual({ position: "Centre Back", url: "https://x/back-print.pdf", name: "back-print.pdf" })
+    expect(p.warnings).toEqual([])
   })
 })
