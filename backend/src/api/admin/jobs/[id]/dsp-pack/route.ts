@@ -65,6 +65,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const attachments: Array<{ content: string; filename: string; content_type: string }> = [
     { content: (await proofPdf(pack)).toString("base64"), filename: fileName(pack), content_type: "application/pdf" },
   ]
+  // Resend refuses the whole email past 40 MB (base64 counted), so stop
+  // attaching before that; skipped files are listed in the email instead.
+  let budget = 35 * 1024 * 1024 - attachments[0].content.length
+  const fits = (b64: string) => (b64.length <= budget ? ((budget -= b64.length), true) : false)
+  const skipped: string[] = []
   const seen = new Set<string>()
   let previews = 0
   for (const pg of pack.packs.flatMap((p) => p.pages)) {
@@ -78,15 +83,21 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       const ext = (pg.artworkUrl.split("?")[0].split(".").pop() ?? "png").toLowerCase()
       const stem = `SCP-${pack.po}_${pg.positionLabel.replace(/\W+/g, "-")}`
       // Sized to print: an SVG opens at print size in Illustrator, a PNG measures the print width.
+      const artwork = (await artworkAtPrintSize(buf, ext, pg.printSize)).toString("base64")
+      if (!fits(artwork)) {
+        skipped.push(`${pg.positionLabel}: ${pg.artworkUrl}`)
+        continue
+      }
       attachments.push({
-        content: (await artworkAtPrintSize(buf, ext, pg.printSize)).toString("base64"),
+        content: artwork,
         filename: `${stem}_artwork.${ext}`,
         content_type: res.headers.get("content-type") ?? "application/octet-stream",
       })
       const preview = pg.garmentHex ? await artworkPreview(buf, pg.garmentHex) : null
-      if (preview) {
+      const previewB64 = preview?.toString("base64")
+      if (previewB64 && fits(previewB64)) {
         previews++
-        attachments.push({ content: preview.toString("base64"), filename: `${stem}_preview-on-garment.png`, content_type: "image/png" })
+        attachments.push({ content: previewB64, filename: `${stem}_preview-on-garment.png`, content_type: "image/png" })
       }
     } catch {
       /* the proof still goes; the panel already warned about missing artwork */
@@ -96,7 +107,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const artworkFiles = attachments.length - 1 - previews
   const vectorPages = pack.packs.reduce((n, p) => n + p.pages.filter((pg) => pg.printFileUrl).length, 0)
   const due = pack.due_date ? new Date(pack.due_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", timeZone: "Australia/Sydney" }) : null
-  await (req.scope.resolve(Modules.NOTIFICATION) as any).createNotifications({
+  // A failed send must not be recorded as sent (no dsp_sent / comment / audit).
+  const sendError = await (req.scope.resolve(Modules.NOTIFICATION) as any).createNotifications({
     to: parsed.data.to,
     channel: "email",
     template: EmailTemplates.DSP_JOB,
@@ -122,11 +134,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         `art proof (${pack.packs.reduce((n, p) => n + p.pages.length, 0)} pages${vectorPages ? `; ${vectorPages === 1 ? "1 position has" : `${vectorPages} positions have`} the print-ready vector artwork placed at print size` : ""})`,
         ...(artworkFiles ? [`${artworkFiles} artwork file${artworkFiles > 1 ? "s" : ""} at print size`] : []),
         ...(previews ? [`${previews} preview${previews > 1 ? "s" : ""} on the garment colour`] : []),
+        ...skipped.map((s) => `too large to attach — download: ${s}`),
       ],
       pmsConfirm: pack.packs.some((p) => p.pages.some((pg) => pg.pmsFromArtwork)),
     },
     attachments,
-  })
+  }).then(() => null, (err: any) => err)
+  if (sendError) {
+    return res.status(502).json({ error: `The email to DSP did not send: ${sendError?.message ?? "unknown error"}` })
+  }
 
   // Record the send on the order (metadata replaces wholesale — spread it).
   const orders = req.scope.resolve(Modules.ORDER) as any

@@ -99,13 +99,12 @@ export class ResendNotificationService extends AbstractNotificationProviderServi
       scheduledAt: emailOptions.scheduledAt
     }
 
-    // Send the email via Resend
+    // Send the email via Resend. SDK v6 reports API rejections (validation,
+    // size limit, rate limit) as `{ error }` rather than throwing — surface
+    // them so the notification is marked failed and callers see it.
+    let rejection: { name?: string; message?: string } | null = null
     try {
-      await this.resend.emails.send(message)
-      this.logger_.log(
-        `Successfully sent "${notification.template}" email to ${notification.to} via Resend`
-      )
-      return {} // Return an empty object on success
+      rejection = (await this.resend.emails.send(message)).error
     } catch (error) {
       const errorCode = error.code
       const responseError = error.response?.body?.errors?.[0]
@@ -114,5 +113,15 @@ export class ResendNotificationService extends AbstractNotificationProviderServi
         `Failed to send "${notification.template}" email to ${notification.to} via Resend: ${errorCode} - ${responseError?.message ?? 'unknown error'}`
       )
     }
+    if (rejection) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        `Resend rejected "${notification.template}" email to ${notification.to}: ${rejection.name ?? 'error'} - ${rejection.message ?? 'unknown error'}`
+      )
+    }
+    this.logger_.log(
+      `Successfully sent "${notification.template}" email to ${notification.to} via Resend`
+    )
+    return {} // Return an empty object on success
   }
 }

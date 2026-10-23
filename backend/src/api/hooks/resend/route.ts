@@ -204,20 +204,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         logger.warn(`hooks/resend: email.received without email_id or API key — ignored`)
         break
       }
-      const { data: msg, error } = await new Resend(RESEND_API_KEY).emails.receiving.get(emailId)
-      if (error || !msg) {
-        logger.warn(`hooks/resend: receiving.get(${emailId}) failed: ${error?.message ?? "no data"}`)
-        // 500 so Resend retries — the email is stored on their side.
-        return res.status(500).json({ error: "receiving_fetch_failed" })
+      // On failure, 500 so Resend retries (the email is stored on their
+      // side) — and drop the idempotency row first, or the retry carries the
+      // same svix id and is swallowed as a duplicate.
+      const retryLater = async (why: string) => {
+        logger.warn(`hooks/resend: email.received ${emailId} failed, asking Resend to retry: ${why}`)
+        await service.deleteResendEvents(eventId).catch(() => {})
+        return res.status(500).json({ error: "inbound_failed" })
       }
-      const result = await recordInboundEmail(req.scope, {
-        to: [...(msg.to ?? []), ...(msg.cc ?? [])],
-        from: msg.from ?? null,
-        subject: msg.subject ?? null,
-        text: msg.text ?? null,
-        html: msg.html ?? null,
-        message_id: msg.message_id ?? null,
-      })
+      const { data: msg, error } = await new Resend(RESEND_API_KEY).emails.receiving.get(emailId)
+      if (error || !msg) return retryLater(`receiving.get: ${error?.message ?? "no data"}`)
+      let result: Awaited<ReturnType<typeof recordInboundEmail>>
+      try {
+        result = await recordInboundEmail(req.scope, {
+          to: [...(msg.to ?? []), ...(msg.cc ?? [])],
+          from: msg.from ?? null,
+          subject: msg.subject ?? null,
+          text: msg.text ?? null,
+          html: msg.html ?? null,
+          message_id: msg.message_id ?? null,
+        })
+      } catch (err: any) {
+        return retryLater(`recordInboundEmail: ${err?.message ?? err}`)
+      }
       if (result.ok === false) {
         logger.info(`hooks/resend: email.received ${emailId} not routed (${result.reason}) to=${(msg.to ?? []).join(",")}`)
       }
