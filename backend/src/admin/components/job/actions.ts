@@ -15,7 +15,7 @@ export type ActionContext = {
 export type ActionOutcome =
   | { done: true }
   | { navigate: string }
-  | { tab: "overview" | "artwork" | "production" | "delivery" | "activity"; focus?: string; open?: "convert" }
+  | { tab: "overview" | "artwork" | "production" | "delivery" | "activity"; focus?: string; open?: "convert" | "proof" | "blanks" }
 
 const post = async (path: string, body: Record<string, unknown>) => {
   const res = await fetch(path, {
@@ -47,6 +47,7 @@ export const ONE_CLICK: ReadonlySet<NextActionKind> = new Set([
   "qc_done",
   "mark_shipped",
   "send_payment_link",
+  "collected",
 ])
 
 export async function performNextAction(ctx: ActionContext, kind: NextActionKind): Promise<ActionOutcome> {
@@ -54,6 +55,7 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
     case "reply":
     case "nudge_quote":
     case "nudge_payment":
+    case "follow_up":
       return { tab: "activity", focus: "job-reply" }
     case "price_it":
       return { navigate: `/app/quote-pricer?quote=${encodeURIComponent(ctx.quote_id ?? "")}` }
@@ -84,9 +86,9 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
       return { done: true }
     case "wait_proof":
     case "revise_proof":
-      return { tab: "artwork" }
+      return { tab: "artwork", open: "proof" }
     case "order_blanks":
-      return { tab: "delivery" }
+      return { tab: "production", open: "blanks" }
     case "mark_arrived":
       await setStage(ctx.order_id!, { blanks_stage: "arrived" })
       return { done: true }
@@ -101,6 +103,13 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
       await setStage(ctx.order_id!, { production_stage: "shipped" })
       toast.success("Marked shipped — fulfilment created")
       return { done: true }
+    case "collected": {
+      // Walk-in stock sale: the POS fast-forward marks all three tracks done.
+      const r = await post(`/admin/pos/orders/${ctx.order_id}/fast-forward`, { target: "delivered" })
+      if (!r.ok) throw new Error(r.json?.message ?? r.json?.error ?? `HTTP ${r.status}`)
+      toast.success("Marked collected")
+      return { done: true }
+    }
     default:
       return { done: true }
   }

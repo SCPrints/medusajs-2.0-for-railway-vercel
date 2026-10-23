@@ -10,7 +10,6 @@ import { ADMIN_WORKSPACE_MODULE } from "../../../../../modules/admin-workspace"
 import { EmailTemplates } from "../../../../../modules/email-notifications/templates"
 import { getDspPack, type DspPackResult } from "../../../../../services/dsp-pack/build"
 import { artworkAtPrintSize, artworkPreview, buildDspProofPdf } from "../../../../../services/dsp-pack/pdf"
-import { STAFF_EMAIL_ACTOR_PREFIX } from "../../../../../services/jobs/build"
 
 const fileName = (pack: DspPackResult) => `SCP-${pack.po}_${pack.customer}`.replace(/[^\w.-]+/g, "_").slice(0, 80) + "_DSP_proof.pdf"
 const proofPdf = (pack: DspPackResult) => buildDspProofPdf(pack.packs, { po: pack.po, customer: pack.customer, dueDate: pack.due_date })
@@ -152,7 +151,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   await (req.scope.resolve(ADMIN_WORKSPACE_MODULE) as any).createOrderComments({
     order_id: pack.order_id,
     body: `Sent to DSP (${parsed.data.to}): ${pack.packs.reduce((n, p) => n + p.pages.length, 0)}-page art proof + job details.`,
-    created_by: `${STAFF_EMAIL_ACTOR_PREFIX}${actor ?? "staff"}`,
+    // Plain actor, not the staff-email prefix: a supplier email doesn't answer
+    // the customer, so it must not clear "waiting on us" (build.ts).
+    created_by: actor ?? "staff",
   })
   await writeAudit({
     container: req.scope,

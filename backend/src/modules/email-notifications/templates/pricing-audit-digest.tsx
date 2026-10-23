@@ -73,7 +73,7 @@ export const PricingAuditDigestEmail = ({
           {digest.adminUrl ? (
             <Text style={{ margin: "8px 0 0", fontSize: "12px" }}>
               <a
-                href={`${digest.adminUrl}/app/orders/${order.order_id}`}
+                href={`${digest.adminUrl}/app/jobs/${order.order_id}`}
                 style={{ color: "#2563eb" }}
               >
                 Open order &rarr;

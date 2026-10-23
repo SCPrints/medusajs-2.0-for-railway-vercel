@@ -793,7 +793,7 @@ const OrderRow = ({
 
   return (
     <a
-      href={`/app/orders/${order.id}`}
+      href={`/app/jobs/${order.id}`}
       className="flex items-center gap-x-3 px-3 py-2 rounded-md border border-ui-border-base hover:bg-ui-bg-subtle transition"
     >
       <div className="flex flex-col w-24 shrink-0">
@@ -902,7 +902,7 @@ const KanbanCard = ({
 
   return (
     <a
-      href={`/app/orders/${order.id}`}
+      href={`/app/jobs/${order.id}`}
       className="flex flex-col gap-y-1 p-2 rounded-md bg-ui-bg-base border border-ui-border-base hover:border-ui-border-strong"
     >
       <div className="flex items-center justify-between">

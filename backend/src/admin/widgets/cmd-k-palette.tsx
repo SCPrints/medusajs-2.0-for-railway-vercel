@@ -16,7 +16,7 @@ import { PALETTE } from "../lib/reports/palette"
  * keystrokes.
  */
 type Hit = {
-  type: "order" | "customer" | "product" | "cart"
+  type: "order" | "quote" | "customer" | "product" | "cart"
   id: string
   title: string
   subtitle?: string | null
@@ -25,6 +25,7 @@ type Hit = {
 
 const TYPE_LABEL: Record<Hit["type"], string> = {
   order: "Order",
+  quote: "Quote",
   customer: "Customer",
   product: "Product",
   cart: "Open cart",
@@ -32,6 +33,7 @@ const TYPE_LABEL: Record<Hit["type"], string> = {
 
 const TYPE_COLOR: Record<Hit["type"], string> = {
   order: PALETTE.teal700,
+  quote: PALETTE.teal700,
   customer: PALETTE.amber600,
   product: PALETTE.slate700,
   cart: PALETTE.emerald600,

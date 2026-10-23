@@ -127,7 +127,7 @@ const FulfillmentOrdersPage = () => {
                   >
                     <td className="px-4 py-2">
                       <a
-                        href={`/app/orders/${o.id}`}
+                        href={`/app/jobs/${o.id}`}
                         className="text-ui-fg-interactive hover:underline"
                       >
                         #{o.display_id}

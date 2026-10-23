@@ -41,7 +41,7 @@ export async function notifyQuoteCustomerAction(
     const notificationModuleService: INotificationModuleService =
       container.resolve(Modules.NOTIFICATION)
     const adminBase = (ADMIN_PUBLIC_URL || BACKEND_URL || "").replace(/\/$/, "")
-    const quoteUrl = adminBase ? `${adminBase}/app/quotes` : null
+    const quoteUrl = adminBase ? `${adminBase}/app/jobs/${input.quote.id}` : null
 
     await Promise.all(
       recipients.map((to) =>

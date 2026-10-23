@@ -506,6 +506,20 @@ export const PRODUCTION_LEAD_BUSINESS_DAYS = parseIntEnv(
 )
 
 /**
+ * Lead time for rushed jobs (order.metadata.rush_tier, from the Job pricer).
+ * Defaults follow the storefront's DTF promise (decoration/lib/rush.ts):
+ * Priority "2–3 business days" → 3, Express "Next business day" → 1.
+ */
+export const PRODUCTION_LEAD_BUSINESS_DAYS_PRIORITY = parseIntEnv(
+  process.env.PRODUCTION_LEAD_BUSINESS_DAYS_PRIORITY,
+  3
+)
+export const PRODUCTION_LEAD_BUSINESS_DAYS_EXPRESS = parseIntEnv(
+  process.env.PRODUCTION_LEAD_BUSINESS_DAYS_EXPRESS,
+  1
+)
+
+/**
  * Per-order inbound email aliases. When set, transactional emails for
  * an order use `inbox+ord<order-id>@${ORDER_INBOX_DOMAIN}` as their
  * Reply-To. Customer replies land at that alias, which (with a DNS

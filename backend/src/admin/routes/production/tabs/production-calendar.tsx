@@ -172,7 +172,7 @@ const ProductionCalendarPage = () => {
                       }`}
                     >
                       <a
-                        href={`/app/orders/${e.order_id}`}
+                        href={`/app/jobs/${e.order_id}`}
                         className="absolute inset-0 flex items-center pl-3 pr-2 text-xs hover:bg-ui-bg-subtle"
                       >
                         <span className="truncate font-semibold mr-2">

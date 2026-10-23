@@ -50,6 +50,8 @@ export type NextActionKind =
   | "start_production"
   | "qc_done"
   | "mark_shipped"
+  | "collected"
+  | "follow_up"
   | "none"
 
 export type NextAction = {
@@ -85,11 +87,21 @@ export type JobSnapshot = {
     production_stage_changed_at: string | null
     has_decorated_lines: boolean
     gate_failures: string[]
+    /** Dollars still owing (null when the total is unknown). */
+    outstanding?: number | null
+    /** Customer on account terms: payment is chased after delivery, not before proof. */
+    balance_due_at?: string | null
+    /** Rung up at the POS (metadata.pos_session_id). */
+    pos_sale?: boolean
+    /** Newest revised proof staff made (metadata.revised_proofs[].uploaded_at). */
+    revised_proof_at?: string | null
   } | null
   /** Latest customer email / change request we have not answered. */
   last_inbound_at: string | null
   /** Latest email/note from staff to the customer. */
   last_outbound_at: string | null
+  /** Earliest open "Follow up on…" task date (task metadata.follow_up). */
+  follow_up_at?: string | null
   now: Date
 }
 
@@ -105,18 +117,63 @@ export type JobState = {
   lost: boolean
 }
 
+/** Written by the reply route on outbound staff emails / composer notes. */
+export const STAFF_EMAIL_ACTOR_PREFIX = "staff-email:"
+export const STAFF_NOTE_ACTOR_PREFIX = "staff-note:"
+
+/**
+ * Latest customer email and latest staff answer, from a job's activity feed.
+ * An answer is an email to the customer or a call/note logged from the job's
+ * composer (actor prefixed staff-note:). Supplier emails (DSP) and proof
+ * change requests are neither: the change-request rules handle those.
+ */
+export function threadTimes(activity: { kind: string; at: string; actor?: string | null }[]): {
+  inbound: string[]
+  last_inbound_at: string | null
+  answers: string[]
+} {
+  const inbound = activity.filter((a) => a.kind === "email_in").map((a) => a.at).sort()
+  const answers = activity
+    .filter((a) => a.kind === "email_out" || (a.kind === "note" && !!a.actor?.startsWith(STAFF_NOTE_ACTOR_PREFIX)))
+    .map((a) => a.at)
+  return { inbound, last_inbound_at: inbound.at(-1) ?? null, answers }
+}
+
 const ts = (v: string | null | undefined): number => (v ? Date.parse(v) || 0 : 0)
 const later = (...vs: (string | null | undefined)[]): string | null =>
   vs.filter((v): v is string => !!v && Number.isFinite(Date.parse(v))).sort().at(-1) ?? null
 
 const NUDGE_AFTER_BUSINESS_DAYS = 2
 
+const shortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", timeZone: "Australia/Sydney" })
+
 export function deriveJobState(s: JobSnapshot): JobState {
+  const st = deriveBaseState(s)
+  // A follow-up date parks a job that's waiting on the customer: no nudging
+  // until the date, then it's ours to chase ("Follow up").
+  if (st.waiting_on !== "customer" || !s.follow_up_at) return st
+  if (ts(s.follow_up_at) > s.now.getTime()) {
+    return { ...st, since: null, days: 0, next_action: { ...st.next_action, label: `Follow up ${shortDate(s.follow_up_at)}` } }
+  }
+  return {
+    ...st,
+    waiting_on: "us",
+    since: s.follow_up_at,
+    days: businessDaysBetween(new Date(s.follow_up_at), s.now),
+    next_action: { kind: "follow_up", label: "Follow up", tab: "activity" },
+  }
+}
+
+function deriveBaseState(s: JobSnapshot): JobState {
   const q = s.quote ?? null
   const o = s.order ?? null
   const now = s.now
 
-  const paidOk = !!o && (o.paid || (o.deposit_required && o.deposit_paid))
+  // A deposit, when asked for, is always enforced. Without one, a customer on
+  // account terms (balance_due_at) doesn't pay before proof — the balance is
+  // chased after delivery.
+  const paidOk = !!o && (o.paid || (o.deposit_required ? o.deposit_paid : !!o.balance_due_at))
   const tracks = o?.tracks
   const downstreamIndex = ["received", "in_production", "quality_check", "shipped", "delivered"]
   const dIdx = tracks ? downstreamIndex.indexOf(tracks.downstream) : -1
@@ -125,7 +182,8 @@ export function deriveJobState(s: JobSnapshot): JobState {
     { key: "enquiry", label: "Enquiry", done: !!q || !!o, at: q?.created_at ?? o?.created_at ?? null },
     { key: "quoted", label: "Quoted", done: !!o || (!!q && q.status !== "new"), at: q?.quoted_at ?? null },
     { key: "accepted", label: "Accepted", done: !!o || q?.status === "accepted", at: q?.accepted_at ?? o?.created_at ?? null },
-    { key: "paid", label: "Paid", done: paidOk, at: null },
+    // The strip shows money actually received; terms customers aren't "Paid" yet.
+    { key: "paid", label: "Paid", done: !!o && (o.paid || (o.deposit_required && o.deposit_paid)), at: null },
     { key: "artwork", label: "Artwork", done: tracks?.artwork === "approved", at: tracks?.artwork === "approved" ? o?.artwork_stage_changed_at ?? null : null },
     { key: "blanks", label: "Blanks", done: tracks?.blanks === "arrived" || dIdx >= 1, at: tracks?.blanks === "arrived" ? o?.blanks_stage_changed_at ?? null : null },
     { key: "production", label: "Production", done: dIdx >= 3, at: dIdx >= 3 ? o?.production_stage_changed_at ?? null : null },
@@ -150,8 +208,10 @@ export function deriveJobState(s: JobSnapshot): JobState {
 
   if (lost) return wait(null, null, { kind: "none", label: "Closed" })
 
-  // Finished jobs first.
-  if (o && (tracks!.downstream === "delivered" || tracks!.downstream === "shipped")) {
+  // Finished jobs first — but a job isn't finished while money is owed.
+  const finished = !!o && (tracks!.downstream === "delivered" || tracks!.downstream === "shipped")
+  const owing = !!o && !o.paid && (o.outstanding ?? 0) > 0.01
+  if (finished && !owing) {
     return wait(null, null, { kind: "none", label: tracks!.downstream === "shipped" ? "In transit" : "Delivered" })
   }
 
@@ -183,6 +243,14 @@ export function deriveJobState(s: JobSnapshot): JobState {
 
   // ── Order exists ──────────────────────────────────────────────────────────
   const t = tracks!
+  if (finished) {
+    // Shipped or delivered with a balance owing.
+    const overdue = !!o.balance_due_at && ts(o.balance_due_at) < now.getTime()
+    return wait("customer", overdue ? o.balance_due_at! : o.production_stage_changed_at, {
+      kind: "nudge_payment",
+      label: overdue ? "Chase balance (overdue)" : "Chase balance",
+    })
+  }
   if (t.downstream === "in_production") {
     return wait("us", o.production_stage_changed_at, { kind: "qc_done", label: "QC done" })
   }
@@ -196,6 +264,10 @@ export function deriveJobState(s: JobSnapshot): JobState {
     t.artwork !== "approved" &&
     ts(o.artwork_changes_requested_at) >= ts(o.artwork_stage_changed_at)
   ) {
+    // Once a revised proof exists, the next step is sending it.
+    if (o.revised_proof_at && ts(o.revised_proof_at) > ts(o.artwork_changes_requested_at)) {
+      return wait("us", o.artwork_changes_requested_at, { kind: "send_proof", label: "Send revised proof", tab: "artwork" })
+    }
     return wait("us", o.artwork_changes_requested_at, { kind: "revise_proof", label: "Revise the proof", tab: "artwork" })
   }
 
@@ -223,6 +295,11 @@ export function deriveJobState(s: JobSnapshot): JobState {
       return wait("supplier", o.blanks_stage_changed_at, { kind: "mark_arrived", label: "Mark blanks arrived", tab: "delivery" })
     }
     return wait("us", o.blanks_stage_changed_at ?? o.created_at, { kind: "order_blanks", label: "Order blanks", tab: "delivery" })
+  }
+
+  // A walk-in stock sale: nothing to make, the customer takes it with them.
+  if (o.pos_sale && !o.has_decorated_lines) {
+    return wait("us", o.created_at, { kind: "collected", label: "Collected" })
   }
 
   // received, everything in place

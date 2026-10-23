@@ -10,6 +10,7 @@ import {
   AsColourCreateOrderRequest,
 } from "../../../../../modules/ascolour/types"
 import { getPostHog } from "../../../../../lib/posthog"
+import { markBlanksOrdered } from "../../../../../lib/mark-blanks-ordered"
 
 const paramsSchema = z.object({ id: z.string().min(1) })
 
@@ -141,6 +142,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       (req as any).auth_context?.actor_id ??
       (req as any).auth_context?.app_metadata?.user_id ??
       "admin"
+    await markBlanksOrdered(req.scope, order.id, {
+      actor: adminId,
+      note: `AS Colour order ${ascolourOrder.id} sent`,
+    })
     getPostHog()?.capture({
       distinctId: adminId,
       event: "order sent to ascolour",

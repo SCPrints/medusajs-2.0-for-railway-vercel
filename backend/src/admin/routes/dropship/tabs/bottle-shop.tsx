@@ -125,7 +125,7 @@ const BottleShopDropshipPage = () => {
             >
               <div className="flex items-center justify-between">
                 <a
-                  href={`/app/orders/${o.order_id}`}
+                  href={`/app/jobs/${o.order_id}`}
                   className="text-ui-fg-interactive hover:underline"
                 >
                   <Text size="small" weight="plus">#{o.display_id}</Text>
@@ -163,7 +163,7 @@ const BottleShopDropshipPage = () => {
             >
               <div className="flex items-center justify-between">
                 <a
-                  href={`/app/orders/${o.order_id}`}
+                  href={`/app/jobs/${o.order_id}`}
                   className="text-ui-fg-interactive hover:underline"
                 >
                   <Text size="small" weight="plus">#{o.display_id}</Text>

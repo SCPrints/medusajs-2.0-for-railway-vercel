@@ -308,7 +308,7 @@ export const ReceiptModal = ({
             <Button
               variant="secondary"
               onClick={() => {
-                window.open(`/app/orders/${result.order.id}`, "_blank")
+                window.open(`/app/jobs/${result.order.id}`, "_blank")
               }}
             >
               Open order

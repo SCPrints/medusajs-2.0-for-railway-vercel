@@ -148,7 +148,7 @@ const PrintQueuePage = () => {
                     >
                       <div className="flex items-baseline justify-between gap-x-2">
                         <a
-                          href={`/app/orders/${j.order_id}`}
+                          href={`/app/jobs/${j.order_id}`}
                           className="text-sm font-semibold hover:underline"
                         >
                           #{j.display_id ?? j.order_id.slice(-6)}

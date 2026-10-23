@@ -117,7 +117,7 @@ export async function buildCustomerJourney(
           at: o.created_at as string,
           title: `Placed order #${o.display_id ?? o.id.slice(-6)}`,
           detail: `${o.currency_code?.toUpperCase() ?? "AUD"} ${(typeof o.total === "number" ? o.total : Number.parseFloat(String(o.total ?? 0))).toFixed(2)}`,
-          href: `/app/orders/${o.id}`,
+          href: `/app/jobs/${o.id}`,
         })
         const meta = (o.metadata ?? {}) as Record<string, unknown>
         if (typeof meta.nps_recorded_at === "string") {
@@ -132,7 +132,7 @@ export async function buildCustomerJourney(
               typeof meta.nps_comment === "string"
                 ? (meta.nps_comment as string)
                 : null,
-            href: `/app/orders/${o.id}`,
+            href: `/app/jobs/${o.id}`,
           })
         }
       }

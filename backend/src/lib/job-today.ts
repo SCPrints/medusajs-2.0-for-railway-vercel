@@ -6,7 +6,7 @@
  *   ready              we can move it now, or a supplier owes us blanks
  *   waiting_on_customer we've asked; they haven't answered
  *
- * Shipped / delivered / closed jobs are left off. Flags and due dates are
+ * Closed jobs, and shipped / delivered jobs with nothing owing, are left off. Flags and due dates are
  * badges on the row, not sections, so nothing appears twice.
  */
 import type { JobState, NextActionKind, WaitingOn } from "./job-state"
@@ -35,6 +35,7 @@ export type TodayRow = {
   quote_id: string | null
   display_id: number | null
   outstanding: number | null
+  rush_tier: "priority" | "express" | null
 }
 
 export type TodayView = {
@@ -83,12 +84,19 @@ export function rowFromJob(job: JobView): TodayRow {
     quote_id: job.quote?.id ?? null,
     display_id: job.order?.display_id ?? null,
     outstanding: job.money.outstanding,
+    rush_tier: job.order?.rush_tier ?? null,
   }
 }
 
-/** Longest wait first; a job with flags outranks one without at equal days. */
+const RUSH_RANK = { express: 2, priority: 1 } as const
+const rushRank = (r: TodayRow) => (r.rush_tier ? RUSH_RANK[r.rush_tier] : 0)
+
+/** Rushed jobs first, then longest wait; a job with flags outranks one without at equal days. */
 const byUrgency = (a: TodayRow, b: TodayRow) =>
-  b.days - a.days || b.flags.length - a.flags.length || (a.since ?? "").localeCompare(b.since ?? "")
+  rushRank(b) - rushRank(a) ||
+  b.days - a.days ||
+  b.flags.length - a.flags.length ||
+  (a.since ?? "").localeCompare(b.since ?? "")
 
 export function groupToday(jobs: JobView[], now: Date = new Date()): TodayView {
   const sections: Record<TodaySection, TodayRow[]> = { waiting_on_us: [], ready: [], waiting_on_customer: [] }

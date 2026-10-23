@@ -125,6 +125,7 @@ const TodayPage = () => {
                           {row.flags.length ? ` · ${row.flags.map((f) => f.label).join(" · ")}` : ""}
                         </Text>
                       </a>
+                      {row.rush_tier ? <Badge color="red" size="2xsmall">{row.rush_tier === "express" ? "Express" : "Priority"}</Badge> : null}
                       <Badge size="2xsmall">{PHASE_LABEL[row.phase] ?? row.phase}</Badge>
                       {row.waiting_on ? (
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${WAIT_PILL[row.waiting_on]}`}>
@@ -153,7 +154,7 @@ const TodayPage = () => {
 
       {view ? (
         <Text size="xsmall" className="text-ui-fg-muted">
-          Built {new Date(view.generated_at).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}. Shipped and delivered jobs aren&apos;t listed.
+          Built {new Date(view.generated_at).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}. Shipped and delivered jobs aren&apos;t listed unless money is still owed.
         </Text>
       ) : null}
     </div>

@@ -44,7 +44,7 @@ export const OpenCartsList = ({
       const r = await fetch(`/admin/open-carts/${cartId}/quote`, { method: "POST", credentials: "include" })
       const d = await r.json()
       if (!r.ok) throw new Error(d?.message ?? "Failed")
-      window.location.href = `/app/quotes?id=${encodeURIComponent(d.quote_id)}`
+      window.location.href = `/app/jobs/${encodeURIComponent(d.quote_id)}`
     } catch (e: any) {
       toast.error(e?.message ?? "Could not create quote")
       setBusy(null)
@@ -77,7 +77,7 @@ export const OpenCartsList = ({
             <div className="flex items-center gap-2">
               <Text weight="plus">{money(cart.item_total)}</Text>
               {cart.quote_id ? (
-                <Button size="small" variant="secondary" onClick={() => (window.location.href = `/app/quotes?id=${cart.quote_id}`)}>
+                <Button size="small" variant="secondary" onClick={() => (window.location.href = `/app/jobs/${cart.quote_id}`)}>
                   Open quote
                 </Button>
               ) : (

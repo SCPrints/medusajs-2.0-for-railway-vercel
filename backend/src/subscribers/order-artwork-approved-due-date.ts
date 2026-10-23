@@ -4,9 +4,13 @@ import { SubscriberArgs, SubscriberConfig } from "@medusajs/medusa"
 
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../lib/audit-entities"
 import { writeAudit } from "../lib/audit-log"
-import { PRODUCTION_LEAD_BUSINESS_DAYS } from "../lib/constants"
+import {
+  PRODUCTION_LEAD_BUSINESS_DAYS,
+  PRODUCTION_LEAD_BUSINESS_DAYS_EXPRESS,
+  PRODUCTION_LEAD_BUSINESS_DAYS_PRIORITY,
+} from "../lib/constants"
 import { mergeOrderMetadata } from "../lib/order-metadata"
-import { planDueDateOnApproval } from "../lib/production-due-date"
+import { leadDaysFor, planDueDateOnApproval } from "../lib/production-due-date"
 import {
   ARTWORK_STAGE_EVENT,
   type ProductionStageChangedEvent,
@@ -29,7 +33,12 @@ export default async function orderArtworkApprovedDueDateHandler({
     const order = await orderModuleService.retrieveOrder(data.order_id)
     const meta = (order.metadata ?? {}) as Record<string, unknown>
     const approvedAt = new Date(data.changed_at ?? Date.now())
-    const plan = planDueDateOnApproval(meta, approvedAt, PRODUCTION_LEAD_BUSINESS_DAYS)
+    const leadDays = leadDaysFor(meta, {
+      standard: PRODUCTION_LEAD_BUSINESS_DAYS,
+      priority: PRODUCTION_LEAD_BUSINESS_DAYS_PRIORITY,
+      express: PRODUCTION_LEAD_BUSINESS_DAYS_EXPRESS,
+    })
+    const plan = planDueDateOnApproval(meta, approvedAt, leadDays)
 
     if (plan.action === "set") {
       if (meta.production_due_date === plan.due_date) return

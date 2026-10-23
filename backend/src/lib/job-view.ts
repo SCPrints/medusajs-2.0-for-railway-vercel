@@ -66,6 +66,8 @@ export type JobView = {
     production_due_date: string | null
     delivery_method: string | null
     is_stale: boolean
+    /** Rush sold in the Job pricer (metadata.rush_tier). */
+    rush_tier: "priority" | "express" | null
   } | null
   customer: {
     id: string | null
@@ -93,7 +95,7 @@ export type JobView = {
   }
   lines: JobLine[]
   flags: { kind: string; label: string }[]
-  tasks: { id: string; title: string; status: string; priority: string; due_at: string | null; assignee_user_id: string }[]
+  tasks: { id: string; title: string; status: string; priority: string; due_at: string | null; assignee_user_id: string; follow_up: boolean }[]
   activity: JobActivity[]
   unread_inbound: number
   state: JobState

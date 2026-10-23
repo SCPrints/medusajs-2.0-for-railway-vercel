@@ -291,7 +291,7 @@ export const CapacityChart = ({
                     key={o.order_id}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle cursor-pointer"
                     onClick={() => {
-                      window.location.href = `/app/orders/${o.order_id}`
+                      window.location.href = `/app/jobs/${o.order_id}`
                     }}
                   >
                     <td className="px-2 py-1 tabular-nums font-medium">

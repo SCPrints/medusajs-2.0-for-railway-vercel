@@ -530,7 +530,7 @@ const PendingTab = ({
                 />
                 <div className="w-16 shrink-0">
                   <a
-                    href={`/app/orders/${order.order_id}`}
+                    href={`/app/jobs/${order.order_id}`}
                     className="text-sm text-ui-fg-interactive hover:underline"
                     target="_blank"
                     rel="noreferrer"
@@ -686,7 +686,7 @@ const SentTab = ({ orders }: { orders: SentOrder[] }) => {
           >
             <div className="w-16 shrink-0">
               <a
-                href={`/app/orders/${order.order_id}`}
+                href={`/app/jobs/${order.order_id}`}
                 className="text-sm text-ui-fg-interactive hover:underline"
                 target="_blank"
                 rel="noreferrer"
@@ -795,7 +795,7 @@ const InHouseTab = ({
         >
           <div className="w-16 shrink-0">
             <a
-              href={`/app/orders/${order.order_id}`}
+              href={`/app/jobs/${order.order_id}`}
               className="text-sm text-ui-fg-interactive hover:underline"
               target="_blank"
               rel="noreferrer"

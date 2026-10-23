@@ -801,6 +801,7 @@ Always returns 204 so failures never break UX. Query length validated 1-500 char
 | `PROOF_REMINDERS_ENABLED` | Gates the weekday proof-reminder cron ([send-proof-reminders.ts](backend/src/jobs/send-proof-reminders.ts)). | `false` |
 | `PROOF_REMINDER_BUSINESS_DAYS` | Business days a proof waits before the customer gets its one reminder. | `2` |
 | `PRODUCTION_LEAD_BUSINESS_DAYS` | Business days from artwork approval to the automatic production due date. | `7` |
+| `PRODUCTION_LEAD_BUSINESS_DAYS_PRIORITY` / `_EXPRESS` | Same, for orders whose quote sold a rush tier in the Job pricer (`order.metadata.rush_tier`, stamped at convert with `is_rush`). Defaults follow the storefront's DTF promise. | `3` / `1` |
 | `PRICING_INVARIANT_MODE` | Checkout pricing invariant ([backend/src/lib/checkout-price-invariant.ts](backend/src/lib/checkout-price-invariant.ts)) — middleware on `POST /store/carts/:id/complete` re-derives every line's expected price via the canonical decoration pricing and flags mismatches, $0-decoration lines, POA embroidery, and below-cost lines. `off` = never runs; `alert` = log + PostHog only (shadow mode); `block` = 409 the checkout on block-severity findings (flip only after a clean shadow run). Exempt: `quote_locked_price`, `decorationDesign`, `metadata.price_override` lines. Fail-open on internal errors. | `alert` |
 
 #### Customer-lifecycle send-gate flags (CRM)

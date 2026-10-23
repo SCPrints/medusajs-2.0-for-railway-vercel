@@ -329,6 +329,9 @@ export const convertQuoteToOrder = async (
   if (!shipping.first_name) shipping = { ...shipping, ...identity }
   billing = { ...billing, ...identity }
 
+  const pricerRush = (meta.job_pricer as any)?.state?.rush
+  const rushTier = pricerRush === "priority" || pricerRush === "express" ? pricerRush : null
+
   const balanceDueAt = termsDays
     ? new Date(Date.now() + termsDays * 86_400_000).toISOString()
     : null
@@ -353,6 +356,9 @@ export const convertQuoteToOrder = async (
         converted_by: args.actorId,
         ...(balanceDueAt ? { balance_due_at: balanceDueAt } : {}),
         ...(deliveryMethod ? { delivery_method: deliveryMethod } : {}),
+        // Rush sold in the Job pricer: shortens the due date, flags the job,
+        // and feeds the on-time report's rush bucket (is_rush).
+        ...(rushTier ? { rush_tier: rushTier, is_rush: true } : {}),
       },
       items: itemPayloads,
     } as any,

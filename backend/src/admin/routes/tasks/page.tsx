@@ -155,10 +155,10 @@ const TasksPage = () => {
   }
 
   const anchorLink = (t: Task): { href: string; label: string } | null => {
-    if (t.order_id) return { href: `/app/orders/${t.order_id}`, label: "Order" }
+    if (t.order_id) return { href: `/app/jobs/${t.order_id}`, label: "Job" }
+    if (t.quote_id) return { href: `/app/jobs/${t.quote_id}`, label: "Job" }
     if (t.customer_id)
       return { href: `/app/customers/${t.customer_id}`, label: "Customer" }
-    if (t.quote_id) return { href: `/app/quotes`, label: "Quote" }
     if (t.organisation_id) return { href: `/app/organisations`, label: "Org" }
     return null
   }

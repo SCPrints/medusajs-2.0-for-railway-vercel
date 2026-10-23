@@ -157,14 +157,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(500).json({ error: err?.message ?? "send_failed" })
   }
 
+  // Sending the priced quote IS quoting: without this the quote stayed "new"
+  // and sat on "Price it" at the top of Today until someone found the
+  // status dropdown.
+  const markQuoted = !!quoteBlock && quote.status === "new"
+  if (markQuoted) {
+    await service.updateQuotes([{ id, status: "quoted", quoted_at: new Date() }])
+  }
+
   // Best-effort timeline event so staff see the request went out.
   try {
     await service.createQuoteEvents([
       {
         quote_id: id,
         type: "status_changed",
-        actor: "staff",
+        actor: (req as any).auth_context?.actor_id ?? "staff",
         body: {
+          ...(markQuoted ? { from: "new", to: "quoted" } : {}),
           design_approval: "request_sent",
           to: quote.email,
           included_quote: Boolean(quoteBlock),

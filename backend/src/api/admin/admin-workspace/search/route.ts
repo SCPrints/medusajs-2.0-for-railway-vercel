@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { findOpenCarts } from "../../../../lib/open-carts"
+import { QUOTE_MODULE } from "../../../../modules/quote"
 
 /**
  * GET /admin/admin-workspace/search?q=<query>
@@ -16,7 +17,7 @@ import { findOpenCarts } from "../../../../lib/open-carts"
 const LIMIT = 10
 
 type Hit = {
-  type: "order" | "customer" | "product" | "cart"
+  type: "order" | "quote" | "customer" | "product" | "cart"
   id: string
   title: string
   subtitle?: string | null
@@ -66,8 +67,48 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         subtitle: o.email
           ? `${o.email} · $${Math.round(Number(o.total ?? 0))}`
           : `$${Math.round(Number(o.total ?? 0))}`,
-        href: `/app/orders/${o.id}`,
+        href: `/app/jobs/${o.id}`,
       })
+    }
+  } catch {
+    /* skip */
+  }
+
+  // Quotes — the caller on the phone: name, company, phone, email, Q-number
+  // or subject. Same haystack as GET /admin/quotes?q= plus the phone.
+  try {
+    const quotes = req.scope.resolve(QUOTE_MODULE) as any
+    // ponytail: newest 500 filtered in memory, like the quotes list; move to
+    // SQL ILIKE if quotes ever outgrow that.
+    const rows: any[] = await quotes.listQuotes(
+      {},
+      {
+        take: 500,
+        order: { created_at: "DESC" },
+        select: ["id", "public_id", "email", "subject", "company", "contact_name", "contact_phone", "status", "metadata"],
+      }
+    )
+    const term = q.toLowerCase().replace(/^q-/, "")
+    const digits = q.replace(/\D/g, "")
+    let n = 0
+    for (const r of term ? rows : []) {
+      const hay = [r.email, r.public_id, r.subject, r.company, r.contact_name]
+        .filter((v): v is string => typeof v === "string")
+        .join(" ")
+        .toLowerCase()
+      const phone = typeof r.contact_phone === "string" ? r.contact_phone.replace(/\D/g, "") : ""
+      if (!hay.includes(term) && !(digits.length >= 6 && phone.includes(digits))) continue
+      const who = r.contact_name || r.company || r.email
+      results.push({
+        type: "quote",
+        id: r.id,
+        title: [r.public_id, who].filter(Boolean).join(" · "),
+        subtitle: [r.subject, r.status, typeof r.metadata?.order_display_id === "number" ? `order #${r.metadata.order_display_id}` : null]
+          .filter(Boolean)
+          .join(" · "),
+        href: `/app/jobs/${r.id}`,
+      })
+      if (++n >= LIMIT) break
     }
   } catch {
     /* skip */

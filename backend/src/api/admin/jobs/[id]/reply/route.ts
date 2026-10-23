@@ -71,7 +71,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       {
         quote_id: job.quote.id,
         type: channel === "email" ? "message" : "note",
-        actor,
+        // The prefix marks a composer note as answering the customer (build.ts).
+        actor: channel === "email" ? actor : `${STAFF_NOTE_ACTOR_PREFIX}${actor}`,
         body: channel === "email" ? { direction: "out", to, subject: parsed.data.subject ?? null, text: body } : { text: body },
       },
     ])
@@ -85,8 +86,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     details: { kind: channel === "email" ? "job_reply" : "job_note", to: channel === "email" ? to : null },
   })
 
-  // Answering closes the "customer waiting" task.
-  if (channel === "email") {
+  // Answering — by email or a logged call — closes the "customer waiting" task.
+  {
     try {
       const tasks = req.scope.resolve(TASK_MODULE) as any
       const open = job.tasks.filter((t) => t.status !== "done" && t.status !== "cancelled")
@@ -94,7 +95,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       if (ids.length) {
         const rows: any[] = await tasks.listTasks({ id: ids }, { take: 50 })
         for (const t of rows) {
-          if (t?.metadata?.attention_kind === "customer_reply") {
+          const dueFollowUp = t?.metadata?.follow_up === true && t.due_at && new Date(t.due_at).getTime() <= Date.now()
+          if (t?.metadata?.attention_kind === "customer_reply" || dueFollowUp) {
             await tasks.updateTasks({ id: t.id, status: "done", completed_at: new Date(), completed_by: actor })
           }
         }

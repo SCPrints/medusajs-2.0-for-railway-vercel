@@ -1,4 +1,14 @@
-import { planDueDateOnApproval } from "../production-due-date"
+import { leadDaysFor, planDueDateOnApproval } from "../production-due-date"
+
+describe("leadDaysFor", () => {
+  const lead = { standard: 7, priority: 3, express: 1 }
+  it("uses the rush tier sold on the order, else standard", () => {
+    expect(leadDaysFor({}, lead)).toBe(7)
+    expect(leadDaysFor({ rush_tier: "priority" }, lead)).toBe(3)
+    expect(leadDaysFor({ rush_tier: "express" }, lead)).toBe(1)
+    expect(leadDaysFor({ rush_tier: "nonsense" }, lead)).toBe(7)
+  })
+})
 
 // Approved Monday 12 Oct 2026, 11:00 Sydney.
 const approved = new Date("2026-10-12T00:00:00.000Z")

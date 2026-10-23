@@ -277,7 +277,7 @@ export const SlaBreachChart = ({
                     key={b.order_id}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle cursor-pointer"
                     onClick={() => {
-                      window.location.href = `/app/orders/${b.order_id}`
+                      window.location.href = `/app/jobs/${b.order_id}`
                     }}
                   >
                     <td className="px-2 py-1 tabular-nums font-medium">

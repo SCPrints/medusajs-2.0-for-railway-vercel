@@ -1,5 +1,5 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
 import { groupToday, type TodayView } from "../../lib/job-today"
 import type { JobView } from "../../lib/job-view"
@@ -16,7 +16,7 @@ const CONCURRENCY = 5
 // action; move to Redis if there is ever a second backend machine.
 let cache: { at: number; view: TodayView } | null = null
 
-/** Ids of every job that isn't finished: open quotes without an order, plus un-shipped orders. */
+/** Ids of every job that isn't finished: open quotes without an order, un-shipped orders, and shipped orders still owing. */
 async function openJobIds(container: MedusaContainer): Promise<string[]> {
   const query = container.resolve(ContainerRegistrationKeys.QUERY) as any
   const quotes = container.resolve(QUOTE_MODULE) as any
@@ -35,15 +35,35 @@ async function openJobIds(container: MedusaContainer): Promise<string[]> {
     filters: { status: { $ne: "canceled" } },
     pagination: { take: 500, skip: 0, order: { created_at: "DESC" } },
   })
-  const orderIds = ((orders as any[]) ?? [])
+  const orderIds: string[] = []
+  const finishedIds: string[] = []
+  for (const o of (orders as any[]) ?? []) {
+    const meta = (o.metadata ?? {}) as Record<string, unknown>
+    if (meta.fulfillment_order === true) continue
+    if (CLOSED_DOWNSTREAM.has(resolveTracksFromMeta(meta).downstream)) finishedIds.push(o.id)
+    else orderIds.push(o.id)
+  }
+
+  // Shipped / delivered jobs stay on Today while money is owed.
+  return [...orderIds, ...(await owingIds(container, finishedIds)), ...quoteIds]
+}
+
+async function owingIds(container: MedusaContainer, ids: string[]): Promise<string[]> {
+  if (!ids.length) return []
+  const orderModule = container.resolve(Modules.ORDER) as any
+  const rows: any[] = await orderModule
+    .listOrders({ id: ids }, { relations: ["summary"], select: ["id"], take: ids.length })
+    .catch(() => [])
+  const n = (v: unknown) => {
+    const x = typeof v === "object" && v && "value" in (v as any) ? Number((v as any).value) : Number(v)
+    return Number.isFinite(x) ? x : 0
+  }
+  return rows
     .filter((o) => {
-      const meta = (o.metadata ?? {}) as Record<string, unknown>
-      if (meta.fulfillment_order === true) return false
-      return !CLOSED_DOWNSTREAM.has(resolveTracksFromMeta(meta).downstream)
+      const s = o.summary ?? {}
+      return n(s.raw_current_order_total ?? s.current_order_total) - n(s.raw_paid_total ?? s.paid_total) > 0.01
     })
     .map((o) => o.id as string)
-
-  return [...orderIds, ...quoteIds]
 }
 
 export async function buildToday(container: MedusaContainer, options: { fresh?: boolean } = {}): Promise<TodayView> {

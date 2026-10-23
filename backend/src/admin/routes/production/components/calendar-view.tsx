@@ -465,7 +465,7 @@ const OrderDetailDrawer = ({
           <Button
             size="small"
             onClick={() => {
-              window.open(`/app/orders/${order.id}`, "_blank", "noopener,noreferrer")
+              window.open(`/app/jobs/${order.id}`, "_blank", "noopener,noreferrer")
             }}
           >
             Open order →

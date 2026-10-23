@@ -56,8 +56,8 @@ const BODY: Record<JobAttentionKind, string> = {
 const jobUrl = (input: AttentionInput): string | null => {
   const root = (ADMIN_PUBLIC_URL ?? BACKEND_URL ?? "").replace(/\/$/, "")
   if (!root) return null
-  if (input.order_id) return `${root}/app/orders/${input.order_id}`
-  if (input.quote_id) return `${root}/app/quotes?quote=${input.quote_id}`
+  if (input.order_id) return `${root}/app/jobs/${input.order_id}`
+  if (input.quote_id) return `${root}/app/jobs/${input.quote_id}`
   return null
 }
 

@@ -1,64 +1,62 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import type { AdminOrder, DetailWidgetProps } from "@medusajs/framework/types"
-import { Container, Text } from "@medusajs/ui"
-import { useCallback, useEffect, useState } from "react"
+import { Badge, Button, Container, Text } from "@medusajs/ui"
+import { useEffect, useState } from "react"
 
-import { JobPanel } from "../components/job/job-panel"
 import type { JobView } from "../../lib/job-view"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
 
-/**
- * The one panel at the top of the Medusa order page: header, phase strip,
- * next action and the five tabs that hold what used to be 27 stacked widgets
- * (now in components/job/widgets). Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md.
- */
-const OrderJobPanelWidget = ({ data }: DetailWidgetProps<AdminOrder>) => {
-  const [job, setJob] = useState<JobView | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [order, setOrder] = useState<AdminOrder>(data)
+const WAIT: Record<string, { color: "red" | "blue" | "orange"; label: string }> = {
+  us: { color: "red", label: "Waiting on us" },
+  customer: { color: "blue", label: "Waiting on customer" },
+  supplier: { color: "orange", label: "Waiting on supplier" },
+}
 
-  const load = useCallback(async () => {
-    try {
-      const [j, o] = await Promise.all([
-        fetch(`/admin/jobs/${encodeURIComponent(data.id)}`, { credentials: "include" }).then(async (r) => {
-          const json = await r.json().catch(() => ({}))
-          if (!r.ok) throw new Error(json?.error ?? `HTTP ${r.status}`)
-          return json.job as JobView
-        }),
-        fetch(`/admin/orders/${encodeURIComponent(data.id)}`, { credentials: "include" })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((json) => (json?.order as AdminOrder | undefined) ?? null)
-          .catch(() => null),
-      ])
-      setJob(j)
-      if (o) setOrder(o)
-      setError(null)
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to load job")
-    }
-  }, [data.id])
+const PHASE: Record<string, string> = {
+  enquiry: "Enquiry", quoted: "Quoted", accepted: "Accepted", paid: "Paid", artwork: "Artwork",
+  blanks: "Blanks", production: "In production", shipped: "Shipped", delivered: "Delivered",
+}
+
+/**
+ * One line at the top of Medusa's own order page pointing at the job window
+ * (/app/jobs/:id), where staff work the job. Medusa's sections below stay as
+ * they are: this is where refunds, order edits, returns, cancelling, capture
+ * and address/email changes live (Docs/ADMIN_JOB_WINDOW_2026_10.md — no
+ * redirect, because that would strand those).
+ */
+const OrderJobBar = ({ data }: DetailWidgetProps<AdminOrder>) => {
+  const [job, setJob] = useState<JobView | null>(null)
 
   useEffect(() => {
-    void load()
-  }, [load])
+    let live = true
+    fetch(`/admin/jobs/${encodeURIComponent(data.id)}`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => { if (live && json?.job) setJob(json.job as JobView) })
+      .catch(() => undefined)
+    return () => { live = false }
+  }, [data.id])
 
-  if (error) {
-    return (
-      <Container>
-        <Text size="small" className="text-ui-fg-error">Job panel: {error}</Text>
-      </Container>
-    )
-  }
-  if (!job) {
-    return (
-      <Container>
-        <Text size="small" className="text-ui-fg-muted">Loading job…</Text>
-      </Container>
-    )
-  }
-  return <JobPanel job={job} order={order} onChanged={load} />
+  const wait = job?.state.waiting_on ? WAIT[job.state.waiting_on] : null
+  return (
+    <Container className="flex flex-wrap items-center gap-3 py-3">
+      <Text weight="plus">Job #{data.display_id}</Text>
+      {job ? (
+        <>
+          <Badge size="2xsmall">{PHASE[job.state.phase] ?? job.state.phase}</Badge>
+          {wait ? <Badge size="2xsmall" color={wait.color}>{wait.label}</Badge> : null}
+          {job.state.next_action.kind !== "none" ? (
+            <Text size="small" className="text-ui-fg-subtle">Next: {job.state.next_action.label}</Text>
+          ) : null}
+        </>
+      ) : null}
+      <Text size="small" className="text-ui-fg-muted">Refunds, edits and cancelling are on this page.</Text>
+      <Button size="small" className="ml-auto" asChild>
+        <a href={`/app/jobs/${encodeURIComponent(data.id)}`}>Open job →</a>
+      </Button>
+    </Container>
+  )
 }
 
 export const config = defineWidgetConfig({ zone: "order.details.before" })
 
-export default withWidgetBoundary(OrderJobPanelWidget, "order-job-panel")
+export default withWidgetBoundary(OrderJobBar, "order-job-bar")

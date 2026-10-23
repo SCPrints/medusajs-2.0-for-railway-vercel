@@ -18,7 +18,8 @@ const job = (id: string, st: Partial<JobState>, flags: JobView["flags"] = []): J
     id,
     kind: "quote",
     title: id,
-    quote: { id, public_id: id.toUpperCase(), status: "accepted", subject: null, assigned_to: null, total_estimate: 148, expires_at: null, quoted_at: null, accepted_at: null, has_job_pricer: false, design_approval_status: null },
+    // Real public ids carry the "Q-" prefix (rowFromJob uses them as-is).
+    quote: { id, public_id: `Q-${id.toUpperCase()}`, status: "accepted", subject: null, assigned_to: null, total_estimate: 148, expires_at: null, quoted_at: null, accepted_at: null, has_job_pricer: false, design_approval_status: null },
     order: null,
     customer: { id: null, name: "Dean", email: "d@x.com", phone: null, company: null, has_account: false },
     owner: null,
@@ -59,5 +60,15 @@ describe("groupToday", () => {
     expect(view.sections.waiting_on_customer.map((r) => r.id)).toEqual(["d"])
     expect(view.counts).toEqual({ waiting_on_us: 3, ready: 0, waiting_on_customer: 1, total: 4 })
     expect(view.sections.waiting_on_us[0]).toMatchObject({ label: "Q-C", customer: "Dean", total: 148, last_activity: { kind: "email_in" } })
+  })
+
+  it("puts rushed jobs first, Express before Priority, whatever the wait", () => {
+    const rushed = (id: string, tier: "priority" | "express") => {
+      const j = job(id, { days: 0 })
+      return { ...j, order: { rush_tier: tier } as JobView["order"] } as JobView
+    }
+    const view = groupToday([job("a", { days: 9 }), rushed("p", "priority"), rushed("x", "express")], new Date("2026-10-21T00:00:00.000Z"))
+    expect(view.sections.waiting_on_us.map((r) => r.id)).toEqual(["x", "p", "a"])
+    expect(view.sections.waiting_on_us[0].rush_tier).toBe("express")
   })
 })

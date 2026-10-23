@@ -20,7 +20,7 @@ import type { StaleOrderEntry } from "./scan"
 
 const buildOrderAdminUrl = (orderId: string): string => {
   const root = ADMIN_PUBLIC_URL ?? BACKEND_URL
-  return `${root.replace(/\/$/, "")}/app/orders/${orderId}`
+  return `${root.replace(/\/$/, "")}/app/jobs/${orderId}`
 }
 
 const resolveUserEmail = async (

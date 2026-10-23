@@ -14,6 +14,20 @@ export type DueDateOnApproval =
  *   includes dates set before this field existed) is never moved. `tight`
  *   says it's earlier than the automatic date, so staff can be warned.
  */
+/** The rush tier sold on the order, if any (stamped at quote conversion). */
+export function rushTierOf(meta: Record<string, unknown>): "priority" | "express" | null {
+  return meta.rush_tier === "priority" || meta.rush_tier === "express" ? meta.rush_tier : null
+}
+
+/** Business days from approval to due: the rush tier's, else standard. */
+export function leadDaysFor(
+  meta: Record<string, unknown>,
+  lead: { standard: number; priority: number; express: number }
+): number {
+  const tier = rushTierOf(meta)
+  return tier ? lead[tier] : lead.standard
+}
+
 export function planDueDateOnApproval(
   meta: Record<string, unknown>,
   approvedAt: Date,

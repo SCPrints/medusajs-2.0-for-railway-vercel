@@ -5,9 +5,16 @@ import { ASCOLOUR_WORKSHOP_ADDRESS_1 } from "../../lib/constants"
 import { AUDIT_ENTITY } from "../../lib/audit-entities"
 import { getOwner } from "../../lib/crm-owners"
 import { readStoredDeliveryAddress } from "../../lib/delivery-address"
-import { deriveJobState, type JobSnapshot } from "../../lib/job-state"
+import {
+  deriveJobState,
+  STAFF_EMAIL_ACTOR_PREFIX,
+  STAFF_NOTE_ACTOR_PREFIX,
+  threadTimes,
+  type JobSnapshot,
+} from "../../lib/job-state"
 import type { JobActivity, JobLine, JobView } from "../../lib/job-view"
 import { isDecoratedLine } from "../../lib/production-gate"
+import { rushTierOf } from "../../lib/production-due-date"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
 import { productionGateFailures } from "../../lib/production-gate"
 import { QUOTE_MODULE } from "../../modules/quote"
@@ -15,9 +22,10 @@ import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 import { TASK_MODULE } from "../../modules/task"
 import { buildOrderTimeline } from "../order-timeline/build"
 
-/** Written by the reply route on outbound staff emails / notes. */
-export const STAFF_EMAIL_ACTOR_PREFIX = "staff-email:"
-export const STAFF_NOTE_ACTOR_PREFIX = "staff-note:"
+// Defined in lib/job-state.ts (pure); re-exported for existing importers.
+export { STAFF_EMAIL_ACTOR_PREFIX, STAFF_NOTE_ACTOR_PREFIX }
+
+const DUPLICATE_AUDIT = new Set(["stage_changed", "job_reply", "job_note", "dsp_job_sent"])
 
 const iso = (v: unknown): string | null => {
   if (!v) return null
@@ -250,7 +258,9 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
     for (const a of (data as any[]) ?? []) {
       const d = (a.details ?? {}) as Record<string, any>
       const k = typeof d.kind === "string" ? d.kind : a.action
-      if (k === "attention:customer_reply") continue // the email itself is already an entry
+      // Already entries in their own right: the email, the stage row from the
+      // timeline, the composer's email/note, the DSP send comment.
+      if (k === "attention:customer_reply" || DUPLICATE_AUDIT.has(k)) continue
       activity.push({ at: iso(a.created_at) ?? now.toISOString(), kind: "system", title: String(k).replace(/^attention:/, "flagged: ").replace(/_/g, " "), detail: d.subject ?? null, actor: a.actor_email ?? a.actor_id ?? null })
     }
   }
@@ -261,9 +271,16 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
 
   // ── Snapshot → state ─────────────────────────────────────────────────────
   const tracks = order ? resolveTracksFromMeta(ometa) : null
-  const inbound = activity.filter((a) => a.kind === "email_in").map((a) => a.at)
-  const outbound = activity.filter((a) => a.kind === "email_out").map((a) => a.at)
-  const lastInbound = [...inbound, iso(ometa.artwork_changes_requested_at), iso(qmeta.design_changes_requested_at)].filter(Boolean).sort().at(-1) ?? null
+  // A logged call/note answers the customer too. Proof / design change
+  // requests are NOT inbound mail: folding them in made "Reply" outrank
+  // "Revise the proof" (threadTimes in lib/job-state.ts).
+  const { inbound, last_inbound_at: lastInbound, answers: outbound } = threadTimes(activity)
+  const revisedProofAt =
+    (Array.isArray(ometa.revised_proofs) ? (ometa.revised_proofs as any[]) : [])
+      .map((p) => iso(p?.uploaded_at))
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null
   const proofSentAt = tracks?.artwork === "awaiting_approval" ? iso(ometa.artwork_stage_changed_at) : null
   const lastOutbound =
     [...outbound, iso(quote?.quoted_at), iso(order?.created_at), proofSentAt, openLink?.created_at ?? null, iso(qmeta.design_approval_changed_at)]
@@ -299,6 +316,10 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             blanks_stage_changed_at: iso(ometa.blanks_stage_changed_at),
             production_stage_changed_at: iso(ometa.production_stage_changed_at),
             has_decorated_lines: hasDecorated,
+            outstanding: orderTotal != null ? Math.max(0, orderTotal - paid) : null,
+            balance_due_at: iso(ometa.balance_due_at),
+            pos_sale: typeof ometa.pos_session_id === "string" && !!ometa.pos_session_id,
+            revised_proof_at: revisedProofAt,
             gate_failures: productionGateFailures({
               meta: ometa,
               fromDownstream: tracks.downstream,
@@ -311,6 +332,12 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
         : null,
     last_inbound_at: lastInbound,
     last_outbound_at: lastOutbound,
+    follow_up_at:
+      taskRows
+        .filter((t) => t?.metadata?.follow_up === true && t.due_at)
+        .map((t) => iso(t.due_at))
+        .filter(Boolean)
+        .sort()[0] ?? null,
     now,
   }
   const state = deriveJobState(snapshot)
@@ -362,6 +389,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             production_due_date: iso(ometa.production_due_date),
             delivery_method: typeof ometa.delivery_method === "string" ? ometa.delivery_method : null,
             is_stale: ometa.is_stale === true,
+            rush_tier: rushTierOf(ometa),
           }
         : null,
     customer: {
@@ -403,7 +431,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
     },
     lines,
     flags,
-    tasks: taskRows.map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, due_at: iso(t.due_at), assignee_user_id: t.assignee_user_id })),
+    tasks: taskRows.map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, due_at: iso(t.due_at), assignee_user_id: t.assignee_user_id, follow_up: t?.metadata?.follow_up === true })),
     activity,
     unread_inbound: unread,
     state,
