@@ -1,10 +1,10 @@
-diff --git a/dist/chunk-AMFEQ633.mjs b/dist/chunk-AMFEQ633.mjs
-index 939abb4e15c5b88acf6f0a14695e2c3aaeadb893..7ad53782895006f936de4009d27edecc49d06432 100644
---- a/dist/chunk-AMFEQ633.mjs
-+++ b/dist/chunk-AMFEQ633.mjs
-@@ -101838,11 +101838,12 @@ var NavItem = ({
+diff --git a/dist/chunk-F2JMB3WR.mjs b/dist/chunk-F2JMB3WR.mjs
+index d49c27020a6ce48629c187a008756b54a3513d6e..e7d81d38384416c31ec0ceab765d1db542ca03e5 100644
+--- a/dist/chunk-F2JMB3WR.mjs
++++ b/dist/chunk-F2JMB3WR.mjs
+@@ -103065,11 +103065,12 @@ var NavItem = ({
  }) => {
-   const { t: t2 } = useTranslation5(translationNs);
+   const { t: t2 } = useTranslation6(translationNs);
    const { pathname } = useLocation4();
 -  const [open, setOpen] = useState7(getIsOpen(to, items, pathname));
 +  const alwaysOpen = type === "extension" || !!items?.some((i) => i.nested);
@@ -101,33 +101,47 @@ index 0377a7ffd0d505338789d64b9344c64b332dbff0..262abc544b0802391a9c7fcc2f898cdb
    return /* @__PURE__ */ jsx2(StatusCell, { color, children: text });
  };
  var ProductStatusHeader = () => {
-diff --git a/dist/login-7SAAVRE5.mjs b/dist/login-7SAAVRE5.mjs
-index e37087848c37c3e58cee72ebd14d792b2023a06e..0de009a88d440cc05cd0b58bc9c3c4fcfbb300e6 100644
---- a/dist/login-7SAAVRE5.mjs
-+++ b/dist/login-7SAAVRE5.mjs
-@@ -217,7 +217,16 @@ var Login = () => {
+diff --git a/dist/login-SMUUQFIP.mjs b/dist/login-SMUUQFIP.mjs
+index bb4533549181569ac5e4b906a9fdac1c2179d225..4f16c649c4b495e49a6c5cae6e04d7386ef54422 100644
+--- a/dist/login-SMUUQFIP.mjs
++++ b/dist/login-SMUUQFIP.mjs
+@@ -399,15 +399,20 @@ var Login = () => {
+             message: error.message
            });
          },
-         onSuccess: () => {
++        // SCP patch: hard navigation after login instead of the soft router navigate.
++        // navigate(from) raced the just-established session: the target route's auth guard
++        // could still read the pre-login state and bounce back to /login. A full document
++        // load re-reads the valid session. Basename-safe: the admin mount path is derived
++        // from the current /login URL. Applied to the plain and both MFA success paths.
+         onSuccess: (result) => {
+           if (typeof result === "object" && "mfa_challenge" in result) {
+             setMfaChallenge(result.mfa_challenge);
+             setMfaSuccessHandler(() => () => {
+-              navigate(from, { replace: true });
++              window.location.assign(window.location.pathname.replace(/\/login\/?$/, "") + from);
+             });
+             return;
+           }
 -          navigate(from, { replace: true });
-+          // SCP patch: hard navigation instead of the soft router navigate.
-+          // navigate(from) raced the just-established session — the target
-+          // route's auth guard could still read the pre-login (unauthenticated)
-+          // state and bounce straight back to /login, so login "succeeded" yet
-+          // the form re-rendered. A full document load re-reads the valid
-+          // session every time, removing the race. Basename-safe: derive the
-+          // admin mount path from the current /login URL so it works whether
-+          // the admin is served under /app or at the site root.
-+          const __scpAppBase = window.location.pathname.replace(/\/login\/?$/, "");
-+          window.location.assign(__scpAppBase + from);
++          window.location.assign(window.location.pathname.replace(/\/login\/?$/, "") + from);
          }
        }
      );
-diff --git a/dist/product-detail-ZF64CTWE.mjs b/dist/product-detail-ZF64CTWE.mjs
-index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a2da4568e 100644
---- a/dist/product-detail-ZF64CTWE.mjs
-+++ b/dist/product-detail-ZF64CTWE.mjs
-@@ -312,7 +312,7 @@ var ProductGeneralSection = ({
+@@ -423,7 +428,7 @@ var Login = () => {
+           if (mfaSuccessHandler) {
+             return mfaSuccessHandler(token);
+           }
+-          navigate(from, { replace: true });
++          window.location.assign(window.location.pathname.replace(/\/login\/?$/, "") + from);
+         },
+         onBack: () => {
+           setMfaChallenge(null);
+diff --git a/dist/product-detail-QSO2EX32.mjs b/dist/product-detail-QSO2EX32.mjs
+index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424f0be21e2 100644
+--- a/dist/product-detail-QSO2EX32.mjs
++++ b/dist/product-detail-QSO2EX32.mjs
+@@ -318,7 +318,7 @@ var ProductGeneralSection = ({
  };
  
  // src/routes/products/product-detail/components/product-media-section/product-media-section.tsx
@@ -136,7 +150,7 @@ index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a
  import {
    Button,
    Checkbox,
-@@ -333,6 +333,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -339,6 +339,7 @@ var ProductMediaSection = ({ product }) => {
    const prompt = usePrompt2();
    const navigate = useNavigate2();
    const [selection, setSelection] = useState({});
@@ -144,7 +158,7 @@ index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a
    const media = getMedia(product);
    const handleCheckedChange = (id) => {
      setSelection((prev) => {
-@@ -378,7 +379,10 @@ var ProductMediaSection = ({ product }) => {
+@@ -384,7 +385,10 @@ var ProductMediaSection = ({ product }) => {
    };
    return /* @__PURE__ */ jsxs3(Container3, { className: "divide-y p-0", children: [
      /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between px-6 py-4", children: [
@@ -156,7 +170,7 @@ index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a
        /* @__PURE__ */ jsx4(
          ActionMenu,
          {
-@@ -396,7 +400,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -402,7 +406,7 @@ var ProductMediaSection = ({ product }) => {
          }
        )
      ] }),
@@ -165,7 +179,7 @@ index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a
        const isSelected = selection[i.id];
        return /* @__PURE__ */ jsxs3(
          "div",
-@@ -434,7 +438,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -440,7 +444,7 @@ var ProductMediaSection = ({ product }) => {
          },
          i.id
        );
@@ -174,7 +188,7 @@ index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a
        /* @__PURE__ */ jsxs3("div", { className: "flex flex-col items-center", children: [
          /* @__PURE__ */ jsx4(
            Text,
-@@ -449,7 +453,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -455,7 +459,7 @@ var ProductMediaSection = ({ product }) => {
          /* @__PURE__ */ jsx4(Text, { size: "small", className: "text-ui-fg-muted", children: t("products.media.emptyState.description") })
        ] }),
        /* @__PURE__ */ jsx4(Button, { size: "small", variant: "secondary", asChild: true, children: /* @__PURE__ */ jsx4(Link, { to: "media?view=edit", children: t("products.media.emptyState.action") }) })
@@ -183,7 +197,7 @@ index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a
      /* @__PURE__ */ jsx4(CommandBar, { open: !!Object.keys(selection).length, children: /* @__PURE__ */ jsxs3(CommandBar.Bar, { children: [
        /* @__PURE__ */ jsx4(CommandBar.Value, { children: t("general.countSelected", {
          count: Object.keys(selection).length
-@@ -669,7 +673,7 @@ var ProductOrganizationSection = ({
+@@ -675,7 +679,7 @@ var ProductOrganizationSection = ({
        SectionRow,
        {
          title: t("fields.categories"),
@@ -192,10 +206,10 @@ index 471c72e74d40cc72392c5174048ba653658cf937..43bec29596a0b9fe0f48692db3a8179a
            OrganizationTag,
            {
              label: pcat.name,
-diff --git a/dist/product-sales-channels-QQ3DC5W3.mjs b/dist/product-sales-channels-QQ3DC5W3.mjs
-index 96c3d8a52361695db82b88c13d519a841644e7e8..4636c6be69a09f97c9a51e2b109452d744c2d241 100644
---- a/dist/product-sales-channels-QQ3DC5W3.mjs
-+++ b/dist/product-sales-channels-QQ3DC5W3.mjs
+diff --git a/dist/product-sales-channels-TE3J3RB2.mjs b/dist/product-sales-channels-TE3J3RB2.mjs
+index b0c948d6d87c5bb57f7909c49d004e71d676dc0d..6b780752ee0cc6540ba6c72b29c3843e20b8b1db 100644
+--- a/dist/product-sales-channels-TE3J3RB2.mjs
++++ b/dist/product-sales-channels-TE3J3RB2.mjs
 @@ -58,17 +58,18 @@ var EditSalesChannelsForm = ({
  }) => {
    const { t } = useTranslation();
