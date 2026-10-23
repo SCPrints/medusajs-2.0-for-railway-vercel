@@ -1,9 +1,10 @@
 import { HttpTypes } from "@medusajs/types"
 import { NextRequest, NextResponse } from "next/server"
+import { resolveCountryPath } from "@lib/util/country-path"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL
 const PUBLISHABLE_API_KEY = process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
-const DEFAULT_REGION = process.env.NEXT_PUBLIC_DEFAULT_REGION || "us"
+const DEFAULT_REGION = (process.env.NEXT_PUBLIC_DEFAULT_REGION || "au").toLowerCase()
 
 const regionMapCache = {
   regionMap: new Map<string, HttpTypes.StoreRegion>(),
@@ -52,53 +53,10 @@ async function getRegionMap() {
     }
   }
 
-  if (!regionMapCache.regionMap.size) {
-    // Cold instance + backend down: serve a minimal map so the request proceeds to
-    // the page (whose own error boundary handles it). Returning an empty map would
-    // make the redirect below target the same URL — an infinite 307 loop.
-    // ponytail: not cached, so a healthy backend repopulates on the next request.
-    return new Map([[DEFAULT_REGION, {} as HttpTypes.StoreRegion]])
-  }
-
+  // Empty when the backend is unreachable on a cold instance; resolveCountryPath
+  // then lets country paths through instead of guessing (a guessed stand-in map
+  // here is what stacked /us onto /au/... URLs).
   return regionMapCache.regionMap
-}
-
-/**
- * Fetches regions from Medusa and sets the region cookie.
- * @param request
- * @param response
- */
-async function getCountryCode(
-  request: NextRequest,
-  regionMap: Map<string, HttpTypes.StoreRegion | number>
-) {
-  try {
-    let countryCode
-
-    const vercelCountryCode = request.headers
-      .get("x-vercel-ip-country")
-      ?.toLowerCase()
-
-    const urlCountryCode = request.nextUrl.pathname.split("/")[1]?.toLowerCase()
-
-    if (urlCountryCode && regionMap.has(urlCountryCode)) {
-      countryCode = urlCountryCode
-    } else if (vercelCountryCode && regionMap.has(vercelCountryCode)) {
-      countryCode = vercelCountryCode
-    } else if (regionMap.has(DEFAULT_REGION)) {
-      countryCode = DEFAULT_REGION
-    } else if (regionMap.keys().next().value) {
-      countryCode = regionMap.keys().next().value
-    }
-
-    return countryCode
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") {
-      console.error(
-        "Middleware.ts: Error getting the country code. Did you set up regions in your Medusa Admin and define a NEXT_PUBLIC_MEDUSA_BACKEND_URL environment variable?"
-      )
-    }
-  }
 }
 
 /**
@@ -114,35 +72,26 @@ export async function middleware(request: NextRequest) {
 
   const regionMap = await getRegionMap()
 
-  const countryCode = regionMap && (await getCountryCode(request, regionMap))
+  const countryPath = resolveCountryPath(
+    request.nextUrl.pathname,
+    new Set(regionMap.keys()),
+    request.headers.get("x-vercel-ip-country") ?? undefined,
+    DEFAULT_REGION
+  )
 
-  const pathFirstSegment = request.nextUrl.pathname.split("/").filter(Boolean)[0]?.toLowerCase() ?? ""
-  const resolved = countryCode ? String(countryCode).toLowerCase() : ""
-  const urlHasCountryCode = Boolean(resolved && pathFirstSegment === resolved)
-
-  // check if one of the country codes is in the url
   if (
-    urlHasCountryCode &&
+    !countryPath &&
     (!isOnboarding || onboardingCookie) &&
     (!cartId || cartIdCookie)
   ) {
     return NextResponse.next()
   }
 
-  const redirectPath =
-    request.nextUrl.pathname === "/" ? "" : request.nextUrl.pathname
-
-  const queryString = request.nextUrl.search ? request.nextUrl.search : ""
-
-  let redirectUrl = request.nextUrl.href
+  let redirectUrl = countryPath
+    ? `${request.nextUrl.origin}${countryPath}${request.nextUrl.search}`
+    : request.nextUrl.href
 
   let response = NextResponse.redirect(redirectUrl, 307)
-
-  // If no country code is set, we redirect to the relevant region.
-  if (!urlHasCountryCode && countryCode) {
-    redirectUrl = `${request.nextUrl.origin}/${countryCode}${redirectPath}${queryString}`
-    response = NextResponse.redirect(`${redirectUrl}`, 307)
-  }
 
   // If a cart_id is in the params, we set it as a cookie and redirect to the address step.
   if (cartId && !checkoutStep) {
