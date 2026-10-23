@@ -5,9 +5,16 @@ import {
   scpPrintTotalMajorFromLocations,
   scpPrintTotalMajorPerGarmentForSides,
   scpPrintUnitMajorForTier,
+  snapScpPrintSizeForCm,
 } from "../scp-dtf-print-pricing"
 
 describe("scp-dtf-print-pricing", () => {
+  it("snaps print sizes either way up (wide wordmark on A6 landscape)", () => {
+    expect(snapScpPrintSizeForCm({ width: 14, height: 4 })).toBe("up_to_a6")
+    expect(snapScpPrintSizeForCm({ width: 28, height: 20 })).toBe("up_to_a4")
+    expect(snapScpPrintSizeForCm({ width: 16, height: 11 })).toBe("up_to_a4")
+  })
+
   it("maps quantity to blank-aligned tier indices", () => {
     expect(resolveScpTierIndexForQuantity(1)).toBe(0)
     expect(resolveScpTierIndexForQuantity(9)).toBe(0)

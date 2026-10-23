@@ -42,17 +42,24 @@ export const SCP_PRINT_SIZE_TRUE_CM: Record<ScpPrintSizeId, { width: number; hei
   oversize: { width: 38, height: 48 },
 }
 
-/** Largest artwork box (canvas px) a print size allows — the inverse of `canvasPxToApproxCm`. */
+/**
+ * Largest artwork box (canvas px) a print size allows — the inverse of `canvasPxToApproxCm`.
+ * Paper sizes turn sideways: wide artwork (`landscape`) gets the sheet rotated,
+ * so a wordmark on A6 can be 15 cm wide, not stuck at 10 cm. Oversize stays
+ * portrait — it's the whole print area.
+ */
 export const maxArtworkPx = (
   sizeId: ScpPrintSizeId,
   canvasWidth: number,
-  canvasHeight: number
+  canvasHeight: number,
+  landscape = false
 ): { width: number; height: number } => {
   const t = SCP_PRINT_SIZE_TRUE_CM[sizeId] ?? SCP_PRINT_SIZE_TRUE_CM.oversize
   const o = SCP_PRINT_SIZE_REFERENCE_CM.oversize
+  const turn = landscape && sizeId !== "oversize"
   return {
-    width: canvasWidth * 0.68 * (t.width / o.width),
-    height: canvasHeight * 0.72 * (t.height / o.height),
+    width: canvasWidth * 0.68 * ((turn ? t.height : t.width) / o.width),
+    height: canvasHeight * 0.72 * ((turn ? t.width : t.height) / o.height),
   }
 }
 
@@ -173,7 +180,11 @@ export const snapSizeForBoundingCm = (
   }
   const fits = orderedAllowed.find((id) => {
     const ref = SCP_PRINT_SIZE_TRUE_CM[id]
-    return approxCm.width <= ref.width && approxCm.height <= ref.height
+    // Either way up — a 14 × 4 cm wordmark is an A6 print turned sideways.
+    return (
+      (approxCm.width <= ref.width && approxCm.height <= ref.height) ||
+      (id !== "oversize" && approxCm.width <= ref.height && approxCm.height <= ref.width)
+    )
   })
   return fits ?? orderedAllowed[orderedAllowed.length - 1]
 }

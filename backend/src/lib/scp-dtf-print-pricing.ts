@@ -73,11 +73,15 @@ export const SCP_PRINT_SIZE_TRUE_CM: Record<ScpPrintSizeId, { width: number; hei
 
 const SCP_PRINT_SIZE_ORDER: ScpPrintSizeId[] = ["up_to_a6", "up_to_a4", "up_to_a3", "oversize"]
 
-/** Smallest size whose box contains the print; oversize when nothing does. */
+/**
+ * Smallest size whose box contains the print, either way up (a 14 × 4 cm
+ * wordmark is A6 turned sideways); oversize when nothing does.
+ */
 export function snapScpPrintSizeForCm(cm: { width: number; height: number }): ScpPrintSizeId {
+  const [short, long] = [Math.min(cm.width, cm.height), Math.max(cm.width, cm.height)]
   return (
     SCP_PRINT_SIZE_ORDER.find(
-      (id) => cm.width <= SCP_PRINT_SIZE_TRUE_CM[id].width && cm.height <= SCP_PRINT_SIZE_TRUE_CM[id].height
+      (id) => short <= SCP_PRINT_SIZE_TRUE_CM[id].width && long <= SCP_PRINT_SIZE_TRUE_CM[id].height
     ) ?? "oversize"
   )
 }

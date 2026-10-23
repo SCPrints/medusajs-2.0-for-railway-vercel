@@ -35,6 +35,14 @@ describe("maxArtworkPx", () => {
     expect(canvasPxToApproxCm(cap.width, cap.height, 1000, 1000).width).toBeCloseTo(29, 5)
     expect(snapSizeForBoundingCm("back", { width: 24, height: 30 }, false)).toBe("up_to_a3")
   })
+
+  it("turns A6 sideways for wide artwork (15 cm wordmark, not 10 cm)", () => {
+    const cap = maxArtworkPx("up_to_a6", 1000, 1000, true)
+    const cm = canvasPxToApproxCm(cap.width, cap.height, 1000, 1000)
+    expect(cm.width).toBeCloseTo(15, 5)
+    expect(cm.height).toBeCloseTo(10, 5)
+    expect(snapSizeForBoundingCm("front", { width: 14, height: 4 }, false)).toBe("up_to_a6")
+  })
 })
 
 describe("snapSizeForBoundingCm", () => {

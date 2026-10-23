@@ -1034,10 +1034,15 @@ export default function CustomizerTemplate({
     }
     const objects = canvas.getObjects?.() ?? []
     let mutated = false
-    const cap = maxArtworkPx(effectivePrintSizeIdForArea, canvasSize.width, canvasSize.height)
     for (const obj of objects) {
       const baseW = Math.max(1, (obj as any).width ?? 0)
       const baseH = Math.max(1, (obj as any).height ?? 0)
+      const cap = maxArtworkPx(
+        effectivePrintSizeIdForArea,
+        canvasSize.width,
+        canvasSize.height,
+        baseW > baseH
+      )
       const maxScaleX = cap.width / baseW
       const maxScaleY = cap.height / baseH
       const maxScale = Math.min(maxScaleX, maxScaleY)
@@ -3103,7 +3108,8 @@ export default function CustomizerTemplate({
         const cap = maxArtworkPx(
           effectivePrintSizeIdRef.current,
           Number(canvas.getWidth?.() ?? canvas.width ?? 0),
-          Number(canvas.getHeight?.() ?? canvas.height ?? 0)
+          Number(canvas.getHeight?.() ?? canvas.height ?? 0),
+          baseW > baseH
         )
         const maxScaleX = cap.width / baseW
         const maxScaleY = cap.height / baseH
