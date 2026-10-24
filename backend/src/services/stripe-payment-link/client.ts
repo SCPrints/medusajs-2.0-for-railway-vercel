@@ -22,9 +22,13 @@ export const getStripeClient = (): Stripe | null => {
     return null
   }
   cached = new Stripe(STRIPE_API_KEY, {
-    // Pinned to the SDK's bundled API version (stripe@15.12.0 → 2024-04-10).
-    // When you upgrade the stripe SDK, bump this in lockstep after reading
-    // the API changelog.
+    // Pinned to 2024-04-10 (what this code was written and tested against,
+    // and what Medusa's own Stripe provider still creates cart PaymentIntents
+    // on). The SDK's types only accept its latest version (stripe@23 →
+    // 2026-09-30.endive), so per Stripe's README the pin needs this override.
+    // Move the pin only after reading the API changelog for Products, Prices,
+    // Payment Links and Checkout Sessions.
+    // @ts-expect-error stripe-version-2024-04-10
     apiVersion: "2024-04-10",
     typescript: true,
     appInfo: {
