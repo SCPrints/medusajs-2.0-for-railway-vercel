@@ -1,3 +1,4 @@
+import { getProductIndexName } from "@lib/search-client"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 
 /**
@@ -18,7 +19,6 @@ import { SortOptions } from "@modules/store/components/refinement-list/sort-prod
 
 const SEARCH_ENDPOINT = process.env.NEXT_PUBLIC_SEARCH_ENDPOINT
 const SEARCH_API_KEY = process.env.NEXT_PUBLIC_SEARCH_API_KEY
-const SEARCH_INDEX_NAME = process.env.NEXT_PUBLIC_INDEX_NAME || "products"
 
 export const LISTING_VIA_SEARCH_ENABLED =
   process.env.LISTING_VIA_SEARCH === "true" ||
@@ -128,7 +128,7 @@ export async function searchListing(opts: {
 
   try {
     const res = await fetch(
-      `${SEARCH_ENDPOINT.replace(/\/$/, "")}/indexes/${SEARCH_INDEX_NAME}/search`,
+      `${SEARCH_ENDPOINT.replace(/\/$/, "")}/indexes/${await getProductIndexName()}/search`,
       {
         method: "POST",
         headers: {

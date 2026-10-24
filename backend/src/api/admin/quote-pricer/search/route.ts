@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { MEILISEARCH_ADMIN_KEY, MEILISEARCH_HOST } from "../../../../lib/constants"
+import { activeSearchIndexName } from "../../../../lib/search-index"
 
 /**
  * GET /admin/quote-pricer/search?q=staple → { products: [{ id, title, handle, thumbnail }] }
@@ -24,7 +25,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   if (MEILISEARCH_HOST && MEILISEARCH_ADMIN_KEY) {
     try {
-      const index = process.env.MEILISEARCH_PRODUCT_INDEX || "products"
+      const index = await activeSearchIndexName(req.scope, "products")
       const r = await fetch(`${MEILISEARCH_HOST.replace(/\/$/, "")}/indexes/${index}/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${MEILISEARCH_ADMIN_KEY}` },

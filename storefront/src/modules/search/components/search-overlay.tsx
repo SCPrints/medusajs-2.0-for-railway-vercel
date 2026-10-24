@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import Thumbnail from "@modules/products/components/thumbnail"
+import { getProductIndexName } from "@lib/search-client"
 
 /**
  * Standalone search dropdown overlay. Self-contained — body-scroll lock,
@@ -44,7 +45,6 @@ const HIT_LIMIT = 6
 
 const SEARCH_ENDPOINT = (process.env.NEXT_PUBLIC_SEARCH_ENDPOINT ?? "").replace(/\/$/, "")
 const SEARCH_API_KEY = process.env.NEXT_PUBLIC_SEARCH_API_KEY ?? ""
-const SEARCH_INDEX = process.env.NEXT_PUBLIC_INDEX_NAME || "products"
 
 export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
   const router = useRouter()
@@ -130,7 +130,7 @@ export default function SearchOverlay({ open, onClose }: SearchOverlayProps) {
     const timer = window.setTimeout(async () => {
       try {
         const url = new URL(
-          `/indexes/${SEARCH_INDEX}/search`,
+          `/indexes/${await getProductIndexName()}/search`,
           SEARCH_ENDPOINT
         )
         url.searchParams.set("q", trimmedQuery)

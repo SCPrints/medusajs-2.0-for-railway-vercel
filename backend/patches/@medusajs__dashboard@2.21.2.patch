@@ -1,29 +1,8 @@
-diff --git a/dist/chunk-DBJBDAZN.mjs b/dist/chunk-DBJBDAZN.mjs
-index 9c15a6c141f718b67b1292e871eb4f988e950958..85a0e182270822d8ae00ce342db2bbc7d6a67250 100644
---- a/dist/chunk-DBJBDAZN.mjs
-+++ b/dist/chunk-DBJBDAZN.mjs
-@@ -9,10 +9,14 @@ import {
- import { useTranslation } from "react-i18next";
- import { jsx } from "react/jsx-runtime";
- var CollectionCell = ({ collection }) => {
--  if (!collection) {
-+  if (!collection || typeof collection !== "object" || Array.isArray(collection)) {
-     return /* @__PURE__ */ jsx(PlaceholderCell, {});
-   }
--  return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate", children: collection.title }) });
-+  const collTitle = collection.title;
-+  if (collTitle == null || collTitle === "") {
-+    return /* @__PURE__ */ jsx(PlaceholderCell, {});
-+  }
-+  return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate", children: collTitle }) });
- };
- var CollectionHeader = () => {
-   const { t } = useTranslation();
-diff --git a/dist/chunk-QIJSUXW3.mjs b/dist/chunk-QIJSUXW3.mjs
-index 1f0ae3f83bfd827fe091e934bbcb62337dc0f998..37367b7174fc223f03b11fe8c4aa348497779195 100644
---- a/dist/chunk-QIJSUXW3.mjs
-+++ b/dist/chunk-QIJSUXW3.mjs
-@@ -105949,12 +105949,13 @@ var NavItem = ({
+diff --git a/dist/chunk-HUTZEPPT.mjs b/dist/chunk-HUTZEPPT.mjs
+index 26395493645fe877dfc89543647ca5b957d94382..9356bc749359b20357ac9c26dd5c79725c109994 100644
+--- a/dist/chunk-HUTZEPPT.mjs
++++ b/dist/chunk-HUTZEPPT.mjs
+@@ -136591,12 +136591,13 @@ var NavItem = ({
  }) => {
    const { t: t2 } = useTranslation6(translationNs);
    const { pathname, search } = useLocation4();
@@ -37,7 +16,7 @@ index 1f0ae3f83bfd827fe091e934bbcb62337dc0f998..37367b7174fc223f03b11fe8c4aa3484
 -  }, [pathname, to, items]);
 +    setOpen(alwaysOpen || getIsOpen(to, items, pathname));
 +  }, [pathname, to, items, alwaysOpen]);
-   const navLinkClassNames = useCallback4(
+   const navLinkClassNames = useCallback3(
      ({
        to: to2,
 diff --git a/dist/chunk-R65S6ZZV.mjs b/dist/chunk-R65S6ZZV.mjs
@@ -84,23 +63,42 @@ index 9d7f2cc511386c8de53bb793d0d8e1b2ba4294da..41f40b74c5661151028ac0c3e4ecbb73
    return /* @__PURE__ */ jsxs("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: [
      /* @__PURE__ */ jsx("div", { className: "w-fit flex-shrink-0", children: /* @__PURE__ */ jsx(Thumbnail, { src: product.thumbnail }) }),
      /* @__PURE__ */ jsx(TruncatedText, { text: product.title })
-diff --git a/dist/login-REAKYYFI.mjs b/dist/login-REAKYYFI.mjs
-index 527aa630ea46f0237cbf6ce458c413c619bfa27a..64803ab40d9a86ef42f54f7615b300742069b688 100644
---- a/dist/login-REAKYYFI.mjs
-+++ b/dist/login-REAKYYFI.mjs
-@@ -398,15 +398,20 @@ var Login = () => {
+diff --git a/dist/chunk-XQCYSVGP.mjs b/dist/chunk-XQCYSVGP.mjs
+index 5b7d08406feb77b4d6aafe0c64b117d855a08f2d..b27b23e6d9eb62462a05a4784fe66a1d22fb430e 100644
+--- a/dist/chunk-XQCYSVGP.mjs
++++ b/dist/chunk-XQCYSVGP.mjs
+@@ -46,10 +46,14 @@ var VariantHeader = () => {
+ import { useTranslation as useTranslation3 } from "react-i18next";
+ import { jsx as jsx3 } from "react/jsx-runtime";
+ var CollectionCell = ({ collection }) => {
+-  if (!collection) {
++  if (!collection || typeof collection !== "object" || Array.isArray(collection)) {
+     return /* @__PURE__ */ jsx3(PlaceholderCell, {});
+   }
+-  return /* @__PURE__ */ jsx3("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx3("span", { className: "truncate", children: collection.title }) });
++  const collTitle = collection.title;
++  if (collTitle == null || collTitle === "") {
++    return /* @__PURE__ */ jsx3(PlaceholderCell, {});
++  }
++  return /* @__PURE__ */ jsx3("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx3("span", { className: "truncate", children: collTitle }) });
+ };
+ var CollectionHeader = () => {
+   const { t } = useTranslation3();
+diff --git a/dist/login-SVXTNKWX.mjs b/dist/login-SVXTNKWX.mjs
+index 4385b8754cdc1fd3d8a8f872f64e75ce1fef562f..935bf3020ce9f899da236c6e007837d30f913b4f 100644
+--- a/dist/login-SVXTNKWX.mjs
++++ b/dist/login-SVXTNKWX.mjs
+@@ -251,14 +251,18 @@ var EmailPassLogin = ({ onMfaChallenge }) => {
              message: error.message
            });
          },
 +        // SCP patch: hard navigation after login instead of the soft router navigate.
 +        // navigate(from) raced the just-established session: the target route's auth guard
 +        // could still read the pre-login state and bounce back to /login. A full document
-+        // load re-reads the valid session. Basename-safe: the admin mount path is derived
-+        // from the current /login URL. Applied to the plain and both MFA success paths.
++        // load re-reads the valid session. Applied to the plain and both MFA success paths.
          onSuccess: (result) => {
            if (typeof result === "object" && "mfa_challenge" in result) {
-             setMfaChallenge(result.mfa_challenge);
-             setMfaSuccessHandler(() => () => {
+             onMfaChallenge?.(result.mfa_challenge, () => {
 -              navigate(from, { replace: true });
 +              window.location.assign(window.location.pathname.replace(/\/login\/?$/, "") + from);
              });
@@ -111,7 +109,7 @@ index 527aa630ea46f0237cbf6ce458c413c619bfa27a..64803ab40d9a86ef42f54f7615b30074
          }
        }
      );
-@@ -422,7 +427,7 @@ var Login = () => {
+@@ -687,7 +691,7 @@ var Login = () => {
            if (mfaSuccessHandler) {
              return mfaSuccessHandler(token);
            }
@@ -120,11 +118,11 @@ index 527aa630ea46f0237cbf6ce458c413c619bfa27a..64803ab40d9a86ef42f54f7615b30074
          },
          onBack: () => {
            setMfaChallenge(null);
-diff --git a/dist/product-detail-7UDXNUGN.mjs b/dist/product-detail-7UDXNUGN.mjs
-index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164fbbc944d 100644
---- a/dist/product-detail-7UDXNUGN.mjs
-+++ b/dist/product-detail-7UDXNUGN.mjs
-@@ -314,7 +314,7 @@ var ProductGeneralSection = ({
+diff --git a/dist/product-detail-KCLKWLJK.mjs b/dist/product-detail-KCLKWLJK.mjs
+index adf197047ee5a6fe5bda5cd92474ccdb421204db..77ea5f3555be154b966c533101311bf082a99440 100644
+--- a/dist/product-detail-KCLKWLJK.mjs
++++ b/dist/product-detail-KCLKWLJK.mjs
+@@ -319,7 +319,7 @@ var ProductGeneralSection = ({
  };
  
  // src/routes/products/product-detail/components/product-media-section/product-media-section.tsx
@@ -133,7 +131,7 @@ index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164
  import {
    Button,
    Checkbox,
-@@ -335,6 +335,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -340,6 +340,7 @@ var ProductMediaSection = ({ product }) => {
    const prompt = usePrompt2();
    const navigate = useNavigate2();
    const [selection, setSelection] = useState({});
@@ -141,7 +139,7 @@ index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164
    const media = getMedia(product);
    const handleCheckedChange = (id) => {
      setSelection((prev) => {
-@@ -380,7 +381,10 @@ var ProductMediaSection = ({ product }) => {
+@@ -385,7 +386,10 @@ var ProductMediaSection = ({ product }) => {
    };
    return /* @__PURE__ */ jsxs3(Container3, { className: "divide-y p-0", children: [
      /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between px-6 py-4", children: [
@@ -153,7 +151,7 @@ index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164
        /* @__PURE__ */ jsx4(
          ActionMenu,
          {
-@@ -398,7 +402,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -403,7 +407,7 @@ var ProductMediaSection = ({ product }) => {
          }
        )
      ] }),
@@ -162,7 +160,7 @@ index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164
        const isSelected = selection[i.id];
        return /* @__PURE__ */ jsxs3(
          "div",
-@@ -436,7 +440,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -441,7 +445,7 @@ var ProductMediaSection = ({ product }) => {
          },
          i.id
        );
@@ -171,7 +169,7 @@ index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164
        /* @__PURE__ */ jsxs3("div", { className: "flex flex-col items-center", children: [
          /* @__PURE__ */ jsx4(
            Text,
-@@ -451,7 +455,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -456,7 +460,7 @@ var ProductMediaSection = ({ product }) => {
          /* @__PURE__ */ jsx4(Text, { size: "small", className: "text-ui-fg-muted", children: t("products.media.emptyState.description") })
        ] }),
        /* @__PURE__ */ jsx4(Button, { size: "small", variant: "secondary", asChild: true, children: /* @__PURE__ */ jsx4(Link, { to: "media?view=edit", children: t("products.media.emptyState.action") }) })
@@ -180,7 +178,7 @@ index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164
      /* @__PURE__ */ jsx4(CommandBar, { open: !!Object.keys(selection).length, children: /* @__PURE__ */ jsxs3(CommandBar.Bar, { children: [
        /* @__PURE__ */ jsx4(CommandBar.Value, { children: t("general.countSelected", {
          count: Object.keys(selection).length
-@@ -657,7 +661,7 @@ var ProductOrganizationSection = ({
+@@ -662,7 +666,7 @@ var ProductOrganizationSection = ({
        SectionRow,
        {
          title: t("fields.categories"),
@@ -189,10 +187,10 @@ index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164
            OrganizationTag,
            {
              label: pcat.name,
-diff --git a/dist/product-sales-channels-BBPEVIJA.mjs b/dist/product-sales-channels-BBPEVIJA.mjs
-index d8b90a8c40be76ddbc4f378b754115d7654f5743..e6f53627ff1cc640a751b81edd3d691f3d74a23f 100644
---- a/dist/product-sales-channels-BBPEVIJA.mjs
-+++ b/dist/product-sales-channels-BBPEVIJA.mjs
+diff --git a/dist/product-sales-channels-KFETLJPD.mjs b/dist/product-sales-channels-KFETLJPD.mjs
+index be6202c9b7063ecafd03b2ec1853bf80de44a23c..df99d3627ee92d76e97752e225116258e0ce11ef 100644
+--- a/dist/product-sales-channels-KFETLJPD.mjs
++++ b/dist/product-sales-channels-KFETLJPD.mjs
 @@ -58,17 +58,18 @@ var EditSalesChannelsForm = ({
  }) => {
    const { t } = useTranslation();

@@ -1,6 +1,6 @@
 "use server"
 
-import { SEARCH_INDEX_NAME } from "@lib/search-client"
+import { getProductIndexName } from "@lib/search-client"
 
 interface Hits {
   readonly objectID?: string
@@ -29,7 +29,7 @@ export async function search(query: string): Promise<Hits[]> {
   let hits: Hits[] = []
   try {
     const response = await fetch(
-      new URL(`/indexes/${SEARCH_INDEX_NAME}/search`, endpoint).toString(),
+      new URL(`/indexes/${await getProductIndexName()}/search`, endpoint).toString(),
       {
         method: "POST",
         headers: {

@@ -1,4 +1,4 @@
-import { authenticate, defineMiddlewares } from "@medusajs/framework/http"
+import { allowFields, authenticate, defineMiddlewares } from "@medusajs/framework/http"
 
 import { smartVariantSearchMiddleware } from "./middlewares/smart-variant-search"
 import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-invariant"
@@ -28,7 +28,15 @@ export default defineMiddlewares({
       // See ./middlewares/strip-variant-cost-metadata.ts.
       matcher: "/store/products*",
       methods: ["GET"],
-      middlewares: [stripVariantCostMetadataMiddleware],
+      // Medusa 2.21 silently drops store fields not on a route's allowlist.
+      // The storefront needs the brand link and variant metadata (bulk pricing).
+      middlewares: [allowFields("brand", "variants.metadata"), stripVariantCostMetadataMiddleware],
+    },
+    {
+      // Account order pages read fulfilment tracking (2.21 allowlist, see above).
+      matcher: "/store/orders*",
+      methods: ["GET"],
+      middlewares: [allowFields("fulfillments.metadata", "fulfillments.labels", "shipping_methods.detail")],
     },
     {
       matcher: "/store/brands/:handle/products",

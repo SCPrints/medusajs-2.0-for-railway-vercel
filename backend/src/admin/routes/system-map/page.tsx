@@ -984,7 +984,7 @@ const SECTIONS: Section[] = [
               ["DigitalOcean Managed Postgres (SYD1)", "Primary database — Postgres 16, self-signed cert", "DATABASE_URL"],
               ["Cloudflare R2 (Oceania)", "File storage — photos, mood boards, lookbook, customer originals. S3-compatible, accessed via the legacy 'MinIO' module name in the codebase", "MINIO_* (endpoint + access/secret + bucket + public URL)"],
               ["Redis 7 (self-hosted on Fly)", "Event bus + workflow engine + distributed locking. Private 6PN, no public exposure", "REDIS_URL"],
-              ["Meilisearch v1.10 (self-hosted on Fly)", "Catalog search — separate Fly app sc-prints-search", "MEILISEARCH_HOST + MEILISEARCH_ADMIN_KEY"],
+              ["Meilisearch (self-hosted on Fly)", "Catalog search — separate Fly app sc-prints-search", "MEILISEARCH_HOST + MEILISEARCH_ADMIN_KEY"],
               ["Resend", "All outbound email — sender domain scprints.com.au", "RESEND_API_KEY"],
               ["Stripe", "Card payments — Medusa checkout + admin-created Payment Links (two webhook endpoints)", "STRIPE_API_KEY + STRIPE_WEBHOOK_SECRET + STRIPE_PAYMENT_LINK_WEBHOOK_SECRET"],
               ["PostHog Cloud (US)", "Product analytics + cohort sync + LLM tracking", "POSTHOG_API_KEY + POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID + POSTHOG_HOST"],

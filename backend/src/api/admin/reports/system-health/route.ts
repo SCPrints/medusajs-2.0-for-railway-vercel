@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import net from "node:net"
 import tls from "node:tls"
 import { Client as PgClient } from "pg"
+import { activeSearchIndexName } from "../../../../lib/search-index"
 
 import {
   ASCOLOUR_BASE_URL,
@@ -242,7 +243,7 @@ const checkMeilisearchIndex = async (req: MedusaRequest): Promise<Check> => {
   const timer = setTimeout(() => ac.abort(), TIMEOUT_MS)
   const start = Date.now()
   try {
-    const indexName = process.env.MEILISEARCH_PRODUCT_INDEX || "products"
+    const indexName = await activeSearchIndexName(req.scope, "products")
     const statsRes = await fetch(
       `${MEILISEARCH_HOST.replace(/\/$/, "")}/indexes/${indexName}/stats`,
       {
