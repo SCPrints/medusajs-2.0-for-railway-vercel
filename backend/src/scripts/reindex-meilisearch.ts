@@ -1,8 +1,5 @@
 import { ExecArgs } from "@medusajs/framework/types"
-import {
-  ContainerRegistrationKeys,
-  SearchUtils,
-} from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 const MEILISEARCH_MODULE = "meilisearch"
 
@@ -169,7 +166,8 @@ export default async function reindexMeilisearch({ container }: ExecArgs) {
   if (!skipProducts) {
     await syncType(
       "products",
-      SearchUtils.indexTypes.PRODUCTS,
+      // Was SearchUtils.indexTypes.PRODUCTS (removed in Medusa 2.21); same value.
+      "products",
       "product",
       { status: "published" }
     )
