@@ -6,7 +6,7 @@ import {
 import {
   createInventoryLevelsWorkflow,
   createProductVariantsWorkflow,
-  updateProductOptionsWorkflow,
+  setProductProductOptionsWorkflow,
 } from "@medusajs/medusa/core-flows"
 
 import { ASCOLOUR_MODULE } from "../modules/ascolour"
@@ -241,14 +241,18 @@ export default async function backfillAsColourVariants({ container }: ExecArgs) 
         `[${dbProduct.handle}] adding ${newColours.size} new colour values: ${Array.from(newColours).join(", ")}`
       )
       if (!dryRun) {
-        await updateProductOptionsWorkflow(container).run({
+        // Medusa 2.17+ links option values per product: updating the option's
+        // own values (updateProductOptionsWorkflow) no longer reaches the
+        // product. This creates the new values and links them to it.
+        await setProductProductOptionsWorkflow(container).run({
           input: {
-            selector: { id: colourOption.id },
-            update: {
-              values: Array.from(
-                new Set([...existingColours, ...newColours])
-              ),
-            },
+            product_id: dbProduct.id,
+            update: [
+              {
+                product_option_id: colourOption.id,
+                add: Array.from(newColours).map((value) => ({ value })),
+              },
+            ],
           },
         })
       }
@@ -258,12 +262,15 @@ export default async function backfillAsColourVariants({ container }: ExecArgs) 
         `[${dbProduct.handle}] adding ${newSizes.size} new size values: ${Array.from(newSizes).join(", ")}`
       )
       if (!dryRun) {
-        await updateProductOptionsWorkflow(container).run({
+        await setProductProductOptionsWorkflow(container).run({
           input: {
-            selector: { id: sizeOption.id },
-            update: {
-              values: Array.from(new Set([...existingSizes, ...newSizes])),
-            },
+            product_id: dbProduct.id,
+            update: [
+              {
+                product_option_id: sizeOption.id,
+                add: Array.from(newSizes).map((value) => ({ value })),
+              },
+            ],
           },
         })
       }
