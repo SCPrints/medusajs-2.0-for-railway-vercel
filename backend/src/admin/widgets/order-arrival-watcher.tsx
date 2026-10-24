@@ -245,8 +245,10 @@ const OrderArrivalWatcher = () => {
   return null
 }
 
+// Stable id: the layout editor (Medusa 2.17.2+) keys placement by it.
 export const config = defineWidgetConfig({
   zone: "order.list.before",
+  id: "scp:order-arrival-watcher",
 })
 
 export default withWidgetBoundary(OrderArrivalWatcher, "order-arrival-watcher")

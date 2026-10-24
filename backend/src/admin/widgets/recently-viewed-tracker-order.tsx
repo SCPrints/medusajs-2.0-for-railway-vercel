@@ -20,8 +20,10 @@ const RecentlyViewedTrackerOrder = ({ data: order }: { data: { id: string; displ
   return null
 }
 
+// Stable id: the layout editor (Medusa 2.17.2+) keys placement by it.
 export const config = defineWidgetConfig({
   zone: "order.details.before",
+  id: "scp:recently-viewed-tracker-order",
 })
 
 export default withWidgetBoundary(RecentlyViewedTrackerOrder, "recently-viewed-tracker-order")

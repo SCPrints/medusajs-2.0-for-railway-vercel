@@ -205,8 +205,11 @@ const OrdersExportCsv = () => {
   )
 }
 
+// Stable id: the layout editor (Medusa 2.17.2+) keys placement by it.
 export const config = defineWidgetConfig({
   zone: "order.list.before",
+  id: "scp:orders-export-csv",
 })
 
-export default withWidgetBoundary(OrdersExportCsv, "orders-export-csv")
+export default withWidgetBoundary(OrdersExportCsv
+, "orders-export-csv")

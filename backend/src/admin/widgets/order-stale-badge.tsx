@@ -65,8 +65,10 @@ const OrderStaleBadgeWidget = ({
   )
 }
 
+// Stable id: the layout editor (Medusa 2.17.2+) keys placement by it.
 export const config = defineWidgetConfig({
   zone: "order.details.before",
+  id: "scp:order-stale-badge",
 })
 
 export default withWidgetBoundary(OrderStaleBadgeWidget, "order-stale-badge")

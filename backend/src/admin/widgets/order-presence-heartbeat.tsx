@@ -47,8 +47,10 @@ const OrderPresenceHeartbeat = ({ data: order }: { data: { id: string } }) => {
   return null
 }
 
+// Stable id: the layout editor (Medusa 2.17.2+) keys placement by it.
 export const config = defineWidgetConfig({
   zone: "order.details.before",
+  id: "scp:order-presence-heartbeat",
 })
 
 export default withWidgetBoundary(OrderPresenceHeartbeat, "order-presence-heartbeat")
