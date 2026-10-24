@@ -23,7 +23,14 @@ type Params = {
 export default async function SearchResults({ params, searchParams }: Params){const { query, countryCode } = await params
   const { sortBy, page } = await searchParams
 
-  const hits = await search(query).then((data) => data)
+  // Route params arrive still URL-encoded ("biz%20polo"); Meili needs the words.
+  let decoded = query
+  try {
+    decoded = decodeURIComponent(query)
+  } catch {
+    // malformed escape — search the raw text
+  }
+  const hits = await search(decoded)
 
   const ids = hits
     .map((h) => h.objectID || h.id)
