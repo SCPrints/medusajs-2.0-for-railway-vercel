@@ -758,7 +758,7 @@ export async function getProductsListWithSort({
     }
   }
 
-  let products: HttpTypes.StoreProduct[] = []
+  const products: HttpTypes.StoreProduct[] = []
 
   let pageIdx = 1
   while (pageIdx <= CLIENT_FILTER_MAX_PAGES) {

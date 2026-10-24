@@ -10,6 +10,14 @@ import { transferGuestCartToCustomer } from "./cart"
 import { removeAuthToken, setAuthToken } from "./cookies"
 import { authedNextHeaders, awaitedAuthHeaders } from "./sdk-helpers"
 
+// Email/password login returns a JWT string. The SDK also types redirect, MFA
+// and verification responses; none apply to customers here, so fail loudly
+// rather than store something that isn't a token.
+const loginTokenOrThrow = (res: Awaited<ReturnType<typeof sdk.auth.login>>) => {
+  if (typeof res === "string") return res
+  throw new Error("This account needs an extra sign-in step the store doesn't support yet.")
+}
+
 export const getCustomer = cache(async function () {
   const headers = await authedNextHeaders({ tags: ["customer"] })
   return await sdk.store.customer
@@ -59,7 +67,7 @@ export async function signup(_currentState: unknown, formData: FormData) {
       password,
     })
 
-    const finalToken = typeof loginToken === 'string' ? loginToken : loginToken.location
+    const finalToken = loginTokenOrThrow(loginToken)
     await setAuthToken(finalToken)
 
     // If the customer was building a cart as a guest, claim it now that they
@@ -80,7 +88,7 @@ export async function login(_currentState: unknown, formData: FormData) {
 
   try {
     const token = await sdk.auth.login("customer", "emailpass", { email, password })
-    const finalToken = typeof token === 'string' ? token : token.location
+    const finalToken = loginTokenOrThrow(token)
     await setAuthToken(finalToken)
     revalidateTag("customer", "max")
     // Claim any guest cart the customer was building before login. Idempotent

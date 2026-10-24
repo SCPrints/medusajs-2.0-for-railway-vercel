@@ -1352,7 +1352,7 @@ export function useButtonAnimationsLabSections(
           </div>
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-1"
           title="1 + 4. Fly-to-cart with tactile squish"
           description="The same cart flight as #1, but the trigger is a Framer Motion button with the spring whileTap from #4—press feedback and success motion in one control."
         >
@@ -1373,7 +1373,7 @@ export function useButtonAnimationsLabSections(
           </div>
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-2"
           title="1 + 3 + 4 + 8. Fly, confetti, squish &amp; slot text"
           description="Pick a preset below to try different trail vs arrival combinations. Confetti uses heart shapes (`shapeFromPath`) so particles respect the greyscale or default color palette; if `Path2D` is unavailable they fall back to basic shapes. Spring squish (#4) and slot text (#8) are unchanged; re-triggers after the slot resets (~2s)."
         >
@@ -1429,84 +1429,84 @@ export function useButtonAnimationsLabSections(
           </div>
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-3"
           title="2. Morph &amp; success state"
           description="Loading state, then success color, checkmark, and copy that resets. Mirrors a typical add-to-cart flow with React state and Tailwind transitions."
         >
           <MorphAddButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-4"
           title="3. Confetti / sparkles"
           description="canvas-confetti burst from the button center. Works well for playful or celebratory brands."
         >
           <ConfettiAddButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-5"
           title="4. Tactile squish / bounce"
           description="whileTap scale with a spring for press feedback. Framer Motion makes this a few lines of code."
         >
           <SquishAddButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-6"
           title="5. Material-style ripple"
           description="Click coordinates seed an expanding ring inside an overflow-hidden button. Uses Framer Motion for the ripple (pure CSS is another valid approach)."
         >
           <RippleAddButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-7"
           title="6. Haptic feedback"
           description="navigator.vibrate for supported mobile browsers; wrapped in a capability check so desktop is unaffected."
         >
           <HapticAddButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-8"
           title="7. 3D coin flip"
           description="Front: Add to cart. Back: Added with icon. Framer Motion rotates on the X-axis with preserve-3d and hidden back-faces, similar to pure CSS 3D card flips."
         >
           <CoinFlip3DButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-9"
           title="8. Slot machine text roll"
           description="Fixed height, overflow hidden; the text column translates up on click so an Added! line slides into view. Typography-only feedback without a big color change."
         >
           <SlotMachineTextButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-10"
           title="9. Integrated progress fill"
           description="A darker layer creeps left-to-right, then the label flips to success—good when cart API can take a moment. Demo uses a 1.2s fill; wire width to a real request for production."
         >
           <ProgressFillButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-11"
           title="10. Glossy shimmer / sweep"
           description="A diagonal light beam crosses the button after each click, keyed so repeated clicks replay the sweep. Gradient overlay + Framer position animation (keyframes work too)."
         >
           <ShimmerSweepButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-12"
           title="11. Auditory feedback (earcon)"
           description="Subtle chime on click via the Web Audio API (no file). Mute the tab or your OS to compare. You can drop in use-sound and a very small /public sound for a custom earcon."
         >
           <EarconAddButton />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-13"
           title="12. Mini Tetris (easter egg)"
           description="A tiny client-side pass time while comparing interactions. The board, pieces, and controls use the same brand CSS variables and Medusa UI treatment as the rest of the test page. Focus the playfield for keyboard: arrows, X or up to rotate, Space or Enter to hard drop. Restart is always available."
         >
           <MiniTetris />
         </LabSection>,
 
-      <LabSection
+      <LabSection key="lab-14"
           title="13. Mini bubble pop (shooter)"
           description="Aim with the mouse, click to fire: wall-bounce, staggered grid, 3+ match (BFS), ceiling-connected orphan drop (flood), dashed aim line. Physics use 16 microsteps per frame and a looser contact radius; every 5th shot a new top row is inserted and the field shifts down—bubbles in the bottom row at that moment end the run."
         >

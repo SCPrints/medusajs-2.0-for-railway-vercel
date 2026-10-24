@@ -156,7 +156,8 @@ const sortKeyForLabel = (
   hsl: { h: number; s: number; l: number },
   rgb: { r: number; g: number; b: number }
 ): number[] => {
-  let { h, s, l } = hsl
+  const { s, l } = hsl
+  let { h } = hsl
   if (Number.isNaN(h)) {
     h = 0
   }

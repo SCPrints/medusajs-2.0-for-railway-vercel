@@ -18,7 +18,6 @@ export async function getCategoriesList(
   cacheTag("categories")
   cacheLife({ revalidate: 600, stale: 600, expire: 86400 })
   return sdk.store.category.list(
-    // @ts-ignore — SDK preview types
     { limit, offset }
   )
 }
@@ -30,7 +29,6 @@ export async function getCategoryByHandle(categoryHandle: string[]) {
   // `+category_children` includes the immediate sub-category list so the
   // landing page can render its drill-down without a second round trip.
   return sdk.store.category.list(
-    // @ts-ignore — SDK preview types lag the handle param
     {
       handle: categoryHandle,
       fields: "+category_children,+parent_category",

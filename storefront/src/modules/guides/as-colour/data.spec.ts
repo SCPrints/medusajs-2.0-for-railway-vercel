@@ -1,4 +1,4 @@
-import { cutOf, fitClass, weightBand } from "./data"
+import { asColourHandle, cutOf, fitClass, TEE_CODES, weightBand } from "./data"
 
 describe("AS Colour guide classification", () => {
   it("bands weight the way AS Colour labels it", () => {
@@ -27,7 +27,6 @@ describe("AS Colour guide classification", () => {
 
 describe("asColourHandle", () => {
   it("resolves every featured style to a renamed (live) handle", () => {
-    const { asColourHandle, TEE_CODES } = require("./data")
     for (const code of TEE_CODES) expect(asColourHandle(code)).not.toBe(`as-colour-${code}-${code}`.toLowerCase())
     expect(asColourHandle("5001")).toBe("as-colour-staple-tee-5001")
   })

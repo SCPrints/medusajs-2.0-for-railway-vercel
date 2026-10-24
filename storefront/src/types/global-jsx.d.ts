@@ -10,8 +10,11 @@ import type { JSX as ReactJSX } from "react"
 
 declare global {
   namespace JSX {
+    // Empty on purpose: these merge into React's JSX types.
+    /* eslint-disable @typescript-eslint/no-empty-object-type */
     interface Element extends ReactJSX.Element {}
     interface IntrinsicElements extends ReactJSX.IntrinsicElements {}
+    /* eslint-enable @typescript-eslint/no-empty-object-type */
   }
 }
 

@@ -921,7 +921,7 @@ export async function deleteLineItem(lineId: string) {
   }
 
   const deleteResp = await sdk.store.cart
-    .deleteLineItem(cartId, lineId, await getAuthHeaders())
+    .deleteLineItem(cartId, lineId, {}, await getAuthHeaders())
     .catch(medusaError)
   // After removing a line the aggregated tier may drop (e.g. 101 → 41 units
   // moves the cart back to the 20-49 tier). Recompute synchronously so the
@@ -1299,7 +1299,7 @@ export async function replaceCartWithSavedItems({
 
   for (const lineItem of currentItems) {
     await sdk.store.cart
-      .deleteLineItem(cartId, lineItem.id, await getAuthHeaders())
+      .deleteLineItem(cartId, lineItem.id, {}, await getAuthHeaders())
       .catch(medusaError)
   }
 

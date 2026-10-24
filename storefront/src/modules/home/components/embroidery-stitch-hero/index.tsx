@@ -585,7 +585,7 @@ export default function EmbroideryStitchHero({ className, style }: Props) {
           appear = clamp01(age / 6)
         }
         // Local sheen boost when the moving rake band passes over this stitch.
-        let localSheen = sheenDir
+        const localSheen = sheenDir
         let extra = 0
         if (rakeCenter >= 0) {
           const dist = Math.abs(s.cx - rakeCenter)

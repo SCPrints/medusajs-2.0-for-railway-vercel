@@ -278,7 +278,7 @@ const SPAWN_Y = 0
 
 function emptyBoard(): Board {
   return Array.from({ length: BOARD_H }, () =>
-    Array.from({ length: BOARD_W }, () => 0 as 0)
+    Array.from({ length: BOARD_W }, () => 0 as const)
   )
 }
 
@@ -348,7 +348,7 @@ function clearFullRows(b: Board): number {
   for (let y = BOARD_H - 1; y >= 0; ) {
     if (b[y]!.every((c) => c !== 0)) {
       b.splice(y, 1)
-      b.unshift(Array.from({ length: BOARD_W }, () => 0 as 0))
+      b.unshift(Array.from({ length: BOARD_W }, () => 0 as const))
       cleared += 1
     } else {
       y -= 1

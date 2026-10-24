@@ -266,7 +266,7 @@ function drawStreams(
       }
 
       // Trailing tiles: blocky rects with occasional tall blocks.
-      let dw = size
+      const dw = size
       let dh = size
       if (frac < 0.55 && Math.sin(i * 1.3 + s.hueSeed * 2) > 1 - s.tallChance * 2) {
         dh = size * 1.7

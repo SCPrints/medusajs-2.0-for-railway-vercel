@@ -26,7 +26,7 @@ pnpm email:dev            # preview Resend email templates at localhost:3002
 pnpm dev                  # start Next.js dev server (run the backend separately — `pnpm --filter backend dev`)
 pnpm build                # production build (`next build`)
 pnpm build:next           # alias for `next build`
-pnpm lint                 # ESLint via next lint
+pnpm lint                 # ESLint (eslint.config.mjs: Next's rules minus style + React Compiler rules)
 pnpm test                 # run all Jest tests
 pnpm test -- --testPathPattern=src/modules/customizer/lib/dpi  # single test file
 pnpm test-e2e             # Playwright E2E tests

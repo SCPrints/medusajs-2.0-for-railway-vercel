@@ -47,9 +47,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ExplorePage({ params }: Props) {
   const { countryCode } = await params
 
+  let payload: Awaited<ReturnType<typeof getGraphSummary>>
   try {
-    const payload = await getGraphSummary()
-    return <ExploreTemplate initialPayload={payload} />
+    payload = await getGraphSummary()
   } catch (error) {
     return (
       <div className="content-container py-16 flex flex-col items-start gap-4">
@@ -69,4 +69,5 @@ export default async function ExplorePage({ params }: Props) {
       </div>
     )
   }
+  return <ExploreTemplate initialPayload={payload} />
 }

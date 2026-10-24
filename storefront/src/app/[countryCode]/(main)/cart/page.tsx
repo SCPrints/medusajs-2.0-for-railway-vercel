@@ -21,7 +21,7 @@ const fetchCart = async () => {
     }
 
     if (cart?.items?.length) {
-      const enrichedItems = await enrichLineItems(cart?.items, cart?.region_id!)
+      const enrichedItems = await enrichLineItems(cart.items, cart.region_id!)
       // Strip heavy customizer metadata (sideLayouts, prints, customerOriginalFiles)
       // before passing to client components. Pure performance optimization for
       // large carts; the cart UI only reads thumbnail / mockup-artifact URLs
