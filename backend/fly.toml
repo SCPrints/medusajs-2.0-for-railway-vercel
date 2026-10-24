@@ -9,7 +9,20 @@ primary_region = 'syd'
   # This moves the 2-4 minute migration step out of the hot path.
   # db:migrate already syncs links (skip with --skip-links), so a separate
   # db:sync-links would just cold-boot Medusa again to find nothing to do.
-  release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate'"
+  # The safe flags keep it non-interactive: since 2.21 a changed link prompts
+  # "Select tables to act upon" and the release machine hangs until timeout.
+  # Safe mode never drops or alters link tables; review those by hand
+  # (npx medusa db:sync-links, then --execute-all once the plan is checked).
+  release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate --execute-safe-links --execute-safe-search'"
+  # A fresh release machine pulls the ~1 GB image before migrating; the 2.17
+  # product-options data migration needs more than the 5m default.
+  release_command_timeout = '15m'
+
+  # Release machines default to 256 MB, not [[vm]]: db:migrate gets OOM-killed
+  # (exit 137) and looks like a timeout. Proven on staging 2026-10-24.
+  [deploy.release_command_vm]
+    size = 'shared-cpu-2x'
+    memory = '4gb'
 
 [env]
   PORT = '9000'

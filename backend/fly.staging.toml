@@ -17,7 +17,11 @@ primary_region = 'syd'
     BACKEND_PUBLIC_URL = "https://sc-prints-backend-staging.fly.dev"
 
 [deploy]
-  release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate'"
+  # The safe flags keep it non-interactive: since 2.21 a changed link prompts
+  # "Select tables to act upon" and the release machine hangs until timeout.
+  # Safe mode never drops or alters link tables; review those by hand
+  # (npx medusa db:sync-links, then --execute-all once the plan is checked).
+  release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate --execute-safe-links --execute-safe-search'"
   # Default is 5m: a fresh release machine pulls the ~1 GB image (1-2 min),
   # migrates, then takes ~40 s to close Postgres/Redis before exiting. That ran
   # out the clock on staging; the 2.17 product-options data migration needs more.
