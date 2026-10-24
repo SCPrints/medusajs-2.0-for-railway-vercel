@@ -79,7 +79,6 @@ export function toClientProduct(
   const options = (product.options ?? []).map((o) => ({
     id: o.id,
     title: o.title,
-    product_id: o.product_id,
     metadata: o.metadata,
     values: (o.values ?? []).map((val) => ({
       id: val.id,
