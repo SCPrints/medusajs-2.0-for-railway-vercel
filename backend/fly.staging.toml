@@ -18,6 +18,10 @@ primary_region = 'syd'
 
 [deploy]
   release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate'"
+  # Default is 5m: a fresh release machine pulls the ~1 GB image (1-2 min),
+  # migrates, then takes ~40 s to close Postgres/Redis before exiting. That ran
+  # out the clock on staging; the 2.17 product-options data migration needs more.
+  release_command_timeout = '15m'
 
 [env]
   PORT = '9000'
