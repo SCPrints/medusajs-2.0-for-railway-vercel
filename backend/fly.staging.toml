@@ -1,0 +1,49 @@
+# Temporary staging backend for the Medusa 2.16 -> 2.22 upgrade.
+# Deploy: cd backend && fly deploy --config fly.staging.toml --depot=false
+#
+# Runs against a FORK of the live database (sc-prints-db-staging). Its secrets
+# are deliberately minimal: no REDIS_URL (would share live's job queues), no
+# Meilisearch admin key (sync can delete from the live index), no Resend key or
+# *_ENABLED flags (no emails to real customers), no Stripe/PayPal/supplier/
+# shipping keys, no R2 keys, no REVALIDATE_SECRET/STOREFRONT_URL (can't purge
+# the live site's cache). Delete the app when the upgrade ships.
+app = 'sc-prints-backend-staging'
+primary_region = 'syd'
+
+[build]
+  dockerfile = "Dockerfile"
+  [build.args]
+    # Baked into the admin SPA so the staging admin talks to staging, not live.
+    BACKEND_PUBLIC_URL = "https://sc-prints-backend-staging.fly.dev"
+
+[deploy]
+  release_command = "sh -c 'cd .medusa/server && npx medusa db:migrate'"
+
+[env]
+  PORT = '9000'
+  NODE_ENV = 'production'
+  NODE_OPTIONS = '--max-old-space-size=3072'
+  BACKEND_PUBLIC_URL = 'https://sc-prints-backend-staging.fly.dev'
+
+[http_service]
+  internal_port = 9000
+  force_https = true
+  # Staging can sleep when idle (cheaper); first request after idle is slow.
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[http_service.checks]]
+  grace_period = '60s'
+  interval = '30s'
+  method = 'GET'
+  path = '/health'
+  port = 9000
+  timeout = '10s'
+  type = 'http'
+
+[[vm]]
+  # Shared CPU is fine for staging; Medusa still needs the 4 GB.
+  memory = '4gb'
+  cpu_kind = 'shared'
+  cpus = 2

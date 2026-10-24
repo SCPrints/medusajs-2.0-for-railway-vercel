@@ -26,10 +26,13 @@ COPY . .
 # (no DB connection or real auth happens during build).
 # BACKEND_PUBLIC_URL is baked into the admin SPA — it must be the real public URL,
 # otherwise the admin tries to call http://localhost:9000 from the browser.
+# A build arg so staging (fly.staging.toml) can bake in its own URL; the default
+# is production, so `fly deploy` with fly.toml builds exactly as before.
+ARG BACKEND_PUBLIC_URL=https://api.scprints.com.au
 ENV DATABASE_URL=postgresql://x:x@localhost:5432/x \
     JWT_SECRET=build-placeholder \
     COOKIE_SECRET=build-placeholder \
-    BACKEND_PUBLIC_URL=https://api.scprints.com.au
+    BACKEND_PUBLIC_URL=${BACKEND_PUBLIC_URL}
 
 # The admin (Vite) build sits right at Node's default ~2 GB heap and OOMs
 # intermittently; build-step only, the runtime is unaffected.
