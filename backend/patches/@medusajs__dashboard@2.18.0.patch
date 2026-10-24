@@ -1,14 +1,36 @@
-diff --git a/dist/chunk-F2JMB3WR.mjs b/dist/chunk-F2JMB3WR.mjs
-index d49c27020a6ce48629c187a008756b54a3513d6e..e7d81d38384416c31ec0ceab765d1db542ca03e5 100644
---- a/dist/chunk-F2JMB3WR.mjs
-+++ b/dist/chunk-F2JMB3WR.mjs
-@@ -103065,11 +103065,12 @@ var NavItem = ({
+diff --git a/dist/chunk-DBJBDAZN.mjs b/dist/chunk-DBJBDAZN.mjs
+index 9c15a6c141f718b67b1292e871eb4f988e950958..85a0e182270822d8ae00ce342db2bbc7d6a67250 100644
+--- a/dist/chunk-DBJBDAZN.mjs
++++ b/dist/chunk-DBJBDAZN.mjs
+@@ -9,10 +9,14 @@ import {
+ import { useTranslation } from "react-i18next";
+ import { jsx } from "react/jsx-runtime";
+ var CollectionCell = ({ collection }) => {
+-  if (!collection) {
++  if (!collection || typeof collection !== "object" || Array.isArray(collection)) {
+     return /* @__PURE__ */ jsx(PlaceholderCell, {});
+   }
+-  return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate", children: collection.title }) });
++  const collTitle = collection.title;
++  if (collTitle == null || collTitle === "") {
++    return /* @__PURE__ */ jsx(PlaceholderCell, {});
++  }
++  return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate", children: collTitle }) });
+ };
+ var CollectionHeader = () => {
+   const { t } = useTranslation();
+diff --git a/dist/chunk-QIJSUXW3.mjs b/dist/chunk-QIJSUXW3.mjs
+index 1f0ae3f83bfd827fe091e934bbcb62337dc0f998..37367b7174fc223f03b11fe8c4aa348497779195 100644
+--- a/dist/chunk-QIJSUXW3.mjs
++++ b/dist/chunk-QIJSUXW3.mjs
+@@ -105949,12 +105949,13 @@ var NavItem = ({
  }) => {
    const { t: t2 } = useTranslation6(translationNs);
-   const { pathname } = useLocation4();
+   const { pathname, search } = useLocation4();
 -  const [open, setOpen] = useState7(getIsOpen(to, items, pathname));
 +  const alwaysOpen = type === "extension" || !!items?.some((i) => i.nested);
 +  const [open, setOpen] = useState7(alwaysOpen || getIsOpen(to, items, pathname));
+   const { editMode } = useLayoutEdit();
    const displayLabel = translationNs ? t2(label) : label;
    useEffect8(() => {
 -    setOpen(getIsOpen(to, items, pathname));
@@ -18,20 +40,6 @@ index d49c27020a6ce48629c187a008756b54a3513d6e..e7d81d38384416c31ec0ceab765d1db5
    const navLinkClassNames = useCallback4(
      ({
        to: to2,
-diff --git a/dist/chunk-IQBAUTU5.mjs b/dist/chunk-IQBAUTU5.mjs
-index e3a72ee54ee1c53baaeae0ff7b3218352eacdba9..d0226b8e6c797794604bfe9ca60c0e6661d7f952 100644
---- a/dist/chunk-IQBAUTU5.mjs
-+++ b/dist/chunk-IQBAUTU5.mjs
-@@ -6,6 +6,9 @@ import {
- import { useTranslation } from "react-i18next";
- import { jsx, jsxs } from "react/jsx-runtime";
- var ProductCell = ({ product }) => {
-+  if (!product || typeof product !== "object") {
-+    return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate text-ui-fg-muted", children: "—" }) });
-+  }
-   return /* @__PURE__ */ jsxs("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: [
-     /* @__PURE__ */ jsx("div", { className: "w-fit flex-shrink-0", children: /* @__PURE__ */ jsx(Thumbnail, { src: product.thumbnail }) }),
-     /* @__PURE__ */ jsx("span", { title: product.title, className: "truncate", children: product.title })
 diff --git a/dist/chunk-R65S6ZZV.mjs b/dist/chunk-R65S6ZZV.mjs
 index 41454fdc59eab04fcd0ce55551ae21a4ffe0bdc8..e26b94ec2e750889725c28e1b1c2dae65fe0185b 100644
 --- a/dist/chunk-R65S6ZZV.mjs
@@ -62,50 +70,25 @@ index 41454fdc59eab04fcd0ce55551ae21a4ffe0bdc8..e26b94ec2e750889725c28e1b1c2dae6
      category_id: category_id?.split(","),
      collection_id: collection_id?.split(","),
      is_giftcard: is_giftcard ? is_giftcard === "true" : void 0,
-diff --git a/dist/chunk-V2CZ23VK.mjs b/dist/chunk-V2CZ23VK.mjs
-index 0377a7ffd0d505338789d64b9344c64b332dbff0..262abc544b0802391a9c7fcc2f898cdbb2997d7c 100644
---- a/dist/chunk-V2CZ23VK.mjs
-+++ b/dist/chunk-V2CZ23VK.mjs
-@@ -9,10 +9,14 @@ import {
+diff --git a/dist/chunk-XEEPMJRY.mjs b/dist/chunk-XEEPMJRY.mjs
+index 9d7f2cc511386c8de53bb793d0d8e1b2ba4294da..41f40b74c5661151028ac0c3e4ecbb734e84f19e 100644
+--- a/dist/chunk-XEEPMJRY.mjs
++++ b/dist/chunk-XEEPMJRY.mjs
+@@ -9,6 +9,9 @@ import {
  import { useTranslation } from "react-i18next";
- import { jsx } from "react/jsx-runtime";
- var CollectionCell = ({ collection }) => {
--  if (!collection) {
-+  if (!collection || typeof collection !== "object" || Array.isArray(collection)) {
-     return /* @__PURE__ */ jsx(PlaceholderCell, {});
-   }
--  return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate", children: collection.title }) });
-+  const collTitle = collection.title;
-+  if (collTitle == null || collTitle === "") {
-+    return /* @__PURE__ */ jsx(PlaceholderCell, {});
+ import { jsx, jsxs } from "react/jsx-runtime";
+ var ProductCell = ({ product }) => {
++  if (!product || typeof product !== "object") {
++    return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate text-ui-fg-muted", children: "—" }) });
 +  }
-+  return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate", children: collTitle }) });
- };
- var CollectionHeader = () => {
-   const { t } = useTranslation();
-@@ -24,12 +28,15 @@ import { useTranslation as useTranslation2 } from "react-i18next";
- import { jsx as jsx2 } from "react/jsx-runtime";
- var ProductStatusCell = ({ status }) => {
-   const { t } = useTranslation2();
--  const [color, text] = {
-+  const mapping = {
-     draft: ["grey", t("products.productStatus.draft")],
-     proposed: ["orange", t("products.productStatus.proposed")],
-     published: ["green", t("products.productStatus.published")],
-     rejected: ["red", t("products.productStatus.rejected")]
--  }[status];
-+  };
-+  const entry = mapping[status];
-+  const color = entry?.[0] ?? "grey";
-+  const text = entry?.[1] ?? (status != null && status !== "" ? String(status) : "—");
-   return /* @__PURE__ */ jsx2(StatusCell, { color, children: text });
- };
- var ProductStatusHeader = () => {
-diff --git a/dist/login-SMUUQFIP.mjs b/dist/login-SMUUQFIP.mjs
-index bb4533549181569ac5e4b906a9fdac1c2179d225..4f16c649c4b495e49a6c5cae6e04d7386ef54422 100644
---- a/dist/login-SMUUQFIP.mjs
-+++ b/dist/login-SMUUQFIP.mjs
-@@ -399,15 +399,20 @@ var Login = () => {
+   return /* @__PURE__ */ jsxs("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: [
+     /* @__PURE__ */ jsx("div", { className: "w-fit flex-shrink-0", children: /* @__PURE__ */ jsx(Thumbnail, { src: product.thumbnail }) }),
+     /* @__PURE__ */ jsx(TruncatedText, { text: product.title })
+diff --git a/dist/login-REAKYYFI.mjs b/dist/login-REAKYYFI.mjs
+index 527aa630ea46f0237cbf6ce458c413c619bfa27a..64803ab40d9a86ef42f54f7615b300742069b688 100644
+--- a/dist/login-REAKYYFI.mjs
++++ b/dist/login-REAKYYFI.mjs
+@@ -398,15 +398,20 @@ var Login = () => {
              message: error.message
            });
          },
@@ -128,7 +111,7 @@ index bb4533549181569ac5e4b906a9fdac1c2179d225..4f16c649c4b495e49a6c5cae6e04d738
          }
        }
      );
-@@ -423,7 +428,7 @@ var Login = () => {
+@@ -422,7 +427,7 @@ var Login = () => {
            if (mfaSuccessHandler) {
              return mfaSuccessHandler(token);
            }
@@ -137,11 +120,11 @@ index bb4533549181569ac5e4b906a9fdac1c2179d225..4f16c649c4b495e49a6c5cae6e04d738
          },
          onBack: () => {
            setMfaChallenge(null);
-diff --git a/dist/product-detail-QSO2EX32.mjs b/dist/product-detail-QSO2EX32.mjs
-index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424f0be21e2 100644
---- a/dist/product-detail-QSO2EX32.mjs
-+++ b/dist/product-detail-QSO2EX32.mjs
-@@ -318,7 +318,7 @@ var ProductGeneralSection = ({
+diff --git a/dist/product-detail-7UDXNUGN.mjs b/dist/product-detail-7UDXNUGN.mjs
+index a22703f8d12bb735ac61a3d63cf54bd3dc2eaa7a..e546e189a2c518d1c2987198d3994164fbbc944d 100644
+--- a/dist/product-detail-7UDXNUGN.mjs
++++ b/dist/product-detail-7UDXNUGN.mjs
+@@ -314,7 +314,7 @@ var ProductGeneralSection = ({
  };
  
  // src/routes/products/product-detail/components/product-media-section/product-media-section.tsx
@@ -150,7 +133,7 @@ index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424
  import {
    Button,
    Checkbox,
-@@ -339,6 +339,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -335,6 +335,7 @@ var ProductMediaSection = ({ product }) => {
    const prompt = usePrompt2();
    const navigate = useNavigate2();
    const [selection, setSelection] = useState({});
@@ -158,7 +141,7 @@ index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424
    const media = getMedia(product);
    const handleCheckedChange = (id) => {
      setSelection((prev) => {
-@@ -384,7 +385,10 @@ var ProductMediaSection = ({ product }) => {
+@@ -380,7 +381,10 @@ var ProductMediaSection = ({ product }) => {
    };
    return /* @__PURE__ */ jsxs3(Container3, { className: "divide-y p-0", children: [
      /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between px-6 py-4", children: [
@@ -170,7 +153,7 @@ index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424
        /* @__PURE__ */ jsx4(
          ActionMenu,
          {
-@@ -402,7 +406,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -398,7 +402,7 @@ var ProductMediaSection = ({ product }) => {
          }
        )
      ] }),
@@ -179,7 +162,7 @@ index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424
        const isSelected = selection[i.id];
        return /* @__PURE__ */ jsxs3(
          "div",
-@@ -440,7 +444,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -436,7 +440,7 @@ var ProductMediaSection = ({ product }) => {
          },
          i.id
        );
@@ -188,7 +171,7 @@ index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424
        /* @__PURE__ */ jsxs3("div", { className: "flex flex-col items-center", children: [
          /* @__PURE__ */ jsx4(
            Text,
-@@ -455,7 +459,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -451,7 +455,7 @@ var ProductMediaSection = ({ product }) => {
          /* @__PURE__ */ jsx4(Text, { size: "small", className: "text-ui-fg-muted", children: t("products.media.emptyState.description") })
        ] }),
        /* @__PURE__ */ jsx4(Button, { size: "small", variant: "secondary", asChild: true, children: /* @__PURE__ */ jsx4(Link, { to: "media?view=edit", children: t("products.media.emptyState.action") }) })
@@ -197,7 +180,7 @@ index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424
      /* @__PURE__ */ jsx4(CommandBar, { open: !!Object.keys(selection).length, children: /* @__PURE__ */ jsxs3(CommandBar.Bar, { children: [
        /* @__PURE__ */ jsx4(CommandBar.Value, { children: t("general.countSelected", {
          count: Object.keys(selection).length
-@@ -675,7 +679,7 @@ var ProductOrganizationSection = ({
+@@ -657,7 +661,7 @@ var ProductOrganizationSection = ({
        SectionRow,
        {
          title: t("fields.categories"),
@@ -206,10 +189,10 @@ index 7c79932e72ca1456239993e73ac40c9e4564fe03..e8f79647585cfb44562450d738ecd424
            OrganizationTag,
            {
              label: pcat.name,
-diff --git a/dist/product-sales-channels-TE3J3RB2.mjs b/dist/product-sales-channels-TE3J3RB2.mjs
-index b0c948d6d87c5bb57f7909c49d004e71d676dc0d..6b780752ee0cc6540ba6c72b29c3843e20b8b1db 100644
---- a/dist/product-sales-channels-TE3J3RB2.mjs
-+++ b/dist/product-sales-channels-TE3J3RB2.mjs
+diff --git a/dist/product-sales-channels-BBPEVIJA.mjs b/dist/product-sales-channels-BBPEVIJA.mjs
+index d8b90a8c40be76ddbc4f378b754115d7654f5743..e6f53627ff1cc640a751b81edd3d691f3d74a23f 100644
+--- a/dist/product-sales-channels-BBPEVIJA.mjs
++++ b/dist/product-sales-channels-BBPEVIJA.mjs
 @@ -58,17 +58,18 @@ var EditSalesChannelsForm = ({
  }) => {
    const { t } = useTranslation();

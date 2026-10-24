@@ -57,6 +57,12 @@ const OrderJobBar = ({ data }: DetailWidgetProps<AdminOrder>) => {
   )
 }
 
-export const config = defineWidgetConfig({ zone: "order.details.before" })
+// Since Medusa 2.17.2 `.before` no longer orders widgets: placement is set once
+// in the admin layout editor and saved in the DB. The stable id keeps that
+// placement if this file is ever renamed or moved.
+export const config = defineWidgetConfig({
+  zone: "order.details.before",
+  id: "scp:order-job-panel",
+})
 
 export default withWidgetBoundary(OrderJobBar, "order-job-bar")
