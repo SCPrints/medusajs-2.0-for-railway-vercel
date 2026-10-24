@@ -1,4 +1,4 @@
-import { Text, Section, Hr } from '@react-email/components'
+import { Text, Section, Hr } from 'react-email'
 import * as React from 'react'
 import { Base, STYLES, NAVY, SLATE, BG_SUBTLE } from './base'
 

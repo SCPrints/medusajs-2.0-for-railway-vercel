@@ -1,4 +1,4 @@
-import { Button, Hr, Img, Section, Text } from "@react-email/components"
+import { Button, Hr, Img, Section, Text } from "react-email"
 
 import { Base, MAGENTA } from "./base"
 

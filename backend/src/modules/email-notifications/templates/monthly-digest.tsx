@@ -1,4 +1,4 @@
-import { Hr, Section, Text } from "@react-email/components"
+import { Hr, Section, Text } from "react-email"
 
 import { Base, NAVY } from "./base"
 import type { MonthlyDigestPayload } from "../../../services/monthly-digest/build-digest"

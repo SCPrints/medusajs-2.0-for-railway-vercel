@@ -1,4 +1,4 @@
-import { Hr, Img, Link, Section, Text } from "@react-email/components"
+import { Hr, Img, Link, Section, Text } from "react-email"
 import { Base, STYLES, NAVY, BG_SUBTLE } from "./base"
 import type { OpenCart } from "../../../lib/open-carts"
 

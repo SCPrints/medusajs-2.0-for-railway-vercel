@@ -1,4 +1,4 @@
-import { Section, Text, Button } from "@react-email/components"
+import { Section, Text, Button } from "react-email"
 
 import { Base, STYLES, NAVY } from "./base"
 

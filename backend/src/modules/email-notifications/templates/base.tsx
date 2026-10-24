@@ -1,4 +1,4 @@
-import { Html, Body, Container, Preview, Tailwind, Head, Section, Text, Img } from '@react-email/components'
+import { Html, Body, Container, Preview, Tailwind, Head, Section, Text, Img } from 'react-email'
 import * as React from 'react'
 
 const NAVY = '#1a1a2e'

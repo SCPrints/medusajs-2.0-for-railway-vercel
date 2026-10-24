@@ -1,4 +1,4 @@
-import { Text, Section, Hr, Button, Img } from '@react-email/components'
+import { Text, Section, Hr, Button, Img } from 'react-email'
 import * as React from 'react'
 import { Base, STYLES, NAVY, SLATE, MUTED } from './base'
 import { OrderDTO } from '@medusajs/framework/types'

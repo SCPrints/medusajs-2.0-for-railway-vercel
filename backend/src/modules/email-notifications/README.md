@@ -51,7 +51,7 @@ To add a new email template:
 Add a new file in the templates directory, following the `react-email` component style and using the base template. For example, `new-template.tsx`:
 
 ```tsx
-import { Text } from '@react-email/components'
+import { Text } from 'react-email'
 import * as React from 'react'
 import { Base } from './base'
 
