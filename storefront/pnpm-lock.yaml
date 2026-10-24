@@ -69,11 +69,11 @@ importers:
         specifier: ^1.12.90
         version: 1.12.90
       '@stripe/react-stripe-js':
-        specifier: ^3.11.0
-        version: 3.11.0(@stripe/stripe-js@5.10.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: ^7.0.0
+        version: 7.0.0(@stripe/stripe-js@10.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@stripe/stripe-js':
-        specifier: ^5.10.0
-        version: 5.10.0
+        specifier: ^10.1.0
+        version: 10.1.0
       '@tsparticles/react':
         specifier: 3.0.0
         version: 3.0.0(@tsparticles/engine@3.7.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -2017,15 +2017,15 @@ packages:
   '@splinetool/runtime@1.12.90':
     resolution: {integrity: sha512-aEVSnGYdTDIZX0493kG0W55WzGhoO/Vf/Y9rG0WkAfEUS0PW7SSodldB5kcmwXEvuhTmqJxXT06H0bGXXzzAtQ==}
 
-  '@stripe/react-stripe-js@3.11.0':
-    resolution: {integrity: sha512-5L2Qsg68ELyDGdiQb6mnT4fgyl6V6GN4nJzGdKmVJ3CfbQFv1H157/LJTjJVyQGLN2bZ20cFYFMn2YwZ2TJElw==}
+  '@stripe/react-stripe-js@7.0.0':
+    resolution: {integrity: sha512-wKw6YM0p/IpGj7hcwdJL7UAb7s0hlO8kLJIXn0CezewYILQ8j/A7j55EHuHHjF6dV+cr4yZhbhg4QLRjovfM4A==}
     peerDependencies:
-      '@stripe/stripe-js': '>=1.44.1 <8.0.0'
+      '@stripe/stripe-js': '>=10.0.0 <11.0.0'
       react: '>=16.8.0 <20.0.0'
       react-dom: '>=16.8.0 <20.0.0'
 
-  '@stripe/stripe-js@5.10.0':
-    resolution: {integrity: sha512-PTigkxMdMUP6B5ISS7jMqJAKhgrhZwjprDqR1eATtFfh0OpKVNp110xiH+goeVdrJ29/4LeZJR4FaHHWstsu0A==}
+  '@stripe/stripe-js@10.1.0':
+    resolution: {integrity: sha512-sLRPukMKMxvRVrgV3Za8LM0Yd2azrixQjfaiuzS8Fivlu/Gt7VbBuRiRZJIvfL3XxAw+FdfdmhHSvjAfLG3lkA==}
     engines: {node: '>=12.16'}
 
   '@swc/core-darwin-arm64@1.15.33':
@@ -7559,14 +7559,14 @@ snapshots:
       on-change: 4.0.0
       semver-compare: 1.0.0
 
-  '@stripe/react-stripe-js@3.11.0(@stripe/stripe-js@5.10.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@stripe/react-stripe-js@7.0.0(@stripe/stripe-js@10.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
-      '@stripe/stripe-js': 5.10.0
+      '@stripe/stripe-js': 10.1.0
       prop-types: 15.8.1
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
 
-  '@stripe/stripe-js@5.10.0': {}
+  '@stripe/stripe-js@10.1.0': {}
 
   '@swc/core-darwin-arm64@1.15.33':
     optional: true

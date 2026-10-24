@@ -19,8 +19,12 @@ import {
   StripePaymentTrustFootnote,
 } from "@modules/checkout/components/stripe-payment-trust"
 import { isStripe as isStripeFunc, paymentInfoMap } from "@lib/constants"
-import { StripeContext } from "@modules/checkout/components/payment-wrapper"
-import { initiatePaymentSession } from "@lib/data/cart"
+import {
+  StripeContext,
+  isPaidIntentStatus,
+  stripePromise,
+} from "@modules/checkout/components/payment-wrapper"
+import { initiatePaymentSession, placeOrder } from "@lib/data/cart"
 
 const Payment = ({
   cart,
@@ -188,10 +192,26 @@ const Payment = ({
                   <StripeAcceptedCardMarks />
 
                   <PaymentElement
+                    // Stripe.js 7+ defaults to an accordion; keep the tabs customers know.
+                    options={{ layout: "tabs" }}
                     onChange={(e) => {
                       setError(null)
                       setPaymentElementComplete(e.complete)
                       setPaymentMethodType((e.value as any)?.type ?? null)
+                    }}
+                    // Since Stripe.js "clover" the form refuses to load for an intent
+                    // it considers finished. If the customer has in fact already paid
+                    // (e.g. the order failed to save after payment), finish the order
+                    // rather than leave them at an empty form.
+                    onLoadError={async () => {
+                      const secret = activeSession?.data?.client_secret
+                      const stripe = await stripePromise
+                      const result = secret ? await stripe?.retrievePaymentIntent(secret) : undefined
+                      if (isPaidIntentStatus(result?.paymentIntent?.status)) {
+                        await placeOrder().catch((err) => setError(err.message))
+                        return
+                      }
+                      setError("The card form couldn't load. Please refresh the page and try again.")
                     }}
                   />
 

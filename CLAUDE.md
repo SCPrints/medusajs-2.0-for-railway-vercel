@@ -67,7 +67,7 @@ Migrated off Railway in May 2026 after a multi-day Railway outage. The new stack
 | Search index | self-hosted Meilisearch v1.10 | Fly.io Sydney | `sc-prints-search.fly.dev` (separate Fly app, see [meilisearch/fly.toml](meilisearch/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
 | Event bus + workflow engine + locking | self-hosted Redis 7 on Fly.io | Sydney (`syd`) | `sc-prints-redis.internal:6379` (private 6PN, no public exposure, see [redis/fly.toml](redis/fly.toml)) | shared-cpu-1x 512MB + 1GB volume · ~$3/mo |
 | Transactional email | Resend | — | sender domain `scprints.com.au` (verified), default From `orders@scprints.com.au` | free tier |
-| Payments | Stripe (test mode + Payment Links) | — | two webhook endpoints: `/hooks/payment/stripe_stripe` and `/hooks/stripe-payment-link` | per-transaction |
+| Payments | Stripe (**live mode** + Payment Links; no test backend, and Vercel previews have no Stripe key, so checkout tests are real payments) | — | two webhook endpoints: `/hooks/payment/stripe_stripe` and `/hooks/stripe-payment-link` | per-transaction |
 | Analytics | PostHog Cloud US, GA4, Google Search Console | — | reads via service account (DWD impersonates `info@scprints.com.au`) | free / per-event |
 
 **Deploy pipeline:**

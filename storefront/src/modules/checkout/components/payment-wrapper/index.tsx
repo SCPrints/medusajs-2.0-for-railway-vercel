@@ -17,7 +17,11 @@ type WrapperProps = {
 export const StripeContext = createContext(false)
 
 const stripeKey = process.env.NEXT_PUBLIC_STRIPE_KEY
-const stripePromise = stripeKey ? loadStripe(stripeKey) : null
+export const stripePromise = stripeKey ? loadStripe(stripeKey) : null
+
+/** Payment already taken (automatic capture → succeeded; manual → requires_capture). */
+export const isPaidIntentStatus = (status?: string) =>
+  status === "requires_capture" || status === "succeeded"
 
 const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID
 
@@ -34,8 +38,7 @@ const StripeReturnHandler: React.FC = () => {
     stripePromise
       .then((stripe) => stripe?.retrievePaymentIntent(clientSecret))
       .then((result) => {
-        const status = result?.paymentIntent?.status
-        if (status === "requires_capture" || status === "succeeded") {
+        if (isPaidIntentStatus(result?.paymentIntent?.status)) {
           placeOrder()
         }
       })
