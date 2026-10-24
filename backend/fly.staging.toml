@@ -23,6 +23,12 @@ primary_region = 'syd'
   # out the clock on staging; the 2.17 product-options data migration needs more.
   release_command_timeout = '15m'
 
+  # Release machines default to 256 MB, not [[vm]]: db:migrate was OOM-killed
+  # (exit 137) after crawling for minutes. Same size as the app machine.
+  [deploy.release_command_vm]
+    size = 'shared-cpu-2x'
+    memory = '4gb'
+
 [env]
   PORT = '9000'
   NODE_ENV = 'production'
