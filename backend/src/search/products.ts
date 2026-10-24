@@ -122,6 +122,11 @@ export default defineProductSearchIndex({
     sales_channel_ids: search.keyword().filterable().array(),
   }),
   graph_fields: PRODUCT_DOCUMENT_GRAPH_FIELDS,
+  // ponytail: 25, not the default 200. A 200-product page of stock levels
+  // (AS Colour styles carry ~570 variants each) blocked the event loop long
+  // enough to lose the seed lock on staging, and seeding runs inside the web
+  // process. Raise only if seeding gets slow and the loop stays responsive.
+  batch_size: 25,
   filters,
   transform,
   events: EVENTS,
