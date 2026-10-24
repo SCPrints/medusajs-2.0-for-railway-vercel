@@ -1,8 +1,10 @@
-app = 'sc-prints-search'
+# Production search. Replaced sc-prints-search (v1.10) at the Medusa 2.21 cut-over:
+# a new app the Search Module seeds from scratch, so the old one stays as a fallback.
+app = 'sc-prints-meili'
 primary_region = 'syd'
 
 [build]
-  image = 'getmeili/meilisearch:v1.10'
+  image = 'getmeili/meilisearch:v1.55.0'
 
 [env]
   MEILI_ENV = 'production'
