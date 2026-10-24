@@ -218,7 +218,7 @@ export function JobPanelClassic({ job, order, onChanged }: Props) {
             ))}
             {job.quote && !job.order ? (
               <Button size="small" variant="secondary" asChild>
-                <a href={job.quote.has_job_pricer ? `/app/quote-pricer?quote=${job.quote.id}` : `/app/quotes?id=${job.quote.id}`}>
+                <a href={job.quote.has_job_pricer ? `/app/quote-pricer?quote=${job.quote.id}` : `/app/jobs/${job.quote.id}#quote`}>
                   {job.quote.has_job_pricer ? "Edit in pricer" : "Edit quote"}
                 </a>
               </Button>
@@ -237,7 +237,7 @@ export function JobPanelClassic({ job, order, onChanged }: Props) {
                     </DropdownMenu.Item>
                   ) : null}
                   {job.quote ? (
-                    <DropdownMenu.Item onClick={() => (window.location.href = `/app/quotes?id=${job.quote!.id}`)}>Open quote</DropdownMenu.Item>
+                    <DropdownMenu.Item onClick={() => (window.location.href = `/app/jobs/${job.quote!.id}#quote`)}>Open quote</DropdownMenu.Item>
                   ) : null}
                   <DropdownMenu.Item onClick={() => setVerb("task")}>Add a task</DropdownMenu.Item>
                   <DropdownMenu.Item onClick={copyJobLink}>Copy job link</DropdownMenu.Item>
@@ -343,7 +343,7 @@ export function JobPanelClassic({ job, order, onChanged }: Props) {
                   <Heading level="h2">Design approval</Heading>
                   <Text size="small" className="mt-1">{job.quote?.design_approval_status ? `Status: ${job.quote.design_approval_status}` : "No design approval sent yet."}</Text>
                   <Text size="small" className="text-ui-fg-subtle mt-1">Design in the Studio and send the approval link from the quote.</Text>
-                  <Button size="small" variant="secondary" className="mt-2" asChild><a href={`/app/quotes?id=${job.quote?.id}`}>Open quote</a></Button>
+                  <Button size="small" variant="secondary" className="mt-2" asChild><a href={`/app/jobs/${job.quote?.id}#quote`}>Open quote</a></Button>
                 </Container>
               )}
             </Tabs.Content>

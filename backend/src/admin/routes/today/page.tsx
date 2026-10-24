@@ -4,14 +4,10 @@ import { Badge, Button, Container, Heading, Text, toast } from "@medusajs/ui"
 import { useCallback, useEffect, useState } from "react"
 
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
-import type { TodayRow, TodaySection, TodayView } from "../../../lib/job-today"
+import { TODAY_QUEUES, type TodayQueue, type TodayRow, type TodayView } from "../../../lib/job-today"
 import { ONE_CLICK, performNextAction } from "../../components/job/actions"
 
-const SECTIONS: { key: TodaySection; title: string; color: string; border: string }[] = [
-  { key: "waiting_on_us", title: "Customer waiting on us", color: "text-ui-tag-red-text", border: "border-l-ui-tag-red-icon" },
-  { key: "ready", title: "Ready to move", color: "text-ui-tag-green-text", border: "border-l-ui-tag-green-icon" },
-  { key: "waiting_on_customer", title: "Waiting on customer", color: "text-ui-tag-blue-text", border: "border-l-ui-tag-blue-icon" },
-]
+type Chip = "needs_us" | TodayQueue | "all"
 
 const WAIT_PILL: Record<string, string> = {
   us: "bg-ui-tag-red-bg text-ui-tag-red-text",
@@ -20,28 +16,20 @@ const WAIT_PILL: Record<string, string> = {
 }
 const WAIT_LABEL: Record<string, string> = { us: "Waiting on us", customer: "Customer", supplier: "Supplier" }
 
-const PHASE_LABEL: Record<string, string> = {
-  enquiry: "Enquiry", quoted: "Quoted", accepted: "Accepted", paid: "Paid", artwork: "Artwork",
-  blanks: "Blanks", production: "In production", shipped: "Shipped", delivered: "Delivered",
-}
-
 const money = (n: number | null, cur: string) =>
-  n == null ? "—" : new Intl.NumberFormat("en-AU", { style: "currency", currency: cur.toUpperCase() }).format(n)
+  n == null ? "—" : new Intl.NumberFormat("en-AU", { style: "currency", currency: cur.toUpperCase(), maximumFractionDigits: 0 }).format(n)
 
 const today = () => new Date().toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
+const shortDate = (ymd: string) => new Date(`${ymd}T00:00:00`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
 
-const dueBadge = (iso: string | null) => {
-  if (!iso) return null
-  const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)
-  if (days < 0) return <Badge color="red" size="2xsmall">Overdue {-days}d</Badge>
-  if (days <= 7) return <Badge color="orange" size="2xsmall">Due in {days}d</Badge>
-  return null
-}
+const ENQUIRY_WINDOW_DAYS = 7
 
 const TodayPage = () => {
   const [view, setView] = useState<TodayView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [chip, setChip] = useState<Chip>("needs_us")
+  const [enquiries, setEnquiries] = useState<number | null>(null)
 
   const load = useCallback(async (fresh = false) => {
     try {
@@ -57,6 +45,16 @@ const TodayPage = () => {
 
   useEffect(() => {
     void load()
+    // New enquiries = contact-form submissions from the last week that haven't
+    // been started as a job. The route has no "handled" flag, so count by age.
+    fetch(`/admin/contact-submissions?limit=100`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        const since = Date.now() - ENQUIRY_WINDOW_DAYS * 86_400_000
+        const rows: { created_at: string }[] = json?.submissions ?? []
+        setEnquiries(rows.filter((s) => Date.parse(s.created_at) >= since).length)
+      })
+      .catch(() => setEnquiries(null))
   }, [load])
 
   const act = async (row: TodayRow) => {
@@ -79,85 +77,113 @@ const TodayPage = () => {
     }
   }
 
+  const rows = view ? view.rows.filter((r) => (chip === "all" ? true : chip === "needs_us" ? r.needs_us : r.queue === chip)) : []
+  const cur = view?.rows[0]?.currency_code ?? "aud"
+
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Heading level="h1">Today · {today()}</Heading>
-          <Text size="small" className="text-ui-fg-subtle">
-            {view
-              ? `${view.counts.waiting_on_us} waiting on you · ${view.counts.ready} ready to move · ${view.counts.waiting_on_customer} waiting on customers`
-              : "Loading every open job…"}
-          </Text>
+          {view ? (
+            <Text size="small" className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+              <span className={view.summary.owed_jobs ? "text-ui-tag-red-text" : "text-ui-fg-subtle"}>
+                <b>{money(view.summary.owed, cur)}</b> owed across {view.summary.owed_jobs} job{view.summary.owed_jobs === 1 ? "" : "s"}
+              </span>
+              <span className={view.summary.late ? "text-ui-tag-red-text" : "text-ui-fg-subtle"}><b>{view.summary.late}</b> late</span>
+              <span className={view.summary.at_risk ? "text-ui-tag-orange-text" : "text-ui-fg-subtle"}><b>{view.summary.at_risk}</b> at risk</span>
+              {enquiries != null ? <span className="text-ui-fg-subtle"><b>{enquiries}</b> new enquir{enquiries === 1 ? "y" : "ies"} this week</span> : null}
+            </Text>
+          ) : (
+            <Text size="small" className="text-ui-fg-subtle">Loading every open job…</Text>
+          )}
         </div>
         <div className="flex gap-x-2">
           <Button size="small" variant="secondary" onClick={() => load(true)}>Refresh</Button>
           <Button size="small" variant="secondary" asChild><a href="/app/tasks">My tasks</a></Button>
-          <Button size="small" asChild><a href="/app/quotes">+ New job</a></Button>
+          <Button size="small" asChild><a href="/app/quotes?new=1">+ New job</a></Button>
         </div>
       </div>
 
-      {error ? <Container><Text className="text-ui-fg-error">{error}</Text></Container> : null}
-
-      {view && view.counts.total === 0 ? (
-        <Container><Text>Nothing open. Enjoy it.</Text></Container>
+      {view ? (
+        <div className="flex flex-wrap gap-2">
+          <ChipButton active={chip === "needs_us"} onClick={() => setChip("needs_us")} label="Needs us" count={view.needs_us} hot />
+          {TODAY_QUEUES.map((q) => (
+            <ChipButton key={q.key} active={chip === q.key} onClick={() => setChip(q.key)} label={q.label} count={view.queues[q.key]} />
+          ))}
+          <ChipButton active={chip === "all"} onClick={() => setChip("all")} label="All open" count={view.rows.length} />
+          <a href="/app/enquiries" className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-ui-border-base px-3 py-1 text-sm hover:bg-ui-bg-subtle-hover">
+            Enquiries{enquiries != null ? <b className="tabular-nums">{enquiries}</b> : null} →
+          </a>
+        </div>
       ) : null}
 
-      {view
-        ? SECTIONS.map((s) => {
-            const rows = view.sections[s.key]
-            if (!rows.length) return null
-            return (
-              <section key={s.key} className="flex flex-col gap-y-2">
-                <Text size="xsmall" weight="plus" className={`${s.color} tracking-wide`}>
-                  {s.title.toUpperCase()} · {rows.length}
+      {error ? <Container><Text className="text-ui-fg-error">{error}</Text></Container> : null}
+
+      {view && rows.length === 0 ? (
+        <Container><Text>{view.rows.length === 0 ? "Nothing open. Enjoy it." : "Nothing here right now."}</Text></Container>
+      ) : null}
+
+      <div className="flex flex-col gap-y-2">
+        {rows.map((row) => {
+          const oneClick = ONE_CLICK.has(row.next_action.kind)
+          const stripe = row.risk === "late" ? "border-l-ui-tag-red-icon" : row.needs_us ? "border-l-ui-tag-red-icon" : row.waiting_on === "customer" ? "border-l-ui-tag-blue-icon" : "border-l-ui-tag-green-icon"
+          return (
+            <div key={row.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base border-l-4 ${stripe} bg-ui-bg-base px-4 py-3`}>
+              <a href={`/app/jobs/${encodeURIComponent(row.id)}`} className="min-w-[260px] flex-1 hover:underline">
+                <Text weight="plus">
+                  {row.customer} <span className="text-ui-fg-subtle font-normal">· {row.subject ?? row.label}{row.subject ? ` · ${row.label}` : ""}</span>
                 </Text>
-                {rows.map((row) => {
-                  const oneClick = ONE_CLICK.has(row.next_action.kind)
-                  return (
-                    <div key={row.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base border-l-4 ${s.border} bg-ui-bg-base px-4 py-3`}>
-                      <a href={`/app/jobs/${encodeURIComponent(row.id)}`} className="min-w-[260px] flex-1 hover:underline">
-                        <Text weight="plus">
-                          {row.customer} <span className="text-ui-fg-subtle font-normal">· {row.subject ?? row.label}{row.subject ? ` · ${row.label}` : ""}</span>
-                        </Text>
-                        <Text size="small" className="text-ui-fg-subtle truncate">
-                          {row.last_activity ? `${row.last_activity.title}` : "No activity yet"}
-                          {row.flags.length ? ` · ${row.flags.map((f) => f.label).join(" · ")}` : ""}
-                        </Text>
-                      </a>
-                      {row.rush_tier ? <Badge color="red" size="2xsmall">{row.rush_tier === "express" ? "Express" : "Priority"}</Badge> : null}
-                      <Badge size="2xsmall">{PHASE_LABEL[row.phase] ?? row.phase}</Badge>
-                      {row.waiting_on ? (
-                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${WAIT_PILL[row.waiting_on]}`}>
-                          {WAIT_LABEL[row.waiting_on]}{row.days ? ` · ${row.days}d` : ""}
-                        </span>
-                      ) : null}
-                      {dueBadge(row.due_date)}
-                      <Text size="small" weight="plus" className="w-24 text-right">{money(row.total, row.currency_code)}</Text>
-                      <Button
-                        size="small"
-                        variant={oneClick || row.next_action.kind === "convert_to_order" || row.next_action.kind === "reply" ? "primary" : "secondary"}
-                        isLoading={busy === row.id}
-                        disabled={!!busy}
-                        onClick={() => act(row)}
-                        title={row.next_action.blockers?.length ? `Not ready: ${row.next_action.blockers.join("; ")}` : undefined}
-                      >
-                        {row.next_action.label}
-                      </Button>
-                    </div>
-                  )
-                })}
-              </section>
-            )
-          })
-        : null}
+                <Text size="small" className="text-ui-fg-subtle truncate">
+                  {row.last_activity ? row.last_activity.title : "No activity yet"}
+                  {row.flags.length ? ` · ${row.flags.map((f) => f.label).join(" · ")}` : ""}
+                </Text>
+              </a>
+              {row.risk === "late" ? <Badge color="red" size="2xsmall">Late · needed {row.needed_by ? shortDate(row.needed_by) : ""}</Badge> : null}
+              {row.risk === "at_risk" ? <Badge color="orange" size="2xsmall">At risk · needed {row.needed_by ? shortDate(row.needed_by) : ""}</Badge> : null}
+              {row.rush_tier ? <Badge color="red" size="2xsmall">{row.rush_tier === "express" ? "Express" : "Priority"}</Badge> : null}
+              {row.waiting_on ? (
+                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${WAIT_PILL[row.waiting_on]}`}>
+                  {WAIT_LABEL[row.waiting_on]}{row.days ? ` · ${row.days}d` : ""}
+                </span>
+              ) : null}
+              <Text size="small" weight="plus" className="w-24 text-right tabular-nums">
+                {row.outstanding && row.order_id ? <span className="text-ui-tag-red-text">{money(row.outstanding, row.currency_code)} owing</span> : money(row.total, row.currency_code)}
+              </Text>
+              <Button
+                size="small"
+                variant={oneClick || row.needs_us ? "primary" : "secondary"}
+                isLoading={busy === row.id}
+                disabled={!!busy}
+                onClick={() => act(row)}
+                title={row.next_action.blockers?.length ? `Not ready: ${row.next_action.blockers.join("; ")}` : undefined}
+              >
+                {row.next_action.label}
+              </Button>
+            </div>
+          )
+        })}
+      </div>
 
       {view ? (
         <Text size="xsmall" className="text-ui-fg-muted">
-          Built {new Date(view.generated_at).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}. Shipped and delivered jobs aren&apos;t listed unless money is still owed.
+          Built {new Date(view.generated_at).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}. A job leaves this list when it is delivered and paid.
         </Text>
       ) : null}
     </div>
+  )
+}
+
+function ChipButton({ active, onClick, label, count, hot }: { active: boolean; onClick: () => void; label: string; count: number; hot?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${active ? "border-ui-fg-base bg-ui-fg-base text-ui-bg-base" : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle-hover"}`}
+    >
+      {label}
+      <b className={`tabular-nums ${!active && hot && count ? "text-ui-tag-red-text" : ""}`}>{count}</b>
+    </button>
   )
 }
 

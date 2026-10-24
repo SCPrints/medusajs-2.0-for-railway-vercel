@@ -77,6 +77,8 @@ export type JobView = {
     accepted_at: string | null
     has_job_pricer: boolean
     design_approval_status: string | null
+    /** The customer's own date (YYYY-MM-DD), metadata.needed_by. */
+    needed_by: string | null
   } | null
   order: {
     id: string
@@ -89,6 +91,8 @@ export type JobView = {
     is_stale: boolean
     /** Rush sold in the Job pricer (metadata.rush_tier). */
     rush_tier: "priority" | "express" | null
+    /** The customer's own date (YYYY-MM-DD), copied from the quote at conversion. */
+    needed_by: string | null
   } | null
   customer: {
     id: string | null

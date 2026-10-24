@@ -60,7 +60,8 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
     case "price_it":
       return { navigate: `/app/quote-pricer?quote=${encodeURIComponent(ctx.quote_id ?? "")}` }
     case "revise_design":
-      return { navigate: `/app/quotes?id=${encodeURIComponent(ctx.quote_id ?? "")}` }
+      // The quote tools (Studio, lines) are on the job window itself.
+      return { tab: "overview", focus: "job-quote" }
     case "convert_to_order":
       return { tab: "overview", open: "convert" }
     case "send_payment_link": {

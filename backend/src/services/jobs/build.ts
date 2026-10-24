@@ -13,6 +13,7 @@ import {
   type JobSnapshot,
 } from "../../lib/job-state"
 import { groupJobLines, type RawJobLine } from "../../lib/job-lines"
+import { dateRisk } from "../../lib/job-today"
 import type { JobActivity, JobLine, JobPricing, JobView } from "../../lib/job-view"
 import { isDecoratedLine } from "../../lib/production-gate"
 import { rushTierOf } from "../../lib/production-due-date"
@@ -27,6 +28,9 @@ import { buildOrderTimeline } from "../order-timeline/build"
 export { STAFF_EMAIL_ACTOR_PREFIX, STAFF_NOTE_ACTOR_PREFIX }
 
 const DUPLICATE_AUDIT = new Set(["stage_changed", "job_reply", "job_note", "dsp_job_sent"])
+
+/** A YYYY-MM-DD metadata date, or null. */
+const ymd = (v: unknown): string | null => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null)
 
 const iso = (v: unknown): string | null => {
   if (!v) return null
@@ -371,6 +375,14 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
   if (!order && quote?.status === "accepted") flags.push({ kind: "no_order", label: "Accepted but no order created" })
   const unread = inbound.filter((at) => !lastOutbound || at > lastOutbound).length
   if (unread) flags.push({ kind: "unread", label: `${unread} customer email${unread === 1 ? "" : "s"} unanswered` })
+  const neededBy = ymd(ometa.needed_by) ?? ymd(qmeta.needed_by)
+  const risk = dateRisk(
+    { order: order && tracks ? { tracks, production_due_date: iso(ometa.production_due_date) } : null, quote: null } as any,
+    neededBy,
+    now
+  )
+  if (risk === "late") flags.push({ kind: "late", label: `Late — customer needed it by ${neededBy}` })
+  if (risk === "at_risk") flags.push({ kind: "at_risk", label: `At risk — customer needs it by ${neededBy}` })
 
   // ── Pricing (Job pricer totals) + who else is in the job ────────────────
   const snapTotals = pricerSnap?.totals ?? (qmeta.job_pricer as any)?.totals ?? null
@@ -410,6 +422,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
           accepted_at: iso(quote.accepted_at),
           has_job_pricer: !!qmeta.job_pricer,
           design_approval_status: typeof qmeta.design_approval_status === "string" ? qmeta.design_approval_status : null,
+          needed_by: ymd(qmeta.needed_by),
         }
       : null,
     order:
@@ -424,6 +437,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             delivery_method: typeof ometa.delivery_method === "string" ? ometa.delivery_method : null,
             is_stale: ometa.is_stale === true,
             rush_tier: rushTierOf(ometa),
+            needed_by: ymd(ometa.needed_by),
           }
         : null,
     customer: {

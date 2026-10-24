@@ -359,6 +359,7 @@ export const convertQuoteToOrder = async (
         // Rush sold in the Job pricer: shortens the due date, flags the job,
         // and feeds the on-time report's rush bucket (is_rush).
         ...(rushTier ? { rush_tier: rushTier, is_rush: true } : {}),
+        ...(typeof meta.needed_by === "string" && meta.needed_by ? { needed_by: meta.needed_by } : {}),
       },
       items: itemPayloads,
     } as any,

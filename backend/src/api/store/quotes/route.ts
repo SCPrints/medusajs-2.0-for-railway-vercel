@@ -46,6 +46,8 @@ const bodySchema = z.object({
   subject: z.string().max(200).optional(),
   message: z.string().min(1).max(8000),
   source: z.enum(["byo", "contact", "custom_hats"]).optional(),
+  /** The date the customer needs the job by (YYYY-MM-DD). Optional. */
+  needed_by: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   line_items: z
     .array(
       z.object({
@@ -138,7 +140,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       subject: parsed.subject ?? null,
       message: parsed.message,
       line_items: { items: lineItems },
-      metadata: moodBoardUrls.length ? { mood_board_urls: moodBoardUrls } : {},
+      metadata: {
+        ...(moodBoardUrls.length ? { mood_board_urls: moodBoardUrls } : {}),
+        ...(parsed.needed_by ? { needed_by: parsed.needed_by } : {}),
+      },
     },
   ])
 

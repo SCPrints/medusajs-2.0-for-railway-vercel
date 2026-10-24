@@ -106,9 +106,9 @@ new → quoted → accepted → order (unpaid, invoice + card link emailed)
            ↘ lost / expired
 ```
 
-**The quote drawer is for building the quote**: lines (pick catalog products, or design them in the Studio popup), the Job pricer for grouped jobs, mood board, assignee, status. Everything about *where the job is* — activity, replies, next action, Convert to order — is on the **job page** ("Open job").
+**The list is just a list** — click a quote and it opens its **job page**. The **Quote** section there is where you build it: lines (pick catalog products, or design them in the Studio popup), the Job pricer for grouped jobs, mood board, assignee, status. Activity, replies, next action and Convert to order are on the same page. **+ New job** (here or on Today) opens the create form and lands on the new job.
 
-**One way to send it to the customer**: **Email customer…** in the drawer. If every line has a price it sends the quote with the accept-and-pay link; if not, it sends the design-approval link (they approve the mockup or ask for changes, then you price it and send again). **Copy link** gives you the same link the email would carry, for pasting into an Outlook reply.
+**One way to send it to the customer**: **Email customer…** in the Quote section. If every line has a price it sends the quote with the accept-and-pay link; if not, it sends the design-approval link (they approve the mockup or ask for changes, then you price it and send again). **Copy link** gives you the same link the email would carry, for pasting into an Outlook reply.
 
 **Accepting is ordering.** The customer gives their delivery address (or picks pick-up) on the accept page; the order is created at the quoted prices, the tax invoice is emailed, and a card payment link is offered. If a customer accepts but no order appears within a business day, Today flags it and the owner gets a task. Staff can convert from the job page instead ("Convert to order" asks for the address).
 
@@ -400,9 +400,12 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | Add a snooze reminder for a customer | Customer detail → Notes → add note with snooze date |
 | Mark a customer tax-exempt | Customer detail → Tax status widget |
 | Tag a customer as VIP / Wholesale | Customer detail → Tags widget |
-| Run a quote through to a paid order | `/app/quotes` → build it → Email customer… (accept-and-pay link) → it becomes an order on accept |
+| Run a quote through to a paid order | Open the job → Quote section → price it (Job pricer or lines) → Email customer… (accept-and-pay link) → it becomes an order on accept |
 | See where a job is up to and what to do next | `/app/today`, or the job page from any order or quote |
 | Reply to a customer so the answer comes back to the job | Job page → the reply box at the top of the diary |
+| Turn a contact-form enquiry into a job | Enquiries → Start job (opens the new job; the reply goes from its diary) |
+| Park a job until a date | Job → diary → Follow up on <date> |
+| See who owes money, what's late | Today — the line under the heading; chips filter the list |
 | Convert an accepted quote by hand | Job page → Convert to order (asks for the delivery address) |
 | Plan the week's production | `/app/production?tab=calendar` |
 | Log a reject from this morning's misprint | Order detail → Rejects/spoilage widget |
@@ -415,7 +418,7 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | Surface a finished job on the gallery | `/app/storefront/lookbook` → New tile → upload photo |
 | See where waste is coming from | `/app/production?tab=rejects` |
 | Audit a customer's interactions | Customer detail → Customer journey widget |
-| Resend an accept link to a customer | Quote drawer → Email customer…, or Copy link and paste it into your reply |
+| Resend an accept link to a customer | Job → Quote section → Email customer…, or Copy link and paste it into your reply |
 | Generate a tax invoice | Customer side: `/account/orders/[id]` → Tax invoice button |
 | Anonymise a customer (right to be forgotten) | Backend API only — not a button in admin (deliberate) |
 

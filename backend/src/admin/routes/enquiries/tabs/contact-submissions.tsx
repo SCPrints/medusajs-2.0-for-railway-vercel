@@ -79,6 +79,22 @@ const ContactSubmissionsPage = () => {
     window.location.href = buildMailtoUrl(s)
   }
 
+  // Turn the enquiry into a job (a new quote) and open it. Replies then go
+  // from the job's diary, where the customer's answer comes back.
+  const [starting, setStarting] = useState<string | null>(null)
+  const startJob = async (s: Submission) => {
+    setStarting(s.id)
+    try {
+      const res = await fetch(`/admin/contact-submissions/${encodeURIComponent(s.id)}/start-job`, { method: "POST", credentials: "include" })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error((json as any)?.error ?? `HTTP ${res.status}`)
+      window.location.href = `/app/jobs/${encodeURIComponent((json as any).quote_id)}`
+    } catch (err: any) {
+      toast.error(err?.message ?? "Couldn't start the job")
+      setStarting(null)
+    }
+  }
+
   return (
     <Container className="divide-y p-0">
       <div className="flex items-center justify-between px-6 py-4">
@@ -189,16 +205,29 @@ const ContactSubmissionsPage = () => {
                         ) : null}
                       </Table.Cell>
                       <Table.Cell>
-                        <Button
-                          variant="secondary"
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            reply(s)
-                          }}
-                        >
-                          Reply
-                        </Button>
+                        <div className="flex gap-x-1">
+                          <Button
+                            size="small"
+                            isLoading={starting === s.id}
+                            disabled={!!starting}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              void startJob(s)
+                            }}
+                          >
+                            Start job
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              reply(s)
+                            }}
+                          >
+                            Reply
+                          </Button>
+                        </div>
                       </Table.Cell>
                     </Table.Row>
 

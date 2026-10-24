@@ -1128,7 +1128,7 @@ function QuotePricerPage() {
         clearDraft()
         if (navigate) {
           toast.success(`${lines.length} line(s) written to ${targetQuote.public_id}`)
-          window.location.assign(`/app/quotes?id=${targetQuote.id}`)
+          window.location.assign(`/app/jobs/${targetQuote.id}`)
         }
         return targetQuote
       }
@@ -1155,7 +1155,7 @@ function QuotePricerPage() {
       const id = json?.quote?.id ?? json?.id
       toast.success("Quote created")
       if (navigate || !id) {
-        window.location.assign(id ? `/app/quotes?id=${id}` : "/app/quotes")
+        window.location.assign(id ? `/app/jobs/${id}` : "/app/quotes")
         return null
       }
       // Stay on the pricer, now targeting the new quote (reload keeps it).
@@ -1179,7 +1179,7 @@ function QuotePricerPage() {
     try {
       const json = await adminPost<{ sent_to?: string; has_mockups?: boolean }>(`/admin/quotes/${quote.id}/design-approval-link`, { include_quote: true })
       toast.success(`Quote emailed to ${json.sent_to ?? "the customer"}${json.has_mockups ? "" : " (no mockup attached yet)"}`)
-      window.location.assign(`/app/quotes?id=${quote.id}`)
+      window.location.assign(`/app/jobs/${quote.id}`)
     } catch (err: any) {
       toast.error(err?.message ?? "Saved, but the email failed — send it from the quote")
     } finally {

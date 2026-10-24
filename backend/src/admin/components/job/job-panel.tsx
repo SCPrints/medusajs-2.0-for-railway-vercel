@@ -10,6 +10,7 @@ import { TaskQuickAdd } from "../task-quick-add"
 import { ConvertAddressForm } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
 import { JobPanelClassic } from "./job-panel-classic"
+import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
 
 /**
@@ -23,7 +24,7 @@ import * as W from "./widgets"
  * changeover; remove job-panel-classic.tsx once staff have stopped using it.
  */
 
-type Section = "artwork" | "production" | "delivery" | "people"
+type Section = "quote" | "artwork" | "production" | "delivery" | "people"
 const VIEW_KEY = "scp:job-view" // "classic" | unset
 const MOVED_KEY = "scp:job-window-moved-dismissed"
 const PRESENCE_MS = 20_000
@@ -112,6 +113,7 @@ export function JobPanel(props: Props) {
 function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: () => void }) {
   const firstTab = job.state.next_action.tab
   const [open, setOpen] = useState<Record<Section, boolean>>({
+    quote: !job.order || window.location.hash === "#quote",
     artwork: firstTab === "artwork",
     production: firstTab === "production",
     delivery: firstTab === "delivery",
@@ -234,6 +236,7 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
               ) : null}
               {job.quote ? <span>{job.quote.public_id}</span> : null}
               {job.order ? <span>Order #{job.order.display_id ?? ""}</span> : null}
+              <NeededBy job={job} onChanged={onChanged} />
             </div>
           </div>
           <div className="flex gap-x-6 text-right">
@@ -285,11 +288,11 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
               <Button key={v.key} size="small" variant="secondary" onClick={() => setVerb(v.key)}>{v.label}</Button>
             ))}
             {job.quote && !job.order ? (
-              <Button size="small" variant="secondary" asChild>
-                <a href={job.quote.has_job_pricer ? `/app/quote-pricer?quote=${job.quote.id}` : `/app/quotes?id=${job.quote.id}`}>
-                  {job.quote.has_job_pricer ? "Edit in pricer" : "Edit quote"}
-                </a>
-              </Button>
+              job.quote.has_job_pricer ? (
+                <Button size="small" variant="secondary" asChild><a href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</a></Button>
+              ) : (
+                <Button size="small" variant="secondary" onClick={() => { setOpen((o) => ({ ...o, quote: true })); setTimeout(() => document.getElementById("job-quote")?.scrollIntoView({ behavior: "smooth" }), 50) }}>Edit quote</Button>
+              )
             ) : null}
             <div className="ml-auto">
               <DropdownMenu>
@@ -303,9 +306,6 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
                     <DropdownMenu.Item onClick={() => (window.location.href = `/app/orders/${job.order!.id}`)}>
                       Medusa order page (refund, edit, cancel)
                     </DropdownMenu.Item>
-                  ) : null}
-                  {job.quote ? (
-                    <DropdownMenu.Item onClick={() => (window.location.href = `/app/quotes?id=${job.quote!.id}`)}>Open quote</DropdownMenu.Item>
                   ) : null}
                   <DropdownMenu.Item onClick={() => setVerb("task")}>Add a task</DropdownMenu.Item>
                   <DropdownMenu.Item onClick={copyJobLink}>Copy job link</DropdownMenu.Item>
@@ -404,10 +404,8 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
                 ) : (
                   <span>Cost not tracked{job.quote ? " — price it in the Job pricer to see margin" : ""}</span>
                 )}
-                {job.quote && !job.order ? (
-                  <a className="ml-auto text-ui-fg-interactive hover:underline" href={job.quote.has_job_pricer ? `/app/quote-pricer?quote=${job.quote.id}` : `/app/quotes?id=${job.quote.id}`}>
-                    {job.quote.has_job_pricer ? "Edit in pricer" : "Edit quote"}
-                  </a>
+                {job.quote && !job.order && job.quote.has_job_pricer ? (
+                  <a className="ml-auto text-ui-fg-interactive hover:underline" href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</a>
                 ) : null}
               </div>
             </div>
@@ -432,12 +430,28 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
                 </Flat>
               ) : (
                 <div className="px-6 pb-4">
-                  <Text size="small" className="text-ui-fg-subtle">Design in the Studio and send the approval link from the quote.</Text>
-                  <Button size="small" variant="secondary" className="mt-2" asChild><a href={`/app/quotes?id=${job.quote?.id}`}>Open quote</a></Button>
+                  <Text size="small" className="text-ui-fg-subtle">Design in the Studio and send the approval link from the Quote section below.</Text>
                 </div>
               )
             ) : null}
           </Container>
+
+          {/* ── Quote: email, status, lines, Studio, mood board ───────── */}
+          {job.quote ? (
+            <Container className="p-0" id="job-quote">
+              <SectionHead
+                title="Quote"
+                summary={job.order ? `${job.quote.public_id} · converted to order #${job.order.display_id ?? ""} — edits here don't change the order` : `${job.quote.public_id} · ${job.quote.status}${job.quote.design_approval_status ? ` · design ${job.quote.design_approval_status.replace(/_/g, " ")}` : ""}`}
+                open={open.quote}
+                onToggle={() => toggle("quote")}
+              />
+              {open.quote ? (
+                <div className="px-6 pb-4">
+                  <QuoteTools quoteId={job.quote.id} onChanged={onChanged} />
+                </div>
+              ) : null}
+            </Container>
+          ) : null}
 
           {/* ── Production ────────────────────────────────────────────── */}
           <Container className="p-0">
@@ -550,6 +564,38 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
         </Drawer.Content>
       </Drawer>
     </div>
+  )
+}
+
+/** The customer's own date: "needed by Mon 3 Nov", click to set or change. */
+function NeededBy({ job, onChanged }: { job: JobView; onChanged: () => void }) {
+  const current = job.order?.needed_by ?? job.quote?.needed_by ?? null
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(current ?? "")
+  const risk = job.flags.find((f) => f.kind === "late" || f.kind === "at_risk")?.kind
+  const save = async (date: string | null) => {
+    try {
+      const r = await fetch(`/admin/jobs/${encodeURIComponent(job.id)}/needed-by`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date }) })
+      if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) as any)?.error ?? `HTTP ${r.status}`)
+      setEditing(false)
+      onChanged()
+    } catch (err: any) {
+      toast.error(err?.message ?? "Couldn't save the date")
+    }
+  }
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <Input id="job-needed-by" type="date" size="small" value={value} onChange={(e) => setValue(e.target.value)} />
+        <Button size="small" onClick={() => save(value || null)}>Save</Button>
+        <Button size="small" variant="transparent" onClick={() => setEditing(false)}>Cancel</Button>
+      </span>
+    )
+  }
+  return (
+    <button type="button" className={`hover:underline ${risk === "late" ? "text-ui-tag-red-text font-medium" : risk === "at_risk" ? "text-ui-tag-orange-text font-medium" : ""}`} onClick={() => setEditing(true)}>
+      {current ? `Needed by ${new Date(`${current}T00:00:00`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })}${risk === "late" ? " · late" : risk === "at_risk" ? " · at risk" : ""}` : "Needed by: not set"}
+    </button>
   )
 }
 
