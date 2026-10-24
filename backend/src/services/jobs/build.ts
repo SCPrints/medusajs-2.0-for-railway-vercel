@@ -12,7 +12,8 @@ import {
   threadTimes,
   type JobSnapshot,
 } from "../../lib/job-state"
-import type { JobActivity, JobLine, JobView } from "../../lib/job-view"
+import { groupJobLines, type RawJobLine } from "../../lib/job-lines"
+import type { JobActivity, JobLine, JobPricing, JobView } from "../../lib/job-view"
 import { isDecoratedLine } from "../../lib/production-gate"
 import { rushTierOf } from "../../lib/production-due-date"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
@@ -165,7 +166,19 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
   const isPaid = order?.payment_status === "captured" || (orderTotal != null && paid >= orderTotal - 0.01 && orderTotal > 0)
 
   // ── Lines ────────────────────────────────────────────────────────────────
-  const lines: JobLine[] = order
+  // Margin per pricer group comes from the snapshot the Job pricer froze at
+  // send time; the quote is loaded for an order too (metadata.quote_id), so
+  // orders keep their margins. Groups saved before `groupId` existed → null.
+  const pricerSnap = (qmeta.job_pricer as any)?.snapshot ?? null
+  const marginByGroup = new Map<string, number | null>(
+    ((pricerSnap?.groups ?? []) as any[]).filter((g) => typeof g?.groupId === "string").map((g) => [g.groupId, num(g.marginPct)])
+  )
+  const pricerGroupOf = (l: RawJobLine) => (typeof l.group_id === "string" ? l.group_id.split("~")[0] : null)
+  const marginFor = (_key: string, l: RawJobLine) => {
+    const g = pricerGroupOf(l)
+    return g ? (marginByGroup.get(g) ?? null) : null
+  }
+  const rawLines: RawJobLine[] = order
     ? (order.items ?? []).map((it: any) => ({
         id: it.id,
         title: it.title ?? it.product_title ?? "Item",
@@ -175,6 +188,9 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
         total: num(it.unit_price) != null ? (num(it.unit_price) as number) * Number(it.quantity ?? 0) : null,
         thumbnail: it.thumbnail ?? null,
         decorated: isDecoratedLine(it),
+        product_id: it.product_id ?? null,
+        option_values: it.variant_option_values ?? null,
+        group_id: it.metadata?.group_id ?? null,
       }))
     : (((quote?.line_items as any)?.items ?? []) as any[]).map((li, i) => ({
         id: li.id ?? `line-${i}`,
@@ -185,7 +201,10 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
         total: num(li.total) ?? (num(li.unit_price) != null ? (num(li.unit_price) as number) * Number(li.quantity ?? 0) : null),
         thumbnail: li.thumbnail ?? null,
         decorated: !!li.customizerDesign,
+        product_id: li.product_id ?? null,
+        group_id: li.group_id ?? null,
       }))
+  const lines: JobLine[] = groupJobLines(rawLines, marginFor)
 
   // ── Tasks ────────────────────────────────────────────────────────────────
   const taskRows: any[] = await tasks
@@ -353,6 +372,21 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
   const unread = inbound.filter((at) => !lastOutbound || at > lastOutbound).length
   if (unread) flags.push({ kind: "unread", label: `${unread} customer email${unread === 1 ? "" : "s"} unanswered` })
 
+  // ── Pricing (Job pricer totals) + who else is in the job ────────────────
+  const snapTotals = pricerSnap?.totals ?? (qmeta.job_pricer as any)?.totals ?? null
+  const sellInc = num(snapTotals?.sellIncMajor)
+  const pricing: JobPricing | null =
+    snapTotals && sellInc != null
+      ? {
+          saved_at: iso((qmeta.job_pricer as any)?.saved_at),
+          sell_inc: sellInc,
+          cost_ex: num(snapTotals.costExMajor) ?? 0,
+          margin_ex: num(snapTotals.marginExMajor) ?? 0,
+          margin_pct: num(snapTotals.marginPct),
+          unknown_cost_count: Array.isArray(snapTotals.unknownCostKeys) ? snapTotals.unknownCostKeys.length : num(snapTotals.unknownCostCount) ?? 0,
+          stale: Math.abs(((orderTotal ?? num(quote?.total_estimate)) ?? sellInc) - sellInc) > 1,
+        }
+      : null
   const displayId = typeof order?.display_id === "number" ? order.display_id : null
   const publicId = quote?.public_id ?? null
   const title = [customerName ?? customerRow?.email ?? quote?.email ?? order?.email, quote?.subject ?? (order ? `Order #${displayId ?? ""}` : null)]
@@ -430,6 +464,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
       open_payment_link: openLink,
     },
     lines,
+    pricing,
     flags,
     tasks: taskRows.map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, due_at: iso(t.due_at), assignee_user_id: t.assignee_user_id, follow_up: t?.metadata?.follow_up === true })),
     activity,

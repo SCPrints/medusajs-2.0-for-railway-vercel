@@ -157,10 +157,7 @@ const OrderEmailInvoiceWidget = ({ data: order }: { data: Order }) => {
       {pay && typeof pay.balance_due === "number" ? (
         <div className="px-6 pb-3 flex flex-col gap-y-2 border-b border-ui-border-base mb-3">
           <div className="flex items-center justify-between">
-            <Text className="text-ui-fg-subtle text-sm">
-              Paid {fmtMoney(pay.paid_total ?? 0, pay.currency_code)} of{" "}
-              {fmtMoney(pay.total, pay.currency_code)}
-            </Text>
+            <Text className="text-ui-fg-subtle text-sm">Balance</Text>
             {pay.balance_due <= 0.005 ? (
               <Badge color="green" size="xsmall">
                 Paid in full

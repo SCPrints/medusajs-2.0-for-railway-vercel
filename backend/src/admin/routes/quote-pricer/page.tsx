@@ -1073,6 +1073,7 @@ function QuotePricerPage() {
     groups: priced.groups.map((gp) => {
       const g = state.groups.find((x) => x.id === gp.groupId)!
       return {
+        groupId: gp.groupId, // the job window reads per-group margin by this
         title: pricerGroupTitle({ groupName: g.name, supplied: g.supplied, productTitle: g.product?.title }),
         thumbnail: g.mockupUrl ?? (g.supplied ? null : g.product?.thumbnail ?? null),
         quantity: gp.quantity,
@@ -1107,7 +1108,7 @@ function QuotePricerPage() {
         // The update route REPLACES metadata and line_items wholesale: merge
         // metadata, and swap only the pricer's own lines (ids `jp_…`) —
         // carrying any Studio design they already hold.
-        const { quote } = await adminGet<{ quote: { line_items?: { items?: ExistingLine[] }; metadata?: Record<string, unknown> | null } }>(`/admin/quotes/${targetQuote.id}`)
+        const { quote } = await adminGet<{ quote: { line_items?: { items?: ExistingLine[] }; metadata?: Record<string, unknown> | null; updated_at?: string } }>(`/admin/quotes/${targetQuote.id}`)
         const items = quote.line_items?.items ?? []
         const existing = new Map(items.filter((li) => li.id && String(li.id).startsWith("jp_")).map((li) => [String(li.id), li]))
         const { lines, manual, absorbed, unmatched } = absorbStudioLines(
@@ -1121,6 +1122,8 @@ function QuotePricerPage() {
           line_items: [...manual, ...lines],
           metadata: { ...(quote.metadata ?? {}), job_pricer: jobPricer },
           total_estimate: priced.totals.sellIncMajor,
+          // Refused (409) if someone else saved the quote since this read.
+          expected_updated_at: quote.updated_at ?? undefined,
         })
         clearDraft()
         if (navigate) {

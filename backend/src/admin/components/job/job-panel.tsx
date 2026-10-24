@@ -1,22 +1,37 @@
 import type { AdminOrder } from "@medusajs/framework/types"
-import { Badge, Button, Container, Drawer, DropdownMenu, Heading, Input, Tabs, Text, Textarea, toast } from "@medusajs/ui"
-import { useState, type ComponentType, type ReactNode } from "react"
+import { Badge, Button, Container, Drawer, DropdownMenu, Heading, Input, Text, Textarea, toast } from "@medusajs/ui"
+import { useEffect, useState, type ComponentType, type ReactNode } from "react"
 
 import { JOB_PHASES, threadTimes, type NextActionKind } from "../../../lib/job-state"
 import type { JobActivity, JobView } from "../../../lib/job-view"
+import { ARTWORK_STAGE_LABEL, BLANKS_STAGE_LABEL, DOWNSTREAM_STAGE_LABEL } from "../../../lib/production-stage"
 import { ONE_CLICK, performNextAction } from "./actions"
 import { TaskQuickAdd } from "../task-quick-add"
 import { ConvertAddressForm } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
+import { JobPanelClassic } from "./job-panel-classic"
 import * as W from "./widgets"
 
 /**
  * The job window (Docs/ADMIN_JOB_WINDOW_2026_10.md): header, phase strip, ONE
- * action bar, the job's tabs on the left and the diary — every email, call,
- * note and update — always on the right.
+ * action bar, then the job as sections down the left — Lines (with the money
+ * under them), Artwork, Production, Delivery — and the diary, every email,
+ * call, note and update, always on the right. Each section is a summary line
+ * until it's opened; its body is the existing tools without their cards.
+ *
+ * The tabbed layout from 23 Oct stays as "Classic view" (More menu) for the
+ * changeover; remove job-panel-classic.tsx once staff have stopped using it.
  */
 
-type Tab = "overview" | "artwork" | "production" | "delivery"
+type Section = "artwork" | "production" | "delivery" | "people"
+const VIEW_KEY = "scp:job-view" // "classic" | unset
+const MOVED_KEY = "scp:job-window-moved-dismissed"
+const PRESENCE_MS = 20_000
+
+const storage = {
+  get: (k: string) => { try { return localStorage.getItem(k) } catch { return null } },
+  set: (k: string, v: string | null) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v) } catch { /* private window */ } },
+}
 type Verb = "proof" | "money" | "blanks" | "stage" | "dsp" | "drive" | "task"
 
 type Props = {
@@ -79,9 +94,32 @@ const VERB_TITLE: Record<Verb, string> = {
   task: "Tasks",
 }
 
-export function JobPanel({ job, order, onChanged }: Props) {
+export function JobPanel(props: Props) {
+  const [classic, setClassic] = useState(() => storage.get(VIEW_KEY) === "classic")
+  if (classic) {
+    return (
+      <div className="flex flex-col gap-y-2">
+        <div className="flex justify-end">
+          <Button size="small" variant="transparent" onClick={() => { storage.set(VIEW_KEY, null); setClassic(false) }}>Back to the new job window</Button>
+        </div>
+        <JobPanelClassic {...props} />
+      </div>
+    )
+  }
+  return <JobWindow {...props} onClassic={() => { storage.set(VIEW_KEY, "classic"); setClassic(true) }} />
+}
+
+function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: () => void }) {
   const firstTab = job.state.next_action.tab
-  const [tab, setTab] = useState<Tab>(firstTab && firstTab !== "activity" ? firstTab : "overview")
+  const [open, setOpen] = useState<Record<Section, boolean>>({
+    artwork: firstTab === "artwork",
+    production: firstTab === "production",
+    delivery: firstTab === "delivery",
+    people: false,
+  })
+  const toggle = (s: Section) => setOpen((o) => ({ ...o, [s]: !o[s] }))
+  const [movedDismissed, setMovedDismissed] = useState(() => storage.get(MOVED_KEY) === "1")
+  const [viewers, setViewers] = useState<string[]>([])
   const [busy, setBusy] = useState<NextActionKind | null>(null)
   const [convertOpen, setConvertOpen] = useState(false)
   const [verb, setVerb] = useState<Verb | null>(null)
@@ -90,6 +128,30 @@ export function JobPanel({ job, order, onChanged }: Props) {
   const action = job.state.next_action
   const orderId = job.order?.id ?? null
   const decorated = job.lines.some((l) => l.decorated)
+
+  // Who else is in this job: heartbeat while the tab is visible, read back
+  // the others (the presence route leaves the caller out).
+  useEffect(() => {
+    const entity = job.order ? "order" : "quote"
+    const id = job.order?.id ?? job.quote?.id
+    if (!id) return
+    let live = true
+    const tick = async () => {
+      if (document.hidden) return
+      try {
+        await fetch(`/admin/admin-workspace/presence`, { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ entity, entity_id: id }) })
+        const r = await fetch(`/admin/admin-workspace/presence?entity=${entity}&entity_ids=${encodeURIComponent(id)}`, { credentials: "include" })
+        const json = r.ok ? await r.json() : null
+        const others: { user_email: string | null; user_id: string }[] = json?.presence?.[id] ?? []
+        if (live) setViewers(others.map((u) => (u.user_email ?? u.user_id).replace(/@.*$/, "")))
+      } catch {
+        /* next tick */
+      }
+    }
+    void tick()
+    const t = setInterval(tick, PRESENCE_MS)
+    return () => { live = false; clearInterval(t) }
+  }, [job.order?.id, job.quote?.id])
 
   const focusComposer = () => setTimeout(() => document.getElementById("job-reply")?.focus(), 50)
 
@@ -113,7 +175,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
       if ("tab" in out) {
         // The diary is always on screen: "activity" means the composer.
         if (out.tab === "activity") focusComposer()
-        else setTab(out.tab)
+        else if (out.tab !== "overview") setOpen((o) => ({ ...o, [out.tab as Section]: true }))
         if (out.open === "convert") setConvertOpen(true)
         if (out.open === "proof" || out.open === "blanks") setVerb(out.open)
         if (out.focus && out.tab !== "activity") setTimeout(() => document.getElementById(out.focus!)?.focus(), 50)
@@ -164,6 +226,12 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.customer.phone ? <a className="hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a> : null}
               {job.customer.company ? <span>{job.customer.company}</span> : null}
               <span>Owner: {job.owner?.label ?? "unassigned"}</span>
+              {viewers.length ? (
+                <span className="inline-flex items-center gap-1 text-ui-tag-green-text">
+                  <span className="inline-block h-2 w-2 rounded-full bg-ui-tag-green-icon" />
+                  {viewers.join(", ")} {viewers.length === 1 ? "is" : "are"} also in this job
+                </span>
+              ) : null}
               {job.quote ? <span>{job.quote.public_id}</span> : null}
               {job.order ? <span>Order #{job.order.display_id ?? ""}</span> : null}
             </div>
@@ -241,6 +309,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
                   ) : null}
                   <DropdownMenu.Item onClick={() => setVerb("task")}>Add a task</DropdownMenu.Item>
                   <DropdownMenu.Item onClick={copyJobLink}>Copy job link</DropdownMenu.Item>
+                  <DropdownMenu.Item onClick={onClassic}>Classic view (tabs)</DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu>
             </div>
@@ -257,125 +326,187 @@ export function JobPanel({ job, order, onChanged }: Props) {
 
       {/* ── Job (left) + diary (right) ─────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="min-w-0">
-          <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-            <Tabs.List>
-              <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
-              <Tabs.Trigger value="artwork">Artwork</Tabs.Trigger>
-              <Tabs.Trigger value="production">Production</Tabs.Trigger>
-              <Tabs.Trigger value="delivery">Delivery</Tabs.Trigger>
-            </Tabs.List>
+        <div className="flex min-w-0 flex-col gap-y-3">
+          {!movedDismissed ? (
+            <Container className="flex flex-wrap items-center gap-x-4 gap-y-1 bg-ui-bg-subtle py-2 text-sm">
+              <Text size="small" weight="plus">What moved:</Text>
+              <Text size="small" className="text-ui-fg-subtle">Deposit, invoice and pay links → <b>Invoice &amp; pay</b> · Stage tracks → <b>Change stage</b> · Activity → the diary on the right · Tabs → the sections below (click a heading to open it).</Text>
+              <Button size="small" variant="transparent" className="ml-auto" onClick={() => { storage.set(MOVED_KEY, "1"); setMovedDismissed(true) }}>Got it</Button>
+            </Container>
+          ) : null}
 
-            <Tabs.Content value="overview" className="mt-3">
-              <TwoCol
-                main={
-                  <>
-                    {convertOpen && job.quote && !job.order ? (
-                      <ConvertAddressForm
-                        quote={{ id: job.quote.id, contact_name: job.customer.name, contact_phone: job.customer.phone, company: job.customer.company, metadata: job.address.shipping ? { delivery_address: job.address.shipping } : null }}
-                        onDone={() => { setConvertOpen(false); onChanged() }}
-                        onCancel={() => setConvertOpen(false)}
-                      />
-                    ) : null}
-                    <Container>
-                      <Heading level="h2" className="mb-2">Lines</Heading>
-                      <table className="w-full text-sm">
-                        <thead><tr className="text-left text-ui-fg-muted text-xs"><th className="py-1 font-medium">ITEM</th><th className="py-1 text-right font-medium">QTY</th><th className="py-1 text-right font-medium">EACH</th><th className="py-1 text-right font-medium">TOTAL</th></tr></thead>
-                        <tbody>
-                          {job.lines.map((l) => (
-                            <tr key={l.id} className="border-t border-ui-border-base">
-                              <td className="py-2 flex items-center gap-2">
-                                {l.thumbnail ? <img src={l.thumbnail} alt="" className="h-8 w-8 rounded object-cover" /> : null}
-                                <span><span className="font-medium">{l.title}</span>{l.decorated ? <Badge size="2xsmall" className="ml-1">decorated</Badge> : null}{l.subtitle ? <span className="block text-ui-fg-subtle text-xs">{l.subtitle}</span> : null}</span>
-                              </td>
-                              <td className="py-2 text-right">{l.quantity}</td>
-                              <td className="py-2 text-right">{fmtMoney(l.unit_price, cur)}</td>
-                              <td className="py-2 text-right font-medium">{fmtMoney(l.total, cur)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </Container>
-                    {order ? (
-                      <>
-                        <Mount W={W.OrderShippingDecision} order={order} />
-                        <Mount W={W.OrderAppliedPerks} order={order} />
-                      </>
-                    ) : (
-                      <Container>
-                        <Heading level="h2">Payment</Heading>
-                        <Text size="small" className="text-ui-fg-subtle mt-1">The tax invoice and card-payment link go out when the quote is converted to an order.</Text>
-                      </Container>
-                    )}
-                  </>
-                }
-                side={
-                  <>
-                    <Container className={job.address.placeholder || !job.address.shipping ? "border-ui-tag-orange-border" : ""}>
-                      <Heading level="h2">Delivery address</Heading>
-                      {job.address.shipping && !job.address.placeholder ? (
-                        <Text size="small" className="mt-1 whitespace-pre-line">
-                          {[job.address.shipping.name, job.address.shipping.company, job.address.shipping.address_1, job.address.shipping.address_2, [job.address.shipping.city, job.address.shipping.province, job.address.shipping.postal_code].filter(Boolean).join(" "), job.address.shipping.phone].filter(Boolean).join("\n")}
-                        </Text>
-                      ) : (
-                        <Text size="small" className="mt-1 text-ui-tag-orange-text">{job.address.placeholder ? "Studio placeholder — ask the customer" : "Not on file"}</Text>
-                      )}
-                      {job.order?.delivery_method ? <Badge size="2xsmall" className="mt-2">{job.order.delivery_method}</Badge> : null}
-                    </Container>
-                    {order ? <Mount W={W.OrderOwner} order={order} /> : null}
-                    {order ? <Mount W={W.OrderWatchers} order={order} /> : null}
-                  </>
-                }
-              />
-            </Tabs.Content>
+          {convertOpen && job.quote && !job.order ? (
+            <ConvertAddressForm
+              quote={{ id: job.quote.id, contact_name: job.customer.name, contact_phone: job.customer.phone, company: job.customer.company, metadata: job.address.shipping ? { delivery_address: job.address.shipping } : null }}
+              onDone={() => { setConvertOpen(false); onChanged() }}
+              onCancel={() => setConvertOpen(false)}
+            />
+          ) : null}
 
-            <Tabs.Content value="artwork" className="mt-3 flex flex-col gap-y-3">
-              {order ? (
-                <>
+          {/* ── Lines, with the money under them ─────────────────────── */}
+          <Container className="p-0">
+            <SectionHead title="Lines" summary={`${job.lines.reduce((n, l) => n + l.quantity, 0)} units${job.pricing?.saved_at ? ` · priced in Job pricer ${fmtDate(job.pricing.saved_at)}` : ""}`} />
+            <div className="overflow-x-auto px-6 pb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-ui-fg-muted text-xs">
+                    <th className="py-1 font-medium" colSpan={2}>ITEM</th>
+                    <th className="py-1 text-right font-medium">QTY</th>
+                    <th className="py-1 text-right font-medium">EACH</th>
+                    {job.pricing ? <th className="py-1 text-right font-medium">MARGIN</th> : null}
+                    <th className="py-1 text-right font-medium">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {job.lines.map((l) => (
+                    <tr key={l.id} className="border-t border-ui-border-base align-top">
+                      <td className="py-2 pr-2 w-10">{l.thumbnail ? <img src={l.thumbnail} alt="" className="h-9 w-9 rounded object-cover" /> : null}</td>
+                      <td className="py-2">
+                        <span className="font-medium">{l.title}</span>{l.decorated ? <Badge size="2xsmall" className="ml-1">decorated</Badge> : null}
+                        {l.sizes ? <span className="block text-xs text-ui-fg-subtle">{l.sizes}</span> : null}
+                        {l.subtitle && !l.sizes ? <span className="block text-xs text-ui-fg-subtle">{l.subtitle}</span> : null}
+                      </td>
+                      <td className="py-2 text-right tabular-nums">{l.quantity}</td>
+                      <td className="py-2 text-right tabular-nums whitespace-nowrap">
+                        {fmtMoney(l.unit_price, cur)}{l.unit_price_max != null && l.unit_price != null && l.unit_price_max > l.unit_price ? `–${fmtMoney(l.unit_price_max, cur)}` : ""}
+                      </td>
+                      {job.pricing ? <td className="py-2 text-right tabular-nums">{l.margin_pct != null ? <Badge size="2xsmall" color={l.margin_pct >= 40 ? "green" : l.margin_pct >= 25 ? "orange" : "red"}>{Math.round(l.margin_pct)}%</Badge> : <span className="text-ui-fg-muted">—</span>}</td> : null}
+                      <td className="py-2 text-right font-medium tabular-nums">{fmtMoney(l.total, cur)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="text-sm">
+                  <tr className="border-t-2 border-ui-border-base">
+                    <td colSpan={job.pricing ? 5 : 4} className="pt-2 text-right text-ui-fg-subtle">{job.order ? "Total inc GST" : "Quoted"}</td>
+                    <td className="pt-2 text-right font-medium tabular-nums">{fmtMoney(job.order ? job.money.order_total : job.money.quoted, cur)}</td>
+                  </tr>
+                  {job.order ? (
+                    <>
+                      <tr><td colSpan={job.pricing ? 5 : 4} className="text-right text-ui-fg-subtle">Paid</td><td className="text-right tabular-nums">{fmtMoney(job.money.paid, cur)}</td></tr>
+                      <tr><td colSpan={job.pricing ? 5 : 4} className="text-right text-ui-fg-subtle">Owing</td><td className={`text-right font-medium tabular-nums ${job.money.outstanding ? "text-ui-tag-red-text" : ""}`}>{fmtMoney(job.money.outstanding ?? 0, cur)}</td></tr>
+                    </>
+                  ) : null}
+                </tfoot>
+              </table>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ui-fg-subtle">
+                {job.order ? (
+                  <span>
+                    {job.money.deposit_required_cents > 0 ? `Deposit ${fmtMoney(job.money.deposit_required_cents / 100, cur)} ${job.money.deposit_paid ? "paid" : "not paid"}` : "No deposit asked"}
+                    {job.money.open_payment_link ? ` · pay link open since ${fmtDate(job.money.open_payment_link.created_at)}` : ""}
+                  </span>
+                ) : null}
+                {job.pricing ? (
+                  <span>
+                    Cost ex GST {fmtMoney(job.pricing.cost_ex, cur)} · est. profit {fmtMoney(job.pricing.margin_ex, cur)}{job.pricing.margin_pct != null ? ` (${Math.round(job.pricing.margin_pct)}%)` : ""}
+                    {job.pricing.unknown_cost_count ? ` · ${job.pricing.unknown_cost_count} line${job.pricing.unknown_cost_count === 1 ? "" : "s"} with no known cost` : ""}
+                    {job.pricing.stale ? " · total changed since pricing" : ""}
+                  </span>
+                ) : (
+                  <span>Cost not tracked{job.quote ? " — price it in the Job pricer to see margin" : ""}</span>
+                )}
+                {job.quote && !job.order ? (
+                  <a className="ml-auto text-ui-fg-interactive hover:underline" href={job.quote.has_job_pricer ? `/app/quote-pricer?quote=${job.quote.id}` : `/app/quotes?id=${job.quote.id}`}>
+                    {job.quote.has_job_pricer ? "Edit in pricer" : "Edit quote"}
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </Container>
+
+          {/* ── Artwork ───────────────────────────────────────────────── */}
+          <Container className="p-0">
+            <SectionHead
+              title="Artwork"
+              summary={order && job.order ? `${ARTWORK_STAGE_LABEL[job.order.tracks.artwork]}${job.order.tracks.artwork === "awaiting_approval" ? " · proof sent" : ""}` : job.quote?.design_approval_status ? `Design approval: ${job.quote.design_approval_status}` : "No design approval sent yet"}
+              open={open.artwork}
+              onToggle={() => toggle("artwork")}
+            />
+            {open.artwork ? (
+              order ? (
+                <Flat>
                   <Mount W={W.OrderCustomizerDownloads} order={order} />
                   <Mount W={W.OrderCustomizerPrintDetails} order={order} />
                   <Mount W={W.OrderDtfGangsheet} order={order} />
                   <Mount W={W.OrderScreenColourCheck} order={order} />
                   <Mount W={W.OrderVectorizationFlag} order={order} />
-                </>
+                </Flat>
               ) : (
-                <Container>
-                  <Heading level="h2">Design approval</Heading>
-                  <Text size="small" className="mt-1">{job.quote?.design_approval_status ? `Status: ${job.quote.design_approval_status}` : "No design approval sent yet."}</Text>
-                  <Text size="small" className="text-ui-fg-subtle mt-1">Design in the Studio and send the approval link from the quote.</Text>
+                <div className="px-6 pb-4">
+                  <Text size="small" className="text-ui-fg-subtle">Design in the Studio and send the approval link from the quote.</Text>
                   <Button size="small" variant="secondary" className="mt-2" asChild><a href={`/app/quotes?id=${job.quote?.id}`}>Open quote</a></Button>
-                </Container>
-              )}
-            </Tabs.Content>
+                </div>
+              )
+            ) : null}
+          </Container>
 
-            <Tabs.Content value="production" className="mt-3 flex flex-col gap-y-3">
-              {order ? (
-                <>
-                  <Mount W={W.OrderProductionStage} order={order} />
-                  <Mount W={W.OrderPrintRecipes} order={order} />
-                  <Mount W={W.OrderLinePrintNotes} order={order} />
-                  <Mount W={W.OrderProductionPhotos} order={order} />
-                  <Mount W={W.OrderRejects} order={order} />
-                  <Mount W={W.OrderPackingCheck} order={order} />
-                </>
-              ) : (
-                <Container><Text size="small" className="text-ui-fg-subtle">Production tracking starts when the order is created.</Text></Container>
-              )}
-            </Tabs.Content>
+          {/* ── Production ────────────────────────────────────────────── */}
+          <Container className="p-0">
+            <SectionHead
+              title="Production"
+              summary={job.order ? `Artwork ${ARTWORK_STAGE_LABEL[job.order.tracks.artwork].toLowerCase()} · Blanks ${BLANKS_STAGE_LABEL[job.order.tracks.blanks].toLowerCase()} · ${DOWNSTREAM_STAGE_LABEL[job.order.tracks.downstream]}${job.order.production_due_date ? ` · due out ${fmtDate(job.order.production_due_date)}` : ""}` : "Starts when the order is created"}
+              open={open.production}
+              onToggle={() => toggle("production")}
+            />
+            {open.production && order ? (
+              <Flat>
+                <Mount W={W.OrderProductionStage} order={order} />
+                <Mount W={W.OrderPrintRecipes} order={order} />
+                <Mount W={W.OrderProductionPhotos} order={order} />
+                <Mount W={W.OrderRejects} order={order} />
+                <Mount W={W.OrderPackingCheck} order={order} />
+              </Flat>
+            ) : null}
+          </Container>
 
-            <Tabs.Content value="delivery" className="mt-3 flex flex-col gap-y-3">
-              {order ? (
-                <>
-                  <Mount W={W.OrderFulfillmentContext} order={order} />
-                  <Mount W={W.OrderBottleShopDropship} order={order} />
-                  <Mount W={W.OrderAuspostParcels} order={order} />
+          {/* ── Delivery ──────────────────────────────────────────────── */}
+          <Container className="p-0">
+            <SectionHead
+              title="Delivery"
+              summary={addressLine(job)}
+              tone={job.address.placeholder || (!job.address.shipping && !!job.order) ? "warn" : undefined}
+              open={open.delivery}
+              onToggle={() => toggle("delivery")}
+            />
+            {open.delivery ? (
+              <>
+                <div className="px-6 pb-4">
+                  {job.address.shipping && !job.address.placeholder ? (
+                    <Text size="small" className="whitespace-pre-line">
+                      {[job.address.shipping.name, job.address.shipping.company, job.address.shipping.address_1, job.address.shipping.address_2, [job.address.shipping.city, job.address.shipping.province, job.address.shipping.postal_code].filter(Boolean).join(" "), job.address.shipping.phone].filter(Boolean).join("\n")}
+                    </Text>
+                  ) : (
+                    <Text size="small" className="text-ui-tag-orange-text">{job.address.placeholder ? "Studio placeholder — ask the customer for the delivery address" : "No delivery address on file"}</Text>
+                  )}
+                </div>
+                {order ? (
+                  <Flat>
+                    <Mount W={W.OrderShippingDecision} order={order} />
+                    <Mount W={W.OrderAppliedPerks} order={order} />
+                    <Mount W={W.OrderFulfillmentContext} order={order} />
+                    <Mount W={W.OrderAscolourDropship} order={order} />
+                    <Mount W={W.OrderAussiePacificDropship} order={order} />
+                    <Mount W={W.OrderBottleShopDropship} order={order} />
+                    <Mount W={W.OrderAuspostParcels} order={order} />
+                    <Mount W={W.OrderDriveFolder} order={order} />
+                  </Flat>
+                ) : null}
+              </>
+            ) : null}
+          </Container>
+
+          {/* ── Owner, CC, feedback ───────────────────────────────────── */}
+          {order ? (
+            <Container className="p-0">
+              <SectionHead title="Owner & CC" summary={`Owner ${job.owner?.label ?? "unassigned"}`} open={open.people} onToggle={() => toggle("people")} />
+              {open.people ? (
+                <Flat>
+                  <Mount W={W.OrderOwner} order={order} />
+                  <Mount W={W.OrderWatchers} order={order} />
                   <Mount W={W.OrderNps} order={order} />
-                </>
-              ) : (
-                <Container><Text size="small" className="text-ui-fg-subtle">Shipping lives on the order once it exists.</Text></Container>
-              )}
-            </Tabs.Content>
-          </Tabs>
+                </Flat>
+              ) : null}
+            </Container>
+          ) : null}
         </div>
 
         <Diary job={job} onChanged={onChanged} />
@@ -422,12 +553,36 @@ export function JobPanel({ job, order, onChanged }: Props) {
   )
 }
 
-const TwoCol = ({ main, side }: { main: ReactNode; side: ReactNode }) => (
-  <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-    <div className="flex flex-col gap-y-3 min-w-0">{main}</div>
-    <div className="flex flex-col gap-y-3 min-w-0">{side}</div>
-  </div>
+/** A section's one-line summary; click the row to open the tools under it. */
+function SectionHead({ title, summary, open, onToggle, tone }: { title: string; summary: string; open?: boolean; onToggle?: () => void; tone?: "warn" }) {
+  const inner = (
+    <>
+      <Heading level="h2" className="shrink-0">{title}</Heading>
+      <Text size="small" className={`min-w-0 flex-1 truncate ${tone === "warn" ? "text-ui-tag-orange-text" : "text-ui-fg-subtle"}`}>{summary}</Text>
+      {onToggle ? <span className="text-ui-fg-muted text-xs">{open ? "▴" : "▾"}</span> : null}
+    </>
+  )
+  return onToggle ? (
+    <button type="button" onClick={onToggle} className="flex w-full items-baseline gap-3 px-6 py-3 text-left hover:bg-ui-bg-subtle-hover">
+      {inner}
+    </button>
+  ) : (
+    <div className="flex items-baseline gap-3 px-6 py-3">{inner}</div>
+  )
+}
+
+/** The existing tools, without their own card chrome, stacked inside a section. */
+const Flat = ({ children }: { children: ReactNode }) => (
+  <div className="flex flex-col [&>*]:!rounded-none [&>*]:!shadow-none [&>*]:border-t [&>*]:border-ui-border-base">{children}</div>
 )
+
+const addressLine = (job: JobView) => {
+  const a = job.address.shipping
+  const method = job.order?.delivery_method ? `${job.order.delivery_method} · ` : ""
+  if (job.address.placeholder) return `${method}Studio placeholder — ask the customer`
+  if (!a) return job.order ? `${method}No delivery address on file` : "Address is asked for at conversion"
+  return `${method}${[a.name, a.address_1, a.city, a.province, a.postal_code].filter(Boolean).join(", ")}`
+}
 
 // ── Diary ───────────────────────────────────────────────────────────────────
 

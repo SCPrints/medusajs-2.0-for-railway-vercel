@@ -47,6 +47,8 @@ const updateSchema = z.object({
     .optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   expires_at: z.string().datetime().nullable().optional(),
+  /** The quote's updated_at as the client last read it; 409 if it moved since. */
+  expected_updated_at: z.string().optional(),
 })
 
 const STATUS_TIMESTAMP: Partial<Record<QuoteStatus, string>> = {
@@ -81,6 +83,25 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     current = await quoteService.retrieveQuote(id)
   } catch {
     throw new MedusaError(MedusaError.Types.NOT_FOUND, "Quote not found")
+  }
+
+  // Two staff in one quote: a save made from a stale read is refused rather
+  // than silently overwriting the other person's lines (the update replaces
+  // line_items and metadata wholesale).
+  if (body.expected_updated_at && current.updated_at) {
+    const seen = Date.parse(body.expected_updated_at)
+    const now = new Date(current.updated_at).getTime()
+    if (Number.isFinite(seen) && now > seen + 1000) {
+      const last = await quoteService
+        .listQuoteEvents({ quote_id: id }, { order: { created_at: "DESC" }, take: 1 })
+        .then((r: any[]) => r[0]?.actor ?? null)
+        .catch(() => null)
+      return res.status(409).json({
+        code: "quote_changed",
+        error: `This quote was changed${last ? ` by ${String(last).replace(/@.*$/, "")}` : ""} at ${new Date(current.updated_at).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: "Australia/Sydney" })}. Reload before saving.`,
+        updated_at: new Date(current.updated_at).toISOString(),
+      })
+    }
   }
 
   const actor = (req as any).auth_context?.actor_id ?? null

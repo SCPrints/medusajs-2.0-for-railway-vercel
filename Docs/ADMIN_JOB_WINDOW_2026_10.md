@@ -34,6 +34,16 @@ The shape holds: one window, action bar on top, job facts left, diary right. v1 
 - Audit rows that duplicate a diary entry (stage_changed, job_reply, job_note, dsp_job_sent) are skipped.
 - Not clicked through in a browser (local Postgres not running); covered by specs, server + admin tsc and `pnpm build`.
 
+## Step 2 — status 25 Oct: built, not committed
+
+- Tabs are gone. Left column = Lines (always open; one row per garment + colour via `lib/job-lines.ts`, sizes string, margin column from the pricer snapshot's per-group `marginPct` — the pricer now saves `groupId` on each snapshot group; total / paid / owing + cost / est. profit footer), then Artwork, Production, Delivery, Owner & CC as one-line summaries that open on click. Bodies = the existing widgets inside `Flat` (card chrome stripped by CSS, own fetches kept — nothing added to `getJob`'s queries). The section the next action points at opens by default.
+- `JobView.pricing` (sell / cost / margin / stale) comes from `quote.metadata.job_pricer.snapshot.totals`; the quote is loaded for orders too, so orders keep it.
+- Presence: `quote` added to the presence entities; the window heartbeats and shows "X is also in this job".
+- Save conflicts: `POST /admin/quotes/:id` takes `expected_updated_at` and returns 409 `quote_changed` when the quote moved; the pricer and the quotes page send it for line/metadata saves and keep the typed edits on refusal.
+- Deleted: `order-timeline`, `order-comments-audit` (never mounted), `order-line-print-notes` (same notes as the downloads tool), the "Paid X of Y" line in the invoice tool (totals live under Lines).
+- Classic view: the tabbed panel is kept as `job-panel-classic.tsx` behind More → Classic view (per-browser `scp:job-view`); a dismissible "What moved" strip sits above Lines. STAFF_GUIDE + the Help page describe the sections. Remove Classic once staff stop reaching for it.
+- Not clicked through in a browser; covered by specs (job-lines), server + admin tsc and `pnpm build`.
+
 ## Changes from v1
 
 | v1 | v2 |

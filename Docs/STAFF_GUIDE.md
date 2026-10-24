@@ -24,11 +24,13 @@ Flags (stale, placeholder address, unanswered emails) and due dates show as badg
 
 Path: `/app/jobs/<order id, quote id, Q-… number or order number>` — and the same panel sits at the top of every order in Orders.
 
-- **Header**: customer (click to email or call), owner, quoted / order / paid / owing.
+- **Header**: customer (click to email or call), owner, who else has the job open right now, and what's owing.
 - **Phase strip**: Enquiry → Quoted → Accepted → Paid → Artwork → Blanks → Production → Shipped → Delivered, with the date each was reached.
-- **Next action bar**: who the job is waiting on, for how many business days, and the one button to press. Start production asks for a reason if the gate (approved artwork, blanks arrived, deposit paid) isn't met.
-- **Tabs**: Overview (lines, payment, delivery address, flags, tasks, owner) · Artwork (downloads, print details, proofs, DPI) · Production (stage tracks, recipes, notes, photos, rejects, packing) · Delivery (fulfilment, dropship, parcels, Drive folder) · Activity (every email in and out, stage change, comment, task, in one thread, plus the reply box).
-- **Reply** sends a plain email from `orders@scprints.com.au`; the customer's answer comes back onto the job's Activity and the job jumps to "Customer waiting on us". **Log note / call** records anything that happened off-system.
+- **Action bar**: who the job is waiting on, for how many business days, the one button to press, then only the tools that apply to this job — **Proof**, **Invoice & pay**, **Blanks**, **Change stage** on an order; **Edit quote** / **Edit in pricer** on a quote — and **More** (Send to DSP, Drive folder, the Medusa order page for refunds and edits, add a task, copy the job link, Classic view). Each opens over the job. Start production asks for a reason if the gate (approved artwork, blanks arrived, deposit paid) isn't met.
+- **Sections** down the left, each one line until you click it: **Lines** (one row per garment + colour with sizes, margin when the Job pricer priced it, and total / paid / owing underneath), **Artwork** (print files, mockups, revised proofs, sizes in mm, gang sheet, colour check), **Production** (stage tracks, recipes, photos, rejects, packing), **Delivery** (address, shipping, dropship, parcels, Drive folder), **Owner & CC**.
+- **The diary** on the right: every email in and out, call, note, stage change and task, newest first, with the reply box on top. Customer emails you haven't answered are highlighted; runs of routine updates fold into "N updates". Open tasks are pinned above the list with a Done button.
+- **Send email** goes from `orders@scprints.com.au`; the customer's answer lands back in the diary and the job jumps to "Customer waiting on us". **Log call / note** records anything that happened off-system and counts as answering the customer. **Follow up on <date>** parks a job that's waiting on the customer until that day, then it comes back as "Follow up".
+- **Classic view**: More → Classic view (tabs) brings back the October tabbed layout for a while. It goes away once everyone's settled.
 
 **Customer emails**: every email the system sends about a job (quote, invoice, proof, stage updates) has a reply-to address that belongs to that job. When the customer replies, it lands on the job, a task is created for the owner and `info@` gets a "Customer replied" email. This needs the Resend receiving domain and Fly secrets described in `Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md` §9.
 
@@ -38,17 +40,18 @@ Path: `/app/jobs/<order id, quote id, Q-… number or order number>` — and the
 
 ### The order detail page
 
-The job panel (above) sits at the top; Medusa's own order card (items, payments, fulfilment, addresses) is below it. The panels that used to stack down the page now live in the job panel's tabs:
+Medusa's own order page (`/app/orders/<id>`) now carries one line at the top — job number, stage, next step and **Open job →** — and keeps the things only it can do: refunds, order edits, returns, cancelling, capture, address and email changes. Everything else is on the job page. Where the old panels went:
 
-| Panel | Tab | What it does |
+| Panel | Where it is now | What it does |
 | --- | --- | --- |
-| **Production stage tracker** | Production | Our multi-track stage system (artwork / blanks / production). The next-action button on the job header moves the common transitions for you. |
-| **Deposit & balance / payment links** | Overview | Deposit schedule, Stripe payment links, "Record payment received". |
-| **Email invoice**, **Shipping decision**, **Customer perks** | Overview | Re-send the tax invoice; see what shipping was quoted; "Free shipping (waive at fulfilment)" when a VIP / Wholesale tag qualifies. |
-| **Customizer downloads / print details / DTF gang sheet / screen colour check** | Artwork | Print files, mockups, revised proofs, sizes and positions in mm, DPI flags. |
-| **Print recipes, line print notes, production photos, rejects, packing check** | Production | Operator settings and records. The latest photo auto-appears in the customer's next stage email. |
-| **Fulfilment context, AS Colour / Aussie Pacific / bottle-shop dropship, AusPost parcels, Drive folder** | Delivery | Where the blanks come from and where the job ships. |
-| **Activity thread, watchers, NPS** | Activity | Every email, stage change, comment and task; extra people to CC; the post-delivery score. |
+| **Production stage tracker** | Change stage (action bar), also under Production | Our multi-track stage system (artwork / blanks / production). The next-action button moves the common transitions for you. |
+| **Deposit & balance / payment links**, **Email invoice** | Invoice & pay (action bar) | Deposit schedule, Stripe payment links, "Record payment received", re-send the tax invoice. The totals themselves sit under Lines. |
+| **Customizer downloads / print details / DTF gang sheet / screen colour check** | Proof (action bar), also under Artwork | Print files, mockups, revised proofs, sizes and positions in mm, DPI flags. |
+| **AS Colour / Aussie Pacific dropship** | Blanks (action bar), also under Delivery | Sending the supplier order marks blanks as ordered. |
+| **Print recipes, production photos, rejects, packing check** | Production | Operator settings and records. The latest photo auto-appears in the customer's next stage email. |
+| **Shipping decision, customer perks, fulfilment context, bottle-shop dropship, AusPost parcels, Drive folder** | Delivery | What shipping was quoted, free-shipping perks, where the blanks come from and where the job ships. |
+| **Owner, watchers, NPS** | Owner & CC | Who owns it, extra people to CC on stage emails, the post-delivery score. |
+| **Activity thread, comments** | The diary (right column) | Every email, call, note, stage change and task. |
 
 The red **Stale** badge still shows at the very top when a stage has sat past its limit; it clears when the stage moves.
 
@@ -399,7 +402,7 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | Tag a customer as VIP / Wholesale | Customer detail → Tags widget |
 | Run a quote through to a paid order | `/app/quotes` → build it → Email customer… (accept-and-pay link) → it becomes an order on accept |
 | See where a job is up to and what to do next | `/app/today`, or the job page from any order or quote |
-| Reply to a customer so the answer comes back to the job | Job page → Activity → reply box |
+| Reply to a customer so the answer comes back to the job | Job page → the reply box at the top of the diary |
 | Convert an accepted quote by hand | Job page → Convert to order (asks for the delivery address) |
 | Plan the week's production | `/app/production?tab=calendar` |
 | Log a reject from this morning's misprint | Order detail → Rejects/spoilage widget |

@@ -1102,14 +1102,21 @@ const QuotesPage = () => {
 
   const patchQuote = async (id: string, patch: Record<string, unknown>) => {
     try {
+      // Line/metadata saves are refused (409) when someone else saved since
+      // this page last loaded the quote; the page keeps the typed edits.
+      const seen = selectedId === id ? (selectedQuote as any)?.updated_at : undefined
       const res = await fetch(`/admin/quotes/${id}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
+        body: JSON.stringify(patch.line_items || patch.metadata ? { ...patch, expected_updated_at: seen } : patch),
       })
-      if (!res.ok) throw new Error(await res.text())
       const json = await res.json().catch(() => ({}))
+      if (res.status === 409 && (json as any)?.code === "quote_changed") {
+        toast.error((json as any).error ?? "This quote changed — reload before saving.")
+        return
+      }
+      if (!res.ok) throw new Error((json as any)?.error ?? (json as any)?.message ?? `HTTP ${res.status}`)
       if ((json as any)?.order) {
         toast.success(`Accepted — order #${(json as any).order.display_id ?? ""} created`)
       } else if ((json as any)?.order_error) {

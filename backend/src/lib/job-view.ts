@@ -29,15 +29,36 @@ export type JobActivity = {
   thumbnail_url?: string | null
 }
 
+/** One row per garment + colour (lib/job-lines.ts folds the per-size lines). */
 export type JobLine = {
   id: string
   title: string
   subtitle: string | null
   quantity: number
+  /** Lowest and highest unit price in the group (upsizes differ). */
   unit_price: number | null
+  unit_price_max: number | null
   total: number | null
   thumbnail: string | null
   decorated: boolean
+  /** "S 4 · M 10 · L 10", or null when the lines carry no size. */
+  sizes: string | null
+  /** The underlying quote-line / order-item ids. */
+  line_ids: string[]
+  /** From the Job pricer's saved snapshot; null when it wasn't priced there. */
+  margin_pct: number | null
+}
+
+/** The Job pricer's frozen totals (quote.metadata.job_pricer.snapshot). */
+export type JobPricing = {
+  saved_at: string | null
+  sell_inc: number
+  cost_ex: number
+  margin_ex: number
+  margin_pct: number | null
+  unknown_cost_count: number
+  /** The quote/order total no longer matches what was priced. */
+  stale: boolean
 }
 
 export type JobView = {
@@ -94,6 +115,7 @@ export type JobView = {
     open_payment_link: { url: string; scenario: string | null; created_at: string } | null
   }
   lines: JobLine[]
+  pricing: JobPricing | null
   flags: { kind: string; label: string }[]
   tasks: { id: string; title: string; status: string; priority: string; due_at: string | null; assignee_user_id: string; follow_up: boolean }[]
   activity: JobActivity[]

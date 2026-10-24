@@ -41,7 +41,7 @@ const SECTIONS: Section[] = [
           <li><strong>Waiting on customer</strong> — we&apos;ve sent a quote, proof or payment link and they haven&apos;t answered. Nudge after two business days.</li>
         </ul>
         <Text size="xsmall" className="text-ui-fg-muted mt-2">
-          The button on the row is the next step. One-click moves (send proof, blanks arrived, start production, QC done, shipped, payment link) run from the list; anything else opens the <strong>job page</strong> (<code>/app/jobs/&lt;order or quote&gt;</code>), which is the same panel you see at the top of every order: customer, money, phase strip, next action, and the tabs Overview / Artwork / Production / Delivery / Activity. Replies you send from the Activity tab carry a reply-to address that lands the customer&apos;s answer back on the job.
+          The button on the row is the next step. One-click moves (send proof, blanks arrived, start production, QC done, shipped, payment link) run from the list; anything else opens the <strong>job page</strong> (<code>/app/jobs/&lt;order or quote&gt;</code>), where the whole job is on one screen: customer, money, phase strip, the action bar, the sections Lines / Artwork / Production / Delivery down the left and the diary on the right. Replies you send from the diary carry a reply-to address that lands the customer&apos;s answer back on the job. Medusa&apos;s own order page keeps refunds, edits and cancelling, with an <strong>Open job</strong> button at the top.
         </Text>
       </>
     ),
@@ -83,26 +83,27 @@ const SECTIONS: Section[] = [
           <li><strong>Phase strip</strong> — Enquiry → Quoted → Accepted → Paid → Artwork → Blanks → Production → Shipped → Delivered, with the date each was reached.</li>
           <li><strong>Next-action bar</strong> — who the job is waiting on, for how many business days, and the one button to press. Start production asks for a reason if approved artwork, arrived blanks or a paid deposit is missing.</li>
         </ul>
-        <Text className="mt-3 font-semibold">The five tabs</Text>
+        <Text className="mt-3 font-semibold">The sections (click a heading to open it)</Text>
         <div className="mt-2 overflow-hidden rounded-md border border-ui-border-base">
           <table className="w-full text-sm">
             <thead className="bg-ui-bg-subtle text-ui-fg-subtle">
               <tr>
-                <th className="px-3 py-1.5 text-left font-medium">Tab</th>
+                <th className="px-3 py-1.5 text-left font-medium">Section</th>
                 <th className="px-3 py-1.5 text-left font-medium">What&apos;s in it</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ui-border-base">
-              <tr><td className="px-3 py-1">Overview</td><td className="px-3 py-1">Lines, deposit &amp; balance, payment links, &quot;Record payment received&quot;, email invoice, shipping decision, customer perks, delivery address, flags, tasks, order owner.</td></tr>
-              <tr><td className="px-3 py-1">Artwork</td><td className="px-3 py-1">Print files and mockups, revised proofs, print sizes and positions in mm, DTF gang sheet, screen colour check, DPI flags.</td></tr>
-              <tr><td className="px-3 py-1">Production</td><td className="px-3 py-1">Stage tracks (artwork / blanks / production), print recipes, line print notes, production photos, rejects, packing check, Send to DSP.</td></tr>
-              <tr><td className="px-3 py-1">Delivery</td><td className="px-3 py-1">Fulfilment context, AS Colour / Aussie Pacific / bottle-shop dropship, AusPost parcels, Drive folder.</td></tr>
-              <tr><td className="px-3 py-1">Activity</td><td className="px-3 py-1">Every email in and out, stage change, comment and task in one thread. Reply box, Log note / call, watchers, NPS.</td></tr>
+              <tr><td className="px-3 py-1">Lines</td><td className="px-3 py-1">One row per garment and colour with the sizes, margin when the Job pricer priced it, and total / paid / owing underneath. Always open.</td></tr>
+              <tr><td className="px-3 py-1">Artwork</td><td className="px-3 py-1">Print files and mockups, revised proofs, print sizes and positions in mm, DTF gang sheet, screen colour check, DPI flags. Also behind <strong>Proof</strong> in the action bar.</td></tr>
+              <tr><td className="px-3 py-1">Production</td><td className="px-3 py-1">Stage tracks (artwork / blanks / production), print recipes, production photos, rejects, packing check. Send to DSP is under More.</td></tr>
+              <tr><td className="px-3 py-1">Delivery</td><td className="px-3 py-1">Delivery address, shipping decision, perks, fulfilment context, AS Colour / Aussie Pacific / bottle-shop dropship, AusPost parcels, Drive folder.</td></tr>
+              <tr><td className="px-3 py-1">Owner &amp; CC</td><td className="px-3 py-1">Order owner, extra people to CC on stage emails, NPS score.</td></tr>
+              <tr><td className="px-3 py-1">The diary</td><td className="px-3 py-1">Right column: every email in and out, call, note, stage change and task. Reply box, Log call / note and &quot;Follow up on&quot; on top; open tasks pinned with Done.</td></tr>
             </tbody>
           </table>
         </div>
         <ul className="mt-3 list-disc pl-5 text-sm space-y-1">
-          <li><strong>Reply</strong> sends a plain email from <code>orders@scprints.com.au</code>. The customer&apos;s answer lands back on the job&apos;s Activity tab and the job jumps to &quot;Customer waiting on us&quot;.</li>
+          <li><strong>Reply</strong> sends a plain email from <code>orders@scprints.com.au</code>. The customer&apos;s answer lands back in the job&apos;s diary and the job jumps to &quot;Customer waiting on us&quot;. <strong>Log call / note</strong> counts as answering too.</li>
           <li>
             <strong>Stale badge (red)</strong>
             <HelpTooltip text={{
@@ -144,8 +145,8 @@ const SECTIONS: Section[] = [
 
         <Text className="mt-3 font-semibold">How it works</Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
-          <li><strong>Manual assignment always wins.</strong> Pick an owner from the <em>Account owner</em> widget on the customer page, or from the job panel&apos;s Overview tab on the order.</li>
-          <li><strong>Order inherits customer owner.</strong> When a customer with an owner places an order, the order auto-stamps to the same owner. Different teammate handling a specific job? Override it on the job&apos;s Overview tab.</li>
+          <li><strong>Manual assignment always wins.</strong> Pick an owner from the <em>Account owner</em> widget on the customer page, or under Owner &amp; CC on the job page.</li>
+          <li><strong>Order inherits customer owner.</strong> When a customer with an owner places an order, the order auto-stamps to the same owner. Different teammate handling a specific job? Override it under Owner &amp; CC on the job page.</li>
           <li><strong>Rotation fills in the gaps.</strong> When an un-owned customer places an order, the system picks the next teammate from the rotation table (oldest <code>last_picked_at</code> wins, position as tiebreaker) and stamps both the customer and the order with that user.</li>
         </ul>
 
@@ -365,7 +366,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text size="small" className="text-ui-fg-subtle mb-2">
-          All production tools live under Orders → <a href="/app/production" className="underline">Board</a> (<code>/app/production</code>) as tabs. Per-order tools (stages, recipes, photos, rejects) are on the job panel&apos;s Production tab.
+          All production tools live under Orders → <a href="/app/production" className="underline">Board</a> (<code>/app/production</code>) as tabs. Per-order tools (stages, recipes, photos, rejects) are under Production on the job page.
         </Text>
         <ul className="list-disc pl-5 text-sm space-y-1">
           <li><strong>Dashboard tab</strong> — kanban/list of every in-flight order with stage, decoration method and stale flag. For the day&apos;s to-do list use <a href="/app/today" className="underline">Today</a>.</li>
@@ -913,7 +914,7 @@ const SECTIONS: Section[] = [
         <div><strong>Mark a customer tax-exempt</strong> Customer detail → Tax status</div>
         <div><strong>Tag a customer VIP</strong> Customer detail → Tags</div>
         <div><strong>Give a customer tier pricing</strong> Customer detail → Customer pricing tier</div>
-        <div><strong>Assign a customer or order to a teammate</strong> Customer detail → Account owner, or job page → Overview</div>
+        <div><strong>Assign a customer or order to a teammate</strong> Customer detail → Account owner, or job page → Owner &amp; CC</div>
         <div><strong>Manage owner rotation</strong> Customers → <a href="/app/rotation" className="underline">Owner rotation</a></div>
         <div><strong>Create a task for myself or a teammate</strong> <a href="/app/tasks" className="underline">My tasks</a> → quick-add form</div>
         <div><strong>Send a quote / accept link</strong> Quote drawer → Email customer… (or Copy link)</div>

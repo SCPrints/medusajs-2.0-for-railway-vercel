@@ -5,7 +5,7 @@ import { ADMIN_WORKSPACE_MODULE } from "../../../../modules/admin-workspace"
 
 const STALE_MS = 60_000 // anyone who hasn't heartbeated in this long counts as "gone"
 
-const VALID_ENTITIES = new Set(["order", "customer", "product"])
+const VALID_ENTITIES = new Set(["order", "quote", "customer", "product"])
 
 /**
  * POST /admin/admin-workspace/presence
