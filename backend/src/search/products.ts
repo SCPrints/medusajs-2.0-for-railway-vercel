@@ -32,7 +32,7 @@ const transform = (product: any) => ({
   sales_channel_ids: (product.sales_channels || []).map((c: any) => c?.id).filter(Boolean),
 })
 
-// Price and stock events change `min_price_aud` / `in_stock`, which the
+// Price, stock and reservation events change `min_price_aud` / `in_stock`, which the
 // plugin's default routing doesn't cover. Option events are dropped: options
 // aren't indexed, and the plugin's option lookup reads `product_option.product_id`,
 // which Medusa 2.17 removed.
@@ -44,6 +44,8 @@ const EVENTS = [
   InventoryEvents.INVENTORY_ITEM_CREATED, InventoryEvents.INVENTORY_ITEM_UPDATED, InventoryEvents.INVENTORY_ITEM_DELETED,
   "inventory-level.created", "inventory-level.updated", "inventory-level.deleted",
   InventoryEvents.INVENTORY_LEVEL_CREATED, InventoryEvents.INVENTORY_LEVEL_UPDATED, InventoryEvents.INVENTORY_LEVEL_DELETED,
+  // Orders reserve stock, which changes availability without touching the level row's event.
+  InventoryEvents.RESERVATION_ITEM_CREATED, InventoryEvents.RESERVATION_ITEM_UPDATED, InventoryEvents.RESERVATION_ITEM_DELETED,
 ]
 
 const reconcileOptions = {
@@ -75,6 +77,11 @@ async function productIdsFor(query: any, entity: string, ids: string[], deleted:
     }
     case "inventory-item":
       return fromVariants(await related("product_variant_inventory_item", "variant_id", { inventory_item_id: ids }, deleted))
+    case "reservation-item": {
+      const items = await related("reservation_item", "inventory_item_id", { id: ids }, deleted)
+      if (!items.length) return []
+      return fromVariants(await related("product_variant_inventory_item", "variant_id", { inventory_item_id: items }))
+    }
   }
   if (deleted) return []
   switch (entity) {

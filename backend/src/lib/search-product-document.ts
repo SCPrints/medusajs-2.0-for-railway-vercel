@@ -23,7 +23,13 @@ export const PRODUCT_DOCUMENT_GRAPH_FIELDS = [
   "tags.id", "tags.value",
   "brand.handle", "brand.name",
   "variants.id", "variants.sku", "variants.metadata",
-  "variants.inventory_quantity", "variants.manage_inventory", "variants.allow_backorder",
+  "variants.manage_inventory", "variants.allow_backorder",
+  // Stock, worked out the way the store API does (see variantAvailable).
+  "sales_channels.stock_locations.id",
+  "variants.inventory_items.required_quantity",
+  "variants.inventory_items.inventory.location_levels.location_id",
+  "variants.inventory_items.inventory.location_levels.stocked_quantity",
+  "variants.inventory_items.inventory.location_levels.reserved_quantity",
   "variants.price_set.prices.amount",
   "variants.price_set.prices.currency_code",
   "variants.price_set.prices.min_quantity",
@@ -57,6 +63,29 @@ const variantBaseMinor = (variant: any): number | null => {
   return best ? best.minor : null
 }
 
+/**
+ * Units the store API would report as `inventory_quantity`: per inventory
+ * item, stocked minus reserved across the sales channels' stock locations,
+ * divided by the quantity one variant needs; the scarcest item wins.
+ * `query.graph` has no `inventory_quantity` (the store route computes it), so
+ * reading it here was always null and every product indexed as in stock.
+ * Returns null when the variant has no inventory items (unknown → don't hide).
+ */
+const variantAvailable = (variant: any, locationIds: Set<string>): number | null => {
+  const items: any[] = variant?.inventory_items || []
+  if (!items.length) return null
+  let units = Infinity
+  for (const item of items) {
+    let available = 0
+    for (const level of item?.inventory?.location_levels || []) {
+      if (!locationIds.has(level?.location_id)) continue
+      available += Number(level.stocked_quantity || 0) - Number(level.reserved_quantity || 0)
+    }
+    units = Math.min(units, Math.floor(available / Math.max(1, Number(item.required_quantity) || 1)))
+  }
+  return units
+}
+
 export function toProductSearchDocument(product: any): Record<string, unknown> {
   const variants: any[] = Array.isArray(product.variants) ? product.variants : []
 
@@ -67,13 +96,16 @@ export function toProductSearchDocument(product: any): Record<string, unknown> {
     if (minPrice == null || b < minPrice) minPrice = b
   }
 
+  const locationIds = new Set<string>(
+    (product.sales_channels || []).flatMap((c: any) => (c?.stock_locations || []).map((l: any) => l?.id))
+  )
   const inStock = variants.some((v) => {
     if (!v) return false
     if (v.manage_inventory === false) return true
     if (v.allow_backorder === true) return true
-    const q = v.inventory_quantity
+    const q = variantAvailable(v, locationIds)
     if (q == null) return true // unknown → don't hide (matches storefront hasStock logic)
-    return Number(q) > 0
+    return q > 0
   })
 
   const meta = product.metadata || {}

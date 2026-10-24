@@ -1,5 +1,16 @@
 import { toProductSearchDocument } from "../search-product-document"
 
+const level = (location_id: string, stocked_quantity: number, reserved_quantity = 0) => ({
+  location_id,
+  stocked_quantity,
+  reserved_quantity,
+})
+const stocked = (levels: ReturnType<typeof level>[], required_quantity = 1) => ({
+  manage_inventory: true,
+  inventory_items: [{ required_quantity, inventory: { location_levels: levels } }],
+})
+const channels = [{ id: "sc_1", stock_locations: [{ id: "sloc_shop" }] }]
+
 describe("toProductSearchDocument", () => {
   it("builds listing facets from the product graph", () => {
     const doc = toProductSearchDocument({
@@ -12,9 +23,10 @@ describe("toProductSearchDocument", () => {
       type: { id: "ptyp_1" },
       brand: { handle: "as-colour", name: "AS Colour" },
       metadata: {},
+      sales_channels: channels,
       variants: [
-        { sku: "A", metadata: { bulk_pricing: { tiers: [{ amount: 21.5 }] } }, inventory_quantity: 0, manage_inventory: true },
-        { sku: "B", price_set: { prices: [{ amount: 19, currency_code: "aud", rules_count: 0, min_quantity: 1 }] }, inventory_quantity: 4 },
+        { sku: "A", metadata: { bulk_pricing: { tiers: [{ amount: 21.5 }] } }, ...stocked([level("sloc_shop", 0)]) },
+        { sku: "B", price_set: { prices: [{ amount: 19, currency_code: "aud", rules_count: 0, min_quantity: 1 }] }, ...stocked([level("sloc_shop", 4)]) },
       ],
     })
     expect(doc).toMatchObject({
@@ -32,8 +44,20 @@ describe("toProductSearchDocument", () => {
   })
 
   it("omits the price when no variant has one, so it sorts last", () => {
-    const doc = toProductSearchDocument({ id: "prod_2", variants: [{ inventory_quantity: 0, manage_inventory: true }] })
+    const doc = toProductSearchDocument({ id: "prod_2", sales_channels: channels, variants: [stocked([level("sloc_shop", 0)])] })
     expect(doc).not.toHaveProperty("min_price_aud")
-    expect(doc.in_stock).toBe(false)
+  })
+
+  it.each([
+    ["stock at the shop's location", [stocked([level("sloc_shop", 3)])], true],
+    ["no stock anywhere", [stocked([level("sloc_shop", 0)])], false],
+    ["stock only at a location the shop doesn't sell from", [stocked([level("sloc_other", 50)])], false],
+    ["all stock reserved", [stocked([level("sloc_shop", 5, 5)])], false],
+    ["fewer units than one variant needs", [stocked([level("sloc_shop", 1)], 2)], false],
+    ["stock not tracked", [{ manage_inventory: false }], true],
+    ["backorders allowed", [{ ...stocked([level("sloc_shop", 0)]), allow_backorder: true }], true],
+    ["tracked but no inventory item (unknown)", [{ manage_inventory: true }], true],
+  ])("in_stock: %s", (_label, variants, expected) => {
+    expect(toProductSearchDocument({ id: "p", sales_channels: channels, variants }).in_stock).toBe(expected)
   })
 })
