@@ -236,9 +236,10 @@ describe("setOwner", () => {
       user_id: "user_new",
       actor: "user_actor",
     })
+    // id goes inside the payload (e2acf6ff): generated update methods ignore a
+    // separate id argument.
     expect(container._spies.updateCrmOwnerAssignments).toHaveBeenCalledWith(
-      "crmown_existing",
-      expect.objectContaining({ user_id: "user_new" })
+      expect.objectContaining({ id: "crmown_existing", user_id: "user_new" })
     )
     expect(container._spies.createCrmOwnerAssignments).not.toHaveBeenCalled()
     expect(container._spies.linkCreate).not.toHaveBeenCalled()

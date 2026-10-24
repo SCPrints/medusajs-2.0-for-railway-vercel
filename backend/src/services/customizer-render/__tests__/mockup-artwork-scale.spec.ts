@@ -2,6 +2,13 @@ import sharp from "sharp"
 import { renderMockupAsset, scaledOverlayBox } from "../service"
 import { renderRequestSchema } from "../types"
 
+// No upload → data URL result. constants.ts reads env at import time, so
+// deleting MINIO_ENDPOINT in a hook is too late when backend/.env sets it.
+jest.mock("../../../lib/constants", () => ({
+  ...jest.requireActual("../../../lib/constants"),
+  MINIO_ENDPOINT: undefined,
+}))
+
 // Full-canvas red artwork on a 200×250 canvas, no garment photo (grey base).
 const W = 200
 const H = 250
@@ -23,14 +30,6 @@ const pixel = async (dataUrl: string, x: number, y: number) => {
 const isRed = ([r, g, b]: number[]) => r > 200 && g < 60 && b < 60
 
 describe("mockup artwork scale", () => {
-  const savedEndpoint = process.env.MINIO_ENDPOINT
-  beforeAll(() => {
-    delete process.env.MINIO_ENDPOINT // no upload → data URL result
-  })
-  afterAll(() => {
-    if (savedEndpoint !== undefined) process.env.MINIO_ENDPOINT = savedEndpoint
-  })
-
   it("scales about the garment centre line and the top of the print zone", () => {
     expect(scaledOverlayBox(200, 250, 0.5)).toEqual({ left: 50, top: 16, width: 100, height: 125 })
     expect(scaledOverlayBox(200, 250, 1)).toEqual({ left: 0, top: 0, width: 200, height: 250 })
