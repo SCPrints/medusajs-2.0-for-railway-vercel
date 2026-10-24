@@ -919,10 +919,10 @@ All other env vars (Medusa core, AS Colour, Stripe, etc.) are documented in [bac
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXT_PUBLIC_MEDUSA_BACKEND_URL` | Required. Public origin of the Medusa backend, e.g. `https://api.scprints.com.au`. Both server-side fetchers and the InstantSearch modal read this. |
+| `NEXT_PUBLIC_MEDUSA_BACKEND_URL` | Required. Public origin of the Medusa backend, e.g. `https://api.scprints.com.au`. Server-side fetchers and client components read this. |
 | `NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY` | Required. Medusa store API publishable key (`pk_…`); scopes responses to the storefront's sales channel. |
 | `NEXT_PUBLIC_DEFAULT_REGION` | Optional. Country code (e.g. `au`) used as fallback when the URL has no country prefix and the `x-vercel-ip-country` header is missing. Defaults to `us`. |
-| `NEXT_PUBLIC_SEARCH_ENDPOINT` | Required. Origin of the Meilisearch instance. Production: `https://sc-prints-search.fly.dev` (the self-hosted Fly Meili). Used by both the server `search()` action and the client `<InstantSearch>` modal — must be the SAME Meili the backend writes to, otherwise the storefront returns IDs that no longer exist in Medusa. |
+| `NEXT_PUBLIC_SEARCH_ENDPOINT` | Required. Origin of the Meilisearch instance. Production: `https://sc-prints-search.fly.dev` (the self-hosted Fly Meili). Used by both the server `search()` action and the client search overlay (plain fetch, no search library) — must be the SAME Meili the backend writes to, otherwise the storefront returns IDs that no longer exist in Medusa. |
 | `NEXT_PUBLIC_SEARCH_API_KEY` | Required. Meilisearch **search-scoped** API key (the "Default Search API Key" Meili generates — `actions: ["search"]`, all indexes). Safe to expose client-side. Distinct from the admin/master key used by the backend. |
 | `REVALIDATE_SECRET` | Required for backend → storefront cache invalidation. Must match `REVALIDATE_SECRET` set on the Medusa backend so signed POSTs to `/api/revalidate-products` are accepted. If empty/missing, the route returns 503 and every backend cache-tag purge silently fails. |
 | `NEXT_PUBLIC_VECTORIZATION_VARIANT_ID` | Variant ID of the vectorization service product. Without it, the modal still works but the service line isn't auto-added — your team adds it via Order Edit. |
