@@ -58,7 +58,14 @@ export const TimeInStageChart = ({
   const handleBarClick = (payload: any) => {
     const stageKey = payload?.stage_key
     if (typeof stageKey !== "string" || stageKey.length === 0) return
-    go(`/app/production?stage=${encodeURIComponent(stageKey)}`)
+    // Each stage's jobs live in a Jobs-list folder now.
+    const folder =
+      ["art_review", "awaiting_approval", "approved"].includes(stageKey) ? "artwork"
+      : ["blanks_ordered", "blanks_arrived"].includes(stageKey) ? "blanks"
+      : ["in_production", "quality_check"].includes(stageKey) ? "production"
+      : ["shipped", "delivered"].includes(stageKey) ? "done"
+      : null
+    go(folder ? `/app/jobs?folder=${folder}` : "/app/jobs")
   }
 
   return (

@@ -1,6 +1,3 @@
-import { tinted, NAV_COLOR } from "../../lib/nav-tint"
-import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { ShoppingBag } from "@medusajs/icons"
 import {
   Badge,
   Button,
@@ -167,11 +164,6 @@ const FulfillmentOrdersPage = () => {
   )
 }
 
-export const config = defineRouteConfig({
-  nested: "/orders",
-  label: "Fulfillment",
-  icon: tinted(ShoppingBag, NAV_COLOR.production),
-  rank: 21,
-})
-
+// No route config: off the sidebar since 2026-10-27 (no fulfilment order had
+// ever been created). Still reachable at /app/fulfillment.
 export default FulfillmentOrdersPage

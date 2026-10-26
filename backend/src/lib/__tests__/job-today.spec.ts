@@ -63,9 +63,21 @@ describe("queueFor", () => {
     expect(queueFor(job("a", { next_action: { kind: "nudge_payment", label: "" } }, { order: order({ tracks: { artwork: "approved", blanks: "arrived", downstream: "received" } }) }))).toBe("waiting_payment")
   })
 
+  it("puts a new quote nobody has answered in New, and closed jobs in Done / Lost", () => {
+    const newQuote = { ...job("a", {}).quote!, status: "new" }
+    const priceIt = { next_action: { kind: "price_it" as const, label: "Price it" } }
+    expect(queueFor(job("a", priceIt, { quote: newQuote }))).toBe("new")
+    // Once staff have emailed or logged a call it is being quoted.
+    const answered = [{ at: "2026-10-21T01:00:00.000Z", kind: "email_out" as const, title: "Email", detail: null, actor: "staff-email:sean@x.com" }]
+    expect(queueFor(job("a", priceIt, { quote: newQuote, activity: answered }))).toBe("to_quote")
+    expect(queueFor(job("a", { lost: true, next_action: { kind: "none", label: "Closed" } }))).toBe("lost")
+    expect(queueFor(job("a", { next_action: { kind: "none", label: "Delivered" } }, { order: order({ tracks: { artwork: "approved", blanks: "arrived", downstream: "delivered" } }) }))).toBe("done")
+  })
+
   it("falls back to where the job actually is for Reply / Follow up", () => {
     const reply = { kind: "reply" as const, label: "Reply" }
-    expect(queueFor(job("a", { next_action: reply }, { quote: { ...job("a", {}).quote!, status: "new" } }))).toBe("to_quote")
+    const staffAnswer = { at: "2026-10-20T00:00:00.000Z", kind: "email_out" as const, title: "Email", detail: null, actor: "staff-email:sean@x.com" }
+    expect(queueFor(job("a", { next_action: reply }, { quote: { ...job("a", {}).quote!, status: "new" }, activity: [...job("a", {}).activity, staffAnswer] }))).toBe("to_quote")
     expect(queueFor(job("a", { next_action: reply }))).toBe("quoted")
     expect(queueFor(job("a", { next_action: reply }, { order: order({ tracks: { artwork: "awaiting_approval", blanks: "not_started", downstream: "received" } }) }))).toBe("artwork")
     expect(queueFor(job("a", { next_action: reply }, { order: order({ tracks: { artwork: "approved", blanks: "ordered", downstream: "received" } }) }))).toBe("blanks")
@@ -99,15 +111,17 @@ describe("groupToday", () => {
         job("b", { days: 5 }),
         job("c", { days: 5 }, { flags: [{ kind: "no_order", label: "no order" }] }),
         job("d", { waiting_on: "customer", next_action: { kind: "nudge_quote", label: "Nudge" }, days: 2 }),
-        job("e", { lost: true }),
+        job("e", { lost: true, waiting_on: null, next_action: { kind: "none", label: "Closed" } }),
         job("x", { days: 0, next_action: { kind: "send_proof", label: "Send proof" } }, { kind: "order", order: order({ rush_tier: "express" }), money: { currency_code: "aud", quoted: null, order_total: 500, paid: 100, outstanding: 400, deposit_required_cents: 0, deposit_paid: false, open_payment_link: null } }),
         job("l", { days: 0, waiting_on: "customer", next_action: { kind: "wait_proof", label: "Proof sent" } }, { kind: "order", order: order({ needed_by: "2026-10-19", tracks: { artwork: "awaiting_approval", blanks: "not_started", downstream: "received" } }) }),
       ],
       NOW
     )
-    expect(view.rows.map((r) => r.id)).toEqual(["l", "x", "c", "b", "a", "d"])
+    // Closed jobs sit in their folder, after every open one.
+    expect(view.rows.map((r) => r.id)).toEqual(["l", "x", "c", "b", "a", "d", "e"])
     expect(view.rows[0]).toMatchObject({ risk: "late", queue: "artwork", needs_us: false })
-    expect(view.queues).toEqual({ to_quote: 0, quoted: 1, artwork: 2, blanks: 0, production: 0, waiting_payment: 3 })
+    expect(view.rows.at(-1)).toMatchObject({ queue: "lost", closed: true, needs_us: false })
+    expect(view.queues).toEqual({ new: 0, to_quote: 0, quoted: 1, artwork: 2, blanks: 0, production: 0, waiting_payment: 3, done: 0, lost: 1 })
     expect(view.needs_us).toBe(4)
     expect(view.summary).toEqual({ owed: 400, owed_jobs: 1, late: 1, at_risk: 0 })
     expect(view.rows.find((r) => r.id === "c")).toMatchObject({ label: "Q-C", customer: "Dean", total: 148, last_activity: { kind: "email_in" } })

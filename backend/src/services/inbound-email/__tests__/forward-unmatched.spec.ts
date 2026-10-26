@@ -2,9 +2,24 @@ jest.mock("../../../lib/constants", () => ({
   CONTACT_NOTIFICATION_EMAIL: "info@example.com",
   ORDER_INBOX_DOMAIN: "jobs.example.com",
   SUPPORT_REPLY_TO_EMAIL: "info@example.com",
+  RESEND_FROM_EMAIL: "SC Prints <orders@example.com>",
 }))
 
-import { forwardUnmatchedEmail } from "../record"
+import { forwardUnmatchedEmail, isStaffSender } from "../record"
+
+describe("isStaffSender", () => {
+  it("is our own mailbox when it shares the sending domain", () => {
+    expect(isStaffSender("Sean <SEAN@example.com>")).toBe(true)
+    expect(isStaffSender("info@example.com")).toBe(true)
+  })
+
+  it("is the customer otherwise, including look-alike domains", () => {
+    expect(isStaffSender("pat@club.org")).toBe(false)
+    expect(isStaffSender("x@notexample.com")).toBe(false)
+    expect(isStaffSender("x@example.com.evil.io")).toBe(false)
+    expect(isStaffSender(null)).toBe(false)
+  })
+})
 
 const containerWith = (send: jest.Mock) =>
   ({

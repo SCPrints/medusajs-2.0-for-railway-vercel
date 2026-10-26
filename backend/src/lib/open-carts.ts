@@ -11,7 +11,7 @@ import type QuoteModuleService from "../modules/quote/service"
  * Unfinished carts, surfaced to staff. Medusa's admin has no cart view, so a
  * customer who designs in the Studio and then enquires ("my designs are in the
  * cart") was invisible without a DB query. One lookup powers the enquiry email,
- * the /app/enquiries page (Open carts tab), the customer widget and the cmd-K palette.
+ * the /app/open-carts page (Customers → Open carts), the customer widget and the cmd-K palette.
  *
  * Raw SQL on purpose: the line metadata carries the full Fabric payload (MBs on
  * vector designs), so we pull only the artwork URLs out of the jsonb.
@@ -73,7 +73,7 @@ export function lineFiles(artifacts: unknown, originals: unknown): OpenCartFile[
 }
 
 export const openCartAdminUrl = (cartId: string) =>
-  `${(ADMIN_PUBLIC_URL || BACKEND_URL).replace(/\/+$/, "")}/app/enquiries?tab=carts&q=${encodeURIComponent(cartId)}`
+  `${(ADMIN_PUBLIC_URL || BACKEND_URL).replace(/\/+$/, "")}/app/open-carts?q=${encodeURIComponent(cartId)}`
 
 export type OpenCartQuery = { q: string; limit?: number }
 

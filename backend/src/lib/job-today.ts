@@ -1,26 +1,31 @@
 /**
- * Today list — pure rules over job states. Admin-safe (no framework imports).
+ * Jobs list — pure rules over job states. Admin-safe (no framework imports).
  *
  * One list, rushed and longest-waiting first. Each job sits in exactly one
- * queue (what it is waiting for right now — never the last finished step),
- * and "needs us" is the default view: every job whose next move is ours.
- *
- * Closed jobs, and shipped / delivered jobs with nothing owing, are left off.
+ * folder (what it is waiting for right now — never the last finished step),
+ * and "needs us" is the default view: every open job whose next move is ours.
+ * Done and Lost hold recently finished jobs; they never count as needing us.
  */
 import { businessDaysBetween } from "./business-days"
-import type { JobState, NextActionKind, WaitingOn } from "./job-state"
+import { threadTimes, type JobState, type NextActionKind, type WaitingOn } from "./job-state"
 import type { JobView } from "./job-view"
 
-export type TodayQueue = "to_quote" | "quoted" | "artwork" | "blanks" | "production" | "waiting_payment"
+export type TodayQueue = "new" | "to_quote" | "quoted" | "waiting_payment" | "artwork" | "blanks" | "production" | "done" | "lost"
 
+/** The folders, in the order they show. Keys are stable (URLs use them); labels are what staff see. */
 export const TODAY_QUEUES: { key: TodayQueue; label: string }[] = [
-  { key: "to_quote", label: "To quote" },
-  { key: "quoted", label: "Quoted" },
+  { key: "new", label: "New" },
+  { key: "to_quote", label: "Quoting" },
+  { key: "quoted", label: "Quote sent" },
+  { key: "waiting_payment", label: "Payment" },
   { key: "artwork", label: "Artwork" },
   { key: "blanks", label: "Blanks" },
   { key: "production", label: "Production" },
-  { key: "waiting_payment", label: "Waiting payment" },
+  { key: "done", label: "Done" },
+  { key: "lost", label: "Lost" },
 ]
+
+export const CLOSED_QUEUES: ReadonlySet<TodayQueue> = new Set(["done", "lost"])
 
 export type DateRisk = "late" | "at_risk" | null
 
@@ -33,6 +38,12 @@ export type TodayRow = {
   subject: string | null
   phase: JobState["phase"]
   queue: TodayQueue
+  /** Done or Lost. */
+  closed: boolean
+  /** The storefront's bot check flagged the enquiry. */
+  bot: boolean
+  /** Where a quote came from (contact, admin, cart, …); null for order-only jobs. */
+  source: string | null
   needs_us: boolean
   waiting_on: WaitingOn
   days: number
@@ -85,10 +96,14 @@ const QUEUE_BY_ACTION: Partial<Record<NextActionKind, TodayQueue>> = {
 }
 
 /**
- * Which queue a job sits in: by its next action when that says, else (reply,
- * follow-up) by where the job actually is.
+ * Which folder a job sits in. Lost and finished jobs first; then New — a quote
+ * nobody has emailed or logged a call on yet; then by its next action when
+ * that says, else (reply, follow-up) by where the job actually is.
  */
-export function queueFor(job: Pick<JobView, "order" | "quote" | "state">): TodayQueue {
+export function queueFor(job: Pick<JobView, "order" | "quote" | "state"> & { activity?: JobView["activity"] }): TodayQueue {
+  if (job.state.lost) return "lost"
+  if (job.state.next_action.kind === "none") return "done"
+  if (!job.order && job.quote?.status === "new" && threadTimes(job.activity ?? []).answers.length === 0) return "new"
   const byAction = QUEUE_BY_ACTION[job.state.next_action.kind]
   if (byAction) return byAction
   const o = job.order
@@ -124,6 +139,8 @@ export function dateRisk(job: Pick<JobView, "order" | "quote">, needed_by: strin
 export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
   const last = job.activity[0] ?? null
   const needed_by = job.order?.needed_by ?? job.quote?.needed_by ?? null
+  const queue = queueFor(job)
+  const closed = CLOSED_QUEUES.has(queue)
   return {
     id: job.id,
     kind: job.kind,
@@ -132,8 +149,11 @@ export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
     customer: job.customer.name ?? job.customer.email ?? "Customer",
     subject: job.quote?.subject ?? null,
     phase: job.state.phase,
-    queue: queueFor(job),
-    needs_us: job.state.waiting_on === "us",
+    queue,
+    closed,
+    bot: job.flags.some((f) => f.kind === "bot"),
+    source: job.quote?.source ?? null,
+    needs_us: !closed && job.state.waiting_on === "us",
     waiting_on: job.state.waiting_on,
     days: job.state.days,
     since: job.state.since,
@@ -158,24 +178,24 @@ const RISK_RANK = { late: 2, at_risk: 1 } as const
 const rushRank = (r: TodayRow) => (r.rush_tier ? RUSH_RANK[r.rush_tier] : 0)
 const riskRank = (r: TodayRow) => (r.risk ? RISK_RANK[r.risk] : 0)
 
-/** Late first, then rushed, then our move before theirs, then longest wait; flags break ties. */
+/** Open before closed; late first, then rushed, then our move before theirs, then longest wait; flags, then latest activity break ties. */
 const byUrgency = (a: TodayRow, b: TodayRow) =>
+  Number(a.closed) - Number(b.closed) ||
   riskRank(b) - riskRank(a) ||
   rushRank(b) - rushRank(a) ||
   Number(b.needs_us) - Number(a.needs_us) ||
   b.days - a.days ||
   b.flags.length - a.flags.length ||
-  (a.since ?? "").localeCompare(b.since ?? "")
+  (a.since ?? "").localeCompare(b.since ?? "") ||
+  (b.last_activity?.at ?? "").localeCompare(a.last_activity?.at ?? "")
 
 export function groupToday(jobs: JobView[], now: Date = new Date()): TodayView {
-  const rows = jobs
-    .filter((j) => !j.state.lost && j.state.next_action.kind !== "none")
-    .map((j) => rowFromJob(j, now))
-    .sort(byUrgency)
+  const rows = jobs.map((j) => rowFromJob(j, now)).sort(byUrgency)
   const queues = Object.fromEntries(TODAY_QUEUES.map((q) => [q.key, 0])) as Record<TodayQueue, number>
   const summary = { owed: 0, owed_jobs: 0, late: 0, at_risk: 0 }
   for (const r of rows) {
     queues[r.queue] += 1
+    if (r.closed) continue
     if (r.order_id && r.outstanding && r.outstanding > 0.01) {
       summary.owed += r.outstanding
       summary.owed_jobs += 1

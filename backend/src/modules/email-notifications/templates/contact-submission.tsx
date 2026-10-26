@@ -1,4 +1,4 @@
-import { Hr, Img, Link, Section, Text } from "react-email"
+import { Button, Hr, Img, Link, Section, Text } from "react-email"
 import { Base, STYLES, NAVY, BG_SUBTLE } from "./base"
 import type { OpenCart } from "../../../lib/open-carts"
 
@@ -37,6 +37,8 @@ export interface ContactSubmissionEmailProps {
   submission: ContactSubmissionEmailData
   /** Open carts for the sender's email — see lib/open-carts.ts. */
   carts?: OpenCart[] | null
+  /** The job the enquiry became (Jobs list → New). */
+  jobUrl?: string | null
   preview?: string
 }
 
@@ -91,6 +93,7 @@ export const isContactSubmissionData = (data: any): data is ContactSubmissionEma
 export const ContactSubmissionEmail = ({
   submission,
   carts,
+  jobUrl,
   preview = "A new contact form submission was received.",
 }: ContactSubmissionEmailProps) => {
   const senderName = [submission.firstName, submission.lastName].filter(Boolean).join(" ").trim()
@@ -100,6 +103,17 @@ export const ContactSubmissionEmail = ({
     <Base preview={preview}>
       <Text style={STYLES.eyebrow}>Contact form &middot; {submission.id}</Text>
       <Text style={STYLES.h1}>New contact submission</Text>
+
+      {jobUrl ? (
+        <Section style={{ margin: "16px 0 0" }}>
+          <Button href={jobUrl} style={STYLES.buttonPrimary}>
+            Open the job &rarr;
+          </Button>
+          <Text style={{ ...STYLES.meta, margin: "8px 0 0" }}>
+            It&rsquo;s in the Jobs list under New. Reply to this email and your answer goes to the customer and onto the job.
+          </Text>
+        </Section>
+      ) : null}
 
       <Section style={{ margin: "20px 0 0" }}>
         <Text style={{ ...STYLES.body, margin: 0 }}>

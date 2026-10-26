@@ -1,6 +1,8 @@
 # One Jobs list — plan
 
-**Status:** proposal for Sean's review, 26 Oct 2026. Nothing built.
+**Status:** approved 27 Oct 2026 with the four picks below. Step 1 live (f058de44, release v384). Steps 2 and 3 built together 27 Oct. Steps 4–6 to come.
+
+**Built differently from the plan:** a new enquiry's next action stays "Price it" (the mockup showed "Reply"); it sits in New until someone emails or logs a call. Staff replying from Gmail to the enquiry email is recorded on the job as our answer (`isStaffSender`), so it leaves New. The contact submissions archive page went with Enquiries; enquiries are jobs now and the raw rows stay in the database.
 **Builds on:** [ADMIN_JOB_WINDOW_2026_10.md](ADMIN_JOB_WINDOW_2026_10.md). That plan gave each job one window. This one gives staff one list to work from, and stops them leaving it.
 
 ## The problem

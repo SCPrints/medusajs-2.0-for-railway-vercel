@@ -357,7 +357,7 @@ export default async function orderPlacedHandler({
       })
     : []
   const quoteTag = openQuoteSubjectTag(openQuotes)
-  const adminQuotesUrl = `${(ADMIN_PUBLIC_URL || BACKEND_URL).replace(/\/$/, "")}/app/quotes`
+  const adminQuotesUrl = `${(ADMIN_PUBLIC_URL || BACKEND_URL).replace(/\/$/, "")}/app/jobs`
 
   for (const inbox of merchantInboxes) {
     try {

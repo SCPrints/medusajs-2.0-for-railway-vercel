@@ -6,19 +6,23 @@ This guide pairs with [`BACKEND_FLOW.md`](./BACKEND_FLOW.md) — that one's the 
 
 ---
 
-## Your daily home — **Today**
+## Your daily home — **Jobs**
 
-Path: `/app/today` (the first visit to Orders in a new tab lands here too)
+Path: `/app/jobs` (the first visit to Orders in a new tab lands here too; the old Today, Quotes and Enquiries links redirect here)
 
-Today is one list of every unfinished job — a job is a quote and/or the order it became — sorted longest wait first, in three sections:
+Every job in one list — a job is an enquiry, a quote and/or the order it became — sorted longest wait first. Folders across the top:
 
-| Section | What's in it | What you do |
-| --- | --- | --- |
-| **Customer waiting on us** | They emailed, accepted a quote, asked for proof changes, or are waiting for a price or a payment link | Press the button on the row: Reply, Convert to order, Revise the proof, Price it, Send payment link |
-| **Ready to move** | Proof ready to send, blanks arrived, QC done — or blanks a supplier owes us | Send proof, Start production, QC done, Mark shipped run from the list in one click |
-| **Waiting on customer** | Quote, proof or payment link sent and no answer yet | Leave it; Nudge after two business days (the proof reminder emails automatically) |
+| Folder | What's in it |
+| --- | --- |
+| **Needs us** (default) | Every open job whose next move is ours |
+| **New** | Enquiries nobody has emailed or logged a call on yet. Website contact-form enquiries arrive here on their own |
+| **Quoting** | Being priced or designed |
+| **Quote sent** | Waiting for the customer to accept (Nudge after two business days) |
+| **Payment** | Deposit, invoice or balance owed |
+| **Artwork** / **Blanks** / **Production** | Where the order is in the shop |
+| **Done** / **Lost** | Delivered and paid, or lost, expired or cancelled, in the last 90 days |
 
-Flags (stale, placeholder address, unanswered emails) and due dates show as badges on the row. Shipped and delivered jobs are not listed. Click the row to open the **job page**.
+The button on each row is the next step; one-click moves (send proof, blanks arrived, start production, QC done, shipped, payment link) run from the list. A **Possible bot** enquiry has a **Spam** button that moves it to Lost. **+ New job** is for a phone call or walk-in. The search box looks through every folder. The line under the heading shows what's owed, late and at risk. Click a row to open the **job page**.
 
 ### The job page
 
@@ -32,7 +36,7 @@ Path: `/app/jobs/<order id, quote id, Q-… number or order number>` — and the
 - **Send email** goes from `orders@scprints.com.au`; the customer's answer lands back in the diary and the job jumps to "Customer waiting on us". **Log call / note** records anything that happened off-system and counts as answering the customer. **Follow up on <date>** parks a job that's waiting on the customer until that day, then it comes back as "Follow up".
 - **Classic view**: More → Classic view (tabs) brings back the October tabbed layout for a while. It goes away once everyone's settled.
 
-**Customer emails**: every email the system sends about a job (quote, invoice, proof, stage updates) has a reply-to address that belongs to that job. When the customer replies, it lands on the job, a task is created for the owner and `info@` gets a "Customer replied" email. This needs the Resend receiving domain and Fly secrets described in `Docs/ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md` §9.
+**Customer emails**: every email the system sends about a job (quote, invoice, proof, stage updates) has a reply-to address that belongs to that job. When the customer replies, it lands on the job, a task is created for the owner and `info@` gets a "Customer replied" email. A reply to a job address that matches no job is forwarded to `info@`. The staff email for a new contact-form enquiry has an **Open the job** button; replying to that email from Gmail sends your answer to the customer and records it on the job.
 
 ---
 
@@ -97,20 +101,18 @@ Customers manage their own email/SMS/retargeting consent from their account prof
 
 ## Quote pipeline
 
-Path: Orders → **Quotes** (`/app/quotes`). Enquiries that aren't quotes yet (contact form, carts built in the Studio and never checked out) are under Orders → **Enquiries**.
-
-Every BYO inquiry, contact form quote request, or admin-created lead lands here as a "new" quote. Move it through the pipeline:
+Path: **Jobs** (`/app/jobs`). Every BYO inquiry, contact-form enquiry, Studio price request, cart "email me a quote" or staff-created job lands in **New** as a "new" quote. Carts built in the Studio and never checked out are under Customers → **Open carts**. Move a quote through the pipeline:
 
 ```
 new → quoted → accepted → order (unpaid, invoice + card link emailed)
            ↘ lost / expired
 ```
 
-**The list is just a list** — click a quote and it opens its **job page**. The **Quote** section there is where you build it: lines (pick catalog products, or design them in the Studio popup), the Job pricer for grouped jobs, mood board, assignee, status. Activity, replies, next action and Convert to order are on the same page. **+ New job** (here or on Today) opens the create form and lands on the new job.
+Click a job and it opens its **job page**. The **Quote** section there is where you build it: lines (pick catalog products, or design them in the Studio popup), the Job pricer for grouped jobs, mood board, assignee, status. Activity, replies, next action and Convert to order are on the same page. **+ New job** on the Jobs list opens the create form and lands on the new job.
 
 **One way to send it to the customer**: **Email customer…** in the Quote section. If every line has a price it sends the quote with the accept-and-pay link; if not, it sends the design-approval link (they approve the mockup or ask for changes, then you price it and send again). **Copy link** gives you the same link the email would carry, for pasting into an Outlook reply.
 
-**Accepting is ordering.** The customer gives their delivery address (or picks pick-up) on the accept page; the order is created at the quoted prices, the tax invoice is emailed, and a card payment link is offered. If a customer accepts but no order appears within a business day, Today flags it and the owner gets a task. Staff can convert from the job page instead ("Convert to order" asks for the address).
+**Accepting is ordering.** The customer gives their delivery address (or picks pick-up) on the accept page; the order is created at the quoted prices, the tax invoice is emailed, and a card payment link is offered. If a customer accepts but no order appears within a business day, the Jobs list flags it and the owner gets a task. Staff can convert from the job page instead ("Convert to order" asks for the address).
 
 **Mood boards:** Inquiries from the BYO form can include up to 5 reference images. They appear as thumbnails at the top of the quote detail.
 
@@ -393,7 +395,7 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | --- | --- |
 | Ring up a walk-in customer | `/app/pos` |
 | Take a card payment in-person (QR link) | `/app/pos` → Card (QR link) |
-| See what needs my attention today | `/app/today` |
+| See what needs my attention today | `/app/jobs` → Needs us |
 | Plan today's production runs (minimise setup changes) | `/app/production?tab=print-queue` |
 | Regenerate a product's description with AI | Product detail → AI description widget |
 | Find a customer who hasn't ordered in a while | Customers → the customer card (LTV widget), or `/app/reports` → RFM |
@@ -401,11 +403,11 @@ Each cron has its own `*_ENABLED` env var (see `backend/src/lib/constants.ts`). 
 | Mark a customer tax-exempt | Customer detail → Tax status widget |
 | Tag a customer as VIP / Wholesale | Customer detail → Tags widget |
 | Run a quote through to a paid order | Open the job → Quote section → price it (Job pricer or lines) → Email customer… (accept-and-pay link) → it becomes an order on accept |
-| See where a job is up to and what to do next | `/app/today`, or the job page from any order or quote |
+| See where a job is up to and what to do next | Its folder in `/app/jobs`, or the job page from any order or quote |
 | Reply to a customer so the answer comes back to the job | Job page → the reply box at the top of the diary |
-| Turn a contact-form enquiry into a job | Enquiries → Start job (opens the new job; the reply goes from its diary) |
+| Answer a contact-form enquiry | Jobs → New → open it (it's already a job), or reply to the staff email from Gmail |
 | Park a job until a date | Job → diary → Follow up on <date> |
-| See who owes money, what's late | Today — the line under the heading; chips filter the list |
+| See who owes money, what's late | Jobs — the line under the heading; the Payment folder lists who owes |
 | Convert an accepted quote by hand | Job page → Convert to order (asks for the delivery address) |
 | Plan the week's production | `/app/production?tab=calendar` |
 | Log a reject from this morning's misprint | Order detail → Rejects/spoilage widget |

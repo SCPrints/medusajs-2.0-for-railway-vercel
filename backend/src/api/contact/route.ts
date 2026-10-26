@@ -2,7 +2,9 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { INotificationModuleService } from "@medusajs/framework/types"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { ulid } from "ulid"
-import { CONTACT_NOTIFICATION_EMAIL, MINIO_PUBLIC_URL } from "../../lib/constants"
+import { CONTACT_NOTIFICATION_EMAIL, MINIO_PUBLIC_URL, ORDER_INBOX_DOMAIN } from "../../lib/constants"
+import { quoteInboxAddress } from "../../lib/order-inbox-alias"
+import { adminJobUrl, startJobFromEnquiry } from "../../services/jobs/start-from-enquiry"
 import {
   createContactSubmission,
   type ContactAttachment,
@@ -133,6 +135,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     )
   }
 
+  // Every enquiry is a job from the moment it lands (Jobs list → New). Never
+  // fail the form over it: the submission is saved and staff are emailed.
+  const job = await startJobFromEnquiry(req.scope, {
+    id: submissionId,
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    phone,
+    subject,
+    message,
+    attachments,
+    bot: relay.bot,
+  }).catch((error) => {
+    console.error("Contact submission: creating the job failed", error)
+    return null
+  })
+
   await fillCustomerBlanks(req.scope, email, { first_name: firstName, last_name: lastName, phone })
 
   const notificationRecipient = CONTACT_NOTIFICATION_EMAIL?.trim()
@@ -156,8 +175,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         data: {
           emailOptions: {
             subject: `${cartTag}${subject ? `New contact submission: ${subject}` : "New contact form submission"}`,
-            replyTo: email,
+            // Replying from Gmail goes to the customer AND the job's own
+            // address, so the answer shows on the job too.
+            replyTo: job && ORDER_INBOX_DOMAIN ? [email, quoteInboxAddress(job.quote_id)!] : email,
           },
+          jobUrl: job ? adminJobUrl(job.quote_id) : null,
           carts,
           submission: {
             id: submissionId,
@@ -189,6 +211,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     event: "contact form submitted",
     properties: {
       submission_id: submissionId,
+      job_quote_id: job?.quote_id ?? null,
       subject: subject ?? null,
       source_origin: sourceOrigin ?? null,
       attachment_count: attachments.length,

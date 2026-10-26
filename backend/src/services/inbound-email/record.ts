@@ -1,7 +1,8 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
 import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
-import { CONTACT_NOTIFICATION_EMAIL, ORDER_INBOX_DOMAIN } from "../../lib/constants"
+import { CONTACT_NOTIFICATION_EMAIL, ORDER_INBOX_DOMAIN, RESEND_FROM_EMAIL } from "../../lib/constants"
+import { STAFF_EMAIL_ACTOR_PREFIX } from "../../lib/job-state"
 import { parseInboxAlias, stripQuotedReply } from "../../lib/order-inbox-alias"
 import { ADMIN_WORKSPACE_MODULE } from "../../modules/admin-workspace"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
@@ -35,6 +36,21 @@ const htmlToText = (html: string): string =>
     .replace(/\n\s*\n/g, "\n\n")
     .trim()
 
+/** The bare address out of `Name <a@b>`, lower-cased. */
+const bareAddress = (from: string) => (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase()
+
+/**
+ * One of our own mailboxes: same domain as the address we send from
+ * (orders@scprints.com.au → scprints.com.au). Staff answering an enquiry from
+ * Gmail reply to the customer AND the job's address, so their answer reaches
+ * the webhook too — it is our reply, not the customer writing in.
+ */
+export function isStaffSender(from: string | null | undefined): boolean {
+  const domain = RESEND_FROM_EMAIL ? bareAddress(RESEND_FROM_EMAIL).split("@")[1] : null
+  if (!from || !domain) return false
+  return bareAddress(from).endsWith(`@${domain}`)
+}
+
 /** The reply's own text: plain text first, else de-tagged html, then the quoted thread cut off. */
 export function inboundBodyText(msg: Pick<InboundEmail, "text" | "html">): string {
   const raw = msg.text?.trim() || (msg.html ? htmlToText(msg.html) : "")
@@ -60,6 +76,9 @@ export async function recordInboundEmail(
   const from = msg.from?.trim() || null
   const body = inboundBodyText(msg)
   const header = `From: ${from ?? "unknown"}${msg.subject ? ` · Subject: ${msg.subject}` : ""}`
+  // Our own reply (from Gmail): recorded as our email, no "customer waiting" flag.
+  const staff = isStaffSender(from)
+  const actor = staff ? `${STAFF_EMAIL_ACTOR_PREFIX}${bareAddress(from!)}` : from ? `email:${from}` : "email"
 
   if (alias.kind === "order") {
     const { rows } = await pg.raw(
@@ -76,8 +95,12 @@ export async function recordInboundEmail(
     await workspace.createOrderComments({
       order_id: order.id,
       body: `${header}\n\n${body}`,
-      created_by: from ? `email:${from}` : "email",
+      created_by: actor,
     })
+    if (staff) {
+      logger.info(`inbound-email: order ${order.id} ← staff reply from ${from}`)
+      return { ok: true, kind: "order", id: order.id, task_id: null }
+    }
     const attention = await raiseAttention(container, {
       kind: "customer_reply",
       order_id: order.id,
@@ -106,9 +129,9 @@ export async function recordInboundEmail(
     {
       quote_id: quote.id,
       type: "message",
-      actor: from ? `email:${from}` : "email",
+      actor,
       body: {
-        direction: "in",
+        direction: staff ? "out" : "in",
         from,
         subject: msg.subject,
         text: body,
@@ -116,6 +139,10 @@ export async function recordInboundEmail(
       },
     },
   ])
+  if (staff) {
+    logger.info(`inbound-email: quote ${quote.id} ← staff reply from ${from}`)
+    return { ok: true, kind: "quote", id: quote.id, task_id: null }
+  }
   const attention = await raiseAttention(container, {
     kind: "customer_reply",
     quote_id: quote.id,
@@ -129,9 +156,6 @@ export async function recordInboundEmail(
   logger.info(`inbound-email: quote ${quote.id} ← ${from ?? "?"} (task ${attention.task_id ?? "none"})`)
   return { ok: true, kind: "quote", id: quote.id, task_id: attention.task_id }
 }
-
-/** The bare address out of `Name <a@b>`, lower-cased. */
-const bareAddress = (from: string) => (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase()
 
 /**
  * Mail on the inbox domain that matches no job (an old or mistyped alias, a

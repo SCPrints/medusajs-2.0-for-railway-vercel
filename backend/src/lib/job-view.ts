@@ -69,6 +69,8 @@ export type JobView = {
     id: string
     public_id: string
     status: string
+    /** Where it came from: contact, admin, cart, customizer_poa, … */
+    source: string | null
     subject: string | null
     assigned_to: string | null
     total_estimate: number | null

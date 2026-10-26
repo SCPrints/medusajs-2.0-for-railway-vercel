@@ -34,7 +34,10 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          Open <strong>Today</strong> (<AppLink href="/app/today" className="underline">/app/today</AppLink>) first thing every morning. It lists every open job, longest wait first, with the next action on each row:
+          Open <strong>Jobs</strong> (<AppLink href="/app/jobs" className="underline">/app/jobs</AppLink>) first thing every morning. It is every job in one list, with folders across the top — <strong>Needs us</strong> (the default), New, Quoting, Quote sent, Payment, Artwork, Blanks, Production, Done and Lost — longest wait first, with the next action on each row:
+        </Text>
+        <Text size="xsmall" className="text-ui-fg-muted mt-1">
+          Website contact-form enquiries arrive in <strong>New</strong> on their own. A possible bot has a <strong>Spam</strong> button that moves it to Lost. Use <strong>+ New job</strong> for a phone call or walk-in. The search box looks through every folder.
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm">
           <li><strong>Customer waiting on us</strong> — they replied, accepted, asked for changes, or are waiting for a price or a payment link.</li>
@@ -54,11 +57,11 @@ const SECTIONS: Section[] = [
       <>
         <Text>Eight groups. Click a group to see what&apos;s inside.</Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
-          <li><strong>Today</strong> — your daily home (above).</li>
-          <li><strong>Orders</strong> ▸ Quotes, Enquiries (contact form + carts never checked out), Board (the Production page: kanban, print queue, recipes, calendar, rejects), My tasks, POS, Fulfillment.</li>
+          <li><strong>Jobs</strong> — your daily home (above). Replaced Today, Quotes and Enquiries.</li>
+          <li><strong>Orders</strong> ▸ POS, Job pricer, Production (print queue, recipes, calendar, rejects), My tasks, Drafts. Medusa&apos;s own order list is where refunds and order edits live.</li>
           <li><strong>Products</strong> ▸ Product data, Brands, Print profiles, Shop categories, Bundles, Bottle shops.</li>
           <li><strong>Inventory</strong> — Medusa&apos;s stock pages.</li>
-          <li><strong>Customers</strong> ▸ Organisations, Owner rotation, Email suppressions.</li>
+          <li><strong>Customers</strong> ▸ Organisations, Owner rotation, Email suppressions, Open carts (Studio carts never checked out).</li>
           <li><strong>Promotions</strong> and <strong>Price lists</strong> — Medusa standard.</li>
           <li><strong>Storefront</strong> ▸ Lookbook, Home sections.</li>
           <li><strong>Dropship</strong> — AS Colour, Aussie Pacific and bottle-shop tabs.</li>
@@ -66,7 +69,7 @@ const SECTIONS: Section[] = [
           <li><strong>Setup</strong> ▸ Automation rules, Help &amp; guide.</li>
         </ul>
         <Text size="xsmall" className="text-ui-fg-muted mt-2">
-          Old links still work — pages that moved redirect to their new home. The Job pricer has no sidebar entry; open it from a quote or a job. The old Studio dashboard is gone; Today replaces it. Press <code>Cmd-K</code> to jump to any order, quote, customer or email.
+          Old links still work — pages that moved redirect to their new home (Today, Quotes and Enquiries all land in Jobs). Press <code>Cmd-K</code> to jump to any order, quote, customer or email.
         </Text>
       </>
     ),
@@ -77,7 +80,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          A <strong>job</strong> is a quote and/or the order it became. Open one from Today, from &quot;Open job&quot; on a quote, or at <code>/app/jobs/&lt;order id, quote id, Q-number or order number&gt;</code>. The same job panel sits at the top of every order in Orders; Medusa&apos;s own order card (items, payments, fulfilment, addresses) is below it.
+          A <strong>job</strong> is a quote and/or the order it became. Open one from the Jobs list, from &quot;Open job&quot; on an order, or at <code>/app/jobs/&lt;order id, quote id, Q-number or order number&gt;</code>. The same job panel sits at the top of every order in Orders; Medusa&apos;s own order card (items, payments, fulfilment, addresses) is below it.
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
           <li><strong>Header</strong> — customer (click to email or call), owner, quoted / order / paid / owing.</li>
@@ -255,7 +258,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          Orders → <AppLink href="/app/quotes" className="underline">Quotes</AppLink> — every BYO enquiry, contact-form quote request or admin lead lands here as <em>new</em>. Enquiries that aren&apos;t quotes yet (contact form, Studio carts never checked out) are under Orders → <AppLink href="/app/enquiries" className="underline">Enquiries</AppLink>.
+          Every enquiry is a job from the moment it lands — contact form, BYO form, Studio price request, &quot;email me a quote&quot; from the cart, or a job staff start with <strong>+ New job</strong> — and shows in <AppLink href="/app/jobs?folder=new" className="underline">Jobs → New</AppLink> until someone answers it. Studio carts never checked out are under Customers → <AppLink href="/app/open-carts" className="underline">Open carts</AppLink>. The staff email for a contact-form enquiry has an <strong>Open the job</strong> button, and replying to it from Gmail puts your answer on the job too.
         </Text>
         <Text className="mt-2">
           Move through: <strong>new → quoted → accepted → order</strong> (unpaid, invoice + card link emailed). Lost / expired close the loop.
@@ -264,7 +267,7 @@ const SECTIONS: Section[] = [
           <li><strong>The quote drawer is for building the quote</strong> — lines (catalog products, or designed in the Studio popup), the Job pricer for grouped jobs, mood board, assignee, status. Where the job is up to — activity, replies, next action, Convert to order — is on the <strong>job page</strong> (&quot;Open job&quot;).</li>
           <li><strong>Email customer…</strong> — the one way to send it. If every line has a price it sends the quote with the accept-and-pay link; if not, the design-approval link (they approve the mockup or ask for changes, you price it, send again). <strong>Copy link</strong> gives you the same link for pasting into an Outlook reply.</li>
           <li><strong>Accepting is ordering.</strong> The customer gives a delivery address (or picks pick-up) on the accept page; the order is created at the quoted prices, the tax invoice is emailed and a card payment link is offered.</li>
-          <li><strong>Accepted but no order?</strong> Today flags it within a business day and the owner gets a task. Convert by hand from the job page (&quot;Convert to order&quot; asks for the address).</li>
+          <li><strong>Accepted but no order?</strong> The Jobs list flags it within a business day and the owner gets a task. Convert by hand from the job page (&quot;Convert to order&quot; asks for the address).</li>
           <li><strong>Quote expiry</strong> — daily 23:00 UTC, <em>quoted</em> quotes past their expiry flip to <em>expired</em>. Opt-in via <code>QUOTE_EXPIRY_CRON_ENABLED=true</code>.</li>
           <li><strong>Cancelled orders don&apos;t un-accept the quote.</strong> The quote stays <em>accepted</em> with a note; the customer needs a fresh quote to re-order.</li>
         </ul>
@@ -367,10 +370,9 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text size="small" className="text-ui-fg-subtle mb-2">
-          All production tools live under Orders → <AppLink href="/app/production" className="underline">Board</AppLink> (<code>/app/production</code>) as tabs. Per-order tools (stages, recipes, photos, rejects) are under Production on the job page.
+          Shop-floor tools live under Orders → <AppLink href="/app/production" className="underline">Production</AppLink> (<code>/app/production</code>) as tabs. Per-order tools (stages, recipes, photos, rejects) are under Production on the job page. Which jobs are at which stage is the <AppLink href="/app/jobs" className="underline">Jobs</AppLink> list&apos;s Artwork, Blanks and Production folders.
         </Text>
         <ul className="list-disc pl-5 text-sm space-y-1">
-          <li><strong>Dashboard tab</strong> — kanban/list of every in-flight order with stage, decoration method and stale flag. For the day&apos;s to-do list use <AppLink href="/app/today" className="underline">Today</AppLink>.</li>
           <li><strong>Print queue tab</strong> — today&apos;s in-production orders grouped by ink/decoration so operators run similar setups back-to-back. Stale orders float to the top.</li>
           <li><strong>Print recipes tab</strong> — reusable settings library. Capture &amp; link to orders so operators have the right setup.</li>
           <li><strong>Production calendar tab</strong> — Gantt-style view of in-flight orders vs deadlines. Red bars = stale.</li>
@@ -907,8 +909,8 @@ const SECTIONS: Section[] = [
       <div className="grid grid-cols-1 small:grid-cols-2 gap-2 text-sm">
         <div><strong>Ring up a walk-in customer</strong> <AppLink href="/app/pos" className="underline">/app/pos</AppLink></div>
         <div><strong>Take a card payment in-person (QR link)</strong> <AppLink href="/app/pos" className="underline">/app/pos</AppLink> → Card (QR link)</div>
-        <div><strong>What needs my attention today?</strong> <AppLink href="/app/today" className="underline">Today</AppLink></div>
-        <div><strong>Where is a job up to?</strong> Today, or the job page from any order or quote</div>
+        <div><strong>What needs my attention today?</strong> <AppLink href="/app/jobs" className="underline">Jobs</AppLink> → Needs us</div>
+        <div><strong>Where is a job up to?</strong> Its folder in Jobs, or the job page from any order or quote</div>
         <div><strong>Reply so the answer comes back to the job</strong> Job page → Activity → reply box</div>
         <div><strong>Convert an accepted quote by hand</strong> Job page → Convert to order</div>
         <div><strong>What&apos;s on my plate?</strong> Orders → <AppLink href="/app/tasks" className="underline">My tasks</AppLink></div>

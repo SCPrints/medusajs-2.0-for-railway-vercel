@@ -1157,7 +1157,7 @@ function QuotePricerPage({ targetQuoteId }: { targetQuoteId: string | null }) {
       const id = json?.quote?.id ?? json?.id
       toast.success("Quote created")
       if (navigate || !id) {
-        go(id ? `/app/jobs/${id}` : "/app/quotes")
+        go(id ? `/app/jobs/${id}` : "/app/jobs")
         return null
       }
       // Stay on the pricer, now targeting the new quote (reload keeps it).

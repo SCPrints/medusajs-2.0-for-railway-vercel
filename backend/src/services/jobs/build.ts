@@ -373,6 +373,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
   if (ometa.is_stale === true) flags.push({ kind: "stale", label: `Stuck at ${ometa.stale_stage ?? ometa.stale_track ?? "a stage"}` })
   if (placeholder) flags.push({ kind: "address", label: "Delivery address is the studio placeholder" })
   if (!order && quote?.status === "accepted") flags.push({ kind: "no_order", label: "Accepted but no order created" })
+  if (!order && qmeta.bot_flagged === true) flags.push({ kind: "bot", label: "Possible bot" })
   const unread = inbound.filter((at) => !lastOutbound || at > lastOutbound).length
   if (unread) flags.push({ kind: "unread", label: `${unread} customer email${unread === 1 ? "" : "s"} unanswered` })
   const neededBy = ymd(ometa.needed_by) ?? ymd(qmeta.needed_by)
@@ -414,6 +415,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
           id: quote.id,
           public_id: publicId,
           status: quote.status,
+          source: quote.source ?? null,
           subject: quote.subject ?? null,
           assigned_to: quote.assigned_to ?? null,
           total_estimate: num(quote.total_estimate),

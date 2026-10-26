@@ -1,3 +1,4 @@
 import { makeRedirectPage } from "../../components/redirect-page"
 
-export default makeRedirectPage("/app/enquiries?tab=contact")
+// Contact-form enquiries are jobs now (Jobs → New).
+export default makeRedirectPage("/app/jobs?folder=new")
