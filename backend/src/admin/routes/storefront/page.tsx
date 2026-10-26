@@ -3,6 +3,7 @@ import { Sparkles } from "@medusajs/icons"
 import { Container, Heading, Text } from "@medusajs/ui"
 
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
+import { AppLink } from "../../lib/nav"
 
 /** Group page: what the public site shows. Children nest under it in the sidebar. */
 const StorefrontHub = () => (
@@ -10,8 +11,8 @@ const StorefrontHub = () => (
     <Heading level="h1">Storefront</Heading>
     <Text size="small" className="text-ui-fg-subtle">What scprints.com.au shows beyond the catalog.</Text>
     <ul className="list-disc pl-5 text-sm">
-      <li><a className="text-ui-fg-interactive hover:underline" href="/app/storefront/lookbook">Lookbook</a> — the gallery of past jobs at /lookbook.</li>
-      <li><a className="text-ui-fg-interactive hover:underline" href="/app/storefront/home-sections">Home sections</a> — the curated product rails on the home page.</li>
+      <li><AppLink className="text-ui-fg-interactive hover:underline" href="/app/storefront/lookbook">Lookbook</AppLink> — the gallery of past jobs at /lookbook.</li>
+      <li><AppLink className="text-ui-fg-interactive hover:underline" href="/app/storefront/home-sections">Home sections</AppLink> — the curated product rails on the home page.</li>
     </ul>
   </Container>
 )

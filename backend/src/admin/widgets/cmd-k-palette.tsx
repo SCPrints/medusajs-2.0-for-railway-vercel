@@ -4,6 +4,7 @@ import { Text } from "@medusajs/ui"
 import { useEffect, useRef, useState } from "react"
 
 import { PALETTE } from "../lib/reports/palette"
+import { AppLink, useGo } from "../lib/nav"
 
 /**
  * Floating Cmd+K (or Ctrl+K) command palette. Fuzzy search across
@@ -40,6 +41,7 @@ const TYPE_COLOR: Record<Hit["type"], string> = {
 }
 
 const CmdKPalette = () => {
+  const go = useGo()
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState("")
   const [hits, setHits] = useState<Hit[]>([])
@@ -117,7 +119,7 @@ const CmdKPalette = () => {
         setHighlight((h) => Math.max(0, h - 1))
       } else if (e.key === "Enter" && hits[highlight]) {
         e.preventDefault()
-        window.location.href = hits[highlight].href
+        go(hits[highlight].href)
         setOpen(false)
       }
     }
@@ -199,8 +201,9 @@ const CmdKPalette = () => {
             <ul className="divide-y" style={{ borderColor: PALETTE.stone200 }}>
               {hits.map((h, i) => (
                 <li key={`${h.type}-${h.id}`}>
-                  <a
+                  <AppLink
                     href={h.href}
+                    onClick={() => setOpen(false)}
                     onMouseEnter={() => setHighlight(i)}
                     className="flex items-center gap-x-3 px-3 py-2"
                     style={{
@@ -239,7 +242,7 @@ const CmdKPalette = () => {
                         ↵
                       </span>
                     ) : null}
-                  </a>
+                  </AppLink>
                 </li>
               ))}
             </ul>

@@ -2,6 +2,7 @@ import { Badge, Button, Container, Heading, Text, toast } from "@medusajs/ui"
 import { useCallback, useEffect, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
+import { AppLink } from "../../../lib/nav"
 
 type SampleEntry = {
   id: string
@@ -173,14 +174,14 @@ const TaxonomyAuditPanel = () => {
                         .slice(0, isExpanded ? dim.sample.length : 5)
                         .map((row) => (
                           <li key={row.id}>
-                            <a
+                            <AppLink
                               href={`/app/products/${row.id}`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-ui-fg-interactive hover:underline text-xs"
                             >
                               {row.title}
-                            </a>
+                            </AppLink>
                           </li>
                         ))}
                     </ul>

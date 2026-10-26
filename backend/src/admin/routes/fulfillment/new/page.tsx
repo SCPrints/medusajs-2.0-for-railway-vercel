@@ -11,6 +11,7 @@ import {
   toast,
 } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { AppLink, useGo } from "../../../lib/nav"
 
 type Organisation = {
   id: string
@@ -66,6 +67,7 @@ type LineDraft = {
 const centsToDollars = (c: number) => (c / 100).toFixed(2)
 
 const NewFulfillmentOrderPage = () => {
+  const go = useGo()
   const [orgs, setOrgs] = useState<Organisation[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>("")
   const [destinations, setDestinations] = useState<Destination[]>([])
@@ -249,7 +251,7 @@ const NewFulfillmentOrderPage = () => {
       }
       const json = (await res.json()) as { order_id: string }
       toast.success("Fulfillment order created")
-      window.location.href = `/app/orders/${json.order_id}`
+      go(`/app/orders/${json.order_id}`)
     } catch (err: any) {
       toast.error(err?.message ?? "Submit failed")
     } finally {
@@ -267,12 +269,12 @@ const NewFulfillmentOrderPage = () => {
     <Container className="p-0 divide-y">
       <div className="px-6 py-4 flex items-center justify-between">
         <Heading level="h1">New fulfillment order</Heading>
-        <a
+        <AppLink
           href="/app/fulfillment"
           className="text-sm text-ui-fg-interactive hover:underline"
         >
           ← Back to list
-        </a>
+        </AppLink>
       </div>
 
       <div className="px-6 py-4 grid grid-cols-1 small:grid-cols-2 gap-4">
@@ -595,11 +597,11 @@ const NewFulfillmentOrderPage = () => {
       </div>
 
       <div className="px-6 py-4 flex justify-end gap-x-2">
-        <a href="/app/fulfillment">
+        <AppLink href="/app/fulfillment">
           <Button variant="secondary" size="small">
             Cancel
           </Button>
-        </a>
+        </AppLink>
         <Button
           size="small"
           onClick={submit}

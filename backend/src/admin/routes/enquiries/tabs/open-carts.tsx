@@ -14,7 +14,7 @@ const OpenCartsPage = () => {
       setQ(input.trim())
       const url = new URL(window.location.href)
       input.trim() ? url.searchParams.set("q", input.trim()) : url.searchParams.delete("q")
-      window.history.replaceState(null, "", url)
+      window.history.replaceState(window.history.state, "", url) // keep the router's entry state
     }, 300)
     return () => clearTimeout(t)
   }, [input])

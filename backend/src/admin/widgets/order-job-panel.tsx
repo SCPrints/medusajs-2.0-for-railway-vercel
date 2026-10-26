@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 
 import type { JobView } from "../../lib/job-view"
 import { withWidgetBoundary } from "../components/widget-error-boundary"
+import { AppLink } from "../lib/nav"
 
 const WAIT: Record<string, { color: "red" | "blue" | "orange"; label: string }> = {
   us: { color: "red", label: "Waiting on us" },
@@ -51,7 +52,7 @@ const OrderJobBar = ({ data }: DetailWidgetProps<AdminOrder>) => {
       ) : null}
       <Text size="small" className="text-ui-fg-muted">Refunds, edits and cancelling are on this page.</Text>
       <Button size="small" className="ml-auto" asChild>
-        <a href={`/app/jobs/${encodeURIComponent(data.id)}`}>Open job →</a>
+        <AppLink href={`/app/jobs/${encodeURIComponent(data.id)}`}>Open job →</AppLink>
       </Button>
     </Container>
   )

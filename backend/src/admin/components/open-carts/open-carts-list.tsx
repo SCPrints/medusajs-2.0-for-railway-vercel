@@ -2,6 +2,7 @@ import { Badge, Button, Text, toast } from "@medusajs/ui"
 import { useEffect, useState } from "react"
 
 import type { OpenCart } from "../../../lib/open-carts"
+import { AppLink, useGo } from "../../lib/nav"
 
 const money = (n: number) =>
   new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(n)
@@ -19,6 +20,7 @@ export const OpenCartsList = ({
   emptyText?: string
   onLoaded?: (count: number) => void
 }) => {
+  const go = useGo()
   const [carts, setCarts] = useState<OpenCart[] | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -44,7 +46,7 @@ export const OpenCartsList = ({
       const r = await fetch(`/admin/open-carts/${cartId}/quote`, { method: "POST", credentials: "include" })
       const d = await r.json()
       if (!r.ok) throw new Error(d?.message ?? "Failed")
-      window.location.href = `/app/jobs/${encodeURIComponent(d.quote_id)}`
+      go(`/app/jobs/${encodeURIComponent(d.quote_id)}`)
     } catch (e: any) {
       toast.error(e?.message ?? "Could not create quote")
       setBusy(null)
@@ -62,9 +64,9 @@ export const OpenCartsList = ({
             <div>
               <Text weight="plus">
                 {cart.customer_id ? (
-                  <a className="underline" href={`/app/customers/${cart.customer_id}`}>
+                  <AppLink className="underline" href={`/app/customers/${cart.customer_id}`}>
                     {cart.customer_name || cart.email}
-                  </a>
+                  </AppLink>
                 ) : (
                   cart.email || "Guest (no email yet)"
                 )}
@@ -77,7 +79,7 @@ export const OpenCartsList = ({
             <div className="flex items-center gap-2">
               <Text weight="plus">{money(cart.item_total)}</Text>
               {cart.quote_id ? (
-                <Button size="small" variant="secondary" onClick={() => (window.location.href = `/app/jobs/${cart.quote_id}`)}>
+                <Button size="small" variant="secondary" onClick={() => (go(`/app/jobs/${cart.quote_id}`))}>
                   Open quote
                 </Button>
               ) : (

@@ -42,6 +42,7 @@ import ProductionRejectsPage from "./tabs/production-rejects"
 import ProductionCalendarPage from "./tabs/production-calendar"
 import { formatCurrency } from "../../lib/reports/format"
 import { initialHubTab } from "../../lib/hub-tab"
+import { AppLink } from "../../lib/nav"
 
 /* ---------- types mirrored from /admin/reports/production-snapshot ------- */
 
@@ -792,7 +793,7 @@ const OrderRow = ({
   }
 
   return (
-    <a
+    <AppLink
       href={`/app/jobs/${order.id}`}
       className="flex items-center gap-x-3 px-3 py-2 rounded-md border border-ui-border-base hover:bg-ui-bg-subtle transition"
     >
@@ -861,7 +862,7 @@ const OrderRow = ({
           </button>
         </Tooltip>
       ) : null}
-    </a>
+    </AppLink>
   )
 }
 
@@ -901,7 +902,7 @@ const KanbanCard = ({
   }
 
   return (
-    <a
+    <AppLink
       href={`/app/jobs/${order.id}`}
       className="flex flex-col gap-y-1 p-2 rounded-md bg-ui-bg-base border border-ui-border-base hover:border-ui-border-strong"
     >
@@ -948,7 +949,7 @@ const KanbanCard = ({
           </span>
         ))}
       </div>
-    </a>
+    </AppLink>
   )
 }
 

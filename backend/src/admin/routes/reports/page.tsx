@@ -78,6 +78,7 @@ import {
   PRESET_LABELS,
   type DateRangePreset,
 } from "../../lib/reports/date-range"
+import { AppLink } from "../../lib/nav"
 
 const PRESETS: DateRangePreset[] = [
   "last_7_days",
@@ -139,9 +140,9 @@ const ReportsPage = () => {
           Trend analysis across SC Prints' core signals: sales, production
           throughput, customer engagement, decoration mix, catalog &
           supply. For "what's stuck right now" see the{" "}
-          <a className="underline" href="/app/production">
+          <AppLink className="underline" href="/app/production">
             Production
-          </a>{" "}
+          </AppLink>{" "}
           page.
         </Text>
       </Container>

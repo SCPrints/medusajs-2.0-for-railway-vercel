@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import { METHOD_LABELS as SHARED_METHOD_LABELS } from "../../../lib/print-recipe-methods"
+import { AppLink } from "../../../lib/nav"
 
 type Job = {
   order_id: string
@@ -147,12 +148,12 @@ const PrintQueuePage = () => {
                       className={`px-4 py-2 ${j.is_stale ? "bg-rose-50" : ""}`}
                     >
                       <div className="flex items-baseline justify-between gap-x-2">
-                        <a
+                        <AppLink
                           href={`/app/jobs/${j.order_id}`}
                           className="text-sm font-semibold hover:underline"
                         >
                           #{j.display_id ?? j.order_id.slice(-6)}
-                        </a>
+                        </AppLink>
                         <div className="flex items-center gap-x-2 text-xs">
                           <span className="text-ui-fg-muted">{j.units} units</span>
                           {j.deadline_at ? (

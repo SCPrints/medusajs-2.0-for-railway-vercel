@@ -14,6 +14,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { STAGE_LABELS } from "../../lib/reports/stage-labels"
+import { useGo } from "../../lib/nav"
 
 type OpenOrder = {
   order_id: string
@@ -81,6 +82,7 @@ export const CapacityChart = ({
   regionId: string | null
 }) => {
   // Capacity is point-in-time, not period-bound — date range is ignored.
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/capacity", {
     region_id: _regionId,
   })
@@ -291,7 +293,7 @@ export const CapacityChart = ({
                     key={o.order_id}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle cursor-pointer"
                     onClick={() => {
-                      window.location.href = `/app/jobs/${o.order_id}`
+                      go(`/app/jobs/${o.order_id}`)
                     }}
                   >
                     <td className="px-2 py-1 tabular-nums font-medium">

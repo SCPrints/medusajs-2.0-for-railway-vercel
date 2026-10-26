@@ -1,5 +1,6 @@
 import { defineWidgetConfig } from "@medusajs/admin-sdk"
 import { useEffect } from "react"
+import { useGo } from "../lib/nav"
 
 /**
  * Medusa lands every login on /app/orders and offers no setting to change
@@ -10,12 +11,13 @@ import { useEffect } from "react"
 const KEY = "scp:landed-today"
 
 const LandingTodayRedirect = () => {
+  const go = useGo()
   useEffect(() => {
     try {
       if (sessionStorage.getItem(KEY)) return
       sessionStorage.setItem(KEY, "1")
       if (window.location.pathname.replace(/\/$/, "") === "/app/orders" && !window.location.search) {
-        window.location.replace("/app/today")
+        go("/app/today", { replace: true })
       }
     } catch {
       /* private mode: just stay on orders */

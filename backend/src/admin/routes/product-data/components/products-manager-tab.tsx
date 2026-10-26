@@ -24,6 +24,7 @@ import {
 } from "../../../components/multi-select-picker"
 import { sdk } from "../../../lib/sdk"
 import { buildCsv, downloadCsv } from "../../../lib/csv-export"
+import { AppLink } from "../../../lib/nav"
 
 /**
  * "Browse & manage" tab in /app/product-data.
@@ -1272,14 +1273,14 @@ const ResultsTable = (props: ResultsTableProps) => {
                       <div className="size-10 shrink-0 rounded-md bg-ui-bg-subtle" />
                     )}
                     <div className="flex min-w-0 flex-col">
-                      <a
+                      <AppLink
                         href={`/app/products/${p.id}`}
                         target="_blank"
                         rel="noreferrer"
                         className="text-sm text-ui-fg-base hover:underline truncate"
                       >
                         {p.title ?? "(no title)"}
-                      </a>
+                      </AppLink>
                       <span className="font-mono text-xs text-ui-fg-muted truncate">
                         {p.handle ?? "—"}
                       </span>

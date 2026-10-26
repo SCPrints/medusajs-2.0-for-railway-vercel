@@ -5,6 +5,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { formatCurrency } from "../../lib/reports/format"
+import { useGo } from "../../lib/nav"
 
 type Customer = {
   customer_id: string | null
@@ -48,6 +49,7 @@ regionId,
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/top-customers", {
     from: fromIso,
     to: toIso,
@@ -182,7 +184,7 @@ regionId,
                     key={c.customer_id ?? c.email + i}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle cursor-pointer"
                     onClick={() => {
-                      window.location.href = href
+                      go(href)
                     }}
                   >
                     {inner}

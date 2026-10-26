@@ -15,6 +15,7 @@ import {
   toast,
 } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 
 import { TIERS, getTierBySlug, tierForCustomer, type Tier } from "../../../lib/customer-tiers"
 import { CustomerLookup } from "../pos/components/customer-lookup"
@@ -59,6 +60,7 @@ import { parseDecorationPricingClass } from "../../../lib/scp-supacolour-pricing
 import { absorbStudioLines } from "../../lib/quote-pricer-absorb"
 import { pricerLineGroupId, pricerLineVariant } from "../../lib/quote-pricer-lines"
 import { pricerDesignLabel, pricerGroupTitle, pricerLineTitle, pricerPositionSummary } from "../../lib/quote-pricer-labels"
+import { useGo } from "../../lib/nav"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -602,8 +604,8 @@ function GarmentSearch({ onPick }: { onPick: (p: ProductLite) => void }) {
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
-function QuotePricerPage() {
-  const targetQuoteId = useMemo(() => new URLSearchParams(window.location.search).get("quote"), [])
+function QuotePricerPage({ targetQuoteId }: { targetQuoteId: string | null }) {
+  const go = useGo()
   const [targetQuote, setTargetQuote] = useState<{ id: string; public_id: string; email: string; customer_id: string | null } | null>(null)
   // Follows a quote created in place (Studio / email handoff) so the draft stops writing to "new".
   const draftKey = `scp:job-pricer:${targetQuote?.id ?? targetQuoteId ?? "new"}`
@@ -1128,7 +1130,7 @@ function QuotePricerPage() {
         clearDraft()
         if (navigate) {
           toast.success(`${lines.length} line(s) written to ${targetQuote.public_id}`)
-          window.location.assign(`/app/jobs/${targetQuote.id}`)
+          go(`/app/jobs/${targetQuote.id}`)
         }
         return targetQuote
       }
@@ -1155,13 +1157,15 @@ function QuotePricerPage() {
       const id = json?.quote?.id ?? json?.id
       toast.success("Quote created")
       if (navigate || !id) {
-        window.location.assign(id ? `/app/jobs/${id}` : "/app/quotes")
+        go(id ? `/app/jobs/${id}` : "/app/quotes")
         return null
       }
       // Stay on the pricer, now targeting the new quote (reload keeps it).
       const created = { id, public_id: json?.quote?.public_id ?? id, email: newEmail.trim(), customer_id: newCustomer && newCustomer.email?.toLowerCase() === newEmail.trim().toLowerCase() ? newCustomer.id : null }
       setTargetQuote(created)
-      window.history.replaceState(null, "", `${window.location.pathname}?quote=${id}`)
+      // Outside the router on purpose: a router navigation would remount the
+      // pricer (it is keyed by ?quote=) and drop the work just saved.
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}?quote=${id}`)
       return created
     } catch (err: any) {
       toast.error(err?.message ?? "Couldn't send to quote")
@@ -1179,7 +1183,7 @@ function QuotePricerPage() {
     try {
       const json = await adminPost<{ sent_to?: string; has_mockups?: boolean }>(`/admin/quotes/${quote.id}/design-approval-link`, { include_quote: true })
       toast.success(`Quote emailed to ${json.sent_to ?? "the customer"}${json.has_mockups ? "" : " (no mockup attached yet)"}`)
-      window.location.assign(`/app/jobs/${quote.id}`)
+      go(`/app/jobs/${quote.id}`)
     } catch (err: any) {
       toast.error(err?.message ?? "Saved, but the email failed — send it from the quote")
     } finally {
@@ -1882,4 +1886,10 @@ export const config = defineRouteConfig({
   rank: 12,
 })
 
-export default QuotePricerPage
+// In-app navigation keeps this route mounted, so remount per quote: all the
+// pricer's state (and its saved draft key) belongs to one quote.
+export default function QuotePricerRoute() {
+  const [params] = useSearchParams()
+  const quote = params.get("quote")
+  return <QuotePricerPage key={quote ?? "new"} targetQuoteId={quote} />
+}

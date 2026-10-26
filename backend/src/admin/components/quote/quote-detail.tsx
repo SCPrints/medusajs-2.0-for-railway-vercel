@@ -22,6 +22,7 @@ import {
   type PickedProductLine,
 } from "../quotes/product-line-picker"
 import { mergeServerRows } from "../../lib/quote-line-merge"
+import { AppLink } from "../../lib/nav"
 
 export type Quote = {
   id: string
@@ -607,9 +608,9 @@ export function LineItemsEditor({
       <div className="flex flex-wrap items-center gap-2">
         {pricerQuoteId ? (
           <Button size="small" variant="secondary" asChild>
-            <a href={`/app/quote-pricer?quote=${encodeURIComponent(pricerQuoteId)}`}>
+            <AppLink href={`/app/quote-pricer?quote=${encodeURIComponent(pricerQuoteId)}`}>
               <CurrencyDollar /> Price a job
-            </a>
+            </AppLink>
           </Button>
         ) : null}
         <Button
@@ -694,7 +695,7 @@ export function JobBreakdownCard({ jobPricer, quoteId }: { jobPricer: unknown; q
             </a>
           ))}
           <Button size="small" variant="secondary" asChild>
-            <a href={`/app/quote-pricer?quote=${encodeURIComponent(quoteId)}`}>Edit in Job pricer</a>
+            <AppLink href={`/app/quote-pricer?quote=${encodeURIComponent(quoteId)}`}>Edit in Job pricer</AppLink>
           </Button>
         </div>
       </div>
@@ -1008,19 +1009,19 @@ export function QuoteDetail({
             {allPriced ? "Copy accept link" : "Copy design-approval link"}
           </Button>
           <Button size="small" variant="secondary" asChild>
-            <a href={`/app/jobs/${encodeURIComponent(quote.id)}`} title="Phase, next action (incl. Convert to order), activity and replies.">
+            <AppLink href={`/app/jobs/${encodeURIComponent(quote.id)}`} title="Phase, next action (incl. Convert to order), activity and replies.">
               Open job
-            </a>
+            </AppLink>
           </Button>
           {convertedOrderId ? (
             <Button size="small" variant="secondary" asChild>
-              <a
+              <AppLink
                 href={`/app/orders/${convertedOrderId}`}
                 target="_blank"
                 rel="noreferrer"
               >
                 View order{convertedDisplayId ? ` #${convertedDisplayId}` : ""}
-              </a>
+              </AppLink>
             </Button>
           ) : null}
           <Badge color={STATUS_COLORS[quote.status]}>{STATUS_LABELS[quote.status]}</Badge>
@@ -1271,7 +1272,7 @@ export function QuoteDetail({
 
       <Text size="xsmall" className="text-ui-fg-muted">
         Activity (emails, status changes, tasks) and the next action live on the{" "}
-        <a className="underline" href={`/app/jobs/${encodeURIComponent(quote.id)}`}>job page</a>.
+        <AppLink className="underline" href={`/app/jobs/${encodeURIComponent(quote.id)}`}>job page</AppLink>.
       </Text>
     </div>
   )

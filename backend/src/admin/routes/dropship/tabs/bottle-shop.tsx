@@ -2,6 +2,7 @@ import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import { Badge, Button, Container, Heading, Text } from "@medusajs/ui"
 import { ArrowPath } from "@medusajs/icons"
 import { useCallback, useEffect, useState } from "react"
+import { AppLink } from "../../../lib/nav"
 
 type LineSummary = {
   productTitle: string
@@ -124,12 +125,12 @@ const BottleShopDropshipPage = () => {
               className="px-4 py-3 border-b border-ui-border-base last:border-b-0 flex flex-col gap-y-1"
             >
               <div className="flex items-center justify-between">
-                <a
+                <AppLink
                   href={`/app/jobs/${o.order_id}`}
                   className="text-ui-fg-interactive hover:underline"
                 >
                   <Text size="small" weight="plus">#{o.display_id}</Text>
-                </a>
+                </AppLink>
                 <Text size="xsmall" className="text-ui-fg-subtle">
                   {fmtDate(o.created_at)} · {o.customer || o.email}
                 </Text>
@@ -162,12 +163,12 @@ const BottleShopDropshipPage = () => {
               className="px-4 py-3 border-b border-ui-border-base last:border-b-0 flex flex-col gap-y-1"
             >
               <div className="flex items-center justify-between">
-                <a
+                <AppLink
                   href={`/app/jobs/${o.order_id}`}
                   className="text-ui-fg-interactive hover:underline"
                 >
                   <Text size="small" weight="plus">#{o.display_id}</Text>
-                </a>
+                </AppLink>
                 <Text size="xsmall" className="text-ui-fg-subtle">
                   Sent {fmtDateTime(o.bottle_shop_sent_at)}
                 </Text>

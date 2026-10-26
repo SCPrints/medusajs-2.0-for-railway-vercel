@@ -9,6 +9,7 @@ import {
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { formatCurrency } from "../../lib/reports/format"
+import { AppLink } from "../../lib/nav"
 
 type Segment = {
   method: DecorationMethodKey
@@ -100,7 +101,7 @@ const StackedBar = ({
                   : `${DECORATION_METHOD_LABELS[s.method]} · ${s.units} units (${(s[shareKey] * 100).toFixed(1)}%)`
               }
             >
-              <a
+              <AppLink
                 href={`/app/production?method=${encodeURIComponent(s.method)}`}
                 style={{
                   background: DECORATION_METHOD_COLORS[s.method],
@@ -116,7 +117,7 @@ const StackedBar = ({
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         {segments.map((s) => (
-          <a
+          <AppLink
             key={s.method}
             href={`/app/production?method=${encodeURIComponent(s.method)}`}
             className="flex items-center gap-x-1 hover:bg-ui-bg-subtle rounded px-1 -mx-1"
@@ -132,7 +133,7 @@ const StackedBar = ({
                 {(s[shareKey] * 100).toFixed(1)}%
               </span>
             </Text>
-          </a>
+          </AppLink>
         ))}
       </div>
     </div>

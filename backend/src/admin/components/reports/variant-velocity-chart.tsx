@@ -7,6 +7,7 @@ import { Sparkline } from "./sparkline"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
+import { useGo } from "../../lib/nav"
 
 type Row = {
   variant_id: string
@@ -56,6 +57,7 @@ export const VariantVelocityChart = ({
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error, loadedAt } = useReportData<Response>("/admin/reports/variant-velocity", {
     region_id: regionId,
   })
@@ -193,7 +195,7 @@ export const VariantVelocityChart = ({
                     key={r.variant_id}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle"
                     onClick={() => {
-                      if (href) window.location.href = href
+                      if (href) go(href)
                     }}
                     style={href ? { cursor: "pointer" } : undefined}
                   >

@@ -7,6 +7,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { formatCurrency } from "../../lib/reports/format"
+import { useGo } from "../../lib/nav"
 
 type Row = {
   handle: string
@@ -36,6 +37,7 @@ export const PdpConversionChart = ({
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error, loadedAt } = useReportData<Response>("/admin/reports/pdp-conversion", {
     from: fromIso,
     to: toIso,
@@ -140,7 +142,7 @@ export const PdpConversionChart = ({
                     key={r.handle}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle"
                     onClick={() => {
-                      if (href) window.location.href = href
+                      if (href) go(href)
                     }}
                     style={
                       lowConv

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react"
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { TODAY_QUEUES, type TodayQueue, type TodayRow, type TodayView } from "../../../lib/job-today"
 import { ONE_CLICK, performNextAction } from "../../components/job/actions"
+import { AppLink, useGo } from "../../lib/nav"
 
 type Chip = "needs_us" | TodayQueue | "all"
 
@@ -25,6 +26,7 @@ const shortDate = (ymd: string) => new Date(`${ymd}T00:00:00`).toLocaleDateStrin
 const ENQUIRY_WINDOW_DAYS = 7
 
 const TodayPage = () => {
+  const go = useGo()
   const [view, setView] = useState<TodayView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -60,7 +62,7 @@ const TodayPage = () => {
   const act = async (row: TodayRow) => {
     const kind = row.next_action.kind
     if (!ONE_CLICK.has(kind)) {
-      window.location.href = `/app/jobs/${encodeURIComponent(row.id)}`
+      go(`/app/jobs/${encodeURIComponent(row.id)}`)
       return
     }
     setBusy(row.id)
@@ -100,8 +102,8 @@ const TodayPage = () => {
         </div>
         <div className="flex gap-x-2">
           <Button size="small" variant="secondary" onClick={() => load(true)}>Refresh</Button>
-          <Button size="small" variant="secondary" asChild><a href="/app/tasks">My tasks</a></Button>
-          <Button size="small" asChild><a href="/app/quotes?new=1">+ New job</a></Button>
+          <Button size="small" variant="secondary" asChild><AppLink href="/app/tasks">My tasks</AppLink></Button>
+          <Button size="small" asChild><AppLink href="/app/quotes?new=1">+ New job</AppLink></Button>
         </div>
       </div>
 
@@ -112,9 +114,9 @@ const TodayPage = () => {
             <ChipButton key={q.key} active={chip === q.key} onClick={() => setChip(q.key)} label={q.label} count={view.queues[q.key]} />
           ))}
           <ChipButton active={chip === "all"} onClick={() => setChip("all")} label="All open" count={view.rows.length} />
-          <a href="/app/enquiries" className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-ui-border-base px-3 py-1 text-sm hover:bg-ui-bg-subtle-hover">
+          <AppLink href="/app/enquiries" className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-ui-border-base px-3 py-1 text-sm hover:bg-ui-bg-subtle-hover">
             Enquiries{enquiries != null ? <b className="tabular-nums">{enquiries}</b> : null} →
-          </a>
+          </AppLink>
         </div>
       ) : null}
 
@@ -130,7 +132,7 @@ const TodayPage = () => {
           const stripe = row.risk === "late" ? "border-l-ui-tag-red-icon" : row.needs_us ? "border-l-ui-tag-red-icon" : row.waiting_on === "customer" ? "border-l-ui-tag-blue-icon" : "border-l-ui-tag-green-icon"
           return (
             <div key={row.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base border-l-4 ${stripe} bg-ui-bg-base px-4 py-3`}>
-              <a href={`/app/jobs/${encodeURIComponent(row.id)}`} className="min-w-[260px] flex-1 hover:underline">
+              <AppLink href={`/app/jobs/${encodeURIComponent(row.id)}`} className="min-w-[260px] flex-1 hover:underline">
                 <Text weight="plus">
                   {row.customer} <span className="text-ui-fg-subtle font-normal">· {row.subject ?? row.label}{row.subject ? ` · ${row.label}` : ""}</span>
                 </Text>
@@ -138,7 +140,7 @@ const TodayPage = () => {
                   {row.last_activity ? row.last_activity.title : "No activity yet"}
                   {row.flags.length ? ` · ${row.flags.map((f) => f.label).join(" · ")}` : ""}
                 </Text>
-              </a>
+              </AppLink>
               {row.risk === "late" ? <Badge color="red" size="2xsmall">Late · needed {row.needed_by ? shortDate(row.needed_by) : ""}</Badge> : null}
               {row.risk === "at_risk" ? <Badge color="orange" size="2xsmall">At risk · needed {row.needed_by ? shortDate(row.needed_by) : ""}</Badge> : null}
               {row.rush_tier ? <Badge color="red" size="2xsmall">{row.rush_tier === "express" ? "Express" : "Priority"}</Badge> : null}

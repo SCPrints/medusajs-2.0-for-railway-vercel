@@ -4,6 +4,7 @@ import { Badge, Container, Heading, Text, toast } from "@medusajs/ui"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
+import { AppLink } from "../../../lib/nav"
 
 type CalendarEntry = {
   order_id: string
@@ -171,7 +172,7 @@ const ProductionCalendarPage = () => {
                           : "border-ui-border-base bg-ui-bg-base"
                       }`}
                     >
-                      <a
+                      <AppLink
                         href={`/app/jobs/${e.order_id}`}
                         className="absolute inset-0 flex items-center pl-3 pr-2 text-xs hover:bg-ui-bg-subtle"
                       >
@@ -181,7 +182,7 @@ const ProductionCalendarPage = () => {
                         <span className="truncate text-ui-fg-muted">
                           {e.email ?? "guest"}
                         </span>
-                      </a>
+                      </AppLink>
                       <div
                         className="absolute top-1 bottom-1 rounded"
                         style={{

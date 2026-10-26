@@ -16,6 +16,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { STAGE_LABELS } from "../../lib/reports/stage-labels"
+import { AppLink, useGo } from "../../lib/nav"
 
 type StageRow = {
   stage: string
@@ -64,6 +65,7 @@ export const SlaBreachChart = ({
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/sla-breach", {
     from: fromIso,
     to: toIso,
@@ -252,12 +254,12 @@ export const SlaBreachChart = ({
             {/* This chart also renders inside the Production page's summary
                 strip, where the deep link just reloads the page you're on. */}
             {!window.location.pathname.startsWith("/app/production") ? (
-              <a
+              <AppLink
                 className="text-xs underline text-ui-fg-subtle"
                 href="/app/production?stuck=1"
               >
                 Open in Production →
-              </a>
+              </AppLink>
             ) : null}
           </div>
           <div className="overflow-auto max-h-[240px]">
@@ -277,7 +279,7 @@ export const SlaBreachChart = ({
                     key={b.order_id}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle cursor-pointer"
                     onClick={() => {
-                      window.location.href = `/app/jobs/${b.order_id}`
+                      go(`/app/jobs/${b.order_id}`)
                     }}
                   >
                     <td className="px-2 py-1 tabular-nums font-medium">

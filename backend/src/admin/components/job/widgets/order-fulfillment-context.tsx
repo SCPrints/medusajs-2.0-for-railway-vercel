@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 
 import { withWidgetBoundary } from "../../../components/widget-error-boundary"
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
+import { AppLink } from "../../../lib/nav"
 
 type Organisation = {
   id: string
@@ -175,12 +176,12 @@ const OrderFulfillmentContextWidget = ({
           </Text>
           <Text>
             {organisation ? (
-              <a
+              <AppLink
                 href="/app/organisations"
                 className="text-ui-fg-interactive hover:underline"
               >
                 {organisation.name}
-              </a>
+              </AppLink>
             ) : (
               orgId ?? "—"
             )}

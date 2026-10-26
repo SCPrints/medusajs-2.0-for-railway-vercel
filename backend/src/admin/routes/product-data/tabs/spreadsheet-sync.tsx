@@ -47,6 +47,7 @@ import {
 import type { TierMoneyMinor } from "../../../lib/spreadsheet-money"
 import { parseCsv, readCsvFile } from "../../../lib/csv-import"
 import { sdk } from "../../../lib/sdk"
+import { AppLink } from "../../../lib/nav"
 
 const adminFetchPath = (path: string) => {
   const base = (import.meta.env.VITE_BACKEND_URL ?? "").replace(/\/$/, "")
@@ -734,9 +735,9 @@ const SpreadsheetSyncPage = () => {
             Product Id
           </code>{" "}
           or handle — duplicate handles follow Medusa/API rules. Bulk updates to existing products live under{" "}
-          <a href="/app/product-data?tab=update-existing" className="text-ui-fg-interactive hover:underline">
+          <AppLink href="/app/product-data?tab=update-existing" className="text-ui-fg-interactive hover:underline">
             Spreadsheet sync (updates)
-          </a>
+          </AppLink>
           .
         </Text>
         <Text size="small" className="text-ui-fg-muted mt-2">

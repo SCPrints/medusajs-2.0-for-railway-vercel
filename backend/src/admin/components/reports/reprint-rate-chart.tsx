@@ -10,6 +10,7 @@ import {
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { STAGE_LABELS } from "../../lib/reports/stage-labels"
+import { useGo } from "../../lib/nav"
 
 type Event = {
   order_id: string
@@ -46,6 +47,7 @@ export const ReprintRateChart = ({
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/reprint-rate", {
     from: fromIso,
     to: toIso,
@@ -268,7 +270,7 @@ export const ReprintRateChart = ({
                     key={e.order_id + e.rolled_back_at}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle cursor-pointer"
                     onClick={() => {
-                      window.location.href = `/app/jobs/${e.order_id}`
+                      go(`/app/jobs/${e.order_id}`)
                     }}
                   >
                     <td className="px-2 py-1 tabular-nums font-medium">

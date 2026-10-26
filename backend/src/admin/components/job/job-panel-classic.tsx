@@ -9,6 +9,7 @@ import { TaskQuickAdd } from "../task-quick-add"
 import { ConvertAddressForm } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
 import * as W from "./widgets"
+import { AppLink, useGo } from "../../lib/nav"
 
 /**
  * The job window (Docs/ADMIN_JOB_WINDOW_2026_10.md): header, phase strip, ONE
@@ -80,6 +81,7 @@ const VERB_TITLE: Record<Verb, string> = {
 }
 
 export function JobPanelClassic({ job, order, onChanged }: Props) {
+  const go = useGo()
   const firstTab = job.state.next_action.tab
   const [tab, setTab] = useState<Tab>(firstTab && firstTab !== "activity" ? firstTab : "overview")
   const [busy, setBusy] = useState<NextActionKind | null>(null)
@@ -107,7 +109,7 @@ export function JobPanelClassic({ job, order, onChanged }: Props) {
         kind
       )
       if ("navigate" in out) {
-        window.location.href = out.navigate
+        go(out.navigate)
         return
       }
       if ("tab" in out) {
@@ -218,9 +220,9 @@ export function JobPanelClassic({ job, order, onChanged }: Props) {
             ))}
             {job.quote && !job.order ? (
               <Button size="small" variant="secondary" asChild>
-                <a href={job.quote.has_job_pricer ? `/app/quote-pricer?quote=${job.quote.id}` : `/app/jobs/${job.quote.id}#quote`}>
+                <AppLink href={job.quote.has_job_pricer ? `/app/quote-pricer?quote=${job.quote.id}` : `/app/jobs/${job.quote.id}#quote`}>
                   {job.quote.has_job_pricer ? "Edit in pricer" : "Edit quote"}
-                </a>
+                </AppLink>
               </Button>
             ) : null}
             <div className="ml-auto">
@@ -232,12 +234,12 @@ export function JobPanelClassic({ job, order, onChanged }: Props) {
                   {order ? <DropdownMenu.Item onClick={() => setVerb("dsp")}>Send to DSP</DropdownMenu.Item> : null}
                   {order ? <DropdownMenu.Item onClick={() => setVerb("drive")}>Drive folder</DropdownMenu.Item> : null}
                   {order ? (
-                    <DropdownMenu.Item onClick={() => (window.location.href = `/app/orders/${job.order!.id}`)}>
+                    <DropdownMenu.Item onClick={() => (go(`/app/orders/${job.order!.id}`))}>
                       Medusa order page (refund, edit, cancel)
                     </DropdownMenu.Item>
                   ) : null}
                   {job.quote ? (
-                    <DropdownMenu.Item onClick={() => (window.location.href = `/app/jobs/${job.quote!.id}#quote`)}>Open quote</DropdownMenu.Item>
+                    <DropdownMenu.Item onClick={() => (go(`/app/jobs/${job.quote!.id}#quote`))}>Open quote</DropdownMenu.Item>
                   ) : null}
                   <DropdownMenu.Item onClick={() => setVerb("task")}>Add a task</DropdownMenu.Item>
                   <DropdownMenu.Item onClick={copyJobLink}>Copy job link</DropdownMenu.Item>
@@ -343,7 +345,7 @@ export function JobPanelClassic({ job, order, onChanged }: Props) {
                   <Heading level="h2">Design approval</Heading>
                   <Text size="small" className="mt-1">{job.quote?.design_approval_status ? `Status: ${job.quote.design_approval_status}` : "No design approval sent yet."}</Text>
                   <Text size="small" className="text-ui-fg-subtle mt-1">Design in the Studio and send the approval link from the quote.</Text>
-                  <Button size="small" variant="secondary" className="mt-2" asChild><a href={`/app/jobs/${job.quote?.id}#quote`}>Open quote</a></Button>
+                  <Button size="small" variant="secondary" className="mt-2" asChild><AppLink href={`/app/jobs/${job.quote?.id}#quote`}>Open quote</AppLink></Button>
                 </Container>
               )}
             </Tabs.Content>

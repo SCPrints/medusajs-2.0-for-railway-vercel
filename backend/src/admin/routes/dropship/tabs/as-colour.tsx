@@ -11,6 +11,7 @@ import {
 } from "@medusajs/ui"
 import { ArrowPath } from "@medusajs/icons"
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { AppLink } from "../../../lib/nav"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -529,14 +530,14 @@ const PendingTab = ({
                   className="mt-0.5 h-4 w-4 rounded cursor-pointer"
                 />
                 <div className="w-16 shrink-0">
-                  <a
+                  <AppLink
                     href={`/app/jobs/${order.order_id}`}
                     className="text-sm text-ui-fg-interactive hover:underline"
                     target="_blank"
                     rel="noreferrer"
                   >
                     #{order.display_id}
-                  </a>
+                  </AppLink>
                 </div>
                 <div className="w-24 shrink-0 text-sm text-ui-fg-subtle">
                   {fmtDate(order.created_at)}
@@ -685,14 +686,14 @@ const SentTab = ({ orders }: { orders: SentOrder[] }) => {
             className="flex items-start gap-x-3 px-4 py-3 border-b border-ui-border-base last:border-b-0 hover:bg-ui-bg-subtle/30 transition"
           >
             <div className="w-16 shrink-0">
-              <a
+              <AppLink
                 href={`/app/jobs/${order.order_id}`}
                 className="text-sm text-ui-fg-interactive hover:underline"
                 target="_blank"
                 rel="noreferrer"
               >
                 #{order.display_id}
-              </a>
+              </AppLink>
             </div>
             <div className="w-24 shrink-0 text-sm text-ui-fg-subtle">
               {fmtDate(order.ascolour_sent_at)}
@@ -794,14 +795,14 @@ const InHouseTab = ({
           className="flex items-start gap-x-3 px-4 py-3 border-b border-ui-border-base last:border-b-0 hover:bg-ui-bg-subtle/30 transition"
         >
           <div className="w-16 shrink-0">
-            <a
+            <AppLink
               href={`/app/jobs/${order.order_id}`}
               className="text-sm text-ui-fg-interactive hover:underline"
               target="_blank"
               rel="noreferrer"
             >
               #{order.display_id}
-            </a>
+            </AppLink>
           </div>
           <div className="w-24 shrink-0 text-sm text-ui-fg-subtle">
             {fmtDate(order.ascolour_in_house_at)}

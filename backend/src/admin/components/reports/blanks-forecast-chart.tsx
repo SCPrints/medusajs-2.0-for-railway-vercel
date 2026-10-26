@@ -5,6 +5,7 @@ import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
+import { useGo } from "../../lib/nav"
 
 type ForecastRow = {
   variant_id: string
@@ -44,6 +45,7 @@ export const BlanksForecastChart = ({
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/blanks-forecast", {
     region_id: regionId,
   })
@@ -189,7 +191,7 @@ export const BlanksForecastChart = ({
                     key={r.variant_id}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle"
                     onClick={() => {
-                      if (href) window.location.href = href
+                      if (href) go(href)
                     }}
                     style={
                       urgentDeficit > 0

@@ -12,6 +12,7 @@ import { Fragment, useEffect, useState } from "react"
 
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
 import { buildMailtoUrl, contactFullName } from "../../../lib/contact-reply"
+import { useGo } from "../../../lib/nav"
 
 type Attachment = {
   url: string
@@ -43,6 +44,7 @@ const formatBytes = (bytes: number | null) => {
 }
 
 const ContactSubmissionsPage = () => {
+  const go = useGo()
   const [rows, setRows] = useState<Submission[]>([])
   const [total, setTotal] = useState(0)
   const [search, setSearch] = useState("")
@@ -88,7 +90,7 @@ const ContactSubmissionsPage = () => {
       const res = await fetch(`/admin/contact-submissions/${encodeURIComponent(s.id)}/start-job`, { method: "POST", credentials: "include" })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error((json as any)?.error ?? `HTTP ${res.status}`)
-      window.location.href = `/app/jobs/${encodeURIComponent((json as any).quote_id)}`
+      go(`/app/jobs/${encodeURIComponent((json as any).quote_id)}`)
     } catch (err: any) {
       toast.error(err?.message ?? "Couldn't start the job")
       setStarting(null)

@@ -37,6 +37,7 @@ import {
   type Quote,
   type Region,
 } from "../../components/quote/quote-detail"
+import { AppLink, useGo } from "../../lib/nav"
 
 function NewQuoteDrawer({
   open,
@@ -312,6 +313,7 @@ function NewQuoteDrawer({
   )
 }
 const QuotesPage = () => {
+  const go = useGo()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [statusFilter, setStatusFilter] = useState<string>("active")
   const [search, setSearch] = useState("")
@@ -324,7 +326,7 @@ const QuotesPage = () => {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
     const id = p.get("id") ?? p.get("quote")
-    if (id) window.location.replace(`/app/jobs/${encodeURIComponent(id)}#quote`)
+    if (id) go(`/app/jobs/${encodeURIComponent(id)}#quote`, { replace: true })
   }, [])
 
   // Prefer the AUD region (the catalog is AUD-only); fall back to the first.
@@ -419,7 +421,7 @@ const QuotesPage = () => {
           <ul className="divide-y divide-ui-border-base">
             {quotes.map((q) => (
               <li key={q.id}>
-                <a href={`/app/jobs/${encodeURIComponent(q.id)}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 hover:bg-ui-bg-subtle -mx-2 px-2 rounded-md">
+                <AppLink href={`/app/jobs/${encodeURIComponent(q.id)}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 hover:bg-ui-bg-subtle -mx-2 px-2 rounded-md">
                   <span className="min-w-[220px] flex-1">
                     <Text weight="plus">
                       {q.contact_name || q.company || q.email}
@@ -429,7 +431,7 @@ const QuotesPage = () => {
                   </span>
                   {q.total_estimate != null ? <Text size="small" weight="plus" className="tabular-nums">${Number(q.total_estimate).toFixed(2)}</Text> : null}
                   <Badge color={STATUS_COLORS[q.status]}>{STATUS_LABELS[q.status]}</Badge>
-                </a>
+                </AppLink>
               </li>
             ))}
           </ul>
@@ -443,7 +445,7 @@ const QuotesPage = () => {
         onCreated={(id) => {
           // The job window takes it from here; a Studio popup opened from the
           // drawer keeps posting designs to the quote on its own.
-          window.location.href = `/app/jobs/${encodeURIComponent(id)}#quote`
+          go(`/app/jobs/${encodeURIComponent(id)}#quote`)
         }}
       />
     </Container>

@@ -8,6 +8,7 @@ import {
 import { useEffect, useState } from "react"
 import SystemMapPage from "../../system-map/page"
 import { HelpTooltip } from "../../../components/reports/help-tooltip"
+import { AppLink } from "../../../lib/nav"
 
 /**
  * In-admin staff guide. Renders an embedded copy of `Docs/STAFF_GUIDE.md`
@@ -33,7 +34,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          Open <strong>Today</strong> (<a href="/app/today" className="underline">/app/today</a>) first thing every morning. It lists every open job, longest wait first, with the next action on each row:
+          Open <strong>Today</strong> (<AppLink href="/app/today" className="underline">/app/today</AppLink>) first thing every morning. It lists every open job, longest wait first, with the next action on each row:
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm">
           <li><strong>Customer waiting on us</strong> — they replied, accepted, asked for changes, or are waiting for a price or a payment link.</li>
@@ -111,7 +112,7 @@ const SECTIONS: Section[] = [
               body: "Each track has its own limit in business days (artwork in review 2, awaiting approval 4, blanks ordered 5, in production 3, QC 2). Flagged by the daily 08:00 UTC scan; clears when the stage moves. The owner gets a task once per stuck stay.",
             }} />
             {" — shows at the very top when a stage has sat past its limit. Clears when the stage moves. The owner gets a task in "}
-            <a href="/app/tasks" className="underline">My tasks</a>.
+            <AppLink href="/app/tasks" className="underline">My tasks</AppLink>.
           </li>
           <li><strong>Production photos</strong> — the latest photo auto-appears in the customer&apos;s next stage email.</li>
           <li><strong>Watchers</strong> — up to 5 extra emails CC&apos;d on production-stage updates.</li>
@@ -152,7 +153,7 @@ const SECTIONS: Section[] = [
 
         <Text className="mt-3 font-semibold">Setting up rotation</Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
-          <li><a href="/app/rotation" className="underline">/app/rotation</a> — admin page where you toggle who's "in rotation".</li>
+          <li><AppLink href="/app/rotation" className="underline">/app/rotation</AppLink> — admin page where you toggle who's "in rotation".</li>
           <li>Add at least one teammate before flipping <code>OWNER_AUTOSTAMP_ENABLED=true</code> in env — otherwise auto-stamp is a no-op.</li>
           <li><strong>On leave?</strong> Toggle a member's <em>Enabled</em> switch off. They stay in the rotation history but are skipped for picks. Flip back on when they return.</li>
           <li><strong>Position</strong> is a tiebreaker only — lower numbers picked first when <code>last_picked_at</code> is tied. Most setups can leave it at the default 100.</li>
@@ -254,7 +255,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          Orders → <a href="/app/quotes" className="underline">Quotes</a> — every BYO enquiry, contact-form quote request or admin lead lands here as <em>new</em>. Enquiries that aren&apos;t quotes yet (contact form, Studio carts never checked out) are under Orders → <a href="/app/enquiries" className="underline">Enquiries</a>.
+          Orders → <AppLink href="/app/quotes" className="underline">Quotes</AppLink> — every BYO enquiry, contact-form quote request or admin lead lands here as <em>new</em>. Enquiries that aren&apos;t quotes yet (contact form, Studio carts never checked out) are under Orders → <AppLink href="/app/enquiries" className="underline">Enquiries</AppLink>.
         </Text>
         <Text className="mt-2">
           Move through: <strong>new → quoted → accepted → order</strong> (unpaid, invoice + card link emailed). Lost / expired close the loop.
@@ -276,12 +277,12 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          <a href="/app/tasks" className="underline">/app/tasks</a> — your personal queue. Three tabs: <strong>Today</strong> (due today), <strong>Overdue</strong> (past due, still active), <strong>All active</strong> (everything assigned to you that&apos;s open or in-progress).
+          <AppLink href="/app/tasks" className="underline">/app/tasks</AppLink> — your personal queue. Three tabs: <strong>Today</strong> (due today), <strong>Overdue</strong> (past due, still active), <strong>All active</strong> (everything assigned to you that&apos;s open or in-progress).
         </Text>
 
         <Text className="mt-3 font-semibold">When tasks appear</Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
-          <li><strong>Manually</strong> — quick-add form at the bottom of <a href="/app/tasks" className="underline">/app/tasks</a>. Pick assignee + title + (optional) due date + priority + notes.</li>
+          <li><strong>Manually</strong> — quick-add form at the bottom of <AppLink href="/app/tasks" className="underline">/app/tasks</AppLink>. Pick assignee + title + (optional) due date + priority + notes.</li>
           <li><strong>Auto, from stale orders</strong> (Phase 11) — the daily stale-order scan creates a task for the order&apos;s owner: <em>"Investigate stale order #N"</em>, due in 1 day, priority <em>high</em> (urgent after 7 days stale).</li>
           <li><strong>Auto, from automation rules</strong> (Phase 10) — the <code>create_task</code> rule action with <code>assignee_user_id: "owner"</code> resolves at fire-time. Useful for "VIP order → follow up tomorrow" or "post-delivery → chase NPS manually" recipes.</li>
         </ul>
@@ -312,7 +313,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          <a href="/app/pos" className="underline">/app/pos</a> — the till. Open this when a customer walks into the studio and wants to buy something on the spot. Three panels side-by-side: products on the left, cart in the middle, checkout (customer + payment) on the right.
+          <AppLink href="/app/pos" className="underline">/app/pos</AppLink> — the till. Open this when a customer walks into the studio and wants to buy something on the spot. Three panels side-by-side: products on the left, cart in the middle, checkout (customer + payment) on the right.
         </Text>
 
         <Text className="mt-3 font-semibold">Adding items</Text>
@@ -366,15 +367,15 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text size="small" className="text-ui-fg-subtle mb-2">
-          All production tools live under Orders → <a href="/app/production" className="underline">Board</a> (<code>/app/production</code>) as tabs. Per-order tools (stages, recipes, photos, rejects) are under Production on the job page.
+          All production tools live under Orders → <AppLink href="/app/production" className="underline">Board</AppLink> (<code>/app/production</code>) as tabs. Per-order tools (stages, recipes, photos, rejects) are under Production on the job page.
         </Text>
         <ul className="list-disc pl-5 text-sm space-y-1">
-          <li><strong>Dashboard tab</strong> — kanban/list of every in-flight order with stage, decoration method and stale flag. For the day&apos;s to-do list use <a href="/app/today" className="underline">Today</a>.</li>
+          <li><strong>Dashboard tab</strong> — kanban/list of every in-flight order with stage, decoration method and stale flag. For the day&apos;s to-do list use <AppLink href="/app/today" className="underline">Today</AppLink>.</li>
           <li><strong>Print queue tab</strong> — today&apos;s in-production orders grouped by ink/decoration so operators run similar setups back-to-back. Stale orders float to the top.</li>
           <li><strong>Print recipes tab</strong> — reusable settings library. Capture &amp; link to orders so operators have the right setup.</li>
           <li><strong>Production calendar tab</strong> — Gantt-style view of in-flight orders vs deadlines. Red bars = stale.</li>
           <li><strong>Rejects tab</strong> — waste report by reason + supplier brand over any date range.</li>
-          <li><strong>Lookbook</strong> (<a href="/app/storefront/lookbook" className="underline">Storefront → Lookbook</a>) — curated photos of past jobs rendered at /lookbook for social proof.</li>
+          <li><strong>Lookbook</strong> (<AppLink href="/app/storefront/lookbook" className="underline">Storefront → Lookbook</AppLink>) — curated photos of past jobs rendered at /lookbook for social proof.</li>
         </ul>
       </>
     ),
@@ -385,7 +386,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          <a href="/app/production" className="underline">Production → Print queue tab</a> — auto-buckets every <strong>in-production</strong> order by decoration method + ink colours so the press is set up once per bucket instead of per order.
+          <AppLink href="/app/production" className="underline">Production → Print queue tab</AppLink> — auto-buckets every <strong>in-production</strong> order by decoration method + ink colours so the press is set up once per bucket instead of per order.
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
           <li><strong>How buckets are formed</strong> — orders with identical (method, colours) signatures group together. e.g. <code>screen_print · black,white</code> is one bucket, <code>screen_print · black,red</code> is another.</li>
@@ -447,7 +448,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          <a href="/app/organisations" className="underline">/app/organisations</a> — schools, clubs, businesses as first-class accounts. Add customers as members with a role (owner / purchaser / viewer).
+          <AppLink href="/app/organisations" className="underline">/app/organisations</AppLink> — schools, clubs, businesses as first-class accounts. Add customers as members with a role (owner / purchaser / viewer).
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
           <li>
@@ -494,7 +495,7 @@ const SECTIONS: Section[] = [
 
         <Text className="mt-4 font-semibold">The three building blocks</Text>
         <Text size="xsmall" className="text-ui-fg-muted">
-          Configure these inside the org detail page (<a href="/app/organisations" className="underline">/app/organisations</a> → pick org → tabs).
+          Configure these inside the org detail page (<AppLink href="/app/organisations" className="underline">/app/organisations</AppLink> → pick org → tabs).
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
           <li>
@@ -560,7 +561,7 @@ const SECTIONS: Section[] = [
         </Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
           <li>The portal <em>allows</em> a held_stock line to exceed availability — it inline-warns "We'll print [N] additional units — adds approximately [lead_time] days to that line's delivery."</li>
-          <li>The Phase 1 subscriber reserves the full qty AND auto-creates a print task for the deficit (priority high, unassigned). Lands in <a href="/app/tasks" className="underline">/app/tasks</a> under the print queue.</li>
+          <li>The Phase 1 subscriber reserves the full qty AND auto-creates a print task for the deficit (priority high, unassigned). Lands in <AppLink href="/app/tasks" className="underline">/app/tasks</AppLink> under the print queue.</li>
         </ul>
 
         <Text className="mt-4 font-semibold">Placing an order (admin)</Text>
@@ -568,8 +569,8 @@ const SECTIONS: Section[] = [
           Use when you receive an order via email/phone instead of the customer portal.
         </Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
-          <li><a href="/app/fulfillment/new" className="underline">/app/fulfillment/new</a> — two-step item picker (design tile → size picker), pick destination, hit submit.</li>
-          <li>The list at <a href="/app/fulfillment" className="underline">/app/fulfillment</a> filters orders by <code>metadata.fulfillment_order=true</code>. On the order page the fulfilment context sits in the job panel&apos;s Delivery tab.</li>
+          <li><AppLink href="/app/fulfillment/new" className="underline">/app/fulfillment/new</AppLink> — two-step item picker (design tile → size picker), pick destination, hit submit.</li>
+          <li>The list at <AppLink href="/app/fulfillment" className="underline">/app/fulfillment</AppLink> filters orders by <code>metadata.fulfillment_order=true</code>. On the order page the fulfilment context sits in the job panel&apos;s Delivery tab.</li>
           <li>Refuses to submit if the org has no <em>primary contact</em> set. Fix that on the org overview tab first.</li>
         </ul>
 
@@ -603,7 +604,7 @@ const SECTIONS: Section[] = [
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
           <li>Purchaser + owner roles see a "Cancel order" button on the order detail page for 24 hours after placement.</li>
           <li>After 24h the button disappears — they need to email us.</li>
-          <li>Cancellation auto-releases the held_stock reservation. Print-on-demand print tasks are NOT auto-cancelled (staff intervention via <a href="/app/tasks" className="underline">/app/tasks</a>).</li>
+          <li>Cancellation auto-releases the held_stock reservation. Print-on-demand print tasks are NOT auto-cancelled (staff intervention via <AppLink href="/app/tasks" className="underline">/app/tasks</AppLink>).</li>
         </ul>
 
         <Text className="mt-4 font-semibold">What the subscribers do (you don't have to think about this)</Text>
@@ -651,7 +652,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          <a href="/app/setup/automation-rules" className="underline">/app/setup/automation-rules</a> — &quot;when X happens, do Y&quot; rules. Triggers fire in real time from the backend event bus.
+          <AppLink href="/app/setup/automation-rules" className="underline">/app/setup/automation-rules</AppLink> — &quot;when X happens, do Y&quot; rules. Triggers fire in real time from the backend event bus.
         </Text>
 
         <Text className="mt-3 font-semibold">Triggers</Text>
@@ -668,7 +669,7 @@ const SECTIONS: Section[] = [
           <li><strong>Post order comment</strong> — internal note on the order.</li>
           <li><strong>Send alert email</strong> — staff inbox notification (not for customer-facing emails — use a marketing-stream cron for those).</li>
           <li><strong>Set production stage</strong> — auto-advance the stage. Useful for "approved → in_production" automation when artwork approval comes in.</li>
-          <li><strong>Create task</strong> — creates a row in <a href="/app/tasks" className="underline">/app/tasks</a>. <code>assignee_user_id</code> accepts the literal <code>owner</code> sentinel — resolves to the entity&apos;s owner at fire time. <em>Gated.</em></li>
+          <li><strong>Create task</strong> — creates a row in <AppLink href="/app/tasks" className="underline">/app/tasks</AppLink>. <code>assignee_user_id</code> accepts the literal <code>owner</code> sentinel — resolves to the entity&apos;s owner at fire time. <em>Gated.</em></li>
           <li><strong>Assign owner</strong> — calls the Phase 6 ownership API. Targets customer or order. <em>Gated.</em></li>
         </ul>
 
@@ -700,7 +701,7 @@ const SECTIONS: Section[] = [
 
         <Text className="mt-3 font-semibold">Admin: managing the suppression list</Text>
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
-          <li><strong>List + add</strong> — <a href="/app/email-suppressions" className="underline">Customers → Email suppressions</a>.</li>
+          <li><strong>List + add</strong> — <AppLink href="/app/email-suppressions" className="underline">Customers → Email suppressions</AppLink>.</li>
           <li><strong>Reasons</strong> — <em>user_unsubscribe</em>, <em>bounce</em>, <em>spam_complaint</em>, <em>manual_admin</em>. Pick <em>manual_admin</em> when you&apos;re suppressing on a customer&apos;s phone request.</li>
           <li><strong>Removing a suppression</strong> — same page. Use sparingly: re-enabling an unsubscribed customer without their permission is a compliance risk.</li>
         </ul>
@@ -796,7 +797,7 @@ const SECTIONS: Section[] = [
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
           <li><strong>What their API exposes</strong> — <code>/check</code> (auth ping), <code>/products</code> (with optional <code>include=variants,files,images</code>), get-product-by-style-code, get-variant-by-SKU, and <code>POST /order</code> for dropship.</li>
           <li><strong>What we pull</strong> — initial import via <code>src/scripts/import-aussie-pacific-from-api.ts</code>; daily stock sweep at 05:00 UTC against <em>Aussie Pacific Warehouse</em> (no <code>updated_at</code> filter — full walk every day). Per-variant cost varies within a style, so each variant gets its own price ladder; the first 5 styles per import emit a calibration log line so operators can spot-check the ex-GST assumption against AP invoices before going wide.</li>
-          <li><strong>What we push</strong> — dropship orders via <code>POST /order</code>, from either the job panel&apos;s Delivery tab or the dedicated <a href="/app/dropship?tab=aussie-pacific" className="underline">Aussie Pacific Orders</a> dashboard.</li>
+          <li><strong>What we push</strong> — dropship orders via <code>POST /order</code>, from either the job panel&apos;s Delivery tab or the dedicated <AppLink href="/app/dropship?tab=aussie-pacific" className="underline">Aussie Pacific Orders</AppLink> dashboard.</li>
           <li><strong>Quirk: run-out items skipped</strong> — products with <code>run_out === true</code> are skipped at import time (one log line per skipped style).</li>
           <li><strong>Quirk: AP gives us nothing back</strong> — no GET order endpoint, no shipment endpoint, no webhooks. After we send a dropship order AP returns a reference and that's it. Operators reconcile shipment progress via AP's email confirmations or distributor portal until AP adds a status endpoint.</li>
           <li><strong>Tag mapping</strong> — AP's <code>main_category</code> (Ladies / Mens / Kids / Unisex) maps to a demographic. <code>sub_category</code> drives the Medusa <code>product_type</code> via strict alias matching, so unknown values resolve to <code>null</code> rather than leaking demographic strings through as types.</li>
@@ -808,7 +809,7 @@ const SECTIONS: Section[] = [
           <li><strong>How do I import a new supplier brand or backfill?</strong> <code>fly ssh console --app sc-prints-backend</code>, then <code>cd /app/.medusa/server &amp;&amp; npx medusa exec src/scripts/import-&lt;supplier&gt;-from-api.js</code>. Locally, swap <code>.js</code> for <code>.ts</code> and use the <code>backend</code> working directory.</li>
           <li><strong>How do I confirm a supplier is configured?</strong> Each supplier's module only registers when its API token env var is set (<code>ASCOLOUR_SUBSCRIPTION_KEY</code>, <code>FASHIONBIZ_API_TOKEN</code>, <code>AUSSIE_PACIFIC_API_TOKEN</code>). If the token is missing the cron is a silent no-op rather than an error.</li>
           <li><strong>A supplier's portal shows a price that doesn't match what we billed against</strong> — check the cost-adjustment env var (<code>FASHIONBIZ_COST_ADJUSTMENT</code>, <code>AUSSIE_PACIFIC_COST_ADJUSTMENT</code>) and the <code>variant.metadata.cost_adjustment</code> field on a recent import. If the multiplier is wrong, raising it and re-importing corrects the cost cascade.</li>
-          <li><strong>Products are imported but don't show up in the mega-menu / filters</strong> — open <a href="/app/product-data" className="underline">Product data</a> → <strong>Taxonomy audit</strong>. The three counters (missing type / missing demographic tag / missing Shop category) tell you exactly what's wrong. Run <code>backfill-product-taxonomy.ts</code> to retry title-based inference on every product — it never overwrites existing values, only fills gaps.</li>
+          <li><strong>Products are imported but don't show up in the mega-menu / filters</strong> — open <AppLink href="/app/product-data" className="underline">Product data</AppLink> → <strong>Taxonomy audit</strong>. The three counters (missing type / missing demographic tag / missing Shop category) tell you exactly what's wrong. Run <code>backfill-product-taxonomy.ts</code> to retry title-based inference on every product — it never overwrites existing values, only fills gaps.</li>
         </ul>
 
         <Text size="xsmall" className="text-ui-fg-muted mt-3">
@@ -904,38 +905,38 @@ const SECTIONS: Section[] = [
     title: "Common tasks → where to go",
     body: (
       <div className="grid grid-cols-1 small:grid-cols-2 gap-2 text-sm">
-        <div><strong>Ring up a walk-in customer</strong> <a href="/app/pos" className="underline">/app/pos</a></div>
-        <div><strong>Take a card payment in-person (QR link)</strong> <a href="/app/pos" className="underline">/app/pos</a> → Card (QR link)</div>
-        <div><strong>What needs my attention today?</strong> <a href="/app/today" className="underline">Today</a></div>
+        <div><strong>Ring up a walk-in customer</strong> <AppLink href="/app/pos" className="underline">/app/pos</AppLink></div>
+        <div><strong>Take a card payment in-person (QR link)</strong> <AppLink href="/app/pos" className="underline">/app/pos</AppLink> → Card (QR link)</div>
+        <div><strong>What needs my attention today?</strong> <AppLink href="/app/today" className="underline">Today</AppLink></div>
         <div><strong>Where is a job up to?</strong> Today, or the job page from any order or quote</div>
         <div><strong>Reply so the answer comes back to the job</strong> Job page → Activity → reply box</div>
         <div><strong>Convert an accepted quote by hand</strong> Job page → Convert to order</div>
-        <div><strong>What&apos;s on my plate?</strong> Orders → <a href="/app/tasks" className="underline">My tasks</a></div>
+        <div><strong>What&apos;s on my plate?</strong> Orders → <AppLink href="/app/tasks" className="underline">My tasks</AppLink></div>
         <div><strong>Mark a customer tax-exempt</strong> Customer detail → Tax status</div>
         <div><strong>Tag a customer VIP</strong> Customer detail → Tags</div>
         <div><strong>Give a customer tier pricing</strong> Customer detail → Customer pricing tier</div>
         <div><strong>Assign a customer or order to a teammate</strong> Customer detail → Account owner, or job page → Owner &amp; CC</div>
-        <div><strong>Manage owner rotation</strong> Customers → <a href="/app/rotation" className="underline">Owner rotation</a></div>
-        <div><strong>Create a task for myself or a teammate</strong> <a href="/app/tasks" className="underline">My tasks</a> → quick-add form</div>
+        <div><strong>Manage owner rotation</strong> Customers → <AppLink href="/app/rotation" className="underline">Owner rotation</AppLink></div>
+        <div><strong>Create a task for myself or a teammate</strong> <AppLink href="/app/tasks" className="underline">My tasks</AppLink> → quick-add form</div>
         <div><strong>Send a quote / accept link</strong> Quote drawer → Email customer… (or Copy link)</div>
-        <div><strong>Plan the week</strong> Orders → <a href="/app/production" className="underline">Board → Production calendar tab</a></div>
-        <div><strong>Group today&apos;s press setups</strong> Orders → <a href="/app/production" className="underline">Board → Print queue tab</a></div>
+        <div><strong>Plan the week</strong> Orders → <AppLink href="/app/production" className="underline">Board → Production calendar tab</AppLink></div>
+        <div><strong>Group today&apos;s press setups</strong> Orders → <AppLink href="/app/production" className="underline">Board → Print queue tab</AppLink></div>
         <div><strong>Auto-write a product description</strong> Product detail → Generate description widget</div>
         <div><strong>Log a reject</strong> Job page → Production → Rejects</div>
         <div><strong>Photo of the press</strong> Job page → Production → Production photos</div>
-        <div><strong>Save settings that worked</strong> Orders → <a href="/app/production" className="underline">Board → Print recipes tab</a></div>
+        <div><strong>Save settings that worked</strong> Orders → <AppLink href="/app/production" className="underline">Board → Print recipes tab</AppLink></div>
         <div><strong>Add an order watcher</strong> Job page → Activity → Watchers</div>
         <div><strong>Set deposit + balance</strong> Job page → Overview → Deposit &amp; balance</div>
-        <div><strong>Add a school as an org</strong> <a href="/app/organisations" className="underline">/app/organisations</a></div>
-        <div><strong>Set up a fulfillment customer (Lifegrain-style)</strong> <a href="/app/organisations" className="underline">/app/organisations</a> → Designs / Destinations / Inventory tabs</div>
-        <div><strong>Place an admin fulfillment order</strong> <a href="/app/fulfillment/new" className="underline">/app/fulfillment/new</a></div>
-        <div><strong>See all fulfillment orders</strong> <a href="/app/fulfillment" className="underline">/app/fulfillment</a></div>
+        <div><strong>Add a school as an org</strong> <AppLink href="/app/organisations" className="underline">/app/organisations</AppLink></div>
+        <div><strong>Set up a fulfillment customer (Lifegrain-style)</strong> <AppLink href="/app/organisations" className="underline">/app/organisations</AppLink> → Designs / Destinations / Inventory tabs</div>
+        <div><strong>Place an admin fulfillment order</strong> <AppLink href="/app/fulfillment/new" className="underline">/app/fulfillment/new</AppLink></div>
+        <div><strong>See all fulfillment orders</strong> <AppLink href="/app/fulfillment" className="underline">/app/fulfillment</AppLink></div>
         <div><strong>Reconcile stocktake on an inventory row</strong> Org detail → Inventory tab → row → Adjust</div>
         <div><strong>Mark a print run received</strong> Org detail → Inventory tab → row → Receive</div>
-        <div><strong>Add a gallery tile</strong> <a href="/app/storefront/lookbook" className="underline">Storefront → Lookbook</a></div>
+        <div><strong>Add a gallery tile</strong> <AppLink href="/app/storefront/lookbook" className="underline">Storefront → Lookbook</AppLink></div>
         <div><strong>Snooze a customer for Tuesday</strong> Customer detail → Notes → add note with snooze date</div>
         <div><strong>Tax invoice</strong> Customer side: /account/orders/[id] → Tax invoice button</div>
-        <div><strong>Stop marketing emails to an address</strong> Customers → <a href="/app/email-suppressions" className="underline">Email suppressions</a></div>
+        <div><strong>Stop marketing emails to an address</strong> Customers → <AppLink href="/app/email-suppressions" className="underline">Email suppressions</AppLink></div>
       </div>
     ),
   },
@@ -956,8 +957,8 @@ const SECTIONS: Section[] = [
         <div><dt className="font-semibold inline">Recipe</dt> <dd className="inline">— reusable production settings (mesh count, ink, etc.).</dd></div>
         <div><dt className="font-semibold inline">Pricing tier</dt> <dd className="inline">— customer-group-scoped flat price (cost × 1.30 to 1.65). Hides the public quantity ladder for that customer.</dd></div>
         <div><dt className="font-semibold inline">Owner</dt> <dd className="inline">— the staff member responsible for a customer or order. Inherits customer → order; rotation fills gaps for un-owned customers. Different from a quote&apos;s <em>assigned_to</em>, which is the person actively responding to that quote.</dd></div>
-        <div><dt className="font-semibold inline">Rotation</dt> <dd className="inline">— the admin-managed list at <a href="/app/rotation" className="underline">/app/rotation</a> of staff who can be auto-assigned new customers/orders. Round-robin by oldest <em>last_picked_at</em>.</dd></div>
-        <div><dt className="font-semibold inline">Task</dt> <dd className="inline">— a staff to-do anchored to a customer / order / quote / org. Single assignee, optional due_at + priority. Lives at <a href="/app/tasks" className="underline">/app/tasks</a>.</dd></div>
+        <div><dt className="font-semibold inline">Rotation</dt> <dd className="inline">— the admin-managed list at <AppLink href="/app/rotation" className="underline">/app/rotation</AppLink> of staff who can be auto-assigned new customers/orders. Round-robin by oldest <em>last_picked_at</em>.</dd></div>
+        <div><dt className="font-semibold inline">Task</dt> <dd className="inline">— a staff to-do anchored to a customer / order / quote / org. Single assignee, optional due_at + priority. Lives at <AppLink href="/app/tasks" className="underline">/app/tasks</AppLink>.</dd></div>
         <div><dt className="font-semibold inline">Audit log</dt> <dd className="inline">— the polymorphic activity feed. Every meaningful staff action (tag add, note pin, owner change, watcher add, automation fire) writes a row. Surfaced on the customer-journey widget as the purple "Activity" track.</dd></div>
         <div><dt className="font-semibold inline">Suppression</dt> <dd className="inline">— a marketing-email opt-out. Stored by email (works for guests too). Global or per-stream. Blocks every marketing-job send.</dd></div>
         <div><dt className="font-semibold inline">Fulfillment order</dt> <dd className="inline">— an order placed against a B2B org's pre-approved designs + locked garments. Tagged with <code>metadata.fulfillment_order=true</code>. Filters separately from one-off customer orders.</dd></div>

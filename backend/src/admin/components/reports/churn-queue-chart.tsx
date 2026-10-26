@@ -6,6 +6,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { formatCurrency } from "../../lib/reports/format"
+import { useGo } from "../../lib/nav"
 
 type Candidate = {
   customer_id: string | null
@@ -52,6 +53,7 @@ const SEVERITY_LABEL: Record<Candidate["severity"], string> = {
 export const ChurnQueueChart = () => {
   // The churn queue is point-in-time and not period-bound, so the standard
   // date-range filter doesn't apply.
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/churn-queue")
   const [refreshNonce, setRefreshNonce] = useState(0)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
@@ -240,7 +242,7 @@ export const ChurnQueueChart = () => {
                     key={c.customer_id ?? c.email}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle"
                     onClick={() => {
-                      if (href) window.location.href = href
+                      if (href) go(href)
                     }}
                     style={href ? { cursor: "pointer" } : undefined}
                   >

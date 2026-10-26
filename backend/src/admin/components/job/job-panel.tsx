@@ -12,6 +12,7 @@ import { DspPackPanel } from "./dsp-pack"
 import { JobPanelClassic } from "./job-panel-classic"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
+import { AppLink, useGo } from "../../lib/nav"
 
 /**
  * The job window (Docs/ADMIN_JOB_WINDOW_2026_10.md): header, phase strip, ONE
@@ -112,6 +113,7 @@ export function JobPanel(props: Props) {
 }
 
 function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: () => void }) {
+  const go = useGo()
   const firstTab = job.state.next_action.tab
   const [open, setOpen] = useState<Record<Section, boolean>>({
     quote: !job.order || window.location.hash === "#quote",
@@ -172,7 +174,7 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
         kind
       )
       if ("navigate" in out) {
-        window.location.href = out.navigate
+        go(out.navigate)
         return
       }
       if ("tab" in out) {
@@ -290,7 +292,7 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
             ))}
             {job.quote && !job.order ? (
               job.quote.has_job_pricer ? (
-                <Button size="small" variant="secondary" asChild><a href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</a></Button>
+                <Button size="small" variant="secondary" asChild><AppLink href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</AppLink></Button>
               ) : (
                 <Button size="small" variant="secondary" onClick={() => { setOpen((o) => ({ ...o, quote: true })); setTimeout(() => document.getElementById("job-quote")?.scrollIntoView({ behavior: "smooth" }), 50) }}>Edit quote</Button>
               )
@@ -304,7 +306,7 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
                   {order ? <DropdownMenu.Item onClick={() => setVerb("dsp")}>Send to DSP</DropdownMenu.Item> : null}
                   {order ? <DropdownMenu.Item onClick={() => setVerb("drive")}>Drive folder</DropdownMenu.Item> : null}
                   {order ? (
-                    <DropdownMenu.Item onClick={() => (window.location.href = `/app/orders/${job.order!.id}`)}>
+                    <DropdownMenu.Item onClick={() => (go(`/app/orders/${job.order!.id}`))}>
                       Medusa order page (refund, edit, cancel)
                     </DropdownMenu.Item>
                   ) : null}
@@ -406,7 +408,7 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
                   <span>Cost not tracked{job.quote ? " — price it in the Job pricer to see margin" : ""}</span>
                 )}
                 {job.quote && !job.order && job.quote.has_job_pricer ? (
-                  <a className="ml-auto text-ui-fg-interactive hover:underline" href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</a>
+                  <AppLink className="ml-auto text-ui-fg-interactive hover:underline" href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</AppLink>
                 ) : null}
               </div>
             </div>

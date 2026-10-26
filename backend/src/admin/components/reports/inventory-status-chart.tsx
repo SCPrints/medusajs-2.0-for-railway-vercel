@@ -5,6 +5,7 @@ import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { KpiTile } from "./kpi-tile"
+import { useGo } from "../../lib/nav"
 
 type VariantRow = {
   variant_id: string
@@ -37,6 +38,7 @@ const VariantList = ({
   emptyLabel: string
   inStockColor: string
 }) => {
+  const go = useGo()
   if (rows.length === 0) {
     return (
       <Text size="xsmall" className="text-ui-fg-muted">
@@ -89,7 +91,7 @@ const VariantList = ({
                   key={r.variant_id}
                   className="border-b border-ui-border-base cursor-pointer hover:bg-ui-bg-subtle"
                   onClick={() => {
-                    window.location.href = href
+                    go(href)
                   }}
                 >
                   {inner}

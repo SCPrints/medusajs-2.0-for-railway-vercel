@@ -19,6 +19,7 @@ import { HelpTooltip } from "../../components/reports/help-tooltip"
 import DesignsTab from "./components/designs-tab"
 import DestinationsTab from "./components/destinations-tab"
 import InventoryTab from "./components/inventory-tab"
+import { AppLink } from "../../lib/nav"
 
 type Organisation = {
   id: string
@@ -291,12 +292,12 @@ const OrganisationsPage = () => {
             }}
           />
           {primaryContactId ? (
-            <a
+            <AppLink
               href={`/app/customers/${primaryContactId}`}
               className="mt-1 inline-block text-xs text-ui-fg-interactive hover:underline"
             >
               Open customer →
-            </a>
+            </AppLink>
           ) : (
             <Text size="xsmall" className="text-ui-fg-muted mt-1">
               Not set — fulfillment order entry will be blocked until this is configured.
@@ -356,12 +357,12 @@ const OrganisationsPage = () => {
               className="py-2 flex items-center justify-between"
             >
               <div>
-                <a
+                <AppLink
                   href={`/app/customers/${m.customer_id}`}
                   className="text-sm font-semibold hover:underline"
                 >
                   {m.customer_id}
-                </a>
+                </AppLink>
                 <Text size="xsmall" className="text-ui-fg-muted">
                   {m.role}
                 </Text>

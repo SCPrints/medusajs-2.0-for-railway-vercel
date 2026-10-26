@@ -9,6 +9,7 @@ import {
   readRecentlyViewed,
   type RecentlyViewedEntry,
 } from "../lib/recently-viewed-storage"
+import { AppLink } from "../lib/nav"
 
 /**
  * Sidebar widget on the orders list page that surfaces the last few records
@@ -67,7 +68,7 @@ const RecentlyViewedSidebar = () => {
       <ul className="flex flex-col gap-y-1 mt-1">
         {entries.map((e) => (
           <li key={`${e.type}-${e.id}`}>
-            <a
+            <AppLink
               href={e.href}
               className="flex items-center gap-x-2 px-2 py-1.5 rounded hover:bg-ui-bg-subtle"
               style={{ textDecoration: "none", color: "inherit" }}
@@ -84,7 +85,7 @@ const RecentlyViewedSidebar = () => {
               <Text size="xsmall" className="text-ui-fg-muted shrink-0">
                 {formatRelative(e.viewed_at)}
               </Text>
-            </a>
+            </AppLink>
           </li>
         ))}
       </ul>

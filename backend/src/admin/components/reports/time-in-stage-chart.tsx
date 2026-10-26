@@ -13,6 +13,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { STAGE_LABELS } from "../../lib/reports/stage-labels"
+import { useGo } from "../../lib/nav"
 
 type StageRow = {
   stage: string
@@ -38,6 +39,7 @@ export const TimeInStageChart = ({
   methodCsv: string | null
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/time-in-stage", {
     from: fromIso,
     to: toIso,
@@ -56,7 +58,7 @@ export const TimeInStageChart = ({
   const handleBarClick = (payload: any) => {
     const stageKey = payload?.stage_key
     if (typeof stageKey !== "string" || stageKey.length === 0) return
-    window.location.href = `/app/production?stage=${encodeURIComponent(stageKey)}`
+    go(`/app/production?stage=${encodeURIComponent(stageKey)}`)
   }
 
   return (

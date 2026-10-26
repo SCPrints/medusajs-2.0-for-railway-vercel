@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useState } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { AppLink } from "../../lib/nav"
 
 type FulfillmentOrder = {
   id: string
@@ -78,9 +79,9 @@ const FulfillmentOrdersPage = () => {
           <Button size="small" variant="secondary" onClick={load}>
             Refresh
           </Button>
-          <a href="/app/fulfillment/new">
+          <AppLink href="/app/fulfillment/new">
             <Button size="small">+ New order</Button>
-          </a>
+          </AppLink>
         </div>
       </div>
 
@@ -97,9 +98,9 @@ const FulfillmentOrdersPage = () => {
           <Text className="text-ui-fg-muted text-sm">
             No fulfillment orders yet.
           </Text>
-          <a href="/app/fulfillment/new">
+          <AppLink href="/app/fulfillment/new">
             <Button size="small">+ Place first order</Button>
-          </a>
+          </AppLink>
         </Container>
       ) : (
         <div className="overflow-x-auto">
@@ -126,12 +127,12 @@ const FulfillmentOrdersPage = () => {
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle/30 transition"
                   >
                     <td className="px-4 py-2">
-                      <a
+                      <AppLink
                         href={`/app/jobs/${o.id}`}
                         className="text-ui-fg-interactive hover:underline"
                       >
                         #{o.display_id}
-                      </a>
+                      </AppLink>
                     </td>
                     <td className="px-4 py-2 font-mono text-xs">
                       {(o.metadata?.external_ref as string) ?? "—"}

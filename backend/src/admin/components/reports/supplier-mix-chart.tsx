@@ -5,6 +5,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { formatCurrency } from "../../lib/reports/format"
+import { AppLink } from "../../lib/nav"
 
 type Supplier = {
   key: "ascolour" | "other"
@@ -160,7 +161,7 @@ regionId,
         />
         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
           {suppliers.map((s) => (
-            <a
+            <AppLink
               key={s.key}
               href={`/app/production?supplier=${encodeURIComponent(s.key)}`}
               className="flex items-center gap-x-1 hover:bg-ui-bg-subtle rounded px-1 -mx-1"
@@ -176,7 +177,7 @@ regionId,
                   {(s.revenue_share * 100).toFixed(1)}% rev
                 </span>
               </Text>
-            </a>
+            </AppLink>
           ))}
         </div>
       </div>

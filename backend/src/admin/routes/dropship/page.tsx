@@ -22,7 +22,7 @@ const DropshipPage = () => {
     setTab(v as Tab)
     const url = new URL(window.location.href)
     url.searchParams.set("tab", v)
-    window.history.replaceState(null, "", url.toString())
+    window.history.replaceState(window.history.state, "", url.toString()) // keep the router's entry state
   }
   return (
     <Tabs value={tab} onValueChange={change}>

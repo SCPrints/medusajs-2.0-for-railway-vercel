@@ -19,6 +19,7 @@ import { useEffect, useMemo, useState } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
 import { OwnerPicker, fetchUsers } from "../../components/owner-picker"
+import { AppLink } from "../../lib/nav"
 
 type Task = {
   id: string
@@ -258,12 +259,12 @@ const TasksPage = () => {
                     ) : null}
                     <Table.Cell>
                       {anchor ? (
-                        <a
+                        <AppLink
                           href={anchor.href}
                           className="text-ui-fg-interactive underline text-xs"
                         >
                           {anchor.label}
-                        </a>
+                        </AppLink>
                       ) : (
                         <Text className="text-ui-fg-muted text-xs">—</Text>
                       )}

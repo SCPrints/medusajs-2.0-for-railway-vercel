@@ -4,6 +4,7 @@ import { ReportCard } from "./report-card"
 import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
+import { useGo } from "../../lib/nav"
 
 type Bucket = {
   name: "fresh" | "slowing" | "aging" | "dead" | "never"
@@ -59,6 +60,7 @@ export const AgingInventoryChart = ({
   // Aging inventory is point-in-time (current stock × full sales history),
   // not period-bound. The date-range / region filters are accepted to
   // match the shared component signature but aren't passed to the route.
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/aging-inventory")
 
 
@@ -221,7 +223,7 @@ export const AgingInventoryChart = ({
                       key={r.variant_id}
                       className="border-b border-ui-border-base hover:bg-ui-bg-subtle"
                       onClick={() => {
-                        if (href) window.location.href = href
+                        if (href) go(href)
                       }}
                       style={href ? { cursor: "pointer" } : undefined}
                     >

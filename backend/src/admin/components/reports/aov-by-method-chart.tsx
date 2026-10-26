@@ -9,6 +9,7 @@ import {
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { formatCurrency } from "../../lib/reports/format"
+import { AppLink } from "../../lib/nav"
 
 type Row = {
   method: DecorationMethodKey
@@ -89,7 +90,7 @@ regionId,
               const widthPct =
                 maxAov > 0 ? Math.max(4, Math.round((r.aov / maxAov) * 100)) : 0
               return (
-                <a
+                <AppLink
                   key={r.method}
                   href={`/app/production?method=${encodeURIComponent(r.method)}`}
                   className="flex items-center gap-x-3 hover:bg-ui-bg-subtle rounded px-1 -mx-1"
@@ -118,7 +119,7 @@ regionId,
                   >
                     {r.orders} {r.orders === 1 ? "order" : "orders"}
                   </Text>
-                </a>
+                </AppLink>
               )
             })}
         </div>

@@ -23,6 +23,7 @@ import {
 } from "react"
 
 import { HelpTooltip } from "../../components/reports/help-tooltip"
+import { AppLink } from "../../lib/nav"
 
 /**
  * Shop categories — health & management.
@@ -392,14 +393,14 @@ const ShopCategoriesPage = () => {
               <ul className="flex flex-col gap-y-1 mt-2">
                 {data.summary.orphan_sample.slice(0, 10).map((p) => (
                   <li key={p.id}>
-                    <a
+                    <AppLink
                       href={`/app/products/${p.id}`}
                       target="_blank"
                       rel="noreferrer"
                       className="text-ui-fg-interactive hover:underline text-xs"
                     >
                       {p.title}
-                    </a>
+                    </AppLink>
                   </li>
                 ))}
                 {data.summary.orphan_sample.length > 10 ? (
@@ -528,14 +529,14 @@ const CategoryRow = ({
         <ul className="flex flex-col gap-y-1 ml-1">
           {sub.sample.map((p) => (
             <li key={p.id}>
-              <a
+              <AppLink
                 href={`/app/products/${p.id}`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs text-ui-fg-interactive hover:underline"
               >
                 {p.title}
-              </a>
+              </AppLink>
             </li>
           ))}
           {sub.product_count > sub.sample.length ? (
@@ -880,14 +881,14 @@ const ProductRow = ({
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <a
+        <AppLink
           href={`/app/products/${product.id}`}
           target="_blank"
           rel="noreferrer"
           className="text-sm font-medium text-ui-fg-interactive hover:underline truncate block"
         >
           {product.title ?? "(no title)"}
-        </a>
+        </AppLink>
         <Text size="xsmall" className="text-ui-fg-muted truncate">
           {[
             brandLink?.name,

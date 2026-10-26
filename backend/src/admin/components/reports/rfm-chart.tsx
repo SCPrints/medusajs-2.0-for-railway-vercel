@@ -6,6 +6,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { formatCurrency } from "../../lib/reports/format"
+import { useGo } from "../../lib/nav"
 
 type Customer = {
   customer_id: string | null
@@ -71,6 +72,7 @@ export const RfmChart = ({
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error } = useReportData<Response>("/admin/reports/rfm", {
     from: fromIso,
     to: toIso,
@@ -250,7 +252,7 @@ export const RfmChart = ({
                                 key={c.email + (c.customer_id ?? "")}
                                 className="border-b border-ui-border-base"
                                 onClick={() => {
-                                  if (href) window.location.href = href
+                                  if (href) go(href)
                                 }}
                                 style={
                                   href ? { cursor: "pointer" } : undefined

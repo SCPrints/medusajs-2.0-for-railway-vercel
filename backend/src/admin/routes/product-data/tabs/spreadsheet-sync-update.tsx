@@ -27,6 +27,7 @@ import {
 } from "../../../lib/spreadsheet-sync-brands"
 import { parseCsv, readCsvFile } from "../../../lib/csv-import"
 import { sdk } from "../../../lib/sdk"
+import { AppLink } from "../../../lib/nav"
 
 const adminFetchPath = (path: string) => {
   const base = (import.meta.env.VITE_BACKEND_URL ?? "").replace(/\/$/, "")
@@ -568,9 +569,9 @@ const SpreadsheetSyncUpdatePage = () => {
           columns, values come from the <strong>first row</strong> per Product Id. The Admin variant{" "}
           <strong>Media</strong> panel only shows files uploaded into Medusa; garment URLs from your CSV live under variant{" "}
           <strong>Metadata</strong> (and drive the storefront gallery). To create new products, use{" "}
-          <a href="/app/product-data?tab=import-new" className="text-ui-fg-interactive hover:underline">
+          <AppLink href="/app/product-data?tab=import-new" className="text-ui-fg-interactive hover:underline">
             Spreadsheet sync (new)
-          </a>
+          </AppLink>
           .
         </Text>
       </div>

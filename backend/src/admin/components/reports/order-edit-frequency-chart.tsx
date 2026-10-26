@@ -6,6 +6,7 @@ import { PALETTE } from "../../lib/reports/palette"
 import { buildCsv } from "../../lib/reports/csv"
 import { useReportData } from "../../lib/reports/use-report-data"
 import { STAGE_LABELS } from "../../lib/reports/stage-labels"
+import { useGo } from "../../lib/nav"
 
 type Order = {
   order_id: string
@@ -39,6 +40,7 @@ export const OrderEditFrequencyChart = ({
   toIso: string
   regionId: string | null
 }) => {
+  const go = useGo()
   const { data, loading, error, loadedAt } = useReportData<Response>("/admin/reports/order-edit-frequency", {
     from: fromIso,
     to: toIso,
@@ -205,7 +207,7 @@ export const OrderEditFrequencyChart = ({
                     key={o.order_id}
                     className="border-b border-ui-border-base hover:bg-ui-bg-subtle cursor-pointer"
                     onClick={() => {
-                      window.location.href = `/app/jobs/${o.order_id}`
+                      go(`/app/jobs/${o.order_id}`)
                     }}
                   >
                     <td className="px-2 py-1 tabular-nums font-medium">
