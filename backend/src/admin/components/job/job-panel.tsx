@@ -100,9 +100,10 @@ export function JobPanel(props: Props) {
   if (classic) {
     return (
       <div className="flex flex-col gap-y-2">
-        <div className="flex justify-end">
-          <Button size="small" variant="transparent" onClick={() => { storage.set(VIEW_KEY, null); setClassic(false) }}>Back to the new job window</Button>
-        </div>
+        <Container className="flex items-center justify-between gap-x-3 px-4 py-2 border-ui-border-interactive">
+          <Text size="small" className="text-ui-fg-subtle">You're on the Classic view (the old tabbed layout).</Text>
+          <Button size="small" variant="secondary" onClick={() => { storage.set(VIEW_KEY, null); setClassic(false) }}>← Back to the new job window</Button>
+        </Container>
         <JobPanelClassic {...props} />
       </div>
     )
