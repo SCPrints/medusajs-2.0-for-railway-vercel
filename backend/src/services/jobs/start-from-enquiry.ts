@@ -33,9 +33,10 @@ export async function startJobFromEnquiry(
   const quotes = container.resolve(QUOTE_MODULE) as any
 
   // ponytail: jsonb filters on the module aren't reliable; scan the newest
-  // contact-sourced quotes instead (a few hundred at most).
+  // quotes instead (a few hundred at most). Any source: staff have started
+  // jobs from enquiries as admin quotes, which carry the submission id too.
   const recent: any[] = await quotes
-    .listQuotes({ source: "contact" }, { take: 500, order: { created_at: "DESC" }, select: ["id", "public_id", "metadata"] })
+    .listQuotes({}, { take: 500, order: { created_at: "DESC" }, select: ["id", "public_id", "metadata"] })
     .catch(() => [])
   const existing = recent.find((q) => q?.metadata?.contact_submission_id === s.id)
   if (existing?.id) return { quote_id: existing.id, public_id: existing.public_id, existed: true }
