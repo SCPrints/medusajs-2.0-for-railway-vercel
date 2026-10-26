@@ -4,6 +4,22 @@ import { computeReceiptTotals } from "../service"
 // + summary.raw_current_order_total are the fields it reliably decorates.
 
 describe("computeReceiptTotals", () => {
+  it("reads BigNumber-object line values from Medusa 2.21 (order #117)", () => {
+    const big = (n: number) => ({ valueOf: () => n })
+    const out = computeReceiptTotals({
+      id: "o117",
+      items: [
+        { id: "a", title: "Staple Tee", unit_price: big(32.49), quantity: big(1) },
+        { id: "b", title: "Artwork", unit_price: big(30), quantity: big(2) },
+      ],
+      summary: { raw_current_order_total: { value: 92.49 } },
+    })
+    expect(out.items?.[0].unit_price).toBeCloseTo(32.49, 2)
+    expect(out.item_subtotal).toBeCloseTo(92.49, 2)
+    expect(out.gst_included).toBe(true)
+    expect(out.tax_total).toBeCloseTo(8.41, 2)
+  })
+
   it("treats a pre-GST order's total as GST-inclusive (order #41)", () => {
     const out = computeReceiptTotals({
       id: "o41",

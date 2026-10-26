@@ -249,7 +249,11 @@ export async function loadReceiptOrder(
   return computeReceiptTotals(raw, paidTotal)
 }
 
-function toNumber(value: number | string | null | undefined): number {
+function toNumber(value: number | string | object | null | undefined): number {
+  // Medusa 2.21 retrieveOrder returns item quantity/unit_price as BigNumber
+  // objects (valueOf → number); reading them as 0 printed $0 lines with the
+  // whole total as GST (#117).
+  if (value && typeof value === "object") value = Number(value)
   if (typeof value === "number") return Number.isFinite(value) ? value : 0
   if (typeof value === "string") {
     const n = Number.parseFloat(value)
