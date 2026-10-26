@@ -9,9 +9,12 @@ export type JobAttentionKind =
   | "accepted_no_order"
   | "changes_requested"
 
+/** Email-only kinds: no task, so not part of raiseAttention's JobAttentionKind. */
+type AlertKind = JobAttentionKind | "unmatched_email"
+
 export interface JobAttentionProps {
   alert: {
-    kind: JobAttentionKind
+    kind: AlertKind
     /** "#114" or "Q-4GY0KD74V2". */
     label: string
     from: string | null
@@ -27,7 +30,12 @@ export const isJobAttentionData = (data: any): data is JobAttentionProps =>
   typeof data?.alert?.kind === "string" &&
   typeof data?.alert?.label === "string"
 
-const COPY: Record<JobAttentionKind, { eyebrow: string; color: string; body: string }> = {
+const COPY: Record<AlertKind, { eyebrow: string; color: string; body: string }> = {
+  unmatched_email: {
+    eyebrow: "Email we couldn't match to a job",
+    color: "#dc2626",
+    body: "This came in on a job email address that doesn't match any job, so it isn't on a job. Reply to this email to answer the sender directly.",
+  },
   customer_reply: {
     eyebrow: "Customer waiting on you",
     color: "#dc2626",

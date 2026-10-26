@@ -1,8 +1,10 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
-import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
+import { CONTACT_NOTIFICATION_EMAIL, ORDER_INBOX_DOMAIN } from "../../lib/constants"
 import { parseInboxAlias, stripQuotedReply } from "../../lib/order-inbox-alias"
 import { ADMIN_WORKSPACE_MODULE } from "../../modules/admin-workspace"
+import { EmailTemplates } from "../../modules/email-notifications/templates"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { raiseAttention } from "../attention/notify"
 
@@ -126,4 +128,47 @@ export async function recordInboundEmail(
   })
   logger.info(`inbound-email: quote ${quote.id} ← ${from ?? "?"} (task ${attention.task_id ?? "none"})`)
   return { ok: true, kind: "quote", id: quote.id, task_id: attention.task_id }
+}
+
+/** The bare address out of `Name <a@b>`, lower-cased. */
+const bareAddress = (from: string) => (from.match(/<([^>]+)>/)?.[1] ?? from).trim().toLowerCase()
+
+/**
+ * Mail on the inbox domain that matches no job (an old or mistyped alias, a
+ * deleted job, a bare address) goes to the staff inbox instead of being
+ * dropped. Reply-To is the sender, so answering is one click from Gmail.
+ * Throws when the send fails, so the webhook can ask the provider to retry.
+ */
+export async function forwardUnmatchedEmail(container: MedusaContainer, msg: InboundEmail): Promise<boolean> {
+  const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+  const to = CONTACT_NOTIFICATION_EMAIL?.trim()
+  if (!to) {
+    logger.warn("inbound-email: unmatched email not forwarded — CONTACT_NOTIFICATION_EMAIL is unset")
+    return false
+  }
+  const from = msg.from?.trim() || null
+  // Never forward our own inbox's mail back to us (auto-replies, loops).
+  if (from && ORDER_INBOX_DOMAIN && bareAddress(from).endsWith(`@${ORDER_INBOX_DOMAIN.toLowerCase()}`)) return false
+
+  const notifications = container.resolve(Modules.NOTIFICATION) as any
+  await notifications.createNotifications({
+    to,
+    channel: "email",
+    template: EmailTemplates.JOB_ATTENTION,
+    data: {
+      emailOptions: {
+        subject: `Unmatched email${msg.subject ? ` — ${msg.subject}` : ""}`,
+        ...(from ? { replyTo: from } : {}),
+      },
+      alert: {
+        kind: "unmatched_email",
+        label: `Sent to ${msg.to.join(", ") || "a job address"}`,
+        from,
+        subject: msg.subject,
+        excerpt: inboundBodyText(msg),
+        jobUrl: null,
+      },
+    },
+  })
+  return true
 }

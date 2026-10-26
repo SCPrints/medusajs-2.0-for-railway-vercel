@@ -5,7 +5,7 @@ import { Resend } from "resend"
 
 import { RESEND_API_KEY, RESEND_WEBHOOK_SECRET } from "../../../lib/constants"
 import { verifyResendWebhook } from "../../../lib/resend-webhook"
-import { recordInboundEmail } from "../../../services/inbound-email/record"
+import { forwardUnmatchedEmail, recordInboundEmail } from "../../../services/inbound-email/record"
 import { ADMIN_WORKSPACE_MODULE } from "../../../modules/admin-workspace"
 import { writeAudit } from "../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../lib/audit-entities"
@@ -228,7 +228,18 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         return retryLater(`recordInboundEmail: ${err?.message ?? err}`)
       }
       if (result.ok === false) {
-        logger.info(`hooks/resend: email.received ${emailId} not routed (${result.reason}) to=${(msg.to ?? []).join(",")}`)
+        logger.info(`hooks/resend: email.received ${emailId} not routed (${result.reason}) to=${(msg.to ?? []).join(",")} — forwarding to staff`)
+        try {
+          await forwardUnmatchedEmail(req.scope, {
+            to: [...(msg.to ?? []), ...(msg.cc ?? [])],
+            from: msg.from ?? null,
+            subject: msg.subject ?? null,
+            text: msg.text ?? null,
+            html: msg.html ?? null,
+          })
+        } catch (err: any) {
+          return retryLater(`forwardUnmatchedEmail: ${err?.message ?? err}`)
+        }
       }
       break
     }
