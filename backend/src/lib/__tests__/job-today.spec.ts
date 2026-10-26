@@ -126,4 +126,17 @@ describe("groupToday", () => {
     expect(view.summary).toEqual({ owed: 400, owed_jobs: 1, late: 1, at_risk: 0 })
     expect(view.rows.find((r) => r.id === "c")).toMatchObject({ label: "Q-C", customer: "Dean", total: 148, last_activity: { kind: "email_in" } })
   })
+
+  it("orders closed jobs by latest activity, whether times are strings or Dates (prod crash 2026-10-27)", () => {
+    const closed = { lost: true, waiting_on: null, since: null, days: 0, next_action: { kind: "none" as const, label: "Closed" } }
+    const at = (v: string | Date) => [{ at: v as any, kind: "status" as const, title: "x", detail: null, actor: null }]
+    const view = groupToday(
+      [
+        job("old", closed, { activity: at(new Date("2026-09-01T00:00:00.000Z")) }),
+        job("new", closed, { activity: at("2026-10-20T00:00:00.000Z") }),
+      ],
+      NOW
+    )
+    expect(view.rows.map((r) => r.id)).toEqual(["new", "old"])
+  })
 })

@@ -187,7 +187,13 @@ const byUrgency = (a: TodayRow, b: TodayRow) =>
   b.days - a.days ||
   b.flags.length - a.flags.length ||
   (a.since ?? "").localeCompare(b.since ?? "") ||
-  (b.last_activity?.at ?? "").localeCompare(a.last_activity?.at ?? "")
+  msOf(b.last_activity?.at) - msOf(a.last_activity?.at)
+
+/** Activity times arrive as ISO strings or Date objects; compare as epoch ms. */
+const msOf = (v: unknown): number => {
+  const n = v ? new Date(v as string).getTime() : 0
+  return Number.isFinite(n) ? n : 0
+}
 
 export function groupToday(jobs: JobView[], now: Date = new Date()): TodayView {
   const rows = jobs.map((j) => rowFromJob(j, now)).sort(byUrgency)
