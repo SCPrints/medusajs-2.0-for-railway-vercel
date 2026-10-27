@@ -1,6 +1,7 @@
 import { toast } from "@medusajs/ui"
 
 import type { NextActionKind } from "../../../lib/job-state"
+import { pricerHref } from "../../lib/nav"
 
 /** What a next action needs to know about its job, from either the panel or a Today row. */
 export type ActionContext = {
@@ -58,7 +59,8 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
     case "follow_up":
       return { tab: "activity", focus: "job-reply" }
     case "price_it":
-      return { navigate: `/app/quote-pricer?quote=${encodeURIComponent(ctx.quote_id ?? "")}` }
+      // The pricer opens over the job (Jobs list ?pricer=1).
+      return { navigate: pricerHref(ctx.quote_id ?? ctx.job_id) }
     case "revise_design":
       // The quote tools (Studio, lines) are on the job window itself.
       return { tab: "overview", focus: "job-quote" }

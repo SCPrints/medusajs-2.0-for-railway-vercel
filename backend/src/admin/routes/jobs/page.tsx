@@ -1,20 +1,25 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Sparkles } from "@medusajs/icons"
-import { Badge, Button, Container, Heading, Input, Text, toast } from "@medusajs/ui"
-import { useCallback, useEffect, useState } from "react"
+import { Badge, Button, Container, FocusModal, Heading, Input, Text, toast } from "@medusajs/ui"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { TODAY_QUEUES, type TodayQueue, type TodayRow, type TodayView } from "../../../lib/job-today"
 import { ONE_CLICK, performNextAction } from "../../components/job/actions"
+import { JobPanel } from "../../components/job/job-panel"
+import { useJob } from "../../components/job/use-job"
 import { NewQuoteDrawer } from "../../components/quote/new-quote-drawer"
-import { AppLink, useGo } from "../../lib/nav"
+import { AppLink } from "../../lib/nav"
+import { QuotePricerPage } from "../quote-pricer/page"
 
 /**
  * /app/jobs — every job in one list (Docs/ADMIN_JOBS_LIST_2026_10.md). Folders
  * across the top come from each job's next action (lib/job-today.ts);
  * "Needs us" is the default. Website enquiries arrive in New on their own;
- * "+ New job" is for phone calls and walk-ins. ?folder= and ?new=1 deep-link.
+ * "+ New job" is for phone calls and walk-ins. The address carries the state:
+ * ?folder=, ?new=1 (drawer), ?job=<id> (the job opens beside the list; the
+ * list hides below 2xl) and ?pricer=1 (the Job pricer over that job).
  */
 type Folder = "needs_us" | TodayQueue
 
@@ -42,28 +47,56 @@ const EMPTY: Partial<Record<Folder, string>> = {
   lost: "Nothing lost in the last 90 days.",
 }
 
+/** Left-edge colour: closed grey, our move or late red, customer's blue, else green. */
+const stripeFor = (row: TodayRow) =>
+  row.closed
+    ? "border-l-ui-border-strong"
+    : row.risk === "late" || row.needs_us
+      ? "border-l-ui-tag-red-icon"
+      : row.waiting_on === "customer"
+        ? "border-l-ui-tag-blue-icon"
+        : "border-l-ui-tag-green-icon"
+
 const money = (n: number | null, cur: string) =>
   n == null ? "—" : new Intl.NumberFormat("en-AU", { style: "currency", currency: cur.toUpperCase(), maximumFractionDigits: 0 }).format(n)
 
 const today = () => new Date().toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
 const shortDate = (ymd: string) => new Date(`${ymd}T00:00:00`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })
 
+/** Wide enough for the list to stay beside an open job (Tailwind 2xl). */
+const isWide = () => window.matchMedia("(min-width: 1536px)").matches
+
 const JobsPage = () => {
-  const go = useGo()
   const [params, setParams] = useSearchParams()
   const folder: Folder = isFolder(params.get("folder")) ? (params.get("folder") as Folder) : "needs_us"
   const drawerOpen = params.get("new") === "1"
+  const jobId = params.get("job")
+  const pricerOpen = params.get("pricer") === "1"
+  const { job, order, error: jobError, reload: reloadJob } = useJob(jobId)
   const [view, setView] = useState<TodayView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [q, setQ] = useState("")
+  const splitRef = useRef<HTMLDivElement>(null)
 
-  const setParam = (key: string, value: string | null) => {
+  /** This page's address with some params changed (null removes one). */
+  const withParams = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params)
-    if (value == null) next.delete(key)
-    else next.set(key, value)
-    setParams(next, { replace: true })
+    for (const [k, v] of Object.entries(patch)) {
+      if (v == null) next.delete(k)
+      else next.set(k, v)
+    }
+    return next
   }
+  const update = (patch: Record<string, string | null>, opts: { push?: boolean } = {}) =>
+    setParams(withParams(patch), { replace: !opts.push })
+  const setParam = (key: string, value: string | null) => update({ [key]: value })
+  const hrefFor = (id: string) => `/app/jobs?${withParams({ job: id, pricer: null }).toString()}`
+
+  // Opening a job from far down the list: bring the job into view.
+  useEffect(() => {
+    if (jobId) splitRef.current?.scrollIntoView({ block: "start" })
+  }, [jobId])
 
   const load = useCallback(async (fresh = false) => {
     try {
@@ -81,10 +114,17 @@ const JobsPage = () => {
     void load()
   }, [load])
 
-  const open = (row: TodayRow) => go(`/app/jobs/${encodeURIComponent(row.id)}`)
+  // A job opens beside the list; Back returns to wherever you were.
+  const open = (row: TodayRow) => update({ job: row.id, pricer: null }, { push: true })
+  const closeJob = () => update({ job: null, pricer: null }, { push: true })
+  const refreshBoth = async () => {
+    await reloadJob()
+    void load(true)
+  }
 
   const act = async (row: TodayRow) => {
     const kind = row.next_action.kind
+    if (!row.closed && kind === "price_it") return update({ job: row.id, pricer: "1" }, { push: true })
     if (row.closed || !ONE_CLICK.has(kind)) return open(row)
     setBusy(row.id)
     try {
@@ -170,7 +210,9 @@ const JobsPage = () => {
               active={!needle && folder === f.key}
               onClick={() => {
                 setQ("")
-                setParam("folder", f.key === "needs_us" ? null : f.key)
+                // Beside an open job the folder just changes the list; on a
+                // narrow screen (no list beside the job) it closes the job.
+                update({ folder: f.key === "needs_us" ? null : f.key, ...(jobId && !isWide() ? { job: null, pricer: null } : {}) })
               }}
               label={f.label}
               count={count(f.key)}
@@ -184,6 +226,49 @@ const JobsPage = () => {
 
       {error ? <Container><Text className="text-ui-fg-error">{error}</Text></Container> : null}
 
+      {jobId ? (
+        // ── A job open beside the list (the list hides below 2xl) ──────────
+        <div ref={splitRef} className="flex scroll-mt-4 items-start gap-4">
+          <nav aria-label="Jobs in this folder" className="hidden w-[300px] shrink-0 flex-col gap-y-1.5 2xl:flex">
+            {rows.length === 0 ? (
+              <Text size="small" className="px-1 text-ui-fg-subtle">{needle ? "No job matches." : EMPTY[folder] ?? "Nothing here right now."}</Text>
+            ) : null}
+            {rows.map((row) => {
+              const current = row.id === jobId || row.id === job?.id
+              return (
+                <AppLink
+                  key={row.id}
+                  href={hrefFor(row.id)}
+                  aria-current={current ? "page" : undefined}
+                  className={`block rounded-md border border-l-4 px-3 py-2 ${stripeFor(row)} ${current ? "border-ui-fg-muted bg-ui-bg-subtle-pressed" : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle-hover"}`}
+                >
+                  <span className="flex justify-between gap-2">
+                    <span className="truncate text-sm font-medium">{row.customer}</span>
+                    <span className="shrink-0 text-xs text-ui-fg-muted">{row.label}</span>
+                  </span>
+                  <span className="mt-0.5 flex justify-between gap-2 text-xs">
+                    <span className="truncate text-ui-fg-subtle">{row.subject ?? row.last_activity?.title ?? ""}</span>
+                    <span className={`shrink-0 font-semibold ${row.needs_us ? "text-ui-tag-red-text" : "text-ui-fg-subtle"}`}>{row.closed ? (row.queue === "lost" ? "Lost" : "Done") : row.next_action.label}</span>
+                  </span>
+                </AppLink>
+              )
+            })}
+          </nav>
+          <div className="flex min-w-0 flex-1 flex-col gap-y-3">
+            <div>
+              <Button size="small" variant="secondary" onClick={closeJob}>← Jobs · {FOLDERS.find((f) => f.key === folder)?.label}</Button>
+            </div>
+            {jobError ? (
+              <Container><Text size="small" className="text-ui-fg-error">{jobError}</Text></Container>
+            ) : !job ? (
+              <Container><Text size="small" className="text-ui-fg-muted">Loading job…</Text></Container>
+            ) : (
+              <JobPanel key={job.id} job={job} order={order} onChanged={refreshBoth} />
+            )}
+          </div>
+        </div>
+      ) : (
+      <>
       {view && rows.length === 0 ? (
         <Container><Text>{needle ? "No job matches." : EMPTY[folder] ?? "Nothing here right now."}</Text></Container>
       ) : null}
@@ -191,17 +276,10 @@ const JobsPage = () => {
       <div className="flex flex-col gap-y-2">
         {rows.map((row) => {
           const oneClick = !row.closed && ONE_CLICK.has(row.next_action.kind)
-          const stripe = row.closed
-            ? "border-l-ui-border-strong"
-            : row.risk === "late" || row.needs_us
-              ? "border-l-ui-tag-red-icon"
-              : row.waiting_on === "customer"
-                ? "border-l-ui-tag-blue-icon"
-                : "border-l-ui-tag-green-icon"
           const source = row.queue === "new" && row.source ? SOURCE_LABEL[row.source] : null
           return (
-            <div key={row.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base border-l-4 ${stripe} bg-ui-bg-base px-4 py-3`}>
-              <AppLink href={`/app/jobs/${encodeURIComponent(row.id)}`} className="min-w-[260px] flex-1 hover:underline">
+            <div key={row.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base border-l-4 ${stripeFor(row)} bg-ui-bg-base px-4 py-3`}>
+              <AppLink href={hrefFor(row.id)} className="min-w-[260px] flex-1 hover:underline">
                 <Text weight="plus">
                   {row.customer} <span className="text-ui-fg-subtle font-normal">· {row.subject ?? row.label}{row.subject ? ` · ${row.label}` : ""}</span>
                 </Text>
@@ -249,6 +327,31 @@ const JobsPage = () => {
           Built {new Date(view.generated_at).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}. A job moves to Done when it is delivered and paid. Done and Lost keep the last 90 days.
         </Text>
       ) : null}
+      </>
+      )}
+
+      {/* The Job pricer, over the job (Price it / Edit in pricer → ?pricer=1). */}
+      <FocusModal open={pricerOpen && !!job?.quote} onOpenChange={(o) => { if (!o) update({ pricer: null }) }}>
+        <FocusModal.Content>
+          <FocusModal.Header>
+            <FocusModal.Title>
+              Price job{job ? ` · ${job.customer.name ?? job.customer.email ?? ""} · ${job.quote?.public_id ?? ""}` : ""}
+            </FocusModal.Title>
+          </FocusModal.Header>
+          <FocusModal.Body className="overflow-y-auto p-6">
+            {job?.quote ? (
+              <QuotePricerPage
+                key={job.quote.id}
+                targetQuoteId={job.quote.id}
+                onDone={() => {
+                  update({ pricer: null })
+                  void refreshBoth()
+                }}
+              />
+            ) : null}
+          </FocusModal.Body>
+        </FocusModal.Content>
+      </FocusModal>
 
       <NewQuoteDrawer
         open={drawerOpen}
@@ -256,7 +359,8 @@ const JobsPage = () => {
         onCreated={(id) => {
           // The job window takes it from here; a Studio popup opened from the
           // drawer keeps posting designs to the quote on its own.
-          go(`/app/jobs/${encodeURIComponent(id)}#quote`)
+          update({ job: id, new: null, pricer: null }, { push: true })
+          void load(true)
         }}
       />
     </div>

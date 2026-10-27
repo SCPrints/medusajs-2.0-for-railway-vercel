@@ -1,70 +1,20 @@
-import type { AdminOrder } from "@medusajs/framework/types"
-import { Container, Text } from "@medusajs/ui"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useEffect } from "react"
 import { useParams } from "react-router-dom"
 
-import { JobPanel } from "../../../components/job/job-panel"
-import type { JobView } from "../../../../lib/job-view"
+import { useGo } from "../../../lib/nav"
 
 /**
- * /app/jobs/:id — one page per job, for any id staff have to hand: order id,
- * quote id, "Q-…" public id or an order number. For an order job this is the
- * same panel the order page shows; for a quote it is the pre-order view.
- *
- * Moving between jobs is in-app now, so this page stays mounted: the id comes
- * from the router and the panel is keyed by job, so no state carries over.
+ * /app/jobs/:id — kept for links (emails, cmd-K, the order page's Open job
+ * bar, copied job links). Since 2026-10-27 the job opens beside the Jobs list
+ * at /app/jobs?job=<id>; this forwards there, keeping #quote.
  */
-const JobPage = () => {
-  const id = decodeURIComponent(useParams().id ?? "")
-  const [job, setJob] = useState<JobView | null>(null)
-  const [order, setOrder] = useState<AdminOrder | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const current = useRef(id)
-  current.current = id
-
-  const load = useCallback(async () => {
-    try {
-      const r = await fetch(`/admin/jobs/${encodeURIComponent(id)}`, { credentials: "include" })
-      const json = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(json?.error ?? `HTTP ${r.status}`)
-      const j = json.job as JobView
-      const o = j.order
-        ? await fetch(`/admin/orders/${encodeURIComponent(j.order.id)}`, { credentials: "include" })
-            .then((res) => (res.ok ? res.json() : null))
-            .catch(() => null)
-        : null
-      // A slow response for the job we just left must not overwrite this one.
-      if (current.current !== id) return
-      setJob(j)
-      setOrder((o?.order as AdminOrder | undefined) ?? null)
-      setError(null)
-    } catch (err: any) {
-      if (current.current === id) setError(err?.message ?? "Failed to load job")
-    }
-  }, [id])
-
+const JobRedirect = () => {
+  const go = useGo()
+  const id = useParams().id ?? ""
   useEffect(() => {
-    setJob(null)
-    setOrder(null)
-    setError(null)
-    void load()
-  }, [load])
-
-  if (error) {
-    return (
-      <Container>
-        <Text size="small" className="text-ui-fg-error">{error}</Text>
-      </Container>
-    )
-  }
-  if (!job) {
-    return (
-      <Container>
-        <Text size="small" className="text-ui-fg-muted">Loading job…</Text>
-      </Container>
-    )
-  }
-  return <JobPanel key={job.id} job={job} order={order} onChanged={load} />
+    go(`/app/jobs?job=${encodeURIComponent(decodeURIComponent(id))}${window.location.hash}`, { replace: true })
+  }, [id])
+  return null
 }
 
-export default JobPage
+export default JobRedirect

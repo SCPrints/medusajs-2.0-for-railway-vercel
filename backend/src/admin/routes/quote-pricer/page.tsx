@@ -1,7 +1,5 @@
-import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { CurrencyDollar, Plus, Sparkles, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
+import { Plus, Sparkles, SquareTwoStack, Trash, XMark } from "@medusajs/icons"
 
-import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import {
   Badge,
   Button,
@@ -604,7 +602,11 @@ function GarmentSearch({ onPick }: { onPick: (p: ProductLite) => void }) {
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
-function QuotePricerPage({ targetQuoteId }: { targetQuoteId: string | null }) {
+/**
+ * The pricer itself. On its own page it navigates to the job after saving; opened
+ * over a job (Jobs list, `?pricer=1`) it calls `onDone` instead, which closes it.
+ */
+export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: string | null; onDone?: (quoteId: string) => void }) {
   const go = useGo()
   const [targetQuote, setTargetQuote] = useState<{ id: string; public_id: string; email: string; customer_id: string | null } | null>(null)
   // Follows a quote created in place (Studio / email handoff) so the draft stops writing to "new".
@@ -1130,7 +1132,8 @@ function QuotePricerPage({ targetQuoteId }: { targetQuoteId: string | null }) {
         clearDraft()
         if (navigate) {
           toast.success(`${lines.length} line(s) written to ${targetQuote.public_id}`)
-          go(`/app/jobs/${targetQuote.id}`)
+          if (onDone) onDone(targetQuote.id)
+          else go(`/app/jobs/${targetQuote.id}`)
         }
         return targetQuote
       }
@@ -1183,7 +1186,8 @@ function QuotePricerPage({ targetQuoteId }: { targetQuoteId: string | null }) {
     try {
       const json = await adminPost<{ sent_to?: string; has_mockups?: boolean }>(`/admin/quotes/${quote.id}/design-approval-link`, { include_quote: true })
       toast.success(`Quote emailed to ${json.sent_to ?? "the customer"}${json.has_mockups ? "" : " (no mockup attached yet)"}`)
-      go(`/app/jobs/${quote.id}`)
+      if (onDone) onDone(quote.id)
+      else go(`/app/jobs/${quote.id}`)
     } catch (err: any) {
       toast.error(err?.message ?? "Saved, but the email failed — send it from the quote")
     } finally {
@@ -1877,14 +1881,8 @@ function QuotePricerPage({ targetQuoteId }: { targetQuoteId: string | null }) {
   )
 }
 
-// Sidebar entry: staff price walk-up enquiries here before any quote exists
-// ("Create quote" at the bottom turns the job into one).
-export const config = defineRouteConfig({
-  nested: "/orders",
-  label: "Job pricer",
-  icon: tinted(CurrencyDollar, NAV_COLOR.sales),
-  rank: 12,
-})
+// No sidebar entry since 2026-10-27: pricing opens over the job (Jobs list →
+// Price it). This page still works at /app/quote-pricer for one release.
 
 // In-app navigation keeps this route mounted, so remount per quote: all the
 // pricer's state (and its saved draft key) belongs to one quote.

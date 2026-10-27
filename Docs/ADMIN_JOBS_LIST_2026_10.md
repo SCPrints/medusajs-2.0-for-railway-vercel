@@ -1,6 +1,6 @@
 # One Jobs list — plan
 
-**Status:** approved 27 Oct 2026 with the four picks below. Step 1 live (f058de44, release v384). Steps 2 and 3 built together 27 Oct. Steps 4–6 to come.
+**Status:** approved 27 Oct 2026 with the four picks below. Step 1 live (f058de44, release v384). Steps 2 and 3 live 27 Oct (release v387; the backfill created 3 jobs after skipping 6 that were already jobs). Steps 4–6 built 27 Oct: the job opens beside the list, Classic view removed, the pricer opens over the job (no sidebar entry; `/app/quote-pricer` still works this release), POS top-level, and Jobs + POS at the top of the sidebar via a saved layout default.
 
 **Built differently from the plan:** a new enquiry's next action stays "Price it" (the mockup showed "Reply"); it sits in New until someone emails or logs a call. Staff replying from Gmail to the enquiry email is recorded on the job as our answer (`isStaffSender`), so it leaves New. The contact submissions archive page went with Enquiries; enquiries are jobs now and the raw rows stay in the database.
 **Builds on:** [ADMIN_JOB_WINDOW_2026_10.md](ADMIN_JOB_WINDOW_2026_10.md). That plan gave each job one window. This one gives staff one list to work from, and stops them leaving it.

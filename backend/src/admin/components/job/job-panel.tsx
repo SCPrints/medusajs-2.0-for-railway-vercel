@@ -9,10 +9,9 @@ import { ONE_CLICK, performNextAction } from "./actions"
 import { TaskQuickAdd } from "../task-quick-add"
 import { ConvertAddressForm } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
-import { JobPanelClassic } from "./job-panel-classic"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
-import { AppLink, useGo } from "../../lib/nav"
+import { AppLink, pricerHref, useGo } from "../../lib/nav"
 
 /**
  * The job window (Docs/ADMIN_JOB_WINDOW_2026_10.md): header, phase strip, ONE
@@ -20,13 +19,11 @@ import { AppLink, useGo } from "../../lib/nav"
  * under them), Artwork, Production, Delivery — and the diary, every email,
  * call, note and update, always on the right. Each section is a summary line
  * until it's opened; its body is the existing tools without their cards.
- *
- * The tabbed layout from 23 Oct stays as "Classic view" (More menu) for the
- * changeover; remove job-panel-classic.tsx once staff have stopped using it.
+ * It opens beside the Jobs list (/app/jobs?job=…); Classic view (the October
+ * tabbed layout) was removed 2026-10-27.
  */
 
 type Section = "quote" | "artwork" | "production" | "delivery" | "people"
-const VIEW_KEY = "scp:job-view" // "classic" | unset
 const MOVED_KEY = "scp:job-window-moved-dismissed"
 const PRESENCE_MS = 20_000
 
@@ -96,23 +93,7 @@ const VERB_TITLE: Record<Verb, string> = {
   task: "Tasks",
 }
 
-export function JobPanel(props: Props) {
-  const [classic, setClassic] = useState(() => storage.get(VIEW_KEY) === "classic")
-  if (classic) {
-    return (
-      <div className="flex flex-col gap-y-2">
-        <Container className="flex items-center justify-between gap-x-3 px-4 py-2 border-ui-border-interactive">
-          <Text size="small" className="text-ui-fg-subtle">You're on the Classic view (the old tabbed layout).</Text>
-          <Button size="small" variant="secondary" onClick={() => { storage.set(VIEW_KEY, null); setClassic(false) }}>← Back to the new job window</Button>
-        </Container>
-        <JobPanelClassic {...props} />
-      </div>
-    )
-  }
-  return <JobWindow {...props} onClassic={() => { storage.set(VIEW_KEY, "classic"); setClassic(true) }} />
-}
-
-function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: () => void }) {
+export function JobPanel({ job, order, onChanged }: Props) {
   const go = useGo()
   const firstTab = job.state.next_action.tab
   const [open, setOpen] = useState<Record<Section, boolean>>({
@@ -292,7 +273,7 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
             ))}
             {job.quote && !job.order ? (
               job.quote.has_job_pricer ? (
-                <Button size="small" variant="secondary" asChild><AppLink href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</AppLink></Button>
+                <Button size="small" variant="secondary" asChild><AppLink href={pricerHref(job.quote.id)}>Edit in pricer</AppLink></Button>
               ) : (
                 <Button size="small" variant="secondary" onClick={() => { setOpen((o) => ({ ...o, quote: true })); setTimeout(() => document.getElementById("job-quote")?.scrollIntoView({ behavior: "smooth" }), 50) }}>Edit quote</Button>
               )
@@ -312,7 +293,6 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
                   ) : null}
                   <DropdownMenu.Item onClick={() => setVerb("task")}>Add a task</DropdownMenu.Item>
                   <DropdownMenu.Item onClick={copyJobLink}>Copy job link</DropdownMenu.Item>
-                  <DropdownMenu.Item onClick={onClassic}>Classic view (tabs)</DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu>
             </div>
@@ -408,7 +388,7 @@ function JobWindow({ job, order, onChanged, onClassic }: Props & { onClassic: ()
                   <span>Cost not tracked{job.quote ? " — price it in the Job pricer to see margin" : ""}</span>
                 )}
                 {job.quote && !job.order && job.quote.has_job_pricer ? (
-                  <AppLink className="ml-auto text-ui-fg-interactive hover:underline" href={`/app/quote-pricer?quote=${job.quote.id}`}>Edit in pricer</AppLink>
+                  <AppLink className="ml-auto text-ui-fg-interactive hover:underline" href={pricerHref(job.quote.id)}>Edit in pricer</AppLink>
                 ) : null}
               </div>
             </div>

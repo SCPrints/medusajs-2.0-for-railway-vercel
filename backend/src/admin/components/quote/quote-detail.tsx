@@ -22,7 +22,7 @@ import {
   type PickedProductLine,
 } from "../quotes/product-line-picker"
 import { mergeServerRows } from "../../lib/quote-line-merge"
-import { AppLink } from "../../lib/nav"
+import { AppLink, pricerHref } from "../../lib/nav"
 
 export type Quote = {
   id: string
@@ -192,6 +192,37 @@ function lineItemsSignature(items?: Quote["line_items"]["items"]): string {
     .join("|")
 }
 
+/**
+ * Group quote lines that share a Studio design (`group_id`), keeping the
+ * quote's order. A line whose group_id nobody else carries stays on its own.
+ */
+export function groupRows<T extends { group_id?: string | null }>(rows: T[]): T[][] {
+  const byGroup = new Map<string, T[]>()
+  const out: T[][] = []
+  for (const r of rows) {
+    const gid = r.group_id
+    if (!gid) {
+      out.push([r])
+      continue
+    }
+    const existing = byGroup.get(gid)
+    if (existing) {
+      existing.push(r)
+    } else {
+      const g = [r]
+      byGroup.set(gid, g)
+      out.push(g)
+    }
+  }
+  return out
+}
+
+/** "Heavy Tee — CYPRESS / M" × 2 → "M ×2" (falls back to the whole title). */
+export function sizeSummary(r: { title: string; quantity: string }): string {
+  const size = r.title.includes(" / ") ? r.title.slice(r.title.lastIndexOf(" / ") + 3).trim() : r.title
+  return r.quantity ? `${size || "?"} ×${r.quantity}` : size || "?"
+}
+
 export function LineItemsEditor({
   rows,
   onChange,
@@ -344,6 +375,124 @@ export function LineItemsEditor({
     }
   }
 
+  const designActions = (row: DraftLineItem) => {
+    const idx = rows.indexOf(row)
+    const hasDesign = Boolean(row.customizerDesign)
+    return (
+      <>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Job-pricer lines (jp_…) open the Studio on THEIR group so the
+              design attaches to them at the quoted price — the bottom
+              "Design in Studio" starts a new group (a duplicate line).
+              Catalog lines do the same: the Studio opens on their
+              product + colour and the design attaches at their price. */}
+          {(hasDesign ||
+            (row.group_id && row.id.startsWith("jp_")) ||
+            (row.product_handle && !row.id.startsWith("jp_"))) &&
+          onDesignLine ? (
+            <Button size="small" variant="secondary" onClick={() => onDesignLine(row)}>
+              <PencilSquare /> {hasDesign ? "Edit design in Studio" : "Design in Studio"}
+            </Button>
+          ) : null}
+          {(row.mockup_urls?.length
+            ? row.mockup_urls
+            : row.thumbnail
+              ? [{ side: null as string | null, url: row.thumbnail }]
+              : []
+          ).map((m, i) => (
+            <Button key={i} size="small" variant="secondary" asChild>
+              <a href={m.url} target="_blank" rel="noreferrer">
+                View{" "}
+                {m.side
+                  ? String(m.side).replace(/_/g, " ")
+                  : // ponytail: a pricer line with no Studio design carries the design letter's artwork, not a mockup
+                    row.id.startsWith("jp_") && !hasDesign
+                    ? "artwork"
+                    : "mockup"}
+              </a>
+            </Button>
+          ))}
+          {/* Customer's uploaded source files + rendered print files —
+              staff need these to quote (e.g. POA embroidery digitizing). */}
+          {(row.original_files ?? []).map((f, i) => (
+            <Button key={`orig-${i}`} size="small" variant="secondary" asChild>
+              <a href={f.url} target="_blank" rel="noreferrer" download>
+                Artwork: {f.fileName || `file ${i + 1}`}
+                {f.sides?.length ? ` (${f.sides.join(", ").replace(/_/g, " ")})` : ""}
+              </a>
+            </Button>
+          ))}
+          {(row.print_urls ?? []).map((a, i) => (
+            <Button key={`print-${i}`} size="small" variant="secondary" asChild>
+              <a href={a.url} target="_blank" rel="noreferrer">
+                Print file{a.side ? `: ${a.side.replace(/_/g, " ")}` : ""}
+              </a>
+            </Button>
+          ))}
+          <Button
+            size="small"
+            variant="secondary"
+            isLoading={uploadingId === row.id}
+            onClick={() => triggerMockupUpload(row.id)}
+          >
+            <Photo /> {row.thumbnail ? "Replace mockup" : "Attach mockup"}
+          </Button>
+          {row.thumbnail && !hasDesign ? (
+            <Button size="small" variant="transparent" onClick={() => setRow(idx, { thumbnail: null })}>
+              Remove mockup
+            </Button>
+          ) : null}
+          {hasDesign && rows.length > 1 ? (
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => (copyFromId === row.id ? setCopyFromId(null) : openCopy(row))}
+            >
+              Copy design to…
+            </Button>
+          ) : null}
+        </div>
+        {copyFromId === row.id ? (
+          <div className="rounded-md bg-ui-bg-subtle p-2 flex flex-col gap-y-2">
+            <Text size="xsmall" className="text-ui-fg-muted">
+              Use this design and mockup on these lines (e.g. the other
+              sizes of the same garment). Their qty and price stay as they are.
+            </Text>
+            {rows
+              .filter((r) => r.id !== row.id)
+              .map((r) => (
+                <label key={r.id} className="flex items-center gap-x-2 text-xs">
+                  <Checkbox
+                    checked={copyTargets.has(r.id)}
+                    onCheckedChange={(v) =>
+                      setCopyTargets((prev) => {
+                        const next = new Set(prev)
+                        v ? next.add(r.id) : next.delete(r.id)
+                        return next
+                      })
+                    }
+                  />
+                  <span>
+                    {r.title || "(untitled line)"}
+                    {r.quantity ? ` × ${r.quantity}` : ""}
+                    {r.customizerDesign ? " — replaces its design" : ""}
+                  </span>
+                </label>
+              ))}
+            <div className="flex gap-x-2">
+              <Button size="small" disabled={!copyTargets.size} onClick={applyCopy}>
+                Copy design
+              </Button>
+              <Button size="small" variant="transparent" onClick={() => setCopyFromId(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-y-3">
       {rows.length === 0 ? (
@@ -352,7 +501,14 @@ export function LineItemsEditor({
           or add a custom line.
         </Text>
       ) : (
-        rows.map((row, idx) => {
+        (() => {
+        // Lines sharing a `group_id` are one Studio design quoted per size (the
+        // quote-bridge posts one line per size). Rendering them as independent
+        // cards, each with its own "Edit design in Studio" + front/back buttons,
+        // read as "line 1 = front, line 2 = back" — so they render as one
+        // design group with the design actions once, and the sizes under it.
+        const renderRow = (row: DraftLineItem, grouped = false) => {
+          const idx = rows.indexOf(row)
           const hasDesign = Boolean(row.customizerDesign)
           const hasVariant = Boolean(row.variant_id)
           const isWholeProduct =
@@ -361,10 +517,14 @@ export function LineItemsEditor({
           return (
             <div
               key={row.id}
-              className="rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2"
+              className={
+                grouped
+                  ? "rounded-md border border-ui-border-base bg-ui-bg-base p-3 flex flex-col gap-y-2"
+                  : "rounded-md border border-ui-border-base p-3 flex flex-col gap-y-2"
+              }
             >
               <div className="flex items-start gap-x-2">
-                {row.thumbnail ? (
+                {row.thumbnail && !grouped ? (
                   <a
                     href={row.thumbnail}
                     target="_blank"
@@ -463,131 +623,46 @@ export function LineItemsEditor({
                   placeholder="Optional — decoration method, sizes, colours…"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Job-pricer lines (jp_…) open the Studio on THEIR group so the
-                    design attaches to them at the quoted price — the bottom
-                    "Design in Studio" starts a new group (a duplicate line).
-                    Catalog lines do the same: the Studio opens on their
-                    product + colour and the design attaches at their price. */}
-                {(hasDesign ||
-                  (row.group_id && row.id.startsWith("jp_")) ||
-                  (row.product_handle && !row.id.startsWith("jp_"))) &&
-                onDesignLine ? (
-                  <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={() => onDesignLine(row)}
-                  >
-                    <PencilSquare /> {hasDesign ? "Edit design in Studio" : "Design in Studio"}
-                  </Button>
+              {grouped ? null : designActions(row)}
+            </div>
+          )
+        }
+
+        return groupRows(rows).map((group) => {
+          if (group.length === 1) return renderRow(group[0])
+          const lead = group.find((r) => r.customizerDesign) ?? group[0]
+          return (
+            <div
+              key={`grp-${lead.group_id ?? lead.id}`}
+              className="rounded-md border border-ui-border-strong bg-ui-bg-subtle p-3 flex flex-col gap-y-2"
+            >
+              <div className="flex items-start gap-x-2">
+                {lead.thumbnail ? (
+                  <a href={lead.thumbnail} target="_blank" rel="noreferrer" className="shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={lead.thumbnail}
+                      alt=""
+                      className="w-12 h-12 rounded object-cover bg-ui-bg-base cursor-zoom-in"
+                    />
+                  </a>
                 ) : null}
-                {(row.mockup_urls?.length
-                  ? row.mockup_urls
-                  : row.thumbnail
-                    ? [{ side: null as string | null, url: row.thumbnail }]
-                    : []
-                ).map((m, i) => (
-                  <Button key={i} size="small" variant="secondary" asChild>
-                    <a href={m.url} target="_blank" rel="noreferrer">
-                      View{" "}
-                      {m.side
-                        ? String(m.side).replace(/_/g, " ")
-                        : // ponytail: a pricer line with no Studio design carries the design letter's artwork, not a mockup
-                          row.id.startsWith("jp_") && !hasDesign
-                          ? "artwork"
-                          : "mockup"}
-                    </a>
-                  </Button>
-                ))}
-                {/* Customer's uploaded source files + rendered print files —
-                    staff need these to quote (e.g. POA embroidery digitizing). */}
-                {(row.original_files ?? []).map((f, i) => (
-                  <Button key={`orig-${i}`} size="small" variant="secondary" asChild>
-                    <a href={f.url} target="_blank" rel="noreferrer" download>
-                      Artwork: {f.fileName || `file ${i + 1}`}
-                      {f.sides?.length
-                        ? ` (${f.sides.join(", ").replace(/_/g, " ")})`
-                        : ""}
-                    </a>
-                  </Button>
-                ))}
-                {(row.print_urls ?? [])
-                  .map((a, i) => (
-                    <Button key={`print-${i}`} size="small" variant="secondary" asChild>
-                      <a href={a.url} target="_blank" rel="noreferrer">
-                        Print file{a.side ? `: ${a.side.replace(/_/g, " ")}` : ""}
-                      </a>
-                    </Button>
-                  ))}
-                <Button
-                  size="small"
-                  variant="secondary"
-                  isLoading={uploadingId === row.id}
-                  onClick={() => triggerMockupUpload(row.id)}
-                >
-                  <Photo /> {row.thumbnail ? "Replace mockup" : "Attach mockup"}
-                </Button>
-                {row.thumbnail && !hasDesign ? (
-                  <Button
-                    size="small"
-                    variant="transparent"
-                    onClick={() => setRow(idx, { thumbnail: null })}
-                  >
-                    Remove mockup
-                  </Button>
-                ) : null}
-                {hasDesign && rows.length > 1 ? (
-                  <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={() =>
-                      copyFromId === row.id ? setCopyFromId(null) : openCopy(row)
-                    }
-                  >
-                    Copy design to…
-                  </Button>
-                ) : null}
-              </div>
-              {copyFromId === row.id ? (
-                <div className="rounded-md bg-ui-bg-subtle p-2 flex flex-col gap-y-2">
-                  <Text size="xsmall" className="text-ui-fg-muted">
-                    Use this design and mockup on these lines (e.g. the other
-                    sizes of the same garment). Their qty and price stay as they are.
+                <div className="flex-1 flex flex-col">
+                  <Text size="small" weight="plus">
+                    One design · {group.length} sizes ({group.map(sizeSummary).join(", ")})
                   </Text>
-                  {rows
-                    .filter((r) => r.id !== row.id)
-                    .map((r) => (
-                      <label key={r.id} className="flex items-center gap-x-2 text-xs">
-                        <Checkbox
-                          checked={copyTargets.has(r.id)}
-                          onCheckedChange={(v) =>
-                            setCopyTargets((prev) => {
-                              const next = new Set(prev)
-                              v ? next.add(r.id) : next.delete(r.id)
-                              return next
-                            })
-                          }
-                        />
-                        <span>
-                          {r.title || "(untitled line)"}
-                          {r.quantity ? ` × ${r.quantity}` : ""}
-                          {r.customizerDesign ? " — replaces its design" : ""}
-                        </span>
-                      </label>
-                    ))}
-                  <div className="flex gap-x-2">
-                    <Button size="small" disabled={!copyTargets.size} onClick={applyCopy}>
-                      Copy design
-                    </Button>
-                    <Button size="small" variant="transparent" onClick={() => setCopyFromId(null)}>
-                      Cancel
-                    </Button>
-                  </div>
+                  <Text size="xsmall" className="text-ui-fg-muted">
+                    The lines below share this design and mockup — editing it in the
+                    Studio changes every size.
+                  </Text>
                 </div>
-              ) : null}
+              </div>
+              {designActions(lead)}
+              {group.map((r) => renderRow(r, true))}
             </div>
           )
         })
+        })()
       )}
 
       <input
@@ -608,7 +683,7 @@ export function LineItemsEditor({
       <div className="flex flex-wrap items-center gap-2">
         {pricerQuoteId ? (
           <Button size="small" variant="secondary" asChild>
-            <AppLink href={`/app/quote-pricer?quote=${encodeURIComponent(pricerQuoteId)}`}>
+            <AppLink href={pricerHref(pricerQuoteId)}>
               <CurrencyDollar /> Price a job
             </AppLink>
           </Button>
@@ -695,7 +770,7 @@ export function JobBreakdownCard({ jobPricer, quoteId }: { jobPricer: unknown; q
             </a>
           ))}
           <Button size="small" variant="secondary" asChild>
-            <AppLink href={`/app/quote-pricer?quote=${encodeURIComponent(quoteId)}`}>Edit in Job pricer</AppLink>
+            <AppLink href={pricerHref(quoteId)}>Edit in Job pricer</AppLink>
           </Button>
         </div>
       </div>

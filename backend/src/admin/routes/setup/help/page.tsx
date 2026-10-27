@@ -45,7 +45,7 @@ const SECTIONS: Section[] = [
           <li><strong>Waiting on customer</strong> — we&apos;ve sent a quote, proof or payment link and they haven&apos;t answered. Nudge after two business days.</li>
         </ul>
         <Text size="xsmall" className="text-ui-fg-muted mt-2">
-          The button on the row is the next step. One-click moves (send proof, blanks arrived, start production, QC done, shipped, payment link) run from the list; anything else opens the <strong>job page</strong> (<code>/app/jobs/&lt;order or quote&gt;</code>), where the whole job is on one screen: customer, money, phase strip, the action bar, the sections Lines / Artwork / Production / Delivery down the left and the diary on the right. Replies you send from the diary carry a reply-to address that lands the customer&apos;s answer back on the job. Medusa&apos;s own order page keeps refunds, edits and cancelling, with an <strong>Open job</strong> button at the top.
+          The button on the row is the next step. One-click moves (send proof, blanks arrived, start production, QC done, shipped, payment link) run from the list; anything else opens the job <strong>beside the list</strong> (on a narrower screen the list steps aside; <strong>← Jobs</strong> brings it back). <strong>Price it</strong> opens the Job pricer over the job and closes back to it. The whole job is on one screen: customer, money, phase strip, the action bar, the sections Lines / Artwork / Production / Delivery down the left and the diary on the right. Replies you send from the diary carry a reply-to address that lands the customer&apos;s answer back on the job. Medusa&apos;s own order page keeps refunds, edits and cancelling, with an <strong>Open job</strong> button at the top.
         </Text>
       </>
     ),
@@ -57,8 +57,9 @@ const SECTIONS: Section[] = [
       <>
         <Text>Eight groups. Click a group to see what&apos;s inside.</Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
-          <li><strong>Jobs</strong> — your daily home (above). Replaced Today, Quotes and Enquiries.</li>
-          <li><strong>Orders</strong> ▸ POS, Job pricer, Production (print queue, recipes, calendar, rejects), My tasks, Drafts. Medusa&apos;s own order list is where refunds and order edits live.</li>
+          <li><strong>Jobs</strong> — your daily home (above), at the top. Replaced Today, Quotes and Enquiries.</li>
+          <li><strong>POS</strong> — walk-in sales.</li>
+          <li><strong>Orders</strong> ▸ Production (print queue, recipes, calendar, rejects), My tasks, Drafts. Medusa&apos;s own order list is where refunds and order edits live.</li>
           <li><strong>Products</strong> ▸ Product data, Brands, Print profiles, Shop categories, Bundles, Bottle shops.</li>
           <li><strong>Inventory</strong> — Medusa&apos;s stock pages.</li>
           <li><strong>Customers</strong> ▸ Organisations, Owner rotation, Email suppressions, Open carts (Studio carts never checked out).</li>
@@ -80,7 +81,7 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <Text>
-          A <strong>job</strong> is a quote and/or the order it became. Open one from the Jobs list, from &quot;Open job&quot; on an order, or at <code>/app/jobs/&lt;order id, quote id, Q-number or order number&gt;</code>. The same job panel sits at the top of every order in Orders; Medusa&apos;s own order card (items, payments, fulfilment, addresses) is below it.
+          A <strong>job</strong> is a quote and/or the order it became. Open one from the Jobs list (it opens beside the list), from &quot;Open job&quot; on an order, or at <code>/app/jobs/&lt;order id, quote id, Q-number or order number&gt;</code>. Medusa&apos;s own order page has a one-line Open job bar at the top and keeps refunds, edits and cancelling.
         </Text>
         <ul className="mt-2 list-disc pl-5 text-sm space-y-1">
           <li><strong>Header</strong> — customer (click to email or call), owner, quoted / order / paid / owing.</li>

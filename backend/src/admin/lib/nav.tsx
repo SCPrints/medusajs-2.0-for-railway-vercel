@@ -24,6 +24,19 @@ export const AppLink = forwardRef<HTMLAnchorElement, AppLinkProps>(function AppL
   return to ? <Link ref={ref} to={to} {...rest} /> : <a ref={ref} href={href} {...rest} />
 })
 
+/**
+ * The Job pricer opened over a job on the Jobs list (`?pricer=1`). Keeps the
+ * list's folder and, when a job is already open, that job, so nothing reloads
+ * behind the pricer; otherwise opens `jobId`.
+ */
+export function pricerHref(jobId: string): string {
+  const onJobs = window.location.pathname.replace(/\/$/, "") === `${BASE}/jobs`
+  const p = new URLSearchParams(onJobs ? window.location.search : "")
+  if (!p.get("job")) p.set("job", jobId)
+  p.set("pricer", "1")
+  return `${BASE}/jobs?${p.toString()}`
+}
+
 /** `go("/app/jobs/x")` navigates in-app; other hrefs load normally. */
 export function useGo() {
   const navigate = useNavigate()

@@ -553,8 +553,9 @@ const POSPage = () => {
   )
 }
 
+// Top-level since 2026-10-27; the saved sidebar default (layout zone
+// "sidebar") puts it straight after Jobs.
 export const config = defineRouteConfig({
-  nested: "/orders",
   label: "POS",
   icon: tinted(ShoppingCart, NAV_COLOR.sales),
   rank: 10,
