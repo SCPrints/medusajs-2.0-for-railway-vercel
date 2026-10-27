@@ -265,7 +265,9 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
       else if (t.type === "reject_logged") kind = "reject"
       else if (t.type === "nps_sent" || t.type === "nps_response") kind = "nps"
       else if (t.type === "created") kind = "status"
-      activity.push({ at: t.at, kind, title: t.title, detail: t.detail ?? null, actor: t.actor ?? null, thumbnail_url: t.thumbnail_url ?? null })
+      // The order timeline hands some times over as Date objects; the diary
+      // sort and the Jobs list compare ISO strings.
+      activity.push({ at: iso(t.at) ?? now.toISOString(), kind, title: t.title, detail: t.detail ?? null, actor: t.actor ?? null, thumbnail_url: t.thumbnail_url ?? null })
     }
   }
   for (const entity of [orderId ? { entity: "order", id: orderId } : null, quoteId ? { entity: "quote", id: quoteId } : null]) {
