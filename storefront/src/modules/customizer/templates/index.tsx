@@ -2629,6 +2629,21 @@ export default function CustomizerTemplate({
       setCurrentSide(savedSide)
     }
 
+    // Staff editing a quote design land on a predictable side: the front when
+    // it carries artwork, else the first decorated side — never whichever side
+    // the customer last had open (that read as "the top line opens the back").
+    if (isQuoteMode) {
+      const sideOrder: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
+      const firstDecorated = sideOrder.find(
+        (s) => (sideLayoutsRef.current[s] ?? []).length > 0
+      )
+      if (firstDecorated) {
+        sideToLoad = firstDecorated
+        currentSideRef.current = firstDecorated
+        setCurrentSide(firstDecorated)
+      }
+    }
+
     // In admin proof mode, always land on the exact side staff clicked
     // ("Create revised proof" for Front vs Back) — not whichever side the
     // customer happened to have active when they ordered.
