@@ -39,6 +39,15 @@
   --brand-accent: #a3e635;
 }
 
+/* Header logo swap: the Halloween wordmark replaces the classic one. */
+.theme-logo-halloween,
+[data-theme="halloween"] .theme-logo-classic {
+  display: none;
+}
+[data-theme="halloween"] .theme-logo-halloween {
+  display: block;
+}
+
 /* Header bars. Redundant once the header uses bg-header-bg directly. */
 [data-theme="halloween"] .theme-header-bar {
   background-color: rgb(var(--header-bg));

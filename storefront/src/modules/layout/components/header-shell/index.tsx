@@ -189,8 +189,16 @@ export default function HeaderShell({ audiences, cartSlot }: Props) {
               alt="SC Prints"
               width={158}
               height={52}
-              className="h-10 w-auto invert"
+              className="theme-logo-classic h-10 w-auto invert"
               priority
+            />
+            {/* Seasonal logo — both are in the HTML, themes.css shows one. */}
+            <Image
+              src="/branding/sc-prints-logo-halloween.png"
+              alt="SC Prints"
+              width={445}
+              height={512}
+              className="theme-logo-halloween h-16 w-auto"
             />
           </LocalizedClientLink>
 
