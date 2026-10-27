@@ -34,6 +34,32 @@ export const getSourceWidthPx = (obj: any): number => {
   return 0
 }
 
+/**
+ * `loadFromJSON` reviver. The canvas works on a ≤2000px copy of each upload,
+ * but saved layouts swap `src` for the full-size R2 original while keeping the
+ * copy's `width`/`height`. Fabric reads a width smaller than the image as a
+ * crop, so the reload showed (and rendered) only the top-left corner — order
+ * #118. The customizer has no crop tool, so any such mismatch is this bug:
+ * resize to the real image and shrink the scale so it stays the same size.
+ */
+export const fitImageToSource = (_serialized: unknown, obj: any) => {
+  if (typeof obj?.getOriginalSize !== "function" || obj.cropX || obj.cropY) {
+    return
+  }
+  const { width: natW, height: natH } = obj.getOriginalSize()
+  if (!natW || !natH || (natW === obj.width && natH === obj.height)) {
+    return
+  }
+  obj.set({
+    scaleX: (obj.scaleX * obj.width) / natW,
+    scaleY: (obj.scaleY * obj.height) / natH,
+    width: natW,
+    height: natH,
+    sourceWidthPx: natW,
+    sourceHeightPx: natH,
+  })
+}
+
 export const getSourceHeightPx = (obj: any): number => {
   const direct = Number(obj?.sourceHeightPx ?? 0)
   if (direct > 0) {

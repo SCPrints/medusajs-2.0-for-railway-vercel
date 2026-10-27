@@ -112,6 +112,7 @@ import {
 import {
   getSourceWidthPx,
   getSourceHeightPx,
+  fitImageToSource,
 } from "@modules/customizer/lib/fabric-image-source"
 import {
   readFileAsText,
@@ -2869,7 +2870,7 @@ export default function CustomizerTemplate({
       // a console warning and try to load survivors one-by-one so the
       // customer at least sees the text + working images.
       try {
-        await (canvas as any).loadFromJSON(json)
+        await (canvas as any).loadFromJSON(json, fitImageToSource)
       } catch (err) {
         if (typeof window !== "undefined") {
           // eslint-disable-next-line no-console
@@ -2886,10 +2887,10 @@ export default function CustomizerTemplate({
           // entry doesn't take the others down with it.
           for (const obj of objects) {
             try {
-              await (canvas as any).loadFromJSON({
-                version: "7.0.0",
-                objects: [obj],
-              })
+              await (canvas as any).loadFromJSON(
+                { version: "7.0.0", objects: [obj] },
+                fitImageToSource
+              )
               // loadFromJSON resets the canvas each call, so we can't
               // accumulate this way. Instead break early — once any single
               // object loads, that's the best we can do; the rest stay
@@ -3752,10 +3753,10 @@ export default function CustomizerTemplate({
       width: Math.round(canvasDims.width),
       height: Math.round(canvasDims.height),
     })
-    await staticCanvas.loadFromJSON({
-      version: "7.0.0",
-      objects: sideObjects,
-    })
+    await staticCanvas.loadFromJSON(
+      { version: "7.0.0", objects: sideObjects },
+      fitImageToSource
+    )
     const rawArtworkSvg = staticCanvas.toSVG()
     staticCanvas.dispose()
 
@@ -3880,7 +3881,10 @@ export default function CustomizerTemplate({
         width: canvasDims.width,
         height: canvasDims.height,
       })
-      await staticCanvas.loadFromJSON({ version: "7.0.0", objects: proofObjects })
+      await staticCanvas.loadFromJSON(
+        { version: "7.0.0", objects: proofObjects },
+        fitImageToSource
+      )
       const rawArtworkSvg = staticCanvas.toSVG()
       staticCanvas.dispose()
 
