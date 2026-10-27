@@ -257,7 +257,8 @@ export const OrderPlacedTemplate: React.FC<OrderPlacedTemplateProps> & {
                 width: '60px',
               }}
             >
-              {item.quantity}
+              {/* Medusa 2.21 hands quantity over as a BigNumber object; React can't render it (#117-#119 emails failed). */}
+              {Number(item.quantity)}
             </Column>
             <Column
               style={{

@@ -279,7 +279,7 @@ export const FulfillmentOrderPlacedTemplate: React.FC<FulfillmentOrderPlacedTemp
                 width: '60px',
               }}
             >
-              {item.quantity}
+              {Number(item.quantity)}
             </Column>
             <Column
               style={{
