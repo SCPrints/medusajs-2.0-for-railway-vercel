@@ -301,6 +301,7 @@ function PricingPanel({
                 ) : null}
                 <input
                   type="number"
+                  aria-label={`Quantity ${sizeEntry.size}`}
                   inputMode="numeric"
                   pattern="[0-9]*"
                   min={0}

@@ -15,7 +15,8 @@
     "lint": "eslint src",
     "analyze": "ANALYZE=true next build",
     "test": "jest --config jest.config.cjs",
-    "test-e2e": "playwright test e2e"
+    "test-e2e": "playwright test e2e",
+    "test-studio": "playwright test -c playwright.studio.config.ts"
   },
   "resolutions": {
     "webpack": "^5"

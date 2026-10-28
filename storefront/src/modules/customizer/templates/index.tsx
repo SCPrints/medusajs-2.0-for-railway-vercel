@@ -3090,6 +3090,47 @@ export default function CustomizerTemplate({
     })
     fabricCanvasRef.current = canvas
 
+    // Read-only hook for the Playwright Studio suite (storefront/e2e-studio),
+    // only when the test browser sets localStorage "scp:e2e" = "1". Reports
+    // where each artwork sits in scene px and in viewport px (for mouse drags).
+    try {
+      if (window.localStorage.getItem("scp:e2e") === "1") {
+        ;(window as any).__scpStudio = {
+          side: () => currentSideRef.current,
+          canvas: () => {
+            const w = Number(canvas.getWidth())
+            const h = Number(canvas.getHeight())
+            return { width: w, height: h, visible: mockupVisibleRect(w, h, mockupScaleRef.current) }
+          },
+          objects: () => {
+            const el: HTMLElement = canvas.upperCanvasEl ?? htmlCanvas
+            const rect = el.getBoundingClientRect()
+            const k = rect.width / Math.max(1, Number(canvas.getWidth()))
+            const vpt = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0]
+            return canvas.getObjects().map((o: any) => {
+              o.setCoords()
+              const b = o.getBoundingRect()
+              const sx = (b.left * vpt[0] + vpt[4]) * k
+              const sy = (b.top * vpt[3] + vpt[5]) * k
+              return {
+                type: o.type,
+                uploadId: o.customizerUploadId ?? null,
+                scene: { left: b.left, top: b.top, width: b.width, height: b.height },
+                viewport: {
+                  x: rect.left + sx,
+                  y: rect.top + sy,
+                  width: b.width * vpt[0] * k,
+                  height: b.height * vpt[3] * k,
+                },
+              }
+            })
+          },
+        }
+      }
+    } catch {
+      // localStorage blocked — no hook, nothing else changes.
+    }
+
     const syncSize = () => {
       // Read the LIVE container — CanvasStage can remount (tab swaps, modal
       // load reflow), replacing the node captured at init.
