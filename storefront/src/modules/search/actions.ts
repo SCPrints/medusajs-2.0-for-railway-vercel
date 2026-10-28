@@ -1,67 +1,37 @@
 "use server"
 
-import { getProductIndexName } from "@lib/search-client"
-
-interface Hits {
-  readonly objectID?: string
-  id?: string
-  [x: string | number | symbol]: unknown
-}
-
-/** Hard upper bound on the Meilisearch round-trip — keeps Vercel from
- * gateway-timing-out (504) and lets `/results/[query]` degrade to a clean
- * "No results" page if the search index is unreachable. */
-const SEARCH_TIMEOUT_MS = 8000
+import {
+  searchProducts,
+  type ListingFilters,
+  type ProductSearchResult,
+} from "@lib/data/listing-search"
+import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 
 /**
- * Uses MeiliSearch or Algolia to search for a query
- * @param {string} query - search query
+ * Search results for `/results/[query]`: relevance, filters, sort and paging
+ * run in Meilisearch (see `searchProducts`). Returns an empty result if the
+ * index is unreachable so the page renders "No results" instead of a 500.
  */
-export async function search(query: string): Promise<Hits[]> {
-  // Raw Meilisearch fetch (same pattern as the client search overlay). The
-  // instant-meilisearch adapter this used previously could wedge across reused
-  // Fluid Compute invocations AND its filter translation only supports
-  // equality — we need `internal_service != true` to hide service products.
-  const endpoint = process.env.NEXT_PUBLIC_SEARCH_ENDPOINT
-  if (!endpoint) return []
-  const apiKey = process.env.NEXT_PUBLIC_SEARCH_API_KEY || ""
-
-  let hits: Hits[] = []
-  try {
-    const response = await fetch(
-      new URL(`/indexes/${await getProductIndexName()}/search`, endpoint).toString(),
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          q: query,
-          limit: 50,
-          // Hide internal service products (setup-fee lines) from results.
-          filter: "internal_service != true",
-        }),
-        signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
-      }
-    )
-    if (!response.ok) {
-      throw new Error(`search responded ${response.status}`)
-    }
-    const data = (await response.json()) as { hits?: Hits[] }
-    hits = data.hits ?? []
-  } catch (error) {
-    console.warn("[search] meilisearch query failed:", (error as Error).message)
-    // Fall through with empty hits so the page renders "No results" instead
-    // of throwing a 500 / hitting the 504 gateway timeout.
-  }
+export async function search(
+  query: string,
+  opts: { filters?: ListingFilters; sortBy?: SortOptions; page?: number; limit?: number } = {}
+): Promise<ProductSearchResult> {
+  const result =
+    (await searchProducts({
+      q: query,
+      filters: opts.filters ?? {},
+      sortBy: opts.sortBy ?? "created_at",
+      page: opts.page ?? 1,
+      limit: opts.limit ?? 12,
+    })) ?? { ids: [], count: 0, brandCounts: {}, typeCounts: {} }
 
   // Fire-and-forget log of the search to the backend so the admin
   // Reports → Catalog & supply tab can surface top + zero-result
-  // queries. Failures are swallowed — never break search UX.
-  void logSearchEvent(query.trim(), hits.length)
+  // queries. Only unfiltered first pages count as a search.
+  const filtered = Object.values(opts.filters ?? {}).some((v) => v !== undefined && v !== "")
+  if ((opts.page ?? 1) === 1 && !filtered) void logSearchEvent(query.trim(), result.count)
 
-  return hits
+  return result
 }
 
 const logSearchEvent = async (query: string, resultsCount: number) => {

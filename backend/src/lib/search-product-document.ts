@@ -14,15 +14,17 @@
  * headline-price rule in src/lib/listing-summary.ts.
  */
 
+import { searchPopularity } from "./search-popularity"
+
 /** Graph paths the document is built from (each costs a JOIN at index time only). */
 export const PRODUCT_DOCUMENT_GRAPH_FIELDS = [
   "id", "status", "title", "description", "handle", "thumbnail", "created_at",
   "collection_id", "material", "metadata",
-  "categories.id",
+  "categories.id", "categories.name",
   "type.id", "type.value",
   "tags.id", "tags.value",
   "brand.handle", "brand.name",
-  "variants.id", "variants.sku", "variants.metadata",
+  "variants.id", "variants.sku", "variants.title", "variants.metadata",
   "variants.manage_inventory", "variants.allow_backorder",
   // Stock, worked out the way the store API does (see variantAvailable).
   "sales_channels.stock_locations.id",
@@ -86,6 +88,35 @@ const variantAvailable = (variant: any, locationIds: Set<string>): number | null
   return units
 }
 
+const SIZE_SEGMENT =
+  /^(x{0,5}s|x{0,5}l|\d?x{1,5}l|m|s\/m|m\/l|l\/xl|one size|osfa|os|\d+(\.\d+)?\s*(cm|mm|y|yrs?)?|\d+\s*-\s*\d+)$/i
+
+/**
+ * Colour words from variant titles ("Black / XL" → "black"), so "black hoodie"
+ * matches black products instead of any description that says "black".
+ * Sizes and default titles are dropped.
+ * ponytail: only "Colour / Size" titles (AS Colour, FashionBiz, …) are read;
+ * suppliers whose variant title is a full sentence ("Cargo Pants Black 72R")
+ * are skipped. Read the colour option values instead if those need it.
+ */
+export function colourText(variants: any[]): string {
+  const seen = new Set<string>()
+  for (const v of variants) {
+    const title = String(v?.title || "")
+    if (!title.includes(" / ")) continue
+    for (const seg of title.split(" / ")) {
+      const t = seg.trim().toLowerCase()
+      if (!t || t === "default" || t === "default variant" || t === "default title") continue
+      if (SIZE_SEGMENT.test(t)) continue
+      seen.add(t)
+    }
+  }
+  return [...seen].join(" ")
+}
+
+const names = (rows: any[] | null | undefined, key: string): string =>
+  [...new Set((rows || []).map((r) => r && r[key]).filter(Boolean).map((v) => String(v).toLowerCase()))].join(" ")
+
 export function toProductSearchDocument(product: any): Record<string, unknown> {
   const variants: any[] = Array.isArray(product.variants) ? product.variants : []
 
@@ -129,6 +160,13 @@ export function toProductSearchDocument(product: any): Record<string, unknown> {
     category_ids: (product.categories || []).map((c: any) => c && c.id).filter(Boolean),
     collection_id: product.collection_id || null,
     type_id: product.type?.id || null,
+    // Searchable names, so "kids hoodie" / "hi vis polo" match the product's
+    // type, audience tags and Shop categories, not just words in the title.
+    type_name: product.type?.value ? String(product.type.value).toLowerCase() : null,
+    category_names: names(product.categories, "name"),
+    tag_names: names(product.tags, "value"),
+    colours: colourText(variants),
+    popularity: searchPopularity(meta),
     tag_ids: (product.tags || []).map((t: any) => t && t.id).filter(Boolean),
     brand_handle: product.brand?.handle || null,
     brand_name: product.brand?.name ? String(product.brand.name).toLowerCase() : null,

@@ -160,3 +160,76 @@ export async function searchListing(opts: {
     return null
   }
 }
+
+export type ProductSearchResult = {
+  ids: string[]
+  count: number
+  /** Hit counts per brand handle / type id across ALL matches (for the filter dropdowns). */
+  brandCounts: Record<string, number>
+  typeCounts: Record<string, number>
+}
+
+/**
+ * The `/results/[query]` search: text relevance, filters, sort and paging all
+ * inside Meili (not gated by LISTING_VIA_SEARCH — search always uses Meili).
+ * Asks for every word first (`matchingStrategy: "all"`) so "black hoodie"
+ * means black AND hoodie; only when that finds nothing does it relax to
+ * Meili's default of dropping words from the end. "Relevance" (`created_at`)
+ * sends no sort, so the index ranking rules (relevance → popularity) apply.
+ */
+export async function searchProducts(opts: {
+  q: string
+  filters: ListingFilters
+  sortBy: SortOptions
+  page: number
+  limit: number
+}): Promise<ProductSearchResult | null> {
+  if (!SEARCH_ENDPOINT) return null
+  const { q, filters, sortBy, page, limit } = opts
+  const url = `${SEARCH_ENDPOINT.replace(/\/$/, "")}/indexes/${await getProductIndexName()}/search`
+
+  const run = async (matchingStrategy: "all" | "last") => {
+    const body: Record<string, unknown> = {
+      q,
+      matchingStrategy,
+      filter: buildFilter({}, filters).join(" AND "),
+      page: Math.max(1, page),
+      hitsPerPage: limit,
+      attributesToRetrieve: ["id"],
+      facets: ["brand_handle", "type_id"],
+    }
+    if (sortBy !== "created_at") body.sort = SORT_MAP[sortBy]
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SEARCH_API_KEY ?? ""}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(LISTING_SEARCH_TIMEOUT_MS * 2),
+    })
+    if (!res.ok) throw new Error(`meili ${res.status}`)
+    return (await res.json()) as {
+      hits?: Array<{ id?: string }>
+      totalHits?: number
+      facetDistribution?: Record<string, Record<string, number>>
+    }
+  }
+
+  try {
+    let data = await run("all")
+    if (!data.totalHits && q.trim().includes(" ")) data = await run("last")
+    const ids = (data.hits ?? [])
+      .map((h) => h?.id)
+      .filter((id): id is string => typeof id === "string")
+    return {
+      ids,
+      count: typeof data.totalHits === "number" ? data.totalHits : ids.length,
+      brandCounts: data.facetDistribution?.brand_handle ?? {},
+      typeCounts: data.facetDistribution?.type_id ?? {},
+    }
+  } catch (error) {
+    console.warn("[search] meili query failed:", (error as Error).message)
+    return null
+  }
+}

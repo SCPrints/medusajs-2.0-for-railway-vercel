@@ -518,6 +518,25 @@ const CLIENT_FILTER_MAX_PAGES = 80
  * caller falls back to the legacy in-memory scan. A legit empty category
  * returns an empty page (NOT null) so we don't fall back to the full catalog.
  */
+/**
+ * Hydrates a page of Meili-ranked product ids for listing tiles, keeping
+ * Meili's order. Uses the slim field set — drops inventory fields the card
+ * doesn't render (Aussie Pacific's ~120 variants: ~5s → ~1s). null = no region.
+ */
+export async function hydrateRankedProducts(
+  ids: string[],
+  countryCode: string
+): Promise<HttpTypes.StoreProduct[] | null> {
+  if (!ids.length) return []
+  const region = await getRegion(countryCode)
+  if (!region) return null
+  const hydrated = await getProductsByIdForListing({ ids, regionId: region.id })
+  const rank = new Map(ids.map((id, i) => [id, i]))
+  return [...hydrated].sort(
+    (a, b) => (rank.get(a.id ?? "") ?? 0) - (rank.get(b.id ?? "") ?? 0)
+  )
+}
+
 async function getListingViaSearch({
   page,
   limit,
@@ -581,18 +600,8 @@ async function getListingViaSearch({
     return { response: { products: [], count: result.count }, nextPage: null, queryParams }
   }
 
-  const region = await getRegion(countryCode)
-  if (!region) return null
-
-  // Use the slim hydration variant — drops inventory fields the listing card
-  // doesn't render. For Aussie Pacific (~120 variants per product) this cuts
-  // the backend response from ~5s to ~1s.
-  const hydrated = await getProductsByIdForListing({ ids: result.ids, regionId: region.id })
-  // getProductsByIdForListing returns products in arbitrary order — restore Meili's ranking.
-  const rank = new Map(result.ids.map((id, i) => [id, i]))
-  const products = [...hydrated].sort(
-    (a, b) => (rank.get(a.id ?? "") ?? 0) - (rank.get(b.id ?? "") ?? 0)
-  )
+  const products = await hydrateRankedProducts(result.ids, countryCode)
+  if (!products) return null
 
   const nextPage = result.count > page * limit ? page + 1 : null
   return { response: { products, count: result.count }, nextPage, queryParams }

@@ -61,3 +61,27 @@ describe("toProductSearchDocument", () => {
     expect(toProductSearchDocument({ id: "p", sales_channels: channels, variants }).in_stock).toBe(expected)
   })
 })
+
+describe("searchable names, colours and popularity", () => {
+  it("indexes type/category/tag names, colour words and the popularity score", () => {
+    const doc = toProductSearchDocument({
+      id: "prod_2",
+      title: "Supply Hood",
+      type: { id: "ptyp_1", value: "Hoodies" },
+      categories: [{ id: "c1", name: "Hoodies" }, { id: "c2", name: "Zip Up Hoodies" }],
+      tags: [{ id: "t1", value: "Men" }, { id: "t2", value: "Unisex" }],
+      metadata: { sales_90d: 40, search_boost: true },
+      variants: [
+        { title: "Black / XL" }, { title: "Black / 2XL" }, { title: "Heather Grey / S" },
+        { title: "Navy / 10" }, { title: "Default variant" }, { title: "Cargo Pants R/Tape Blue 87R" },
+      ],
+    })
+    expect(doc).toMatchObject({
+      type_name: "hoodies",
+      category_names: "hoodies zip up hoodies",
+      tag_names: "men unisex",
+      colours: "black heather grey navy",
+      popularity: 100040,
+    })
+  })
+})

@@ -1,27 +1,62 @@
 import { Heading, Text } from "@medusajs/ui"
-import Link from "next/link"
 
+import { listBrands } from "@lib/data/brands"
+import { listStoreProductTypes } from "@lib/data/catalog-facets"
+import { getCustomerTier } from "@lib/data/customer-tier"
+import { hydrateRankedProducts } from "@lib/data/products"
+import { getRegion } from "@lib/data/regions"
+import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import ProductPreview from "@modules/products/components/product-preview"
+import { search } from "@modules/search/actions"
+import { Pagination } from "@modules/store/components/pagination"
 import RefinementList from "@modules/store/components/refinement-list"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
-import PaginatedProducts from "@modules/store/templates/paginated-products"
-import LocalizedClientLink from "@modules/common/components/localized-client-link"
+import {
+  CatalogFacetOptions,
+  ProductFilters,
+} from "@modules/store/components/refinement-list/types"
+
+const PRODUCT_LIMIT = 12
 
 type SearchResultsTemplateProps = {
   query: string
-  ids: string[]
   sortBy?: SortOptions
-  page?: string
+  page: number
   countryCode: string
+  filters: ProductFilters
 }
 
-const SearchResultsTemplate = ({
+const SearchResultsTemplate = async ({
   query,
-  ids,
-  sortBy,
+  sortBy = "created_at",
   page,
   countryCode,
+  filters,
 }: SearchResultsTemplateProps) => {
-  const pageNumber = page ? parseInt(page) : 1
+  const [result, brands, types, region, tier] = await Promise.all([
+    search(query, { filters, sortBy, page, limit: PRODUCT_LIMIT }),
+    listBrands(),
+    listStoreProductTypes(),
+    getRegion(countryCode),
+    getCustomerTier(),
+  ])
+  const products = (await hydrateRankedProducts(result.ids, countryCode)) ?? []
+  const totalPages = Math.ceil(result.count / PRODUCT_LIMIT)
+  const hasFilters = Object.values(filters).some((v) => v !== undefined)
+
+  // Dropdowns only offer brands/types present in these results, with counts.
+  const withCount = (label: string, n: number) => `${label} (${n})`
+  const facetOptions: CatalogFacetOptions = {
+    brands: brands
+      .filter((b) => result.brandCounts[b.handle])
+      .sort((a, b) => result.brandCounts[b.handle] - result.brandCounts[a.handle])
+      .map((b) => ({ id: b.handle, label: withCount(b.name, result.brandCounts[b.handle]) })),
+    types: types
+      .filter((t) => result.typeCounts[t.id])
+      .sort((a, b) => result.typeCounts[b.id] - result.typeCounts[a.id])
+      .map((t) => ({ id: t.id, label: withCount(t.value ?? t.id, result.typeCounts[t.id]) })),
+    tags: [],
+  }
 
   return (
     <>
@@ -29,7 +64,7 @@ const SearchResultsTemplate = ({
         <div className="flex flex-col items-start">
           <Text className="text-ui-fg-muted">Search Results for:</Text>
           <Heading>
-            {decodeURI(query)} ({ids.length})
+            {query} ({result.count})
           </Heading>
         </div>
         <LocalizedClientLink
@@ -40,16 +75,44 @@ const SearchResultsTemplate = ({
         </LocalizedClientLink>
       </div>
       <div className="flex flex-col small:flex-row small:items-start p-6">
-        {ids.length > 0 ? (
+        {result.count > 0 || hasFilters ? (
           <>
-            <RefinementList sortBy={sortBy || "created_at"} search />
+            <RefinementList
+              sortBy={sortBy}
+              filters={filters}
+              facetOptions={facetOptions}
+              search
+            />
             <div className="content-container">
-              <PaginatedProducts
-                productsIds={ids}
-                sortBy={sortBy}
-                page={pageNumber}
-                countryCode={countryCode}
-              />
+              {products.length > 0 && region ? (
+                <>
+                  <ul
+                    className="grid grid-cols-2 w-full small:grid-cols-3 medium:grid-cols-4 gap-x-6 gap-y-10 medium:gap-x-8"
+                    data-testid="products-list"
+                  >
+                    {products.map((p, index) => (
+                      <li key={p.id} className="h-full">
+                        <ProductPreview
+                          product={p}
+                          region={region}
+                          layout="boxed"
+                          tier={tier}
+                          imagePriority={index < 4}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                  {totalPages > 1 && (
+                    <Pagination
+                      data-testid="product-pagination"
+                      page={page}
+                      totalPages={totalPages}
+                    />
+                  )}
+                </>
+              ) : (
+                <Text className="mt-3">No products match these filters.</Text>
+              )}
             </div>
           </>
         ) : (

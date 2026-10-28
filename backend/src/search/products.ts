@@ -8,6 +8,7 @@ import {
   resolveEventIds,
   resolveRelatedIds,
 } from "@rokmohar/medusa-plugin-meilisearch/indexes"
+import { SEARCH_SYNONYMS } from "../lib/search-synonyms"
 import {
   PRODUCT_DOCUMENT_GRAPH_FIELDS,
   toProductSearchDocument,
@@ -102,12 +103,18 @@ export default defineProductSearchIndex({
     id: search.keyword().filterable(),
     status: search.keyword().filterable(),
     handle: search.keyword().filterable(),
-    title: search.text().searchable({ weight: 5 }).sortable(),
-    // brand_name right after title so "biz hoodie" ranks the brand's hoodies.
-    brand_name: search.text().searchable({ weight: 4 }).filterable(),
-    description: search.text().searchable({ weight: 3 }),
-    variant_sku: search.text().searchable({ weight: 2 }),
-    material_text: search.text().searchable({ weight: 1 }),
+    // Weights set Meili's attribute order: a match in the title, type or
+    // category beats one buried in a long supplier description.
+    title: search.text().searchable({ weight: 10 }).sortable(),
+    type_name: search.text().searchable({ weight: 9 }),
+    category_names: search.text().searchable({ weight: 8 }),
+    // brand_name so "biz hoodie" ranks the brand's hoodies.
+    brand_name: search.text().searchable({ weight: 7 }).filterable(),
+    tag_names: search.text().searchable({ weight: 6 }),
+    colours: search.text().searchable({ weight: 5 }),
+    material_text: search.text().searchable({ weight: 3 }),
+    description: search.text().searchable({ weight: 2 }),
+    variant_sku: search.text().searchable({ weight: 1 }),
     thumbnail: search.keyword().retrievable(),
     created_at_ts: search.integer().sortable(),
     min_price_aud: search.integer().filterable().sortable(),
@@ -119,6 +126,8 @@ export default defineProductSearchIndex({
     fabric: search.keyword().filterable().array(),
     in_stock: search.boolean().filterable(),
     internal_service: search.boolean().filterable(),
+    // Best-seller + staple tiebreaker (see lib/search-popularity.ts).
+    popularity: search.integer().sortable(),
     sales_channel_ids: search.keyword().filterable().array(),
   }),
   graph_fields: PRODUCT_DOCUMENT_GRAPH_FIELDS,
@@ -145,6 +154,14 @@ export default defineProductSearchIndex({
   settings: {
     provider_options: {
       meilisearch: {
+        // `sort` first: an explicit price sort orders strictly by price.
+        // Exact word matches beat prefixes ("hoodie" over "dog hoodies"),
+        // then best-sellers / staples win ties.
+        rankingRules: [
+          "sort", "words", "typo", "proximity", "attributeRank",
+          "exactness", "popularity:desc", "wordPosition",
+        ],
+        synonyms: SEARCH_SYNONYMS,
         displayedAttributes: ["id", "handle", "title", "description", "variant_sku", "thumbnail"],
         // Default maxTotalHits (1000) capped listing pagination on the 1300+
         // product store-wide listing.
