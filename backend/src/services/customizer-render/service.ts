@@ -276,6 +276,61 @@ export const shrinkForRender = async (
   }
 }
 
+const fetchInlineDataUri = async (url: string): Promise<string | null> => {
+  if (!isSafeRemoteImageUrl(url)) {
+    return null
+  }
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12_000)
+  try {
+    const response = await fetch(rewriteOwnR2UrlToPublic(url), {
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      return null
+    }
+    const contentType = response.headers.get("content-type") ?? ""
+    if (!contentType.startsWith("image/")) {
+      return null
+    }
+    const fetched = Buffer.from(await response.arrayBuffer())
+    if (fetched.length === 0) {
+      return null
+    }
+    const shrunk = await shrinkForRender(fetched, contentType)
+    return `data:${shrunk.contentType};base64,${shrunk.buffer.toString("base64")}`
+  } catch {
+    // Leave the URL in place — that image renders blank, no worse than before.
+    return null
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+/**
+ * One "Add to cart / quote" fires print + mockup for every side at once, all
+ * with the same artwork; shrinking a 600 dpi original 4× in parallel took ~27 s.
+ * Share the in-flight work and keep recent results. Upload URLs are immutable
+ * (ULID keys), so caching by URL is safe; failures are dropped so they retry.
+ */
+// ponytail: in-process FIFO of 24 entries (~a few MB each); move to R2 render copies if it grows.
+const INLINE_CACHE_MAX = 24
+const inlineCache = new Map<string, Promise<string | null>>()
+
+const loadInlineDataUri = (url: string): Promise<string | null> => {
+  const hit = inlineCache.get(url)
+  if (hit) return hit
+  const pending = fetchInlineDataUri(url).then((value) => {
+    if (!value) inlineCache.delete(url)
+    return value
+  })
+  inlineCache.set(url, pending)
+  if (inlineCache.size > INLINE_CACHE_MAX) {
+    inlineCache.delete(inlineCache.keys().next().value as string)
+  }
+  return pending
+}
+
 const inlineRemoteSvgImages = async (svg: string): Promise<string> => {
   if (!svg.includes("http")) {
     return svg
@@ -293,36 +348,8 @@ const inlineRemoteSvgImages = async (svg: string): Promise<string> => {
   const inlinedByUrl = new Map<string, string>()
   await Promise.all(
     Array.from(urls).map(async (url) => {
-      if (!isSafeRemoteImageUrl(url)) {
-        return
-      }
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 12_000)
-      try {
-        const response = await fetch(rewriteOwnR2UrlToPublic(url), {
-          signal: controller.signal,
-        })
-        if (!response.ok) {
-          return
-        }
-        const contentType = response.headers.get("content-type") ?? ""
-        if (!contentType.startsWith("image/")) {
-          return
-        }
-        const fetched = Buffer.from(await response.arrayBuffer())
-        if (fetched.length === 0) {
-          return
-        }
-        const shrunk = await shrinkForRender(fetched, contentType)
-        inlinedByUrl.set(
-          url,
-          `data:${shrunk.contentType};base64,${shrunk.buffer.toString("base64")}`
-        )
-      } catch {
-        // Leave the URL in place — that image renders blank, no worse than before.
-      } finally {
-        clearTimeout(timeout)
-      }
+      const dataUri = await loadInlineDataUri(url)
+      if (dataUri) inlinedByUrl.set(url, dataUri)
     })
   )
 
