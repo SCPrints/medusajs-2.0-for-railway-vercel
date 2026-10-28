@@ -8,6 +8,7 @@ import {
   mockupViewportTransform,
   resolveMockupArtworkScale,
 } from "@modules/customizer/lib/print-spec"
+import { tagZoomStyle } from "@modules/customizer/lib/print-geometry"
 
 const SIDE_LABEL: Record<GarmentSide, string> = {
   front: "Front",
@@ -235,7 +236,7 @@ function DesignPreviewPopover({
               const thumb = thumbs[side]
               const isTag = side === "printed_tag"
               const tagStyle = isTag
-                ? { transform: "scale(3.2)", transformOrigin: "50% 14%" as const }
+                ? tagZoomStyle
                 : undefined
               return (
                 <div

@@ -89,11 +89,8 @@ function savedBox(o: any) {
  * red the moment one is fixed, so the entry gets removed.
  */
 const KNOWN_BROKEN: Record<string, string> = {
-  // Front A3 + back Oversize: the design stores ONE printArea (Oversize-sized)
-  // with ONE scpPrintSizeId (A3), so inferCanvasSizeFromPrintArea gets the
-  // authoring canvas height wrong and art reopens ~10% of the frame off.
-  // Fix = store the canvas size / positions in cm (plan step 3).
-  "past-design-02": "mixed print sizes per side: reopen infers the wrong canvas height",
+  // (empty) past-design-02 — mixed per-side print sizes — fixed 2026-10-29 by
+  // savedCanvasSize (print-geometry.ts): reopen no longer trusts scpPrintSizeId.
 }
 
 for (const fixture of fixtures as any[]) {

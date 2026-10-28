@@ -1,4 +1,5 @@
 import sharp from "sharp"
+import { MOCKUP_SCALE_ORIGIN, TAG_ZOOM } from "../../lib/print-geometry"
 import { ulid } from "ulid"
 import { Client } from "minio"
 import { MedusaError } from "@medusajs/framework/utils"
@@ -251,14 +252,14 @@ const MAX_INLINE_IMAGE_EDGE = 3000
 export const shrinkForRender = async (
   buffer: Buffer,
   contentType: string
-): Promise<{ buffer: Buffer; contentType: string }> => {
+): Promise<{ buffer: Buffer; contentType: string; shrunk: boolean }> => {
   if (!/^image\/(png|jpe?g|webp)/i.test(contentType)) {
-    return { buffer, contentType }
+    return { buffer, contentType, shrunk: false }
   }
   try {
     const meta = await sharp(buffer).metadata()
     if (Math.max(meta.width ?? 0, meta.height ?? 0) <= MAX_INLINE_IMAGE_EDGE) {
-      return { buffer, contentType }
+      return { buffer, contentType, shrunk: false }
     }
     // sequentialRead lets libvips stream the decode instead of holding the full bitmap.
     const out = await sharp(buffer, { sequentialRead: true })
@@ -270,9 +271,77 @@ export const shrinkForRender = async (
       })
       .png()
       .toBuffer()
-    return { buffer: out, contentType: "image/png" }
+    return { buffer: out, contentType: "image/png", shrunk: true }
   } catch {
-    return { buffer, contentType }
+    return { buffer, contentType, shrunk: false }
+  }
+}
+
+/**
+ * At most two heavy image jobs at once (renders + render-copy shrinks). One
+ * "Add to cart" on a front+back design fires four renders together; with big
+ * artwork that stacked decodes until the 4 GB machine was OOM-killed.
+ */
+// ponytail: in-process semaphore — fine on one machine; needs a shared queue if we scale out.
+const MAX_CONCURRENT_RENDERS = 2
+let activeRenders = 0
+const renderQueue: Array<() => void> = []
+
+export const withRenderSlot = async <T>(job: () => Promise<T>): Promise<T> => {
+  if (activeRenders >= MAX_CONCURRENT_RENDERS) {
+    await new Promise<void>((resolve) => renderQueue.push(resolve)) // slot handed over below
+  } else {
+    activeRenders++
+  }
+  try {
+    return await job()
+  } finally {
+    const next = renderQueue.shift()
+    if (next) next()
+    else activeRenders--
+  }
+}
+
+/**
+ * Render copy of a customer upload: `customizer/render/<original name>.png`,
+ * at most MAX_INLINE_IMAGE_EDGE px. Written once (at upload, or lazily on the
+ * first render of an older upload) so renders never decode the 600 dpi
+ * original again. Only for our own bucket; originals stay untouched.
+ */
+export const renderCopyUrl = (originalUrl: string): string | null => {
+  const publicUrl = getMinioConfig()?.publicUrl
+  if (!publicUrl) return null
+  const prefix = `${publicUrl}/customizer/`
+  if (!originalUrl.startsWith(prefix)) return null
+  const name = originalUrl.slice(prefix.length)
+  if (!name || name.includes("/")) return null
+  return `${prefix}render/${name}.png`
+}
+
+/** Shrink `buffer` and store it as the render copy of `originalUrl` (no-op when it's already small). */
+const storeRenderCopy = (copyUrl: string, png: Buffer) =>
+  uploadToMinio(png, copyUrl.slice(copyUrl.indexOf("/customizer/") + "/customizer/".length), "image/png")
+
+/** Shrink an upload and store it as its render copy (no-op when it's already render-sized). */
+export const writeRenderCopy = async (originalUrl: string, buffer: Buffer, contentType: string) => {
+  const target = renderCopyUrl(originalUrl)
+  if (!target) return
+  const shrunk = await withRenderSlot(() => shrinkForRender(buffer, contentType))
+  if (shrunk.shrunk) await storeRenderCopy(target, shrunk.buffer)
+}
+
+const fetchImage = async (url: string): Promise<{ buffer: Buffer; contentType: string } | null> => {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12_000)
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+    if (!response.ok) return null
+    const contentType = response.headers.get("content-type") ?? ""
+    if (!contentType.startsWith("image/")) return null
+    const buffer = Buffer.from(await response.arrayBuffer())
+    return buffer.length ? { buffer, contentType } : null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -280,30 +349,26 @@ const fetchInlineDataUri = async (url: string): Promise<string | null> => {
   if (!isSafeRemoteImageUrl(url)) {
     return null
   }
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 12_000)
   try {
-    const response = await fetch(rewriteOwnR2UrlToPublic(url), {
-      signal: controller.signal,
-    })
-    if (!response.ok) {
+    const publicUrl = rewriteOwnR2UrlToPublic(url)
+    const copyUrl = renderCopyUrl(publicUrl)
+    const copy = copyUrl ? await fetchImage(copyUrl).catch(() => null) : null
+    if (copy) {
+      return `data:${copy.contentType};base64,${copy.buffer.toString("base64")}`
+    }
+    const fetched = await fetchImage(publicUrl)
+    if (!fetched) {
       return null
     }
-    const contentType = response.headers.get("content-type") ?? ""
-    if (!contentType.startsWith("image/")) {
-      return null
+    const shrunk = await shrinkForRender(fetched.buffer, fetched.contentType)
+    if (shrunk.shrunk && copyUrl) {
+      // Older upload with no render copy yet: save it so this is the last full decode.
+      void storeRenderCopy(copyUrl, shrunk.buffer).catch(() => undefined)
     }
-    const fetched = Buffer.from(await response.arrayBuffer())
-    if (fetched.length === 0) {
-      return null
-    }
-    const shrunk = await shrinkForRender(fetched, contentType)
     return `data:${shrunk.contentType};base64,${shrunk.buffer.toString("base64")}`
   } catch {
     // Leave the URL in place — that image renders blank, no worse than before.
     return null
-  } finally {
-    clearTimeout(timeout)
   }
 }
 
@@ -469,10 +534,10 @@ const tintSleevePlaceholder = async (
     .toBuffer()
 }
 
-// Matches CanvasStage: scale(3.2) with transform-origin: 50% 14%
-const TAG_ZOOM_SCALE = 3.2
-const TAG_ORIGIN_X = 0.5
-const TAG_ORIGIN_Y = 0.14
+// Matches CanvasStage's printed-tag zoom (lib/print-geometry.ts TAG_ZOOM).
+const TAG_ZOOM_SCALE = TAG_ZOOM.scale
+const TAG_ORIGIN_X = TAG_ZOOM.originX
+const TAG_ORIGIN_Y = TAG_ZOOM.originY
 
 /**
  * For `printed_tag` the storefront zooms the garment image (CSS scale(3.2),
@@ -614,8 +679,8 @@ export const renderPrintAsset = async (payload: RenderRequestPayload) => {
  * storefront print-spec.ts): garment centre line, top of the print zone.
  */
 export const scaledOverlayBox = (width: number, height: number, scale: number) => ({
-  left: Math.round(width * 0.5 * (1 - scale)),
-  top: Math.round(height * 0.13 * (1 - scale)),
+  left: Math.round(width * MOCKUP_SCALE_ORIGIN.x * (1 - scale)),
+  top: Math.round(height * MOCKUP_SCALE_ORIGIN.y * (1 - scale)),
   width: Math.max(1, Math.round(width * scale)),
   height: Math.max(1, Math.round(height * scale)),
 })

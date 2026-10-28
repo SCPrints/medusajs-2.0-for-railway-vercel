@@ -1,9 +1,7 @@
 /**
- * Helpers for the per-image print model. The visual print-area system in
- * `templates/index.tsx` maps the "oversize" reference (38×48 cm) onto the
- * canvas's 68% × 72% interior rectangle. Everything in this file derives
- * from that mapping so canvas-pixel measurements convert cleanly to
- * approximate real-world centimetres.
+ * Helpers for the per-image print model. All size maths (canvas px ↔ print
+ * area ↔ cm, mockup zoom) lives in print-geometry.ts; this file adds the
+ * pricing-side helpers on top and re-exports the geometry for older imports.
  */
 
 import {
@@ -11,22 +9,19 @@ import {
   ScpPrintSizeId,
   SCP_A6_ONLY_SIDES,
 } from "./scp-dtf-print-pricing"
+import { PRINT_AREA_H_RATIO, PRINT_AREA_W_RATIO, PRINT_SIZE_REF_CM } from "./print-geometry"
 import type { GarmentSide, PrintPricingSpec, PrintSpec } from "./types"
 
-/**
- * Visual-reference physical sizes (cm). Mirrors `SCP_PRINT_SIZE_CM` in
- * templates/index.tsx; kept here so cm conversion has a self-contained
- * source of truth and tests can reach it without dragging in the canvas.
- */
-export const SCP_PRINT_SIZE_REFERENCE_CM: Record<
-  ScpPrintSizeId,
-  { width: number; height: number }
-> = {
-  up_to_a6: { width: 8, height: 12 },
-  up_to_a4: { width: 14, height: 20 },
-  up_to_a3: { width: 19, height: 27 },
-  oversize: { width: 38, height: 48 },
-}
+export {
+  canvasPxPerInch,
+  canvasPxToApproxCm,
+  MOCKUP_SCALE_ORIGIN,
+  mockupViewportTransform,
+  mockupVisibleRect,
+} from "./print-geometry"
+
+/** The print-area guide sizes (cm) — see PRINT_SIZE_REF_CM in print-geometry.ts. */
+export const SCP_PRINT_SIZE_REFERENCE_CM = PRINT_SIZE_REF_CM
 
 /**
  * The real print sizes we price and print (the labels customers see in
@@ -58,8 +53,8 @@ export const maxArtworkPx = (
   const o = SCP_PRINT_SIZE_REFERENCE_CM.oversize
   const turn = landscape && sizeId !== "oversize"
   return {
-    width: canvasWidth * 0.68 * ((turn ? t.height : t.width) / o.width),
-    height: canvasHeight * 0.72 * ((turn ? t.width : t.height) / o.height),
+    width: canvasWidth * PRINT_AREA_W_RATIO * ((turn ? t.height : t.width) / o.width),
+    height: canvasHeight * PRINT_AREA_H_RATIO * ((turn ? t.width : t.height) / o.height),
   }
 }
 
@@ -70,46 +65,6 @@ export const SCP_PRINT_SIZE_ORDER: ScpPrintSizeId[] = [
   "up_to_a3",
   "oversize",
 ]
-
-/**
- * Constants pulled from `getPrintArea` in templates/index.tsx. Re-derived
- * here (not imported) so this module stays UI-agnostic and testable.
- */
-const CANVAS_PRINT_AREA_W_RATIO = 0.68
-const CANVAS_PRINT_AREA_H_RATIO = 0.72
-
-/**
- * Convert a bounding-box pixel size on the live editor canvas to an
- * approximate physical centimetre size on the garment. Only the canvas
- * dimensions and the oversize reference are needed because every other
- * print size scales linearly off oversize.
- */
-export const canvasPxToApproxCm = (
-  pxWidth: number,
-  pxHeight: number,
-  canvasWidth: number,
-  canvasHeight: number
-): { width: number; height: number } => {
-  if (canvasWidth <= 0 || canvasHeight <= 0) {
-    return { width: 0, height: 0 }
-  }
-  const cmPerPxX = SCP_PRINT_SIZE_REFERENCE_CM.oversize.width /
-    (canvasWidth * CANVAS_PRINT_AREA_W_RATIO)
-  const cmPerPxY = SCP_PRINT_SIZE_REFERENCE_CM.oversize.height /
-    (canvasHeight * CANVAS_PRINT_AREA_H_RATIO)
-  return {
-    width: pxWidth * cmPerPxX,
-    height: pxHeight * cmPerPxY,
-  }
-}
-
-/**
- * Canvas px per printed inch, on the same scale as `canvasPxToApproxCm` and
- * production (38 cm = 68% of canvas width). Feed this to the DPI check — the
- * old "print area = 12 inches" guess treated an A6 guide as 30 cm wide.
- */
-export const canvasPxPerInch = (canvasWidth: number): number =>
-  ((canvasWidth * CANVAS_PRINT_AREA_W_RATIO) / SCP_PRINT_SIZE_REFERENCE_CM.oversize.width) * 2.54
 
 /**
  * Garment photos are framed by the supplier, not to our cm scale: the AS
@@ -124,33 +79,6 @@ export const canvasPxPerInch = (canvasWidth: number): number =>
  * a string from the admin metadata editor), then `metadata.garment_fit`
  * (stamped from the brand's size chart + the photo by stamp-garment-fit.ts).
  */
-export const MOCKUP_SCALE_ORIGIN = { x: 0.5, y: 0.13 } // garment centre, top of the print zone
-
-/**
- * The editor zooms the Fabric viewport by the mockup scale around
- * MOCKUP_SCALE_ORIGIN, so the whole garment photo stays editable. This is the
- * scene-space rect the frame shows: artwork may sit anywhere in it, and renders
- * export it (not just the 0..W × 0..H canvas). Equals the canvas at scale 1.
- */
-export const mockupVisibleRect = (width: number, height: number, scale: number) => {
-  const s = scale > 0 ? scale : 1
-  const ox = width * MOCKUP_SCALE_ORIGIN.x
-  const oy = height * MOCKUP_SCALE_ORIGIN.y
-  return { x: ox - ox / s, y: oy - oy / s, width: width / s, height: height / s }
-}
-
-/** Fabric viewportTransform matching `mockupVisibleRect`. */
-export const mockupViewportTransform = (width: number, height: number, scale: number) => {
-  const s = scale > 0 ? scale : 1
-  return [
-    s,
-    0,
-    0,
-    s,
-    width * MOCKUP_SCALE_ORIGIN.x * (1 - s),
-    height * MOCKUP_SCALE_ORIGIN.y * (1 - s),
-  ]
-}
 
 const validScale = (raw: unknown): number | null => {
   const v = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN

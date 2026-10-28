@@ -1,5 +1,6 @@
 "use client"
 
+import { tagZoomStyle as TAG_ZOOM_CSS } from "@modules/customizer/lib/print-geometry"
 import { RenderPlacement } from "@modules/customizer/lib/types"
 import { memo, RefObject, useEffect, useMemo, useState } from "react"
 
@@ -97,14 +98,14 @@ function CanvasStage({
   // Right-sleeve view shares the left-sleeve placeholder, mirrored.
   const isRightSleeveView = printSideKey === "right_sleeve"
   const transform = isTagView
-    ? "scale(3.2)"
+    ? TAG_ZOOM_CSS.transform
     : isRightSleeveView
     ? "scaleX(-1)"
     : undefined
   const tagZoomStyle = transform
     ? {
         transform,
-        transformOrigin: isTagView ? "50% 14%" : "center",
+        transformOrigin: isTagView ? TAG_ZOOM_CSS.transformOrigin : "center",
       }
     : undefined
 

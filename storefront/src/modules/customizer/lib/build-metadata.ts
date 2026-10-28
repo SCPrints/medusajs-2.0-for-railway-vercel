@@ -28,6 +28,8 @@ export type BuildCustomizerMetadataInput = {
   /** Side → array of serialised Fabric objects. Missing sides default to empty. */
   sideLayoutsBySide: Partial<Record<GarmentSide, Record<string, unknown>[]>>
   printArea: RenderPlacement
+  /** Canvas px the design was made on — reopen rescales from this (see savedCanvasSize). */
+  canvas?: { width: number; height: number }
   sizes: SizeQuantity[]
   pricing: PricingBreakdown
   /** Server-rendered print + mockup URLs. Empty for "save without ordering" flows. */
@@ -123,6 +125,9 @@ export function buildCustomizerMetadataBase(
       width: Math.round(input.printArea.width),
       height: Math.round(input.printArea.height),
     },
+    ...(input.canvas && input.canvas.width > 0 && input.canvas.height > 0
+      ? { canvas: { width: Math.round(input.canvas.width), height: Math.round(input.canvas.height) } }
+      : {}),
     sizes: input.sizes,
     pricing: input.pricing,
     artifacts: input.artifacts ?? [],

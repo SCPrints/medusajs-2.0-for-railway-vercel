@@ -112,6 +112,12 @@ import {
   snapSizeForBoundingCm,
 } from "@modules/customizer/lib/print-spec"
 import {
+  getPrintArea,
+  PRINT_AREA_H_RATIO,
+  PRINT_AREA_W_RATIO,
+  savedCanvasSize,
+} from "@modules/customizer/lib/print-geometry"
+import {
   getSourceWidthPx,
   getSourceHeightPx,
   fitImageToSource,
@@ -245,86 +251,6 @@ type CustomizerTemplateProps = {
   customerContact?: CustomerContact | null
 }
 
-// Visual-only dimensions used to scale the dashed print-area guide on the
-// canvas. These are tuned against the photographed garment so each size *looks*
-// like the print a customer will actually receive — they are NOT the true
-// printable dimensions used for pricing or production. The customer-facing
-// label dimensions live in `SCP_PRINT_SIZE_OPTIONS` (scp-dtf-print-pricing.ts).
-//
-// "Oversize" matches the full 68%×72% canvas footprint (≈ a real garment-wide
-// print). A3 and A4 are pulled in so the rectangle reads more like a normal
-// chest print rather than swallowing the whole tee, otherwise customers expect
-// a print larger than what they're paying for. A6 is small enough already.
-const SCP_PRINT_SIZE_CM: Record<ScpPrintSizeId, { w: number; h: number }> = {
-  up_to_a6: { w: 8, h: 12 },
-  up_to_a4: { w: 14, h: 20 },
-  up_to_a3: { w: 19, h: 27 },
-  oversize: { w: 38, h: 48 },
-}
-const SCP_BASE_REF = SCP_PRINT_SIZE_CM.oversize
-
-const getPrintArea = (
-  width: number,
-  height: number,
-  printSizeId: ScpPrintSizeId = "oversize"
-) => {
-  const baseW = width * 0.68
-  const baseH = height * 0.72
-  const refSize = SCP_PRINT_SIZE_CM[printSizeId] ?? SCP_BASE_REF
-  const scaleW = refSize.w / SCP_BASE_REF.w
-  const scaleH = refSize.h / SCP_BASE_REF.h
-  const areaW = baseW * scaleW
-  const areaH = baseH * scaleH
-  // Shift smaller print areas down toward the chest line. Oversize keeps the
-  // legacy top-anchor at 13%; smaller sizes blend toward 30% so they don't end
-  // up sitting on the hood/collar of hoodies and similar garments.
-  const sizeRatio = areaH / baseH // 1.0 for oversize, ~0.31 for A6
-  const topRatioMin = 0.13
-  const topRatioMax = 0.30
-  const topRatio = topRatioMin + (topRatioMax - topRatioMin) * (1 - sizeRatio)
-  return {
-    x: (width - areaW) / 2,
-    y: height * topRatio,
-    width: areaW,
-    height: areaH,
-  }
-}
-
-/**
- * Inverse of `getPrintArea` — recover the canvas dimensions a saved design was
- * authored on, from the `printArea` + `scpPrintSizeId` stored in its metadata.
- *
- * Why: saved Fabric objects use ABSOLUTE canvas-pixel coordinates, but the
- * customizer's canvas size is the live container size (see `syncSize`). So a
- * design authored on a wide PDP canvas, then rehydrated into a smaller surface
- * (the admin "revised proof" modal, a re-order on a different screen), lands its
- * artwork at stale coordinates — off-position or off-canvas entirely (the
- * garment always looks right because it's re-fit to the canvas every load).
- * Knowing the authoring canvas size lets us rescale objects into the current
- * one on rehydration. Returns null when the inputs are missing/inconsistent so
- * the caller can skip normalization (legacy no-op behaviour).
- *
- * Derivation (from getPrintArea):
- *   areaW = W·0.68·(refW/38)         x = (W − areaW)/2   ⇒  W = 2·x + areaW
- *   areaH = H·0.72·(refH/48)                              ⇒  H = areaH / (0.72·refH/48)
- */
-const inferCanvasSizeFromPrintArea = (
-  printArea: { x: number; y: number; width: number; height: number } | null | undefined,
-  sizeId: ScpPrintSizeId | null | undefined
-): { width: number; height: number } | null => {
-  if (!printArea || !sizeId) return null
-  const ref = SCP_PRINT_SIZE_CM[sizeId]
-  if (!ref) return null
-  const { x, width: areaW, height: areaH } = printArea
-  if (![x, areaW, areaH].every((n) => typeof n === "number" && isFinite(n)) || areaH <= 0) {
-    return null
-  }
-  const width = 2 * x + areaW
-  const scaleH = ref.h / SCP_BASE_REF.h
-  const height = areaH / (0.72 * scaleH)
-  if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) return null
-  return { width, height }
-}
 
 const productMetadataShowsDtfTierEstimator = (product: HttpTypes.StoreProduct) => {
   const m = product.metadata as Record<string, unknown> | undefined
@@ -1602,6 +1528,15 @@ export default function CustomizerTemplate({
     applyMockupViewport(fabricCanvasRef.current)
   }, [mockupArtworkScale, canvasSize.width, canvasSize.height])
 
+  /** Live canvas size, saved with every design so reopening never has to guess it. */
+  const liveCanvasSize = () => {
+    const canvas = fabricCanvasRef.current
+    return {
+      width: Number(canvas?.getWidth?.() ?? canvasSize.width),
+      height: Number(canvas?.getHeight?.() ?? canvasSize.height),
+    }
+  }
+
   const garmentImageUrl = useMemo(
     () =>
       getGarmentImageUrlForPrintSide(
@@ -2434,14 +2369,11 @@ export default function CustomizerTemplate({
       // modal, or a re-order on a different screen) would place its artwork at
       // stale coords — off-position or off-canvas (the garment always looks
       // right because it's re-fit to the canvas every load). Recover the
-      // authoring canvas from the saved printArea and rescale every side's
-      // objects into the current canvas so the artwork lands where the customer
-      // put it (proportionally). No-op when sizes match (legacy behaviour) or
-      // when the canvas can't be inferred.
-      const savedCanvas = inferCanvasSizeFromPrintArea(
-        (pendingHydration as { printArea?: { x: number; y: number; width: number; height: number } }).printArea,
-        (pendingHydration.scpPrintSizeId as ScpPrintSizeId | undefined) ?? null
-      )
+      // authoring canvas (saved `canvas`, else printArea width on the 4:5
+      // frame — see savedCanvasSize) and rescale every side's objects into the
+      // current canvas so the artwork lands where the customer put it
+      // (proportionally). No-op when sizes match or the canvas can't be found.
+      const savedCanvas = savedCanvasSize(pendingHydration)
       const sx = savedCanvas ? canvasSize.width / savedCanvas.width : 1
       const sy = savedCanvas ? canvasSize.height / savedCanvas.height : 1
       const needsRescale =
@@ -4299,6 +4231,7 @@ export default function CustomizerTemplate({
 
       const partialMetadata: CustomizerMetadata = {
         ...buildCustomizerMetadataBase({
+          canvas: liveCanvasSize(),
           productId: selectedProduct.id,
           sideLayoutsBySide: sideLayoutsRef.current,
           printArea,
@@ -4669,11 +4602,11 @@ export default function CustomizerTemplate({
       const canvasW =
         canvasSize.width > MIN_PRINT_AREA_PX
           ? Math.round(canvasSize.width)
-          : Math.max(400, Math.round(printArea.width / 0.68))
+          : Math.max(400, Math.round(printArea.width / PRINT_AREA_W_RATIO))
       const canvasH =
         canvasSize.height > MIN_PRINT_AREA_PX
           ? Math.round(canvasSize.height)
-          : Math.max(500, Math.round(printArea.height / 0.72))
+          : Math.max(500, Math.round(printArea.height / PRINT_AREA_H_RATIO))
       const effectiveCanvas = { width: canvasW, height: canvasH }
 
       // Only fail the cart-add when an upload **actually used on this
@@ -4929,6 +4862,7 @@ export default function CustomizerTemplate({
       }
 
       const metadataBase = buildCustomizerMetadataBase({
+        canvas: liveCanvasSize(),
         productId: selectedProduct.id,
         sideLayoutsBySide: sideLayoutsRef.current,
         printArea,

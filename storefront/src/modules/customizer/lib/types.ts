@@ -248,6 +248,11 @@ export type CustomizerMetadata = {
    */
   sideLayouts_archived_url?: string
   printArea: RenderPlacement
+  /**
+   * Canvas px the design was authored on (since 2026-10-29). Reopening rescales
+   * from this; older designs fall back to savedCanvasSize's printArea rule.
+   */
+  canvas?: { width: number; height: number }
   sizes: SizeQuantity[]
   pricing: PricingBreakdown
   artifacts: RenderArtifact[]

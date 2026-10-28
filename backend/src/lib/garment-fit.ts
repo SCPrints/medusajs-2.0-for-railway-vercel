@@ -8,6 +8,7 @@
  * (AS Colour "Body Width", Gildan "Width (A)", AP / DNC "1/2 Chest", JB's
  * "Chest"). Charts that list the full chest circumference are halved.
  */
+import { FRAME_ASPECT, PRINT_AREA_W_RATIO, PRINT_SIZE_REF_CM } from "./print-geometry"
 import sharp from "sharp"
 
 export type SizeTable = { header: string[]; rows: string[][] }
@@ -187,8 +188,8 @@ export function chartBodyWidth(
 /* ------------------------------------------------------------------ photo */
 
 /** Studio canvas maths (storefront getPrintArea): 38 reference cm = 68% of canvas width; frame is 4:5. */
-const CANVAS_ASPECT = 1.25
-const REF_CM_PER_CANVAS_WIDTH = 38 / 0.68
+const CANVAS_ASPECT = FRAME_ASPECT
+const REF_CM_PER_CANVAS_WIDTH = PRINT_SIZE_REF_CM.oversize.width / PRINT_AREA_W_RATIO
 
 /**
  * Body width of a flat-lay garment photo as a fraction of the Studio canvas

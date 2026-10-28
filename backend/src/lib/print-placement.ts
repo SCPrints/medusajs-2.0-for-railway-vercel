@@ -1,10 +1,8 @@
 /**
  * Where the artwork sits on each side, in millimetres, from a saved
- * customizer design. Mirrors the storefront canvas maths (getPrintArea in
- * storefront/src/modules/customizer/templates/index.tsx): the print area for
- * size X is X's reference size, centred, so one print-area pixel is
- * refWidth / areaWidth cm. That's the same scale the customizer uses for the
- * `approxCm` sizes, so these numbers agree with the sizes already shown.
+ * customizer design, on the shared canvas scale (lib/print-geometry.ts, the
+ * mirror of the storefront's): 38 cm = 68% of the canvas width, 48 cm = 72%
+ * of its height — the same scale the customizer's `approxCm` sizes use.
  *
  * Reference point: the top of the full print zone (where an oversize print
  * starts, 13% down the canvas) and the garment's centre line. It is NOT
@@ -14,15 +12,7 @@
  * usual straight prints; a rotated logo reads a little small.
  */
 
-const REFERENCE_CM: Record<string, { w: number; h: number }> = {
-  up_to_a6: { w: 8, h: 12 },
-  up_to_a4: { w: 14, h: 20 },
-  up_to_a3: { w: 19, h: 27 },
-  oversize: { w: 38, h: 48 },
-}
-const OVERSIZE = REFERENCE_CM.oversize
-const PRINT_ZONE_TOP_RATIO = 0.13
-const PRINT_AREA_HEIGHT_RATIO = 0.72
+import { MOCKUP_SCALE_ORIGIN, mmPerCanvasPx, savedCanvasSize } from "./print-geometry"
 
 export type SidePlacement = {
   side: string
@@ -57,21 +47,18 @@ function objectBox(o: Record<string, unknown>): Box | null {
 
 export function computeSidePlacements(design: unknown): SidePlacement[] {
   const d = (design ?? {}) as {
+    canvas?: { width?: unknown; height?: unknown }
     printArea?: { x?: unknown; y?: unknown; width?: unknown; height?: unknown }
-    scpPrintSizeId?: unknown
     sideLayouts?: { side?: unknown; objects?: unknown }[]
   }
-  const ref = REFERENCE_CM[String(d.scpPrintSizeId ?? "")]
-  const areaX = num(d.printArea?.x)
-  const areaW = num(d.printArea?.width)
-  const areaH = num(d.printArea?.height)
-  if (!ref || areaX === null || !areaW || !areaH || !Array.isArray(d.sideLayouts)) return []
+  // Scale from the authoring canvas, not scpPrintSizeId: with different sizes
+  // per side the stored printArea belongs to another size (see savedCanvasSize).
+  const canvas = savedCanvasSize(d)
+  if (!canvas || !Array.isArray(d.sideLayouts)) return []
 
-  const mmPerPxX = (ref.w * 10) / areaW
-  const mmPerPxY = (ref.h * 10) / areaH
-  const canvasH = areaH / (PRINT_AREA_HEIGHT_RATIO * (ref.h / OVERSIZE.h))
-  const zoneTop = canvasH * PRINT_ZONE_TOP_RATIO
-  const centreX = areaX + areaW / 2
+  const { x: mmPerPxX, y: mmPerPxY } = mmPerCanvasPx(canvas)
+  const zoneTop = canvas.height * MOCKUP_SCALE_ORIGIN.y
+  const centreX = canvas.width / 2
 
   const out: SidePlacement[] = []
   for (const layout of d.sideLayouts) {

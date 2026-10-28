@@ -1,6 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import { renderMockupAsset } from "../../../../services/customizer-render/service"
+import { renderMockupAsset, withRenderSlot } from "../../../../services/customizer-render/service"
 import { renderRequestSchema } from "../../../../services/customizer-render/types"
 
 export async function POST(req: MedusaRequest, res: MedusaResponse) {
@@ -13,7 +13,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     )
   }
 
-  const result = await renderMockupAsset(parsed.data)
+  const result = await withRenderSlot(() => renderMockupAsset(parsed.data))
   return res.status(200).json({
     success: true,
     ...result,

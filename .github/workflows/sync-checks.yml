@@ -16,3 +16,5 @@ jobs:
         run: node scripts/check-production-stage-sync.mjs
       - name: Customer-tiers sync
         run: node scripts/check-customer-tiers-sync.mjs
+      - name: Print-geometry sync
+        run: node scripts/check-print-geometry-sync.mjs

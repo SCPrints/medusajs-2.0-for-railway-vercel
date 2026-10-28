@@ -28,3 +28,23 @@ describe("shrinkForRender", () => {
     expect((await shrinkForRender(svg, "image/svg+xml")).buffer).toBe(svg)
   })
 })
+
+describe("withRenderSlot", () => {
+  it("never runs more than two jobs at once and runs them all", async () => {
+    const { withRenderSlot } = await import("../service")
+    let running = 0
+    let peak = 0
+    const job = (ms: number) => () =>
+      new Promise<number>((resolve) => {
+        running++
+        peak = Math.max(peak, running)
+        setTimeout(() => {
+          running--
+          resolve(ms)
+        }, ms)
+      })
+    const results = await Promise.all([30, 10, 20, 5, 15, 25].map((ms) => withRenderSlot(job(ms))))
+    expect(results).toEqual([30, 10, 20, 5, 15, 25])
+    expect(peak).toBe(2)
+  })
+})

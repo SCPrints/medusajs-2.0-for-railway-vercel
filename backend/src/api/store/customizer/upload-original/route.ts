@@ -3,6 +3,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { uploadCustomerOriginalFile } from "../../../../services/customizer-render/upload-original-storage"
+import { writeRenderCopy } from "../../../../services/customizer-render/service"
 import { getPostHog } from "../../../../lib/posthog"
 
 const bodySchema = z.object({
@@ -40,6 +41,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       "File storage is not configured (MinIO / S3 env missing). Customer originals cannot be archived."
     )
   }
+  // Make the render-sized copy once, now, so no render ever decodes this
+  // (possibly 600 dpi) original. Background: the customer isn't kept waiting.
+  void writeRenderCopy(url, buffer, parsed.data.mimeType).catch(() => undefined)
+
   const distinctId = (req as any).auth_context?.actor_id ?? "anonymous"
   getPostHog()?.capture({
     distinctId,
