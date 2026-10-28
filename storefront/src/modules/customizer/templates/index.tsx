@@ -3813,11 +3813,6 @@ export default function CustomizerTemplate({
       viewBox: { x: rect.x, y: rect.y, ...printCanvas },
       ...printCanvas,
     }) as string
-    const rawMockupSvg = staticCanvas.toSVG({
-      viewBox: rect,
-      width,
-      height,
-    }) as string
     staticCanvas.dispose()
 
     // Fabric inlines every raster as a base64 data URL inside the SVG. Swap
@@ -3831,10 +3826,15 @@ export default function CustomizerTemplate({
         dataUrlToHostedUrl[upload.dataUrl] = upload.originalStorageUrl
       }
     }
-    const [printSvg, mockupSvg] = await Promise.all([
-      replaceInlineRasterWithHostedUrls(rawPrintSvg, dataUrlToHostedUrl),
-      replaceInlineRasterWithHostedUrls(rawMockupSvg, dataUrlToHostedUrl),
-    ])
+    // Swap once (an unmapped raster gets uploaded on the fly — doing it per SVG
+    // uploaded it twice), then retarget only the root <svg> for the mockup.
+    const printSvg = await replaceInlineRasterWithHostedUrls(rawPrintSvg, dataUrlToHostedUrl)
+    const mockupSvg = printSvg.replace(/<svg\b[^>]*>/, (tag) =>
+      tag
+        .replace(/\swidth="[^"]*"/, ` width="${width}"`)
+        .replace(/\sheight="[^"]*"/, ` height="${height}"`)
+        .replace(/viewBox="[^"]*"/, `viewBox="${rect.x} ${rect.y} ${rect.width} ${rect.height}"`)
+    )
     return { printSvg, mockupSvg, rect, printCanvas, canvas: { width, height } }
   }
 

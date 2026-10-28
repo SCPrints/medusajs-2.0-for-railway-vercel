@@ -239,6 +239,43 @@ export const rewriteOwnR2UrlToPublic = (rawUrl: string): string => {
  * blocked fetch leaves the URL in place (that one image stays blank, no worse
  * than before) and never throws, so a flaky CDN can't take the whole render down.
  */
+/**
+ * Renders rasterise at ~2× editor size, so a 600 dpi A3 original (~9000×11000 px,
+ * ~400 MB decoded, per concurrent render) is pure waste — it OOM-killed the 4 GB
+ * machine on 2026-10-28. Shrink anything bigger than this before inlining; the
+ * SVG <image> has explicit width/height, so placement is unchanged. Customer
+ * originals on R2 are untouched.
+ */
+const MAX_INLINE_IMAGE_EDGE = 3000
+
+export const shrinkForRender = async (
+  buffer: Buffer,
+  contentType: string
+): Promise<{ buffer: Buffer; contentType: string }> => {
+  if (!/^image\/(png|jpe?g|webp)/i.test(contentType)) {
+    return { buffer, contentType }
+  }
+  try {
+    const meta = await sharp(buffer).metadata()
+    if (Math.max(meta.width ?? 0, meta.height ?? 0) <= MAX_INLINE_IMAGE_EDGE) {
+      return { buffer, contentType }
+    }
+    // sequentialRead lets libvips stream the decode instead of holding the full bitmap.
+    const out = await sharp(buffer, { sequentialRead: true })
+      .resize({
+        width: MAX_INLINE_IMAGE_EDGE,
+        height: MAX_INLINE_IMAGE_EDGE,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .png()
+      .toBuffer()
+    return { buffer: out, contentType: "image/png" }
+  } catch {
+    return { buffer, contentType }
+  }
+}
+
 const inlineRemoteSvgImages = async (svg: string): Promise<string> => {
   if (!svg.includes("http")) {
     return svg
@@ -272,13 +309,14 @@ const inlineRemoteSvgImages = async (svg: string): Promise<string> => {
         if (!contentType.startsWith("image/")) {
           return
         }
-        const buffer = Buffer.from(await response.arrayBuffer())
-        if (buffer.length === 0) {
+        const fetched = Buffer.from(await response.arrayBuffer())
+        if (fetched.length === 0) {
           return
         }
+        const shrunk = await shrinkForRender(fetched, contentType)
         inlinedByUrl.set(
           url,
-          `data:${contentType};base64,${buffer.toString("base64")}`
+          `data:${shrunk.contentType};base64,${shrunk.buffer.toString("base64")}`
         )
       } catch {
         // Leave the URL in place — that image renders blank, no worse than before.

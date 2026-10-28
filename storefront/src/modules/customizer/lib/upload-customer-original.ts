@@ -67,24 +67,30 @@ export async function uploadCustomerOriginalUnchanged(file: File): Promise<strin
 
   /** (1) Browser → Medusa — fast, no Vercel hop; requires CORS allowlist for this origin. */
   if (base && publishableKey) {
-    try {
-      const res = await fetch(`${base}/store/customizer/upload-original`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-publishable-api-key": publishableKey,
-        },
-        body: JSON.stringify(payload),
-        cache: "no-store",
-        mode: "cors",
-      })
-      const raw = await res.json().catch(() => ({}))
-      const url = parseUploadResponse(res, raw, "direct")
-      if (url) {
-        return url
+    // Two tries: the proxy below can't carry files over ~3 MB (Vercel's 4.5 MB
+    // body cap after base64), so a single backend blip (restart, OOM) used to
+    // lose any big upload outright.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 3000))
+      try {
+        const res = await fetch(`${base}/store/customizer/upload-original`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-publishable-api-key": publishableKey,
+          },
+          body: JSON.stringify(payload),
+          cache: "no-store",
+          mode: "cors",
+        })
+        const raw = await res.json().catch(() => ({}))
+        const url = parseUploadResponse(res, raw, "direct")
+        if (url) {
+          return url
+        }
+      } catch (e) {
+        console.warn("[customizer] Direct original upload failed (often CORS):", e)
       }
-    } catch (e) {
-      console.warn("[customizer] Direct original upload failed (often CORS); trying same-origin proxy:", e)
     }
   } else {
     console.warn(
