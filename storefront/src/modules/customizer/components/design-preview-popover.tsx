@@ -4,6 +4,10 @@ import { memo, useEffect, useRef, useState } from "react"
 import * as fabric from "fabric"
 
 import type { GarmentSide } from "@modules/customizer/lib/types"
+import {
+  mockupViewportTransform,
+  resolveMockupArtworkScale,
+} from "@modules/customizer/lib/print-spec"
 
 const SIDE_LABEL: Record<GarmentSide, string> = {
   front: "Front",
@@ -31,6 +35,8 @@ type DesignPreviewPopoverProps = {
   layoutVersion: number
   /** Selected variant id — invalidates cache when colour/variant changes. */
   variantId: string
+  /** Product metadata, for the per-side mockup scale (matches the editor zoom). */
+  productMetadata?: Record<string, unknown> | null
 }
 
 /**
@@ -40,11 +46,14 @@ type DesignPreviewPopoverProps = {
  */
 const composeDesignLayer = async (
   sideObjects: Record<string, unknown>[],
-  canvasDims: { width: number; height: number }
+  canvasDims: { width: number; height: number },
+  mockupScale = 1
 ): Promise<string | null> => {
   const w = Math.max(64, Math.round(canvasDims.width || 600))
   const h = Math.max(64, Math.round(canvasDims.height || 750))
   const sc = new (fabric as any).StaticCanvas(null, { width: w, height: h })
+  // Same zoom as the editor, so low-placed artwork shows and sits where it was put.
+  sc.setViewportTransform(mockupViewportTransform(w, h, mockupScale))
 
   try {
     if (sideObjects && sideObjects.length > 0) {
@@ -87,6 +96,7 @@ function DesignPreviewPopover({
   getGarmentUrlForSide,
   layoutVersion,
   variantId,
+  productMetadata = null,
 }: DesignPreviewPopoverProps) {
   const [open, setOpen] = useState(false)
   const [thumbs, setThumbs] = useState<Record<string, { designDataUrl: string; garmentUrl: string | null }>>({})
@@ -148,7 +158,11 @@ function DesignPreviewPopover({
           if (cached) {
             return [side, { designDataUrl: cached, garmentUrl }] as const
           }
-          const dataUrl = await composeDesignLayer(sideLayouts[side] ?? [], canvasSize)
+          const dataUrl = await composeDesignLayer(
+            sideLayouts[side] ?? [],
+            canvasSize,
+            resolveMockupArtworkScale(productMetadata, side)
+          )
           if (dataUrl) {
             cacheRef.current.set(cacheKey, dataUrl)
           }
@@ -165,7 +179,7 @@ function DesignPreviewPopover({
     return () => {
       cancelled = true
     }
-  }, [open, decoratedSides, layoutVersion, sideLayouts, canvasSize, getGarmentUrlForSide])
+  }, [open, decoratedSides, layoutVersion, sideLayouts, canvasSize, getGarmentUrlForSide, productMetadata])
 
   const hasArtwork = decoratedSides.length > 0
 

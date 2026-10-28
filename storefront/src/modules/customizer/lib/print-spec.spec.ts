@@ -1,6 +1,8 @@
 import {
   canvasPxToApproxCm,
   maxArtworkPx,
+  mockupViewportTransform,
+  mockupVisibleRect,
   printSpecsToPricingSpecs,
   resolveMockupArtworkScale,
   resolveMockupReferenceSize,
@@ -127,6 +129,23 @@ describe("printSpecsToPricingSpecs", () => {
     expect(printSpecsToPricingSpecs(specs)).toEqual([
       { side: "front", sizeId: "up_to_a4" },
     ])
+  })
+})
+
+describe("mockupVisibleRect", () => {
+  it("is the canvas at scale 1", () => {
+    expect(mockupVisibleRect(600, 750, 1)).toEqual({ x: 0, y: 0, width: 600, height: 750 })
+  })
+
+  it("maps through the viewport transform onto the whole frame", () => {
+    const [s, , , , tx, ty] = mockupViewportTransform(600, 750, 0.68)
+    const r = mockupVisibleRect(600, 750, 0.68)
+    expect(s * r.x + tx).toBeCloseTo(0)
+    expect(s * r.y + ty).toBeCloseTo(0)
+    expect(s * (r.x + r.width) + tx).toBeCloseTo(600)
+    expect(s * (r.y + r.height) + ty).toBeCloseTo(750)
+    // Lower part of the shirt is reachable: the rect extends well below the canvas.
+    expect(r.y + r.height).toBeGreaterThan(1000)
   })
 })
 

@@ -104,6 +104,8 @@ import {
   canvasPxPerInch,
   canvasPxToApproxCm,
   maxArtworkPx,
+  mockupViewportTransform,
+  mockupVisibleRect,
   printSpecsToPricingSpecs,
   resolveMockupArtworkScale,
   resolveMockupReferenceSize,
@@ -528,13 +530,17 @@ export default function CustomizerTemplate({
         const dataUrl = canvas.toDataURL({ format: "png", multiplier: 1 }) as string
         return dataUrl ? { dataUrl, mediaType: "image/png" } : null
       }
+      // toDataURL crops in viewport px; the bbox is scene px. Map through the
+      // mockup zoom and render back at scene resolution.
+      const vpt = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0]
+      const z = vpt[0] || 1
       const dataUrl = canvas.toDataURL({
         format: "png",
-        multiplier: 1,
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
+        multiplier: 1 / z,
+        left: rect.left * z + vpt[4],
+        top: rect.top * z + vpt[5],
+        width: rect.width * z,
+        height: rect.height * z,
       }) as string
       return dataUrl ? { dataUrl, mediaType: "image/png" } : null
     } catch {
@@ -1573,10 +1579,28 @@ export default function CustomizerTemplate({
   }, [selectedProduct])
 
   // Display-only artwork shrink so prints read at true size on the photo.
+  // Applied as a Fabric viewport zoom (not a CSS scale on the layer) so the
+  // whole garment photo stays draggable; scene coords are unchanged.
   const mockupArtworkScale = resolveMockupArtworkScale(
     selectedProduct?.metadata as Record<string, unknown> | undefined,
     currentSide
   )
+  // Ref for the once-bound Fabric listeners (clamp) and canvas init.
+  const mockupScaleRef = useRef(mockupArtworkScale)
+  mockupScaleRef.current = mockupArtworkScale
+
+  const applyMockupViewport = (canvas: any) => {
+    if (!canvas?.setViewportTransform) return
+    const w = Number(canvas.getWidth?.() ?? canvas.width ?? 0)
+    const h = Number(canvas.getHeight?.() ?? canvas.height ?? 0)
+    canvas.setViewportTransform(mockupViewportTransform(w, h, mockupScaleRef.current))
+    canvas.getObjects?.().forEach((o: any) => o.setCoords?.())
+    canvas.requestRenderAll?.()
+  }
+
+  useEffect(() => {
+    applyMockupViewport(fabricCanvasRef.current)
+  }, [mockupArtworkScale, canvasSize.width, canvasSize.height])
 
   const garmentImageUrl = useMemo(
     () =>
@@ -1904,8 +1928,10 @@ export default function CustomizerTemplate({
     // when invoked from the once-bound Fabric listeners.
     const canvasW = Number(canvas.getWidth?.() ?? canvas.width ?? 0)
     const canvasH = Number(canvas.getHeight?.() ?? canvas.height ?? 0)
-    const pr = { x: 0, y: 0, width: canvasW, height: canvasH }
-    if (pr.width < MIN_PRINT_AREA_PX || pr.height < MIN_PRINT_AREA_PX) {
+    // The whole visible frame (wider than the canvas when the mockup scale
+    // zooms the viewport out), so every part of the garment photo is reachable.
+    const pr = mockupVisibleRect(canvasW, canvasH, mockupScaleRef.current)
+    if (canvasW < MIN_PRINT_AREA_PX || canvasH < MIN_PRINT_AREA_PX) {
       setOutOfBoundsWarning(null)
       return
     }
@@ -3088,6 +3114,7 @@ export default function CustomizerTemplate({
         return
       }
       canvas.setDimensions({ width, height })
+      applyMockupViewport(canvas)
       setCanvasSize({ width, height })
     }
 
@@ -3753,26 +3780,44 @@ export default function CustomizerTemplate({
     }
   }
 
-  const renderSideArtifacts = async (
+  /**
+   * Export one side over the WHOLE visible frame (`mockupVisibleRect`), not just
+   * the 0..W × 0..H canvas, so artwork placed low on the garment isn't cropped:
+   *  - print: scene px (1:1 with the editor), canvas grown to the visible rect;
+   *  - mockup: the frame exactly as seen on screen (mockup scale baked in), so
+   *    the backend composites it at (0,0) with no artworkScale.
+   * At scale 1 both equal the old full-canvas export.
+   */
+  const exportSideSvgs = async (
     side: GarmentSide,
     sideObjects: Record<string, unknown>[],
-    mockupGarmentUrl: string | null,
     canvasDims: { width: number; height: number }
-  ): Promise<{ printUrl: string | null; mockupUrl: string | null }> => {
-    /**
-     * Full-canvas export (same coordinate space as the live editor). The backend crops the
-     * print rectangle and trims transparent margins for the PNG; mockup uses the same crop
-     * plus object-cover garment alignment.
-     */
-    const staticCanvas = new (fabric as any).StaticCanvas(null, {
-      width: Math.round(canvasDims.width),
-      height: Math.round(canvasDims.height),
-    })
+  ) => {
+    const width = Math.round(canvasDims.width)
+    const height = Math.round(canvasDims.height)
+    const rect = mockupVisibleRect(
+      width,
+      height,
+      resolveMockupArtworkScale(
+        selectedProduct?.metadata as Record<string, unknown> | undefined,
+        side
+      )
+    )
+    const printCanvas = { width: Math.round(rect.width), height: Math.round(rect.height) }
+    const staticCanvas = new (fabric as any).StaticCanvas(null, { width, height })
     await staticCanvas.loadFromJSON(
       { version: "7.0.0", objects: sideObjects },
       fitImageToSource
     )
-    const rawArtworkSvg = staticCanvas.toSVG()
+    const rawPrintSvg = staticCanvas.toSVG({
+      viewBox: { x: rect.x, y: rect.y, ...printCanvas },
+      ...printCanvas,
+    }) as string
+    const rawMockupSvg = staticCanvas.toSVG({
+      viewBox: rect,
+      width,
+      height,
+    }) as string
     staticCanvas.dispose()
 
     // Fabric inlines every raster as a base64 data URL inside the SVG. Swap
@@ -3786,10 +3831,20 @@ export default function CustomizerTemplate({
         dataUrlToHostedUrl[upload.dataUrl] = upload.originalStorageUrl
       }
     }
-    const artworkSvg = await replaceInlineRasterWithHostedUrls(
-      rawArtworkSvg,
-      dataUrlToHostedUrl
-    )
+    const [printSvg, mockupSvg] = await Promise.all([
+      replaceInlineRasterWithHostedUrls(rawPrintSvg, dataUrlToHostedUrl),
+      replaceInlineRasterWithHostedUrls(rawMockupSvg, dataUrlToHostedUrl),
+    ])
+    return { printSvg, mockupSvg, rect, printCanvas, canvas: { width, height } }
+  }
+
+  const renderSideArtifacts = async (
+    side: GarmentSide,
+    sideObjects: Record<string, unknown>[],
+    mockupGarmentUrl: string | null,
+    canvasDims: { width: number; height: number }
+  ): Promise<{ printUrl: string | null; mockupUrl: string | null }> => {
+    const exported = await exportSideSvgs(side, sideObjects, canvasDims)
 
     const garmentImageUrlForApi = resolveGarmentImageUrlForCustomizerRender(
       mockupGarmentUrl,
@@ -3811,7 +3866,6 @@ export default function CustomizerTemplate({
 
     const payload = {
       side,
-      artworkSvg,
       garmentImageUrl: garmentImageUrlForApi,
       placement: {
         x: Math.max(0, Math.round(pa.x)),
@@ -3819,30 +3873,39 @@ export default function CustomizerTemplate({
         width: pw,
         height: ph,
       },
-      canvas: {
-        width: Math.round(canvasDims.width),
-        height: Math.round(canvasDims.height),
-      },
       // Backend ignores this for non-sleeve sides; when set on a sleeve it
       // recolours the white placeholder so the mockup picks up the variant
       // colour instead of staying white-on-black.
       tintColor: variantTintHexForRender ?? undefined,
-      artworkScale: resolveMockupArtworkScale(
-        selectedProduct?.metadata as Record<string, unknown> | undefined,
-        side
-      ),
+    }
+    // Print SVG's origin is the visible rect's corner, so shift the print box.
+    const printPayload = {
+      ...payload,
+      artworkSvg: exported.printSvg,
+      canvas: exported.printCanvas,
+      placement: {
+        ...payload.placement,
+        x: Math.max(0, Math.round(pa.x - exported.rect.x)),
+        y: Math.max(0, Math.round(pa.y - exported.rect.y)),
+      },
+    }
+    // Mockup SVG already has the mockup scale baked in (what's on screen).
+    const mockupPayload = {
+      ...payload,
+      artworkSvg: exported.mockupSvg,
+      canvas: exported.canvas,
     }
 
     const [printResponse, mockupResponse] = await Promise.all([
       fetch("/api/customizer/render-print", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(printPayload),
       }),
       fetch("/api/customizer/render-mockup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(mockupPayload),
       }),
     ])
 
@@ -3892,29 +3955,7 @@ export default function CustomizerTemplate({
       const mockupGarmentUrl = garmentImageUrl ?? null
 
       // Render only the mockup (no print file needed for proof)
-      const staticCanvas = new (fabric as any).StaticCanvas(null, {
-        width: canvasDims.width,
-        height: canvasDims.height,
-      })
-      await staticCanvas.loadFromJSON(
-        { version: "7.0.0", objects: proofObjects },
-        fitImageToSource
-      )
-      const rawArtworkSvg = staticCanvas.toSVG()
-      staticCanvas.dispose()
-
-      // Same body-size protection as renderSideArtifacts — swap inline data
-      // URLs for hosted ones before POSTing.
-      const dataUrlToHostedUrl: Record<string, string> = {}
-      for (const upload of sessionUploads) {
-        if (upload.dataUrl && upload.originalStorageUrl) {
-          dataUrlToHostedUrl[upload.dataUrl] = upload.originalStorageUrl
-        }
-      }
-      const artworkSvg = await replaceInlineRasterWithHostedUrls(
-        rawArtworkSvg,
-        dataUrlToHostedUrl
-      )
+      const { mockupSvg: artworkSvg } = await exportSideSvgs(side, proofObjects, canvasDims)
 
       const garmentImageUrlForApi = resolveGarmentImageUrlForCustomizerRender(
         mockupGarmentUrl,
@@ -3933,10 +3974,6 @@ export default function CustomizerTemplate({
         },
         canvas: canvasDims,
         tintColor: variantTintHexForRender ?? undefined,
-        artworkScale: resolveMockupArtworkScale(
-          selectedProduct?.metadata as Record<string, unknown> | undefined,
-          side
-        ),
       }
 
       const mockupResponse = await fetch("/api/customizer/render-mockup", {
@@ -3966,7 +4003,7 @@ export default function CustomizerTemplate({
           const src = typeof obj?.src === "string" ? obj.src : ""
           if (!src) return null
           if (/^https?:\/\//i.test(src)) return src
-          return dataUrlToHostedUrl[src] ?? null
+          return sessionUploads.find((u) => u.dataUrl === src)?.originalStorageUrl ?? null
         }, null)
 
       window.parent.postMessage(
@@ -5879,6 +5916,9 @@ export default function CustomizerTemplate({
                     getGarmentUrlForSide={getGarmentUrlForSide}
                     layoutVersion={layoutVersion}
                     variantId={activeVariantId}
+                    productMetadata={
+                      selectedProduct?.metadata as Record<string, unknown> | undefined
+                    }
                   />
                   )}
                 </div>
@@ -5962,7 +6002,6 @@ export default function CustomizerTemplate({
                       dpiWarning={dpiWarning}
                       sizeWarning={screenSizeWarning}
                       fabricContainerRef={fabricContainerRef}
-                      artworkScale={mockupArtworkScale}
                       previewSize={
                         mockupArtworkScale !== 1
                           ? resolveMockupReferenceSize(

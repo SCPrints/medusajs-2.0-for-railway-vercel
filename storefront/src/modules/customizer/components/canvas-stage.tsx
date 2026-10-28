@@ -31,8 +31,6 @@ type CanvasStageProps = {
    * clipped) at the bottom.
    */
   frameClassName?: string
-  /** `resolveMockupArtworkScale` — shrinks the artwork layer on screen only. */
-  artworkScale?: number
   /** Garment size the mockup is drawn at (e.g. "M"); shows a small caption when set. */
   previewSize?: string | null
 }
@@ -49,7 +47,6 @@ function CanvasStage({
   fabricContainerRef,
   tintColor,
   frameClassName = "aspect-[4/5] w-full rounded-2xl border border-ui-border-base bg-ui-bg-subtle",
-  artworkScale = 1,
   previewSize = null,
 }: CanvasStageProps) {
   // The mockup URL can be dead (supplier CDN rotated the file, R2 object GC'd).
@@ -192,15 +189,9 @@ function CanvasStage({
         ref={fabricContainerRef}
         className="absolute inset-0 h-full w-full touch-none"
         aria-hidden
-        // CSS scale, not a Fabric zoom: Fabric maps pointers through the
-        // element's bounding box, and clientWidth (canvas size) ignores
-        // transforms, so the scene, saves and exports stay in full-size px.
-        // Origin = MOCKUP_SCALE_ORIGIN; the backend mockup uses the same.
-        style={
-          artworkScale !== 1
-            ? { transform: `scale(${artworkScale})`, transformOrigin: "50% 13%" }
-            : undefined
-        }
+        // The mockup scale is a Fabric viewport zoom set by the customizer
+        // (mockupViewportTransform). A CSS scale here shrank the draggable
+        // area to ~68% of the frame and pinned artwork above the hem.
       />
 
       {(outOfBoundsWarning || dpiWarning || sizeWarning) && (

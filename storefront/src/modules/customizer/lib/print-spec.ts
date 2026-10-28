@@ -126,6 +126,32 @@ export const canvasPxPerInch = (canvasWidth: number): number =>
  */
 export const MOCKUP_SCALE_ORIGIN = { x: 0.5, y: 0.13 } // garment centre, top of the print zone
 
+/**
+ * The editor zooms the Fabric viewport by the mockup scale around
+ * MOCKUP_SCALE_ORIGIN, so the whole garment photo stays editable. This is the
+ * scene-space rect the frame shows: artwork may sit anywhere in it, and renders
+ * export it (not just the 0..W × 0..H canvas). Equals the canvas at scale 1.
+ */
+export const mockupVisibleRect = (width: number, height: number, scale: number) => {
+  const s = scale > 0 ? scale : 1
+  const ox = width * MOCKUP_SCALE_ORIGIN.x
+  const oy = height * MOCKUP_SCALE_ORIGIN.y
+  return { x: ox - ox / s, y: oy - oy / s, width: width / s, height: height / s }
+}
+
+/** Fabric viewportTransform matching `mockupVisibleRect`. */
+export const mockupViewportTransform = (width: number, height: number, scale: number) => {
+  const s = scale > 0 ? scale : 1
+  return [
+    s,
+    0,
+    0,
+    s,
+    width * MOCKUP_SCALE_ORIGIN.x * (1 - s),
+    height * MOCKUP_SCALE_ORIGIN.y * (1 - s),
+  ]
+}
+
 const validScale = (raw: unknown): number | null => {
   const v = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : NaN
   return Number.isFinite(v) && v >= 0.3 && v <= 1 ? v : null
