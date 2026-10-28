@@ -19,12 +19,15 @@ export const AUDIT_ENTITY = {
   ORGANISATION_DESIGN: "organisation_design",
   ORGANISATION_DESTINATION: "organisation_destination",
   ORG_INVENTORY: "org_inventory",
+  /** The backend process itself (boot records for crash detection). */
+  SYSTEM: "system",
 } as const
 export type AuditEntity = (typeof AUDIT_ENTITY)[keyof typeof AUDIT_ENTITY]
 
 export const AUDIT_ACTION = {
   // Lifecycle
   CREATED: "created",
+  BOOTED: "booted",
   DELETED: "deleted",
   STATUS_CHANGED: "status_changed",
   STAGE_CHANGED: "stage_changed",

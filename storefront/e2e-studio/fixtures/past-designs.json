@@ -1,0 +1,3363 @@
+[
+ {
+  "name": "past-design-01 v2|up_to_a3|front:I back:I|2",
+  "savedOn": "2026-10-26",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 50,
+    "y": 38,
+    "width": 51,
+    "height": 76
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 2
+    },
+    {
+     "size": "2XL",
+     "quantity": 1
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "sideDecorationMethods": {
+    "front": "print"
+   },
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1500x1000",
+       "top": 61.99989557142857,
+       "fill": "rgb(0,0,0)",
+       "left": 109.77162650602409,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1500,
+       "height": 1000,
+       "scaleX": 0.026837349397590363,
+       "scaleY": 0.02692092857142857,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.4.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-1",
+       "sourceWidthPx": 1500,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 1",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-1",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:2000x2000",
+       "top": 94.6898,
+       "fill": "rgb(0,0,0)",
+       "left": 87.1275,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 2000,
+       "scaleX": 0.043,
+       "scaleY": 0.0431,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.4.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-2",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 2000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 2",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-2",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-02 v3|up_to_a3|front:I back:I|6",
+  "savedOn": "2026-10-21",
+  "design": {
+   "version": 3,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 90,
+    "y": 91,
+    "width": 381,
+    "height": 505
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 30
+    },
+    {
+     "size": "XL",
+     "quantity": 20
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    },
+    {
+     "size": "4XL",
+     "quantity": 0
+    },
+    {
+     "size": "5XL",
+     "quantity": 0
+    }
+   ],
+   "sideDecorationMethods": {
+    "back": "screen",
+    "front": "screen"
+   },
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:2000x418",
+       "top": 271.2758,
+       "fill": "rgb(0,0,0)",
+       "left": 405.9642,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 418,
+       "scaleX": 0.0793,
+       "scaleY": 0.0793,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-3",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 418,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 3",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-3",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:1920x740",
+       "top": 243.3326,
+       "fill": "rgb(0,0,0)",
+       "left": 279.2139,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1920,
+       "height": 740,
+       "scaleX": 0.2036,
+       "scaleY": 0.2036,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-4",
+       "sourceWidthPx": 1920,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 740,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 4",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-4",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-03 v2|up_to_a6|front:I back:I|6",
+  "savedOn": "2026-10-20",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 264,
+    "y": 199,
+    "width": 88,
+    "height": 139
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 2
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "sideDecorationMethods": {
+    "front": "print"
+   },
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:2000x504",
+       "top": 269.0811965811966,
+       "fill": "rgb(0,0,0)",
+       "left": 422.6779359430605,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 504,
+       "scaleX": 0.04968473684210527,
+       "scaleY": 0.04968473684210527,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-5",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 504,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 5",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-5",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:2000x1202",
+       "top": 313.0128,
+       "fill": "rgb(0,0,0)",
+       "left": 308.5,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 1202,
+       "scaleX": 0.1325,
+       "scaleY": 0.1325,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-6",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1202,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 6",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-6",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-04 v2|up_to_a3|front:I back:I|6",
+  "savedOn": "2026-10-20",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 204,
+    "y": 158,
+    "width": 210,
+    "height": 312
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 1
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1299x1504",
+       "top": 292.1546,
+       "fill": "rgb(0,0,0)",
+       "left": 422.6779,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1299,
+       "height": 1504,
+       "scaleX": 0.0467,
+       "scaleY": 0.0467,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-7",
+       "sourceWidthPx": 1299,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1504,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 7",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-7",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:2000x1242",
+       "top": 301.4025,
+       "fill": "rgb(0,0,0)",
+       "left": 308.5,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 1242,
+       "scaleX": 0.1104,
+       "scaleY": 0.1104,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-8",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1242,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 8",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-8",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-05 v2|up_to_a6|front:IText|6",
+  "savedOn": "2026-10-14",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 253,
+    "y": 190,
+    "width": 84,
+    "height": 133
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 1
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "top": 227.585,
+       "fill": "#e11d48",
+       "left": 379.6317,
+       "text": "SAMPLE",
+       "type": "IText",
+       "angle": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 156.9668,
+       "height": 47.46,
+       "scaleX": 0.3146,
+       "scaleY": 0.3146,
+       "shadow": null,
+       "stroke": null,
+       "styles": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "fontSize": 42,
+       "overline": false,
+       "pathSide": "left",
+       "direction": "ltr",
+       "fontStyle": "normal",
+       "pathAlign": "baseline",
+       "textAlign": "left",
+       "underline": false,
+       "fontFamily": "Inter",
+       "fontWeight": "normal",
+       "lineHeight": 1.16,
+       "paintFirst": "fill",
+       "charSpacing": 0,
+       "linethrough": false,
+       "strokeWidth": 1,
+       "customizerId": "fixture-object-9",
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 9",
+       "pathStartOffset": 0,
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "textBackgroundColor": "",
+       "textDecorationThickness": 66.667,
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-06 v2|up_to_a6|front:I|6",
+  "savedOn": "2026-10-14",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 253,
+    "y": 190,
+    "width": 84,
+    "height": 133
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 1
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1402x1122",
+       "top": 228.9472,
+       "fill": "rgb(0,0,0)",
+       "left": 379.6364,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1402,
+       "height": 1122,
+       "scaleX": 0.031,
+       "scaleY": 0.031,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-10",
+       "sourceWidthPx": 1402,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1122,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 10",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-10",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-07 v2|up_to_a3|front:I|8",
+  "savedOn": "2026-09-30",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 269,
+    "y": 208,
+    "width": 277,
+    "height": 412
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 1
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1534x1025",
+       "top": 459.0266,
+       "fill": "rgb(0,0,0)",
+       "left": 409.1552,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1534,
+       "height": 1025,
+       "scaleX": 0.1732,
+       "scaleY": 0.1732,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-11",
+       "sourceWidthPx": 1534,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1025,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 11",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-11",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-08 v2|up_to_a6|front:I|8",
+  "savedOn": "2026-09-30",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 361,
+    "y": 271,
+    "width": 121,
+    "height": 190
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 1
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:2000x2000",
+       "top": 413.3258,
+       "fill": "rgb(0,0,0)",
+       "left": 422.4083,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 2000,
+       "scaleX": 0.0603,
+       "scaleY": 0.0603,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-12",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 2000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 12",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-12",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-09 v2|up_to_a3|front:I|9",
+  "savedOn": "2026-09-30",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 283,
+    "y": 219,
+    "width": 292,
+    "height": 435
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "0",
+     "quantity": 0
+    },
+    {
+     "size": "00",
+     "quantity": 0
+    },
+    {
+     "size": "2",
+     "quantity": 1
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1534x1025",
+       "top": 539.0951,
+       "fill": "rgb(0,0,0)",
+       "left": 434.5306,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1534,
+       "height": 1025,
+       "scaleX": 0.1596,
+       "scaleY": 0.1596,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-13",
+       "sourceWidthPx": 1534,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1025,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 13",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-13",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-10 v2|up_to_a3|front:Group back:Path|6",
+  "savedOn": "2026-08-27",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 188,
+    "y": 146,
+    "width": 194,
+    "height": 289
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 1
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "top": 311.1643,
+       "fill": "rgb(0,0,0)",
+       "left": 345.5351,
+       "type": "Group",
+       "angle": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 189.1384,
+       "height": 310.9984,
+       "scaleX": 0.3962,
+       "scaleY": 0.3962,
+       "shadow": null,
+       "stroke": null,
+       "objects": [
+        {
+         "type": "Rect",
+         "version": "7.2.0",
+         "left": -94.5692,
+         "top": -155.4992,
+         "width": 189.1384,
+         "height": 310.9984,
+         "fill": "#e11d48",
+         "originX": "left",
+         "originY": "top"
+        }
+       ],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "interactive": false,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-14",
+       "layoutManager": {
+        "type": "layoutManager",
+        "strategy": "fit-content"
+       },
+       "sourceWidthPx": 189.13841043307087,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "strokeLineJoin": "miter",
+       "subTargetCheck": false,
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 14",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-14",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "top": 339.4275,
+       "fill": "#e11d48",
+       "left": 287.3862,
+       "path": [
+        [
+         "M",
+         0,
+         0
+        ],
+        [
+         "L",
+         3561,
+         0
+        ],
+        [
+         "L",
+         3561,
+         4586
+        ],
+        [
+         "L",
+         0,
+         4586
+        ],
+        [
+         "Z"
+        ]
+       ],
+       "type": "Path",
+       "angle": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 3561,
+       "height": 4586,
+       "scaleX": 0.0531,
+       "scaleY": 0.0531,
+       "shadow": null,
+       "stroke": null,
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "evenodd",
+       "paintFirst": "fill",
+       "strokeWidth": 1,
+       "customizerId": "fixture-object-15",
+       "sourceWidthPx": 3561,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 15",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-15",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-11 v2|up_to_a3|front:I back:Group|6",
+  "savedOn": "2026-08-27",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 188,
+    "y": 146,
+    "width": 194,
+    "height": 289
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 1
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1951x2000",
+       "top": 271.6158,
+       "fill": "rgb(0,0,0)",
+       "left": 329.832,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1951,
+       "height": 2000,
+       "scaleX": 0.0402,
+       "scaleY": 0.0402,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-16",
+       "sourceWidthPx": 1951,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 2000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 16",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-16",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "top": 364.108,
+       "fill": "rgb(0,0,0)",
+       "left": 287.074,
+       "type": "Group",
+       "angle": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1173.1654,
+       "height": 1540.2546,
+       "scaleX": 0.1651,
+       "scaleY": 0.1651,
+       "shadow": null,
+       "stroke": null,
+       "objects": [
+        {
+         "type": "Rect",
+         "version": "7.2.0",
+         "left": -586.5827,
+         "top": -770.1273,
+         "width": 1173.1654,
+         "height": 1540.2546,
+         "fill": "#e11d48",
+         "originX": "left",
+         "originY": "top"
+        }
+       ],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "interactive": false,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-17",
+       "layoutManager": {
+        "type": "layoutManager",
+        "strategy": "fit-content"
+       },
+       "sourceWidthPx": 1173.1653543307086,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "strokeLineJoin": "miter",
+       "subTargetCheck": false,
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 17",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-17",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-12 v3|up_to_a6|front:I|9",
+  "savedOn": "2026-08-17",
+  "design": {
+   "version": 3,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 380,
+    "y": 285,
+    "width": 127,
+    "height": 199
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "6",
+     "quantity": 0
+    },
+    {
+     "size": "8",
+     "quantity": 0
+    },
+    {
+     "size": "10",
+     "quantity": 1
+    },
+    {
+     "size": "12",
+     "quantity": 2
+    },
+    {
+     "size": "14",
+     "quantity": 1
+    },
+    {
+     "size": "16",
+     "quantity": 0
+    },
+    {
+     "size": "18",
+     "quantity": 0
+    },
+    {
+     "size": "20",
+     "quantity": 0
+    },
+    {
+     "size": "22",
+     "quantity": 0
+    },
+    {
+     "size": "24",
+     "quantity": 0
+    }
+   ],
+   "sideDecorationMethods": {
+    "front": "embroidery"
+   },
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:2000x489",
+       "top": 398.2459,
+       "fill": "rgb(0,0,0)",
+       "left": 564.9209,
+       "type": "Image",
+       "angle": 1.1083,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 489,
+       "scaleX": 0.0427,
+       "scaleY": 0.0427,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-18",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 489,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 18",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-18",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-13 v2|up_to_a4|front:I/I/I/I|5",
+  "savedOn": "2026-06-28",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 179,
+    "y": 137,
+    "width": 120,
+    "height": 179
+   },
+   "scpPrintSizeId": "up_to_a4",
+   "sizes": [
+    {
+     "size": "72R",
+     "quantity": 0
+    },
+    {
+     "size": "74L",
+     "quantity": 0
+    },
+    {
+     "size": "77R",
+     "quantity": 0
+    },
+    {
+     "size": "79L",
+     "quantity": 0
+    },
+    {
+     "size": "82R",
+     "quantity": 0
+    },
+    {
+     "size": "84L",
+     "quantity": 0
+    },
+    {
+     "size": "87R",
+     "quantity": 0
+    },
+    {
+     "size": "87S",
+     "quantity": 0
+    },
+    {
+     "size": "89L",
+     "quantity": 0
+    },
+    {
+     "size": "92R",
+     "quantity": 0
+    },
+    {
+     "size": "92S",
+     "quantity": 2
+    },
+    {
+     "size": "94L",
+     "quantity": 0
+    },
+    {
+     "size": "97R",
+     "quantity": 0
+    },
+    {
+     "size": "97S",
+     "quantity": 0
+    },
+    {
+     "size": "102S",
+     "quantity": 0
+    },
+    {
+     "size": "102R",
+     "quantity": 0
+    },
+    {
+     "size": "107R",
+     "quantity": 0
+    },
+    {
+     "size": "107S",
+     "quantity": 0
+    },
+    {
+     "size": "112R",
+     "quantity": 0
+    },
+    {
+     "size": "112S",
+     "quantity": 0
+    },
+    {
+     "size": "117S",
+     "quantity": 0
+    },
+    {
+     "size": "122S",
+     "quantity": 0
+    },
+    {
+     "size": "127S",
+     "quantity": 0
+    },
+    {
+     "size": "132S",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1414x2000",
+       "top": 209.2531,
+       "fill": "rgb(0,0,0)",
+       "left": 167.6373,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1414,
+       "height": 2000,
+       "scaleX": 0.0572,
+       "scaleY": 0.0572,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-19",
+       "sourceWidthPx": 1414,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 2000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 19",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-19",
+       "globalCompositeOperation": "source-over"
+      },
+      {
+       "src": "fixture:1414x2000",
+       "top": 205.6864,
+       "fill": "rgb(0,0,0)",
+       "left": 289.9889,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1414,
+       "height": 2000,
+       "scaleX": 0.0584,
+       "scaleY": 0.0584,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-20",
+       "sourceWidthPx": 1414,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 2000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 20",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-20",
+       "globalCompositeOperation": "source-over"
+      },
+      {
+       "src": "fixture:1414x2000",
+       "top": 342.8428,
+       "fill": "rgb(0,0,0)",
+       "left": 154.4857,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1414,
+       "height": 2000,
+       "scaleX": 0.0371,
+       "scaleY": 0.0371,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-21",
+       "sourceWidthPx": 1414,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 2000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 21",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-21",
+       "globalCompositeOperation": "source-over"
+      },
+      {
+       "src": "fixture:1414x2000",
+       "top": 339.5791,
+       "fill": "rgb(0,0,0)",
+       "left": 300.3607,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1414,
+       "height": 2000,
+       "scaleX": 0.0372,
+       "scaleY": 0.0372,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-22",
+       "sourceWidthPx": 1414,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 2000,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 22",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-22",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-14 v2|up_to_a4|front:I/I back:I|4",
+  "savedOn": "2026-06-24",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 156,
+    "y": 119,
+    "width": 104,
+    "height": 156
+   },
+   "scpPrintSizeId": "up_to_a4",
+   "sizes": [
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 1
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1024x1024",
+       "top": 229.5945,
+       "fill": "rgb(0,0,0)",
+       "left": 264.832,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1024,
+       "height": 1024,
+       "scaleX": 0.0851,
+       "scaleY": 0.0851,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-23",
+       "sourceWidthPx": 1024,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1024,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 23",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-23",
+       "globalCompositeOperation": "source-over"
+      },
+      {
+       "src": "fixture:236x419",
+       "top": 409.5109,
+       "fill": "rgb(0,0,0)",
+       "left": 175.2432,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 236,
+       "height": 419,
+       "scaleX": 0.214,
+       "scaleY": 0.214,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-24",
+       "sourceWidthPx": 236,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 419,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 24",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-24",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:1264x843",
+       "top": 224.1845,
+       "fill": "rgb(0,0,0)",
+       "left": 209.5233,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1264,
+       "height": 843,
+       "scaleX": 0.1641,
+       "scaleY": 0.1641,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-25",
+       "sourceWidthPx": 1264,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 843,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 25",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-25",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-15 v2|oversize|front:I back:I|4",
+  "savedOn": "2026-06-24",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 66,
+    "y": 67,
+    "width": 282,
+    "height": 374
+   },
+   "scpPrintSizeId": "oversize",
+   "sizes": [
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 1
+    },
+    {
+     "size": "4XL",
+     "quantity": 0
+    },
+    {
+     "size": "5XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:1024x1024",
+       "top": 269.7927,
+       "fill": "rgb(0,0,0)",
+       "left": 211.2088,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1024,
+       "height": 1024,
+       "scaleX": 0.1637,
+       "scaleY": 0.1637,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-26",
+       "sourceWidthPx": 1024,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1024,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 26",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-26",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:1024x1536",
+       "top": 326.7247,
+       "fill": "rgb(0,0,0)",
+       "left": 209.0877,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 1024,
+       "height": 1536,
+       "scaleX": 0.2014,
+       "scaleY": 0.2014,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-27",
+       "sourceWidthPx": 1024,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1536,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 27",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-27",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-16 v2|up_to_a6|front:I back:I|9",
+  "savedOn": "2026-06-23",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 395,
+    "y": 297,
+    "width": 132,
+    "height": 208
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 10
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:2000x909",
+       "top": 498.3792,
+       "fill": "rgb(0,0,0)",
+       "left": 564.369,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 909,
+       "scaleX": 0.0661,
+       "scaleY": 0.0661,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-28",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 909,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 28",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-28",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:2000x1536",
+       "top": 706.908,
+       "fill": "rgb(0,0,0)",
+       "left": 464.6687,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 1536,
+       "scaleX": 0.1569,
+       "scaleY": 0.1569,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-29",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1536,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 29",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-29",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-17 v2|up_to_a6|front:I|5",
+  "savedOn": "2026-06-02",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 197,
+    "y": 148,
+    "width": 66,
+    "height": 104
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "2-May",
+     "quantity": 0
+    },
+    {
+     "size": "6-Nov",
+     "quantity": 0
+    },
+    {
+     "size": "12+",
+     "quantity": 1
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:699x781",
+       "top": 169.946,
+       "fill": "rgb(0,0,0)",
+       "left": 204.86,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 699,
+       "height": 781,
+       "scaleX": 0.0934,
+       "scaleY": 0.0934,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-30",
+       "sourceWidthPx": 699,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 781,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 30",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-30",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-18 v2|up_to_a3|front:I back:I|5",
+  "savedOn": "2026-06-01",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 157,
+    "y": 121,
+    "width": 162,
+    "height": 241
+   },
+   "scpPrintSizeId": "up_to_a3",
+   "sizes": [
+    {
+     "size": "XXS",
+     "quantity": 0
+    },
+    {
+     "size": "XS",
+     "quantity": 0
+    },
+    {
+     "size": "S",
+     "quantity": 0
+    },
+    {
+     "size": "M",
+     "quantity": 2
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 2
+    },
+    {
+     "size": "4XL",
+     "quantity": 0
+    },
+    {
+     "size": "5XL",
+     "quantity": 0
+    },
+    {
+     "size": "7XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:2000x1333",
+       "top": 190.6604,
+       "fill": "rgb(0,0,0)",
+       "left": 307.86,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 1333,
+       "scaleX": 0.0326,
+       "scaleY": 0.0326,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-31",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1333,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 31",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-31",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:2000x1333",
+       "top": 241.0167,
+       "fill": "rgb(0,0,0)",
+       "left": 237.98,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 2000,
+       "height": 1333,
+       "scaleX": 0.0775,
+       "scaleY": 0.0775,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "customizerId": "fixture-object-32",
+       "sourceWidthPx": 2000,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "sourceHeightPx": 1333,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "customizerLabel": "Artwork 32",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "customizerUploadId": "fixture-upload-32",
+       "globalCompositeOperation": "source-over"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-19 v2|up_to_a6|front:Group|5",
+  "savedOn": "2026-05-29",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "front",
+   "printArea": {
+    "x": 197,
+    "y": 148,
+    "width": 66,
+    "height": 104
+   },
+   "scpPrintSizeId": "up_to_a6",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 5
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 5
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "top": 242.3409,
+       "fill": "rgb(0,0,0)",
+       "left": 269.3209,
+       "type": "Group",
+       "angle": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 662.2592,
+       "height": 775.2906,
+       "scaleX": 0.0986,
+       "scaleY": 0.0986,
+       "shadow": null,
+       "stroke": null,
+       "objects": [
+        {
+         "type": "Rect",
+         "version": "7.2.0",
+         "left": -331.1296,
+         "top": -387.6453,
+         "width": 662.2592,
+         "height": 775.2906,
+         "fill": "#e11d48",
+         "originX": "left",
+         "originY": "top"
+        }
+       ],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "interactive": false,
+       "strokeWidth": 0,
+       "layoutManager": {
+        "type": "layoutManager",
+        "strategy": "fit-content"
+       },
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "strokeLineJoin": "miter",
+       "subTargetCheck": false,
+       "backgroundColor": "",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "globalCompositeOperation": "source-over",
+       "customizerLabel": "Artwork 33"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": []
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ },
+ {
+  "name": "past-design-20 v2|oversize|front:I back:I|5",
+  "savedOn": "2026-05-29",
+  "design": {
+   "version": 2,
+   "type": "fabric_customizer",
+   "activeSide": "back",
+   "printArea": {
+    "x": 74,
+    "y": 75,
+    "width": 313,
+    "height": 414
+   },
+   "scpPrintSizeId": "oversize",
+   "sizes": [
+    {
+     "size": "S",
+     "quantity": 5
+    },
+    {
+     "size": "M",
+     "quantity": 0
+    },
+    {
+     "size": "L",
+     "quantity": 0
+    },
+    {
+     "size": "XL",
+     "quantity": 0
+    },
+    {
+     "size": "2XL",
+     "quantity": 0
+    },
+    {
+     "size": "3XL",
+     "quantity": 0
+    }
+   ],
+   "artifacts": [
+    {
+     "side": "front",
+     "printUrl": null,
+     "mockupUrl": null
+    },
+    {
+     "side": "back",
+     "printUrl": null,
+     "mockupUrl": null
+    }
+   ],
+   "sideLayouts": [
+    {
+     "side": "front",
+     "objects": [
+      {
+       "src": "fixture:699x781",
+       "top": 235.8132,
+       "fill": "rgb(0,0,0)",
+       "left": 275.8717,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 699,
+       "height": 781,
+       "scaleX": 0.0934,
+       "scaleY": 0.0934,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "globalCompositeOperation": "source-over",
+       "customizerLabel": "Artwork 34"
+      }
+     ]
+    },
+    {
+     "side": "back",
+     "objects": [
+      {
+       "src": "fixture:699x781",
+       "top": 345.9965,
+       "fill": "rgb(0,0,0)",
+       "left": 211.4278,
+       "type": "Image",
+       "angle": 0,
+       "cropX": 0,
+       "cropY": 0,
+       "flipX": false,
+       "flipY": false,
+       "skewX": 0,
+       "skewY": 0,
+       "width": 699,
+       "height": 781,
+       "scaleX": 0.2892,
+       "scaleY": 0.2892,
+       "shadow": null,
+       "stroke": null,
+       "filters": [],
+       "opacity": 1,
+       "originX": "center",
+       "originY": "center",
+       "version": "7.2.0",
+       "visible": true,
+       "fillRule": "nonzero",
+       "paintFirst": "fill",
+       "crossOrigin": null,
+       "strokeWidth": 0,
+       "strokeLineCap": "butt",
+       "strokeUniform": false,
+       "strokeLineJoin": "miter",
+       "backgroundColor": "",
+       "strokeDashArray": null,
+       "strokeDashOffset": 0,
+       "strokeMiterLimit": 4,
+       "globalCompositeOperation": "source-over",
+       "customizerLabel": "Artwork 35"
+      }
+     ]
+    },
+    {
+     "side": "left_sleeve",
+     "objects": []
+    },
+    {
+     "side": "right_sleeve",
+     "objects": []
+    },
+    {
+     "side": "printed_tag",
+     "objects": []
+    },
+    {
+     "side": "bottle_label",
+     "objects": []
+    },
+    {
+     "side": "bottle_back_label",
+     "objects": []
+    }
+   ]
+  }
+ }
+]
