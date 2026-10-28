@@ -17,6 +17,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { HelpTooltip } from "../reports/help-tooltip"
+import { HoverPreview, usePreloadPreviews } from "./hover-preview"
 import {
   ProductLinePicker,
   type PickedProductLine,
@@ -277,6 +278,13 @@ export function LineItemsEditor({
   // rows so an add/remove during the upload can't write to the wrong line.
   const rowsRef = useRef(rows)
   rowsRef.current = rows
+  usePreloadPreviews(
+    rows.flatMap((r) => [
+      ...(r.mockup_urls?.length ? r.mockup_urls.map((m) => m.url) : [r.thumbnail]),
+      ...(r.original_files ?? []).map((f) => f.url),
+      ...(r.print_urls ?? []).map((a) => a.url),
+    ])
+  )
   const mockupInputRef = useRef<HTMLInputElement | null>(null)
   const mockupTargetId = useRef<string | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
@@ -399,35 +407,58 @@ export function LineItemsEditor({
             : row.thumbnail
               ? [{ side: null as string | null, url: row.thumbnail }]
               : []
-          ).map((m, i) => (
-            <Button key={i} size="small" variant="secondary" asChild>
-              <a href={m.url} target="_blank" rel="noreferrer">
-                View{" "}
-                {m.side
-                  ? String(m.side).replace(/_/g, " ")
-                  : // ponytail: a pricer line with no Studio design carries the design letter's artwork, not a mockup
-                    row.id.startsWith("jp_") && !hasDesign
-                    ? "artwork"
-                    : "mockup"}
-              </a>
-            </Button>
-          ))}
+          ).map((m, i) => {
+            const what = m.side
+              ? String(m.side).replace(/_/g, " ")
+              : // ponytail: a pricer line with no Studio design carries the design letter's artwork, not a mockup
+                row.id.startsWith("jp_") && !hasDesign
+                ? "artwork"
+                : "mockup"
+            return (
+              <HoverPreview
+                key={i}
+                url={m.url}
+                label={m.side ? `Mockup: ${what}` : `View ${what}`}
+                checker={what === "artwork"}
+              >
+                <Button size="small" variant="secondary" asChild>
+                  <a href={m.url} target="_blank" rel="noreferrer">
+                    View {what}
+                  </a>
+                </Button>
+              </HoverPreview>
+            )
+          })}
           {/* Customer's uploaded source files + rendered print files —
               staff need these to quote (e.g. POA embroidery digitizing). */}
           {(row.original_files ?? []).map((f, i) => (
-            <Button key={`orig-${i}`} size="small" variant="secondary" asChild>
-              <a href={f.url} target="_blank" rel="noreferrer" download>
-                Artwork: {f.fileName || `file ${i + 1}`}
-                {f.sides?.length ? ` (${f.sides.join(", ").replace(/_/g, " ")})` : ""}
-              </a>
-            </Button>
+            <HoverPreview
+              key={`orig-${i}`}
+              url={f.url}
+              label={f.fileName || `Artwork file ${i + 1}`}
+              checker
+            >
+              <Button size="small" variant="secondary" asChild>
+                <a href={f.url} target="_blank" rel="noreferrer" download>
+                  Artwork: {f.fileName || `file ${i + 1}`}
+                  {f.sides?.length ? ` (${f.sides.join(", ").replace(/_/g, " ")})` : ""}
+                </a>
+              </Button>
+            </HoverPreview>
           ))}
           {(row.print_urls ?? []).map((a, i) => (
-            <Button key={`print-${i}`} size="small" variant="secondary" asChild>
-              <a href={a.url} target="_blank" rel="noreferrer">
-                Print file{a.side ? `: ${a.side.replace(/_/g, " ")}` : ""}
-              </a>
-            </Button>
+            <HoverPreview
+              key={`print-${i}`}
+              url={a.url}
+              label={`Print file${a.side ? `: ${a.side.replace(/_/g, " ")}` : ""}`}
+              checker
+            >
+              <Button size="small" variant="secondary" asChild>
+                <a href={a.url} target="_blank" rel="noreferrer">
+                  Print file{a.side ? `: ${a.side.replace(/_/g, " ")}` : ""}
+                </a>
+              </Button>
+            </HoverPreview>
           ))}
           <Button
             size="small"
