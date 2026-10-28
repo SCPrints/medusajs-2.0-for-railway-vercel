@@ -42,9 +42,12 @@ test("quote mode: design lands on the quote in dollars, and re-editing replaces 
     // Dollars, not cents: the Studio's price field is named "...Cents" but holds dollars.
     expect(Number(line.unit_price)).toBeGreaterThan(5)
     expect(Number(line.unit_price)).toBeLessThan(1000)
-    const front = (line.customizerDesign?.artifacts ?? []).find((a: any) => a.side === "front")
-    expect(front?.mockupUrl).toBeTruthy()
-    expect((await measureArtwork(page, front.mockupUrl)) as any).toMatchObject({ ok: true })
+    // The admin API slims the design to mockup / print URL lists (what staff see).
+    expect(line.customizerDesign).toBeTruthy()
+    const mockup = (line.mockup_urls ?? []).find((m: any) => m.side === "front")?.url
+    expect(mockup, "front mockup on the quote line").toBeTruthy()
+    expect((line.print_urls ?? []).some((p: any) => p.side === "front")).toBe(true)
+    expect((await measureArtwork(page, mockup)) as any).toMatchObject({ ok: true })
 
     // Staff "Edit design in Studio" again: the group is replaced, never duplicated.
     await openStudioUrl(page, url)
