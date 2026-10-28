@@ -1,0 +1,54 @@
+name: Studio journeys
+
+# Runs the customizer (Studio) Playwright suite against the deployment Vercel
+# just finished: every preview (before it reaches master) and every
+# production deploy, plus a nightly run against the live site.
+on:
+  deployment_status:
+  schedule:
+    - cron: "0 15 * * *" # 01:00/02:00 Sydney
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Site to test"
+        default: "https://www.scprints.com.au"
+
+jobs:
+  studio:
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(github.event.deployment_status.target_url, 'vercel.app'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: storefront
+    env:
+      STUDIO_BASE_URL: ${{ github.event.deployment_status.target_url || github.event.inputs.base_url || 'https://www.scprints.com.au' }}
+      # Public storefront key (it ships in the site's JS); used to read test carts back.
+      STUDIO_PUBLISHABLE_KEY: ${{ vars.STUDIO_PUBLISHABLE_KEY }}
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.deployment.sha || github.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: storefront/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test-studio
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: studio-report
+          path: |
+            storefront/playwright-report-studio
+            storefront/test-results
+          retention-days: 14
