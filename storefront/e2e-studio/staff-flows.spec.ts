@@ -28,36 +28,36 @@ test("quote mode: design lands on the quote in dollars, and re-editing replaces 
     method: "POST",
     body: JSON.stringify({ email: TEST_EMAIL, contact_name: "Studio test", subject: "STUDIO TEST — auto-deleted" }),
   })
-  const group = `gs_studiotest_${Date.now().toString(36)}`
-  const linesFor = async () =>
-    ((await adminApi(`/admin/quotes/${quote.id}`)).quote.line_items?.items ?? []).filter((l: any) => l.group_id === group)
+  const designLines = async () =>
+    ((await adminApi(`/admin/quotes/${quote.id}`)).quote.line_items?.items ?? []).filter((l: any) => l.customizerDesign)
+  const summary = async () => (await designLines()).map((l: any) => `${l.group_id}:${l.quantity}`).join(",")
   try {
-    const { url } = await adminApi(`/admin/quotes/${quote.id}/design-link?group=${group}&handle=${TEST_HANDLE}`)
+    // New design, as from "Design in Studio" on a quote: no group yet, the Studio makes one.
+    const { url } = await adminApi(`/admin/quotes/${quote.id}/design-link?handle=${TEST_HANDLE}`)
     await openStudioUrl(page, url)
     await uploadArtwork(page, { name: "logo.png", mimeType: "image/png", buffer: await makeImage(page, { width: 3000, height: 2250 }) })
     await submitDesign(page, { qty: 2, button: /^Add design to quote$/ })
 
-    await expect.poll(async () => (await linesFor()).map((l: any) => l.quantity), { timeout: 120_000, intervals: [2_000] }).toEqual([2])
-    const [line] = await linesFor()
+    await expect.poll(summary, { timeout: 120_000, intervals: [2_000] }).toMatch(/^qg_[^,]+:2$/)
+    const [line] = await designLines()
     // Dollars, not cents: the Studio's price field is named "...Cents" but holds dollars.
     expect(Number(line.unit_price)).toBeGreaterThan(5)
     expect(Number(line.unit_price)).toBeLessThan(1000)
     // The admin API slims the design to mockup / print URL lists (what staff see).
-    expect(line.customizerDesign).toBeTruthy()
     const mockup = (line.mockup_urls ?? []).find((m: any) => m.side === "front")?.url
     expect(mockup, "front mockup on the quote line").toBeTruthy()
     expect((line.print_urls ?? []).some((p: any) => p.side === "front")).toBe(true)
     expect((await measureArtwork(page, mockup)) as any).toMatchObject({ ok: true })
 
-    // Staff "Edit design in Studio" again: the saved design reloads, and saving
+    // "Edit design in Studio" on that group: the design reloads, and saving
     // replaces the group's lines rather than adding to them.
-    await openStudioUrl(page, url)
+    const { url: editUrl } = await adminApi(
+      `/admin/quotes/${quote.id}/design-link?handle=${TEST_HANDLE}&group=${line.group_id}`
+    )
+    await openStudioUrl(page, editUrl)
     await expect.poll(async () => (await studioObjects(page)).length, { timeout: 30_000 }).toBe(1)
     await submitDesign(page, { qty: 3, button: /^Add design to quote$/ })
-    await expect(page.getByText(/Saved to quote/).first()).toBeVisible({ timeout: 120_000 })
-    const summary = async () =>
-      (await linesFor()).map((l: any) => `${l.variant_id}:${l.quantity}`).join(",")
-    await expect.poll(summary, { timeout: 60_000, intervals: [2_000] }).toMatch(/^[^,]+:3$/)
+    await expect.poll(summary, { timeout: 120_000, intervals: [2_000] }).toBe(`${line.group_id}:3`)
   } finally {
     await adminApi(`/admin/quotes/${quote.id}`, { method: "DELETE" }).catch(() => undefined)
   }
