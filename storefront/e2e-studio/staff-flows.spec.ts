@@ -49,13 +49,15 @@ test("quote mode: design lands on the quote in dollars, and re-editing replaces 
     expect((line.print_urls ?? []).some((p: any) => p.side === "front")).toBe(true)
     expect((await measureArtwork(page, mockup)) as any).toMatchObject({ ok: true })
 
-    // Staff "Edit design in Studio" again: the group is replaced, never duplicated.
+    // Staff "Edit design in Studio" again: the saved design reloads, and saving
+    // replaces the group's lines rather than adding to them.
     await openStudioUrl(page, url)
-    if ((await studioObjects(page)).length === 0) {
-      await uploadArtwork(page, { name: "logo.png", mimeType: "image/png", buffer: await makeImage(page, { width: 3000, height: 2250 }) })
-    }
+    await expect.poll(async () => (await studioObjects(page)).length, { timeout: 30_000 }).toBe(1)
     await submitDesign(page, { qty: 3, button: /^Add design to quote$/ })
-    await expect.poll(async () => (await linesFor()).map((l: any) => l.quantity), { timeout: 120_000, intervals: [2_000] }).toEqual([3])
+    await expect(page.getByText(/Saved to quote/).first()).toBeVisible({ timeout: 120_000 })
+    const summary = async () =>
+      (await linesFor()).map((l: any) => `${l.variant_id}:${l.quantity}`).join(",")
+    await expect.poll(summary, { timeout: 60_000, intervals: [2_000] }).toMatch(/^[^,]+:3$/)
   } finally {
     await adminApi(`/admin/quotes/${quote.id}`, { method: "DELETE" }).catch(() => undefined)
   }
@@ -120,4 +122,41 @@ test("staff proof: a real order line reopens, moves, and saves a new mockup", as
   const message = await page.evaluate(() => (window as any).__proofSaved)
   expect(message).toMatchObject({ orderId: pick.order, lineItemId: pick.line.id, side: "front" })
   expect((await measureArtwork(page, message.mockupUrl)) as any).toMatchObject({ ok: true })
+})
+
+// Embroidery over the auto-priced stitch cap is "price on application": the
+// Studio sends the design to staff as a quote instead of the cart. Submitted
+// as TEST_EMAIL, which the backend never emails staff about (isStudioTestEmail).
+test("price on application: over-cap embroidery becomes a quote with the design", async ({ page }) => {
+  test.skip(!process.env.STUDIO_POA_ENABLED, "waits for the backend test-email rule to be deployed")
+  await openStudioUrl(page, `https://x/au/customizer-v2?handle=${TEST_HANDLE}`)
+  await uploadArtwork(page, { name: "crest.png", mimeType: "image/png", buffer: await makeImage(page, { width: 2000, height: 2000 }) })
+
+  await page.getByRole("button", { name: /Print location & size/ }).click()
+  await page.getByRole("button", { name: /Embroidery/ }).first().click()
+  await page.getByLabel("Stitch count").first().fill("20000")
+  await submitDesign(page, { qty: 12, button: /^Request a quote$/ })
+
+  const dialog = page.getByRole("dialog", { name: "Request an embroidery quote" })
+  await dialog.getByPlaceholder("you@example.com").fill(TEST_EMAIL)
+  await dialog.getByPlaceholder("0412 345 678").fill("0400 000 000")
+  await dialog.getByRole("button", { name: "Send quote request" }).click()
+
+  let quote: any = null
+  await expect
+    .poll(async () => {
+      const { quotes } = await adminApi(`/admin/quotes?q=${encodeURIComponent(TEST_EMAIL)}&limit=20`)
+      quote = (quotes ?? []).find((q: any) => q.source === "customizer_poa" && Date.now() - Date.parse(q.created_at) < 10 * 60_000)
+      return Boolean(quote)
+    }, { timeout: 120_000, intervals: [3_000] })
+    .toBe(true)
+  try {
+    const { quote: full } = await adminApi(`/admin/quotes/${quote.id}`)
+    expect(full.metadata?.poa_request).toBe(true)
+    const lines = full.line_items?.items ?? []
+    expect(lines.reduce((n: number, l: any) => n + (l.quantity ?? 0), 0)).toBe(12)
+    expect(lines.every((l: any) => l.customizerDesign && (l.mockup_urls ?? []).length > 0)).toBe(true)
+  } finally {
+    await adminApi(`/admin/quotes/${quote.id}`, { method: "DELETE" }).catch(() => undefined)
+  }
 })
