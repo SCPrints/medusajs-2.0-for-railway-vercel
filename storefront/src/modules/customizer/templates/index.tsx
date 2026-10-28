@@ -55,6 +55,7 @@ import {
   buildCartBatchItems,
   removeReplacedLines,
 } from "@modules/customizer/lib/destinations/cart"
+import { sendPoaRequest, sendToPos, sendToQuote } from "@modules/customizer/lib/destinations/staff"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 import { replaceInlineRasterWithHostedUrls } from "@modules/customizer/lib/inline-raster-to-hosted"
 import { rewriteArtworkSrcs, toPublicArtworkUrl } from "@modules/customizer/lib/r2-public-url"
@@ -5079,54 +5080,15 @@ export default function CustomizerTemplate({
       // branch — those are storefront-only concerns.
       if (isPOSMode && posSessionIdFromUrl) {
         try {
-          for (const quantityEntry of resolvedQuantities) {
-            const lineItemMetadata: CustomizerMetadata = {
-              ...metadataBase,
-              variantId: quantityEntry.variant.id,
-            }
-            const sanitized = sanitizeCustomizerDesignForCart(
-              lineItemMetadata,
-              dataUrlToHostedUrl
-            )
-            const variantPrice = (() => {
-              const p = (quantityEntry.variant as any)?.calculated_price
-              if (!p) return null
-              const amount =
-                typeof p.calculated_amount === "number"
-                  ? p.calculated_amount
-                  : Number(p.calculated_amount ?? 0)
-              if (!Number.isFinite(amount) || amount <= 0) return null
-              return Math.round(amount * 100)
-            })()
-            const bridgeRes = await fetch("/api/pos-bridge/items", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                pos_session_id: posSessionIdFromUrl,
-                kind: "customizer",
-                variant_id: quantityEntry.variant.id,
-                product_id: selectedProduct.id,
-                product_title: selectedProduct.title ?? "Custom design",
-                variant_title:
-                  (quantityEntry.variant as any)?.title ?? quantityEntry.size,
-                quantity: quantityEntry.quantity,
-                unit_price_cents: variantPrice,
-                metadata: {
-                  customizerDesign: sanitized,
-                  product_handle: selectedProduct.handle ?? undefined,
-                  product_title: selectedProduct.title ?? undefined,
-                  print_size_id: scpPrintSizeId,
-                },
-              }),
-            })
-            if (!bridgeRes.ok) {
-              const j = await bridgeRes.json().catch(() => ({}))
-              throw new Error(
-                (j as { error?: string })?.error ??
-                  `POS bridge failed (${bridgeRes.status})`
-              )
-            }
-          }
+          // POS destination (lib/destinations/staff.ts).
+          await sendToPos({
+            sessionId: posSessionIdFromUrl,
+            cells: resolvedQuantities,
+            metadataBase,
+            hostedByDataUrl: dataUrlToHostedUrl,
+            product: selectedProduct,
+            printSizeId: scpPrintSizeId,
+          })
           setStatusMessage(
             "Saved to POS. You can close this window — the cart on the till has been updated."
           )
@@ -5154,105 +5116,21 @@ export default function CustomizerTemplate({
       // vectorization / router.refresh here.
       if (isQuoteMode && quoteIdFromUrl && quoteSigFromUrl) {
         try {
-          const groupId =
-            quoteGroupFromUrl ||
-            `qg_${Date.now().toString(36)}${Math.random()
-              .toString(36)
-              .slice(2, 8)}`
-          // The design is identical across every size line (only variantId
-          // differs), so sanitize ONCE and post it at the top level — the
-          // backend fans it back out per line. Duplicating it per line blew
-          // past the bridge/backend body caps (413) for heavy vector artwork:
-          // Fabric path data isn't a data: URL, so the sanitizer can't shrink
-          // it, and 5 sizes meant 5 full copies in one request.
-          const sanitizedDesign = sanitizeCustomizerDesignForCart(
-            metadataBase,
-            dataUrlToHostedUrl
-          )
-          const lines = resolvedQuantities.map((quantityEntry) => {
-            // Suggested per-unit price = the decorated price the operator saw
-            // in the pricing panel (pricing.discountedUnitPriceCents), falling
-            // back to the bare garment calculated_price. Staff confirm/adjust
-            // it on the quote before sending.
-            const unitCents = (() => {
-              // NOTE: despite the `Cents` suffix, discountedUnitPriceCents is in
-              // MAJOR units (decimal dollars) — see customizer/lib/pricing.ts.
-              // Convert to cents (× 100), matching the calculated_price fallback
-              // below; the backend divides unit_price_cents by 100.
-              const fromBreakdown = (pricing as any)?.discountedUnitPriceCents
-              if (Number.isFinite(fromBreakdown) && fromBreakdown > 0) {
-                return Math.round(fromBreakdown * 100)
-              }
-              const p = (quantityEntry.variant as any)?.calculated_price
-              const amount =
-                typeof p?.calculated_amount === "number"
-                  ? p.calculated_amount
-                  : Number(p?.calculated_amount ?? 0)
-              return Number.isFinite(amount) && amount > 0
-                ? Math.round(amount * 100)
-                : null
-            })()
-            return {
-              kind: "customizer" as const,
-              variant_id: quantityEntry.variant.id,
-              product_id: selectedProduct.id,
-              product_title: selectedProduct.title ?? "Custom design",
-              variant_title:
-                (quantityEntry.variant as any)?.title ?? quantityEntry.size,
-              quantity: quantityEntry.quantity,
-              unit_price_cents: unitCents,
-              metadata: {
-                product_handle: selectedProduct.handle ?? undefined,
-                product_title: selectedProduct.title ?? undefined,
-                print_size_id: scpPrintSizeId,
-              },
-            }
-          })
-          // Post DIRECT to the backend (Fly) — the Vercel bridge sits behind a
-          // hard ~4.5MB platform request cap, and one copy of a heavy vector
-          // design (Fabric path data) can exceed it on its own. The backend
-          // route is the authority on qsig either way; CORS allows the
-          // storefront origin. Bridge kept as fallback for env/CORS surprises.
-          const payload = JSON.stringify({
-            quote_id: quoteIdFromUrl,
+          // Quote destination (lib/destinations/staff.ts).
+          await sendToQuote({
+            quoteId: quoteIdFromUrl,
             qsig: quoteSigFromUrl,
-            group_id: groupId,
-            design: sanitizedDesign,
-            lines,
+            groupId: quoteGroupFromUrl,
+            // Despite the name, discountedUnitPriceCents is DOLLARS (pricing.ts).
+            decoratedUnitDollars: Number((pricing as any)?.discountedUnitPriceCents),
+            backendUrl: process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL,
+            publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
+            cells: resolvedQuantities,
+            metadataBase,
+            hostedByDataUrl: dataUrlToHostedUrl,
+            product: selectedProduct,
+            printSizeId: scpPrintSizeId,
           })
-          const backendBase = (
-            process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL ?? ""
-          ).replace(/\/+$/, "")
-          const directHeaders: Record<string, string> = {
-            "Content-Type": "application/json",
-          }
-          if (process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY) {
-            directHeaders["x-publishable-api-key"] =
-              process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
-          }
-          let bridgeRes: Response
-          try {
-            if (!backendBase) throw new Error("no backend url")
-            bridgeRes = await fetch(
-              `${backendBase}/store/quotes/${encodeURIComponent(
-                quoteIdFromUrl
-              )}/design-items`,
-              { method: "POST", headers: directHeaders, body: payload }
-            )
-          } catch {
-            bridgeRes = await fetch("/api/quote-bridge/items", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: payload,
-            })
-          }
-          if (!bridgeRes.ok) {
-            const j = await bridgeRes.json().catch(() => ({}))
-            throw new Error(
-              (j as { error?: string })?.error ??
-                `Quote bridge failed (${bridgeRes.status})`
-            )
-          }
           setStatusMessage(
             "Saved to quote. You can close this window — the quote has been updated."
           )
@@ -5276,62 +5154,19 @@ export default function CustomizerTemplate({
       if (poaEmbroiderySides.length && poaContactRef.current) {
         try {
           const contact = poaContactRef.current
-          const groupId = `qg_${Date.now().toString(36)}${Math.random()
-            .toString(36)
-            .slice(2, 8)}`
-          const lines = resolvedQuantities.map((quantityEntry) => {
-            const lineItemMetadata: CustomizerMetadata = {
-              ...metadataBase,
-              variantId: quantityEntry.variant.id,
-            }
-            const sanitized = sanitizeCustomizerDesignForCart(
-              lineItemMetadata,
-              dataUrlToHostedUrl
-            )
-            return {
-              kind: "customizer" as const,
-              variant_id: quantityEntry.variant.id,
-              product_id: selectedProduct.id,
-              product_title: selectedProduct.title ?? "Custom design",
-              variant_title:
-                (quantityEntry.variant as any)?.title ?? quantityEntry.size,
-              quantity: quantityEntry.quantity,
-              unit_price_cents: null,
-              metadata: {
-                customizerDesign: sanitized,
-                product_handle: selectedProduct.handle ?? undefined,
-                product_title: selectedProduct.title ?? undefined,
-                print_size_id: scpPrintSizeId,
-              },
-            }
-          })
-          const bridgeRes = await fetch("/api/quote-bridge/poa", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              email: contact.email,
-              contact_phone: contact.phone,
-              contact_name: contact.name || undefined,
-              note: contact.note || undefined,
-              group_id: groupId,
-              product_title: selectedProduct.title ?? undefined,
-              poa_sides: poaEmbroiderySides.map((side) => ({
-                side,
-                stitch_count: sideEmbroideryConfigs[side]?.stitchCount ?? 0,
-              })),
-              lines,
-            }),
-          })
-          const j = (await bridgeRes.json().catch(() => ({}))) as {
-            message?: string
-            error?: string
-            public_id?: string
-          }
-          if (!bridgeRes.ok) {
-            throw new Error(
-              j?.message ?? j?.error ?? `Quote request failed (${bridgeRes.status})`
-            )
-          }
+          // Price-on-application destination (lib/destinations/staff.ts).
+          const j = await sendPoaRequest({
+            contact,
+            poaSides: poaEmbroiderySides.map((side) => ({
+              side,
+              stitch_count: sideEmbroideryConfigs[side]?.stitchCount ?? 0,
+            })),
+            cells: resolvedQuantities,
+            metadataBase,
+            hostedByDataUrl: dataUrlToHostedUrl,
+            product: selectedProduct,
+            printSizeId: scpPrintSizeId,
+          }).then((r) => ({ public_id: r.publicId }))
           trackLead("poa_embroidery")
           setStatusMessage(
             `Quote request${j.public_id ? ` ${j.public_id}` : ""} sent! Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches is priced individually — we'll email ${contact.email} with a price, usually within 1 business day.`

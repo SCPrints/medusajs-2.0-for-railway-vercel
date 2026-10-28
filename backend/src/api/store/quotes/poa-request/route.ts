@@ -1,4 +1,5 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import { isStudioTestEmail } from "../../../../lib/studio-test-email"
 import type { INotificationModuleService } from "@medusajs/framework/types"
 import { Modules } from "@medusajs/framework/utils"
 import { ulid } from "ulid"
@@ -188,7 +189,8 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     },
   ])
 
-  const notificationRecipient = CONTACT_NOTIFICATION_EMAIL?.trim()
+  // Automated Studio test runs submit as STUDIO_TEST_EMAIL; don't email staff for them.
+  const notificationRecipient = isStudioTestEmail(email) ? null : CONTACT_NOTIFICATION_EMAIL?.trim()
   if (notificationRecipient) {
     try {
       const notificationModuleService: INotificationModuleService =
