@@ -155,11 +155,12 @@ export default defineProductSearchIndex({
     provider_options: {
       meilisearch: {
         // `sort` first: an explicit price sort orders strictly by price.
-        // Exact word matches beat prefixes ("hoodie" over "dog hoodies"),
-        // then best-sellers / staples win ties.
+        // Staples / best-sellers come before exactness so "hoodie" finds the
+        // Supply Hood (matched via the hood synonym) ahead of niche titles
+        // that literally say "Hoodie"; exactness then orders everything else.
         rankingRules: [
           "sort", "words", "typo", "proximity", "attributeRank",
-          "exactness", "popularity:desc", "wordPosition",
+          "popularity:desc", "exactness", "wordPosition",
         ],
         synonyms: SEARCH_SYNONYMS,
         displayedAttributes: ["id", "handle", "title", "description", "variant_sku", "thumbnail"],
