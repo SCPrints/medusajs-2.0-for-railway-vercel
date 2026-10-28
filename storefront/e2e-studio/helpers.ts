@@ -5,6 +5,41 @@ export const TEST_HANDLE = process.env.STUDIO_TEST_HANDLE ?? "as-colour-classic-
 export const BACKEND_URL = (process.env.STUDIO_BACKEND_URL ?? "https://api.scprints.com.au").replace(/\/+$/, "")
 export const PUBLISHABLE_KEY = process.env.STUDIO_PUBLISHABLE_KEY ?? ""
 
+/** Medusa admin secret key (GitHub secret STUDIO_ADMIN_API_KEY) for quote / POS / proof journeys. */
+export const ADMIN_KEY = process.env.STUDIO_ADMIN_API_KEY ?? ""
+/** Test data is created for this address; the backend never emails it. */
+export const TEST_EMAIL = "studio-tests@scprints.com.au"
+
+/** Admin API call with the secret key (Basic auth, key as username). */
+export async function adminApi(path: string, init: RequestInit = {}): Promise<any> {
+  if (!ADMIN_KEY) throw new Error("STUDIO_ADMIN_API_KEY is not set")
+  const res = await fetch(`${BACKEND_URL}${path}`, {
+    ...init,
+    headers: {
+      authorization: `Basic ${Buffer.from(`${ADMIN_KEY}:`).toString("base64")}`,
+      "content-type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  })
+  const text = await res.text()
+  if (!res.ok) throw new Error(`${init.method ?? "GET"} ${path}: ${res.status} ${text.slice(0, 200)}`)
+  return text ? JSON.parse(text) : null
+}
+
+/** Open a Studio URL minted for another host (e.g. the live site) on the site under test. */
+export async function openStudioUrl(page: Page, absoluteUrl: string) {
+  const u = new URL(absoluteUrl)
+  await page.goto(`${u.pathname}${u.search}`)
+  const launch = page.getByRole("button", { name: /Customise this garment/ })
+  await expect
+    .poll(async () => {
+      if (await page.evaluate(() => Boolean((window as any).__scpStudio))) return true
+      if (await launch.isVisible().catch(() => false)) await launch.click().catch(() => undefined)
+      return false
+    }, { timeout: 60_000 })
+    .toBe(true)
+}
+
 /** Artwork colour in every fixture — easy to find again in rendered mockups. */
 export const ART_RGB = { r: 225, g: 29, b: 72 }
 
