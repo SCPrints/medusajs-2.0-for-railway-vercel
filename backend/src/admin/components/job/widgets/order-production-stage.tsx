@@ -223,6 +223,11 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         setGateFailures(body.failures ?? [])
         return
       }
+      // Skipping stages (e.g. walk-in pickup) needs a reason too — same box.
+      if (res.status === 409 && body.code === "stage_transition_not_allowed") {
+        setGateFailures([(body.message ?? "Skips stages").replace(/\. Add an override reason to force it\.$/, "")])
+        return
+      }
       if (!res.ok) {
         throw new Error((body as any)?.message || `HTTP ${res.status}`)
       }
@@ -321,7 +326,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
         {gateFailures ? (
           <div className="rounded-md border border-ui-tag-orange-border bg-ui-tag-orange-bg px-3 py-3 flex flex-col gap-y-2">
             <Text size="small" weight="plus" className="text-ui-tag-orange-text">
-              Not ready for production
+              Needs a reason
             </Text>
             <ul className="list-disc pl-5 m-0">
               {gateFailures.map((f) => (
@@ -331,7 +336,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
               ))}
             </ul>
             <Text size="xsmall" className="text-ui-fg-subtle">
-              Update the tracks above, or start anyway with a reason. The reason is saved in the history.
+              Change the tracks above, or save anyway with a reason. The reason is saved in the history.
             </Text>
             <div className="flex items-center gap-x-2">
               <Input
@@ -347,7 +352,7 @@ const OrderProductionStageWidget = ({ data }: DetailWidgetProps<AdminOrder>) => 
                 disabled={saving || overrideReason.trim().length < 3}
                 onClick={() => void save(overrideReason.trim())}
               >
-                Start production anyway
+                Save with reason
               </Button>
             </div>
           </div>
