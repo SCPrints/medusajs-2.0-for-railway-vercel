@@ -54,14 +54,10 @@ test("artwork can be dragged down to the hem", async ({ page }) => {
   await expect(page.getByText(NUDGED)).toHaveCount(0)
 })
 
-test("a 600 dpi A3 file uploads and saves", async ({ page, baseURL }) => {
-  // Big files go browser → backend directly; the backend's CORS list only
-  // allows the live domain, so on a *.vercel.app preview they fall back to
-  // Vercel's relay, which 413s anything over ~3 MB. Real gap, preview-only.
-  test.skip(
-    /\.vercel\.app/.test(baseURL ?? "") && !process.env.STUDIO_PREVIEW_CORS,
-    "previews can't upload >3 MB until the backend CORS list allows preview origins"
-  )
+// Big files go browser → backend directly (Vercel's relay 413s anything over
+// ~3 MB). Previews work because STORE_CORS allows this project's
+// *.vercel.app deploy URLs (pattern added 2026-10-29).
+test("a 600 dpi A3 file uploads and saves", async ({ page }) => {
   await openStudio(page)
   // 38×48 cm at 600 dpi, with ~4 MB of noise so it is as heavy as a real file.
   const big = await makeImage(page, { width: 8976, height: 11339, noise: 1_100_000 })
