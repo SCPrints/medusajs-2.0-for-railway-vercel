@@ -1,6 +1,6 @@
 "use client"
 
-import { addScpLineItemToCartSafe, addScpLineItemsBatchSafe, addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart, updateScpDesignInCart } from "@lib/data/cart"
+import { addToCartSafe, deleteLineItem, getScpCartAggregate, retrieveCart, updateScpDesignInCart } from "@lib/data/cart"
 import { createMyDesign, getMyDesign, updateMyDesign } from "@lib/data/designs"
 import { getOrderLineCustomizerMetadata } from "@lib/data/orders"
 import { getQuoteGroupDesign } from "@lib/data/quote-design"
@@ -50,6 +50,11 @@ import {
 } from "@modules/customizer/lib/scp-dtf-print-pricing"
 import { getDisplayUnitMinorForVariant } from "@lib/util/get-product-price"
 import { sanitizeCustomizerDesignForCart } from "@modules/customizer/lib/sanitize-cart-metadata"
+import {
+  addCartBatch,
+  buildCartBatchItems,
+  removeReplacedLines,
+} from "@modules/customizer/lib/destinations/cart"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 import { replaceInlineRasterWithHostedUrls } from "@modules/customizer/lib/inline-raster-to-hosted"
 import { rewriteArtworkSrcs, toPublicArtworkUrl } from "@modules/customizer/lib/r2-public-url"
@@ -5353,114 +5358,19 @@ export default function CustomizerTemplate({
         return
       }
 
-      // Build the batch payload up front then submit in ONE request. The
-      // previous version awaited `addScpLineItemToCartSafe` per cell — for
-      // a 252-cell bulk-grid add that was 252 sequential POSTs, each
-      // triggering a full `recomputeScpCartPricing` over the whole cart.
-      // The backend route now accepts the whole batch and does ONE
-      // recompute at the end (see scp-line-items-batch/route.ts).
-      const batchItems = resolvedQuantities.map((quantityEntry) => {
-        // Per-cell mockup overrides: bulk-grid cells carry colour-specific
-        // composited mockups for every decorated side so the cart preview
-        // shows the actual colour the customer ordered — not the design-
-        // reference colour — across front, back, sleeves, and tag. The
-        // override map is keyed by side; sides without an entry keep the
-        // base mockupUrl. Data URLs are preserved through the sanitizer
-        // via the per-cell override map below.
-        const perSideOverrides =
-          (quantityEntry as { mockupDataUrlsBySide?: Partial<Record<GarmentSide, string>> })
-            .mockupDataUrlsBySide ??
-          (quantityEntry.mockupDataUrl
-            ? ({ front: quantityEntry.mockupDataUrl } as Partial<Record<GarmentSide, string>>)
-            : null)
-        const perCellArtifacts =
-          perSideOverrides && Object.keys(perSideOverrides).length > 0
-            ? (metadataBase.artifacts ?? []).map((artifact) => {
-                const override = perSideOverrides[artifact.side as GarmentSide]
-                return override ? { ...artifact, mockupUrl: override } : artifact
-              })
-            : metadataBase.artifacts
-        const lineItemMetadata: CustomizerMetadata = {
-          ...metadataBase,
-          variantId: quantityEntry.variant.id,
-          artifacts: perCellArtifacts,
-          // Keep `sideLayouts` (with Fabric objects) on the line metadata so
-          // `?reorder=<order_id>:<line_item_id>` can replay the design onto
-          // the canvas. Previously this was overridden to empty arrays to
-          // "keep the payload small" — but it broke re-order completely
-          // (customer landed on a blank canvas, see screenshot in support).
-          // `sanitizeCustomizerDesignForCart` already strips large `data:`
-          // image URLs; what remains (positions, scales, rotations, fills,
-          // hosted image URLs) is a few KB per side at most.
-        }
-        const perCellOverrides: Record<string, string> = { ...dataUrlToHostedUrl }
-        if (perSideOverrides) {
-          for (const value of Object.values(perSideOverrides)) {
-            if (typeof value === "string" && value.length > 0) {
-              // Identity entry — preserves the data URL through the
-              // sanitizer instead of replacing it with the placeholder.
-              perCellOverrides[value] = value
-            }
-          }
-        }
-
-        return {
-          variantId: quantityEntry.variant.id,
-          quantity: quantityEntry.quantity,
+      // Shop destination (lib/destinations/cart.ts): one line per cell
+      // carrying the full design, sent in one request.
+      await addCartBatch(
+        buildCartBatchItems({
+          cells: resolvedQuantities,
+          metadataBase,
+          hostedByDataUrl: dataUrlToHostedUrl,
           printSizeId: scpPrintSizeId,
-          metadata: {
-            customizerDesign: sanitizeCustomizerDesignForCart(
-              lineItemMetadata,
-              perCellOverrides
-            ),
-            // When the customer entered the customizer via `?design=<id>`,
-            // tag the resulting line so saved-design conversion reporting
-            // can attribute the purchase back to the original design row.
-            // Stored under both keys: `source_design_id` (current canonical)
-            // and `designId` (legacy, kept so older reports still work).
-            ...(designIdFromUrl
-              ? {
-                  source_design_id: designIdFromUrl,
-                  designId: designIdFromUrl,
-                }
-              : {}),
-            // Fallback display fields — if the cart later loses the
-            // variant→product join (custom add path, deleted variant, or
-            // partial fields population), the cart UI still has a title and
-            // a working "back to product" link from these.
-            product_handle: selectedProduct.handle ?? undefined,
-            product_title: selectedProduct.title ?? undefined,
-          },
-        }
-      })
-
-      if (batchItems.length > 0) {
-        // Single-line fast-path (e.g. customizer "Add to cart" outside the
-        // bulk-grid) keeps using the original endpoint — preserves the
-        // existing single-line code path 1:1 and avoids exercising the
-        // batch path for low-volume traffic until it's settled in prod.
-        if (batchItems.length === 1) {
-          const only = batchItems[0]
-          const addResult = await addScpLineItemToCartSafe({
-            variantId: only.variantId,
-            quantity: only.quantity,
-            countryCode,
-            printSizeId: only.printSizeId,
-            metadata: only.metadata,
-          })
-          if (!addResult.ok) {
-            throw new Error(addResult.error)
-          }
-        } else {
-          const batchResult = await addScpLineItemsBatchSafe({
-            countryCode,
-            items: batchItems,
-          })
-          if (!batchResult.ok) {
-            throw new Error(batchResult.error)
-          }
-        }
-      }
+          designId: designIdFromUrl,
+          product: selectedProduct,
+        }),
+        countryCode
+      )
 
       // Funnel signal — design successfully entered the cart. Fires once
       // per `addCustomizedToCart` invocation regardless of how many size
@@ -5618,27 +5528,17 @@ export default function CustomizerTemplate({
       // - Plain single-line edit (no group siblings): delete just the
       //   edited line.
       if (editLineItemId || editGroupId) {
-        const idsToDelete =
-          editGroupId && editGroupLineIds.length > 0
-            ? editGroupLineIds
-            : siblingLineIdsToReplace.length > 0
-              ? siblingLineIdsToReplace
-              : editLineItemId
-                ? [editLineItemId]
-                : []
-        const failed: string[] = []
-        for (const id of idsToDelete) {
-          try {
-            await deleteLineItem(id)
-          } catch {
-            failed.push(id)
-          }
-        }
+        const { attempted, failed } = await removeReplacedLines({
+          editLineItemId,
+          editGroupId,
+          editGroupLineIds,
+          siblingLineIds: siblingLineIdsToReplace,
+        })
         if (failed.length > 0) {
           setStatusMessage(
-            failed.length === idsToDelete.length
+            failed.length === attempted
               ? "Updated cart added, but couldn't remove the original line(s) — please delete them from the cart."
-              : `Updated cart added, but couldn't remove ${failed.length} of ${idsToDelete.length} original line(s) — please clean them up in the cart.`
+              : `Updated cart added, but couldn't remove ${failed.length} of ${attempted} original line(s) — please clean them up in the cart.`
           )
         }
         router.push(`/${countryCode}/cart`)
