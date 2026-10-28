@@ -3937,24 +3937,47 @@ export default function CustomizerTemplate({
       canvas: exported.canvas,
     }
 
-    const [printResponse, mockupResponse] = await Promise.all([
-      fetch("/api/customizer/render-print", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(printPayload),
-      }),
-      fetch("/api/customizer/render-mockup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(mockupPayload),
-      }),
-    ])
+    // Every failed render is reported (customers only see a red line), so a
+    // PostHog alert on `customizer_render_failed` catches outages like the
+    // 2026-10-28 OOM restarts.
+    const renderStarted = Date.now()
+    const reportRenderFailure = (printStatus: number, mockupStatus: number, message: string) =>
+      phCapture("customizer_render_failed", {
+        side,
+        print_status: printStatus,
+        mockup_status: mockupStatus,
+        message: message.slice(0, 200),
+        ms: Date.now() - renderStarted,
+        product_handle: selectedProduct?.handle ?? null,
+        mode: isQuoteMode ? "quote" : isPOSMode ? "pos" : "shop",
+      })
+
+    let printResponse: Response
+    let mockupResponse: Response
+    try {
+      ;[printResponse, mockupResponse] = await Promise.all([
+        fetch("/api/customizer/render-print", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(printPayload),
+        }),
+        fetch("/api/customizer/render-mockup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(mockupPayload),
+        }),
+      ])
+    } catch (error) {
+      reportRenderFailure(0, 0, error instanceof Error ? error.message : "network error")
+      throw error
+    }
 
     const printBody = await printResponse.json().catch(() => ({}))
     const mockupBody = await mockupResponse.json().catch(() => ({}))
 
     if (!printResponse.ok || !mockupResponse.ok) {
       const detail = [printBody?.message, mockupBody?.message].filter(Boolean).join(" — ")
+      reportRenderFailure(printResponse.status, mockupResponse.status, detail)
       throw new Error(detail || `Render failed (print ${printResponse.status}, mockup ${mockupResponse.status}).`)
     }
 

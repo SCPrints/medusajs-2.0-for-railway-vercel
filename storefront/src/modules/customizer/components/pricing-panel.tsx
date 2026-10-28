@@ -572,6 +572,7 @@ function PricingPanel({
                       <span className="flex items-center gap-1.5">
                         {editable ? (
                           <select
+                            aria-label={`Print size, ${sideLabel}`}
                             value={sizeId}
                             onChange={(event) =>
                               onChangePrintSize?.(

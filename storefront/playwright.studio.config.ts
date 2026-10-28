@@ -20,6 +20,7 @@ export default defineConfig({
     : [["list"]],
   use: {
     baseURL: process.env.STUDIO_BASE_URL ?? "https://www.scprints.com.au",
+    actionTimeout: 30_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",

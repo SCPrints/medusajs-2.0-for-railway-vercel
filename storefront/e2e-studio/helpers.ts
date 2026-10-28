@@ -158,6 +158,51 @@ export async function fetchCart(id: string): Promise<any> {
   return (await res.json()).cart
 }
 
+/** Open "Quantity & checkout", set one size and press the main button (Add to cart / Update cart). */
+export async function submitDesign(page: Page, opts: { size?: string; qty?: number; button?: RegExp } = {}) {
+  const qty = page.getByLabel(`Quantity ${opts.size ?? "L"}`)
+  if (!(await qty.isVisible().catch(() => false))) {
+    await page.getByRole("button", { name: /Quantity & checkout/ }).click()
+  }
+  await qty.fill(String(opts.qty ?? 1))
+  await page.getByRole("button", { name: opts.button ?? /^Add to cart$/ }).click()
+}
+
+/**
+ * Poll the cart until a Studio line exists whose renders cover `sides`
+ * (the Studio writes the line, then its print + mockup files).
+ */
+export async function waitForDesignLine(
+  context: BrowserContext,
+  sides: string[],
+  opts: { excludeIds?: string[]; timeout?: number } = {}
+): Promise<any> {
+  const want = [...sides].sort().join(",")
+  let line: any = null
+  await expect
+    .poll(
+      async () => {
+        const id = await cartId(context)
+        if (!id) return ""
+        const cart = await fetchCart(id)
+        line = (cart.items ?? []).find(
+          (i: any) => i.metadata?.customizerDesign && !(opts.excludeIds ?? []).includes(i.id)
+        )
+        return (line?.metadata?.customizerDesign?.artifacts ?? [])
+          .filter((a: any) => a.mockupUrl && a.printUrl)
+          .map((a: any) => a.side)
+          .sort()
+          .join(",")
+      },
+      { timeout: opts.timeout ?? 120_000, intervals: [2_000] }
+    )
+    .toBe(want)
+  return line
+}
+
+export const artifactFor = (line: any, side: string) =>
+  (line.metadata.customizerDesign.artifacts ?? []).find((a: any) => a.side === side)
+
 /** Remove every line so test carts never reach staff views or reminder emails. */
 export async function emptyCart(context: BrowserContext) {
   const id = await cartId(context)
