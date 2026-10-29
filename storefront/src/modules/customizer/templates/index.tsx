@@ -55,7 +55,19 @@ import {
   buildCartBatchItems,
   removeReplacedLines,
 } from "@modules/customizer/lib/destinations/cart"
-import { sendPoaRequest, sendToPos, sendToQuote } from "@modules/customizer/lib/destinations/staff"
+import {
+  proofArtworkUrl,
+  sendPoaRequest,
+  sendProof,
+  sendToPos,
+  sendToQuote,
+} from "@modules/customizer/lib/destinations/staff"
+import {
+  enforcesScreenMinimum,
+  overStitchCapAction,
+  readDestination,
+  submitLabels,
+} from "@modules/customizer/lib/destinations/mode"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 import { replaceInlineRasterWithHostedUrls } from "@modules/customizer/lib/inline-raster-to-hosted"
 import { rewriteArtworkSrcs, toPublicArtworkUrl } from "@modules/customizer/lib/r2-public-url"
@@ -636,11 +648,10 @@ export default function CustomizerTemplate({
   // wizard Step 1 (colour/variant) is already settled — seed pdpStep1Done=true
   // so the editor (InputPanel / add text / replace artwork) is enabled
   // immediately and the Step 2/3 auto-advance effects don't early-return.
-  // (`isAdminProofMode` is computed later, so parse the param inline here.)
-  const proofModeAtInit =
-    (initialVariantSearchParams?.get("adminProof") ?? "").split(":").filter(Boolean)
-      .length === 3
-  const [pdpStep1Done, setPdpStep1Done] = useState(assemblyLayout || proofModeAtInit)
+  // Where this session saves to (shop cart, POS, quote or order proof) and the
+  // per-destination rules live in lib/destinations/mode.ts.
+  const destination = readDestination(initialVariantSearchParams)
+  const [pdpStep1Done, setPdpStep1Done] = useState(assemblyLayout || destination.kind === "proof")
   const [pdpStep2Done, setPdpStep2Done] = useState(false)
   // Assembly layout (/customizer-v2) free accordion: which section is expanded,
   // independent of the wizard's `pdpStep`. null = all collapsed. Only consulted
@@ -786,29 +797,16 @@ export default function CustomizerTemplate({
   const designIdFromUrl = initialVariantSearchParams?.get("design") ?? null
   const reorderRefFromUrl = initialVariantSearchParams?.get("reorder") ?? null
 
-  // POS mode: customizer launched in a popup from the admin POS page
-  // (/app/pos). The "Add to cart" button POSTs the rendered metadata
-  // back to /api/pos-bridge/items keyed by the session id, then closes
-  // the popup. No real cart line is created — the POS page composes
-  // them into a draft order at checkout time.
-  const posSessionIdFromUrl =
-    initialVariantSearchParams?.get("pos_session") ?? null
-  const isPOSMode = Boolean(posSessionIdFromUrl)
-
-  // Quote mode: customizer launched in a popup from the admin Quotes page
-  // (/app/quotes → "Design in Studio"). The add-to-cart button POSTs the
-  // rendered design back to /api/quote-bridge/items, keyed by the quote id +
-  // signed `qsig`, then closes the popup. No real cart line is created — the
-  // design lines attach to the quote and only become cart lines if/when the
-  // customer accepts the quote. `group` ties a multi-size design together so
-  // re-editing replaces it. Mirrors POS mode.
-  const quoteIdFromUrl = initialVariantSearchParams?.get("quote_id") ?? null
-  const quoteSigFromUrl = initialVariantSearchParams?.get("qsig") ?? null
-  const quoteGroupFromUrl = initialVariantSearchParams?.get("group") ?? null
-  // Job-pricer handoff: sides / techniques / sizes / quantities to pre-select
-  // when the group has no saved design yet (see lib/quote-seed.ts).
-  const quoteSeedFromUrl = initialVariantSearchParams?.get("seed") ?? null
-  const isQuoteMode = Boolean(quoteIdFromUrl && quoteSigFromUrl)
+  // POS and quote sessions are popups opened from admin; the finished design
+  // goes back to the till / quote instead of a cart (lib/destinations/staff.ts).
+  // `seed` is the job-pricer handoff (lib/quote-seed.ts).
+  const isPOSMode = destination.kind === "pos"
+  const posSessionIdFromUrl = destination.kind === "pos" ? destination.sessionId : null
+  const isQuoteMode = destination.kind === "quote"
+  const quoteIdFromUrl = destination.kind === "quote" ? destination.quoteId : null
+  const quoteSigFromUrl = destination.kind === "quote" ? destination.qsig : null
+  const quoteGroupFromUrl = destination.kind === "quote" ? destination.groupId : null
+  const quoteSeedFromUrl = destination.kind === "quote" ? destination.seed : null
 
   // POA auto-quote: embroidery over the auto-priced stitch cap can't be added
   // to cart. The add-to-cart gate opens a quote-request modal; on submit the
@@ -855,18 +853,13 @@ export default function CustomizerTemplate({
   const sideLoadVersionRef = useRef(0)
   const productOptionsFromPdp = useProductOptionsOptional()
 
-  // Admin proof mode: `?adminProof=<orderId>:<lineItemId>:<side>` + `?proofArtwork=<encodedUrl>`
-  // Opens the customiser in a stripped-down mode for staff to reposition artwork,
+  // Admin proof mode: a stripped-down Studio for staff to reposition artwork,
   // then save back to the order via window.parent.postMessage.
-  const adminProofParam = initialVariantSearchParams?.get("adminProof") ?? null
-  const proofArtworkParam = initialVariantSearchParams?.get("proofArtwork") ?? null
-  const [adminProofOrderId, adminProofLineItemId, adminProofSide] = (() => {
-    if (!adminProofParam) return [null, null, null]
-    const parts = adminProofParam.split(":")
-    return [parts[0] || null, parts[1] || null, parts[2] || null]
-  })()
-  const isAdminProofMode =
-    !!adminProofOrderId && !!adminProofLineItemId && !!adminProofSide
+  const isAdminProofMode = destination.kind === "proof"
+  const proofArtworkParam = destination.kind === "proof" ? destination.artworkParam : null
+  const adminProofOrderId = destination.kind === "proof" ? destination.orderId : null
+  const adminProofLineItemId = destination.kind === "proof" ? destination.lineItemId : null
+  const adminProofSide = destination.kind === "proof" ? destination.side : null
   const adminProofAppliedRef = useRef(false)
   // True once we've finished trying to load the order line's saved design (so
   // the flat-image fallback knows the saved-layout path has had its chance).
@@ -3887,7 +3880,7 @@ export default function CustomizerTemplate({
         message: message.slice(0, 200),
         ms: Date.now() - renderStarted,
         product_handle: selectedProduct?.handle ?? null,
-        mode: isQuoteMode ? "quote" : isPOSMode ? "pos" : "shop",
+        mode: destination.kind,
       })
 
     let printResponse: Response
@@ -3931,7 +3924,7 @@ export default function CustomizerTemplate({
   /** Admin proof mode: render only the mockup for the current side and
    *  post the result back to the parent admin widget via postMessage. */
   const handleSaveProof = async () => {
-    if (!isAdminProofMode) return
+    if (destination.kind !== "proof") return
     setAdminProofSaving(true)
     setAdminProofError(null)
     try {
@@ -3964,62 +3957,30 @@ export default function CustomizerTemplate({
         defaultGarmentImage
       )
       const pa = getPrintArea(canvasDims.width, canvasDims.height, resolveScpPrintSizeForSide(side, scpPrintSizeBySide[side] ?? DEFAULT_SCP_PRINT_SIZE_ID) as ScpPrintSizeId)
-      const payload = {
+
+      // Proof destination (lib/destinations/staff.ts).
+      await sendProof({
+        orderId: destination.orderId,
+        lineItemId: destination.lineItemId,
         side,
-        artworkSvg,
-        garmentImageUrl: garmentImageUrlForApi,
-        placement: {
-          x: Math.max(0, Math.round(pa.x)),
-          y: Math.max(0, Math.round(pa.y)),
-          width: Math.max(1, Math.round(pa.width)),
-          height: Math.max(1, Math.round(pa.height)),
-        },
-        canvas: canvasDims,
-        tintColor: variantTintHexForRender ?? undefined,
-      }
-
-      const mockupResponse = await fetch("/api/customizer/render-mockup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      const mockupBody = await mockupResponse.json().catch(() => ({}))
-      if (!mockupResponse.ok) {
-        throw new Error(mockupBody?.message ?? `Render failed (${mockupResponse.status})`)
-      }
-      const mockupUrl = extractRenderArtifactUrl(mockupBody) ?? extractRenderArtifactUrl((mockupBody as any)?.data)
-      if (!mockupUrl) throw new Error("Mockup URL not returned")
-
-      // The artwork staff actually left on the canvas (newest object first), so
-      // a swapped logo shows as "Proof artwork" in admin and re-opens next time.
-      // The upload id comes first: an SVG lands on the canvas as a vector group
-      // with no `src`, so a src-only lookup skipped it and reported the old PNG
-      // underneath (order #116 — three proof saves, none kept the new SVG).
-      const canvasArtworkUrl =
-        [...sideObjects].reverse().reduce<string | null>((found, obj: any) => {
-          if (found) return found
-          const uploaded = obj?.customizerUploadId
-            ? sessionUploads.find((u) => u.id === obj.customizerUploadId)?.originalStorageUrl
-            : null
-          if (uploaded) return uploaded
-          const src = typeof obj?.src === "string" ? obj.src : ""
-          if (!src) return null
-          if (/^https?:\/\//i.test(src)) return src
-          return sessionUploads.find((u) => u.dataUrl === src)?.originalStorageUrl ?? null
-        }, null)
-
-      window.parent.postMessage(
-        {
-          type: "ADMIN_PROOF_SAVED",
-          orderId: adminProofOrderId,
-          lineItemId: adminProofLineItemId,
+        render: {
           side,
-          mockupUrl,
-          artworkUrl:
-            canvasArtworkUrl ?? (proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null),
+          artworkSvg,
+          garmentImageUrl: garmentImageUrlForApi,
+          placement: {
+            x: Math.max(0, Math.round(pa.x)),
+            y: Math.max(0, Math.round(pa.y)),
+            width: Math.max(1, Math.round(pa.width)),
+            height: Math.max(1, Math.round(pa.height)),
+          },
+          canvas: canvasDims,
+          tintColor: variantTintHexForRender ?? undefined,
         },
-        "*"
-      )
+        artworkUrl:
+          proofArtworkUrl(sideObjects, sessionUploads) ??
+          (proofArtworkParam ? decodeURIComponent(proofArtworkParam) : null),
+        target: window.parent,
+      })
     } catch (err) {
       setAdminProofError(err instanceof Error ? err.message : "Save failed")
     } finally {
@@ -4503,7 +4464,7 @@ export default function CustomizerTemplate({
     const hasScreenSides = decoratedSides.some(
       (side) => sideDecorationMethods[side] === "screen"
     )
-    if (hasScreenSides && totalQuantity < SCREEN_MIN_QUANTITY && !isQuoteMode) {
+    if (hasScreenSides && totalQuantity < SCREEN_MIN_QUANTITY && enforcesScreenMinimum(destination)) {
       setUploadError(
         `Screen printing needs at least ${SCREEN_MIN_QUANTITY} pieces. Increase the quantity, or switch the screen-printed side(s) to Print (DTF) for small runs.`
       )
@@ -4539,17 +4500,20 @@ export default function CustomizerTemplate({
         sideDecorationMethods[side] === "embroidery" &&
         (sideEmbroideryConfigs[side]?.stitchCount ?? 0) > MAX_AUTO_PRICED_STITCHES
     )
-    if (poaEmbroiderySides.length && !isQuoteMode) {
+    const overCapAction = overStitchCapAction(destination, {
+      editingCart: Boolean(editGroupId || editLineItemId),
+    })
+    if (poaEmbroiderySides.length && overCapAction !== "allow") {
       const labels = poaEmbroiderySides
         .map((s) => s.replace(/_/g, " "))
         .join(", ")
-      if (isPOSMode) {
+      if (overCapAction === "use_quote") {
         setUploadError(
           `Embroidery on ${labels} is over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — priced on application. Create a quote for this design instead of a POS sale.`
         )
         return
       }
-      if (editGroupId || editLineItemId) {
+      if (overCapAction === "cannot_edit") {
         setUploadError(
           `Embroidery on ${labels} is over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — priced on application, so it can't be saved to the cart. Reduce the stitch count, or start a new design and request a quote.`
         )
@@ -6277,6 +6241,10 @@ export default function CustomizerTemplate({
         (sideEmbroideryConfigs[side]?.stitchCount ?? 0) >
           MAX_AUTO_PRICED_STITCHES
     )
+    const submitCta = submitLabels(destination, {
+      editingCartLine: Boolean(editLineItemId),
+      needsQuote: poaSidesForDisplay.length > 0,
+    })
     const poaQuoteModalNode = (
       <PoaQuoteModal
         open={poaModalOpen}
@@ -7381,7 +7349,8 @@ export default function CustomizerTemplate({
                     </div>
                   )
                 })()}
-                {poaSidesForDisplay.length > 0 && !isQuoteMode && (
+                {poaSidesForDisplay.length > 0 &&
+                  overStitchCapAction(destination, { editingCart: false }) !== "allow" && (
                   <div className="mt-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
                     <p>
                       <span className="font-semibold">Custom quote needed</span> — embroidery on{" "}
@@ -7459,28 +7428,8 @@ export default function CustomizerTemplate({
                 allowedPrintSizesBySide={allowedSizesBySide}
                 hidePrintSizeSelector
                 hideHeader
-                primaryCtaLabel={
-                  isQuoteMode
-                    ? "Add design to quote"
-                    : isPOSMode
-                    ? "Add to sale"
-                    : editLineItemId
-                    ? "Update cart"
-                    : poaSidesForDisplay.length > 0
-                    ? "Request a quote"
-                    : undefined
-                }
-                primaryCtaLoadingLabel={
-                  isQuoteMode
-                    ? "Saving to quote…"
-                    : isPOSMode
-                    ? "Adding…"
-                    : editLineItemId
-                    ? "Updating..."
-                    : poaSidesForDisplay.length > 0
-                    ? "Sending…"
-                    : undefined
-                }
+                primaryCtaLabel={submitCta.label}
+                primaryCtaLoadingLabel={submitCta.busy}
                 aggregatedCartQuantity={aggregatedCartQuantity}
                 stockBySize={stockBySize}
                 tier={tier}

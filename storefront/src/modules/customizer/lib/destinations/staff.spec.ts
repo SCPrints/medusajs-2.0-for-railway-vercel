@@ -1,4 +1,4 @@
-import { sendPoaRequest, sendToPos, sendToQuote } from "./staff"
+import { proofArtworkUrl, sendPoaRequest, sendProof, sendToPos, sendToQuote } from "./staff"
 
 const IMG = `data:image/png;base64,${"A".repeat(400)}`
 const metadataBase: any = {
@@ -82,6 +82,61 @@ describe("sendToQuote", () => {
     expect(calls.map((c) => c.url)).toEqual(["https://api.x/store/quotes/qt_1/design-items", "/api/quote-bridge/items"])
     expect(calls[1].body.group_id).toMatch(/^qg_/)
     expect(calls[1].body.lines[0].unit_price_cents).toBe(3810)
+  })
+})
+
+describe("proofArtworkUrl", () => {
+  const uploads = [
+    { id: "up_svg", originalStorageUrl: "https://r2/new.svg" },
+    { id: "up_png", dataUrl: IMG, originalStorageUrl: "https://r2/original.png" },
+  ]
+
+  it("takes the newest object, preferring its upload id (SVG groups have no src)", () => {
+    expect(proofArtworkUrl([{ src: "https://r2/old.png" }, { customizerUploadId: "up_svg" }], uploads)).toBe(
+      "https://r2/new.svg"
+    )
+  })
+
+  it("maps an inline image to its hosted original and skips objects with no artwork", () => {
+    expect(proofArtworkUrl([{ src: IMG }, { src: "" }], uploads)).toBe("https://r2/original.png")
+    expect(proofArtworkUrl([{ src: "data:image/png;base64,ZZ" }], uploads)).toBeNull()
+  })
+})
+
+describe("sendProof", () => {
+  it("renders the mockup and posts it back to the admin window", async () => {
+    respond = () => new Response(JSON.stringify({ url: "https://r2/mockup.jpg" }), { status: 200 })
+    const target = { postMessage: jest.fn() }
+    const r = await sendProof({
+      orderId: "order_1",
+      lineItemId: "ordli_1",
+      side: "back",
+      render: { side: "back", artworkSvg: "<svg/>" },
+      artworkUrl: "https://r2/a.png",
+      target,
+    })
+    expect(r).toEqual({ mockupUrl: "https://r2/mockup.jpg" })
+    expect(calls[0]).toMatchObject({ url: "/api/customizer/render-mockup", body: { side: "back", artworkSvg: "<svg/>" } })
+    expect(target.postMessage).toHaveBeenCalledWith(
+      {
+        type: "ADMIN_PROOF_SAVED",
+        orderId: "order_1",
+        lineItemId: "ordli_1",
+        side: "back",
+        mockupUrl: "https://r2/mockup.jpg",
+        artworkUrl: "https://r2/a.png",
+      },
+      "*"
+    )
+  })
+
+  it("posts nothing when the render fails", async () => {
+    respond = () => new Response(JSON.stringify({ message: "Render failed (413)" }), { status: 413 })
+    const target = { postMessage: jest.fn() }
+    await expect(
+      sendProof({ orderId: "o", lineItemId: "l", side: "front", render: {}, artworkUrl: null, target })
+    ).rejects.toThrow("Render failed (413)")
+    expect(target.postMessage).not.toHaveBeenCalled()
   })
 })
 

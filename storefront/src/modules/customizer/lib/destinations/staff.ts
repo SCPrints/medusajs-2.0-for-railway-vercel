@@ -1,9 +1,10 @@
 /**
  * Staff-side destinations for a finished Studio design: the POS till, a quote
- * being built in admin, and the "price on application" embroidery request.
- * The Studio core builds the design (metadataBase); these send it. Messages,
- * window closing and analytics stay in the Studio.
+ * being built in admin, an order proof, and the "price on application"
+ * embroidery request. The Studio core builds the design (metadataBase); these
+ * send it. Messages, window closing and analytics stay in the Studio.
  */
+import { extractRenderArtifactUrl } from "../artifact-url"
 import { sanitizeCustomizerDesignForCart } from "../sanitize-cart-metadata"
 import type { CustomizerMetadata } from "../types"
 import {
@@ -94,6 +95,60 @@ export async function sendToQuote(
     res = await postJson("/api/quote-bridge/items", payload)
   }
   await assertOk(res, "Quote bridge failed")
+}
+
+type CanvasObject = { src?: unknown; customizerUploadId?: unknown }
+type Upload = { id: string; dataUrl?: string | null; originalStorageUrl?: string | null }
+
+/**
+ * The artwork staff actually left on the proof canvas (newest object first),
+ * so a swapped logo shows as "Proof artwork" in admin and re-opens next time.
+ * The upload id comes first: an SVG lands on the canvas as a vector group with
+ * no `src`, so a src-only lookup reported the old PNG underneath (order #116).
+ */
+export function proofArtworkUrl(objects: CanvasObject[], uploads: Upload[]): string | null {
+  for (const obj of [...objects].reverse()) {
+    const uploaded = obj?.customizerUploadId
+      ? uploads.find((u) => u.id === obj.customizerUploadId)?.originalStorageUrl
+      : null
+    if (uploaded) return uploaded
+    const src = typeof obj?.src === "string" ? obj.src : ""
+    if (!src) continue
+    if (/^https?:\/\//i.test(src)) return src
+    const hosted = uploads.find((u) => u.dataUrl === src)?.originalStorageUrl
+    if (hosted) return hosted
+  }
+  return null
+}
+
+/**
+ * Staff proof: render the mockup for one side and hand it back to the admin
+ * window that opened the Studio. The admin widget saves it to the order.
+ */
+export async function sendProof(input: {
+  orderId: string
+  lineItemId: string
+  side: string
+  /** Body for /api/customizer/render-mockup (side, artworkSvg, garmentImageUrl, placement, canvas, tintColor). */
+  render: Record<string, unknown>
+  artworkUrl: string | null
+  target: Pick<Window, "postMessage">
+}): Promise<{ mockupUrl: string }> {
+  const body = await assertOk(await postJson("/api/customizer/render-mockup", input.render), "Render failed")
+  const mockupUrl = extractRenderArtifactUrl(body) ?? extractRenderArtifactUrl(body?.data)
+  if (!mockupUrl) throw new Error("Mockup URL not returned")
+  input.target.postMessage(
+    {
+      type: "ADMIN_PROOF_SAVED",
+      orderId: input.orderId,
+      lineItemId: input.lineItemId,
+      side: input.side,
+      mockupUrl,
+      artworkUrl: input.artworkUrl,
+    },
+    "*"
+  )
+  return { mockupUrl }
 }
 
 /** Price on application: send the design to staff as a quote request (no prices). Returns its public id. */
