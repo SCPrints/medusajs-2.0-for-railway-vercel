@@ -22,13 +22,13 @@ const UA = "SCPrints-SiteCheck/1.0 (+https://scprints.com.au)"
 const SOFT_404 = ["<title>404"]
 const ERROR_TEXT = ["Product page failed to render", "Application error: a server-side exception"]
 
-async function get(url) {
+async function get(url, timeoutMs = TIMEOUT_MS) {
   const started = Date.now()
   try {
     const res = await fetch(url, {
       headers: { "user-agent": UA },
       redirect: "follow",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     })
     const html = /html|xml/.test(res.headers.get("content-type") || "") ? await res.text() : ""
     return { status: res.status, ms: Date.now() - started, finalUrl: res.url, html }
@@ -68,9 +68,15 @@ function check(url, r, foundOn) {
   if (r.ms > SLOW_MS) add("Slow", url, `${(r.ms / 1000).toFixed(1)}s`, foundOn)
 }
 
-const sitemap = await get(`${BASE}/sitemap.xml`)
+// The sitemap is built from the whole catalog on a cache miss and can take
+// well over 30s cold, so it gets a longer timeout and one retry.
+let sitemap = await get(`${BASE}/sitemap.xml`, 120000)
+if (sitemap.status !== 200) sitemap = await get(`${BASE}/sitemap.xml`, 120000)
 if (sitemap.status !== 200) {
-  console.error(`sitemap.xml returned ${sitemap.status}`)
+  const md = `## Site crawl — ${BASE}\n\nCould not load sitemap.xml (${sitemap.error || `HTTP ${sitemap.status}`}), so no pages were checked.\n`
+  writeFileSync("site-check-crawl.md", md)
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, md)
+  console.error(md)
   process.exit(1)
 }
 const urls = [...sitemap.html.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].replaceAll("&amp;", "&")).slice(0, LIMIT)

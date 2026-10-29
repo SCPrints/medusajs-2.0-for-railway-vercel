@@ -96,7 +96,9 @@ try {
       rows.map(([msg, g]) => `| ${g.count} | ${cell(msg)} | ${cell([...g.paths].slice(0, 3).join(", "))} |`).join("\n") + "\n\n"
     : "None.\n\n"
 } catch (err) {
-  md += `Could not read Vercel logs: ${cell(err.stderr || err.message)}\n\n`
+  // Last stderr line is the CLI's actual error; earlier lines are npm warnings.
+  const why = String(err.stderr || err.message).trim().split("\n").filter((l) => !/^npm (warn|notice)/.test(l)).pop()
+  md += `Could not read Vercel logs: ${cell(why)}\n\n`
 }
 
 if (!process.env.POSTHOG_PERSONAL_API_KEY || !process.env.POSTHOG_PROJECT_ID) {
