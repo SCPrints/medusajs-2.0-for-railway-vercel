@@ -67,7 +67,16 @@ async function productIdsFor(query: any, entity: string, ids: string[], deleted:
     case "product-variant":
       return fromVariants(ids)
     case "price": {
-      const sets = await related("price", "price_set_id", { id: ids }, deleted)
+      // Price-list prices (the 8 customer tiers) never feed `min_price_aud`, and the
+      // nightly tier regen deletes + re-adds every one of them: reindexing on those
+      // events OOM-killed the backend (2026-10-29). Only base prices count.
+      const { data: rows } = await query.graph({
+        entity: "price",
+        fields: ["price_set_id", "price_list_id"],
+        filters: { id: ids },
+        withDeleted: deleted,
+      })
+      const sets = [...new Set((rows as any[]).filter((p) => !p.price_list_id).map((p) => p.price_set_id))]
       if (!sets.length) return []
       return fromVariants(await related("product_variant_price_set", "variant_id", { price_set_id: sets }))
     }
