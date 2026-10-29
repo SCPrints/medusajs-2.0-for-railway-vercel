@@ -21,6 +21,7 @@ import {
 import { writeAudit } from "../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { captureEvent } from "../../lib/posthog"
+import { findCustomerIdByEmail } from "../../lib/customer-fill"
 
 export type ConvertQuoteResult = {
   order_id: string
@@ -256,11 +257,16 @@ export const convertQuoteToOrder = async (
     : givenAddress
       ? "delivery"
       : null
-  if (quote.customer_id) {
+  // Most jobs start from a form or the New job drawer with only an email —
+  // find the customer so their saved address and payment terms still apply.
+  // quote-on-order-placed links the job to the order's customer afterwards.
+  const customerId: string | null =
+    quote.customer_id ?? (await findCustomerIdByEmail(container, quote.email))
+  if (customerId) {
     try {
       const { data: customers } = await query.graph({
         entity: "customer",
-        filters: { id: quote.customer_id },
+        filters: { id: customerId },
         fields: [
           "id",
           "metadata",
@@ -342,7 +348,7 @@ export const convertQuoteToOrder = async (
       region_id: region.id,
       sales_channel_id: salesChannelId,
       currency_code: String(quote.currency_code ?? "aud").toLowerCase(),
-      customer_id: quote.customer_id ?? undefined,
+      customer_id: customerId ?? undefined,
       email: quote.email,
       billing_address: billing,
       shipping_address: shipping,

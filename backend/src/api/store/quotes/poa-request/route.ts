@@ -10,6 +10,7 @@ import {
   SUPPORT_REPLY_TO_EMAIL,
 } from "../../../../lib/constants"
 import { isValidEmail } from "../../../../lib/email-validation"
+import { fillCustomerBlanks, findCustomerIdByEmail } from "../../../../lib/customer-fill"
 import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../../lib/lead-relay"
 import { MAX_AUTO_PRICED_STITCHES } from "../../../../lib/embroidery-pricing"
 import { getPostHog } from "../../../../lib/posthog"
@@ -88,9 +89,10 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // the quote onto their record and backfill name/phone from the profile when
   // the modal left them blank. The token is the proof of identity — a body
   // field would let anyone attach quotes to arbitrary customers.
+  // Guests are linked by email, the same match Medusa uses at checkout.
   const customerId =
     (req as { auth_context?: { actor_id?: string } }).auth_context?.actor_id ??
-    null
+    (await findCustomerIdByEmail(req.scope, email))
   let contactName = parsed.contact_name?.trim() || null
   let contactPhone = parsed.contact_phone?.trim() || null
   if (customerId && (!contactName || !contactPhone)) {
@@ -174,6 +176,13 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       },
     },
   ])
+
+  const [firstName, ...lastName] = (parsed.contact_name ?? "").trim().split(/\s+/)
+  await fillCustomerBlanks(req.scope, email, {
+    first_name: firstName,
+    last_name: lastName.join(" "),
+    phone: parsed.contact_phone,
+  })
 
   await quoteService.createQuoteEvents([
     {

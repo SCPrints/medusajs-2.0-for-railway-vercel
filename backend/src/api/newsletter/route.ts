@@ -137,6 +137,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         )
         await customerModuleService.updateCustomers(customer.id, {
           metadata: {
+            // Spread: update() replaces the whole jsonb — a bare write wiped
+            // tax-exempt, payment terms and reminder stamps.
+            ...existingMeta,
             marketing_consent_email: true,
             marketing_consent_updated_at: new Date().toISOString(),
             marketing_consent_source: "signup",

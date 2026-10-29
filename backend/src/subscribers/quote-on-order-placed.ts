@@ -107,6 +107,11 @@ export default async function quoteOnOrderPlaced({
     id: quoteId,
     metadata: { ...quoteMeta, order_id: orderId },
   }
+  // Jobs started from a form / the New job drawer carry only an email; the
+  // order's customer is the real match (Medusa found or created it by email).
+  const customerId: string | null =
+    quote.customer_id ?? (typeof order?.customer_id === "string" ? order.customer_id : null)
+  if (!quote.customer_id && customerId) update.customer_id = customerId
   if (fromStatus !== "accepted") {
     update.status = "accepted"
     update.accepted_at = new Date()
@@ -150,11 +155,11 @@ export default async function quoteOnOrderPlaced({
     details: { from: fromStatus, order_id: orderId },
   })
   // Also surface on the customer's timeline if the quote has one.
-  if (typeof quote.customer_id === "string") {
+  if (customerId) {
     await writeAudit({
       container,
       entity: AUDIT_ENTITY.CUSTOMER,
-      entity_id: quote.customer_id,
+      entity_id: customerId,
       action: AUDIT_ACTION.CONVERTED,
       actor_id: "system",
       details: { quote_id: quoteId, order_id: orderId },

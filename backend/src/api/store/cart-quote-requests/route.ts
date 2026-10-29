@@ -4,7 +4,7 @@ import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
 import { CONTACT_NOTIFICATION_EMAIL } from "../../../lib/constants"
-import { fillCustomerBlanks } from "../../../lib/customer-contact-backfill"
+import { fillCustomerBlanks } from "../../../lib/customer-fill"
 import { createQuoteFromCart, findOpenCarts } from "../../../lib/open-carts"
 import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../lib/lead-relay"
 import { getPostHog } from "../../../lib/posthog"

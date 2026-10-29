@@ -2,6 +2,7 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 import { ulid } from "ulid"
 
 import { ADMIN_PUBLIC_URL, BACKEND_URL } from "../../lib/constants"
+import { findCustomerIdByEmail } from "../../lib/customer-fill"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { bustTodayCache } from "./today"
 
@@ -52,6 +53,7 @@ export async function startJobFromEnquiry(
       status: "new",
       source: "contact",
       email: s.email,
+      customer_id: await findCustomerIdByEmail(container, s.email),
       contact_name: name,
       contact_phone: s.phone ?? null,
       subject: s.subject ?? null,

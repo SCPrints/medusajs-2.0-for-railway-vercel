@@ -9,6 +9,7 @@ import {
   SUPPORT_REPLY_TO_EMAIL,
 } from "../../../lib/constants"
 import { isValidEmail } from "../../../lib/email-validation"
+import { fillCustomerBlanks, findCustomerIdByEmail } from "../../../lib/customer-fill"
 import { getPostHog } from "../../../lib/posthog"
 import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../lib/lead-relay"
 import { getStorefrontOriginAllowlist } from "../../../lib/storefront-origins"
@@ -134,6 +135,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       status: "new",
       source: parsed.source ?? "byo",
       email,
+      customer_id: await findCustomerIdByEmail(req.scope, email),
       contact_name: parsed.contact_name ?? null,
       contact_phone: parsed.contact_phone ?? null,
       company: parsed.company ?? null,
@@ -146,6 +148,14 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       },
     },
   ])
+
+  const [firstName, ...lastName] = (parsed.contact_name ?? "").trim().split(/\s+/)
+  await fillCustomerBlanks(req.scope, email, {
+    first_name: firstName,
+    last_name: lastName.join(" "),
+    phone: parsed.contact_phone,
+    company: parsed.company,
+  })
 
   await quoteService.createQuoteEvents([
     {

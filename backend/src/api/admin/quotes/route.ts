@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ulid } from "ulid"
 import { z } from "zod"
 
+import { findCustomerIdByEmail } from "../../../lib/customer-fill"
 import { isValidEmail } from "../../../lib/email-validation"
 import { getPostHog } from "../../../lib/posthog"
 import { slimQuoteForAdmin } from "../../../lib/quote-admin-slim"
@@ -188,7 +189,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       status: "new",
       source: "admin",
       email,
-      customer_id: parsed.customer_id ?? null,
+      customer_id: parsed.customer_id ?? (await findCustomerIdByEmail(req.scope, email)),
       contact_name: parsed.contact_name ?? null,
       contact_phone: parsed.contact_phone ?? null,
       company: parsed.company ?? null,
