@@ -128,11 +128,12 @@ test("staff proof: a real order line reopens, moves, and saves a new mockup", as
 // Studio sends the design to staff as a quote instead of the cart. Submitted
 // as TEST_EMAIL, which the backend never emails staff about (isStudioTestEmail).
 test("price on application: over-cap embroidery becomes a quote with the design", async ({ page }) => {
-  test.skip(!process.env.STUDIO_POA_ENABLED, "waits for the backend test-email rule to be deployed")
   await openStudioUrl(page, `https://x/au/customizer-v2?handle=${TEST_HANDLE}`)
   await uploadArtwork(page, { name: "crest.png", mimeType: "image/png", buffer: await makeImage(page, { width: 2000, height: 2000 }) })
 
   await page.getByRole("button", { name: /Print location & size/ }).click()
+  // Confirming the location reveals the method picker + embroidery settings.
+  await page.getByRole("tab", { name: /Front/ }).click()
   await page.getByRole("button", { name: /Embroidery/ }).first().click()
   await page.getByLabel("Stitch count").first().fill("20000")
   await submitDesign(page, { qty: 12, button: /^Request a quote$/ })
