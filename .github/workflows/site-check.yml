@@ -1,0 +1,100 @@
+name: Site check
+
+# Daily, read-only checks of the live storefront, posted as one comment on the
+# open "Daily site check" issue (created if missing):
+#   crawl      every sitemap page + internal link (broken / 404 / slow pages)
+#   lighthouse mobile performance on key pages
+#   errors     last 24h of Vercel server errors + PostHog browser errors,
+#              rage clicks and stalled navigations
+on:
+  schedule:
+    - cron: "30 15 * * *" # 01:30/02:30 Sydney, after the Studio journeys
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Site to check"
+        default: "https://www.scprints.com.au"
+
+env:
+  BASE_URL: ${{ github.event.inputs.base_url || 'https://www.scprints.com.au' }}
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/site-check/crawl.mjs "$BASE_URL"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-check-crawl
+          path: site-check-crawl.md
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/site-check/lighthouse.mjs "$BASE_URL"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-check-lighthouse
+          path: site-check-lighthouse.md
+
+  errors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/site-check/errors.mjs
+        env:
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site-check-errors
+          path: site-check-errors.md
+
+  report:
+    needs: [crawl, lighthouse, errors]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: site-check-*
+          merge-multiple: true
+      - name: Post to the "Daily site check" issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          n=$(gh issue list --state open --search 'in:title "Daily site check"' --json number -q '.[0].number')
+          if [ -z "$n" ]; then
+            n=$(gh issue create --title "Daily site check" \
+              --body "One comment per day from the Site check workflow: broken pages, performance, and the errors visitors hit. Close this issue to start a fresh one." \
+              | grep -oE '[0-9]+$')
+          fi
+          { echo "# $(TZ=Australia/Sydney date +'%a %d %b %Y')"; echo
+            for f in site-check-crawl.md site-check-lighthouse.md site-check-errors.md; do
+              [ -f "$f" ] && cat "$f" || echo "_${f%.md} did not finish — see the run._"; echo
+            done
+            echo "[Full run]($RUN_URL)"; } > body.md
+          head -c 60000 body.md > comment.md # GitHub's comment limit is 65,536
+          gh issue comment "$n" --body-file comment.md
