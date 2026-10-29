@@ -430,13 +430,14 @@ const inlineRemoteSvgImages = async (svg: string): Promise<string> => {
 
 const rasterizeCustomizerSvgToCanvas = async (
   svgBuffer: Buffer,
-  canvas?: { width: number; height: number }
+  canvas?: { width: number; height: number },
+  density = 144
 ): Promise<{ buffer: Buffer; width: number; height: number }> => {
   // Re-inline remote <image href> URLs first: the storefront swaps inline
   // rasters for hosted R2 URLs to shrink the payload, and sharp won't fetch
   // them — without this the artwork rasterizes blank.
   const inlinedSvg = await inlineRemoteSvgImages(svgBuffer.toString("utf8"))
-  let buf = await sharp(Buffer.from(inlinedSvg), { density: 144 })
+  let buf = await sharp(Buffer.from(inlinedSvg), { density })
     .ensureAlpha()
     .png()
     .toBuffer()
@@ -685,21 +686,42 @@ export const scaledOverlayBox = (width: number, height: number, scale: number) =
   height: Math.max(1, Math.round(height * scale)),
 })
 
+/**
+ * The editor canvas is only as big as the customer's screen (~300 px wide on a
+ * phone or the PDP), and the mockup used to be rendered at exactly that size —
+ * proofs (order #118) came out 305×381 px and the artwork was unreadable.
+ * Render at least this many px on the long edge, same proportions.
+ */
+const MOCKUP_MIN_LONG_EDGE = 1600
+
+/** Editor canvas → mockup output size and the SVG density that hits it exactly. */
+export const mockupOutputSize = (canvas?: { width: number; height: number }) => {
+  if (!canvas?.width || !canvas?.height) return { canvas, density: 144 }
+  const k = Math.max(1, MOCKUP_MIN_LONG_EDGE / Math.max(canvas.width, canvas.height))
+  return {
+    canvas: { width: Math.round(canvas.width * k), height: Math.round(canvas.height * k) },
+    // SVG user units = editor px at 72 dpi, so 72·k rasterises straight to the
+    // output size (never below the old 144, so small upscales stay sharp).
+    density: Math.max(144, Math.ceil(72 * k)),
+  }
+}
+
 export const renderMockupAsset = async (payload: RenderRequestPayload) => {
   const artworkSvgBuffer = Buffer.from(payload.artworkSvg)
+  const { canvas: canvasDims, density } = mockupOutputSize(payload.canvas)
 
   /**
-   * Full-canvas PNG (same WxH as the Fabric editor): composite at (0,0) onto the garment bitmap
+   * Full-canvas PNG (editor proportions, scaled up): composite at (0,0) onto the garment bitmap
    * that matches CSS `object-cover`, so logos land exactly where users position them — no slicing
    * + re-placing artwork with error-prone x/y bookkeeping.
    */
   const { buffer: overlayRaw } = await rasterizeCustomizerSvgToCanvas(
     artworkSvgBuffer,
-    payload.canvas
+    canvasDims,
+    density
   )
   const fullOverlay = await sharp(overlayRaw).ensureAlpha().png().toBuffer()
 
-  const canvasDims = payload.canvas
   let mockupWidth: number
   let mockupHeight: number
 

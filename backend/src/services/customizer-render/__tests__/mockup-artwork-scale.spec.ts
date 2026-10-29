@@ -1,5 +1,5 @@
 import sharp from "sharp"
-import { renderMockupAsset, scaledOverlayBox } from "../service"
+import { mockupOutputSize, renderMockupAsset, scaledOverlayBox } from "../service"
 import { renderRequestSchema } from "../types"
 
 // No upload → data URL result. constants.ts reads env at import time, so
@@ -21,10 +21,12 @@ const payload = (artworkScale?: number) => ({
   artworkScale,
 })
 
+// Probe in editor px; the mockup is rendered larger, so map through its scale.
 const pixel = async (dataUrl: string, x: number, y: number) => {
   const buf = Buffer.from(dataUrl.split(",")[1], "base64")
   const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true })
-  const i = (y * info.width + x) * info.channels
+  const k = info.width / W
+  const i = (Math.round(y * k) * info.width + Math.round(x * k)) * info.channels
   return [data[i], data[i + 1], data[i + 2]]
 }
 const isRed = ([r, g, b]: number[]) => r > 200 && g < 60 && b < 60
@@ -33,6 +35,13 @@ describe("mockup artwork scale", () => {
   it("scales about the garment centre line and the top of the print zone", () => {
     expect(scaledOverlayBox(200, 250, 0.5)).toEqual({ left: 50, top: 16, width: 100, height: 125 })
     expect(scaledOverlayBox(200, 250, 1)).toEqual({ left: 0, top: 0, width: 200, height: 250 })
+  })
+
+  it("renders a small editor canvas at proof-readable size", async () => {
+    expect(mockupOutputSize({ width: 200, height: 250 }).canvas).toEqual({ width: 1280, height: 1600 })
+    expect(mockupOutputSize({ width: 2000, height: 2500 }).canvas).toEqual({ width: 2000, height: 2500 })
+    const { width, height } = await renderMockupAsset(payload())
+    expect([width, height]).toEqual([1280, 1600])
   })
 
   it("leaves the mockup unchanged without a scale", async () => {
