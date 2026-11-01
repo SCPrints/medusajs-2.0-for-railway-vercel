@@ -22,6 +22,7 @@ import { productionGateFailures } from "../../lib/production-gate"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 import { TASK_MODULE } from "../../modules/task"
+import { splitAttachmentBlock } from "../inbound-email/attachments"
 import { buildOrderTimeline } from "../order-timeline/build"
 
 // Defined in lib/job-state.ts (pure); re-exported for existing importers.
@@ -291,6 +292,10 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
   }
   for (const t of taskRows) {
     activity.push({ at: iso(t.created_at) ?? now.toISOString(), kind: "task", title: `Task: ${t.title}`, detail: t.due_at ? `Due ${iso(t.due_at)?.slice(0, 10)}` : null, actor: t.created_by ?? null })
+  }
+  for (const a of activity) {
+    if (a.kind !== "email_in" && a.kind !== "email_out") continue
+    Object.assign(a, splitAttachmentBlock(a.detail))
   }
   activity.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
 

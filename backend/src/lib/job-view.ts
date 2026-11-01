@@ -27,6 +27,8 @@ export type JobActivity = {
   detail: string | null
   actor: string | null
   thumbnail_url?: string | null
+  /** Files the customer emailed in, saved to our bucket. */
+  attachments?: { name: string; url: string }[]
 }
 
 /** One row per garment + colour (lib/job-lines.ts folds the per-size lines). */

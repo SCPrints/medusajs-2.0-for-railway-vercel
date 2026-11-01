@@ -686,6 +686,16 @@ function Diary({ job, onChanged }: { job: JobView; onChanged: () => void }) {
           {a.actor && a.kind !== "email_in" ? <span className="text-ui-fg-muted"> · {a.actor.replace(/^(staff-email:|staff-note:|email:)/, "")}</span> : null}
           {a.detail ? <span className="block whitespace-pre-wrap break-words text-ui-fg-subtle mt-0.5">{a.detail}</span> : null}
           {a.thumbnail_url ? <img src={a.thumbnail_url} alt="" className="mt-1 h-16 rounded" /> : null}
+          {a.attachments?.length ? (
+            <span className="mt-1 flex flex-wrap gap-2">
+              {a.attachments.map((f) => (
+                <a key={f.url} href={f.url} target="_blank" rel="noreferrer" className="inline-flex max-w-full flex-col gap-1 text-ui-fg-interactive text-xs hover:underline">
+                  {/\.(png|jpe?g|gif|webp|svg)$/i.test(f.name) ? <img src={f.url} alt="" className="h-16 w-fit rounded" /> : null}
+                  <span className="break-all">{f.name}</span>
+                </a>
+              ))}
+            </span>
+          ) : null}
         </span>
       </li>
     )

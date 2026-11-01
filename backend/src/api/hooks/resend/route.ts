@@ -5,6 +5,7 @@ import { Resend } from "resend"
 
 import { RESEND_API_KEY, RESEND_WEBHOOK_SECRET } from "../../../lib/constants"
 import { verifyResendWebhook } from "../../../lib/resend-webhook"
+import { storeInboundAttachments } from "../../../services/inbound-email/attachments"
 import { forwardUnmatchedEmail, recordInboundEmail } from "../../../services/inbound-email/record"
 import { ADMIN_WORKSPACE_MODULE } from "../../../modules/admin-workspace"
 import { writeAudit } from "../../../lib/audit-log"
@@ -212,11 +213,23 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         await service.deleteResendEvents(eventId).catch(() => {})
         return res.status(500).json({ error: "inbound_failed" })
       }
-      const { data: msg, error } = await new Resend(RESEND_API_KEY).emails.receiving.get(emailId)
+      const resend = new Resend(RESEND_API_KEY)
+      const { data: msg, error } = await resend.emails.receiving.get(emailId)
       if (error || !msg) return retryLater(`receiving.get: ${error?.message ?? "no data"}`)
+      let attachmentBlock = ""
+      if (msg.attachments?.length) {
+        const { data: list, error: listError } = await resend.emails.receiving.attachments.list({ emailId, limit: 100 })
+        if (listError || !list) return retryLater(`attachments.list: ${listError?.message ?? "no data"}`)
+        try {
+          attachmentBlock = await storeInboundAttachments(req.scope, list.data)
+        } catch (err: any) {
+          return retryLater(`storeInboundAttachments: ${err?.message ?? err}`)
+        }
+      }
       let result: Awaited<ReturnType<typeof recordInboundEmail>>
       try {
         result = await recordInboundEmail(req.scope, {
+          attachment_block: attachmentBlock,
           to: [...(msg.to ?? []), ...(msg.cc ?? [])],
           from: msg.from ?? null,
           subject: msg.subject ?? null,
@@ -231,6 +244,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         logger.info(`hooks/resend: email.received ${emailId} not routed (${result.reason}) to=${(msg.to ?? []).join(",")} — forwarding to staff`)
         try {
           await forwardUnmatchedEmail(req.scope, {
+            attachment_block: attachmentBlock,
             to: [...(msg.to ?? []), ...(msg.cc ?? [])],
             from: msg.from ?? null,
             subject: msg.subject ?? null,

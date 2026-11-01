@@ -17,6 +17,8 @@ export type InboundEmail = {
   html: string | null
   /** Provider message id, kept on the activity row for tracing. */
   message_id?: string | null
+  /** Saved-attachment lines to keep with the text (attachments.ts). */
+  attachment_block?: string
 }
 
 export type RecordResult =
@@ -74,7 +76,7 @@ export async function recordInboundEmail(
 
   const pg = container.resolve<any>("__pg_connection__")
   const from = msg.from?.trim() || null
-  const body = inboundBodyText(msg)
+  const body = `${inboundBodyText(msg)}${msg.attachment_block ?? ""}`
   const header = `From: ${from ?? "unknown"}${msg.subject ? ` · Subject: ${msg.subject}` : ""}`
   // Our own reply (from Gmail): recorded as our email, no "customer waiting" flag.
   const staff = isStaffSender(from)
@@ -189,7 +191,7 @@ export async function forwardUnmatchedEmail(container: MedusaContainer, msg: Inb
         label: `Sent to ${msg.to.join(", ") || "a job address"}`,
         from,
         subject: msg.subject,
-        excerpt: inboundBodyText(msg),
+        excerpt: `${inboundBodyText(msg)}${msg.attachment_block ?? ""}`,
         jobUrl: null,
       },
     },
