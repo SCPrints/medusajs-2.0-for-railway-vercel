@@ -2,7 +2,7 @@
 
 Follows [ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md](ADMIN_WORKFLOW_CONSOLIDATION_2026_10.md) (shipped 21 Oct). Reference: Sean's ServiceM8 job window. Presentation with wireframes: https://claude.ai/artifact/ARYAfQF6kbkbjFF1j74Cam
 
-v1 was reviewed the same day by a multi-agent pass: 5 code readers (widgets, quotes + pricer, job model, Medusa order page, staff scenarios), 5 critics (simplicity, completeness, feasibility, ServiceM8 parity, click counts), 3 skeptics per finding. 30 findings → 24 confirmed, 6 refuted; a final pass added 8 gaps. This doc is the revised plan. Status: **proposal, not approved**.
+v1 was reviewed the same day by a multi-agent pass: 5 code readers (widgets, quotes + pricer, job model, Medusa order page, staff scenarios), 5 critics (simplicity, completeness, feasibility, ServiceM8 parity, click counts), 3 skeptics per finding. 30 findings → 24 confirmed, 6 refuted; a final pass added 8 gaps. This doc is the revised plan. Status: **shipped 23–27 Oct 2026**, except `needed_by` on the storefront forms. Rush lead days confirmed by Sean 2 Nov: Priority 3, Express 1 business days.
 
 ## Verdict
 

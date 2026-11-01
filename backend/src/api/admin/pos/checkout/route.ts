@@ -7,6 +7,7 @@ import { checkoutPOSSession } from "../../../../services/pos-checkout"
 import { writeAudit } from "../../../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../../../lib/audit-entities"
 import { captureEvent } from "../../../../lib/posthog"
+import { walkInEmail } from "../../../../lib/walk-in"
 
 const itemSchema = z.object({
   kind: z.enum(["standard", "customizer"]),
@@ -59,9 +60,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // checkout without capturing details. We always need *something* on
   // the email field for Medusa's draft-order validator, so fall back to
   // the configured walk-in inbox (or a sentinel).
-  const walkinEmail =
-    process.env.POS_WALKIN_EMAIL ?? "walkin@scprints.com.au"
-  const effectiveEmail = body.email ?? (body.customer_id ? null : walkinEmail)
+  const effectiveEmail = body.email ?? (body.customer_id ? null : walkInEmail())
 
   const actor = (req as any).auth_context?.actor_id
   if (!actor) {

@@ -23,6 +23,7 @@ export const GARMENT_WEIGHT_GRAMS_BY_TYPE: Record<string, number> = {
   // Sleeveless
   Tanks: 150,
   Singlets: 150,
+  "Singlets / Tanks": 150,
   // Polos
   Polos: 250,
   "Active Polos": 250,
@@ -62,6 +63,10 @@ export const GARMENT_WEIGHT_GRAMS_BY_TYPE: Record<string, number> = {
   "Scrub Tops": 220,
   "Scrub Pants": 300,
   Aprons: 200,
+  Overalls: 900,
+  Tunics: 220,
+  "Lab Coats": 350,
+  Cardigans: 400,
 }
 
 const BY_LOWER = new Map(

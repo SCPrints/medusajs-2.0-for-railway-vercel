@@ -18,6 +18,7 @@ import type { JobActivity, JobLine, JobPricing, JobView } from "../../lib/job-vi
 import { isDecoratedLine } from "../../lib/production-gate"
 import { rushTierOf } from "../../lib/production-due-date"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
+import { isWalkInEmail } from "../../lib/walk-in"
 import { productionGateFailures } from "../../lib/production-gate"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
@@ -409,6 +410,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
       : null
   const displayId = typeof order?.display_id === "number" ? order.display_id : null
   const publicId = quote?.public_id ?? null
+  const customerEmail: string | null = customerRow?.email ?? order?.email ?? quote?.email ?? null
   const title = [customerName ?? customerRow?.email ?? quote?.email ?? order?.email, quote?.subject ?? (order ? `Order #${displayId ?? ""}` : null)]
     .filter(Boolean)
     .join(" · ")
@@ -452,7 +454,8 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
     customer: {
       id: customerId,
       name: customerName,
-      email: customerRow?.email ?? order?.email ?? quote?.email ?? null,
+      // The POS walk-in inbox is nobody: no email actions on these jobs.
+      email: isWalkInEmail(customerEmail) ? null : customerEmail,
       phone: customerRow?.phone ?? ship?.phone ?? quote?.contact_phone ?? null,
       company: customerRow?.company_name ?? quote?.company ?? ship?.company ?? null,
       has_account: customerRow?.has_account === true,
