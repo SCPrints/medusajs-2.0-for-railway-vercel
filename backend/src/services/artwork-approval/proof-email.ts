@@ -5,6 +5,7 @@ import { SUPPORT_REPLY_TO_EMAIL } from "../../lib/constants"
 import { tagUrl } from "../../lib/email-utm"
 import { orderInboxAddress } from "../../lib/order-inbox-alias"
 import {
+  bareLineProofs,
   buildLineCustomizerExport,
   lineMockupGroupKey,
 } from "../../lib/customizer-order-artifacts"
@@ -116,6 +117,13 @@ export function buildProofImages(order: any): ProofImages {
       sideLabel: a.sideLabel,
     }))
   }
+
+  const bareImages = bareLineProofs(order.items ?? [], revisedProofs).map((p) => ({
+    url: p.url,
+    side: p.side,
+    sideLabel: p.side_label,
+  }))
+  if (bareImages.length > 0) mockupImages = [...(mockupImages ?? []), ...bareImages]
 
   const latestRevisedProofUrl = !hasPerSideProofs
     ? revisedProofs.filter((p) => typeof p?.url === "string" && p.url.length > 0).sort(newestFirst)[0]

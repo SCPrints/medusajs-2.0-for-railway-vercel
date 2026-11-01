@@ -181,3 +181,65 @@ export function buildLineCustomizerExport(line: {
     customer_original_files: customerOriginalFiles,
   }
 }
+
+export type BareLineProof = {
+  /** `${line_item_id}:${side}` — the key notes + print dimensions are stored under. */
+  key: string
+  side: string
+  side_label: string
+  url: string
+  note: string | null
+}
+
+/**
+ * Mockups staff uploaded against lines with no customizerDesign (customer-supplied
+ * garments, order-edit additions). These have no artifact for a revised proof to
+ * replace, so the proof email + approval page add them as images of their own: the
+ * latest upload per (line, side), labelled with the line because such lines can
+ * share a product id (the custom service line) and can't be grouped.
+ */
+export function bareLineProofs(
+  items: Array<{
+    id: string
+    title?: string | null
+    product_title?: string | null
+    metadata?: Record<string, unknown> | null
+  }>,
+  revisedProofs: unknown
+): BareLineProof[] {
+  const rows = (Array.isArray(revisedProofs) ? revisedProofs : []) as Array<{
+    line_item_id?: unknown
+    side?: unknown
+    url?: unknown
+    note?: unknown
+    uploaded_at?: unknown
+  }>
+  const newestFirst = rows
+    .filter(
+      (p) =>
+        typeof p?.line_item_id === "string" &&
+        typeof p.side === "string" &&
+        typeof p.url === "string" &&
+        p.url.startsWith("http")
+    )
+    .sort((a, b) => (String(a.uploaded_at ?? "") < String(b.uploaded_at ?? "") ? 1 : -1))
+
+  return items.flatMap((line) => {
+    const design = line.metadata?.customizerDesign
+    if (design && typeof design === "object" && !Array.isArray(design)) return []
+    const bySide = new Map<string, BareLineProof>()
+    for (const p of newestFirst) {
+      if (p.line_item_id !== line.id || bySide.has(p.side as string)) continue
+      const side = p.side as string
+      const title = line.title ?? line.product_title
+      bySide.set(side, {
+        key: `${line.id}:${side}`,
+        side,
+        side_label: title ? `${title} — ${sideLabel(side)}` : sideLabel(side),
+        url: p.url as string,
+        note: typeof p.note === "string" && p.note.trim() ? p.note.trim() : null,
+      })
+    }
+    return [...bySide.values()]
+  })
+}

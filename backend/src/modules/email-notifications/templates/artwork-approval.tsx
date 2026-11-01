@@ -55,7 +55,7 @@ export const ArtworkApprovalEmail = ({
       {images ? (
         <Section style={{ margin: "24px 0 0" }}>
           {images.map((img) => (
-            <Section key={img.side} style={{ margin: "0 0 16px" }}>
+            <Section key={`${img.side}:${img.url}`} style={{ margin: "0 0 16px" }}>
               {img.sideLabel ? (
                 <Text style={{ margin: "0 0 6px", fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.1em", color: "#9ca3af" }}>
                   {img.sideLabel}

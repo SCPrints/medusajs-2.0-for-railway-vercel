@@ -264,7 +264,10 @@ const nextDesignLabel = (designs: JobDesign[]) => {
 
 async function adminGet<T>(path: string): Promise<T> {
   const res = await fetch(path, { credentials: "include" })
-  if (!res.ok) throw new Error(`${path.split("?")[0]} failed (${res.status})`)
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}))
+    throw new Error((json as any)?.error ?? `${path.split("?")[0]} failed (${res.status})`)
+  }
   return (await res.json()) as T
 }
 async function adminPost<T>(path: string, body: unknown): Promise<T> {

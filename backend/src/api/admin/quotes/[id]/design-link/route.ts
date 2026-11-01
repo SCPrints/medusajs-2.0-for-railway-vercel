@@ -1,5 +1,8 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 
+import { QUOTE_DESIGN_LOCKED_STATUSES } from "../../../../../lib/quote-design-lines"
+import { QUOTE_MODULE } from "../../../../../modules/quote"
+import type QuoteModuleService from "../../../../../modules/quote/service"
 import { signQuoteDesign } from "../../../../../services/quote-design/sign"
 
 /**
@@ -25,10 +28,22 @@ import { signQuoteDesign } from "../../../../../services/quote-design/sign"
  *
  * Mirrors the POS `openCustomizer` URL build (same STOREFRONT_URL +
  * STOREFRONT_DEFAULT_COUNTRY_CODE env). The signature is deterministic.
+ *
+ * 409 once the quote is locked: the Studio's post-back would be refused after
+ * staff had finished the design.
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const id = req.params.id
   if (!id) return res.status(400).json({ error: "id required" })
+
+  const service = req.scope.resolve<QuoteModuleService>(QUOTE_MODULE)
+  const quote = await service.retrieveQuote(id).catch(() => null)
+  if (!quote) return res.status(404).json({ error: "Quote not found" })
+  if (QUOTE_DESIGN_LOCKED_STATUSES.has(String(quote.status))) {
+    return res.status(409).json({
+      error: `This quote is ${quote.status}, so the Studio can't save to it. If it's now an order, upload the mockup under Artwork → Customizer print & preview.`,
+    })
+  }
 
   const group = typeof req.query.group === "string" ? req.query.group : ""
   const handle = typeof req.query.handle === "string" ? req.query.handle : ""

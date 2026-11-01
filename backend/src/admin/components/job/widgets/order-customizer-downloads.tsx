@@ -119,6 +119,166 @@ type DownloadPayload = {
   lines?: LinePayload[]
 }
 
+// ─── Mockups for lines with no design ────────────────────────────────────────
+
+const BARE_LINE_SIDES = [
+  { side: "front", label: "Front" },
+  { side: "back", label: "Back" },
+  { side: "left_sleeve", label: "Left sleeve" },
+  { side: "right_sleeve", label: "Right sleeve" },
+]
+const MAX_MOCKUP_BYTES = 8 * 1024 * 1024 // revised-proof route's limit
+
+const readAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error("Couldn't read the file"))
+    reader.readAsDataURL(file)
+  })
+
+/**
+ * Lines with no customizerDesign (customer-supplied garments, service lines)
+ * have no artifact for "Create revised proof" to start from, so staff upload
+ * the mockup image directly. Each side's latest upload goes on the proof.
+ */
+function BareLineMockups({
+  orderId,
+  lines,
+  proofs,
+  onProofsChange,
+}: {
+  orderId: string
+  lines: LinePayload[]
+  proofs: RevisedProof[]
+  onProofsChange: (updated: RevisedProof[]) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const target = useRef<{ lineId: string; side: string } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const proofsFor = (lineId: string, side: string) =>
+    proofs
+      .filter((p) => p.line_item_id === lineId && p.side === side)
+      .sort((a, b) => (a.uploaded_at < b.uploaded_at ? 1 : -1))
+
+  const upload = async (file: File | undefined) => {
+    const t = target.current
+    target.current = null
+    if (inputRef.current) inputRef.current.value = ""
+    if (!t || !file) return
+    setError(null)
+    if (!file.type.startsWith("image/")) return setError("Mockups must be image files")
+    if (file.size > MAX_MOCKUP_BYTES) return setError("Mockup exceeds the 8 MB limit")
+    setBusy(`${t.lineId}:${t.side}`)
+    try {
+      const res = await fetch(adminProofPath(orderId), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          line_item_id: t.lineId,
+          side: t.side,
+          filename: file.name,
+          mime_type: file.type,
+          data_base64: await readAsDataUrl(file),
+        }),
+      })
+      const body = (await res.json().catch(() => ({}))) as { proofs?: RevisedProof[]; error?: string }
+      if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
+      onProofsChange(body.proofs ?? [])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  // Every upload for the side goes, or an older one would take its place.
+  const remove = async (lineId: string, side: string) => {
+    setError(null)
+    setBusy(`${lineId}:${side}`)
+    try {
+      for (const p of proofsFor(lineId, side)) {
+        const res = await fetch(`${adminProofPath(orderId)}?id=${encodeURIComponent(p.id)}`, {
+          method: "DELETE",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        })
+        const body = (await res.json().catch(() => ({}))) as { proofs?: RevisedProof[]; error?: string }
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`)
+        onProofsChange(body.proofs ?? [])
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Remove failed")
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-y-4">
+      <div>
+        <Text size="small" weight="plus">Lines with no design</Text>
+        <Text size="xsmall" className="text-ui-fg-subtle">
+          Upload a mockup for each side you want the customer to see. To email the proof, set Artwork to Awaiting approval under Production.
+        </Text>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => void upload(e.target.files?.[0])}
+      />
+      {lines.map((line) => (
+        <div key={line.line_item_id} className="flex flex-col gap-y-2">
+          <Text size="small">
+            {line.title ?? line.product_title ?? "Item"} × {line.quantity}
+          </Text>
+          <div className="grid grid-cols-2 small:grid-cols-4 gap-2">
+            {BARE_LINE_SIDES.map(({ side, label }) => {
+              const latest = proofsFor(line.line_item_id, side)[0]
+              const isBusy = busy === `${line.line_item_id}:${side}`
+              return (
+                <div key={side} className="flex flex-col gap-y-1 rounded-md border border-ui-border-base p-2">
+                  <Text size="xsmall" className="text-ui-fg-subtle">{label}</Text>
+                  {latest ? (
+                    <a href={latest.url} target="_blank" rel="noreferrer">
+                      <img src={latest.url} alt={`${label} mockup`} className="h-24 w-full rounded object-contain bg-ui-bg-subtle" />
+                    </a>
+                  ) : null}
+                  <div className="flex flex-wrap gap-1">
+                    <Button
+                      size="small"
+                      variant="secondary"
+                      isLoading={isBusy}
+                      disabled={!!busy && !isBusy}
+                      onClick={() => {
+                        target.current = { lineId: line.line_item_id, side }
+                        inputRef.current?.click()
+                      }}
+                    >
+                      {latest ? "Replace" : "Upload"}
+                    </Button>
+                    {latest ? (
+                      <Button size="small" variant="transparent" disabled={!!busy} onClick={() => void remove(line.line_item_id, side)}>
+                        Remove
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+      {error ? <Text size="xsmall" className="text-ui-fg-error">{error}</Text> : null}
+    </div>
+  )
+}
+
 // ─── Filename helpers ────────────────────────────────────────────────────────
 
 const BRAND_PREFIXES = [
@@ -1001,6 +1161,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
   }, [load])
 
   const lines = payload?.lines?.filter((line) => line.has_customizer) ?? []
+  const bareLines = payload?.lines?.filter((line) => !line.has_customizer) ?? []
 
   if (!orderId) return null
 
@@ -1090,11 +1251,13 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
               <Text size="small" className="text-ui-fg-error">{error}</Text>
             ) : loading && !payload ? (
               <Text size="small" className="text-ui-fg-subtle">Loading downloadable assets…</Text>
-            ) : lines.length === 0 ? (
+            ) : lines.length === 0 && bareLines.length === 0 ? (
               <Text size="small" className="text-ui-fg-subtle">
                 No custom-designed items on this order — nothing to download here.
               </Text>
             ) : (
+              <div className="flex flex-col gap-y-6">
+              {lines.length > 0 ? (
               <ul className="flex flex-col gap-y-5 list-none p-0 m-0">
                 {groupLines(lines).map((group) => {
                   const lineIds = group.map((l) => l.line_item_id)
@@ -1285,6 +1448,16 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                   )
                 })}
               </ul>
+              ) : null}
+              {bareLines.length > 0 ? (
+                <BareLineMockups
+                  orderId={orderId}
+                  lines={bareLines}
+                  proofs={allProofs}
+                  onProofsChange={handleProofsChange}
+                />
+              ) : null}
+              </div>
             )}
           </div>
         )}

@@ -77,7 +77,7 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
       {initial.mockup_urls && initial.mockup_urls.length > 0 ? (
         <div className="mt-6 space-y-4">
           {initial.mockup_urls.map((img) => (
-            <div key={img.side}>
+            <div key={`${img.side}:${img.url}`}>
               {img.side_label ? (
                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-ui-fg-subtle">
                   {img.side_label}

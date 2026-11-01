@@ -36,6 +36,15 @@ export type QuoteDesignLineInput = z.infer<typeof quoteDesignLineSchema>
  */
 export const STAFF_PRICED_GROUP_PREFIX = "gs_"
 
+/** Past these, the Studio can no longer save a design onto the quote. */
+export const QUOTE_DESIGN_LOCKED_STATUSES = new Set([
+  "accepted",
+  "converting",
+  "converted",
+  "lost",
+  "expired",
+])
+
 /**
  * Lines whose price staff own, so a Studio design attaches without re-pricing:
  * Job-pricer lines (`jp_r_…` rows, `jp_x_…` setups) and staff catalog lines

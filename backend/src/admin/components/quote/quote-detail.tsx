@@ -1295,6 +1295,8 @@ export function QuoteDetail({
             regionId={regionId}
             pricerQuoteId={quote.id}
             onDesignLine={async (row) => {
+              // Locked quote: the design-link route refuses with the right message.
+              if (quote.status !== "new" && quote.status !== "quoted") return openStudio(null, null)
               // Customer-supplied pricer groups sit on the service line, so the
               // line has no garment — open the Studio on the stand-in the
               // Job pricer picked for the mockup instead.

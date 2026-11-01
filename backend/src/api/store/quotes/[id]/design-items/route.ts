@@ -11,6 +11,7 @@ import { QUOTE_MODULE } from "../../../../../modules/quote"
 import type QuoteModuleService from "../../../../../modules/quote/service"
 import { getPostHog } from "../../../../../lib/posthog"
 import {
+  QUOTE_DESIGN_LOCKED_STATUSES,
   attachDesignToPricerLines,
   isAttachOnlyLine,
   mapQuoteDesignLines,
@@ -54,14 +55,6 @@ const schema = z.object({
   design: z.record(z.string(), z.unknown()).nullable().optional(),
   lines: z.array(quoteDesignLineSchema).min(1).max(100),
 })
-
-const TERMINAL_STATUSES = new Set([
-  "accepted",
-  "converting",
-  "converted",
-  "lost",
-  "expired",
-])
 
 /**
  * GET /store/quotes/:id/design-items?qsig=<sig>&group=<groupId>
@@ -121,7 +114,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   } catch {
     return res.status(404).json({ error: "not_found" })
   }
-  if (TERMINAL_STATUSES.has(String(quote.status))) {
+  if (QUOTE_DESIGN_LOCKED_STATUSES.has(String(quote.status))) {
     return res
       .status(409)
       .json({ error: "quote_not_editable", status: quote.status })

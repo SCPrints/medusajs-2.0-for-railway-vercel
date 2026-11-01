@@ -14,6 +14,7 @@ import { mergeOrderMetadata } from "../../../lib/order-metadata"
 import { raiseAttention } from "../../../services/attention/notify"
 import { emitStageEvents } from "../../../lib/stage-events"
 import {
+  bareLineProofs,
   buildLineCustomizerExport,
   lineMockupGroupKey,
 } from "../../../lib/customizer-order-artifacts"
@@ -195,6 +196,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         print_dimension: groupPrintDimensions.get(k) ?? null,
       }
     })
+    for (const p of bareLineProofs(order.items ?? [], revisedProofs)) {
+      mockupUrls.push({
+        side: p.side,
+        side_label: p.side_label,
+        url: p.url,
+        note: studioNotes[p.key] ?? p.note,
+        print_dimension: printDimensions[p.key] ?? null,
+      })
+    }
   } else {
     const latestRevisedProof = revisedProofs
       .filter((p) => typeof p?.url === "string" && p.url!.length > 0)
