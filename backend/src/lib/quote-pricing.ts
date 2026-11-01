@@ -35,6 +35,7 @@ import {
   screenUnitMajor,
 } from "./scp-screen-print-pricing"
 import {
+  SUPACOLOUR_MIN_QUANTITY_PER_DESIGN,
   SUPACOLOUR_QUOTE_ONLY_SIZES,
   SUPACOLOUR_REPEAT_SETUP_MAJOR,
   SUPACOLOUR_SETUP_MAJOR,
@@ -442,6 +443,7 @@ export function priceQuoteJob(spec: QuoteJobSpec, garment: ResolvedGarment | nul
   if (channel === "supacolour" && prints.some((p) => !SUPACOLOUR_QUOTE_ONLY_SIZES.has(p.sizeId))) {
     const repeat = spec.supacolourRepeatSetup === true
     const designs = prints.filter((p) => !SUPACOLOUR_QUOTE_ONLY_SIZES.has(p.sizeId)).length
+    if (qty > 0 && qty < SUPACOLOUR_MIN_QUANTITY_PER_DESIGN) warnings.push(`Supacolour minimum is ${SUPACOLOUR_MIN_QUANTITY_PER_DESIGN} per design — ${qty} is below it.`)
     components.push(
       component({
         key: "supacolour-setup",
@@ -732,6 +734,7 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
   // Per-design setup bookkeeping, filled while walking positions.
   const screensByDesign = new Map<string, number>() // max effective colours
   const supacolourDesigns = new Set<string>()
+  const supacolourQtyByDesign = new Map<string, number>()
   const digitizingDesigns = new Set<string>()
   // Which garments carry each design, per setup kind — so a digitizing line
   // says "Used on: Cap", not every garment the artwork appears on.
@@ -795,6 +798,7 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
               return
             }
             supacolourDesigns.add(p.designId)
+            supacolourQtyByDesign.set(p.designId, (supacolourQtyByDesign.get(p.designId) ?? 0) + qty)
             noteDesign(p.designId, "supacolour", g.title)
             components.push(
               component({ key: `pos-${i}`, label: `Supacolour transfer ${sizeLabel(p.sizeId)}${byoTag} (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: round2((supacolourUnitMajorForTier(p.sizeId, printTierIndex) ?? 0) + byoHandling), unitCostExMajor: supacolourBlockerCostExMajor(p.sizeId, printTierIndex) })
@@ -931,6 +935,8 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
       )
     }
     if (supacolourDesigns.has(d.id)) {
+      const supaQty = supacolourQtyByDesign.get(d.id) ?? 0
+      if (supaQty > 0 && supaQty < SUPACOLOUR_MIN_QUANTITY_PER_DESIGN) warnings.push(`Design ${d.label}: Supacolour minimum is ${SUPACOLOUR_MIN_QUANTITY_PER_DESIGN} per design — ${supaQty} is below it.`)
       extras.push(
         component({
           key: `supacolour-setup-${d.id}`,

@@ -10,12 +10,17 @@ import DeliveryEstimate from "@modules/cart/components/delivery-estimate"
 import CartEngagement from "@modules/cart/components/cart-engagement"
 import RequestQuote from "@modules/cart/components/request-quote"
 import DownloadQuote from "@modules/cart/components/download-quote"
+import {
+  SUPACOLOUR_MINIMUM_MESSAGE,
+  type SupacolourShortfall,
+} from "@modules/customizer/lib/scp-supacolour-pricing"
 import { HttpTypes } from "@medusajs/types"
 
 type SummaryProps = {
   cart: HttpTypes.StoreCart & {
     promotions: HttpTypes.StorePromotion[]
   }
+  supacolourShortfalls?: SupacolourShortfall[]
 }
 
 function getCheckoutStep(cart: HttpTypes.StoreCart) {
@@ -28,7 +33,7 @@ function getCheckoutStep(cart: HttpTypes.StoreCart) {
   }
 }
 
-const Summary = ({ cart }: SummaryProps) => {
+const Summary = ({ cart, supacolourShortfalls = [] }: SummaryProps) => {
   const step = getCheckoutStep(cart)
 
   return (
@@ -40,12 +45,37 @@ const Summary = ({ cart }: SummaryProps) => {
       <Divider />
       <CartTotals totals={cart} />
       <DeliveryEstimate cartMetadata={cart.metadata as Record<string, unknown> | null} />
-      <LocalizedClientLink
-        href={"/checkout?step=" + step}
-        data-testid="checkout-button"
-      >
-        <Button className="h-11 w-full">Go to checkout</Button>
-      </LocalizedClientLink>
+      {supacolourShortfalls.length ? (
+        <div role="alert" className="flex flex-col gap-y-1 text-sm text-rose-600" data-testid="supacolour-minimum">
+          <p>{SUPACOLOUR_MINIMUM_MESSAGE}</p>
+          <ul className="list-disc pl-4">
+            {supacolourShortfalls.map((shortfall) => (
+              <li key={shortfall.lineIds.join()}>
+                {Array.from(
+                  new Set(
+                    (cart.items ?? [])
+                      .filter((item) => shortfall.lineIds.includes(item.id))
+                      .map((item) => item.product_title)
+                  )
+                ).join(", ")}
+                : {shortfall.quantity} in this design
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+      {supacolourShortfalls.length ? (
+        <Button className="h-11 w-full" disabled data-testid="checkout-button">
+          Go to checkout
+        </Button>
+      ) : (
+        <LocalizedClientLink
+          href={"/checkout?step=" + step}
+          data-testid="checkout-button"
+        >
+          <Button className="h-11 w-full">Go to checkout</Button>
+        </LocalizedClientLink>
+      )}
       <RequestQuote email={cart.email} />
       <DownloadQuote email={cart.email} />
       <CartEngagement cart={cart} />

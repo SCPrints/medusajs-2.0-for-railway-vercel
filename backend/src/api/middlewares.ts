@@ -2,6 +2,7 @@ import { allowFields, authenticate, defineMiddlewares } from "@medusajs/framewor
 
 import { smartVariantSearchMiddleware } from "./middlewares/smart-variant-search"
 import { checkoutPriceInvariantMiddleware } from "./middlewares/checkout-price-invariant"
+import { supacolourMinimumMiddleware } from "./middlewares/supacolour-minimum"
 import { stripVariantCostMetadataMiddleware } from "./middlewares/strip-variant-cost-metadata"
 import { stripLineItemTrustMetadataMiddleware } from "./middlewares/strip-line-item-trust-metadata"
 import { cleanCartPoNumberMiddleware } from "./middlewares/clean-cart-po-number"
@@ -126,7 +127,9 @@ export default defineMiddlewares({
       // Same guard where the payment provider is chosen.
       matcher: "/store/payment-collections/:id/payment-sessions",
       methods: ["POST"],
-      middlewares: [orgPaymentSessionGuard],
+      // Supacolour minimum blocks here, not at /complete: Stripe captures
+      // automatically, so by /complete the money has moved.
+      middlewares: [orgPaymentSessionGuard, supacolourMinimumMiddleware],
     },
     {
       matcher: "/store/customizer/render-print",

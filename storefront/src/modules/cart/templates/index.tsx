@@ -5,6 +5,7 @@ import EmptyCartMessage from "../components/empty-cart-message"
 import SignInPrompt from "../components/sign-in-prompt"
 import MobileCheckoutBar from "../components/mobile-checkout-bar"
 import Divider from "@modules/common/components/divider"
+import type { SupacolourShortfall } from "@modules/customizer/lib/scp-supacolour-pricing"
 import { HttpTypes } from "@medusajs/types"
 
 function getCheckoutStep(cart: HttpTypes.StoreCart) {
@@ -16,9 +17,11 @@ function getCheckoutStep(cart: HttpTypes.StoreCart) {
 const CartTemplate = ({
   cart,
   customer,
+  supacolourShortfalls = [],
 }: {
   cart: HttpTypes.StoreCart | null
   customer: HttpTypes.StoreCustomer | null
+  supacolourShortfalls?: SupacolourShortfall[]
 }) => {
   const itemCount = cart?.items?.reduce((acc, i) => acc + (i.quantity ?? 0), 0) ?? 0
   return (
@@ -55,7 +58,7 @@ const CartTemplate = ({
               <div className="relative" id="cart-summary-anchor">
                 <div className="sticky top-24 flex flex-col gap-y-6">
                   {cart && cart.region && (
-                    <Summary cart={cart as any} />
+                    <Summary cart={cart as any} supacolourShortfalls={supacolourShortfalls} />
                   )}
                 </div>
               </div>

@@ -1,5 +1,7 @@
 import {
   SCP_SUPACOLOUR_UNIT_MATRIX,
+  SUPACOLOUR_MIN_QUANTITY_PER_DESIGN,
+  supacolourDesignShortfalls,
   SUPACOLOUR_QUOTE_ONLY_SIZES,
   parseDecorationPricingClass,
   supacolourUnitMajorForTier,
@@ -84,5 +86,66 @@ describe("computeDecorationTotals with the supacolour card", () => {
     expect(totals.supacolourQuoteSides).toEqual(["front"])
     // Back A6 @ 20-49 tier = $10.50; front contributes $0.
     expect(totals.printTotalMajor).toBe(10.5)
+  })
+})
+
+describe("supacolourDesignShortfalls", () => {
+  const line = (
+    id: string,
+    quantity: number,
+    opts: { src?: string; group?: string; card?: string; size?: string; sides?: string[]; extra?: Record<string, unknown> } = {}
+  ) => ({
+    id,
+    quantity,
+    metadata: {
+      ...opts.extra,
+      customizerDesign: {
+        group_id: opts.group ?? "g1",
+        sideLayouts: (opts.sides ?? ["front"]).map((side) => ({
+          side,
+          objects: opts.src === "" ? [] : [{ src: opts.src ?? "https://r2/logo.png" }],
+        })),
+        pricing: {
+          server: {
+            full_colour_card: opts.card ?? "supacolour",
+            print_side_keys: opts.sides ?? ["front"],
+            print_size_id: opts.size ?? "up_to_a4",
+          },
+        },
+      },
+    },
+  })
+
+  it("gates either side of the minimum", () => {
+    expect(SUPACOLOUR_MIN_QUANTITY_PER_DESIGN).toBe(10)
+    expect(supacolourDesignShortfalls([line("a", 9)])).toEqual([{ quantity: 9, lineIds: ["a"] }])
+    expect(supacolourDesignShortfalls([line("a", 10)])).toEqual([])
+  })
+
+  it("adds a design up across size lines and across garments", () => {
+    expect(supacolourDesignShortfalls([line("s", 3), line("m", 3), line("l", 4)])).toEqual([])
+    expect(
+      supacolourDesignShortfalls([line("tee", 5, { group: "g1" }), line("polo", 5, { group: "g2" })])
+    ).toEqual([])
+  })
+
+  it("does not pool different artwork or different sizes", () => {
+    expect(
+      supacolourDesignShortfalls([line("a", 5, { src: "https://r2/a.png" }), line("b", 5, { src: "https://r2/b.png" })])
+    ).toHaveLength(2)
+    expect(supacolourDesignShortfalls([line("a", 5, { size: "up_to_a4" }), line("b", 5, { size: "up_to_a6" })])).toHaveLength(2)
+  })
+
+  it("counts unidentifiable artwork only within its own add", () => {
+    expect(supacolourDesignShortfalls([line("a", 5, { src: "" }), line("b", 5, { src: "" })])).toEqual([])
+    expect(
+      supacolourDesignShortfalls([line("a", 5, { src: "", group: "g1" }), line("b", 5, { src: "", group: "g2" })])
+    ).toHaveLength(2)
+  })
+
+  it("ignores DTF lines and staff-agreed prices", () => {
+    expect(supacolourDesignShortfalls([line("a", 1, { card: "dtf" })])).toEqual([])
+    expect(supacolourDesignShortfalls([line("a", 1, { extra: { quote_locked_price: true } })])).toEqual([])
+    expect(supacolourDesignShortfalls([line("a", 1, { extra: { price_override: { by: "x" } } })])).toEqual([])
   })
 })

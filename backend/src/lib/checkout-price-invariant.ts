@@ -50,6 +50,7 @@ import {
   bnLikeToMajorAmount,
   resolveTierForCartCustomer,
 } from "./scp-resolve-garment-unit-price"
+import { supacolourDesignShortfalls } from "./scp-supacolour-pricing"
 import { costExGstMinorFromMetadata, isBelowCost } from "./safe-tier-pricing"
 import type { Tier } from "./customer-tiers"
 import { getPostHog } from "./posthog"
@@ -66,7 +67,7 @@ export type InvariantLine = {
 
 export type InvariantFinding = {
   line_id: string
-  kind: "price_mismatch" | "free_decoration" | "requires_quote" | "below_cost" | "unparseable_price"
+  kind: "price_mismatch" | "free_decoration" | "requires_quote" | "below_cost" | "unparseable_price" | "below_minimum"
   severity: "alert" | "block"
   /** Per-unit figures. */
   expected?: number
@@ -252,6 +253,18 @@ export function evaluateCartPricing(
         detail: `unit ${round2(actual)} below garment cash cost ${(Math.round(cost * 1.1) / 100).toFixed(2)}`,
       })
     }
+  }
+
+  // 4. Should be impossible (payment sessions are refused below the minimum).
+  // Alert only: card capture is automatic, so by now the customer has paid
+  // and refusing the order would leave them charged with nothing to show.
+  for (const shortfall of supacolourDesignShortfalls(evaluable)) {
+    findings.push({
+      line_id: shortfall.lineIds[0],
+      kind: "below_minimum",
+      severity: "alert",
+      detail: `Supacolour design below minimum: ${shortfall.quantity} on lines ${shortfall.lineIds.join(", ")}`,
+    })
   }
 
   const verdict = findings.some((f) => f.severity === "block")

@@ -81,6 +81,13 @@ export const capsArtworkSize = (d: StudioDestination) => !usesStaffEditor(d)
 export const requiresStitchCount = (d: StudioDestination) => !savesDesignOnly(d)
 
 /**
+ * Supacolour's minimum is per design, so a shop customer may reach it across
+ * several adds and the cart + payment step enforce it. A POS sale has no such
+ * later step, so it stops at the add. Quotes only warn, like screen.
+ */
+export const blocksSupacolourAddBelowMinimum = (d: StudioDestination) => d.kind === "pos"
+
+/**
  * Embroidery over the auto-priced stitch cap prices at $0, so it can't go to
  * a cart or a sale.
  *   allow          quote: staff price it on the quote

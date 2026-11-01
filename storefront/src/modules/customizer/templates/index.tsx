@@ -67,6 +67,7 @@ import {
   sendToQuote,
 } from "@modules/customizer/lib/destinations/staff"
 import {
+  blocksSupacolourAddBelowMinimum,
   enforcesScreenMinimum,
   overStitchCapAction,
   readDestination,
@@ -126,6 +127,8 @@ import {
 } from "@modules/customizer/lib/estimate-screen-colours"
 import {
   SCP_SUPACOLOUR_UNIT_MATRIX,
+  SUPACOLOUR_MIN_QUANTITY_PER_DESIGN,
+  SUPACOLOUR_MINIMUM_MESSAGE,
   SUPACOLOUR_QUOTE_ONLY_SIZES,
   SUPACOLOUR_SETUP_MAJOR,
   parseDecorationPricingClass,
@@ -4840,6 +4843,15 @@ export default function CustomizerTemplate({
       return
     }
 
+    if (
+      countSupacolourDesignsForSides(decoratedSides) > 0 &&
+      totalQuantity < SUPACOLOUR_MIN_QUANTITY_PER_DESIGN &&
+      blocksSupacolourAddBelowMinimum(destination)
+    ) {
+      setUploadError(`${SUPACOLOUR_MINIMUM_MESSAGE} For a split across garments, use a quote.`)
+      return
+    }
+
     // Embroidered sides must have a confirmed size/stitch estimate before
     // checkout — an unconfirmed side would price its embroidery at $0 (the
     // backend rejects it too; this gate just catches it with a friendlier
@@ -6573,7 +6585,9 @@ export default function CustomizerTemplate({
                 <span className="font-semibold text-ui-fg-base">Premium transfer fabric:</span>{" "}
                 polyester needs our dye-blocking Supacolour transfer — standard prints
                 bleed on this fabric. Pricing below reflects the premium process, plus a
-                ${SUPACOLOUR_SETUP_MAJOR} setup per design at checkout.
+                ${SUPACOLOUR_SETUP_MAJOR} setup per design at checkout. Minimum{" "}
+                {SUPACOLOUR_MIN_QUANTITY_PER_DESIGN} per design, which can be split across
+                sizes and garments.
               </p>
             ) : null}
             <div className="grid grid-cols-2 gap-2">

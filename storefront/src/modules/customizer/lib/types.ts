@@ -143,6 +143,8 @@ export type PricingBreakdown = {
   fullColourCard?: "supacolour"
   /** True when a Supacolour garment carries an oversize print — no Supacolour size that big, quote-only. */
   supacolourQuoteRequired?: boolean
+  /** True when a Supacolour garment's print sides are under the per-design minimum at this quantity. */
+  supacolourBelowMinimum?: boolean
 }
 
 export type RenderPlacement = {

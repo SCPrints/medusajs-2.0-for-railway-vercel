@@ -51,6 +51,8 @@ type Props = {
    * though the design surface is a deferred overlay.
    */
   belowFold?: ReactNode
+  /** Hide the "from 1 garment" badge: Supacolour garments have a per-design minimum. */
+  hideNoMinimumBadge?: boolean
 }
 
 /**
@@ -61,7 +63,7 @@ type Props = {
  * open (body scroll is locked); the only scroll is inside the studio's
  * right-hand section panel. SC Prints branding stays top-left in black.
  */
-export default function StudioLauncher({ title, autoOpen = false, gallery, colourSelector, cartButton, productInfo, studio, belowFold }: Props) {
+export default function StudioLauncher({ title, autoOpen = false, gallery, colourSelector, cartButton, productInfo, studio, belowFold, hideNoMinimumBadge = false }: Props) {
   const searchParams = useSearchParams()
   const deepLinkOpen = DEEP_LINK_PARAMS.some((p) => !!searchParams?.get(p))
   const [open, setOpen] = useState(false)
@@ -215,9 +217,11 @@ export default function StudioLauncher({ title, autoOpen = false, gallery, colou
             mobile (image-first). */}
         <div className="order-2 flex flex-col gap-5 lg:order-0 lg:col-span-5">
           <div className="flex flex-col gap-3">
-            <div>
-              <NoMinimumBadge />
-            </div>
+            {hideNoMinimumBadge ? null : (
+              <div>
+                <NoMinimumBadge />
+              </div>
+            )}
             <h1 className="text-2xl font-semibold leading-tight text-ui-fg-base lg:text-3xl">
               {title}
             </h1>

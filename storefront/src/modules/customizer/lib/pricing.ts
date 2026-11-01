@@ -8,6 +8,7 @@ import {
 import { calculatePrice as calculateEmbroideryPrice } from "@modules/embroidery/lib/pricing"
 import { SCREEN_MIN_QUANTITY, screenUnitMajor } from "./scp-screen-print-pricing"
 import {
+  SUPACOLOUR_MIN_QUANTITY_PER_DESIGN,
   SUPACOLOUR_QUOTE_ONLY_SIZES,
   supacolourUnitMajorForTier,
 } from "./scp-supacolour-pricing"
@@ -319,5 +320,7 @@ export const calculatePricing = ({
     screenBelowMinimum: screenBelowMinimum || undefined,
     fullColourCard: supacolour ? "supacolour" : undefined,
     supacolourQuoteRequired: supacolourQuoteRequired || undefined,
+    supacolourBelowMinimum:
+      (supacolour && decoratedSidesResolved > 0 && safeQuantity < SUPACOLOUR_MIN_QUANTITY_PER_DESIGN) || undefined,
   }
 }

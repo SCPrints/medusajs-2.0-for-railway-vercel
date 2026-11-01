@@ -32,6 +32,7 @@ import { ProductOptionsProvider } from "@modules/products/context/product-option
 import { CustomizeModeProvider } from "@modules/products/context/customize-mode-context"
 import { ViewItemTracker } from "@modules/products/components/view-item-tracker"
 import StudioLauncher from "@modules/customizer/components/studio-launcher"
+import { parseDecorationPricingClass } from "@modules/customizer/lib/scp-supacolour-pricing"
 import AssemblyLayoutGrid from "@modules/products/components/assembly-layout-grid"
 import LandingColourSelector from "@modules/customizer/components/landing-colour-selector"
 import CartButton from "@modules/layout/components/cart-button"
@@ -250,6 +251,9 @@ const ProductTemplate: React.FC<ProductTemplateProps> = async ({
                   title (h1), CTA, colour swatches, and surfaces the
                   description via its Details drawer. */}
               <StudioLauncher
+                hideNoMinimumBadge={
+                  parseDecorationPricingClass(product.metadata?.decoration_pricing_class) === "supacolour"
+                }
                 title={product.title ?? "Customise"}
                 // Deep links (cart edit, reorder, saved design) auto-open the
                 // studio so the canvas mounts and rehydrates — handled inside

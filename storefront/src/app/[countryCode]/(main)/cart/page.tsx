@@ -4,6 +4,7 @@ import CartTemplate from "@modules/cart/templates"
 import { enrichLineItems, retrieveCart } from "@lib/data/cart"
 import { stripHeavyCartMetadataForRender } from "@lib/util/strip-cart-metadata"
 import { applyDisplayPriceCorrectionToCart } from "@lib/util/apply-display-price-correction"
+import { supacolourDesignShortfalls, type SupacolourShortfall } from "@modules/customizer/lib/scp-supacolour-pricing"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomer } from "@lib/data/customer"
 
@@ -12,13 +13,15 @@ export const metadata: Metadata = {
   description: "View your cart",
 }
 
-const fetchCart = async () => {
+const fetchCart = async (): Promise<{ cart: HttpTypes.StoreCart | null; supacolourShortfalls: SupacolourShortfall[] }> => {
   try {
     const cart = await retrieveCart()
 
     if (!cart) {
-      return null
+      return { cart: null, supacolourShortfalls: [] }
     }
+
+    const supacolourShortfalls = supacolourDesignShortfalls(cart.items ?? [])
 
     if (cart?.items?.length) {
       const enrichedItems = await enrichLineItems(cart.items, cart.region_id!)
@@ -32,15 +35,15 @@ const fetchCart = async () => {
       applyDisplayPriceCorrectionToCart(cart)
     }
 
-    return cart
+    return { cart, supacolourShortfalls }
   } catch (err) {
     console.error("[cart/page] fetchCart threw:", err)
-    return null
+    return { cart: null, supacolourShortfalls: [] }
   }
 }
 
-export default async function Cart(){const cart = await fetchCart()
+export default async function Cart(){const { cart, supacolourShortfalls } = await fetchCart()
   const customer = await getCustomer()
 
-  return <CartTemplate cart={cart} customer={customer} />
+  return <CartTemplate cart={cart} customer={customer} supacolourShortfalls={supacolourShortfalls} />
 }

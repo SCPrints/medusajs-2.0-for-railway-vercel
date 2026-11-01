@@ -96,6 +96,21 @@ describe("priceGroupedJob", () => {
     expect(r.extras.find((c) => c.key === "screen-setup-A")?.notes?.[0]).toBe("Used on: Hood")
   })
 
+  it("warns (never blocks) on a Supacolour design under 10, counted across garments", () => {
+    const supa = garment({ supacolour: true })
+    const position = { method: "print" as const, sizeId: "up_to_a4" as const, designId: "A" }
+    const priced = (a: number, b: number) =>
+      priceGroupedJob({
+        designs: [{ id: "A", label: "A" }],
+        groups: [
+          { id: "g1", title: "Polo", rows: [{ id: "r1", label: "M", quantity: a, garment: supa }], positions: [position] },
+          { id: "g2", title: "Tee", rows: [{ id: "r2", label: "M", quantity: b, garment: supa }], positions: [position] },
+        ],
+      } as JobSpec).warnings.filter((w) => w.includes("Supacolour minimum"))
+    expect(priced(4, 5)).toHaveLength(1)
+    expect(priced(5, 5)).toHaveLength(0)
+  })
+
   it("repeat design: repeat screen/supacolour rates, digitizing waived", () => {
     const rep = priceGroupedJob({ ...job, designs: [{ id: "A", label: "A", repeat: true }, { id: "B", label: "B" }] })
     expect(rep.extras.find((c) => c.key === "screen-setup-A")?.unitSellMajor).toBe(39)

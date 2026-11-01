@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
 import Wrapper from "@modules/checkout/components/payment-wrapper"
 import CheckoutForm from "@modules/checkout/templates/checkout-form"
@@ -9,6 +9,7 @@ import PerksBanner from "@modules/checkout/components/perks-banner"
 import { enrichLineItems, retrieveCart } from "@lib/data/cart"
 import { stripHeavyCartMetadataForRender } from "@lib/util/strip-cart-metadata"
 import { applyDisplayPriceCorrectionToCart } from "@lib/util/apply-display-price-correction"
+import { supacolourDesignShortfalls } from "@modules/customizer/lib/scp-supacolour-pricing"
 import { HttpTypes } from "@medusajs/types"
 import { getCustomer } from "@lib/data/customer"
 import { getCustomerPerks } from "@lib/data/perks"
@@ -17,10 +18,16 @@ export const metadata: Metadata = {
   title: "Checkout",
 }
 
-const fetchCart = async () => {
+const fetchCart = async (countryCode: string) => {
   const cart = await retrieveCart()
   if (!cart) {
     return notFound()
+  }
+
+  // Cart page explains it. A paid cart can't land here: changing a cart drops
+  // its payment sessions, and they can't be created below the minimum.
+  if (supacolourDesignShortfalls(cart.items ?? []).length) {
+    redirect(`/${countryCode}/cart`)
   }
 
   if (cart?.items?.length) {
@@ -36,7 +43,13 @@ const fetchCart = async () => {
   return cart
 }
 
-export default async function Checkout(){const cart = await fetchCart()
+export default async function Checkout({
+  params,
+}: {
+  params: Promise<{ countryCode: string }>
+}) {
+  const { countryCode } = await params
+  const cart = await fetchCart(countryCode)
   const customer = await getCustomer()
   const perks = await getCustomerPerks()
 

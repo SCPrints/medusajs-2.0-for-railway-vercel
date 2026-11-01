@@ -7,6 +7,7 @@ import {
   calculateMaxTierSavingsPercent,
   calculateTierSavingsPercents,
 } from "@lib/util/calculate-tier-savings"
+import { SUPACOLOUR_MINIMUM_MESSAGE } from "@modules/customizer/lib/scp-supacolour-pricing"
 import FlyToCartAddButton from "@modules/common/components/fly-to-cart-add-button"
 import StockWarningIcon from "@modules/products/components/stock-warning-icon"
 import {
@@ -708,6 +709,11 @@ function PricingPanel({
                 </p>
               ) : null}
             </div>
+          ) : null}
+          {pricing.supacolourBelowMinimum ? (
+            <p className="text-[11px] font-medium text-ui-fg-error">
+              {SUPACOLOUR_MINIMUM_MESSAGE} Checkout unlocks once this design reaches the minimum.
+            </p>
           ) : null}
           <p className="flex justify-between">
             <span>Discount</span>

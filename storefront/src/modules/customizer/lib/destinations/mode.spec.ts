@@ -1,5 +1,6 @@
 import {
   attachesToQuoteGroup,
+  blocksSupacolourAddBelowMinimum,
   enforcesScreenMinimum,
   overStitchCapAction,
   readDestination,
@@ -48,6 +49,10 @@ describe("rules", () => {
 
   it("only quotes skip the screen minimum", () => {
     expect([shop, pos, quote].map(enforcesScreenMinimum)).toEqual([true, true, false])
+  })
+
+  it("only POS stops a Supacolour add below the minimum", () => {
+    expect([shop, pos, quote].map(blocksSupacolourAddBelowMinimum)).toEqual([false, true, false])
   })
 
   it("over-cap embroidery: staff price quotes, POS is refused, shop asks for a quote", () => {

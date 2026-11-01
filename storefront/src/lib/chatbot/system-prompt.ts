@@ -30,6 +30,7 @@ import {
   UVDTF_SHEET_SETUP_FEE,
 } from "@modules/decoration/lib/methods/uvdtf-sheet"
 import { RUSH_FEES, TURNAROUNDS } from "@modules/decoration/lib/rush"
+import { SUPACOLOUR_MIN_QUANTITY_PER_DESIGN } from "@modules/customizer/lib/scp-supacolour-pricing"
 import {
   SCP_BLANK_ALIGNED_QUANTITY_TIERS,
   SCP_PRINT_SIZE_OPTIONS,
@@ -74,7 +75,7 @@ export const CHATBOT_SYSTEM_PROMPT = `You are the SC Prints customer assistant �
 - Custom work: $100/hr in 15-min blocks, quoted or capped before starting — blurry or photo sources, cutting people/objects out of photos, detailed illustration, new design from a description.
 - Never offer artwork edits for free. If unsure which tier applies, say the team confirms the tier from the file before any charge.
 - Standard turnaround: ${t.dtf.standard}. Priority +$${r.dtf.priority} (${t.dtf.priority}). Express +$${r.dtf.express} (${t.dtf.express}).
-- Polyester and poly-blend garments (≥65% poly — most sportswear) need our premium dye-blocking Supacolour transfer instead of standard DTF: higher per-print pricing shown on those product pages (A6 $12→$9.50, A4 $16→$12.50, A3 $22→$16.50 by quantity) + $69 setup per design. Oversize isn't available on these fabrics — manual quote.
+- Polyester and poly-blend garments (≥65% poly — most sportswear) need our premium dye-blocking Supacolour transfer instead of standard DTF: higher per-print pricing shown on those product pages (A6 $12→$9.50, A4 $16→$12.50, A3 $22→$16.50 by quantity) + $69 setup per design. Minimum ${SUPACOLOUR_MIN_QUANTITY_PER_DESIGN} per design (can be split across sizes and garments), so the from-1 rule above doesn't apply to these fabrics; under that, offer a cotton garment or a quote. Oversize isn't available on these fabrics — manual quote.
 
 ## Screen Print
 - Maximum ${SCREEN_MAX_COLOURS} colours total. On dark garments, the white underbase counts as one of those ${SCREEN_MAX_COLOURS} — so a 4-colour design on a dark garment is priced as 5 colours.

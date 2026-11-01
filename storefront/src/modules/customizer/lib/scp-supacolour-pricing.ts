@@ -25,6 +25,71 @@ export const SUPACOLOUR_SETUP_MAJOR = 69
 export const SUPACOLOUR_REPEAT_SETUP_MAJOR = 35
 
 /**
+ * Supplier minimum, per design. Below it we can't buy the transfers at the
+ * price on this card, so a customer can't pay for the line (see
+ * supacolourDesignShortfalls). Staff quotes only warn.
+ */
+export const SUPACOLOUR_MIN_QUANTITY_PER_DESIGN = 10
+
+export const SUPACOLOUR_MINIMUM_MESSAGE = `Supacolour transfers have a minimum of ${SUPACOLOUR_MIN_QUANTITY_PER_DESIGN} per design. Increase the quantity, or request a quote.`
+
+export type SupacolourShortfall = { quantity: number; lineIds: string[] }
+
+type SupacolourCartLine = {
+  id: string
+  quantity?: number | null
+  metadata?: Record<string, unknown> | null
+}
+
+/**
+ * Designs in a cart below the Supacolour minimum. Reads the server block
+ * stamped at add time, so a client can't opt out. One design = the same
+ * artwork at the same requested size, so it adds up across size lines,
+ * garments and positions; artwork we can't identify counts within its own
+ * add group, which errs towards blocking. Needs the full line metadata:
+ * call before stripHeavyCartMetadataForRender drops sideLayouts.
+ */
+export function supacolourDesignShortfalls(
+  lines: ReadonlyArray<SupacolourCartLine>
+): SupacolourShortfall[] {
+  const designs = new Map<string, SupacolourShortfall>()
+  for (const line of lines) {
+    const meta = line.metadata
+    // Same exemptions as the checkout invariant: staff agreed these prices.
+    if (!meta || meta.quote_locked_price === true || meta.price_override) continue
+    const design = (meta.customizerDesign ?? {}) as {
+      group_id?: unknown
+      sideLayouts?: unknown
+      pricing?: { server?: Record<string, unknown> }
+    }
+    const server = design.pricing?.server
+    if (server?.full_colour_card !== "supacolour") continue
+    const printSides = Array.isArray(server.print_side_keys) ? (server.print_side_keys as string[]) : []
+    const layouts = Array.isArray(design.sideLayouts)
+      ? (design.sideLayouts as Array<{ side?: string; objects?: unknown }>)
+      : []
+    const locations = Array.isArray(server.decorated_locations)
+      ? (server.decorated_locations as Array<{ side?: string; printSizeId?: string }>)
+      : []
+    for (const side of printSides) {
+      const objects = layouts.find((l) => l.side === side)?.objects
+      const sources = (Array.isArray(objects) ? (objects as Array<{ src?: unknown; text?: unknown }>) : [])
+        .map((o) => (typeof o.src === "string" && o.src ? o.src : typeof o.text === "string" && o.text.trim() ? `text:${o.text.trim()}` : ""))
+        .filter(Boolean)
+        .sort()
+      const artwork = sources.length ? sources.join("|") : `${design.group_id || line.id}:${side}`
+      const size = locations.find((l) => l.side === side)?.printSizeId ?? server.print_size_id
+      const key = `${artwork}::${size}`
+      const entry = designs.get(key) ?? { quantity: 0, lineIds: [] }
+      entry.quantity += Math.max(0, Math.floor(line.quantity || 0))
+      if (!entry.lineIds.includes(line.id)) entry.lineIds.push(line.id)
+      designs.set(key, entry)
+    }
+  }
+  return Array.from(designs.values()).filter((d) => d.quantity < SUPACOLOUR_MIN_QUANTITY_PER_DESIGN)
+}
+
+/**
  * Retail per print by DTF-aligned size and quantity tier (Qty 1-9 / 10-19 /
  * 20-49 / 50-99 / 100+). Oversize has no Supacolour size above A3/SQ —
  * quote-only, hence absent from the matrix.
