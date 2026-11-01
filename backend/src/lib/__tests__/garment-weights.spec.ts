@@ -14,7 +14,7 @@ describe("pickGarmentWeightGrams", () => {
   })
 
   it("returns null for unknown or blank types", () => {
-    expect(pickGarmentWeightGrams("Cardigans")).toBeNull()
+    expect(pickGarmentWeightGrams("Accessories")).toBeNull()
     expect(pickGarmentWeightGrams("")).toBeNull()
     expect(pickGarmentWeightGrams(null)).toBeNull()
     expect(pickGarmentWeightGrams(undefined)).toBeNull()
