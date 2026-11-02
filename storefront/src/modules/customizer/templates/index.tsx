@@ -7483,7 +7483,7 @@ export default function CustomizerTemplate({
               <StepPreview
                 num={stepNum(4)}
                 title={designOnly ? "Save mockup" : "Quantity & checkout"}
-                hint="Set sizes, quantities and add to cart."
+                hint={designOnly ? "Saves the artwork to the job." : "Set sizes, quantities and add to cart."}
                 onClick={() => setPdpStep(4)}
                 isNext={pdpStep === 3}
               />
