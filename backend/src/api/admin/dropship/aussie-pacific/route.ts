@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { needsSizesForSupplier, type NeedsSizesOrder } from "../../../../lib/sizes-pending"
 
 const LOOKBACK_DAYS = 90
 
@@ -69,6 +70,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   const pending: any[] = []
+  const needs_sizes: NeedsSizesOrder[] = []
   const sent: any[] = []
 
   for (const order of orders) {
@@ -81,15 +83,18 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (order.status === "canceled" || order.status === "cancelled") continue
 
     const items: any[] = order.items ?? []
-    const apItems = items.filter(isAussiePacificItem)
-    if (!apItems.length) continue
-
     const meta = (order.metadata ?? {}) as Record<string, any>
     const addr = order.shipping_address ?? {}
     const customerName =
       [addr.first_name, addr.last_name].filter(Boolean).join(" ") ||
       order.email ||
       ""
+
+    const waiting = needsSizesForSupplier(order, "aussie-pacific-", customerName)
+    if (waiting) needs_sizes.push(waiting)
+
+    const apItems = items.filter(isAussiePacificItem)
+    if (!apItems.length) continue
 
     const base = {
       order_id: order.id,
@@ -117,5 +122,5 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  return res.json({ pending, sent })
+  return res.json({ pending, sent, needs_sizes })
 }

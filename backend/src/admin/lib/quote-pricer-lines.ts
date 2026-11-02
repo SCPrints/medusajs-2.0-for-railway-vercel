@@ -11,6 +11,23 @@ export const pricerLineGroupId = (groupId: string, row?: { id: string; ownDesign
   row?.ownDesign ? `${groupId}~${row.id}` : groupId
 
 /**
+ * The saved line whose Studio design a pricer line keeps on re-save: its own,
+ * else another line of the same group. Line ids carry the size (`row:M`), so
+ * sizing an "any size" line or adding a size to a designed group makes new ids
+ * that would otherwise come back with no design.
+ */
+export function pricerDesignSource<L extends { id?: string; group_id?: string | null; customizerDesign?: unknown }>(
+  existing: Map<string, L>,
+  id: string,
+  groupId: string
+): L | null {
+  const own = existing.get(id)
+  if (own?.customizerDesign) return own
+  for (const l of existing.values()) if (l.group_id === groupId && l.customizerDesign) return l
+  return null
+}
+
+/**
  * The variant a pricer line points at. Customer-supplied garments ride the
  * service line (no variant). An "Any size" quantity still has a colour, so it
  * points at that colour's first variant (`variantFor(colour, "")`): left null,
@@ -23,6 +40,7 @@ export function pricerLineVariant<V>(args: {
   size: string
   variantFor: ((colour: string | null, size: string) => V | null) | null
 }): V | null {
-  if (args.supplied || !args.variantFor) return null
+  // "Any" means no size chosen: never a real SKU. The line keeps its colour instead.
+  if (args.supplied || !args.variantFor || args.size === "") return null
   return args.variantFor(args.colour, args.size)
 }

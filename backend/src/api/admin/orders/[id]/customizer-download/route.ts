@@ -86,7 +86,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const productId = raw?.product_id ?? null
     return {
       ...line,
-      product_handle: productId ? (productHandleMap.get(productId) ?? null) : null,
+      // Quote lines with no size yet have no product_id, only the handle they were quoted on.
+      product_handle:
+        (productId ? productHandleMap.get(productId) : null) ??
+        ((rawItems.find((i) => i.id === line.line_item_id) as any)?.metadata?.product_handle as string | undefined) ??
+        null,
       variant_id: raw?.variant_id ?? null,
       group_key: raw?.group_key ?? line.line_item_id,
     }

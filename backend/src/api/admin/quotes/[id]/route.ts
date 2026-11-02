@@ -34,6 +34,8 @@ const updateSchema = z.object({
         product_id: z.string().max(80).nullable().optional(),
         variant_id: z.string().max(80).nullable().optional(),
         product_handle: z.string().max(200).nullable().optional(),
+        // Colour of a garment whose size isn't chosen yet (lib/sizes-pending.ts).
+        colour: z.string().max(100).nullable().optional(),
         thumbnail: z.string().max(2000).nullable().optional(),
         customizerDesign: z.any().nullable().optional(),
         print_size_id: z.string().max(40).nullable().optional(),
@@ -170,11 +172,15 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         quantity != null && unit_price != null
           ? Math.round(quantity * unit_price * 100) / 100
           : li.total ?? null
+      const restored = li.customizerDesign && typeof li.customizerDesign !== "object"
+        ? storedById.get(String(design_from ?? li.id))?.customizerDesign ?? null
+        : null
       const customizerDesign =
         li.customizerDesign && typeof li.customizerDesign === "object"
           ? li.customizerDesign
-          : li.customizerDesign
-            ? storedById.get(String(design_from ?? li.id))?.customizerDesign ?? null
+          : restored
+            // Borrowed from another line (a new size): point it at this line's variant.
+            ? design_from && li.variant_id ? { ...restored, variantId: li.variant_id } : restored
             : null
       return { ...li, id: li.id || ulid(), total, customizerDesign }
     })

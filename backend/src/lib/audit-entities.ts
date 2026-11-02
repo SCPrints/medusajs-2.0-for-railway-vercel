@@ -91,6 +91,8 @@ export const AUDIT_ACTION = {
 
   // Screen printing
   SCREEN_REPRICED: "screen_repriced",
+  // A line quoted without sizes split into real sizes (lib/sizes-pending.ts)
+  SIZES_ENTERED: "sizes_entered",
   // Dispatch
   PACKING_CHECK_COMPLETED: "packing_check_completed",
   DESIGN_CREATED: "design_created",

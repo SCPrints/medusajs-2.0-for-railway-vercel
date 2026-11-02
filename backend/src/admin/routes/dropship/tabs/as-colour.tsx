@@ -12,6 +12,8 @@ import {
 import { ArrowPath } from "@medusajs/icons"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { AppLink } from "../../../lib/nav"
+import type { NeedsSizesOrder } from "../../../../lib/sizes-pending"
+import { NeedsSizesBanner } from "../../../components/job/needs-sizes-banner"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,7 @@ type InHouseOrder = PendingOrder & {
 }
 
 type DropshipData = {
+  needs_sizes?: NeedsSizesOrder[]
   pending: PendingOrder[]
   sent: SentOrder[]
   in_house: InHouseOrder[]
@@ -422,7 +425,7 @@ const PendingTab = ({
     return (
       <Container className="flex flex-col items-center gap-y-3 py-12">
         <Text className="text-ui-fg-muted">
-          No pending AS Colour orders — all caught up!
+          Nothing ready to send to AS Colour.
         </Text>
       </Container>
     )
@@ -955,11 +958,14 @@ const AsColourDropshipPage = () => {
           <Text className="text-ui-fg-subtle">Loading…</Text>
         </Container>
       ) : activeTab === "pending" ? (
-        <PendingTab
-          orders={pending}
-          onSendComplete={load}
-          defaultShippingMethod={data?.default_shipping_method ?? null}
-        />
+        <>
+          <NeedsSizesBanner orders={data?.needs_sizes ?? []} />
+          <PendingTab
+            orders={pending}
+            onSendComplete={load}
+            defaultShippingMethod={data?.default_shipping_method ?? null}
+          />
+        </>
       ) : activeTab === "sent" ? (
         <SentTab orders={sent} />
       ) : (

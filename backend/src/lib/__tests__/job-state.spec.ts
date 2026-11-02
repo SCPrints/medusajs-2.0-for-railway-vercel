@@ -97,6 +97,15 @@ describe("deriveJobState", () => {
     expect(ready).toMatchObject({ phase: "blanks", waiting_on: "us", next_action: { kind: "start_production" } })
   })
 
+  it("asks for sizes after the proof and before blanks, and never offers production without them", () => {
+    const paid = order({ paid: true, sizes_pending_units: 5 })
+    expect(deriveJobState(base({ order: paid })).next_action.kind).toBe("send_proof")
+    const approved = { ...paid, tracks: { artwork: "approved" as const, blanks: "not_started" as const, downstream: "received" as const } }
+    expect(deriveJobState(base({ order: approved }))).toMatchObject({ waiting_on: "customer", next_action: { kind: "get_sizes" } })
+    const noDesign = { ...paid, has_decorated_lines: false }
+    expect(deriveJobState(base({ order: noDesign })).next_action.kind).toBe("get_sizes")
+  })
+
   it("changes requested on the proof beats everything but a reply", () => {
     const st = deriveJobState(
       base({

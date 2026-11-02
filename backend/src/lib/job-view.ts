@@ -43,6 +43,10 @@ export type JobLine = {
   total: number | null
   thumbnail: string | null
   decorated: boolean
+  /** What's printed where, from the quote line. */
+  description?: string | null
+  /** No sizes yet: blanks can't be bought (lib/sizes-pending.ts). */
+  sizes_pending?: boolean
   /** "S 4 · M 10 · L 10", or null when the lines carry no size. */
   sizes: string | null
   /** The underlying quote-line / order-item ids. */

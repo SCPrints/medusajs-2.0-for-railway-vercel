@@ -33,6 +33,7 @@ import { writeAudit } from "../../../../../lib/audit-log"
 import { mergeOrderMetadata } from "../../../../../lib/order-metadata"
 import { emitStageEvents } from "../../../../../lib/stage-events"
 import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
+import { sizesPendingUnits } from "../../../../../lib/sizes-pending"
 import {
   STAGE_TRANSITION_NOT_ALLOWED,
   assertTransition,
@@ -268,6 +269,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     artwork: nextArtwork,
     blanks: nextBlanks,
     hasDecoratedLines: (order.items ?? []).some(isDecoratedLine),
+    sizesPendingUnits: sizesPendingUnits(order.items ?? []),
   })
   if (gateFailures.length > 0 && !body.override_reason) {
     return res.status(409).json({

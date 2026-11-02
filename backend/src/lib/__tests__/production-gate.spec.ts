@@ -14,6 +14,10 @@ describe("productionGateFailures", () => {
     expect(productionGateFailures(ready)).toEqual([])
   })
 
+  it("blocks a job still waiting on sizes", () => {
+    expect(productionGateFailures({ ...ready, sizesPendingUnits: 5 })).toEqual(["Sizes not entered"])
+  })
+
   it("lists every missing step", () => {
     expect(
       productionGateFailures({

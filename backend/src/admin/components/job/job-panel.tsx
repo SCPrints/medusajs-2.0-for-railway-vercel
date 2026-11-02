@@ -9,6 +9,7 @@ import { ONE_CLICK, performNextAction } from "./actions"
 import { TaskQuickAdd } from "../task-quick-add"
 import { ConvertAddressForm } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
+import { EnterSizes } from "./enter-sizes"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
 import { AppLink, pricerHref, useGo } from "../../lib/nav"
@@ -327,7 +328,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
           ) : null}
 
           {/* ── Lines, with the money under them ─────────────────────── */}
-          <Container className="p-0">
+          <Container className="p-0" id="job-lines" tabIndex={-1}>
             <SectionHead title="Lines" summary={`${job.lines.reduce((n, l) => n + l.quantity, 0)} units${job.pricing?.saved_at ? ` · priced in Job pricer ${fmtDate(job.pricing.saved_at)}` : ""}`} />
             <div className="overflow-x-auto px-6 pb-4">
               <table className="w-full text-sm">
@@ -348,6 +349,9 @@ export function JobPanel({ job, order, onChanged }: Props) {
                         <span className="font-medium">{l.title}</span>{l.decorated ? <Badge size="2xsmall" className="ml-1">decorated</Badge> : null}
                         {l.sizes ? <span className="block text-xs text-ui-fg-subtle">{l.sizes}</span> : null}
                         {l.subtitle && !l.sizes ? <span className="block text-xs text-ui-fg-subtle">{l.subtitle}</span> : null}
+                        {l.description && l.description !== l.subtitle ? <span className="block text-xs text-ui-fg-subtle">{l.description}</span> : null}
+                        {l.sizes_pending ? <Badge size="2xsmall" color="orange" className="mt-1">Sizes to confirm</Badge> : null}
+                        {l.sizes_pending && job.order ? <EnterSizes orderId={job.order.id} lineItemId={l.line_ids[0]} quantity={l.quantity} onDone={onChanged} /> : null}
                       </td>
                       <td className="py-2 text-right tabular-nums">{l.quantity}</td>
                       <td className="py-2 text-right tabular-nums whitespace-nowrap">

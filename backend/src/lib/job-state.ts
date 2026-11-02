@@ -45,6 +45,7 @@ export type NextActionKind =
   | "send_proof"
   | "wait_proof"
   | "revise_proof"
+  | "get_sizes"
   | "order_blanks"
   | "mark_arrived"
   | "start_production"
@@ -86,6 +87,8 @@ export type JobSnapshot = {
     blanks_stage_changed_at: string | null
     production_stage_changed_at: string | null
     has_decorated_lines: boolean
+    /** Units on lines still waiting for sizes (lib/sizes-pending.ts). */
+    sizes_pending_units?: number
     gate_failures: string[]
     /** Dollars still owing (null when the total is unknown). */
     outstanding?: number | null
@@ -288,6 +291,11 @@ function deriveBaseState(s: JobSnapshot): JobState {
       return wait("customer", o.artwork_stage_changed_at, { kind: "wait_proof", label: "Proof sent", tab: "artwork" })
     }
     return wait("us", o.artwork_stage_changed_at ?? o.created_at, { kind: "send_proof", label: "Send proof", tab: "artwork" })
+  }
+
+  // Blanks can't be bought without sizes. After artwork, so a proof never waits on them.
+  if (o.sizes_pending_units) {
+    return wait("customer", o.created_at, { kind: "get_sizes", label: "Get sizes", tab: "overview" })
   }
 
   if (o.has_decorated_lines && t.blanks !== "arrived") {

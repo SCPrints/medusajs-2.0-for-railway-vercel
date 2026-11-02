@@ -3,6 +3,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import { ASCOLOUR_MODULE } from "../../../../modules/ascolour"
 import type AsColourService from "../../../../modules/ascolour/service"
+import { needsSizesForSupplier, type NeedsSizesOrder } from "../../../../lib/sizes-pending"
 
 const LOOKBACK_DAYS = 90
 
@@ -79,6 +80,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // Fulfilled from SC Prints' own stock — never submitted to AS Colour, but
   // kept visible (and reversible) rather than silently disappearing.
   const in_house: any[] = []
+  const needs_sizes: NeedsSizesOrder[] = []
 
   for (const order of orders) {
     // Only last 90 days
@@ -91,13 +93,16 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // Skip cancelled orders
     if (order.status === "canceled" || order.status === "cancelled") continue
 
-    const items: any[] = order.items ?? []
-    const ascolourItems = items.filter(isAsColourItem)
-    if (!ascolourItems.length) continue
-
     const meta = (order.metadata ?? {}) as Record<string, any>
     const addr = order.shipping_address ?? {}
     const customerName = [addr.first_name, addr.last_name].filter(Boolean).join(" ") || order.email || ""
+
+    const waiting = needsSizesForSupplier(order, "as-colour-", customerName)
+    if (waiting) needs_sizes.push(waiting)
+
+    const items: any[] = order.items ?? []
+    const ascolourItems = items.filter(isAsColourItem)
+    if (!ascolourItems.length) continue
 
     const base = {
       order_id: order.id,
@@ -143,5 +148,5 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // AS Colour module not configured — leave null.
   }
 
-  return res.json({ pending, sent, in_house, default_shipping_method })
+  return res.json({ pending, sent, in_house, needs_sizes, default_shipping_method })
 }

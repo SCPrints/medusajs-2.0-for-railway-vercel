@@ -56,7 +56,7 @@ import { parseDecorationPricingClass } from "../../../lib/scp-supacolour-pricing
  */
 
 import { absorbStudioLines } from "../../lib/quote-pricer-absorb"
-import { pricerLineGroupId, pricerLineVariant } from "../../lib/quote-pricer-lines"
+import { pricerDesignSource, pricerLineGroupId, pricerLineVariant } from "../../lib/quote-pricer-lines"
 import { pricerDesignLabel, pricerGroupTitle, pricerLineTitle, pricerPositionSummary } from "../../lib/quote-pricer-labels"
 import { useGo } from "../../lib/nav"
 
@@ -1040,19 +1040,20 @@ export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: stri
         // The line's "mockup": the first artwork on this garment's positions, else the product photo.
         const artwork = g.positions.map((p) => st.designs.find((d) => d.id === p.designId)?.imageUrl).find(Boolean) ?? null
         const id = `jp_r_${rp.rowId}`
-        const prev = existing.get(id)
-        const hasDesign = Boolean(prev?.customizerDesign)
+        const groupId = pricerLineGroupId(g.id, g.supplied ? null : row)
+        const prev = pricerDesignSource(existing, id, groupId)
+        const hasDesign = Boolean(prev)
         lines.push({
           id,
           title: pricerLineTitle({ groupName: g.name, supplied: g.supplied, productTitle: g.product?.title ?? "Garment", rowLabel: rp.label, colour: row?.colour ?? null, size }),
           description: description.trim() || null,
           quantity: rp.quantity,
           unit_price: discounted(rp.unitSellMajor),
-          group_id: pricerLineGroupId(g.id, g.supplied ? null : row),
-          ...(hasDesign ? { customizerDesign: true as const, print_size_id: prev?.print_size_id ?? null } : {}),
+          group_id: groupId,
+          ...(prev ? { customizerDesign: true as const, ...(prev.id !== id ? { design_from: prev.id } : {}), print_size_id: prev.print_size_id ?? null } : {}),
           ...(g.supplied
             ? { ...onServiceLine(), thumbnail: (hasDesign ? prev?.thumbnail : null) ?? artwork }
-            : { product_id: g.product?.id ?? null, variant_id: variant?.id ?? null, product_handle: g.product?.handle ?? null, thumbnail: (hasDesign ? prev?.thumbnail : null) ?? artwork ?? g.product?.thumbnail ?? null }),
+            : { product_id: g.product?.id ?? null, variant_id: variant?.id ?? null, product_handle: g.product?.handle ?? null, ...(size === ANY_SIZE ? { colour: row?.colour ?? null } : {}), thumbnail: (hasDesign ? prev?.thumbnail : null) ?? artwork ?? g.product?.thumbnail ?? null }),
         })
       }
     }

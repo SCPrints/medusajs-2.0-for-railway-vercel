@@ -3,6 +3,7 @@ import path from "path"
 import PDFDocument from "pdfkit"
 import sharp from "sharp"
 import { computeSidePlacements, formatPlacementShort } from "../../lib/print-placement"
+import { isSizesPendingLine } from "../../lib/sizes-pending"
 
 // Logo ink colour — black (the SC Prints wordmark renders black on the proof).
 const LOGO_COLOR = { r: 0, g: 0, b: 0 }
@@ -303,7 +304,8 @@ function buildPageData(
   // Sizes: aggregate from actual line-item quantities (most accurate), fallback to metadata
   const sizeMap = new Map<string, number>()
   for (const it of groupItems) {
-    const size = extractSize(it.variant_title)
+    // A line quoted without sizes has no variant: say so rather than "Unknown".
+    const size = isSizesPendingLine(it) ? "Sizes TBC" : extractSize(it.variant_title)
     sizeMap.set(size, (sizeMap.get(size) ?? 0) + (Number(it.quantity) || 1))
   }
   let sizes: SizeQuantity[] = Array.from(sizeMap.entries()).map(([size, quantity]) => ({
@@ -328,6 +330,7 @@ function buildPageData(
   // item in the group agrees on it.
   const colourPrefixes = new Set(
     groupItems.map((it) => {
+      if (isSizesPendingLine(it)) return String((it.metadata?.sizes_pending as { colour?: string | null }).colour ?? "")
       const parts = String(it.variant_title ?? "").split("/")
       return parts.length > 1 ? parts.slice(0, -1).join("/").trim() : ""
     })

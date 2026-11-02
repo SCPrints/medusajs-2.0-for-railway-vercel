@@ -11,6 +11,8 @@ import {
 } from "@medusajs/ui"
 import { ArrowPath } from "@medusajs/icons"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import type { NeedsSizesOrder } from "../../../../lib/sizes-pending"
+import { NeedsSizesBanner } from "../../../components/job/needs-sizes-banner"
 
 // Mirrors backend/src/admin/routes/dropship/tabs/as-colour.tsx but targets the
 // Aussie Pacific endpoints. AP exposes no status-polling API, so the Sent
@@ -45,6 +47,7 @@ type SentOrder = PendingOrder & {
 }
 
 type DropshipData = {
+  needs_sizes?: NeedsSizesOrder[]
   pending: PendingOrder[]
   sent: SentOrder[]
 }
@@ -248,7 +251,7 @@ const PendingTab = ({
     return (
       <Container className="flex flex-col items-center gap-y-3 py-12">
         <Text className="text-ui-fg-muted">
-          No pending Aussie Pacific orders — all caught up!
+          Nothing ready to send to Aussie Pacific.
         </Text>
       </Container>
     )
@@ -586,7 +589,10 @@ const AussiePacificDropshipPage = () => {
           <Text className="text-ui-fg-subtle">Loading…</Text>
         </Container>
       ) : activeTab === "pending" ? (
-        <PendingTab orders={pending} onSendComplete={load} />
+        <>
+          <NeedsSizesBanner orders={data?.needs_sizes ?? []} />
+          <PendingTab orders={pending} onSendComplete={load} />
+        </>
       ) : (
         <SentTab orders={sent} />
       )}

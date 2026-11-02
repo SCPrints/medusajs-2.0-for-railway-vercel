@@ -18,6 +18,7 @@ import { mergeOrderMetadata } from "../../../../../lib/order-metadata"
 import { emitStageEvents } from "../../../../../lib/stage-events"
 import { getPostHog } from "../../../../../lib/posthog"
 import { isDecoratedLine, productionGateFailures } from "../../../../../lib/production-gate"
+import { sizesPendingUnits } from "../../../../../lib/sizes-pending"
 
 /**
  * POST /admin/orders/bulk/production-stage
@@ -154,6 +155,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         artwork: plan.metadata.artwork_stage,
         blanks: plan.metadata.blanks_stage,
         hasDecoratedLines: (order.items ?? []).some(isDecoratedLine),
+        sizesPendingUnits: sizesPendingUnits(order.items ?? []),
       })
       if (failures.length > 0) {
         results.push({

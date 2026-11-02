@@ -12,10 +12,11 @@ import {
   threadTimes,
   type JobSnapshot,
 } from "../../lib/job-state"
-import { groupJobLines, type RawJobLine } from "../../lib/job-lines"
+import { groupJobLines, optionsFromVariantTitle, type RawJobLine } from "../../lib/job-lines"
 import { dateRisk } from "../../lib/job-today"
 import type { JobActivity, JobLine, JobPricing, JobView } from "../../lib/job-view"
 import { isDecoratedLine } from "../../lib/production-gate"
+import { isSizesPendingLine, quoteLineNeedsSizes, sizesPendingUnits } from "../../lib/sizes-pending"
 import { rushTierOf } from "../../lib/production-due-date"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
 import { isWalkInEmail } from "../../lib/walk-in"
@@ -188,15 +189,17 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
     ? (order.items ?? []).map((it: any) => ({
         id: it.id,
         title: it.title ?? it.product_title ?? "Item",
-        subtitle: [it.variant_title, it.metadata?.product_handle].filter(Boolean).join(" · ") || null,
+        subtitle: it.variant_title ?? null,
+        description: it.metadata?.description ?? null,
+        sizes_pending: isSizesPendingLine(it),
         quantity: Number(it.quantity ?? 0),
         unit_price: num(it.unit_price),
         total: num(it.unit_price) != null ? (num(it.unit_price) as number) * Number(it.quantity ?? 0) : null,
         thumbnail: it.thumbnail ?? null,
         decorated: isDecoratedLine(it),
         product_id: it.product_id ?? null,
-        option_values: it.variant_option_values ?? null,
-        group_id: it.metadata?.group_id ?? null,
+        option_values: it.variant_option_values ?? optionsFromVariantTitle(it.variant_title),
+        group_id: it.metadata?.group_id ?? it.metadata?.customizerDesign?.group_id ?? null,
       }))
     : (((quote?.line_items as any)?.items ?? []) as any[]).map((li, i) => ({
         id: li.id ?? `line-${i}`,
@@ -207,6 +210,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
         total: num(li.total) ?? (num(li.unit_price) != null ? (num(li.unit_price) as number) * Number(li.quantity ?? 0) : null),
         thumbnail: li.thumbnail ?? null,
         decorated: !!li.customizerDesign,
+        sizes_pending: quoteLineNeedsSizes(li),
         product_id: li.product_id ?? null,
         group_id: li.group_id ?? null,
       }))
@@ -347,6 +351,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
             blanks_stage_changed_at: iso(ometa.blanks_stage_changed_at),
             production_stage_changed_at: iso(ometa.production_stage_changed_at),
             has_decorated_lines: hasDecorated,
+            sizes_pending_units: sizesPendingUnits(order.items ?? []),
             outstanding: orderTotal != null ? Math.max(0, orderTotal - paid) : null,
             balance_due_at: iso(ometa.balance_due_at),
             pos_sale: typeof ometa.pos_session_id === "string" && !!ometa.pos_session_id,
@@ -358,6 +363,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
               artwork: tracks.artwork,
               blanks: tracks.blanks,
               hasDecoratedLines: hasDecorated,
+              sizesPendingUnits: sizesPendingUnits(order.items ?? []),
             }),
           }
         : null,

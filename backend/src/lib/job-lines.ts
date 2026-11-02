@@ -14,10 +14,12 @@ export type RawJobLine = {
   total: number | null
   thumbnail: string | null
   decorated: boolean
+  description?: string | null
+  sizes_pending?: boolean
   product_id?: string | null
   /** Order items: Medusa's variant option values, e.g. { Color: "Navy", Size: "M" }. */
   option_values?: Record<string, unknown> | null
-  /** Quote lines: the pricer's group id (shared by every colour of a group). */
+  /** The pricer's group id (shared by every colour of a group), else the design's group. */
   group_id?: string | null
 }
 
@@ -31,6 +33,15 @@ const splitTitle = (title: string): { base: string; size: string | null } => {
   const any = title.match(/^(.*?)\s*\(any size\)$/i)
   if (any) return { base: any[1].trim(), size: null }
   return { base: title, size: null }
+}
+
+/**
+ * Option values from a variant title ("BLACK / M"), for order lines with no
+ * `variant_option_values` (lines added by an order edit, e.g. Enter sizes).
+ */
+export function optionsFromVariantTitle(title: unknown): Record<string, string> | null {
+  const parts = typeof title === "string" ? title.split(" / ") : []
+  return parts.length >= 2 ? { Colour: parts.slice(0, -1).join(" / "), Size: parts[parts.length - 1] } : null
 }
 
 /** Group key + display title + size for one raw line. */
@@ -51,7 +62,8 @@ export function lineGroup(l: RawJobLine): { key: string; title: string; size: st
       else colour.push(String(v))
     }
     const base = l.title.replace(/\s*\/\s*[^/]+$/, "")
-    return { key: `${l.product_id}|${colour.join("/").toLowerCase()}`, title: colour.length ? `${base.split(" / ")[0]} · ${colour.join(" / ")}` : base, size }
+    // The design group keeps two designs on one garment + colour on separate rows.
+    return { key: `${l.product_id}|${colour.join("/").toLowerCase()}${l.group_id ? `|${l.group_id}` : ""}`, title: colour.length ? `${base.split(" / ")[0]} · ${colour.join(" / ")}` : base, size }
   }
   return { key: l.id, title: l.title, size: null }
 }
@@ -94,6 +106,8 @@ export function groupJobLines(raw: RawJobLine[], marginFor: (groupKey: string, l
       total: totals.length ? Math.round(totals.reduce((a, b) => a + b, 0) * 100) / 100 : null,
       thumbnail: g.lines.map((l) => l.thumbnail).find(Boolean) ?? null,
       decorated: g.lines.some((l) => l.decorated),
+      description: first.description ?? null,
+      sizes_pending: g.lines.some((l) => l.sizes_pending),
       sizes: sizes || null,
       line_ids: g.lines.map((l) => l.id),
       margin_pct: marginFor(key, first),

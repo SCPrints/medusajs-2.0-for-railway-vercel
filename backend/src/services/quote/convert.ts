@@ -22,6 +22,7 @@ import { writeAudit } from "../../lib/audit-log"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { captureEvent } from "../../lib/posthog"
 import { findCustomerIdByEmail } from "../../lib/customer-fill"
+import { onlyVariantFor, quoteLineNeedsSizes, sizesPendingFromQuoteLine } from "../../lib/sizes-pending"
 
 export type ConvertQuoteResult = {
   order_id: string
@@ -30,6 +31,17 @@ export type ConvertQuoteResult = {
   skipped_items: Array<Record<string, unknown>>
   idempotent?: boolean
 }
+
+/** What a quote line says about the job, kept on the order line whatever its shape. */
+const quoteLineDetails = (li: Record<string, any>): Record<string, unknown> => ({
+  ...(li.description ? { description: String(li.description) } : {}),
+  ...(li.group_id ? { group_id: String(li.group_id) } : {}),
+  ...(li.product_handle ? { product_handle: String(li.product_handle) } : {}),
+  ...(li.print_size_id ? { print_size_id: String(li.print_size_id) } : {}),
+  ...(li.customizerDesign && typeof li.customizerDesign === "object"
+    ? { customizerDesign: li.customizerDesign }
+    : {}),
+})
 
 /**
  * Quote → order conversion — no customer checkout involved. Runs when the
@@ -132,41 +144,41 @@ export const convertQuoteToOrder = async (
   const lineItems: Array<Record<string, any>> =
     (quote.line_items as { items?: Array<Record<string, any>> })?.items ?? []
 
-  // Resolve "whole product" lines (product_id, no variant_id) to the default
-  // variant so they convert instead of being skipped.
-  const productOnly = lineItems.filter(
-    (li) =>
-      !li?.variant_id &&
-      typeof li?.product_id === "string" &&
-      Number(li?.quantity ?? 0) > 0
-  )
-  if (productOnly.length) {
+  // A garment with no size chosen must not pick one: a default variant is a
+  // real SKU that Dropship would happily send. It converts as a custom line
+  // marked sizes_pending, until staff enter the sizes. The exception is a
+  // product with a single size in the line's colour (bags, caps): that one
+  // variant IS the answer, so the line converts as a normal SKU.
+  const sizeless = lineItems.filter((li) => Number(li?.quantity ?? 0) > 0 && quoteLineNeedsSizes(li))
+  const oneSize = new Set<Record<string, any>>()
+  if (sizeless.length) {
     try {
-      const { data: products } = await query.graph({
-        entity: "product",
-        fields: ["id", "variants.id", "variants.variant_rank"],
-        filters: {
-          id: [...new Set(productOnly.map((li) => String(li.product_id)))],
-        },
-      })
-      const defaultVariant = new Map<string, string>()
-      for (const p of products as any[]) {
-        const sorted = [...(p?.variants ?? [])].sort(
-          (a: any, b: any) => (a?.variant_rank ?? 0) - (b?.variant_rank ?? 0)
-        )
-        if (sorted[0]?.id) defaultVariant.set(String(p.id), String(sorted[0].id))
-      }
-      for (const li of productOnly) {
-        const vid = defaultVariant.get(String(li.product_id))
-        if (vid) li.variant_id = vid
+      const ids = [...new Set(sizeless.map((li) => li.product_id).filter((v): v is string => typeof v === "string"))]
+      const handles = [...new Set(sizeless.filter((li) => !li.product_id && li.product_handle).map((li) => String(li.product_handle)))]
+      const fields = ["id", "handle", "variants.id", "variants.title", "variants.variant_rank"]
+      const found: any[] = []
+      if (ids.length) found.push(...(((await query.graph({ entity: "product", fields, filters: { id: ids } })) as any).data ?? []))
+      if (handles.length) found.push(...(((await query.graph({ entity: "product", fields, filters: { handle: handles } })) as any).data ?? []))
+      for (const li of sizeless) {
+        const product = found.find((p) => p?.id === li.product_id || (!li.product_id && p?.handle === li.product_handle))
+        const variants = [...(product?.variants ?? [])].sort((a: any, b: any) => (a?.variant_rank ?? 0) - (b?.variant_rank ?? 0))
+        const only = onlyVariantFor(variants, sizesPendingFromQuoteLine(li).colour)
+        if (only) {
+          li.variant_id = only
+          oneSize.add(li)
+        }
       }
     } catch {
-      /* leave unresolved → skipped below */
+      /* lookup failed: the lines stay sizes pending, which never orders a wrong size */
     }
   }
+  const needsSizes = (li: Record<string, any>) => quoteLineNeedsSizes(li) && !oneSize.has(li)
 
   const addable = lineItems.filter(
-    (li) => typeof li?.variant_id === "string" && Number(li?.quantity ?? 0) > 0
+    (li) =>
+      typeof li?.variant_id === "string" &&
+      Number(li?.quantity ?? 0) > 0 &&
+      !needsSizes(li)
   )
   // Custom fee lines (screen setup, artwork redraw, colour change…) have no
   // variant but a title + priced quantity. A draft order accepts variant-less
@@ -197,12 +209,6 @@ export const convertQuoteToOrder = async (
     // Honour an explicit quoted price (incl. a deliberate 0); NULL/blank means
     // "not set" → omit so the line prices at catalog rate, never $0.
     const unitPrice = li.unit_price == null ? NaN : Number(li.unit_price)
-    const lineMetadata: Record<string, unknown> = { quote_locked_price: true }
-    if (li.customizerDesign && typeof li.customizerDesign === "object") {
-      lineMetadata.customizerDesign = li.customizerDesign
-      if (li.product_handle) lineMetadata.product_handle = li.product_handle
-      if (li.print_size_id) lineMetadata.print_size_id = li.print_size_id
-    }
     return {
       title: String(li.title ?? "Quoted item"),
       variant_id: String(li.variant_id),
@@ -210,7 +216,7 @@ export const convertQuoteToOrder = async (
       ...(Number.isFinite(unitPrice) && unitPrice >= 0
         ? { unit_price: unitPrice }
         : {}),
-      metadata: lineMetadata,
+      metadata: { quote_locked_price: true, ...quoteLineDetails(li) },
     }
   })
 
@@ -223,10 +229,12 @@ export const convertQuoteToOrder = async (
     // flag the tax engine adds 10% on top (order #78 showed $3,007.50 in
     // admin instead of $2,943 until the flags were repaired).
     is_tax_inclusive: true,
+    ...(li.thumbnail ? { thumbnail: String(li.thumbnail) } : {}),
     metadata: {
       quote_locked_price: true,
       quote_custom_line: true,
-      ...(li.description ? { description: String(li.description) } : {}),
+      ...quoteLineDetails(li),
+      ...(needsSizes(li) ? { sizes_pending: sizesPendingFromQuoteLine(li) } : {}),
     },
   }))
   itemPayloads.push(...(customItemPayloads as any[]))

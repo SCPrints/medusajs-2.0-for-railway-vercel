@@ -90,6 +90,8 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
     case "wait_proof":
     case "revise_proof":
       return { tab: "artwork", open: "proof" }
+    case "get_sizes":
+      return { tab: "overview", focus: "job-lines" }
     case "order_blanks":
       return { tab: "production", open: "blanks" }
     case "mark_arrived":

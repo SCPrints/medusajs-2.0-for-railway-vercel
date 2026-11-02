@@ -1,4 +1,4 @@
-import { groupJobLines, lineGroup, type RawJobLine } from "../job-lines"
+import { groupJobLines, lineGroup, optionsFromVariantTitle, type RawJobLine } from "../job-lines"
 
 const raw = (over: Partial<RawJobLine> & { id: string; title: string }): RawJobLine => ({
   subtitle: null,
@@ -38,6 +38,25 @@ describe("groupJobLines", () => {
       ["Staple Tee · Black", 4, "M 3 · 2XL 1"],
       ["Staple Tee · White", 2, "M 2"],
     ])
+  })
+
+  it("keeps two designs on one garment + colour on separate rows", () => {
+    const rows = groupJobLines([
+      raw({ id: "oli_1", title: "Tee", product_id: "prod_1", group_id: "gs_a", option_values: { Color: "Black", Size: "M" } }),
+      raw({ id: "oli_2", title: "Tee", product_id: "prod_1", group_id: "gs_a", option_values: { Color: "Black", Size: "L" } }),
+      raw({ id: "oli_3", title: "Tee", product_id: "prod_1", group_id: "gs_b", option_values: { Color: "Black", Size: "M" } }),
+    ])
+    expect(rows.map((r) => r.quantity)).toEqual([2, 1])
+  })
+
+  it("groups lines added by an order edit, which carry only a variant title", () => {
+    expect(optionsFromVariantTitle("BLACK / M")).toEqual({ Colour: "BLACK", Size: "M" })
+    expect(optionsFromVariantTitle("One Size")).toBeNull()
+    const rows = groupJobLines([
+      raw({ id: "oli_1", title: "Staple Tee", product_id: "prod_1", quantity: 4, option_values: optionsFromVariantTitle("BLACK / S") }),
+      raw({ id: "oli_2", title: "Staple Tee", product_id: "prod_1", quantity: 2, option_values: optionsFromVariantTitle("BLACK / 4XL") }),
+    ])
+    expect(rows.map((r) => [r.title, r.quantity, r.sizes])).toEqual([["Staple Tee · BLACK", 6, "S 4 · 4XL 2"]])
   })
 
   it("leaves lines it can't group as they are", () => {

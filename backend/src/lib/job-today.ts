@@ -87,6 +87,7 @@ const QUEUE_BY_ACTION: Partial<Record<NextActionKind, TodayQueue>> = {
   send_proof: "artwork",
   wait_proof: "artwork",
   revise_proof: "artwork",
+  get_sizes: "blanks",
   order_blanks: "blanks",
   mark_arrived: "blanks",
   start_production: "production",

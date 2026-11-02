@@ -4,6 +4,7 @@ import { ContainerRegistrationKeys, MedusaError, Modules } from "@medusajs/frame
 import { buildDspPack, type DspGroupPack, type DspLine, type DspPlacement, type DspProduct } from "../../lib/dsp-job"
 import { computeSidePlacements } from "../../lib/print-placement"
 import { restoreSideLayouts } from "../../lib/side-layouts-archive"
+import { isSizesPendingLine } from "../../lib/sizes-pending"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { resolveJobIds } from "../jobs/build"
 import { applyArtworkInks, sharedPantone } from "../../lib/dsp-inks"
@@ -50,7 +51,10 @@ export async function getDspPack(container: MedusaContainer, rawId: string): Pro
   for (const it of (order.items ?? []) as any[]) {
     const raw = it.metadata?.customizerDesign
     if (!raw || typeof raw !== "object") continue
-    const [colour, size] = String(it.variant_title ?? "").includes(" / ") ? String(it.variant_title).split(" / ") : [null, it.variant_title ?? null]
+    // A line quoted without sizes: its colour is on the line, the size isn't known yet.
+    const [colour, size] = isSizesPendingLine(it)
+      ? [it.metadata.sizes_pending.colour ?? null, "TBC"]
+      : String(it.variant_title ?? "").includes(" / ") ? String(it.variant_title).split(" / ") : [null, it.variant_title ?? null]
     lines.push({
       id: it.id,
       productId: it.product_id ?? null,

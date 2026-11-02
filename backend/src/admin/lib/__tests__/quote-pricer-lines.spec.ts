@@ -1,4 +1,20 @@
-import { pricerLineGroupId, pricerLineVariant } from "../quote-pricer-lines"
+import { pricerDesignSource, pricerLineGroupId, pricerLineVariant } from "../quote-pricer-lines"
+
+describe("pricerDesignSource", () => {
+  const saved = new Map([
+    ["jp_r_row1:any", { id: "jp_r_row1:any", group_id: "g_1", customizerDesign: true }],
+    ["jp_r_row2:M", { id: "jp_r_row2:M", group_id: "g_2" }],
+  ])
+  it("keeps the line's own design", () => {
+    expect(pricerDesignSource(saved, "jp_r_row1:any", "g_1")?.id).toBe("jp_r_row1:any")
+  })
+  it("takes the group's design when sizes replace an any-size line", () => {
+    expect(pricerDesignSource(saved, "jp_r_row1:L", "g_1")?.id).toBe("jp_r_row1:any")
+  })
+  it("never borrows another group's design", () => {
+    expect(pricerDesignSource(saved, "jp_r_row2:L", "g_2")).toBeNull()
+  })
+})
 
 const variants = [
   { id: "v_black_s", colour: "Black", size: "S" },
@@ -10,8 +26,8 @@ const variantFor = (colour: string | null, size: string) =>
   variants.find((v) => (colour == null || v.colour === colour) && (size === "" || v.size === size)) ?? null
 
 describe("pricerLineVariant", () => {
-  it("keeps the colour on an Any-size line (not null → product default on convert)", () => {
-    expect(pricerLineVariant({ supplied: false, colour: "White", size: "", variantFor })?.id).toBe("v_white_s")
+  it("never picks a size for an Any line", () => {
+    expect(pricerLineVariant({ supplied: false, colour: "White", size: "", variantFor })).toBeNull()
   })
   it("picks the exact variant for a sized cell", () => {
     expect(pricerLineVariant({ supplied: false, colour: "White", size: "M", variantFor })?.id).toBe("v_white_m")

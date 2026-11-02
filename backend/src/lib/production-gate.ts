@@ -30,6 +30,7 @@ export function productionGateFailures(input: {
   artwork: ArtworkStage
   blanks: BlanksStage
   hasDecoratedLines: boolean
+  sizesPendingUnits?: number
 }): string[] {
   if (input.fromDownstream !== "received" || !GATED_STAGES.has(input.toDownstream)) return []
 
@@ -39,6 +40,9 @@ export function productionGateFailures(input: {
   }
   if (input.hasDecoratedLines && input.blanks !== "arrived") {
     failures.push("Blanks haven't arrived")
+  }
+  if (input.sizesPendingUnits) {
+    failures.push("Sizes not entered")
   }
   const deposit = Number(input.meta.deposit_amount_cents ?? 0)
   if (deposit > 0 && input.meta.deposit_paid !== true) {

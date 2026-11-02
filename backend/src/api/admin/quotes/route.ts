@@ -33,6 +33,8 @@ const createSchema = z.object({
         product_id: z.string().max(80).nullable().optional(),
         variant_id: z.string().max(80).nullable().optional(),
         product_handle: z.string().max(200).nullable().optional(),
+        // Colour of a garment whose size isn't chosen yet (lib/sizes-pending.ts).
+        colour: z.string().max(100).nullable().optional(),
         thumbnail: z.string().max(2000).nullable().optional(),
         customizerDesign: z.any().nullable().optional(),
         print_size_id: z.string().max(40).nullable().optional(),
@@ -176,6 +178,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       product_id: li.product_id ?? null,
       variant_id: li.variant_id ?? null,
       product_handle: li.product_handle ?? null,
+      ...(li.colour ? { colour: li.colour } : {}),
       thumbnail: li.thumbnail ?? null,
       customizerDesign: li.customizerDesign ?? null,
       print_size_id: li.print_size_id ?? null,

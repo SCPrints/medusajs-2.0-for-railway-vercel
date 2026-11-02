@@ -128,12 +128,82 @@ describe("convertQuoteToOrder", () => {
     }
   })
 
-  it("resolves product-only lines, carries priced custom lines, skips unpriced", async () => {
+  it("keeps a sizeless garment's design + mockup, never picks a size for it", async () => {
+    const design = { group_id: "gs_1", sides: [] }
     const scope = buildScope({
       ...baseQuote,
       line_items: {
         items: [
-          { product_id: "prod_1", quantity: 3, unit_price: 20, title: "Polo" },
+          // #120: handle + design, no variant
+          { title: "Classic Tee - Black", quantity: 5, unit_price: 90, product_handle: "as-colour-classic-tee-5026", customizerDesign: design, thumbnail: "https://r2/m.jpg", description: "Back: DTF", group_id: "gs_1", print_size_id: "oversize" },
+          // pricer "Any" cell saved with the first size's variant
+          { id: "jp_r_row1:any", title: "Polo, White (any size)", quantity: 3, unit_price: 20, product_id: "prod_1", variant_id: "var_white_s", product_handle: "polo" },
+        ],
+      },
+    })
+    await convertQuoteToOrder(scope, { quoteId: "qt_1", actorId: null })
+    const [tee, polo] = (createOrderRun.mock.calls[0] as any)[0].input.items
+    expect(tee.variant_id).toBeUndefined()
+    expect(tee.thumbnail).toBe("https://r2/m.jpg")
+    expect(tee.is_tax_inclusive).toBe(true)
+    expect(tee.metadata).toMatchObject({
+      customizerDesign: design,
+      description: "Back: DTF",
+      group_id: "gs_1",
+      print_size_id: "oversize",
+      quote_locked_price: true,
+      sizes_pending: { product_id: null, product_handle: "as-colour-classic-tee-5026", colour: null },
+    })
+    expect(polo.variant_id).toBeUndefined()
+    expect(polo.metadata.sizes_pending.product_id).toBe("prod_1")
+  })
+
+  it("a garment with one size in its colour converts as that size, not sizes pending", async () => {
+    const scope = buildScope({
+      ...baseQuote,
+      line_items: {
+        items: [{ id: "jp_r_row3:any", title: "Tote — Natural (any size)", quantity: 6, unit_price: 12, product_id: "prod_1", variant_id: "var_rank0", product_handle: "tote", colour: "Natural" }],
+      },
+    })
+    scope.resolve("query").graph.mockImplementation(async ({ entity }: { entity: string }) =>
+      entity === "product"
+        ? { data: [{ id: "prod_1", handle: "tote", variants: [{ id: "var_nat", title: "Natural / One Size" }, { id: "var_blk", title: "Black / One Size" }] }] }
+        : entity === "region"
+          ? { data: [{ id: "reg_au", currency_code: "aud" }] }
+          : entity === "sales_channel"
+            ? { data: [{ id: "sc_1", is_disabled: false }] }
+            : entity === "order"
+              ? { data: [{ id: "order_new", display_id: 99 }] }
+              : { data: [] }
+    )
+    await convertQuoteToOrder(scope, { quoteId: "qt_1", actorId: null })
+    const [line] = (createOrderRun.mock.calls[0] as any)[0].input.items
+    expect(line.variant_id).toBe("var_nat")
+    expect(line.metadata.sizes_pending).toBeUndefined()
+  })
+
+  it("variant lines keep the quote's description and group; customer-supplied lines aren't sizes pending", async () => {
+    const scope = buildScope({
+      ...baseQuote,
+      line_items: {
+        items: [
+          { id: "jp_r_row2:any", title: "Oversize T — Customer-supplied, Black", quantity: 2, unit_price: 26, product_id: "prod_svc", variant_id: "var_svc", product_handle: "custom-service-line", description: "Front: A4", group_id: "g_1" },
+        ],
+      },
+    })
+    await convertQuoteToOrder(scope, { quoteId: "qt_1", actorId: null })
+    const [line] = (createOrderRun.mock.calls[0] as any)[0].input.items
+    expect(line.variant_id).toBe("var_svc")
+    expect(line.metadata).toMatchObject({ description: "Front: A4", group_id: "g_1" })
+    expect(line.metadata.sizes_pending).toBeUndefined()
+  })
+
+  it("carries priced custom lines, skips unpriced", async () => {
+    const scope = buildScope({
+      ...baseQuote,
+      line_items: {
+        items: [
+          { product_id: "prod_1", variant_id: "var_1", quantity: 3, unit_price: 20, title: "Polo" },
           { title: "Screen setup", quantity: 5, unit_price: 99 },
           { title: "No price yet", quantity: 1, unit_price: null },
         ],
@@ -143,8 +213,7 @@ describe("convertQuoteToOrder", () => {
     expect(result.lines_added).toBe(2)
     expect(result.skipped_items).toHaveLength(1)
     const input = (createOrderRun.mock.calls[0] as any)[0].input
-    // lowest variant_rank wins
-    expect(input.items[0].variant_id).toBe("var_rank0")
+    expect(input.items[0].variant_id).toBe("var_1")
     // custom fee line converts variant-less at its quoted price
     expect(input.items[1]).toMatchObject({
       title: "Screen setup",
