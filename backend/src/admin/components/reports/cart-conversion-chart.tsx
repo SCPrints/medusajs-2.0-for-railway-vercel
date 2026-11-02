@@ -66,7 +66,7 @@ export const CartConversionChart = ({
         bullets: [
           "Healthy stores see 35–55% — anything below 25% usually means checkout friction (shipping shock, payment failure, login wall).",
           "If the median abandoned cart is bigger than the median completed cart, customers are getting cost shock at the shipping step — review thresholds and copy.",
-          "Active carts (not yet abandoned, not yet checked out) are excluded from both rates — they'll resolve in the next window.",
+          "Conversion counts every cart created in the window, including carts still active. Abandonment only counts carts idle for over 24 hours.",
         ],
       }}
       loading={loading}

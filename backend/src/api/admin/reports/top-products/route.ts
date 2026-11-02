@@ -3,6 +3,8 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   inRange,
+  isCatalogGarmentLine,
+  isServiceLine,
   loadOrdersOr500,
   matchesRegion,
   parseDateRange,
@@ -12,9 +14,9 @@ import {
 /**
  * GET /admin/reports/top-products
  *
- * Top 20 SKUs by units sold and revenue in period. Aggregates line
- * items grouped by variant_id (or by title for line items missing a
- * variant link). Returns both the units leaderboard and the revenue
+ * Top 20 products by units sold and revenue in period. Aggregates line
+ * items by product (or by title for custom lines), leaving out fee lines.
+ * Returns both the units leaderboard and the revenue
  * leaderboard so the frontend can show whichever is more useful.
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -47,22 +49,28 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     const items = (o.items ?? []) as Array<{
       title?: string
+      product_title?: string
       quantity?: number
       unit_price?: number
       product_id?: string
       variant_id?: string
+      variant_sku?: string
+      metadata?: unknown
     }>
     for (const it of items) {
-      const key = (it.variant_id as string) || (it.title as string) || "unknown"
+      if (isServiceLine(it)) continue
+      // Customer-supplied garments share one service product; keep their own titles.
+      const real = isCatalogGarmentLine(it)
+      const key = (real && it.product_id) || it.title || "unknown"
       const qty = Number(it.quantity ?? 0)
       const rev = Number(it.unit_price ?? 0) * qty
       const existing = byKey.get(key)
       if (!existing) {
         byKey.set(key, {
           key,
-          title: it.title ?? "Unknown",
-          variant_id: typeof it.variant_id === "string" ? it.variant_id : null,
-          product_id: typeof it.product_id === "string" ? it.product_id : null,
+          title: (real && it.product_title) || it.title || "Unknown",
+          variant_id: null,
+          product_id: real && typeof it.product_id === "string" ? it.product_id : null,
           units: qty,
           revenue: rev,
           orders: new Set([o.id]),

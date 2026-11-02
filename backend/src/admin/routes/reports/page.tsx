@@ -10,6 +10,7 @@ import {
 } from "@medusajs/ui"
 import { ChartBar } from "@medusajs/icons"
 import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 
 import { TimeInStageChart } from "../../components/reports/time-in-stage-chart"
 import { CustomizerAdoptionChart } from "../../components/reports/customizer-adoption-chart"
@@ -28,14 +29,9 @@ import { NewVsReturningChart } from "../../components/reports/new-vs-returning-c
 import { CartConversionChart } from "../../components/reports/cart-conversion-chart"
 import { TimeToPurchaseChart } from "../../components/reports/time-to-purchase-chart"
 import { SiteSearchChart } from "../../components/reports/site-search-chart"
-import { AcquisitionTab } from "../../components/reports/acquisition-tab"
-import { FunnelChart } from "../../components/reports/funnel-chart"
 import { RfmChart } from "../../components/reports/rfm-chart"
-import { AovBySourceChart } from "../../components/reports/aov-by-source-chart"
 import { SlaBreachChart } from "../../components/reports/sla-breach-chart"
-import { AgingInventoryChart } from "../../components/reports/aging-inventory-chart"
 import { VectorizationFunnelChart } from "../../components/reports/vectorization-funnel-chart"
-import { DiscountProfitabilityChart } from "../../components/reports/discount-profitability-chart"
 import { ReturnsChart } from "../../components/reports/returns-chart"
 import { StaffThroughputChart } from "../../components/reports/staff-throughput-chart"
 import { SupplierLeadTimeChart } from "../../components/reports/supplier-lead-time-chart"
@@ -46,8 +42,7 @@ import { ApprovalTurnaroundChart } from "../../components/reports/approval-turna
 import { CustomizerFunnelChart } from "../../components/reports/customizer-funnel-chart"
 import { SavedDesignConversionChart } from "../../components/reports/saved-design-conversion-chart"
 import { ChurnQueueChart } from "../../components/reports/churn-queue-chart"
-import { EmailChannelRoiChart } from "../../components/reports/email-channel-roi-chart"
-import SeoAnalyticsPage from "../seo-analytics/page"
+import { TrafficTab } from "../../components/reports/traffic-tab"
 import { AnnotationsManager } from "../../components/reports/annotations-manager"
 import { OperationalTiles } from "../../components/reports/operational-tiles"
 import { ReprintRateChart } from "../../components/reports/reprint-rate-chart"
@@ -61,10 +56,8 @@ import { GeoHeatmapChart } from "../../components/reports/geo-heatmap-chart"
 import { OrderTimeHeatmapChart } from "../../components/reports/order-time-heatmap-chart"
 import { VariantVelocityChart } from "../../components/reports/variant-velocity-chart"
 import { PdpConversionChart } from "../../components/reports/pdp-conversion-chart"
-import { GscCtrTrendChart } from "../../components/reports/gsc-ctr-trend-chart"
 import { PaymentMixChart } from "../../components/reports/payment-mix-chart"
 import { OrderEditFrequencyChart } from "../../components/reports/order-edit-frequency-chart"
-import { EmbroideryStitchesChart } from "../../components/reports/embroidery-stitches-chart"
 import { CustomizerIterationChart } from "../../components/reports/customizer-iteration-chart"
 import { TodayWidget } from "../../components/reports/today-widget"
 import { SystemHealthPill } from "../../components/reports/system-health-pill"
@@ -93,6 +86,7 @@ type Region = { id: string; name: string; currency_code: string | null }
 const ALL_REGIONS_VALUE = "__all__"
 
 const ReportsPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [preset, setPreset] = useState<DateRangePreset>("last_30_days")
   const [regions, setRegions] = useState<Region[]>([])
   const [regionId, setRegionId] = useState<string>(ALL_REGIONS_VALUE)
@@ -213,15 +207,17 @@ const ReportsPage = () => {
       <AlertsManager />
 
       {/* Tabs */}
-      <Tabs defaultValue="sales">
+      <Tabs
+        value={searchParams.get("tab") ?? "sales"}
+        onValueChange={(tab) => setSearchParams({ tab }, { replace: true })}
+      >
         <Container className="p-0">
           <Tabs.List className="px-4 pt-2 flex-wrap">
             <Tabs.Trigger value="sales">Sales overview</Tabs.Trigger>
-            <Tabs.Trigger value="acquisition">Acquisition</Tabs.Trigger>
+            <Tabs.Trigger value="traffic">Traffic & SEO</Tabs.Trigger>
             <Tabs.Trigger value="production">Production</Tabs.Trigger>
             <Tabs.Trigger value="customers">Customers</Tabs.Trigger>
             <Tabs.Trigger value="catalog">Catalog & supply</Tabs.Trigger>
-            <Tabs.Trigger value="seo">SEO</Tabs.Trigger>
           </Tabs.List>
         </Container>
 
@@ -230,7 +226,6 @@ const ReportsPage = () => {
           <div className="grid grid-cols-1 gap-3 mt-3">
             <CartConversionChart {...chartProps} />
             <TimeToPurchaseChart {...chartProps} />
-            <DiscountProfitabilityChart {...chartProps} />
             <RefundRateChart {...chartProps} />
             <FirstOrderAffinityChart {...chartProps} />
             <GeoHeatmapChart {...chartProps} />
@@ -241,14 +236,8 @@ const ReportsPage = () => {
           </div>
         </Tabs.Content>
 
-        <Tabs.Content value="acquisition">
-          <AcquisitionTab fromIso={fromIso} toIso={toIso} />
-          <div className="mt-3 grid grid-cols-1 gap-3">
-            <AovBySourceChart fromIso={fromIso} toIso={toIso} />
-            <EmailChannelRoiChart fromIso={fromIso} toIso={toIso} />
-            <GscCtrTrendChart fromIso={fromIso} toIso={toIso} />
-            <FunnelChart fromIso={fromIso} toIso={toIso} />
-          </div>
+        <Tabs.Content value="traffic">
+          <TrafficTab fromIso={fromIso} toIso={toIso} />
         </Tabs.Content>
 
         <Tabs.Content value="production">
@@ -259,7 +248,6 @@ const ReportsPage = () => {
             <ApprovalTurnaroundChart {...chartProps} />
             <ReprintRateChart {...chartProps} />
             <BlanksForecastChart {...chartProps} />
-            <EmbroideryStitchesChart {...chartProps} />
             <TimeInStageChart
               {...chartProps}
               methodCsv={null}
@@ -299,13 +287,8 @@ const ReportsPage = () => {
             <SupplierMixChart {...chartProps} />
             <SiteSearchChart {...chartProps} />
             <InventoryStatusChart {...chartProps} />
-            <AgingInventoryChart {...chartProps} />
             <VariantVelocityChart {...chartProps} />
           </div>
-        </Tabs.Content>
-
-        <Tabs.Content value="seo">
-          <SeoAnalyticsPage />
         </Tabs.Content>
       </Tabs>
     </div>

@@ -16,7 +16,7 @@ import {
  *
  * "Sent to AS Colour" = `metadata.ascolour_order_id` is set on the order.
  * Lead time is computed from `production_stage_history`: time between
- * the first `blanks_ordered` entry and the first `blanks_arrived` entry
+ * the first blanks `ordered` entry and the first blanks `arrived` entry
  * for the same order. Failure rate is the share of AS-Colour-sent orders
  * with `metadata.ascolour_status === "failed"`.
  */
@@ -61,11 +61,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!matchesRegion(order, regionFilter)) continue
     const meta = (order.metadata ?? {}) as Record<string, unknown>
     const ascolourId = meta.ascolour_order_id
-    if (typeof ascolourId !== "string" || ascolourId.length === 0) continue
+    if (ascolourId == null || ascolourId === "") continue
     if (!inRange(order?.created_at, from, to)) continue
 
     sent += 1
-    const status = typeof meta.ascolour_status === "string" ? meta.ascolour_status : ""
+    const status = typeof meta.ascolour_status === "string" ? meta.ascolour_status.toLowerCase() : ""
     if (status === "failed") failed += 1
     else if (status !== "completed" && status !== "shipped") pending += 1
 
@@ -76,14 +76,14 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       (e) =>
         e &&
         typeof e === "object" &&
-        e.stage === "blanks_ordered" &&
+        (e.stage === "ordered" || e.stage === "blanks_ordered") &&
         typeof e.changed_at === "string"
     )
     const arrivedEntry = history.find(
       (e) =>
         e &&
         typeof e === "object" &&
-        e.stage === "blanks_arrived" &&
+        (e.stage === "arrived" || e.stage === "blanks_arrived") &&
         typeof e.changed_at === "string"
     )
 

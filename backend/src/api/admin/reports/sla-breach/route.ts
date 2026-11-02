@@ -8,6 +8,8 @@ import {
 } from "../../../../lib/production-stage"
 import {
   buildWeekBuckets,
+  computeStageDwellDays,
+  currentTrackStages,
   inRange,
   isNotProceeding,
   loadOrdersOr500,
@@ -80,78 +82,53 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
     if (isNotProceeding(order)) continue
-    const meta = (order.metadata ?? {}) as Record<string, unknown>
-    const rawHistory = meta.production_stage_history
-    if (!Array.isArray(rawHistory) || rawHistory.length === 0) continue
-
-    const sortedHistory = [...rawHistory]
-      .filter(
-        (e: any) =>
-          e &&
-          typeof e === "object" &&
-          typeof e.stage === "string" &&
-          typeof e.changed_at === "string"
-      )
-      .sort(
-        (a: any, b: any) => Date.parse(a.changed_at) - Date.parse(b.changed_at)
-      )
-
-    // Completed transitions: dwell = next.changed_at - this.changed_at,
+    // Completed stays: each stage against the next move on its own track,
     // bucketed by the *exit* timestamp (i.e. when the dwell ended).
-    for (let i = 0; i < sortedHistory.length - 1; i++) {
-      const stage = sortedHistory[i].stage as ProductionStage
-      const enteredMs = Date.parse(sortedHistory[i].changed_at)
-      const exitedMs = Date.parse(sortedHistory[i + 1].changed_at)
-      if (!Number.isFinite(enteredMs) || !Number.isFinite(exitedMs)) continue
-      const exitedIso = sortedHistory[i + 1].changed_at as string
-      if (!inRange(exitedIso, from, to)) continue
+    for (const dwell of computeStageDwellDays(order)) {
+      if (!inRange(dwell.exited_at, from, to)) continue
+      const sla = STAGE_SLA_DAYS[dwell.stage]
+      if (sla == null) continue
 
-      const sla = STAGE_SLA_DAYS[stage]
-      if (sla == null) continue // terminal stages have no SLA
-
-      const days = Math.max(0, (exitedMs - enteredMs) / 86_400_000)
-      const stat = byStage.get(stage)!
+      const stat = byStage.get(dwell.stage)!
       stat.transitions += 1
 
-      const trendIdx = findBucket(exitedIso)
+      const trendIdx = findBucket(dwell.exited_at)
       const trendBucket = trendIdx >= 0 ? trendBuckets[trendIdx] : null
       if (trendBucket) trendBucket.total += 1
 
-      if (days <= sla) {
+      if (dwell.days <= sla) {
         stat.on_time += 1
-      } else if (days <= sla * 2) {
+      } else if (dwell.days <= sla * 2) {
         stat.breach += 1
-        stat.overage_days.push(days - sla)
+        stat.overage_days.push(dwell.days - sla)
         if (trendBucket) trendBucket.breaches += 1
       } else {
         stat.severe_breach += 1
-        stat.overage_days.push(days - sla)
+        stat.overage_days.push(dwell.days - sla)
         if (trendBucket) trendBucket.breaches += 1
       }
     }
 
-    // Currently breaching: the *last* entry is the current stage. If it's
-    // still within the window's "now" and dwell exceeds SLA, surface it.
-    const last = sortedHistory[sortedHistory.length - 1]
-    if (last) {
-      const stage = last.stage as ProductionStage
+    // Currently breaching: the stage each track is on now. Prep tracks stop
+    // mattering once the job is delivered.
+    const delivered = (order.metadata as any)?.production_stage === "delivered"
+    for (const { track, stage, changed_at } of currentTrackStages(order)) {
+      if (delivered && track !== "production") continue
       const sla = STAGE_SLA_DAYS[stage]
-      const enteredMs = Date.parse(last.changed_at)
-      if (sla != null && Number.isFinite(enteredMs)) {
-        const days = Math.max(0, (nowMs - enteredMs) / 86_400_000)
-        if (days > sla) {
-          currentlyBreaching.push({
-            order_id: order.id,
-            display_id:
-              typeof order.display_id === "number" ? order.display_id : null,
-            stage,
-            days_at_stage: Math.round(days * 10) / 10,
-            sla_days: sla,
-            customer_email:
-              typeof order.email === "string" ? order.email : null,
-            overage: Math.round((days - sla) * 10) / 10,
-          })
-        }
+      if (sla == null) continue
+      const days = Math.max(0, (nowMs - Date.parse(changed_at)) / 86_400_000)
+      if (days > sla) {
+        currentlyBreaching.push({
+          order_id: order.id,
+          display_id:
+            typeof order.display_id === "number" ? order.display_id : null,
+          stage,
+          days_at_stage: Math.round(days * 10) / 10,
+          sla_days: sla,
+          customer_email:
+            typeof order.email === "string" ? order.email : null,
+          overage: Math.round((days - sla) * 10) / 10,
+        })
       }
     }
   }

@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { ASCOLOUR_WORKSHOP_ZIP } from "../../../../lib/constants"
 import {
   inRange,
   loadOrdersOr500,
@@ -133,6 +134,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         postcodes: s.postcodes,
       }))
       .sort((a, b) => b.orders - a.orders),
-    top_postcodes: ranked.slice(0, 100),
+    // Our own workshop (pickups, customer-supplied jobs) isn't a customer area.
+    top_postcodes: ranked.filter((r) => r.postal_code !== ASCOLOUR_WORKSHOP_ZIP).slice(0, 100),
   })
 }

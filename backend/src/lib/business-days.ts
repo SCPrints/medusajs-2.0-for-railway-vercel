@@ -19,6 +19,44 @@ export function studioDate(at: Date): string {
   return ymdFormatter.format(at)
 }
 
+const partsFormatter = new Intl.DateTimeFormat("en-AU", {
+  timeZone: STUDIO_TZ,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric",
+  weekday: "short",
+})
+
+const studioParts = (at: Date): Record<string, string> =>
+  Object.fromEntries(partsFormatter.formatToParts(at).map((p) => [p.type, p.value]))
+
+/** Hour (0-23) and weekday (0 = Sunday) of an instant, as seen in the studio. */
+export function studioHourAndDay(at: Date): { hour: number; weekday: number } {
+  const p = studioParts(at)
+  return {
+    hour: Number(p.hour),
+    weekday: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(p.weekday),
+  }
+}
+
+// The studio's offset from UTC at an instant (changes with daylight saving).
+const studioOffsetMs = (at: Date): number => {
+  const p = studioParts(at)
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+  return asUtc - Math.floor(at.getTime() / 1000) * 1000
+}
+
+/** The instant a calendar date (YYYY-MM-DD) starts in the studio. */
+export function studioDayStart(ymd: string): Date {
+  const utcMidnight = Date.parse(`${ymd}T00:00:00Z`)
+  const guess = utcMidnight - studioOffsetMs(new Date(utcMidnight))
+  return new Date(utcMidnight - studioOffsetMs(new Date(guess)))
+}
+
 // Calendar dates are walked as UTC midnights so DST never shifts a day.
 const parseYmd = (ymd: string): Date => new Date(`${ymd}T00:00:00Z`)
 const isWeekend = (d: Date): boolean => d.getUTCDay() === 0 || d.getUTCDay() === 6

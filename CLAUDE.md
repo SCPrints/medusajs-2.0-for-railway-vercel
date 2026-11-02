@@ -1398,16 +1398,16 @@ Single admin page rendering ~50 charts driven by ~60 backend routes under [backe
 | Shared report utils (palette, date-range, CSV) | [backend/src/admin/lib/reports/](backend/src/admin/lib/reports/) |
 
 Sub-route categories under `/admin/reports/`:
-- **Sales & finance**: `sales-overview`, `aov-by-method`, `payment-mix`, `new-vs-returning`, `top-customers`, `top-products`, `cohort-ltv`, `cohorts`, `refund-rate`, `returns`, `discount-profitability`
-- **Acquisition + funnel**: `pdp-conversion`, `cart-conversion`, `time-to-purchase`, `first-order-affinity`, `site-search`, `ga4-acquisition`, `ga4-ecommerce`, `ga4-aov-by-source`, `gsc-ctr-trend`, `geo-heatmap`
+- **Sales & finance**: `sales-overview`, `aov-by-method`, `payment-mix`, `new-vs-returning`, `top-customers`, `top-products`, `cohort-ltv`, `cohorts`, `refund-rate`, `returns`
+- **Acquisition + funnel**: `pdp-conversion`, `cart-conversion`, `time-to-purchase`, `first-order-affinity`, `site-search`, `ga4-acquisition`, `ga4-ecommerce`, `geo-heatmap`
 - **Customizer funnel**: `customizer-adoption`, `customizer-funnel`, `customizer-iteration`, `saved-design-conversion`, `vectorization-funnel`, `designs-utilization`
-- **Production / SLA**: `sla-breach`, `time-in-stage`, `flow-time`, `on-time-delivery`, `production-snapshot`, `print-tomorrow`, `stage-dwell-heatmap`, `capacity`, `staff-throughput`, `ascolour-throughput`, `embroidery-stitches`, `decoration-mix`, `approval-turnaround`, `reprint-rate`, `order-edit-frequency`
-- **Inventory & supply chain**: `inventory-status`, `aging-inventory`, `variant-velocity`, `supplier-lead-time`, `supplier-mix`, `blanks-forecast`
+- **Production / SLA**: `sla-breach`, `time-in-stage`, `flow-time`, `on-time-delivery`, `production-snapshot`, `print-tomorrow`, `stage-dwell-heatmap`, `capacity`, `staff-throughput`, `ascolour-throughput`, `decoration-mix`, `approval-turnaround`, `reprint-rate`, `order-edit-frequency`
+- **Inventory & supply chain**: `inventory-status`, `variant-velocity`, `supplier-lead-time`, `supplier-mix`, `blanks-forecast`
 - **Customer health**: `rfm`, `reorder-rate`, `reorder-reminders`, `churn-queue`, `email-channel-roi`
 - **Ops**: `today`, `order-time-heatmap`, `cron-jobs`, `system-health`, `regions`, `storage`, `monthly-digest`, `posthog-stats`, `config`
 
 ### Report alerts
-Threshold-based metric alerts evaluated nightly at `45 23 * * *`. Six metrics by default: SLA breach %, currently-breaching count, reprint rate, dead stock units, capacity status, top-10 customer revenue share.
+Threshold-based metric alerts evaluated nightly at `45 23 * * *`. Five live metrics: SLA breach %, currently-breaching count, reprint rate, capacity status, top-10 customer revenue share. (`dead_stock_units` is retired and always 0: all stock is supplier stock.)
 
 | Component | Path |
 | --- | --- |

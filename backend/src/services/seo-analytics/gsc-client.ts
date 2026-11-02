@@ -6,13 +6,13 @@ import { withTransientRetry } from "./retry"
 import type { GscRow, GscSummary } from "./types"
 
 const SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
-const TOP_ROW_LIMIT = 25
+const TOP_ROW_LIMIT = 100
 const GSC_LAG_DAYS = 3
-// Wider net for the prior window so most current top-25 keys find a match to
+// Wider net for the prior window so most current top keys find a match to
 // trend against; unmatched keys just show no arrow.
 const PREV_MATCH_LIMIT = 250
 // Local-SEO tracking pulls a deep list so every /locations/* page and every
-// suburb/uniform/embroidery query is caught, not just the top 25.
+// suburb/uniform/embroidery query is caught, not just the top rows.
 const TRACK_ROW_LIMIT = 1000
 const LOCAL_PAGE_PATTERN = /\/locations(\/|$)/
 /** Queries the local-SEO work targets: services × catchment suburbs + Sydney. */

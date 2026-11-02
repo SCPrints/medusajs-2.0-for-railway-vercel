@@ -69,7 +69,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const cohortCustomers: Set<string>[] = cohorts.map(() => new Set<string>())
 
   for (const [cid, first] of firstOrderByCustomer.entries()) {
-    const cohortLabel = first.iso.slice(0, 7)
+    const cohortLabel = new Date(first.ms).toISOString().slice(0, 7)
     const idx = cohortIndex.get(cohortLabel)
     if (idx == null) continue
     cohortCustomers[idx].add(cid)
@@ -81,7 +81,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!cid) continue
     const first = firstOrderByCustomer.get(cid)
     if (!first) continue
-    const cohortLabel = first.iso.slice(0, 7)
+    const cohortLabel = new Date(first.ms).toISOString().slice(0, 7)
     const idx = cohortIndex.get(cohortLabel)
     if (idx == null) continue
 

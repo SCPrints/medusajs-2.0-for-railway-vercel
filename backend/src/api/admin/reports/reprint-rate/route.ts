@@ -2,7 +2,6 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  PRODUCTION_STAGES,
   type ProductionStage,
 } from "../../../../lib/production-stage"
 import {
@@ -13,16 +12,17 @@ import {
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
+  stageTransitions,
   type DecorationMethod,
 } from "../../../../lib/reports/orders"
 
 /**
  * GET /admin/reports/reprint-rate
  *
- * A "reprint" is detected as a stage rollback: a stage_history transition
- * whose destination stage has a lower index than the source in the
- * canonical PRODUCTION_STAGES ordering. e.g. `quality_check → in_production`
- * means QC found a defect and the job is being reprinted.
+ * A "reprint" is detected as a stage rollback: a move backwards WITHIN ONE
+ * TRACK. e.g. `quality_check → in_production` means QC found a defect; an
+ * artwork-track rollback is a re-proof. Same rule as the reprint alert in
+ * services/report-alerts/evaluate.ts.
  *
  * Reports:
  *   - Total reprints in window + reprint rate (reprints / orders shipped)
@@ -61,39 +61,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
     if (isNotProceeding(order)) continue
-    const meta = (order?.metadata ?? {}) as Record<string, unknown>
-    const rawHistory = meta.production_stage_history
-    if (!Array.isArray(rawHistory) || rawHistory.length < 2) continue
+    const transitions = stageTransitions(order)
+    if (transitions.some((t) => inRange(t.exited_at, from, to))) ordersInWindow += 1
 
-    const sortedHistory = [...rawHistory]
-      .filter(
-        (e: any) =>
-          e &&
-          typeof e === "object" &&
-          typeof e.stage === "string" &&
-          typeof e.changed_at === "string"
-      )
-      .sort(
-        (a: any, b: any) => Date.parse(a.changed_at) - Date.parse(b.changed_at)
-      )
-
-    let touchedInWindow = false
-    for (let i = 1; i < sortedHistory.length; i++) {
-      const transitionAt = sortedHistory[i].changed_at as string
-      if (inRange(transitionAt, from, to)) touchedInWindow = true
-    }
-    if (touchedInWindow) ordersInWindow += 1
-
-    for (let i = 1; i < sortedHistory.length; i++) {
-      const fromStage = sortedHistory[i - 1].stage as ProductionStage
-      const toStage = sortedHistory[i].stage as ProductionStage
-      const transitionAt = sortedHistory[i].changed_at as string
-      if (!inRange(transitionAt, from, to)) continue
-      const fromIdx = PRODUCTION_STAGES.indexOf(fromStage)
-      const toIdx = PRODUCTION_STAGES.indexOf(toStage)
-      if (fromIdx < 0 || toIdx < 0) continue
-      // A rollback is a backwards transition. Same-stage no-ops are skipped.
-      if (toIdx >= fromIdx) continue
+    for (const t of transitions) {
+      if (!t.rollback || !inRange(t.exited_at, from, to)) continue
 
       const items = (order.items ?? []) as any[]
       const methods = Array.from(
@@ -110,9 +82,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         order_id: order.id,
         display_id:
           typeof order.display_id === "number" ? order.display_id : null,
-        rolled_back_at: transitionAt,
-        from_stage: fromStage,
-        to_stage: toStage,
+        rolled_back_at: t.exited_at,
+        from_stage: t.from_stage,
+        to_stage: t.to_stage,
         methods,
         had_vectorization: hadVectorization,
         customer_email:

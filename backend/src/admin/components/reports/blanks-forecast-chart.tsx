@@ -58,15 +58,14 @@ export const BlanksForecastChart = ({
 
   return (
     <ReportCard
-      title="Blanks reorder forecast (AS Colour)"
-      caption="Aggregates blanks demand across every active order and compares to current Medusa stock. Use the deficit list as the next AS Colour PO. Orders that already have an ascolour_order_id stamped are excluded — that demand's already in flight."
+      title="Blanks forecast"
+      caption="Catalog garments still needed for open orders, compared with the supplier's stock. Orders whose blanks have arrived or have an AS Colour order placed are left out, as are fees and customer-supplied garments."
       help={{
-        title: "Blanks reorder forecast (AS Colour)",
-        body: "Adds up blanks demand across every active order in the pipeline and compares it to your current on-hand Medusa stock. The deficit row is your next purchase order — the report is built to be PO-ready.",
+        title: "Blanks forecast",
+        body: "Adds up the garments still to order for open jobs and compares them with the stock figures we have, which are the supplier's. A shortfall means the supplier may not be able to fill it.",
         bullets: [
           "Orders that already have an ascolour_order_id stamped are excluded — that demand is already on the way and shouldn't double-count into your next PO.",
-          "Active = anything past 'received' but not yet 'shipped'. Quoting/draft orders are not counted (rightly — they may not become orders).",
-          "Click 'Generate AS Colour PO' to produce a draft order on AS Colour's side using these quantities; it's a draft, not an automatic submission.",
+          "Open = not yet shipped and blanks not yet arrived. Quotes that haven't become orders aren't counted.",
         ],
       }}
       loading={loading}

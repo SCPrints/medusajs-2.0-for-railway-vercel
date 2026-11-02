@@ -1,4 +1,13 @@
-import type { ProductionStage, ProductionStageHistoryEntry } from "../production-stage"
+import {
+  ARTWORK_STAGES,
+  BLANKS_STAGES,
+  DOWNSTREAM_STAGES,
+  DOWNSTREAM_STAGE_SLA_DAYS,
+  resolveTracksFromMeta,
+  type ProductionStage,
+  type ProductionTrack,
+} from "../production-stage"
+import { studioDate } from "../business-days"
 
 /**
  * Shared helpers for the report routes under /admin/reports/*. Pulled into
@@ -15,16 +24,37 @@ export const DECORATION_METHODS = [
   "uv",
 ] as const
 
-export type DecorationMethod = (typeof DECORATION_METHODS)[number] | "blank"
+/**
+ * Beyond the real methods:
+ *   - "blank": a catalog garment sold with nothing recorded as decoration.
+ *   - "service": fee lines (setup, freight, artwork, digitising…), not garments.
+ *   - "unrecorded": a quoted garment line (often customer-supplied) that carries
+ *     no method. Reported as such rather than guessed.
+ */
+export type DecorationMethod =
+  | (typeof DECORATION_METHODS)[number]
+  | "blank"
+  | "service"
+  | "unrecorded"
+
+export const REPORT_METHOD_KEYS: DecorationMethod[] = [
+  ...DECORATION_METHODS,
+  "blank",
+  "service",
+  "unrecorded",
+]
 
 export const isDecorationMethodOrBlank = (s: string): s is DecorationMethod =>
-  s === "blank" || (DECORATION_METHODS as readonly string[]).includes(s)
+  (REPORT_METHOD_KEYS as readonly string[]).includes(s)
 
 type LineItemMeta = {
   decorationDesign?: { method?: unknown }
   vectorization_for_order?: unknown
   customizerDesign?: unknown
   reorder_source?: unknown
+  quote_locked_price?: unknown
+  quote_custom_line?: unknown
+  artwork_fee?: unknown
 }
 
 type CustomizerDesignLike = {
@@ -52,42 +82,68 @@ export const inferDecorationMethodFromCustomizer = (
   const server = design.pricing?.server
   const mode = typeof server?.mode === "string" ? server.mode : null
 
-  const sideMethods = design.sideDecorationMethods ?? {}
+  const sideMethods = Object.values(design.sideDecorationMethods ?? {})
+  if (sideMethods.includes("screen")) return "screen"
+
   const embroideryKeys = Array.isArray(server?.embroidery_side_keys)
     ? (server.embroidery_side_keys as string[]).filter(Boolean)
-    : Object.entries(sideMethods)
-        .filter(([, m]) => m === "embroidery")
-        .map(([side]) => side)
+    : []
   const printKeys = Array.isArray(server?.print_side_keys)
     ? (server.print_side_keys as string[]).filter(Boolean)
-    : Object.entries(sideMethods)
-        .filter(([, m]) => !m || m === "print")
-        .map(([side]) => side)
-
-  const hasEmbroidery = embroideryKeys.length > 0
+    : []
+  const hasEmbroidery = embroideryKeys.length > 0 || sideMethods.includes("embroidery")
   const hasPrint =
-    printKeys.length > 0 ||
-    mode === "scp_dtf" ||
-    typeof design.scpPrintSizeId === "string" ||
-    (Array.isArray(design.prints) && design.prints.length > 0)
+    printKeys.length > 0 || sideMethods.some((m) => !m || m === "print") || mode === "scp_dtf"
 
+  // A size id and `prints[]` sit on embroidery lines too, so they can't decide this.
   if (hasEmbroidery && !hasPrint) return "embroidery"
-  if (hasPrint) return "dtf"
 
-  const hasDecoration =
-    (Array.isArray(design.artifacts) && design.artifacts.length > 0) ||
-    (Array.isArray(design.prints) && design.prints.length > 0)
-  if (hasDecoration) return "dtf"
-
-  // Current storefront customizer is DTF-only; screen print is not offered on PDP.
+  // Everything else the customizer has produced is DTF.
   return "dtf"
 }
+
+const SERVICE_TITLE =
+  /setup|freight|delivery|shipping|redraw|artwork|digitis|colour change|dtf print/i
+const SERVICE_SKUS = new Set(["SERVICE-LINE", "SCREEN-SETUP"])
+
+/**
+ * Setup, freight, artwork and similar fee lines. Customer-supplied garments are
+ * sold through the same SERVICE-LINE variant but they are garments, not fees.
+ */
+export const isServiceLine = (item: {
+  title?: unknown
+  variant_sku?: unknown
+  metadata?: unknown
+}): boolean => {
+  const title = typeof item?.title === "string" ? item.title : ""
+  if (/customer[- ]supplied/i.test(title)) return false
+  if ((item?.metadata as LineItemMeta | null)?.artwork_fee != null) return true
+  return (
+    SERVICE_TITLE.test(title) ||
+    (typeof item?.variant_sku === "string" && SERVICE_SKUS.has(item.variant_sku))
+  )
+}
+
+/** A garment from the catalog, as opposed to fees or customer-supplied garments. */
+export const isCatalogGarmentLine = (item: {
+  title?: unknown
+  variant_id?: unknown
+  variant_sku?: unknown
+  metadata?: unknown
+}): boolean =>
+  typeof item?.variant_id === "string" &&
+  !isServiceLine(item) &&
+  !(typeof item?.variant_sku === "string" && SERVICE_SKUS.has(item.variant_sku))
 
 /**
  * Classify a single line item by decoration method. Used by the production
  * dashboard snapshot and decoration-mix reports.
  */
-export const itemMethod = (item: { metadata?: unknown }): DecorationMethod => {
+export const itemMethod = (item: {
+  title?: unknown
+  variant_sku?: unknown
+  metadata?: unknown
+}): DecorationMethod => {
   const meta = (item?.metadata ?? {}) as LineItemMeta
   const m = meta?.decorationDesign?.method
   if (typeof m === "string" && (DECORATION_METHODS as readonly string[]).includes(m)) {
@@ -98,8 +154,18 @@ export const itemMethod = (item: { metadata?: unknown }): DecorationMethod => {
       meta.customizerDesign as CustomizerDesignLike
     )
   }
+  if (isServiceLine(item)) return "service"
+  if (meta.quote_custom_line != null || meta.quote_locked_price != null) return "unrecorded"
   return "blank"
 }
+
+/**
+ * True when the customer placed the order themselves through the storefront
+ * checkout. Quote conversions stamp `metadata.quote_id` and are staff actions,
+ * so behaviour reports (time of day, funnels, first-order affinity) skip them.
+ */
+export const isCheckoutOrder = (order: any): boolean =>
+  (order?.metadata as Record<string, unknown> | null)?.quote_id == null
 
 export const itemHasReorderSource = (item: { metadata?: unknown }): boolean => {
   const meta = (item?.metadata ?? {}) as LineItemMeta
@@ -180,7 +246,11 @@ export const matchesRegion = (order: any, regionId: string | null): boolean => {
 export const isNotProceeding = (order: any): boolean => {
   const status = String(order?.status ?? "").toLowerCase()
   if (status === "canceled") return true
-  return String(order?.payment_status ?? "").toLowerCase() === "refunded"
+  if (String(order?.payment_status ?? "").toLowerCase() === "refunded") return true
+  // query.graph leaves payment_status empty, so read the summary when loaded.
+  const paid = Number(order?.summary?.paid_total ?? 0)
+  const refunded = Number(order?.summary?.refunded_total ?? 0)
+  return paid > 0 && refunded >= paid
 }
 
 /**
@@ -241,46 +311,146 @@ const startOfWeek = (d: Date): Date => {
 }
 
 /**
- * Compute dwell time (in days) for each stage transition the order has
- * recorded in its history. Returns one entry per *completed* stage —
- * i.e. the stage the order has since left. The stage the order is
- * currently in is excluded because its dwell isn't final yet.
+ * Resolve a stage value to its position WITHIN ITS OWN TRACK (normalising
+ * legacy aliases). `PRODUCTION_STAGES` is a union of all three parallel tracks,
+ * NOT a chronological order, so comparing union indices (or pairing consecutive
+ * history entries across tracks) gives nonsense.
+ */
+export function trackPosition(
+  stage: string
+): { track: ProductionTrack; index: number } | null {
+  let s = stage
+  if (s === "art_review") s = "in_review"
+  else if (s === "blanks_ordered") s = "ordered"
+  else if (s === "blanks_arrived") s = "arrived"
+
+  let idx = (ARTWORK_STAGES as readonly string[]).indexOf(s)
+  if (idx >= 0) return { track: "artwork", index: idx }
+  idx = (BLANKS_STAGES as readonly string[]).indexOf(s)
+  if (idx >= 0) return { track: "blanks", index: idx }
+  idx = (DOWNSTREAM_STAGES as readonly string[]).indexOf(s)
+  if (idx >= 0) return { track: "production", index: idx }
+  return null
+}
+
+/** `production_stage_history`, cleaned and oldest first. */
+export const stageHistory = (
+  order: any
+): Array<{ stage: ProductionStage; changed_at: string; track: ProductionTrack }> => {
+  const raw = (order?.metadata as Record<string, unknown> | null)?.production_stage_history
+  if (!Array.isArray(raw)) return []
+  const entries: Array<{ stage: ProductionStage; changed_at: string; track: ProductionTrack }> = []
+  for (const e of raw) {
+    if (typeof e?.stage !== "string" || typeof e?.changed_at !== "string") continue
+    if (!Number.isFinite(Date.parse(e.changed_at))) continue
+    const pos = trackPosition(e.stage)
+    if (!pos) continue
+    entries.push({ stage: e.stage as ProductionStage, changed_at: e.changed_at, track: pos.track })
+  }
+  return entries.sort((a, b) => Date.parse(a.changed_at) - Date.parse(b.changed_at))
+}
+
+export type StageTransition = {
+  track: ProductionTrack
+  from_stage: ProductionStage
+  to_stage: ProductionStage
+  entered_at: string
+  exited_at: string
+  days: number
+  rollback: boolean
+}
+
+/** Every move an order made, each paired with the previous entry on the SAME track. */
+export const stageTransitions = (order: any): StageTransition[] => {
+  const last = new Map<ProductionTrack, { stage: ProductionStage; changed_at: string }>()
+  const out: StageTransition[] = []
+  for (const e of stageHistory(order)) {
+    const prev = last.get(e.track)
+    if (prev) {
+      out.push({
+        track: e.track,
+        from_stage: prev.stage,
+        to_stage: e.stage,
+        entered_at: prev.changed_at,
+        exited_at: e.changed_at,
+        days: Math.max(0, (Date.parse(e.changed_at) - Date.parse(prev.changed_at)) / 86_400_000),
+        rollback: trackPosition(e.stage)!.index < trackPosition(prev.stage)!.index,
+      })
+    }
+    last.set(e.track, e)
+  }
+  return out
+}
+
+/** The stage each track is on now and when it got there. */
+export const currentTrackStages = (
+  order: any
+): Array<{ track: ProductionTrack; stage: ProductionStage; changed_at: string }> => {
+  const last = new Map<
+    ProductionTrack,
+    { track: ProductionTrack; stage: ProductionStage; changed_at: string }
+  >()
+  for (const e of stageHistory(order)) last.set(e.track, e)
+  return [...last.values()]
+}
+
+// The end of a track: time spent here isn't waiting on anyone.
+export const TERMINAL_STAGES = new Set<string>(["approved", "arrived", "blanks_arrived", "delivered"])
+
+/**
+ * Dwell time (in days) for each stage the order has since left, measured
+ * against the next move on the same track. The stage a track is on now is
+ * excluded because its dwell isn't final yet; so are track end stages.
  */
 export const computeStageDwellDays = (
   order: any
-): Array<{ stage: ProductionStage; days: number }> => {
-  const meta = (order?.metadata ?? {}) as Record<string, unknown>
-  const raw = meta.production_stage_history
-  if (!Array.isArray(raw) || raw.length < 2) return []
+): Array<{ stage: ProductionStage; days: number; exited_at: string }> =>
+  stageTransitions(order)
+    .filter((t) => !TERMINAL_STAGES.has(t.from_stage))
+    .map((t) => ({ stage: t.from_stage, days: t.days, exited_at: t.exited_at }))
 
-  // Normalise to ProductionStageHistoryEntry, sort by changed_at asc.
-  const entries: ProductionStageHistoryEntry[] = []
-  for (const e of raw) {
-    if (!e || typeof e !== "object") continue
-    const stage = (e as { stage?: unknown }).stage
-    const changed_at = (e as { changed_at?: unknown }).changed_at
-    if (typeof stage !== "string" || typeof changed_at !== "string") continue
-    if (!Number.isFinite(Date.parse(changed_at))) continue
-    entries.push({
-      stage: stage as ProductionStage,
-      changed_at,
-    })
-  }
-  entries.sort(
-    (a, b) => Date.parse(a.changed_at) - Date.parse(b.changed_at)
+/** First time the order reached shipped, or delivered when shipped was skipped. */
+export const shippedAt = (order: any): string | null => {
+  const history = stageHistory(order)
+  return (
+    history.find((e) => e.stage === "shipped")?.changed_at ??
+    history.find((e) => e.stage === "delivered")?.changed_at ??
+    null
   )
+}
 
-  // Each entry's dwell = next_entry.changed_at - this_entry.changed_at.
-  // Last entry has no "next" so its dwell isn't measurable here.
-  const dwells: Array<{ stage: ProductionStage; days: number }> = []
-  for (let i = 0; i < entries.length - 1; i++) {
-    const ms = Date.parse(entries[i + 1].changed_at) - Date.parse(entries[i].changed_at)
-    dwells.push({
-      stage: entries[i].stage,
-      days: Math.max(0, ms / 86_400_000),
-    })
+/** Still to leave the building: not dead, and production hasn't reached shipped. */
+export const isOpenUnshipped = (order: any): boolean => {
+  if (isNotProceeding(order)) return false
+  const meta = (order?.metadata ?? {}) as Record<string, unknown>
+  if (typeof meta.production_stage !== "string") return false
+  const { downstream } = resolveTracksFromMeta(meta)
+  return downstream !== "shipped" && downstream !== "delivered"
+}
+
+/** SLA days of production work left, up to the point the job ships. */
+export const workDaysToShip = (order: any, nowMs: number): number => {
+  const meta = (order?.metadata ?? {}) as Record<string, unknown>
+  const { downstream } = resolveTracksFromMeta(meta)
+  const lastEntered = stageHistory(order)
+    .filter((e) => e.stage === downstream)
+    .pop()?.changed_at
+  const daysIn = lastEntered ? Math.max(0, (nowMs - Date.parse(lastEntered)) / 86_400_000) : 0
+  let work = Math.max(0, (DOWNSTREAM_STAGE_SLA_DAYS[downstream] ?? 0) - daysIn)
+  const start = (DOWNSTREAM_STAGES as readonly string[]).indexOf(downstream)
+  for (let i = start + 1; i < DOWNSTREAM_STAGES.length; i++) {
+    const stage = DOWNSTREAM_STAGES[i]
+    if (stage === "shipped") break
+    work += DOWNSTREAM_STAGE_SLA_DAYS[stage] ?? 0
   }
-  return dwells
+  return work
+}
+
+/** The date (YYYY-MM-DD, studio time) a job should ship: its due date, else an SLA estimate. */
+export const projectedShipDate = (order: any, nowMs: number): string => {
+  const due = (order?.metadata as Record<string, unknown> | null)?.production_due_date
+  if (typeof due === "string" && /^\d{4}-\d{2}-\d{2}/.test(due)) return due.slice(0, 10)
+  return studioDate(new Date(nowMs + workDaysToShip(order, nowMs) * 86_400_000))
 }
 
 /**
@@ -376,6 +546,7 @@ export const fetchOrdersForReports = async (
       "items.unit_price",
       "items.product_id",
       "items.variant_id",
+      "items.variant_sku",
       "items.metadata",
       // Without `items.detail.*` the graph leaves `items.quantity` undefined
       // and `total` = shipping only (probed prod 2026-09-03: Aug revenue

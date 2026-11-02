@@ -16,8 +16,8 @@ import {
  * GET /admin/reports/refund-rate
  *
  * % of orders with any refund (full or partial), trended over the
- * window, broken down by decoration method. Reads `order.refunds`
- * directly — works whether or not the RMA workflow is enabled.
+ * window, broken down by decoration method. Reads refunds off the order's
+ * payments, so it works whether or not the RMA workflow is enabled.
  *
  * Refund-amount totals are surfaced separately so the operator can
  * decide whether the rate is dollars-significant or just count-noisy.
@@ -40,10 +40,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     "email",
     "items.id",
     "items.metadata",
-    "refunds.id",
-    "refunds.amount",
-    "refunds.created_at",
-    "refunds.note",
+    // An order has no `refunds` relation; the graph silently returned nothing.
+    "payment_collections.payments.refunds.id",
+    "payment_collections.payments.refunds.amount",
+    "payment_collections.payments.refunds.created_at",
+    "payment_collections.payments.refunds.note",
   ])
   if (!orders) return
 
@@ -91,7 +92,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       byMethod.set(m, stat)
     }
 
-    const refunds = Array.isArray(o.refunds) ? o.refunds : []
+    const refunds = (o.payment_collections ?? []).flatMap((pc: any) =>
+      (pc?.payments ?? []).flatMap((p: any) => p?.refunds ?? [])
+    )
     if (refunds.length === 0) continue
 
     refundedOrders += 1

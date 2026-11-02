@@ -67,7 +67,7 @@ export const ReprintRateChart = ({
   return (
     <ReportCard
       title="Reprint / failure rate"
-      caption="Stage rollbacks (e.g. quality_check → in_production) flag failed prints. Bucket by source stage to see *where* failures land, by decoration method to see *which* technique fails most."
+      caption="Moves backwards within one track. Production rollbacks (e.g. quality_check → in_production) flag failed prints; artwork rollbacks are re-proofs. Bucket by source stage to see *where* failures land, by decoration method to see *which* technique fails most."
       help={{
         title: "Reprint / failure rate",
         body: "Stage rollbacks — when an order moves backwards in the production pipeline (e.g. quality_check → in_production) — are the proxy for failed prints. The breakdown by source stage tells you where failures are caught; by method tells you which technique is least reliable.",

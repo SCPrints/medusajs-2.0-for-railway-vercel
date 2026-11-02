@@ -104,14 +104,14 @@ export const CapacityChart = ({
   return (
     <ReportCard
       title="Production capacity forecast"
-      caption="Open orders + projected ship dates from current stage and SLAs. Capacity status compares pipeline workload against the last-30-days throughput. Tells customers 'ETA Friday' with data, not gut feel."
+      caption="Orders not yet shipped, with their due date, or an estimate from the production SLAs if none is set. Capacity is how many days those orders would take at the rate we finished orders over the last 30 days."
       help={{
         title: "Production capacity forecast",
-        body: "Every open order with a projected ship date based on its current stage plus the canonical SLAs. The capacity gauge weighs current pipeline workload against the last 30 days of throughput so you can answer 'when will it ship?' with data instead of gut feel.",
+        body: "Every order not yet shipped, with its due date or an SLA estimate. The capacity gauge divides open orders by the rate we finished orders over the last 30 days. With few orders, one job moves it a lot.",
         bullets: [
           "Status 'overloaded' = the pipeline holds more days of work than your throughput can absorb on time. Either expedite, push out promises, or add a shift.",
           "Status 'tight' = working at capacity; any new big order will start slipping promised dates. A good time to pause new wholesale quotes.",
-          "Projected ship dates assume the order moves through every remaining stage at the median dwell time. A particular order can run faster or slower — use it as a planning average, not a guarantee.",
+          "Estimated dates assume each remaining production stage takes its SLA. Use them as a planning average, not a guarantee.",
         ],
       }}
       loading={loading}

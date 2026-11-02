@@ -13,7 +13,7 @@ import {
 /**
  * GET /admin/reports/supplier-lead-time
  *
- * Measures the time (in days) between `blanks_ordered` and `blanks_arrived`
+ * Measures the time (in days) between blanks `ordered` and `arrived`
  * for each order that has completed that transition within the date window.
  * Returns a histogram, median, p90, and a benchmark line (5 business days).
  *
@@ -63,10 +63,10 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     let orderedAt: string | null = null
     for (const entry of entries) {
-      if (entry.stage === "blanks_ordered") {
+      if (entry.stage === "ordered" || entry.stage === "blanks_ordered") {
         orderedAt = entry.changed_at as string
       }
-      if (entry.stage === "blanks_arrived" && orderedAt !== null) {
+      if ((entry.stage === "arrived" || entry.stage === "blanks_arrived") && orderedAt !== null) {
         const arrivedAt = entry.changed_at as string
         if (!inRange(arrivedAt, from, to)) {
           orderedAt = null

@@ -43,6 +43,8 @@ export type Ga4Ecommerce = {
     purchases: number
     revenue: number
     conversion_rate: number
+    /** Sessions that sent an enquiry form (`generate_lead`). */
+    leads: number
   }
 }
 
@@ -155,6 +157,7 @@ export async function fetchGa4Ecommerce(
         totalSessions > 0
           ? Math.round((totalPurchases / totalSessions) * 1000) / 1000
           : 0,
+      leads: sessionsByEvent.get("generate_lead") ?? 0,
     },
   }
 }

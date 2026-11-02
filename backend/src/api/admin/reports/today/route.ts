@@ -1,17 +1,15 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { studioDate, studioDayStart, studioHourAndDay } from "../../../../lib/business-days"
 import {
   isNotProceeding,
+  isOpenUnshipped,
   loadOrdersOr500,
   matchesRegion,
   parseRegionFilter,
+  projectedShipDate,
 } from "../../../../lib/reports/orders"
-import {
-  PRODUCTION_STAGES,
-  STAGE_SLA_DAYS,
-  type ProductionStage,
-} from "../../../../lib/production-stage"
 
 /**
  * GET /admin/reports/today
@@ -28,22 +26,12 @@ import {
  *   - milestones crossed today (100th order this month, biggest single order,
  *     etc.) so the frontend can fire confetti
  *
- * All times anchored to Australia/Sydney (AEST UTC+10 — DST shift absorbed
- * into the daily bucket).
+ * All times anchored to Australia/Sydney, daylight saving included.
  */
-const SYDNEY_OFFSET_HOURS = 10
-
-const startOfDaySydney = (now: Date): number => {
-  const sydMs = now.getTime() + SYDNEY_OFFSET_HOURS * 3_600_000
-  const d = new Date(sydMs)
-  const startUtc = Date.UTC(
-    d.getUTCFullYear(),
-    d.getUTCMonth(),
-    d.getUTCDate()
-  )
-  // Convert back to UTC ms
-  return startUtc - SYDNEY_OFFSET_HOURS * 3_600_000
-}
+const shiftDate = (ymd: string, days: number): string =>
+  new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10)
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -54,26 +42,19 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const orders = await loadOrdersOr500(query, res, logger, "today")
   if (!orders) return
 
-  // DIAGNOSTIC — remove after confirming total unit
-  if (orders.length > 0) {
-    const o = orders[0]
-    logger.info?.(`[today:diag] order[0] total=${JSON.stringify(o.total)} subtotal=${JSON.stringify(o.subtotal)} items[0].unit_price=${JSON.stringify(o.items?.[0]?.unit_price)}`)
-  }
-
   const now = new Date()
-  const todayStart = startOfDaySydney(now)
-  const todayEnd = todayStart + 86_400_000
-  const sameWeekdayLastWeekStart = todayStart - 7 * 86_400_000
-  const sameWeekdayLastWeekEnd = sameWeekdayLastWeekStart + 86_400_000
+  const todayYmd = studioDate(now)
+  const dayStart = (ymd: string) => studioDayStart(ymd).getTime()
+  const todayStart = dayStart(todayYmd)
+  const todayEnd = dayStart(shiftDate(todayYmd, 1))
+  const lastWeekYmd = shiftDate(todayYmd, -7)
+  const sameWeekdayLastWeekStart = dayStart(lastWeekYmd)
+  const sameWeekdayLastWeekEnd = dayStart(shiftDate(lastWeekYmd, 1))
 
-  // Same date one year ago, in Sydney (approximate — DST + leap years).
-  const sydDate = new Date(todayStart + SYDNEY_OFFSET_HOURS * 3_600_000)
-  const lastYearStart = Date.UTC(
-    sydDate.getUTCFullYear() - 1,
-    sydDate.getUTCMonth(),
-    sydDate.getUTCDate()
-  ) - SYDNEY_OFFSET_HOURS * 3_600_000
-  const lastYearEnd = lastYearStart + 86_400_000
+  // Same date one year ago, in Sydney.
+  const lastYearYmd = `${Number(todayYmd.slice(0, 4)) - 1}${todayYmd.slice(4)}`
+  const lastYearStart = dayStart(lastYearYmd)
+  const lastYearEnd = dayStart(shiftDate(lastYearYmd, 1))
 
   // Aggregations
   let todayRevenue = 0
@@ -102,11 +83,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   }
 
   // Cumulative-this-month for the "100th order this month" milestone.
-  const monthStart = (() => {
-    const d = new Date(todayStart + SYDNEY_OFFSET_HOURS * 3_600_000)
-    return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) -
-      SYDNEY_OFFSET_HOURS * 3_600_000
-  })()
+  const monthStart = dayStart(`${todayYmd.slice(0, 7)}-01`)
   let monthOrdersBeforeToday = 0
   let monthOrdersThroughToday = 0
 
@@ -188,46 +165,17 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
   }
 
-  // Projected ships in next 7 days
+  // Ships due today / in the next 7 days. Same dates as the Capacity report;
+  // overdue jobs still have to go out, so they count towards the week.
+  const weekEndYmd = shiftDate(todayYmd, 6)
   let shipsThisWeek = 0
   let shipsToday = 0
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (isNotProceeding(o)) continue
-    const meta = (o?.metadata ?? {}) as Record<string, unknown>
-    const stage = meta.production_stage as ProductionStage | undefined
-    if (!stage || stage === "delivered") continue
-    if (!(PRODUCTION_STAGES as readonly string[]).includes(stage)) continue
-    const rawHistory = meta.production_stage_history
-    let enteredCurrentMs: number | null = null
-    if (Array.isArray(rawHistory)) {
-      const reversed = [...rawHistory].reverse()
-      const last = reversed.find((e: any) => e?.stage === stage)
-      if (last && typeof (last as any).changed_at === "string") {
-        const t = Date.parse((last as any).changed_at)
-        if (Number.isFinite(t)) enteredCurrentMs = t
-      }
-    }
-    const daysAtCurrent =
-      enteredCurrentMs != null
-        ? Math.max(0, (now.getTime() - enteredCurrentMs) / 86_400_000)
-        : 0
-    const currentSla = STAGE_SLA_DAYS[stage] ?? 0
-    let workDaysRemaining = Math.max(0, currentSla - daysAtCurrent)
-    const idx = PRODUCTION_STAGES.indexOf(stage)
-    for (let i = idx + 1; i < PRODUCTION_STAGES.length; i++) {
-      const s = PRODUCTION_STAGES[i]
-      if (s === "delivered") continue
-      const sla = STAGE_SLA_DAYS[s]
-      if (sla != null) workDaysRemaining += sla
-    }
-    const projectedShipMs = now.getTime() + workDaysRemaining * 86_400_000
-    if (projectedShipMs >= todayStart && projectedShipMs < todayEnd) {
-      shipsToday += 1
-    }
-    if (projectedShipMs >= todayStart && projectedShipMs < todayStart + 7 * 86_400_000) {
-      shipsThisWeek += 1
-    }
+    if (!isOpenUnshipped(o)) continue
+    const shipDate = projectedShipDate(o, now.getTime())
+    if (shipDate === todayYmd) shipsToday += 1
+    if (shipDate <= weekEndYmd) shipsThisWeek += 1
   }
 
   const lastYearTopProduct = (() => {
@@ -267,7 +215,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       label: "50 orders this month",
     })
   }
-  if (todayOrders >= 1 && priorOrders === 0 && new Date(todayStart).getUTCDay() % 7 < 6) {
+  if (todayOrders >= 1 && priorOrders === 0 && studioHourAndDay(now).weekday < 6) {
     // First order of a normally-quiet day
     milestones.push({
       kind: "broke_quiet_day",

@@ -1,11 +1,13 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { studioDate } from "../../../../lib/business-days"
 import { GA4_PROPERTY_ID } from "../../../../lib/constants"
 import { isSeoConfigured } from "../../../../services/seo-analytics/google-auth"
 import { buildGa4Caller } from "../../../../services/seo-analytics/ga4-caller"
 import {
   inRange,
+  isCheckoutOrder,
   loadOrdersOr500,
   matchesRegion,
   parseDateRange,
@@ -19,7 +21,8 @@ import {
  *   1. design_started        ← GA4 (storefront)
  *   2. design_saved          ← GA4
  *   3. design_added_to_cart  ← GA4
- *   4. design_purchased      ← Medusa orders w/ items.metadata.customizerDesign
+ *   4. design_purchased      ← Medusa checkout orders w/ items.metadata.customizerDesign
+ *                              (quote conversions never pass through the cart step)
  *
  * Steps 1-3 read 0 until the storefront deploy with the new events
  * propagates (~24-48h after first event). Step 4 works from day 1
@@ -40,7 +43,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   let purchasedRevenue = 0
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (o?.status === "canceled") continue
+    if (o?.status === "canceled" || !isCheckoutOrder(o)) continue
     if (!inRange(o?.created_at, from, to)) continue
     const items = (o?.items ?? []) as any[]
     const customizerLines = items.filter((it) => {
@@ -73,8 +76,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         property: `properties/${GA4_PROPERTY_ID}`,
         dateRanges: [
           {
-            startDate: from.toISOString().slice(0, 10),
-            endDate: to.toISOString().slice(0, 10),
+            startDate: studioDate(from),
+            endDate: studioDate(to),
           },
         ],
         dimensions: [{ name: "eventName" }],

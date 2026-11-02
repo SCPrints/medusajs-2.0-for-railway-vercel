@@ -75,15 +75,14 @@ export const VariantVelocityChart = ({
   return (
     <ReportCard
       title="Variant velocity (12-week)"
-      caption="Units sold per week per variant, with momentum classification. Hot SKUs need more inventory; cold ones need clearance."
+      caption="Units sold per week per variant, with momentum classification. We order blanks per job, so this is a trend to watch, not a stock instruction. With only a few orders, one job can make a variant look hot or cold."
       help={{
         title: "Variant velocity (12-week)",
         body: "Units sold per week per variant over the last 12 weeks, with momentum classification (Hot / Warm / Steady / Cooling / Cold). Tells you which variants are accelerating and which are losing steam — at the variant level, where reorders happen.",
         bullets: [
-          "Hot variants (≥2× last 6 weeks vs prior 6) need more inventory before they stock-out and momentum dies.",
-          "Cold variants (<0.4×) need clearance — flash sale, bundle, or markdown before the working-capital cost compounds.",
-          "Steady is fine; reorder on standard cadence. Warm and Cooling are watch-list — confirm with another data point before acting.",
-          "Variants with no sales at all in 12 weeks are excluded from this report — see the aging-inventory report for those.",
+          "Hot variants sold at least twice as much in the last 6 weeks as the 6 before.",
+          "Cold variants sold under 0.4× as much. We hold no stock of them, so nothing needs clearing.",
+          "Only garments from suppliers that give us stock levels are counted. Fee lines and variants with no sales in 12 weeks are left out.",
         ],
       }}
       loading={loading}
@@ -169,7 +168,7 @@ export const VariantVelocityChart = ({
       {rows.length === 0 ? (
         <EmptyState
           title="No variants moving in the last 12 weeks"
-          body="Either no managed-inventory variants have sold, or your sales data lives outside Medusa. See aging-inventory if you have stock that's never moved."
+          body="Either no managed-inventory variants have sold, or your sales data lives outside Medusa."
         />
       ) : (
         <div className="overflow-auto max-h-[480px] mt-3">

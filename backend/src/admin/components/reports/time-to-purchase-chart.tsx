@@ -99,12 +99,12 @@ export const TimeToPurchaseChart = ({
   return (
     <ReportCard
       title="Time to purchase"
-      caption="How long signup-to-first-order takes (left) and how long first-to-second-order takes (right). Use these to size your email drip cadence and retargeting-ad windows."
+      caption="How long from the customer record being created to their first order (left; most customers have no account, so the record is created with the order itself) and how long first-to-second-order takes (right). Use these to size your email drip cadence and retargeting-ad windows."
       help={{
         title: "Time to purchase",
-        body: "Two distributions: how long new customers wait between signing up and placing their first order, and how long existing customers wait between order #1 and order #2. Use the median bucket to size your email/ads cadence.",
+        body: "Two distributions: how long between a customer record being created and their first order, and how long existing customers wait between order #1 and order #2. Use the median bucket to size your email/ads cadence.",
         bullets: [
-          "If most first orders happen <7 days after signup → you're acquiring intent-driven customers; lean on the welcome email and skip the long nurture.",
+          "Guest checkouts and quote customers land in 'Under a day', so that bucket doesn't measure how long anyone took to decide.",
           "If first → second clusters around 30–60 days → schedule a reorder-reminder series at that mark.",
           "A bimodal repeat-purchase shape (one cluster early, one late) usually means two customer segments — staff/team kits cycle differently from one-off custom buyers.",
         ],
@@ -151,7 +151,7 @@ export const TimeToPurchaseChart = ({
         <div className="flex flex-col gap-y-2">
           <div className="flex items-baseline justify-between">
             <Text size="small" className="font-semibold">
-              Signup → first order
+              Record created → first order
             </Text>
             <Text size="xsmall" className="text-ui-fg-muted">
               median {data?.first_purchase.median_days ?? 0}d ·{" "}

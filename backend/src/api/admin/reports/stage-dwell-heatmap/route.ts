@@ -11,6 +11,7 @@ import {
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
+  TERMINAL_STAGES,
 } from "../../../../lib/reports/orders"
 
 /**
@@ -54,28 +55,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!matchesRegion(order, regionFilter)) continue
     if (isNotProceeding(order)) continue
 
-    const meta = (order.metadata ?? {}) as Record<string, unknown>
-    const rawHistory = meta.production_stage_history
-    if (!Array.isArray(rawHistory) || rawHistory.length < 2) continue
-
-    const sortedHistory = [...rawHistory]
-      .filter(
-        (e: any) =>
-          e &&
-          typeof e === "object" &&
-          typeof e.stage === "string" &&
-          typeof e.changed_at === "string"
-      )
-      .sort((a: any, b: any) => Date.parse(a.changed_at) - Date.parse(b.changed_at))
-
-    const dwells = computeStageDwellDays(order)
-
-    for (let i = 0; i < sortedHistory.length - 1; i++) {
-      const exitedAt = sortedHistory[i + 1].changed_at as string
-      if (!inRange(exitedAt, from, to)) continue
-      const dwell = dwells[i]
-      if (!dwell) continue
-      const weekIdx = findBucket(exitedAt)
+    for (const dwell of computeStageDwellDays(order)) {
+      if (!inRange(dwell.exited_at, from, to)) continue
+      const weekIdx = findBucket(dwell.exited_at)
       if (weekIdx < 0) continue
       const stageMatrix = matrix.get(dwell.stage)
       if (stageMatrix) stageMatrix[weekIdx].push(dwell.days)
@@ -84,7 +66,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const weeks = buckets.map((b) => b.label)
 
-  const stages = PRODUCTION_STAGES.map((stage) => {
+  const stages = PRODUCTION_STAGES.filter((s) => !TERMINAL_STAGES.has(s)).map((stage) => {
     const stageMatrix = matrix.get(stage) ?? []
     const sla = STAGE_SLA_DAYS[stage]
     const weekCells = stageMatrix.map((values, wi) => {

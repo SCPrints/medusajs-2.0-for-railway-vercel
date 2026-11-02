@@ -244,7 +244,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       total_fees: Math.round(totalFees * 100) / 100,
       effective_fee_pct:
         grandTotalRevenue > 0
-          ? Math.round((totalFees / grandTotalRevenue) * 100) / 100
+          ? Math.round((totalFees / grandTotalRevenue) * 10000) / 100
           : 0,
       net_revenue:
         Math.round((grandTotalRevenue - totalFees) * 100) / 100,

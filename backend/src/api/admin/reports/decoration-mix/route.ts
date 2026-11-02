@@ -2,7 +2,6 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  DECORATION_METHODS,
   inRange,
   itemMethod,
   loadOrdersOr500,
@@ -11,6 +10,7 @@ import {
   parseRegionFilter,
   pctDelta,
   priorRange,
+  REPORT_METHOD_KEYS,
   type DecorationMethod,
 } from "../../../../lib/reports/orders"
 
@@ -26,7 +26,7 @@ import {
  * `quantity`).
  */
 
-const ALL_KEYS: DecorationMethod[] = [...DECORATION_METHODS, "blank"]
+const ALL_KEYS = REPORT_METHOD_KEYS
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -63,6 +63,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!inMain && !inPrior) continue
 
     const items = (order.items ?? []) as Array<{
+      title?: string
+      variant_sku?: string
       unit_price?: number
       quantity?: number
       metadata?: any

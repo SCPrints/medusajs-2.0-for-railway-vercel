@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { studioDate } from "../../../../lib/business-days"
 import {
   buildWeekBuckets,
   inRange,
@@ -88,17 +89,20 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
   const aggregate = (rows: any[]) => {
     let totalRevenue = 0
+    let paid = 0
     let count = 0
     const customers = new Set<string>()
     for (const o of rows) {
       if (o?.status === "canceled") continue
       count += 1
       totalRevenue += Number(o.total ?? 0)
+      paid += Number(o.summary?.paid_total ?? 0)
       if (typeof o.customer_id === "string") customers.add(o.customer_id)
     }
     return {
       orders: count,
       revenue: Math.round(totalRevenue * 100) / 100,
+      paid: Math.round(paid * 100) / 100,
       distinct_customers: customers.size,
       aov: count > 0 ? Math.round((totalRevenue / count) * 100) / 100 : 0,
     }
@@ -151,21 +155,19 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       }
     }
   } else {
-    // Daily buckets
-    const startDay = new Date(from)
-    startDay.setUTCHours(0, 0, 0, 0)
-    const days: Array<{ start: number; label: string }> = []
+    // Daily buckets, in studio dates (a morning order must land on its own day).
+    const days: Array<{ label: string }> = []
+    const dayIndex = new Map<string, number>()
+    const startYmd = studioDate(from)
     for (let d = 0; d < dayCount; d++) {
-      const t = startDay.getTime() + d * 86_400_000
-      const label = new Date(t).toISOString().slice(0, 10)
-      days.push({ start: t, label })
+      const label = new Date(Date.parse(`${startYmd}T00:00:00Z`) + d * 86_400_000)
+        .toISOString()
+        .slice(0, 10)
+      dayIndex.set(label, d)
+      days.push({ label })
     }
-    const findDailyBucket = (ms: number): number => {
-      if (!Number.isFinite(ms)) return -1
-      const offsetDays = Math.floor((ms - days[0].start) / 86_400_000)
-      if (offsetDays < 0 || offsetDays >= days.length) return -1
-      return offsetDays
-    }
+    const findDailyBucket = (ms: number): number =>
+      Number.isFinite(ms) ? dayIndex.get(studioDate(new Date(ms))) ?? -1 : -1
     series = days.map((d) => ({
       bucket: d.label,
       orders: 0,
@@ -241,6 +243,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       revenue: period.revenue,
       aov: period.aov,
       distinct_customers: period.distinct_customers,
+      paid: period.paid,
       prior_orders: prior.orders,
       prior_revenue: prior.revenue,
       prior_aov: prior.aov,

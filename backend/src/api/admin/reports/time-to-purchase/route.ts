@@ -25,19 +25,20 @@ import {
  * Output is bucketed histograms + median + sample size.
  */
 
+// A bucket holds delays under `maxDays` ("1–2 days" means 1 to just under 3).
 const BUCKETS = [
-  { id: "same_day", label: "Same day", maxDays: 0 },
-  { id: "1_2_days", label: "1–2 days", maxDays: 2 },
-  { id: "3_7_days", label: "3–7 days", maxDays: 7 },
-  { id: "8_14_days", label: "8–14 days", maxDays: 14 },
-  { id: "15_30_days", label: "15–30 days", maxDays: 30 },
-  { id: "31_90_days", label: "31–90 days", maxDays: 90 },
+  { id: "same_day", label: "Under a day", maxDays: 1 },
+  { id: "1_2_days", label: "1–2 days", maxDays: 3 },
+  { id: "3_7_days", label: "3–7 days", maxDays: 8 },
+  { id: "8_14_days", label: "8–14 days", maxDays: 15 },
+  { id: "15_30_days", label: "15–30 days", maxDays: 31 },
+  { id: "31_90_days", label: "31–90 days", maxDays: 91 },
   { id: "over_90_days", label: "90+ days", maxDays: Infinity },
 ] as const
 
 const bucketFor = (days: number): string => {
   for (const b of BUCKETS) {
-    if (days <= b.maxDays) return b.id
+    if (days < b.maxDays) return b.id
   }
   return BUCKETS[BUCKETS.length - 1].id
 }

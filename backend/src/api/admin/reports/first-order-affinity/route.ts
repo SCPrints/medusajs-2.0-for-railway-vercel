@@ -3,6 +3,8 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
   inRange,
+  isCatalogGarmentLine,
+  isCheckoutOrder,
   loadOrdersOr500,
   matchesRegion,
   parseDateRange,
@@ -12,14 +14,12 @@ import {
 /**
  * GET /admin/reports/first-order-affinity
  *
- * For new customers (one order ever, in window), which product did
- * they buy first? Reveals your "front door" SKU — the one to feature
+ * For new customers (first order ever in window, through checkout: quote
+ * conversions are staff choosing the garment), which product did they buy? Reveals your "front door" SKU — the one to feature
  * for new visitors / cold traffic. Direct merchandising decision.
  *
- * Methodology: walk all orders, group by customer key, identify
- * customers whose ONLY non-cancelled order falls in the window. For
- * those one-order customers, count which product appeared on their
- * first (and only) line.
+ * Methodology: walk all orders, group by customer key, find each customer's
+ * first non-cancelled order, and if it's in window count its biggest garment.
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -34,7 +34,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // Group orders per customer to find one-order customers in window.
   type CustomerRecord = {
     key: string
-    first_order: { id: string; created_at: number; items: any[] } | null
+    first_order: { id: string; created_at: number; items: any[]; checkout: boolean } | null
     order_count: number
   }
   const byCustomer = new Map<string, CustomerRecord>()
@@ -61,6 +61,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         id: o.id,
         created_at: created,
         items: (o.items ?? []) as any[],
+        checkout: isCheckoutOrder(o),
       }
     }
     byCustomer.set(key, existing)
@@ -78,7 +79,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const byProduct = new Map<string, Stat>()
   let newCustomersInWindow = 0
   for (const c of byCustomer.values()) {
-    if (!c.first_order) continue
+    if (!c.first_order?.checkout) continue
     if (!inRange(new Date(c.first_order.created_at).toISOString(), from, to))
       continue
     newCustomersInWindow += 1
@@ -87,7 +88,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     // (so a $200 hoodie wins over a $5 sticker bundle they grabbed too).
     let topLine: any = null
     let topRevenue = 0
-    for (const it of c.first_order.items) {
+    for (const it of c.first_order.items.filter(isCatalogGarmentLine)) {
       const rev = Number(it?.unit_price ?? 0) * Number(it?.quantity ?? 0)
       if (rev > topRevenue) {
         topRevenue = rev

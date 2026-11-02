@@ -1,11 +1,9 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { resolveTracksFromMeta } from "../../../../lib/production-stage"
 import {
-  PRODUCTION_STAGES,
-  type ProductionStage,
-} from "../../../../lib/production-stage"
-import {
+  isCatalogGarmentLine,
   isNotProceeding,
   loadOrdersOr500,
   matchesRegion,
@@ -15,49 +13,18 @@ import {
 /**
  * GET /admin/reports/blanks-forecast
  *
- * Aggregates blanks needed across every active (pre-shipped, non-cancelled)
- * order, compares against current Medusa-tracked stock, and surfaces the
- * deficit per SKU. AS Colour is SC Prints' dominant blanks supplier so
- * the output doubles as a draft purchase-order list — but the report
- * doesn't filter on supplier; it covers every managed-inventory variant.
+ * Adds up the catalog garments still needed across every open order and
+ * compares against Medusa's stock figures, which are the SUPPLIER's warehouse
+ * stock. Fee lines and customer-supplied garments aren't blanks to buy.
  *
- * Stages considered "active" for blanks demand:
- *   - received, art_review, awaiting_approval, approved, blanks_ordered,
- *     blanks_arrived, in_production, quality_check.
- *   - shipped + delivered are excluded (blanks already used).
+ * Orders are skipped once their blanks have arrived, production has shipped, or
+ * an AS Colour PO is already placed (`metadata.ascolour_order_id`).
  *
  * `urgency` per line:
- *   - "needed_now"   stage is at/past blanks_arrived (printing imminent)
- *   - "needed_soon"  approved or blanks_ordered (within ~1 week)
- *   - "lead_time_ok" earlier stages (artwork still being designed)
- *
- * Note: this uses Medusa's stock figures, not a live AS Colour API call.
- * If you decorate from blanks AS Colour holds in their warehouse, use
- * `metadata.ascolour_order_id` as a signal that the PO is already
- * placed and exclude that order from the deficit calculation. We do that
- * here.
+ *   - "needed_now"   already in production without its blanks
+ *   - "needed_soon"  artwork approved or blanks on order
+ *   - "lead_time_ok" earlier than that
  */
-
-const STAGE_URGENCY: Record<ProductionStage, "needed_now" | "needed_soon" | "lead_time_ok" | "skip"> = {
-  received: "lead_time_ok",
-  // artwork track
-  pending: "lead_time_ok",
-  in_review: "lead_time_ok",
-  art_review: "lead_time_ok",
-  awaiting_approval: "lead_time_ok",
-  approved: "needed_soon",
-  // blanks track
-  not_started: "lead_time_ok",
-  ordered: "needed_soon",
-  arrived: "needed_now",
-  blanks_ordered: "needed_soon",
-  blanks_arrived: "needed_now",
-  // downstream
-  in_production: "needed_now",
-  quality_check: "needed_now",
-  shipped: "skip",
-  delivered: "skip",
-}
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -90,19 +57,24 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const meta = (o?.metadata ?? {}) as Record<string, unknown>
     // If AS Colour PO already placed for this order, demand is fulfilled
     // outside our stock — exclude from forecast.
-    if (typeof meta.ascolour_order_id === "string" && meta.ascolour_order_id.length > 0) {
+    if (meta.ascolour_order_id != null && meta.ascolour_order_id !== "") {
       continue
     }
-    const stage = (meta.production_stage as ProductionStage) ?? null
-    if (!stage || !(PRODUCTION_STAGES as readonly string[]).includes(stage)) {
+    if (typeof meta.production_stage !== "string") continue
+    const { artwork, blanks, downstream } = resolveTracksFromMeta(meta)
+    if (blanks === "arrived" || downstream === "shipped" || downstream === "delivered") {
       continue
     }
-    const urgencyKey = STAGE_URGENCY[stage]
-    if (urgencyKey === "skip") continue
+    const urgencyKey: OrderDemand["urgency"] =
+      downstream === "in_production" || downstream === "quality_check"
+        ? "needed_now"
+        : artwork === "approved" || blanks === "ordered"
+          ? "needed_soon"
+          : "lead_time_ok"
 
     for (const it of (o?.items ?? []) as any[]) {
-      const vid = it?.variant_id
-      if (typeof vid !== "string" || vid.length === 0) continue
+      if (!isCatalogGarmentLine(it)) continue
+      const vid = it.variant_id
       const qty = Number(it?.quantity ?? 0)
       if (!Number.isFinite(qty) || qty <= 0) continue
       const existing = byVariant.get(vid) ?? {

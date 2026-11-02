@@ -1,12 +1,15 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { studioDate } from "../../../../lib/business-days"
 import { GA4_PROPERTY_ID } from "../../../../lib/constants"
 import { isSeoConfigured } from "../../../../services/seo-analytics/google-auth"
 import { buildGa4Caller } from "../../../../services/seo-analytics/ga4-caller"
 import {
   fetchOrdersForReports,
   inRange,
+  isCatalogGarmentLine,
+  isCheckoutOrder,
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
@@ -53,8 +56,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       property: `properties/${GA4_PROPERTY_ID}`,
       dateRanges: [
         {
-          startDate: from.toISOString().slice(0, 10),
-          endDate: to.toISOString().slice(0, 10),
+          startDate: studioDate(from),
+          endDate: studioDate(to),
         },
       ],
       dimensions: [{ name: "pagePath" }],
@@ -144,12 +147,12 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const byHandle = new Map<string, Stat>()
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (o?.status === "canceled") continue
+    if (o?.status === "canceled" || !isCheckoutOrder(o)) continue
     if (!inRange(o?.created_at, from, to)) continue
     const seen = new Set<string>()
     for (const it of (o?.items ?? []) as any[]) {
       const pid = it?.product_id
-      if (typeof pid !== "string") continue
+      if (typeof pid !== "string" || !isCatalogGarmentLine(it)) continue
       const handle = productInfo.get(pid)?.handle
       if (!handle) continue
       seen.add(handle)

@@ -46,6 +46,7 @@ type Response = {
     revenue: number
     aov: number
     distinct_customers: number
+    paid: number
     prior_orders: number
     prior_revenue: number
     prior_aov: number
@@ -131,7 +132,7 @@ regionId,
   return (
     <div className="grid grid-cols-1 gap-3">
       {/* KPI tiles row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <KpiTile
           noPrior="no prior data"
           label="Total orders"
@@ -140,10 +141,11 @@ regionId,
         />
         <KpiTile
           noPrior="no prior data"
-          label="Total sales"
+          label="Invoiced (inc GST + shipping)"
           value={formatCurrency(summary?.revenue ?? 0, currency)}
           delta={summary?.revenue_delta_pct ?? null}
         />
+        <KpiTile label="Paid so far" value={formatCurrency(summary?.paid ?? 0, currency)} />
         <KpiTile
           noPrior="no prior data"
           label="Average order value"
@@ -167,7 +169,7 @@ regionId,
           bullets: [
             "Pinned annotations from the strip above appear as vertical guides — useful for explaining spikes (campaigns, supplier delays, outages).",
             "Compare against the orders chart below: rising sales + flat orders means AOV is climbing (you're winning on basket size, not acquisition).",
-            "Granularity flips automatically — narrow ranges (≤14 days) group daily, wider ranges group weekly.",
+            "Granularity flips automatically — ranges up to 60 days group daily, wider ranges group weekly.",
           ],
         }}
         loading={loading}
@@ -385,7 +387,7 @@ regionId,
             title: "Order status breakdown",
             body: "Distribution of orders by Medusa status — pending / completed / archived / canceled. Reflects checkout completion, not production progress (use the Production tab for that).",
             bullets: [
-              "A heavy 'pending' tail without payment usually means abandoned guest checkouts; cross-check Cart-to-order conversion below.",
+              "Orders stay 'pending' in Medusa even after delivery, so a big 'pending' slice is normal. It isn't abandoned checkouts; those never become orders.",
               "Sustained 'requires_action' means Stripe is asking for 3DS confirmation that customers aren't completing — review fraud rules.",
               "Steady 'canceled' >5% in a window is worth digging into — usually a product issue or shipping shock.",
             ],

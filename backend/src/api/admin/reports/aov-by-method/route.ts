@@ -2,8 +2,8 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
-  DECORATION_METHODS,
   inRange,
+  isServiceLine,
   itemMethod,
   loadOrdersOr500,
   matchesRegion,
@@ -11,6 +11,7 @@ import {
   parseRegionFilter,
   pctDelta,
   priorRange,
+  REPORT_METHOD_KEYS,
   type DecorationMethod,
 } from "../../../../lib/reports/orders"
 
@@ -25,7 +26,7 @@ import {
  * higher AOV than blanks, signalling premium customers.
  */
 
-const ALL_KEYS: DecorationMethod[] = [...DECORATION_METHODS, "blank"]
+const ALL_KEYS = REPORT_METHOD_KEYS
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -59,6 +60,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const target = inMain ? main : prior
 
     const items = (order.items ?? []) as Array<{
+      title?: string
+      variant_sku?: string
       unit_price?: number
       quantity?: number
       metadata?: any
@@ -71,7 +74,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
 
     let topMethod: DecorationMethod = "blank"
     let topLineRevenue = -1
-    for (const it of items) {
+    // Fees only decide the bucket when there's nothing else on the order.
+    const garments = items.filter((it) => !isServiceLine(it))
+    for (const it of garments.length ? garments : items) {
       const lineRev = Number(it.unit_price ?? 0) * Number(it.quantity ?? 0)
       if (lineRev > topLineRevenue) {
         topLineRevenue = lineRev

@@ -55,6 +55,8 @@ export const DECORATION_METHOD_COLORS = {
   uvdtf_applied: PALETTE.teal500,
   embroidery: PALETTE.amber600,
   blank: PALETTE.stone400,
+  service: PALETTE.stone400,
+  unrecorded: PALETTE.rose600,
 } as const
 
 export const DECORATION_METHOD_LABELS = {
@@ -65,6 +67,8 @@ export const DECORATION_METHOD_LABELS = {
   uvdtf_applied: "UVDTF applied",
   embroidery: "Embroidery",
   blank: "Blank",
+  service: "Fees & services",
+  unrecorded: "Method not recorded",
 } as const
 
 export type DecorationMethodKey = keyof typeof DECORATION_METHOD_COLORS

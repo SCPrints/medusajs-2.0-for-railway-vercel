@@ -12,14 +12,16 @@ import {
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
+  stageHistory,
+  stageTransitions,
 } from "../../../../lib/reports/orders"
 
 /**
  * GET /admin/reports/order-edit-frequency
  *
  * Process-maturity proxy: how many stage transitions does the average
- * order go through? More than the canonical 9 = excessive
- * revisions / rollbacks; less = streamlined.
+ * order go through, counted within each track? A clean run is 9 (artwork 3,
+ * blanks 2, production 4); more = revisions / rollbacks.
  *
  * Specifically tracks:
  *   - avg_transitions_per_order — across all orders that completed a
@@ -57,44 +59,15 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
     if (isNotProceeding(o)) continue
-    const meta = (o?.metadata ?? {}) as Record<string, unknown>
-    const rawHistory = meta.production_stage_history
-    if (!Array.isArray(rawHistory) || rawHistory.length < 2) continue
-    const sortedHistory = [...rawHistory]
-      .filter(
-        (e: any) =>
-          e &&
-          typeof e === "object" &&
-          typeof e.stage === "string" &&
-          typeof e.changed_at === "string"
-      )
-      .sort(
-        (a: any, b: any) => Date.parse(a.changed_at) - Date.parse(b.changed_at)
-      )
-
-    let transitionsInWindow = 0
-    let rollbacksInWindow = 0
-    for (let i = 1; i < sortedHistory.length; i++) {
-      const exitedAt = sortedHistory[i].changed_at as string
-      if (!inRange(exitedAt, from, to)) continue
-      transitionsInWindow += 1
-      const fromIdx = PRODUCTION_STAGES.indexOf(
-        sortedHistory[i - 1].stage as ProductionStage
-      )
-      const toIdx = PRODUCTION_STAGES.indexOf(
-        sortedHistory[i].stage as ProductionStage
-      )
-      if (fromIdx >= 0 && toIdx >= 0 && toIdx < fromIdx) {
-        rollbacksInWindow += 1
-      }
-    }
+    const inWindow = stageTransitions(o).filter((t) => inRange(t.exited_at, from, to))
+    const transitionsInWindow = inWindow.length
+    const rollbacksInWindow = inWindow.filter((t) => t.rollback).length
     if (transitionsInWindow === 0) continue
 
     totalTransitions += transitionsInWindow
     totalRollbacks += rollbacksInWindow
 
-    const finalStage = sortedHistory[sortedHistory.length - 1]
-      ?.stage as ProductionStage | undefined
+    const finalStage = stageHistory(o).pop()?.stage
     stats.push({
       order_id: o.id,
       display_id: typeof o.display_id === "number" ? o.display_id : null,

@@ -4,6 +4,7 @@ import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import {
   buildWeekBuckets,
   inRange,
+  isCheckoutOrder,
   loadOrdersOr500,
   matchesRegion,
   parseDateRange,
@@ -20,6 +21,9 @@ import {
  * "Customised" = the order has at least one line item with
  * `metadata.decorationDesign` (any of the 6 methods) OR a legacy
  * `metadata.customizerDesign` (pre-decoration-module orders).
+ *
+ * Checkout orders only: this asks whether customers use the Studio, and quote
+ * lines are built by staff (some carry no design at all, without being blank).
  */
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
@@ -44,7 +48,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
     if (!inRange(order.created_at, from, to)) continue
-    if (order.status === "canceled") continue
+    if (order.status === "canceled" || !isCheckoutOrder(order)) continue
 
     const items = (order.items ?? []) as Array<{ metadata?: any }>
     const isCustomized = items.some((it) => {
@@ -75,7 +79,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   for (const order of orders) {
     if (!matchesRegion(order, regionFilter)) continue
     if (!inRange(order.created_at, priorFrom, priorTo)) continue
-    if (order.status === "canceled") continue
+    if (order.status === "canceled" || !isCheckoutOrder(order)) continue
     const items = (order.items ?? []) as Array<{ metadata?: any }>
     const isCustomized = items.some((it) => {
       const meta = (it?.metadata ?? {}) as any

@@ -74,7 +74,7 @@ export const CohortLtvChart = ({
   return (
     <ReportCard
       title="Cohort LTV curve"
-      caption="Cumulative average revenue per customer, per acquisition cohort. Newer cohorts on top — if their early-month curves climb faster than older ones, your customer quality is improving."
+      caption="The date range above doesn't apply. Cumulative average revenue per customer, per acquisition cohort. Newer cohorts on top — if their early-month curves climb faster than older ones, your customer quality is improving."
       help={{
         title: "Cohort LTV curve",
         body: "Each line is one cohort (customers acquired in a given month), tracking their cumulative average revenue per head over time since acquisition. Newer cohorts sit on top so you can see whether they're climbing faster than older ones.",

@@ -14,6 +14,7 @@ import {
   parseDateRange,
   parseRegionFilter,
   summarise,
+  TERMINAL_STAGES,
 } from "../../../../lib/reports/orders"
 
 /**
@@ -60,37 +61,13 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       if (!matches) continue
     }
 
-    // computeStageDwellDays returns one entry per stage that the order has
-    // *left*; pair each with the timestamp of the *next* transition so we
-    // can date-window the dwell properly.
-    const meta = (order.metadata ?? {}) as Record<string, unknown>
-    const rawHistory = meta.production_stage_history
-    if (!Array.isArray(rawHistory) || rawHistory.length < 2) continue
-
-    const dwells = computeStageDwellDays(order)
-    // Need to align dwells with the changed_at of the *next* entry to know
-    // when the dwell completed. Re-walk the history to do that:
-    const sortedHistory = [...rawHistory]
-      .filter(
-        (e: any) =>
-          e &&
-          typeof e === "object" &&
-          typeof e.stage === "string" &&
-          typeof e.changed_at === "string"
-      )
-      .sort((a: any, b: any) => Date.parse(a.changed_at) - Date.parse(b.changed_at))
-
-    for (let i = 0; i < sortedHistory.length - 1; i++) {
-      const exitedAt = sortedHistory[i + 1].changed_at as string
-      if (!inRange(exitedAt, from, to)) continue
-      const dwell = dwells[i]
-      if (!dwell) continue
-      const arr = buckets.get(dwell.stage)
-      if (arr) arr.push(dwell.days)
+    for (const dwell of computeStageDwellDays(order)) {
+      if (!inRange(dwell.exited_at, from, to)) continue
+      buckets.get(dwell.stage)?.push(dwell.days)
     }
   }
 
-  const stages = PRODUCTION_STAGES.map((stage) => {
+  const stages = PRODUCTION_STAGES.filter((s) => !TERMINAL_STAGES.has(s)).map((stage) => {
     const values = buckets.get(stage) ?? []
     const summary = summarise(values)
     return {

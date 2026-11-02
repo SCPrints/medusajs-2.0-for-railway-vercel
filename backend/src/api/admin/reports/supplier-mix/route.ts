@@ -14,7 +14,8 @@ import {
 /**
  * GET /admin/reports/supplier-mix
  *
- * Garment supplier mix: AS Colour vs everything else.
+ * Orders sent to AS Colour by API vs every other order. Not a brand split:
+ * AS Colour garments we order by hand count as "not sent".
  *
  * "AS Colour" = order has `metadata.ascolour_order_id` set, indicating
  * the order was routed to AS Colour for blanks. Everything else is
@@ -60,7 +61,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!inMain && !inPrior) continue
 
     const meta = (order.metadata ?? {}) as Record<string, unknown>
-    const isAscolour = typeof meta.ascolour_order_id === "string" && meta.ascolour_order_id.length > 0
+    // Stored as a number by the AS Colour API, so don't check for a string.
+    const isAscolour = meta.ascolour_order_id != null && meta.ascolour_order_id !== ""
 
     const revenue = Number(order.total ?? 0)
     if (inPrior) {
@@ -96,7 +98,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     suppliers: [
       {
         key: "ascolour",
-        label: "AS Colour",
+        label: "Sent to AS Colour",
         orders: ascolourOrders,
         revenue: Math.round(ascolourRevenue * 100) / 100,
         units: ascolourUnits,
@@ -109,7 +111,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       },
       {
         key: "other",
-        label: "Other supplier",
+        label: "Not sent to AS Colour",
         orders: otherOrders,
         revenue: Math.round(otherRevenue * 100) / 100,
         units: otherUnits,

@@ -1,4 +1,4 @@
-import { pctTrend } from "../trend"
+import { pctTrend } from "../reports/trend"
 
 describe("pctTrend", () => {
   it("returns null without a comparable prior", () => {

@@ -32,7 +32,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   try {
     const { data } = await query.graph({
       entity: "design",
-      fields: ["id", "customer_id", "created_at", "updated_at", "title"],
+      fields: ["id", "customer_id", "created_at", "updated_at"],
       pagination: { take: 5000, skip: 0 },
     })
     designs = (data as any[]) ?? []
@@ -87,7 +87,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (o?.status === "canceled") continue
     const items = (o.items ?? []) as Array<{ metadata?: any }>
     for (const it of items) {
-      const designId = (it?.metadata as any)?.designId
+      const designId = (it?.metadata as any)?.source_design_id ?? (it?.metadata as any)?.designId
       if (typeof designId !== "string") continue
       const set = designIdToOrderIds.get(designId) ?? new Set<string>()
       set.add(o.id)

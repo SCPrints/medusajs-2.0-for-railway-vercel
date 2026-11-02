@@ -11,6 +11,14 @@ import { parseDateRange } from "../../../../lib/reports/orders"
  * (gold for merchandising — products customers want that you don't
  * surface), plus distinct-query and total-search KPIs.
  */
+const decodeQuery = (q: string): string => {
+  try {
+    return decodeURIComponent(q)
+  } catch {
+    return q
+  }
+}
+
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
   const logger = (req.scope as any).resolve?.("logger") ?? console
@@ -61,7 +69,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (!Number.isFinite(ms)) continue
     if (ms < fromMs || ms > toMs) continue
     totalSearches += 1
-    const key = (ev.query_normalized as string) || (ev.query as string) || ""
+    // Some clients logged the URL-encoded term ("staple%20tee").
+    const key = decodeQuery((ev.query_normalized as string) || (ev.query as string) || "")
     if (!key) continue
     const existing = byKey.get(key)
     const isZero = Number(ev.results_count ?? 0) === 0
@@ -72,7 +81,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       if (isZero) existing.zero_result_count += 1
     } else {
       byKey.set(key, {
-        query: ev.query ?? key,
+        query: decodeQuery(ev.query ?? key),
         count: 1,
         total_results: Number(ev.results_count ?? 0),
         zero_result_count: isZero ? 1 : 0,

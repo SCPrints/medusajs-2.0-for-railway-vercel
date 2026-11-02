@@ -67,7 +67,7 @@ export const PdpConversionChart = ({
   return (
     <ReportCard
       title="PDP conversion rate"
-      caption="For each product page, GA4 page-views ÷ orders containing that product. Sort by views to find high-traffic-low-conversion pages — that's where the biggest copy / pricing / mockup wins live."
+      caption="Checkout orders only, because quote orders are entered by staff. For each product page, orders containing that product ÷ GA4 page-views. Sort by views to find high-traffic-low-conversion pages — that's where the biggest copy / pricing / mockup wins live."
       help={{
         title: "PDP conversion rate",
         body: "For each product detail page (PDP), how many GA4 page-views it received and how many of those views ended in an order containing that product. Sort by views to find your high-traffic-low-conversion pages — that's where copy / pricing / mockup tweaks pay best.",

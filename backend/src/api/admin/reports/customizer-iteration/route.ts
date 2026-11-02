@@ -1,5 +1,6 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 
+import { studioDate } from "../../../../lib/business-days"
 import { GA4_PROPERTY_ID } from "../../../../lib/constants"
 import { isSeoConfigured } from "../../../../services/seo-analytics/google-auth"
 import { buildGa4Caller } from "../../../../services/seo-analytics/ga4-caller"
@@ -37,8 +38,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const property = `properties/${GA4_PROPERTY_ID}`
     const dateRanges = [
       {
-        startDate: from.toISOString().slice(0, 10),
-        endDate: to.toISOString().slice(0, 10),
+        startDate: studioDate(from),
+        endDate: studioDate(to),
       },
     ]
 

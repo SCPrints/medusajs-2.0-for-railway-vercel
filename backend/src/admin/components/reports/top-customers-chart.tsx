@@ -58,8 +58,11 @@ regionId,
 
 
   const sharePct = data ? (data.summary.top10_revenue_share * 100).toFixed(1) : "0.0"
-  const concentrationBand =
-    data && data.summary.top10_revenue_share > 0.6
+  // Ten customers are always 100% of a shop with ten customers.
+  const enoughCustomers = (data?.summary.total_distinct_customers ?? 0) >= 20
+  const concentrationBand = !enoughCustomers
+    ? "low"
+    : data && data.summary.top10_revenue_share > 0.6
       ? "high"
       : data && data.summary.top10_revenue_share > 0.4
         ? "moderate"
@@ -74,7 +77,7 @@ regionId,
   return (
     <ReportCard
       title="Top customers"
-      caption="Top 20 by revenue in period. The concentration figure (top 10 share) flags revenue fragility — above 60% means losing one or two customers would hurt."
+      caption="Top 20 by revenue in period. The concentration figure (top 10 share) flags revenue fragility — above 60% means losing one or two customers would hurt. Only flagged once there are 20+ customers."
       help={{
         title: "Top customers",
         body: "The 20 customers who contributed the most revenue in the window, plus a 'top-10 concentration' figure that tells you how much of total revenue those few accounts represent.",
@@ -116,9 +119,11 @@ regionId,
             <Text className="text-2xl font-semibold tabular-nums">
               {sharePct}%
             </Text>
-            <Text size="xsmall" style={{ color: bandColor }} className="capitalize">
-              {concentrationBand} concentration
-            </Text>
+            {enoughCustomers ? (
+              <Text size="xsmall" style={{ color: bandColor }} className="capitalize">
+                {concentrationBand} concentration
+              </Text>
+            ) : null}
           </div>
         </div>
         <div className="px-3 py-2 rounded-md bg-ui-bg-subtle/50">

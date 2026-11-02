@@ -162,7 +162,7 @@ regionId,
   return (
     <ReportCard
       title="Decoration mix"
-      caption="Revenue and unit-volume share by method. Compare side-by-side: a method that's a small revenue slice but a big unit slice is your low-margin bulk work; the inverse is your premium offering."
+      caption="Revenue and unit-volume share by method, with fee lines and quoted garments with no recorded method shown separately. Compare side-by-side: a method that's a small revenue slice but a big unit slice is your low-margin bulk work; the inverse is your premium offering."
       help={{
         title: "Decoration mix",
         body: "Two side-by-side donuts: how revenue splits across decoration methods, and how units split. The mismatch between the two is the most useful read.",

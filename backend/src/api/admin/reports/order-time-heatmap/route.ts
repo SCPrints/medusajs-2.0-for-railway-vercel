@@ -1,8 +1,10 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { studioHourAndDay } from "../../../../lib/business-days"
 import {
   inRange,
+  isCheckoutOrder,
   loadOrdersOr500,
   matchesRegion,
   parseDateRange,
@@ -15,15 +17,9 @@ import {
  * Weekday × hour matrix of when customers actually place orders.
  * Drives staffing decisions and "best time to send email/social".
  *
- * Australia/Sydney is the default storefront timezone — the route
- * returns timestamps as UTC AND converted to Sydney's offset so the
- * frontend can render in either. Sydney shifts between AEST (UTC+10)
- * and AEDT (UTC+11) for daylight savings; we approximate with AEST
- * year-round for simplicity (the histogram nature absorbs the 1-hour
- * cyclical shift).
+ * Checkout orders only: staff converting a quote isn't a customer placing an
+ * order. Hours are Sydney time, daylight saving included.
  */
-const SYDNEY_OFFSET_HOURS = 10
-
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
@@ -43,14 +39,11 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   let total = 0
   for (const o of orders) {
     if (!matchesRegion(o, regionFilter)) continue
-    if (o?.status === "canceled") continue
+    if (o?.status === "canceled" || !isCheckoutOrder(o)) continue
     if (!inRange(o?.created_at, from, to)) continue
     const t = Date.parse(o?.created_at ?? "")
     if (!Number.isFinite(t)) continue
-    const sydMs = t + SYDNEY_OFFSET_HOURS * 3_600_000
-    const d = new Date(sydMs)
-    const dow = d.getUTCDay()
-    const hour = d.getUTCHours()
+    const { hour, weekday: dow } = studioHourAndDay(new Date(t))
     if (dow >= 0 && dow < 7 && hour >= 0 && hour < 24) {
       matrix[dow][hour] += 1
       total += 1

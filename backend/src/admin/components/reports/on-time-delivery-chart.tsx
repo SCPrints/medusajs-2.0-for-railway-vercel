@@ -118,11 +118,11 @@ export const OnTimeDeliveryChart = ({
       caption={
         data
           ? `${data.evaluated_count} orders evaluated · ${data.late_count} late · ${data.no_due_date_count} had no due date set`
-          : "% of shipped orders delivered on or before their production due date."
+          : "% of orders that left on or before their production due date."
       }
       help={{
         title: "On-time delivery rate",
-        body: "The percentage of shipped orders delivered on or before their production_due_date. Only orders that have both a production_due_date set AND a 'shipped' entry in their stage history are evaluated. Orders shipped in the selected window but missing a due date are counted separately.",
+        body: "The percentage of orders that left on or before their production_due_date (any time on the due day counts). Measured at shipped, or at delivered if shipped was skipped. Only orders with a due date are evaluated. Orders shipped in the selected window but missing a due date are counted separately.",
         bullets: [
           "Rate <90%: compare against the Capacity Forecast — the pipeline may be overloaded.",
           "Rush vs standard gap >15%: check whether the rush SLA is realistic for your team.",

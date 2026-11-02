@@ -323,7 +323,7 @@ export const AlertsManager = () => {
       ) : alerts.length === 0 ? (
         <Text size="xsmall" className="text-ui-fg-muted">
           No alerts configured. Add one to get an email when SLA breach %
-          spikes, dead-stock units climb, or capacity goes red.
+          spikes or capacity goes red.
         </Text>
       ) : (
         <div className="overflow-auto">

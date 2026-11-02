@@ -59,10 +59,10 @@ export const OrderTimeHeatmapChart = ({
   return (
     <ReportCard
       title="Order placement heatmap"
-      caption="When customers actually place orders, by weekday and hour. Drives staffing decisions and best time to send marketing."
+      caption="Checkout orders only, because quote orders are entered by staff. When customers place orders, by weekday and hour. Drives staffing decisions and best time to send marketing."
       help={{
         title: "Order placement heatmap",
-        body: "When customers actually click 'Place order', by weekday and hour. Drives two decisions: when to staff for support coverage, and when to send marketing.",
+        body: "Checkout orders only, because quote orders are entered by staff. When customers click 'Place order', by weekday and hour (Sydney time). Drives two decisions: when to staff for support coverage, and when to send marketing.",
         bullets: [
           "The single brightest cell is your peak hour — schedule a customer-service person online then, and time email sends to land 1–2 hours before.",
           "Lots of orders 9pm–midnight typically means hobby/team buyers placing orders after work; mornings skew more business/wholesale.",

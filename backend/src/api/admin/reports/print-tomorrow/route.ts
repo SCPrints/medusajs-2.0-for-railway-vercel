@@ -137,7 +137,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // Group by primary decoration method (first one found)
   const groups = new Map<DecorationMethod, Row[]>()
   for (const r of open) {
-    const primary = r.methods_summary[0] ?? "blank"
+    const primary = r.methods_summary.find((m) => m !== "service") ?? "blank"
     const arr = groups.get(primary) ?? []
     arr.push(r)
     groups.set(primary, arr)

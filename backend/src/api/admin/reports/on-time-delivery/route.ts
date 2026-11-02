@@ -1,6 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
+import { studioDate } from "../../../../lib/business-days"
 import {
   buildWeekBuckets,
   inRange,
@@ -10,14 +11,15 @@ import {
   matchesRegion,
   parseDateRange,
   parseRegionFilter,
+  shippedAt,
 } from "../../../../lib/reports/orders"
 
 /**
  * GET /admin/reports/on-time-delivery
  *
- * Percentage of shipped orders delivered on or before their
- * production_due_date. Only orders with both a due date set AND a
- * "shipped" entry in their stage history are evaluated. Orders without
+ * Percentage of orders that left on or before their production_due_date.
+ * Only orders with a due date AND a "shipped" (or, if skipped, "delivered")
+ * entry in their stage history are evaluated. Orders without
  * a due date are counted separately so the caller can surface the
  * data-quality gap.
  *
@@ -50,26 +52,9 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     if (isNotProceeding(order)) continue
 
     const meta = (order.metadata ?? {}) as Record<string, unknown>
-    const rawHistory = meta.production_stage_history
-    if (!Array.isArray(rawHistory) || rawHistory.length === 0) continue
-
-    const entries = rawHistory
-      .filter(
-        (e: any) =>
-          e &&
-          typeof e === "object" &&
-          typeof e.stage === "string" &&
-          typeof e.changed_at === "string" &&
-          Number.isFinite(Date.parse(e.changed_at))
-      )
-      .sort((a: any, b: any) => Date.parse(a.changed_at) - Date.parse(b.changed_at))
-
-    // First "shipped" entry in the sorted history
-    const shippedEntry = entries.find((e: any) => e.stage === "shipped")
-    if (!shippedEntry) continue
-
-    const shippedAt = shippedEntry.changed_at as string
-    if (!inRange(shippedAt, from, to)) continue
+    // Jobs marked delivered without passing through shipped count at delivery.
+    const shipped = shippedAt(order)
+    if (!shipped || !inRange(shipped, from, to)) continue
 
     // production_due_date must be a valid date string
     const rawDue = meta.production_due_date
@@ -78,7 +63,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       continue
     }
 
-    const onTime = Date.parse(shippedAt) <= Date.parse(rawDue)
+    // A due date is a whole day in the studio, so anything that day is on time.
+    const onTime = studioDate(new Date(shipped)) <= rawDue.slice(0, 10)
     if (onTime) {
       on_time_count++
     } else {
@@ -86,7 +72,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     }
 
     // Trend bucket (keyed by ship date)
-    const trendIdx = findBucket(shippedAt)
+    const trendIdx = findBucket(shipped)
     if (trendIdx >= 0) {
       if (onTime) trendBuckets[trendIdx].on_time++
       else trendBuckets[trendIdx].late++

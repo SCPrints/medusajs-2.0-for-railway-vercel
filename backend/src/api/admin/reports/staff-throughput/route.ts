@@ -47,7 +47,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       const stage = (entry as any).stage
 
       if (typeof changedAt !== "string" || !inRange(changedAt, from, to)) continue
-      if (typeof changedBy !== "string" || changedBy.length === 0) continue
+      // Staff are `user_…` ids; "system" and customer names aren't throughput.
+      if (typeof changedBy !== "string" || !changedBy.startsWith("user_")) continue
       // Only staff-driven moves count as throughput; automation, the customer
       // approval link and system stamps carry a non-staff source (review 3-9).
       const source = (entry as any).source

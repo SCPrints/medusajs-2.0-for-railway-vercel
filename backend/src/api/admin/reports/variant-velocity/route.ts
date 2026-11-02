@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 
 import {
+  isCatalogGarmentLine,
   loadOrdersOr500,
   matchesRegion,
   parseRegionFilter,
@@ -10,11 +11,9 @@ import {
 /**
  * GET /admin/reports/variant-velocity
  *
- * For each managed-inventory variant, units sold per week over the
+ * For each managed-inventory garment variant, units sold per week over the
  * last 12 ISO-week buckets, plus a momentum score = recent half /
- * older half. Adjacent to the aging-inventory report but
- * forward-looking — spots SKUs going hot vs going cold instead of
- * dead stock.
+ * older half. Spots SKUs going hot vs going cold.
  *
  * Variants with no sales in the 12-week window are excluded.
  */
@@ -65,8 +64,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
     const idx = findBucket(created)
     if (idx < 0) continue
     for (const it of (o.items ?? []) as any[]) {
-      const vid = it?.variant_id
-      if (typeof vid !== "string") continue
+      if (!isCatalogGarmentLine(it)) continue
+      const vid = it.variant_id
       const qty = Number(it?.quantity ?? 0)
       if (!Number.isFinite(qty)) continue
       const stat = byVariant.get(vid) ?? {
@@ -114,6 +113,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
             reserved += Number(lvl?.reserved_quantity ?? 0)
           }
         }
+        if (!v.manage_inventory) continue
         info.set(v.id, {
           title: typeof v.title === "string" ? v.title : "(no title)",
           product_title: v?.product?.title ?? "(unknown product)",
@@ -147,7 +147,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const half = Math.floor(WEEKS / 2)
   for (const stat of byVariant.values()) {
     const total = stat.weekly.reduce((s, n) => s + n, 0)
-    if (total === 0) continue
+    if (total === 0 || !info.has(stat.variant_id)) continue
     const recentHalf = stat.weekly
       .slice(-half)
       .reduce((s, n) => s + n, 0)
