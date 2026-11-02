@@ -1,4 +1,4 @@
-import { enforcesScreenMinimum, overStitchCapAction, readDestination, submitLabels } from "./mode"
+import { enforcesScreenMinimum, overStitchCapAction, readDestination, savesDesignOnly, submitLabels } from "./mode"
 
 const read = (qs: string) => readDestination(new URLSearchParams(qs))
 
@@ -47,6 +47,18 @@ describe("rules", () => {
     expect(overStitchCapAction(pos, { editingCart: false })).toBe("use_quote")
     expect(overStitchCapAction(shop, { editingCart: true })).toBe("cannot_edit")
     expect(overStitchCapAction(shop, { editingCart: false })).toBe("request_quote")
+  })
+
+  it("only staff-priced quote groups save the design without quantities", () => {
+    const designOnly = (qs: string) => savesDesignOnly(read(qs))
+    expect(designOnly("quote_id=q&qsig=s&group=g_abc")).toBe(true)
+    expect(designOnly("quote_id=q&qsig=s&group=g_abc~row_1")).toBe(true)
+    expect(designOnly("quote_id=q&qsig=s&group=gs_abc")).toBe(true)
+    expect(designOnly("quote_id=q&qsig=s&group=qg_abc")).toBe(false)
+    expect(designOnly("quote_id=q&qsig=s")).toBe(false)
+    expect(designOnly("pos_session=p&group=g_abc")).toBe(false)
+    const none = { editingCartLine: false, needsQuote: false }
+    expect(submitLabels(read("quote_id=q&qsig=s&group=g_abc"), none).label).toBe("Save mockup to job")
   })
 
   it("button labels", () => {

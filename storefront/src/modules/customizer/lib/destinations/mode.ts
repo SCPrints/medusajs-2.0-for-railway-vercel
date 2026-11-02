@@ -46,6 +46,16 @@ export function readDestination(params: Params): StudioDestination {
 export const enforcesScreenMinimum = (d: StudioDestination) => d.kind !== "quote"
 
 /**
+ * Editing a design on a staff-priced quote group (`g_…` Job pricer, `gs_…`
+ * catalog line; `qg_…` groups are Studio-built and own their lines). The job
+ * owns quantities and prices and the backend only attaches the artwork, so
+ * sizes and prices here would change nothing (STAFF_PRICED_GROUP_PREFIX,
+ * isAttachOnlyLine in backend lib/quote-design-lines.ts).
+ */
+export const savesDesignOnly = (d: StudioDestination) =>
+  d.kind === "quote" && /^gs?_/.test(d.groupId ?? "")
+
+/**
  * Embroidery over the auto-priced stitch cap prices at $0, so it can't go to
  * a cart or a sale.
  *   allow          quote: staff price it on the quote
@@ -67,6 +77,7 @@ export function submitLabels(
   d: StudioDestination,
   state: { editingCartLine: boolean; needsQuote: boolean }
 ): { label?: string; busy?: string } {
+  if (savesDesignOnly(d)) return { label: "Save mockup to job", busy: "Saving mockup…" }
   if (d.kind === "quote") return { label: "Add design to quote", busy: "Saving to quote…" }
   if (d.kind === "pos") return { label: "Add to sale", busy: "Adding…" }
   if (state.editingCartLine) return { label: "Update cart", busy: "Updating..." }

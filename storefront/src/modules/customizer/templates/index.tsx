@@ -66,6 +66,7 @@ import {
   enforcesScreenMinimum,
   overStitchCapAction,
   readDestination,
+  savesDesignOnly,
   submitLabels,
 } from "@modules/customizer/lib/destinations/mode"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
@@ -803,6 +804,7 @@ export default function CustomizerTemplate({
   const isPOSMode = destination.kind === "pos"
   const posSessionIdFromUrl = destination.kind === "pos" ? destination.sessionId : null
   const isQuoteMode = destination.kind === "quote"
+  const designOnly = savesDesignOnly(destination)
   const quoteIdFromUrl = destination.kind === "quote" ? destination.quoteId : null
   const quoteSigFromUrl = destination.kind === "quote" ? destination.qsig : null
   const quoteGroupFromUrl = destination.kind === "quote" ? destination.groupId : null
@@ -4440,7 +4442,7 @@ export default function CustomizerTemplate({
         )
         return
       }
-    } else if (!totalQuantity) {
+    } else if (!totalQuantity && !designOnly) {
       setUploadError(
         bulkCells
           ? "Enter at least one quantity in the bulk grid."
@@ -5089,7 +5091,8 @@ export default function CustomizerTemplate({
             decoratedUnitDollars: Number((pricing as any)?.discountedUnitPriceCents),
             backendUrl: process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL,
             publishableKey: process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
-            cells: resolvedQuantities,
+            // The route needs one line; for a design-only save it reads no quantity from it.
+            cells: designOnly ? [{ variant: selectedVariant, size: "", quantity: 1 }] : resolvedQuantities,
             metadataBase,
             hostedByDataUrl: dataUrlToHostedUrl,
             product: selectedProduct,
@@ -6522,13 +6525,21 @@ export default function CustomizerTemplate({
           {isQuoteMode ? (
             <div className="space-y-2 rounded-xl border-2 border-violet-500 bg-violet-50 p-3 text-violet-900 shadow-[0_0_0_3px_rgba(139,92,246,0.18)]">
               <p className="text-sm font-semibold">🎨 Designing for a quote</p>
-              <p className="text-xs rounded-md bg-violet-100 px-2 py-1.5 ring-1 ring-violet-200">
-                Set your print locations and artwork, choose sizes, then tap{" "}
-                <span className="font-semibold">Add design to quote</span>{" "}
-                below. This builds a mockup and saves it to the quote — the
-                customer will see it to approve. Close this window when you're
-                done.
-              </p>
+              {designOnly ? (
+                <p className="text-xs rounded-md bg-violet-100 px-2 py-1.5 ring-1 ring-violet-200">
+                  Move the artwork, then tap{" "}
+                  <span className="font-semibold">Save mockup to job</span>{" "}
+                  below. Quantities and prices stay as they are on the job.
+                </p>
+              ) : (
+                <p className="text-xs rounded-md bg-violet-100 px-2 py-1.5 ring-1 ring-violet-200">
+                  Set your print locations and artwork, choose sizes, then tap{" "}
+                  <span className="font-semibold">Add design to quote</span>{" "}
+                  below. This builds a mockup and saves it to the quote — the
+                  customer will see it to approve. Close this window when you're
+                  done.
+                </p>
+              )}
             </div>
           ) : null}
 
@@ -7428,6 +7439,7 @@ export default function CustomizerTemplate({
                 allowedPrintSizesBySide={allowedSizesBySide}
                 hidePrintSizeSelector
                 hideHeader
+                designOnly={designOnly}
                 primaryCtaLabel={submitCta.label}
                 primaryCtaLoadingLabel={submitCta.busy}
                 aggregatedCartQuantity={aggregatedCartQuantity}

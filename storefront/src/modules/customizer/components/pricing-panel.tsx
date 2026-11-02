@@ -72,6 +72,8 @@ type PricingPanelProps = {
   hidePrintSizeSelector?: boolean
   /** Hide the panel header (when caller renders its own step heading). */
   hideHeader?: boolean
+  /** The job owns quantities and prices: show only the save button (savesDesignOnly). */
+  designOnly?: boolean
   /** Override the primary CTA label (e.g. "Update cart" in edit-from-cart mode). */
   primaryCtaLabel?: string
   /** Override the busy/loading CTA label. */
@@ -163,6 +165,7 @@ function PricingPanel({
   allowedPrintSizesBySide,
   hidePrintSizeSelector = false,
   hideHeader = false,
+  designOnly = false,
   primaryCtaLabel,
   primaryCtaLoadingLabel,
   onSaveDesign,
@@ -235,6 +238,26 @@ function PricingPanel({
       </select>
     </div>
   )
+
+  if (designOnly) {
+    return (
+      <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-3">
+        <p className="text-xs text-ui-fg-subtle">
+          This only saves the artwork and mockup. Quantities, sizes and prices stay as they are on the job.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            void onAddToCart()
+          }}
+          disabled={isSubmitting}
+          className="w-full rounded-xl bg-ui-fg-base px-4 py-3.5 text-base font-semibold text-ui-bg-base shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSubmitting ? ctaLoadingLabel : ctaLabel}
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3 rounded-xl border border-ui-border-base bg-ui-bg-base p-3">
