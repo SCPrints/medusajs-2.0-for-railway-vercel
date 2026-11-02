@@ -76,6 +76,9 @@ const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
   const description = product.description?.trim() ?? ""
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(description)
   const tagLabels = getStoreProductTagValues(product)
+  const rawBrand = (product as any).brand
+  const brand: { handle?: string | null; name?: string | null } | undefined =
+    Array.isArray(rawBrand) ? rawBrand[0] : rawBrand
 
   return (
     <header id="product-info" className="flex flex-col gap-y-3">
@@ -96,6 +99,18 @@ const ProductInfo = ({ product, hideTitle = false }: ProductInfoProps) => {
           {product.title}
         </Heading>
       )}
+
+      {/* Every product links its brand page so searches like "shaka wear" land
+          there instead of on the home page. */}
+      {brand?.handle && brand.name ? (
+        <LocalizedClientLink
+          href={`/brands/${brand.handle}`}
+          className="inline-flex min-h-11 items-center text-sm font-semibold !text-ui-fg-base underline underline-offset-4 hover:!text-brand"
+          data-testid="product-brand-link"
+        >
+          Shop all {brand.name} →
+        </LocalizedClientLink>
+      ) : null}
 
       <ProductTags labels={tagLabels} />
 

@@ -92,6 +92,11 @@ export default async function ProductPage({ params }: Props) {
   }
 
   const { cheapestPrice } = getProductPrice({ product: pricedProduct })
+  // The garment's maker (Shaka Wear, AS Colour…), not us — claiming every
+  // product as an SC PRINTS brand hid them from brand-name searches.
+  const rawBrand = (pricedProduct as any).brand
+  const brandName: string =
+    (Array.isArray(rawBrand) ? rawBrand[0] : rawBrand)?.name ?? SEO.siteName
   const productStructuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -101,7 +106,7 @@ export default async function ProductPage({ params }: Props) {
     sku: pricedProduct.variants?.[0]?.sku ?? undefined,
     brand: {
       "@type": "Brand",
-      name: SEO.siteName,
+      name: brandName,
     },
     offers: cheapestPrice
       ? {

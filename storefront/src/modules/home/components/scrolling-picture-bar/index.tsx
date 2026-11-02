@@ -18,59 +18,63 @@ type BrandImageLink = {
  * banner (e.g. Ramo, Biz Care, Biz Corporates) are surfaced on the `/brands`
  * index + mega-menu instead. To add a brand here: drop a wide banner in the
  * brands folder and point `imageSrc` at it.
+ *
+ * Links go to the `/brands/<handle>` landing pages, not `/store?brand=`:
+ * robots.ts blocks `?brand=` and /store canonicalises it away, so those links
+ * gave the brand pages no search credit (Shaka Wear ranked via the home page).
  */
 const brandImageLinks: BrandImageLink[] = [
   {
     name: "AS Colour",
-    href: "/store?brand=AS%20Colour",
+    href: "/brands/as-colour",
     imageSrc: "/images/brands/as-colour-banner.png",
     imageAlt: "AS Colour apparel range",
   },
   {
     name: "Gildan",
-    href: "/store?brand=Gildan",
+    href: "/brands/gildan",
     imageSrc: "/images/brands/gildan-banner.jpg",
     imageAlt: "Gildan blank apparel range",
   },
   {
     name: "Comfort Colors",
-    href: "/store?brand=Comfort%20Colors",
+    href: "/brands/comfort-colors",
     imageSrc: "/images/brands/comfort-colors-banner.jpg",
     imageAlt: "Comfort Colors garment-dyed apparel",
   },
   {
     name: "American Apparel",
-    href: "/store?brand=American%20Apparel",
+    href: "/brands/american-apparel",
     imageSrc: "/images/brands/american-apparel-banner.jpg",
     imageAlt: "American Apparel premium basics",
   },
   {
     name: "Shaka Wear",
-    href: "/store?brand=Shaka%20Wear",
+    href: "/brands/shaka-wear",
     imageSrc: "/images/brands/shaka-wear-hero-poster.jpg",
     imageAlt: "Shaka Wear heavyweight streetwear",
   },
   {
     name: "Aussie Pacific",
-    href: "/store?brand=Aussie%20Pacific",
+    href: "/brands/aussie-pacific",
     imageSrc: "/images/brands/aussie-pacific-banner.png",
     imageAlt: "Aussie Pacific workwear and casualwear",
   },
   {
     name: "Biz Collection",
-    href: "/store?brand=Biz%20Collection",
+    href: "/brands/biz-collection",
     imageSrc: "/images/brands/biz-collection-banner.png",
     imageAlt: "Biz Collection uniforms and apparel",
   },
   {
     name: "Syzmik",
-    href: "/store?brand=Syzmik",
+    href: "/brands/syzmik",
     imageSrc: "/images/brands/syzmik-banner.png",
     imageAlt: "Syzmik workwear collection",
   },
   {
     name: "DNC Workwear",
-    href: "/dnc",
+    href: "/brands/dnc-workwear",
     imageSrc: "/images/brands/dnc-banner.png",
     imageAlt: "DNC Workwear segmented hi-vis and workwear range",
   },
