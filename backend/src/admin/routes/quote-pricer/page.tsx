@@ -134,6 +134,8 @@ type JobGroup = {
   mockupUrl?: string | null
   /** Supplied groups only: a look-alike catalogue garment to design the Studio mockup on. Never priced. */
   mockupProduct?: ProductLite | null
+  /** Supplied groups only: poly / fleece, adds the heavy-garment screen surcharge. */
+  heavy?: boolean
 }
 
 /** The garment the Studio opens on: the priced product, or a supplied group's stand-in. */
@@ -237,7 +239,7 @@ const CHANNEL_LABELS: Record<"auto" | PrintChannel, string> = {
   press_only: "Press only",
 }
 const OUR_CHANNELS: Array<"auto" | PrintChannel> = ["auto", "dtf", "supacolour"]
-const SUPPLIED_CHANNELS: Array<"auto" | PrintChannel> = ["byo", "promo", "press_only"]
+const SUPPLIED_CHANNELS: Array<"auto" | PrintChannel> = ["byo", "supacolour", "promo", "press_only"]
 
 const SETUP_HANDLES: Record<Exclude<SetupKey, "embroidery_setup">, string> = {
   screen_setup: "screen-printing-setup-fee",
@@ -937,6 +939,8 @@ export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: stri
         title: g.supplied ? "Customer-supplied garments" : g.product?.title ?? "Garment",
         rows: override?.groupId === g.id ? specRows(g, override.garmentTierQty, override) : specRows(g, override?.garmentTierQty ?? jobQuantity),
         positions: g.positions.map((p) => toPositionSpec(p, g.supplied)),
+        supplied: g.supplied,
+        heavyGarment: g.supplied ? g.heavy === true : undefined,
         unitSellOverrideMajor: g.unitOverride?.trim() ? Number(g.unitOverride) : null,
       })),
       uvdtf: Number(state.uvMetres) > 0 ? { metres: Number(state.uvMetres), reorder: state.uvReorder } : undefined,
@@ -1453,6 +1457,9 @@ export function QuotePricerPage({ targetQuoteId, onDone }: { targetQuoteId: stri
                 {g.supplied ? (
                   <div className="flex items-center gap-2 min-w-0">
                     <Badge size="2xsmall" color="grey">Customer-supplied garments</Badge>
+                    {g.positions.some((p) => p.method === "screen") ? (
+                      <label className="flex items-center gap-1 text-xs whitespace-nowrap" title="Polyester, fleece or hoodies: +$1 per screen print"><Checkbox checked={g.heavy === true} onCheckedChange={(v) => patchGroup(g.id, { heavy: v === true })} /> heavy / poly</label>
+                    ) : null}
                     {g.mockupProduct ? (
                       <span className="flex items-center gap-1 min-w-0" title="Stand-in garment for the Studio mockup only — not priced, not on the quote">
                         {g.mockupProduct.thumbnail ? <img src={g.mockupProduct.thumbnail} alt="" className="w-6 h-6 rounded object-cover bg-ui-bg-base" /> : null}

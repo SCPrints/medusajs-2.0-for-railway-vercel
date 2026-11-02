@@ -98,7 +98,7 @@ describe("priceQuoteJob", () => {
 
   it("BYO adds the per-position handling fee; trade cards are ex GST + GST", () => {
     const byo = priceQuoteJob({ quantity: 20, printChannel: "byo", prints: [{ sizeId: "up_to_a3" }] }, null)
-    expect(byo.components[0].unitSellMajor).toBe(17.5)
+    expect(byo.components[0].unitSellMajor).toBe(16.25)
     const promo = priceQuoteJob({ quantity: 20, printChannel: "promo", prints: [{ sizeId: "up_to_a3" }] }, null)
     expect(promo.components[0].unitSellMajor).toBe(14.3)
     const press = priceQuoteJob({ quantity: 20, printChannel: "press_only", prints: [{ sizeId: "up_to_a3" }] }, null)

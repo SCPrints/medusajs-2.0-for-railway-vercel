@@ -1,4 +1,4 @@
-import { isDarkGarmentColourName, priceGroupedJob, type JobSpec, type ResolvedGarment } from "../quote-pricing"
+import { isDarkGarmentColourName, priceGroupedJob, type JobGroupSpec, type JobPositionSpec, type JobSpec, type ResolvedGarment } from "../quote-pricing"
 
 const garment = (over: Partial<ResolvedGarment> = {}): ResolvedGarment => ({
   title: "Tee",
@@ -112,13 +112,44 @@ describe("priceGroupedJob", () => {
     expect(r.totals.marginPct).toBeGreaterThan(20)
   })
 
+  describe("BYO handling on supplied screen + Supacolour (50 dark poly tees, chest + back, 2 designs)", () => {
+    const job = (positions: JobPositionSpec[], extra: Partial<JobGroupSpec> = {}) =>
+      priceGroupedJob({
+        designs: [{ id: "A", label: "A" }, { id: "B", label: "B" }],
+        groups: [{ id: "g", title: "Customer-supplied garments", supplied: true, rows: [{ id: "r", label: "Black", quantity: 50, garment: null, darkGarment: true }], positions, ...extra }],
+      })
+
+    it("screen: base + 2 colours per position, heavy, 6 screens", () => {
+      const p = job(
+        [{ method: "screen", colours: 2, designId: "A" }, { method: "screen", colours: 2, designId: "B" }],
+        { heavyGarment: true }
+      )
+      expect(p.groups[0].unitSellMajor).toBe(20.5)
+      expect(p.totals.sellIncMajor).toBe(1619)
+    })
+
+    it("Supacolour: A6 chest + A4 or A3 back, 2 setups", () => {
+      const chest: JobPositionSpec = { method: "print", channel: "supacolour", sizeId: "up_to_a6", designId: "A" }
+      expect(job([chest, { method: "print", channel: "supacolour", sizeId: "up_to_a4", designId: "B" }]).totals.sellIncMajor).toBe(1488)
+      expect(job([chest, { method: "print", channel: "supacolour", sizeId: "up_to_a3", designId: "B" }]).totals.sellIncMajor).toBe(1713)
+    })
+
+    it("our own garments carry no handling", () => {
+      const p = priceGroupedJob({
+        designs: [{ id: "A", label: "A" }],
+        groups: [{ id: "g", title: "Tee", rows: [{ id: "r", label: "Black", quantity: 50, garment: null, darkGarment: true }], positions: [{ method: "print", channel: "supacolour", sizeId: "up_to_a4", designId: "A" }] }],
+      })
+      expect(p.groups[0].unitSellMajor).toBe(13.5)
+    })
+  })
+
   it("prices supplied garments on the trade/BYO cards with no garment component", () => {
     const byo = priceGroupedJob({
       designs: [{ id: "A", label: "A" }],
       groups: [{ id: "g", title: "Customer-supplied garments", rows: [{ id: "r", label: "Dark garments", quantity: 20, garment: null, darkGarment: true }], positions: [{ method: "print", channel: "byo", sizeId: "up_to_a3", designId: "A" }] }],
     })
     expect(byo.groups[0].rows[0].components).toHaveLength(1)
-    expect(byo.groups[0].unitSellMajor).toBe(17.5)
+    expect(byo.groups[0].unitSellMajor).toBe(16.25)
     expect(byo.extras).toHaveLength(0)
   })
 })

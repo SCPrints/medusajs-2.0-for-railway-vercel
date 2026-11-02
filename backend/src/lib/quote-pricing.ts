@@ -229,8 +229,8 @@ export const RUSH_FEES = {
 export const SCREEN_RUSH_RATE = 0.3
 export type RushTier = "priority" | "express"
 
-/** "BYO Pricing" — handling fee per PRINT POSITION on customer-supplied garments, inc GST (Sean 2026-08-18). */
-export const BYO_HANDLING_PER_POSITION_INC = 3
+/** "BYO Pricing" — handling fee per PRINT POSITION on customer-supplied garments (DTF, Supacolour, screen), inc GST (Sean 2026-11-02, was $3). */
+export const BYO_HANDLING_PER_POSITION_INC = 1.75
 
 /** "Promo Pricing" — trade DTF card, EX GST per print position, their garments. */
 const PROMO_DTF_EX: Record<ScpPrintSizeId, readonly [number, number, number, number, number]> = {
@@ -616,6 +616,10 @@ export type JobGroupSpec = {
   title: string
   rows: JobRowSpec[]
   positions: JobPositionSpec[]
+  /** Customer-supplied garments: Supacolour + screen positions carry the BYO handling fee (DTF gets it via the byo channel). */
+  supplied?: boolean
+  /** Supplied groups have no product to read screen_heavy from: staff tick it for poly / fleece. */
+  heavyGarment?: boolean
   /**
    * Negotiated all-in unit sell (garment + decoration, inc GST) for every
    * row of the group — replaces the computed unit; cost is unchanged so the
@@ -748,6 +752,8 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
     const groupQty = g.rows.reduce((s, r) => s + rowQty(r), 0)
     const tierQty = Math.max(1, groupQty)
     const hasScreen = g.positions.some((p) => p.method === "screen")
+    const byoHandling = g.supplied ? BYO_HANDLING_PER_POSITION_INC : 0
+    const byoTag = g.supplied ? " + BYO handling" : ""
     if (hasScreen && groupQty > 0 && groupQty < SCREEN_MIN_QUANTITY) warnings.push(`${g.title}: screen printing minimum is ${SCREEN_MIN_QUANTITY} — ${groupQty} prices at the 25–49 band.`)
     if (hasScreen && groupQty > SCREEN_MAX_QUANTITY) warnings.push(`${g.title}: over ${SCREEN_MAX_QUANTITY} screen prints — get a DSP quote.`)
 
@@ -791,7 +797,7 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
             supacolourDesigns.add(p.designId)
             noteDesign(p.designId, "supacolour", g.title)
             components.push(
-              component({ key: `pos-${i}`, label: `Supacolour transfer ${sizeLabel(p.sizeId)} (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: supacolourUnitMajorForTier(p.sizeId, printTierIndex) ?? 0, unitCostExMajor: supacolourBlockerCostExMajor(p.sizeId, printTierIndex) })
+              component({ key: `pos-${i}`, label: `Supacolour transfer ${sizeLabel(p.sizeId)}${byoTag} (${pos}, ${tag})`, kind: "per_garment", quantity: qty, unitSellMajor: round2((supacolourUnitMajorForTier(p.sizeId, printTierIndex) ?? 0) + byoHandling), unitCostExMajor: supacolourBlockerCostExMajor(p.sizeId, printTierIndex) })
             )
             return
           }
@@ -819,7 +825,7 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
         }
 
         if (p.method === "screen") {
-          const heavy = garment?.screenHeavy ?? false
+          const heavy = garment?.screenHeavy ?? g.heavyGarment ?? false
           const dark = row.darkGarment === true
           const r = screenUnitMajor({ quantity: tierQty, colours: p.colours, darkGarment: dark, heavyGarment: heavy })
           screensByDesign.set(p.designId, Math.max(screensByDesign.get(p.designId) ?? 0, r.effectiveColours))
@@ -830,10 +836,10 @@ export function priceGroupedJob(job: JobSpec): JobPrice {
           components.push(
             component({
               key: `pos-${i}`,
-              label: `Screen print ${r.effectiveColours} colour${r.effectiveColours > 1 ? "s" : ""}${dark ? " incl. underbase" : ""}${heavy ? " + heavy garment" : ""} (${pos}, ${tag})`,
+              label: `Screen print ${r.effectiveColours} colour${r.effectiveColours > 1 ? "s" : ""}${dark ? " incl. underbase" : ""}${heavy ? " + heavy garment" : ""}${byoTag} (${pos}, ${tag})`,
               kind: "per_garment",
               quantity: qty,
-              unitSellMajor: r.unitMajor,
+              unitSellMajor: round2(r.unitMajor + byoHandling),
               unitCostExMajor: screenUnitCost,
             })
           )
