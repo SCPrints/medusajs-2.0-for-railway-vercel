@@ -7279,7 +7279,7 @@ export default function CustomizerTemplate({
               className="flex flex-col gap-3"
             >
               <div className={assemblyLayout ? "relative space-y-2 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm" : "space-y-2 rounded-xl border border-ui-fg-base bg-ui-bg-base p-3 shadow-sm"}>
-                <StepHeader num={stepNum(4)} assemblyNum={stepNum(4)} title="Quantity & checkout" done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
+                <StepHeader num={stepNum(4)} assemblyNum={stepNum(4)} title={designOnly ? "Save mockup" : "Quantity & checkout"} done={false} active={true} assemblyOpen={assemblyExpanded === 4} onToggle={() => setAssemblyExpanded(null)} help="Enter how many of each size you need. Bulk discounts apply automatically — the more you order, the lower the price per garment. Once you're happy, add to cart and complete checkout." />
                 {(() => {
                   const sideShortMap: Record<GarmentSide, string> = {
                     front: "Front",
@@ -7474,15 +7474,15 @@ export default function CustomizerTemplate({
           ) : assemblyLayout ? (
             <AssemblyCollapsedHeader
               assemblyNum={stepNum(4)}
-              title="Quantity & checkout"
-              status="Sizes, quantities & add to cart"
+              title={designOnly ? "Save mockup" : "Quantity & checkout"}
+              status={designOnly ? "Saves the artwork to the job" : "Sizes, quantities & add to cart"}
               onExpand={() => expandAssemblySection(4)}
             />
           ) : (
             <div ref={step4Ref}>
               <StepPreview
                 num={stepNum(4)}
-                title="Quantity & checkout"
+                title={designOnly ? "Save mockup" : "Quantity & checkout"}
                 hint="Set sizes, quantities and add to cart."
                 onClick={() => setPdpStep(4)}
                 isNext={pdpStep === 3}
