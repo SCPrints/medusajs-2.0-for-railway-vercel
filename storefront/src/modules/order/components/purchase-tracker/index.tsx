@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { HttpTypes } from "@medusajs/types"
 
 import { lineItemToItem, metaPurchaseEventId, trackPurchase } from "@lib/analytics"
+import { isInternalTraffic } from "@lib/internal-traffic"
 import { phCapture } from "@lib/posthog"
 
 /**
@@ -41,7 +42,7 @@ export const PurchaseTracker = ({ order }: { order: HttpTypes.StoreOrder }) => {
     } catch {
       // localStorage disabled — fall through; event_id dedup still protects us.
     }
-    if (!capiSent) {
+    if (!capiSent && !isInternalTraffic()) {
       try {
         window.localStorage.setItem(capiKey, String(Date.now()))
       } catch {

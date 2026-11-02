@@ -5,6 +5,7 @@ import { PostHogProvider as PHProvider } from "posthog-js/react"
 import { usePathname, useSearchParams } from "next/navigation"
 import { Suspense, useEffect } from "react"
 
+import { isInternalTraffic } from "@lib/internal-traffic"
 import { phCapturePageViewWhenReady } from "@lib/posthog"
 
 /**
@@ -24,7 +25,12 @@ const apiHost =
   process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com"
 
 const initPostHog = () => {
-  if (typeof window === "undefined" || !apiKey || (posthog as any).__loaded) {
+  if (
+    typeof window === "undefined" ||
+    !apiKey ||
+    (posthog as any).__loaded ||
+    isInternalTraffic()
+  ) {
     return
   }
   posthog.init(apiKey, {

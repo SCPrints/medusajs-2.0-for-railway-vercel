@@ -1,5 +1,7 @@
 import Script from "next/script"
 
+import { IS_INTERNAL_TRAFFIC_JS } from "@lib/internal-traffic"
+
 /**
  * Injects the GA4 base script + initial config into every page.
  * Renders nothing if NEXT_PUBLIC_GA_MEASUREMENT_ID isn't set, so dev
@@ -21,6 +23,7 @@ export const Ga4Script = () => {
       />
       <Script id="ga4-init" strategy="afterInteractive">
         {`
+          if (${IS_INTERNAL_TRAFFIC_JS}) window['ga-disable-${measurementId}'] = true;
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           window.gtag = gtag;

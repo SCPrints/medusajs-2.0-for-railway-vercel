@@ -1,5 +1,7 @@
 import Script from "next/script"
 
+import { IS_INTERNAL_TRAFFIC_JS } from "@lib/internal-traffic"
+
 /**
  * Injects the Meta (Facebook) Pixel base script + a single PageView.
  * Renders nothing if NEXT_PUBLIC_FB_PIXEL_ID isn't set, so dev/previews
@@ -23,6 +25,7 @@ export const MetaPixel = () => {
     <>
       <Script id="meta-pixel-init" strategy="afterInteractive">
         {`
+          if (!(${IS_INTERNAL_TRAFFIC_JS})) {
           !function(f,b,e,v,n,t,s)
           {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
           n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -33,6 +36,7 @@ export const MetaPixel = () => {
           'https://connect.facebook.net/en_US/fbevents.js');
           fbq('init', '${pixelId}');
           fbq('track', 'PageView');
+          }
         `}
       </Script>
       <noscript>
