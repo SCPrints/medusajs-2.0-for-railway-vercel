@@ -17,4 +17,8 @@ export const JBS_WEAR_EXCLUDE: string[] = [
   "6DNS7", // HV (D+N) Safety Vest Print Visitor
   "6HVS6", // HV Safety Vest Print Staff
   "9KPI", // Adjustable Sizing Knee Pad
+  // Colourways no longer on their product pages (checked 2026-11-03 against
+  // the colour labels on all 509 imported styles; removed from prod the same day).
+  "5AVL/BX", // Vinyl Apron, Black
+  "5ACBS/CC", // Cross Back Apron Strap, Red
 ]
