@@ -184,8 +184,7 @@ export const convertQuoteToOrder = async (
   // variant but a title + priced quantity. A draft order accepts variant-less
   // lines (the POS manual-discount line is exactly this shape), so carry them
   // onto the order instead of silently dropping billable amounts. The
-  // customer accept-link path can't do this (carts require variants) — that
-  // remains a documented limitation of the checkout flow.
+  // customer's accept link converts through here too, so it keeps them.
   const customAddable = lineItems.filter(
     (li) =>
       !addable.includes(li) &&

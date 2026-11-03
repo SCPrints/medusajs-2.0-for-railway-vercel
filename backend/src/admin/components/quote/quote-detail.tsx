@@ -600,12 +600,12 @@ export function LineItemsEditor({
                     ) : null}
                     {isCustom ? (
                       <span className="text-[11px] text-ui-fg-muted">
-                        No product — won't add to cart on acceptance
+                        No product — goes on the order as its own line at this price
                       </span>
                     ) : isWholeProduct ? (
                       <span className="text-[11px] text-ui-fg-muted">
-                        Size chosen at order time (a default size is added to the
-                        cart on acceptance)
+                        Size chosen at order time (goes on the order as "sizes to
+                        come" until you enter the sizes)
                       </span>
                     ) : hasVariant && !row.unit_price.trim() ? (
                       <span className="text-[11px] text-ui-tag-orange-text">
