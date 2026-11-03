@@ -1,7 +1,6 @@
 name: Site check
 
-# Daily, read-only checks of the live storefront, posted as one comment on the
-# open "Daily site check" issue (created if missing):
+# Daily, read-only checks of the live storefront, written to the run's summary page:
 #   crawl      every sitemap page + internal link (broken / 404 / slow pages)
 #   lighthouse mobile performance on key pages
 #   errors     last 24h of Vercel server errors + PostHog browser errors,
@@ -72,29 +71,16 @@ jobs:
     needs: [crawl, lighthouse, errors]
     if: always()
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           pattern: site-check-*
           merge-multiple: true
-      - name: Post to the "Daily site check" issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      # ponytail: issues are disabled on this public repo, so the report goes on
+      # the run's summary page (where the failure email's "View workflow run" lands).
+      - name: Write the report to the run summary
         run: |
-          n=$(gh issue list --state open --search 'in:title "Daily site check"' --json number -q '.[0].number')
-          if [ -z "$n" ]; then
-            n=$(gh issue create --title "Daily site check" \
-              --body "One comment per day from the Site check workflow: broken pages, performance, and the errors visitors hit. Close this issue to start a fresh one." \
-              | grep -oE '[0-9]+$')
-          fi
           { echo "# $(TZ=Australia/Sydney date +'%a %d %b %Y')"; echo
             for f in site-check-crawl.md site-check-lighthouse.md site-check-errors.md; do
-              [ -f "$f" ] && cat "$f" || echo "_${f%.md} did not finish — see the run._"; echo
-            done
-            echo "[Full run]($RUN_URL)"; } > body.md
-          head -c 60000 body.md > comment.md # GitHub's comment limit is 65,536
-          gh issue comment "$n" --body-file comment.md
+              [ -f "$f" ] && cat "$f" || echo "_${f%.md} did not finish — see the job logs._"; echo
+            done; } >> "$GITHUB_STEP_SUMMARY"
