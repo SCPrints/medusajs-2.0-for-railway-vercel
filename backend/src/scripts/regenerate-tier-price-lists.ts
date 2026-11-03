@@ -7,6 +7,7 @@ import {
   applyTierMultiplier,
   type Tier,
 } from "../lib/customer-tiers"
+import { planTierPriceSync, type ExistingTierPrice } from "../lib/tier-price-sync"
 
 /**
  * Regenerates the 8 tier PriceLists from canonical variant cost.
@@ -21,8 +22,8 @@ import {
  *      attribute to `customer.groups.id`).
  *   3. Walk every variant with `metadata.cost_price_ex_gst_minor` set.
  *      Compute `amount = round(cost_minor × tier.multiplier)`.
- *   4. Replace the PriceList's existing prices with the freshly computed set
- *      (remove old prices first, then addPriceListPrices in batches).
+ *   4. Diff the freshly computed set against the PriceList's current prices
+ *      and write only the adds / amount changes / removals, in batches.
  *
  * Requires `seed-customer-tiers` to have run first (creates the 8 groups).
  *
@@ -169,7 +170,7 @@ export default async function regenerateTierPriceLists({ container }: ExecArgs) 
 
     const { data: existingLists } = await query.graph({
       entity: "price_list",
-      fields: ["id", "title", "status", "type", "metadata", "prices.id"],
+      fields: ["id", "title", "status", "type", "metadata"],
       filters: { title } as any,
     })
     let priceList = (existingLists as any[])?.[0] ?? null
@@ -225,15 +226,21 @@ export default async function regenerateTierPriceLists({ container }: ExecArgs) 
       continue
     }
 
-    // 4) Replace prices: remove old, add new.
-    const oldPriceIds = ((priceList?.prices ?? []) as Array<{ id: string }>).map(
-      (p) => p.id
-    )
-    if (oldPriceIds.length) {
-      await pricingModuleService.removePrices(oldPriceIds)
+    // 4) Sync prices: write only what differs from the list's current prices
+    // (see tier-price-sync.ts for why a full replace is off the table).
+    const existing: ExistingTierPrice[] = []
+    for (let skip = 0; ; skip += 10_000) {
+      const { data: page } = await query.graph({
+        entity: "price",
+        fields: ["id", "price_set_id", "amount", "currency_code"],
+        filters: { price_list_id: priceList.id } as any,
+        pagination: { skip, take: 10_000 },
+      })
+      existing.push(...((page ?? []) as ExistingTierPrice[]))
+      if ((page?.length ?? 0) < 10_000) break
     }
 
-    const newPrices = allVariantPrices.map((vp) => ({
+    const wanted = allVariantPrices.map((vp) => ({
       price_set_id: vp.priceSetId,
       // Medusa v2 stores price amounts in MAJOR units (dollars).
       // applyTierMultiplier returns MINOR units (cents), so divide by 100 —
@@ -244,17 +251,26 @@ export default async function regenerateTierPriceLists({ container }: ExecArgs) 
       currency_code: currencyCode,
     }))
 
-    // Batch additions to keep transactions small.
+    const plan = planTierPriceSync(existing, wanted)
+
+    // Batch writes to keep transactions small.
     const BATCH = 500
-    for (let i = 0; i < newPrices.length; i += BATCH) {
-      const slice = newPrices.slice(i, i + BATCH)
+    for (let i = 0; i < plan.remove.length; i += BATCH) {
+      await pricingModuleService.removePrices(plan.remove.slice(i, i + BATCH))
+    }
+    for (let i = 0; i < plan.update.length; i += BATCH) {
+      await pricingModuleService.updatePriceListPrices([
+        { price_list_id: priceList.id, prices: plan.update.slice(i, i + BATCH) },
+      ])
+    }
+    for (let i = 0; i < plan.add.length; i += BATCH) {
       await pricingModuleService.addPriceListPrices([
-        { price_list_id: priceList.id, prices: slice },
+        { price_list_id: priceList.id, prices: plan.add.slice(i, i + BATCH) },
       ])
     }
 
     logger.info(
-      `[regenerate-tier-price-lists] "${title}" — replaced ${oldPriceIds.length} prices with ${newPrices.length} (multiplier=${tier.multiplier})`
+      `[regenerate-tier-price-lists] "${title}" — ${wanted.length} prices: ${plan.add.length} added, ${plan.update.length} updated, ${plan.remove.length} removed (multiplier=${tier.multiplier})`
     )
   }
 
