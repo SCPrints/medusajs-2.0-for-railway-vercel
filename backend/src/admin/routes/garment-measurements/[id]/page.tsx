@@ -1,5 +1,5 @@
 import { Badge, Button, Container, Heading, Select, Text } from "@medusajs/ui"
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
 
 import { GarmentPicture } from "../../../components/garment-measurements/garment-picture"
@@ -42,7 +42,7 @@ const GarmentMeasurementsPage = () => {
   const [data, setData] = useState<Data | null>(null)
   const [type, setType] = useState<GarmentType>("tee")
   const [error, setError] = useState<string | null>(null)
-  const [flow, setFlow] = useState<{ size: string; extras: boolean } | null>(null)
+  const [flow, setFlow] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -65,18 +65,17 @@ const GarmentMeasurementsPage = () => {
   if (flow)
     return (
       <MeasureFlow
-        key={`${flow.size}|${flow.extras}`}
+        key={flow}
         data={data}
         type={type}
-        size={flow.size}
-        extras={flow.extras}
+        size={flow}
         onSaved={load}
         onClose={() => setFlow(null)}
-        onNext={(size, extras) => setFlow({ size, extras })}
+        onNext={setFlow}
       />
     )
 
-  const required = GARMENTS[type].steps.filter((s) => !s.optional)
+  const required = GARMENTS[type].steps
   return (
     <Container className="flex flex-col gap-y-5 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -131,7 +130,7 @@ const GarmentMeasurementsPage = () => {
               <button
                 key={size}
                 type="button"
-                onClick={() => setFlow({ size, extras: false })}
+                onClick={() => setFlow(size)}
                 className="border-ui-border-base hover:bg-ui-bg-base-hover flex min-h-24 flex-col items-start gap-2 rounded-lg border p-3 text-left"
               >
                 <span className="text-2xl font-semibold">{size}</span>
@@ -155,14 +154,12 @@ function MeasureFlow(props: {
   data: Data
   type: GarmentType
   size: string
-  extras: boolean
   onSaved: () => Promise<void>
   onClose: () => void
-  onNext: (size: string, extras: boolean) => void
+  onNext: (size: string) => void
 }) {
-  const { data, type, size, extras, onSaved, onClose, onNext } = props
-  const steps = useMemo(() => GARMENTS[type].steps.filter((s) => !!s.optional === extras), [type, extras])
-  const hasExtras = GARMENTS[type].steps.some((s) => s.optional)
+  const { data, type, size, onSaved, onClose, onNext } = props
+  const steps = GARMENTS[type].steps
   const savedValue = (n: number) => {
     const r = steps[n] && data.rows.find((x) => x.size === size && x.key === steps[n].key)
     return r && !r.estimated ? String(r.value_cm) : ""
@@ -231,7 +228,7 @@ function MeasureFlow(props: {
     <Container className="mx-auto flex w-full max-w-xl flex-col gap-y-4 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <Heading level="h1">Size {size}{extras ? " extras" : ""}</Heading>
+          <Heading level="h1">Size {size}</Heading>
           <Text size="small" className="text-ui-fg-subtle">{data.product.title}</Text>
         </div>
         <Button variant="secondary" size="small" onClick={onClose}>All sizes</Button>
@@ -251,15 +248,10 @@ function MeasureFlow(props: {
 
       {done ? (
         <div className="flex flex-col gap-y-3 py-6 text-center">
-          <Heading level="h2">Size {size} {extras ? "extras " : ""}done</Heading>
+          <Heading level="h2">Size {size} done</Heading>
           <Text className="text-ui-fg-subtle">Saved as you went. Steps left blank can be done later.</Text>
-          {!extras && hasExtras && (
-            <Button size="large" variant="secondary" onClick={() => onNext(size, true)}>
-              Measure the extras (pocket, hood edge)
-            </Button>
-          )}
           {nextSize && (
-            <Button size="large" onClick={() => onNext(nextSize, false)}>Next size: {nextSize}</Button>
+            <Button size="large" onClick={() => onNext(nextSize)}>Next size: {nextSize}</Button>
           )}
           <Button size="large" variant="secondary" onClick={onClose}>Back to sizes</Button>
         </div>

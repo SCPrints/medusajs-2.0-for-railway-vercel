@@ -18,7 +18,7 @@ const HOODIE_DETAIL = [
   "M165,58 L125,150 M235,58 L275,150", // raglan seams
   "M30,200 L50,219 M370,200 L350,219", // cuff seams
   "M128,318 L272,318", // waistband seam
-  "M155,250 L245,250 L260,316 L140,316 Z", // pouch pocket
+  "M155,250 L245,250 L260,316 L140,316 Z", // pouch pocket (drawn, not measured)
   "M190,84 L186,120 M210,84 L214,120", // drawcords
 ].join(" ")
 
@@ -35,42 +35,32 @@ const TEE_DETAIL = [
 const TAPES: Record<GarmentType, Record<string, Tape>> = {
   hoodie: {
     neck_seam_round: { d: "M165,58 Q200,94 235,58", guide: "M165,58 Q200,46 235,58", ends: [[165, 58], [235, 58]] },
-    front_neck_drop: { d: "M200,58 L200,84", guide: "M165,58 L235,58", ends: [[200, 58], [200, 84]] },
     chest_flat: { d: "M127,166 L273,166", ends: [[127, 166], [273, 166]] },
     body_length: { d: "M168,58 L168,318", ends: [[168, 58], [168, 318]] },
     hem_flat: { d: "M128,316 L272,316", ends: [[128, 316], [272, 316]] },
     waistband_height: { d: "M250,318 L250,348", ends: [[250, 318], [250, 348]] },
     waistband_relaxed_flat: { d: "M132,344 L268,344", ends: [[132, 344], [268, 344]] },
     sleeve_top: { d: "M165,58 L30,200 L16,214", ends: [[165, 58], [16, 214]] },
-    underarm: { d: "M125,150 L50,219 L36,233", ends: [[125, 150], [36, 233]] },
-    bicep_flat: { d: "M116,158 L92,135", ends: [[116, 158], [92, 135]] },
     cuff_height: { d: "M40,210 L26,224", ends: [[40, 210], [26, 224]] },
     cuff_relaxed_flat: { d: "M16,214 L36,233", ends: [[16, 214], [36, 233]] },
-    pocket_top: { d: "M168,58 L168,250", ends: [[168, 58], [168, 250]] },
-    pocket_height: { d: "M200,250 L200,316", ends: [[200, 250], [200, 316]] },
-    pocket_opening: { d: "M155,250 L140,316", ends: [[155, 250], [140, 316]] },
     // hood steps use the side-on hood picture
     hood_height: { d: "M205,342 L205,70", guide: "M120,70 L312,70", ends: [[205, 342], [205, 70]] },
     hood_depth: { d: "M99,200 L332,200", ends: [[99, 200], [332, 200]] },
-    hood_face_opening: { d: "M112,332 C96,262 98,158 150,96", ends: [[112, 332], [150, 96]] },
   },
   tee: {
-    neck_width: { d: "M168,50 L232,50", ends: [[168, 50], [232, 50]] },
-    neckband_height: { d: "M200,72 L200,84", ends: [[200, 72], [200, 84]] },
-    front_neck_drop: { d: "M200,50 L200,84", guide: "M168,50 L232,50", ends: [[200, 50], [200, 84]] },
-    back_neck_drop: { d: "M200,50 L200,58", guide: "M168,50 Q200,66 232,50", ends: [[200, 50], [200, 58]], dashed: true },
-    shoulder_width: { d: "M100,72 L300,72", ends: [[100, 72], [300, 72]] },
+    neck: { d: "M168,50 L232,50", ends: [[168, 50], [232, 50]] },
+    neck_drop_front: { d: "M200,50 L200,84", guide: "M160,50 L240,50", ends: [[200, 50], [200, 84]] },
+    shoulder: { d: "M100,72 L300,72", ends: [[100, 72], [300, 72]] },
     armhole: { d: "M168,50 L168,140", guide: "M112,140 L168,140", ends: [[168, 50], [168, 140]] },
-    chest_flat: { d: "M113,152 L287,152", ends: [[113, 152], [287, 152]] },
-    body_length: { d: "M168,50 L168,360", ends: [[168, 50], [168, 360]] },
-    hem_flat: { d: "M114,356 L286,356", ends: [[114, 356], [286, 356]] },
-    sleeve_length: { d: "M100,72 L42,150", ends: [[100, 72], [42, 150]] },
-    bicep_flat: { d: "M107,146 L67,116", ends: [[107, 146], [67, 116]] },
-    sleeve_opening_flat: { d: "M42,150 L78,178", ends: [[42, 150], [78, 178]] },
+    chest: { d: "M113,152 L287,152", ends: [[113, 152], [287, 152]] },
+    length: { d: "M168,50 L168,360", ends: [[168, 50], [168, 360]] },
+    sleeve: { d: "M100,72 L42,150", ends: [[100, 72], [42, 150]] },
+    sleeve_width: { d: "M112,140 L72,110", ends: [[112, 140], [72, 110]] },
+    opening: { d: "M42,150 L78,178", ends: [[42, 150], [78, 178]] },
   },
 }
 
-const HOOD_KEYS = new Set(["hood_height", "hood_depth", "hood_face_opening"])
+const HOOD_KEYS = new Set(["hood_height", "hood_depth"])
 
 export function GarmentPicture({ type, step, className }: { type: GarmentType; step: string; className?: string }) {
   const tape = TAPES[type][step]

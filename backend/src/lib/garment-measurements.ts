@@ -10,7 +10,7 @@
  */
 
 export type GarmentType = "hoodie" | "tee"
-export type StepGroup = "Body" | "Sleeves" | "Hood" | "Extras"
+export type StepGroup = "Body" | "Sleeves" | "Hood"
 
 export type MeasurementStep = {
   key: string
@@ -22,256 +22,70 @@ export type MeasurementStep = {
   /** Plausible range in cm; outside it the flow asks "are you sure?". */
   min: number
   max: number
-  /** Extras: skipped unless staff choose to do them. */
-  optional?: boolean
 }
 
 type GarmentDef = {
   label: string
-  /** Fixed order: body top to bottom, then sleeves, then hood, then extras. */
+  /** Fixed order: body top to bottom, then sleeves, then hood. */
   steps: MeasurementStep[]
   /** Constant flags written into every exported size (the 3D scripts read them). */
   flags?: Record<string, boolean>
 }
 
-const chest: MeasurementStep = {
-  key: "chest_flat",
-  group: "Body",
-  name: "Chest: armpit to armpit",
-  how: "Measure straight across, 2 cm below the armpits.",
-  min: 35,
-  max: 90,
-}
-const frontNeckDrop: MeasurementStep = {
-  key: "front_neck_drop",
-  group: "Body",
-  name: "Front neck drop",
-  how: "From the top of the shoulder at the neck, straight down to the neck seam at the centre front.",
-  min: 3,
-  max: 20,
-}
-const bicep: MeasurementStep = {
-  key: "bicep_flat",
-  group: "Sleeves",
-  name: "Sleeve width at the armpit",
-  how: "Measure straight across the sleeve, 2 cm below the armpit.",
-  min: 10,
-  max: 35,
-}
+const step = (key: string, group: StepGroup, name: string, how: string, min: number, max: number): MeasurementStep => ({
+  key, group, name, how, min, max,
+})
 
+/**
+ * Only what shapes the 3D model. Hoodie keys are the ones scp/hoodie.py fits
+ * the GarmentCode pattern to (one setting each); tee keys are pattern-tee.py's
+ * inputs, named as that script names them. Not asked, on purpose: back neck
+ * drop (pattern-tee uses a fixed 2 cm, and it reads 0 on a flat tee), shoulder
+ * slope (worked out) and sleeve cap height (needs the seam opened).
+ */
 export const GARMENTS: Record<GarmentType, GarmentDef> = {
   hoodie: {
     label: "Hoodie (raglan sleeve)",
     // Body length is measured to the waistband seam; hoodie.py adds the band back on.
     flags: { body_length_to_seam: true },
     steps: [
-      {
-        key: "neck_seam_round",
-        group: "Body",
-        name: "Neck seam: all the way round",
-        how: "Run the tape along the seam where the hood joins, across the front then the back, and add the two.",
-        min: 40,
-        max: 100,
-      },
-      frontNeckDrop,
-      chest,
-      {
-        key: "body_length",
-        group: "Body",
-        name: "Body length: shoulder to waistband seam",
-        how: "From the top of the shoulder next to the neck, straight down to the waistband seam (not the bottom of the band).",
-        min: 50,
-        max: 100,
-      },
-      {
-        key: "hem_flat",
-        group: "Body",
-        name: "Bottom width: along the waistband seam",
-        how: "Measure straight across the body, along the seam just above the waistband.",
-        min: 35,
-        max: 90,
-      },
-      {
-        key: "waistband_height",
-        group: "Body",
-        name: "Waistband height",
-        how: "From the waistband seam down to the bottom edge.",
-        min: 2,
-        max: 15,
-      },
-      {
-        key: "waistband_relaxed_flat",
-        group: "Body",
-        name: "Waistband width: not stretched",
-        how: "Measure straight across the bottom edge. Don't pull it.",
-        min: 30,
-        max: 90,
-      },
-      {
-        key: "sleeve_top",
-        group: "Sleeves",
-        name: "Sleeve length: neck to end of cuff",
-        how: "From the neck seam, along the top of the sleeve, to the end of the cuff.",
-        min: 50,
-        max: 100,
-      },
-      {
-        key: "underarm",
-        group: "Sleeves",
-        name: "Underarm: armpit to end of cuff",
-        how: "From the armpit, along the underside of the sleeve, to the end of the cuff.",
-        min: 35,
-        max: 75,
-      },
-      bicep,
-      {
-        key: "cuff_height",
-        group: "Sleeves",
-        name: "Cuff height",
-        how: "From the cuff seam to the end of the cuff.",
-        min: 2,
-        max: 12,
-      },
-      {
-        key: "cuff_relaxed_flat",
-        group: "Sleeves",
-        name: "Cuff width: not stretched",
-        how: "Measure straight across the end of the cuff. Don't pull it.",
-        min: 5,
-        max: 20,
-      },
-      {
-        key: "hood_height",
-        group: "Hood",
-        name: "Hood height",
-        how: "Lay the hood flat. From the neck seam at the front, straight up to the top of the hood.",
-        min: 25,
-        max: 50,
-      },
-      {
-        key: "hood_depth",
-        group: "Hood",
-        name: "Hood depth",
-        how: "Lay the hood flat. From the front edge, straight back to the back seam.",
-        min: 18,
-        max: 40,
-      },
-      {
-        key: "pocket_top",
-        group: "Extras",
-        name: "Pocket: shoulder to top of pocket",
-        how: "From the top of the shoulder next to the neck, straight down to the top of the pocket.",
-        min: 10,
-        max: 50,
-        optional: true,
-      },
-      {
-        key: "pocket_height",
-        group: "Extras",
-        name: "Pocket height",
-        how: "From the top of the pocket to the bottom of the pocket.",
-        min: 8,
-        max: 35,
-        optional: true,
-      },
-      {
-        key: "pocket_opening",
-        group: "Extras",
-        name: "Pocket opening",
-        how: "Along the edge of one hand opening, top to bottom.",
-        min: 8,
-        max: 30,
-        optional: true,
-      },
-      {
-        key: "hood_face_opening",
-        group: "Extras",
-        name: "Hood front edge",
-        how: "Along the front edge of the hood, from the neck seam to the top of the hood.",
-        min: 25,
-        max: 55,
-        optional: true,
-      },
+      step("neck_seam_round", "Body", "Neck seam: all the way round",
+        "Run the tape along the seam where the hood joins, across the front then the back, and add the two.", 40, 100),
+      step("chest_flat", "Body", "Chest: armpit to armpit", "Measure straight across, 2 cm below the armpits.", 35, 90),
+      step("body_length", "Body", "Body length: shoulder to waistband seam",
+        "From the top of the shoulder next to the neck, straight down to the waistband seam (not the bottom of the band).", 50, 100),
+      step("hem_flat", "Body", "Bottom width: along the waistband seam",
+        "Measure straight across the body, along the seam just above the waistband.", 35, 90),
+      step("waistband_height", "Body", "Waistband height", "From the waistband seam down to the bottom edge.", 2, 15),
+      step("waistband_relaxed_flat", "Body", "Waistband width: not stretched", "Measure straight across the bottom edge. Don't pull it.", 30, 90),
+      step("sleeve_top", "Sleeves", "Sleeve length: neck to end of cuff",
+        "From the neck seam, along the top of the sleeve, to the end of the cuff.", 50, 100),
+      step("cuff_height", "Sleeves", "Cuff height", "From the cuff seam to the end of the cuff.", 2, 12),
+      step("cuff_relaxed_flat", "Sleeves", "Cuff width: not stretched", "Measure straight across the end of the cuff. Don't pull it.", 5, 20),
+      step("hood_height", "Hood", "Hood height",
+        "Lay the hood flat. From the neck seam at the front, straight up to the top of the hood.", 25, 50),
+      step("hood_depth", "Hood", "Hood depth", "Lay the hood flat. From the front edge, straight back to the back seam.", 18, 40),
     ],
   },
   tee: {
     label: "T-shirt (set-in sleeve)",
     steps: [
-      {
-        key: "neck_width",
-        group: "Body",
-        name: "Neck width: seam to seam",
-        how: "Straight across the top of the neck opening, from one neck seam to the other.",
-        min: 12,
-        max: 28,
-      },
-      {
-        key: "neckband_height",
-        group: "Body",
-        name: "Neckband height",
-        how: "From the neck seam to the edge of the rib.",
-        min: 1,
-        max: 5,
-      },
-      frontNeckDrop,
-      {
-        key: "back_neck_drop",
-        group: "Body",
-        name: "Back neck drop",
-        how: "Turn it over. From the top of the shoulder at the neck, down to the neck seam at the centre back.",
-        min: 0.5,
-        max: 6,
-      },
-      {
-        key: "shoulder_width",
-        group: "Body",
-        name: "Shoulders: seam to seam",
-        how: "Straight across the back, from one shoulder seam to the other.",
-        min: 35,
-        max: 75,
-      },
-      {
-        key: "armhole",
-        group: "Body",
-        name: "Armhole depth: shoulder to armpit",
-        how: "From the top of the shoulder next to the neck, straight down to the level of the armpit.",
-        min: 15,
-        max: 35,
-      },
-      chest,
-      {
-        key: "body_length",
-        group: "Body",
-        name: "Body length: shoulder to hem",
-        how: "From the top of the shoulder next to the neck, straight down to the bottom edge.",
-        min: 50,
-        max: 100,
-      },
-      {
-        key: "hem_flat",
-        group: "Body",
-        name: "Bottom width",
-        how: "Measure straight across the bottom edge.",
-        min: 35,
-        max: 90,
-      },
-      {
-        key: "sleeve_length",
-        group: "Sleeves",
-        name: "Sleeve length: shoulder seam to hem",
-        how: "Along the top of the sleeve, from the shoulder seam to the sleeve's bottom edge.",
-        min: 10,
-        max: 40,
-      },
-      bicep,
-      {
-        key: "sleeve_opening_flat",
-        group: "Sleeves",
-        name: "Sleeve opening",
-        how: "Measure straight across the end of the sleeve.",
-        min: 10,
-        max: 30,
-      },
+      step("neck", "Body", "Neck width: seam to seam",
+        "Straight across the neck opening, from the neck seam on one side to the neck seam on the other.", 12, 28),
+      step("neck_drop_front", "Body", "Front neck drop",
+        "Lay a ruler across the neck, seam to seam. Measure straight down from the ruler to the neck seam at the centre front.", 3, 20),
+      step("shoulder", "Body", "Shoulders: seam to seam",
+        "Straight across, from the shoulder seam on one side to the shoulder seam on the other.", 35, 75),
+      step("armhole", "Body", "Armhole depth: shoulder to armpit",
+        "From the top of the shoulder next to the neck, straight down to level with the armpit.", 15, 40),
+      step("chest", "Body", "Chest: armpit to armpit", "Measure straight across, 2 cm below the armpits.", 35, 90),
+      step("length", "Body", "Body length: shoulder to hem",
+        "From the top of the shoulder next to the neck, straight down to the bottom edge.", 50, 100),
+      step("sleeve", "Sleeves", "Sleeve length: shoulder seam to end",
+        "Along the top of the sleeve, from the shoulder seam to the end of the sleeve.", 10, 85),
+      step("sleeve_width", "Sleeves", "Sleeve width at the armpit",
+        "Measure straight across the sleeve, right at the armpit seam.", 10, 40),
+      step("opening", "Sleeves", "Sleeve opening", "Measure straight across the end of the sleeve.", 10, 30),
     ],
   },
 }
@@ -281,7 +95,7 @@ export const GARMENT_TYPES = Object.keys(GARMENTS) as GarmentType[]
 export const isGarmentType = (v: unknown): v is GarmentType =>
   typeof v === "string" && v in GARMENTS
 
-export const requiredSteps = (t: GarmentType) => GARMENTS[t].steps.filter((s) => !s.optional)
+export const requiredSteps = (t: GarmentType) => GARMENTS[t].steps
 
 export const findStep = (t: GarmentType, key: string) => GARMENTS[t].steps.find((s) => s.key === key)
 

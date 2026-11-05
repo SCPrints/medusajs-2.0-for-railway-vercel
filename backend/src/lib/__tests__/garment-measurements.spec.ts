@@ -30,7 +30,7 @@ describe("checkMeasurement", () => {
     expect(checkMeasurement({ step: chest, value: 56.6, size: "L", sizes, bySize: { M: 57 } })).toBeNull()
   })
   it("spots a missing decimal point", () => {
-    const pocket = findStep("hoodie", "pocket_height")!
+    const pocket = findStep("hoodie", "hood_depth")!
     expect(checkMeasurement({ step: { ...pocket, min: 20, max: 50 }, value: 367, size: "4XL", sizes, bySize: {} })).toMatch(
       /Did you mean 36.7\?/
     )
@@ -46,7 +46,7 @@ describe("checkMeasurement", () => {
 })
 
 describe("sizeStatus", () => {
-  const all = GARMENTS.tee.steps.filter((s) => !s.optional).map((s) => ({ size: "M", key: s.key, value_cm: 10 }))
+  const all = GARMENTS.tee.steps.map((s) => ({ size: "M", key: s.key, value_cm: 10 }))
   it("reads todo / partly / done / estimated", () => {
     expect(sizeStatus("tee", [])).toBe("todo")
     expect(sizeStatus("tee", all.slice(1))).toBe("partly")
@@ -67,5 +67,17 @@ describe("buildExport", () => {
     expect(out.S).toEqual({ body_length_to_seam: true, _inferred: true, chest_flat: 53.5 })
     expect(out.L).toEqual({ body_length_to_seam: true, neck_seam_round: 65, chest_flat: 58, drawcord: 23 })
     expect(Object.keys(out.L)).toEqual(["body_length_to_seam", "neck_seam_round", "chest_flat", "drawcord"])
+  })
+})
+
+describe("step lists", () => {
+  it("match what the 3D builders read, nothing extra", () => {
+    expect(GARMENTS.hoodie.steps.map((s) => s.key).sort()).toEqual(
+      ["body_length", "chest_flat", "cuff_height", "cuff_relaxed_flat", "hem_flat", "hood_depth", "hood_height",
+       "neck_seam_round", "sleeve_top", "waistband_height", "waistband_relaxed_flat"].sort()
+    )
+    expect(GARMENTS.tee.steps.map((s) => s.key).sort()).toEqual(
+      ["armhole", "chest", "length", "neck", "neck_drop_front", "opening", "shoulder", "sleeve", "sleeve_width"].sort()
+    )
   })
 })
