@@ -82,6 +82,11 @@ const GarmentMeasurementsPage = () => {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Heading level="h1">3D measurements</Heading>
+          <Text size="small">
+            <AppLink href="/app/garment-measurements" className="text-ui-fg-interactive hover:underline">
+              ← All measured garments
+            </AppLink>
+          </Text>
           <Text className="text-ui-fg-subtle">
             <AppLink href={`/app/products/${data.product.id}`} className="text-ui-fg-interactive hover:underline">
               {data.product.title}
