@@ -5,7 +5,7 @@ import { useEffect, useState, type ComponentType, type ReactNode } from "react"
 import { JOB_PHASES, threadTimes, type NextActionKind } from "../../../lib/job-state"
 import type { JobActivity, JobView } from "../../../lib/job-view"
 import { ARTWORK_STAGE_LABEL, BLANKS_STAGE_LABEL, DOWNSTREAM_STAGE_LABEL } from "../../../lib/production-stage"
-import { ONE_CLICK, performNextAction } from "./actions"
+import { ONE_CLICK, performNextAction, takeJob } from "./actions"
 import { TaskQuickAdd } from "../task-quick-add"
 import { ConvertAddressForm } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
@@ -212,7 +212,10 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.customer.email ? <a className="hover:underline" href={`mailto:${job.customer.email}`}>{job.customer.email}</a> : null}
               {job.customer.phone ? <a className="hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a> : null}
               {job.customer.company ? <span>{job.customer.company}</span> : null}
-              <span>Owner: {job.owner?.label ?? "unassigned"}</span>
+              <span>
+                Owner: {job.owner?.label ?? "unassigned"}
+                {!job.owner ? <button type="button" className="ml-1.5 font-medium text-ui-fg-interactive hover:underline" onClick={() => takeJob(job.id).then(onChanged)}>Take it</button> : null}
+              </span>
               {viewers.length ? (
                 <span className="inline-flex items-center gap-1 text-ui-tag-green-text">
                   <span className="inline-block h-2 w-2 rounded-full bg-ui-tag-green-icon" />

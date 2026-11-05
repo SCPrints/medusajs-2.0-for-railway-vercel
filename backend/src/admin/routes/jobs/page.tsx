@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router-dom"
 
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { TODAY_QUEUES, type TodayQueue, type TodayRow, type TodayView } from "../../../lib/job-today"
-import { ONE_CLICK, performNextAction } from "../../components/job/actions"
+import { ONE_CLICK, performNextAction, takeJob } from "../../components/job/actions"
 import { JobPanel } from "../../components/job/job-panel"
 import { useJob } from "../../components/job/use-job"
 import { NewQuoteDrawer } from "../../components/quote/new-quote-drawer"
@@ -21,9 +21,9 @@ import { QuotePricerPage } from "../quote-pricer/page"
  * ?folder=, ?new=1 (drawer), ?job=<id> (the job opens beside the list; the
  * list hides below 2xl) and ?pricer=1 (the Job pricer over that job).
  */
-type Folder = "needs_us" | TodayQueue
+type Folder = "mine" | "needs_us" | TodayQueue
 
-const FOLDERS: { key: Folder; label: string }[] = [{ key: "needs_us", label: "Needs us" }, ...TODAY_QUEUES]
+const FOLDERS: { key: Folder; label: string }[] = [{ key: "mine", label: "Mine" }, { key: "needs_us", label: "Needs us" }, ...TODAY_QUEUES]
 const isFolder = (v: string | null): v is Folder => !!v && FOLDERS.some((f) => f.key === v)
 
 const WAIT_PILL: Record<string, string> = {
@@ -41,6 +41,7 @@ const SOURCE_LABEL: Record<string, string> = {
 }
 
 const EMPTY: Partial<Record<Folder, string>> = {
+  mine: "No open jobs are yours. Press “Take it” on a job to put it here.",
   needs_us: "Nothing needs us right now.",
   new: "No new enquiries.",
   done: "Nothing finished in the last 90 days.",
@@ -68,12 +69,15 @@ const isWide = () => window.matchMedia("(min-width: 1536px)").matches
 
 const JobsPage = () => {
   const [params, setParams] = useSearchParams()
-  const folder: Folder = isFolder(params.get("folder")) ? (params.get("folder") as Folder) : "needs_us"
+  const [view, setView] = useState<TodayView | null>(null)
+  const isMine = (r: TodayRow) => !r.closed && !!view?.me && r.owner?.user_id === view.me
+  const mineCount = view ? view.rows.filter(isMine).length : 0
+  // No folder in the address: open on your own jobs when you have any.
+  const folder: Folder = isFolder(params.get("folder")) ? (params.get("folder") as Folder) : mineCount ? "mine" : "needs_us"
   const drawerOpen = params.get("new") === "1"
   const jobId = params.get("job")
   const pricerOpen = params.get("pricer") === "1"
   const { job, order, error: jobError, reload: reloadJob } = useJob(jobId)
-  const [view, setView] = useState<TodayView | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [q, setQ] = useState("")
@@ -140,6 +144,18 @@ const JobsPage = () => {
     }
   }
 
+  const take = async (row: TodayRow) => {
+    setBusy(row.id)
+    try {
+      await takeJob(row.id)
+      await load(true)
+    } catch {
+      // takeJob already said so.
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const markSpam = async (row: TodayRow) => {
     if (!row.quote_id) return
     setBusy(row.id)
@@ -164,10 +180,10 @@ const JobsPage = () => {
   const rows = view
     ? needle
       ? view.rows.filter((r) => `${r.customer} ${r.subject ?? ""} ${r.label}`.toLowerCase().includes(needle))
-      : view.rows.filter((r) => (folder === "needs_us" ? r.needs_us : r.queue === folder))
+      : view.rows.filter((r) => (folder === "mine" ? isMine(r) : folder === "needs_us" ? r.needs_us : r.queue === folder))
     : []
   const cur = view?.rows[0]?.currency_code ?? "aud"
-  const count = (f: Folder) => (!view ? 0 : f === "needs_us" ? view.needs_us : view.queues[f])
+  const count = (f: Folder) => (!view ? 0 : f === "mine" ? mineCount : f === "needs_us" ? view.needs_us : view.queues[f])
 
   return (
     <div className="flex flex-col gap-y-4">
@@ -212,11 +228,11 @@ const JobsPage = () => {
                 setQ("")
                 // Beside an open job the folder just changes the list; on a
                 // narrow screen (no list beside the job) it closes the job.
-                update({ folder: f.key === "needs_us" ? null : f.key, ...(jobId && !isWide() ? { job: null, pricer: null } : {}) })
+                update({ folder: f.key, ...(jobId && !isWide() ? { job: null, pricer: null } : {}) })
               }}
               label={f.label}
               count={count(f.key)}
-              hot={f.key === "needs_us"}
+              hot={f.key === "needs_us" || f.key === "mine"}
             />
           ))}
         </div>
@@ -286,8 +302,12 @@ const JobsPage = () => {
                 <Text size="small" className="text-ui-fg-subtle truncate">
                   {row.last_activity ? row.last_activity.title : "No activity yet"}
                   {row.flags.length ? ` · ${row.flags.map((f) => f.label).join(" · ")}` : ""}
+                  {row.owner && !row.closed ? ` · ${row.owner.user_id === view?.me ? "Yours" : row.owner.label}` : ""}
                 </Text>
               </AppLink>
+              {!row.owner && !row.closed ? (
+                <Button size="small" variant="secondary" isLoading={busy === row.id} disabled={!!busy} onClick={() => take(row)}>Take it</Button>
+              ) : null}
               {source ? <Badge color="blue" size="2xsmall">{source}</Badge> : null}
               {row.bot && !row.closed ? (
                 <>

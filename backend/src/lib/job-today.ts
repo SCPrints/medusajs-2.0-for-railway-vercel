@@ -61,10 +61,13 @@ export type TodayRow = {
   display_id: number | null
   outstanding: number | null
   rush_tier: "priority" | "express" | null
+  owner: JobView["owner"]
 }
 
 export type TodayView = {
   generated_at: string
+  /** The signed-in admin (added per request by GET /admin/jobs). */
+  me?: string | null
   rows: TodayRow[]
   queues: Record<TodayQueue, number>
   needs_us: number
@@ -171,6 +174,7 @@ export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
     display_id: job.order?.display_id ?? null,
     outstanding: job.money.outstanding,
     rush_tier: job.order?.rush_tier ?? null,
+    owner: job.owner,
   }
 }
 

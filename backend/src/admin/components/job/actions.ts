@@ -119,3 +119,18 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
       return { done: true }
   }
 }
+
+/** "Take it": the signed-in admin becomes the job's owner (POST /admin/jobs/:id/owner). */
+export async function takeJob(jobId: string): Promise<void> {
+  const r = await fetch(`/admin/jobs/${encodeURIComponent(jobId)}/owner`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  })
+  if (!r.ok) {
+    toast.error("Couldn't take the job")
+    throw new Error(`HTTP ${r.status}`)
+  }
+  toast.success("It's yours. It's in Mine now.")
+}
