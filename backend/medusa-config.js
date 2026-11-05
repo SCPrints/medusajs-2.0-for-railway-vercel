@@ -408,6 +408,10 @@ const medusaConfig = {
     },
 
     {
+      resolve: "./src/modules/garment-measurement",
+    },
+
+    {
       key: Modules.FULFILLMENT,
       resolve: "@medusajs/fulfillment",
       options: {
