@@ -11,6 +11,33 @@ export type ActionContext = {
   display_id: number | null
   /** Dollars owing (or the order total when nothing is paid). */
   outstanding: number | null
+  /** Reloads the caller's view after an Undo. */
+  refresh?: () => void
+}
+
+/**
+ * A success toast with an Undo button, for moves with no outside effect (no
+ * customer email, no shipment, no money). Undo is recorded like any change.
+ */
+// ponytail: 8 s is a guess from the review; the diary stays the place to fix anything later.
+export function offerUndo(message: string, undo: () => Promise<unknown>, refresh?: () => void) {
+  toast.success(message, {
+    duration: 8000,
+    action: {
+      label: "Undo",
+      altText: "Undo this change",
+      onClick: async () => {
+        try {
+          await undo()
+          toast.info("Undone")
+        } catch (err: any) {
+          toast.error(err?.message ?? "Couldn't undo. Change it back in the job.")
+        } finally {
+          refresh?.()
+        }
+      },
+    },
+  })
 }
 
 export type ActionOutcome =
@@ -96,6 +123,7 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
       return { tab: "production", open: "blanks" }
     case "mark_arrived":
       await setStage(ctx.order_id!, { blanks_stage: "arrived" })
+      offerUndo("Blanks marked arrived", () => setStage(ctx.order_id!, { blanks_stage: "ordered" }), ctx.refresh)
       return { done: true }
     case "start_production":
       await setStage(ctx.order_id!, { production_stage: "in_production" })
@@ -103,6 +131,7 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
       return { done: true }
     case "qc_done":
       await setStage(ctx.order_id!, { production_stage: "quality_check" })
+      offerUndo("QC done, ready to ship", () => setStage(ctx.order_id!, { production_stage: "in_production" }), ctx.refresh)
       return { done: true }
     case "mark_shipped":
       await setStage(ctx.order_id!, { production_stage: "shipped" })
@@ -120,17 +149,20 @@ export async function performNextAction(ctx: ActionContext, kind: NextActionKind
   }
 }
 
-/** "Take it": the signed-in admin becomes the job's owner (POST /admin/jobs/:id/owner). */
-export async function takeJob(jobId: string): Promise<void> {
-  const r = await fetch(`/admin/jobs/${encodeURIComponent(jobId)}/owner`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: "{}",
-  })
+/** "Take it": the signed-in admin becomes the job's owner (POST /admin/jobs/:id/owner); Undo clears it again. */
+export async function takeJob(jobId: string, refresh?: () => void): Promise<void> {
+  const path = `/admin/jobs/${encodeURIComponent(jobId)}/owner`
+  const r = await post(path, {})
   if (!r.ok) {
     toast.error("Couldn't take the job")
     throw new Error(`HTTP ${r.status}`)
   }
-  toast.success("It's yours. It's in Mine now.")
+  offerUndo(
+    "It's yours. It's in Mine now.",
+    async () => {
+      const u = await fetch(path, { method: "DELETE", credentials: "include" })
+      if (!u.ok) throw new Error(`HTTP ${u.status}`)
+    },
+    refresh
+  )
 }

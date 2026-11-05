@@ -1,6 +1,6 @@
 import type { AdminOrder } from "@medusajs/framework/types"
 import { Badge, Button, Container, Drawer, DropdownMenu, Heading, Input, Text, Textarea, toast } from "@medusajs/ui"
-import { useEffect, useState, type ComponentType, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react"
 
 import { JOB_PHASES, threadTimes, type NextActionKind } from "../../../lib/job-state"
 import type { JobActivity, JobView } from "../../../lib/job-view"
@@ -13,6 +13,7 @@ import { EnterSizes } from "./enter-sizes"
 import { QuoteTools } from "../quote/quote-detail"
 import * as W from "./widgets"
 import { AppLink, pricerHref, useGo } from "../../lib/nav"
+import { useFlip } from "../../lib/motion"
 
 /**
  * The job window (Docs/ADMIN_JOB_WINDOW_2026_10.md): header, phase strip, ONE
@@ -152,6 +153,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
           quote_id: job.quote?.id ?? null,
           display_id: job.order?.display_id ?? null,
           outstanding: job.money.outstanding ?? job.money.order_total,
+          refresh: onChanged,
         },
         kind
       )
@@ -214,7 +216,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
               {job.customer.company ? <span>{job.customer.company}</span> : null}
               <span>
                 Owner: {job.owner?.label ?? "unassigned"}
-                {!job.owner ? <button type="button" className="ml-1.5 font-medium text-ui-fg-interactive hover:underline" onClick={() => takeJob(job.id).then(onChanged)}>Take it</button> : null}
+                {!job.owner ? <button type="button" className="ml-1.5 font-medium text-ui-fg-interactive hover:underline" onClick={() => takeJob(job.id, onChanged).then(onChanged, () => undefined)}>Take it</button> : null}
               </span>
               {viewers.length ? (
                 <span className="inline-flex items-center gap-1 text-ui-tag-green-text">
@@ -659,6 +661,8 @@ function Diary({ job, onChanged }: { job: JobView; onChanged: () => void }) {
   const to = job.customer.email
   const lastAnswer = threadTimes(job.activity).answers.sort().at(-1) ?? ""
   const openTasks = job.tasks.filter((t) => t.status === "open" || t.status === "in_progress")
+  const diaryRef = useRef<HTMLUListElement>(null)
+  useFlip(diaryRef, job.id)
 
   const run = async (key: string, fn: () => Promise<unknown>, ok: string) => {
     setBusy(key)
@@ -685,7 +689,7 @@ function Diary({ job, onChanged }: { job: JobView; onChanged: () => void }) {
     const tag = ACTIVITY_TAG[a.kind]
     const unanswered = a.kind === "email_in" && a.at > lastAnswer
     return (
-      <li key={`${a.at}-${i}`} className={`flex gap-3 py-2 text-sm ${unanswered ? "-mx-2 rounded-md bg-ui-tag-orange-bg px-2" : ""}`}>
+      <li key={`${a.at}-${i}`} data-flip={`${a.at}|${a.kind}|${a.title}`} className={`flex gap-3 py-2 text-sm ${unanswered ? "-mx-2 rounded-md bg-ui-tag-orange-bg px-2" : ""}`}>
         <span className="w-20 shrink-0 text-ui-fg-muted text-xs pt-0.5">{fmtWhen(a.at)}</span>
         <span className="min-w-0 flex-1">
           <span className={`mr-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold ${tag.cls}`}>{tag.label}</span>
@@ -750,7 +754,7 @@ function Diary({ job, onChanged }: { job: JobView; onChanged: () => void }) {
       ) : null}
 
       <Container>
-        <ul className="divide-y divide-ui-border-base">
+        <ul ref={diaryRef} className="divide-y divide-ui-border-base">
           {foldUpdates(job.activity).map((item, i) =>
             item.kind === "row" ? (
               row(item.row, i)

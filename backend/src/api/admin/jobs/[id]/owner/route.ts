@@ -2,7 +2,7 @@ import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { z } from "zod"
 
 import { AUDIT_ENTITY } from "../../../../../lib/audit-entities"
-import { setOwner } from "../../../../../lib/crm-owners"
+import { clearOwner, setOwner } from "../../../../../lib/crm-owners"
 import { QUOTE_MODULE } from "../../../../../modules/quote"
 import { getJob } from "../../../../../services/jobs/build"
 import { bustTodayCache } from "../../../../../services/jobs/today"
@@ -40,4 +40,28 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   }
   bustTodayCache()
   return res.json({ ok: true, job: await getJob(req.scope, req.params.id) })
+}
+
+/** DELETE /admin/jobs/:id/owner — undoes "Take it": the job has no owner again. */
+export async function DELETE(req: MedusaRequest, res: MedusaResponse) {
+  const actor = (req as any).auth_context?.actor_id ?? null
+  let job
+  try {
+    job = await getJob(req.scope, req.params.id)
+  } catch (err: any) {
+    return res.status(404).json({ error: err?.message ?? "not found" })
+  }
+  if (job.quote) {
+    const quotes = req.scope.resolve(QUOTE_MODULE) as any
+    const q = await quotes.retrieveQuote(job.quote.id)
+    if (q.assigned_to) {
+      await quotes.updateQuotes([{ id: q.id, assigned_to: null }])
+      await quotes.createQuoteEvents([{ quote_id: q.id, type: "assigned", actor, body: { from: q.assigned_to, to: null } }])
+    }
+  }
+  if (job.order) {
+    await clearOwner({ container: req.scope as any, entity: AUDIT_ENTITY.ORDER, entity_id: job.order.id, actor })
+  }
+  bustTodayCache()
+  return res.json({ ok: true })
 }

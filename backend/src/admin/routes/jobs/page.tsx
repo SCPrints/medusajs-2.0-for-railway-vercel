@@ -11,6 +11,7 @@ import { JobPanel } from "../../components/job/job-panel"
 import { useJob } from "../../components/job/use-job"
 import { NewQuoteDrawer } from "../../components/quote/new-quote-drawer"
 import { AppLink } from "../../lib/nav"
+import { tick, useFlip } from "../../lib/motion"
 import { QuotePricerPage } from "../quote-pricer/page"
 
 /**
@@ -82,6 +83,8 @@ const JobsPage = () => {
   const [busy, setBusy] = useState<string | null>(null)
   const [q, setQ] = useState("")
   const splitRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const navRef = useRef<HTMLElement>(null)
 
   /** This page's address with some params changed (null removes one). */
   const withParams = (patch: Record<string, string | null>) => {
@@ -133,7 +136,7 @@ const JobsPage = () => {
     setBusy(row.id)
     try {
       await performNextAction(
-        { job_id: row.id, order_id: row.order_id, quote_id: row.quote_id, display_id: row.display_id, outstanding: row.outstanding ?? row.total },
+        { job_id: row.id, order_id: row.order_id, quote_id: row.quote_id, display_id: row.display_id, outstanding: row.outstanding ?? row.total, refresh: () => void load(true) },
         kind
       )
       await load(true)
@@ -147,7 +150,7 @@ const JobsPage = () => {
   const take = async (row: TodayRow) => {
     setBusy(row.id)
     try {
-      await takeJob(row.id)
+      await takeJob(row.id, () => void load(true))
       await load(true)
     } catch {
       // takeJob already said so.
@@ -183,6 +186,8 @@ const JobsPage = () => {
       : view.rows.filter((r) => (folder === "mine" ? isMine(r) : folder === "needs_us" ? r.needs_us : r.queue === folder))
     : []
   const cur = view?.rows[0]?.currency_code ?? "aud"
+  useFlip(listRef, `${folder}|${needle}`)
+  useFlip(navRef, `${folder}|${needle}`)
   const count = (f: Folder) => (!view ? 0 : f === "mine" ? mineCount : f === "needs_us" ? view.needs_us : view.queues[f])
 
   return (
@@ -245,7 +250,7 @@ const JobsPage = () => {
       {jobId ? (
         // ── A job open beside the list (the list hides below 2xl) ──────────
         <div ref={splitRef} className="flex scroll-mt-4 items-start gap-4">
-          <nav aria-label="Jobs in this folder" className="hidden w-[300px] shrink-0 flex-col gap-y-1.5 2xl:flex">
+          <nav ref={navRef} aria-label="Jobs in this folder" className="hidden w-[300px] shrink-0 flex-col gap-y-1.5 2xl:flex">
             {rows.length === 0 ? (
               <Text size="small" className="px-1 text-ui-fg-subtle">{needle ? "No job matches." : EMPTY[folder] ?? "Nothing here right now."}</Text>
             ) : null}
@@ -254,6 +259,7 @@ const JobsPage = () => {
               return (
                 <AppLink
                   key={row.id}
+                  data-flip={row.id}
                   href={hrefFor(row.id)}
                   aria-current={current ? "page" : undefined}
                   className={`block rounded-md border border-l-4 px-3 py-2 ${stripeFor(row)} ${current ? "border-ui-fg-muted bg-ui-bg-subtle-pressed" : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle-hover"}`}
@@ -289,12 +295,12 @@ const JobsPage = () => {
         <Container><Text>{needle ? "No job matches." : EMPTY[folder] ?? "Nothing here right now."}</Text></Container>
       ) : null}
 
-      <div className="flex flex-col gap-y-2">
+      <div ref={listRef} className="flex flex-col gap-y-2">
         {rows.map((row) => {
           const oneClick = !row.closed && ONE_CLICK.has(row.next_action.kind)
           const source = row.queue === "new" && row.source ? SOURCE_LABEL[row.source] : null
           return (
-            <div key={row.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base border-l-4 ${stripeFor(row)} bg-ui-bg-base px-4 py-3`}>
+            <div key={row.id} data-flip={row.id} className={`flex flex-wrap items-center gap-3 rounded-lg border border-ui-border-base border-l-4 ${stripeFor(row)} bg-ui-bg-base px-4 py-3`}>
               <AppLink href={hrefFor(row.id)} className="min-w-[260px] flex-1 hover:underline">
                 <Text weight="plus">
                   {row.customer} <span className="text-ui-fg-subtle font-normal">· {row.subject ?? row.label}{row.subject ? ` · ${row.label}` : ""}</span>
@@ -388,6 +394,12 @@ const JobsPage = () => {
 }
 
 function FolderButton({ active, onClick, label, count, hot }: { active: boolean; onClick: () => void; label: string; count: number; hot?: boolean }) {
+  const numRef = useRef<HTMLElement>(null)
+  const seen = useRef(count)
+  useEffect(() => {
+    if (seen.current !== count && numRef.current) tick(numRef.current)
+    seen.current = count
+  }, [count])
   return (
     <button
       type="button"
@@ -396,7 +408,7 @@ function FolderButton({ active, onClick, label, count, hot }: { active: boolean;
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm ${active ? "border-ui-fg-base bg-ui-fg-base text-ui-bg-base" : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle-hover"}`}
     >
       {label}
-      <b className={`tabular-nums ${!active && hot && count ? "text-ui-tag-red-text" : ""}`}>{count}</b>
+      <b ref={numRef} className={`inline-block tabular-nums ${!active && hot && count ? "text-ui-tag-red-text" : ""}`}>{count}</b>
     </button>
   )
 }
