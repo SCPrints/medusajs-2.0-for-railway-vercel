@@ -47,7 +47,8 @@ const GarmentMeasurementsListPage = () => {
     const term = q.trim()
     if (term.length < 2) return setFound(null)
     const t = setTimeout(() => {
-      fetch(`/admin/products?q=${encodeURIComponent(term)}&limit=20&fields=id,title,thumbnail`, { credentials: "include" })
+      // Relevance-ranked (Meilisearch, title first); Medusa's own ?q= is an unordered ILIKE over descriptions too.
+      fetch(`/admin/quote-pricer/search?q=${encodeURIComponent(term)}&limit=20`, { credentials: "include" })
         .then((r) => (r.ok ? r.json() : { products: [] }))
         .then((d) => setFound(d.products ?? []))
         .catch(() => setFound([]))
