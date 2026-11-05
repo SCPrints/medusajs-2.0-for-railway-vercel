@@ -1,5 +1,5 @@
 import type { JobState } from "../job-state"
-import { dateRisk, groupToday, morningDigestFor, queueFor } from "../job-today"
+import { boardColumn, dateRisk, groupToday, morningDigestFor, queueFor } from "../job-today"
 import type { JobView } from "../job-view"
 
 const NOW = new Date("2026-10-21T00:00:00.000Z") // Wed 21 Oct, 11:00 Sydney
@@ -157,5 +157,23 @@ describe("morningDigestFor", () => {
     const d = morningDigestFor(view, "user_c")
     expect(d.rows.map((r) => r.id)).toEqual(["mine"])
     expect(d.unowned).toBe(1)
+  })
+})
+
+describe("boardColumn", () => {
+  const r = (queue: any, phase: any = "artwork", closed = false) => boardColumn({ queue, phase, closed })
+  it("folds the folders into six columns", () => {
+    expect(r("new", "enquiry")).toBe("new")
+    expect(r("to_quote", "enquiry")).toBe("quote")
+    expect(r("quoted", "quoted")).toBe("quote")
+    expect(r("waiting_payment", "accepted")).toBe("quote")
+    expect(r("artwork")).toBe("artwork")
+    expect(r("blanks", "blanks")).toBe("blanks")
+    expect(r("production", "production")).toBe("production")
+  })
+  it("keeps shipped jobs still owing in Shipped, and closed jobs off the board", () => {
+    expect(r("waiting_payment", "shipped")).toBe("shipped")
+    expect(r("production", "delivered")).toBe("shipped")
+    expect(r("done", "delivered", true)).toBeNull()
   })
 })

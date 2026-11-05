@@ -1,12 +1,13 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { Sparkles } from "@medusajs/icons"
 import { Badge, Button, Container, FocusModal, Heading, Input, Text, toast } from "@medusajs/ui"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useSearchParams } from "react-router-dom"
 
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
 import { TODAY_QUEUES, type TodayQueue, type TodayRow, type TodayView } from "../../../lib/job-today"
 import { ONE_CLICK, performNextAction, takeJob } from "../../components/job/actions"
+import { Avatar, JobsBoard, TickNum } from "../../components/job/board"
 import { JobPanel } from "../../components/job/job-panel"
 import { useJob } from "../../components/job/use-job"
 import { NewQuoteDrawer } from "../../components/quote/new-quote-drawer"
@@ -180,21 +181,34 @@ const JobsPage = () => {
   }
 
   const needle = q.trim().toLowerCase()
-  const rows = view
+  const matches = (r: TodayRow) => `${r.customer} ${r.subject ?? ""} ${r.label} ${r.items ?? ""}`.toLowerCase().includes(needle)
+  // The board is the default; ?view=list (or a link naming a folder) shows the folders.
+  const mode: "board" | "list" = params.get("view") === "list" || (params.get("folder") && params.get("view") !== "board") ? "list" : "board"
+  const who: "all" | "mine" = params.get("who") === "mine" ? "mine" : "all"
+  const ourMoveOnly = params.get("move") === "1"
+  const open_ = view ? view.rows.filter((r) => !r.closed) : []
+  // "Mine" on the board keeps unowned jobs in view, so nothing goes unseen.
+  const boardRows = open_.filter((r) => (!needle || matches(r)) && (who === "all" || isMine(r) || !r.owner))
+  const listRows = view
     ? needle
-      ? view.rows.filter((r) => `${r.customer} ${r.subject ?? ""} ${r.label}`.toLowerCase().includes(needle))
+      ? view.rows.filter(matches)
       : view.rows.filter((r) => (folder === "mine" ? isMine(r) : folder === "needs_us" ? r.needs_us : r.queue === folder))
     : []
+  const rows = mode === "board" ? boardRows : listRows
+  const myMoves = open_.filter((r) => isMine(r) && r.needs_us)
+  const unowned = open_.filter((r) => !r.owner)
+  const emailsWaiting = open_.filter((r) => r.next_action.kind === "reply")
   const cur = view?.rows[0]?.currency_code ?? "aud"
-  useFlip(listRef, `${folder}|${needle}`)
-  useFlip(navRef, `${folder}|${needle}`)
+  const scope = `${mode}|${mode === "board" ? who : folder}|${needle}`
+  useFlip(listRef, scope)
+  useFlip(navRef, scope)
   const count = (f: Folder) => (!view ? 0 : f === "mine" ? mineCount : f === "needs_us" ? view.needs_us : view.queues[f])
 
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Heading level="h1">Jobs · {today()}</Heading>
+          <Heading level="h1">{greeting(view?.me_name)} · {today()}</Heading>
           {view ? (
             <Text size="small" className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
               <span className={view.summary.owed_jobs ? "text-ui-tag-red-text" : "text-ui-fg-subtle"}>
@@ -217,13 +231,40 @@ const JobsPage = () => {
             onChange={(e) => setQ(e.target.value)}
             className="w-64"
           />
+          <Button size="small" variant="secondary" onClick={() => update({ view: mode === "board" ? "list" : "board", folder: null, job: null, pricer: null })}>
+            {mode === "board" ? "List view" : "Board view"}
+          </Button>
           <Button size="small" variant="secondary" onClick={() => load(true)}>Refresh</Button>
           <Button size="small" variant="secondary" asChild><AppLink href="/app/tasks">My tasks</AppLink></Button>
           <Button size="small" onClick={() => setParam("new", "1")}>+ New job</Button>
         </div>
       </div>
 
-      {view ? (
+      {view && mode === "board" && !jobId ? (
+        <YourDay
+          name={view.me_name ?? null}
+          myMoves={myMoves}
+          unowned={unowned.length}
+          emailsWaiting={emailsWaiting}
+          hrefFor={hrefFor}
+          onOpen={(r) => (r.next_action.kind === "price_it" ? update({ job: r.id, pricer: "1" }, { push: true }) : open(r))}
+        />
+      ) : null}
+
+      {view && mode === "board" ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip active={who === "all"} onClick={() => update({ who: null })}>Everyone</Chip>
+          <Chip active={who === "mine"} onClick={() => update({ who: "mine" })}>Mine + unowned <TickNum n={mineCount + unowned.length} /></Chip>
+          <Chip active={ourMoveOnly} hot onClick={() => update({ move: ourMoveOnly ? null : "1" })}>Our move <TickNum n={boardRows.filter((r) => r.needs_us).length} /></Chip>
+          <span className="ml-auto flex items-center gap-3 text-sm text-ui-fg-subtle">
+            <button type="button" className="hover:underline" onClick={() => update({ view: "list", folder: "done" })}>Done <b className="tabular-nums">{view.queues.done}</b></button>
+            <button type="button" className="hover:underline" onClick={() => update({ view: "list", folder: "lost" })}>Lost <b className="tabular-nums">{view.queues.lost}</b></button>
+            <span className="text-ui-fg-muted">last 90 days</span>
+          </span>
+        </div>
+      ) : null}
+
+      {view && mode === "list" ? (
         <div className="flex flex-wrap gap-2">
           {FOLDERS.map((f) => (
             <FolderButton
@@ -278,7 +319,7 @@ const JobsPage = () => {
           </nav>
           <div className="flex min-w-0 flex-1 flex-col gap-y-3">
             <div>
-              <Button size="small" variant="secondary" onClick={closeJob}>← Jobs · {FOLDERS.find((f) => f.key === folder)?.label}</Button>
+              <Button size="small" variant="secondary" onClick={closeJob}>{mode === "board" ? "← Board" : `← Jobs · ${FOLDERS.find((f) => f.key === folder)?.label}`}</Button>
             </div>
             {jobError ? (
               <Container><Text size="small" className="text-ui-fg-error">{jobError}</Text></Container>
@@ -289,6 +330,19 @@ const JobsPage = () => {
             )}
           </div>
         </div>
+      ) : mode === "board" ? (
+        view ? (
+          <JobsBoard
+            rows={boardRows}
+            me={view.me ?? null}
+            busy={busy}
+            ourMoveOnly={ourMoveOnly}
+            scope={`${who}|${needle}`}
+            hrefFor={hrefFor}
+            onAct={act}
+            onTake={take}
+          />
+        ) : null
       ) : (
       <>
       {view && rows.length === 0 ? (
@@ -389,6 +443,77 @@ const JobsPage = () => {
           void load(true)
         }}
       />
+    </div>
+  )
+}
+
+const greeting = (name: string | null | undefined) => {
+  const h = new Date().getHours()
+  const part = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening"
+  return name ? `${part}, ${name}` : "Jobs"
+}
+
+function Chip({ active, hot, onClick, children }: { active: boolean; hot?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium ${active ? (hot ? "border-ui-tag-red-icon bg-ui-tag-red-icon text-white" : "border-ui-fg-base bg-ui-fg-base text-ui-bg-base") : "border-ui-border-base bg-ui-bg-base hover:bg-ui-bg-subtle-hover"}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * The top of the board: who you are, how many of your jobs are waiting on
+ * you, and your most urgent one as a big button. Then customer emails waiting.
+ */
+function YourDay({ name, myMoves, unowned, emailsWaiting, hrefFor, onOpen }: {
+  name: string | null
+  myMoves: TodayRow[]
+  unowned: number
+  emailsWaiting: TodayRow[]
+  hrefFor: (id: string) => string
+  /** Opens the job (or the pricer); never fires a step that emails the customer. */
+  onOpen: (row: TodayRow) => void
+}) {
+  const first = myMoves[0]
+  return (
+    <div className="flex flex-col gap-2">
+      <div className={`flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border px-5 py-4 ${first ? "border-ui-tag-red-border bg-ui-tag-red-bg" : "border-ui-border-base bg-ui-bg-base"}`}>
+        <div className="min-w-[220px] flex-1">
+          <p className="text-lg font-semibold leading-snug">
+            {first
+              ? `${myMoves.length} of your job${myMoves.length === 1 ? "" : "s"} ${myMoves.length === 1 ? "is" : "are"} waiting on you.`
+              : "Nothing of yours is waiting on you."}
+          </p>
+          <p className="text-sm text-ui-fg-subtle">
+            {first
+              ? `Start with ${first.customer}${first.days ? `, waiting ${first.days} day${first.days === 1 ? "" : "s"}` : ""}.`
+              : unowned
+                ? `${unowned} job${unowned === 1 ? " has" : "s have"} no owner. Press “Take it” on a card to make it yours${name ? `, ${name}` : ""}.`
+                : "Every job has an owner."}
+          </p>
+        </div>
+        {first ? (
+          <Button size="large" onClick={() => onOpen(first)}>
+            {first.next_action.label} · {first.customer} →
+          </Button>
+        ) : null}
+      </div>
+      {emailsWaiting.length ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-ui-tag-red-bg px-4 py-2 text-sm">
+          <b className="text-ui-tag-red-text">{emailsWaiting.length} customer email{emailsWaiting.length === 1 ? "" : "s"} waiting</b>
+          {emailsWaiting.map((r) => (
+            <AppLink key={r.id} href={hrefFor(r.id)} className="inline-flex items-center gap-1.5 rounded-full bg-ui-bg-base px-2.5 py-0.5 shadow-elevation-card-rest hover:shadow-elevation-card-hover">
+              <Avatar owner={r.owner} />
+              {r.customer}
+            </AppLink>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

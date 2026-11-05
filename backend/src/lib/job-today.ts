@@ -62,12 +62,17 @@ export type TodayRow = {
   outstanding: number | null
   rush_tier: "priority" | "express" | null
   owner: JobView["owner"]
+  /** First garment mockup (http URLs only), so a card shows the shirt. */
+  thumbnail: string | null
+  /** "120 × Kids Tee, 10 × Cap". */
+  items: string | null
 }
 
 export type TodayView = {
   generated_at: string
   /** The signed-in admin (added per request by GET /admin/jobs). */
   me?: string | null
+  me_name?: string | null
   rows: TodayRow[]
   queues: Record<TodayQueue, number>
   needs_us: number
@@ -175,6 +180,8 @@ export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
     outstanding: job.money.outstanding,
     rush_tier: job.order?.rush_tier ?? null,
     owner: job.owner,
+    thumbnail: job.lines.map((l) => l.thumbnail).find((t) => !!t && /^https?:/.test(t)) ?? null,
+    items: job.lines.length ? job.lines.slice(0, 2).map((l) => `${l.quantity} × ${l.title}`).join(", ") + (job.lines.length > 2 ? ", …" : "") : null,
   }
 }
 
@@ -230,5 +237,37 @@ export function morningDigestFor(view: TodayView, userId: string): { rows: Today
   return {
     rows: open.filter((r) => r.owner?.user_id === userId),
     unowned: open.filter((r) => !r.owner).length,
+  }
+}
+
+/** The board's columns (Docs/admin-ux-review §3): the folders with the noise removed. */
+export type BoardColumn = "new" | "quote" | "artwork" | "blanks" | "production" | "shipped"
+
+export const BOARD_COLUMNS: { key: BoardColumn; label: string }[] = [
+  { key: "new", label: "New" },
+  { key: "quote", label: "Quote" },
+  { key: "artwork", label: "Artwork" },
+  { key: "blanks", label: "Blanks" },
+  { key: "production", label: "Production" },
+  { key: "shipped", label: "Shipped" },
+]
+
+/**
+ * Which column a job's card sits in; null for Done and Lost (they fold into
+ * the tray). Shipped jobs still owing stay in Shipped; payment before the
+ * work starts sits with the quote. A balance shows on the card wherever it is.
+ */
+export function boardColumn(row: Pick<TodayRow, "closed" | "phase" | "queue">): BoardColumn | null {
+  if (row.closed) return null
+  if (row.phase === "shipped" || row.phase === "delivered") return "shipped"
+  switch (row.queue) {
+    case "new":
+      return "new"
+    case "artwork":
+    case "blanks":
+    case "production":
+      return row.queue
+    default:
+      return "quote"
   }
 }
