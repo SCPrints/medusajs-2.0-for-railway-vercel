@@ -1,4 +1,4 @@
-import { parseInboxAlias, stripQuotedReply } from "../order-inbox-alias"
+import { commentSubject, parseInboxAlias, replySubject, stripQuotedReply, threadHeaders } from "../order-inbox-alias"
 
 describe("parseInboxAlias", () => {
   it("reads order and quote aliases, bare or in Name <addr> form", () => {
@@ -43,5 +43,23 @@ describe("stripQuotedReply", () => {
     expect(stripQuotedReply("From: the look of it, 24 cm is right.\nCheers")).toBe(
       "From: the look of it, 24 cm is right.\nCheers"
     )
+  })
+})
+
+describe("reply threading", () => {
+  it("prefixes Re: once and skips empty subjects", () => {
+    expect(replySubject("Hoodies for the club")).toBe("Re: Hoodies for the club")
+    expect(replySubject("RE: Hoodies")).toBe("RE: Hoodies")
+    expect(replySubject("  ")).toBeNull()
+    expect(replySubject(null)).toBeNull()
+  })
+  it("reads the subject off an inbound order comment header", () => {
+    expect(commentSubject("From: Jo <jo@x.com> · Subject: Re: Proof for #78\n\nLooks good")).toBe("Re: Proof for #78")
+    expect(commentSubject("From: Jo <jo@x.com>\n\nNo subject")).toBeNull()
+  })
+  it("brackets the message id for In-Reply-To / References", () => {
+    expect(threadHeaders("abc@mail.gmail.com")).toEqual({ "In-Reply-To": "<abc@mail.gmail.com>", References: "<abc@mail.gmail.com>" })
+    expect(threadHeaders("<abc@x>")?.["In-Reply-To"]).toBe("<abc@x>")
+    expect(threadHeaders(null)).toBeUndefined()
   })
 })

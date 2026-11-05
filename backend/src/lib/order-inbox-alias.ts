@@ -60,3 +60,24 @@ export function stripQuotedReply(text: string): string {
   const kept = cut === -1 ? lines : lines.slice(0, cut)
   return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim()
 }
+
+/** "Re: <their subject>", so our reply lands in the customer's own thread. Null when they gave none. */
+export function replySubject(theirs: string | null | undefined): string | null {
+  const s = theirs?.trim()
+  if (!s) return null
+  return /^re:/i.test(s) ? s : `Re: ${s}`
+}
+
+/** The subject from an inbound order comment's first line ("From: … · Subject: …", see inbound-email/record.ts). */
+export function commentSubject(body: string): string | null {
+  const m = body.split("\n", 1)[0].match(/ · Subject: (.+)$/)
+  return m ? m[1].trim() : null
+}
+
+/** In-Reply-To + References pointing at the customer's message, so mail clients thread our reply under it. */
+export function threadHeaders(messageId: string | null | undefined): Record<string, string> | undefined {
+  const id = messageId?.trim()
+  if (!id) return undefined
+  const bracketed = id.startsWith("<") ? id : `<${id}>`
+  return { "In-Reply-To": bracketed, References: bracketed }
+}
