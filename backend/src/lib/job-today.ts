@@ -220,3 +220,15 @@ export function groupToday(jobs: JobView[], now: Date = new Date()): TodayView {
 
 // ponytail: kept so the Enquiries tab can age rows the same way Today does.
 export const daysAgo = (iso: string, now: Date = new Date()) => Math.floor((now.getTime() - Date.parse(iso)) / DAY)
+
+/**
+ * The morning "Your jobs today" email: one staff member's open jobs (already
+ * in urgency order), and how many open jobs nobody owns yet.
+ */
+export function morningDigestFor(view: TodayView, userId: string): { rows: TodayRow[]; unowned: number } {
+  const open = view.rows.filter((r) => !r.closed)
+  return {
+    rows: open.filter((r) => r.owner?.user_id === userId),
+    unowned: open.filter((r) => !r.owner).length,
+  }
+}

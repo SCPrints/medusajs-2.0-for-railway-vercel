@@ -1,5 +1,5 @@
 import type { JobState } from "../job-state"
-import { dateRisk, groupToday, queueFor } from "../job-today"
+import { dateRisk, groupToday, morningDigestFor, queueFor } from "../job-today"
 import type { JobView } from "../job-view"
 
 const NOW = new Date("2026-10-21T00:00:00.000Z") // Wed 21 Oct, 11:00 Sydney
@@ -138,5 +138,24 @@ describe("groupToday", () => {
       NOW
     )
     expect(view.rows.map((r) => r.id)).toEqual(["new", "old"])
+  })
+})
+
+describe("morningDigestFor", () => {
+  it("lists only my open jobs and counts the unowned open ones", () => {
+    const me = { user_id: "user_c", label: "Collins" }
+    const view = groupToday(
+      [
+        job("mine", {}, { owner: me }),
+        job("theirs", {}, { owner: { user_id: "user_s", label: "Sean" } }),
+        job("nobody", {}),
+        job("mine_lost", { lost: true }, { owner: me }),
+        job("nobody_lost", { lost: true }),
+      ],
+      NOW
+    )
+    const d = morningDigestFor(view, "user_c")
+    expect(d.rows.map((r) => r.id)).toEqual(["mine"])
+    expect(d.unowned).toBe(1)
   })
 })

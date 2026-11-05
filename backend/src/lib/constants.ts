@@ -880,3 +880,8 @@ export const RESEND_WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET
  */
 export const WORKER_MODE = (process.env.MEDUSA_WORKER_MODE) || 'shared'
 export const SHOULD_DISABLE_ADMIN = String(process.env.MEDUSA_DISABLE_ADMIN).toLowerCase() === 'true'
+/**
+ * Weekday "Your jobs today" email to each admin who owns open jobs
+ * (jobs/send-staff-jobs-today.ts). Staff-only, so on by default; `false` stops it.
+ */
+export const STAFF_JOBS_EMAIL_ENABLED = String(process.env.STAFF_JOBS_EMAIL_ENABLED).toLowerCase() !== "false"
