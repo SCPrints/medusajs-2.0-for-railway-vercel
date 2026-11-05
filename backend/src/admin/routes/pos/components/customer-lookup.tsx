@@ -15,6 +15,7 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
   const [newEmail, setNewEmail] = useState("")
   const [newFirstName, setNewFirstName] = useState("")
   const [newLastName, setNewLastName] = useState("")
+  const [newPhone, setNewPhone] = useState("")
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -49,8 +50,10 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
   }
 
   const createGuest = async () => {
-    if (!newEmail.trim()) {
-      toast.error("Email is required")
+    // No email is fine (the order goes on the walk-in inbox), but we need
+    // something to find them by next time.
+    if (!newEmail.trim() && !newFirstName.trim() && !newLastName.trim() && !newPhone.trim()) {
+      toast.error("Enter an email, a name or a phone number")
       return
     }
     setBusy(true)
@@ -60,9 +63,10 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: newEmail.trim(),
+          email: newEmail.trim() || null,
           first_name: newFirstName.trim() || null,
           last_name: newLastName.trim() || null,
+          phone: newPhone.trim() || null,
         }),
       })
       if (!res.ok) {
@@ -75,6 +79,7 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
       setNewEmail("")
       setNewFirstName("")
       setNewLastName("")
+      setNewPhone("")
       setQuery("")
     } catch (err: any) {
       toast.error(err?.message ?? "Create failed")
@@ -94,7 +99,7 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
                 : "Customer"}
             </Text>
             <Text size="xsmall" className="text-ui-fg-muted truncate">
-              {customer.email ?? "(no email)"}
+              {customer.email ?? (customer.phone ? `${customer.phone} · no email` : "(no email)")}
             </Text>
           </div>
           <Button
@@ -112,7 +117,7 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
   return (
     <div>
       <Input
-        placeholder="Search customer by email or name…"
+        placeholder="Search customer by name, email or phone…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
@@ -128,10 +133,10 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
                 <Text size="small" className="font-medium">
                   {c.first_name || c.last_name
                     ? `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()
-                    : c.email}
+                    : c.email ?? c.phone}
                 </Text>
                 <Text size="xsmall" className="text-ui-fg-muted">
-                  {c.email}
+                  {[c.email, c.phone].filter(Boolean).join(" · ")}
                 </Text>
               </button>
             </li>
@@ -156,9 +161,14 @@ export const CustomerLookup = ({ customer, onSelect }: Props) => {
             New customer
           </Heading>
           <Input
-            placeholder="email@example.com"
+            placeholder="email@example.com (optional)"
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
+          />
+          <Input
+            placeholder="Phone"
+            value={newPhone}
+            onChange={(e) => setNewPhone(e.target.value)}
           />
           <div className="flex gap-2">
             <Input

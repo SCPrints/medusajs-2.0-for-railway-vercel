@@ -22,6 +22,7 @@ import {
   ASCOLOUR_WORKSHOP_STATE,
   ASCOLOUR_WORKSHOP_ZIP,
 } from "../../lib/constants"
+import { isWalkInEmail } from "../../lib/walk-in"
 import { createPaymentLink } from "../stripe-payment-link"
 import type { Scenario } from "../stripe-payment-link/create-link"
 
@@ -91,6 +92,35 @@ export const buildStudioAddress = () => ({
 })
 
 /**
+ * Customer + email for a draft order. A customer with no email goes on the
+ * walk-in inbox — but Medusa's find-or-create-customer step, handed a
+ * customer AND an email that isn't theirs, swaps in a guest customer for that
+ * email. So such drafts are created with the email alone (`relinkTo` set) and
+ * pointed back at the real customer by `relinkDraftCustomer` before they're
+ * converted, so order.placed already sees the right customer.
+ */
+export function draftCustomer(
+  customerId: string | null | undefined,
+  email: string | null | undefined
+): { customer_id?: string; email?: string; relinkTo: string | null } {
+  const relinkTo = customerId && isWalkInEmail(email) ? customerId : null
+  return {
+    customer_id: relinkTo ? undefined : customerId ?? undefined,
+    email: email ?? undefined,
+    relinkTo,
+  }
+}
+
+export async function relinkDraftCustomer(
+  container: MedusaContainer,
+  orderId: string,
+  customerId: string | null
+): Promise<void> {
+  if (!customerId) return
+  await container.resolve(Modules.ORDER).updateOrders(orderId, { customer_id: customerId })
+}
+
+/**
  * Run an end-to-end POS checkout:
  *
  *  1. createOrderWorkflow(is_draft_order=true) — same call as the
@@ -152,12 +182,13 @@ export const checkoutPOSSession = async (
   }
 
   // 1. Build draft order input.
+  const who = draftCustomer(input.customer_id, input.email)
   const draftInput: any = {
     region_id: input.region_id,
     sales_channel_id: input.sales_channel_id ?? undefined,
     currency_code: input.currency_code ?? undefined,
-    customer_id: input.customer_id ?? undefined,
-    email: input.email ?? undefined,
+    customer_id: who.customer_id,
+    email: who.email,
     shipping_address: buildStudioAddress(),
     billing_address: buildStudioAddress(),
     promo_codes:
@@ -185,6 +216,7 @@ export const checkoutPOSSession = async (
   })
   const draftId = (draftResult as any)?.result?.id
   if (!draftId) throw new Error("draft order creation returned no id")
+  await relinkDraftCustomer(container, draftId, who.relinkTo)
 
   await convertDraftOrderWorkflow(container).run({
     input: { id: draftId },

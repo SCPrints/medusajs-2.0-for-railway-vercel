@@ -59,8 +59,9 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // Customer is optional — cash "scan + go" walk-ins should be able to
   // checkout without capturing details. We always need *something* on
   // the email field for Medusa's draft-order validator, so fall back to
-  // the configured walk-in inbox (or a sentinel).
-  const effectiveEmail = body.email ?? (body.customer_id ? null : walkInEmail())
+  // the configured walk-in inbox — also for a picked customer with no email
+  // (checkout service keeps the order on that customer).
+  const effectiveEmail = body.email ?? walkInEmail()
 
   const actor = (req as any).auth_context?.actor_id
   if (!actor) {

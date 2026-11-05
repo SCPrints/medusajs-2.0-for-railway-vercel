@@ -417,7 +417,10 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
   const displayId = typeof order?.display_id === "number" ? order.display_id : null
   const publicId = quote?.public_id ?? null
   const customerEmail: string | null = customerRow?.email ?? order?.email ?? quote?.email ?? null
-  const title = [customerName ?? customerRow?.email ?? quote?.email ?? order?.email, quote?.subject ?? (order ? `Order #${displayId ?? ""}` : null)]
+  const contactLabel = isWalkInEmail(customerEmail)
+    ? customerRow?.phone ?? quote?.contact_phone ?? "Walk-in"
+    : customerEmail
+  const title = [customerName ?? contactLabel, quote?.subject ?? (order ? `Order #${displayId ?? ""}` : null)]
     .filter(Boolean)
     .join(" · ")
 

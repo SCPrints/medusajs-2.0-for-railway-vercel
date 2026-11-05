@@ -12,7 +12,7 @@ import {
 
 import { QUOTE_MODULE } from "../../modules/quote"
 import type QuoteModuleService from "../../modules/quote/service"
-import { buildStudioAddress } from "../pos-checkout/checkout"
+import { buildStudioAddress, draftCustomer, relinkDraftCustomer } from "../pos-checkout/checkout"
 import {
   normaliseDeliveryAddress,
   readStoredDeliveryAddress,
@@ -350,13 +350,16 @@ export const convertQuoteToOrder = async (
     : null
 
   // ── Create draft → convert (POS recipe) ──────────────────────────────────
+  // A job with no email sits on the walk-in inbox; draftCustomer keeps the
+  // order on the job's (email-less) customer.
+  const who = draftCustomer(customerId, quote.email)
   const draftResult = await createOrderWorkflow(container).run({
     input: {
       region_id: region.id,
       sales_channel_id: salesChannelId,
       currency_code: String(quote.currency_code ?? "aud").toLowerCase(),
-      customer_id: customerId ?? undefined,
-      email: quote.email,
+      customer_id: who.customer_id,
+      email: who.email,
       billing_address: billing,
       shipping_address: shipping,
       status: OrderStatus.DRAFT,
@@ -384,6 +387,7 @@ export const convertQuoteToOrder = async (
       "Draft order creation returned no id."
     )
   }
+  await relinkDraftCustomer(container, orderId, who.relinkTo)
   await convertDraftOrderWorkflow(container).run({ input: { id: orderId } })
 
   const { data: orders } = await query.graph({

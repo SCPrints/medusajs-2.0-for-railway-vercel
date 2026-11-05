@@ -68,9 +68,13 @@ export function NewQuoteDrawer({
 
   // POST the quote; returns the new id (or null on failure). Split out so the
   // "Create" button and "Design in Studio" share one create path.
+  const hasContact = () =>
+    !!(form.email.trim() || form.contact_name.trim() || form.contact_phone.trim())
+  const contactError = "Enter an email, or a name or phone number."
+
   const createQuote = async (): Promise<string | null> => {
-    if (!form.email.trim()) {
-      setError("Email is required.")
+    if (!hasContact()) {
+      setError(contactError)
       return null
     }
     setSaving(true)
@@ -78,7 +82,7 @@ export function NewQuoteDrawer({
     try {
       const estimateNum = Number.parseFloat(form.total_estimate)
       const payload: Record<string, unknown> = {
-        email: form.email.trim(),
+        email: form.email.trim() || undefined,
         contact_name: form.contact_name.trim() || undefined,
         company: form.company.trim() || undefined,
         contact_phone: form.contact_phone.trim() || undefined,
@@ -122,8 +126,8 @@ export function NewQuoteDrawer({
   // machinery as "Design in Studio" on an existing quote). If the popup is
   // blocked we still create the quote so the work isn't lost.
   const createAndDesign = async () => {
-    if (!form.email.trim()) {
-      setError("Email is required.")
+    if (!hasContact()) {
+      setError(contactError)
       return
     }
     const popup = window.open(
@@ -179,13 +183,17 @@ export function NewQuoteDrawer({
         <Drawer.Body className="overflow-auto">
           <div className="flex flex-col gap-y-4 p-1">
             <div className="flex flex-col gap-y-1">
-              <Label size="xsmall">Email *</Label>
+              <Label size="xsmall">Email</Label>
               <Input
                 type="email"
                 value={form.email}
                 onChange={(e) => set({ email: e.target.value })}
                 placeholder="customer@example.com"
               />
+              <Text size="xsmall" className="text-ui-fg-muted">
+                No email? Leave it blank and enter a name or phone. We can&apos;t
+                email them quotes or proofs; log calls and notes instead.
+              </Text>
             </div>
 
             <div className="grid grid-cols-1 small:grid-cols-2 gap-3">

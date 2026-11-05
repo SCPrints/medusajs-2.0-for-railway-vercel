@@ -2,7 +2,10 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ulid } from "ulid"
 import { z } from "zod"
 
+import { Modules } from "@medusajs/framework/utils"
+
 import { findCustomerIdByEmail } from "../../../lib/customer-fill"
+import { walkInEmail } from "../../../lib/walk-in"
 import { isValidEmail } from "../../../lib/email-validation"
 import { getPostHog } from "../../../lib/posthog"
 import { slimQuoteForAdmin } from "../../../lib/quote-admin-slim"
@@ -10,7 +13,8 @@ import { QUOTE_MODULE } from "../../../modules/quote"
 import type QuoteModuleService from "../../../modules/quote/service"
 
 const createSchema = z.object({
-  email: z.string().min(3),
+  // Blank = a customer with no email (phone / walk-in); see POST.
+  email: z.string().optional(),
   customer_id: z.string().max(80).optional(),
   contact_name: z.string().max(120).optional(),
   contact_phone: z.string().max(40).optional(),
@@ -151,9 +155,43 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(400).json({ message: err?.message ?? "Invalid request" })
   }
 
-  const email = parsed.email.trim().toLowerCase()
-  if (!isValidEmail(email)) {
-    return res.status(400).json({ message: "Please enter a valid email address." })
+  const givenEmail = (parsed.email ?? "").trim().toLowerCase()
+  let email = givenEmail
+  let customerId: string | null = parsed.customer_id ?? null
+  if (givenEmail) {
+    if (!isValidEmail(givenEmail)) {
+      return res.status(400).json({ message: "Please enter a valid email address." })
+    }
+    customerId ??= await findCustomerIdByEmail(req.scope, givenEmail)
+  } else {
+    // No email: the job sits on the walk-in inbox (no customer emails go out,
+    // the job window offers call / note only) and is linked to a customer
+    // record that holds the name + phone.
+    const name = parsed.contact_name?.trim() ?? ""
+    const phone = parsed.contact_phone?.trim() ?? ""
+    if (!name && !phone) {
+      return res.status(400).json({ message: "Enter an email, or a name or phone number." })
+    }
+    email = walkInEmail()
+    if (!customerId) {
+      const customers = req.scope.resolve(Modules.CUSTOMER)
+      // ponytail: exact phone match only; "0412 345 678" vs "0412345678" makes a second record.
+      // (`phone` is a real column; the filter type just omits it.)
+      const [samePhone] = phone ? await customers.listCustomers({ phone } as any, { take: 1 }) : []
+      if (samePhone) {
+        customerId = samePhone.id
+      } else {
+        const [first, ...rest] = name.split(/\s+/)
+        const created = await customers.createCustomers({
+          email: null,
+          first_name: first || null,
+          last_name: rest.join(" ") || null,
+          phone: phone || null,
+          company_name: parsed.company?.trim() || null,
+        })
+        customerId = created.id
+      }
+    }
   }
 
   const quoteService = req.scope.resolve<QuoteModuleService>(QUOTE_MODULE)
@@ -192,7 +230,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       status: "new",
       source: "admin",
       email,
-      customer_id: parsed.customer_id ?? (await findCustomerIdByEmail(req.scope, email)),
+      customer_id: customerId,
       contact_name: parsed.contact_name ?? null,
       contact_phone: parsed.contact_phone ?? null,
       company: parsed.company ?? null,
@@ -223,7 +261,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       public_id: publicId,
       source: "admin",
       line_count: lineItems.length,
-      $set: { email },
+      ...(givenEmail ? { $set: { email } } : {}),
     },
   })
 
