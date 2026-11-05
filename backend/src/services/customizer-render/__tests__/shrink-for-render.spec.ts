@@ -17,6 +17,22 @@ describe("shrinkForRender", () => {
     expect(meta.hasAlpha).toBe(true)
   }, 60_000)
 
+  it("shrinks a big opaque photo to JPEG, small enough to inline in an SVG", async () => {
+    // Noise, like a phone photo: as a 3000 px PNG this was ~7.5 MB and broke the SVG parse.
+    const w = 4000
+    const h = 3000
+    const raw = Buffer.alloc(w * h * 3)
+    for (let i = 0; i < raw.length; i++) raw[i] = (i * 2654435761) >>> 24
+    const photo = await sharp(raw, { raw: { width: w, height: h, channels: 3 } }).jpeg({ quality: 90 }).toBuffer()
+    const { buffer, contentType, shrunk } = await shrinkForRender(photo, "image/jpeg")
+    const meta = await sharp(buffer).metadata()
+    expect(shrunk).toBe(true)
+    expect(contentType).toBe("image/jpeg")
+    expect(meta.format).toBe("jpeg")
+    expect(meta.width).toBe(3000)
+    expect(Math.ceil(buffer.length / 3) * 4).toBeLessThan(10 * 1024 * 1024)
+  }, 60_000)
+
   it("leaves small images and SVGs alone", async () => {
     const small = await sharp({
       create: { width: 800, height: 600, channels: 3, background: "#fff" },

@@ -249,6 +249,14 @@ export const rewriteOwnR2UrlToPublic = (rawUrl: string): string => {
  */
 const MAX_INLINE_IMAGE_EDGE = 3000
 
+/**
+ * librsvg won't parse an SVG attribute over 10 MB ("Buffer size limit exceeded,
+ * try XML_PARSE_HUGE"), and base64 adds a third. A 3000 px photo saved as PNG
+ * went over it (2026-11-05: every render of a phone photo 500'd), so opaque
+ * images shrink to JPEG, and a stored copy above this is rebuilt, not inlined.
+ */
+const MAX_INLINE_IMAGE_BYTES = 7 * 1024 * 1024
+
 export const shrinkForRender = async (
   buffer: Buffer,
   contentType: string
@@ -262,16 +270,17 @@ export const shrinkForRender = async (
       return { buffer, contentType, shrunk: false }
     }
     // sequentialRead lets libvips stream the decode instead of holding the full bitmap.
-    const out = await sharp(buffer, { sequentialRead: true })
-      .resize({
-        width: MAX_INLINE_IMAGE_EDGE,
-        height: MAX_INLINE_IMAGE_EDGE,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .png()
-      .toBuffer()
-    return { buffer: out, contentType: "image/png", shrunk: true }
+    const resized = sharp(buffer, { sequentialRead: true }).resize({
+      width: MAX_INLINE_IMAGE_EDGE,
+      height: MAX_INLINE_IMAGE_EDGE,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    // Transparency needs PNG; a photo as PNG is ~3× the JPEG and can break the SVG parse.
+    if (meta.hasAlpha) {
+      return { buffer: await resized.png().toBuffer(), contentType: "image/png", shrunk: true }
+    }
+    return { buffer: await resized.jpeg({ quality: 90 }).toBuffer(), contentType: "image/jpeg", shrunk: true }
   } catch {
     return { buffer, contentType, shrunk: false }
   }
@@ -319,15 +328,16 @@ export const renderCopyUrl = (originalUrl: string): string | null => {
 }
 
 /** Shrink `buffer` and store it as the render copy of `originalUrl` (no-op when it's already small). */
-const storeRenderCopy = (copyUrl: string, png: Buffer) =>
-  uploadToMinio(png, copyUrl.slice(copyUrl.indexOf("/customizer/") + "/customizer/".length), "image/png")
+// ponytail: key keeps its .png name whatever the format; readers go by the stored content type.
+const storeRenderCopy = (copyUrl: string, image: Buffer, contentType: string) =>
+  uploadToMinio(image, copyUrl.slice(copyUrl.indexOf("/customizer/") + "/customizer/".length), contentType)
 
 /** Shrink an upload and store it as its render copy (no-op when it's already render-sized). */
 export const writeRenderCopy = async (originalUrl: string, buffer: Buffer, contentType: string) => {
   const target = renderCopyUrl(originalUrl)
   if (!target) return
   const shrunk = await withRenderSlot(() => shrinkForRender(buffer, contentType))
-  if (shrunk.shrunk) await storeRenderCopy(target, shrunk.buffer)
+  if (shrunk.shrunk) await storeRenderCopy(target, shrunk.buffer, shrunk.contentType)
 }
 
 const fetchImage = async (url: string): Promise<{ buffer: Buffer; contentType: string } | null> => {
@@ -353,7 +363,8 @@ const fetchInlineDataUri = async (url: string): Promise<string | null> => {
     const publicUrl = rewriteOwnR2UrlToPublic(url)
     const copyUrl = renderCopyUrl(publicUrl)
     const copy = copyUrl ? await fetchImage(copyUrl).catch(() => null) : null
-    if (copy) {
+    // An oversized copy is an old photo-as-PNG; fall through and overwrite it.
+    if (copy && copy.buffer.length <= MAX_INLINE_IMAGE_BYTES) {
       return `data:${copy.contentType};base64,${copy.buffer.toString("base64")}`
     }
     const fetched = await fetchImage(publicUrl)
@@ -363,7 +374,7 @@ const fetchInlineDataUri = async (url: string): Promise<string | null> => {
     const shrunk = await shrinkForRender(fetched.buffer, fetched.contentType)
     if (shrunk.shrunk && copyUrl) {
       // Older upload with no render copy yet: save it so this is the last full decode.
-      void storeRenderCopy(copyUrl, shrunk.buffer).catch(() => undefined)
+      void storeRenderCopy(copyUrl, shrunk.buffer, shrunk.contentType).catch(() => undefined)
     }
     return `data:${shrunk.contentType};base64,${shrunk.buffer.toString("base64")}`
   } catch {
