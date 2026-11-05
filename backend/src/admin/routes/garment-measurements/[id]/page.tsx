@@ -268,7 +268,7 @@ function MeasureFlow(props: {
             <Heading level="h2" className="text-2xl">{step.name}</Heading>
             <Text className="mt-1 text-base">{step.how}</Text>
             <Text size="small" className="text-ui-fg-muted mt-1">
-              Lay it flat on the table, smooth it out, don't stretch it. Centimetres.
+              Front facing up, flat on the table, smoothed out but not stretched. Centimetres.
             </Text>
           </div>
 
