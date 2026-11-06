@@ -91,7 +91,14 @@ export async function middleware(request: NextRequest) {
     ? `${request.nextUrl.origin}${countryPath}${request.nextUrl.search}`
     : request.nextUrl.href
 
-  let response = NextResponse.redirect(redirectUrl, 307)
+  // Permanent (308) when the shop serves one country: every visitor lands on the
+  // same /au URL, and a 307 made Google keep the unprefixed URL as canonical
+  // (home indexed as "/", "/au" marked duplicate — Search Console, 2026-11-06).
+  // Stays 307 with several countries (IP-based choice) or an empty map (backend down).
+  let response = NextResponse.redirect(
+    redirectUrl,
+    regionMap.size === 1 ? 308 : 307
+  )
 
   // If a cart_id is in the params, we set it as a cookie and redirect to the address step.
   if (cartId && !checkoutStep) {

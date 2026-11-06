@@ -43,6 +43,20 @@ const nextConfig = {
   // + cached data is served from the edge and Suspense boundaries (CartButton)
   // stream as dynamic holes.
   cacheComponents: true,
+  // Googlebot gets blocking metadata (title/description/canonical in <head>).
+  // By default Next streams metadata into <body> for Googlebot on every page
+  // whose generateMetadata reads params (products, categories, locations,
+  // services, brands). Google ignores a canonical outside <head>: URL Inspection
+  // showed no user canonical on those pages and picked a different canonical for
+  // /au/services/digital-transfers (2026-11-06). Bing and Facebook were already in
+  // Next's default list. Cost: Googlebot requests render dynamically, not from cache.
+  // ponytail: internal Next path; if an upgrade moves it the build fails loudly.
+  htmlLimitedBots: new RegExp(
+    `Googlebot|${
+      require("next/dist/shared/lib/router/utils/html-bots").HTML_LIMITED_BOT_UA_RE.source
+    }`,
+    "i"
+  ),
   // Next 16 removed the `eslint` config block — lint no longer runs as part
   // of `next build`. Use `pnpm lint` (standalone) to check. The repo has
   // ~24 pre-existing lint errors (mostly missing react/jsx-key in animation
