@@ -433,7 +433,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
             <Container className="p-0" id="job-quote">
               <SectionHead
                 title="Quote"
-                summary={job.order ? `${job.quote.public_id} · converted to order #${job.order.display_id ?? ""} — edits here don't change the order` : `${job.quote.public_id} · ${job.quote.status}${job.quote.design_approval_status ? ` · design ${job.quote.design_approval_status.replace(/_/g, " ")}` : ""}`}
+                summary={job.order ? `${job.quote.public_id} · converted to order #${job.order.display_id ?? ""} — new lines go on with “Add to order”` : `${job.quote.public_id} · ${job.quote.status}${job.quote.design_approval_status ? ` · design ${job.quote.design_approval_status.replace(/_/g, " ")}` : ""}`}
                 open={open.quote}
                 onToggle={() => toggle("quote")}
               />

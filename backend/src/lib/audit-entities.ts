@@ -93,6 +93,8 @@ export const AUDIT_ACTION = {
   SCREEN_REPRICED: "screen_repriced",
   // A line quoted without sizes split into real sizes (lib/sizes-pending.ts)
   SIZES_ENTERED: "sizes_entered",
+  // Quote lines added after conversion, put on the order by an order edit
+  QUOTE_LINES_ADDED_TO_ORDER: "quote_lines_added_to_order",
   // Dispatch
   PACKING_CHECK_COMPLETED: "packing_check_completed",
   DESIGN_CREATED: "design_created",

@@ -34,6 +34,8 @@ export type ConvertQuoteResult = {
 
 /** What a quote line says about the job, kept on the order line whatever its shape. */
 const quoteLineDetails = (li: Record<string, any>): Record<string, unknown> => ({
+  // Links the order line back to its quote line (lib/quote-order-lines.ts).
+  ...(li.id ? { quote_line_id: String(li.id) } : {}),
   ...(li.description ? { description: String(li.description) } : {}),
   ...(li.group_id ? { group_id: String(li.group_id) } : {}),
   ...(li.product_handle ? { product_handle: String(li.product_handle) } : {}),
@@ -41,6 +43,39 @@ const quoteLineDetails = (li: Record<string, any>): Record<string, unknown> => (
   ...(li.customizerDesign && typeof li.customizerDesign === "object"
     ? { customizerDesign: li.customizerDesign }
     : {}),
+})
+
+/** Order line for a quote line with a real SKU. */
+export const variantLinePayload = (li: Record<string, any>): Record<string, unknown> => {
+  // Honour an explicit quoted price (incl. a deliberate 0); NULL/blank means
+  // "not set" → omit so the line prices at catalog rate, never $0.
+  const unitPrice = li.unit_price == null ? NaN : Number(li.unit_price)
+  return {
+    title: String(li.title ?? "Quoted item"),
+    variant_id: String(li.variant_id),
+    quantity: Number(li.quantity ?? 1),
+    ...(Number.isFinite(unitPrice) && unitPrice >= 0 ? { unit_price: unitPrice } : {}),
+    metadata: { quote_locked_price: true, ...quoteLineDetails(li) },
+  }
+}
+
+/** Order line for a fee / custom quote line, or a garment still waiting on sizes. */
+export const customLinePayload = (li: Record<string, any>, needsSizes: boolean): Record<string, unknown> => ({
+  title: String(li.title),
+  quantity: Number(li.quantity ?? 1),
+  unit_price: Number(li.unit_price),
+  // Quoted prices are GST-INCLUSIVE (HOLD). Variant lines inherit this from
+  // the AUD price preference, but variant-less lines don't — without the
+  // flag the tax engine adds 10% on top (order #78 showed $3,007.50 in
+  // admin instead of $2,943 until the flags were repaired).
+  is_tax_inclusive: true,
+  ...(li.thumbnail ? { thumbnail: String(li.thumbnail) } : {}),
+  metadata: {
+    quote_locked_price: true,
+    quote_custom_line: true,
+    ...quoteLineDetails(li),
+    ...(needsSizes ? { sizes_pending: sizesPendingFromQuoteLine(li) } : {}),
+  },
 })
 
 /**
@@ -204,39 +239,8 @@ export const convertQuoteToOrder = async (
     )
   }
 
-  const itemPayloads = addable.map((li) => {
-    // Honour an explicit quoted price (incl. a deliberate 0); NULL/blank means
-    // "not set" → omit so the line prices at catalog rate, never $0.
-    const unitPrice = li.unit_price == null ? NaN : Number(li.unit_price)
-    return {
-      title: String(li.title ?? "Quoted item"),
-      variant_id: String(li.variant_id),
-      quantity: Number(li.quantity ?? 1),
-      ...(Number.isFinite(unitPrice) && unitPrice >= 0
-        ? { unit_price: unitPrice }
-        : {}),
-      metadata: { quote_locked_price: true, ...quoteLineDetails(li) },
-    }
-  })
-
-  const customItemPayloads = customAddable.map((li) => ({
-    title: String(li.title),
-    quantity: Number(li.quantity ?? 1),
-    unit_price: Number(li.unit_price),
-    // Quoted prices are GST-INCLUSIVE (HOLD). Variant lines inherit this from
-    // the AUD price preference, but variant-less lines don't — without the
-    // flag the tax engine adds 10% on top (order #78 showed $3,007.50 in
-    // admin instead of $2,943 until the flags were repaired).
-    is_tax_inclusive: true,
-    ...(li.thumbnail ? { thumbnail: String(li.thumbnail) } : {}),
-    metadata: {
-      quote_locked_price: true,
-      quote_custom_line: true,
-      ...quoteLineDetails(li),
-      ...(needsSizes(li) ? { sizes_pending: sizesPendingFromQuoteLine(li) } : {}),
-    },
-  }))
-  itemPayloads.push(...(customItemPayloads as any[]))
+  const itemPayloads: Array<Record<string, unknown>> = addable.map(variantLinePayload)
+  itemPayloads.push(...customAddable.map((li) => customLinePayload(li, needsSizes(li))))
 
   // ── Payer: addresses + payment terms ─────────────────────────────────────
   // Geo fields default to the studio address so the tax engine computes AU

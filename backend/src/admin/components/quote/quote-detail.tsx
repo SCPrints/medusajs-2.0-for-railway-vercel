@@ -1371,8 +1371,18 @@ export function QuoteDetail({
             Sum line items → estimate
           </Button>
         </div>
+        {convertedOrderId ? (
+          <OrderLinesCallout
+            quoteId={quote.id}
+            displayId={convertedDisplayId}
+            refreshKey={String((quote as any).updated_at ?? "")}
+            onAdded={onReload}
+          />
+        ) : null}
         <Text size="xsmall" className="text-ui-fg-muted mt-2">
-          {studioOpen
+          {convertedOrderId
+            ? "This quote is already an order. Saving lines changes the quote only — new lines go on the order with “Add to order”. Change or remove order lines on the order page."
+            : studioOpen
             ? "Studio window open — finish or close it to save line-item edits. Designs save to the quote automatically."
             : "Studio designs auto-save to the quote. Use “Save line items” after editing quantities, prices, or descriptions."}
         </Text>
@@ -1392,6 +1402,74 @@ export function QuoteDetail({
  * breakdown, line editing, Studio) mounted as-is. Loads the full quote itself
  * and saves through the same route, refusing a save made from a stale read.
  */
+type MissingOrderLine = { id: string; title: string; quantity: number; unit_price: number | null }
+
+/** Quote lines added after conversion, with a button to put them on the order. */
+function OrderLinesCallout({
+  quoteId,
+  displayId,
+  refreshKey,
+  onAdded,
+}: {
+  quoteId: string
+  displayId: unknown
+  refreshKey: string
+  onAdded: () => Promise<void> | void
+}) {
+  const [lines, setLines] = useState<MissingOrderLine[]>([])
+  const [adding, setAdding] = useState(false)
+  const url = `/admin/quotes/${encodeURIComponent(quoteId)}/order-lines`
+
+  useEffect(() => {
+    let live = true
+    fetch(url, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : { lines: [] }))
+      .then((j: { lines?: MissingOrderLine[] }) => live && setLines(j.lines ?? []))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [url, refreshKey])
+
+  if (!lines.length) return null
+  const money = (n: number | null) => (n == null ? "catalog price" : `$${n.toFixed(2)}`)
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-ui-tag-orange-border bg-ui-tag-orange-bg px-3 py-2">
+      <Text size="small" className="flex-1">
+        Not on order{displayId ? ` #${displayId}` : ""} yet:{" "}
+        {lines.map((l) => `${l.title} (${l.quantity} × ${money(l.unit_price)})`).join(", ")}
+      </Text>
+      <Button
+        size="small"
+        variant="secondary"
+        isLoading={adding}
+        onClick={async () => {
+          setAdding(true)
+          try {
+            const res = await fetch(url, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ line_ids: lines.map((l) => l.id) }),
+            })
+            const json = await res.json().catch(() => ({}))
+            if (!res.ok) throw new Error((json as any)?.error ?? `HTTP ${res.status}`)
+            toast.success(`Added ${(json as any).added} line${(json as any).added === 1 ? "" : "s"} to the order`)
+            setLines([])
+            await onAdded()
+          } catch (err: any) {
+            toast.error(err?.message ?? "Couldn't add the lines to the order")
+          } finally {
+            setAdding(false)
+          }
+        }}
+      >
+        Add to order
+      </Button>
+    </div>
+  )
+}
+
 export function QuoteTools({ quoteId, onChanged }: { quoteId: string; onChanged: () => void }) {
   const [quote, setQuote] = useState<Quote | null>(null)
   const [regionId, setRegionId] = useState<string | null>(null)
