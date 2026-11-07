@@ -40,7 +40,7 @@ const TAPES: Record<GarmentType, Record<string, Tape>> = {
     hem_flat: { d: "M128,316 L272,316", ends: [[128, 316], [272, 316]] },
     waistband_height: { d: "M250,318 L250,348", ends: [[250, 318], [250, 348]] },
     waistband_relaxed_flat: { d: "M132,344 L268,344", ends: [[132, 344], [268, 344]] },
-    sleeve_top: { d: "M165,58 L30,200 L16,214", ends: [[165, 58], [16, 214]] },
+    sleeve_top: { d: "M165,58 L30,200", ends: [[165, 58], [30, 200]] },
     cuff_height: { d: "M40,210 L26,224", ends: [[40, 210], [26, 224]] },
     cuff_relaxed_flat: { d: "M16,214 L36,233", ends: [[16, 214], [36, 233]] },
     // hood steps use the side-on hood picture
