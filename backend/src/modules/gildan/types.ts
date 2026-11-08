@@ -88,8 +88,13 @@ export type GildanRow = {
   productUrl: string | null
   /** col 36 — "Active" | "ACTIVE" | "NEW - INACTIVE". Inactive rows are skipped on import. */
   status: string
-  /** col 38 — Gross weight per garment, in pounds. */
+  /**
+   * col 38 — Gross weight of the whole CARTON, in pounds (not one garment:
+   * 5000 L = 32.8 lb for a carton of 72). Divide by `qtyPerCarton`.
+   */
   weightPounds: number | null
+  /** col 45 — Garments per carton (72 for most tees, 36 for 3XL+). */
+  qtyPerCarton: number | null
   /** col 46 — Country code, e.g. "GT" (Guatemala) | "BD" (Bangladesh). */
   countryOfOrigin: string | null
 }

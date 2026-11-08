@@ -58,6 +58,23 @@ export const canonicalColourKey = (name: string): string =>
   name.trim().toLowerCase().replace(/\s+/g, " ")
 
 const LB_TO_G = 453.59237
+/** No single garment in the file weighs this much; above it, col 38 is a carton. */
+const CARTON_THRESHOLD_G = 2000
+
+/**
+ * One garment's weight in grams from a row. Col 38 is mostly the whole
+ * carton's gross weight (5000 L: 32.8 lb for 72), but a few styles give one
+ * garment's (American Apparel TR401: 0.43 lb), so only divide by the carton
+ * qty when the figure is clearly a carton. A carton with no qty → null.
+ */
+export function gildanGarmentGrams(
+  row: Pick<GildanRow, "weightPounds" | "qtyPerCarton">
+): number | null {
+  if (row.weightPounds === null || row.weightPounds <= 0) return null
+  const grams = row.weightPounds * LB_TO_G
+  if (grams <= CARTON_THRESHOLD_G) return grams
+  return row.qtyPerCarton && row.qtyPerCarton > 0 ? grams / row.qtyPerCarton : null
+}
 
 /**
  * Convert a raw xlsx row (positional array, length 47) into a typed
@@ -113,6 +130,7 @@ export function parseGildanRow(raw: unknown[]): GildanRow | null {
     productUrl: str(raw[35]),
     status: str(raw[36]) ?? "",
     weightPounds: num(raw[38]),
+    qtyPerCarton: num(raw[45]),
     countryOfOrigin: str(raw[46]),
   }
 }
@@ -150,8 +168,9 @@ export function groupRowsByStyle(
     let weightCount = 0
     let costAcc: number | null = null
     for (const row of group) {
-      if (row.weightPounds !== null) {
-        weightSum += row.weightPounds * LB_TO_G
+      const grams = gildanGarmentGrams(row)
+      if (grams !== null) {
+        weightSum += grams
         weightCount++
       }
       if (row.classicCost !== null) {

@@ -182,7 +182,8 @@ describe("groupRowsByStyle", () => {
       productUrl:
         partial.productUrl ?? "https://gildanbrands.com.au/american-apparel-102/",
       status: partial.status ?? "Active",
-      weightPounds: partial.weightPounds ?? 0.22,
+      weightPounds: partial.weightPounds ?? 32.78,
+      qtyPerCarton: partial.qtyPerCarton === undefined ? 72 : partial.qtyPerCarton,
       countryOfOrigin: partial.countryOfOrigin ?? "GT",
     }
   }
@@ -270,15 +271,24 @@ describe("groupRowsByStyle", () => {
     expect(products[0].classicCost).toBe(8.0)
   })
 
-  it("converts weight pounds to grams averaged across rows", () => {
+  it("turns carton pounds into grams per garment, averaged across rows", () => {
+    // Real 5000 rows: L carton 32.7837 lb / 72, 3XL carton 23.1444 lb / 36.
     const rows: GildanRow[] = [
-      row({ sizeCode: "S", weightPounds: 0.2, vendorSkuChild: "A" }),
-      row({ sizeCode: "L", weightPounds: 0.3, vendorSkuChild: "B" }),
+      row({ sizeCode: "L", weightPounds: 32.7837, qtyPerCarton: 72, vendorSkuChild: "A" }),
+      row({ sizeCode: "3XL", weightPounds: 23.1444, qtyPerCarton: 36, vendorSkuChild: "B" }),
+      // No carton qty → can't divide → left out of the average.
+      row({ sizeCode: "S", weightPounds: 25.1, qtyPerCarton: null, vendorSkuChild: "C" }),
     ]
     const p = groupRowsByStyle(rows)[0]
-    // (0.2 + 0.3) / 2 * 453.59 ≈ 113.4g
-    expect(p.weightGrams).toBeGreaterThan(110)
-    expect(p.weightGrams).toBeLessThan(120)
+    // (206.5 + 291.6) / 2 ≈ 249 g
+    expect(p.weightGrams).toBeGreaterThan(245)
+    expect(p.weightGrams).toBeLessThan(253)
+  })
+
+  it("keeps a figure that is already one garment's weight (TR401)", () => {
+    const p = groupRowsByStyle([row({ weightPounds: 0.425, qtyPerCarton: 36 })])[0]
+    expect(p.weightGrams).toBeGreaterThan(190)
+    expect(p.weightGrams).toBeLessThan(195)
   })
 
   it("logs drift warnings when classification fields disagree across a group", () => {
