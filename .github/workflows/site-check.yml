@@ -8,6 +8,7 @@ name: Site check
 on:
   schedule:
     - cron: "30 15 * * *" # 01:30/02:30 Sydney, after the Studio journeys
+    - cron: "45 15 * * 0" # weekly full crawl, Monday morning Sydney
   workflow_dispatch:
     inputs:
       base_url:
@@ -19,6 +20,9 @@ env:
 
 jobs:
   crawl:
+    # ponytail: weekly only. Visiting all ~2,200 pages nightly re-rendered the whole
+    # site as its 24h cache expired (~70k extra Vercel cache writes a day, Nov 2026).
+    if: github.event.schedule != '30 15 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -34,6 +38,7 @@ jobs:
           path: site-check-crawl.md
 
   lighthouse:
+    if: github.event.schedule != '45 15 * * 0'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -49,6 +54,7 @@ jobs:
           path: site-check-lighthouse.md
 
   errors:
+    if: github.event.schedule != '45 15 * * 0'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -82,5 +88,5 @@ jobs:
         run: |
           { echo "# $(TZ=Australia/Sydney date +'%a %d %b %Y')"; echo
             for f in site-check-crawl.md site-check-lighthouse.md site-check-errors.md; do
-              [ -f "$f" ] && cat "$f" || echo "_${f%.md} did not finish — see the job logs._"; echo
+              [ -f "$f" ] && cat "$f" || echo "_${f%.md} did not run tonight (crawl is weekly) or did not finish — see the job logs._"; echo
             done; } >> "$GITHUB_STEP_SUMMARY"
