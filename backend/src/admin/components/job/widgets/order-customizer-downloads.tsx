@@ -1174,7 +1174,9 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
     art: ArtifactPayload,
     artworkUrl: string | null
   ): string | null => {
-    if (!storefrontUrl || !line.product_handle || !line.variant_id) return null
+    // ponytail: variant is optional — "any size" quote lines have none, and the
+    // proof replays the saved design (which carries its own colour) anyway.
+    if (!storefrontUrl || !line.product_handle) return null
     const base = `${storefrontUrl}/${countryCode}/customizer`
     const params: Record<string, string> = {
       // The customizer page resolves the garment from `handle` (same param the
@@ -1183,9 +1185,9 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
       // shirt-like product in the catalog, so the proof opened on the wrong
       // garment (and the wrong-colour, since `variant` couldn't match it).
       handle: line.product_handle,
-      variant: line.variant_id,
       adminProof: `${orderId}:${line.line_item_id}:${art.side}`,
     }
+    if (line.variant_id) params.variant = line.variant_id
     if (artworkUrl) params.proofArtwork = encodeURIComponent(artworkUrl)
     return `${base}?${new URLSearchParams(params).toString()}`
   }
@@ -1399,15 +1401,12 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                               : null
                         const garmentCode = garmentCodeFromHandle(line.product_handle)
 
-                        // Build customiser URL — requires storefront URL + product handle + variant ID
+                        // Build customiser URL — requires storefront URL + product handle
                         const makeCustomiserCb = (artworkUrl: string | null) => {
                           const src = buildCustomiserSrc(line, art, artworkUrl)
                           if (src) setModalSrc(src)
                         }
-                        const canCustomise =
-                          !!storefrontUrl &&
-                          !!line.product_handle &&
-                          !!line.variant_id
+                        const canCustomise = !!storefrontUrl && !!line.product_handle
 
                         return (
                           <SideProofCard

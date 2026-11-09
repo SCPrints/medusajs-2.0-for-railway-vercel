@@ -82,7 +82,9 @@ const UPDATE_KINDS: ReadonlySet<JobActivity["kind"]> = new Set(["stage", "status
  * widgets each declare a narrower `data` shape, so the prop is typed loosely.
  */
 const Mount = ({ W: Widget, order }: { W: ComponentType<{ data: any }>; order: AdminOrder }) => (
-  <Widget data={order} />
+  // ponytail: the widgets fetch once on mount, so remount when the lines change
+  // (e.g. "Enter sizes" splits a line) or they keep showing the old lines.
+  <Widget key={(order.items ?? []).map((i) => i.id).join(",")} data={order} />
 )
 
 const VERB_TITLE: Record<Verb, string> = {
