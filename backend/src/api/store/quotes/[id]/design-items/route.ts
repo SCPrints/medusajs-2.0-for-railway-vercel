@@ -54,6 +54,9 @@ const schema = z.object({
   // shapes are accepted.
   design: z.record(z.string(), z.unknown()).nullable().optional(),
   lines: z.array(quoteDesignLineSchema).min(1).max(100),
+  // The Studio saved a mockup only (staff editor on an existing design): keep
+  // the group's lines, sizes and prices and just attach the artwork.
+  attach_only: z.boolean().optional(),
 })
 
 /**
@@ -159,7 +162,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // overrides and the negotiated discount). Also records the mockup on the
   // saved job so the pricer + breakdown card show it.
   const groupLines = currentItems.filter((li) => li?.group_id === body.group_id)
-  if (groupLines.length && groupLines.every(isAttachOnlyLine)) {
+  if (groupLines.length && (body.attach_only || groupLines.every(isAttachOnlyLine))) {
     const legacyDesign = body.lines[0]?.metadata?.customizerDesign
     const design =
       sharedDesign ??

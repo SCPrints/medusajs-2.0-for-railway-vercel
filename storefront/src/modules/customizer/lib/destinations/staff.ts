@@ -58,6 +58,8 @@ export async function sendToQuote(
     quoteId: string
     qsig: string
     groupId?: string | null
+    /** Mockup-only save: the backend keeps the group's lines and attaches the artwork. */
+    attachOnly?: boolean
     /** Decorated unit price shown in the Studio, in DOLLARS (pricing.discountedUnitPriceCents is dollars). */
     decoratedUnitDollars?: number | null
     backendUrl?: string
@@ -72,6 +74,7 @@ export async function sendToQuote(
     quote_id: input.quoteId,
     qsig: input.qsig,
     group_id: input.groupId || newQuoteGroupId(),
+    ...(input.attachOnly ? { attach_only: true } : {}),
     design: sanitizeCustomizerDesignForCart(input.metadataBase as CustomizerMetadata, input.hostedByDataUrl),
     lines: input.cells.map((cell) =>
       designLine({

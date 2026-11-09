@@ -51,6 +51,10 @@ type CustomizerPageProps = {
     adminProof?: string | string[]
     proofArtwork?: string | string[]
     variant?: string | string[]
+    /** Staff Studio popups (quote "Design in Studio", POS) — same chromeless editor. */
+    quote_id?: string | string[]
+    qsig?: string | string[]
+    pos_session?: string | string[]
   }>
 }
 
@@ -171,9 +175,13 @@ export default async function CustomizerPage({ params, searchParams }: Customize
   const handleFromQuery = firstString(sp.handle) ?? firstString(sp.product)
   const reorderRef = firstString(sp.reorder)
   const designId = firstString(sp.design)
-  // Proof mode = the admin "Create revised proof" iframe. Render a clean,
+  // Staff mode = the admin "Create revised proof" iframe, a quote's "Design in
+  // Studio" popup or the POS till popup. All render the same clean,
   // internal-only editor (no storefront chrome / PDP content).
-  const isProofMode = !!firstString(sp.adminProof)
+  const isProofMode =
+    !!firstString(sp.adminProof) ||
+    !!(firstString(sp.quote_id) && firstString(sp.qsig)) ||
+    !!firstString(sp.pos_session)
 
   const configuredHandle = getConfiguredCustomizerHandle()
 

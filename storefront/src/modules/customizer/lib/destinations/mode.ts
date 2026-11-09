@@ -46,14 +46,14 @@ export function readDestination(params: Params): StudioDestination {
 export const enforcesScreenMinimum = (d: StudioDestination) => d.kind !== "quote"
 
 /**
- * Editing a design on a staff-priced quote group (`g_…` Job pricer, `gs_…`
- * catalog line; `qg_…` groups are Studio-built and own their lines). The job
- * owns quantities and prices and the backend only attaches the artwork, so
- * sizes and prices here would change nothing (STAFF_PRICED_GROUP_PREFIX,
- * isAttachOnlyLine in backend lib/quote-design-lines.ts).
+ * Editing an existing design on a quote (any group: Job pricer `g_…`, catalog
+ * `gs_…`, Studio-built `qg_…`, or one copied from a customer's cart). The job
+ * owns quantities and prices and the backend only attaches the artwork
+ * (`attach_only`), so the Studio ends in "Save mockup to job", like the revised
+ * proof editor. A brand-new design (no group) still picks sizes.
  */
 export const savesDesignOnly = (d: StudioDestination) =>
-  d.kind === "quote" && /^gs?_/.test(d.groupId ?? "")
+  d.kind === "quote" && !!d.groupId
 
 /**
  * Embroidery over the auto-priced stitch cap prices at $0, so it can't go to

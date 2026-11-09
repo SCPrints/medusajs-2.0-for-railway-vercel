@@ -90,6 +90,18 @@ describe("attachDesignToPricerLines", () => {
     expect(out[0].customizerDesign.variantId).toBe("v_navy_xl")
   })
 
+  it("attaches to a cart-copied group (mockup-only save) and keeps its sizes and prices", () => {
+    const cart = [
+      { id: "01XS", group_id: "3936e6e9", variant_id: "v_xs", quantity: 1, unit_price: 52 },
+      { id: "01M", group_id: "3936e6e9", variant_id: "v_m", quantity: 2, unit_price: 52 },
+    ]
+    const { items: out } = attachDesignToPricerLines(cart, "3936e6e9", design, "oversize")
+    expect(out.map((l) => [l.quantity, l.unit_price, l.customizerDesign.variantId])).toEqual([
+      [1, 52, "v_xs"],
+      [2, 52, "v_m"],
+    ])
+  })
+
   it("leaves the group alone when no design was posted", () => {
     const { items: out, mockupUrl } = attachDesignToPricerLines(items, "g_1", null)
     expect(mockupUrl).toBeNull()

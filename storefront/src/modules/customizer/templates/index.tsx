@@ -863,6 +863,8 @@ export default function CustomizerTemplate({
   // Admin proof mode: a stripped-down Studio for staff to reposition artwork,
   // then save back to the order via window.parent.postMessage.
   const isAdminProofMode = destination.kind === "proof"
+  // Staff popups (proof / quote / POS): no shop-only bits like "cart designs".
+  const isStaffStudio = destination.kind !== "shop"
   const proofArtworkParam = destination.kind === "proof" ? destination.artworkParam : null
   const adminProofOrderId = destination.kind === "proof" ? destination.orderId : null
   const adminProofLineItemId = destination.kind === "proof" ? destination.lineItemId : null
@@ -5112,6 +5114,7 @@ export default function CustomizerTemplate({
             quoteId: quoteIdFromUrl,
             qsig: quoteSigFromUrl,
             groupId: quoteGroupFromUrl,
+            attachOnly: designOnly,
             // Despite the name, discountedUnitPriceCents is DOLLARS (pricing.ts).
             decoratedUnitDollars: Number((pricing as any)?.discountedUnitPriceCents),
             backendUrl: process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL,
@@ -5663,7 +5666,7 @@ export default function CustomizerTemplate({
                     onUploadFile={inputPanelProps.onUploadFile}
                     uploads={inputPanelUploads}
                     onReuseUpload={inputPanelProps.onReuseUpload}
-                    cartDesigns={cartArtworkDesigns}
+                    cartDesigns={isStaffStudio ? undefined : cartArtworkDesigns}
                     onAddCartDesign={inputPanelProps.onAddCartDesign}
                     onAddText={inputPanelProps.onAddText}
                     onAddCurvedText={inputPanelProps.onAddCurvedText}
@@ -7081,7 +7084,7 @@ export default function CustomizerTemplate({
                   onUploadFile={inputPanelProps.onUploadFile}
                   uploads={inputPanelUploads}
                   onReuseUpload={inputPanelProps.onReuseUpload}
-                  cartDesigns={cartArtworkDesigns}
+                  cartDesigns={isStaffStudio ? undefined : cartArtworkDesigns}
                   onAddCartDesign={inputPanelProps.onAddCartDesign}
                   onAddText={inputPanelProps.onAddText}
                   onAddCurvedText={inputPanelProps.onAddCurvedText}

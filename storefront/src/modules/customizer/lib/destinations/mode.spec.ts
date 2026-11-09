@@ -49,12 +49,13 @@ describe("rules", () => {
     expect(overStitchCapAction(shop, { editingCart: false })).toBe("request_quote")
   })
 
-  it("only staff-priced quote groups save the design without quantities", () => {
+  it("existing quote designs save the mockup without quantities", () => {
     const designOnly = (qs: string) => savesDesignOnly(read(qs))
     expect(designOnly("quote_id=q&qsig=s&group=g_abc")).toBe(true)
     expect(designOnly("quote_id=q&qsig=s&group=g_abc~row_1")).toBe(true)
     expect(designOnly("quote_id=q&qsig=s&group=gs_abc")).toBe(true)
-    expect(designOnly("quote_id=q&qsig=s&group=qg_abc")).toBe(false)
+    expect(designOnly("quote_id=q&qsig=s&group=qg_abc")).toBe(true)
+    expect(designOnly("quote_id=q&qsig=s&group=3936e6e9-b848")).toBe(true)
     expect(designOnly("quote_id=q&qsig=s")).toBe(false)
     expect(designOnly("pos_session=p&group=g_abc")).toBe(false)
     const none = { editingCartLine: false, needsQuote: false }

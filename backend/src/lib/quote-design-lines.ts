@@ -73,7 +73,9 @@ export function attachDesignToPricerLines(
       ? design!.artifacts.find((a: any) => typeof a?.mockupUrl === "string" && a.mockupUrl)?.mockupUrl
       : null) ?? null
   const next = items.map((li) => {
-    if (li?.group_id !== groupId || !isAttachOnlyLine(li)) return li
+    // The caller decides the group is attach-only (staff-priced, or the Studio
+    // saved a mockup only); every line of it takes the design.
+    if (li?.group_id !== groupId) return li
     return {
       ...li,
       customizerDesign: design
