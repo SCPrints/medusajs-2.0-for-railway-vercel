@@ -64,6 +64,8 @@ export type TodayRow = {
   owner: JobView["owner"]
   /** First garment mockup (http URLs only), so a card shows the shirt. */
   thumbnail: string | null
+  /** Mockup pictures, shown when the card is hovered. */
+  mockups?: string[]
   /** "120 × Kids Tee, 10 × Cap". */
   items: string | null
 }
@@ -181,6 +183,7 @@ export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
     rush_tier: job.order?.rush_tier ?? null,
     owner: job.owner,
     thumbnail: job.lines.map((l) => l.thumbnail).find((t) => !!t && /^https?:/.test(t)) ?? null,
+    mockups: job.mockups ?? [],
     items: job.lines.length ? job.lines.slice(0, 2).map((l) => `${l.quantity} × ${l.title}`).join(", ") + (job.lines.length > 2 ? ", …" : "") : null,
   }
 }
@@ -249,7 +252,8 @@ export const BOARD_COLUMNS: { key: BoardColumn; label: string }[] = [
   { key: "artwork", label: "Artwork" },
   { key: "blanks", label: "Blanks" },
   { key: "production", label: "Production" },
-  { key: "shipped", label: "Shipped" },
+  // Only shipped / delivered jobs still owing sit here; paid ones go to Done.
+  { key: "shipped", label: "Sent · awaiting payment" },
 ]
 
 /**

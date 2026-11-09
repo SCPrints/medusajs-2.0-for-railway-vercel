@@ -21,6 +21,7 @@ import { rushTierOf } from "../../lib/production-due-date"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
 import { isWalkInEmail } from "../../lib/walk-in"
 import { productionGateFailures } from "../../lib/production-gate"
+import { jobMockups } from "../../lib/job-mockups"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 import { TASK_MODULE } from "../../modules/task"
@@ -499,6 +500,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
       open_payment_link: openLink,
     },
     lines,
+    mockups: jobMockups(order ? (order.items ?? []) : ((quote?.line_items as any)?.items ?? []), ometa.revised_proofs),
     pricing,
     flags,
     tasks: taskRows.map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, due_at: iso(t.due_at), assignee_user_id: t.assignee_user_id, follow_up: t?.metadata?.follow_up === true })),

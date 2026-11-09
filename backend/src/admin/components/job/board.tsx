@@ -1,5 +1,6 @@
 import { Button } from "@medusajs/ui"
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 
 import { BOARD_COLUMNS, boardColumn, type TodayRow } from "../../../lib/job-today"
 import { AppLink } from "../../lib/nav"
@@ -21,7 +22,9 @@ const DOT: Record<string, string> = {
   customer: "bg-ui-tag-blue-icon",
   supplier: "bg-ui-tag-orange-icon",
 }
-const WHOSE: Record<string, string> = { us: "Our move", customer: "Customer's move", supplier: "Supplier's move" }
+/** Tallest the hover preview gets: two rows of mockups. */
+const PEEK_MAX_H = 544
+const WHOSE:Record<string, string> = { us: "Our move", customer: "Customer's move", supplier: "Supplier's move" }
 
 const money = (n: number | null, cur: string) =>
   n == null ? null : new Intl.NumberFormat("en-AU", { style: "currency", currency: cur.toUpperCase(), maximumFractionDigits: 0 }).format(n)
@@ -139,14 +142,43 @@ function Card({ row, me, dim, busy, armed, href, onAct, onTake }: {
   const oneClick = ours && ONE_CLICK.has(row.next_action.kind)
   const owing = row.order_id && row.outstanding && row.outstanding > 0.01 ? money(row.outstanding, row.currency_code) : null
   const what = row.subject ?? row.items ?? row.label
+  const mockups = row.mockups ?? []
+  // Where the hover preview sits: beside the card, on whichever side has room.
+  const [peek, setPeek] = useState<{ left: number; top: number } | null>(null)
+  const peekW = mockups.length > 1 ? 560 : 320
+  const showPeek = (e: React.MouseEvent<HTMLElement>) => {
+    if (!mockups.length) return
+    const r = e.currentTarget.getBoundingClientRect()
+    const right = r.right + 8
+    setPeek({
+      left: right + peekW <= window.innerWidth ? right : Math.max(8, r.left - peekW - 8),
+      top: Math.max(8, Math.min(r.top, window.innerHeight - PEEK_MAX_H - 8)),
+    })
+  }
   return (
     <article
       data-flip={row.id}
+      onMouseEnter={showPeek}
+      onMouseLeave={() => setPeek(null)}
       className={`group relative flex flex-col gap-1.5 rounded-lg border bg-ui-bg-base p-2.5 shadow-elevation-card-rest transition-[box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:shadow-elevation-card-hover ${ours ? "border-ui-tag-red-border" : "border-ui-border-base"} ${dim ? "opacity-35" : ""}`}
     >
       {row.thumbnail ? (
         <img src={row.thumbnail} alt="" loading="lazy" className="h-20 w-full rounded-md bg-ui-bg-subtle object-contain" />
       ) : null}
+      {/* On <body>: the card's hover transform and the board's scroll box would trap or clip it. */}
+      {peek
+        ? createPortal(
+            <div
+              style={{ left: peek.left, top: peek.top, width: peekW, maxHeight: PEEK_MAX_H }}
+              className={`pointer-events-none fixed z-50 grid gap-2 overflow-hidden rounded-xl border border-ui-border-strong bg-ui-bg-base p-2 shadow-elevation-flyout ${mockups.length > 1 ? "grid-cols-2" : ""}`}
+            >
+              {mockups.map((u) => (
+                <img key={u} src={u} alt="" className="max-h-[260px] w-full rounded-md bg-white object-contain" />
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
       <div className="flex items-start justify-between gap-2">
         {/* The title link covers the whole card; the buttons sit above it. */}
         <AppLink href={href} className="min-w-0 text-sm font-semibold leading-tight after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ui-fg-interactive">

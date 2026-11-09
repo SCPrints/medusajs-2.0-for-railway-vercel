@@ -127,6 +127,8 @@ export type JobView = {
     open_payment_link: { url: string; scenario: string | null; created_at: string } | null
   }
   lines: JobLine[]
+  /** Mockup pictures (lib/job-mockups.ts); empty when nothing is designed yet. */
+  mockups?: string[]
   pricing: JobPricing | null
   flags: { kind: string; label: string }[]
   tasks: { id: string; title: string; status: string; priority: string; due_at: string | null; assignee_user_id: string; follow_up: boolean }[]
