@@ -70,7 +70,10 @@ import {
   submitLabels,
 } from "@modules/customizer/lib/destinations/mode"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
-import { replaceInlineRasterWithHostedUrls } from "@modules/customizer/lib/inline-raster-to-hosted"
+import {
+  hostUnmappedDataUrls,
+  replaceInlineRasterWithHostedUrls,
+} from "@modules/customizer/lib/inline-raster-to-hosted"
 import { rewriteArtworkSrcs, toPublicArtworkUrl } from "@modules/customizer/lib/r2-public-url"
 import { extractCartDesigns, filterByKind } from "@lib/util/cart-decorations"
 import { sanitizeCartAddError } from "@lib/util/sanitize-cart-error"
@@ -185,6 +188,8 @@ import { FabricImage } from "fabric"
 
 const DESIGN_SIDES: GarmentSide[] = ["front", "back", "left_sleeve", "right_sleeve", "printed_tag"]
 const MAX_UPLOAD_SIZE = 8 * 1024 * 1024
+// Backend body cap is 32MB of base64 (~24MB file); leave headroom.
+const STAFF_MAX_UPLOAD_SIZE = 20 * 1024 * 1024
 const SESSION_UPLOADS_KEY = "customizer_uploads_v1"
 /** Ignore sub-pixel drift from Fabric so small moves inside the box don’t show a “clipped” alert. */
 const PRINT_AREA_EPS = 1.5
@@ -2407,13 +2412,28 @@ export default function CustomizerTemplate({
       const placeholders: string[] = []
       for (const sl of pendingHydration.sideLayouts) {
         if (sl?.side && Array.isArray(sl.objects)) {
+          const isOmitted = (src: unknown) =>
+            typeof src === "string" && src.includes("[omitted-image-data]")
+          // A side whose one image lost its data on save still has its
+          // customer original in storage: put that back in place (same pixels,
+          // same position) instead of leaving the side blank.
+          const sideOriginals = (pendingHydration.customerOriginalFiles ?? []).filter(
+            (f) => f?.url && f.sides?.includes(sl.side) && f.mimeType !== "image/svg+xml"
+          )
+          const omittedOnSide = sl.objects.filter((o: any) => isOmitted(o?.src)).length
+          const objects =
+            omittedOnSide === 1 && sideOriginals.length === 1
+              ? sl.objects.map((o: any) =>
+                  isOmitted(o?.src) ? { ...o, src: sideOriginals[0].url } : o
+                )
+              : sl.objects
           // Rescale (canvas-size normalize) AND rewrite private R2 srcs to
           // public on the way into the ref, so loadSide + saveCurrentSide both
           // see browser-loadable, correctly-placed artwork.
           sideLayoutsRef.current[sl.side] = rewriteArtworkSrcs(
-            needsRescale ? sl.objects.map(rescaleObject) : sl.objects
+            needsRescale ? objects.map(rescaleObject) : objects
           )
-          const placeholderCount = sl.objects.reduce((acc, obj: any) => {
+          const placeholderCount = objects.reduce((acc, obj: any) => {
             const src = obj?.src
             if (
               typeof src === "string" &&
@@ -3381,8 +3401,11 @@ export default function CustomizerTemplate({
       return
     }
 
-    if (file.size > MAX_UPLOAD_SIZE) {
-      setUploadError("File is too large. Maximum size is 8MB.")
+    // Staff (quote / POS / proof) get the backend's real ceiling; customers
+    // keep 8MB so a phone doesn't choke on a huge canvas image.
+    const maxUpload = isQuoteMode || isPOSMode || isAdminProofMode ? STAFF_MAX_UPLOAD_SIZE : MAX_UPLOAD_SIZE
+    if (file.size > maxUpload) {
+      setUploadError(`File is too large. Maximum size is ${maxUpload / 1024 / 1024}MB.`)
       return
     }
 
@@ -4870,6 +4893,7 @@ export default function CustomizerTemplate({
             dataUrlToHostedUrlForEdit[upload.dataUrl] = upload.originalStorageUrl
           }
         }
+        await hostUnmappedDataUrls(metadataBase, dataUrlToHostedUrlForEdit)
         // Build the same shape `addScpLineItemToCartSafe` writes — minus
         // variantId (that stays on each line). The backend route validates
         // and rebuilds the pricing.server block per line.
@@ -5038,6 +5062,7 @@ export default function CustomizerTemplate({
           dataUrlToHostedUrl[upload.dataUrl] = upload.originalStorageUrl
         }
       }
+      await hostUnmappedDataUrls(metadataBase, dataUrlToHostedUrl)
 
       // POS mode: skip the cart and post each (variant × quantity) to the
       // POS bridge instead. The admin POS page polls its session and

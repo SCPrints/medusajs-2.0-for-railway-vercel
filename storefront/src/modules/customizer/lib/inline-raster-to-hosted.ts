@@ -107,3 +107,31 @@ export async function replaceInlineRasterWithHostedUrls(
     return hosted ? `${attr}="${hosted}"` : whole
   })
 }
+
+/**
+ * Upload every large inline image in a design that `hostedByDataUrl` doesn't
+ * know yet, adding it to the map. The save sanitizer turns an unmapped data URL
+ * into "[omitted-image-data]", which is how a side's artwork got lost on
+ * re-edit; hosting it first means the saved design always reopens.
+ */
+export async function hostUnmappedDataUrls(
+  design: unknown,
+  hostedByDataUrl: Record<string, string>
+): Promise<void> {
+  const found = new Set<string>()
+  const walk = (v: unknown): void => {
+    // 240 = the sanitizer's MAX_INLINE_STRING; shorter strings are kept inline.
+    if (typeof v === "string") {
+      if (v.startsWith("data:image/") && v.length > 240 && !hostedByDataUrl[v]) found.add(v)
+    } else if (Array.isArray(v)) v.forEach(walk)
+    else if (v && typeof v === "object") Object.values(v).forEach(walk)
+  }
+  walk(design)
+  const pending = Array.from(found)
+  for (let i = 0; i < pending.length; i++) {
+    const file = dataUrlToFile(pending[i], `canvas_${Date.now()}_${i}`)
+    if (!file) continue
+    const hosted = await uploadCustomerOriginalUnchanged(file).catch(() => null)
+    if (hosted) hostedByDataUrl[pending[i]] = hosted
+  }
+}
