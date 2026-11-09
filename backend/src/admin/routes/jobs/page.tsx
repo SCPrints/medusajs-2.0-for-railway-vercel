@@ -5,12 +5,14 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useSearchParams } from "react-router-dom"
 
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
+import { JOB_METHODS } from "../../../lib/job-methods"
 import { TODAY_QUEUES, type TodayQueue, type TodayRow, type TodayView } from "../../../lib/job-today"
 import { ONE_CLICK, performNextAction, takeJob } from "../../components/job/actions"
 import { Avatar, JobsBoard, TickNum } from "../../components/job/board"
 import { JobPanel } from "../../components/job/job-panel"
 import { useJob } from "../../components/job/use-job"
 import { NewQuoteDrawer } from "../../components/quote/new-quote-drawer"
+import { markSeen, readSeen } from "../../lib/jobs-seen"
 import { AppLink } from "../../lib/nav"
 import { tick, useFlip } from "../../lib/motion"
 import { QuotePricerPage } from "../quote-pricer/page"
@@ -83,6 +85,7 @@ const JobsPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [q, setQ] = useState("")
+  const [seen, setSeen] = useState(readSeen)
   const splitRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLElement>(null)
@@ -103,7 +106,9 @@ const JobsPage = () => {
 
   // Opening a job from far down the list: bring the job into view.
   useEffect(() => {
-    if (jobId) splitRef.current?.scrollIntoView({ block: "start" })
+    if (!jobId) return
+    splitRef.current?.scrollIntoView({ block: "start" })
+    setSeen(markSeen(jobId))
   }, [jobId])
 
   const load = useCallback(async (fresh = false) => {
@@ -188,7 +193,19 @@ const JobsPage = () => {
   const ourMoveOnly = params.get("move") === "1"
   const open_ = view ? view.rows.filter((r) => !r.closed) : []
   // "Mine" on the board keeps unowned jobs in view, so nothing goes unseen.
-  const boardRows = open_.filter((r) => (!needle || matches(r)) && (who === "all" || isMine(r) || !r.owner))
+  const dueOnly = params.get("due") === "1"
+  const method = params.get("method")
+  const ymd = (d: Date) => d.toISOString().slice(0, 10)
+  const weekAhead = ymd(new Date(Date.now() + 7 * 86_400_000))
+  /** Late or at risk, or the customer's date (else ours) falls in the next 7 days. */
+  const dueSoon = (r: TodayRow) => {
+    if (r.risk) return true
+    const d = (r.needed_by ?? r.due_date)?.slice(0, 10)
+    return !!d && r.phase !== "shipped" && r.phase !== "delivered" && d >= ymd(new Date()) && d <= weekAhead
+  }
+  const whoRows = open_.filter((r) => (!needle || matches(r)) && (who === "all" || isMine(r) || !r.owner))
+  const boardRows = whoRows.filter((r) => (!dueOnly || dueSoon(r)) && (!method || !!r.methods?.includes(method as any)))
+  const methodsInPlay = JOB_METHODS.filter((m) => open_.some((r) => r.methods?.includes(m)))
   const listRows = view
     ? needle
       ? view.rows.filter(matches)
@@ -256,6 +273,11 @@ const JobsPage = () => {
           <Chip active={who === "all"} onClick={() => update({ who: null })}>Everyone</Chip>
           <Chip active={who === "mine"} onClick={() => update({ who: "mine" })}>Mine + unowned <TickNum n={mineCount + unowned.length} /></Chip>
           <Chip active={ourMoveOnly} hot onClick={() => update({ move: ourMoveOnly ? null : "1" })}>Our move <TickNum n={boardRows.filter((r) => r.needs_us).length} /></Chip>
+          <Chip active={dueOnly} onClick={() => update({ due: dueOnly ? null : "1" })}>Due this week <TickNum n={whoRows.filter(dueSoon).length} /></Chip>
+          {methodsInPlay.length ? <span className="mx-1 h-5 w-px bg-ui-border-base" /> : null}
+          {methodsInPlay.map((m) => (
+            <Chip key={m} active={method === m} onClick={() => update({ method: method === m ? null : m })}>{m}</Chip>
+          ))}
           <span className="ml-auto flex items-center gap-3 text-sm text-ui-fg-subtle">
             <button type="button" className="hover:underline" onClick={() => update({ view: "list", folder: "done" })}>Done <b className="tabular-nums">{view.queues.done}</b></button>
             <button type="button" className="hover:underline" onClick={() => update({ view: "list", folder: "lost" })}>Lost <b className="tabular-nums">{view.queues.lost}</b></button>
@@ -337,10 +359,12 @@ const JobsPage = () => {
             me={view.me ?? null}
             busy={busy}
             ourMoveOnly={ourMoveOnly}
-            scope={`${who}|${needle}`}
+            scope={`${who}|${needle}|${dueOnly}|${method}`}
+            seen={seen}
             hrefFor={hrefFor}
             onAct={act}
             onTake={take}
+            onChanged={() => void load(true)}
           />
         ) : null
       ) : (

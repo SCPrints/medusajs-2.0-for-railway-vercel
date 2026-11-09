@@ -3,6 +3,7 @@
  * admin Job panel. Types only — imported by the admin bundle, so nothing
  * from @medusajs/framework here.
  */
+import type { JobMethod } from "./job-methods"
 import type { JobState } from "./job-state"
 import type { ArtworkStage, BlanksStage, DownstreamStage } from "./production-stage"
 
@@ -127,8 +128,12 @@ export type JobView = {
     open_payment_link: { url: string; scenario: string | null; created_at: string } | null
   }
   lines: JobLine[]
-  /** Mockup pictures (lib/job-mockups.ts); empty when nothing is designed yet. */
+  /** Mockup pictures, one per design + colourway + side; empty when nothing is designed yet. */
   mockups?: string[]
+  /** How it's decorated (lib/job-methods.ts). */
+  methods?: JobMethod[]
+  /** Newest thing the customer did: email, proof answer, quote accepted, payment. */
+  customer_activity_at?: string | null
   pricing: JobPricing | null
   flags: { kind: string; label: string }[]
   tasks: { id: string; title: string; status: string; priority: string; due_at: string | null; assignee_user_id: string; follow_up: boolean }[]

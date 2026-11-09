@@ -8,6 +8,7 @@
  */
 import { businessDaysBetween } from "./business-days"
 import { threadTimes, type JobState, type NextActionKind, type WaitingOn } from "./job-state"
+import type { JobMethod } from "./job-methods"
 import type { JobView } from "./job-view"
 
 export type TodayQueue = "new" | "to_quote" | "quoted" | "waiting_payment" | "artwork" | "blanks" | "production" | "done" | "lost"
@@ -64,8 +65,13 @@ export type TodayRow = {
   owner: JobView["owner"]
   /** First garment mockup (http URLs only), so a card shows the shirt. */
   thumbnail: string | null
-  /** Mockup pictures, shown when the card is hovered. */
+  /** Mockup pictures: the first is the card picture, all show on hover. */
   mockups?: string[]
+  methods?: JobMethod[]
+  /** Orders only: fully paid, part paid, or nothing paid yet. */
+  pay?: "paid" | "part" | "owing" | null
+  /** Newest thing the customer did (email, proof answer, payment). */
+  customer_activity_at?: string | null
   /** "120 × Kids Tee, 10 × Cap". */
   items: string | null
 }
@@ -147,6 +153,14 @@ export function dateRisk(job: Pick<JobView, "order" | "quote">, needed_by: strin
   return null
 }
 
+/** Orders only. A quote has nothing to pay yet. */
+export function payStatus(job: Pick<JobView, "order" | "money">): TodayRow["pay"] {
+  const m = job.money
+  if (!job.order || !m.order_total) return null
+  if ((m.outstanding ?? 0) <= 0.01) return "paid"
+  return m.paid > 0.01 || m.deposit_paid ? "part" : "owing"
+}
+
 export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
   const last = job.activity[0] ?? null
   const needed_by = job.order?.needed_by ?? job.quote?.needed_by ?? null
@@ -184,6 +198,9 @@ export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
     owner: job.owner,
     thumbnail: job.lines.map((l) => l.thumbnail).find((t) => !!t && /^https?:/.test(t)) ?? null,
     mockups: job.mockups ?? [],
+    methods: job.methods ?? [],
+    pay: payStatus(job),
+    customer_activity_at: job.customer_activity_at ?? null,
     items: job.lines.length ? job.lines.slice(0, 2).map((l) => `${l.quantity} × ${l.title}`).join(", ") + (job.lines.length > 2 ? ", …" : "") : null,
   }
 }

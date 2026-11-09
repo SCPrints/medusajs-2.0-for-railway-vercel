@@ -21,10 +21,12 @@ import { rushTierOf } from "../../lib/production-due-date"
 import { resolveTracksFromMeta } from "../../lib/production-stage"
 import { isWalkInEmail } from "../../lib/walk-in"
 import { productionGateFailures } from "../../lib/production-gate"
-import { jobMockups } from "../../lib/job-mockups"
+import { jobMethods } from "../../lib/job-methods"
+import { buildQuoteMockups } from "../../lib/quote-mockups"
 import { QUOTE_MODULE } from "../../modules/quote"
 import { STRIPE_PAYMENT_LINK_MODULE } from "../../modules/stripe-payment-link"
 import { TASK_MODULE } from "../../modules/task"
+import { buildProofImages } from "../artwork-approval/proof-email"
 import { splitAttachmentBlock } from "../inbound-email/attachments"
 import { buildOrderTimeline } from "../order-timeline/build"
 
@@ -500,7 +502,24 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
       open_payment_link: openLink,
     },
     lines,
-    mockups: jobMockups(order ? (order.items ?? []) : ((quote?.line_items as any)?.items ?? []), ometa.revised_proofs),
+    // Same pictures as the proof email: one per design + colourway + side,
+    // newest revised proof swapped in.
+    mockups: [...new Set((order ? (buildProofImages(order).mockupImages ?? []) : buildQuoteMockups(quote)).map((m) => m.url))]
+      .filter((u) => /^https?:/.test(u))
+      .slice(0, 6),
+    methods: jobMethods(order ? (order.items ?? []) : ((quote?.line_items as any)?.items ?? []), (qmeta.job_pricer as any)?.state),
+    customer_activity_at:
+      [
+        lastInbound,
+        iso(ometa.artwork_approved_at),
+        iso(ometa.artwork_changes_requested_at),
+        iso(qmeta.design_approval_changed_at),
+        iso(quote?.accepted_at),
+        ...(Array.isArray(ometa.stripe_payment_links) ? (ometa.stripe_payment_links as any[]).map((l) => iso(l?.paid_at)) : []),
+      ]
+        .filter(Boolean)
+        .sort()
+        .at(-1) ?? null,
     pricing,
     flags,
     tasks: taskRows.map((t) => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, due_at: iso(t.due_at), assignee_user_id: t.assignee_user_id, follow_up: t?.metadata?.follow_up === true })),

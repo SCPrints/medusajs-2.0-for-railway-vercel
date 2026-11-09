@@ -166,3 +166,42 @@ export async function takeJob(jobId: string, refresh?: () => void): Promise<void
     refresh
   )
 }
+
+/** The board's owner menu: hand the job to a teammate, or to nobody. */
+export async function setJobOwner(jobId: string, userId: string | null): Promise<void> {
+  const path = `/admin/jobs/${encodeURIComponent(jobId)}/owner`
+  const r = userId ? await post(path, { user_id: userId }) : { ok: (await fetch(path, { method: "DELETE", credentials: "include" })).ok, json: {} as any }
+  if (!r.ok) throw new Error(r.json?.error ?? "Couldn't change the owner")
+}
+
+/** Email the customer, or log a note / call, from the board (POST /admin/jobs/:id/reply). */
+export async function replyToJob(jobId: string, channel: "email" | "note", body: string): Promise<void> {
+  const r = await post(`/admin/jobs/${encodeURIComponent(jobId)}/reply`, { channel, body })
+  if (!r.ok) throw new Error(r.json?.error ?? `HTTP ${r.status}`)
+}
+
+/** Reminders the Chase button can draft; each carries the link the customer needs. */
+export const CHASEABLE: ReadonlySet<NextActionKind> = new Set(["nudge_quote", "nudge_payment", "wait_proof"])
+
+/**
+ * The reminder draft for a job (GET /admin/jobs/:id/chase). A balance with no
+ * open payment link gets one made first, for everything still owing.
+ */
+export async function chaseDraft(ctx: Pick<ActionContext, "job_id" | "order_id" | "display_id" | "outstanding">): Promise<{ to: string; body: string }> {
+  const get = async () => {
+    const res = await fetch(`/admin/jobs/${encodeURIComponent(ctx.job_id)}/chase`, { credentials: "include" })
+    const json = (await res.json().catch(() => ({}))) as any
+    if (!res.ok) throw new Error(json?.error ?? `HTTP ${res.status}`)
+    return json
+  }
+  let draft = await get()
+  if (draft.need_payment_link) {
+    const cents = Math.round((ctx.outstanding ?? 0) * 100)
+    if (!ctx.order_id || cents < 50) throw new Error("Nothing outstanding to chase.")
+    const r = await post(`/admin/orders/${ctx.order_id}/payment-link`, { amount_cents: cents, scenario: "full", label: `Order #${ctx.display_id ?? ""}`.trim() })
+    if (!r.ok) throw new Error(r.json?.error ?? "Couldn't make a payment link.")
+    draft = await get()
+    if (draft.need_payment_link) throw new Error("Couldn't make a payment link.")
+  }
+  return draft
+}
