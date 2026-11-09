@@ -164,6 +164,16 @@ const ApprovalForm = ({ orderId, sig, initial }: Props) => {
             . We&apos;re cracking on with production.
           </p>
         </div>
+      ) : status !== "awaiting_approval" ? (
+        // Answered (or moved on by staff): this link's proof round is closed,
+        // so Approve would only fail as "expired". Order #122, 2026-11-09.
+        <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-900">
+            Thanks, we&apos;ve got your change request and will send you a new
+            proof to approve. Changed your mind, or want to approve this one
+            as it is? Just reply to the proof email and we&apos;ll sort it.
+          </p>
+        </div>
       ) : (
         <>
           <hr className="my-6 border-ink/[0.08]" />
