@@ -127,6 +127,24 @@ export async function fetchThreadLabColourImages(
   return result
 }
 
+const stem = (u: string) =>
+  (u.split("?")[0].split("/").pop() ?? "")
+    .replace(/\.\w+$/, "")
+    .replace(/_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, "")
+    .toLowerCase()
+
+/**
+ * Thread Lab's Shopify assigns only the FRONT flat to a colour's variant; the
+ * flat back is an unassigned `<front stem>-1` (`black-premium-tee` →
+ * `black-premium-tee-1`). Without this every Studio back mockup fell back to
+ * the first other image — a front-facing model photo.
+ */
+export const findSiblingBack = (front: string, urls: string[]): string | undefined => {
+  if (!front) return undefined
+  const want = `${stem(front)}-1`
+  return urls.find((u) => u !== front && stem(u) === want)
+}
+
 /**
  * Build the per-colour `garment_images` block the storefront PDP + swatch
  * picker reads. `front` is the colour-specific image (correct swatch + main
@@ -141,7 +159,7 @@ export function buildThreadLabGarmentImages(
   // `back` only when a genuine SECOND colour-specific image exists — never a
   // shared image (which could be a different colour and would mislead the
   // customizer's back-side mockup).
-  const back = specific[1]
+  const back = specific[1] ?? findSiblingBack(front, all)
   const model_image = specific[2]
   return {
     front,
