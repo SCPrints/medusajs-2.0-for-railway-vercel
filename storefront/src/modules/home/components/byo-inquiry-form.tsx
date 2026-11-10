@@ -166,6 +166,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
     const last = typeof data.get("last-name") === "string" ? (data.get("last-name") as string).trim() : ""
     const email = typeof data.get("email") === "string" ? (data.get("email") as string).trim() : ""
     const userMessage = typeof data.get("message") === "string" ? (data.get("message") as string).trim() : ""
+    const phone = typeof data.get("phone") === "string" ? (data.get("phone") as string).trim() : ""
 
     if (!printingType) {
       setLoading(false)
@@ -191,6 +192,7 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
     const payload = {
       email,
       contact_name: contactName,
+      contact_phone: phone,
       subject: BYO_SUBJECT,
       message: buildMessage(userMessage),
       source: "byo" as const,
@@ -310,6 +312,22 @@ export default function ByoInquiryForm({ id, className = "" }: ByoInquiryFormPro
           type="email"
           autoComplete="email"
           required
+          className={inputClass}
+        />
+      </div>
+
+      <div>
+        <label htmlFor="byo-phone" className={labelClass}>
+          Phone
+        </label>
+        <input
+          id="byo-phone"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          required
+          minLength={8}
+          maxLength={40}
           className={inputClass}
         />
       </div>
