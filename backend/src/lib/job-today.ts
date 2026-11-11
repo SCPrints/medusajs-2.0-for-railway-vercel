@@ -261,11 +261,12 @@ export function morningDigestFor(view: TodayView, userId: string): { rows: Today
 }
 
 /** The board's columns (Docs/admin-ux-review §3): the folders with the noise removed. */
-export type BoardColumn = "new" | "quote" | "artwork" | "blanks" | "production" | "shipped"
+export type BoardColumn = "new" | "quote" | "payment" | "artwork" | "blanks" | "production" | "shipped"
 
 export const BOARD_COLUMNS: { key: BoardColumn; label: string }[] = [
   { key: "new", label: "New" },
   { key: "quote", label: "Quote" },
+  { key: "payment", label: "Payment" },
   { key: "artwork", label: "Artwork" },
   { key: "blanks", label: "Blanks" },
   { key: "production", label: "Production" },
@@ -275,8 +276,8 @@ export const BOARD_COLUMNS: { key: BoardColumn; label: string }[] = [
 
 /**
  * Which column a job's card sits in; null for Done and Lost (they fold into
- * the tray). Shipped jobs still owing stay in Shipped; payment before the
- * work starts sits with the quote. A balance shows on the card wherever it is.
+ * the tray). Shipped jobs still owing stay in Shipped; accepted jobs waiting
+ * to be paid (or converted) sit in Payment. A balance shows on the card wherever it is.
  */
 export function boardColumn(row: Pick<TodayRow, "closed" | "phase" | "queue">): BoardColumn | null {
   if (row.closed) return null
@@ -284,6 +285,8 @@ export function boardColumn(row: Pick<TodayRow, "closed" | "phase" | "queue">): 
   switch (row.queue) {
     case "new":
       return "new"
+    case "waiting_payment":
+      return "payment"
     case "artwork":
     case "blanks":
     case "production":

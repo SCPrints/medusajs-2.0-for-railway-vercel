@@ -162,11 +162,11 @@ describe("morningDigestFor", () => {
 
 describe("boardColumn", () => {
   const r = (queue: any, phase: any = "artwork", closed = false) => boardColumn({ queue, phase, closed })
-  it("folds the folders into six columns", () => {
+  it("folds the folders into seven columns", () => {
     expect(r("new", "enquiry")).toBe("new")
     expect(r("to_quote", "enquiry")).toBe("quote")
     expect(r("quoted", "quoted")).toBe("quote")
-    expect(r("waiting_payment", "accepted")).toBe("quote")
+    expect(r("waiting_payment", "accepted")).toBe("payment")
     expect(r("artwork")).toBe("artwork")
     expect(r("blanks", "blanks")).toBe("blanks")
     expect(r("production", "production")).toBe("production")
