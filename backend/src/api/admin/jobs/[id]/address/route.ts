@@ -1,7 +1,9 @@
 import type { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { updateOrderWorkflow } from "@medusajs/medusa/core-flows"
+import { Modules } from "@medusajs/framework/utils"
 import { z } from "zod"
 
+import { ASCOLOUR_WORKSHOP_ADDRESS_1 } from "../../../../../lib/constants"
 import { deliveryAddressSchema, normaliseDeliveryAddress } from "../../../../../lib/delivery-address"
 import { mergeOrderMetadata } from "../../../../../lib/order-metadata"
 import { QUOTE_MODULE } from "../../../../../modules/quote"
@@ -45,19 +47,29 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       // Country can't change on an order (Medusa refuses), so it's left out;
       // name/company on the existing address are kept (the workflow merges).
       const { country_code: _c, first_name, last_name, company, ...geo } = addr
+      const patch = {
+        ...geo,
+        address_2: geo.address_2 ?? "",
+        province: geo.province ?? "",
+        phone: geo.phone ?? "",
+        ...(first_name ? { first_name, last_name: last_name ?? "" } : {}),
+        ...(company ? { company } : {}),
+      }
+      // Bill-to follows when it's still the studio placeholder (convert copies
+      // the ship-to there); a real billing address the customer gave is kept.
+      const current = await (req.scope.resolve(Modules.ORDER) as any)
+        .retrieveOrder(job.order.id, { relations: ["billing_address"] })
+        .catch(() => null)
+      const billingIsStudio =
+        !!ASCOLOUR_WORKSHOP_ADDRESS_1 &&
+        (!current?.billing_address?.address_1 || current.billing_address.address_1 === ASCOLOUR_WORKSHOP_ADDRESS_1)
       try {
         await updateOrderWorkflow(req.scope).run({
           input: {
             id: job.order.id,
             user_id: (req as any).auth_context?.actor_id,
-            shipping_address: {
-              ...geo,
-              address_2: geo.address_2 ?? "",
-              province: geo.province ?? "",
-              phone: geo.phone ?? "",
-              ...(first_name ? { first_name, last_name: last_name ?? "" } : {}),
-              ...(company ? { company } : {}),
-            },
+            shipping_address: patch,
+            ...(billingIsStudio ? { billing_address: patch } : {}),
           } as any,
         })
       } catch (err: any) {
