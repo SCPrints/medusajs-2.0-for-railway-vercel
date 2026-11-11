@@ -869,7 +869,6 @@ export function QuoteDetail({
   incomingStudioPopup?: Window | null
   onIncomingStudioConsumed?: () => void
 }) {
-  const [draftMessage, setDraftMessage] = useState(quote.message ?? "")
   const [draftAssigned, setDraftAssigned] = useState(quote.assigned_to ?? "")
   const [draftEstimate, setDraftEstimate] = useState(
     quote.total_estimate ? String(quote.total_estimate) : ""
@@ -892,7 +891,6 @@ export function QuoteDetail({
   const serverSig = useRef<string>(lineItemsSignature(quote.line_items?.items))
 
   useEffect(() => {
-    setDraftMessage(quote.message ?? "")
     setDraftAssigned(quote.assigned_to ?? "")
     setDraftEstimate(quote.total_estimate ? String(quote.total_estimate) : "")
     setDraftLineItems(lineItemsToDraft(quote.line_items?.items))
@@ -1248,18 +1246,16 @@ export function QuoteDetail({
         </div>
       </div>
 
-      <div>
-        <Label size="xsmall">Customer message</Label>
-        <Textarea
-          rows={6}
-          value={draftMessage}
-          onChange={(e) => setDraftMessage(e.target.value)}
-          onBlur={() =>
-            draftMessage !== (quote.message ?? "") &&
-            onUpdate({ message: draftMessage })
-          }
-        />
-      </div>
+      {/* The customer's own enquiry text. Read-only so it isn't mistaken for a
+          reply box: writing to the customer happens in "Email customer…". */}
+      {quote.message ? (
+        <div>
+          <Label size="xsmall">From the customer</Label>
+          <Text size="small" className="mt-1 whitespace-pre-wrap rounded-md border border-ui-border-base bg-ui-bg-subtle px-3 py-2 text-ui-fg-subtle">
+            {quote.message}
+          </Text>
+        </div>
+      ) : null}
 
       {Array.isArray(quote.metadata?.mood_board_urls) &&
       (quote.metadata!.mood_board_urls as unknown[]).length > 0 ? (
