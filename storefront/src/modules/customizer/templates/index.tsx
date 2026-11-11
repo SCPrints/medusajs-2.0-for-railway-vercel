@@ -66,8 +66,10 @@ import {
   enforcesScreenMinimum,
   overStitchCapAction,
   readDestination,
+  attachesToQuoteGroup,
   savesDesignOnly,
   submitLabels,
+  usesStaffEditor,
 } from "@modules/customizer/lib/destinations/mode"
 import { uploadCustomerOriginalUnchanged } from "@modules/customizer/lib/upload-customer-original"
 import {
@@ -657,7 +659,7 @@ export default function CustomizerTemplate({
   // Where this session saves to (shop cart, POS, quote or order proof) and the
   // per-destination rules live in lib/destinations/mode.ts.
   const destination = readDestination(initialVariantSearchParams)
-  const [pdpStep1Done, setPdpStep1Done] = useState(assemblyLayout || destination.kind === "proof")
+  const [pdpStep1Done, setPdpStep1Done] = useState(assemblyLayout || usesStaffEditor(destination))
   const [pdpStep2Done, setPdpStep2Done] = useState(false)
   // Assembly layout (/customizer-v2) free accordion: which section is expanded,
   // independent of the wizard's `pdpStep`. null = all collapsed. Only consulted
@@ -810,6 +812,8 @@ export default function CustomizerTemplate({
   const posSessionIdFromUrl = destination.kind === "pos" ? destination.sessionId : null
   const isQuoteMode = destination.kind === "quote"
   const designOnly = savesDesignOnly(destination)
+  // Re-editing a quote line's design: keep its lines, just attach the artwork.
+  const attachOnly = attachesToQuoteGroup(destination)
   const quoteIdFromUrl = destination.kind === "quote" ? destination.quoteId : null
   const quoteSigFromUrl = destination.kind === "quote" ? destination.qsig : null
   const quoteGroupFromUrl = destination.kind === "quote" ? destination.groupId : null
@@ -865,6 +869,14 @@ export default function CustomizerTemplate({
   const isAdminProofMode = destination.kind === "proof"
   // Staff popups (proof / quote / POS): no shop-only bits like "cart designs".
   const isStaffStudio = destination.kind !== "shop"
+  // Proof + quote: canvas and a fixed staff panel, never the checkout wizard,
+  // so every staff "Design in Studio" button opens the same screen.
+  const staffEditor = usesStaffEditor(destination)
+  // The useState seed above can run before the URL is readable (prerender);
+  // settle it once the params arrive, or a staff popup half-loads as the shop wizard.
+  useEffect(() => {
+    if (staffEditor && !pdpStep1Done) setPdpStep1Done(true)
+  }, [staffEditor, pdpStep1Done])
   const proofArtworkParam = destination.kind === "proof" ? destination.artworkParam : null
   const adminProofOrderId = destination.kind === "proof" ? destination.orderId : null
   const adminProofLineItemId = destination.kind === "proof" ? destination.lineItemId : null
@@ -1999,7 +2011,7 @@ export default function CustomizerTemplate({
       assessment.severity === "critical" &&
       !lowResModalDismissedRef.current &&
       !vectorizationRequested &&
-      !isAdminProofMode
+      !isStaffStudio
     ) {
       setLowResModalOpen(true)
     }
@@ -5114,7 +5126,8 @@ export default function CustomizerTemplate({
             quoteId: quoteIdFromUrl,
             qsig: quoteSigFromUrl,
             groupId: quoteGroupFromUrl,
-            attachOnly: designOnly,
+            attachOnly,
+            sizesToCome: designOnly && !attachOnly,
             // Despite the name, discountedUnitPriceCents is DOLLARS (pricing.ts).
             decoratedUnitDollars: Number((pricing as any)?.discountedUnitPriceCents),
             backendUrl: process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL,
@@ -5582,13 +5595,13 @@ export default function CustomizerTemplate({
   )
   const inputPanelDisabledMessage = useMemo(
     () =>
-      !isAdminProofMode && pdpHasVariantOptions && !pdpStep1Done
+      !isStaffStudio && pdpHasVariantOptions && !pdpStep1Done
         ? {
             title: "Customize first",
             body: 'Tap "Customise this garment" above to start.',
           }
         : undefined,
-    [isAdminProofMode, pdpHasVariantOptions, pdpStep1Done]
+    [isStaffStudio, pdpHasVariantOptions, pdpStep1Done]
   )
 
   const sideLabel =
@@ -5615,7 +5628,7 @@ export default function CustomizerTemplate({
                     </p>
                   </div>
                   )}
-                  {!isAdminProofMode && pickerProducts && pickerProducts.length > 0 ? (
+                  {!isAdminProofMode && !attachOnly && pickerProducts && pickerProducts.length > 0 ? (
                     <CustomizerProductPicker
                       products={pickerProducts}
                       currentHandle={selectedProduct?.handle ?? null}
@@ -5631,12 +5644,12 @@ export default function CustomizerTemplate({
                   ) : null}
                 </div>
                 <div className="mt-2 flex items-center gap-3 small:mt-0">
-                  {!isAdminProofMode && !assemblyLayout ? (
+                  {!staffEditor && !assemblyLayout ? (
                     <p className="hidden text-xs text-ui-fg-subtle small:block">
                       Drag, resize and position your artwork.
                     </p>
                   ) : null}
-                  {!isAdminProofMode && (
+                  {!staffEditor && (
                   <DesignPreviewPopover
                     decoratedSides={decoratedSides}
                     canvasSize={canvasSize}
@@ -5673,7 +5686,7 @@ export default function CustomizerTemplate({
                     onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
                     canRemoveImage={canRemoveImage}
                     onDeleteUpload={inputPanelProps.onDeleteUpload}
-                    enabled={isAdminProofMode || !embedded || (!pdpHasVariantOptions || pdpStep1Done)}
+                    enabled={isStaffStudio || !embedded || (!pdpHasVariantOptions || pdpStep1Done)}
                     disabledMessage={inputPanelDisabledMessage}
                     selectedText={selectedTextSnapshot}
                     onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}
@@ -6409,7 +6422,7 @@ export default function CustomizerTemplate({
               the artwork. Suppressed in the studio (assembly), which has its
               own single in-panel "Add print to another location" button — two
               identical CTAs is confusing. */}
-          {!assemblyLayout && isCustomizing && allowedPrintSides.length > 1 && (() => {
+          {!assemblyLayout && !staffEditor && isCustomizing && allowedPrintSides.length > 1 && (() => {
             const undecoratedAllowed = allowedPrintSides.filter(
               (s) => !decoratedSides.includes(s)
             )
@@ -6511,7 +6524,7 @@ export default function CustomizerTemplate({
                 : undefined
             }
           >
-          {!isAdminProofMode && !assemblyLayout && (
+          {!isStaffStudio && !assemblyLayout && (
           <div className="space-y-1 border-b border-ui-border-base pb-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -6551,23 +6564,68 @@ export default function CustomizerTemplate({
           ) : null}
 
           {isQuoteMode ? (
-            <div className="space-y-2 rounded-xl border-2 border-violet-500 bg-violet-50 p-3 text-violet-900 shadow-[0_0_0_3px_rgba(139,92,246,0.18)]">
-              <p className="text-sm font-semibold">🎨 Designing for a quote</p>
-              {designOnly ? (
-                <p className="text-xs rounded-md bg-violet-100 px-2 py-1.5 ring-1 ring-violet-200">
-                  Move the artwork, then tap{" "}
-                  <span className="font-semibold">Save mockup to job</span>{" "}
-                  below. Quantities and prices stay as they are on the job.
+            // Staff quote editor: the same fixed panel every time, whichever
+            // button opened it. No steps, nothing collapses, no quantities —
+            // the job owns qty, sizes and prices.
+            <div className="space-y-4 rounded-xl border-2 border-violet-500 bg-violet-50 p-4 text-violet-900">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">
+                  {attachOnly ? "Edit the mockup for this job line" : "New design for this job"}
                 </p>
-              ) : (
-                <p className="text-xs rounded-md bg-violet-100 px-2 py-1.5 ring-1 ring-violet-200">
-                  Set your print locations and artwork, choose sizes, then tap{" "}
-                  <span className="font-semibold">Add design to quote</span>{" "}
-                  below. This builds a mockup and saves it to the quote — the
-                  customer will see it to approve. Close this window when you're
-                  done.
+                <p className="text-xs">
+                  {attachOnly
+                    ? "Place the artwork on each position, pick the technique and size, then save. Quantities and prices stay as they are on the job."
+                    : "Pick the colour, place the artwork on each position, then save. It lands on the job as one line with sizes to come — set the quantity and sizes there."}
                 </p>
-              )}
+              </div>
+
+              {!attachOnly && hasStep1 ? (
+                <div className="space-y-2 rounded-lg bg-white p-3 ring-1 ring-violet-200">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">Colour</p>
+                  {integratedPdpSlots.variantPickers}
+                </div>
+              ) : null}
+
+              <div className="space-y-2 rounded-lg bg-white p-3 ring-1 ring-violet-200">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">Print positions</p>
+                <SideSelector
+                  currentSide={currentSide}
+                  allowedSides={allowedPrintSides}
+                  decoratedSides={decoratedSides}
+                  hideSelection={false}
+                  onSelectSide={(side) => {
+                    switchSide(side)
+                    setPdpStep2Done(true)
+                    if (!sizingDoneSides[side]) {
+                      const allowed = getAllowedScpPrintSizesForSide(side, {
+                        isLongSleeve: productIsLongSleeve,
+                        isHat: productIsHat,
+                      })
+                      setScpPrintSizeId(getDefaultScpPrintSizeForSide(side, allowed))
+                      setScpPrintSizeChosen(true)
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="space-y-3 rounded-lg bg-white p-3 ring-1 ring-violet-200">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">
+                  Technique &amp; size · {sideLabel}
+                </p>
+                {renderPrintSizeBody(true)}
+              </div>
+
+              {uploadError ? (
+                <p className="text-xs font-medium text-red-700" role="alert">{uploadError}</p>
+              ) : null}
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={stableOnAddToCart}
+                className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-violet-700 active:scale-[0.99] disabled:opacity-60"
+              >
+                {isSubmitting ? submitCta.busy : submitCta.label}
+              </button>
             </div>
           ) : null}
 
@@ -6684,7 +6742,7 @@ export default function CustomizerTemplate({
               variant list below Step 4 is where they manage the mix.
               Also hidden in admin proof mode — admin already has the
               variant from URL params and only needs to save the proof. */}
-          {hasStep1 && !editGroupId && !isAdminProofMode ? (
+          {hasStep1 && !editGroupId && !staffEditor ? (
             <div ref={step1Ref} className={
               assemblyLayout
                 ? "relative space-y-4 overflow-hidden rounded-2xl border border-ui-border-base bg-ui-bg-base p-5 shadow-sm"
@@ -6767,7 +6825,7 @@ export default function CustomizerTemplate({
               panel above replaces the wizard). The motion.div gives the
               steps a soft mount-in once Step 1 is completed (or on first
               load for products without variant options). */}
-          {!isAdminProofMode && (
+          {!staffEditor && (
               <motion.div
                 key="steps"
                 initial={{ opacity: 0, y: 8 }}
@@ -7091,7 +7149,7 @@ export default function CustomizerTemplate({
                   onRemoveSelectedImage={inputPanelProps.onRemoveSelectedImage}
                   canRemoveImage={canRemoveImage}
                   onDeleteUpload={inputPanelProps.onDeleteUpload}
-                  enabled={isAdminProofMode || !embedded || !pdpHasVariantOptions || pdpStep1Done}
+                  enabled={isStaffStudio || !embedded || !pdpHasVariantOptions || pdpStep1Done}
                   disabledMessage={inputPanelDisabledMessage}
                   selectedText={selectedTextSnapshot}
                   onUpdateSelectedText={inputPanelProps.onUpdateSelectedText}

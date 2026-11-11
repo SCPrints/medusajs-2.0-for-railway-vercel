@@ -1,4 +1,12 @@
-import { enforcesScreenMinimum, overStitchCapAction, readDestination, savesDesignOnly, submitLabels } from "./mode"
+import {
+  attachesToQuoteGroup,
+  enforcesScreenMinimum,
+  overStitchCapAction,
+  readDestination,
+  savesDesignOnly,
+  submitLabels,
+  usesStaffEditor,
+} from "./mode"
 
 const read = (qs: string) => readDestination(new URLSearchParams(qs))
 
@@ -49,22 +57,31 @@ describe("rules", () => {
     expect(overStitchCapAction(shop, { editingCart: false })).toBe("request_quote")
   })
 
-  it("existing quote designs save the mockup without quantities", () => {
-    const designOnly = (qs: string) => savesDesignOnly(read(qs))
-    expect(designOnly("quote_id=q&qsig=s&group=g_abc")).toBe(true)
-    expect(designOnly("quote_id=q&qsig=s&group=g_abc~row_1")).toBe(true)
-    expect(designOnly("quote_id=q&qsig=s&group=gs_abc")).toBe(true)
-    expect(designOnly("quote_id=q&qsig=s&group=qg_abc")).toBe(true)
-    expect(designOnly("quote_id=q&qsig=s&group=3936e6e9-b848")).toBe(true)
-    expect(designOnly("quote_id=q&qsig=s")).toBe(false)
-    expect(designOnly("pos_session=p&group=g_abc")).toBe(false)
+  it("every quote design saves artwork only; a group attaches to its lines", () => {
+    const attaches = (qs: string) => attachesToQuoteGroup(read(qs))
+    expect(attaches("quote_id=q&qsig=s&group=g_abc")).toBe(true)
+    expect(attaches("quote_id=q&qsig=s&group=g_abc~row_1")).toBe(true)
+    expect(attaches("quote_id=q&qsig=s&group=gs_abc")).toBe(true)
+    expect(attaches("quote_id=q&qsig=s&group=qg_abc")).toBe(true)
+    expect(attaches("quote_id=q&qsig=s&group=3936e6e9-b848")).toBe(true)
+    expect(attaches("quote_id=q&qsig=s")).toBe(false)
+    expect(attaches("pos_session=p&group=g_abc")).toBe(false)
+    expect(savesDesignOnly(read("quote_id=q&qsig=s"))).toBe(true)
+    expect(savesDesignOnly(read("pos_session=p"))).toBe(false)
     const none = { editingCartLine: false, needsQuote: false }
     expect(submitLabels(read("quote_id=q&qsig=s&group=g_abc"), none).label).toBe("Save mockup to job")
   })
 
+  it("quote and proof use the staff editor; POS and shop don't", () => {
+    expect(usesStaffEditor(quote)).toBe(true)
+    expect(usesStaffEditor(read("adminProof=o:l:front"))).toBe(true)
+    expect(usesStaffEditor(pos)).toBe(false)
+    expect(usesStaffEditor(shop)).toBe(false)
+  })
+
   it("button labels", () => {
     const none = { editingCartLine: false, needsQuote: false }
-    expect(submitLabels(quote, { editingCartLine: true, needsQuote: true }).label).toBe("Add design to quote")
+    expect(submitLabels(quote, { editingCartLine: true, needsQuote: true }).label).toBe("Add design to job")
     expect(submitLabels(pos, none).label).toBe("Add to sale")
     expect(submitLabels(shop, { editingCartLine: true, needsQuote: true }).label).toBe("Update cart")
     expect(submitLabels(shop, { ...none, needsQuote: true }).label).toBe("Request a quote")

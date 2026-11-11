@@ -8,6 +8,7 @@ import { extractRenderArtifactUrl } from "../artifact-url"
 import { sanitizeCustomizerDesignForCart } from "../sanitize-cart-metadata"
 import type { CustomizerMetadata } from "../types"
 import {
+  anySizeLine,
   assertOk,
   designLine,
   type DesignCell,
@@ -60,6 +61,8 @@ export async function sendToQuote(
     groupId?: string | null
     /** Mockup-only save: the backend keeps the group's lines and attaches the artwork. */
     attachOnly?: boolean
+    /** New design with no sizes chosen: send each line as "<colour> (any size)" with no variant. */
+    sizesToCome?: boolean
     /** Decorated unit price shown in the Studio, in DOLLARS (pricing.discountedUnitPriceCents is dollars). */
     decoratedUnitDollars?: number | null
     backendUrl?: string
@@ -75,15 +78,23 @@ export async function sendToQuote(
     qsig: input.qsig,
     group_id: input.groupId || newQuoteGroupId(),
     ...(input.attachOnly ? { attach_only: true } : {}),
-    design: sanitizeCustomizerDesignForCart(input.metadataBase as CustomizerMetadata, input.hostedByDataUrl),
-    lines: input.cells.map((cell) =>
-      designLine({
+    // An any-size line has no variant, so the design keeps the colour's variant for re-editing.
+    design: sanitizeCustomizerDesignForCart(
+      (input.sizesToCome && input.cells[0]
+        ? { ...input.metadataBase, variantId: input.cells[0].variant.id }
+        : input.metadataBase) as CustomizerMetadata,
+      input.hostedByDataUrl
+    ),
+    lines: input.cells.map((cell) => {
+      const line = designLine({
         cell,
         product: input.product,
         printSizeId: input.printSizeId,
         unitPriceCents: decoratedCents ?? variantPriceCents(cell),
       })
-    ),
+      // A new design from the staff editor picks no sizes: the job holds it as "any size".
+      return input.sizesToCome ? anySizeLine(line) : line
+    }),
   })
   const base = (input.backendUrl ?? "").replace(/\/+$/, "")
   let res: Response

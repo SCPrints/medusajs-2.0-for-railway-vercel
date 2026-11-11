@@ -51,6 +51,17 @@ export const designLine = (input: {
   },
 })
 
+/**
+ * A garment whose sizes aren't known yet: no variant, titled "<Colour> (any
+ * size)", which the backend converts as a sizes-pending line (sizes-pending.ts).
+ * A variant title without " / " has no size to drop, so it stays as-is.
+ */
+export const anySizeLine = (line: DesignLine): Omit<DesignLine, "variant_id"> & { variant_id: string | null } => {
+  const parts = String(line.variant_title ?? "").split(" / ")
+  if (parts.length < 2) return line
+  return { ...line, variant_id: null, variant_title: `${parts.slice(0, -1).join(" / ")} (any size)` }
+}
+
 /** Fresh design-group id (staff "Edit design in Studio" replaces a group as a unit). */
 export const newQuoteGroupId = () =>
   `qg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`

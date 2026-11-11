@@ -83,6 +83,22 @@ describe("sendToQuote", () => {
     expect(calls[1].body.group_id).toMatch(/^qg_/)
     expect(calls[1].body.lines[0].unit_price_cents).toBe(3810)
   })
+
+  it("a new staff design lands as one any-size line with no variant", async () => {
+    await sendToQuote({
+      ...common,
+      cells: [{ ...common.cells[0], size: "", quantity: 1 }],
+      quoteId: "qt_1",
+      qsig: "sig",
+      sizesToCome: true,
+      backendUrl: "https://api.x",
+    })
+    const [line] = calls[0].body.lines
+    expect(calls[0].body.attach_only).toBeUndefined()
+    expect(line.variant_id).toBeNull()
+    expect(line.variant_title).toBe("Black (any size)")
+    expect(line.quantity).toBe(1)
+  })
 })
 
 describe("proofArtworkUrl", () => {

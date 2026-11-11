@@ -46,14 +46,27 @@ export function readDestination(params: Params): StudioDestination {
 export const enforcesScreenMinimum = (d: StudioDestination) => d.kind !== "quote"
 
 /**
- * Editing an existing design on a quote (any group: Job pricer `g_…`, catalog
- * `gs_…`, Studio-built `qg_…`, or one copied from a customer's cart). The job
- * owns quantities and prices and the backend only attaches the artwork
- * (`attach_only`), so the Studio ends in "Save mockup to job", like the revised
- * proof editor. A brand-new design (no group) still picks sizes.
+ * Every quote design is artwork only: the job owns quantities, sizes and
+ * prices, so the Studio never asks for them on a quote. This is what makes
+ * every "Design in Studio" button open the same staff editor.
  */
-export const savesDesignOnly = (d: StudioDestination) =>
+export const savesDesignOnly = (d: StudioDestination) => d.kind === "quote"
+
+/**
+ * Editing an existing design on a quote (any group: Job pricer `g_…`, catalog
+ * `gs_…`, Studio-built `qg_…`, or one copied from a customer's cart): the
+ * backend keeps the group's lines and only attaches the artwork (`attach_only`).
+ * A brand-new design (no group) lands as one "(any size)" line, qty 1, that
+ * staff size up on the job.
+ */
+export const attachesToQuoteGroup = (d: StudioDestination) =>
   d.kind === "quote" && !!d.groupId
+
+/**
+ * Staff editor: canvas plus a fixed staff panel (proof save, or quote
+ * positions + size + save), never the customer checkout wizard.
+ */
+export const usesStaffEditor = (d: StudioDestination) => d.kind === "proof" || d.kind === "quote"
 
 /**
  * Embroidery over the auto-priced stitch cap prices at $0, so it can't go to
@@ -77,8 +90,8 @@ export function submitLabels(
   d: StudioDestination,
   state: { editingCartLine: boolean; needsQuote: boolean }
 ): { label?: string; busy?: string } {
-  if (savesDesignOnly(d)) return { label: "Save mockup to job", busy: "Saving mockup…" }
-  if (d.kind === "quote") return { label: "Add design to quote", busy: "Saving to quote…" }
+  if (attachesToQuoteGroup(d)) return { label: "Save mockup to job", busy: "Saving mockup…" }
+  if (d.kind === "quote") return { label: "Add design to job", busy: "Saving to job…" }
   if (d.kind === "pos") return { label: "Add to sale", busy: "Adding…" }
   if (state.editingCartLine) return { label: "Update cart", busy: "Updating..." }
   if (state.needsQuote) return { label: "Request a quote", busy: "Sending…" }
