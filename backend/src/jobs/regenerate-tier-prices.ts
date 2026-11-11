@@ -5,7 +5,7 @@ import regenerateTierPriceLists from "../scripts/regenerate-tier-price-lists"
 import auditBelowCostPricing from "../scripts/audit-below-cost-pricing"
 
 /**
- * Daily regen of the 8 customer-tier PriceLists from canonical variant cost.
+ * Daily regen of the customer-tier PriceLists from canonical variant cost.
  *
  * Runs at 06:00 UTC — after the supplier inventory + cost syncs finish:
  *   - AS Colour inventory sync (hourly)
@@ -16,7 +16,7 @@ import auditBelowCostPricing from "../scripts/audit-below-cost-pricing"
  * the actual logic — this job just wraps it for scheduled execution.
  *
  * Safe to run with no tier groups seeded yet: the script bails with a warning
- * when it can't find the 8 CustomerGroups. So a fresh prod deploy can register
+ * when it can't find the tier CustomerGroups. So a fresh prod deploy can register
  * this job without any setup, and the cron will start doing real work after
  * staff run `seed-customer-tiers`.
  */

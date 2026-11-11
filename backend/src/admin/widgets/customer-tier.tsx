@@ -74,7 +74,7 @@ const CustomerTierWidget = ({ data: customer }: { data: CustomerData }) => {
       if (groupsRes.ok) {
         const json = await groupsRes.json()
         const all = (json.customer_groups ?? []) as GroupSummary[]
-        // Only the 8 tier groups, in rank order.
+        // Only the tier groups, in rank order.
         const tierGroups = TIERS.map((t) => all.find((g) => g.name === t.name))
           .filter((g): g is GroupSummary => !!g)
         setAllTierGroups(tierGroups)
@@ -156,7 +156,7 @@ const CustomerTierWidget = ({ data: customer }: { data: CustomerData }) => {
               title: "Customer pricing tier",
               body: "Assigns this customer to a tier-priced PriceList. Tier customers see a single flat price (cost × tier_multiplier) on every product — the public quantity ladder is hidden for them. Unassigned customers and anonymous visitors see today's standard 5-band ladder.",
               bullets: [
-                "Platinum (1.10×) is the best price we offer; Member (1.45×) is the entry tier.",
+                "Wholesale (1.20×) is for resellers only; Platinum (1.30×) is the best retail price; Member (1.65×) is the entry tier.",
                 "Tier prices are regenerated nightly at 06:00 UTC from canonical variant cost.",
                 "Assignment shows up in the customer's cart instantly. Existing in-flight carts may need a refresh.",
                 "Only the highest-margin (lowest-rank) tier is honoured if a customer is somehow in multiple tier groups — staff can use 'Clear all tier memberships' to fix.",

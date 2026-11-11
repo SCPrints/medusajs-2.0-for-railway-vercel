@@ -15,6 +15,7 @@
 export const TIER_GROUP_NAME_PREFIX = "Tier: "
 
 export const TIER_SLUGS = [
+  "wholesale",
   "platinum",
   "gold_plus",
   "gold",
@@ -35,14 +36,15 @@ export type Tier = {
 }
 
 export const TIERS: readonly Tier[] = [
-  { slug: "platinum",    name: "Tier: Platinum",    multiplier: 1.30, rank: 1 },
-  { slug: "gold_plus",   name: "Tier: Gold Plus",   multiplier: 1.35, rank: 2 },
-  { slug: "gold",        name: "Tier: Gold",        multiplier: 1.40, rank: 3 },
-  { slug: "silver_plus", name: "Tier: Silver Plus", multiplier: 1.45, rank: 4 },
-  { slug: "silver",      name: "Tier: Silver",      multiplier: 1.50, rank: 5 },
-  { slug: "bronze_plus", name: "Tier: Bronze Plus", multiplier: 1.55, rank: 6 },
-  { slug: "bronze",      name: "Tier: Bronze",      multiplier: 1.60, rank: 7 },
-  { slug: "member",      name: "Tier: Member",      multiplier: 1.65, rank: 8 },
+  { slug: "wholesale",   name: "Tier: Wholesale",   multiplier: 1.20, rank: 1 },
+  { slug: "platinum",    name: "Tier: Platinum",    multiplier: 1.30, rank: 2 },
+  { slug: "gold_plus",   name: "Tier: Gold Plus",   multiplier: 1.35, rank: 3 },
+  { slug: "gold",        name: "Tier: Gold",        multiplier: 1.40, rank: 4 },
+  { slug: "silver_plus", name: "Tier: Silver Plus", multiplier: 1.45, rank: 5 },
+  { slug: "silver",      name: "Tier: Silver",      multiplier: 1.50, rank: 6 },
+  { slug: "bronze_plus", name: "Tier: Bronze Plus", multiplier: 1.55, rank: 7 },
+  { slug: "bronze",      name: "Tier: Bronze",      multiplier: 1.60, rank: 8 },
+  { slug: "member",      name: "Tier: Member",      multiplier: 1.65, rank: 9 },
 ] as const
 
 export function getTierBySlug(slug: string | null | undefined): Tier | null {

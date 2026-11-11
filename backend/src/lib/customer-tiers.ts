@@ -4,16 +4,17 @@
  * Backend = canonical source. Mirror any change to the storefront file and run
  * `scripts/check-customer-tiers-sync.mjs` to enforce parity.
  *
- * Customer pricing tiers. Eight ranks, top to bottom by margin:
+ * Customer pricing tiers. Nine ranks, top to bottom by margin:
  *
- *   1  platinum     1.30   (top — thinnest margin we offer, ~15% ex-GST)
- *   2  gold_plus    1.35
- *   3  gold         1.40
- *   4  silver_plus  1.45
- *   5  silver       1.50
- *   6  bronze_plus  1.55
- *   7  bronze       1.60
- *   8  member       1.65   (entry — equals the public 100+ ladder floor, ~33%)
+ *   1  wholesale    1.20   (resellers only — ~8% ex-GST, added 2026-11-12)
+ *   2  platinum     1.30   (top retail account, ~15% ex-GST)
+ *   3  gold_plus    1.35
+ *   4  gold         1.40
+ *   5  silver_plus  1.45
+ *   6  silver       1.50
+ *   7  bronze_plus  1.55
+ *   8  bronze       1.60
+ *   9  member       1.65   (entry — equals the public 100+ ladder floor, ~33%)
  *
  * The multiplier is applied to ex-GST supplier cost. Since the 2026-08
  * inc-GST cutover (HOLD) the result is a GST-INCLUSIVE sticker, so the real
@@ -32,6 +33,7 @@
 export const TIER_GROUP_NAME_PREFIX = "Tier: "
 
 export const TIER_SLUGS = [
+  "wholesale",
   "platinum",
   "gold_plus",
   "gold",
@@ -52,14 +54,15 @@ export type Tier = {
 }
 
 export const TIERS: readonly Tier[] = [
-  { slug: "platinum",    name: "Tier: Platinum",    multiplier: 1.30, rank: 1 },
-  { slug: "gold_plus",   name: "Tier: Gold Plus",   multiplier: 1.35, rank: 2 },
-  { slug: "gold",        name: "Tier: Gold",        multiplier: 1.40, rank: 3 },
-  { slug: "silver_plus", name: "Tier: Silver Plus", multiplier: 1.45, rank: 4 },
-  { slug: "silver",      name: "Tier: Silver",      multiplier: 1.50, rank: 5 },
-  { slug: "bronze_plus", name: "Tier: Bronze Plus", multiplier: 1.55, rank: 6 },
-  { slug: "bronze",      name: "Tier: Bronze",      multiplier: 1.60, rank: 7 },
-  { slug: "member",      name: "Tier: Member",      multiplier: 1.65, rank: 8 },
+  { slug: "wholesale",   name: "Tier: Wholesale",   multiplier: 1.20, rank: 1 },
+  { slug: "platinum",    name: "Tier: Platinum",    multiplier: 1.30, rank: 2 },
+  { slug: "gold_plus",   name: "Tier: Gold Plus",   multiplier: 1.35, rank: 3 },
+  { slug: "gold",        name: "Tier: Gold",        multiplier: 1.40, rank: 4 },
+  { slug: "silver_plus", name: "Tier: Silver Plus", multiplier: 1.45, rank: 5 },
+  { slug: "silver",      name: "Tier: Silver",      multiplier: 1.50, rank: 6 },
+  { slug: "bronze_plus", name: "Tier: Bronze Plus", multiplier: 1.55, rank: 7 },
+  { slug: "bronze",      name: "Tier: Bronze",      multiplier: 1.60, rank: 8 },
+  { slug: "member",      name: "Tier: Member",      multiplier: 1.65, rank: 9 },
 ] as const
 
 export function getTierBySlug(slug: string | null | undefined): Tier | null {

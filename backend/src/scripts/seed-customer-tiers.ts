@@ -4,7 +4,7 @@ import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 import { TIERS } from "../lib/customer-tiers"
 
 /**
- * Seeds the 8 customer-tier groups in Medusa's customer module.
+ * Seeds the customer-tier groups (one per TIERS entry) in Medusa's customer module.
  *
  * Idempotent. For each tier in `TIERS`:
  *   - Find existing CustomerGroup by `name = "Tier: <name>"`

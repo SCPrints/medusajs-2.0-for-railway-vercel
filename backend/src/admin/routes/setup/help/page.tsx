@@ -133,7 +133,7 @@ const SECTIONS: Section[] = [
         <li><strong>Lifetime value</strong> — LTV / orders / AOV / last-order tiles. &quot;Suggest VIP tag&quot; appears once they cross the threshold.</li>
         <li><strong>Tags + notes</strong> — coloured labels (VIP, Wholesale, Tricky) and pinnable internal notes. Add a snooze date to a note for follow-up reminders. Every tag/note change now writes an audit row visible on the Customer journey timeline.</li>
         <li><strong>Tax status</strong> — mark tax-exempt (council, NFP, school) so invoices render without GST. Snapshots to orders at placement.</li>
-        <li><strong>Customer pricing tier</strong> — drop a known/repeat customer onto a tier (Platinum 1.30× → Member 1.65× of cost). They&apos;ll see a flat below-retail price on every product after sign-in. Detail in the <em>Pricing tiers</em> section below.</li>
+        <li><strong>Customer pricing tier</strong> — drop a known/repeat customer onto a tier (Wholesale 1.20× for resellers, then Platinum 1.30× → Member 1.65× of cost). They&apos;ll see a flat below-retail price on every product after sign-in. Detail in the <em>Pricing tiers</em> section below.</li>
         <li><strong>Customer journey</strong> — unified timeline of PostHog events + orders + NPS + saved designs + tag changes + every audit-log row (purple "Activity" badge: owner changes, notes pinned/snoozed, organisation joins, unsubscribes, automation rule fires). Use before a sales call.</li>
         <li><strong>Order list</strong> — Medusa standard.</li>
       </ul>
@@ -201,6 +201,7 @@ const SECTIONS: Section[] = [
               </tr>
             </thead>
             <tbody className="divide-y divide-ui-border-base">
+              <tr><td className="px-3 py-1">Wholesale (resellers)</td><td className="px-3 py-1 tabular-nums">1.20×</td><td className="px-3 py-1 tabular-nums">$6.48</td></tr>
               <tr><td className="px-3 py-1">Platinum</td><td className="px-3 py-1 tabular-nums">1.30×</td><td className="px-3 py-1 tabular-nums">$7.02</td></tr>
               <tr><td className="px-3 py-1">Gold Plus</td><td className="px-3 py-1 tabular-nums">1.35×</td><td className="px-3 py-1 tabular-nums">$7.29</td></tr>
               <tr><td className="px-3 py-1">Gold</td><td className="px-3 py-1 tabular-nums">1.40×</td><td className="px-3 py-1 tabular-nums">$7.56</td></tr>
@@ -237,7 +238,7 @@ const SECTIONS: Section[] = [
         <ul className="mt-1 list-disc pl-5 text-sm space-y-1">
           <li>Each product variant has a canonical ex-GST cost in <code>metadata.cost_price_ex_gst_minor</code>. Every importer (AS Colour, FashionBiz, Aussie Pacific, DNC) writes it.</li>
           <li>A <strong>nightly cron at 06:00 UTC</strong> regenerates all 8 tier price lists from current cost, after the supplier inventory + cost syncs finish. So if a supplier raises wholesale, tier prices follow within ~24h.</li>
-          <li>Plumbing under the hood: 8 Medusa CustomerGroups (named &quot;Tier: Platinum&quot; … &quot;Tier: Member&quot;) backed by 8 PriceLists (type=OVERRIDE) scoped to the matching group. The customer&apos;s group is auto-injected into pricing context on every store request — no custom middleware.</li>
+          <li>Plumbing under the hood: 9 Medusa CustomerGroups (named &quot;Tier: Wholesale&quot; … &quot;Tier: Member&quot;) backed by 9 PriceLists (type=OVERRIDE) scoped to the matching group. The customer&apos;s group is auto-injected into pricing context on every store request — no custom middleware.</li>
         </ul>
 
         <Text className="mt-4 font-semibold">What customers see</Text>
@@ -248,7 +249,7 @@ const SECTIONS: Section[] = [
         </ul>
 
         <Text size="xsmall" className="text-ui-fg-muted mt-3">
-          Platinum (1.30×) is the thinnest margin — keep it for top accounts. Member (1.65×) is the entry tier.
+          Wholesale (1.20×) is the thinnest margin — resellers only. Platinum (1.30×) is for top retail accounts. Member (1.65×) is the entry tier.
         </Text>
       </>
     ),

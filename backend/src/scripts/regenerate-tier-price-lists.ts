@@ -10,7 +10,7 @@ import {
 import { planTierPriceSync, type ExistingTierPrice } from "../lib/tier-price-sync"
 
 /**
- * Regenerates the 8 tier PriceLists from canonical variant cost.
+ * Regenerates the tier PriceLists (one per TIERS entry) from canonical variant cost.
  *
  * For each tier:
  *   1. Find-or-create a PriceList titled "Tier Pricing: <name>", type=OVERRIDE,
@@ -25,7 +25,7 @@ import { planTierPriceSync, type ExistingTierPrice } from "../lib/tier-price-syn
  *   4. Diff the freshly computed set against the PriceList's current prices
  *      and write only the adds / amount changes / removals, in batches.
  *
- * Requires `seed-customer-tiers` to have run first (creates the 8 groups).
+ * Requires `seed-customer-tiers` to have run first (creates the groups).
  *
  * Idempotent. Safe to re-run nightly (this is what the cron job does at 06:00
  * UTC, after AS Colour / FashionBiz / AP nightly stock pulls finish).
@@ -66,7 +66,7 @@ export default async function regenerateTierPriceLists({ container }: ExecArgs) 
       .join(",")}`
   )
 
-  // 1) Resolve the 8 customer groups (one per tier) by name. Bail if any
+  // 1) Resolve the customer groups (one per tier) by name. Bail if any
   // is missing — staff must run `seed-customer-tiers` first.
   const { data: groups } = await query.graph({
     entity: "customer_group",

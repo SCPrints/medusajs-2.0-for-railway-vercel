@@ -12,18 +12,18 @@ import {
 
 describe("customer-tiers constants", () => {
   it("has exactly 8 tiers", () => {
-    expect(TIERS).toHaveLength(8)
-    expect(TIER_SLUGS).toHaveLength(8)
+    expect(TIERS).toHaveLength(9)
+    expect(TIER_SLUGS).toHaveLength(9)
   })
 
-  it("has ascending multipliers from 1.30 to 1.65 in 0.05 steps", () => {
+  it("has ascending multipliers: wholesale 1.20, then 1.30 to 1.65 in 0.05 steps", () => {
     expect(TIERS.map((t) => t.multiplier)).toEqual([
-      1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60, 1.65,
+      1.20, 1.30, 1.35, 1.40, 1.45, 1.50, 1.55, 1.60, 1.65,
     ])
   })
 
-  it("has monotonically increasing ranks 1..8", () => {
-    expect(TIERS.map((t) => t.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+  it("has monotonically increasing ranks 1..9", () => {
+    expect(TIERS.map((t) => t.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
   })
 
   it("has unique slugs", () => {
@@ -47,6 +47,7 @@ describe("getTierBySlug / getTierByName", () => {
     expect(getTierBySlug("gold")?.multiplier).toBe(1.40)
     expect(getTierBySlug("member")?.multiplier).toBe(1.65)
     expect(getTierBySlug("platinum")?.multiplier).toBe(1.30)
+    expect(getTierBySlug("wholesale")?.multiplier).toBe(1.20)
   })
 
   it("returns null for unknown slug", () => {
