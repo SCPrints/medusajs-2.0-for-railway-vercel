@@ -10,6 +10,7 @@ import { addBusinessDays } from "../../lib/business-days"
 import { getOwner, pickNextOwner } from "../../lib/crm-owners"
 import { AUDIT_ACTION, AUDIT_ENTITY } from "../../lib/audit-entities"
 import { writeAudit } from "../../lib/audit-log"
+import { orderInboxAddress, quoteInboxAddress } from "../../lib/order-inbox-alias"
 import { captureEvent } from "../../lib/posthog"
 import { TASK_MODULE } from "../../modules/task"
 import { EmailTemplates } from "../../modules/email-notifications/templates"
@@ -185,6 +186,12 @@ export async function raiseAttention(
         accepted_no_order: `Accepted, no order — ${input.label}`,
         changes_requested: `Changes requested — ${input.label}`,
       }
+      // orders@ has no mailbox: replying to this alert must reach the customer
+      // and land on the job (same two-address reply-to as the contact-form alert).
+      const jobInbox = input.order_id
+        ? orderInboxAddress(input.order_id)
+        : quoteInboxAddress(input.quote_id!)
+      const replyTo = [input.from, jobInbox].filter((a): a is string => !!a)
       await Promise.all(
         recipients.map((to) =>
           notifications.createNotifications({
@@ -192,7 +199,10 @@ export async function raiseAttention(
             channel: "email",
             template: EmailTemplates.JOB_ATTENTION,
             data: {
-              emailOptions: { subject: subjectBits[input.kind] },
+              emailOptions: {
+                subject: subjectBits[input.kind],
+                ...(replyTo.length ? { replyTo } : {}),
+              },
               alert: {
                 kind: input.kind,
                 label: input.label,
