@@ -100,6 +100,12 @@ export default defineMiddlewares({
       bodyParser: { sizeLimit: "12mb" },
     },
     {
+      // Staff suggestion button: page screenshot as a base64 data URL.
+      matcher: "/admin/suggestions",
+      methods: ["POST"],
+      bodyParser: { sizeLimit: "12mb" },
+    },
+    {
       matcher: "/admin/orders/:id/production-photos",
       methods: ["POST"],
       bodyParser: { sizeLimit: "12mb" },

@@ -109,6 +109,7 @@ import {
 } from './customer-message'
 import { DSP_JOB, DspJobEmail, isDspJobData } from './dsp-job'
 import { STAFF_JOBS_TODAY, StaffJobsTodayEmail, isStaffJobsTodayData } from './staff-jobs-today'
+import { STAFF_SUGGESTION, StaffSuggestionEmail, isStaffSuggestionData } from './staff-suggestion'
 
 export const EmailTemplates = {
   INVITE_USER,
@@ -136,6 +137,7 @@ export const EmailTemplates = {
   CUSTOMER_MESSAGE,
   DSP_JOB,
   STAFF_JOBS_TODAY,
+  STAFF_SUGGESTION,
 } as const
 
 export type EmailTemplateType = keyof typeof EmailTemplates
@@ -339,6 +341,15 @@ export function generateEmailTemplate(templateKey: string, data: unknown): React
         )
       }
       return <StaffJobsTodayEmail {...data} />
+
+    case EmailTemplates.STAFF_SUGGESTION:
+      if (!isStaffSuggestionData(data)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Invalid data for template "${EmailTemplates.STAFF_SUGGESTION}"`
+        )
+      }
+      return <StaffSuggestionEmail {...data} />
 
     case EmailTemplates.JOB_ATTENTION:
       if (!isJobAttentionData(data)) {
