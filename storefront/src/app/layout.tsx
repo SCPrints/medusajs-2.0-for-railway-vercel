@@ -59,10 +59,10 @@ export const metadata: Metadata = {
     "uniform branding",
     "bulk merch",
   ],
-  robots: {
-    index: true,
-    follow: true,
-  },
+  // No site-wide robots tag: "index, follow" is the default anyway, and setting it here put it on
+  // made-up addresses too, next to the "noindex" Next.js adds when a streamed page turns out
+  // not to exist — two opposite signals on the same page (2026-11-12). Pages that must stay
+  // out of Google set their own robots.
   verification: {
     google: "oY0Zolz7R7nfAyd2YQ4uLCrKxdIi0dXVFZt6KVbJR28",
   },

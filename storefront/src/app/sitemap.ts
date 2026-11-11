@@ -15,8 +15,15 @@ const defaultCountryCode = process.env.NEXT_PUBLIC_DEFAULT_REGION || "au"
 
 const toAbsoluteUrl = (path: string) => new URL(path, getBaseURL()).toString()
 
+/**
+ * A page's real last change, or nothing. Google only trusts <lastmod> when it is "consistently
+ * and verifiably accurate"; stamping every hand-written page with the build time (2026-11-12:
+ * 139 URLs all dated the last deploy) taught it to ignore the real product dates too.
+ */
+const changed = (row: { updated_at?: string | Date | null } | null | undefined) =>
+  row?.updated_at ? { lastModified: new Date(row.updated_at) } : {}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date()
   const cc = defaultCountryCode
 
   // Static marketing + tool pages worth crawling. Sandbox/hero experiments,
@@ -66,7 +73,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...locationPaths,
   ].map((path) => ({
     url: toAbsoluteUrl(path),
-    lastModified: now,
     changeFrequency: "weekly",
     priority: path === `/${cc}` ? 1 : 0.7,
   }))
@@ -75,7 +81,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((c) => c?.handle)
     .map((c) => ({
       url: toAbsoluteUrl(`/${cc}/categories/${encodeURIComponent(c.handle)}`),
-      lastModified: now,
+      ...changed(c as { updated_at?: string | null }),
       changeFrequency: "weekly",
       priority: 0.7,
     }))
@@ -84,7 +90,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((b) => b?.handle)
     .map((b) => ({
       url: toAbsoluteUrl(`/${cc}/brands/${encodeURIComponent(b.handle)}`),
-      lastModified: now,
+      ...changed(b as { updated_at?: string | null }),
       changeFrequency: "weekly",
       priority: 0.6,
     }))
@@ -93,7 +99,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((b) => b?.status === "active" && b?.handle)
     .map((b) => ({
       url: toAbsoluteUrl(`/${cc}/bundles/${encodeURIComponent(b.handle)}`),
-      lastModified: now,
+      ...changed(b as { updated_at?: string | null }),
       changeFrequency: "weekly",
       priority: 0.5,
     }))
@@ -104,14 +110,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .filter((j) => j.tags.some((t) => industrySlugs.has(t)))
     .map((j) => ({
       url: toAbsoluteUrl(`/${cc}/lookbook/${encodeURIComponent(j.slug)}`),
-      lastModified: j.updated_at ? new Date(j.updated_at) : now,
+      ...changed(j),
       changeFrequency: "monthly",
       priority: 0.5,
     }))
 
   const productEntries: MetadataRoute.Sitemap = products.map((p) => ({
     url: toAbsoluteUrl(`/${cc}/products/${encodeURIComponent(p.handle)}`),
-    lastModified: p.updated_at ? new Date(p.updated_at) : now,
+    ...changed(p),
     changeFrequency: "weekly",
     priority: 0.6,
   }))
