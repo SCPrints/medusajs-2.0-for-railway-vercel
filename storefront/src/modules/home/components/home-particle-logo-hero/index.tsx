@@ -2190,6 +2190,8 @@ export default function HomeParticleLogoHero({
    */
   const rafReadyRef = useRef(false)
   const rafVisibleRef = useRef(true)
+  /** True while a text field on the page has focus (see the perf gate below). */
+  const rafTypingRef = useRef(false)
   /** Stable 2D context for canvasC; reset in build after backing store is sized. */
   const canvasCCtxRef = useRef<CanvasRenderingContext2D | null>(null)
   const buildRef = useRef<() => void>(() => {})
@@ -4297,7 +4299,7 @@ export default function HomeParticleLogoHero({
         // + requestIdleCallback) AND on hero visibility (via IO). When
         // either flag is false, drop the loop — `resume()` will pick it
         // up again when both flip back to true.
-        if (rafReadyRef.current && rafVisibleRef.current) {
+        if (rafReadyRef.current && rafVisibleRef.current && !rafTypingRef.current) {
           frameId = requestAnimationFrame(tick)
           rafRef.current = frameId
         } else {
@@ -4308,7 +4310,7 @@ export default function HomeParticleLogoHero({
     }
 
     const resume = () => {
-      if (!rafReadyRef.current || !rafVisibleRef.current) return
+      if (!rafReadyRef.current || !rafVisibleRef.current || rafTypingRef.current) return
       if (frameId == null) {
         frameId = requestAnimationFrame(tick)
         rafRef.current = frameId
@@ -4380,10 +4382,29 @@ export default function HomeParticleLogoHero({
       io.observe(stackEl)
     }
 
+    // 3. rafTypingRef — paused while a text field has focus. On /contact the form sits close
+    //    enough that the hero stays "visible", and on a phone the simulation used every spare
+    //    millisecond, so each key press waited ~80 ms before it was even handled (2026-11-12).
+    const isField = (el: EventTarget | null) =>
+      el instanceof HTMLElement &&
+      (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
+    const onFocusIn = (e: FocusEvent) => {
+      if (isField(e.target)) rafTypingRef.current = true
+    }
+    const onFocusOut = (e: FocusEvent) => {
+      if (isField(e.relatedTarget)) return
+      rafTypingRef.current = false
+      rafResumeRef.current()
+    }
+    document.addEventListener("focusin", onFocusIn)
+    document.addEventListener("focusout", onFocusOut)
+
     return () => {
       cancelled = true
       window.removeEventListener("load", scheduleReady)
       if (io) io.disconnect()
+      document.removeEventListener("focusin", onFocusIn)
+      document.removeEventListener("focusout", onFocusOut)
     }
   }, [])
 
