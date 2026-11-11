@@ -89,6 +89,7 @@ type ArtifactEntry = {
 type OrderItem = {
   id: string
   product_id?: string | null
+  product_handle?: string | null
   product_title?: string | null
   title?: string | null
   variant_title?: string | null
@@ -119,6 +120,11 @@ interface PageData {
   productTitle: string
   /** All decorated sides in display order; each carries its own print-size label */
   mockups: Array<{ side: string; buf: Buffer; printSizeLabel: string }>
+  /** Each side's artwork as it will print (its print file), shown big on the garment's colour under the mockups. */
+  artwork: Array<{ side: string; buf: Buffer; printSizeLabel: string }>
+  /** The garment's colour for the artwork panels: name as ordered, hex from the catalogue's colour list (null = not on file). */
+  colourName: string
+  garmentHex: string | null
   sizes: SizeQuantity[]
   printNotes: string | null
 }
@@ -140,6 +146,58 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   } catch {
     return null
   }
+}
+
+/**
+ * The garment's colour, from the catalogue's colour list (assets/garment-colours.json: every product's colours with a
+ * value worked out from supplier data and product photos; the 3D app's data/colours.json, scripts/sample-colours.py).
+ * By product handle and colour name, case and spacing ignored. Null when the product or colour isn't on file.
+ */
+let colourTable: Record<string, [string, string][]> | null = null
+const colourKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "")
+export function garmentHex(handle: string | null | undefined, colourName: string | null | undefined): string | null {
+  if (!handle || !colourName) return null
+  if (!colourTable) {
+    try {
+      colourTable = JSON.parse(fs.readFileSync(path.join(ASSETS_DIR, "garment-colours.json"), "utf8"))
+    } catch {
+      colourTable = {}
+    }
+  }
+  const list = colourTable![handle]
+  if (!list) return null
+  const want = colourKey(colourName)
+  if (!want) return null
+  const exact = list.find(([n]) => colourKey(n) === want)
+  if (exact) return exact[1]
+  // "Navy Marle" ordered, "NAVY MARLE" listed, or a longer catalogue name ("Black / Black"): the closest containing match.
+  const near = list.filter(([n]) => colourKey(n).includes(want) || want.includes(colourKey(n)))
+  return near.sort((a, b) => Math.abs(colourKey(a[0]).length - want.length) - Math.abs(colourKey(b[0]).length - want.length))[0]?.[1] ?? null
+}
+
+/** A print file for the artwork panel: transparent margins trimmed, at most 1400 px, kept as PNG (alpha). */
+async function artworkBuffer(url: string): Promise<Buffer | null> {
+  const raw = await fetchImageBuffer(url)
+  if (!raw) return null
+  try {
+    let img = sharp(raw).ensureAlpha()
+    try {
+      img = sharp(await img.trim({ threshold: 1 }).png().toBuffer())
+    } catch {
+      // nothing to trim, or a fully transparent file: keep it as it was
+    }
+    return await img.resize(1400, 1400, { fit: "inside", withoutEnlargement: true }).png().toBuffer()
+  } catch {
+    return null
+  }
+}
+
+/** Light enough that the panel needs an outline to show against the white page (white, natural, cream…). */
+function isLightHex(hex: string): boolean {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+  if (!m) return false
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16))
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 225
 }
 
 function extractSize(variantTitle: string | null | undefined): string {
@@ -288,7 +346,8 @@ function buildPageData(
   groupItems: OrderItem[],
   mockups: Array<{ side: string; buf: Buffer }>,
   dimensionOverrides: Record<string, string> = {},
-  proofNotesOverrides: Record<string, string> = {}
+  proofNotesOverrides: Record<string, string> = {},
+  artwork: Array<{ side: string; buf: Buffer }> = []
 ): PageData {
   const canonical =
     groupItems.find(
@@ -427,6 +486,9 @@ function buildPageData(
   return {
     productTitle,
     mockups: mockups.map((m) => ({ ...m, printSizeLabel: sideLabel(m.side) })),
+    artwork: artwork.map((a) => ({ ...a, printSizeLabel: sideLabel(a.side) })),
+    colourName: colour,
+    garmentHex: garmentHex(canonical?.product_handle, colour),
     sizes: sortSizes(sizes),
     printNotes,
   }
@@ -554,7 +616,20 @@ export async function generateMockupPdf(
         .map((a, i) => ({ side: a.side, buf: rawBufs[i] }))
         .filter((m): m is { side: string; buf: Buffer } => m.buf !== null)
 
-      return buildPageData(groupItems, mockups, dimensionOverrides, proofNotesOverrides)
+      // The artwork as it will print: each decorated side's print file, for the panels under the mockups (11 Nov,
+      // like DSP's proofs but below). Only sides that are on the page as mockups, in the same order.
+      const printBySide = new Map(
+        artifacts
+          .filter((a) => typeof a.printUrl === "string" && a.printUrl.startsWith("http"))
+          .map((a) => [a.side, a.printUrl as string])
+      )
+      const artSides = mockups.map((m) => m.side).filter((side) => printBySide.has(side))
+      const artBufs = await Promise.all(artSides.map((side) => artworkBuffer(printBySide.get(side)!)))
+      const artwork = artSides
+        .map((side, i) => ({ side, buf: artBufs[i] }))
+        .filter((a): a is { side: string; buf: Buffer } => a.buf !== null)
+
+      return buildPageData(groupItems, mockups, dimensionOverrides, proofNotesOverrides, artwork)
     })
   )
 
@@ -622,7 +697,7 @@ function buildPdf(params: {
     const usableW = PW - ML - MR // ~535pt
 
     for (const page of pages) {
-      const { productTitle, mockups, sizes, printNotes } = page
+      const { productTitle, mockups, artwork, colourName, garmentHex, sizes, printNotes } = page
 
       doc.addPage()
 
@@ -657,8 +732,8 @@ function buildPdf(params: {
 
       // ── MOCKUP IMAGES ────────────────────────────────────────────────────────
       const imgY = MT + 80
-      // Total image band height (includes cell images + per-row labels)
-      const imgBandH = 440
+      // Total image band height (includes cell images + per-row labels). Smaller when the artwork panels sit under it.
+      const imgBandH = artwork.length > 0 ? 300 : 440
       // Two lines reserved under each image: side name + print dimension
       const labelH = 24
 
@@ -717,6 +792,59 @@ function buildPdf(params: {
         }
       }
 
+      // ── ARTWORK PANELS ────────────────────────────────────────────────────────
+      // Each side's artwork as it will print, big, on the garment's own colour (11 Nov, Sean: like DSP's proofs, but
+      // under the mockups). Up to 3 a row. A light garment gets an outline so the panel shows on the white page.
+      let afterImages = imgY + imgBandH
+      if (artwork.length > 0) {
+        const titleY = imgY + imgBandH + 6
+        doc
+          .font("PJS-Bold")
+          .fontSize(9)
+          .fillColor("#000000")
+          .text(`Artwork as it will print${colourName ? `, on ${colourName}` : ""}`, ML, titleY, { width: usableW })
+        const cols = Math.min(artwork.length, 3)
+        const rows = Math.ceil(artwork.length / cols)
+        const gap = 8
+        const labelH = 13
+        const panelH = rows === 1 ? 150 : 105
+        const panelW = (usableW - gap * (cols - 1)) / cols
+        const fill = garmentHex ?? "#e5e7eb"
+        const outline = !garmentHex || isLightHex(fill)
+        const top = titleY + 14
+        artwork.forEach(({ side, buf, printSizeLabel }, i) => {
+          const r = Math.floor(i / cols), c = i % cols
+          const inRow = r === rows - 1 ? artwork.length - r * cols : cols
+          const rowOff = (usableW - (inRow * panelW + (inRow - 1) * gap)) / 2
+          const x = ML + rowOff + c * (panelW + gap)
+          const y = top + r * (panelH + labelH + gap)
+          const label = SIDE_LABELS[side] ?? side.replace(/_/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase())
+          doc
+            .font("PJS-Bold")
+            .fontSize(8)
+            .fillColor("#222222")
+            .text(`${label.toUpperCase()}${printSizeLabel ? `  ·  ${printSizeLabel}` : ""}`, x, y, { width: panelW, align: "center" })
+          const py = y + labelH
+          doc.roundedRect(x, py, panelW, panelH, 4).fill(fill)
+          if (outline) doc.roundedRect(x, py, panelW, panelH, 4).lineWidth(0.5).stroke("#cccccc")
+          const pad = Math.min(panelW, panelH) * 0.1
+          doc.image(buf, x + pad, py + pad, {
+            fit: [panelW - pad * 2, panelH - pad * 2],
+            align: "center",
+            valign: "center",
+          })
+        })
+        afterImages = top + rows * (panelH + labelH + gap) - gap
+        if (!garmentHex) {
+          doc
+            .font("PJS")
+            .fontSize(7)
+            .fillColor("#666666")
+            .text("Garment colour not on file: the artwork is shown on grey.", ML, afterImages + 2, { width: usableW })
+          afterImages += 10
+        }
+      }
+
       // ── WATERMARK ─────────────────────────────────────────────────────────────
       // Painted ON TOP of the mockups (not behind) at low opacity. The garment
       // photos sit on a near-white studio background, so a behind-the-garment
@@ -729,81 +857,65 @@ function buildPdf(params: {
       const wmY = (PH - wmSize) / 2
       doc.image(logoWatermark, wmX, wmY, { width: wmSize, height: wmSize })
 
-      // ── SECTION DIVIDER ──────────────────────────────────────────────────────
+      // ── BELOW THE IMAGES ─────────────────────────────────────────────────────
+      // With artwork panels: sizes on the left, the fine print and notes on the right, so it all still fits; a job
+      // with many sides that still doesn't fit carries this part onto a second page. Without: one column, as before.
+      const boxPad = 10
+      const twoCol = artwork.length > 0
+      const leftW = twoCol ? usableW * 0.42 : usableW
+      const rightX = twoCol ? ML + usableW * 0.46 : ML
+      const rightW = twoCol ? usableW * 0.54 : usableW
+      const qtyLineH = 14
+      const qtyTitleH = 18
+      const qtyProductH = 16
+      doc.font("PJS").fontSize(8)
+      const disclaimerH = doc.heightOfString(DISCLAIMER, { width: rightW - boxPad * 2 }) + boxPad * 2
+      // The note's text sits beside its bold "Customer Notes:" label, so its column is the box less the label.
+      doc.font("PJS-Bold").fontSize(8)
+      const noteLabelW = doc.widthOfString("Customer Notes:  ")
+      doc.font("PJS").fontSize(8)
+      const noteTextW = rightW - boxPad * 2 - noteLabelW
+      const notesBoxH = printNotes ? doc.heightOfString(printNotes, { width: noteTextW }) + boxPad * 2 : 0
+      doc.font("PJS-Bold").fontSize(10)
+      const qtyTitleTextH = Math.max(qtyProductH, doc.heightOfString(productTitle, { width: leftW - boxPad * 2 }) + 4)
+      const qtyH = qtyTitleH + qtyTitleTextH + sizes.length * qtyLineH + boxPad * 2
+      const textH = disclaimerH + (printNotes ? 10 + notesBoxH : 0)
+      const blockH = twoCol ? Math.max(qtyH, textH) : textH + 10 + qtyH
+
+      let ruleY = afterImages + 8
+      // pdfkit's own bottom margin: text past it flows onto a new page by itself (11 Nov: a long customer note took
+      // the sizes list with it), so the page break has to come before that.
+      if (ruleY + 12 + blockH > PH - doc.page.margins.bottom) {
+        doc.addPage()
+        doc.image(logoWatermark, wmX, wmY, { width: wmSize, height: wmSize })
+        doc.font("PJS-Bold").fontSize(10).fillColor("#000000").text(`Job ${jobNumber}: ${productTitle} (continued)`, ML, MT)
+        ruleY = MT + 20
+      }
       // Per-image dimensions are rendered directly under each mockup above,
       // so no consolidated "Positioning and sizing" line is needed.
-      const ruleY = imgY + imgBandH + 8
       doc
         .moveTo(ML, ruleY)
         .lineTo(PW - MR, ruleY)
         .lineWidth(0.5)
         .stroke("#cccccc")
 
-      // ── DISCLAIMER BOX ────────────────────────────────────────────────────────
-      const boxPad = 10
-      const disclaimerY = ruleY + 12
-      const disclaimerTextW = usableW - boxPad * 2
-
-      doc.font("PJS").fontSize(8)
-      const disclaimerH =
-        doc.heightOfString(DISCLAIMER, { width: disclaimerTextW }) + boxPad * 2
-
-      // No grey background box — keep the watermark visible behind the fine
-      // print. Text is drawn on top so it stays crisp.
-      doc
-        .font("PJS")
-        .fontSize(8)
-        .fillColor("#333333")
-        .text(DISCLAIMER, ML + boxPad, disclaimerY + boxPad, { width: disclaimerTextW })
-
-      // ── CUSTOMER NOTES BOX (only if notes are present) ───────────────────────
-      let notesBoxH = 0
-      const notesY = disclaimerY + disclaimerH + 10
-      if (printNotes) {
-        const notesTextW = usableW - boxPad * 2
-        doc.font("PJS").fontSize(8)
-        notesBoxH =
-          doc.heightOfString(printNotes, { width: notesTextW - 55 }) + boxPad * 2
-
-        doc.roundedRect(ML, notesY, usableW, notesBoxH, 4).fill("#fff7ed")
-        doc
-          .font("PJS-Bold")
-          .fontSize(8)
-          .fillColor("#92400e")
-          .text("Customer Notes:  ", ML + boxPad, notesY + boxPad, {
-            continued: true,
-            lineBreak: false,
-          })
-        doc
-          .font("PJS")
-          .fontSize(8)
-          .fillColor("#78350f")
-          .text(printNotes, { width: notesTextW - 55 })
-      }
-
-      // ── ORDER QUANTITIES BOX ──────────────────────────────────────────────────
-      const qtyY = notesY + (printNotes ? notesBoxH + 10 : 0)
-      const qtyLineH = 14
-      const qtyTitleH = 18
-      const qtyProductH = 16
-      const qtyBoxH = qtyTitleH + qtyProductH + sizes.length * qtyLineH + boxPad * 2
-
+      // ── ORDER QUANTITIES ─────────────────────────────────────────────────────
       // No grey background box — keep the watermark visible behind the
       // quantities. Text is drawn on top so it stays crisp.
-
+      const qtyY = twoCol ? ruleY + 12 : ruleY + 12 + textH + 10
       let qy = qtyY + boxPad
       doc
         .font("PJS-Bold")
         .fontSize(11)
         .fillColor("#000000")
-        .text("Order Sizes and Quantities", ML + boxPad, qy)
+        .text("Order Sizes and Quantities", ML + boxPad, qy, { width: leftW - boxPad * 2 })
       qy += qtyTitleH
 
-      doc
-        .font("PJS-Bold")
-        .fontSize(10)
-        .text(productTitle, ML + boxPad, qy)
-      qy += qtyProductH
+      // A long name wraps in the narrow column: move the sizes down by its real height, not one line.
+      doc.font("PJS-Bold").fontSize(10)
+      const titleH = doc.heightOfString(productTitle, { width: leftW - boxPad * 2 })
+      doc.text(productTitle, ML + boxPad, qy, { width: leftW - boxPad * 2 })
+      qy += Math.max(qtyProductH, titleH + 4)
 
       for (const { size, quantity } of sizes) {
         doc
@@ -812,6 +924,35 @@ function buildPdf(params: {
           .fillColor("#333333")
           .text(`${size.padEnd(8)}  -  ${quantity}`, ML + boxPad, qy)
         qy += qtyLineH
+      }
+
+      // ── DISCLAIMER ───────────────────────────────────────────────────────────
+      // No grey background box — keep the watermark visible behind the fine
+      // print. Text is drawn on top so it stays crisp.
+      const disclaimerY = ruleY + 12
+      doc
+        .font("PJS")
+        .fontSize(8)
+        .fillColor("#333333")
+        .text(DISCLAIMER, rightX + boxPad, disclaimerY + boxPad, { width: rightW - boxPad * 2 })
+
+      // ── CUSTOMER NOTES BOX (only if notes are present) ───────────────────────
+      const notesY = disclaimerY + disclaimerH + 10
+      if (printNotes) {
+        doc.roundedRect(rightX, notesY, rightW, notesBoxH, 4).fill("#fff7ed")
+        doc
+          .font("PJS-Bold")
+          .fontSize(8)
+          .fillColor("#92400e")
+          .text("Customer Notes:  ", rightX + boxPad, notesY + boxPad, {
+            continued: true,
+            lineBreak: false,
+          })
+        doc
+          .font("PJS")
+          .fontSize(8)
+          .fillColor("#78350f")
+          .text(printNotes, { width: noteTextW })
       }
 
       doc.fillColor("#000000")
