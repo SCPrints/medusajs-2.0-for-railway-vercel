@@ -34,6 +34,30 @@ function withoutCostKeys(metadata: Record<string, unknown> | null | undefined) {
   return out
 }
 
+/**
+ * Variant metadata the client reads (grep'd 2026-11-12): the bulk ladder (tiers, currency, the
+ * `tier_100_plus_price` fallback and `freight_in_aud` for tier-price.ts) and `garment_images`.
+ * Everything else (supplier blobs like `ascolour`, the ladder's `source` / `ladder_note`) was
+ * ~220 B × 570 variants on the Staple Tee for nothing. Add a key here if client code starts reading it.
+ */
+function clientVariantMetadata(metadata: Record<string, unknown> | null | undefined) {
+  if (!metadata) return metadata
+  const out: Record<string, unknown> = {}
+  const bulk = metadata.bulk_pricing as Record<string, unknown> | undefined
+  if (bulk && typeof bulk === "object") {
+    // Only keys that are present: RSC sends a missing value as the string "$undefined".
+    const pick = (o: Record<string, unknown>, keys: string[]) =>
+      Object.fromEntries(keys.filter((k) => o?.[k] !== undefined).map((k) => [k, o[k]]))
+    const slim = pick(bulk, ["currency_code", "tier_100_plus_price", "freight_in_aud"])
+    if (Array.isArray(bulk.tiers)) {
+      slim.tiers = bulk.tiers.map((t: Record<string, unknown>) => pick(t, ["min_quantity", "max_quantity", "amount"]))
+    }
+    out.bulk_pricing = slim
+  }
+  if (metadata.garment_images !== undefined) out.garment_images = metadata.garment_images
+  return out
+}
+
 export function toClientProduct(
   product: HttpTypes.StoreProduct
 ): HttpTypes.StoreProduct {
@@ -46,7 +70,7 @@ export function toClientProduct(
     manage_inventory: v.manage_inventory,
     allow_backorder: v.allow_backorder,
     inventory_quantity: v.inventory_quantity,
-    metadata: withoutCostKeys(v.metadata),
+    metadata: clientVariantMetadata(withoutCostKeys(v.metadata)),
     options: (v.options ?? []).map((o) => ({
       id: o.id,
       value: o.value,
@@ -94,8 +118,12 @@ export function toClientProduct(
     rank: img.rank,
   }))
 
+  // The image-audit stamp (up to 20 broken URLs, ~9 KB) is admin-only.
+  const { image_audit: _audit, ...metadata } = (product.metadata ?? {}) as Record<string, unknown>
+
   return {
     ...product,
+    metadata: product.metadata ? metadata : product.metadata,
     variants,
     options,
     images,

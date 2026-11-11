@@ -17,9 +17,12 @@ export const Ga4Script = () => {
 
   return (
     <>
+      {/* gtag.js (~500 KB, ~80 ms of phone time) waits for the page to finish loading. The init
+          script below stays afterInteractive, so `dataLayer` queues every event from the start
+          and gtag.js sends the queue when it arrives. */}
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-        strategy="afterInteractive"
+        strategy="lazyOnload"
       />
       <Script id="ga4-init" strategy="afterInteractive">
         {`

@@ -14,7 +14,23 @@ import {
  * Map colour slug → best-effort swatch photo URL (variant metadata or product image filename),
  * same logic as the PDP colour picker.
  */
+// One result per product object and option: the swatches re-render on every hover and
+// option change, and the Staple Tee (70 colours × 570 variants × 93 photos) took ~35 ms a
+// call on an M1, ~150 ms on a phone (profiled 2026-11-12). Callers only read the map.
+const cache = new WeakMap<HttpTypes.StoreProduct, Map<string, Map<string, string>>>()
+
 export function getColorSwatchImageMap(
+  product: HttpTypes.StoreProduct,
+  optionTitle: string
+): Map<string, string> {
+  let byTitle = cache.get(product)
+  if (!byTitle) cache.set(product, (byTitle = new Map()))
+  let map = byTitle.get(optionTitle)
+  if (!map) byTitle.set(optionTitle, (map = buildColorSwatchImageMap(product, optionTitle)))
+  return map
+}
+
+function buildColorSwatchImageMap(
   product: HttpTypes.StoreProduct,
   optionTitle: string
 ): Map<string, string> {
@@ -30,6 +46,17 @@ export function getColorSwatchImageMap(
     .map((v) => v.value ?? "")
     .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
 
+  // Variants grouped by colour slug in one pass (was a full variant scan per colour).
+  const variantsBySlug = new Map<string, HttpTypes.StoreProductVariant[]>()
+  for (const variant of product.variants ?? []) {
+    const colorValue = getVariantOptionValue(variant, optionTitle, product)
+    if (typeof colorValue !== "string") continue
+    const slug = toTitleSlug(colorValue)
+    const list = variantsBySlug.get(slug)
+    if (list) list.push(variant)
+    else variantsBySlug.set(slug, [variant])
+  }
+
   for (const optionValue of optionDef.values ?? []) {
     const rawValue = optionValue.value ?? ""
     const key = toTitleSlug(rawValue)
@@ -38,10 +65,7 @@ export function getColorSwatchImageMap(
       continue
     }
 
-    const variantsForColor = (product.variants ?? []).filter((variant) => {
-      const colorValue = getVariantOptionValue(variant, optionTitle, product)
-      return typeof colorValue === "string" && toTitleSlug(colorValue) === key
-    })
+    const variantsForColor = variantsBySlug.get(key) ?? []
 
     const metadataFromVariants = variantsForColor
       .map((variant: HttpTypes.StoreProductVariant) =>

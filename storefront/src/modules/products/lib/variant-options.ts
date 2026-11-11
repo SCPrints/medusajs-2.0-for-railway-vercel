@@ -297,12 +297,23 @@ function getSleevePlaceholderUrl(
 }
 
 /** Normalizes option titles and colour labels for stable matching across UI and API. */
-export const toTitleSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
+// Colour matching calls this on the same few hundred labels and photo URLs tens of thousands of
+// times per product (70 colours × 93 photos × sibling checks on the Staple Tee), so results are kept.
+// ponytail: cleared wholesale at 5,000 entries; an LRU only if a page ever cycles more strings than that.
+const titleSlugs = new Map<string, string>()
+export const toTitleSlug = (value: string) => {
+  let slug = titleSlugs.get(value)
+  if (slug === undefined) {
+    slug = value
+      .toLowerCase()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+    if (titleSlugs.size >= 5000) titleSlugs.clear()
+    titleSlugs.set(value, slug)
+  }
+  return slug
+}
 
 /** Shared matcher for color-like product option titles (Color/Colour/Shade). */
 export const COLOR_OPTION_MATCHER = /(color|colour|shade)/i
