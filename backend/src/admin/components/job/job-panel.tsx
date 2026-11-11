@@ -7,7 +7,7 @@ import type { JobActivity, JobView } from "../../../lib/job-view"
 import { ARTWORK_STAGE_LABEL, BLANKS_STAGE_LABEL, DOWNSTREAM_STAGE_LABEL } from "../../../lib/production-stage"
 import { ONE_CLICK, performNextAction, takeJob } from "./actions"
 import { TaskQuickAdd } from "../task-quick-add"
-import { ConvertAddressForm } from "./convert-address-form"
+import { AddressFields, ConvertAddressForm, addressComplete, addressPayload, blankAddress, toAddressDraft, type AddressDraft } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
 import { EnterSizes } from "./enter-sizes"
 import { QuoteTools } from "../quote/quote-detail"
@@ -477,15 +477,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
             />
             {open.delivery ? (
               <>
-                <div className="px-6 pb-4">
-                  {job.address.shipping && !job.address.placeholder ? (
-                    <Text size="small" className="whitespace-pre-line">
-                      {[job.address.shipping.name, job.address.shipping.company, job.address.shipping.address_1, job.address.shipping.address_2, [job.address.shipping.city, job.address.shipping.province, job.address.shipping.postal_code].filter(Boolean).join(" "), job.address.shipping.phone].filter(Boolean).join("\n")}
-                    </Text>
-                  ) : (
-                    <Text size="small" className="text-ui-tag-orange-text">{job.address.placeholder ? "Studio placeholder — ask the customer for the delivery address" : "No delivery address on file"}</Text>
-                  )}
-                </div>
+                <DeliveryAddress job={job} onChanged={onChanged} />
                 {order ? (
                   <Flat>
                     <Mount W={W.OrderShippingDecision} order={order} />
@@ -590,6 +582,87 @@ function NeededBy({ job, onChanged }: { job: JobView; onChanged: () => void }) {
     <button type="button" className={`hover:underline ${risk === "late" ? "text-ui-tag-red-text font-medium" : risk === "at_risk" ? "text-ui-tag-orange-text font-medium" : ""}`} onClick={() => setEditing(true)}>
       {current ? `Needed by ${new Date(`${current}T00:00:00`).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })}${risk === "late" ? " · late" : risk === "at_risk" ? " · at risk" : ""}` : "Needed by: not set"}
     </button>
+  )
+}
+
+/**
+ * The job's ship-to, with Edit. Writes the quote (convert reads it) and the
+ * order's shipping address. Offers the customer's saved address in one click —
+ * editing the customer record alone never touches an order already placed.
+ */
+function DeliveryAddress({ job, onChanged }: { job: JobView; onChanged: () => void }) {
+  const a = job.address.shipping
+  const isPickup = (job.order ? job.order.delivery_method : job.quote?.delivery_method) === "pickup"
+  const [editing, setEditing] = useState(false)
+  const [pickup, setPickup] = useState(isPickup)
+  const [addr, setAddr] = useState<AddressDraft>(blankAddress())
+  const [saved, setSaved] = useState<Record<string, any> | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const start = () => {
+    setPickup(isPickup)
+    setAddr(a && !job.address.placeholder ? toAddressDraft(a, job.customer.phone ?? "") : blankAddress(job.customer.phone ?? ""))
+    setEditing(true)
+    if (job.customer.id) {
+      void fetch(`/admin/customers/${job.customer.id}?fields=*addresses`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j: any) => {
+          const list = (j?.customer?.addresses ?? []) as any[]
+          setSaved(list.find((x) => x.is_default_shipping) ?? list[0] ?? null)
+        })
+        .catch(() => {})
+    }
+  }
+
+  const save = async () => {
+    setBusy(true)
+    try {
+      const r = await fetch(`/admin/jobs/${encodeURIComponent(job.id)}/address`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pickup ? { pickup: true } : { shipping_address: addressPayload(addr) }),
+      })
+      if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) as any)?.error ?? `HTTP ${r.status}`)
+      toast.success(pickup ? "Set to pick up" : "Delivery address saved")
+      setEditing(false)
+      onChanged()
+    } catch (err: any) {
+      toast.error(err?.message ?? "Couldn't save the address")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="px-6 pb-4 flex flex-col gap-y-2">
+        {saved?.address_1 ? (
+          <Button size="small" variant="secondary" className="self-start" onClick={() => { setPickup(false); setAddr(toAddressDraft(saved, addr.phone)) }}>
+            Use saved address: {[saved.address_1, saved.city, saved.postal_code].filter(Boolean).join(", ")}
+          </Button>
+        ) : null}
+        <AddressFields addr={addr} onChange={setAddr} pickup={pickup} onPickup={setPickup} />
+        <div className="flex justify-end gap-x-2">
+          <Button size="small" variant="secondary" onClick={() => setEditing(false)} disabled={busy}>Cancel</Button>
+          <Button size="small" isLoading={busy} disabled={busy || (!pickup && !addressComplete(addr))} onClick={save}>Save address</Button>
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="px-6 pb-4 flex items-start justify-between gap-3">
+      {isPickup ? (
+        <Text size="small">Pick up from the studio</Text>
+      ) : a && !job.address.placeholder ? (
+        <Text size="small" className="whitespace-pre-line">
+          {[a.name, a.company, a.address_1, a.address_2, [a.city, a.province, a.postal_code].filter(Boolean).join(" "), a.phone].filter(Boolean).join("\n")}
+        </Text>
+      ) : (
+        <Text size="small" className="text-ui-tag-orange-text">{job.address.placeholder ? "Studio placeholder — ask the customer for the delivery address" : "No delivery address on file"}</Text>
+      )}
+      <Button size="small" variant="secondary" onClick={start}>{a && !job.address.placeholder ? "Edit" : "Add address"}</Button>
+    </div>
   )
 }
 

@@ -88,6 +88,8 @@ export type JobView = {
     design_approval_status: string | null
     /** The customer's own date (YYYY-MM-DD), metadata.needed_by. */
     needed_by: string | null
+    /** "pickup" | "delivery" chosen before conversion (metadata.delivery_method). */
+    delivery_method: string | null
   } | null
   order: {
     id: string

@@ -258,12 +258,15 @@ export const convertQuoteToOrder = async (
   let billing: Record<string, unknown> = studioGeo
   let shipping: Record<string, unknown> = billing
   let termsDays: number | null = null
-  const givenAddress = args.pickup
+  // Pick up chosen earlier (New job drawer / job Delivery section) stands
+  // unless this conversion passes an address of its own.
+  const pickup = !!args.pickup || (!args.shippingAddress && meta.delivery_method === "pickup")
+  const givenAddress = pickup
     ? null
     : args.shippingAddress
       ? normaliseDeliveryAddress(args.shippingAddress)
       : readStoredDeliveryAddress(meta.delivery_address)
-  const deliveryMethod: "pickup" | "delivery" | null = args.pickup
+  const deliveryMethod: "pickup" | "delivery" | null = pickup
     ? "pickup"
     : givenAddress
       ? "delivery"

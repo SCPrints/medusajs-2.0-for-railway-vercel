@@ -2,6 +2,7 @@ import { Button, Drawer, Input, Label, Text, Textarea, toast } from "@medusajs/u
 import { useEffect, useState } from "react"
 
 import { LineItemsEditor, draftToLineItems, type DraftLineItem, type Region } from "./quote-detail"
+import { AddressFields, addressComplete, addressPayload, blankAddress, type AddressDraft } from "../job/convert-address-form"
 
 /** The AUD region (the catalog is AUD-only), else the first; the line editor prices against it. */
 function useRegionId(): string | null {
@@ -51,6 +52,8 @@ export function NewQuoteDrawer({
   }
   const [form, setForm] = useState(blankForm)
   const [rows, setRows] = useState<DraftLineItem[]>([])
+  const [addr, setAddr] = useState<AddressDraft>(blankAddress())
+  const [pickup, setPickup] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -58,6 +61,8 @@ export function NewQuoteDrawer({
     if (open) {
       setForm(blankForm)
       setRows([])
+      setAddr(blankAddress())
+      setPickup(false)
       setError(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,6 +82,19 @@ export function NewQuoteDrawer({
       setError(contactError)
       return null
     }
+    // Optional: blank = asked at conversion. Half-filled is a mistake, not "skip".
+    const addrTouched = !!(addr.address_1.trim() || addr.city.trim() || addr.postal_code.trim())
+    if (!pickup && addrTouched && !addressComplete(addr)) {
+      setError("Delivery address needs a street, suburb and postcode — or leave it blank.")
+      return null
+    }
+    const metadata: Record<string, unknown> = {
+      ...(form.needed_by ? { needed_by: form.needed_by } : {}),
+      ...(pickup ? { delivery_method: "pickup" } : {}),
+      ...(!pickup && addrTouched
+        ? { delivery_method: "delivery", delivery_address: { ...addressPayload(addr), phone: addr.phone.trim() || form.contact_phone.trim() || undefined } }
+        : {}),
+    }
     setSaving(true)
     setError(null)
     try {
@@ -91,7 +109,7 @@ export function NewQuoteDrawer({
         assigned_to: form.assigned_to.trim() || undefined,
         total_estimate: Number.isFinite(estimateNum) ? estimateNum : undefined,
         line_items: draftToLineItems(rows),
-        ...(form.needed_by ? { metadata: { needed_by: form.needed_by } } : {}),
+        ...(Object.keys(metadata).length ? { metadata } : {}),
       }
       const res = await fetch("/admin/quotes", {
         method: "POST",
@@ -247,6 +265,12 @@ export function NewQuoteDrawer({
               <Label size="xsmall">Needed by (optional)</Label>
               <Input type="date" value={form.needed_by} onChange={(e) => set({ needed_by: e.target.value })} />
               <Text size="xsmall" className="text-ui-fg-muted">The customer&apos;s own date — the Jobs list flags the job late or at risk against it.</Text>
+            </div>
+
+            <div className="flex flex-col gap-y-2">
+              <Label size="xsmall">Delivery address (optional)</Label>
+              <AddressFields addr={addr} onChange={setAddr} pickup={pickup} onPickup={setPickup} />
+              <Text size="xsmall" className="text-ui-fg-muted">Leave blank to ask at conversion. Becomes the order&apos;s ship-to.</Text>
             </div>
 
             <div className="flex flex-col gap-y-1">

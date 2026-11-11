@@ -446,6 +446,7 @@ export async function getJob(container: MedusaContainer, rawId: string): Promise
           has_job_pricer: !!qmeta.job_pricer,
           design_approval_status: typeof qmeta.design_approval_status === "string" ? qmeta.design_approval_status : null,
           needed_by: ymd(qmeta.needed_by),
+          delivery_method: typeof qmeta.delivery_method === "string" ? qmeta.delivery_method : null,
         }
       : null,
     order:
