@@ -127,6 +127,20 @@ const JobsPage = () => {
     void load()
   }, [load])
 
+  // Keep a long-open tab current: reload when you come back to it, and every
+  // 2 min while it's showing. The server caches the list for 60 s, so this is cheap.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    const t = setInterval(onVisible, 120_000)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      clearInterval(t)
+    }
+  }, [load])
+
   // A job opens beside the list; Back returns to wherever you were.
   const open = (row: TodayRow) => update({ job: row.id, pricer: null }, { push: true })
   const closeJob = () => update({ job: null, pricer: null }, { push: true })
