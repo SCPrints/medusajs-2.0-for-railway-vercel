@@ -6,6 +6,22 @@
 export const JOB_METHODS = ["DTF", "Supacolour", "Screen", "Embroidery"] as const
 export type JobMethod = (typeof JOB_METHODS)[number]
 
+/** Board colour per method: card edge, tag and filter dot. Red is kept for "our move". */
+export const METHOD_COLOUR: Record<JobMethod, string> = {
+  DTF: "#3b82f6",
+  Supacolour: "#f59e0b",
+  Screen: "#a855f7",
+  Embroidery: "#10b981",
+}
+
+/** Card edge: one colour solid, a mix split into equal arcs around the card. */
+export function methodEdge(methods: readonly JobMethod[]): string | null {
+  if (!methods.length) return null
+  const step = 360 / methods.length
+  const stops = methods.map((m, i) => `${METHOD_COLOUR[m]} ${i * step}deg ${(i + 1) * step}deg`)
+  return `conic-gradient(from -45deg, ${stops.join(", ")})`
+}
+
 const label = (method: unknown, channel?: unknown): JobMethod | null =>
   method === "screen" ? "Screen" : method === "embroidery" ? "Embroidery" : method === "print" ? (channel === "supacolour" ? "Supacolour" : "DTF") : null
 

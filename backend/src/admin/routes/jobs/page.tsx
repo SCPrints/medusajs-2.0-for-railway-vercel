@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useSearchParams } from "react-router-dom"
 
 import { tinted, NAV_COLOR } from "../../lib/nav-tint"
-import { JOB_METHODS } from "../../../lib/job-methods"
+import { JOB_METHODS, METHOD_COLOUR } from "../../../lib/job-methods"
 import { TODAY_QUEUES, type TodayQueue, type TodayRow, type TodayView } from "../../../lib/job-today"
 import { ONE_CLICK, performNextAction, takeJob } from "../../components/job/actions"
 import { Avatar, JobsBoard, TickNum } from "../../components/job/board"
@@ -290,7 +290,7 @@ const JobsPage = () => {
           <Chip active={dueOnly} onClick={() => update({ due: dueOnly ? null : "1" })}>Due this week <TickNum n={whoRows.filter(dueSoon).length} /></Chip>
           {methodsInPlay.length ? <span className="mx-1 h-5 w-px bg-ui-border-base" /> : null}
           {methodsInPlay.map((m) => (
-            <Chip key={m} active={method === m} onClick={() => update({ method: method === m ? null : m })}>{m}</Chip>
+            <Chip key={m} active={method === m} onClick={() => update({ method: method === m ? null : m })}><span className="h-2.5 w-2.5 rounded-full" style={{ background: METHOD_COLOUR[m] }} />{m}</Chip>
           ))}
           <span className="ml-auto flex items-center gap-3 text-sm text-ui-fg-subtle">
             <button type="button" className="hover:underline" onClick={() => update({ view: "list", folder: "done" })}>Done <b className="tabular-nums">{view.queues.done}</b></button>

@@ -2,6 +2,7 @@ import { Button, DropdownMenu, Popover, Textarea, toast } from "@medusajs/ui"
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 
+import { METHOD_COLOUR, methodEdge } from "../../../lib/job-methods"
 import { BOARD_COLUMNS, boardColumn, type TodayRow } from "../../../lib/job-today"
 import { isNewSince, type JobsSeen } from "../../lib/jobs-seen"
 import { AppLink } from "../../lib/nav"
@@ -184,6 +185,7 @@ function Card({ row, me, team, fresh, dim, busy, armed, href, onAct, onTake, onC
   onChanged: () => void
 }) {
   const ours = row.needs_us
+  const edge = methodEdge(row.methods ?? [])
   const oneClick = ours && ONE_CLICK.has(row.next_action.kind)
   const canChase = row.waiting_on === "customer" && CHASEABLE.has(row.next_action.kind)
   const owing = row.pay && row.pay !== "paid" && row.outstanding ? money(row.outstanding, row.currency_code) : null
@@ -245,6 +247,19 @@ function Card({ row, me, team, fresh, dim, busy, armed, href, onAct, onTake, onC
       onPointerDown={() => setPeek(null)}
       className={`group relative isolate flex flex-col gap-1.5 rounded-lg border bg-ui-bg-base p-2.5 shadow-elevation-card-rest transition-[box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:shadow-elevation-card-hover ${ours ? "border-ui-tag-red-border" : "border-ui-border-base"} ${dim ? "opacity-35" : ""}`}
     >
+      {edge ? (
+        // A 3px ring just outside the card, coloured by print/embroidery method; mixed jobs split it.
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -inset-[3px] -z-10 rounded-[11px] p-[3px]"
+          style={{
+            background: edge,
+            WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+            WebkitMaskComposite: "xor",
+            maskComposite: "exclude",
+          }}
+        />
+      ) : null}
       {picture ? (
         <img src={picture} alt="" loading="lazy" className={`h-24 w-full rounded-md object-contain ${mockups.length ? "bg-white" : "bg-ui-bg-subtle"}`} />
       ) : null}
@@ -306,7 +321,7 @@ function Card({ row, me, team, fresh, dim, busy, armed, href, onAct, onTake, onC
         {row.risk === "at_risk" && row.needed_by ? <span className="font-semibold text-ui-tag-orange-text">At risk · {shortDate(row.needed_by)}</span> : null}
         {!row.risk && row.needed_by ? <span>Needed {shortDate(row.needed_by)}</span> : null}
         {row.rush_tier ? <span className="font-semibold text-ui-tag-red-text">{row.rush_tier === "express" ? "Express" : "Priority"}</span> : null}
-        {(row.methods ?? []).map((m) => <span key={m} className={TAG}>{m}</span>)}
+        {(row.methods ?? []).map((m) => <span key={m} className={TAG} style={{ borderColor: METHOD_COLOUR[m], color: METHOD_COLOUR[m] }}>{m}</span>)}
       </p>
       <Popover open={!!compose} onOpenChange={(o) => { if (!o) setCompose(null) }}>
         <Popover.Anchor asChild>
