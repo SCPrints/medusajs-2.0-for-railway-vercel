@@ -227,8 +227,9 @@ function Card({ row, me, team, fresh, dim, busy, armed, href, onAct, onTake, onC
   // Where the hover preview sits: beside the card, on whichever side has room.
   const [peek, setPeek] = useState<{ left: number; top: number } | null>(null)
   const peekW = mockups.length > 1 ? 560 : 320
-  const showPeek = (e: React.MouseEvent<HTMLElement>) => {
-    if (!mockups.length || compose) return
+  const showPeek = (e: React.PointerEvent<HTMLElement>) => {
+    // Mouse only: on a phone the tap's fake hover opens the preview and iOS swallows the tap.
+    if (e.pointerType !== "mouse" || !mockups.length || compose) return
     const r = e.currentTarget.getBoundingClientRect()
     const right = r.right + 8
     setPeek({
@@ -239,9 +240,9 @@ function Card({ row, me, team, fresh, dim, busy, armed, href, onAct, onTake, onC
   return (
     <article
       data-flip={row.id}
-      onMouseEnter={showPeek}
-      onMouseLeave={() => setPeek(null)}
-      onMouseDown={() => setPeek(null)}
+      onPointerEnter={showPeek}
+      onPointerLeave={() => setPeek(null)}
+      onPointerDown={() => setPeek(null)}
       className={`group relative isolate flex flex-col gap-1.5 rounded-lg border bg-ui-bg-base p-2.5 shadow-elevation-card-rest transition-[box-shadow,transform,opacity] duration-200 hover:-translate-y-px hover:shadow-elevation-card-hover ${ours ? "border-ui-tag-red-border" : "border-ui-border-base"} ${dim ? "opacity-35" : ""}`}
     >
       {picture ? (
