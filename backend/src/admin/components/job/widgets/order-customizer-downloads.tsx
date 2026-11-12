@@ -161,10 +161,15 @@ function BareLineMockups({
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const proofsFor = (lineId: string, side: string) =>
-    proofs
-      .filter((p) => p.line_item_id === lineId && p.side === side)
+  // Size lines of one garment + colour share a card: an upload on any of them
+  // covers the group (the approval page + email read it the same way).
+  const groups = groupLines(lines)
+  const proofsFor = (group: LinePayload[], side: string) => {
+    const ids = new Set(group.map((l) => l.line_item_id))
+    return proofs
+      .filter((p) => ids.has(p.line_item_id) && p.side === side)
       .sort((a, b) => (a.uploaded_at < b.uploaded_at ? 1 : -1))
+  }
 
   const upload = async (file: File | undefined) => {
     const t = target.current
@@ -199,11 +204,11 @@ function BareLineMockups({
   }
 
   // Every upload for the side goes, or an older one would take its place.
-  const remove = async (lineId: string, side: string) => {
+  const remove = async (group: LinePayload[], side: string) => {
     setError(null)
-    setBusy(`${lineId}:${side}`)
+    setBusy(`${group[0].line_item_id}:${side}`)
     try {
-      for (const p of proofsFor(lineId, side)) {
+      for (const p of proofsFor(group, side)) {
         const res = await fetch(`${adminProofPath(orderId)}?id=${encodeURIComponent(p.id)}`, {
           method: "DELETE",
           credentials: "include",
@@ -235,14 +240,18 @@ function BareLineMockups({
         className="hidden"
         onChange={(e) => void upload(e.target.files?.[0])}
       />
-      {lines.map((line) => (
+      {groups.map((group) => {
+        const line = group[0]
+        return (
         <div key={line.line_item_id} className="flex flex-col gap-y-2">
           <Text size="small">
-            {line.title ?? line.product_title ?? "Item"} × {line.quantity}
+            {group.length > 1
+              ? `${groupHeading(group)} — ${groupSizes(group)}`
+              : `${line.title ?? line.product_title ?? "Item"} × ${line.quantity}`}
           </Text>
           <div className="grid grid-cols-2 small:grid-cols-4 gap-2">
             {BARE_LINE_SIDES.map(({ side, label }) => {
-              const latest = proofsFor(line.line_item_id, side)[0]
+              const latest = proofsFor(group, side)[0]
               const isBusy = busy === `${line.line_item_id}:${side}`
               return (
                 <div key={side} className="flex flex-col gap-y-1 rounded-md border border-ui-border-base p-2">
@@ -271,7 +280,7 @@ function BareLineMockups({
                       </Button>
                     ) : null}
                     {latest ? (
-                      <Button size="small" variant="transparent" disabled={!!busy} onClick={() => void remove(line.line_item_id, side)}>
+                      <Button size="small" variant="transparent" disabled={!!busy} onClick={() => void remove(group, side)}>
                         Remove
                       </Button>
                     ) : null}
@@ -281,7 +290,8 @@ function BareLineMockups({
             })}
           </div>
         </div>
-      ))}
+        )
+      })}
       {error ? <Text size="xsmall" className="text-ui-fg-error">{error}</Text> : null}
     </div>
   )

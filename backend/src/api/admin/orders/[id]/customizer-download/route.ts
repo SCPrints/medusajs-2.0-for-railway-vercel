@@ -5,6 +5,7 @@ import { z } from "zod"
 
 import {
   buildLineCustomizerExport,
+  bareLineGroupKey,
   lineMockupGroupKey,
 } from "../../../../../lib/customizer-order-artifacts"
 
@@ -69,7 +70,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
   // Build a lookup by line_item_id for the raw item fields
   const itemMetaMap = new Map<
     string,
-    { product_id: string | null; variant_id: string | null; group_key: string }
+    { product_id: string | null; variant_id: string | null; group_key: string; bare_group_key: string }
   >()
   for (const item of rawItems) {
     itemMetaMap.set(item.id, {
@@ -78,6 +79,7 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
       // Same key the approval page / email / PDF collapse size lines on, so
       // the admin widget shows ONE proof per design+colour, not one per size.
       group_key: lineMockupGroupKey(item),
+      bare_group_key: bareLineGroupKey(item),
     })
   }
 
@@ -92,7 +94,8 @@ export async function GET(req: MedusaRequest, res: MedusaResponse) {
         ((rawItems.find((i) => i.id === line.line_item_id) as any)?.metadata?.product_handle as string | undefined) ??
         null,
       variant_id: raw?.variant_id ?? null,
-      group_key: raw?.group_key ?? line.line_item_id,
+      // Lines with no design group by garment + colour only (bareLineProofs uses the same key).
+      group_key: (line.has_customizer ? raw?.group_key : raw?.bare_group_key) ?? line.line_item_id,
     }
   })
 

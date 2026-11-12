@@ -192,17 +192,35 @@ export type BareLineProof = {
 }
 
 /**
+ * Group key for a line with no design: size lines of one catalog garment +
+ * colour ("Lime / L", "Lime / M") share one mockup set. Anything without a
+ * product and a "Colour / Size" variant (the shared custom service product,
+ * any-size quote lines) stays on its own — those can't be told apart.
+ */
+export function bareLineGroupKey(line: {
+  id: string
+  product_id?: string | null
+  variant_title?: string | null
+}): string {
+  const parts = String(line.variant_title ?? "").split("/")
+  if (!line.product_id || parts.length < 2) return line.id
+  return `${line.product_id}:${parts.slice(0, -1).join("/").trim()}`
+}
+
+/**
  * Mockups staff uploaded against lines with no customizerDesign (customer-supplied
  * garments, order-edit additions). These have no artifact for a revised proof to
  * replace, so the proof email + approval page add them as images of their own: the
- * latest upload per (line, side), labelled with the line because such lines can
- * share a product id (the custom service line) and can't be grouped.
+ * latest upload per (group, side), where a group is the size lines of one garment +
+ * colour (bareLineGroupKey) — one upload covers every size, shown once.
  */
 export function bareLineProofs(
   items: Array<{
     id: string
     title?: string | null
     product_title?: string | null
+    product_id?: string | null
+    variant_title?: string | null
     metadata?: Record<string, unknown> | null
   }>,
   revisedProofs: unknown
@@ -224,16 +242,34 @@ export function bareLineProofs(
     )
     .sort((a, b) => (String(a.uploaded_at ?? "") < String(b.uploaded_at ?? "") ? 1 : -1))
 
-  return items.flatMap((line) => {
+  const groups = new Map<string, typeof items>()
+  for (const line of items) {
     const design = line.metadata?.customizerDesign
-    if (design && typeof design === "object" && !Array.isArray(design)) return []
+    if (design && typeof design === "object" && !Array.isArray(design)) continue
+    const k = bareLineGroupKey(line)
+    const g = groups.get(k)
+    if (g) g.push(line)
+    else groups.set(k, [line])
+  }
+
+  return [...groups.values()].flatMap((group) => {
+    const ids = new Set(group.map((l) => l.id))
+    const rep = group[0]
+    // A multi-size group is labelled product · colour, not one size's title.
+    const colour = String(rep.variant_title ?? "").split("/").slice(0, -1).join("/").trim()
+    const title =
+      group.length > 1 && rep.product_title
+        ? colour
+          ? `${rep.product_title} · ${colour}`
+          : rep.product_title
+        : rep.title ?? rep.product_title
     const bySide = new Map<string, BareLineProof>()
     for (const p of newestFirst) {
-      if (p.line_item_id !== line.id || bySide.has(p.side as string)) continue
+      if (!ids.has(p.line_item_id as string) || bySide.has(p.side as string)) continue
       const side = p.side as string
-      const title = line.title ?? line.product_title
       bySide.set(side, {
-        key: `${line.id}:${side}`,
+        // the line the proof sits on — notes + dimensions are stored under it
+        key: `${p.line_item_id}:${side}`,
         side,
         side_label: title ? `${title} — ${sideLabel(side)}` : sideLabel(side),
         url: p.url as string,

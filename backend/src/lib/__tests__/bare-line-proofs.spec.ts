@@ -35,6 +35,22 @@ describe("bareLineProofs", () => {
     expect(out[0].side_label).toBe("Oversize T, Black — Front")
   })
 
+  it("shares one mockup set across the size lines of a garment + colour", () => {
+    const vest = (id: string, size: string) => ({
+      id, product_id: "prod_vest", product_title: "Zip Safety Vest",
+      title: `Zip Safety Vest — Lime / ${size}`, variant_title: `Lime / ${size}`, metadata: null,
+    })
+    const out = bareLineProofs([vest("li_l", "L"), vest("li_m", "M"), black], [
+      proof("li_l", "front", "http://x/old.jpg", "2026-11-01"),
+      proof("li_m", "front", "http://x/new.jpg", "2026-11-02"),
+      proof("li_l", "back", "http://x/back.jpg", "2026-11-01"),
+    ])
+    expect(out.map((p) => [p.key, p.url, p.side_label])).toEqual([
+      ["li_m:front", "http://x/new.jpg", "Zip Safety Vest · Lime — Front"],
+      ["li_l:back", "http://x/back.jpg", "Zip Safety Vest · Lime — Back"],
+    ])
+  })
+
   it("skips lines with a design, other orders' lines and non-http urls", () => {
     expect(
       bareLineProofs([black, designed], [
