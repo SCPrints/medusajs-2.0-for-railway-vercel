@@ -295,6 +295,8 @@ async function runImport(req: MedusaRequest, res: MedusaResponse) {
               "aussiepacific-api"
             ),
             cost_adjustment: costAdjustment,
+            // Canonical ex-GST cost — the only input the tier price-list regen reads.
+            cost_price_ex_gst_minor: Math.round(ladderResult.cost * 100),
             garment_images: buildGarmentImagesForVariant(v),
             garment_color: v.colour ?? null,
           },

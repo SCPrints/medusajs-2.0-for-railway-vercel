@@ -15,7 +15,7 @@ import {
   FashionBizColour,
   FashionBizProduct,
 } from "../../../../modules/fashionbiz/types"
-import { priceLadderFromFashionBiz } from "../../../../modules/fashionbiz/pricing"
+import { priceLadderFromFashionBiz, resolveFashionBizCost } from "../../../../modules/fashionbiz/pricing"
 import {
   buildGarmentImagesForColour,
   collectImageUrls,
@@ -208,6 +208,7 @@ async function runImport(
         continue
       }
       const tierMinor = ladderToTierMinor(ladder)
+      const fbCost = resolveFashionBizCost(product.prices, costAdjustment)
 
       const colours = (product.colors ?? []).filter(
         (c): c is FashionBizColour => !!c && (c.sizes?.length ?? 0) > 0
@@ -271,6 +272,8 @@ async function runImport(
               bulk_pricing: tierMinorToBulkPricingMetadata(tierMinor, "fashionbiz-api"),
               raw_prices: product.prices ?? [],
               cost_adjustment: costAdjustment,
+              // Canonical ex-GST cost — the only input the tier price-list regen reads.
+              ...(fbCost !== null ? { cost_price_ex_gst_minor: Math.round(fbCost * 100) } : {}),
               garment_images: buildGarmentImagesForColour(colour),
               garment_color: colour.name,
             },

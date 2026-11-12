@@ -285,6 +285,8 @@ async function runImport(
             ...(tierMinor
               ? { bulk_pricing: tierMinorToBulkPricingMetadata(tierMinor, "ascolour-api") }
               : {}),
+            // Canonical ex-GST cost — the only input the tier price-list regen reads.
+            ...(cost !== undefined ? { cost_price_ex_gst_minor: Math.round(cost * 100) } : {}),
           },
         }
       })
