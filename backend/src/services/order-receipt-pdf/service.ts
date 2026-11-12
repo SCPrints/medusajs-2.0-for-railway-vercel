@@ -531,6 +531,8 @@ function buildPdf(params: {
       rowY += 20
     }
 
+    // Size lines of one garment share a description; print it once per run.
+    let prevDescription = ""
     for (const item of items) {
       // Page break safety: leave room for totals box
       if (rowY > PH - 280) {
@@ -578,7 +580,16 @@ function buildPdf(params: {
         detailY += 12
       }
 
-      if (pricing) {
+      // What's printed where, and how (quote line description, carried by
+      // convert / Add to order / Enter sizes onto metadata.description).
+      const description =
+        typeof item.metadata?.description === "string" ? item.metadata.description.trim() : ""
+      if (description && description !== prevDescription) {
+        doc.font("PJS").fontSize(9).fillColor(TEXT_MUTED)
+        const h = doc.heightOfString(description, { width: itemColW })
+        doc.text(description, itemColX, detailY, { width: itemColW })
+        detailY += h + 2
+      } else if (pricing && !description) {
         doc
           .font("PJS")
           .fontSize(9)
@@ -610,6 +621,7 @@ function buildPdf(params: {
           align: "right",
         })
 
+      prevDescription = description
       rowY = Math.max(rowY + 24, detailY + 6)
       doc
         .moveTo(ML, rowY)
