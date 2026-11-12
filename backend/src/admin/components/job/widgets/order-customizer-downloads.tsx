@@ -147,11 +147,14 @@ function BareLineMockups({
   lines,
   proofs,
   onProofsChange,
+  onDesign,
 }: {
   orderId: string
   lines: LinePayload[]
   proofs: RevisedProof[]
   onProofsChange: (updated: RevisedProof[]) => void
+  /** Opens the Studio on this line's garment; its Save Proof lands as this side's mockup. */
+  onDesign: ((line: LinePayload, side: string) => void) | null
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const target = useRef<{ lineId: string; side: string } | null>(null)
@@ -222,7 +225,7 @@ function BareLineMockups({
       <div>
         <Text size="small" weight="plus">Lines with no design</Text>
         <Text size="xsmall" className="text-ui-fg-subtle">
-          Upload a mockup for each side you want the customer to see. To email the proof, set Artwork to Awaiting approval under Production.
+          For each side the customer should see, design it in the Studio (opens on this garment with the job's artwork) or upload a mockup. To email the proof, set Artwork to Awaiting approval under Production.
         </Text>
       </div>
       <input
@@ -262,6 +265,11 @@ function BareLineMockups({
                     >
                       {latest ? "Replace" : "Upload"}
                     </Button>
+                    {onDesign && line.product_handle ? (
+                      <Button size="small" variant="secondary" disabled={!!busy} onClick={() => onDesign(line, side)}>
+                        Design in Studio
+                      </Button>
+                    ) : null}
                     {latest ? (
                       <Button size="small" variant="transparent" disabled={!!busy} onClick={() => void remove(line.line_item_id, side)}>
                         Remove
@@ -1171,7 +1179,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
 
   const buildCustomiserSrc = (
     line: LinePayload,
-    art: ArtifactPayload,
+    side: string,
     artworkUrl: string | null
   ): string | null => {
     // ponytail: variant is optional — "any size" quote lines have none, and the
@@ -1185,7 +1193,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
       // shirt-like product in the catalog, so the proof opened on the wrong
       // garment (and the wrong-colour, since `variant` couldn't match it).
       handle: line.product_handle,
-      adminProof: `${orderId}:${line.line_item_id}:${art.side}`,
+      adminProof: `${orderId}:${line.line_item_id}:${side}`,
     }
     if (line.variant_id) params.variant = line.variant_id
     if (artworkUrl) params.proofArtwork = encodeURIComponent(artworkUrl)
@@ -1403,7 +1411,7 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
 
                         // Build customiser URL — requires storefront URL + product handle
                         const makeCustomiserCb = (artworkUrl: string | null) => {
-                          const src = buildCustomiserSrc(line, art, artworkUrl)
+                          const src = buildCustomiserSrc(line, art.side, artworkUrl)
                           if (src) setModalSrc(src)
                         }
                         const canCustomise = !!storefrontUrl && !!line.product_handle
@@ -1454,6 +1462,19 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                   lines={bareLines}
                   proofs={allProofs}
                   onProofsChange={handleProofsChange}
+                  onDesign={
+                    storefrontUrl
+                      ? (line, side) => {
+                          // Start from the job's own artwork: a designed line's print file, else the customer's upload.
+                          const artwork =
+                            lines.flatMap((l) => l.artifacts).find((a) => a.print_url)?.print_url ??
+                            lines.flatMap((l) => l.customer_original_files ?? [])[0]?.url ??
+                            null
+                          const src = buildCustomiserSrc(line, side, artwork)
+                          if (src) setModalSrc(src)
+                        }
+                      : null
+                  }
                 />
               ) : null}
               </div>

@@ -27,9 +27,11 @@ const str = (v: unknown): string | null => (typeof v === "string" && v ? v : nul
 export function quoteLineNeedsSizes(li: QuoteLineShape): boolean {
   if (li.product_handle === SERVICE_LINE_HANDLE) return false
   if (li.sizes_pending === true) return true
+  // No product = a fee or custom line (thread, freight): nothing to size.
+  if (!li.product_id && !li.product_handle) return false
   // A pricer "Any" cell. Older quotes saved these with the first size's variant.
   if (typeof li.id === "string" && li.id.endsWith(":any")) return true
-  return !li.variant_id && Boolean(li.product_id || li.product_handle)
+  return !li.variant_id
 }
 
 /** The colour from a pricer title: "Tee — BLACK (any size)", "Crew — Tee, BLACK (any size)". */

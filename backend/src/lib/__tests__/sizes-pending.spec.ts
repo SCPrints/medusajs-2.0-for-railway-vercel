@@ -75,6 +75,8 @@ describe("quoteLineNeedsSizes", () => {
   it("is false for real sizes, fee lines and customer-supplied garments", () => {
     expect(quoteLineNeedsSizes({ id: "jp_r_row1:M", variant_id: "v_m", product_id: "prod_1" })).toBe(false)
     expect(quoteLineNeedsSizes({ id: "01ABC" })).toBe(false)
+    // A fee line that happens to carry an ":any" id (thread spools on order #130).
+    expect(quoteLineNeedsSizes({ id: "01M76CRFR9NNBM1HAM9D1HXANE:any" })).toBe(false)
     expect(quoteLineNeedsSizes({ id: "jp_r_row1:any", variant_id: "v", product_handle: "custom-service-line" })).toBe(false)
   })
 })
