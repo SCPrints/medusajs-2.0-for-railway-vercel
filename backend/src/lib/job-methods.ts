@@ -27,15 +27,25 @@ const label = (method: unknown, channel?: unknown): JobMethod | null =>
 
 // ponytail: a Studio print on a Supacolour-flagged garment reads as DTF here
 // (the flag lives on the product); look the product up if the press needs it.
-export function jobMethods(lines: Array<{ customizerDesign?: any; metadata?: any }>, pricerState?: any): JobMethod[] {
+export function jobMethods(lines: Array<{ customizerDesign?: any; metadata?: any; group_id?: any }>, pricerState?: any): JobMethod[] {
   const found = new Set<JobMethod>()
+  // Groups the Job pricer priced: their positions below say the technique.
+  const priced = new Set(
+    (Array.isArray(pricerState?.groups) ? pricerState.groups : [])
+      .filter((g: any) => g?.id && Array.isArray(g.positions) && g.positions.length)
+      .map((g: any) => String(g.id)),
+  )
   for (const l of lines) {
     const design = l.customizerDesign ?? l.metadata?.customizerDesign
     if (!design || typeof design !== "object") continue
     const methods = (design.sideDecorationMethods ?? {}) as Record<string, unknown>
+    // A Studio mockup on a priced group leaves sides unset (Studio defaults to
+    // print); don't read that as DTF on a screen job — the pricer covers it.
+    const groupId = l.group_id ?? l.metadata?.group_id
+    const fallback = groupId && priced.has(String(groupId)) ? null : "print"
     const drawn = (Array.isArray(design.artifacts) ? design.artifacts : []).map((a: any) => a?.side).filter((s: unknown) => typeof s === "string")
     for (const side of drawn.length ? drawn : Object.keys(methods)) {
-      const m = label(methods[side] ?? "print")
+      const m = label(methods[side] ?? fallback)
       if (m) found.add(m)
     }
   }

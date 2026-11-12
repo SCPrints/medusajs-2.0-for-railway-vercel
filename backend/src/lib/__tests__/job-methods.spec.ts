@@ -11,6 +11,13 @@ describe("jobMethods", () => {
     expect(jobMethods([{}], state)).toEqual(["DTF", "Supacolour", "Screen"])
   })
 
+  it("a Studio mockup with no technique on a screen-priced group is not DTF", () => {
+    const state = { groups: [{ id: "g1", positions: [{ method: "screen" }] }] }
+    const line = { group_id: "g1", customizerDesign: { artifacts: [{ side: "front" }, { side: "back" }] } }
+    expect(jobMethods([line], state)).toEqual(["Screen"])
+    expect(jobMethods([{ metadata: { group_id: "g1", customizerDesign: line.customizerDesign } }], state)).toEqual(["Screen"])
+  })
+
   it("is empty for plain garments", () => {
     expect(jobMethods([{ metadata: {} }], null)).toEqual([])
   })
