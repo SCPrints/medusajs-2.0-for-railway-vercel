@@ -49,6 +49,18 @@ export function buildQuoteDecorations(quote: any): QuoteDecoration[] {
     const methods = (d.sideDecorationMethods ?? {}) as Record<string, string>
     const emb = (d.sideEmbroideryConfigs ?? {}) as Record<string, any>
     const screen = (d.sideScreenConfigs ?? {}) as Record<string, any>
+    // A Studio mockup attached to a Job-pricer group often carries no
+    // technique (the Studio defaults to print), so the PRICED technique wins
+    // for sides the design leaves unset — else a screen job reads "DTF print".
+    const pricerPositions: Array<{ side?: string; method?: string; colours?: string }> =
+      (quote?.metadata?.job_pricer?.state?.groups ?? []).find((g: any) => g?.id && g.id === li.group_id)?.positions ?? []
+    const studioSide = (s?: string) => (s === "left_chest" || s === "right_chest" ? "front" : s)
+    const pricerFor = (side: string) => {
+      const exact = pricerPositions.find((p) => studioSide(p.side) === side)
+      if (exact) return exact
+      const kinds = new Set(pricerPositions.map((p) => p.method))
+      return kinds.size === 1 ? pricerPositions[0] : undefined
+    }
 
     for (const [side, cfg] of Object.entries(emb)) {
       if (methods[side] && methods[side] !== "embroidery") continue
@@ -68,15 +80,15 @@ export function buildQuoteDecorations(quote: any): QuoteDecoration[] {
     const prints = Array.isArray(d.prints) ? d.prints : []
     for (const p of prints) {
       const side = typeof p?.side === "string" ? p.side : "front"
-      const method = methods[side] ?? "print"
+      const priced = pricerFor(side)
+      const method = methods[side] ?? priced?.method ?? "print"
       if (method === "embroidery") continue // covered by the embroidery row
       const w = Number(p?.approxCm?.width)
       const h = Number(p?.approxCm?.height)
+      const colours = Number(screen[side]?.colours ?? (priced?.method === "screen" ? priced.colours : 0)) || 0
       const parts = [
         w && h ? `approx. ${w.toFixed(1)} × ${h.toFixed(1)} cm` : null,
-        method === "screen" && screen[side]?.colours
-          ? `${screen[side].colours} colour${screen[side].colours > 1 ? "s" : ""}`
-          : null,
+        method === "screen" && colours ? `${colours} colour${colours > 1 ? "s" : ""}` : null,
       ].filter(Boolean)
       out.push({
         garment,
