@@ -104,6 +104,19 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const meta = (quote.metadata ?? {}) as Record<string, unknown>
   const now = new Date().toISOString()
+
+  // A repeat "Request changes" with nothing new to say (no note, or the same
+  // note) shortly after the last one: answer ok, but don't write or email
+  // again. A customer once pressed it 11 times and staff got 11 emails.
+  const lastAt = Date.parse(String(meta.design_changes_requested_at ?? ""))
+  if (
+    !body.approved &&
+    meta.design_approval_status === "changes_requested" &&
+    Date.now() - lastAt < 10 * 60_000 &&
+    (!body.comment?.trim() || body.comment.trim() === String(meta.design_changes_comment ?? "").trim())
+  ) {
+    return res.json({ ok: true, status: "changes_requested", duplicate: true })
+  }
   const nextStatus: DesignApprovalStatus = body.approved
     ? "approved"
     : "changes_requested"

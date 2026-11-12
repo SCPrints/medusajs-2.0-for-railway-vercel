@@ -22,6 +22,10 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
   )
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  // The note we hold for them, and whether they've just sent one this visit
+  // (then the form hides behind a confirmation so they don't send it again).
+  const [askedFor, setAskedFor] = useState(initial.design_changes_comment)
+  const [justSent, setJustSent] = useState(false)
 
   const alreadyApproved = status === "approved"
   const changesRequested = status === "changes_requested"
@@ -41,6 +45,11 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
         return
       }
       setStatus(res.status)
+      if (!approved) {
+        if (comment.trim()) setAskedFor(comment.trim())
+        setComment("")
+        setJustSent(true)
+      }
     })
   }
 
@@ -115,14 +124,30 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
         </div>
       ) : (
         <>
-          {changesRequested && initial.design_changes_comment ? (
+          {changesRequested && askedFor ? (
             <div className="mt-6 rounded-md border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm text-amber-800">
-                You asked for: {initial.design_changes_comment}
-              </p>
+              <p className="text-sm text-amber-800">You asked for: {askedFor}</p>
             </div>
           ) : null}
 
+          {justSent ? (
+            <div className="mt-6 rounded-md border border-emerald-200 bg-emerald-50 p-4">
+              <p className="text-sm font-semibold text-emerald-800">
+                Sent. Thanks!
+              </p>
+              <p className="mt-1 text-sm text-emerald-800">
+                We&apos;ll revise the proof and email the new version to you.
+              </p>
+              <button
+                type="button"
+                onClick={() => setJustSent(false)}
+                className="mt-3 min-h-11 text-sm font-semibold text-emerald-900 underline"
+              >
+                Add something else
+              </button>
+            </div>
+          ) : (
+          <>
           <hr className="my-6 border-ink/[0.08]" />
 
           <label
@@ -177,6 +202,8 @@ const ApprovalForm = ({ quoteId, sig, initial }: Props) => {
               Approve design
             </button>
           </div>
+          </>
+          )}
         </>
       )}
 
