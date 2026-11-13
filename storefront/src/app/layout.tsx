@@ -174,7 +174,11 @@ export default function RootLayout(props: { children: React.ReactNode }) {
               {props.children}
             </main>
           </Suspense>
-          <AddToHomeBanner />
+          {/* Suspense: the banner reads usePathname() to stay off product /
+              Studio / checkout pages, which must not block prerendering. */}
+          <Suspense fallback={null}>
+            <AddToHomeBanner />
+          </Suspense>
           <ServiceWorkerRegister />
         </PostHogProvider>
       </body>
