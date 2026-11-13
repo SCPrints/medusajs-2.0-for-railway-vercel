@@ -40,6 +40,45 @@ export const toPublicArtworkUrl = (raw: string | null | undefined): string => {
   }
 }
 
+const isR2Host = (hostname: string) => {
+  const h = hostname.toLowerCase()
+  return h.endsWith(".r2.dev") || h.endsWith(".r2.cloudflarestorage.com")
+}
+
+/**
+ * Fabric objects safe to draw on a canvas that is read back with `toDataURL`.
+ *
+ * The editor canvas loads hosted artwork WITHOUT crossOrigin on purpose (so
+ * toSVG embeds the URL), and saved layouts keep that `crossOrigin: null`. R2's
+ * public URL sends no `Access-Control-Allow-Origin`, so re-creating those
+ * objects on another canvas taints it and `toDataURL` throws SecurityError
+ * (the "Preview design" popover, Nov 2026). R2 srcs go through the same-origin
+ * `/api/proxy-image`; every remote src asks for CORS. Groups are walked.
+ */
+export const toPixelSafeObjects = <T extends Record<string, unknown>>(objects: T[]): T[] =>
+  objects.map((o) => {
+    if (!o || typeof o !== "object") return o
+    let next: Record<string, unknown> = o
+    if (Array.isArray(o.objects)) {
+      next = { ...next, objects: toPixelSafeObjects(o.objects as Record<string, unknown>[]) }
+    }
+    if (typeof o.src === "string" && /^https?:\/\//i.test(o.src)) {
+      const src = toPublicArtworkUrl(o.src)
+      let host = ""
+      try {
+        host = new URL(src).hostname
+      } catch {
+        // unparseable — leave the src alone
+      }
+      next = {
+        ...next,
+        src: isR2Host(host) ? `/api/proxy-image?url=${encodeURIComponent(src)}` : src,
+        crossOrigin: "anonymous",
+      }
+    }
+    return next as T
+  })
+
 /**
  * Map over a saved Fabric objects array, rewriting each image object's `src` to
  * its public form. Returns a new array (objects with a rewritten src are shallow

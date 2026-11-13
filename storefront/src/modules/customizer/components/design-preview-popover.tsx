@@ -9,6 +9,7 @@ import {
   resolveMockupArtworkScale,
 } from "@modules/customizer/lib/print-spec"
 import { tagZoomStyle } from "@modules/customizer/lib/print-geometry"
+import { toPixelSafeObjects } from "@modules/customizer/lib/r2-public-url"
 
 const SIDE_LABEL: Record<GarmentSide, string> = {
   front: "Front",
@@ -58,14 +59,16 @@ const composeDesignLayer = async (
 
   try {
     if (sideObjects && sideObjects.length > 0) {
+      // Hosted artwork would taint this canvas and make toDataURL throw.
+      const safeObjects = toPixelSafeObjects(sideObjects)
       // Fabric v7 returns a Promise; v5/v6 used a callback. Support both so we
       // don't deadlock on "Rendering…" if the runtime API differs.
-      const result = (fabric as any).util.enlivenObjects(sideObjects)
+      const result = (fabric as any).util.enlivenObjects(safeObjects)
       const enlivened: any[] = await (result && typeof result.then === "function"
         ? result
         : new Promise<any[]>((resolve) => {
             ;(fabric as any).util.enlivenObjects(
-              sideObjects,
+              safeObjects,
               (objs: any[]) => resolve(objs ?? []),
               ""
             )
@@ -81,6 +84,11 @@ const composeDesignLayer = async (
       quality: 0.92,
     })
     return dataUrl
+  } catch (error) {
+    // A broken or blocked image must not leave the popover on "Rendering…"
+    // forever (the rejection used to escape the effect unhandled).
+    console.warn("[design-preview] could not render design layer", error)
+    return null
   } finally {
     try {
       sc.dispose()
