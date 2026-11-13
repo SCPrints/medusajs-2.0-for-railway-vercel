@@ -27,6 +27,7 @@ import BulkOrderGrid, {
   type BulkPricingEstimate,
 } from "@modules/customizer/components/bulk-order-grid"
 import PricingPanel from "@modules/customizer/components/pricing-panel"
+import { convertToLocale } from "@lib/util/money"
 import { getTierUnitMajorForVariant } from "@lib/util/tier-price"
 import SideSelector from "@modules/customizer/components/side-selector"
 import { getStoreProductTagValues } from "@lib/util/product-tags"
@@ -6360,7 +6361,8 @@ export default function CustomizerTemplate({
         */}
         {assemblyLayout && (uploadError || statusMessage) ? (
           <div
-            className="pointer-events-none fixed inset-x-3 bottom-3 z-[210] flex justify-center"
+            // Phones/tablets: sit above the pinned price + Next bar.
+            className="pointer-events-none fixed inset-x-3 bottom-24 z-[210] flex justify-center small:bottom-3"
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
           >
             <div
@@ -6397,10 +6399,13 @@ export default function CustomizerTemplate({
         <div className={
           assemblyLayout
             // Mobile/tablet (below small:=1024) stacks flex-col: pin the canvas
-            // to a fixed share of the viewport (basis-[46vh], no grow/shrink) so
-            // it can't be starved to ~0 by the section panel below it. Desktop
-            // (small:flex-row) restores flex-1 + full height.
-            ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-3 small:p-4 basis-[46dvh] [@media(max-height:520px)]:basis-[40dvh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
+            // to a fixed share of the viewport (no grow/shrink) so it can't be
+            // starved to ~0 by the section panel below it. 38dvh (was 46) leaves
+            // the steps + pinned price bar room: phone recordings showed constant
+            // scrolling inside a too-small steps box. Fixed (not resized while
+            // editing) so placed artwork never rescales under the customer's
+            // finger. Desktop (small:flex-row) restores flex-1 + full height.
+            ? "flex min-w-0 flex-col min-h-0 overflow-hidden bg-ui-bg-base p-3 small:p-4 basis-[38dvh] [@media(max-height:520px)]:basis-[34dvh] grow-0 shrink-0 small:basis-0 small:grow small:shrink small:h-full"
             : `order-2 lg:order-none flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:self-start transition-[grid-column] duration-300 ease-in-out ${
                 isCustomizing ? "lg:col-span-7 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto" : "lg:col-span-8"
               }`
@@ -7578,6 +7583,81 @@ export default function CustomizerTemplate({
               </motion.div>
           )}
           </div>
+          {assemblyLayout && !isStaffStudio && !editGroupId ? (() => {
+            // Phone/tablet only: a bar pinned under the steps with the running
+            // price and ONE next action. On phones the steps live in a small
+            // scroll box under the garment, and "Continue to quantity" / "Add
+            // to cart" sat below the fold — 33 of 37 phone shoppers uploaded
+            // artwork but only ~10 reached quantity and 2 added to cart
+            // (PostHog, Aug–Nov 2026). Desktop already shows the full panel.
+            const hasArt = decoratedSides.some((s) => allowedPrintSides.includes(s))
+            const onQuantity = assemblyExpanded === 4
+            const money = (amount: number) =>
+              convertToLocale({ amount, currency_code: currencyCode })
+            const priceLine =
+              totalQty > 0
+                ? `${money(pricing.totalPriceCents)} · ${totalQty} item${totalQty === 1 ? "" : "s"}`
+                : hasArt
+                ? `${money(pricing.discountedUnitPriceCents)} each`
+                : null
+            const scrollToStep = (ref: { current: HTMLDivElement | null }) =>
+              window.setTimeout(
+                () => ref.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                80
+              )
+            const action = !hasArt
+              ? {
+                  label: "Add your artwork",
+                  run: () => {
+                    setAssemblyExpanded(null)
+                    setAssemblyArtworkOpen(true)
+                    scrollToStep(step3Ref)
+                  },
+                }
+              : !onQuantity
+              ? {
+                  label: "Next: sizes & quantity",
+                  run: () => {
+                    expandAssemblySection(4)
+                    scrollToStep(step4Ref)
+                  },
+                }
+              : {
+                  label: isSubmitting ? submitCta.busy : submitCta.label,
+                  run: () => void stableOnAddToCart(),
+                }
+            return (
+              <div
+                className="flex shrink-0 items-center gap-3 border-t border-ui-border-base bg-white px-4 pt-2.5 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] small:hidden"
+                style={{ paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))" }}
+                data-testid="studio-phone-bar"
+              >
+                <div className="min-w-0 flex-1">
+                  {priceLine ? (
+                    <p className="truncate text-sm font-semibold tabular-nums text-ui-fg-base">
+                      {priceLine}
+                    </p>
+                  ) : null}
+                  <p className="truncate text-[11px] text-ui-fg-subtle">
+                    {!hasArt
+                      ? "Upload a logo or add text"
+                      : totalQty > 0
+                      ? "inc GST · bulk discounts applied"
+                      : "inc GST · cheaper per garment in bulk"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={action.run}
+                  disabled={onQuantity && hasArt && isSubmitting}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-ui-fg-base px-4 text-sm font-semibold text-ui-bg-base shadow-sm active:scale-[0.98] disabled:opacity-60"
+                >
+                  {action.label}
+                  {onQuantity && hasArt ? null : <span aria-hidden>→</span>}
+                </button>
+              </div>
+            )
+          })() : null}
         </div>
         <LowResolutionModal
           open={lowResModalOpen}
@@ -7591,6 +7671,21 @@ export default function CustomizerTemplate({
             lowResModalDismissedRef.current = true
           }}
           onUploadHigherQuality={() => {
+            // Open the file picker straight away (still inside the tap, so
+            // browsers allow it). It used to only scroll to the garment, which
+            // left phone shoppers hunting for the upload button.
+            const input = document.querySelector<HTMLInputElement>(
+              "input[data-artwork-upload-input]"
+            )
+            if (input && !input.disabled) {
+              input.click()
+              return
+            }
+            if (assemblyLayout) {
+              setAssemblyExpanded(null)
+              setAssemblyArtworkOpen(true)
+              return
+            }
             try {
               fabricContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
             } catch {

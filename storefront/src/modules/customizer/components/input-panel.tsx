@@ -313,6 +313,7 @@ function InputPanel({
               accept="image/png,image/jpeg,image/svg+xml"
               onChange={onFileChange}
               disabled={isUploading}
+              data-artwork-upload-input
               className="sr-only"
               aria-label="Upload a PNG, JPG, or SVG to add to your design"
             />

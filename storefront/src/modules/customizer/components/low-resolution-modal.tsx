@@ -98,7 +98,9 @@ const LowResolutionModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      // Phones: a sheet from the bottom (thumb reach, scrolls when the screen
+      // is short). Tablet/desktop: centred dialog as before.
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 small:items-center small:px-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="low-res-title"
@@ -106,19 +108,20 @@ const LowResolutionModal = ({
       data-testid="low-resolution-modal"
     >
       <div
-        className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+        className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl small:rounded-2xl"
+        style={{ paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           aria-label="Close"
           onClick={fireDismissed}
-          className="absolute right-4 top-4 text-ui-fg-subtle hover:text-ui-fg-base"
+          className="absolute right-2 top-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-2xl leading-none text-ui-fg-subtle hover:bg-ui-bg-subtle hover:text-ui-fg-base"
         >
           ×
         </button>
 
-        <h2 id="low-res-title" className="text-lg font-semibold text-ui-fg-base mb-3">
+        <h2 id="low-res-title" className="mb-3 pr-10 text-lg font-semibold text-ui-fg-base">
           {headline}
         </h2>
 

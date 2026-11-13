@@ -1,6 +1,13 @@
 "use client"
 
+import { usePathname } from "next/navigation"
 import { useEffect, useState } from "react"
+
+/**
+ * Pages where shoppers are mid-task: the banner sat over the Studio's bottom
+ * controls on phones (PostHog recordings, Nov 2026). Show it elsewhere only.
+ */
+const BUSY_PATH = /\/(products|customizer|customizer-v2|cart|checkout)(\/|$)/
 
 const VISIT_KEY = "sc-prints:visit-count"
 const DISMISSED_KEY = "sc-prints:install-dismissed-at"
@@ -48,6 +55,7 @@ function dismissedRecently(): boolean {
  * visit, and respects a 30-day dismiss cooldown.
  */
 export default function AddToHomeBanner() {
+  const pathname = usePathname()
   const [visible, setVisible] = useState(false)
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null)
@@ -86,7 +94,7 @@ export default function AddToHomeBanner() {
     return () => window.removeEventListener("beforeinstallprompt", handler)
   }, [])
 
-  if (!visible) return null
+  if (!visible || BUSY_PATH.test(pathname ?? "")) return null
 
   const dismiss = () => {
     setVisible(false)
