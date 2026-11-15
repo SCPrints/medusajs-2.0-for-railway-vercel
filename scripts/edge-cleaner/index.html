@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edge Cleaner</title>
+<style>
+  :root { --bg: #f4f4f5; --panel: #fff; --ink: #18181b; --muted: #71717a; --line: #e4e4e7; --accent: #0d9488; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--ink); height: 100vh; display: flex; }
+  aside { width: 300px; flex: none; background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  .controls { flex: 1; overflow: hidden auto; padding: 16px; } /* no sideways scrollbar when the Mac shows scrollbars always */
+  .save { padding: 12px 16px; border-top: 1px solid var(--line); }
+  .save small { display: block; color: var(--muted); font-size: 12px; margin-top: 6px; text-align: center; }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 20px 0 8px; }
+  p.hint { color: var(--muted); margin: 0 0 12px; font-size: 13px; }
+  label.row { display: block; margin: 0 0 12px; }
+  label.row span { display: flex; justify-content: space-between; font-weight: 500; }
+  label.row small { display: block; color: var(--muted); font-size: 12px; }
+  aside input[type=range], aside select { width: 100%; }
+  #drop { border: 2px dashed var(--line); border-radius: 8px; padding: 18px; text-align: center; cursor: pointer; color: var(--muted); }
+  #drop.loaded { padding: 10px; border-style: solid; text-align: left; color: var(--ink); }
+  #drop.loaded small { color: var(--muted); }
+  #drop.over { border-color: var(--accent); color: var(--accent); }
+  button { font: inherit; padding: 8px 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); width: 100%; font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+  .swatches button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border-color: #a1a1aa; }
+  .swatches button.on { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bar { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--panel); white-space: nowrap; }
+  .bar .status { margin-left: auto; color: var(--muted); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .sep { width: 1px; align-self: stretch; background: var(--line); }
+  .view h3 .busy { float: right; font-weight: 400; color: var(--accent); visibility: hidden; }
+  .view h3 .busy.on { visibility: visible; }
+  .views { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1px; background: var(--line); min-height: 0; }
+  .view { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+  .view h3 { margin: 0; padding: 6px 12px; font-size: 13px; border-bottom: 1px solid var(--line); }
+  .pane { flex: 1; display: flex; position: relative; min-height: 0; }
+  .ants { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .scroll { flex: 1; overflow: hidden; cursor: grab; touch-action: none; display: grid; }
+  .scroll canvas { margin: auto; } /* centred when smaller than the pane */
+  .scroll.panning, .scroll.panning canvas { cursor: grabbing !important; }
+  .hint-inline { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .scroll canvas { display: block; image-rendering: pixelated; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btns button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .picking canvas { cursor: crosshair; }
+  .box { display: block; margin: 8px 0; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
+  .box[hidden] { display: none; }
+  .box small { display: block; color: var(--muted); }
+  .checker { background: repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0 / 16px 16px; }
+  [hidden] { display: none !important; } /* label.row's display:block was beating hidden */
+  label.row span { justify-content: flex-start; gap: 6px; align-items: center; }
+  label.row span output { margin-left: auto; }
+  .qm { width: 18px; height: 18px; padding: 0; border-radius: 50%; font-size: 11px; font-weight: 700; line-height: 16px; color: var(--muted); flex: none; }
+  .qm:hover { color: var(--accent); border-color: var(--accent); }
+  h2 .qm { margin-left: 6px; vertical-align: 1px; text-transform: none; }
+  dialog#help { width: min(800px, 94vw); border: 0; border-radius: 10px; padding: 0; box-shadow: 0 20px 60px rgba(0,0,0,.35); color: var(--ink); }
+  dialog#help::backdrop { background: rgba(0,0,0,.4); }
+  #help .hd { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 16px; }
+  #help .hd button { margin-left: auto; padding: 2px 9px; }
+  #help .bd { padding: 12px 16px 16px; max-height: calc(90vh - 50px); overflow: auto; }
+  #help h4 { margin: 14px 0 4px; font-size: 13px; }
+  #help .bd p { margin: 0 0 8px; }
+  #help .where { display: flex; gap: 12px; align-items: center; margin: 12px 0 8px; color: var(--muted); font-size: 12px; }
+  #help .where canvas { width: 120px; border-radius: 4px; flex: none; }
+  #help .ex { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  #help figure { margin: 0; }
+  #help .ex canvas { width: 100%; border-radius: 6px; display: block; }
+  #help figcaption { text-align: center; font-weight: 600; margin-top: 4px; }
+  #help figcaption small { display: block; font-weight: 400; color: var(--muted); }
+  .row { display: block; margin: 0 0 12px; }
+  .row > span { display: flex; gap: 6px; align-items: center; font-weight: 500; }
+  .row > small { display: block; color: var(--muted); font-size: 12px; }
+  .row .btns { margin: 4px 0; }
+  .row .btns button { padding: 5px 9px; }
+  #dotBtns { gap: 4px; flex-wrap: nowrap; } #dotBtns button { padding: 5px 7px; font-size: 13px; white-space: nowrap; }
+  #printW { width: 80px; font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; }
+  details.adv { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 10px; }
+  details.adv > summary { cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; margin-bottom: 10px; }
+  .chk { display: flex; gap: 8px; align-items: baseline; font-size: 13px; margin: 0 0 6px; }
+  .chk::before { content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none; background: #16a34a; }
+  .chk.warn::before { background: #d97706; } .chk.bad::before { background: #dc2626; }
+  .chk button { padding: 1px 8px; font-size: 12px; margin-left: 4px; }
+</style>
+</head>
+<body>
+<aside>
+ <div class="controls">
+  <h1>Edge Cleaner</h1>
+  <p class="hint">Takes out a solid background, then fixes jagged edges and the ring of old background colour, and leaves no see-through pixels for DTF.</p>
+
+  <div id="drop">Drop a PNG or JPG here<br>or click to choose</div>
+  <input id="file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+
+  <h2>Artwork type <button class="qm" data-help="kind" title="What do these do?">?</button></h2>
+  <div class="btns" id="kinds">
+    <button data-kind="flat" class="on">Flat background</button>
+    <button data-kind="keep">On black: keep dark detail</button>
+    <button data-kind="knockout">On black: black shirts</button>
+    <button data-kind="backing">On black: any shirt</button>
+  </div>
+  <small id="kindInfo"></small>
+
+  <h2>Print size</h2>
+  <label class="row"><span>Print width <button class="qm" data-help="print" title="What is this for?">?</button></span>
+    <input id="printW" type="number" min="3" max="120" step="0.5" value="28"> cm
+    <small>How wide the whole image will be printed. Sets the dot size and the checks below.</small></label>
+  <div id="checks"></div>
+
+  <div id="flat1">
+  <h2>Remove background</h2>
+  <div id="gapBox" hidden class="box">
+    <b>Check the gaps</b>
+    <small>Everything else is dimmed. <b style="color:#e11d48">Red</b> areas will be removed, white ones are kept. Click an area to switch it, or step through with ← →.</small>
+    <div id="gapCount" style="margin:6px 0;font-weight:500"></div>
+    <div class="btns"><button id="gapPrev">◀ Previous</button><button id="gapNext">Next ▶</button><button id="gapToggle" disabled>Keep this one</button></div>
+    <div class="btns" style="margin:6px 0"><button id="gapAll">Remove all</button><button id="gapNone">Keep all</button></div>
+    <button class="primary" id="gapApply">Apply</button>
+  </div>
+  <div id="step1">
+  <p class="hint">The background is taken out automatically when you load the image. Fix anything it got wrong by clicking on the picture.</p>
+  <small>When I click the picture:</small>
+  <div class="btns" id="modes">
+    <button data-mode="remove" class="on">Erase background</button>
+    <button data-mode="restore">Bring art back</button>
+    <button data-mode="select">Select colour</button>
+  </div>
+  <small>Pick <b>Bring art back</b> to restore parts removed by mistake, like a white cloud.</small>
+  <div id="selBox" hidden class="box">
+    <small>Click a colour to select that area. Shift-click adds more. Esc deselects.</small>
+    <div class="btns" style="margin-top:6px">
+      <button id="selSimilar" disabled>Select all similar</button>
+      <button id="selErase" disabled>Erase selected</button>
+      <button id="selClear" disabled>Deselect</button>
+      <button id="selProtect" disabled>Protect selected</button>
+    </div>
+    <small>Protect stops erasing and gap removal from touching that colour, like white art inside the outline.</small>
+  </div>
+  <div id="protInfo" hidden class="box"><small id="protText"></small> <button id="protClear">Clear protection</button></div>
+  <label class="row" style="margin-top:12px"><span>Colour match range <output id="tolV"></output></span><input id="tol" type="range" min="5" max="120" value="40"><small>How close a colour must be to the one you click. Higher takes in more shades; lower if it's eating into the art.</small></label>
+  <label style="display:block;margin:0 0 6px"><input type="checkbox" id="gapCheck" checked> Look for gaps inside the art (you check each one)</label>
+  <div class="btns" style="margin-top:6px">
+    <button id="outside">Redo automatic removal</button>
+    <button id="undo" disabled title="⌘Z">Undo</button>
+    <button id="restart" disabled>Back to original</button>
+  </div>
+  </div>
+  </div>
+
+  <div id="darkBox" hidden>
+  <h2 id="darkTitle">Black</h2>
+  <div id="darkMain">
+  <label class="row" data-row="black"><span>Black to remove <output id="blackV"></output></span><input id="black" type="range" min="0" max="80" value="18"><small>Anything this dark or darker is removed. Raise it if dark grey haze is left.</small></label>
+  <div class="row" data-row="dots"><span>Dots <button class="qm" data-help="lpi" title="What does this do?">?</button></span>
+    <div class="btns" id="dotBtns"><button data-lpi="25">Coarse</button><button data-lpi="35">Standard</button><button data-lpi="45">Fine</button><button data-lpi="55">Extra fine</button></div>
+    <small id="dotInfo">Halftone dots for the fades. Coarse prints most reliably; fine looks smoother.</small></div>
+  <label class="row" data-row="hug"><span>Hug <output id="hugV"></output></span><input id="hug" type="range" min="2" max="120" value="30"><small>How loosely the outline wraps the design. Higher bridges bigger gaps and gives a simpler shape.</small></label>
+  <label class="row" data-row="margin"><span>Margin <output id="marginV"></output></span><input id="margin" type="range" min="0" max="60" value="8"><small>How far the outline sits outside the art. Raise it if thin dark edges (like a rim round a circle) get cut off.</small></label>
+  </div>
+  </div>
+
+  <details class="adv" id="adv"><summary>Advanced</summary>
+  <div id="darkAdv" hidden>
+  <label class="row" data-row="fade"><span>Fade <output id="fadeV"></output></span><input id="fade" type="range" min="5" max="150" value="52"><small>How gradually dark areas fade into the shirt. Wider keeps more shadow detail as dots.</small></label>
+  <label class="row" data-row="lpi"><span>Dots per inch <output id="lpiV"></output></span><input id="lpi" type="range" min="15" max="70" value="35"><small>Exact dot size for the fades. 25 to 45 is the safe range for DTF.</small></label>
+  <label class="row" data-row="angle"><span>Dot angle <button class="qm" data-help="angle" title="What does this do?">?</button></span>
+    <select id="angle"><option value="0">0°</option><option value="22.5" selected>22.5°</option><option value="45">45°</option></select>
+    <small>The direction the rows of dots run.</small></label>
+  <label class="row" data-row="shape"><span>Dot shape <button class="qm" data-help="shape" title="What does this do?">?</button></span>
+    <select id="shape"><option value="round" selected>Round dots</option><option value="line">Lines</option></select>
+    <small>Round suits most art. Lines can look cleaner on smooth fades.</small></label>
+  <label class="row" data-row="artLevel"><span>Art starts at <output id="artLevelV"></output></span><input id="artLevel" type="range" min="10" max="120" value="40"><small>How bright something must be to count as art when drawing the outline.</small></label>
+  <label class="row" data-row="bSmooth"><span>Smooth outline <output id="bSmoothV"></output></span><input id="bSmooth" type="range" min="0" max="60" value="15"><small>Rounds off bumps in the outline.</small></label>
+  <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:12px">Outline sizes start in proportion to the image each time you load one.</small>
+  </div>
+  <label class="row"><span>Upscale</span>
+    <select id="scale"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4" selected>4×</option></select>
+    <small id="scaleInfo">Smooth curves need room. Output is capped at 6000 px.</small></label>
+  <div id="flat2">
+  <label class="row"><span>Old background colour</span>
+    <select id="matte"><option value="auto">Auto-detect</option><option value="black">Black</option><option value="white">White</option><option value="custom">Pick colour…</option><option value="none">None</option></select>
+    <input id="matteColour" type="color" value="#000000" hidden style="width:100%;margin-top:6px">
+    <small id="matteInfo"></small></label>
+  <label class="row"><span>Smooth edge <output id="smoothV"></output></span><input id="smooth" type="range" min="0" max="12" value="5"><small>Rounds off the stair-steps.</small></label>
+  <label class="row"><span>Threshold <output id="thresholdV"></output></span><input id="threshold" type="range" min="1" max="254" value="128"><small>Higher = tighter edge.</small></label>
+  <label class="row"><span>Shrink edge <output id="chokeV"></output></span><input id="choke" type="range" min="0" max="8" value="1"><small>Cuts off what's left of the ring.</small></label>
+  <label class="row"><span>Edge colour fix <output id="defringeV"></output></span><input id="defringe" type="range" min="0" max="12" value="6"><small>Pulls the inner colour out over the edge.</small></label>
+  <label class="row"><span>Remove specks under <output id="specksV"></output></span><input id="specks" type="range" min="0" max="500" step="5" value="20"><small>Drops stray dots left by background removal.</small></label>
+  <button id="reset">Reset edge settings</button>
+  </div>
+  </details>
+ </div>
+ <div class="save">
+  <button class="primary" id="download" disabled>Download clean PNG</button>
+  <small id="saveInfo">Load artwork to start.</small>
+ </div>
+</aside>
+<main>
+  <div class="bar">
+    Zoom
+    <select id="zoom"><option value="custom" id="zoomCustom" hidden></option><option value="fit">Fit</option><option value="0.25">25%</option><option value="0.5">50%</option><option value="1">100%</option><option value="2">200%</option><option value="4">400%</option></select>
+    <span class="sep"></span>
+    Preview on <div class="swatches" id="swatches"></div>
+    <span class="status" id="status">No artwork loaded.</span>
+  </div>
+  <div class="views">
+    <div class="view"><h3>Before</h3><div class="pane"><div class="scroll" id="beforeWrap"><canvas id="before"></canvas></div><canvas class="ants"></canvas></div></div>
+    <div class="view"><h3>After <span class="busy" id="busy">Updating…</span></h3><div class="pane"><div class="scroll" id="afterWrap"><canvas id="after"></canvas></div><canvas class="ants"></canvas></div></div>
+  </div>
+</main>
+<dialog id="help">
+  <div class="hd"><b id="helpTitle"></b><button id="helpClose" title="Close (Esc)">✕</button></div>
+  <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
+</dialog>
+
+<script src="edge-clean.js?v=10"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const MAX_SIDE = 6000;
+const SLIDERS = ["smooth", "threshold", "choke", "defringe", "specks"];
+const DARK_SLIDERS = ["black", "fade", "lpi", "artLevel", "hug", "margin", "bSmooth"];
+// "On black" controls: which artwork types each one applies to, and which sit up front (the rest go under Advanced).
+const ROWS = { black: "keep knockout", dots: "keep knockout", hug: "keep backing", margin: "backing", fade: "keep knockout", lpi: "keep knockout",
+  angle: "keep knockout", shape: "keep knockout", artLevel: "keep backing", bSmooth: "keep backing" };
+const MAIN = { keep: ["black", "dots"], knockout: ["black", "dots"], backing: ["hug", "margin"] };
+const MIN_LINE_MM = 0.3; // thinner than this may not hold on a DTF transfer
+const UNITS = { smooth: " px", choke: " px", defringe: " px", specks: " px", threshold: "", black: "", fade: "", lpi: " per inch", artLevel: "", hug: " px", margin: " px", bSmooth: " px" };
+const BACKS = [["checker", "Transparent"], ["#ffffff", "White"], ["#000000", "Black"], ["#1e2a4a", "Navy"], ["#b91c1c", "Red"], ["#6b7280", "Grey"], ["#15803d", "Green"]];
+
+let source = null, original = null, history = [], result = null, fileName = "artwork", timer = 0, solid = false, mode = "remove", note = "";
+
+// Preview backgrounds
+let back = "checker";
+for (const [val, name] of BACKS) {
+  const b = document.createElement("button");
+  b.title = name;
+  if (val === "checker") b.className = "checker"; else b.style.background = val;
+  b.onclick = () => { back = val; paintBacks(); };
+  $("swatches").append(b);
+}
+function paintBacks() {
+  [...$("swatches").children].forEach((b, i) => b.classList.toggle("on", BACKS[i][0] === back));
+  for (const id of ["beforeWrap", "afterWrap"]) {
+    $(id).classList.toggle("checker", back === "checker");
+    $(id).style.backgroundColor = back === "checker" ? "" : back;
+  }
+}
+paintBacks();
+
+// Loading
+$("drop").onclick = () => $("file").click();
+$("file").onchange = (e) => e.target.files[0] && load(e.target.files[0]);
+$("drop").ondragover = (e) => { e.preventDefault(); $("drop").classList.add("over"); };
+$("drop").ondragleave = () => $("drop").classList.remove("over");
+document.body.ondragover = (e) => e.preventDefault();
+document.body.ondrop = (e) => { e.preventDefault(); $("drop").classList.remove("over"); e.dataTransfer.files[0] && load(e.dataTransfer.files[0]); };
+
+function load(file) {
+  fileName = file.name.replace(/\.[^.]+$/, "");
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(img.src);
+    $("drop").className = "loaded";
+    $("drop").innerHTML = "";
+    $("drop").append(file.name, document.createElement("br"));
+    $("drop").insertAdjacentHTML("beforeend", `<small>${img.naturalWidth} × ${img.naturalHeight} px · click or drop to replace</small>`);
+    setSource(img);
+  };
+  img.onerror = () => status("Couldn't read that file. Use a PNG or JPG.");
+  img.src = URL.createObjectURL(file);
+}
+
+function setSource(img) {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth; c.height = img.naturalHeight;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  source = original = ctx.getImageData(0, 0, c.width, c.height);
+  view = 0; fitMode = true;
+  history = [];
+  capScale();
+  endReview(); protect = null; showProtect();
+  $("matte").value = "auto"; showValues();
+  solid = true;
+  for (let i = 3; i < source.data.length; i += 4) if (source.data[i] < 255) { solid = false; break; }
+  $("before").width = c.width; $("before").height = c.height;
+  const z = EdgeClean.darkSizes(c.width, c.height); // outline sizes in proportion to this image
+  $("hug").max = z.max; $("hug").value = z.hug;
+  $("margin").max = $("bSmooth").max = Math.round(z.max / 2); $("margin").value = z.margin; $("bSmooth").value = z.smooth;
+  showValues();
+  // Art painted on black can't be cut out by colour (black is art too), so it goes to the "On black" routes.
+  if (solid && Math.max(...EdgeClean.borderColour(source)) < 40) setKind(kind === "flat" ? "keep" : kind, kind === "flat");
+  else setKind("flat");
+}
+
+// Artwork type. Flat: cut a plain background out. On black: remove only plain black and keep dark art (keep),
+// knock all black out (black shirts) or
+// keep it all inside one outline (any shirt). The "on black" routes always start from the original.
+const KIND_INFO = {
+  flat: "A plain background colour to cut out.",
+  knockout: "Black becomes see-through and the black shirt shows through as the black. Dark fades turn into halftone dots. Only for black or very dark shirts.",
+  keep: "Removes only the plain black background. Dark parts of the art (black shirts, shadows, dim colours) stay and print as ink. Works on any shirt colour.",
+  backing: "Keeps all the black and cuts one smooth outline round the design. Works on any shirt colour, but prints a solid black patch.",
+};
+let kind = "flat";
+function setKind(k, auto) {
+  kind = k;
+  for (const b of $("kinds").children) b.classList.toggle("on", b.dataset.kind === k);
+  $("kindInfo").textContent = KIND_INFO[k];
+  const dark = k !== "flat";
+  $("flat1").hidden = $("flat2").hidden = dark; $("darkBox").hidden = $("darkAdv").hidden = !dark;
+  $("darkTitle").textContent = k === "backing" ? "Outline" : "Black";
+  if (dark) for (const r in ROWS) { // show this type's controls: the main ones up front, the rest under Advanced
+    const el = document.querySelector(`[data-row=${r}]`), main = MAIN[k].includes(r);
+    el.hidden = !ROWS[r].includes(k);
+    (main ? $("darkMain") : $("darkAdv")).insertBefore(el, main ? null : $("darkAdv").lastElementChild);
+  }
+  thin = null; renderChecks();
+  if (!source) return;
+  endReview(); setSel(null);
+  if (dark) {
+    source = original; history = [];
+    back = k === "knockout" ? "#000000" : k === "keep" ? "#1e2a4a" : "#6b7280"; paintBacks(); // preview on the shirt it's meant for
+    note = auto ? 'This looks like art on black, so it\'s set to "On black: keep dark detail". Pick another type above if that\'s wrong.' : "";
+    drawBefore(); run();
+  } else {
+    back = "checker"; paintBacks(); note = "";
+    if (solid) autoRemove(); else { drawBefore(); run(); }
+  }
+}
+for (const b of $("kinds").children) b.onclick = () => setKind(b.dataset.kind);
+$("kindInfo").textContent = KIND_INFO.flat;
+
+function autoRemove() {
+  endReview();
+  const tol = +$("tol").value, out = EdgeClean.removeOutside(source, tol);
+  note = "Removed the background. Click to erase anything left, or switch to \"Bring art back\".";
+  applyRemoval(out);
+  if (!$("gapCheck").checked) return;
+  const g = EdgeClean.findGaps(source, out.ref, tol, 15);
+  if (!g.regions.length) {
+    note = "Removed the background. No gaps found inside the art.";
+    return applyRemoval({ image: fillScraps(source, out.ref, g.outline, tol, null) });
+  }
+  for (const r of g.regions) r.remove = r.likely;
+  if (protect) for (let i = 0; i < g.labels.length; i++) if (protect[i] && g.labels[i]) g.regions[g.labels[i] - 1].remove = false;
+  const mask = new Uint8Array(g.labels.length);
+  for (let i = 0; i < mask.length; i++) mask[i] = g.labels[i] ? 1 : 0;
+  review = { ...g, ref: out.ref, tol, cur: -1, path: outline(mask, source.width, source.height) };
+  note = `Found ${g.regions.length} areas that might be gaps. Check them, then press Apply.`;
+  showReview();
+}
+
+// Gap review: the art is dimmed, each enclosed patch of background colour is shown red (will be
+// removed) or in its own colour (kept). Clicks switch them; Apply removes the red ones.
+let review = null, protect = null;
+function showReview() {
+  const { regions, cur } = review, n = regions.filter((r) => r.remove).length;
+  $("gapBox").hidden = false; $("step1").hidden = true; syncSave();
+  $("gapCount").textContent = `${n} of ${regions.length} area${regions.length === 1 ? "" : "s"} will be removed.` +
+    (cur >= 0 ? ` Area ${cur + 1}: ${regions[cur].remove ? "removed" : "kept"}.` : "");
+  $("gapToggle").disabled = cur < 0;
+  $("gapToggle").textContent = cur >= 0 && !regions[cur].remove ? "Remove this one" : "Keep this one";
+  status("Check the gaps, then press Apply.");
+  drawBefore();
+}
+function paintReview() {
+  const { labels, regions } = review, d = source.data, img = new ImageData(source.width, source.height), o = img.data;
+  for (let i = 0; i < labels.length; i++) {
+    const p = i * 4, l = labels[i];
+    if (l && regions[l - 1].remove) { o[p] = 225; o[p + 1] = 29; o[p + 2] = 72; }
+    else if (l) { o[p] = d[p]; o[p + 1] = d[p + 1]; o[p + 2] = d[p + 2]; }
+    else if (d[p + 3]) for (let k = 0; k < 3; k++) o[p + k] = 20 + d[p + k] * 0.22;
+    else o[p] = o[p + 1] = o[p + 2] = 12;
+    o[p + 3] = 255;
+  }
+  $("before").getContext("2d").putImageData(img, 0, 0);
+}
+function endReview() { review = null; $("gapBox").hidden = true; $("step1").hidden = false; antsPath = null; syncSave(); }
+function stepGap(dir) {
+  const len = review.regions.length;
+  review.cur = review.cur < 0 ? (dir > 0 ? 0 : len - 1) : (review.cur + dir + len) % len;
+  focusBox(review.regions[review.cur].box);
+  showReview();
+}
+function focusBox([x0, y0, x1, y1]) { // zoom in until the area fills about a quarter of the pane, then centre it
+  const w = $("afterWrap"), bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+  zoomTo(Math.min(8, Math.max(view, Math.min(w.clientWidth / (bw * 4), w.clientHeight / (bh * 4)))));
+  for (const id of WRAPS) { $(id).scrollLeft = (x0 + bw / 2) * view - w.clientWidth / 2; $(id).scrollTop = (y0 + bh / 2) * view - w.clientHeight / 2; }
+}
+$("gapPrev").onclick = () => stepGap(-1);
+$("gapNext").onclick = () => stepGap(1);
+$("gapToggle").onclick = () => { const r = review.regions[review.cur]; r.remove = !r.remove; r.chosen = true; showReview(); };
+$("gapAll").onclick = () => { review.regions.forEach((r) => (r.remove = true)); showReview(); };
+$("gapNone").onclick = () => { review.regions.forEach((r) => { r.remove = false; r.chosen = true; }); showReview(); };
+$("gapApply").onclick = () => {
+  const seeds = review.regions.filter((r) => r.remove).map((r) => r.seed), { ref, tol, outline: rim, labels, regions } = review;
+  const kept = new Uint8Array(labels.length); // gaps staff switched to keep are never painted over
+  for (let i = 0; i < labels.length; i++) kept[i] = labels[i] && regions[labels[i] - 1].chosen && !regions[labels[i] - 1].remove ? 1 : 0;
+  endReview();
+  note = `Removed ${seeds.length} gap${seeds.length === 1 ? "" : "s"} and filled the specks too small to cut. Click to erase anything left, or switch to "Bring art back".`;
+  const cut = seeds.length ? EdgeClean.removeBackground(source, seeds, tol, ref) : source;
+  applyRemoval({ image: fillScraps(cut, ref, rim, tol, kept) });
+};
+// Specks of old background too small to cut (under the gap check's size, or hairlines where two
+// outlines nearly touch) get painted the outline colour round them. Undo takes it back with the gaps.
+function fillScraps(img, ref, rim, tol, kept) {
+  const keep = kept || new Uint8Array(img.width * img.height);
+  if (protect) for (let i = 0; i < keep.length; i++) keep[i] |= protect[i];
+  return EdgeClean.fillScraps(img, ref, rim, tol, Math.max(100, Math.round(img.width * img.height / 5000)), keep).image;
+}
+
+// Background removal. Each step keeps the previous cut-out for Undo. Protected pixels never lose opacity.
+function drawBefore() {
+  if (review) { antsPath = review.path; return paintReview(); }
+  setSel(null); $("before").getContext("2d").putImageData(source, 0, 0);
+  $("undo").disabled = !history.length;
+  $("restart").disabled = source === original;
+}
+function applyRemoval(res) {
+  const prev = source, d = res.image.data;
+  history.push(prev);
+  if (history.length > 15) history.shift(); // ponytail: ~17 MB per step on a 2700 px image
+  if (protect) for (let i = 0; i < protect.length; i++) {
+    if (protect[i] && d[i * 4 + 3] < prev.data[i * 4 + 3]) for (let k = 0; k < 4; k++) d[i * 4 + k] = prev.data[i * 4 + k];
+  }
+  source = new ImageData(d, res.image.width, res.image.height);
+  if (res.ref) { $("matte").value = "custom"; $("matteColour").value = rgbHex(res.ref); showValues(); }
+  drawBefore(); run();
+}
+$("outside").onclick = () => source && autoRemove();
+$("undo").onclick = () => { endReview(); if (history.length) { source = history.pop(); drawBefore(); run(); } };
+$("restart").onclick = () => { endReview(); if (original) { source = original; history = []; $("matte").value = "auto"; showValues(); drawBefore(); run(); } };
+for (const b of $("modes").children) b.onclick = () => {
+  mode = b.dataset.mode;
+  for (const o of $("modes").children) o.classList.toggle("on", o === b);
+  $("selBox").hidden = mode !== "select";
+};
+document.querySelector(".views").classList.add("picking");
+function pick(id, e) {
+  if (!source) return;
+  if (kind !== "flat") return status("Clicking the picture only edits Flat background artwork. Use the sliders for art on black.");
+  const r = $(id).getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX >= r.right || e.clientY < r.top || e.clientY >= r.bottom) return;
+  const x = Math.floor((e.clientX - r.left) / r.width * source.width), y = Math.floor((e.clientY - r.top) / r.height * source.height);
+  const i = y * source.width + x, tol = +$("tol").value;
+  if (review) {
+    const l = review.labels[i];
+    if (!l) return status("Click a red or white area to switch it, or press Apply.");
+    review.cur = l - 1;
+    review.regions[l - 1].remove = !review.regions[l - 1].remove;
+    review.regions[l - 1].chosen = true;
+    return showReview();
+  }
+  if (mode === "select") {
+    if (!source.data[i * 4 + 3]) return status("That spot is transparent. Click a colour in the artwork.");
+    const m = EdgeClean.selectAt(source, i, tol);
+    if (e.shiftKey && sel) for (let k = 0; k < m.length; k++) m[k] |= sel[k];
+    return setSel(m);
+  }
+  if (mode === "restore") {
+    note = "Restored that area. Undo if it brought back too much.";
+    return applyRemoval({ image: EdgeClean.restoreAt(source, original, i, tol) });
+  }
+  if (source.data[i * 4 + 3] === 0) return status("That spot is already transparent. Switch to \"Bring art back\" to restore it.");
+  note = "";
+  applyRemoval(EdgeClean.removeAt(source, i, tol));
+}
+
+// Colour selection, drawn as a moving dotted outline over both panes.
+let sel = null, antsPath = null;
+function setSel(m) {
+  sel = m && m.some((v) => v) ? m : null;
+  antsPath = sel ? outline(sel, source.width, source.height) : null;
+  for (const b of ["selSimilar", "selErase", "selClear", "selProtect"]) $(b).disabled = !sel;
+  if (sel) status(`Selected ${sel.reduce((a, b) => a + b, 0).toLocaleString()} px.`);
+  drawAnts();
+}
+// Edges between selected and unselected pixels, in image px, with runs merged into single lines.
+function outline(m, w, h) {
+  const p = new Path2D(), at = (x, y) => x >= 0 && y >= 0 && x < w && y < h && m[y * w + x] === 1;
+  for (let y = 0; y <= h; y++) for (let x = 0; x < w;) {
+    if (at(x, y) === at(x, y - 1)) { x++; continue; }
+    const s = x, a = at(x, y);
+    while (x < w && at(x, y) !== at(x, y - 1) && at(x, y) === a) x++;
+    p.moveTo(s, y); p.lineTo(x, y);
+  }
+  for (let x = 0; x <= w; x++) for (let y = 0; y < h;) {
+    if (at(x, y) === at(x - 1, y)) { y++; continue; }
+    const s = y, a = at(x, y);
+    while (y < h && at(x, y) !== at(x - 1, y) && at(x, y) === a) y++;
+    p.moveTo(x, s); p.lineTo(x, y);
+  }
+  return p;
+}
+function drawAnts() {
+  const dpr = devicePixelRatio || 1, s = view || 1, off = (performance.now() / 60) % 8;
+  document.querySelectorAll(".ants").forEach((c, n) => {
+    const w = $(WRAPS[n]), cw = Math.round(c.clientWidth * dpr), ch = Math.round(c.clientHeight * dpr);
+    if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
+    const g = c.getContext("2d");
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, cw, ch);
+    if (!antsPath) return;
+    const cv = w.firstElementChild; // canvas sits centred in the pane while it's smaller
+    g.setTransform(dpr * s, 0, 0, dpr * s, (cv.offsetLeft - w.scrollLeft) * dpr, (cv.offsetTop - w.scrollTop) * dpr);
+    g.lineWidth = 1 / s;
+    g.setLineDash([4 / s, 4 / s]);
+    g.strokeStyle = "#fff"; g.lineDashOffset = -off / s; g.stroke(antsPath);
+    g.strokeStyle = "#000"; g.lineDashOffset = (4 - off) / s; g.stroke(antsPath);
+    if (review && review.cur >= 0) { // box round the area picked with Previous / Next
+      const [x0, y0, x1, y1] = review.regions[review.cur].box, pad = 6 / s;
+      g.setLineDash([]); g.lineWidth = 3 / s; g.strokeStyle = "#2dd4bf";
+      g.strokeRect(x0 - pad, y0 - pad, x1 - x0 + 1 + 2 * pad, y1 - y0 + 1 + 2 * pad);
+    }
+  });
+}
+(function tick() { if (antsPath) drawAnts(); requestAnimationFrame(tick); })();
+$("selClear").onclick = () => setSel(null);
+$("selProtect").onclick = () => {
+  if (!sel) return;
+  protect = protect || new Uint8Array(sel.length);
+  for (let i = 0; i < sel.length; i++) protect[i] |= sel[i];
+  setSel(null); showProtect();
+};
+$("protClear").onclick = () => { protect = null; showProtect(); };
+function showProtect() {
+  $("protInfo").hidden = !protect;
+  if (protect) $("protText").textContent = `Protected ${protect.reduce((a, b) => a + b, 0).toLocaleString()} px. Erasing and gap removal leave these alone.`;
+}
+$("selSimilar").onclick = () => sel && setSel(EdgeClean.selectSimilar(source, sel, +$("tol").value));
+$("selErase").onclick = () => {
+  if (!sel) return;
+  note = "Erased the selection. Undo if it took too much.";
+  applyRemoval(EdgeClean.eraseMask(source, sel, +$("tol").value));
+};
+
+// Settings. Upscale options that would go past MAX_SIDE are greyed out; the 4× preference comes back
+// for the next, smaller image.
+let wantScale = 4;
+function capScale() {
+  const max = Math.max(1, Math.floor(MAX_SIDE / Math.max(source.width, source.height)));
+  for (const o of $("scale").options) o.disabled = +o.value > max;
+  $("scale").value = Math.min(wantScale, max);
+  $("scaleInfo").textContent = max < 4 ? `Up to ${max}× for this image (output is capped at ${MAX_SIDE} px).` : "Smooth curves need room.";
+}
+$("scale").addEventListener("change", () => (wantScale = +$("scale").value));
+function settings() {
+  if (kind !== "flat") return darkSettings();
+  const o = { scale: +$("scale").value, minLinePx: MIN_LINE_MM / 25.4 * outPpi() };
+  for (const k of SLIDERS) o[k] = +$(k).value;
+  const m = $("matte").value;
+  o.matte = m === "black" ? [0, 0, 0] : m === "white" ? [255, 255, 255] : m === "custom" ? hexRgb($("matteColour").value) : m;
+  return o;
+}
+// Print size turns dots-per-inch into output pixels, and feeds the checks.
+const printIn = () => Math.min(120, Math.max(3, +$("printW").value || 28)) / 2.54;
+const outPpi = () => source.width * +$("scale").value / printIn();
+const dotPx = (lpi) => Math.max(2, outPpi() / lpi);
+const darkSettings = () => ({ dark: true, method: kind, scale: +$("scale").value, black: +$("black").value, fade: +$("fade").value,
+  dot: dotPx(+$("lpi").value), angle: +$("angle").value, shape: $("shape").value, artLevel: +$("artLevel").value, hug: +$("hug").value,
+  margin: +$("margin").value, smooth: +$("bSmooth").value, specks: 20, minLinePx: kind === "backing" ? MIN_LINE_MM / 25.4 * outPpi() : 0 });
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+function showValues() {
+  for (const k of [...SLIDERS, ...DARK_SLIDERS]) $(k + "V").textContent = $(k).value + UNITS[k];
+  $("tolV").textContent = $("tol").value;
+  $("matteColour").hidden = $("matte").value !== "custom";
+  const lpi = +$("lpi").value;
+  for (const b of $("dotBtns").children) b.classList.toggle("on", +b.dataset.lpi === lpi);
+  $("dotInfo").textContent = `${lpi} dots per inch. Coarse prints most reliably; fine looks smoother.`;
+  renderChecks();
+}
+for (const k of [...SLIDERS, ...DARK_SLIDERS, "scale", "matte", "matteColour", "angle", "shape", "printW"]) $(k).oninput = () => { showValues(); schedule(); };
+for (const b of $("dotBtns").children) b.onclick = () => { $("lpi").value = b.dataset.lpi; showValues(); schedule(); };
+
+// Checks: a green / amber / red line for each thing that can spoil a print, so staff see a problem
+// without knowing which setting causes it.
+let thin = null;
+function renderChecks() {
+  const box = $("checks"); box.innerHTML = "";
+  if (!original) return;
+  const add = (lvl, text) => { const d = document.createElement("div"); d.className = "chk " + lvl; d.append(Object.assign(document.createElement("span"), { textContent: text })); box.append(d); return d; };
+  const ppi = Math.round(original.width / printIn()); // same bands as the Studio's DPI warning
+  add(ppi >= 250 ? "ok" : ppi >= 150 ? "warn" : "bad", ppi >= 250 ? `Sharp at this size (${ppi} px per inch).`
+    : ppi >= 150 ? `A little soft at this size (${ppi} px per inch). Fine for most art.`
+    : `Low resolution at this size (${ppi} px per inch). Detail will look soft. Print it smaller or ask for a bigger file.`);
+  if (kind === "keep" || kind === "knockout") {
+    const lpi = +$("lpi").value, tiny = outPpi() / lpi < 3;
+    add(tiny || lpi > 55 ? "bad" : lpi > 45 ? "warn" : "ok", tiny ? "Dots are too small for this file to draw. Pick coarser dots or a higher Upscale."
+      : lpi > 55 ? `Dots are very fine (${lpi} per inch) and may not print. 25 to 45 is the safe range.`
+      : lpi > 45 ? `Dots are fine (${lpi} per inch). Test before a big run.` : `Dots are a safe size (${lpi} per inch).`);
+  } else if (thin) {
+    if (!thin.length) return add("ok", `No lines thinner than ${MIN_LINE_MM} mm.`);
+    const d = add("warn", `${thin.length}${thin.length === 200 ? "+" : ""} line${thin.length === 1 ? "" : "s"} thinner than about ${MIN_LINE_MM} mm may not print.`);
+    const b = document.createElement("button"); b.textContent = "Show"; d.firstChild.append(b);
+    b.onclick = () => { // outline them all on the picture and zoom to the biggest
+      const k = result.width / source.width, p = new Path2D(), pad = 4;
+      for (const [x0, y0, x1, y1] of thin) p.rect(x0 / k - pad, y0 / k - pad, (x1 - x0) / k + 2 * pad, (y1 - y0) / k + 2 * pad);
+      antsPath = p;
+      const [x0, y0, x1, y1] = thin[0]; focusBox([x0 / k, y0 / k, x1 / k, y1 / k]);
+      status("Thin lines are outlined. Zoomed to the biggest; press F to see the whole design.");
+    };
+  }
+}
+$("tol").oninput = showValues;
+$("reset").onclick = () => {
+  const d = EdgeClean.DEFAULTS;
+  for (const k of SLIDERS) $(k).value = d[k];
+  $("scale").value = d.scale; $("matte").value = "auto";
+  showValues(); schedule();
+};
+showValues();
+
+function schedule() { clearTimeout(timer); timer = setTimeout(run, 250); }
+
+// Edge cleaning runs in a background worker so the page never freezes. A newer change kills the
+// worker mid-job instead of queueing behind it. Falls back to the page itself if workers are blocked.
+let worker = null, jobId = 0, busy = false;
+function newWorker() {
+  try {
+    const w = new Worker(URL.createObjectURL(new Blob([`const EdgeClean = ${EdgeClean.source};
+onmessage = (e) => { const out = EdgeClean.process(e.data.img, e.data.opts); postMessage({ id: e.data.id, out }, [out.image.data.buffer]); };`], { type: "text/javascript" })));
+    w.onerror = () => { worker = null; run(); }; // ponytail: one retry on the page; a broken worker never comes back
+    return w;
+  } catch { return null; }
+}
+worker = newWorker();
+function run() {
+  if (!source) return;
+  const id = ++jobId, o = settings();
+  if (busy && worker) { worker.terminate(); worker = newWorker(); }
+  setBusy(true);
+  const done = (out) => { if (id === jobId) { show(out); setBusy(false); } };
+  if (worker) {
+    worker.onmessage = (e) => done(e.data.out);
+    worker.postMessage({ id, img: { width: source.width, height: source.height, data: source.data }, opts: o });
+  } else setTimeout(() => done(EdgeClean.process(source, o)), 20); // let "Updating…" paint first
+}
+function setBusy(b) {
+  busy = b;
+  $("busy").classList.toggle("on", b);
+  syncSave();
+}
+function syncSave() { // never save a result that's about to change, or before the gap check is applied
+  $("download").disabled = busy || !result || !!review;
+  if (review) $("saveInfo").textContent = "Apply the gap check before saving.";
+  else if (result) $("saveInfo").textContent = `${fileName}-clean.png · ${result.width} × ${result.height} px`;
+}
+function show(out) {
+  result = out.image; thin = out.thin || null; renderChecks();
+  const c = $("after");
+  c.width = result.width; c.height = result.height;
+  c.getContext("2d").putImageData(new ImageData(result.data, result.width, result.height), 0, 0);
+  const auto = $("matte").value === "auto";
+  $("matteInfo").textContent = auto ? (out.matte ? "Found " + rgbHex(out.matte) : "None found") : "";
+  $("matteInfo").style.borderLeft = auto && out.matte ? "14px solid " + rgbHex(out.matte) : "";
+  $("matteInfo").style.paddingLeft = auto && out.matte ? "6px" : "";
+  if (!review) status(note || "Scroll or pinch to zoom, drag to move around.");
+  zoom();
+}
+const rgbHex = (c) => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+
+// View: both panes show the same spot at the same size. Scroll wheel / pinch zooms at the pointer,
+// drag pans, a click without dragging removes or restores.
+const WRAPS = ["beforeWrap", "afterWrap"];
+let view = 0; // screen px per ORIGINAL image px (so changing Upscale doesn't change the view); 0 = fit
+function fitScale() {
+  const w = $("afterWrap");
+  return Math.min((w.clientWidth - 2) / source.width, (w.clientHeight - 2) / source.height);
+}
+let fitMode = true; // stay fitted (and refit on window resize) until the user zooms themselves
+function setView(s, ax, ay) { // ax, ay: point in the pane that stays put
+  if (!result) return;
+  const w = $("afterWrap"), c = $("after"), old = view || s;
+  s = Math.min(16, Math.max(fitScale() / 2, s));
+  if (ax == null) { ax = w.clientWidth / 2; ay = w.clientHeight / 2; }
+  const cx = (w.scrollLeft + ax - c.offsetLeft) / old, cy = (w.scrollTop + ay - c.offsetTop) / old; // canvas is centred while small
+  view = s;
+  for (const id of ["before", "after"]) {
+    $(id).style.width = source.width * s + "px";
+    $(id).style.height = source.height * s + "px";
+  }
+  for (const id of WRAPS) { $(id).scrollLeft = cx * s - ax + c.offsetLeft; $(id).scrollTop = cy * s - ay + c.offsetTop; }
+  $("zoomCustom").textContent = Math.round(s * 100) + "%";
+  $("zoom").value = fitMode ? "fit" : "custom";
+}
+function fit() { fitMode = true; setView(fitScale()); }
+function zoomTo(s, ax, ay) { fitMode = false; setView(s, ax, ay); }
+function zoom() { if (result) fitMode ? fit() : setView(view); }
+$("zoom").onchange = () => ($("zoom").value === "fit" ? fit() : zoomTo(+$("zoom").value || view));
+window.onresize = zoom;
+
+for (const id of WRAPS) {
+  const w = $(id);
+  w.addEventListener("wheel", (e) => {
+    if (!result) return;
+    e.preventDefault();
+    const r = w.getBoundingClientRect();
+    zoomTo(view * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  let drag = null;
+  w.onpointerdown = (e) => {
+    if (e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, sl: w.scrollLeft, st: w.scrollTop, moved: false };
+    w.setPointerCapture(e.pointerId);
+  };
+  w.onpointermove = (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+    drag.moved = true;
+    w.classList.add("panning");
+    for (const id2 of WRAPS) { $(id2).scrollLeft = drag.sl - dx; $(id2).scrollTop = drag.st - dy; }
+  };
+  w.onpointerup = (e) => {
+    if (drag && !drag.moved) pick(id === "beforeWrap" ? "before" : "after", e);
+    drag = null;
+    w.classList.remove("panning");
+  };
+}
+
+$("download").onclick = () => $("after").toBlob((blob) => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName + "-clean.png";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}, "image/png");
+
+// Help pop-ups: a "?" by each "on black" slider and by Artwork type. The examples run the real code on the
+// loaded artwork with only that one thing changed, zoomed in on the spot where the change shows most.
+const HELP = {
+  kind: { title: "Artwork type", zoom: 4, text: [
+    "<b>Flat background:</b> art on one plain colour (white, cream, a flat colour). That colour is cut out and the edges are cleaned. Don't use it for art on black where the art also uses black.",
+    "<b>On black: keep dark detail:</b> removes only the plain black background. Black and dark parts of the art (shirts, shadows, dim colours) stay and print as ink. Works on any shirt colour. The safe choice for art on black.",
+    "<b>On black: black shirts:</b> every dark pixel becomes see-through, so the black shirt itself shows as the black. Shadows fade out as halftone dots. Softer print and less ink, but only right for black or very dark shirts: on anything lighter the dark parts vanish.",
+    "<b>On black: any shirt:</b> keeps everything, including all the black, and cuts one smooth outline round the whole design. Works on any shirt, but prints as a solid black patch.",
+  ], variants: () => [["keep", "Keep dark detail"], ["knockout", "Black shirts"], ["backing", "Any shirt"]].map(([method, cap]) => ({ cap, method, over: {} })) },
+  black: { title: "Black level", zoom: 10, lo: 4, hi: 50, text: [
+    "How dark a pixel has to be to count as background black. Anything this dark or darker is removed; brighter pixels stay.",
+    "<b>Raise it</b> if a grey haze or dirty fringe is left round the art. <b>Lower it</b> if dark shadows or dark colours are being eaten away.",
+    "In <i>keep dark detail</i>, parts inside the design's outline stay whatever this is set to, so it mostly changes the edges.",
+  ] },
+  fade: { title: "Fade", zoom: 10, lo: 12, hi: 120, text: [
+    "How gradually pixels go from removed to fully kept, starting at the black level. Tones inside this band print as halftone dots, so shadows blend into the shirt instead of stopping with a hard line.",
+    "<b>Wider</b> keeps more shadow detail (more dots). <b>Narrower</b> gives a harder, cleaner cut with fewer dots.",
+  ] },
+  lpi: { title: "Dots", zoom: 14, lo: 20, hi: 60, text: [
+    "Fades and shadows can't print as see-through ink, so they become a pattern of solid dots. This sets how many dots fit in an inch of the print.",
+    "<b>Coarse (25)</b> prints most reliably and holds on rough fabric, but the dots show up close. <b>Standard (35)</b> suits most jobs. <b>Fine (45)</b> looks smoother on big smooth fades. <b>Extra fine (55)</b> is smoothest but the dots may be too small to hold: test first.",
+    "The dot size follows the <b>Print width</b>, so the same setting gives the same dots at any size. The exact number is under Advanced.",
+  ] },
+  angle: { title: "Dot angle", zoom: 14, text: [
+    "The direction the rows of dots run. It changes how the pattern looks, not how much ink prints.",
+    "<b>22.5°</b> is the usual choice: the rows don't line up with the weave of the shirt or with straight edges in the art. <b>45°</b> is the least visible to the eye on smooth fades. <b>0°</b> lines the dots up square, which can show as a grid.",
+  ], variants: () => [0, 22.5, 45].map((a) => ({ cap: a + "°", method: kind, over: { angle: a } })) },
+  shape: { title: "Dot shape", zoom: 14, text: [
+    "<b>Round dots</b> suit most artwork and hold well.",
+    "<b>Lines</b> swap the dots for thin stripes. They can look cleaner on long smooth fades and give a more hand-drawn look, but thin stripes are easier to lose in the light end of a fade.",
+  ], variants: () => [["round", "Round dots"], ["line", "Lines"]].map(([shape, cap]) => ({ cap, method: kind, over: { shape } })) },
+  print: { title: "Print width", text: [
+    "How wide the <b>whole image</b> will be printed on the garment, in centimetres. Include any empty space round the design, because it's the width of the file, not just the art.",
+    "It does two things. It sets the <b>dot size</b>, so dots come out the same real size whether the print is a pocket logo or a full back. And it runs the <b>checks</b> under it: whether the file has enough pixels to look sharp at that size, whether the dots are a safe size, and whether any lines are too thin to print.",
+    "Common sizes: pocket or left chest about 10 cm, A4 about 20 cm, A3 about 28 cm, oversize back about 35 cm.",
+  ] },
+  artLevel: { title: "Art starts at", zoom: 3, lo: 12, hi: 100, text: [
+    "When drawing the outline round the design, only pixels brighter than this count as art.",
+    "<b>Lower it</b> if dark parts at the edge of the design end up outside the outline. <b>Raise it</b> if a faint glow or haze makes the outline balloon out.",
+  ] },
+  hug: { title: "Hug", zoom: 3, lo: 0.3, hi: 2.5, rel: true, text: [
+    "How loosely the outline wraps the design. Low follows every bump and leaves gaps between separate pieces; high bridges the gaps and gives one simpler shape.",
+    "In <i>keep dark detail</i>, a higher hug also brings in more of the dark areas sitting between bright parts.",
+  ] },
+  margin: { title: "Margin", zoom: 3, lo: 0, hi: 4, rel: true, text: [
+    "How far the outline sits outside the art. At 0 it cuts right at the art's edge.",
+    "<b>Raise it</b> if thin dark edges, like a black rim round a circle, are being cut off. The extra shows as a black border round the design.",
+  ] },
+  bSmooth: { title: "Smooth outline", zoom: 3, lo: 0, hi: 3, rel: true, text: [
+    "Rounds off bumps and notches in the outline.",
+    "<b>0</b> keeps every small wiggle. <b>Higher</b> gives a cleaner shape that's easier to weed, but can shave off thin points.",
+  ] },
+};
+const SETTING_KEY = { bSmooth: "smooth", lpi: "dot" }; // slider id -> settings() key, where they differ
+
+// Test pictures: simple shapes on black, built so each setting's effect is plain to see. Run through the
+// real code at three values. Outline settings are shown with "any shirt", where the outline is the patch edge.
+function pattern(w, h, paint) {
+  const d = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const c = paint(x, y) || [0, 0, 0]; d.set([c[0], c[1], c[2], 255], (y * w + x) * 4); }
+  return { width: w, height: h, data: d };
+}
+const grey = (v) => [v, v, v];
+const PATTERNS = {
+  ramp: () => pattern(320, 150, (x, y) => { const t = x / 319 * 120; return y >= 15 && y < 65 ? grey(t) : y >= 85 && y < 135 ? [t * 1.6, t * 0.7, 0] : null; }),
+  levels: () => pattern(320, 150, (x, y) => {
+    if (Math.hypot(x - 60, y - 75) < 36) return grey(240);
+    if (x >= 125 && x < 195 && y >= 40 && y < 110) return grey(70);
+    if (y >= 40 && y < 110 && Math.abs(x - 255) < (y - 40) / 2 + 2) return grey(25);
+  }),
+  gaps: () => pattern(320, 150, (x, y) => y >= 35 && y < 115 && [[10, 50], [56, 96], [112, 152], [184, 224], [274, 310]].some(([a, b]) => x >= a && x < b) ? grey(240) : null),
+  ring: () => pattern(320, 150, (x, y) => { const r = Math.hypot(x - 160, y - 75); return r < 40 ? grey(240) : r < 56 ? grey(28) : null; }),
+  saw: () => pattern(320, 150, (x, y) => { // block with sharp teeth on top and narrow notches underneath
+    if (x < 60 || x >= 260) return null;
+    const tooth = 22 * (1 - Math.abs(((x - 60) % 28) - 14) / 14);
+    if (y >= 55 - tooth && y < 115 && !(y >= 100 && (x - 60) % 40 >= 18 && (x - 60) % 40 < 24)) return grey(240);
+  }),
+  design: () => pattern(320, 150, (x, y) => {
+    const r = Math.hypot(x - 160, y - 75);
+    if (r < 44) return grey(Math.max(0, (y - 40) * 0.35)); // flat-black "shirt", shading slightly
+    if (r < 54) return [250, 140, 30];
+    if (r < 72) { const t = 1 - (r - 54) / 18; return [110 * t, 45 * t, 0]; } // dim orange glow
+  }),
+};
+const DEMOS = {
+  kind: { pat: "design", vary: "method", vals: ["keep", "knockout", "backing"], caps: ["Keep dark detail", "Black shirts", "Any shirt"], bg: "#1e2a4a",
+    note: "A bright ring with a flat-black shirt inside and a dim orange glow round it, on navy." },
+  black: { pat: "ramp", method: "knockout", vals: [5, 25, 60], bg: "#1e2a4a", note: "Two ramps from black (left) to brighter (right), on navy. Watch where the cut starts." },
+  fade: { pat: "ramp", method: "knockout", vals: [8, 50, 140], fixed: { black: 10 }, bg: "#1e2a4a", note: "The same ramps. Watch how wide the dotted band is." },
+  lpi: { pat: "ramp", method: "knockout", vals: [12, 6, 3], caps: ["Coarse", "Standard", "Extra fine"], fixed: { black: 5, fade: 110 }, bg: "#1e2a4a", crop: [0, 0, 160], note: "Close-up of the left end of the ramps." },
+  angle: { pat: "ramp", method: "knockout", vals: [0, 22.5, 45], caps: ["0°", "22.5°", "45°"], fixed: { black: 5, fade: 110, dot: 8 }, bg: "#1e2a4a", crop: [0, 0, 160], note: "Close-up of the left end of the ramps." },
+  shape: { pat: "ramp", method: "knockout", vals: ["round", "line"], caps: ["Round dots", "Lines"], fixed: { black: 5, fade: 110, dot: 8 }, bg: "#1e2a4a", crop: [0, 0, 160], note: "Close-up of the left end of the ramps." },
+  artLevel: { pat: "levels", method: "backing", vals: [15, 40, 100], fixed: { hug: 8, margin: 3, smooth: 2 }, bg: "#9ca3af",
+    note: "A white circle, a grey square and a dark-grey triangle on black, on a grey shirt. Only shapes counted as art get inside the outline." },
+  hug: { pat: "gaps", method: "backing", vals: [3, 10, 26], fixed: { margin: 2, smooth: 2 }, bg: "#9ca3af", note: "White bars with gaps that get wider left to right, on a grey shirt." },
+  margin: { pat: "ring", method: "backing", vals: [0, 8, 18], fixed: { hug: 24, smooth: 2 }, bg: "#9ca3af", note: "A white disc with a dark rim round it, on a grey shirt. Watch whether the rim survives." },
+  bSmooth: { pat: "saw", method: "backing", vals: [0, 6, 18], fixed: { hug: 10, margin: 8 }, bg: "#9ca3af", crop: [40, 18, 120], note: "A white block with sharp teeth on top and notches underneath, on a grey shirt. Watch the black outline's points and notches." },
+};
+function demoRow(key) {
+  const d = DEMOS[key], src = PATTERNS[d.pat](), ex = document.createElement("div");
+  ex.className = "ex";
+  d.vals.forEach((v, i) => {
+    const o = { method: d.method, scale: 1, black: 18, fade: 52, dot: 6, angle: 22.5, shape: "round", artLevel: 40, hug: 8, margin: 3, smooth: 2, specks: 0, ...d.fixed };
+    if (d.vary === "method") o.method = v; else o[SETTING_KEY[key] || key] = v;
+    const img = EdgeClean.darkArt(src, o).image, f = document.createElement("figure");
+    f.append(tile(img, d.crop, 320, d.bg));
+    f.insertAdjacentHTML("beforeend", `<figcaption>${d.caps ? d.caps[i] : ["Low", "Middle", "High"][i]}</figcaption>`);
+    ex.append(f);
+  });
+  return ex;
+}
+for (const k of DARK_SLIDERS) {
+  const b = document.createElement("button");
+  b.className = "qm"; b.dataset.help = k; b.textContent = "?"; b.title = "What does this do?";
+  const span = $(k).closest("label").querySelector("span");
+  span.insertBefore(b, span.querySelector("output"));
+}
+document.querySelectorAll(".qm").forEach((b) => (b.onclick = (e) => { e.preventDefault(); openHelp(b.dataset.help); }));
+$("helpClose").onclick = () => $("help").close();
+$("help").onclick = (e) => { if (e.target === $("help")) $("help").close(); }; // click outside closes
+
+let exBase = null; // original shrunk to at most 1500 px, so examples take about a second
+function exampleBase() {
+  if (exBase && exBase.src === original) return exBase;
+  const f = Math.min(1, 1500 / Math.max(original.width, original.height)), t = document.createElement("canvas"), c = document.createElement("canvas");
+  t.width = original.width; t.height = original.height; t.getContext("2d").putImageData(original, 0, 0);
+  c.width = Math.round(original.width * f); c.height = Math.round(original.height * f);
+  const g = c.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(t, 0, 0, c.width, c.height);
+  return (exBase = { src: original, f, img: g.getImageData(0, 0, c.width, c.height) });
+}
+function exampleRun(method, over) { // sizes are in full-image px, dots in output px: convert both to the small copy
+  const b = exampleBase(), o = { ...darkSettings(), ...over }, f = b.f;
+  return EdgeClean.darkArt(b.img, { method, scale: 1, black: o.black, fade: o.fade, dot: Math.max(2, o.dot * f / o.scale), angle: o.angle, shape: o.shape,
+    artLevel: o.artLevel, hug: o.hug * f, margin: o.margin * f, smooth: o.smooth * f, specks: 20 }).image;
+}
+function busiestBox(imgs, size) { // square where the examples differ most (by opacity), or null if they're all the same
+  const { width: w, height: h } = imgs[0], st = 4, gw = Math.ceil(w / st), gh = Math.ceil(h / st), I = new Float64Array((gw + 1) * (gh + 1));
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+    const p = ((gy * st) * w + gx * st) * 4 + 3; let lo = 255, hi = 0;
+    for (const im of imgs) { lo = Math.min(lo, im.data[p]); hi = Math.max(hi, im.data[p]); }
+    I[(gy + 1) * (gw + 1) + gx + 1] = (hi - lo) + I[gy * (gw + 1) + gx + 1] + I[(gy + 1) * (gw + 1) + gx] - I[gy * (gw + 1) + gx];
+  }
+  const s = Math.min(gw, gh, Math.max(4, Math.round(size / st))); let best = 0, at = null;
+  for (let y = 0; y + s <= gh; y += Math.max(1, s >> 2)) for (let x = 0; x + s <= gw; x += Math.max(1, s >> 2)) {
+    const v = I[(y + s) * (gw + 1) + x + s] - I[y * (gw + 1) + x + s] - I[(y + s) * (gw + 1) + x] + I[y * (gw + 1) + x];
+    if (v > best) { best = v; at = [x * st, y * st, s * st]; }
+  }
+  return I[I.length - 1] < 255 * gw * gh / 1000 ? null : at; // under ~0.1% of the image changing = no visible difference
+}
+// Canvas showing square box [x, y, size] of img (or all of it) on a shirt colour. With cmp (the "Now"
+// result), pixels this one removes are tinted red and pixels it adds green, so small changes stand out.
+function tile(img, box, px, bg = back, cmp = null) {
+  const [x, y, sw, sh] = box ? [box[0], box[1], box[2], box[2]] : [0, 0, img.width, img.height];
+  const c = document.createElement("canvas"), t = document.createElement("canvas");
+  t.width = img.width; t.height = img.height; t.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), 0, 0);
+  c.width = px; c.height = Math.round(px * sh / sw);
+  const g = c.getContext("2d");
+  if (bg === "checker") for (let j = 0; j < c.height; j += 12) for (let i = 0; i < px; i += 12) { g.fillStyle = (i + j) / 12 % 2 ? "#ccc" : "#fff"; g.fillRect(i, j, 12, 12); }
+  else { g.fillStyle = bg; g.fillRect(0, 0, px, c.height); }
+  g.imageSmoothingEnabled = sw > px; // zoomed in: show the real pixels (dots)
+  g.drawImage(t, x, y, sw, sh, 0, 0, px, c.height);
+  if (cmp && cmp !== img) {
+    const o = new ImageData(img.width, img.height);
+    for (let i = 3; i < o.data.length; i += 4) {
+      const a = img.data[i] > 127, b = cmp.data[i] > 127;
+      if (a !== b) o.data.set(a ? [34, 230, 90, 200] : [255, 23, 68, 200], i - 3);
+    }
+    t.getContext("2d").putImageData(o, 0, 0);
+    g.drawImage(t, x, y, sw, sh, 0, 0, px, c.height);
+  }
+  return c;
+}
+function openHelp(key) {
+  const h = HELP[key], d = DEMOS[key];
+  $("helpTitle").textContent = h.title;
+  $("helpText").innerHTML = h.text.map((p) => `<p>${p}</p>`).join("");
+  if (!d) { $("helpEx").innerHTML = ""; return $("help").showModal(); } // words only
+  $("helpEx").innerHTML = `<h4>How it works</h4><p><small>${d.note}</small></p>`;
+  $("helpEx").append(demoRow(key));
+  const art = document.createElement("div");
+  art.innerHTML = "<h4>On your artwork</h4>";
+  $("helpEx").append(art);
+  $("help").showModal();
+  if (!original || (key === "kind" ? !(solid && Math.max(...EdgeClean.borderColour(original)) < 40) : kind === "flat"))
+    return art.insertAdjacentHTML("beforeend", `<p><small>${original ? "Shows for art on black." : "Load artwork to see it on your own design."}</small></p>`);
+  const wait = document.createElement("p"); wait.innerHTML = "<small>Making examples on your artwork…</small>"; art.append(wait);
+  setTimeout(() => { // let the pop-up paint first; ponytail: runs on the page (~1 s), move to the worker if it drags
+    let vs = h.variants?.();
+    if (!vs) {
+      const now = +$(key).value, el = $(key), clamp = (v) => Math.round(Math.min(+el.max, Math.max(+el.min, v)));
+      const vals = [...new Set([clamp(h.rel ? now * h.lo : h.lo), now, clamp(h.rel ? now * h.hi : h.hi)])].sort((a, b) => a - b);
+      vs = vals.map((v) => ({ cap: v === now ? "Now" : v < now ? "Lower" : "Higher", sub: v + UNITS[key], method: kind, over: key === "lpi" ? { dot: dotPx(v) } : { [SETTING_KEY[key] || key]: v } }));
+    }
+    const b = exampleBase().img, size = Math.max(b.width, b.height) / h.zoom;
+    let imgs = vs.map((v) => exampleRun(v.method, v.over)), box = busiestBox(imgs, size), swapped = false;
+    if (!box && kind !== "knockout" && ["black", "fade", "lpi", "angle", "shape"].includes(key)) { // show it where it matters instead
+      vs.forEach((v) => (v.method = "knockout"));
+      imgs = vs.map((v) => exampleRun(v.method, v.over)); box = busiestBox(imgs, size); swapped = true;
+    }
+    wait.remove();
+    if (swapped) art.insertAdjacentHTML("beforeend", `<p><small>With <b>${$("kinds").querySelector(".on").textContent}</b> this makes almost no difference on this artwork, because the dark art is kept anyway. These show it on <b>On black: black shirts</b>, where it matters most.</small></p>`);
+    if (!box) return art.insertAdjacentHTML("beforeend", "<p><small>This setting makes almost no difference on this artwork with the current settings.</small></p>");
+    const nowImg = imgs[vs.findIndex((v) => v.cap === "Now")], w = document.createElement("div"), m = tile(nowImg || imgs[0], null, 240);
+    const g = m.getContext("2d"), k = 240 / b.width;
+    g.strokeStyle = "#ffd21f"; g.lineWidth = 8; g.strokeRect(box[0] * k, box[1] * k, box[2] * k, box[2] * k);
+    w.className = "where"; w.append(m);
+    w.insertAdjacentHTML("beforeend", "<span>Close-up of the yellow square, where this makes the most difference on your artwork." +
+      (nowImg ? " <b style=\"color:#e11d48\">Red</b> = removed compared with Now, <b style=\"color:#16a34a\">green</b> = kept that Now removes." : "") + "</span>");
+    art.append(w);
+    const ex = document.createElement("div"); ex.className = "ex";
+    imgs.forEach((im, i) => {
+      const f = document.createElement("figure");
+      f.append(tile(im, box, 480, back, nowImg));
+      f.insertAdjacentHTML("beforeend", `<figcaption>${vs[i].cap}${vs[i].sub ? `<small>${vs[i].sub}</small>` : ""}</figcaption>`);
+      ex.append(f);
+    });
+    art.append(ex);
+  }, 30);
+}
+
+function status(t) { $("status").textContent = t; $("status").title = t; }
+
+// Keys: ⌘Z / Ctrl+Z undo, Esc deselect, F fit, 1 = 100%; while checking gaps ← → step, Space switches, Enter applies.
+document.addEventListener("keydown", (e) => {
+  if (!source || $("help").open || e.target.matches?.("input[type=color], input[type=number], select")) return;
+  const k = e.key;
+  if ((e.metaKey || e.ctrlKey) && k.toLowerCase() === "z") { e.preventDefault(); return $("undo").click(); }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (review) {
+    if (k === "ArrowRight" || k === "ArrowLeft") { e.preventDefault(); return stepGap(k === "ArrowRight" ? 1 : -1); }
+    if (k === " " && review.cur >= 0) { e.preventDefault(); return $("gapToggle").click(); }
+    if (k === "Enter") { e.preventDefault(); return $("gapApply").click(); }
+  }
+  if (k === "Escape" && !review) return setSel(null);
+  if (k === "f" || k === "F") return fit();
+  if (k === "1") return zoomTo(1);
+});
+</script>
+</body>
+</html>
