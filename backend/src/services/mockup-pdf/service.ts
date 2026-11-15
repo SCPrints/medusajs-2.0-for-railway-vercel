@@ -623,8 +623,29 @@ export async function generateMockupPdf(
           .filter((a) => typeof a.printUrl === "string" && a.printUrl.startsWith("http"))
           .map((a) => [a.side, a.printUrl as string])
       )
+      // Print files saved before 16 Nov were rendered at editor size (a 9 cm logo = 77 px); for those, the
+      // customer's original upload for that side is the same artwork at full resolution.
+      const originals = Array.isArray(rawDesign?.customerOriginalFiles)
+        ? (rawDesign!.customerOriginalFiles as Array<{ url?: unknown; sides?: unknown; mimeType?: unknown }>)
+        : []
+      const originalFor = (side: string): string | null => {
+        const images = originals.filter(
+          (f) => typeof f.url === "string" && f.url.startsWith("http") && String(f.mimeType ?? "image/").startsWith("image/")
+        )
+        const match = images.find((f) => Array.isArray(f.sides) && f.sides.includes(side)) ??
+          (images.length === 1 && !Array.isArray(images[0].sides) ? images[0] : undefined)
+        return (match?.url as string | undefined) ?? null
+      }
       const artSides = mockups.map((m) => m.side).filter((side) => printBySide.has(side))
-      const artBufs = await Promise.all(artSides.map((side) => artworkBuffer(printBySide.get(side)!)))
+      const artBufs = await Promise.all(
+        artSides.map(async (side) => {
+          const print = await artworkBuffer(printBySide.get(side)!)
+          const meta = print ? await sharp(print).metadata().catch(() => null) : null
+          const tiny = !print || Math.max(meta?.width ?? 0, meta?.height ?? 0) < 600
+          const original = tiny ? originalFor(side) : null
+          return (original && (await artworkBuffer(original))) || print
+        })
+      )
       const artwork = artSides
         .map((side, i) => ({ side, buf: artBufs[i] }))
         .filter((a): a is { side: string; buf: Buffer } => a.buf !== null)

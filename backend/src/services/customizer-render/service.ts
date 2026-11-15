@@ -626,9 +626,11 @@ const garmentCoverMatchCanvas = async (
 
 export const renderPrintAsset = async (payload: RenderRequestPayload) => {
   const svgBuffer = Buffer.from(payload.artworkSvg)
+  const { canvas: outCanvas, density, k } = mockupOutputSize(payload.canvas, PRINT_MIN_LONG_EDGE)
   const { buffer: fullPng, width: imgW, height: imgH } = await rasterizeCustomizerSvgToCanvas(
     svgBuffer,
-    payload.canvas
+    outCanvas,
+    density
   )
 
   const alphaSource = await sharp(fullPng).ensureAlpha().png().toBuffer()
@@ -658,12 +660,13 @@ export const renderPrintAsset = async (payload: RenderRequestPayload) => {
     boxMeta.height >= Math.floor(imgH * 0.9)
 
   if (printBuffer.length < 80 || stillFullBleed) {
-    const px = clampDimension(Math.floor(payload.placement.x), 0, Math.max(0, imgW - 1))
-    const py = clampDimension(Math.floor(payload.placement.y), 0, Math.max(0, imgH - 1))
+    // Placement is in editor px; the bitmap is k× that.
+    const px = clampDimension(Math.floor(payload.placement.x * k), 0, Math.max(0, imgW - 1))
+    const py = clampDimension(Math.floor(payload.placement.y * k), 0, Math.max(0, imgH - 1))
     const maxW = Math.max(1, imgW - px)
     const maxH = Math.max(1, imgH - py)
-    const ew = clampDimension(Math.round(payload.placement.width), 1, Math.min(maxW, 4000))
-    const eh = clampDimension(Math.round(payload.placement.height), 1, Math.min(maxH, 4000))
+    const ew = clampDimension(Math.round(payload.placement.width * k), 1, maxW)
+    const eh = clampDimension(Math.round(payload.placement.height * k), 1, maxH)
     printBuffer = await sharp(alphaSource)
       .extract({ left: px, top: py, width: ew, height: eh })
       .ensureAlpha()
@@ -705,11 +708,24 @@ export const scaledOverlayBox = (width: number, height: number, scale: number) =
  */
 const MOCKUP_MIN_LONG_EDGE = 1600
 
-/** Editor canvas → mockup output size and the SVG density that hits it exactly. */
-export const mockupOutputSize = (canvas?: { width: number; height: number }) => {
-  if (!canvas?.width || !canvas?.height) return { canvas, density: 144 }
-  const k = Math.max(1, MOCKUP_MIN_LONG_EDGE / Math.max(canvas.width, canvas.height))
+/**
+ * Same problem for the print file: rendered at editor size, a 9 cm chest logo
+ * came out 77×13 px (order #130) — useless for production and pixelated on the
+ * proof PDF. Rasterise the whole print frame at least this big; the inlined
+ * originals are already capped at MAX_INLINE_IMAGE_EDGE, so this is ~their size.
+ * ponytail: a fixed floor, not true DPI — the frame's cm size isn't in the payload.
+ */
+const PRINT_MIN_LONG_EDGE = 3000
+
+/** Editor canvas → output size and the SVG density that hits it exactly. */
+export const mockupOutputSize = (
+  canvas?: { width: number; height: number },
+  minLongEdge = MOCKUP_MIN_LONG_EDGE
+) => {
+  if (!canvas?.width || !canvas?.height) return { canvas, density: 144, k: 1 }
+  const k = Math.max(1, minLongEdge / Math.max(canvas.width, canvas.height))
   return {
+    k,
     canvas: { width: Math.round(canvas.width * k), height: Math.round(canvas.height * k) },
     // SVG user units = editor px at 72 dpi, so 72·k rasterises straight to the
     // output size (never below the old 144, so small upscales stay sharp).

@@ -148,11 +148,15 @@ function BareLineMockups({
   proofs,
   onProofsChange,
   onDesign,
+  printDimensions,
+  onPrintDimensionSaved,
 }: {
   orderId: string
   lines: LinePayload[]
   proofs: RevisedProof[]
   onProofsChange: (updated: RevisedProof[]) => void
+  printDimensions: Record<string, string>
+  onPrintDimensionSaved: (key: string, dimension: string) => void
   /** Opens the Studio on this line's garment; its Save Proof lands as this side's mockup. */
   onDesign: ((line: LinePayload, side: string) => void) | null
 }) {
@@ -285,6 +289,15 @@ function BareLineMockups({
                       </Button>
                     ) : null}
                   </div>
+                  {latest ? (
+                    <BareSideDimension
+                      orderId={orderId}
+                      lineItemId={line.line_item_id}
+                      side={side}
+                      value={printDimensions[sideKey(line.line_item_id, side)] ?? ""}
+                      onSaved={onPrintDimensionSaved}
+                    />
+                  ) : null}
                 </div>
               )
             })}
@@ -292,6 +305,60 @@ function BareLineMockups({
         </div>
         )
       })}
+      {error ? <Text size="xsmall" className="text-ui-fg-error">{error}</Text> : null}
+    </div>
+  )
+}
+
+/** Print size under a no-design line's mockup (same map + route as SideProofCard's, so the PDF and approval page show it). */
+function BareSideDimension({
+  orderId,
+  lineItemId,
+  side,
+  value,
+  onSaved,
+}: {
+  orderId: string
+  lineItemId: string
+  side: string
+  value: string
+  onSaved: (key: string, dimension: string) => void
+}) {
+  const [draft, setDraft] = useState(value)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => setDraft(value), [value])
+
+  const save = async () => {
+    const next = draft.trim()
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(adminPrintDimensionPath(orderId), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ line_item_id: lineItemId, side, dimension: next }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`)
+      onSaved(sideKey(lineItemId, side), next)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-y-1">
+      <Text size="xsmall" className="text-ui-fg-subtle">Print size</Text>
+      <div className="flex gap-1">
+        <Input size="small" value={draft} placeholder="e.g. 90 mm wide" onChange={(e) => setDraft(e.target.value)} />
+        <Button size="small" variant="secondary" isLoading={saving} disabled={draft.trim() === value} onClick={() => void save()}>
+          Save
+        </Button>
+      </div>
       {error ? <Text size="xsmall" className="text-ui-fg-error">{error}</Text> : null}
     </div>
   )
@@ -1472,6 +1539,15 @@ const OrderCustomizerDownloadsWidget = ({ data }: DetailWidgetProps<AdminOrder>)
                   lines={bareLines}
                   proofs={allProofs}
                   onProofsChange={handleProofsChange}
+                  printDimensions={printDimensions}
+                  onPrintDimensionSaved={(key, dimension) =>
+                    setPrintDimensions((prev) => {
+                      const next = { ...prev }
+                      if (dimension) next[key] = dimension
+                      else delete next[key]
+                      return next
+                    })
+                  }
                   onDesign={
                     storefrontUrl
                       ? (line, side) => {

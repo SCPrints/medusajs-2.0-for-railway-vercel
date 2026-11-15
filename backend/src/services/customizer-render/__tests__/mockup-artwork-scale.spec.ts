@@ -1,5 +1,5 @@
 import sharp from "sharp"
-import { mockupOutputSize, renderMockupAsset, scaledOverlayBox } from "../service"
+import { mockupOutputSize, renderMockupAsset, renderPrintAsset, scaledOverlayBox } from "../service"
 import { renderRequestSchema } from "../types"
 
 // No upload → data URL result. constants.ts reads env at import time, so
@@ -42,6 +42,13 @@ describe("mockup artwork scale", () => {
     expect(mockupOutputSize({ width: 2000, height: 2500 }).canvas).toEqual({ width: 2000, height: 2500 })
     const { width, height } = await renderMockupAsset(payload())
     expect([width, height]).toEqual([1280, 1600])
+  })
+
+  it("renders the print file at production size, not editor size (order #130: 77 px logo)", async () => {
+    // 40×10 editor-px logo on the 200×250 canvas → scaled 12× with the 3000 px frame.
+    const logo = { ...payload(), artworkSvg: `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect x="80" y="60" width="40" height="10" fill="#ff0000"/></svg>` }
+    const { width, height } = await renderPrintAsset(logo)
+    expect([width, height]).toEqual([480, 120])
   })
 
   it("leaves the mockup unchanged without a scale", async () => {
