@@ -161,3 +161,24 @@ console.log(`ok: matte ${matte.map(Math.round)}, darkest edge red ${minRed}, are
   for (let i = 3; i < a.length; i += 4) assert(a[i] === 0 || a[i] === 255, "halftone alpha is solid or empty");
   console.log("ok: thin-line check (hairline flagged, bar and corners not), dot angle + line screen");
 }
+
+// Paint fixes: brushed "keep" brings back plain black, brushed "remove" takes out art, in every on-black type
+// and at an upscale (the mask is scaled with the image).
+{
+  const N = 40, img = { width: N, height: N, data: new Uint8ClampedArray(N * N * 4) }, paint = { width: N, height: N, data: new Uint8Array(N * N) };
+  for (let i = 0; i < N * N; i++) {
+    const x = i % N, y = (i - x) / N;
+    img.data.set(x >= 20 && x < 36 && y >= 10 && y < 30 ? [240, 240, 240, 255] : [0, 0, 0, 255], i * 4);
+    if (x >= 4 && x < 14 && y >= 15 && y < 25) paint.data[i] = 1; // keep a patch of plain black
+    if (x >= 24 && x < 32 && y >= 16 && y < 24) paint.data[i] = 2; // punch a hole in the white square (bigger than a speck)
+  }
+  for (const method of ["knockout", "keep", "backing"]) for (const scale of [1, 2]) {
+    const out = darkArt(img, { method, scale, dot: 6, hug: 3, margin: 0, smooth: 0, specks: 0, paint }).image, W = out.width;
+    const a = (x, y) => out.data[((y * scale + scale / 2 | 0) * W + (x * scale + scale / 2 | 0)) * 4 + 3];
+    assert.strictEqual(a(9, 20), 255, `${method} ${scale}x: painted black kept`);
+    assert.strictEqual(a(28, 20), 0, `${method} ${scale}x: painted-away art removed`);
+    assert.strictEqual(a(22, 12), 255, `${method} ${scale}x: unpainted art untouched`);
+    assert.strictEqual(a(2, 37), 0, `${method} ${scale}x: unpainted black still removed`);
+  }
+  console.log("ok: paint fixes (keep + remove, all on-black types, 1x and 2x)");
+}

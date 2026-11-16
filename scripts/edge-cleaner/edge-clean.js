@@ -422,7 +422,8 @@
   //   backing: keep every pixel and cut one smooth outline round the whole design (a black patch).
   //     Works on any shirt colour.
   // hug / margin / smooth are image px; index.html sets them in proportion to the image (darkSizes).
-  var DARK_DEFAULTS = { method: "knockout", black: 18, fade: 52, dot: 8, angle: 45, shape: "round", hug: 30, margin: 8, artLevel: 40, smooth: 15, scale: 4, specks: 20 };
+  // paint: staff brush fixes, { width, height, data } at the input's size, data 0 = leave, 1 = keep as art, 2 = remove.
+  var DARK_DEFAULTS = { method: "knockout", black: 18, fade: 52, dot: 8, angle: 45, shape: "round", hug: 30, margin: 8, artLevel: 40, smooth: 15, scale: 4, specks: 20, paint: null };
   function darkSizes(w, h) { // starting outline sizes in proportion to the image, so a 4200 px file isn't treated like a 1500 px one
     var side = Math.max(w, h);
     return { hug: Math.round(side * 0.02), margin: Math.round(side * 0.005), smooth: Math.round(side * 0.01), max: Math.round(side * 0.08) };
@@ -465,10 +466,11 @@
 
   // Alpha -> print: colour darkened by the black is un-mixed, partial alpha becomes halftone dots.
   function dots(img, o) {
-    var w = img.width, d = img.data, n = w * img.height;
+    var w = img.width, d = img.data, n = w * img.height, pm = o.paint ? paintMap(o.paint, w) : null;
     var f = 2 * Math.PI / Math.max(2, o.dot), th = o.angle * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th), line = o.shape === "line";
     for (var i = 0; i < n; i++) { // clustered dots (or lines) on a screen turned by o.angle
       var p = i * 4, m = Math.max(d[p], d[p + 1], d[p + 2]), a = d[p + 3] / 255;
+      if (pm) a = pm[p + 1] >= 128 ? 0 : pm[p] >= 128 ? 1 : a; // painted: solid art / gone, with no dots at the brush edge
       if (a < 0.06) { d[p] = d[p + 1] = d[p + 2] = d[p + 3] = 0; continue; } // dots too small to print
       var k = Math.min(255 / Math.max(m, 1), 1 / a); // un-mix the black: seen = colour * a
       d[p] *= k; d[p + 1] *= k; d[p + 2] *= k;
@@ -478,8 +480,16 @@
     return { image: img, matte: null };
   }
 
+  // Paint mask scaled up to the output (bilinear, so a 0.5 cut gives a smooth brush edge): R = keep, G = remove.
+  function paintMap(pt, W) {
+    var n = pt.width * pt.height, img = { width: pt.width, height: pt.height, data: new Uint8ClampedArray(n * 4) };
+    for (var i = 0; i < n; i++) { img.data[i * 4] = pt.data[i] === 1 ? 255 : 0; img.data[i * 4 + 1] = pt.data[i] === 2 ? 255 : 0; img.data[i * 4 + 3] = 255; }
+    return W === pt.width ? img.data : upscale(img, Math.round(W / pt.width)).data;
+  }
+
   function backing(input, o) {
     var w = input.width, h = input.height, s = input.data, m = outlineMask(input, o, o.margin);
+    if (o.paint) for (var j = 0; j < w * h; j++) if (o.paint.data[j]) m[j] = o.paint.data[j] === 1 ? 255 : 0;
     var img = { width: w, height: h, data: new Uint8ClampedArray(s) };
     for (var i = 0; i < w * h; i++) img.data[i * 4 + 3] = Math.min(s[i * 4 + 3], m[i]);
     return clean(img, { scale: o.scale, smooth: 2, threshold: 128, choke: 0, defringe: 0, specks: o.specks, matte: "none" });
