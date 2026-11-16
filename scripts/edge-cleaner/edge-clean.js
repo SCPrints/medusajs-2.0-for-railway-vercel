@@ -109,11 +109,56 @@
     }
   }
 
-  // Replace the colour of the outer d px of every shape with colour pulled from further inside,
-  // one ring at a time. Shapes thinner than 2d keep their own innermost colour.
-  function defringe(img, m, d) {
-    var w = img.width, h = img.height, px = img.data, dist = new Int32Array(m.length), q = new Int32Array(m.length), head = 0, tail = 0;
+  // Colour repair, before the edge is touched. A pixel that was nearly see-through (alpha under `rel`) has
+  // no colour worth printing: pixels Smooth / Threshold added have none, and un-mixing the old background
+  // from a faint pixel blows its colour up (black specks on a white background, white specks on a dark
+  // one). Each one that ends up solid takes the colour of the nearest trustworthy art, spreading outward
+  // from it, up to `reach` px (so a long faint line joined to a shape keeps its own colour past that).
+  // img still holds the alpha from before smoothing. q = scratch Int32Array(pixels).
+  function repairColour(img, m, rel, reach, q) {
+    var w = img.width, h = img.height, px = img.data, n = m.length, lvl = new Uint8Array(n), head = 0, tail = 0, i, dx, dy, X, Y, j;
+    // lvl: 0 = not printed, 1 = trusted colour, 255 = needs colour, 2.. = filled (steps from trusted art + 1)
+    for (i = 0; i < n; i++) if (m[i]) lvl[i] = px[i * 4 + 3] < rel ? 255 : 1;
+    for (i = 0; i < n; i++) { // start from trusted pixels that touch one needing colour
+      if (lvl[i] !== 1) continue;
+      var x = i % w, y = (i - x) / w, edge = false;
+      for (dy = -1; dy <= 1 && !edge; dy++) for (dx = -1; dx <= 1; dx++) {
+        X = x + dx; Y = y + dy;
+        if (X >= 0 && Y >= 0 && X < w && Y < h && lvl[Y * w + X] === 255) { edge = true; break; }
+      }
+      if (edge) q[tail++] = i;
+    }
+    while (head < tail) {
+      var c = q[head++], L = lvl[c], cx = c % w, cy = (c - cx) / w, r = 0, g = 0, b = 0, cnt = 0;
+      for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) {
+        X = cx + dx; Y = cy + dy; j = Y * w + X;
+        if (X < 0 || Y < 0 || X >= w || Y >= h) continue;
+        if (lvl[j] === 255) { if (L <= reach) { lvl[j] = L + 1; q[tail++] = j; } }
+        else if (L > 1 && lvl[j] && lvl[j] < L) { r += px[j * 4]; g += px[j * 4 + 1]; b += px[j * 4 + 2]; cnt++; }
+      }
+      if (cnt) { px[c * 4] = r / cnt; px[c * 4 + 1] = g / cnt; px[c * 4 + 2] = b / cnt; }
+    }
+  }
+
+  // Is solid pixel i the colour further inside (`inner`) with some old background (`bg`) mixed in, i.e. a
+  // soft edge? It must sit on the line from inner to bg, part of the way along. A dark outline round a
+  // light fill is not on that line, and a pixel that is nearly all background colour yet solid is art.
+  function tinted(px, i, inner, bg) {
+    var ab = [bg[0] - inner[0], bg[1] - inner[1], bg[2] - inner[2]], len = ab[0] * ab[0] + ab[1] * ab[1] + ab[2] * ab[2];
+    if (len < 2500) return false; // inner colour is about the background colour: nothing to tell apart
+    var t = ((px[i] - inner[0]) * ab[0] + (px[i + 1] - inner[1]) * ab[1] + (px[i + 2] - inner[2]) * ab[2]) / len;
+    return t >= 0.1 && t <= 0.85 && dist(px, i, [inner[0] + t * ab[0], inner[1] + t * ab[1], inner[2] + t * ab[2]]) <= 40;
+  }
+
+  // Edge colour fix: recolour the outer d px of every shape with colour pulled from further inside, one
+  // ring at a time, but only pixels that carry the old background: ones that were see-through before the
+  // edge was rebuilt (alpha < 250), and solid ones that are plainly the inner colour mixed with the
+  // background (`matte`, when known). Other solid pixels are real art, so a dark outline next to a cut-out
+  // stays dark; recolouring everything smeared light streaks through outlines. img still holds that alpha.
+  function defringe(img, m, d, q, matte) {
+    var w = img.width, h = img.height, px = img.data, dist = new Int32Array(m.length), head = 0, tail = 0;
     for (var i = 0; i < m.length; i++) { if (m[i]) dist[i] = -1; else q[tail++] = i; }
+    var empty = tail;
     while (head < tail) {
       var c = q[head++], x = c % w, y = (c - x) / w;
       for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
@@ -121,18 +166,21 @@
         if (X >= 0 && Y >= 0 && X < w && Y < h && dist[j] === -1) { dist[j] = dist[c] + 1; q[tail++] = j; }
       }
     }
+    // Deepest first (the queue is in distance order), so every ring reads colour already fixed inside it.
     // Pixels touching the image border with no empty pixel nearby still got -1: treat as deep inside.
-    for (var L = d; L >= 1; L--) {
-      for (var p = 0; p < m.length; p++) {
-        if (dist[p] !== L) continue;
-        var px0 = p % w, py0 = (p - px0) / w, r = 0, g = 0, b = 0, n = 0;
-        for (var ey = -1; ey <= 1; ey++) for (var ex = -1; ex <= 1; ex++) {
-          var NX = px0 + ex, NY = py0 + ey, k = NY * w + NX;
-          if (NX < 0 || NY < 0 || NX >= w || NY >= h) continue;
-          if (dist[k] > L || dist[k] === -1) { r += px[k * 4]; g += px[k * 4 + 1]; b += px[k * 4 + 2]; n++; }
-        }
-        if (n) { px[p * 4] = r / n; px[p * 4 + 1] = g / n; px[p * 4 + 2] = b / n; }
+    for (var t = tail - 1; t >= empty; t--) {
+      var p = q[t], L = dist[p];
+      if (L > d) continue;
+      var px0 = p % w, py0 = (p - px0) / w, r = 0, g = 0, b = 0, n = 0;
+      for (var ey = -1; ey <= 1; ey++) for (var ex = -1; ex <= 1; ex++) {
+        var NX = px0 + ex, NY = py0 + ey, k = NY * w + NX;
+        if (NX < 0 || NY < 0 || NX >= w || NY >= h) continue;
+        if (dist[k] > L || dist[k] === -1) { r += px[k * 4]; g += px[k * 4 + 1]; b += px[k * 4 + 2]; n++; }
       }
+      if (!n) continue;
+      r /= n; g /= n; b /= n;
+      if (px[p * 4 + 3] >= 250 && !(matte && tinted(px, p * 4, [r, g, b], matte))) continue;
+      px[p * 4] = r; px[p * 4 + 1] = g; px[p * 4 + 2] = b;
     }
   }
 
@@ -434,11 +482,18 @@
     return o.method === "backing" ? backing(input, o) : o.method === "keep" ? keepDark(input, o) : knockout(input, o);
   }
   function ss(t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
+  // How much of a pixel prints, from its brightness. Solid from Black + Fade up. Below that the dots are that
+  // top brightness (see dots), so brightness / top keeps the tone true; the bottom third of the fade rolls
+  // off to nothing at Black so haze goes. (A plain ramp from Black dimmed soft glows and cut them short.)
+  function cover(mx, black, fade) {
+    var top = Math.min(255, black + fade);
+    return mx >= top ? 1 : mx / top * ss((mx - black) / (fade / 3));
+  }
 
   function knockout(input, o) {
     var img = o.scale > 1 ? upscale(input, o.scale) : { width: input.width, height: input.height, data: new Uint8ClampedArray(input.data) };
     var d = img.data, n = img.width * img.height, span = Math.max(1, o.fade);
-    for (var i = 0; i < n; i++) d[i * 4 + 3] *= ss((Math.max(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]) - o.black) / span);
+    for (var i = 0; i < n; i++) d[i * 4 + 3] *= cover(Math.max(d[i * 4], d[i * 4 + 1], d[i * 4 + 2]), o.black, span);
     return dots(img, o);
   }
 
@@ -455,7 +510,7 @@
     var inside = outlineMask(input, o, -Math.max(2, Math.round(Math.max(w, h) * 0.003)));
     var img = { width: w, height: h, data: new Uint8ClampedArray(s) }, d = img.data, span = Math.max(1, o.fade);
     for (i = 0; i < n; i++) {
-      var p = i * 4, mx = Math.max(s[p], s[p + 1], s[p + 2]), a = inside[i] ? 1 : ss((mx - o.black) / span);
+      var p = i * 4, mx = Math.max(s[p], s[p + 1], s[p + 2]), a = inside[i] ? 1 : cover(mx, o.black, span);
       // ponytail: fixed colour/texture thresholds sit just above clean black's noise (chroma 0, spread ~1.4);
       // tie them to the Black level slider if noisy JPEGs keep grey haze.
       if (a < 1 && mx > 9) a = Math.max(a, ss((mx - Math.min(s[p], s[p + 1], s[p + 2]) - 4) / 12), ss((Math.sqrt(Math.max(0, m2[i] - m1[i] * m1[i])) - 3) / 8));
@@ -468,11 +523,14 @@
   function dots(img, o) {
     var w = img.width, d = img.data, n = w * img.height, pm = o.paint ? paintMap(o.paint, w) : null;
     var f = 2 * Math.PI / Math.max(2, o.dot), th = o.angle * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th), line = o.shape === "line";
+    // A fading pixel is printed as dots no brighter than the top of the fade (Black + Fade), where solid art
+    // starts. Brightening it further turned dark grey into white specks, worse the higher Black went.
+    var top = Math.min(255, o.black + o.fade);
     for (var i = 0; i < n; i++) { // clustered dots (or lines) on a screen turned by o.angle
       var p = i * 4, m = Math.max(d[p], d[p + 1], d[p + 2]), a = d[p + 3] / 255;
       if (pm) a = pm[p + 1] >= 128 ? 0 : pm[p] >= 128 ? 1 : a; // painted: solid art / gone, with no dots at the brush edge
       if (a < 0.06) { d[p] = d[p + 1] = d[p + 2] = d[p + 3] = 0; continue; } // dots too small to print
-      var k = Math.min(255 / Math.max(m, 1), 1 / a); // un-mix the black: seen = colour * a
+      var k = Math.max(1, Math.min(top / Math.max(m, 1), 1 / a)); // un-mix the black: seen = colour * a
       d[p] *= k; d[p + 1] *= k; d[p + 2] *= k;
       var x = i % w, y = (i - x) / w, u = (x * cs + y * sn) * f, v = (y * cs - x * sn) * f;
       d[p + 3] = a >= 0.97 || a > 1 - (line ? Math.cos(u) / 2 + 0.5 : (Math.cos(u) + Math.cos(v)) / 4 + 0.5) ? 255 : 0;
@@ -538,7 +596,11 @@
     for (i = 0; i < a.length; i++) m[i] = a[i] >= o.threshold ? 1 : 0;
     if (o.specks > 0) removeSpecks(m, w, h, o.specks);
     if (o.choke > 0) erode(m, w, h, Math.round(o.choke));
-    if (o.defringe > 0) defringe(img, m, Math.round(o.defringe));
+    // d's alpha is still the one from before smoothing, which is what says whose colour can be trusted:
+    // under 96 (mostly old background) once a background was un-mixed, else only pixels with no colour.
+    var q = new Int32Array(a.length), sm = Math.round(o.smooth), fr = Math.round(o.defringe);
+    repairColour(img, m, matte ? 96 : 8, Math.max(8, 2 * sm + fr), q);
+    if (fr > 0) defringe(img, m, fr, q, matte);
 
     for (i = 0; i < m.length; i++) {
       if (m[i]) d[i * 4 + 3] = 255;

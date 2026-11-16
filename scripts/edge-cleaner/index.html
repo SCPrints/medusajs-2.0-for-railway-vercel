@@ -226,7 +226,7 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=11"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=12"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -238,7 +238,7 @@ const ROWS = { black: "keep knockout", dots: "keep knockout", hug: "keep backing
   angle: "keep knockout", shape: "keep knockout", artLevel: "keep backing", bSmooth: "keep backing" };
 const MAIN = { keep: ["black", "dots"], knockout: ["black", "dots"], backing: ["hug", "margin"] };
 const MIN_LINE_MM = 0.3; // thinner than this may not hold on a DTF transfer
-const UNITS = { smooth: " px", choke: " px", defringe: " px", specks: " px", threshold: "", black: "", fade: "", lpi: " per inch", dotpx: " px", artLevel: "", hug: " px", margin: " px", bSmooth: " px" };
+const UNITS = { smooth: "", choke: "", defringe: "", specks: "", threshold: "", black: "", fade: "", lpi: " per inch", dotpx: " px", artLevel: "", hug: " px", margin: " px", bSmooth: " px" };
 const BACKS = [["checker", "Transparent"], ["#ffffff", "White"], ["#000000", "Black"], ["#1e2a4a", "Navy"], ["#b91c1c", "Red"], ["#6b7280", "Grey"], ["#15803d", "Green"]];
 
 let paintMask = null; // brush fixes for the "on black" types, see Paint fixes
@@ -323,8 +323,9 @@ let kind = "flat";
 function setKind(k, auto) {
   kind = k;
   for (const b of $("kinds").children) b.classList.toggle("on", b.dataset.kind === k);
-  $("kindInfo").textContent = KIND_INFO[k];
   const dark = k !== "flat";
+  $("kindInfo").textContent = KIND_INFO[k] + (!dark && solid && original && Math.max(...EdgeClean.borderColour(original)) < 40
+    ? ' This art sits on black: Flat cuts out the dark parts of the design too and leaves holes. Use an "On black" type.' : "");
   $("flat1").hidden = $("flat2").hidden = dark; $("darkBox").hidden = $("darkAdv").hidden = !dark;
   $("darkTitle").textContent = k === "backing" ? "Outline" : "Black";
   if (dark) placeRows();
@@ -568,13 +569,17 @@ function capScale() {
   const max = Math.max(1, Math.floor(MAX_SIDE / Math.max(source.width, source.height)));
   for (const o of $("scale").options) o.disabled = +o.value > max;
   $("scale").value = Math.min(wantScale, max);
-  $("scaleInfo").textContent = max < 4 ? `Up to ${max}× for this image (output is capped at ${MAX_SIDE} px).` : "Smooth curves need room.";
+  $("scaleInfo").textContent = max < 4 ? `Up to ${max}× for this image (output is capped at ${MAX_SIDE} px). The edge settings adjust to match.` : "Smooth curves need room.";
 }
 $("scale").addEventListener("change", () => (wantScale = +$("scale").value));
 function settings() {
   if (kind !== "flat") return darkSettings();
   const o = { scale: +$("scale").value, minLinePx: MIN_LINE_MM / 25.4 * outPpi() };
-  for (const k of SLIDERS) o[k] = +$(k).value;
+  // The edge sliders are sized for a 4× upscale. Bigger files get less upscale (the output is capped), so the
+  // sizes shrink with it. Otherwise the same setting hits a 2× file twice as hard: the default Smooth wiped
+  // thin text off a 2800 px file. Smooth and Shrink round halves down, to side with keeping detail.
+  const f = o.scale / 4, fit = (v) => Math.max(0, Math.ceil(v * f - 0.5));
+  for (const k of SLIDERS) o[k] = k === "threshold" ? +$(k).value : k === "specks" ? Math.round(+$(k).value * f * f) : k === "defringe" ? Math.round(+$(k).value * f) : fit(+$(k).value);
   const m = $("matte").value;
   o.matte = m === "black" ? [0, 0, 0] : m === "white" ? [255, 255, 255] : m === "custom" ? hexRgb($("matteColour").value) : m;
   return o;

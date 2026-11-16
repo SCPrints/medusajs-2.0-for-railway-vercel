@@ -182,3 +182,50 @@ console.log(`ok: matte ${matte.map(Math.round)}, darkest edge red ${minRed}, are
   }
   console.log("ok: paint fixes (keep + remove, all on-black types, 1x and 2x)");
 }
+
+// Sliders that fought each other (2026-11-17):
+// 1. Knock-out with Black raised: dark grey must fade out, not turn into white specks.
+{
+  const n = 30 * 30, g = new Uint8ClampedArray(n * 4);
+  for (let i = 0; i < n; i++) { g[i * 4] = g[i * 4 + 1] = g[i * 4 + 2] = 50; g[i * 4 + 3] = 255; }
+  const out = darkArt({ width: 30, height: 30, data: g }, { method: "knockout", scale: 1, black: 40, fade: 52, dot: 6 }).image.data;
+  for (let i = 0; i < out.length; i += 4) if (out[i + 3]) assert(out[i] <= 92, "dark grey became a bright dot: " + out[i]);
+}
+// 2. Edge colour fix leaves solid art alone: a dark solid outline round a white fill, next to a cut, stays dark.
+{
+  const w = 30, img = new Uint8ClampedArray(w * w * 4);
+  for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4, r = Math.max(Math.abs(x - 15), Math.abs(y - 15));
+    if (r > 10) continue; // empty round the square
+    const v = r > 7 ? 20 : 255; img[i] = img[i + 1] = img[i + 2] = v; img[i + 3] = 255; // 3 px dark outline, white inside
+  }
+  for (const matte of ["none", [255, 255, 255]]) { // with no background known, and cut from white
+    const o = clean({ width: w, height: w, data: img }, { scale: 2, matte, choke: 0, defringe: 8 }).image;
+    const at = (x, y) => o.data[(y * o.width + x) * 4];
+    assert(at(30, 11) < 60, "dark outline turned light: " + at(30, 11));
+  }
+}
+// ...but a solid pixel that is the art mixed with the old background (a soft edge cut from white) is fixed.
+{
+  const w = 30, img = new Uint8ClampedArray(w * w * 4);
+  for (let y = 0; y < w; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4, r = Math.max(Math.abs(x - 15), Math.abs(y - 15));
+    if (r > 10) continue;
+    const mix = r === 10 ? 0.5 : 0; // outermost ring: red half mixed with white, but fully solid
+    img[i] = 200 + 55 * mix; img[i + 1] = img[i + 2] = 30 + 225 * mix; img[i + 3] = 255;
+  }
+  const o = clean({ width: w, height: w, data: img }, { scale: 2, matte: [255, 255, 255], choke: 0 }).image, p = (30 * o.width + 10) * 4;
+  assert(o.data[p + 3] === 255 && o.data[p + 1] < 70, "pale edge ring left on a red square: green = " + o.data[p + 1]);
+}
+console.log("ok: knock-out keeps dark grey dark, edge colour fix keeps solid outlines and fixes pale edges");
+// 3. A nearly see-through pixel that Smooth fills in takes the colour of the art round it, not its own
+//    blown-up colour: a faint 3 px hole in a red square on a white background must come out red.
+{
+  const w = 30, img = new Uint8ClampedArray(w * w * 4);
+  for (let y = 4; y < 26; y++) for (let x = 4; x < 26; x++) { const i = (y * w + x) * 4; img[i] = 200; img[i + 1] = 30; img[i + 2] = 30; img[i + 3] = 255; }
+  for (let y = 14; y <= 16; y++) for (let x = 14; x <= 16; x++) { const i = (y * w + x) * 4; img[i] = 235; img[i + 1] = 240; img[i + 2] = 250; img[i + 3] = 20; } // faint, mostly white: un-mixes to blue
+  const o = clean({ width: w, height: w, data: img }, { scale: 2, matte: [255, 255, 255] }).image, p = (31 * o.width + 31) * 4;
+  assert(o.data[p + 3] === 255, "pinhole should be filled in");
+  assert(o.data[p] > 170 && o.data[p + 1] < 70 && o.data[p + 2] < 70, "filled pinhole has the wrong colour: " + [o.data[p], o.data[p + 1], o.data[p + 2]]);
+}
+console.log("ok: faint pixels take the colour of the art round them");
