@@ -104,15 +104,15 @@ console.log(`ok: matte ${matte.map(Math.round)}, darkest edge red ${minRed}, are
   console.log("ok: gap review (navy pocket ticked, yellow-rimmed patch kept)");
 }
 
-// Scraps: a white speck in the navy outline band is painted navy; a white sparkle in a small dark eye
-// (enclosed by yellow) is art and stays.
+// Scraps: a white hairline (2 px wide) in the navy outline band is painted navy; a white sparkle in a
+// small dark eye (enclosed by yellow) is art and stays.
 {
   const W2 = 80, H2 = 40, img = { width: W2, height: H2, data: new Uint8ClampedArray(W2 * H2 * 4) };
   const navy = [20, 24, 80, 255], white = [250, 250, 248, 255];
   for (let i = 0; i < W2 * H2; i++) {
     const x = i % W2, y = (i - x) / W2;
     let c = [0, 0, 0, 0];
-    if (x >= 5 && x < 35 && y >= 5 && y < 35) c = x >= 14 && x < 17 && y >= 14 && y < 17 ? white : navy;
+    if (x >= 5 && x < 35 && y >= 5 && y < 35) c = x >= 14 && x < 16 && y >= 14 && y < 20 ? white : navy;
     if (x >= 40 && x < 76 && y >= 5 && y < 35) {
       c = x === 40 || x === 75 || y === 5 || y === 34 ? navy : [255, 210, 31, 255];
       if (x >= 55 && x < 61 && y >= 15 && y < 21) c = x >= 57 && x < 59 && y >= 17 && y < 19 ? white : navy;
@@ -120,7 +120,7 @@ console.log(`ok: matte ${matte.map(Math.round)}, darkest edge red ${minRed}, are
     img.data.set(c, i * 4);
   }
   const out = fillScraps(img, [246, 246, 239], [20, 24, 80], 40, 100).image.data;
-  assert(out[(15 * W2 + 15) * 4] < 60, "speck in the outline band is painted navy");
+  assert(out[(15 * W2 + 15) * 4] < 60, "hairline in the outline band is painted navy");
   assert(out[(17 * W2 + 57) * 4] > 200, "eye sparkle stays white");
   console.log("ok: scraps filled in the outline band, eye sparkle kept");
 }
@@ -229,3 +229,62 @@ console.log("ok: knock-out keeps dark grey dark, edge colour fix keeps solid out
   assert(o.data[p] > 170 && o.data[p + 1] < 70 && o.data[p + 2] < 70, "filled pinhole has the wrong colour: " + [o.data[p], o.data[p + 1], o.data[p + 2]]);
 }
 console.log("ok: faint pixels take the colour of the art round them");
+
+// White parts of a design on a white background. One black block holding five white patches:
+// an empty one (a gap: ticked), one with an eye drawn inside (a face: kept), a shaded one (kept),
+// a 12 px bandage (wide: never painted over) and a 2 px hairline (too thin to cut: painted black).
+{
+  const { removeRegions } = require("./edge-clean.js");
+  const Wd = 140, Hd = 100, img = { width: Wd, height: Hd, data: new Uint8ClampedArray(Wd * Hd * 4) };
+  const box = (x, y, x0, y0, w, h) => x >= x0 && x < x0 + w && y >= y0 && y < y0 + h;
+  for (let i = 0; i < Wd * Hd; i++) {
+    const x = i % Wd, y = (i - x) / Wd;
+    let c = box(x, y, 10, 10, 120, 80) ? [0, 0, 0] : [255, 255, 255];
+    if (box(x, y, 20, 20, 20, 20) || box(x, y, 50, 20, 30, 30) || box(x, y, 20, 60, 12, 12) || box(x, y, 60, 60, 2, 20)) c = [255, 255, 255];
+    if (box(x, y, 62, 32, 6, 6)) c = [0, 0, 0]; // the eye
+    if (box(x, y, 90, 20, 20, 20)) c = [245, 240, 232];
+    img.data.set([...c, 255], i * 4);
+  }
+  const out = removeOutside(img, 40, true), g = findGaps(out.image, out.ref, 40, 15), reg = (x, y) => g.regions[g.labels[y * Wd + x] - 1];
+  assert.strictEqual(g.regions.length, 4, "four areas for review (the hairline is too thin to list), got " + g.regions.length);
+  assert(reg(30, 30).likely, "an empty white pocket in the outline is a gap");
+  assert(!reg(55, 25).likely, "a white area with something drawn inside it is part of the design");
+  assert(!reg(100, 30).likely, "a shaded area is not the background's flat colour");
+  const fl = fillScraps(out.image, out.ref, g.outline, 40, 400, null).image, red = (x, y) => fl.data[(y * Wd + x) * 4];
+  assert(red(26, 66) > 200, "a wide white patch must not be painted the outline colour");
+  assert(red(60, 70) < 60 && red(61, 70) < 60, "a hairline in the outline is painted over");
+  // removing one area must leave the others alone
+  const cut = removeRegions(out.image, g.labels, g.regions.map((r) => r === reg(30, 30)), 40, out.ref);
+  assert.strictEqual(cut.data[(30 * Wd + 30) * 4 + 3], 0, "ticked area removed");
+  assert.strictEqual(cut.data[(66 * Wd + 26) * 4 + 3], 255, "unticked area kept");
+  console.log("ok: white parts of the design (face and shaded area kept, wide patch not painted, hairline filled)");
+}
+
+// A break in an outline. Two white boxes drawn with a 2 px black line, each with a 3 px break at the top,
+// plus two bars 3 px apart. The plain flood runs in through the breaks and deletes both boxes. With the
+// necks sealed they are held for review, the hairline channel between the bars is still removed, and
+// removing one box leaves the other.
+{
+  const { removeRegions } = require("./edge-clean.js");
+  const Wd = 150, Hd = 80, img = { width: Wd, height: Hd, data: new Uint8ClampedArray(Wd * Hd * 4) };
+  const ring = (x, y, x0, y0, x1, y1) => x >= x0 && x <= x1 && y >= y0 && y <= y1 && !(x >= x0 + 2 && x <= x1 - 2 && y >= y0 + 2 && y <= y1 - 2);
+  for (let i = 0; i < Wd * Hd; i++) {
+    const x = i % Wd, y = (i - x) / Wd;
+    let black = ring(x, y, 30, 10, 75, 70) || ring(x, y, 95, 10, 140, 70) || (y >= 10 && y <= 70 && (x >= 6 && x <= 9 || x >= 13 && x <= 16));
+    if (y <= 11 && (x >= 51 && x <= 53 || x >= 116 && x <= 118)) black = false; // the breaks
+    img.data.set(black ? [0, 0, 0, 255] : [255, 255, 255, 255], i * 4);
+  }
+  const al = (im, x, y) => im.data[(y * Wd + x) * 4 + 3];
+  assert.strictEqual(al(removeOutside(img, 40).image, 52, 40), 0, "plain flood gets in through the break");
+  const out = removeOutside(img, 40, true);
+  assert.strictEqual(al(out.image, 52, 40), 255, "area behind a narrow opening is held for review");
+  assert.strictEqual(al(out.image, 117, 40), 255, "second area held too");
+  assert.strictEqual(al(out.image, 11, 40), 0, "a hairline channel is still removed");
+  assert.strictEqual(al(out.image, 85, 40), 0, "open background is still removed");
+  const g = findGaps(out.image, out.ref, 40, 15);
+  assert.strictEqual(g.regions.length, 2, "both held areas are listed for review, got " + g.regions.length);
+  const first = g.regions[g.labels[40 * Wd + 52] - 1], cut = removeRegions(out.image, g.labels, g.regions.map((r) => r === first), 40, out.ref);
+  assert.strictEqual(al(cut, 52, 40), 0, "ticked area removed");
+  assert.strictEqual(al(cut, 117, 40), 255, "the other area must stay (a flood from a seed would cross the background into it)");
+  console.log("ok: breaks in an outline (areas held for review, hairline channel removed, one removal leaves the rest)");
+}

@@ -226,7 +226,7 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=12"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=13"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -355,7 +355,9 @@ $("kindInfo").textContent = KIND_INFO.flat;
 
 function autoRemove() {
   endReview();
-  const tol = +$("tol").value, out = EdgeClean.removeOutside(source, tol);
+  // With the gap check on, areas the background only reaches through a small break in an outline are
+  // held back and shown in the review with the enclosed gaps, not deleted unseen.
+  const tol = +$("tol").value, out = EdgeClean.removeOutside(source, tol, $("gapCheck").checked);
   note = "Removed the background. Click to erase anything left, or switch to \"Bring art back\".";
   applyRemoval(out);
   if (!$("gapCheck").checked) return;
@@ -416,12 +418,12 @@ $("gapToggle").onclick = () => { const r = review.regions[review.cur]; r.remove 
 $("gapAll").onclick = () => { review.regions.forEach((r) => (r.remove = true)); showReview(); };
 $("gapNone").onclick = () => { review.regions.forEach((r) => { r.remove = false; r.chosen = true; }); showReview(); };
 $("gapApply").onclick = () => {
-  const seeds = review.regions.filter((r) => r.remove).map((r) => r.seed), { ref, tol, outline: rim, labels, regions } = review;
-  const kept = new Uint8Array(labels.length); // gaps staff switched to keep are never painted over
-  for (let i = 0; i < labels.length; i++) kept[i] = labels[i] && regions[labels[i] - 1].chosen && !regions[labels[i] - 1].remove ? 1 : 0;
+  const { ref, tol, outline: rim, labels, regions } = review, removed = regions.filter((r) => r.remove).length;
+  const kept = new Uint8Array(labels.length); // every area the review showed as kept stays exactly as shown
+  for (let i = 0; i < labels.length; i++) kept[i] = labels[i] && !regions[labels[i] - 1].remove ? 1 : 0;
   endReview();
-  note = `Removed ${seeds.length} gap${seeds.length === 1 ? "" : "s"} and filled the specks too small to cut. Click to erase anything left, or switch to "Bring art back".`;
-  const cut = seeds.length ? EdgeClean.removeBackground(source, seeds, tol, ref) : source;
+  note = `Removed ${removed} gap${removed === 1 ? "" : "s"} and filled the specks too small to cut. Click to erase anything left, or switch to "Bring art back".`;
+  const cut = EdgeClean.removeRegions(source, labels, regions.map((r) => r.remove), tol, ref);
   applyRemoval({ image: fillScraps(cut, ref, rim, tol, kept) });
 };
 // Specks of old background too small to cut (under the gap check's size, or hairlines where two

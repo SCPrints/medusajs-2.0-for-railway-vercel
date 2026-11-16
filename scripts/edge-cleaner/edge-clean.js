@@ -244,9 +244,71 @@
       return v[v.length >> 1];
     });
   }
-  function removeOutside(img, tol) {
-    var ref = borderColour(img);
-    return { image: removeBackground(img, borderPixels(img), tol, ref), ref: ref };
+  // sealNecks: sketchy line art has small breaks in its outlines, and the flood gets through them into
+  // white parts of the design (trousers, a sleeve) and deletes them with no warning. With sealNecks, any
+  // area the flood only reaches by squeezing through an opening narrower than about 2k px is held back
+  // and left solid, so findGaps lists it for review like an enclosed gap. Hairline channels (between two
+  // letters) are still removed as before.
+  function removeOutside(img, tol, sealNecks) {
+    var ref = borderColour(img), w = img.width, h = img.height, n = w * h, d = img.data, border = borderPixels(img);
+    var gone = flood(w, n, border, function (i) { return d[i * 4 + 3] === 0 || dist(d, i * 4, ref) <= tol; });
+    if (sealNecks) holdPockets(gone, w, h, border, neckSize(w, h));
+    return { image: cutMask(img, gone, tol, ref), ref: ref };
+  }
+
+  // 1 where every pixel within k (in a square) is 1. Past the image edge counts as 1.
+  function shrinkMask(m, w, h, k) {
+    var t = new Uint8Array(m.length), o = new Uint8Array(m.length), x, y, last;
+    for (y = 0; y < h; y++) { // rows: distance to the nearest 0, from the left then from the right
+      for (last = -1e9, x = 0; x < w; x++) { if (!m[y * w + x]) last = x; t[y * w + x] = x - last > k ? 1 : 0; }
+      for (last = 1e9, x = w - 1; x >= 0; x--) { if (!m[y * w + x]) last = x; if (last - x <= k) t[y * w + x] = 0; }
+    }
+    for (x = 0; x < w; x++) {
+      for (last = -1e9, y = 0; y < h; y++) { if (!t[y * w + x]) last = y; o[y * w + x] = y - last > k ? 1 : 0; }
+      for (last = 1e9, y = h - 1; y >= 0; y--) { if (!t[y * w + x]) last = y; if (last - y <= k) o[y * w + x] = 0; }
+    }
+    return o;
+  }
+
+  // Clears from `gone` (the flood's 0/1 answer) the pockets it only reached through a narrow opening.
+  function holdPockets(gone, w, h, border, k) {
+    var n = w * h, core = shrinkMask(gone, w, h, k);
+    // The open background: where a (2k+1) px square fits, walking in from the border, grown back by k.
+    var open = flood(w, n, border, function (i) { return core[i] === 1; }), q = new Int32Array(n), head = 0, tail = 0, i, c, x, j, dx, dy;
+    for (i = 0; i < n; i++) if (open[i]) q[tail++] = i;
+    for (var step = 0; step < k; step++) {
+      for (var end = tail; head < end; head++) {
+        c = q[head]; x = c % w;
+        for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) {
+          j = c + dy * w + dx;
+          if (x + dx >= 0 && x + dx < w && j >= 0 && j < n && gone[j] && !open[j]) { open[j] = 1; q[tail++] = j; }
+        }
+      }
+    }
+    // What's left was reached through a neck. Hairlines and specks stay removed; real areas are held back.
+    var own = new Uint8Array(n);
+    for (var s = 0; s < n; s++) {
+      if (!gone[s] || open[s]) continue;
+      head = 0; tail = 0; q[tail++] = s; open[s] = 1;
+      while (head < tail) {
+        c = q[head++]; x = c % w;
+        var nb = [x > 0 ? c - 1 : -1, x < w - 1 ? c + 1 : -1, c - w, c + w];
+        for (var m = 0; m < 4; m++) { j = nb[m]; if (j >= 0 && j < n && gone[j] && !open[j]) { open[j] = 1; q[tail++] = j; } }
+      }
+      if (!thinPatch(q, tail, w, n, k, own)) for (i = 0; i < tail; i++) gone[q[i]] = 0;
+    }
+  }
+
+  // Remove the areas of findGaps' answer whose flag is set (remove[k] for regions[k]), by their own pixels.
+  // A flood from a seed would also walk across the removed background into every other area that touches it.
+  function removeRegions(img, labels, remove, tol, ref) {
+    var gone = new Uint8Array(labels.length), any = false;
+    for (var i = 0; i < labels.length; i++) if (labels[i] && remove[labels[i] - 1]) { gone[i] = 1; any = true; }
+    if (!any) return img;
+    var out = cutMask(img, gone, tol, ref);
+    // cutMask fades the pixels touching a removed area; a kept area that touches one at a corner stays whole
+    for (i = 0; i < labels.length; i++) if (labels[i] && !gone[i]) out.data[i * 4 + 3] = img.data[i * 4 + 3];
+    return out;
   }
 
   // One click: remove the region connected to pixel i, matched to that pixel's colour.
@@ -274,14 +336,47 @@
     return t >= 0.15 && dist(d, i, [a[0] + t * ab[0], a[1] + t * ab[1], a[2] + t * ab[2]]) <= 50;
   }
 
-  // Every enclosed patch of the background colour (minArea px or more), for staff to review.
-  // likely = its surroundings are mostly the art's outline colour (the colour that rims the cut-out),
-  // which is what a pocket between letters looks like. A white area inside the outline (a cloud,
-  // eye whites) can look the same, hence the review.
+  // Layers to peel before a patch counts as too thin to cut cleanly: 1, so up to 2 px wide. Anything
+  // wider cuts fine and may be art (a skeleton's ribs, fingers, whiskers), so it is never painted over.
+  var THIN = 1;
+  // A break in an outline counts as narrow up to about twice this many px: 5 px on a 1000 px file, 7 px
+  // on 2400. It grows with the file because the same drawing has wider breaks at a higher resolution.
+  function neckSize(w, h) { return Math.max(2, Math.round(Math.max(w, h) / 800)); }
+
+  // Is the patch q[0..count) a hairline or a speck, i.e. gone once `passes` layers are peeled off it?
+  // own = scratch Uint8Array(pixels), all 0 on entry and on exit.
+  function thinPatch(q, count, w, n, passes, own) {
+    var i, c, x, left = count;
+    for (i = 0; i < count; i++) own[q[i]] = 1;
+    for (var p = 0; p < passes && left; p++) {
+      for (i = 0; i < count; i++) { // 1 = still there, 3 = goes in this pass (still counts as there), 2 = peeled
+        c = q[i];
+        if (own[c] !== 1) continue;
+        x = c % w;
+        if (x === 0 || x === w - 1 || c < w || c >= n - w || own[c - 1] % 2 === 0 || own[c + 1] % 2 === 0 || own[c - w] % 2 === 0 || own[c + w] % 2 === 0) own[c] = 3;
+      }
+      for (i = 0; i < count; i++) if (own[q[i]] === 3) { own[q[i]] = 2; left--; }
+    }
+    for (i = 0; i < count; i++) own[q[i]] = 0;
+    return !left;
+  }
+
+  // Every enclosed patch of the background colour (minArea px or more), for staff to review. Hairlines and
+  // specks are left out: they are too thin to cut, and fillScraps deals with them.
+  // likely = a real gap, ticked for removal. It must be ringed mostly by the art's outline colour (the
+  // colour that rims the cut-out), be the same flat colour as the background that was removed, and have
+  // nothing drawn inside it. A face, a skull or a speech bubble has eyes or letters inside, so it is part
+  // of the design and stays unless staff tick it. A white area with nothing in it (a plain dress, white
+  // lettering) still looks exactly like a gap, hence the review.
   // Returns { labels: Int32Array (region index + 1 per pixel, 0 = none), regions: [{ seed, size, likely, box }] }.
   function findGaps(img, ref, tol, minArea) {
     var w = img.width, h = img.height, d = img.data, n = w * h, rim = [];
-    var labels = new Int32Array(n), regions = [];
+    var labels = new Int32Array(n), regions = [], own = new Uint8Array(n), passes = THIN;
+    var bgSum = 0, bgN = 0;
+    for (var b = 0; b < n; b++) if (!d[b * 4 + 3]) { bgSum += dist(d, b * 4, ref); bgN++; }
+    // How far the removed background itself strays from its colour (JPEG noise, paper grain). A gap is
+    // the same paper, so it strays about as little; shaded or cream art strays more.
+    var paper = Math.min(tol * 0.5, Math.max(6, 3 * (bgN ? bgSum / bgN : 0)));
     function solid(i) { return d[i * 4 + 3] === 255; }
     function nbrs(i) {
       var x = i % w, r = [];
@@ -296,7 +391,8 @@
     var outline = rim.length ? commonest(rim) : null, seen = new Uint8Array(n), q = new Int32Array(n);
     for (var s = 0; s < n; s++) {
       if (seen[s] || !solid(s) || dist(d, s * 4, ref) > tol) continue;
-      var head = 0, tail = 0, edge = 0, rimLike = 0, off = 0, x0 = w, y0 = h, x1 = 0, y1 = 0;
+      // The pixels round the patch are kept at the far end of q (they never overlap the patch itself).
+      var head = 0, tail = 0, edge = 0, rimLike = 0, off = 0, x0 = w, y0 = h, x1 = 0, y1 = 0, ring = 0;
       seen[s] = 1; q[tail++] = s;
       while (head < tail) {
         var c = q[head++], cx = c % w, cy = (c - cx) / w, nb2 = nbrs(c);
@@ -305,26 +401,45 @@
         for (var m = 0; m < nb2.length; m++) {
           var j = nb2[m];
           if (seen[j]) continue;
-          if (solid(j) && dist(d, j * 4, ref) <= tol) { seen[j] = 1; q[tail++] = j; }
-          else if (solid(j)) { edge++; if (outline && onBlend(d, j * 4, ref, outline)) rimLike++; }
+          if (solid(j) && dist(d, j * 4, ref) <= tol) { seen[j] = 1; q[tail++] = j; continue; }
+          if (solid(j)) { edge++; if (outline && onBlend(d, j * 4, ref, outline)) rimLike++; }
+          if (!own[j]) { own[j] = 1; q[n - 1 - ring++] = j; }
         }
       }
-      if (tail < minArea) continue;
-      // A real pocket is ringed by the outline AND is the background's flat colour. Shading or
-      // a different rim (light blue round a cloud's white) means it's part of the art.
+      // Something drawn inside the patch? Its surroundings then come in more than one piece: the loop
+      // round the outside (it holds the pixel above the seed, the patch's top-left pixel) plus one piece
+      // per thing inside. Count the pixels of the inside pieces; a few stray ones are just noise.
+      var inside = 0;
+      if (tail >= minArea && s >= w && own[s - w]) {
+        var st = [s - w], outer = 1; own[s - w] = 2;
+        while (st.length) {
+          var rc = st.pop(), rx = rc % w;
+          for (var ry = -1; ry <= 1; ry++) for (var rxx = -1; rxx <= 1; rxx++) {
+            var rj = rc + ry * w + rxx;
+            if (rx + rxx < 0 || rx + rxx >= w || rj < 0 || rj >= n || own[rj] !== 1) continue;
+            own[rj] = 2; outer++; st.push(rj);
+          }
+        }
+        inside = ring - outer;
+      }
+      for (var rr = 0; rr < ring; rr++) own[q[n - 1 - rr]] = 0;
+      if (tail < minArea || thinPatch(q, tail, w, n, passes, own)) continue;
       // ponytail: fixed cut-offs; tune here if review keeps flipping the same kind of patch.
-      var likely = edge > 0 && rimLike / edge >= 0.6 && off / tail <= tol * 0.5;
+      var likely = edge > 0 && rimLike / edge >= 0.6 && off / tail <= paper && inside < 8;
       regions.push({ seed: s, size: tail, likely: likely, box: [x0, y0, x1, y1] });
       for (var p = 0; p < tail; p++) labels[q[p]] = regions.length;
     }
     return { labels: labels, regions: regions, outline: outline };
   }
 
-  // Scraps of background too small to cut cleanly (pockets under the review size, hairline slivers
-  // where two outlines nearly touch) get painted the colour of the outline round them instead. A scrap qualifies when
-  // it's background-ish (near ref, or a blend leaning toward ref) and is mostly ringed by the outline,
-  // so letter highlights (ringed by the letter colour) and eye catch-lights (ringed by black) stay.
-  // keep (optional 0/1 mask): pixels never painted, e.g. gaps staff chose to keep, or protected colour.
+  // Scraps of background too small to cut cleanly (specks, hairline slivers where two outlines nearly
+  // touch) get painted the colour of the outline round them instead. A scrap qualifies when it's
+  // background-ish (near ref, or a blend leaning toward ref), is mostly ringed by the outline, so letter
+  // highlights (ringed by the letter colour) and eye catch-lights (ringed by black) stay, AND is a
+  // hairline (thinPatch: up to 2 px wide). Anything wider is left exactly as the customer drew it: it is
+  // either a gap for the review or white art (a bandage, a rib, a tooth, the cells of a wrapped arm).
+  // Painting by area instead turned those black, small ones included.
+  // keep (optional 0/1 mask): pixels never painted: every area the review showed and kept, protected colour.
   // Returns { image, filled: count }.
   function fillScraps(img, ref, outline, tol, maxArea, keep) {
     if (!outline) return { image: img, filled: 0 };
@@ -357,7 +472,7 @@
       }
       return false;
     }
-    var seen = new Uint8Array(n), q = new Int32Array(n), filled = 0;
+    var seen = new Uint8Array(n), q = new Int32Array(n), filled = 0, own = new Uint8Array(n), passes = THIN;
     for (var s = 0; s < n; s++) {
       if (seen[s] || !light(s)) continue;
       var head = 0, tail = 0, edge = 0, rimLike = 0, sum = [0, 0, 0];
@@ -375,6 +490,7 @@
         }
       }
       if (tail > maxArea || !edge || rimLike / edge < 0.6) continue; // big (the cloud) or not ringed by the outline
+      if (!thinPatch(q, tail, w, n, passes, own)) continue; // wider than a hairline: leave it
       if (!inOutlineBand(q, tail)) continue; // a white sparkle in a dark eye or mouth: the dark is enclosed by art
       for (var ring = 0, from = 0; ring < 2; ring++) { // plus its soft edge: up to 2 px of cream-to-outline blend round it
         var end = tail;
@@ -382,7 +498,7 @@
           var rc = q[r], rx = rc % w, rn = [rx > 0 ? rc - 1 : -1, rx < w - 1 ? rc + 1 : -1, rc - w, rc + w];
           for (var rk = 0; rk < 4; rk++) {
             var rj = rn[rk];
-            if (rj >= 0 && rj < n && !seen[rj] && d[rj * 4 + 3] === 255 && onBlend(d, rj * 4, ref, outline)) { seen[rj] = 1; q[tail++] = rj; }
+            if (rj >= 0 && rj < n && !seen[rj] && !(keep && keep[rj]) && d[rj * 4 + 3] === 255 && onBlend(d, rj * 4, ref, outline)) { seen[rj] = 1; q[tail++] = rj; }
           }
         }
         from = end;
@@ -406,8 +522,8 @@
 
   // Remove the likely pockets without review (used by the self-check).
   function removeGaps(img, ref, tol, minArea) {
-    var g = findGaps(img, ref, tol, minArea), seeds = g.regions.filter(function (r) { return r.likely; }).map(function (r) { return r.seed; });
-    return { image: seeds.length ? removeBackground(img, seeds, tol, ref) : img, ref: ref, removed: seeds.length, outline: g.outline };
+    var g = findGaps(img, ref, tol, minArea), flags = g.regions.map(function (r) { return r.likely; });
+    return { image: removeRegions(img, g.labels, flags, tol, ref), ref: ref, removed: flags.filter(Boolean).length, outline: g.outline };
   }
 
   // Undo removal for one area: the patch of the ORIGINAL image connected to pixel i, near its colour.
@@ -646,6 +762,6 @@
     return out;
   }
 
-  var api = { process: process, thinLines: thinLines, clean: clean, removeOutside: removeOutside, removeAt: removeAt, removeGaps: removeGaps, findGaps: findGaps, fillScraps: fillScraps, darkArt: darkArt, darkSizes: darkSizes, borderColour: borderColour, DARK_DEFAULTS: DARK_DEFAULTS, removeBackground: removeBackground, restoreAt: restoreAt, selectAt: selectAt, selectSimilar: selectSimilar, eraseMask: eraseMask, estimateMatte: estimateMatte, upscale: upscale, DEFAULTS: DEFAULTS };
+  var api = { process: process, thinLines: thinLines, clean: clean, removeOutside: removeOutside, removeAt: removeAt, removeGaps: removeGaps, findGaps: findGaps, removeRegions: removeRegions, fillScraps: fillScraps, darkArt: darkArt, darkSizes: darkSizes, borderColour: borderColour, DARK_DEFAULTS: DARK_DEFAULTS, removeBackground: removeBackground, restoreAt: restoreAt, selectAt: selectAt, selectSimilar: selectSimilar, eraseMask: eraseMask, estimateMatte: estimateMatte, upscale: upscale, DEFAULTS: DEFAULTS };
   return api;
 });
