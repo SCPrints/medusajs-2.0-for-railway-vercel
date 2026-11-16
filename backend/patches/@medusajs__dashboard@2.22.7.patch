@@ -1,8 +1,8 @@
-diff --git a/dist/chunk-HUTZEPPT.mjs b/dist/chunk-HUTZEPPT.mjs
-index 26395493645fe877dfc89543647ca5b957d94382..9356bc749359b20357ac9c26dd5c79725c109994 100644
---- a/dist/chunk-HUTZEPPT.mjs
-+++ b/dist/chunk-HUTZEPPT.mjs
-@@ -136591,12 +136591,13 @@ var NavItem = ({
+diff --git a/dist/chunk-5RT26WHA.mjs b/dist/chunk-5RT26WHA.mjs
+index b1047aa5f5df77aa46ff5b791979e36c629311af..dd301ba653d3f7320d1064df45e4d5d05f0918ba 100644
+--- a/dist/chunk-5RT26WHA.mjs
++++ b/dist/chunk-5RT26WHA.mjs
+@@ -144186,12 +144186,13 @@ var NavItem = ({
  }) => {
    const { t: t2 } = useTranslation6(translationNs);
    const { pathname, search } = useLocation4();
@@ -19,6 +19,41 @@ index 26395493645fe877dfc89543647ca5b957d94382..9356bc749359b20357ac9c26dd5c7972
    const navLinkClassNames = useCallback3(
      ({
        to: to2,
+diff --git a/dist/chunk-CGX53VUJ.mjs b/dist/chunk-CGX53VUJ.mjs
+index d716fe099bc569f26ae17dafed0ff3d5b10ca838..58695ead1e9858d9c56a3febd4734f1be498a060 100644
+--- a/dist/chunk-CGX53VUJ.mjs
++++ b/dist/chunk-CGX53VUJ.mjs
+@@ -9,6 +9,9 @@ import {
+ import { useTranslation } from "react-i18next";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ var ProductCell = ({ product }) => {
++  if (!product || typeof product !== "object") {
++    return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate text-ui-fg-muted", children: "—" }) });
++  }
+   return /* @__PURE__ */ jsxs("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: [
+     /* @__PURE__ */ jsx("div", { className: "w-fit flex-shrink-0", children: /* @__PURE__ */ jsx(Thumbnail, { src: product.thumbnail }) }),
+     /* @__PURE__ */ jsx(TruncatedText, { text: product.title })
+diff --git a/dist/chunk-IZTMRH75.mjs b/dist/chunk-IZTMRH75.mjs
+index f2468db0d4b5daa2b3dd9007f15b6ac13e224fda..13f80966f77f31279685571952d8d499135913af 100644
+--- a/dist/chunk-IZTMRH75.mjs
++++ b/dist/chunk-IZTMRH75.mjs
+@@ -46,10 +46,14 @@ var VariantHeader = () => {
+ import { useTranslation as useTranslation3 } from "react-i18next";
+ import { jsx as jsx3 } from "react/jsx-runtime";
+ var CollectionCell = ({ collection }) => {
+-  if (!collection) {
++  if (!collection || typeof collection !== "object" || Array.isArray(collection)) {
+     return /* @__PURE__ */ jsx3(PlaceholderCell, {});
+   }
+-  return /* @__PURE__ */ jsx3("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx3("span", { className: "truncate", children: collection.title }) });
++  const collTitle = collection.title;
++  if (collTitle == null || collTitle === "") {
++    return /* @__PURE__ */ jsx3(PlaceholderCell, {});
++  }
++  return /* @__PURE__ */ jsx3("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx3("span", { className: "truncate", children: collTitle }) });
+ };
+ var CollectionHeader = () => {
+   const { t } = useTranslation3();
 diff --git a/dist/chunk-R65S6ZZV.mjs b/dist/chunk-R65S6ZZV.mjs
 index 41454fdc59eab04fcd0ce55551ae21a4ffe0bdc8..e26b94ec2e750889725c28e1b1c2dae65fe0185b 100644
 --- a/dist/chunk-R65S6ZZV.mjs
@@ -49,46 +84,11 @@ index 41454fdc59eab04fcd0ce55551ae21a4ffe0bdc8..e26b94ec2e750889725c28e1b1c2dae6
      category_id: category_id?.split(","),
      collection_id: collection_id?.split(","),
      is_giftcard: is_giftcard ? is_giftcard === "true" : void 0,
-diff --git a/dist/chunk-XEEPMJRY.mjs b/dist/chunk-XEEPMJRY.mjs
-index 9d7f2cc511386c8de53bb793d0d8e1b2ba4294da..41f40b74c5661151028ac0c3e4ecbb734e84f19e 100644
---- a/dist/chunk-XEEPMJRY.mjs
-+++ b/dist/chunk-XEEPMJRY.mjs
-@@ -9,6 +9,9 @@ import {
- import { useTranslation } from "react-i18next";
- import { jsx, jsxs } from "react/jsx-runtime";
- var ProductCell = ({ product }) => {
-+  if (!product || typeof product !== "object") {
-+    return /* @__PURE__ */ jsx("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: /* @__PURE__ */ jsx("span", { className: "truncate text-ui-fg-muted", children: "—" }) });
-+  }
-   return /* @__PURE__ */ jsxs("div", { className: "flex h-full w-full max-w-[250px] items-center gap-x-3 overflow-hidden", children: [
-     /* @__PURE__ */ jsx("div", { className: "w-fit flex-shrink-0", children: /* @__PURE__ */ jsx(Thumbnail, { src: product.thumbnail }) }),
-     /* @__PURE__ */ jsx(TruncatedText, { text: product.title })
-diff --git a/dist/chunk-XQCYSVGP.mjs b/dist/chunk-XQCYSVGP.mjs
-index 5b7d08406feb77b4d6aafe0c64b117d855a08f2d..b27b23e6d9eb62462a05a4784fe66a1d22fb430e 100644
---- a/dist/chunk-XQCYSVGP.mjs
-+++ b/dist/chunk-XQCYSVGP.mjs
-@@ -46,10 +46,14 @@ var VariantHeader = () => {
- import { useTranslation as useTranslation3 } from "react-i18next";
- import { jsx as jsx3 } from "react/jsx-runtime";
- var CollectionCell = ({ collection }) => {
--  if (!collection) {
-+  if (!collection || typeof collection !== "object" || Array.isArray(collection)) {
-     return /* @__PURE__ */ jsx3(PlaceholderCell, {});
-   }
--  return /* @__PURE__ */ jsx3("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx3("span", { className: "truncate", children: collection.title }) });
-+  const collTitle = collection.title;
-+  if (collTitle == null || collTitle === "") {
-+    return /* @__PURE__ */ jsx3(PlaceholderCell, {});
-+  }
-+  return /* @__PURE__ */ jsx3("div", { className: "flex h-full w-full items-center overflow-hidden", children: /* @__PURE__ */ jsx3("span", { className: "truncate", children: collTitle }) });
- };
- var CollectionHeader = () => {
-   const { t } = useTranslation3();
-diff --git a/dist/login-SVXTNKWX.mjs b/dist/login-SVXTNKWX.mjs
-index 4385b8754cdc1fd3d8a8f872f64e75ce1fef562f..935bf3020ce9f899da236c6e007837d30f913b4f 100644
---- a/dist/login-SVXTNKWX.mjs
-+++ b/dist/login-SVXTNKWX.mjs
-@@ -251,14 +251,18 @@ var EmailPassLogin = ({ onMfaChallenge }) => {
+diff --git a/dist/login-J4NNAZQE.mjs b/dist/login-J4NNAZQE.mjs
+index ca604599e87d800e672e33f1474ef4bc4356c3e6..5cfb217bcad15ed894279f4c663eb548dd92b407 100644
+--- a/dist/login-J4NNAZQE.mjs
++++ b/dist/login-J4NNAZQE.mjs
+@@ -255,14 +255,18 @@ var EmailPassLogin = ({ onMfaChallenge }) => {
              message: error.message
            });
          },
@@ -109,7 +109,7 @@ index 4385b8754cdc1fd3d8a8f872f64e75ce1fef562f..935bf3020ce9f899da236c6e007837d3
          }
        }
      );
-@@ -687,7 +691,7 @@ var Login = () => {
+@@ -691,7 +695,7 @@ var Login = () => {
            if (mfaSuccessHandler) {
              return mfaSuccessHandler(token);
            }
@@ -118,11 +118,11 @@ index 4385b8754cdc1fd3d8a8f872f64e75ce1fef562f..935bf3020ce9f899da236c6e007837d3
          },
          onBack: () => {
            setMfaChallenge(null);
-diff --git a/dist/product-detail-KCLKWLJK.mjs b/dist/product-detail-KCLKWLJK.mjs
-index adf197047ee5a6fe5bda5cd92474ccdb421204db..77ea5f3555be154b966c533101311bf082a99440 100644
---- a/dist/product-detail-KCLKWLJK.mjs
-+++ b/dist/product-detail-KCLKWLJK.mjs
-@@ -319,7 +319,7 @@ var ProductGeneralSection = ({
+diff --git a/dist/product-detail-BJWX6C2N.mjs b/dist/product-detail-BJWX6C2N.mjs
+index effda8cc9102ea1906518ec3c9a73fe4f940c3c5..a1934b999a5492ae138abe5c83496bbe5784d5c4 100644
+--- a/dist/product-detail-BJWX6C2N.mjs
++++ b/dist/product-detail-BJWX6C2N.mjs
+@@ -335,7 +335,7 @@ var ProductGeneralSection = ({
  };
  
  // src/routes/products/product-detail/components/product-media-section/product-media-section.tsx
@@ -131,15 +131,15 @@ index adf197047ee5a6fe5bda5cd92474ccdb421204db..77ea5f3555be154b966c533101311bf0
  import {
    Button,
    Checkbox,
-@@ -340,6 +340,7 @@ var ProductMediaSection = ({ product }) => {
-   const prompt = usePrompt2();
+@@ -357,6 +357,7 @@ var ProductMediaSection = ({ product }) => {
    const navigate = useNavigate2();
+   const { canUpdate } = useProductPermissions();
    const [selection, setSelection] = useState({});
 +  const [collapsed, setCollapsed] = useState(true);
    const media = getMedia(product);
    const handleCheckedChange = (id) => {
      setSelection((prev) => {
-@@ -385,7 +386,10 @@ var ProductMediaSection = ({ product }) => {
+@@ -402,7 +403,10 @@ var ProductMediaSection = ({ product }) => {
    };
    return /* @__PURE__ */ jsxs3(Container3, { className: "divide-y p-0", children: [
      /* @__PURE__ */ jsxs3("div", { className: "flex items-center justify-between px-6 py-4", children: [
@@ -148,10 +148,10 @@ index adf197047ee5a6fe5bda5cd92474ccdb421204db..77ea5f3555be154b966c533101311bf0
 +        /* @__PURE__ */ jsx4(ChevronDown, { className: clx("text-ui-fg-subtle transition-transform duration-200", { "rotate-180": !collapsed }) }),
 +        /* @__PURE__ */ jsx4(Heading3, { level: "h2", children: t("products.media.label") })
 +      ] }),
-       /* @__PURE__ */ jsx4(
+       canUpdate && /* @__PURE__ */ jsx4(
          ActionMenu,
          {
-@@ -403,7 +407,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -420,7 +424,7 @@ var ProductMediaSection = ({ product }) => {
          }
        )
      ] }),
@@ -160,7 +160,7 @@ index adf197047ee5a6fe5bda5cd92474ccdb421204db..77ea5f3555be154b966c533101311bf0
        const isSelected = selection[i.id];
        return /* @__PURE__ */ jsxs3(
          "div",
-@@ -441,7 +445,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -458,7 +462,7 @@ var ProductMediaSection = ({ product }) => {
          },
          i.id
        );
@@ -169,16 +169,16 @@ index adf197047ee5a6fe5bda5cd92474ccdb421204db..77ea5f3555be154b966c533101311bf0
        /* @__PURE__ */ jsxs3("div", { className: "flex flex-col items-center", children: [
          /* @__PURE__ */ jsx4(
            Text,
-@@ -456,7 +460,7 @@ var ProductMediaSection = ({ product }) => {
+@@ -473,7 +477,7 @@ var ProductMediaSection = ({ product }) => {
          /* @__PURE__ */ jsx4(Text, { size: "small", className: "text-ui-fg-muted", children: t("products.media.emptyState.description") })
        ] }),
-       /* @__PURE__ */ jsx4(Button, { size: "small", variant: "secondary", asChild: true, children: /* @__PURE__ */ jsx4(Link, { to: "media?view=edit", children: t("products.media.emptyState.action") }) })
+       canUpdate && /* @__PURE__ */ jsx4(Button, { size: "small", variant: "secondary", asChild: true, children: /* @__PURE__ */ jsx4(Link, { to: "media?view=edit", children: t("products.media.emptyState.action") }) })
 -    ] }),
 +    ] }) : null,
-     /* @__PURE__ */ jsx4(CommandBar, { open: !!Object.keys(selection).length, children: /* @__PURE__ */ jsxs3(CommandBar.Bar, { children: [
+     /* @__PURE__ */ jsx4(CommandBar, { open: canUpdate && !!Object.keys(selection).length, children: /* @__PURE__ */ jsxs3(CommandBar.Bar, { children: [
        /* @__PURE__ */ jsx4(CommandBar.Value, { children: t("general.countSelected", {
          count: Object.keys(selection).length
-@@ -662,7 +666,7 @@ var ProductOrganizationSection = ({
+@@ -696,7 +700,7 @@ var ProductOrganizationSection = ({
        SectionRow,
        {
          title: t("fields.categories"),
@@ -187,10 +187,10 @@ index adf197047ee5a6fe5bda5cd92474ccdb421204db..77ea5f3555be154b966c533101311bf0
            OrganizationTag,
            {
              label: pcat.name,
-diff --git a/dist/product-sales-channels-KFETLJPD.mjs b/dist/product-sales-channels-KFETLJPD.mjs
-index be6202c9b7063ecafd03b2ec1853bf80de44a23c..df99d3627ee92d76e97752e225116258e0ce11ef 100644
---- a/dist/product-sales-channels-KFETLJPD.mjs
-+++ b/dist/product-sales-channels-KFETLJPD.mjs
+diff --git a/dist/product-sales-channels-O5V667ZD.mjs b/dist/product-sales-channels-O5V667ZD.mjs
+index 181fe9a021ab5fe6c886aef15a79f504c55d5da1..48027f3a36115e791c4ebdb9bdf3b6c5543120a2 100644
+--- a/dist/product-sales-channels-O5V667ZD.mjs
++++ b/dist/product-sales-channels-O5V667ZD.mjs
 @@ -58,17 +58,18 @@ var EditSalesChannelsForm = ({
  }) => {
    const { t } = useTranslation();

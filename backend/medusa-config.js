@@ -463,6 +463,10 @@ const medusaConfig = {
   ],
 
   plugins: [
+    // Since Medusa 2.22.7 `@medusajs/cloud` (in-admin Medusa Cloud announcements
+    // + its own table) is a default plugin for every project. We self-host on Fly,
+    // so it is switched off; `disabled` is the only way to stop it loading.
+    { resolve: '@medusajs/cloud', options: { disabled: true } },
     ...(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET
       ? [{
           resolve: '@alphabite/medusa-paypal',
