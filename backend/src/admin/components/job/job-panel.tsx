@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 
 import { JOB_PHASES, threadTimes, type NextActionKind } from "../../../lib/job-state"
 import type { JobActivity, JobView } from "../../../lib/job-view"
 import { ARTWORK_STAGE_LABEL, BLANKS_STAGE_LABEL, DOWNSTREAM_STAGE_LABEL } from "../../../lib/production-stage"
-import { ONE_CLICK, performNextAction, takeJob } from "./actions"
+import { chaseDraft, ONE_CLICK, performNextAction, takeJob } from "./actions"
 import { TaskQuickAdd } from "../task-quick-add"
 import { AddressFields, ConvertAddressForm, addressComplete, addressPayload, blankAddress, toAddressDraft, type AddressDraft } from "./convert-address-form"
 import { DspPackPanel } from "./dsp-pack"
@@ -113,6 +113,8 @@ export function JobPanel({ job, order, onChanged }: Props) {
   const [busy, setBusy] = useState<NextActionKind | null>(null)
   const [convertOpen, setConvertOpen] = useState(false)
   const [verb, setVerb] = useState<Verb | null>(null)
+  // A reminder written for the reply box by Nudge / Chase balance (n re-fills on every click).
+  const [draft, setDraft] = useState<{ text: string; n: number } | null>(null)
   const cur = job.money.currency_code
   const wait = job.state.waiting_on ? WAIT_STYLE[job.state.waiting_on] : null
   const action = job.state.next_action
@@ -148,6 +150,13 @@ export function JobPanel({ job, order, onChanged }: Props) {
   const runAction = async (kind: NextActionKind) => {
     setBusy(kind)
     try {
+      // Nudge / Chase balance: write the reminder (with the accept or payment link) into the reply box.
+      if (kind === "nudge_quote" || kind === "nudge_payment") {
+        const d = await chaseDraft({ job_id: job.id, order_id: orderId, display_id: job.order?.display_id ?? null, outstanding: job.money.outstanding ?? job.money.order_total })
+        setDraft((p) => ({ text: d.body, n: (p?.n ?? 0) + 1 }))
+        focusComposer()
+        return
+      }
       const out = await performNextAction(
         {
           job_id: job.id,
@@ -509,7 +518,7 @@ export function JobPanel({ job, order, onChanged }: Props) {
           ) : null}
         </div>
 
-        <Diary job={job} onChanged={onChanged} />
+        <Diary job={job} onChanged={onChanged} draft={draft} />
       </div>
 
       {/* ── A verb's tool, opened over the job ─────────────────────────── */}
@@ -728,8 +737,11 @@ const send = async (path: string, method: "POST" | "PATCH", body: Record<string,
   return json
 }
 
-function Diary({ job, onChanged }: { job: JobView; onChanged: () => void }) {
+function Diary({ job, onChanged, draft }: { job: JobView; onChanged: () => void; draft: { text: string; n: number } | null }) {
   const [text, setText] = useState("")
+  useEffect(() => {
+    if (draft) setText(draft.text)
+  }, [draft])
   const [busy, setBusy] = useState<string | null>(null)
   const [followUp, setFollowUp] = useState("")
   const [open, setOpen] = useState<Record<string, boolean>>({})
