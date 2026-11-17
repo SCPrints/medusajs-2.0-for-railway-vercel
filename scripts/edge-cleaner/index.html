@@ -57,7 +57,10 @@
   label.row span output { margin-left: auto; }
   .qm { width: 18px; height: 18px; padding: 0; border-radius: 50%; font-size: 11px; font-weight: 700; line-height: 16px; color: var(--muted); flex: none; }
   .qm:hover { color: var(--accent); border-color: var(--accent); }
-  h2 .qm { margin-left: 6px; vertical-align: 1px; text-transform: none; }
+  h1 .qm, h2 .qm, summary .qm, small .qm, .box b + .qm { margin-left: 6px; vertical-align: 1px; text-transform: none; }
+  label > .qm { margin-left: 4px; }
+  .saverow { display: flex; gap: 8px; align-items: center; }
+  .saverow .primary { flex: 1; width: auto; }
   dialog#help { width: min(800px, 94vw); border: 0; border-radius: 10px; padding: 0; box-shadow: 0 20px 60px rgba(0,0,0,.35); color: var(--ink); }
   dialog#help::backdrop { background: rgba(0,0,0,.4); }
   #help .hd { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 16px; }
@@ -90,7 +93,7 @@
 <body>
 <aside>
  <div class="controls">
-  <h1>Edge Cleaner</h1>
+  <h1>Edge Cleaner <button class="qm" data-help="start" title="How do I use this?">?</button></h1>
   <p class="hint">Takes out a solid background, then fixes jagged edges and the ring of old background colour, and leaves no see-through pixels for DTF.</p>
 
   <div id="drop">Drop a PNG or JPG here<br>or click to choose</div>
@@ -105,16 +108,16 @@
   </div>
   <small id="kindInfo"></small>
 
-  <h2>Print size</h2>
+  <h2>Print size <button class="qm" data-help="print" title="What is this for?">?</button></h2>
   <label class="row"><span>Print width <button class="qm" data-help="print" title="What is this for?">?</button></span>
     <input id="printW" type="number" min="3" max="120" step="0.5" value="28"> cm
     <small>How wide the whole image will be printed. Sets the dot size and the checks below.</small></label>
   <div id="checks"></div>
 
   <div id="flat1">
-  <h2>Remove background</h2>
+  <h2>Remove background <button class="qm" data-help="cut" title="How does this work?">?</button></h2>
   <div id="gapBox" hidden class="box">
-    <b>Check the gaps</b>
+    <b>Check the gaps</b> <button class="qm" data-help="gaps" title="What am I checking?">?</button>
     <small>Everything else is dimmed. <b style="color:#e11d48">Red</b> areas will be removed, white ones are kept. Click an area to switch it, or step through with ← →.</small>
     <div id="gapCount" style="margin:6px 0;font-weight:500"></div>
     <div class="btns"><button id="gapPrev">◀ Previous</button><button id="gapNext">Next ▶</button><button id="gapToggle" disabled>Keep this one</button></div>
@@ -123,7 +126,7 @@
   </div>
   <div id="step1">
   <p class="hint">The background is taken out automatically when you load the image. Fix anything it got wrong by clicking on the picture.</p>
-  <small>When I click the picture:</small>
+  <small>When I click the picture: <button class="qm" data-help="click" title="What do these do?">?</button></small>
   <div class="btns" id="modes">
     <button data-mode="remove" class="on">Erase background</button>
     <button data-mode="restore">Bring art back</button>
@@ -142,17 +145,17 @@
   </div>
   <div id="protInfo" hidden class="box"><small id="protText"></small> <button id="protClear">Clear protection</button></div>
   <label class="row" style="margin-top:12px"><span>Colour match range <output id="tolV"></output></span><input id="tol" type="range" min="5" max="120" value="40"><small>How close a colour must be to the one you click. Higher takes in more shades; lower if it's eating into the art.</small></label>
-  <label style="display:block;margin:0 0 6px"><input type="checkbox" id="gapCheck" checked> Look for gaps inside the art (you check each one)</label>
+  <label style="display:block;margin:0 0 6px"><input type="checkbox" id="gapCheck" checked> Look for gaps inside the art (you check each one) <button class="qm" data-help="gaps" title="What does this do?">?</button></label>
   <div class="btns" style="margin-top:6px">
     <button id="outside">Redo automatic removal</button>
-    <button id="undo" disabled title="⌘Z">Undo</button>
+    <button id="undo" disabled>Undo</button>
     <button id="restart" disabled>Back to original</button>
   </div>
   </div>
   </div>
 
   <div id="darkBox" hidden>
-  <h2 id="darkTitle">Black</h2>
+  <h2><span id="darkTitle">Black</span> <button class="qm" data-help="dark" title="What are these for?">?</button></h2>
   <div id="darkMain">
   <label class="row" data-row="black"><span>Black to remove <output id="blackV"></output></span><input id="black" type="range" min="0" max="80" value="18"><small>Anything this dark or darker is removed. Raise it if dark grey haze is left.</small></label>
   <div class="row" data-row="dots"><span>Dots <button class="qm" data-help="lpi" title="What does this do?">?</button></span>
@@ -164,14 +167,14 @@
   <h2>Paint fixes <button class="qm" data-help="paint" title="How does this work?">?</button></h2>
   <div class="btns" id="brushes"><button data-brush="" class="on">Off</button><button data-brush="keep">Paint art back</button><button data-brush="remove">Paint away</button></div>
   <label class="row" style="margin-top:8px"><span>Brush size <output id="brushV"></output></span><input id="brush" type="range" min="2" max="300" value="30"></label>
-  <div class="btns"><button id="paintUndo" disabled title="⌘Z">Undo stroke</button><button id="paintClear" disabled>Clear painting</button></div>
+  <div class="btns"><button id="paintUndo" disabled>Undo stroke</button><button id="paintClear" disabled>Clear painting</button></div>
   <small id="paintInfo">Paint over either picture where the automatic result is wrong. Hold Space and drag to move around while painting.</small>
   </div>
 
-  <details class="adv" id="adv"><summary>Advanced</summary>
+  <details class="adv" id="adv"><summary>Advanced <button class="qm" data-help="adv" title="What is in here?">?</button></summary>
   <div id="darkAdv" hidden>
   <label class="row" data-row="fade"><span>Fade <output id="fadeV"></output></span><input id="fade" type="range" min="5" max="150" value="52"><small>How gradually dark areas fade into the shirt. Wider keeps more shadow detail as dots.</small></label>
-  <label class="row" data-row="dotUnit"><span>Set dot size by</span>
+  <label class="row" data-row="dotUnit"><span>Set dot size by <button class="qm" data-help="dotUnit" title="What does this do?">?</button></span>
     <select id="dotUnit"><option value="lpi" selected>Dots per inch at print size</option><option value="px">Pixels of the file</option></select>
     <small>Per inch keeps the dots the same real size at any print width. Pixels ties them to the file, whatever size it prints.</small></label>
   <label class="row" data-row="lpi"><span>Dots per inch <output id="lpiV"></output></span><input id="lpi" type="range" min="15" max="70" value="35"><small>Exact dot size for the fades. 25 to 45 is the safe range for DTF.</small></label>
@@ -186,11 +189,11 @@
   <label class="row" data-row="bSmooth"><span>Smooth outline <output id="bSmoothV"></output></span><input id="bSmooth" type="range" min="0" max="60" value="15"><small>Rounds off bumps in the outline.</small></label>
   <small style="display:block;color:var(--muted);font-size:12px;margin-bottom:12px">Outline sizes start in proportion to the image each time you load one.</small>
   </div>
-  <label class="row"><span>Upscale</span>
+  <label class="row"><span>Upscale <button class="qm" data-help="scale" title="What does this do?">?</button></span>
     <select id="scale"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4" selected>4×</option></select>
     <small id="scaleInfo">Smooth curves need room. Output is capped at 6000 px.</small></label>
   <div id="flat2">
-  <label class="row"><span>Old background colour</span>
+  <label class="row"><span>Old background colour <button class="qm" data-help="matte" title="What does this do?">?</button></span>
     <select id="matte"><option value="auto">Auto-detect</option><option value="black">Black</option><option value="white">White</option><option value="custom">Pick colour…</option><option value="none">None</option></select>
     <input id="matteColour" type="color" value="#000000" hidden style="width:100%;margin-top:6px">
     <small id="matteInfo"></small></label>
@@ -204,7 +207,7 @@
   </details>
  </div>
  <div class="save">
-  <button class="primary" id="download" disabled>Download clean PNG</button>
+  <div class="saverow"><button class="primary" id="download" disabled>Download clean PNG</button><button class="qm" data-help="save" title="What do I get?">?</button></div>
   <small id="saveInfo">Load artwork to start.</small>
  </div>
 </aside>
@@ -214,6 +217,7 @@
     <select id="zoom"><option value="custom" id="zoomCustom" hidden></option><option value="fit">Fit</option><option value="0.25">25%</option><option value="0.5">50%</option><option value="1">100%</option><option value="2">200%</option><option value="4">400%</option></select>
     <span class="sep"></span>
     Preview on <div class="swatches" id="swatches"></div>
+    <button class="qm" data-help="view" title="What do these do?">?</button>
     <span class="status" id="status">No artwork loaded.</span>
   </div>
   <div class="views">
@@ -226,10 +230,15 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=14"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=15"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
+if (!window.EdgeClean) { // opened from inside a zip, or copied without its partner file
+  document.body.innerHTML = '<p style="margin:40px;max-width:520px;font-size:16px;line-height:1.5"><b>Edge Cleaner can\u2019t start.</b><br>It needs the file <b>edge-clean.js</b> in the same folder as this page. If this came as a zip, extract the whole zip first, then open index.html from the extracted folder.</p>';
+  throw new Error("edge-clean.js not loaded");
+}
 const $ = (id) => document.getElementById(id);
+const UNDO_KEY = /Mac|iPhone|iPad/.test(navigator.platform) ? "\u2318Z" : "Ctrl+Z"; // shown in tips and help; both keys work everywhere
 const MAX_SIDE = 6000;
 const SLIDERS = ["smooth", "threshold", "choke", "defringe", "specks"];
 const DARK_SLIDERS = ["black", "fade", "lpi", "dotpx", "artLevel", "hug", "margin", "bSmooth"];
@@ -238,10 +247,14 @@ const ROWS = { black: "keep knockout", dots: "keep knockout", hug: "keep backing
   angle: "keep knockout", shape: "keep knockout", artLevel: "keep backing", bSmooth: "keep backing" };
 const MAIN = { keep: ["black", "dots"], knockout: ["black", "dots"], backing: ["hug", "margin"] };
 const MIN_LINE_MM = 0.3; // thinner than this may not hold on a DTF transfer
-const UNITS = { smooth: "", choke: "", defringe: "", specks: "", threshold: "", black: "", fade: "", lpi: " per inch", dotpx: " px", artLevel: "", hug: " px", margin: " px", bSmooth: " px" };
+const UNITS = { tol: "", smooth: "", choke: "", defringe: "", specks: "", threshold: "", black: "", fade: "", lpi: " per inch", dotpx: " px", artLevel: "", hug: " px", margin: " px", bSmooth: " px" };
 const BACKS = [["checker", "Transparent"], ["#ffffff", "White"], ["#000000", "Black"], ["#1e2a4a", "Navy"], ["#b91c1c", "Red"], ["#6b7280", "Grey"], ["#15803d", "Green"]];
 
+$("undo").title = $("paintUndo").title = UNDO_KEY;
 let paintMask = null; // brush fixes for the "on black" types, see Paint fixes
+// The flat background colour this tool removed from a file that had no see-through pixels of its own.
+// The clean-up rebuilds the cut edge from it (EdgeClean.clean's cutFrom). null = leave the edge as cut.
+let cutRef = null;
 let source = null, original = null, history = [], result = null, fileName = "artwork", timer = 0, solid = false, mode = "remove", note = "";
 
 // Preview backgrounds
@@ -358,6 +371,7 @@ function autoRemove() {
   // With the gap check on, areas the background only reaches through a small break in an outline are
   // held back and shown in the review with the enclosed gaps, not deleted unseen.
   const tol = +$("tol").value, out = EdgeClean.removeOutside(source, tol, $("gapCheck").checked);
+  cutRef = solid ? out.ref : null;
   note = "Removed the background. Click to erase anything left, or switch to \"Bring art back\".";
   applyRemoval(out);
   if (!$("gapCheck").checked) return;
@@ -455,7 +469,7 @@ function applyRemoval(res) {
 }
 $("outside").onclick = () => source && autoRemove();
 $("undo").onclick = () => { endReview(); if (history.length) { source = history.pop(); drawBefore(); run(); } };
-$("restart").onclick = () => { endReview(); if (original) { source = original; history = []; $("matte").value = "auto"; showValues(); drawBefore(); run(); } };
+$("restart").onclick = () => { endReview(); if (original) { cutRef = null; source = original; history = []; $("matte").value = "auto"; showValues(); drawBefore(); run(); } };
 for (const b of $("modes").children) b.onclick = () => {
   mode = b.dataset.mode;
   for (const o of $("modes").children) o.classList.toggle("on", o === b);
@@ -489,7 +503,9 @@ function pick(id, e) {
   }
   if (source.data[i * 4 + 3] === 0) return status("That spot is already transparent. Switch to \"Bring art back\" to restore it.");
   note = "";
-  applyRemoval(EdgeClean.removeAt(source, i, tol));
+  const gone = EdgeClean.removeAt(source, i, tol);
+  if (solid && !cutRef) cutRef = gone.ref; // erasing by hand after "Back to original"
+  applyRemoval(gone);
 }
 
 // Colour selection, drawn as a moving dotted outline over both panes.
@@ -576,15 +592,21 @@ function capScale() {
 $("scale").addEventListener("change", () => (wantScale = +$("scale").value));
 function settings() {
   if (kind !== "flat") return darkSettings();
-  const o = { scale: +$("scale").value, minLinePx: MIN_LINE_MM / 25.4 * outPpi() };
-  // The edge sliders are sized for a 4× upscale. Bigger files get less upscale (the output is capped), so the
-  // sizes shrink with it. Otherwise the same setting hits a 2× file twice as hard: the default Smooth wiped
-  // thin text off a 2800 px file. Smooth and Shrink round halves down, to side with keeping detail.
-  const f = o.scale / 4, fit = (v) => Math.max(0, Math.ceil(v * f - 0.5));
-  for (const k of SLIDERS) o[k] = k === "threshold" ? +$(k).value : k === "specks" ? Math.round(+$(k).value * f * f) : k === "defringe" ? Math.round(+$(k).value * f) : fit(+$(k).value);
-  const m = $("matte").value;
-  o.matte = m === "black" ? [0, 0, 0] : m === "white" ? [255, 255, 255] : m === "custom" ? hexRgb($("matteColour").value) : m;
-  return o;
+  return { ...flatOpts(flatNow(), +$("scale").value), minLinePx: MIN_LINE_MM / 25.4 * outPpi() };
+}
+const matteOf = (m) => (m === "black" ? [0, 0, 0] : m === "white" ? [255, 255, 255] : m === "custom" ? hexRgb($("matteColour").value) : m);
+function flatNow() { // the flat-background settings as the sliders show them
+  const v = { matte: matteOf($("matte").value), cutFrom: cutRef };
+  for (const k of SLIDERS) v[k] = +$(k).value;
+  return v;
+}
+// Slider values -> clean-up options at a given upscale. The edge sliders are sized for a 4× upscale. Bigger
+// files get less upscale (the output is capped), so the sizes shrink with it. Otherwise the same setting hits
+// a 2× file twice as hard: the default Smooth wiped thin text off a 2800 px file. Smooth and Shrink round
+// halves down, to side with keeping detail.
+function flatOpts(v, scale) {
+  const f = scale / 4, fit = (n) => Math.max(0, Math.ceil(n * f - 0.5));
+  return { scale, matte: v.matte, cutFrom: v.cutFrom || null, smooth: fit(v.smooth), threshold: v.threshold, choke: fit(v.choke), defringe: Math.round(v.defringe * f), specks: Math.round(v.specks * f * f) };
 }
 // Print size turns dots-per-inch into output pixels, and feeds the checks.
 const printIn = () => Math.min(120, Math.max(3, +$("printW").value || 28)) / 2.54;
@@ -700,7 +722,7 @@ function show(out) {
   $("matteInfo").textContent = auto ? (out.matte ? "Found " + rgbHex(out.matte) : "None found") : "";
   $("matteInfo").style.borderLeft = auto && out.matte ? "14px solid " + rgbHex(out.matte) : "";
   $("matteInfo").style.paddingLeft = auto && out.matte ? "6px" : "";
-  if (!review) status(note || "Scroll or pinch to zoom, drag to move around.");
+  if (!review) status(note || "Scroll to zoom, drag to move around.");
   zoom();
 }
 const rgbHex = (c) => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
@@ -822,8 +844,9 @@ $("download").onclick = () => $("after").toBlob((blob) => {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }, "image/png");
 
-// Help pop-ups: a "?" by each "on black" slider and by Artwork type. The examples run the real code on the
-// loaded artwork with only that one thing changed, zoomed in on the spot where the change shows most.
+// Help pop-ups: a "?" by EVERY control and section, in every artwork type, so staff never have to guess which
+// ones have help. Each has words, most have test pictures made by the real code, and the settings also show
+// the loaded artwork with only that one thing changed, zoomed in on the spot where the change shows most.
 const HELP = {
   kind: { title: "Artwork type", zoom: 4, text: [
     "<b>Flat background:</b> art on one plain colour (white, cream, a flat colour). That colour is cut out and the edges are cleaned. Don't use it for art on black where the art also uses black.",
@@ -861,7 +884,7 @@ const HELP = {
     "For the spots the automatic result gets wrong. Pick a brush, then paint over the <b>Before</b> or <b>After</b> picture. The After picture updates when you let go.",
     "<b>Paint art back</b> (green) keeps everything under it as solid ink, including plain black. Use it for dark parts at the outer edge of a design, like a black shoe or a dark shadow that has no bright art round it to hold it in.",
     "<b>Paint away</b> (red) removes everything under it. Use it for haze, a stray glow, or a black patch that shouldn't print.",
-    "Painted areas stay solid: no halftone dots, and none of the sliders change them. Painting stays when you switch between the On black types, so you can compare them. Undo stroke (⌘Z) takes back the last stroke; Clear painting removes it all.",
+    "Painted areas stay solid: no halftone dots, and none of the sliders change them. Painting stays when you switch between the On black types, so you can compare them. Undo stroke (" + UNDO_KEY + ") takes back the last stroke; Clear painting removes it all.",
     "Hold <b>Space</b> and drag to move around while a brush is on. Pick <b>Off</b> to go back to dragging normally.",
   ] },
   print: { title: "Print width", text: [
@@ -886,13 +909,119 @@ const HELP = {
     "<b>0</b> keeps every small wiggle. <b>Higher</b> gives a cleaner shape that's easier to weed, but can shave off thin points.",
   ] },
 };
+Object.assign(HELP, {
+  start: { title: "How to use Edge Cleaner", text: [
+    "Turns customer artwork into a print-ready PNG for DTF: background gone, clean edges, and no see-through pixels.",
+    "<b>1. Load the artwork.</b> Drop a PNG or JPG on the box, or click it to choose a file. The tool picks the <b>Artwork type</b> for you: art on a plain black background goes to <i>On black: keep dark detail</i>, everything else to <i>Flat background</i>. Change it if it picked wrong.",
+    "<b>2. Set the Print width</b> to the size it will be printed. The checks under it warn about a file that's too small and lines too thin to print.",
+    "<b>3. Check the result.</b> Before is on the left, After on the right. Use <b>Preview on</b> to see it on different shirt colours, and zoom in on the edges.",
+    "<b>4. Fix what's wrong.</b> For a flat background, click the picture to erase leftovers or bring art back. For art on black, use Paint fixes. The settings under <b>Advanced</b> rarely need touching.",
+    "<b>5. Download clean PNG.</b>",
+    "Every control on the page has a <b>?</b> like this one. Most show test pictures, and the settings also show what they do on the artwork you have loaded.",
+  ] },
+  cut: { title: "Remove background", text: [
+    "When a file loads, the tool reads the background colour from the edges of the image and removes everything of that colour that connects to the edge.",
+    "Background trapped inside the art (the middle of an O, between an arm and a body) doesn't connect to the edge. The gap check below it handles those.",
+    "<b>Redo automatic removal</b> runs the removal again on the picture as it is now, using the current Colour match range. Raise the range and press it to take more.",
+    "<b>Undo</b> (" + UNDO_KEY + ") takes back the last change. <b>Back to original</b> puts everything back so you can start again.",
+  ] },
+  click: { title: "Clicking the picture", text: [
+    "Pick what a click does, then click on the Before or After picture.",
+    "<b>Erase background</b> removes the area you click and everything touching it that's a similar colour. Use it for leftovers the automatic step missed, like a shadow.",
+    "<b>Bring art back</b> puts back an area that was removed by mistake, like the white of an eye or a white cloud. Click where it used to be. If it brings back too much (white art that touches the background brings the background back with it), press Undo.",
+    "<b>Select colour</b> selects the area you click without changing it. Shift-click adds more, and <i>Select all similar</i> grabs every area of that colour. Then <i>Erase selected</i> removes them in one go, or <i>Protect selected</i> locks them so erasing and the gap check can't touch them.",
+    "How much one click takes is set by <b>Colour match range</b>.",
+  ] },
+  tol: { title: "Colour match range", zoom: 4, lo: 15, hi: 90, text: [
+    "How close a colour has to be to the background (or to the spot you click) to be removed with it.",
+    "<b>Higher</b> takes in more shades. Use it when off-white paper, a faint haze or a soft shadow is left behind. <b>Lower</b> takes fewer. Use it when pale parts of the art (light yellow, pale skin, light grey) are being eaten.",
+    "Moving the slider changes nothing by itself. Press <b>Redo automatic removal</b> to run it again, or click the picture.",
+  ] },
+  gaps: { title: "Gaps inside the art", text: [
+    "Background can be trapped inside the art where the automatic removal can't reach it: the middle of an O, the space between an arm and a body. With this ticked, the tool finds those areas and shows them to you before anything is removed.",
+    "On the check screen everything else is dimmed. <b style=\"color:#e11d48\">Red</b> areas will be removed, white ones are kept. Click an area to switch it, or step through with ← → and press Space. <b>Remove all</b> and <b>Keep all</b> switch every area at once. Press <b>Apply</b> (Enter) when it looks right.",
+    "An area starts red only when it's the same plain colour as the background and has nothing drawn inside it. A face or a speech bubble has eyes or letters inside, so it starts as kept.",
+    "<b>The tool can't tell an empty gap from plain white art.</b> A white dress, white lettering or a white shoe looks exactly like a gap and starts red too, so look at each one before pressing Apply.",
+    "Untick the box to skip the check. Then only background that connects to the edge of the image is removed.",
+  ] },
+  scale: { title: "Upscale", zoom: 24, text: [
+    "Makes the output bigger than the file that was loaded: 4× turns a 1000 px file into 4000 px. It can't add detail, but it gives the tool room to redraw jagged, stair-stepped edges as smooth curves.",
+    "<b>4×</b> is the default and gives the smoothest edges. <b>1×</b> keeps the original pixels, stair-steps and all. Go lower only when you need a smaller file.",
+    "The output is capped at 6000 px on its longest side, so big files only offer 1× or 2×. The edge settings adjust themselves to match, so the same slider values give the same look at any upscale.",
+  ] },
+  matte: { title: "Old background colour", zoom: 24, text: [
+    "The edge pixels of cut-out art are a blend of the art and the background it used to sit on. Left alone, that blend prints as a pale or dark ring round the design. This tells the tool which colour to take back out of those edge pixels.",
+    "When this tool removes a background, it sets this to that colour for you (it shows as <b>Pick colour</b>), so there's normally nothing to do.",
+    "<b>Auto-detect</b> is for a file that arrived already cut out: it works the colour out from the edge pixels and shows what it found under the box.",
+    "<b>Black</b>, <b>White</b> or <b>Pick colour</b>: set it yourself when auto-detect gets it wrong, for example art cut off a coloured background.",
+    "<b>None</b> turns it off. Use it for a file that was already cleanly cut out, with no old background left in its edges.",
+  ] },
+  smooth: { title: "Smooth edge", zoom: 24, lo: 0, hi: 12, text: [
+    "Rounds off the stair-steps on the edge of the art, so curves print as curves.",
+    "<b>Higher</b> gives smoother curves, but rounds off tight corners and can swallow very small dots and short marks. <b>Lower</b> keeps fine detail but leaves more of the jagged edge. 0 turns it off.",
+    "Thin lines and long points are protected: if smoothing would wipe one out, it's put back at its own width.",
+    "If full stops or the dots on i's are disappearing, lower this first.",
+  ] },
+  threshold: { title: "Threshold", zoom: 24, lo: 50, hi: 210, text: [
+    "After smoothing, each edge pixel sits somewhere between fully art and fully background. DTF can't print see-through ink, so every pixel has to end up solid or empty. This is where the line is drawn.",
+    "<b>Higher</b> is tighter: shapes get thinner and thin lines can break up or vanish. <b>Lower</b> is fatter: shapes grow and small gaps can close up.",
+    "128 is the middle and suits nearly everything. To trim a ring of old background, use Shrink edge, not this.",
+  ] },
+  choke: { title: "Shrink edge", zoom: 30, lo: 0, hi: 6, text: [
+    "Trims the whole outline in by this many pixels, to cut off the thin ring of old background colour left round cut-out art.",
+    "<b>Raise it</b> if a pale or dark ring still shows round the design when you preview it on a shirt colour. <b>Lower it</b> if thin lines or small text are getting too thin. 0 turns it off.",
+  ] },
+  defringe: { title: "Edge colour fix", zoom: 30, lo: 0, hi: 12, text: [
+    "The outermost pixels of cut-out art often carry the wrong colour: a bit of the old background, or JPEG smudge. This recolours the edge pixels with the art colour just inside them, this many pixels deep.",
+    "It changes the colour only. The shape stays the same.",
+    "<b>Raise it</b> if a faint ring of the wrong colour still shows. <b>Lower it</b> if a thin outline is being painted over by the colour next to it.",
+  ] },
+  specks: { title: "Remove specks under", zoom: 10, lo: 0, hi: 300, text: [
+    "Deletes stray dots: any separate piece of the result smaller than this size.",
+    "<b>Raise it</b> if dust or leftover bits of background still show. <b>Lower it</b> if real small parts of the design are vanishing: full stops, the dots on i's, stars, small sparkles. 0 keeps everything.",
+  ] },
+  dark: { title: "Black and outline settings", text: [
+    "The main settings for art on black. Which ones show depends on the Artwork type.",
+    "<b>Keep dark detail</b> and <b>Black shirts:</b> <i>Black to remove</i> sets how dark something must be to count as background, and <i>Dots</i> sets the halftone dots used for fades.",
+    "<b>Any shirt:</b> <i>Hug</i> and <i>Margin</i> shape the one outline that's cut round the whole design.",
+    "The finer settings are under <b>Advanced</b>. Each setting has its own ? with pictures.",
+  ] },
+  adv: { title: "Advanced", text: [
+    "Finer settings that rarely need changing. The defaults suit most artwork, so look at the result first and come here only to fix a specific problem.",
+    "<b>Flat background:</b> these control the cut edge: how big the output is, how smooth and how tight the edge is, and the colour of its outermost pixels. <b>Reset edge settings</b> puts them all back to the defaults.",
+    "<b>Art on black:</b> these control the fade, the halftone dots and the outline.",
+    "Each setting has its own ? with pictures.",
+  ] },
+  dotUnit: { title: "Set dot size by", text: [
+    "Chooses which of the two dot sliders is used: <b>Dots per inch</b> or <b>Dot size</b> in pixels. Only one shows at a time.",
+    "<b>Dots per inch at print size</b> (the usual choice) keeps the dots the same real size on the shirt whatever the Print width. Change the print width and the dots are re-sized to match.",
+    "<b>Pixels of the file</b> ties the dots to the file. The same file then prints bigger dots on a bigger print. Use it only to match a file that was screened somewhere else, such as in Photoshop.",
+    "Each of those two sliders has its own ? with pictures.",
+  ] },
+  brush: { title: "Brush size", text: [
+    "How wide the paint brush is, in pixels of the artwork. The circle that follows the mouse shows the size.",
+    "Use a small brush to trace along an edge and a big one to cover an area fast. Zoom in for fine work: the brush stays the same size on the artwork.",
+    "It only does something once a brush is picked under <b>Paint fixes</b>.",
+  ] },
+  view: { title: "Zoom and Preview on", text: [
+    "<b>Zoom:</b> Fit shows the whole image. 100% and above show the real pixels, which is where edge problems show up. Scroll to zoom and drag to move. F = fit, 1 = 100%.",
+    "<b>Preview on</b> changes the colour behind both pictures, so you can see how the print will sit on that shirt colour. It doesn't change the file: the download always has a transparent background.",
+    "Check on a dark colour and a light one before downloading. A pale ring only shows on dark; a dark ring only shows on light.",
+  ] },
+  save: { title: "Download clean PNG", text: [
+    "Saves the After picture as a PNG with a transparent background. The file is named after the original with <i>-clean</i> on the end, and the line under the button shows its size in pixels.",
+    "Every pixel in it is either solid or empty. There are no see-through pixels, which DTF can't print cleanly.",
+    "Before downloading, read the checks under <b>Print width</b> and look at the After picture on the shirt colour it will be printed on.",
+    "While the gap check is open the button waits: press Apply first.",
+  ] },
+});
 const SETTING_KEY = { bSmooth: "smooth", lpi: "dot", dotpx: "dot" }; // slider id -> settings() key, where they differ
 
 // Test pictures: simple shapes on black, built so each setting's effect is plain to see. Run through the
 // real code at three values. Outline settings are shown with "any shirt", where the outline is the patch edge.
 function pattern(w, h, paint) {
   const d = new Uint8ClampedArray(w * h * 4);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const c = paint(x, y) || [0, 0, 0]; d.set([c[0], c[1], c[2], 255], (y * w + x) * 4); }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const c = paint(x, y) || [0, 0, 0]; d.set([c[0], c[1], c[2], c[3] == null ? 255 : c[3]], (y * w + x) * 4); }
   return { width: w, height: h, data: d };
 }
 const grey = (v) => [v, v, v];
@@ -917,7 +1046,105 @@ const PATTERNS = {
     if (r < 72) { const t = 1 - (r - 54) / 18; return [110 * t, 45 * t, 0]; } // dim orange glow
   }),
 };
+// Flat-background test pictures: shapes on white. Soft ones have blended edges like real artwork; hard
+// ones (hard = true) have stair-stepped edges like a small or low-quality file.
+function onWhite(w, h, at, hard) {
+  const n = hard ? 1 : 3;
+  return pattern(w, h, (x, y) => {
+    let r = 0, g = 0, b = 0;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const c = at(x + (i + 0.5) / n, y + (j + 0.5) / n) || [255, 255, 255]; r += c[0]; g += c[1]; b += c[2]; }
+    return [r / (n * n), g / (n * n), b / (n * n)];
+  });
+}
+const RED = [190, 30, 45], BLUE = [30, 60, 160];
+Object.assign(PATTERNS, {
+  badge: () => onWhite(80, 60, (x, y) => { // jagged disc, a sharp point, 2 px and 1 px lines, small squares
+    if (Math.hypot(x - 24, y - 30) < 18) return BLUE;
+    if (y >= 8 && y < 30 && Math.abs(x - 60) < (y - 8) * 0.45) return RED;
+    if (x >= 46 && x < 76 && ((y >= 36 && y < 38) || (y >= 42 && y < 43))) return RED;
+    if (x >= 46 && x < 76 && y >= 48 && y < 51 && (x - 46) % 5 < 3) return RED;
+  }, true),
+  halo: () => onWhite(80, 60, (x, y) => { // disc with a pale ring round it, as left by a rough cut-out; thin lines beside it
+    const r = Math.hypot(x - 26, y - 30);
+    if (r < 16) return BLUE;
+    if (r < 18.5) return [200, 205, 215];
+    if (x >= 52 && x < 76 && ((y >= 16 && y < 18) || (y >= 26 && y < 30) || (y >= 40 && y < 47))) return RED;
+  }),
+  soft: () => pattern(80, 60, (x, y) => { // art that was already cut out: soft see-through edges that still carry the white it sat on
+    const edge = (c, t) => { t = Math.max(0, Math.min(1, t)); return [...c.map((v) => v + (255 - v) * t), 255 * (1 - t)]; }, r = Math.hypot(x - 26, y - 30);
+    if (r < 21) return edge([230, 70, 30], (r - 16) / 5);
+    if (x >= 52 && x < 76) for (const cy of [17, 30, 43]) if (Math.abs(y - cy) < 6) return edge([20, 110, 60], (Math.abs(y - cy) - 2) / 4);
+    return [255, 255, 255, 0];
+  }),
+  dust: () => onWhite(80, 60, (x, y) => { // a block of art and stray dots of 3, 4, 5, 6 and 8 px
+    if (x >= 8 && x < 36 && y >= 14 && y < 46) return BLUE;
+    for (const [sx, sy, sz] of [[46, 10, 3], [58, 16, 4], [70, 10, 3], [48, 28, 5], [62, 32, 6], [50, 44, 8], [68, 46, 4]]) if (x >= sx && x < sx + sz && y >= sy && y < sy + sz) return [110, 110, 110];
+  }, true),
+  shades: () => onWhite(160, 120, (x, y) => { // cream paper, art with a soft grey shadow, and a pale yellow part of the art
+    if (x >= 62 && x < 112 && y >= 28 && y < 78) return [200, 40, 40];
+    if (Math.hypot(x - 136, y - 44) < 15) return [255, 240, 150];
+    if (Math.hypot((x - 87) / 36, (y - 88) / 7) < 1) return [205, 205, 205];
+    if (x < 30) return [244, 238, 226];
+  }),
+  holes: () => onWhite(160, 120, (x, y) => { // an "O" (empty middle) and a face (white, with eyes and a mouth)
+    const o = Math.hypot(x - 40, y - 60), f = Math.hypot(x - 115, y - 60);
+    if (o < 27 && o >= 15) return [20, 20, 20];
+    if (f < 31 && f >= 27) return [20, 20, 20];
+    if (Math.hypot(x - 104, y - 52) < 4.5 || Math.hypot(x - 126, y - 52) < 4.5) return [20, 20, 20];
+    if (x >= 103 && x < 127 && y >= 71 && y < 75) return [20, 20, 20];
+  }),
+  clicks: () => onWhite(160, 120, (x, y) => { // blue block with a white cloud inside it, and a grey shadow underneath
+    if (Math.hypot((x - 85) / 46, (y - 100) / 7) < 1) return [150, 150, 150];
+    if (Math.hypot(x - 78, y - 58) < 10 || Math.hypot(x - 92, y - 56) < 13) return null;
+    if (x >= 40 && x < 130 && y >= 26 && y < 90) return [40, 110, 220];
+  }),
+});
+const cutOut = (src, tol = 40) => EdgeClean.removeOutside(src, tol).image;
+const CUT = { ...EdgeClean.DEFAULTS, cutFrom: [255, 255, 255] }; // default settings for a test picture cut off white
+const at = (src, x, y) => y * src.width + x;
+// One test picture through the real flat clean-up at three values of one slider, everything else at its default.
+const flatTiles = (key, vals, fixed) => (src) => { const cut = cutOut(src); return vals.map((v, i) => ({ cap: ["Low", "Middle", "High"][i], sub: String(v), img: EdgeClean.clean(cut, flatOpts({ ...CUT, ...fixed, [key]: v }, 4)).image })); };
+// Paint fixes on a test picture: each tile paints one shape (1 = paint art back, 2 = paint away) and runs the real code.
+const paintTiles = (list) => (src) => list.map(([cap, sub, shape]) => {
+  const m = new Uint8Array(src.width * src.height);
+  if (shape) for (let y = 0; y < src.height; y++) for (let x = 0; x < src.width; x++) m[y * src.width + x] = shape(x, y);
+  return { cap, sub, img: EdgeClean.darkArt(src, { method: "knockout", scale: 1, black: 18, fade: 52, dot: 6, angle: 22.5, shape: "round", artLevel: 40, hug: 8, margin: 3, smooth: 2, specks: 0,
+    paint: shape ? { width: src.width, height: src.height, data: m } : null }).image };
+});
 const DEMOS = {
+  paint: { pat: "design", bg: "#1e2a4a", note: "A bright ring with a black middle and a dim orange glow, done as <i>On black: black shirts</i> on a navy shirt. The black middle has gone see-through, so navy shows there.",
+    tiles: paintTiles([["No painting", "", null], ["Paint art back", "over the middle: it now prints solid black", (x, y) => (Math.hypot(x - 160, y - 75) < 41 ? 1 : 0)], ["Paint away", "over the right-hand side", (x, y) => (x > 196 ? 2 : 0)]]) },
+  brush: { pat: "design", bg: "#1e2a4a", note: "The same test picture with one stroke of <i>Paint away</i> across it.",
+    tiles: paintTiles([["Small brush", "", (x, y) => (Math.abs(y - 75) < 3 ? 2 : 0)], ["Big brush", "", (x, y) => (Math.abs(y - 75) < 16 ? 2 : 0)]]) },
+  cut: { pat: "shades", bg: "checker", note: "Art on white, with cream paper down the left, a grey shadow and a pale yellow circle. The checked pattern is where the background has gone.",
+    tiles: (src) => [{ cap: "Loaded file", img: src, bg: "#ffffff" }, { cap: "Background removed", img: cutOut(src) }] },
+  click: { pat: "clicks", bg: "checker", note: "A blue block with a white cloud in it and a grey shadow underneath.", tiles: (src) => {
+    const auto = cutOut(src), erased = EdgeClean.removeAt(auto, at(src, 85, 100), 40).image, oops = EdgeClean.removeAt(erased, at(src, 88, 56), 40).image;
+    return [{ cap: "After automatic removal", sub: "the shadow is left behind", img: auto }, { cap: "Erase background", sub: "clicked the shadow", img: erased },
+      { cap: "Clicked the cloud by mistake", sub: "the cloud is gone too", img: oops }, { cap: "Bring art back", sub: "clicked where the cloud was", img: EdgeClean.restoreAt(oops, src, at(src, 88, 56), 40) }];
+  } },
+  tol: { pat: "shades", bg: "checker", note: "The same picture at three ranges. Watch the cream paper on the left, the grey shadow, and the pale yellow circle, which is part of the art.",
+    tiles: (src) => [15, 40, 120].map((v, i) => ({ cap: ["Low", "Middle", "High"][i], sub: v + (i === 0 ? ": cream paper left behind" : i === 1 ? ": paper gone, art whole" : ": shadow gone, but so is the yellow"), img: cutOut(src, v) })) },
+  gaps: { pat: "holes", bg: "checker", note: "A letter O and a face, both with white in the middle, printed on a grey shirt. The O's middle is empty, so it's a gap. The face has eyes and a mouth, so it's part of the design.", tiles: (src) => {
+    const out = EdgeClean.removeOutside(src, 40, true), g = EdgeClean.findGaps(out.image, out.ref, 40, 15), flags = g.regions.map((r) => r.likely);
+    const red = { width: src.width, height: src.height, data: new Uint8ClampedArray(out.image.data) }, kept = new Uint8Array(g.labels.length);
+    for (let i = 0; i < g.labels.length; i++) { const l = g.labels[i]; if (l && flags[l - 1]) red.data.set([225, 29, 72, 255], i * 4); else if (l) kept[i] = 1; }
+    const cut = EdgeClean.removeRegions(out.image, g.labels, flags, 40, out.ref);
+    const done = (img) => EdgeClean.clean(img, flatOpts(CUT, 2)).image; // as the After picture shows it
+    return [{ cap: "Check off", sub: "the O's middle prints white", img: done(out.image), bg: "#9ca3af" }, { cap: "The check screen", sub: "red will be removed, the face is kept", img: red },
+      { cap: "After Apply", sub: "the shirt shows through the O", img: done(EdgeClean.fillScraps(cut, out.ref, g.outline, 40, 100, kept).image), bg: "#9ca3af" }];
+  } },
+  scale: { pat: "badge", bg: "#1e2a4a", note: "A small, jagged file on a navy shirt, with a sharp point, thin lines and small squares.",
+    tiles: (src) => { const cut = cutOut(src); return [1, 2, 4].map((v) => ({ cap: v + "×", sub: src.width * v + " px wide", img: EdgeClean.clean(cut, flatOpts(CUT, v)).image })); } },
+  matte: { pat: "soft", bg: "#1e2a4a", note: "Art that was cut off a white background and still has white mixed into its soft edges, on a navy shirt. Shrink edge and Edge colour fix are turned off here so only this setting shows. Watch the ring round the shapes.",
+    tiles: (cut) => { return [["none", "None"], ["auto", "Auto-detect"], [[0, 0, 0], "Black (the wrong colour)"]].map(([m, cap]) => ({ cap, img: EdgeClean.clean(cut, flatOpts({ ...EdgeClean.DEFAULTS, choke: 0, defringe: 0, matte: m }, 4)).image })); } },
+  smooth: { pat: "badge", bg: "#1e2a4a", note: "A small, jagged file on a navy shirt. Watch the stair-steps on the disc, and what happens to the sharp point, the thin lines and the small squares.", tiles: flatTiles("smooth", [0, 5, 12]) },
+  threshold: { pat: "badge", bg: "#1e2a4a", note: "The same file. Watch how heavy the thin lines are and whether the gaps between the small squares stay open.", tiles: flatTiles("threshold", [50, 128, 210]) },
+  choke: { pat: "halo", bg: "#1e2a4a", note: "A disc with a pale ring left round it by a rough cut-out, and three lines of different thickness, on a navy shirt. Edge colour fix is turned off here so only this setting shows.", tiles: flatTiles("choke", [0, 2, 8], { defringe: 0 }) },
+  defringe: { pat: "halo", bg: "#1e2a4a", note: "The same disc with its pale ring. Shrink edge is turned off here so only this setting shows. The shape stays the same; only the colour of the edge changes.", tiles: flatTiles("defringe", [0, 6, 12], { choke: 0 }) },
+  specks: { pat: "dust", bg: "#1e2a4a", note: "A block of art with stray grey dots of different sizes, on a navy shirt.", tiles: flatTiles("specks", [0, 100, 500]) },
+  view: { pat: "soft", note: "One file with a pale ring left on it, on three shirt colours. The ring is invisible on white and obvious on the others.",
+    tiles: (src) => { const img = EdgeClean.clean(src, flatOpts({ ...EdgeClean.DEFAULTS, choke: 0, defringe: 0, matte: "none" }, 4)).image; return [["#ffffff", "White"], ["#000000", "Black"], ["#b91c1c", "Red"]].map(([bg, cap]) => ({ cap, img, bg })); } },
   kind: { pat: "design", vary: "method", vals: ["keep", "knockout", "backing"], caps: ["Keep dark detail", "Black shirts", "Any shirt"], bg: "#1e2a4a",
     note: "A bright ring with a flat-black shirt inside and a dim orange glow round it, on navy." },
   black: { pat: "ramp", method: "knockout", vals: [5, 25, 60], bg: "#1e2a4a", note: "Two ramps from black (left) to brighter (right), on navy. Watch where the cut starts." },
@@ -935,17 +1162,20 @@ const DEMOS = {
 function demoRow(key) {
   const d = DEMOS[key], src = PATTERNS[d.pat](), ex = document.createElement("div");
   ex.className = "ex";
-  d.vals.forEach((v, i) => {
+  const tiles = d.tiles ? d.tiles(src) : d.vals.map((v, i) => {
     const o = { method: d.method, scale: 1, black: 18, fade: 52, dot: 6, angle: 22.5, shape: "round", artLevel: 40, hug: 8, margin: 3, smooth: 2, specks: 0, ...d.fixed };
     if (d.vary === "method") o.method = v; else o[SETTING_KEY[key] || key] = v;
-    const img = EdgeClean.darkArt(src, o).image, f = document.createElement("figure");
-    f.append(tile(img, d.crop, 320, d.bg));
-    f.insertAdjacentHTML("beforeend", `<figcaption>${d.caps ? d.caps[i] : ["Low", "Middle", "High"][i]}</figcaption>`);
-    ex.append(f);
+    return { img: EdgeClean.darkArt(src, o).image, cap: d.caps ? d.caps[i] : ["Low", "Middle", "High"][i] };
   });
+  for (const t of tiles) {
+    const f = document.createElement("figure"), k = t.img.width / src.width; // crops are in test-picture px
+    f.append(tile(t.img, d.crop && d.crop.map((c) => c * k), 320, t.bg || d.bg));
+    f.insertAdjacentHTML("beforeend", `<figcaption>${t.cap}${t.sub ? `<small>${t.sub}</small>` : ""}</figcaption>`);
+    ex.append(f);
+  }
   return ex;
 }
-for (const k of DARK_SLIDERS) {
+for (const k of [...DARK_SLIDERS, ...SLIDERS, "tol", "brush"]) {
   const b = document.createElement("button");
   b.className = "qm"; b.dataset.help = k; b.textContent = "?"; b.title = "What does this do?";
   const span = $(k).closest("label").querySelector("span");
@@ -969,19 +1199,34 @@ function exampleRun(method, over) { // sizes are in full-image px, dots in outpu
   return EdgeClean.darkArt(b.img, { method, scale: 1, black: o.black, fade: o.fade, dot: Math.max(2, o.dot * f / o.scale), angle: o.angle, shape: o.shape,
     artLevel: o.artLevel, hug: o.hug * f, margin: o.margin * f, smooth: o.smooth * f, specks: 20 }).image;
 }
-function busiestBox(imgs, size) { // square where the examples differ most (by opacity), or null if they're all the same
-  const { width: w, height: h } = imgs[0], st = 4, gw = Math.ceil(w / st), gh = Math.ceil(h / st), I = new Float64Array((gw + 1) * (gh + 1));
-  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
-    const p = ((gy * st) * w + gx * st) * 4 + 3; let lo = 255, hi = 0;
-    for (const im of imgs) { lo = Math.min(lo, im.data[p]); hi = Math.max(hi, im.data[p]); }
-    I[(gy + 1) * (gw + 1) + gx + 1] = (hi - lo) + I[gy * (gw + 1) + gx + 1] + I[(gy + 1) * (gw + 1) + gx] - I[gy * (gw + 1) + gx];
-  }
+// Square [x, y, side] of a w × h image where score(pixel index) adds up highest, looking at every 4th pixel.
+function hotBox(w, h, size, score) {
+  const st = 4, gw = Math.ceil(w / st), gh = Math.ceil(h / st), I = new Float64Array((gw + 1) * (gh + 1));
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++)
+    I[(gy + 1) * (gw + 1) + gx + 1] = score((gy * st) * w + gx * st) + I[gy * (gw + 1) + gx + 1] + I[(gy + 1) * (gw + 1) + gx] - I[gy * (gw + 1) + gx];
   const s = Math.min(gw, gh, Math.max(4, Math.round(size / st))); let best = 0, at = null;
   for (let y = 0; y + s <= gh; y += Math.max(1, s >> 2)) for (let x = 0; x + s <= gw; x += Math.max(1, s >> 2)) {
     const v = I[(y + s) * (gw + 1) + x + s] - I[y * (gw + 1) + x + s] - I[(y + s) * (gw + 1) + x] + I[y * (gw + 1) + x];
     if (v > best) { best = v; at = [x * st, y * st, s * st]; }
   }
-  return I[I.length - 1] < 255 * gw * gh / 1000 ? null : at; // under ~0.1% of the image changing = no visible difference
+  return { at, total: I[I.length - 1], cells: gw * gh };
+}
+function busiestBox(imgs, size, any) { // square where the examples differ most (by opacity), or null if they're all the same
+  const r = hotBox(imgs[0].width, imgs[0].height, size, (i) => {
+    let lo = 255, hi = 0;
+    for (const im of imgs) { lo = Math.min(lo, im.data[i * 4 + 3]); hi = Math.max(hi, im.data[i * 4 + 3]); }
+    return hi - lo;
+  });
+  return !any && r.total < 255 * r.cells / 1000 ? null : r.at; // under ~0.1% of the image changing = no visible difference
+}
+function edgeBox(img, size) { // square holding the most cut edge: fine detail and text, where the edge settings matter most
+  const { width: w, height: h, data: d } = img, n = w * h;
+  return hotBox(w, h, size, (i) => { const a = d[i * 4 + 3] > 127; return (i + 4 < n && a !== d[(i + 4) * 4 + 3] > 127) || (i + 4 * w < n && a !== d[(i + 4 * w) * 4 + 3] > 127) ? 1 : 0; }).at;
+}
+function cropImg(img, x, y, w, h) {
+  const d = new Uint8ClampedArray(w * h * 4);
+  for (let j = 0; j < h; j++) d.set(img.data.subarray(((y + j) * img.width + x) * 4, ((y + j) * img.width + x + w) * 4), j * w * 4);
+  return { width: w, height: h, data: d };
 }
 // Canvas showing square box [x, y, size] of img (or all of it) on a shirt colour. With cmp (the "Now"
 // result), pixels this one removes are tinted red and pixels it adds green, so small changes stand out.
@@ -1013,10 +1258,12 @@ function openHelp(key) {
   if (!d) { $("helpEx").innerHTML = ""; return $("help").showModal(); } // words only
   $("helpEx").innerHTML = `<h4>How it works</h4><p><small>${d.note}</small></p>`;
   $("helpEx").append(demoRow(key));
+  $("help").showModal();
+  if (!h.zoom) return; // the test pictures are the whole story
   const art = document.createElement("div");
   art.innerHTML = "<h4>On your artwork</h4>";
   $("helpEx").append(art);
-  $("help").showModal();
+  if (FLAT_LIVE.includes(key)) return flatExamples(key, art);
   if (!original || (key === "kind" ? !(solid && Math.max(...EdgeClean.borderColour(original)) < 40) : kind === "flat"))
     return art.insertAdjacentHTML("beforeend", `<p><small>${original ? "Shows for art on black." : "Load artwork to see it on your own design."}</small></p>`);
   const wait = document.createElement("p"); wait.innerHTML = "<small>Making examples on your artwork…</small>"; art.append(wait);
@@ -1051,6 +1298,62 @@ function openHelp(key) {
       ex.append(f);
     });
     art.append(ex);
+  }, 30);
+}
+
+// "On your artwork" for the flat-background settings: the real clean-up on a close-up of the loaded art,
+// at the size and upscale the page is using, with only that one setting changed.
+const FLAT_LIVE = ["tol", "scale", "matte", "smooth", "threshold", "choke", "defringe", "specks"];
+function flatExamples(key, art) {
+  const say = (t) => art.insertAdjacentHTML("beforeend", `<p><small>${t}</small></p>`);
+  if (!source) return say("Load artwork to see it on your own design.");
+  if (kind !== "flat") return say(key === "scale" ? "Shows for Flat background artwork. For art on black, Upscale makes the file bigger and the curves smoother, and the dots keep the same printed size." : "Shows for Flat background artwork.");
+  const wait = document.createElement("p"); wait.innerHTML = "<small>Making examples on your artwork…</small>"; art.append(wait);
+  setTimeout(() => { // let the pop-up paint first
+    const h = HELP[key], el = $(key), size = Math.max(48, Math.round(Math.max(source.width, source.height) / h.zoom));
+    const where = (img, box, extra) => { // small picture of the whole design with the close-up marked
+      const w = document.createElement("div"), m = tile(img, null, 240), g = m.getContext("2d"), k = 240 / img.width;
+      g.strokeStyle = "#ffd21f"; g.lineWidth = 8; g.strokeRect(box[0] * k, box[1] * k, box[2] * k, box[2] * k);
+      w.className = "where"; w.append(m);
+      w.insertAdjacentHTML("beforeend", `<span>Close-up of the yellow square. ${extra}</span>`);
+      art.append(w);
+    };
+    const TINT = "<b style=\"color:#e11d48\">Red</b> = removed compared with Now, <b style=\"color:#16a34a\">green</b> = kept that Now removes.";
+    const show = (tiles) => { // [{ img, box, cap, sub, cmp }]
+      const ex = document.createElement("div"); ex.className = "ex";
+      for (const t of tiles) {
+        const f = document.createElement("figure");
+        f.append(tile(t.img, t.box, 480, back, t.cmp));
+        f.insertAdjacentHTML("beforeend", `<figcaption>${t.cap}${t.sub ? `<small>${t.sub}</small>` : ""}</figcaption>`);
+        ex.append(f);
+      }
+      art.append(ex);
+    };
+    const around = (now) => { const v = [...new Set([h.lo, now, h.hi])].sort((a, b) => a - b); return v.map((x) => ({ v: x, cap: x === now ? "Now" : x < now ? "Lower" : "Higher", sub: String(x) })); };
+    wait.remove();
+    if (key === "tol") { // the automatic removal on the original, at three ranges
+      const vs = around(+el.value), imgs = vs.map((x) => EdgeClean.removeOutside(original, x.v).image), box = busiestBox(imgs, size);
+      if (!box) return say("This setting makes almost no difference to the automatic removal on this artwork.");
+      const now = imgs[vs.findIndex((x) => x.cap === "Now")];
+      where(now, box, "It shows the automatic removal on the file as it was loaded, where the range makes the most difference. " + TINT);
+      return show(vs.map((x, i) => ({ ...x, img: imgs[i], box, cmp: now })));
+    }
+    const cur = flatNow(), scale = +$("scale").value, found = cutRef || EdgeClean.estimateMatte(source);
+    const real = (m) => (m === "auto" ? found || "none" : m); // the close-up must use the colour found on the whole image
+    let vs, box = null;
+    if (key === "scale") vs = [...el.options].filter((o) => !o.disabled).map((o) => ({ cap: o.value + "×" + (+o.value === scale ? " (now)" : ""), v: cur, scale: +o.value }));
+    else if (key === "matte") vs = [["none", "None"], ["auto", "Auto-detect"], ["white", "White"], ["black", "Black"]].map(([m, cap]) => ({ cap: cap + (el.value === m ? " (now)" : ""), v: { ...cur, matte: matteOf(m) }, scale }));
+    else vs = around(+el.value).map((x) => ({ ...x, v: { ...cur, [key]: x.v }, scale }));
+    if (key === "specks") box = busiestBox(vs.map((x) => EdgeClean.clean(source, flatOpts({ ...x.v, matte: "none" }, 1)).image), size, true); // where the dots are
+    box = box || edgeBox(source, size);
+    if (!box) return say("Nothing to show: the artwork has no cut edge yet.");
+    const pad = 16, x0 = Math.max(0, box[0] - pad), y0 = Math.max(0, box[1] - pad), x1 = Math.min(source.width, box[0] + box[2] + pad), y1 = Math.min(source.height, box[1] + box[2] + pad);
+    const piece = cropImg(source, x0, y0, x1 - x0, y1 - y0);
+    const tiles = vs.map((x) => ({ ...x, img: EdgeClean.clean(piece, flatOpts({ ...x.v, matte: real(x.v.matte) }, x.scale)).image, box: [(box[0] - x0) * x.scale, (box[1] - y0) * x.scale, box[2] * x.scale] }));
+    const now = tiles.find((t) => t.cap === "Now"), shape = key !== "matte" && key !== "defringe" && key !== "scale";
+    if (now && shape) for (const t of tiles) t.cmp = now.img;
+    where(source, box, (key === "specks" ? "It's where this setting changes the most on your artwork. " : "It's the part of your artwork with the most fine edge detail. ") + (now && shape ? TINT : "Shown on the shirt colour picked under Preview on."));
+    show(tiles);
   }, 30);
 }
 

@@ -20,15 +20,28 @@
       var a = d[i + 3];
       if (a > 0 && a <= 96) { var w = 255 - a; r += d[i] * w; g += d[i + 1] * w; b += d[i + 2] * w; n += w; }
     }
-    return n ? [r / n, g / n, b / n] : null;
+    if (!n) return null;
+    // Faint pixels still hold some art, so their average leans toward the art colour (white came out as
+    // light grey, which left a pale ring). Each see-through pixel is background + a * (art - background),
+    // so a straight line fitted through colour against a, read off at a = 0, is the background itself.
+    var N = 0, sa = 0, saa = 0, sc = [0, 0, 0], sac = [0, 0, 0], k;
+    for (i = 0; i < d.length; i += 4) {
+      a = d[i + 3];
+      if (a <= 0 || a >= 200) continue;
+      a /= 255; N++; sa += a; saa += a * a;
+      for (k = 0; k < 3; k++) { sc[k] += d[i + k]; sac[k] += a * d[i + k]; }
+    }
+    var det = N * saa - sa * sa;
+    if (N < 30 || det < N * N * 0.01) return [r / n, g / n, b / n]; // too few, or all about the same faintness
+    return [0, 1, 2].map(function (c) { return Math.max(0, Math.min(255, (sc[c] * saa - sa * sac[c]) / det)); });
   }
 
   // Un-mix the background: seen = art*a + matte*(1-a)  →  art = (seen - matte*(1-a)) / a
-  function removeMatte(img, m) {
+  function removeMatte(img, m, skip) { // skip = pixels whose colour is already pure art (softenCut)
     var d = img.data;
     for (var i = 0; i < d.length; i += 4) {
       var a = d[i + 3] / 255;
-      if (a <= 0 || a >= 1) continue;
+      if (a <= 0 || a >= 1 || (skip && skip[i >> 2])) continue;
       for (var k = 0; k < 3; k++) d[i + k] = (d[i + k] - m[k] * (1 - a)) / a;
     }
   }
@@ -688,7 +701,7 @@
     if (o.paint) for (var j = 0; j < w * h; j++) if (o.paint.data[j]) m[j] = o.paint.data[j] === 1 ? 255 : 0;
     var img = { width: w, height: h, data: new Uint8ClampedArray(s) };
     for (var i = 0; i < w * h; i++) img.data[i * 4 + 3] = Math.min(s[i * 4 + 3], m[i]);
-    return clean(img, { scale: o.scale, smooth: 2, threshold: 128, choke: 0, defringe: 0, specks: o.specks, matte: "none" });
+    return clean(img, { scale: o.scale, smooth: 2, threshold: 128, choke: 0, defringe: 0, specks: o.specks, matte: "none", thin: false }); // an outline, not line art: its thin spikes should smooth away
   }
 
   // One smooth outline round the whole design (w*h, 0/255): art grown by hug, holes filled, shrunk back to
@@ -716,22 +729,177 @@
     return out;
   }
 
-  var DEFAULTS = { scale: 4, matte: "auto", smooth: 5, threshold: 128, choke: 1, defringe: 6, specks: 20 };
+  // The soft edge of art that this tool cut off a flat background (opts.cutFrom = that background colour).
+  // The cut is a yes/no mask with one faded ring, so the edge only knows whole pixels: curves come out as
+  // stair-steps, and the pixels just inside still carry background colour (a pale ring on a dark shirt).
+  // But each pixel along the edge of the art is the art colour and the old background mixed:
+  // seen = art * t + background * (1 - t), where t is how much of the pixel the art covers. The background
+  // is known and the art is the strongest colour just inside, so t is how far the pixel sits along the
+  // line from background to art.
+  // - t places the edge to a fraction of a pixel, so the upscale can draw a smooth line. Alpha is
+  //   t * COVER_GAIN: the edge lands where the art covers 1/(2 * gain) of a pixel, about where the yes/no
+  //   cut put it, so lines keep their weight.
+  // - The colour becomes the art colour with the background taken out, so no pale ring is left. Those
+  //   pixels are returned as a 0/1 mask so the general un-mixing (removeMatte) leaves them alone.
+  // Only pixels that really are that mix are touched, working inward from the cut while the art keeps
+  // getting stronger: a pale part of the design beside a dark one is off the line and stays as drawn, and
+  // so does whatever lies on the far side of a thin line (the white inside a thin outline). The art
+  // colour must join up with the pixel, so a faint hairline is not read as the soft edge of a dark shape
+  // that sits across a gap from it. Everything else keeps the cut's own alpha.
+  // s = the cut as it came in (read only), d = the copy being cleaned (written).
+  var COVER_GAIN = 2, COVER_DEPTH = 3, COVER_REACH = 2, COVER_OFF = 36, COVER_MIN = 100;
+  function softenCut(s, d, w, h, ref) {
+    var n = w * h, i, x, y, X, Y, j, dx, dy, k, c, lvl = new Uint8Array(n), tt = new Float32Array(n), cur = [], next, done = new Uint8Array(n);
+    for (i = 0; i < n; i++) { // the pixels touching the cut
+      if (!s[i * 4 + 3]) continue;
+      x = i % w; y = (i - x) / w;
+      for (dy = -1; dy <= 1 && !lvl[i]; dy++) for (dx = -1; dx <= 1; dx++) {
+        X = x + dx; Y = y + dy;
+        if (X >= 0 && Y >= 0 && X < w && Y < h && !s[(Y * w + X) * 4 + 3]) { lvl[i] = 1; cur.push(i); break; }
+      }
+    }
+    for (var depth = 1; depth <= COVER_DEPTH && cur.length; depth++) {
+      next = [];
+      for (k = 0; k < cur.length; k++) {
+        i = cur[k]; x = i % w; y = (i - x) / w; tt[i] = 1; // 1 = art, or not a mix: nothing past it is edge
+        var best = -1, far = 0, dd, before = 0, own = dist(s, i * 4, ref), mx, my, joined;
+        for (dy = -COVER_REACH; dy <= COVER_REACH; dy++) for (dx = -COVER_REACH; dx <= COVER_REACH; dx++) {
+          X = x + dx; Y = y + dy; j = Y * w + X;
+          if (X < 0 || Y < 0 || X >= w || Y >= h || !s[j * 4 + 3]) continue;
+          dd = dist(s, j * 4, ref);
+          if (dd <= far) continue;
+          if (dx > 1 || dx < -1 || dy > 1 || dy < -1) { // two away: it must join up, not sit across a paler gap
+            joined = false;
+            for (my = y - 1; my <= y + 1 && !joined; my++) for (mx = x - 1; mx <= x + 1; mx++) {
+              if (mx < 0 || my < 0 || mx >= w || my >= h || mx - X > 1 || X - mx > 1 || my - Y > 1 || Y - my > 1 || (mx === x && my === y)) continue;
+              if (s[(my * w + mx) * 4 + 3] && dist(s, (my * w + mx) * 4, ref) >= own - 10) { joined = true; break; }
+            }
+            if (!joined) continue;
+          }
+          far = dd; best = j;
+        }
+        if (best < 0 || far < COVER_MIN) continue; // the art here is close to the background colour itself
+        var ax = s[best * 4] - ref[0], ay = s[best * 4 + 1] - ref[1], az = s[best * 4 + 2] - ref[2];
+        var px = s[i * 4] - ref[0], py = s[i * 4 + 1] - ref[1], pz = s[i * 4 + 2] - ref[2];
+        var t = (px * ax + py * ay + pz * az) / (ax * ax + ay * ay + az * az);
+        if (t >= 0.97) continue;
+        if (t < 0) t = 0;
+        var ox = px - t * ax, oy = py - t * ay, oz = pz - t * az;
+        if (Math.sqrt(ox * ox + oy * oy + oz * oz) > COVER_OFF) continue; // not a mix of the two: real art
+        if (depth > 1) { // must still be climbing from the edge pixel(s) it touches
+          for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) {
+            X = x + dx; Y = y + dy; j = Y * w + X;
+            if (X >= 0 && Y >= 0 && X < w && Y < h && lvl[j] === depth - 1 && tt[j] < 1 && tt[j] > before) before = tt[j];
+          }
+          if (!before || t < before - 0.05) continue;
+        }
+        tt[i] = Math.max(t, 0.001);
+        var a = Math.min(1, t * COVER_GAIN), o = i * 4;
+        // the art colour: un-mixed where there is enough of it to trust, else the strongest colour nearby
+        for (c = 0; c < 3; c++) d[o + c] = t >= 0.4 ? Math.max(0, Math.min(255, (s[o + c] - ref[c] * (1 - t)) / t)) : s[best * 4 + c];
+        d[o + 3] = Math.round(255 * a); done[i] = 1;
+        if (depth < COVER_DEPTH) for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) {
+          X = x + dx; Y = y + dy; j = Y * w + X;
+          if (X >= 0 && Y >= 0 && X < w && Y < h && !lvl[j] && s[j * 4 + 3] === 255) { lvl[j] = depth + 1; next.push(j); }
+        }
+      }
+      cur = next;
+    }
+    return done;
+  }
+
+  // Smoothing must not wipe out or break up a thin line. A line narrower than the blur fades under the
+  // threshold: fine text, whiskers, the tail of a stroke, the tip of a point. So the thin parts of the art
+  // are taken from before the smoothing (`sharp`: the same edge, not blurred) and put back. Thin = it
+  // does not hold a square of 2D + 1 px, which is what the blur cannot be trusted with. Only pieces long
+  // enough to be a line or a point: a dot smaller than the blur is left to the smoothing as before, so
+  // dust is not brought back. Wide shapes are untouched, so their edges stay smooth. m = smoothed 0/1 mask.
+  function boxPass(src, w, h, r, all) { // 1 where the (2r+1) square has any solid pixel, or (all) nothing empty; past the image edge counts as solid for `all`
+    var n = w * h, tmp = new Uint8Array(n), out = new Uint8Array(n), x, y, c, cells;
+    for (y = 0; y < h; y++) {
+      c = 0;
+      for (x = 0; x < Math.min(w, r); x++) c += src[y * w + x];
+      for (x = 0; x < w; x++) {
+        if (x + r < w) c += src[y * w + x + r];
+        if (x - r - 1 >= 0) c -= src[y * w + x - r - 1];
+        cells = Math.min(w - 1, x + r) - Math.max(0, x - r) + 1;
+        tmp[y * w + x] = (all ? c === cells : c > 0) ? 1 : 0;
+      }
+    }
+    for (x = 0; x < w; x++) {
+      c = 0;
+      for (y = 0; y < Math.min(h, r); y++) c += tmp[y * w + x];
+      for (y = 0; y < h; y++) {
+        if (y + r < h) c += tmp[(y + r) * w + x];
+        if (y - r - 1 >= 0) c -= tmp[(y - r - 1) * w + x];
+        cells = Math.min(h - 1, y + r) - Math.max(0, y - r) + 1;
+        out[y * w + x] = (all ? c === cells : c > 0) ? 1 : 0;
+      }
+    }
+    return out;
+  }
+  function keepThin(m, sharp, soft, w, h, D) {
+    var n = w * h, i, any = false;
+    for (i = 0; i < n; i++) if (sharp[i] && !m[i]) { any = true; break; }
+    if (!any) return; // smoothing took nothing away
+    var wide = boxPass(boxPass(sharp, w, h, D, true), w, h, D, false); // the parts that hold the square
+    var q = new Int32Array(n), minLen = 4 * D + 2, x, y, X, Y, j, dx, dy;
+    for (i = 0; i < n; i++) wide[i] = sharp[i] && !wide[i] ? 1 : 0; // now: the thin parts
+    for (var st = 0; st < n; st++) {
+      if (wide[st] !== 1) continue;
+      var head = 0, tail = 0, x0 = w, y0 = h, x1 = 0, y1 = 0;
+      q[tail++] = st; wide[st] = 2;
+      while (head < tail) {
+        i = q[head++]; x = i % w; y = (i - x) / w;
+        if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+        for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) {
+          X = x + dx; Y = y + dy; j = Y * w + X;
+          if (X >= 0 && Y >= 0 && X < w && Y < h && wide[j] === 1) { wide[j] = 2; q[tail++] = j; }
+        }
+      }
+      if (Math.max(x1 - x0, y1 - y0) + 1 < minLen) continue;
+      // Put the piece back, with the pixels beside it that the barely blurred edge (`soft`) also holds:
+      // that rounds its stair-steps off without thinning it.
+      for (var k = 0; k < tail; k++) {
+        i = q[k]; m[i] = 1; x = i % w; y = (i - x) / w;
+        for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) {
+          X = x + dx; Y = y + dy; j = Y * w + X;
+          if (X >= 0 && Y >= 0 && X < w && Y < h && soft[j]) m[j] = 1;
+        }
+      }
+    }
+  }
+
+  var DEFAULTS = { scale: 4, matte: "auto", smooth: 5, threshold: 128, choke: 1, defringe: 6, specks: 20, cutFrom: null, thin: true };
 
   // opts.matte: "auto" | "none" | [r, g, b]
+  // opts.cutFrom: [r, g, b] when this tool cut the art off a flat background of that colour (and the file
+  // had no see-through pixels of its own): the cut edge is then rebuilt first, see softenCut.
+  // opts.thin: false turns off the thin-line guard (keepThin).
   function clean(input, opts) {
     var o = {}; for (var key in DEFAULTS) o[key] = opts && opts[key] != null ? opts[key] : DEFAULTS[key];
     var img = { width: input.width, height: input.height, data: new Uint8ClampedArray(input.data) };
 
-    var matte = o.matte === "auto" ? estimateMatte(img) : o.matte === "none" ? null : o.matte;
-    if (matte) removeMatte(img, matte);
+    var rebuilt = o.cutFrom ? softenCut(input.data, img.data, img.width, img.height, o.cutFrom) : null;
+    var matte = o.matte === "auto" ? o.cutFrom || estimateMatte(img) : o.matte === "none" ? null : o.matte;
+    if (matte) removeMatte(img, matte, rebuilt);
     if (o.scale > 1) img = upscale(img, o.scale);
 
     var w = img.width, h = img.height, d = img.data, a = new Float32Array(w * h);
     for (var i = 0; i < a.length; i++) a[i] = d[i * 4 + 3];
-    blur(a, w, h, Math.round(o.smooth));
+    var sm0 = Math.round(o.smooth), sharp = null, soft = null;
+    if (sm0 >= 1 && o.thin) { // the edge before smoothing, for the thin-line guard: as it is, and barely blurred at a lower level
+      var a0 = new Float32Array(a);
+      sharp = new Uint8Array(a.length); soft = new Uint8Array(a.length);
+      for (i = 0; i < a.length; i++) sharp[i] = a0[i] >= o.threshold ? 1 : 0;
+      blur(a0, w, h, 1);
+      for (i = 0; i < a.length; i++) soft[i] = a0[i] >= o.threshold * 0.9 ? 1 : 0;
+      a0 = null;
+    }
+    blur(a, w, h, sm0);
     var m = new Uint8Array(a.length);
     for (i = 0; i < a.length; i++) m[i] = a[i] >= o.threshold ? 1 : 0;
+    if (sharp) keepThin(m, sharp, soft, w, h, sm0 + 1);
     if (o.specks > 0) removeSpecks(m, w, h, o.specks);
     if (o.choke > 0) erode(m, w, h, Math.round(o.choke));
     // d's alpha is still the one from before smoothing, which is what says whose colour can be trusted:

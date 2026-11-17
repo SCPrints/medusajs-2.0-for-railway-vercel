@@ -322,3 +322,103 @@ console.log("ok: faint pixels take the colour of the art round them");
   assert(eg.regions.length === 1 && eg.regions[0].likely, "an empty area cut by the image edge is still a gap");
   console.log("ok: narrow channels removed, break size follows the file, image edge is not 'something inside'");
 }
+
+// The edge of art cut off a flat background (clean's cutFrom). The cut is a yes/no mask, so on its own
+// it gives stair-stepped curves and leaves background colour in the edge pixels. With cutFrom the
+// clean-up reads how much of each edge pixel is art, which must give: no pale ring, a truer and smoother
+// edge, thin lines kept whole at their real weight, and nothing changed that is not a mix of art and
+// background (pale art beside dark art, the far side of a thin line, flat grey art).
+{
+  const WHITE = [255, 255, 255], K = [0, 0, 0], Y = [255, 235, 60];
+  const draw = (w, h, at) => { // 4x4 supersampled on white, like real anti-aliased art
+    const im = { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) };
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let r = 0, g = 0, b = 0;
+      for (let sy = 0; sy < 4; sy++) for (let sx = 0; sx < 4; sx++) { const c = at(x + (sx + 0.5) / 4, y + (sy + 0.5) / 4) || WHITE; r += c[0]; g += c[1]; b += c[2]; }
+      im.data.set([r / 16, g / 16, b / 16, 255], (y * w + x) * 4);
+    }
+    return im;
+  };
+  const run = (img, o) => clean(removeOutside(img, 40).image, { cutFrom: WHITE, ...o });
+  const at = (im, sx, sy, S = 4) => Array.from(im.data.subarray((Math.round(sy * S) * im.width + Math.round(sx * S)) * 4, (Math.round(sy * S) * im.width + Math.round(sx * S)) * 4 + 4));
+  const onEdge = (d, w, x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !d[((y + dy) * w + x + dx) * 4 + 3]);
+
+  // a black disc, off the pixel grid
+  const R = 30.4, cx = 50.3, cy = 49.6, disc = draw(100, 100, (x, y) => (Math.hypot(x - cx, y - cy) <= R ? K : null));
+  for (const S of [2, 4]) {
+    const f = S / 4, fit = (v) => Math.max(0, Math.ceil(v * f - 0.5));
+    const o = run(disc, { scale: S, smooth: fit(5), choke: fit(1), defringe: Math.round(6 * f), specks: Math.round(20 * f * f) }), d = o.image.data, w = o.image.width;
+    assert(o.matte.every((v) => v === 255), "the old background is the colour that was cut, got " + o.matte);
+    let bright = 0, sum = 0, sq = 0, n = 0, area = 0;
+    for (let y = 1; y < w - 1; y++) for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      if (!d[i + 3]) continue;
+      area++; bright = Math.max(bright, d[i], d[i + 1], d[i + 2]);
+      if (onEdge(d, w, x, y)) { const e = (Math.hypot((x + 0.5) / S - cx, (y + 0.5) / S - cy) - R) * S; sum += e; sq += e * e; n++; }
+    }
+    const mean = sum / n, wobble = Math.sqrt(sq / n - mean * mean);
+    assert(bright <= 10, S + "x: pale pixels left on a black disc, brightest " + bright);
+    assert(Math.abs(mean) < 1.2, S + "x: edge sits " + mean.toFixed(2) + " px off the true circle");
+    assert(wobble < (S === 4 ? 0.47 : 0.32), S + "x: edge is stair-stepped, wobble " + wobble.toFixed(3) + " px");
+    assert(Math.abs(area / (Math.PI * R * R * S * S) - 1) < 0.03, S + "x: disc grew or shrank");
+  }
+
+  // the rebuilt edge does not depend on the Old background colour setting: clicking a grey shadow away
+  // changes that setting to grey, and "None" turns it off, and neither may bring the pale ring back
+  for (const matte of ["none", [150, 150, 150]]) {
+    const im = run(disc, { scale: 4, matte }).image;
+    let worst = 0;
+    for (let i = 0; i < im.data.length; i += 4) if (im.data[i + 3]) worst = Math.max(worst, im.data[i], im.data[i + 1], im.data[i + 2]);
+    assert(worst <= 10, "pale ring with Old background colour = " + matte + ", brightest " + worst);
+  }
+
+  // a thin slanted line, 1.3 px wide: stays in one piece at about its real width
+  const cos = Math.cos(Math.atan(0.3)), line = run(draw(120, 60, (x, y) => (x > 10 && x < 110 && Math.abs(y - (12 + 0.3 * x)) * cos <= 0.65 ? K : null)), { scale: 4 }).image;
+  let ink = 0, cols = 0;
+  for (let x = 60; x < 420; x++) { let has = false; for (let y = 0; y < line.height; y++) if (line.data[(y * line.width + x) * 4 + 3]) { ink++; has = true; } if (has) cols++; }
+  const width = ink / 360 / 4 * cos;
+  assert.strictEqual(cols, 360, "a thin line must not break up");
+  assert(width > 1.0 && width < 1.6, "a 1.3 px line came out " + width.toFixed(2) + " px wide");
+
+  // dust is not brought back by the thin-line guard
+  const dust = run(draw(60, 40, (x, y) => (x >= 10 && x < 30 && y >= 10 && y < 30) || (x >= 44 && x < 46 && y >= 20 && y < 22) ? K : null), { scale: 4 }).image;
+  assert.strictEqual(at(dust, 45, 21)[3], 0, "a 2 px dot is still smoothed away");
+  assert.strictEqual(at(dust, 20, 20)[3], 255);
+
+  // not a mix of art and background: left as drawn
+  const isY = (p) => p[3] === 255 && p[0] > 235 && p[1] > 215 && p[1] < 250 && p[2] < 90;
+  const inside = run(draw(80, 40, (x) => (x >= 20 && x < 22 ? K : x >= 22 && x < 60 ? Y : null)), { scale: 4 }).image;
+  assert(isY(at(inside, 23.5, 20)) && isY(at(inside, 40, 20)), "yellow fill just inside a black outline stays yellow: " + at(inside, 23.5, 20));
+  const outside = run(draw(80, 40, (x) => (x >= 20 && x < 22 ? Y : x >= 22 && x < 60 ? K : null)), { scale: 4 }).image;
+  assert(isY(at(outside, 21, 20)), "a 2 px pale band on the outside of dark art is art, not a soft edge: " + at(outside, 21, 20));
+  // a 1 px outline that falls across two pixels (so both are half art), with white inside it
+  const box = run(draw(60, 60, (x, y) => (x >= 10.5 && x < 49.5 && y >= 10.5 && y < 49.5 && !(x >= 11.5 && x < 48.5 && y >= 11.5 && y < 48.5) ? K : null)), { scale: 4 }).image;
+  for (const sx of [12.6, 13.5, 30]) assert.deepStrictEqual(at(box, sx, 30), [255, 255, 255, 255], "white on the far side of a thin line stays white and solid, at x = " + sx);
+  assert(at(box, 11, 30)[3] === 255 && at(box, 11, 30)[0] < 140, "the line itself is kept (mid grey, as it is in the file): " + at(box, 11, 30));
+  // a faint hairline on the edge, then a 1 px white slot, then black: the hairline is its own grey line,
+  // not the soft edge of the black across the slot, so it stays grey and the slot stays light
+  const slot = run(draw(60, 60, (x, y) => (y < 10 || y >= 50 || x < 10 || x >= 40 ? null : x < 11 && y >= 12 && y < 48 ? [128, 128, 128] : x < 12 && y >= 12 && y < 48 ? null : K)), { scale: 4 }).image;
+  assert(at(slot, 10.5, 30)[3] === 255 && Math.abs(at(slot, 10.5, 30)[0] - 128) < 30, "a faint hairline keeps its own colour: " + at(slot, 10.5, 30));
+  assert.strictEqual(at(slot, 11.5, 30)[3], 255, "the slot behind it stays solid");
+  // a thin slanted outline (its pixels vary from faint to full) with white inside: the white is on the far
+  // side of the line and must not be eaten into
+  const dia = run(draw(60, 60, (x, y) => { const l = Math.abs(x - 30) + Math.abs(y - 30); return l >= 18 && l < 19.7 ? K : null; }), { scale: 4 }).image;
+  let holes = 0;
+  for (let y = 0; y < dia.height; y++) for (let x = 0; x < dia.width; x++) if (Math.abs((x + 0.5) / 4 - 30) + Math.abs((y + 0.5) / 4 - 30) < 17 && dia.data[(y * dia.width + x) * 4 + 3] !== 255) holes++;
+  assert.strictEqual(holes, 0, "white inside a thin outline was eaten into: " + holes + " px");
+  // a blurry edge, three pixels from background to full art: no pale ring left two and three pixels in
+  const blurry = run(draw(100, 100, (x, y) => { const c = Math.max(0, Math.min(1, (R - Math.hypot(x - cx, y - cy)) / 3 + 0.5)) * 255; return [255 - c, 255 - c, 255 - c]; }), { scale: 4 }).image;
+  let pale = 0;
+  for (let i = 0; i < blurry.data.length; i += 4) if (blurry.data[i + 3]) pale = Math.max(pale, blurry.data[i]);
+  assert(pale <= 12, "pale pixels left in a blurry edge, brightest " + pale);
+  const grey = run(draw(80, 40, (x) => (x >= 20 && x < 60 ? [150, 150, 150] : null)), { scale: 4 }).image;
+  for (const sx of [20.6, 21.5, 40]) { const p = at(grey, sx, 20); assert(p[3] === 255 && Math.abs(p[0] - 150) <= 12, "flat grey art keeps its colour to the edge, got " + p + " at x = " + sx); }
+
+  // a file that arrived already cut out, with white still mixed into its soft edges: the old background is
+  // read off as white itself, not the light grey that the average of the faint pixels gives
+  const pre = { width: 80, height: 80, data: new Uint8ClampedArray(80 * 80 * 4) };
+  for (let y = 0; y < 80; y++) for (let x = 0; x < 80; x++) { const a = Math.max(0, Math.min(1, (30 - Math.hypot(x - 40, y - 40)) / 4)); pre.data.set([255 - 225 * a, 255 - 195 * a, 255 - 95 * a, 255 * a], (y * 80 + x) * 4); }
+  const pm = clean(pre, { scale: 2 }).matte;
+  assert(pm.every((v) => v > 245), "old background of a pre-cut file should read as white, got " + pm.map(Math.round));
+  console.log("ok: cut edge rebuilt (no pale ring, smooth, thin line whole, dust still gone, real art untouched), old background read exactly");
+}
