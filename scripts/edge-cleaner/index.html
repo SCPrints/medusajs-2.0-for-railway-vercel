@@ -226,7 +226,7 @@
   <div class="bd"><div id="helpText"></div><div id="helpEx"></div></div>
 </dialog>
 
-<script src="edge-clean.js?v=13"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
+<script src="edge-clean.js?v=14"></script><!-- bump v when edge-clean.js changes, so browsers don't run a stale copy -->
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -422,12 +422,12 @@ $("gapApply").onclick = () => {
   const kept = new Uint8Array(labels.length); // every area the review showed as kept stays exactly as shown
   for (let i = 0; i < labels.length; i++) kept[i] = labels[i] && !regions[labels[i] - 1].remove ? 1 : 0;
   endReview();
-  note = `Removed ${removed} gap${removed === 1 ? "" : "s"} and filled the specks too small to cut. Click to erase anything left, or switch to "Bring art back".`;
+  note = `Removed ${removed} gap${removed === 1 ? "" : "s"} and painted over hairlines too thin to cut. Click to erase anything left, or switch to "Bring art back".`;
   const cut = EdgeClean.removeRegions(source, labels, regions.map((r) => r.remove), tol, ref);
   applyRemoval({ image: fillScraps(cut, ref, rim, tol, kept) });
 };
-// Specks of old background too small to cut (under the gap check's size, or hairlines where two
-// outlines nearly touch) get painted the outline colour round them. Undo takes it back with the gaps.
+// Hairlines of old background too thin to cut (up to 2 px wide, where two outlines nearly touch) get painted
+// the outline colour round them. Anything wider is left as drawn. Undo takes it back with the gaps.
 function fillScraps(img, ref, rim, tol, kept) {
   const keep = kept || new Uint8Array(img.width * img.height);
   if (protect) for (let i = 0; i < keep.length; i++) keep[i] |= protect[i];

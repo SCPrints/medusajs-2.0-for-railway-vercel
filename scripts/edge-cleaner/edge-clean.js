@@ -247,8 +247,9 @@
   // sealNecks: sketchy line art has small breaks in its outlines, and the flood gets through them into
   // white parts of the design (trousers, a sleeve) and deletes them with no warning. With sealNecks, any
   // area the flood only reaches by squeezing through an opening narrower than about 2k px is held back
-  // and left solid, so findGaps lists it for review like an enclosed gap. Hairline channels (between two
-  // letters) are still removed as before.
+  // and left solid, so findGaps lists it for review like an enclosed gap. Channels that are that narrow
+  // all the way along (between two letters, a bent or slanted gap, the tip of a notch) are not areas at
+  // all and are still removed as before.
   function removeOutside(img, tol, sealNecks) {
     var ref = borderColour(img), w = img.width, h = img.height, n = w * h, d = img.data, border = borderPixels(img);
     var gone = flood(w, n, border, function (i) { return d[i * 4 + 3] === 0 || dist(d, i * 4, ref) <= tol; });
@@ -274,8 +275,18 @@
   function holdPockets(gone, w, h, border, k) {
     var n = w * h, core = shrinkMask(gone, w, h, k);
     // The open background: where a (2k+1) px square fits, walking in from the border, grown back by k.
-    var open = flood(w, n, border, function (i) { return core[i] === 1; }), q = new Int32Array(n), head = 0, tail = 0, i, c, x, j, dx, dy;
-    for (i = 0; i < n; i++) if (open[i]) q[tail++] = i;
+    // The square may step diagonally (the two positions overlap, so nothing can sit between them); with
+    // straight steps only, a slanted channel just wide enough for the square read as a sealed pocket.
+    var open = new Uint8Array(n), q = new Int32Array(n), head = 0, tail = 0, i, c, x, j, dx, dy;
+    for (i = 0; i < border.length; i++) if (core[border[i]] && !open[border[i]]) { open[border[i]] = 1; q[tail++] = border[i]; }
+    while (head < tail) {
+      c = q[head++]; x = c % w;
+      for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) {
+        j = c + dy * w + dx;
+        if (x + dx >= 0 && x + dx < w && j >= 0 && j < n && core[j] && !open[j]) { open[j] = 1; q[tail++] = j; }
+      }
+    }
+    head = 0; // every open pixel is in q: grow back from all of them
     for (var step = 0; step < k; step++) {
       for (var end = tail; head < end; head++) {
         c = q[head]; x = c % w;
@@ -285,17 +296,20 @@
         }
       }
     }
-    // What's left was reached through a neck. Hairlines and specks stay removed; real areas are held back.
-    var own = new Uint8Array(n);
+    // What's left was reached through a neck. It is a real area only if the same square fits somewhere
+    // inside it (it holds a `core` pixel); otherwise it is a channel too narrow for the square all the
+    // way along, and stays removed. (Judging "narrow" any other way held back bent and slanted channels.)
     for (var s = 0; s < n; s++) {
       if (!gone[s] || open[s]) continue;
+      var roomy = false;
       head = 0; tail = 0; q[tail++] = s; open[s] = 1;
       while (head < tail) {
         c = q[head++]; x = c % w;
+        if (core[c]) roomy = true;
         var nb = [x > 0 ? c - 1 : -1, x < w - 1 ? c + 1 : -1, c - w, c + w];
         for (var m = 0; m < 4; m++) { j = nb[m]; if (j >= 0 && j < n && gone[j] && !open[j]) { open[j] = 1; q[tail++] = j; } }
       }
-      if (!thinPatch(q, tail, w, n, k, own)) for (i = 0; i < tail; i++) gone[q[i]] = 0;
+      if (roomy) for (i = 0; i < tail; i++) gone[q[i]] = 0;
     }
   }
 
@@ -407,23 +421,31 @@
         }
       }
       // Something drawn inside the patch? Its surroundings then come in more than one piece: the loop
-      // round the outside (it holds the pixel above the seed, the patch's top-left pixel) plus one piece
-      // per thing inside. Count the pixels of the inside pieces; a few stray ones are just noise.
+      // round the outside plus one piece per thing inside. A piece is part of the outside loop if it
+      // holds the pixel above the seed (the patch's top-left pixel) or reaches the image edge (the edge
+      // cuts the loop into pieces). Count the pixels of the other pieces; a few stray ones are just noise.
       var inside = 0;
-      if (tail >= minArea && s >= w && own[s - w]) {
-        var st = [s - w], outer = 1; own[s - w] = 2;
+      if (tail >= minArea) for (var r0 = 0; r0 < ring; r0++) {
+        var start = q[n - 1 - r0];
+        if (own[start] !== 1) continue;
+        var st = [start], size = 0, outer = false; own[start] = 2;
         while (st.length) {
           var rc = st.pop(), rx = rc % w;
+          size++;
+          if (rc === s - w || rx === 0 || rx === w - 1 || rc < w || rc >= n - w) outer = true;
           for (var ry = -1; ry <= 1; ry++) for (var rxx = -1; rxx <= 1; rxx++) {
             var rj = rc + ry * w + rxx;
             if (rx + rxx < 0 || rx + rxx >= w || rj < 0 || rj >= n || own[rj] !== 1) continue;
-            own[rj] = 2; outer++; st.push(rj);
+            own[rj] = 2; st.push(rj);
           }
         }
-        inside = ring - outer;
+        if (!outer) inside += size;
       }
       for (var rr = 0; rr < ring; rr++) own[q[n - 1 - rr]] = 0;
       if (tail < minArea || thinPatch(q, tail, w, n, passes, own)) continue;
+      // The average must match the paper. A small soft-edged area (a rib, a bandage cell, the inside of a
+      // letter in small text) averages off-white and so stays kept. Loosening this for small areas was
+      // tried: it ticked the ribs and bandages of real designs again. Kept is the safer mistake.
       // ponytail: fixed cut-offs; tune here if review keeps flipping the same kind of patch.
       var likely = edge > 0 && rimLike / edge >= 0.6 && off / tail <= paper && inside < 8;
       regions.push({ seed: s, size: tail, likely: likely, box: [x0, y0, x1, y1] });

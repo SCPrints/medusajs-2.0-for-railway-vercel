@@ -230,9 +230,10 @@ console.log("ok: knock-out keeps dark grey dark, edge colour fix keeps solid out
 }
 console.log("ok: faint pixels take the colour of the art round them");
 
-// White parts of a design on a white background. One black block holding five white patches:
-// an empty one (a gap: ticked), one with an eye drawn inside (a face: kept), a shaded one (kept),
-// a 12 px bandage (wide: never painted over) and a 2 px hairline (too thin to cut: painted black).
+// White parts of a design on a white background. One black block holding white patches:
+// an empty one (a gap: ticked), one with an eye drawn inside (a face: kept), a faintly shaded one (kept),
+// a 12 px bandage (wide: never painted over), a 2 px hairline (too thin to cut: painted black), a small
+// soft-edged area (kept: ribs and bandage cells look like this), and two squares that touch at a corner.
 {
   const { removeRegions } = require("./edge-clean.js");
   const Wd = 140, Hd = 100, img = { width: Wd, height: Hd, data: new Uint8ClampedArray(Wd * Hd * 4) };
@@ -241,18 +242,28 @@ console.log("ok: faint pixels take the colour of the art round them");
     const x = i % Wd, y = (i - x) / Wd;
     let c = box(x, y, 10, 10, 120, 80) ? [0, 0, 0] : [255, 255, 255];
     if (box(x, y, 20, 20, 20, 20) || box(x, y, 50, 20, 30, 30) || box(x, y, 20, 60, 12, 12) || box(x, y, 60, 60, 2, 20)) c = [255, 255, 255];
+    if (box(x, y, 100, 60, 8, 8) || box(x, y, 108, 68, 8, 8)) c = [255, 255, 255];
+    if (box(x, y, 116, 45, 9, 9)) c = box(x, y, 117, 46, 7, 7) ? [255, 255, 255] : [236, 236, 236]; // soft edge: its average is off-white
     if (box(x, y, 62, 32, 6, 6)) c = [0, 0, 0]; // the eye
-    if (box(x, y, 90, 20, 20, 20)) c = [245, 240, 232];
+    if (box(x, y, 90, 20, 20, 20)) c = [248, 247, 246]; // 14 off white: faint, but not the paper's own colour
     img.data.set([...c, 255], i * 4);
   }
   const out = removeOutside(img, 40, true), g = findGaps(out.image, out.ref, 40, 15), reg = (x, y) => g.regions[g.labels[y * Wd + x] - 1];
-  assert.strictEqual(g.regions.length, 4, "four areas for review (the hairline is too thin to list), got " + g.regions.length);
+  assert.strictEqual(g.regions.length, 7, "seven areas for review (the hairline is too thin to list), got " + g.regions.length);
+  assert(!reg(120, 49).likely, "a small soft-edged area averages off-white: kept (it may be a rib or a bandage)");
   assert(reg(30, 30).likely, "an empty white pocket in the outline is a gap");
   assert(!reg(55, 25).likely, "a white area with something drawn inside it is part of the design");
   assert(!reg(100, 30).likely, "a shaded area is not the background's flat colour");
   const fl = fillScraps(out.image, out.ref, g.outline, 40, 400, null).image, red = (x, y) => fl.data[(y * Wd + x) * 4];
   assert(red(26, 66) > 200, "a wide white patch must not be painted the outline colour");
   assert(red(60, 70) < 60 && red(61, 70) < 60, "a hairline in the outline is painted over");
+  const hold = new Uint8Array(Wd * Hd);
+  for (let y = 60; y < 80; y++) hold[y * Wd + 60] = hold[y * Wd + 61] = 1;
+  assert(fillScraps(out.image, out.ref, g.outline, 40, 400, hold).image.data[(70 * Wd + 60) * 4] > 200, "pixels in the keep mask are never painted");
+  // two areas that touch only at a corner: removing one must not fade the other's corner pixel
+  const corner = removeRegions(out.image, g.labels, g.regions.map((r) => r === reg(103, 63)), 40, out.ref);
+  assert.strictEqual(corner.data[(63 * Wd + 103) * 4 + 3], 0, "ticked square removed");
+  assert.strictEqual(corner.data[(68 * Wd + 108) * 4 + 3], 255, "kept square stays whole where it touches the removed one");
   // removing one area must leave the others alone
   const cut = removeRegions(out.image, g.labels, g.regions.map((r) => r === reg(30, 30)), 40, out.ref);
   assert.strictEqual(cut.data[(30 * Wd + 30) * 4 + 3], 0, "ticked area removed");
@@ -281,10 +292,33 @@ console.log("ok: faint pixels take the colour of the art round them");
   assert.strictEqual(al(out.image, 117, 40), 255, "second area held too");
   assert.strictEqual(al(out.image, 11, 40), 0, "a hairline channel is still removed");
   assert.strictEqual(al(out.image, 85, 40), 0, "open background is still removed");
+  assert.strictEqual(al(out.image, 29, 40), 0, "background right beside the art is removed too, not held with the box");
   const g = findGaps(out.image, out.ref, 40, 15);
   assert.strictEqual(g.regions.length, 2, "both held areas are listed for review, got " + g.regions.length);
   const first = g.regions[g.labels[40 * Wd + 52] - 1], cut = removeRegions(out.image, g.labels, g.regions.map((r) => r === first), 40, out.ref);
   assert.strictEqual(al(cut, 52, 40), 0, "ticked area removed");
   assert.strictEqual(al(cut, 117, 40), 255, "the other area must stay (a flood from a seed would cross the background into it)");
   console.log("ok: breaks in an outline (areas held for review, hairline channel removed, one removal leaves the rest)");
+}
+
+// Narrow is not the same as enclosed. White channels that are narrow all the way along are background
+// and must go even with the necks sealed: the gaps of a grid of squares, a channel with a bend, a slanted
+// channel. (Holding those back put white lines through art.) A 6 px break on a 2400 px file is narrow
+// for that size, so the box behind it is held. And an area whose surroundings are cut in two by the
+// image edge has nothing "drawn inside it": an empty one is still a gap.
+{
+  const mk = (w, h, f) => { const im = { width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }; for (let i = 0; i < w * h; i++) im.data.set(f(i % w, (i / w) | 0), i * 4); return im; };
+  const K = [0, 0, 0, 255], Wt = [255, 255, 255, 255], al = (im, x, y) => im.data[(y * im.width + x) * 4 + 3], seal = (im) => removeOutside(im, 40, true).image;
+  const grid = seal(mk(400, 400, (x, y) => (x < 100 || x >= 288 || y < 100 || y >= 288 || (x - 100) % 64 >= 60 || (y - 100) % 64 >= 60 ? Wt : K)));
+  assert(al(grid, 162, 162) === 0 && al(grid, 162, 130) === 0, "4 px gaps between a grid of squares are removed");
+  const bend = seal(mk(300, 300, (x, y) => (x >= 50 && x < 250 && y >= 50 && y < 250 && !((y >= 148 && y < 152 && x < 152) || (x >= 148 && x < 152 && y >= 148)) ? K : Wt)));
+  assert(al(bend, 100, 150) === 0 && al(bend, 150, 150) === 0, "a 4 px channel with a bend is removed");
+  for (const hw of [5, 7, 9, 11]) assert.strictEqual(al(seal(mk(400, 400, (x, y) => (x >= 100 && x < 300 && y >= 100 && y < 300 && Math.abs(x - y) > (hw - 1) / 2 ? K : Wt))), 200, 200), 0, "a slanted channel " + hw + " px across is removed");
+  const ringAt = (x, y) => x >= 100 && x <= 160 && y >= 10 && y <= 50 && !(x >= 102 && x <= 158 && y >= 12 && y <= 48) && !(y <= 11 && x >= 128 && x <= 133);
+  assert.strictEqual(al(seal(mk(2400, 60, (x, y) => (ringAt(x, y) ? K : Wt))), 130, 30), 255, "a 6 px break is a narrow opening on a 2400 px file");
+  // an empty box against the left edge of the image, joined to the background by two 3 px gaps at that edge
+  const edgeBox = mk(300, 200, (x, y) => (x < 2 && (y >= 79 && y <= 81 || y >= 119 && y <= 121) ? Wt : x <= 120 && y >= 50 && y <= 150 && !(x >= 2 && x <= 118 && y >= 52 && y <= 148) ? K : Wt));
+  const eo = removeOutside(edgeBox, 40, true), eg = findGaps(eo.image, eo.ref, 40, 15);
+  assert(eg.regions.length === 1 && eg.regions[0].likely, "an empty area cut by the image edge is still a gap");
+  console.log("ok: narrow channels removed, break size follows the file, image edge is not 'something inside'");
 }
