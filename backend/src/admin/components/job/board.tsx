@@ -282,6 +282,7 @@ function Card({ row, me, team, fresh, dim, busy, armed, href, onAct, onTake, onC
         <AppLink href={href} className="min-w-0 text-sm font-semibold leading-tight after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ui-fg-interactive">
           {fresh ? <span title="New from the customer since you last opened this job" className="mr-1.5 inline-block h-2 w-2 rounded-full bg-ui-fg-interactive align-middle" /> : null}
           {row.customer}
+          {row.display_id != null ? <span className="ml-1.5 font-normal tabular-nums text-ui-fg-muted">#{row.display_id}</span> : null}
         </AppLink>
         <DropdownMenu>
           <DropdownMenu.Trigger asChild>
