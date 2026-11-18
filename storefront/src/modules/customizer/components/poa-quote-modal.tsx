@@ -7,6 +7,14 @@ import { MAX_AUTO_PRICED_STITCHES } from "@modules/embroidery/lib/pricing"
 
 type PoaQuoteModalProps = {
   open: boolean
+  /**
+   * poa    embroidery over the stitch cap: must be quoted (phone required)
+   * quote  "Email me this quote": shopper chose a proof + payment link over
+   *        checking out (phone optional, less friction)
+   */
+  mode?: "poa" | "quote"
+  /** Quote mode: the price they saw, e.g. "$318.00 · 12 items". */
+  summary?: string | null
   /** Logged-in customer's details — prefill the fields (still editable). */
   initialEmail?: string | null
   initialName?: string | null
@@ -17,7 +25,7 @@ type PoaQuoteModalProps = {
   onClose: () => void
   onSubmit: (contact: {
     email: string
-    phone: string
+    phone?: string
     name?: string
     note?: string
   }) => void
@@ -35,6 +43,8 @@ type PoaQuoteModalProps = {
  */
 export default function PoaQuoteModal({
   open,
+  mode = "poa",
+  summary,
   initialEmail,
   initialName,
   initialPhone,
@@ -60,6 +70,7 @@ export default function PoaQuoteModal({
 
   if (!open || typeof document === "undefined") return null
 
+  const isQuote = mode === "quote"
   const handleSubmit = () => {
     const trimmed = email.trim()
     if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
@@ -67,13 +78,14 @@ export default function PoaQuoteModal({
       return
     }
     const phoneTrimmed = phone.trim()
-    if (phoneTrimmed.replace(/\D/g, "").length < 8) {
+    const phoneDigits = phoneTrimmed.replace(/\D/g, "").length
+    if ((!isQuote || phoneDigits > 0) && phoneDigits < 8) {
       setError("Please enter a valid phone number.")
       return
     }
     onSubmit({
       email: trimmed,
-      phone: phoneTrimmed,
+      phone: phoneTrimmed || undefined,
       name: name.trim() || undefined,
       note: note.trim() || undefined,
     })
@@ -87,7 +99,7 @@ export default function PoaQuoteModal({
       className="fixed inset-0 z-[230] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Request an embroidery quote"
+      aria-label={isQuote ? "Email me this quote" : "Request an embroidery quote"}
     >
       <div
         className="absolute inset-0 bg-black/50"
@@ -95,24 +107,43 @@ export default function PoaQuoteModal({
         aria-hidden
       />
       <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-        <h2 className="text-lg font-semibold text-ui-fg-base">
-          This design needs a custom quote
-        </h2>
-        <p className="mt-2 text-sm text-ui-fg-subtle">
-          Embroidery over {MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches
-          is priced individually by our team. Send us your design and
-          we&apos;ll email you a price — usually within 1 business day.
-        </p>
-        <ul className="mt-3 space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
-          {poaSides.map((s) => (
-            <li key={s.side}>
-              <span className="font-semibold capitalize">
-                {s.side.replace(/_/g, " ")}
-              </span>{" "}
-              — ~{s.stitchCount.toLocaleString()} stitches
-            </li>
-          ))}
-        </ul>
+        {isQuote ? (
+          <>
+            <h2 className="text-lg font-semibold text-ui-fg-base">
+              Email me this quote
+            </h2>
+            <p className="mt-2 text-sm text-ui-fg-subtle">
+              We&apos;ll check your artwork and email you a proof and a secure
+              payment link, usually within 1 business day. Nothing is charged now.
+            </p>
+            {summary ? (
+              <p className="mt-3 rounded-lg bg-ui-bg-subtle px-3 py-2 text-sm font-semibold tabular-nums text-ui-fg-base">
+                {summary} <span className="font-normal text-ui-fg-subtle">inc GST</span>
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <h2 className="text-lg font-semibold text-ui-fg-base">
+              This design needs a custom quote
+            </h2>
+            <p className="mt-2 text-sm text-ui-fg-subtle">
+              Embroidery over {MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches
+              is priced individually by our team. Send us your design and
+              we&apos;ll email you a price — usually within 1 business day.
+            </p>
+            <ul className="mt-3 space-y-1 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200">
+              {poaSides.map((s) => (
+                <li key={s.side}>
+                  <span className="font-semibold capitalize">
+                    {s.side.replace(/_/g, " ")}
+                  </span>{" "}
+                  — ~{s.stitchCount.toLocaleString()} stitches
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <div className="mt-4 space-y-3">
           <div>
             <label
@@ -136,7 +167,7 @@ export default function PoaQuoteModal({
               htmlFor="poa-quote-phone"
               className="text-xs font-semibold uppercase tracking-wide text-ui-fg-subtle"
             >
-              Phone *
+              {isQuote ? "Phone (optional)" : "Phone *"}
             </label>
             <input
               id="poa-quote-phone"
@@ -202,7 +233,7 @@ export default function PoaQuoteModal({
             disabled={submitting}
             className="rounded-lg bg-ui-fg-base px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {submitting ? "Sending…" : "Send quote request"}
+            {submitting ? "Sending…" : isQuote ? "Email me the quote" : "Send quote request"}
           </button>
         </div>
       </div>

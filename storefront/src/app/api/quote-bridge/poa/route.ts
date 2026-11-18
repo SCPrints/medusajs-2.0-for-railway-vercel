@@ -12,7 +12,8 @@ const MAX_BODY_BYTES = 6 * 1024 * 1024
  *           poa_sides: [{ side, stitch_count }], lines: [...] }
  *
  * Relays a customer's over-12k-stitch embroidery design from the Studio to the
- * backend POA auto-quote route (/store/quotes/poa-request). Unlike the staff
+ * backend POA auto-quote route (/store/quotes/poa-request). Also carries the
+ * Studio's "Email me this quote" requests (no poa_sides). Unlike the staff
  * design-items relay there is no qsig — this CREATES a quote (public
  * lead-capture, same trust level as the BYO / contact quote form), so the
  * guard is a tighter rate limit + bounded numerics.

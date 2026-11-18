@@ -294,7 +294,7 @@ export const trackSearch = (searchTerm: string, resultsCount?: number) => {
 
 /* ---------- lead (enquiry) --------------------------------------- */
 
-export type LeadForm = "contact" | "byo" | "hats" | "poa_embroidery"
+export type LeadForm = "contact" | "byo" | "hats" | "poa_embroidery" | "studio_quote"
 
 /**
  * Fire after a successful enquiry submit. Most jobs start as an enquiry,

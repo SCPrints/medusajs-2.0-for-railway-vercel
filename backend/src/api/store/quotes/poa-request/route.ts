@@ -36,9 +36,15 @@ import type QuoteModuleService from "../../../../modules/quote/service"
  * customizerDesign lines — same persisted shape as design-items — so it lands
  * in the admin Kanban ready to price, with "Edit design in Studio" working.
  *
+ * Also the Studio's "Email me this quote" link: same payload with no
+ * `poa_sides` — a shopper who priced a design but wants a proof / payment
+ * link instead of checking out. Same `customizer_poa` source (a DB enum, and
+ * the Jobs list already labels it "Studio price request");
+ * `metadata.studio_quote_request` tells the two apart.
+ *
  * Auth: public, like POST /store/quotes — it's a lead-capture form. The
- * storefront relay rate-limits; lines carry no trusted pricing (unit_price is
- * null, staff set it).
+ * storefront relay rate-limits; line prices are the client's Studio price, a
+ * starting point only — staff check them before sending.
  */
 const bodySchema = z.object({
   email: z.string().min(3).max(320),
@@ -57,8 +63,8 @@ const bodySchema = z.object({
         stitch_count: z.number().int().min(0).max(10_000_000),
       })
     )
-    .min(1)
-    .max(10),
+    .max(10)
+    .default([]),
   lines: z.array(quoteDesignLineSchema).min(1).max(100),
 })
 
@@ -114,6 +120,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   // side prices at $0). Client-supplied, so it's a starting point only — the
   // quote lands as `new` and staff add the embroidery before sending.
   // `discountedUnitPriceCents` is MAJOR units (dollars) despite the suffix.
+  const isPoa = parsed.poa_sides.length > 0
   const poaSideLabel = parsed.poa_sides
     .map((s) => s.side.replace(/_/g, " "))
     .join(", ")
@@ -130,7 +137,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     }),
     parsed.group_id
   ).map((line) =>
-    line.unit_price != null
+    isPoa && line.unit_price != null
       ? {
           ...line,
           description: `Garment + other positions only — EXCLUDES ${poaSideLabel} embroidery (POA). Add embroidery before sending.`,
@@ -149,14 +156,26 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     .join("; ")
   const productTitle =
     parsed.product_title ?? parsed.lines[0]?.product_title ?? "Custom design"
+  const shownTotal = newLines.reduce(
+    (sum, l) => sum + (l.unit_price ?? 0) * (l.quantity ?? 0),
+    0
+  )
   const message = [
-    `Auto-created from the Studio: embroidery design over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches (price on application).`,
+    isPoa
+      ? `Auto-created from the Studio: embroidery design over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches (price on application).`
+      : `Priced in the Studio, then asked for this quote by email instead of checking out. Send a proof and a payment link.`,
     ``,
     `Product: ${productTitle}`,
-    `Embroidery: ${sideSummary}`,
+    ...(isPoa ? [`Embroidery: ${sideSummary}`] : []),
     `Total quantity: ${totalQuantity}`,
+    ...(!isPoa && shownTotal > 0
+      ? [`Studio price: $${shownTotal.toFixed(2)} inc GST (lines only, excludes any screen setup)`]
+      : []),
     ...(parsed.note?.trim() ? [``, `Customer note: ${parsed.note.trim()}`] : []),
   ].join("\n")
+  const subject = isPoa
+    ? `Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — ${productTitle}`
+    : `Studio quote request — ${productTitle}`
 
   const [quote] = await quoteService.createQuotes([
     {
@@ -167,13 +186,12 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       customer_id: customerId,
       contact_name: contactName,
       contact_phone: contactPhone,
-      subject: `Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches — ${productTitle}`,
+      subject,
       message,
       line_items: { items: newLines },
-      metadata: {
-        poa_request: true,
-        poa_sides: parsed.poa_sides,
-      },
+      metadata: isPoa
+        ? { poa_request: true, poa_sides: parsed.poa_sides }
+        : { studio_quote_request: true },
     },
   ])
 
@@ -210,7 +228,11 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
         template: EmailTemplates.CONTACT_SUBMISSION,
         data: {
           emailOptions: {
-            subject: `${relay.bot ? "[⚠ Possible bot] " : ""}New POA quote request ${publicId}: embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches`,
+            subject: `${relay.bot ? "[⚠ Possible bot] " : ""}${
+              isPoa
+                ? `New POA quote request ${publicId}: embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches`
+                : `New Studio quote request ${publicId}: ${productTitle}`
+            }`,
             replyTo: email,
           },
           submission: {
@@ -219,7 +241,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
             lastName: null,
             email,
             phone: contactPhone,
-            subject: `Embroidery POA — ${productTitle}`,
+            subject: isPoa ? `Embroidery POA — ${productTitle}` : `Studio quote — ${productTitle}`,
             message,
             sourceOrigin: req.headers.origin ?? null,
             sourceIp: relay.clientIp,
@@ -243,6 +265,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       customer_id: customerId,
       line_count: newLines.length,
       total_quantity: totalQuantity,
+      studio_quote_request: !isPoa,
       max_stitch_count: Math.max(
         0,
         ...parsed.poa_sides.map((s) => s.stitch_count)

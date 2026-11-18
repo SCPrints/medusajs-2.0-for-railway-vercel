@@ -825,9 +825,12 @@ export default function CustomizerTemplate({
   // flow re-runs and diverts the finished design to /api/quote-bridge/poa
   // (creating a quote in the staff Kanban) instead of the cart routes.
   const [poaModalOpen, setPoaModalOpen] = useState(false)
+  // The same modal + bridge serve "Email me this quote": a shopper who priced
+  // a design but wants a proof and payment link instead of checking out.
+  const [quoteModalMode, setQuoteModalMode] = useState<"poa" | "quote">("poa")
   const poaContactRef = useRef<{
     email: string
-    phone: string
+    phone?: string
     name?: string
     note?: string
   } | null>(null)
@@ -4456,12 +4459,21 @@ export default function CustomizerTemplate({
       size: string
       quantity: number
       mockupDataUrl?: string
-    }>
+    }>,
+    opts?: { asQuote?: boolean }
   ) => {
     if (!selectedProduct || !selectedVariant || !countryCode) {
       setUploadError("Select a product and variant before adding to cart.")
       return
     }
+    // "Email me this quote": run every check and render below, then send the
+    // finished design to staff as a quote instead of the cart. Shop only, and
+    // never while editing an existing cart line.
+    const asQuote =
+      Boolean(opts?.asQuote) &&
+      destination.kind === "shop" &&
+      !editGroupId &&
+      !editLineItemId
 
     saveCurrentSide()
     // In edit_group mode the quantities live on the existing cart lines —
@@ -4561,6 +4573,7 @@ export default function CustomizerTemplate({
       }
       if (!poaContactRef.current) {
         poaPendingCellsRef.current = bulkCells ?? null
+        setQuoteModalMode("poa")
         setPoaModalOpen(true)
         return
       }
@@ -5160,10 +5173,10 @@ export default function CustomizerTemplate({
       // auto-quote bridge. Mirrors the quote-mode branch (same line shape,
       // fresh group_id so staff "Edit design in Studio" replaces cleanly) but
       // with null prices — staff set them when they price the quote.
-      if (poaEmbroiderySides.length && poaContactRef.current) {
+      if ((poaEmbroiderySides.length || asQuote) && poaContactRef.current) {
         try {
           const contact = poaContactRef.current
-          // Price-on-application destination (lib/destinations/staff.ts).
+          // Price-on-application / quote-request destination (lib/destinations/staff.ts).
           const j = await sendPoaRequest({
             contact,
             poaSides: poaEmbroiderySides.map((side) => ({
@@ -5176,13 +5189,26 @@ export default function CustomizerTemplate({
             product: selectedProduct,
             printSizeId: scpPrintSizeId,
           }).then((r) => ({ public_id: r.publicId }))
+          // If the request came from the bulk grid, close it so the success
+          // message (rendered in the main layout) is actually visible.
+          setBulkMode(false)
+          if (!poaEmbroiderySides.length) {
+            trackLead("studio_quote")
+            setStatusMessage(
+              `Quote${j.public_id ? ` ${j.public_id}` : ""} requested. We'll check your artwork and email ${contact.email} a proof and a secure payment link, usually within 1 business day.`
+            )
+            phCapture("customizer_quote_requested", {
+              product_id: selectedProduct.id,
+              quote_public_id: j.public_id ?? null,
+              total_quantity: totalQuantity,
+              total_price: Number((pricing as any)?.totalPriceCents) || null, // major units
+            })
+            return
+          }
           trackLead("poa_embroidery")
           setStatusMessage(
             `Quote request${j.public_id ? ` ${j.public_id}` : ""} sent! Embroidery over ${MAX_AUTO_PRICED_STITCHES.toLocaleString()} stitches is priced individually — we'll email ${contact.email} with a price, usually within 1 business day.`
           )
-          // If the request came from the bulk grid, close it so the success
-          // message (rendered in the main layout) is actually visible.
-          setBulkMode(false)
           phCapture("customizer_poa_quote_requested", {
             product_id: selectedProduct.id,
             quote_public_id: j.public_id ?? null,
@@ -5450,6 +5476,26 @@ export default function CustomizerTemplate({
   handleChangePrintSizeRef.current = handleChangePrintSize
 
   const stableOnAddToCart = useCallback(() => addCustomizedToCartRef.current(), [])
+  // Funnel step between "design started" and "added to cart": nothing used to
+  // record reaching the sizes & quantity step, so price-checkers who saw a
+  // total and left couldn't be counted. Once per Studio mount.
+  const quantityStepTrackedRef = useRef(false)
+  const onQuantityStep = assemblyLayout ? assemblyExpanded === 4 : pdpStep === 4
+  useEffect(() => {
+    if (!onQuantityStep || quantityStepTrackedRef.current || destination.kind !== "shop") return
+    quantityStepTrackedRef.current = true
+    phCapture("customizer_quantity_step_reached", {
+      product_id: selectedProduct?.id ?? null,
+      sides_with_decoration: decoratedSides.length,
+    })
+  }, [onQuantityStep, destination.kind, selectedProduct?.id, decoratedSides.length])
+
+  const stableOnRequestQuote = useCallback(() => {
+    phCapture("customizer_quote_link_clicked", {})
+    poaPendingCellsRef.current = null
+    setQuoteModalMode("quote")
+    setPoaModalOpen(true)
+  }, [])
   const stableOnChangeSizeQty = useCallback(
     (size: string, quantity: number) => changeSizeQuantityRef.current(size, quantity),
     []
@@ -6293,6 +6339,12 @@ export default function CustomizerTemplate({
     const poaQuoteModalNode = (
       <PoaQuoteModal
         open={poaModalOpen}
+        mode={quoteModalMode}
+        summary={
+          quoteModalMode === "quote" && totalQty > 0
+            ? `${convertToLocale({ amount: pricing.totalPriceCents, currency_code: currencyCode })} · ${totalQty} item${totalQty === 1 ? "" : "s"}`
+            : null
+        }
         initialEmail={customerContact?.email}
         initialName={customerContact?.name}
         initialPhone={customerContact?.phone}
@@ -6304,7 +6356,9 @@ export default function CustomizerTemplate({
         onSubmit={(contact) => {
           poaContactRef.current = contact
           setPoaModalOpen(false)
-          void addCustomizedToCart(poaPendingCellsRef.current ?? undefined)
+          void addCustomizedToCart(poaPendingCellsRef.current ?? undefined, {
+            asQuote: quoteModalMode === "quote",
+          })
         }}
       />
     )
@@ -7517,6 +7571,14 @@ export default function CustomizerTemplate({
                 sizes={sizeMatrix}
                 onChangeSizeQty={stableOnChangeSizeQty}
                 onAddToCart={stableOnAddToCart}
+                onRequestQuote={
+                  destination.kind === "shop" &&
+                  !editGroupId &&
+                  !editLineItemId &&
+                  poaSidesForDisplay.length === 0
+                    ? stableOnRequestQuote
+                    : undefined
+                }
                 isSubmitting={isSubmitting}
                 embeddedOnPdp={embedded}
                 flyImageSrc={flyImageSrcForAddToCart}

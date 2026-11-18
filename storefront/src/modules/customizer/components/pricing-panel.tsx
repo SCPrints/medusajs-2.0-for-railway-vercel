@@ -82,6 +82,8 @@ type PricingPanelProps = {
   onSaveDesign?: () => Promise<void>
   /** Whether the save-design action is currently running. */
   isSavingDesign?: boolean
+  /** Shop only: "Email me this quote" link under add-to-cart (proof + payment link instead of checkout). */
+  onRequestQuote?: () => void
   /**
    * Cross-cart bulk-tier aggregation projection. When set, the bulk-discount
    * tier highlight reflects the *combined* cart quantity (existing eligible
@@ -170,6 +172,7 @@ function PricingPanel({
   primaryCtaLoadingLabel,
   onSaveDesign,
   isSavingDesign = false,
+  onRequestQuote,
   aggregatedCartQuantity,
   stockBySize,
   tier = null,
@@ -757,6 +760,23 @@ function PricingPanel({
           className="w-full rounded-xl border border-ui-border-base bg-ui-bg-base px-4 py-2.5 text-sm font-medium text-ui-fg-base transition hover:bg-ui-bg-subtle disabled:opacity-50"
         >
           {isSavingDesign ? "Saving design…" : "Save to my designs"}
+        </button>
+      ) : null}
+
+      {onRequestQuote && quantity > 0 ? (
+        // Price-checkers who reach a total and leave (PostHog, Nov 2026):
+        // offer the proof + payment-link route before they go.
+        <button
+          type="button"
+          onClick={onRequestQuote}
+          disabled={isSubmitting}
+          className="min-h-11 w-full text-center text-sm text-ui-fg-subtle transition hover:text-ui-fg-base disabled:opacity-50"
+          data-testid="studio-request-quote"
+        >
+          Not ready to buy?{" "}
+          <span className="font-medium text-ui-fg-base underline underline-offset-2">
+            Email me this quote
+          </span>
         </button>
       ) : null}
     </div>

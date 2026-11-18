@@ -165,10 +165,15 @@ export async function sendProof(input: {
   return { mockupUrl }
 }
 
-/** Price on application: send the design to staff as a quote request (no prices). Returns its public id. */
+/**
+ * Send the design to staff as a quote request instead of the cart; returns its
+ * public id. Two callers: price on application (`poaSides` = the over-cap
+ * embroidery sides) and the "Email me this quote" link (`poaSides` empty).
+ * The backend pre-fills line prices from the design's Studio pricing.
+ */
 export async function sendPoaRequest(
   input: Common & {
-    contact: { email: string; phone: string; name?: string; note?: string }
+    contact: { email: string; phone?: string; name?: string; note?: string }
     poaSides: Array<{ side: string; stitch_count: number }>
   }
 ): Promise<{ publicId: string | null }> {
@@ -189,7 +194,7 @@ export async function sendPoaRequest(
   const body = await assertOk(
     await postJson("/api/quote-bridge/poa", {
       email: input.contact.email,
-      contact_phone: input.contact.phone,
+      contact_phone: input.contact.phone || undefined,
       contact_name: input.contact.name || undefined,
       note: input.contact.note || undefined,
       group_id: newQuoteGroupId(),
