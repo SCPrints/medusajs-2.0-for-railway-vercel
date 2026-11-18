@@ -299,11 +299,16 @@ export default async function repairGildanImages({ container, args }: ExecArgs) 
     try {
       // HARD RULE 0/2: route through the safe chokepoint — it HEAD-validates
       // every scraped URL (only confirmed-live 200s are added), force-keeps
-      // existing live images, and never empties the gallery. `mergedImages` is
-      // the FULL intended final list (existing + resolved, front-first).
-      const writeResult = await writeProductImages(container, p.id, mergedImages, {
+      // existing live images, and never empties the gallery. Pass only the
+      // freshly resolved set: existing URLs left out become removal
+      // candidates, and the guard drops only the confirmed-dead ones.
+      const writeResult = await writeProductImages(container, p.id, orderedColourImages, {
         thumbnail: mergedImages[0] || p.thumbnail || undefined,
         currentUrls: existingUrls,
+        // Gildan's BigCommerce CDN re-hashes filenames on re-upload and purges
+        // the old ones (2026-11: ~40 products' thumbnails 404'd). Drop only
+        // confirmed-dead (404/410) URLs; the guard keeps everything else.
+        allowRepairRemovals: true,
         logger,
       })
       if (writeResult.wrote) {
