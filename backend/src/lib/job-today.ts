@@ -171,7 +171,11 @@ export function rowFromJob(job: JobView, now: Date = new Date()): TodayRow {
     kind: job.kind,
     // public_id already carries the "Q-" prefix.
     label: job.order ? `#${job.order.display_id ?? ""}` : job.quote?.public_id ?? "",
-    customer: job.customer.name ?? job.customer.email ?? "Customer",
+    // Company first: "Aussie Offroad · Alan", so staff can find the
+    // job without opening it. Also what the Jobs search matches on.
+    customer: [job.customer.company, job.customer.name ?? (job.customer.company ? null : job.customer.email)]
+      .filter(Boolean)
+      .join(" · ") || "Customer",
     subject: job.quote?.subject ?? null,
     phase: job.state.phase,
     queue,

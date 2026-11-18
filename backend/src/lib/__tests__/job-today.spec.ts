@@ -127,6 +127,13 @@ describe("groupToday", () => {
     expect(view.rows.find((r) => r.id === "c")).toMatchObject({ label: "Q-C", customer: "Dean", total: 148, last_activity: { kind: "email_in" } })
   })
 
+  it("names the company first so staff can find a job without opening it", () => {
+    const co = (name: string | null, email: string | null) =>
+      groupToday([job("a", {}, { customer: { id: null, name, email, phone: null, company: "Aussie Offroad", has_account: false } })], new Date("2026-10-21T00:00:00.000Z")).rows[0].customer
+    expect(co("Alan", "a@x.com")).toBe("Aussie Offroad · Alan")
+    expect(co(null, "a@x.com")).toBe("Aussie Offroad")
+  })
+
   it("orders closed jobs by latest activity, whether times are strings or Dates (prod crash 2026-10-27)", () => {
     const closed = { lost: true, waiting_on: null, since: null, days: 0, next_action: { kind: "none" as const, label: "Closed" } }
     const at = (v: string | Date) => [{ at: v as any, kind: "status" as const, title: "x", detail: null, actor: null }]
