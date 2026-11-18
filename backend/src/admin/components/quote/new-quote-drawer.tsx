@@ -25,6 +25,17 @@ function useRegionId(): string | null {
   return regionId
 }
 
+type FoundCustomer = {
+  id: string
+  email: string | null
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
+  company_name: string | null
+}
+
+const customerName = (c: FoundCustomer) => `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()
+
 /**
  * "+ New job" — a phone call, walk-in or email turned into a job (a quote at
  * New). Moved here from the old Quotes page; the Jobs list opens it.
@@ -56,6 +67,10 @@ export function NewQuoteDrawer({
   const [pickup, setPickup] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const [matches, setMatches] = useState<FoundCustomer[]>([])
+  const [picked, setPicked] = useState<FoundCustomer | null>(null)
+  const [lastOrder, setLastOrder] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -64,12 +79,68 @@ export function NewQuoteDrawer({
       setAddr(blankAddress())
       setPickup(false)
       setError(null)
+      setQuery("")
+      setMatches([])
+      setPicked(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const set = (patch: Partial<typeof blankForm>) =>
+  // Debounced search over existing customers (Medusa's `q`: name, email, company, phone).
+  useEffect(() => {
+    const q = query.trim()
+    if (picked || q.length < 2) {
+      setMatches([])
+      return
+    }
+    let cancelled = false
+    const t = setTimeout(() => {
+      const params = new URLSearchParams({ q, limit: "6", fields: "id,email,first_name,last_name,phone,company_name" })
+      void fetch(`/admin/customers?${params}`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : { customers: [] }))
+        .then((j: { customers?: FoundCustomer[] }) => {
+          if (!cancelled) setMatches(j.customers ?? [])
+        })
+        .catch(() => {})
+    }, 250)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
+  }, [query, picked])
+
+  const pickCustomer = (c: FoundCustomer) => {
+    setPicked(c)
+    setMatches([])
+    setQuery("")
+    setLastOrder(null)
+    // Fill from the record; anything staff already typed stays.
+    setForm((f) => ({
+      ...f,
+      email: c.email && !c.email.endsWith("@scprints.com.au") ? c.email : f.email,
+      contact_name: customerName(c) || f.contact_name,
+      company: c.company_name || f.company,
+      contact_phone: c.phone || f.contact_phone,
+    }))
+    void fetch(`/admin/pos/customers/${c.id}/last-order`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { order?: { display_id?: number; created_at?: string } | null } | null) => {
+        const o = j?.order
+        setLastOrder(
+          o ? `Last order #${o.display_id} on ${new Date(o.created_at ?? "").toLocaleDateString("en-AU")}` : "No orders yet"
+        )
+      })
+      .catch(() => {})
+  }
+
+  const set = (patch: Partial<typeof blankForm>) => {
+    // Changing a picked customer's email means a different customer: drop the link.
+    // (A no-email customer can have one added without losing the link.)
+    if (picked?.email && patch.email !== undefined && patch.email.trim().toLowerCase() !== (picked.email ?? "").toLowerCase()) {
+      setPicked(null)
+    }
     setForm((f) => ({ ...f, ...patch }))
+  }
 
   // POST the quote; returns the new id (or null on failure). Split out so the
   // "Create" button and "Design in Studio" share one create path.
@@ -101,6 +172,7 @@ export function NewQuoteDrawer({
       const estimateNum = Number.parseFloat(form.total_estimate)
       const payload: Record<string, unknown> = {
         email: form.email.trim() || undefined,
+        customer_id: picked?.id,
         contact_name: form.contact_name.trim() || undefined,
         company: form.company.trim() || undefined,
         contact_phone: form.contact_phone.trim() || undefined,
@@ -200,6 +272,59 @@ export function NewQuoteDrawer({
 
         <Drawer.Body className="overflow-auto">
           <div className="flex flex-col gap-y-4 p-1">
+            <div className="flex flex-col gap-y-1">
+              <Label size="xsmall">Existing customer</Label>
+              {picked ? (
+                <div className="flex items-start justify-between gap-2 rounded-md border border-ui-border-base p-3">
+                  <div className="min-w-0">
+                    <Text size="small" className="font-medium truncate">
+                      {customerName(picked) || picked.email || picked.phone}
+                      {picked.company_name ? ` · ${picked.company_name}` : ""}
+                    </Text>
+                    <Text size="xsmall" className="text-ui-fg-muted truncate">
+                      {lastOrder ?? "Checking past orders…"} · the job will be linked to them
+                    </Text>
+                  </div>
+                  <Button variant="transparent" size="small" onClick={() => setPicked(null)}>
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search by name, email, company or phone"
+                  />
+                  {matches.length > 0 ? (
+                    <ul className="max-h-56 overflow-y-auto divide-y divide-ui-border-base rounded-md border border-ui-border-base">
+                      {matches.map((c) => (
+                        <li key={c.id}>
+                          <button
+                            type="button"
+                            className="w-full min-h-11 px-3 py-2 text-left hover:bg-ui-bg-subtle"
+                            onClick={() => pickCustomer(c)}
+                          >
+                            <Text size="small" className="font-medium">
+                              {customerName(c) || c.email || c.phone}
+                              {c.company_name ? ` · ${c.company_name}` : ""}
+                            </Text>
+                            <Text size="xsmall" className="text-ui-fg-muted">
+                              {[c.email, c.phone].filter(Boolean).join(" · ")}
+                            </Text>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <Text size="xsmall" className="text-ui-fg-muted">
+                      {query.trim().length >= 2 ? "No match. Fill in the details below for a new customer." : "Returning customer? Find them here to fill in their details."}
+                    </Text>
+                  )}
+                </>
+              )}
+            </div>
+
             <div className="flex flex-col gap-y-1">
               <Label size="xsmall">Email</Label>
               <Input

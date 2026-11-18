@@ -2,7 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ulid } from "ulid"
 import { z } from "zod"
 
-import { Modules } from "@medusajs/framework/utils"
+import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
 import { findCustomerIdByEmail } from "../../../lib/customer-fill"
 import { walkInEmail } from "../../../lib/walk-in"
@@ -175,9 +175,17 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     email = walkInEmail()
     if (!customerId) {
       const customers = req.scope.resolve(Modules.CUSTOMER)
-      // ponytail: exact phone match only; "0412 345 678" vs "0412345678" makes a second record.
-      // (`phone` is a real column; the filter type just omits it.)
-      const [samePhone] = phone ? await customers.listCustomers({ phone } as any, { take: 1 }) : []
+      // Digits only, so "0412 345 678" and "0412345678" are the same person.
+      // ponytail: "+61 412…" vs "0412…" still differ; map +61 → 0 if that shows up.
+      const digits = phone.replace(/\D/g, "")
+      const samePhone = digits
+        ? await req.scope
+            .resolve(ContainerRegistrationKeys.PG_CONNECTION)("customer")
+            .select("id")
+            .whereNull("deleted_at")
+            .whereRaw("regexp_replace(coalesce(phone, ''), '\\D', '', 'g') = ?", [digits])
+            .first()
+        : null
       if (samePhone) {
         customerId = samePhone.id
       } else {
