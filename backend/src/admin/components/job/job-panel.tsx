@@ -210,6 +210,18 @@ export function JobPanel({ job, order, onChanged }: Props) {
       ]
     : []
 
+  // The customer's card. Walk-in jobs (email nulled by the builder) and jobs
+  // with no customer record fall back to a customer search on the name.
+  const customerSearch = job.customer.company ?? job.customer.name
+  const customerHref =
+    job.customer.id && job.customer.email
+      ? `/app/customers/${job.customer.id}`
+      : customerSearch
+        ? `/app/customers?q=${encodeURIComponent(customerSearch)}`
+        : null
+  const customerLink = (text: ReactNode, className = "hover:underline") =>
+    customerHref ? <AppLink className={className} href={customerHref} title="Open customer">{text}</AppLink> : text
+
   return (
     <div className="flex flex-col gap-y-3">
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -218,13 +230,13 @@ export function JobPanel({ job, order, onChanged }: Props) {
           <div className="min-w-0">
             <Heading level="h1" className="truncate">
               {job.order?.rush_tier ? <Badge color="red" className="mr-2 align-middle">{job.order.rush_tier === "express" ? "Express" : "Priority"}</Badge> : null}
-              {job.customer.name ?? job.customer.email ?? "Customer"}
+              {customerLink(job.customer.name ?? job.customer.email ?? "Customer")}
               {job.quote?.subject ? <span className="text-ui-fg-subtle font-normal"> · {job.quote.subject}</span> : null}
             </Heading>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ui-fg-subtle">
               {job.customer.email ? <a className="hover:underline" href={`mailto:${job.customer.email}`}>{job.customer.email}</a> : null}
               {job.customer.phone ? <a className="hover:underline" href={`tel:${job.customer.phone}`}>{job.customer.phone}</a> : null}
-              {job.customer.company ? <span>{job.customer.company}</span> : null}
+              {job.customer.company ? <span>{customerLink(job.customer.company)}</span> : null}
               <span>
                 Owner: {job.owner?.label ?? "unassigned"}
                 {!job.owner ? <button type="button" className="ml-1.5 font-medium text-ui-fg-interactive hover:underline" onClick={() => takeJob(job.id, onChanged).then(onChanged, () => undefined)}>Take it</button> : null}
