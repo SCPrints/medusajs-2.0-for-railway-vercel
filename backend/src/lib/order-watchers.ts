@@ -5,7 +5,7 @@
  * the list is bounded (max 5) and only ever read alongside the order.
  */
 
-import { isValidEmail } from "./email-validation"
+import { cleanEmail, isValidEmail } from "./email-validation"
 
 const MAX_WATCHERS = 5
 
@@ -21,7 +21,7 @@ export function addWatcher(
   metadata: Record<string, unknown> | null | undefined,
   email: string
 ): { ok: true; watchers: string[] } | { ok: false; error: string } {
-  const trimmed = email.trim().toLowerCase()
+  const trimmed = cleanEmail(email)
   if (!isValidEmail(trimmed)) {
     return { ok: false, error: "Enter a valid email address." }
   }
@@ -42,7 +42,7 @@ export function removeWatcher(
   metadata: Record<string, unknown> | null | undefined,
   email: string
 ): string[] {
-  const target = email.trim().toLowerCase()
+  const target = cleanEmail(email)
   return readWatchers(metadata).filter((e) => e !== target)
 }
 

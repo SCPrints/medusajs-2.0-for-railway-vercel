@@ -10,7 +10,7 @@ import {
   type ContactAttachment,
 } from "../../lib/contact-submissions"
 import { fillCustomerBlanks } from "../../lib/customer-fill"
-import { isValidEmail } from "../../lib/email-validation"
+import { cleanEmail, isValidEmail } from "../../lib/email-validation"
 import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../lib/lead-relay"
 import { findOpenCarts } from "../../lib/open-carts"
 import { getPostHog } from "../../lib/posthog"
@@ -80,7 +80,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   const body = (req.body ?? {}) as Record<string, unknown>
   const firstName = typeof body.first_name === "string" ? body.first_name.trim() : null
   const lastName = typeof body.last_name === "string" ? body.last_name.trim() : null
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
+  const email = cleanEmail(body.email)
   const phone = typeof body.phone === "string" ? body.phone.trim().slice(0, 40) : ""
   const subject = typeof body.subject === "string" ? body.subject.trim() : null
   const message = typeof body.message === "string" ? body.message.trim() : ""

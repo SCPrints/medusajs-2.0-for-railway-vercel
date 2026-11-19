@@ -6,7 +6,7 @@ import { ContainerRegistrationKeys, Modules } from "@medusajs/framework/utils"
 
 import { findCustomerIdByEmail } from "../../../lib/customer-fill"
 import { isWalkInEmail, walkInEmail } from "../../../lib/walk-in"
-import { isValidEmail } from "../../../lib/email-validation"
+import { cleanEmail, isValidEmail } from "../../../lib/email-validation"
 import { getPostHog } from "../../../lib/posthog"
 import { slimQuoteForAdmin } from "../../../lib/quote-admin-slim"
 import { QUOTE_MODULE } from "../../../modules/quote"
@@ -155,7 +155,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     return res.status(400).json({ message: err?.message ?? "Invalid request" })
   }
 
-  const givenEmail = (parsed.email ?? "").trim().toLowerCase()
+  const givenEmail = cleanEmail(parsed.email)
   let email = givenEmail
   let customerId: string | null = parsed.customer_id ?? null
   if (givenEmail) {

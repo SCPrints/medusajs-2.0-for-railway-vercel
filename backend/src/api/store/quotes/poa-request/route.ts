@@ -9,7 +9,7 @@ import {
   CONTACT_NOTIFICATION_EMAIL,
   SUPPORT_REPLY_TO_EMAIL,
 } from "../../../../lib/constants"
-import { isValidEmail } from "../../../../lib/email-validation"
+import { cleanEmail, isValidEmail } from "../../../../lib/email-validation"
 import { fillCustomerBlanks, findCustomerIdByEmail } from "../../../../lib/customer-fill"
 import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../../lib/lead-relay"
 import { MAX_AUTO_PRICED_STITCHES } from "../../../../lib/embroidery-pricing"
@@ -81,7 +81,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
       .json({ success: false, message: err?.message ?? "Invalid request" })
   }
 
-  const email = parsed.email.trim().toLowerCase()
+  const email = cleanEmail(parsed.email)
   if (!isValidEmail(email)) {
     return res
       .status(400)

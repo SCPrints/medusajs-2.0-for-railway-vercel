@@ -14,7 +14,7 @@ import {
   DATABASE_URL,
   NEWSLETTER_NOTIFICATION_EMAIL,
 } from "../../lib/constants"
-import { isValidEmail } from "../../lib/email-validation"
+import { cleanEmail, isValidEmail } from "../../lib/email-validation"
 import { parseNotificationEmailList } from "../../lib/notification-recipients"
 import { getPostHog } from "../../lib/posthog"
 import { getStorefrontOriginAllowlist } from "../../lib/storefront-origins"
@@ -79,7 +79,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
   setManualCors(req, res)
 
   const body = (req.body ?? {}) as Record<string, unknown>
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
+  const email = cleanEmail(body.email)
 
   if (!isValidEmail(email)) {
     return res.status(400).json({

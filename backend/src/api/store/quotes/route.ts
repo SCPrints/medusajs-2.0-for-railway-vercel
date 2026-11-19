@@ -8,7 +8,7 @@ import {
   CONTACT_NOTIFICATION_EMAIL,
   SUPPORT_REPLY_TO_EMAIL,
 } from "../../../lib/constants"
-import { isValidEmail } from "../../../lib/email-validation"
+import { cleanEmail, isValidEmail } from "../../../lib/email-validation"
 import { fillCustomerBlanks, findCustomerIdByEmail } from "../../../lib/customer-fill"
 import { getPostHog } from "../../../lib/posthog"
 import { LEAD_RELAY_REJECTED, readLeadRelay } from "../../../lib/lead-relay"
@@ -89,7 +89,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
     })
   }
 
-  const email = parsed.email.trim().toLowerCase()
+  const email = cleanEmail(parsed.email)
   if (!isValidEmail(email)) {
     return res
       .status(400)

@@ -2,6 +2,7 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { Pool } from "pg"
 import { ulid } from "ulid"
 
+import { cleanEmail, isValidEmail } from "../../lib/email-validation"
 import { DATABASE_URL } from "../../lib/constants"
 import { getPostHog } from "../../lib/posthog"
 import { getStorefrontOriginAllowlist } from "../../lib/storefront-origins"
@@ -66,7 +67,6 @@ async function ensureAbandonedCartTable() {
   await ensureAbandonedCartTablePromise
 }
 
-const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 
 export async function OPTIONS(req: MedusaRequest, res: MedusaResponse) {
   setManualCors(req, res)
@@ -78,7 +78,7 @@ export async function POST(req: MedusaRequest, res: MedusaResponse) {
 
   const body = (req.body ?? {}) as Record<string, unknown>
   const cartId = typeof body.cart_id === "string" ? body.cart_id.trim() : ""
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
+  const email = cleanEmail(body.email)
   const countryCode = typeof body.country_code === "string" ? body.country_code.trim() : null
   const currencyCode = typeof body.currency_code === "string" ? body.currency_code.trim() : null
   const cartTotal =
